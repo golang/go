@@ -755,61 +755,69 @@ func (p *http2clientConnPool) getClientConn(req *Request, addr string, dialOnMis
 		// It gets its own connection.
 		http2traceGetConn(req, addr)
 		const singleUse = true
-		cc, err := p.t.dialClientConn(addr, singleUse)
+		cc, err := p.t.dialClientConn(req.Context(), addr, singleUse)
 		if err != nil {
 			return nil, err
 		}
 		return cc, nil
 	}
-	p.mu.Lock()
-	for _, cc := range p.conns[addr] {
-		if st := cc.idleState(); st.canTakeNewRequest {
-			if p.shouldTraceGetConn(st) {
-				http2traceGetConn(req, addr)
+	for {
+		p.mu.Lock()
+		for _, cc := range p.conns[addr] {
+			if st := cc.idleState(); st.canTakeNewRequest {
+				if p.shouldTraceGetConn(st) {
+					http2traceGetConn(req, addr)
+				}
+				p.mu.Unlock()
+				return cc, nil
 			}
-			p.mu.Unlock()
-			return cc, nil
 		}
-	}
-	if !dialOnMiss {
+		if !dialOnMiss {
+			p.mu.Unlock()
+			return nil, http2ErrNoCachedConn
+		}
+		http2traceGetConn(req, addr)
+		call := p.getStartDialLocked(req.Context(), addr)
 		p.mu.Unlock()
-		return nil, http2ErrNoCachedConn
+		<-call.done
+		if http2shouldRetryDial(call, req) {
+			continue
+		}
+		return call.res, call.err
 	}
-	http2traceGetConn(req, addr)
-	call := p.getStartDialLocked(addr)
-	p.mu.Unlock()
-	<-call.done
-	return call.res, call.err
 }
 
 // dialCall is an in-flight Transport dial call to a host.
 type http2dialCall struct {
-	_    http2incomparable
-	p    *http2clientConnPool
+	_ http2incomparable
+	p *http2clientConnPool
+	// the context associated with the request
+	// that created this dialCall
+	ctx  context.Context
 	done chan struct{}    // closed when done
 	res  *http2ClientConn // valid after done is closed
 	err  error            // valid after done is closed
 }
 
 // requires p.mu is held.
-func (p *http2clientConnPool) getStartDialLocked(addr string) *http2dialCall {
+func (p *http2clientConnPool) getStartDialLocked(ctx context.Context, addr string) *http2dialCall {
 	if call, ok := p.dialing[addr]; ok {
 		// A dial is already in-flight. Don't start another.
 		return call
 	}
-	call := &http2dialCall{p: p, done: make(chan struct{})}
+	call := &http2dialCall{p: p, done: make(chan struct{}), ctx: ctx}
 	if p.dialing == nil {
 		p.dialing = make(map[string]*http2dialCall)
 	}
 	p.dialing[addr] = call
-	go call.dial(addr)
+	go call.dial(call.ctx, addr)
 	return call
 }
 
 // run in its own goroutine.
-func (c *http2dialCall) dial(addr string) {
+func (c *http2dialCall) dial(ctx context.Context, addr string) {
 	const singleUse = false // shared conn
-	c.res, c.err = c.p.t.dialClientConn(addr, singleUse)
+	c.res, c.err = c.p.t.dialClientConn(ctx, addr, singleUse)
 	close(c.done)
 
 	c.p.mu.Lock()
@@ -952,6 +960,31 @@ type http2noDialClientConnPool struct{ *http2clientConnPool }
 
 func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
 	return p.getClientConn(req, addr, http2noDialOnMiss)
+}
+
+// shouldRetryDial reports whether the current request should
+// retry dialing after the call finished unsuccessfully, for example
+// if the dial was canceled because of a context cancellation or
+// deadline expiry.
+func http2shouldRetryDial(call *http2dialCall, req *Request) bool {
+	if call.err == nil {
+		// No error, no need to retry
+		return false
+	}
+	if call.ctx == req.Context() {
+		// If the call has the same context as the request, the dial
+		// should not be retried, since any cancellation will have come
+		// from this request.
+		return false
+	}
+	if !errors.Is(call.err, context.Canceled) && !errors.Is(call.err, context.DeadlineExceeded) {
+		// If the call error is not because of a context cancellation or a deadline expiry,
+		// the dial should not be retried.
+		return false
+	}
+	// Only retry if the error is a context cancellation error or deadline expiry
+	// and the context associated with the call was canceled or expired.
+	return call.ctx.Err() != nil
 }
 
 // Buffer chunks are allocated from a pool to reduce pressure on GC.
@@ -7084,12 +7117,12 @@ func http2canRetryError(err error) bool {
 	return false
 }
 
-func (t *http2Transport) dialClientConn(addr string, singleUse bool) (*http2ClientConn, error) {
+func (t *http2Transport) dialClientConn(ctx context.Context, addr string, singleUse bool) (*http2ClientConn, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
-	tconn, err := t.dialTLS()("tcp", addr, t.newTLSConfig(host))
+	tconn, err := t.dialTLS(ctx)("tcp", addr, t.newTLSConfig(host))
 	if err != nil {
 		return nil, err
 	}
@@ -7110,34 +7143,28 @@ func (t *http2Transport) newTLSConfig(host string) *tls.Config {
 	return cfg
 }
 
-func (t *http2Transport) dialTLS() func(string, string, *tls.Config) (net.Conn, error) {
+func (t *http2Transport) dialTLS(ctx context.Context) func(string, string, *tls.Config) (net.Conn, error) {
 	if t.DialTLS != nil {
 		return t.DialTLS
 	}
-	return t.dialTLSDefault
-}
-
-func (t *http2Transport) dialTLSDefault(network, addr string, cfg *tls.Config) (net.Conn, error) {
-	cn, err := tls.Dial(network, addr, cfg)
-	if err != nil {
-		return nil, err
-	}
-	if err := cn.Handshake(); err != nil {
-		return nil, err
-	}
-	if !cfg.InsecureSkipVerify {
-		if err := cn.VerifyHostname(cfg.ServerName); err != nil {
+	return func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+		dialer := &tls.Dialer{
+			Config: cfg,
+		}
+		cn, err := dialer.DialContext(ctx, network, addr)
+		if err != nil {
 			return nil, err
 		}
+		tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
+		state := tlsCn.ConnectionState()
+		if p := state.NegotiatedProtocol; p != http2NextProtoTLS {
+			return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, http2NextProtoTLS)
+		}
+		if !state.NegotiatedProtocolIsMutual {
+			return nil, errors.New("http2: could not negotiate protocol mutually")
+		}
+		return cn, nil
 	}
-	state := cn.ConnectionState()
-	if p := state.NegotiatedProtocol; p != http2NextProtoTLS {
-		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, http2NextProtoTLS)
-	}
-	if !state.NegotiatedProtocolIsMutual {
-		return nil, errors.New("http2: could not negotiate protocol mutually")
-	}
-	return cn, nil
 }
 
 // disableKeepAlives reports whether connections should be closed as

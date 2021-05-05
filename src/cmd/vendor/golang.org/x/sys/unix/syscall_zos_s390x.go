@@ -222,6 +222,8 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 //sys   Creat(path string, mode uint32) (fd int, err error) = SYS___CREAT_A
 //sys	Dup(oldfd int) (fd int, err error)
 //sys	Dup2(oldfd int, newfd int) (err error)
+//sys	Errno2() (er2 int) = SYS___ERRNO2
+//sys	Err2ad() (eadd *int) = SYS___ERR2AD
 //sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
@@ -245,10 +247,12 @@ func Fstat(fd int, stat *Stat_t) (err error) {
 //sys   Poll(fds []PollFd, timeout int) (n int, err error) = SYS_POLL
 //sys   Times(tms *Tms) (ticks uintptr, err error) = SYS_TIMES
 //sys   W_Getmntent(buff *byte, size int) (lastsys int, err error) = SYS_W_GETMNTENT
+//sys   W_Getmntent_A(buff *byte, size int) (lastsys int, err error) = SYS___W_GETMNTENT_A
 
-//sys   Mount(path string, filesystem string, fstype string, mtm uint32, parmlen int32, parm string) (err error) = SYS___MOUNT_A
-//sys   Unmount(filesystem string, mtm int) (err error) = SYS___UMOUNT_A
+//sys   mount_LE(path string, filesystem string, fstype string, mtm uint32, parmlen int32, parm string) (err error) = SYS___MOUNT_A
+//sys   unmount(filesystem string, mtm int) (err error) = SYS___UMOUNT_A
 //sys   Chroot(path string) (err error) = SYS___CHROOT_A
+//sys   Select(nmsgsfds int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (ret int, err error) = SYS_SELECT
 //sysnb Uname(buf *Utsname) (err error) = SYS___UNAME_A
 
 func Ptsname(fd int) (name string, err error) {
@@ -1778,4 +1782,48 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 // process (["USER=go", "PWD=/tmp"]).
 func Exec(argv0 string, argv []string, envv []string) error {
 	return syscall.Exec(argv0, argv, envv)
+}
+
+func Mount(source string, target string, fstype string, flags uintptr, data string) (err error) {
+	if needspace := 8 - len(fstype); needspace <= 0 {
+		fstype = fstype[:8]
+	} else {
+		fstype += "        "[:needspace]
+	}
+	return mount_LE(target, source, fstype, uint32(flags), int32(len(data)), data)
+}
+
+func Unmount(name string, mtm int) (err error) {
+	// mountpoint is always a full path and starts with a '/'
+	// check if input string is not a mountpoint but a filesystem name
+	if name[0] != '/' {
+		return unmount(name, mtm)
+	}
+	// treat name as mountpoint
+	b2s := func(arr []byte) string {
+		nulli := bytes.IndexByte(arr, 0)
+		if nulli == -1 {
+			return string(arr)
+		} else {
+			return string(arr[:nulli])
+		}
+	}
+	var buffer struct {
+		header W_Mnth
+		fsinfo [64]W_Mntent
+	}
+	fsCount, err := W_Getmntent_A((*byte)(unsafe.Pointer(&buffer)), int(unsafe.Sizeof(buffer)))
+	if err != nil {
+		return err
+	}
+	if fsCount == 0 {
+		return EINVAL
+	}
+	for i := 0; i < fsCount; i++ {
+		if b2s(buffer.fsinfo[i].Mountpoint[:]) == name {
+			err = unmount(b2s(buffer.fsinfo[i].Fsname[:]), mtm)
+			break
+		}
+	}
+	return err
 }
