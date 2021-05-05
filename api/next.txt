@@ -90,8 +90,8 @@ pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles
 pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
 pkg testing, method (*B) Setenv(string, string)
 pkg testing, method (*T) Setenv(string, string)
-pkg text/template/parse, const DeferFuncCheck = 2
-pkg text/template/parse, const DeferFuncCheck Mode
+pkg text/template/parse, const SkipFuncCheck = 2
+pkg text/template/parse, const SkipFuncCheck Mode
 pkg time, func UnixMicro(int64) Time
 pkg time, func UnixMilli(int64) Time
 pkg time, method (*Time) IsDST() bool
