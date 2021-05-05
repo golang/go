@@ -379,12 +379,12 @@ func TestParseWithComments(t *testing.T) {
 	}
 }
 
-func TestDeferFuncCheck(t *testing.T) {
+func TestSkipFuncCheck(t *testing.T) {
 	oldTextFormat := textFormat
 	textFormat = "%q"
 	defer func() { textFormat = oldTextFormat }()
-	tr := New("defer func check")
-	tr.Mode = DeferFuncCheck
+	tr := New("skip func check")
+	tr.Mode = SkipFuncCheck
 	tmpl, err := tr.Parse("{{fn 1 2}}", "", "", make(map[string]*Tree))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
