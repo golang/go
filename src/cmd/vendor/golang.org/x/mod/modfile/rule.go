@@ -217,6 +217,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
 }
 
 var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].*)$`)
 
 func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
 	// If strict is false, this module is a dependency.
@@ -267,8 +268,17 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
 			errorf("go directive expects exactly one argument")
 			return
 		} else if !GoVersionRE.MatchString(args[0]) {
-			errorf("invalid go version '%s': must match format 1.23", args[0])
-			return
+			fixed := false
+			if !strict {
+				if m := laxGoVersionRE.FindStringSubmatch(args[0]); m != nil {
+					args[0] = m[1]
+					fixed = true
+				}
+			}
+			if !fixed {
+				errorf("invalid go version '%s': must match format 1.23", args[0])
+				return
+			}
 		}
 
 		f.Go = &Go{Syntax: line}
