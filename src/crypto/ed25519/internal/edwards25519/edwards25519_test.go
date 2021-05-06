@@ -7,7 +7,9 @@ package edwards25519
 import (
 	"crypto/ed25519/internal/edwards25519/field"
 	"encoding/hex"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -279,6 +281,9 @@ func TestNonCanonicalPoints(t *testing.T) {
 var testAllocationsSink byte
 
 func TestAllocations(t *testing.T) {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+		t.Skip("skipping allocations test without relevant optimizations")
+	}
 	if allocs := testing.AllocsPerRun(100, func() {
 		p := NewIdentityPoint()
 		p.Add(p, NewGeneratorPoint())
