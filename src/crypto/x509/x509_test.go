@@ -1417,6 +1417,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 		sigAlgo SignatureAlgorithm
 	}{
 		{"RSA", testPrivateKey, SHA256WithRSA},
+		{"RSA-PSS-SHA256", testPrivateKey, SHA256WithRSAPSS},
 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA256},
 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA256},
 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA256},
