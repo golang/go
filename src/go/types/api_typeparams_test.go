@@ -88,7 +88,7 @@ func TestInferredInfo(t *testing.T) {
 
 	for _, test := range tests {
 		info := Info{}
-		SetInferred(&info, make(map[ast.Expr]Inferred))
+		info.Inferred = make(map[ast.Expr]Inferred)
 		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
 		if err != nil {
 			t.Errorf("package %s: %v", name, err)
@@ -98,7 +98,7 @@ func TestInferredInfo(t *testing.T) {
 		// look for inferred type arguments and signature
 		var targs []Type
 		var sig *Signature
-		for call, inf := range GetInferred(&info) {
+		for call, inf := range info.Inferred {
 			var fun ast.Expr
 			switch x := call.(type) {
 			case *ast.CallExpr:
