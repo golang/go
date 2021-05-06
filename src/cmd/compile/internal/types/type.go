@@ -151,7 +151,7 @@ type Type struct {
 	// TARRAY: *Array
 	// TSLICE: Slice
 	// TSSA: string
-	// TTYPEPARAM:  *Interface (though we may not need to store/use the Interface info)
+	// TTYPEPARAM:  *Typeparam
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
@@ -377,6 +377,12 @@ type Interface struct {
 	pkg *Pkg
 }
 
+// Typeparam contains Type fields specific to typeparam types.
+type Typeparam struct {
+	index int // type parameter index in source order, starting at 0
+	bound *Type
+}
+
 // Ptr contains Type fields specific to pointer types.
 type Ptr struct {
 	Elem *Type // element type
@@ -558,7 +564,7 @@ func New(et Kind) *Type {
 	case TRESULTS:
 		t.Extra = new(Results)
 	case TTYPEPARAM:
-		t.Extra = new(Interface)
+		t.Extra = new(Typeparam)
 	}
 	return t
 }
@@ -825,6 +831,8 @@ func (t *Type) copy() *Type {
 	case TARRAY:
 		x := *t.Extra.(*Array)
 		nt.Extra = &x
+	case TTYPEPARAM:
+		base.Fatalf("typeparam types cannot be copied")
 	case TTUPLE, TSSA, TRESULTS:
 		base.Fatalf("ssa types cannot be copied")
 	}
@@ -1766,12 +1774,32 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	return t
 }
 
-// NewTypeParam returns a new type param.
-func NewTypeParam(pkg *Pkg) *Type {
+// NewTypeParam returns a new type param with the specified sym (package and name)
+// and specified index within the typeparam list.
+func NewTypeParam(sym *Sym, index int) *Type {
 	t := New(TTYPEPARAM)
-	t.Extra.(*Interface).pkg = pkg
+	t.sym = sym
+	t.Extra.(*Typeparam).index = index
 	t.SetHasTParam(true)
 	return t
+}
+
+// Index returns the index of the type param within its param list.
+func (t *Type) Index() int {
+	t.wantEtype(TTYPEPARAM)
+	return t.Extra.(*Typeparam).index
+}
+
+// SetBound sets the bound of a typeparam.
+func (t *Type) SetBound(bound *Type) {
+	t.wantEtype(TTYPEPARAM)
+	t.Extra.(*Typeparam).bound = bound
+}
+
+// Bound returns the bound of a typeparam.
+func (t *Type) Bound() *Type {
+	t.wantEtype(TTYPEPARAM)
+	return t.Extra.(*Typeparam).bound
 }
 
 const BOGUS_FUNARG_OFFSET = -1000000000

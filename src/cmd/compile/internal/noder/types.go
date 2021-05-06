@@ -204,18 +204,15 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
 
 	case *types2.TypeParam:
-		tp := types.NewTypeParam(g.tpkg(typ))
 		// Save the name of the type parameter in the sym of the type.
 		// Include the types2 subscript in the sym name
 		sym := g.pkg(typ.Obj().Pkg()).Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
-		tp.SetSym(sym)
+		tp := types.NewTypeParam(sym, typ.Index())
 		// Set g.typs[typ] in case the bound methods reference typ.
 		g.typs[typ] = tp
 
-		// TODO(danscales): we don't currently need to use the bounds
-		// anywhere, so eventually we can probably remove.
 		bound := g.typ1(typ.Bound())
-		*tp.Methods() = *bound.Methods()
+		tp.SetBound(bound)
 		return tp
 
 	case *types2.Tuple:
