@@ -4,14 +4,6 @@
 
 package types2
 
-import "sync/atomic"
-
 func init() {
 	acceptMethodTypeParams = true
 }
-
-// Upon calling ResetId, nextId starts with 1 again.
-// It may be called concurrently. This is only needed
-// for tests where we may want to have a consistent
-// numbering for each individual test case.
-func ResetId() { atomic.StoreUint32(&lastId, 0) }
