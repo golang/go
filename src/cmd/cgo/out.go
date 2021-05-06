@@ -172,6 +172,8 @@ func (p *Package) writeDefs() {
 				// reference to all symbols Go code is referring
 				// to -- because otherwise the system linker might decline
 				// to add DT_NEEDED entries for the library that has the symbol definition.
+				// We treat function pointer types differently to avoid link-time failures
+				// when using LTO with an external linker.
 				if n.Kind == "fpvar" {
 					fmt.Fprintf(fm, "extern void %s();\n", n.C)
 				} else {
