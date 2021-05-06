@@ -760,6 +760,11 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 	return typ
 }
 
+// Index returns the index of the type param within its param list.
+func (t *TypeParam) Index() int {
+	return t.index
+}
+
 func (t *TypeParam) Bound() *Interface {
 	iface := asInterface(t.bound)
 	// use the type bound position if we have one
