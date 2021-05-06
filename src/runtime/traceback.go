@@ -219,18 +219,25 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
 			flr = funcInfo{}
-		} else if flag&funcFlag_SPWRITE != 0 {
+		} else if flag&funcFlag_SPWRITE != 0 && (callback == nil || n > 0) {
 			// The function we are in does a write to SP that we don't know
 			// how to encode in the spdelta table. Examples include context
 			// switch routines like runtime.gogo but also any code that switches
 			// to the g0 stack to run host C code. Since we can't reliably unwind
 			// the SP (we might not even be on the stack we think we are),
 			// we stop the traceback here.
+			// This only applies for profiling signals (callback == nil).
+			//
+			// For a GC stack traversal (callback != nil), we should only see
+			// a function when it has voluntarily preempted itself on entry
+			// during the stack growth check. In that case, the function has
+			// not yet had a chance to do any writes to SP and is safe to unwind.
+			// isAsyncSafePoint does not allow assembly functions to be async preempted,
+			// and preemptPark double-checks that SPWRITE functions are not async preempted.
+			// So for GC stack traversal we leave things alone (this if body does not execute for n == 0)
+			// at the bottom frame of the stack. But farther up the stack we'd better not
+			// find any.
 			if callback != nil {
-				// Finding an SPWRITE should only happen for a profiling signal, which can
-				// arrive at any time. For a GC stack traversal (callback != nil),
-				// we shouldn't see this case, and we must be sure to walk the
-				// entire stack or the GC is invalid. So crash.
 				println("traceback: unexpected SPWRITE function", funcname(f))
 				throw("traceback")
 			}
