@@ -1241,7 +1241,11 @@ func machoEmitReloc(ctxt *Link) {
 
 	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		relocSect(ctxt, sect, ctxt.datap)
+		if sect.Name == ".text" {
+			relocSect(ctxt, sect, ctxt.Textp)
+		} else {
+			relocSect(ctxt, sect, ctxt.datap)
+		}
 	}
 	for _, sect := range Segrelrodata.Sections {
 		relocSect(ctxt, sect, ctxt.datap)
