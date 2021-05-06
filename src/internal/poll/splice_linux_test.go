@@ -46,6 +46,7 @@ func TestSplicePipePool(t *testing.T) {
 		poll.PutPipe(p)
 	}
 	ps = nil
+	p = nil
 
 	// Exploit the timeout of "go test" as a timer for the subsequent verification.
 	timeout := 5 * time.Minute
