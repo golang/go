@@ -732,11 +732,11 @@ func (t *Named) AddMethod(m *Func) {
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
-var lastId uint32
+var lastID uint32
 
-// nextId returns a value increasing monotonically by 1 with
+// nextID returns a value increasing monotonically by 1 with
 // each call, starting with 1. It may be called concurrently.
-func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
+func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
@@ -753,7 +753,13 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
+	// Always increment lastID, even if it is not used.
+	id := nextID()
+	if check != nil {
+		check.nextID++
+		id = check.nextID
+	}
+	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
