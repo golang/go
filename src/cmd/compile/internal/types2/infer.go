@@ -417,7 +417,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
-	types, index = u.x.types()
+	types, _ = u.x.types()
 	if debug {
 		for i, targ := range targs {
 			assert(targ == nil || types[i] == targ)
