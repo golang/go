@@ -24,7 +24,8 @@ func sanitizeInfo(info *Info) {
 		}
 	}
 
-	for e, inf := range info._Inferred {
+	inferred := getInferred(info)
+	for e, inf := range inferred {
 		changed := false
 		for i, targ := range inf.Targs {
 			if typ := s.typ(targ); typ != targ {
@@ -37,7 +38,7 @@ func sanitizeInfo(info *Info) {
 			changed = true
 		}
 		if changed {
-			info._Inferred[e] = inf
+			inferred[e] = inf
 		}
 	}
 
