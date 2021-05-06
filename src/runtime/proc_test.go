@@ -734,7 +734,7 @@ func BenchmarkCreateGoroutinesSingle(b *testing.B) {
 	var wg sync.WaitGroup
 	wg.Add(b.N)
 	for i := 0; i < b.N; i++ {
-		go func(){
+		go func() {
 			wg.Done()
 		}()
 	}
