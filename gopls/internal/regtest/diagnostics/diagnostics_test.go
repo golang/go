@@ -1912,3 +1912,27 @@ func foo() int {
 		)
 	})
 }
+
+// This test confirms that the view does not reinitialize when a go.mod file is
+// opened.
+func TestNoReinitialize(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+func main() {}
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.Await(
+			OnceMet(
+				env.DoneWithOpen(),
+				LogMatching(protocol.Info, `.*query=\[builtin mod.com/...\].*`, 1),
+			),
+		)
+	})
+}

@@ -277,7 +277,8 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 		// If gopls.mod has changed we need to either re-read it if it exists or
 		// walk the filesystem if it has been deleted.
 		gmURI := goplsModURI(w.root)
-		if change, ok := changes[gmURI]; ok {
+		// File opens/closes are just no-ops.
+		if change, ok := changes[gmURI]; ok && !change.isUnchanged {
 			if change.exists {
 				// Only invalidate if the gopls.mod actually parses.
 				// Otherwise, stick with the current gopls.mod.
@@ -326,7 +327,7 @@ func (w *workspace) invalidate(ctx context.Context, changes map[span.URI]*fileCh
 	// here.
 	if result.moduleSource != goplsModWorkspace {
 		for uri, change := range changes {
-			if !isGoMod(uri) || !source.InDir(result.root.Filename(), uri.Filename()) {
+			if change.isUnchanged || !isGoMod(uri) || !source.InDir(result.root.Filename(), uri.Filename()) {
 				continue
 			}
 			changed = true
