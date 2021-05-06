@@ -557,6 +557,7 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 	}
 	s.initializeOnce.Do(func() {
 		s.loadWorkspace(ctx, firstAttempt)
+		s.collectAllKnownSubdirs(ctx)
 	})
 }
 

@@ -1569,6 +1569,7 @@ func main() {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			EmptyDiagnostics("bob/bob.go"),
+			RegistrationMatching("didChangeWatchedFiles"),
 		)
 	})
 }

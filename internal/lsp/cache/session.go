@@ -553,8 +553,7 @@ func knownDirectories(ctx context.Context, snapshots []*snapshot) map[span.URI]s
 		for _, dir := range dirs {
 			result[dir] = struct{}{}
 		}
-		subdirs := snapshot.allKnownSubdirs(ctx)
-		for dir := range subdirs {
+		for _, dir := range snapshot.getKnownSubdirs(dirs) {
 			result[dir] = struct{}{}
 		}
 	}
