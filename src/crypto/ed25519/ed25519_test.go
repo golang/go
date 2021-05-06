@@ -186,6 +186,9 @@ func TestMalleability(t *testing.T) {
 }
 
 func TestAllocations(t *testing.T) {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+		t.Skip("skipping allocations test without relevant optimizations")
+	}
 	if allocs := testing.AllocsPerRun(100, func() {
 		seed := make([]byte, SeedSize)
 		message := []byte("Hello, world!")
