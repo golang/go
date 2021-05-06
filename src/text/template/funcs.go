@@ -478,7 +478,9 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				return false, errBadComparison
+				if arg1 != zero && arg != zero {
+					return false, errBadComparison
+				}
 			}
 		} else {
 			switch k1 {
@@ -495,7 +497,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case uintKind:
 				truth = arg1.Uint() == arg.Uint()
 			default:
-				if arg == zero {
+				if arg == zero || arg1 == zero {
 					truth = arg1 == arg
 				} else {
 					if t2 := arg.Type(); !t2.Comparable() {

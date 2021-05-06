@@ -1201,8 +1201,11 @@ var cmpTests = []cmpTest{
 	{"eq .Ptr .NilPtr", "false", true},
 	{"eq .NilPtr .NilPtr", "true", true},
 	{"eq .Iface1 .Iface1", "true", true},
-	{"eq .Iface1 .Iface2", "false", true},
-	{"eq .Iface2 .Iface2", "true", true},
+	{"eq .Iface1 .NilIface", "false", true},
+	{"eq .NilIface .NilIface", "true", true},
+	{"eq .NilIface .Iface1", "false", true},
+	{"eq .NilIface 0", "false", true},
+	{"eq 0 .NilIface", "false", true},
 	// Errors
 	{"eq `xy` 1", "", false},       // Different types.
 	{"eq 2 2.0", "", false},        // Different types.
@@ -1217,12 +1220,12 @@ var cmpTests = []cmpTest{
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Uthree, Ufour  uint
-		NegOne, Three  int
-		Ptr, NilPtr    *int
-		Map            map[int]int
-		V1, V2         V
-		Iface1, Iface2 fmt.Stringer
+		Uthree, Ufour    uint
+		NegOne, Three    int
+		Ptr, NilPtr      *int
+		Map              map[int]int
+		V1, V2           V
+		Iface1, NilIface fmt.Stringer
 	}{
 		Uthree: 3,
 		Ufour:  4,
