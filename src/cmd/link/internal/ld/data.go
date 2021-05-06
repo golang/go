@@ -67,7 +67,7 @@ func isRuntimeDepPkg(pkg string) bool {
 // Estimate the max size needed to hold any new trampolines created for this function. This
 // is used to determine when the section can be split if it becomes too large, to ensure that
 // the trampolines are in the same section as the function that uses them.
-func maxSizeTrampolinesPPC64(ldr *loader.Loader, s loader.Sym, isTramp bool) uint64 {
+func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bool) uint64 {
 	// If thearch.Trampoline is nil, then trampoline support is not available on this arch.
 	// A trampoline does not need any dependent trampolines.
 	if thearch.Trampoline == nil || isTramp {
@@ -82,8 +82,14 @@ func maxSizeTrampolinesPPC64(ldr *loader.Loader, s loader.Sym, isTramp bool) uin
 			n++
 		}
 	}
-	// Trampolines in ppc64 are 4 instructions.
-	return n * 16
+
+	if ctxt.IsPPC64() {
+		return n * 16 // Trampolines in PPC64 are 4 instructions.
+	}
+	if ctxt.IsARM64() {
+		return n * 12 // Trampolines in ARM64 are 3 instructions.
+	}
+	panic("unreachable")
 }
 
 // detect too-far jumps in function s, and add trampolines if necessary
@@ -2348,15 +2354,11 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		funcsize = uint64(ldr.SymSize(s))
 	}
 
-	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
-	// call target offset field in the bl instruction.  Splitting into smaller text
-	// sections smaller than this limit allows the GNU linker to modify the long calls
-	// appropriately. The limit allows for the space needed for tables inserted by the linker.
-	//
-	// If this function doesn't fit in the current text section, then create a new one.
+	// If we need to split text sections, and this function doesn't fit in the current
+	// section, then create a new one.
 	//
 	// Only break at outermost syms.
-	if ctxt.Arch.InFamily(sys.PPC64) && ldr.OuterSym(s) == 0 && ctxt.IsExternal() && big {
+	if big && splitTextSections(ctxt) && ldr.OuterSym(s) == 0 {
 		// For debugging purposes, allow text size limit to be cranked down,
 		// so as to stress test the code that handles multiple text sections.
 		var textSizelimit uint64 = thearch.TrampLimit
@@ -2367,18 +2369,22 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		// Sanity check: make sure the limit is larger than any
 		// individual text symbol.
 		if funcsize > textSizelimit {
-			panic(fmt.Sprintf("error: ppc64 text size limit %d less than text symbol %s size of %d", textSizelimit, ldr.SymName(s), funcsize))
+			panic(fmt.Sprintf("error: text size limit %d less than text symbol %s size of %d", textSizelimit, ldr.SymName(s), funcsize))
 		}
 
-		if va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(ldr, s, isTramp) > textSizelimit {
-			// Align the next text section to the worst case function alignment likely
-			// to be encountered when processing function symbols. The start address
-			// is rounded against the final alignment of the text section later on in
-			// (*Link).address. This may happen due to usage of PCALIGN directives
-			// larger than Funcalign, or usage of ISA 3.1 prefixed instructions
-			// (see ISA 3.1 Book I 1.9).
-			const ppc64maxFuncalign = 64
-			va = uint64(Rnd(int64(va), ppc64maxFuncalign))
+		if va-sect.Vaddr+funcsize+maxSizeTrampolines(ctxt, ldr, s, isTramp) > textSizelimit {
+			sectAlign := int32(thearch.Funcalign)
+			if ctxt.IsPPC64() {
+				// Align the next text section to the worst case function alignment likely
+				// to be encountered when processing function symbols. The start address
+				// is rounded against the final alignment of the text section later on in
+				// (*Link).address. This may happen due to usage of PCALIGN directives
+				// larger than Funcalign, or usage of ISA 3.1 prefixed instructions
+				// (see ISA 3.1 Book I 1.9).
+				const ppc64maxFuncalign = 64
+				sectAlign = ppc64maxFuncalign
+				va = uint64(Rnd(int64(va), ppc64maxFuncalign))
+			}
 
 			// Set the length for the previous text section
 			sect.Length = va - sect.Vaddr
@@ -2387,7 +2393,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 			sect = addsection(ctxt.loader, ctxt.Arch, &Segtext, ".text", 05)
 
 			sect.Vaddr = va
-			sect.Align = ppc64maxFuncalign
+			sect.Align = sectAlign
 			ldr.SetSymSect(s, sect)
 
 			// Create a symbol for the start of the secondary text sections
@@ -2400,7 +2406,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 				ntext.SetType(sym.STEXT)
 				ntext.SetSize(int64(MINFUNC))
 				ntext.SetOnList(true)
-				ntext.SetAlign(ppc64maxFuncalign)
+				ntext.SetAlign(sectAlign)
 				ctxt.tramps = append(ctxt.tramps, ntext.Sym())
 
 				ntext.SetValue(int64(va))
@@ -2427,6 +2433,19 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 	va += funcsize
 
 	return sect, n, va
+}
+
+// Return whether we may need to split text sections.
+//
+// On PPC64x whem external linking a text section should not be larger than 2^25 bytes
+// due to the size of call target offset field in the bl instruction.  Splitting into
+// smaller text sections smaller than this limit allows the system linker to modify the long
+// calls appropriately. The limit allows for the space needed for tables inserted by the
+// linker.
+//
+// The same applies to Darwin/ARM64, with 2^27 byte threshold.
+func splitTextSections(ctxt *Link) bool {
+	return (ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
 }
 
 // address assigns virtual addresses to all segments and sections and
