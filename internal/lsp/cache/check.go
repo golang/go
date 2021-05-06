@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
 	errors "golang.org/x/xerrors"
 )
@@ -343,7 +344,6 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 			}
 		}
 	}
-
 	// If this is a replaced module in the workspace, the version is
 	// meaningless, and we don't want clients to access it.
 	if m.module != nil {
@@ -447,6 +447,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode sour
 		},
 		typesSizes: m.typesSizes,
 	}
+	typeparams.InitInferred(pkg.typesInfo)
 
 	for _, gf := range pkg.m.goFiles {
 		// In the presence of line directives, we may need to report errors in

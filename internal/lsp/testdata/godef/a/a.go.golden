@@ -76,6 +76,42 @@ func Random2(y int) int
 [`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a?utm_source=gopls#Random2)
 -- aPackage-hover --
 Package a is a package for testing go to definition\.
+-- declBlockA-hover --
+```go
+type a struct {
+	x string
+}
+```
+
+1st type declaration block
+-- declBlockB-hover --
+```go
+type b struct{}
+```
+
+b has a comment
+-- declBlockC-hover --
+```go
+type c struct {
+	f string
+}
+```
+
+c is a struct
+-- declBlockD-hover --
+```go
+type d string
+```
+
+3rd type declaration block
+-- declBlockE-hover --
+```go
+type e struct {
+	f float64
+}
+```
+
+e has a comment
 -- err-definition --
 godef/a/a.go:33:6-9: defined here as ```go
 var err error
@@ -148,39 +184,3 @@ var z string
 ```
 
 z is a variable too\.
--- declBlockA-hover --
-```go
-type a struct {
-	x string
-}
-```
-
-1st type declaration block
--- declBlockB-hover --
-```go
-type b struct{}
-```
-
-b has a comment
--- declBlockC-hover --
-```go
-type c struct {
-	f string
-}
-```
-
-c is a struct
--- declBlockD-hover --
-```go
-type d string
-```
-
-3rd type declaration block
--- declBlockE-hover --
-```go
-type e struct {
-	f float64
-}
-```
-
-e has a comment

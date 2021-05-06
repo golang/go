@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/typeparams"
 	errors "golang.org/x/xerrors"
 )
 
@@ -125,10 +126,10 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 				break
 			}
 		}
-		h.Signature = objectString(x, i.qf)
+		h.Signature = objectString(x, i.qf, i.Inferred)
 	}
 	if obj := i.Declaration.obj; obj != nil {
-		h.SingleLine = objectString(obj, i.qf)
+		h.SingleLine = objectString(obj, i.qf, nil)
 	}
 	obj := i.Declaration.obj
 	if obj == nil {
@@ -237,7 +238,21 @@ func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
 
 // objectString is a wrapper around the types.ObjectString function.
 // It handles adding more information to the object string.
-func objectString(obj types.Object, qf types.Qualifier) string {
+func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signature) string {
+	// If the signature type was inferred, prefer the preferred signature with a
+	// comment showing the generic signature.
+	if sig, _ := obj.Type().(*types.Signature); sig != nil && len(typeparams.ForSignature(sig)) > 0 && inferred != nil {
+		obj2 := types.NewFunc(obj.Pos(), obj.Pkg(), obj.Name(), inferred)
+		str := types.ObjectString(obj2, qf)
+		// Try to avoid overly long lines.
+		if len(str) > 60 {
+			str += "\n"
+		} else {
+			str += " "
+		}
+		str += "// " + types.TypeString(sig, qf)
+		return str
+	}
 	str := types.ObjectString(obj, qf)
 	switch obj := obj.(type) {
 	case *types.Const:

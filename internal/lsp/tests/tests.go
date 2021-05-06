@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source/completion"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
+	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/txtar"
 )
 
@@ -39,9 +40,16 @@ const (
 	overlayFileSuffix = ".overlay"
 	goldenFileSuffix  = ".golden"
 	inFileSuffix      = ".in"
-	summaryFile       = "summary.txt"
 	testModule        = "golang.org/x/tools/internal/lsp"
 )
+
+var summaryFile = "summary.txt"
+
+func init() {
+	if typeparams.Enabled {
+		summaryFile = "summary_generics.txt"
+	}
+}
 
 var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
@@ -322,6 +330,14 @@ func load(t testing.TB, mode string, dir string) *Data {
 	}
 
 	files := packagestest.MustCopyFileTree(dir)
+	// Prune test cases that exercise generics.
+	if !typeparams.Enabled {
+		for name := range files {
+			if strings.Contains(name, "_generics") {
+				delete(files, name)
+			}
+		}
+	}
 	overlays := map[string][]byte{}
 	for fragment, operation := range files {
 		if trimmed := strings.TrimSuffix(fragment, goldenFileSuffix); trimmed != fragment {

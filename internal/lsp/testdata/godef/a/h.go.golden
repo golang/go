@@ -1,39 +1,3 @@
--- nestedNumber-hover --
-```go
-field number int64
-```
-
-nested number
--- nestedString-hover --
-```go
-field str string
-```
-
-nested string
--- nestedMap-hover --
-```go
-field m map[string]float64
-```
-
-nested map
--- structA-hover --
-```go
-field a int
-```
-
-a field
--- structB-hover --
-```go
-field b struct{c int}
-```
-
-b nested struct
--- structC-hover --
-```go
-field c int
-```
-
-c field of nested struct
 -- arrD-hover --
 ```go
 field d int
@@ -86,12 +50,60 @@ field x string
 ```
 
 X value field
+-- nestedMap-hover --
+```go
+field m map[string]float64
+```
+
+nested map
+-- nestedNumber-hover --
+```go
+field number int64
+```
+
+nested number
+-- nestedString-hover --
+```go
+field str string
+```
+
+nested string
 -- openMethod-hover --
 ```go
 func (interface).open() error
 ```
 
 open method comment
+-- returnX-hover --
+```go
+field x int
+```
+
+X coord
+-- returnY-hover --
+```go
+field y int
+```
+
+Y coord
+-- structA-hover --
+```go
+field a int
+```
+
+a field
+-- structB-hover --
+```go
+field b struct{c int}
+```
+
+b nested struct
+-- structC-hover --
+```go
+field c int
+```
+
+c field of nested struct
 -- testDescription-hover --
 ```go
 field desc string
@@ -122,15 +134,3 @@ field value int
 ```
 
 expected test value
--- returnX-hover --
-```go
-field x int
-```
-
-X coord
--- returnY-hover --
-```go
-field y int
-```
-
-Y coord
