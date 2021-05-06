@@ -19,6 +19,11 @@ type (
 
 func NewSum(types []Type) Type { return _NewSum(types) }
 
+// NewTypeParam returns a new TypeParam.
+func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+	return (*Checker)(nil).newTypeParam(obj, index, bound)
+}
+
 func (s *Signature) TParams() []*TypeName           { return s._TParams() }
 func (s *Signature) SetTParams(tparams []*TypeName) { s._SetTParams(tparams) }
 

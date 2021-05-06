@@ -353,7 +353,6 @@ func TestTypesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		ResetId() // avoid renumbering of type parameter ids when adding tests
 		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
 			continue
 		}
