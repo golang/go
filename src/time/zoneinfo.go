@@ -178,7 +178,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
 	// If we're at the end of the known zone transitions,
 	// try the extend string.
 	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, ok := tzset(l.extend, end, sec); ok {
+		if ename, eoffset, estart, eend, _, ok := tzset(l.extend, end, sec); ok {
 			return ename, eoffset, estart, eend
 		}
 	}
@@ -244,7 +244,7 @@ func (l *Location) firstZoneUsed() bool {
 // We call this a tzset string since in C the function tzset reads TZ.
 // The return values are as for lookup, plus ok which reports whether the
 // parse succeeded.
-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, ok bool) {
+func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
 	var (
 		stdName, dstName     string
 		stdOffset, dstOffset int
@@ -255,7 +255,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		stdOffset, s, ok = tzsetOffset(s)
 	}
 	if !ok {
-		return "", 0, 0, 0, false
+		return "", 0, 0, 0, false, false
 	}
 
 	// The numbers in the tzset string are added to local time to get UTC,
@@ -265,7 +265,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	if len(s) == 0 || s[0] == ',' {
 		// No daylight savings time.
-		return stdName, stdOffset, initEnd, omega, true
+		return stdName, stdOffset, initEnd, omega, false, true
 	}
 
 	dstName, s, ok = tzsetName(s)
@@ -278,7 +278,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 		}
 	}
 	if !ok {
-		return "", 0, 0, 0, false
+		return "", 0, 0, 0, false, false
 	}
 
 	if len(s) == 0 {
@@ -287,19 +287,19 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 	}
 	// The TZ definition does not mention ';' here but tzcode accepts it.
 	if s[0] != ',' && s[0] != ';' {
-		return "", 0, 0, 0, false
+		return "", 0, 0, 0, false, false
 	}
 	s = s[1:]
 
 	var startRule, endRule rule
 	startRule, s, ok = tzsetRule(s)
 	if !ok || len(s) == 0 || s[0] != ',' {
-		return "", 0, 0, 0, false
+		return "", 0, 0, 0, false, false
 	}
 	s = s[1:]
 	endRule, s, ok = tzsetRule(s)
 	if !ok || len(s) > 0 {
-		return "", 0, 0, 0, false
+		return "", 0, 0, 0, false, false
 	}
 
 	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
@@ -313,10 +313,15 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 
 	startSec := int64(tzruleTime(year, startRule, stdOffset))
 	endSec := int64(tzruleTime(year, endRule, dstOffset))
+	dstIsDST, stdIsDST := true, false
+	// Note: this is a flipping of "DST" and "STD" while retaining the labels
+	// This happens in southern hemispheres. The labelling here thus is a little
+	// inconsistent with the goal.
 	if endSec < startSec {
 		startSec, endSec = endSec, startSec
 		stdName, dstName = dstName, stdName
 		stdOffset, dstOffset = dstOffset, stdOffset
+		stdIsDST, dstIsDST = dstIsDST, stdIsDST
 	}
 
 	// The start and end values that we return are accurate
@@ -324,11 +329,11 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
 	// just the start and end of the year. That suffices for
 	// the only caller that cares, which is Date.
 	if ysec < startSec {
-		return stdName, stdOffset, abs, startSec + abs, true
+		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
 	} else if ysec >= endSec {
-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, true
+		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
 	} else {
-		return dstName, dstOffset, startSec + abs, endSec + abs, true
+		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
 	}
 }
 

@@ -501,3 +501,19 @@ func TestZeroTimerStopPanics(t *testing.T) {
 	var tr Timer
 	tr.Stop()
 }
+
+// Test that zero duration timers aren't missed by the scheduler. Regression test for issue 44868.
+func TestZeroTimer(t *testing.T) {
+	if testing.Short() {
+		t.Skip("-short")
+	}
+
+	for i := 0; i < 1000000; i++ {
+		s := Now()
+		ti := NewTimer(0)
+		<-ti.C
+		if diff := Since(s); diff > 2*Second {
+			t.Errorf("Expected time to get value from Timer channel in less than 2 sec, took %v", diff)
+		}
+	}
+}
