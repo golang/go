@@ -2971,7 +2971,13 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		if str.Contains(cgoLDFLAGS, "-pie") && str.Contains(cgoLDFLAGS, "-static") {
+		if !str.Contains(ldflags, "-no-pie") {
+			// if we do'nt see '-no-pie',
+			// we add "-pie" keep backward-compatibility
+			// (https://golang.org/cl/5989058)
+			ldflags = append(ldflags, "-pie")
+		}
+		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
 			// -static -pie doesn't make sense, and causes link errors.
 			// Issue 26197.
 			n := make([]string, 0, len(ldflags))
