@@ -80,6 +80,7 @@ func init() {
 		modfetch.HelpPrivate,
 		test.HelpTestflag,
 		test.HelpTestfunc,
+		test.HelpFuzz,
 		modget.HelpVCS,
 	}
 }

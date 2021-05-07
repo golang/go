@@ -60,8 +60,8 @@ followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".
-These additional files can contain test functions, benchmark functions, and
-example functions. See 'go help testfunc' for more.
+These additional files can contain test functions, benchmark functions, fuzz
+targets and example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 
@@ -129,6 +129,8 @@ match future runs in which the files and environment variables are unchanged.
 A cached test result is treated as executing in no time at all,
 so a successful package test result will be cached and reused
 regardless of -timeout setting.
+
+Run 'go help fuzz' for details around how the go command handles fuzz targets.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
@@ -206,7 +208,8 @@ control the execution of any test:
 	    (for example, -benchtime 100x).
 
 	-count n
-	    Run each test and benchmark n times (default 1).
+	    Run each test, benchmark, and fuzz targets' seed corpora n times
+	    (default 1).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
 	    Examples are always run once.
 
@@ -235,32 +238,51 @@ control the execution of any test:
 	    Sets -cover.
 
 	-cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or
-	    benchmarks should be executed. The default is the current value
+	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+	    fuzz targets should be executed. The default is the current value
 	    of GOMAXPROCS.
 
 	-failfast
 	    Do not start new tests after the first test failure.
 
+	-fuzz name
+	    Run the fuzz target with the given regexp. Must match exactly one fuzz
+	    target. This is an experimental feature.
+
+	-fuzztime t
+	    Run enough iterations of the fuzz test to take t, specified as a
+	    time.Duration (for example, -fuzztime 1h30s). The default is to run
+	    forever.
+	    The special syntax Nx means to run the fuzz test N times
+	    (for example, -fuzztime 100x).
+
+	-keepfuzzing
+	    Keep running the fuzz target if a crasher is found.
+
 	-list regexp
-	    List tests, benchmarks, or examples matching the regular expression.
-	    No tests, benchmarks or examples will be run. This will only
-	    list top-level tests. No subtest or subbenchmarks will be shown.
+	    List tests, benchmarks, fuzz targets, or examples matching the regular
+	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+	    This will only list top-level tests. No subtest or subbenchmarks will be
+	    shown.
 
 	-parallel n
-	    Allow parallel execution of test functions that call t.Parallel.
+	    Allow parallel execution of test functions that call t.Parallel, and
+	    f.Fuzz functions that call t.Parallel when running the seed corpus.
 	    The value of this flag is the maximum number of tests to run
-	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+	    simultaneously. While fuzzing, the value of this flag is the
+	    maximum number of workers to run the fuzz function simultaneously,
+	    regardless of whether t.Parallel has been called; by default, it is set
+	    to the value of GOMAXPROCS.
 	    Note that -parallel only applies within a single test binary.
 	    The 'go test' command may run tests for different packages
 	    in parallel as well, according to the setting of the -p flag
 	    (see 'go help build').
 
 	-run regexp
-	    Run only those tests and examples matching the regular expression.
-	    For tests, the regular expression is split by unbracketed slash (/)
-	    characters into a sequence of regular expressions, and each part
-	    of a test's identifier must match the corresponding element in
+	    Run only those tests, examples, and fuzz targets matching the regular
+	    expression. For tests, the regular expression is split by unbracketed
+	    slash (/) characters into a sequence of regular expressions, and each
+	    part of a test's identifier must match the corresponding element in
 	    the sequence, if any. Note that possible parents of matches are
 	    run too, so that -run=X/Y matches and runs and reports the result
 	    of all tests matching X, even those without sub-tests matching Y,
@@ -430,6 +452,10 @@ A benchmark function is one named BenchmarkXxx and should have the signature,
 
 	func BenchmarkXxx(b *testing.B) { ... }
 
+A fuzz target is one named FuzzXxx and should have the signature,
+
+	func FuzzXxx(f *testing.F) { ... }
+
 An example function is similar to a test function but, instead of using
 *testing.T to report success or failure, prints output to os.Stdout.
 If the last comment in the function starts with "Output:" then the output
@@ -469,9 +495,31 @@ Here is another example where the ordering of the output is ignored:
 
 The entire test file is presented as the example when it contains a single
 example function, at least one other function, type, variable, or constant
-declaration, and no test or benchmark functions.
+declaration, and no fuzz targets or test or benchmark functions.
 
 See the documentation of the testing package for more information.
+`,
+}
+
+var HelpFuzz = &base.Command{
+	UsageLine: "fuzz",
+	Short:     "fuzzing",
+	Long: `
+By default, go test will build and run the fuzz targets using the target's seed
+corpus only. Any generated corpora in $GOCACHE that were previously written by
+the fuzzing engine will not be run by default.
+
+When -fuzz is set, the binary will be instrumented for coverage. After all
+tests, examples, benchmark functions, and the seed corpora for all fuzz targets
+have been run, go test will begin to fuzz the specified fuzz target.
+Note that this feature is experimental.
+
+-run can be used for testing a single seed corpus entry for a fuzz target. The
+regular expression value of -run can be in the form $target/$name, where $target
+is the name of the fuzz target, and $name is the name of the file (ignoring file
+extensions) to run. For example, -run=FuzzFoo/497b6f87.
+
+See https://golang.org/s/draft-fuzzing-design for more details.
 `,
 }
 
