@@ -405,7 +405,13 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 266197 -->
-      TODO: <a href="https://golang.org/cl/266197">https://golang.org/cl/266197</a>: add Method.IsExported and StructField.IsExported methods
+      The new
+      <a href="/pkg/reflect/#StructField.IsExported"><code>StructField.IsExported</code></a>
+      and
+      <a href="/pkg/reflect/#Method.IsExported"><code>Method.IsExported</code></a>
+      methods report whether a struct field or type method is exported.
+      They provide a more readable alternative to checking whether <code>PkgPath</code>
+      is empty.
     </p>
 
     <p><!-- CL 281233 -->
