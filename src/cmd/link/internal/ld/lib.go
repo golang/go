@@ -926,24 +926,24 @@ func (ctxt *Link) mangleTypeSym() {
 
 // typeSymbolMangle mangles the given symbol name into something shorter.
 //
-// Keep the type.. prefix, which parts of the linker (like the
+// Keep the type:. prefix, which parts of the linker (like the
 // DWARF generator) know means the symbol is not decodable.
-// Leave type.runtime. symbols alone, because other parts of
+// Leave type:runtime. symbols alone, because other parts of
 // the linker manipulates them.
 func typeSymbolMangle(name string) string {
-	if !strings.HasPrefix(name, "type.") {
+	if !strings.HasPrefix(name, "type:") {
 		return name
 	}
-	if strings.HasPrefix(name, "type.runtime.") {
+	if strings.HasPrefix(name, "type:runtime.") {
 		return name
 	}
 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
 		return name
 	}
 	hash := notsha256.Sum256([]byte(name))
-	prefix := "type."
+	prefix := "type:"
 	if name[5] == '.' {
-		prefix = "type.."
+		prefix = "type:."
 	}
 	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
 }
@@ -2319,11 +2319,11 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			continue
 		}
 
-		// Symbols whose names start with "type." are compiler
-		// generated, so make functions with that prefix internal.
+		// Symbols whose names start with "type:" are compiler generated,
+		// so make functions with that prefix internal.
 		ver := 0
 		symname := elfsym.Name // (unmangled) symbol name
-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type:") {
 			ver = abiInternalVer
 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
@@ -2357,7 +2357,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			// The decodetype_* functions in decodetype.go need access to
 			// the type data.
 			sname := l.SymName(s)
-			if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
+			if strings.HasPrefix(sname, "type:") && !strings.HasPrefix(sname, "type:.") {
 				su.SetData(readelfsymboldata(ctxt, f, &elfsym))
 			}
 		}

@@ -222,7 +222,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 
 		// Write header.
 		// Keep in sync with runtime/symtab.go:pcHeader and package debug/gosym.
-		header.SetUint32(ctxt.Arch, 0, 0xfffffff0)
+		header.SetUint32(ctxt.Arch, 0, 0xfffffff1)
 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
@@ -627,7 +627,7 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
-	gofunc := ldr.Lookup("go.func.*", 0)
+	gofunc := ldr.Lookup("go:func.*", 0)
 	gofuncBase := ldr.SymValue(gofunc)
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	funcdata := []loader.Sym{}
@@ -716,7 +716,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			}
 		}
 
-		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
+		// Write funcdata refs as offsets from go:func.* and go:funcrel.*.
 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
 		off = int64(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
@@ -729,7 +729,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			}
 
 			if outer := ldr.OuterSym(fdsym); outer != gofunc {
-				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
+				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go:func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
 			}
 			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)-gofuncBase))
 		}

@@ -1531,7 +1531,7 @@ func (ctxt *Link) doelf() {
 	if ctxt.IsShared() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
 		sb := ldr.MakeSymbolUpdater(s)
 		ldr.SetAttrLocal(s, true)
 		sb.SetType(sym.SRODATA)

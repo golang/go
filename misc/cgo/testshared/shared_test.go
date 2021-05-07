@@ -589,12 +589,12 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
 		return
 	}
 	for _, sym := range symbols {
-		if sym.Name == "go.link.abihashbytes" {
+		if sym.Name == "go:link.abihashbytes" {
 			hashbytes = sym
 		}
 	}
 	if hashbytes.Name == "" {
-		t.Errorf("no symbol called go.link.abihashbytes")
+		t.Errorf("no symbol called go:link.abihashbytes")
 		return
 	}
 	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {

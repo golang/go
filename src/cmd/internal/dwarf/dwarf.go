@@ -21,15 +21,15 @@ import (
 )
 
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
-const InfoPrefix = "go.info."
+const InfoPrefix = "go:info."
 
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
-const ConstInfoPrefix = "go.constinfo."
+const ConstInfoPrefix = "go:constinfo."
 
 // CUInfoPrefix is the prefix for symbols containing information to
 // populate the DWARF compilation unit info entries.
-const CUInfoPrefix = "go.cuinfo."
+const CUInfoPrefix = "go:cuinfo."
 
 // Used to form the symbol name assigned to the DWARF 'abstract subprogram"
 // info entry for a function

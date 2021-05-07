@@ -222,7 +222,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				if ldr.SymName(rs) == "main.main" || (!target.IsPlugin() && ldr.SymName(rs) == "main..inittask") {
 					sb := ldr.MakeSymbolUpdater(rs)
 					sb.SetType(sym.SDYNIMPORT)
-				} else if strings.HasPrefix(ldr.SymName(rs), "go.info.") {
+				} else if strings.HasPrefix(ldr.SymName(rs), "go:info.") {
 					// Skip go.info symbols. They are only needed to communicate
 					// DWARF info between the compiler and linker.
 					continue
@@ -1108,7 +1108,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 	}
 	if goType := l.SymGoType(s); goType == 0 {
 		return
-	} else if typeName := l.SymName(goType); typeName != "type.string" {
+	} else if typeName := l.SymName(goType); typeName != "type:string" {
 		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
 		return
 	}
@@ -2152,7 +2152,7 @@ func (ctxt *Link) textbuildid() {
 	}
 
 	ldr := ctxt.loader
-	s := ldr.CreateSymForUpdate("go.buildid", 0)
+	s := ldr.CreateSymForUpdate("go:buildid", 0)
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
@@ -2627,7 +2627,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	}
 
 	if ctxt.BuildMode == BuildModeShared {
-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
 		sect := ldr.SymSect(ldr.LookupOrCreateSym(".note.go.abihash", 0))
 		ldr.SetSymSect(s, sect)
 		ldr.SetSymValue(s, int64(sect.Vaddr+16))

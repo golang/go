@@ -232,7 +232,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 
 	// Create a new init func text symbol. Caller will populate this
 	// sym with arch-specific content.
-	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	ifs := ctxt.loader.LookupOrCreateSym("go:link.addmoduledata", 0)
 	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
 	ctxt.loader.SetAttrReachable(ifs, true)
 	ctxt.loader.SetAttrLocal(ifs, true)
@@ -245,7 +245,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
-	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	amdi := ctxt.loader.LookupOrCreateSym("go:link.addmoduledatainit", 0)
 	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
 	ctxt.loader.SetAttrReachable(amdi, true)
 	ctxt.loader.SetAttrLocal(amdi, true)

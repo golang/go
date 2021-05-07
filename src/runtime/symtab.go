@@ -393,7 +393,7 @@ const (
 
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
-	magic          uint32  // 0xFFFFFFF0
+	magic          uint32  // 0xFFFFFFF1
 	pad1, pad2     uint8   // 0,0
 	minLC          uint8   // min instruction size
 	ptrSize        uint8   // size of a ptr in bytes
@@ -599,7 +599,7 @@ const debugPcln = false
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
-	if hdr.magic != 0xfffffff0 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+	if hdr.magic != 0xfffffff1 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
 		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
 			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),

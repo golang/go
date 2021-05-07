@@ -471,7 +471,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 
 	gotype := reflectdata.TypeLinksym(n.Type())
 	delete(fnsym.Func().Autot, gotype)
-	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+	typename := dwarf.InfoPrefix + gotype.Name[len("type:"):]
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.InlFormal() || n.InlLocal() {

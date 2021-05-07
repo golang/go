@@ -1134,7 +1134,6 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	b.WriteString(".")
 	b.WriteString(msym.Name)
 	b.WriteString(suffix)
-
 	return rpkg.LookupBytes(b.Bytes())
 }
 

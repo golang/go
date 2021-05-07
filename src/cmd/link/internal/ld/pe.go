@@ -723,7 +723,27 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Is386() && ctxt.IsExternal() &&
-			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s)) {
+			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s) ||
+				// TODO(cuonglm): remove this hack
+				//
+				// Previously, windows/386 requires underscore prefix on external symbols,
+				// but that's only applied for SHOSTOBJ/SUNDEFEXT or cgo export symbols.
+				// "go.buildid" is STEXT, "type.*" is STYPE, thus they are not prefixed
+				// with underscore.
+				//
+				// In external linking mode, the external linker can't resolve them as
+				// external symbols. But we are lucky that they have "." in their name,
+				// so the external linker see them as Forwarder RVA exports. See:
+				//
+				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
+				//
+				// CL 317917 changes "." to ":" in symbols name, so theses symbols can not be
+				// found by external linker anymore. So a hacky way is adding the
+				// underscore prefix for these 2 symbols. I don't have enough knowledge to
+				// verify whether adding the underscore for all STEXT/STYPE symbols are
+				// fine, even if it could be, that would be done in future CL.
+				name == "go:buildid" || name == "type:*") {
 			name = "_" + name
 		}
 

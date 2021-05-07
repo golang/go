@@ -853,7 +853,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			// Special case for a rule combines the bytes of gostring.
 			// The v alignment might seem OK, but we don't want to load it
 			// using an offset because relocation comes later.
-			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go.string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
+			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go:string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
 		default:
 			genAddr = fromAddr.Offset%4 != 0
 		}

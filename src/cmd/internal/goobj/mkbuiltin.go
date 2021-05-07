@@ -105,7 +105,7 @@ func mkbuiltin(w io.Writer) {
 	extras := append(fextras[:], enumerateBasicTypes()...)
 	for _, b := range extras {
 		prefix := ""
-		if !strings.HasPrefix(b.name, "type.") {
+		if !strings.HasPrefix(b.name, "type:") {
 			prefix = pkg + "."
 		}
 		name := prefix + b.name
@@ -130,8 +130,8 @@ func enumerateBasicTypes() []extra {
 		"func(error) string"}
 	result := []extra{}
 	for _, n := range names {
-		result = append(result, extra{"type." + n, 0})
-		result = append(result, extra{"type.*" + n, 0})
+		result = append(result, extra{"type:" + n, 0})
+		result = append(result, extra{"type:*" + n, 0})
 	}
 	return result
 }
