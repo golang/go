@@ -494,8 +494,13 @@ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) 
 // A SelectorExpr is a selector expression X.Sel.
 type SelectorExpr struct {
 	miniExpr
-	X         Node
-	Sel       *types.Sym
+	X Node
+	// Sel is the name of the field or method being selected, without (in the
+	// case of methods) any preceding type specifier. If the field/method is
+	// exported, than the Sym uses the local package regardless of the package
+	// of the containing type.
+	Sel *types.Sym
+	// The actual selected field - may not be filled in until typechecking.
 	Selection *types.Field
 	Prealloc  *Name // preallocated storage for OCALLPART, if any
 }

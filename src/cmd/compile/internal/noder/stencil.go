@@ -112,14 +112,30 @@ func (g *irgen) stencil() {
 		// EditChildren rather than Visit), where we actually change the
 		// OFUNCINST node to an ONAME for the instantiated function.
 		// EditChildren is more expensive than Visit, so we only do this
-		// in the infrequent case of an OFUNCINSt without a corresponding
+		// in the infrequent case of an OFUNCINST without a corresponding
 		// call.
 		if foundFuncInst {
 			var edit func(ir.Node) ir.Node
 			edit = func(x ir.Node) ir.Node {
 				if x.Op() == ir.OFUNCINST {
-					st := g.getInstantiationForNode(x.(*ir.InstExpr))
-					return st.Nname
+					// inst.X is either a function name node
+					// or a selector expression for a method.
+					inst := x.(*ir.InstExpr)
+					st := g.getInstantiationForNode(inst)
+					modified = true
+					if inst.X.Op() == ir.ONAME {
+						return st.Nname
+					}
+					assert(inst.X.Op() == ir.OCALLPART)
+
+					// Return a new selector expression referring
+					// to the newly stenciled function.
+					oldse := inst.X.(*ir.SelectorExpr)
+					newse := ir.NewSelectorExpr(oldse.Pos(), ir.OCALLPART, oldse.X, oldse.Sel)
+					newse.Selection = types.NewField(oldse.Pos(), st.Sym(), st.Type())
+					newse.Selection.Nname = st
+					typed(inst.Type(), newse)
+					return newse
 				}
 				ir.EditChildren(x, edit)
 				return x
