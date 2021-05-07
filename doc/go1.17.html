@@ -303,7 +303,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
     <p><!-- CL 299531 -->
-      TODO: <a href="https://golang.org/cl/299531">https://golang.org/cl/299531</a>: limit bytes read by Uvarint to &lt;= 10
+      <code>binary.Uvarint</code> will stop reading after <code>10 bytes</code> to avoid
+      wasted computations. If more than <code>10 bytes</code> are needed, the byte count returned is <code>-11</code>.
+      <br />
+      Previous Go versions could return larger negative counts when reading incorrectly encoded varints.
     </p>
   </dd>
 </dl><!-- encoding/binary -->
