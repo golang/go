@@ -275,7 +275,11 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
   <dd>
     <p><!-- CL 273667 -->
-      TODO: <a href="https://golang.org/cl/273667">https://golang.org/cl/273667</a>: add Reset method to Reader and Writer
+      The new
+      <a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>
+      and
+      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>
+      methods allow reuse of a <code>Reader</code> or <code>Writer</code>.
     </p>
   </dd>
 </dl><!-- compress/lzw -->
