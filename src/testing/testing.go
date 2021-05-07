@@ -34,7 +34,7 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Testing_flags
+// https://golang.org/cmd/go/#hdr-Testing_flags.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkRandInt(b *testing.B) {
@@ -132,6 +132,27 @@
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
 //
+// Fuzzing
+//
+// Functions of the form
+//     func FuzzXxx(*testing.F)
+// are considered fuzz targets, and are executed by the "go test" command. When
+// the -fuzz flag is provided, the functions will be fuzzed.
+//
+// For a description of the testing flags, see
+// https://golang.org/cmd/go/#hdr-Testing_flags.
+//
+// For a description of fuzzing, see golang.org/s/draft-fuzzing-design.
+//
+// A sample fuzz target looks like this:
+//     func FuzzBytesCmp(f *testing.F) {
+//         f.Fuzz(func(t *testing.T, a, b []byte) {
+//             if bytes.HasPrefix(a, b) && !bytes.Contains(a, b) {
+//                 t.Error("HasPrefix is true, but Contains is false")
+//             }
+//         })
+//     }
+//
 // Skipping
 //
 // Tests or benchmarks may be skipped at run time with a call to
@@ -142,6 +163,21 @@
 //             t.Skip("skipping test in short mode.")
 //         }
 //         ...
+//     }
+//
+// The Skip method of *T can be used in a fuzz target if the input is invalid,
+// but should not be considered a crash. For example:
+//
+//     func FuzzJSONMarshalling(f *testing.F) {
+//         f.Fuzz(func(t *testing.T, b []byte) {
+//             var v interface{}
+//             if err := json.Unmarshal(b, &v); err != nil {
+//                 t.Skip()
+//             }
+//             if _, err := json.Marshal(v); err != nil {
+//                 t.Error("Marshal: %v", err)
+//             }
+//         })
 //     }
 //
 // Subtests and Sub-benchmarks
@@ -163,17 +199,25 @@
 // of the top-level test and the sequence of names passed to Run, separated by
 // slashes, with an optional trailing sequence number for disambiguation.
 //
-// The argument to the -run and -bench command-line flags is an unanchored regular
+// The argument to the -run, -bench, and -fuzz command-line flags is an unanchored regular
 // expression that matches the test's name. For tests with multiple slash-separated
 // elements, such as subtests, the argument is itself slash-separated, with
 // expressions matching each name element in turn. Because it is unanchored, an
 // empty expression matches any string.
 // For example, using "matching" to mean "whose name contains":
 //
-//     go test -run ''      # Run all tests.
-//     go test -run Foo     # Run top-level tests matching "Foo", such as "TestFooBar".
-//     go test -run Foo/A=  # For top-level tests matching "Foo", run subtests matching "A=".
-//     go test -run /A=1    # For all top-level tests, run subtests matching "A=1".
+//     go test -run ''        # Run all tests.
+//     go test -run Foo       # Run top-level tests matching "Foo", such as "TestFooBar".
+//     go test -run Foo/A=    # For top-level tests matching "Foo", run subtests matching "A=".
+//     go test -run /A=1      # For all top-level tests, run subtests matching "A=1".
+//     go test -fuzz FuzzFoo  # Fuzz the target matching "FuzzFoo"
+//
+// The -run argument can also be used to run a specific value in the seed
+// corpus, for debugging. For example:
+//     go test -run=FuzzFoo/9ddb952d9814
+//
+// The -fuzz and -run flags can both be set, in order to fuzz a target but
+// skip the execution of all other tests.
 //
 // Subtests can also be used to control parallelism. A parent test will only
 // complete once all of its subtests complete. In this example, all tests are
