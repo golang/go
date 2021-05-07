@@ -38,6 +38,7 @@ var files = []string{
 	"favicon.ico",
 	"godoc.html",
 	"godocs.js",
+	"gopher/pkg.png",
 	"images/minus.gif",
 	"images/plus.gif",
 	"images/treeview-black-line.gif",

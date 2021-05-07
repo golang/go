@@ -403,12 +403,6 @@ div#about {
   font-size: 1.25rem;
   margin: 0 auto 1.875rem;
 }
-div#gopher {
-  background: url(https://golang.org/doc/gopher/frontpage.png) no-repeat;
-  background-position: center top;
-  height: 9.688rem;
-  max-height: 200px; /* Setting in px to prevent the gopher from blowing up in very high default font-sizes */
-}
 a#start {
   display: block;
   padding: 0.625rem;
@@ -582,6 +576,7 @@ hr {
 img.gopher {
   float: right;
   margin-left: 0.625rem;
+  margin-top: -2.5rem;
   margin-bottom: 0.625rem;
   z-index: -1;
 }
