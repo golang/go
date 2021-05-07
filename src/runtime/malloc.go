@@ -734,7 +734,7 @@ mapped:
 		l2 := h.arenas[ri.l1()]
 		if l2 == nil {
 			// Allocate an L2 arena map.
-			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
+			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, &memstats.gcMiscSys))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
@@ -1305,6 +1305,7 @@ var persistentChunks *notInHeap
 // There is no associated free operation.
 // Intended for things like function/type/debug-related persistent data.
 // If align is 0, uses default align (currently 8).
+// If sysStat is nil, uses memstats.other_sys.
 // The returned memory will be zeroed.
 //
 // Consider marking persistentalloc'd types go:notinheap.
@@ -1336,6 +1337,10 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 		}
 	} else {
 		align = 8
+	}
+
+	if sysStat == nil {
+		sysStat = &memstats.other_sys
 	}
 
 	if size >= maxBlock {
