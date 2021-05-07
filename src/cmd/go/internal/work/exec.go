@@ -2980,13 +2980,13 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
 			// -static -pie doesn't make sense, and causes link errors.
 			// Issue 26197.
-			n := make([]string, 0, len(ldflags))
+			n := make([]string, 0, len(ldflags)-1)
 			for _, flag := range ldflags {
 				if flag != "-static" {
 					n = append(n, flag)
 				}
 			}
-			ldflags = append(n, "-pie")
+			ldflags = n
 		}
 	}
 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
