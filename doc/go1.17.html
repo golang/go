@@ -689,15 +689,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 264077 -->
-      TODO: <a href="https://golang.org/cl/264077">https://golang.org/cl/264077</a>: add Time.IsDST() to check if its Location is in Daylight Savings Time
+      The new <a href="/pkg/time/#Time.IsDST"><code>Time.IsDST</code></a> method can be used to check whether the time
+      is in Daylight Savings Time in its configured location.
     </p>
 
     <p><!-- CL 293349 -->
-      TODO: <a href="https://golang.org/cl/293349">https://golang.org/cl/293349</a>: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+      The new <a href="/pkg/time/#Time.UnixMilli"><code>Time.UnixMilli</code></a> and
+      <a href="/pkg/time/#Time.UnixMicro"><code>Time.UnixMicro</code></a> methods return the number of milliseconds and
+      microseconds elapsed since January 1, 1970 UTC respectively.<br>
+      The new <code>UnixMilli</code> and <code>UnixMicro</code> functions return local Time corresponding to given
+      Unix time.
     </p>
 
     <p><!-- CL 300996 -->
-      TODO: <a href="https://golang.org/cl/300996">https://golang.org/cl/300996</a>: support &#34;,&#34; as separator for fractional seconds
+      The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
+      The following time formats are now accepted:
+      <ul>
+        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
+        <li>Mon Jan _2 14:06:03,120007 2006</li>
+        <li>Mon Jan 2 14:06:03,120007 2006</li>
+      </ul>
     </p>
 
     <p><!-- CL 320252 -->
