@@ -308,7 +308,7 @@ func (p *Profile) postDecode() error {
 			if l.strX != 0 {
 				value, err = getString(p.stringTable, &l.strX, err)
 				labels[key] = append(labels[key], value)
-			} else if l.numX != 0 {
+			} else if l.numX != 0 || l.unitX != 0 {
 				numValues := numLabels[key]
 				units := numUnits[key]
 				if l.unitX != 0 {

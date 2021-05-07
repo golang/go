@@ -131,8 +131,9 @@ type ObjFile interface {
 	// Name returns the underlyinf file name, if available
 	Name() string
 
-	// Base returns the base address to use when looking up symbols in the file.
-	Base() uint64
+	// ObjAddr returns the objdump (linker) address corresponding to a runtime
+	// address, and an error.
+	ObjAddr(addr uint64) (uint64, error)
 
 	// BuildID returns the GNU build ID of the file, or an empty string.
 	BuildID() string
