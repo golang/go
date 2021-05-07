@@ -428,7 +428,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 268020 -->
-      TODO: <a href="https://golang.org/cl/268020">https://golang.org/cl/268020</a>: avoid allocation in File.WriteString
+      The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
+      has been optimized to no longer make a copy of the input string.
     </p>
   </dd>
 </dl><!-- os -->
