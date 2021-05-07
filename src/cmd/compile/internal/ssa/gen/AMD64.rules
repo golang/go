@@ -624,14 +624,6 @@
 // Recognize bit setting (a |= 1<<b) and toggling (a ^= 1<<b)
 (OR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTS(Q|L) x y)
 (XOR(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y) x) => (BTC(Q|L) x y)
-(ORLmodify [off] {sym} ptr s:(SHLL (MOVLconst [1]) <t> x) mem) =>
-	(BTSLmodify [off] {sym} ptr (ANDLconst <t> [31] x) mem)
-(ORQmodify [off] {sym} ptr s:(SHLQ (MOVQconst [1]) <t> x) mem) =>
-	(BTSQmodify [off] {sym} ptr (ANDQconst <t> [63] x) mem)
-(XORLmodify [off] {sym} ptr s:(SHLL (MOVLconst [1]) <t> x) mem) =>
-	(BTCLmodify [off] {sym} ptr (ANDLconst <t> [31] x) mem)
-(XORQmodify [off] {sym} ptr s:(SHLQ (MOVQconst [1]) <t> x) mem) =>
-	(BTCQmodify [off] {sym} ptr (ANDQconst <t> [63] x) mem)
 
 // Convert ORconst into BTS, if the code gets smaller, with boundary being
 // (ORL $40,AX is 3 bytes, ORL $80,AX is 6 bytes).
@@ -654,10 +646,6 @@
     => (BTRQconst [int8(log64(^c))] x)
 (ANDL (MOVLconst [c]) x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRLconst [int8(log32(^c))] x)
-(ANDLmodify [off] {sym} ptr (NOTL s:(SHLL (MOVLconst [1]) <t> x)) mem) =>
-	(BTRLmodify [off] {sym} ptr (ANDLconst <t> [31] x) mem)
-(ANDQmodify [off] {sym} ptr (NOTQ s:(SHLQ (MOVQconst [1]) <t> x)) mem) =>
-	(BTRQmodify [off] {sym} ptr (ANDQconst <t> [63] x) mem)
 
 // Special-case bit patterns on first/last bit.
 // generic.rules changes ANDs of high-part/low-part masks into a couple of shifts,
@@ -1126,14 +1114,14 @@
 	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
 ((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDQconst [off2] base) mem) && is32Bit(int64(off1)+int64(off2)) =>
 	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
-((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd32(off2) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [ValAndOff(valoff1).addOffset32(off2)] {sym} base mem)
-((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd32(off2) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [ValAndOff(valoff1).addOffset32(off2)] {sym} base mem)
-((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(int64(off1)+int64(off2)) =>
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1+off2] {sym} base val mem)
-((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(int64(off1)+int64(off2)) =>
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1+off2] {sym} base val mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd32(off2) =>
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).addOffset32(off2)] {sym} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem) && ValAndOff(valoff1).canAdd32(off2) =>
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).addOffset32(off2)] {sym} base mem)
+((ADD|SUB|AND|OR|XOR)Qmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|AND|OR|XOR)Qmodify [off1+off2] {sym} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDQconst [off2] base) val mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validVal(c) =>
@@ -1181,18 +1169,18 @@
 ((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAQ [off2] {sym2} base) mem)
 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
 	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
-((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+((ADD|AND|OR|XOR)Qconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd32(off2) && canMergeSym(sym1, sym2) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSym(sym1,sym2)} base mem)
-((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
+	((ADD|AND|OR|XOR)Qconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAQ [off2] {sym2} base) mem)
 	&& ValAndOff(valoff1).canAdd32(off2) && canMergeSym(sym1, sym2) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSym(sym1,sym2)} base mem)
-((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+	((ADD|AND|OR|XOR)Lconstmodify [ValAndOff(valoff1).addOffset32(off2)] {mergeSym(sym1,sym2)} base mem)
+((ADD|SUB|AND|OR|XOR)Qmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+	((ADD|SUB|AND|OR|XOR)Qmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
-	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
 // fold LEAQs together
 (LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
@@ -2078,13 +2066,9 @@
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
-(MOVLstore {sym} [off] ptr y:((BTC|BTR|BTS)L l:(MOVLload [off] {sym} ptr mem) <t> x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
-	((BTC|BTR|BTS)Lmodify [off] {sym} ptr (ANDLconst <t> [31] x) mem)
 (MOVQstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Qload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
 (MOVQstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)Q l:(MOVQload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
 	((ADD|SUB|AND|OR|XOR)Qmodify [off] {sym} ptr x mem)
-(MOVQstore {sym} [off] ptr y:((BTC|BTR|BTS)Q l:(MOVQload [off] {sym} ptr mem) <t> x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
-	((BTC|BTR|BTS)Qmodify [off] {sym} ptr (ANDQconst <t> [63] x) mem)
 
 // Merge ADDQconst and LEAQ into atomic loads.
 (MOV(Q|L|B)atomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) =>
@@ -2138,12 +2122,12 @@
 (MOVWQZX (MOVBQZX x)) => (MOVBQZX x)
 (MOVBQZX (MOVBQZX x)) => (MOVBQZX x)
 
-(MOVQstore [off] {sym} ptr a:((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
+(MOVQstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Qconst [c] l:(MOVQload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && clobber(l, a) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Qconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
-(MOVLstore [off] {sym} ptr a:((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
+	((ADD|AND|OR|XOR)Qconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
+(MOVLstore [off] {sym} ptr a:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr2 mem)) mem)
 	&& isSamePtr(ptr, ptr2) && a.Uses == 1 && l.Uses == 1 && clobber(l, a) =>
-	((ADD|AND|OR|XOR|BTC|BTR|BTS)Lconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
+	((ADD|AND|OR|XOR)Lconstmodify {sym} [makeValAndOff(int32(c),off)] ptr mem)
 
 // float <-> int register moves, with no conversion.
 // These come up when compiling math.{Float{32,64}bits,Float{32,64}frombits}.
