@@ -200,6 +200,9 @@ func TestStdKen(t *testing.T) {
 // Package paths of excluded packages.
 var excluded = map[string]bool{
 	"builtin": true,
+
+	// See #46027: some imports are missing for this submodule.
+	"crypto/ed25519/internal/edwards25519/field/_asm": true,
 }
 
 // typecheck typechecks the given package files.
@@ -304,13 +307,6 @@ func (w *walker) walk(dir string) {
 	if err != nil {
 		w.errh(err)
 		return
-	}
-
-	// skip submodules, which might not be vendored
-	for _, f := range files {
-		if f.Name() == "go.mod" {
-			return
-		}
 	}
 
 	// apply pkgh to the files in directory dir
