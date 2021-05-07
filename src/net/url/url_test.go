@@ -1244,6 +1244,9 @@ var resolveReferenceTests = []struct {
 	{"https://a/b/c/d;p?q", "//g/d/e/f?y#s", "https://g/d/e/f?y#s"},
 	{"https://a/b/c/d;p#s", "?y", "https://a/b/c/d;p?y"},
 	{"https://a/b/c/d;p?q#s", "?y", "https://a/b/c/d;p?y"},
+
+	// Empty path and query but with ForceQuery (issue 46033).
+	{"https://a/b/c/d;p?q#s", "?", "https://a/b/c/d;p?"},
 }
 
 func TestResolveReference(t *testing.T) {
