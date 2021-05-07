@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
-# golang.org/x/net v0.0.0-20201209123823-ac852fbbde11
+# golang.org/x/net v0.0.0-20210428183300-3f4a416c7d3b
 ## explicit
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts
