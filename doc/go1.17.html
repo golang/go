@@ -334,7 +334,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 247058 -->
-      TODO: <a href="https://golang.org/cl/247058">https://golang.org/cl/247058</a>: add MaxUint, MinInt, MaxInt
+      The math package now defines three more constants: <code>MaxUint</code>, <code>MaxInt</code> and <code>MinInt</code>.
+      For 32-bit systems their values are <code>2^32 - 1</code>, <code>2^31 - 1</code> and <code>-2^31</code>, respectively.
+      For 64-bit systems their values are <code>2^64 - 1</code>, <code>2^63 - 1</code> and <code>-2^63</code>, respectively.
     </p>
   </dd>
 </dl><!-- math -->
