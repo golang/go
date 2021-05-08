@@ -905,6 +905,9 @@ var deepEqualTests = []DeepEqualTest{
 	{error(nil), error(nil), true},
 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
 	{fn1, fn2, true},
+	{[]byte{1, 2, 3}, []byte{1, 2, 3}, true},
+	{[]MyByte{1, 2, 3}, []MyByte{1, 2, 3}, true},
+	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
 
 	// Inequalities
 	{1, 2, false},
@@ -950,6 +953,9 @@ var deepEqualTests = []DeepEqualTest{
 	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
+	{[]byte{1, 2, 3}, []MyByte{1, 2, 3}, false},
+	{[]MyByte{1, 2, 3}, MyBytes{1, 2, 3}, false},
+	{[]byte{1, 2, 3}, MyBytes{1, 2, 3}, false},
 
 	// Possible loops.
 	{&loop1, &loop1, true},
@@ -1046,6 +1052,82 @@ func TestDeepEqualUnexportedMap(t *testing.T) {
 	y1 := UnexpT{map[int]int{2: 3}}
 	if DeepEqual(&x1, &y1) {
 		t.Error("DeepEqual(x1, y1) = true, want false")
+	}
+}
+
+var deepEqualPerfTests = []struct {
+	x, y interface{}
+}{
+	{x: int8(99), y: int8(99)},
+	{x: []int8{99}, y: []int8{99}},
+	{x: int16(99), y: int16(99)},
+	{x: []int16{99}, y: []int16{99}},
+	{x: int32(99), y: int32(99)},
+	{x: []int32{99}, y: []int32{99}},
+	{x: int64(99), y: int64(99)},
+	{x: []int64{99}, y: []int64{99}},
+	{x: int(999999), y: int(999999)},
+	{x: []int{999999}, y: []int{999999}},
+
+	{x: uint8(99), y: uint8(99)},
+	{x: []uint8{99}, y: []uint8{99}},
+	{x: uint16(99), y: uint16(99)},
+	{x: []uint16{99}, y: []uint16{99}},
+	{x: uint32(99), y: uint32(99)},
+	{x: []uint32{99}, y: []uint32{99}},
+	{x: uint64(99), y: uint64(99)},
+	{x: []uint64{99}, y: []uint64{99}},
+	{x: uint(999999), y: uint(999999)},
+	{x: []uint{999999}, y: []uint{999999}},
+	{x: uintptr(999999), y: uintptr(999999)},
+	{x: []uintptr{999999}, y: []uintptr{999999}},
+
+	{x: float32(1.414), y: float32(1.414)},
+	{x: []float32{1.414}, y: []float32{1.414}},
+	{x: float64(1.414), y: float64(1.414)},
+	{x: []float64{1.414}, y: []float64{1.414}},
+
+	{x: complex64(1.414), y: complex64(1.414)},
+	{x: []complex64{1.414}, y: []complex64{1.414}},
+	{x: complex128(1.414), y: complex128(1.414)},
+	{x: []complex128{1.414}, y: []complex128{1.414}},
+
+	{x: true, y: true},
+	{x: []bool{true}, y: []bool{true}},
+
+	{x: "abcdef", y: "abcdef"},
+	{x: []string{"abcdef"}, y: []string{"abcdef"}},
+
+	{x: []byte("abcdef"), y: []byte("abcdef")},
+	{x: [][]byte{[]byte("abcdef")}, y: [][]byte{[]byte("abcdef")}},
+
+	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
+	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+}
+
+func TestDeepEqualAllocs(t *testing.T) {
+	for _, tt := range deepEqualPerfTests {
+		t.Run(ValueOf(tt.x).Type().String(), func(t *testing.T) {
+			got := testing.AllocsPerRun(100, func() {
+				if !DeepEqual(tt.x, tt.y) {
+					t.Errorf("DeepEqual(%v, %v)=false", tt.x, tt.y)
+				}
+			})
+			if int(got) != 0 {
+				t.Errorf("DeepEqual(%v, %v) allocated %d times", tt.x, tt.y, int(got))
+			}
+		})
+	}
+}
+
+func BenchmarkDeepEqual(b *testing.B) {
+	for _, bb := range deepEqualPerfTests {
+		b.Run(ValueOf(bb.x).Type().String(), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sink = DeepEqual(bb.x, bb.y)
+			}
+		})
 	}
 }
 
