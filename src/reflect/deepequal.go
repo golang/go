@@ -6,7 +6,10 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"internal/bytealg"
+	"unsafe"
+)
 
 // During deepValueEqual, must keep track of checks that are
 // in progress. The comparison algorithm assumes that all
@@ -102,6 +105,10 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.Pointer() == v2.Pointer() {
 			return true
 		}
+		// Special case for []byte, which is common.
+		if v1.Type().Elem().Kind() == Uint8 {
+			return bytealg.Equal(v1.Bytes(), v2.Bytes())
+		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited) {
 				return false
@@ -149,6 +156,18 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		}
 		// Can't do better than this:
 		return false
+	case Int, Int8, Int16, Int32, Int64:
+		return v1.Int() == v2.Int()
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v1.Uint() == v2.Uint()
+	case String:
+		return v1.String() == v2.String()
+	case Bool:
+		return v1.Bool() == v2.Bool()
+	case Float32, Float64:
+		return v1.Float() == v2.Float()
+	case Complex64, Complex128:
+		return v1.Complex() == v2.Complex()
 	default:
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)
