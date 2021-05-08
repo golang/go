@@ -403,6 +403,7 @@ func (p *parser) fileOrNil() *File {
 
 	// { TopLevelDecl ";" }
 	for p.tok != _EOF {
+		needSemi := true
 		switch p.tok {
 		case _Const:
 			p.next()
@@ -420,12 +421,13 @@ func (p *parser) fileOrNil() *File {
 			p.next()
 			if d := p.funcDeclOrNil(); d != nil {
 				f.DeclList = append(f.DeclList, d)
+				needSemi = false
 			}
 
 		default:
 			if p.tok == _Lbrace && len(f.DeclList) > 0 && isEmptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
 				// opening { of function declaration on next line
-				p.syntaxError("unexpected semicolon or newline before {")
+				p.syntaxError("unexpected semicolon before {")
 			} else {
 				p.syntaxError("non-declaration statement outside function body")
 			}
@@ -435,9 +437,11 @@ func (p *parser) fileOrNil() *File {
 
 		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
 		// since comments before may set pragmas for the next function decl.
-		p.clearPragma()
+		if needSemi {
+			p.clearPragma()
+		}
 
-		if p.tok != _EOF && !p.got(_Semi) {
+		if needSemi && p.tok != _EOF && !p.got(_Semi) {
 			p.syntaxError("after top level declaration")
 			p.advance(_Const, _Type, _Var, _Func)
 		}
@@ -692,8 +696,18 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		}
 	}
 	f.Type = p.funcType()
-	if p.tok == _Lbrace {
+	nl := true
+	if p.tok == _Semi {
+		nl = p.lit == "newline"
+		p.clearPragma()
+		p.next()
+	}
+	if nl && p.tok == _Lbrace {
 		f.Body = p.funcBody()
+		if p.tok == _Semi {
+			p.clearPragma()
+			p.next()
+		}
 	}
 
 	return f
@@ -918,6 +932,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 		pos := p.pos()
 		p.next()
 		ftyp := p.funcType()
+		if p.tok == _Semi && p.lit == "newline" {
+			p.next()
+		}
 		if p.tok == _Lbrace {
 			p.xnest++
 
@@ -1371,6 +1388,9 @@ func (p *parser) structType() *StructType {
 	typ.pos = p.pos()
 
 	p.want(_Struct)
+	if p.tok == _Semi && p.lit == "newline" {
+		p.next()
+	}
 	p.want(_Lbrace)
 	p.list(_Semi, _Rbrace, func() bool {
 		p.fieldDecl(typ)
@@ -1392,6 +1412,9 @@ func (p *parser) interfaceType() *InterfaceType {
 	typ.pos = p.pos()
 
 	p.want(_Interface)
+	if p.tok == _Semi && p.lit == "newline" {
+		p.next()
+	}
 	p.want(_Lbrace)
 	p.list(_Semi, _Rbrace, func() bool {
 		switch p.tok {
@@ -2162,6 +2185,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		init = p.simpleStmt(nil, keyword)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
 		if _, ok := init.(*RangeClause); ok {
+			if p.tok == _Semi && p.lit == "newline" {
+				p.next()
+			}
 			p.xnest = outer
 			return
 		}
@@ -2171,6 +2197,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	var semi struct {
 		pos Pos
 		lit string // valid if pos.IsKnown()
+	}
+	if p.tok == _Semi && p.lit == "newline" {
+		p.next()
 	}
 	if p.tok != _Lbrace {
 		if p.tok == _Semi {
@@ -2201,6 +2230,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 			}
 		} else if p.tok != _Lbrace {
 			condStmt = p.simpleStmt(nil, keyword)
+		}
+		if p.tok == _Semi && p.lit == "newline" {
+			p.next()
 		}
 	} else {
 		condStmt = init
@@ -2255,6 +2287,9 @@ func (p *parser) ifStmt() *IfStmt {
 	s.Init, s.Cond, _ = p.header(_If)
 	s.Then = p.blockStmt("if clause")
 
+	if p.tok == _Semi && p.lit == "newline" {
+		p.next()
+	}
 	if p.got(_Else) {
 		switch p.tok {
 		case _If:
@@ -2505,9 +2540,21 @@ func (p *parser) stmtList() (l []Stmt) {
 		l = append(l, s)
 		// ";" is optional before "}"
 		if !p.got(_Semi) && p.tok != _Rbrace {
-			p.syntaxError("at end of statement")
-			p.advance(_Semi, _Rbrace, _Case, _Default)
-			p.got(_Semi) // avoid spurious empty statement
+			switch s.(type) {
+			case *IfStmt:
+			case *LabeledStmt:
+				switch s.(*LabeledStmt).Stmt.(type) {
+				case *IfStmt:
+				default:
+					p.syntaxError("at end of statement")
+					p.advance(_Semi, _Rbrace, _Case, _Default)
+					p.got(_Semi) // avoid spurious empty statement
+				}
+			default:
+				p.syntaxError("at end of statement")
+				p.advance(_Semi, _Rbrace, _Case, _Default)
+				p.got(_Semi) // avoid spurious empty statement
+			}
 		}
 	}
 	return

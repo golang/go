@@ -8,15 +8,14 @@
 
 package p
 
-// accept Allman/BSD-style declaration but complain
-// (implicit semicolon between signature and body)
+// accept Allman/BSD-style declaration
 func _() int
-{ /* ERROR "unexpected semicolon or newline before {" */
+{
 	{ return 0 }
 }
 
 func _() {}
 
-func _(); { /* ERROR "unexpected semicolon or newline before {" */ }
+func _(); { /* ERROR "unexpected semicolon before {" */ }
 
 func _() {}

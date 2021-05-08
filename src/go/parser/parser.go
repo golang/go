@@ -1921,6 +1921,9 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 		pos token.Pos
 		lit string // ";" or "\n"; valid if pos.IsValid()
 	}
+	if p.tok == token.SEMICOLON && p.lit == "\n" {
+		p.next()
+	}
 	if p.tok != token.LBRACE {
 		if p.tok == token.SEMICOLON {
 			semi.pos = p.pos
@@ -1931,6 +1934,9 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 		}
 		if p.tok != token.LBRACE {
 			condStmt, _ = p.parseSimpleStmt(basic)
+		}
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			p.next()
 		}
 	} else {
 		condStmt = init
@@ -2190,6 +2196,9 @@ func (p *parser) parseForStmt() ast.Stmt {
 	if p.tok != token.LBRACE {
 		prevLev := p.exprLev
 		p.exprLev = -1
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			p.next()
+		}
 		if p.tok != token.SEMICOLON {
 			if p.tok == token.RANGE {
 				// "for range x" (nil lhs in assignment)
@@ -2202,19 +2211,31 @@ func (p *parser) parseForStmt() ast.Stmt {
 				s2, isRange = p.parseSimpleStmt(rangeOk)
 			}
 		}
+		if p.tok == token.SEMICOLON && p.lit == "\n" {
+			p.next()
+		}
 		if !isRange && p.tok == token.SEMICOLON {
 			p.next()
 			s1 = s2
 			s2 = nil
+			if p.tok == token.SEMICOLON && p.lit == "\n" {
+				p.next()
+			}
 			if p.tok != token.SEMICOLON {
 				s2, _ = p.parseSimpleStmt(basic)
 			}
 			p.expectSemi()
+			if p.tok == token.SEMICOLON && p.lit == "\n" {
+				p.next()
+			}
 			if p.tok != token.LBRACE {
 				s3, _ = p.parseSimpleStmt(basic)
 			}
 		}
 		p.exprLev = prevLev
+	}
+	if p.tok == token.SEMICOLON && p.lit == "\n" {
+		p.next()
 	}
 
 	body := p.parseBlockStmt()
@@ -2527,10 +2548,13 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 		body = p.parseBody()
 		p.expectSemi()
 	} else if p.tok == token.SEMICOLON {
+		isSemi := p.lit != "\n"
 		p.next()
 		if p.tok == token.LBRACE {
 			// opening { of function declaration on next line
-			p.error(p.pos, "unexpected semicolon or newline before {")
+			if isSemi {
+				p.error(p.pos, "unexpected semicolon or newline before {")
+			}
 			body = p.parseBody()
 			p.expectSemi()
 		}
