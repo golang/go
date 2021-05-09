@@ -459,51 +459,52 @@ func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n name) nameLen() int {
-	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
-}
-
-func (n name) tagLen() int {
-	if *n.data(0)&(1<<1) == 0 {
-		return 0
+func (n name) readvarint(off int) (int, int) {
+	v := 0
+	for i := 0; ; i++ {
+		x := *n.data(off + i)
+		v += int(x&0x7f) << (7 * i)
+		if x&0x80 == 0 {
+			return i + 1, v
+		}
 	}
-	off := 3 + n.nameLen()
-	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
 }
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
 		return ""
 	}
-	nl := n.nameLen()
-	if nl == 0 {
+	i, l := n.readvarint(1)
+	if l == 0 {
 		return ""
 	}
 	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(3))
-	hdr.len = nl
-	return s
+	hdr.str = unsafe.Pointer(n.data(1 + i))
+	hdr.len = l
+	return
 }
 
 func (n name) tag() (s string) {
-	tl := n.tagLen()
-	if tl == 0 {
+	if *n.data(0)&(1<<1) == 0 {
 		return ""
 	}
-	nl := n.nameLen()
+	i, l := n.readvarint(1)
+	i2, l2 := n.readvarint(1 + i + l)
 	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(3 + nl + 2))
-	hdr.len = tl
-	return s
+	hdr.str = unsafe.Pointer(n.data(1 + i + l + i2))
+	hdr.len = l2
+	return
 }
 
 func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
 		return ""
 	}
-	off := 3 + n.nameLen()
-	if tl := n.tagLen(); tl > 0 {
-		off += 2 + tl
+	i, l := n.readvarint(1)
+	off := 1 + i + l
+	if *n.data(0)&(1<<1) != 0 {
+		i2, l2 := n.readvarint(off)
+		off += i2 + l2
 	}
 	var nameOff nameOff
 	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
@@ -515,10 +516,8 @@ func (n name) isBlank() bool {
 	if n.bytes == nil {
 		return false
 	}
-	if n.nameLen() != 1 {
-		return false
-	}
-	return *n.data(3) == '_'
+	_, l := n.readvarint(1)
+	return l == 1 && *n.data(2) == '_'
 }
 
 // typelinksinit scans the types from extra modules and builds the
