@@ -1920,6 +1920,26 @@ func (w *exportWriter) expr(n ir.Node) {
 		// if exporting, DCLCONST should just be removed as its usage
 		// has already been replaced with literals
 
+	case ir.OFUNCINST:
+		n := n.(*ir.InstExpr)
+		w.op(ir.OFUNCINST)
+		w.pos(n.Pos())
+		w.expr(n.X)
+		w.uint64(uint64(len(n.Targs)))
+		for _, targ := range n.Targs {
+			w.typ(targ.Type())
+		}
+		if go117ExportTypes {
+			w.typ(n.Type())
+		}
+
+	case ir.OSELRECV2:
+		n := n.(*ir.AssignListStmt)
+		w.op(ir.OSELRECV2)
+		w.pos(n.Pos())
+		w.exprList(n.Lhs)
+		w.exprList(n.Rhs)
+
 	default:
 		base.Fatalf("cannot export %v (%d) node\n"+
 			"\t==> please file an issue and assign to gri@", n.Op(), int(n.Op()))
