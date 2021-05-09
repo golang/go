@@ -15,7 +15,7 @@ require (
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/tools v0.1.0
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	honnef.co/go/tools v0.1.4
+	honnef.co/go/tools v0.2.0
 	mvdan.cc/gofumpt v0.1.1
 	mvdan.cc/xurls/v2 v2.2.0
 )

@@ -8,7 +8,6 @@
 package hooks
 
 import (
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/source"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/simple"
@@ -17,24 +16,24 @@ import (
 )
 
 func updateAnalyzers(options *source.Options) {
-	add := func(analyzers map[string]*analysis.Analyzer, docs map[string]*lint.Documentation, skip map[string]struct{}) {
-		for check, a := range analyzers {
-			if _, ok := skip[check]; ok {
+	add := func(analyzers []*lint.Analyzer, skip map[string]struct{}) {
+		for _, a := range analyzers {
+			if _, ok := skip[a.Analyzer.Name]; ok {
 				continue
 			}
 
-			enabled := !docs[check].NonDefault
-			options.AddStaticcheckAnalyzer(a, enabled)
+			enabled := !a.Doc.NonDefault
+			options.AddStaticcheckAnalyzer(a.Analyzer, enabled)
 		}
 	}
 
-	add(simple.Analyzers, simple.Docs, nil)
-	add(staticcheck.Analyzers, staticcheck.Docs, map[string]struct{}{
+	add(simple.Analyzers, nil)
+	add(staticcheck.Analyzers, map[string]struct{}{
 		// This check conflicts with the vet printf check (golang/go#34494).
 		"SA5009": {},
 		// This check relies on facts from dependencies, which
 		// we don't currently compute.
 		"SA5011": {},
 	})
-	add(stylecheck.Analyzers, stylecheck.Docs, nil)
+	add(stylecheck.Analyzers, nil)
 }
