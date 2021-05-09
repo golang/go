@@ -1582,6 +1582,26 @@ func (r *importReader) node() ir.Node {
 	case ir.OEND:
 		return nil
 
+	case ir.OFUNCINST:
+		pos := r.pos()
+		x := r.expr()
+		ntargs := r.uint64()
+		var targs []ir.Node
+		if ntargs > 0 {
+			targs = make([]ir.Node, ntargs)
+			for i := range targs {
+				targs[i] = ir.TypeNode(r.typ())
+			}
+		}
+		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
+		if go117ExportTypes {
+			n.SetType(r.typ())
+		}
+		return n
+
+	case ir.OSELRECV2:
+		return ir.NewAssignListStmt(r.pos(), ir.OSELRECV2, r.exprList(), r.exprList())
+
 	default:
 		base.Fatalf("cannot import %v (%d) node\n"+
 			"\t==> please file an issue and assign to gri@", op, int(op))
