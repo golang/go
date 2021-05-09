@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"honnef.co/go/tools/analysis/lint"
+	"honnef.co/go/tools/quickfix"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
@@ -55,4 +56,5 @@ func updateAnalyzers(options *source.Options) {
 		"SA5011": {},
 	})
 	add(stylecheck.Analyzers, nil)
+	add(quickfix.Analyzers, nil)
 }
