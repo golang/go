@@ -450,14 +450,11 @@ type structType struct {
 //	1<<1 tag data follows the name
 //	1<<2 pkgPath nameOff follows the name and tag
 //
-// The next two bytes are the data length:
+// Following that, there is a varint-encoded length of the name,
+// followed by the name itself.
 //
-//	 l := uint16(data[1])<<8 | uint16(data[2])
-//
-// Bytes [3:3+l] are the string data.
-//
-// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
-// with the data following.
+// If tag data is present, it also has a varint-encoded length
+// followed by the tag itself.
 //
 // If the import path follows, then 4 bytes at the end of
 // the data form a nameOff. The import path is only set for concrete
@@ -465,6 +462,13 @@ type structType struct {
 //
 // If a name starts with "*", then the exported bit represents
 // whether the pointed to type is exported.
+//
+// Note: this encoding must match here and in:
+//   cmd/compile/internal/reflectdata/reflect.go
+//   runtime/type.go
+//   internal/reflectlite/type.go
+//   cmd/link/internal/ld/decodesym.go
+
 type name struct {
 	bytes *byte
 }
@@ -477,49 +481,70 @@ func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n name) nameLen() int {
-	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
+func (n name) hasTag() bool {
+	return (*n.bytes)&(1<<1) != 0
 }
 
-func (n name) tagLen() int {
-	if *n.data(0, "name flag field")&(1<<1) == 0 {
-		return 0
+// readVarint parses a varint as encoded by encoding/binary.
+// It returns the number of encoded bytes and the encoded value.
+func (n name) readVarint(off int) (int, int) {
+	v := 0
+	for i := 0; ; i++ {
+		x := *n.data(off+i, "read varint")
+		v += int(x&0x7f) << (7 * i)
+		if x&0x80 == 0 {
+			return i + 1, v
+		}
 	}
-	off := 3 + n.nameLen()
-	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
+}
+
+// writeVarint writes n to buf in varint form. Returns the
+// number of bytes written. n must be nonnegative.
+// Writes at most 10 bytes.
+func writeVarint(buf []byte, n int) int {
+	for i := 0; ; i++ {
+		b := byte(n & 0x7f)
+		n >>= 7
+		if n == 0 {
+			buf[i] = b
+			return i + 1
+		}
+		buf[i] = b | 0x80
+	}
 }
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
 		return
 	}
-	b := (*[4]byte)(unsafe.Pointer(n.bytes))
-
+	i, l := n.readVarint(1)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[3])
-	hdr.Len = int(b[1])<<8 | int(b[2])
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
+	hdr.Len = l
+	return
 }
 
 func (n name) tag() (s string) {
-	tl := n.tagLen()
-	if tl == 0 {
+	if !n.hasTag() {
 		return ""
 	}
-	nl := n.nameLen()
+	i, l := n.readVarint(1)
+	i2, l2 := n.readVarint(1 + i + l)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
-	hdr.Len = tl
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
+	hdr.Len = l2
+	return
 }
 
 func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
 		return ""
 	}
-	off := 3 + n.nameLen()
-	if tl := n.tagLen(); tl > 0 {
-		off += 2 + tl
+	i, l := n.readVarint(1)
+	off := 1 + i + l
+	if n.hasTag() {
+		i2, l2 := n.readVarint(off)
+		off += i2 + l2
 	}
 	var nameOff int32
 	// Note that this field may not be aligned in memory,
@@ -530,33 +555,35 @@ func (n name) pkgPath() string {
 }
 
 func newName(n, tag string, exported bool) name {
-	if len(n) > 1<<16-1 {
-		panic("reflect.nameFrom: name too long: " + n)
+	if len(n) >= 1<<29 {
+		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
 	}
-	if len(tag) > 1<<16-1 {
-		panic("reflect.nameFrom: tag too long: " + tag)
+	if len(tag) >= 1<<29 {
+		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
 	}
+	var nameLen [10]byte
+	var tagLen [10]byte
+	nameLenLen := writeVarint(nameLen[:], len(n))
+	tagLenLen := writeVarint(tagLen[:], len(tag))
 
 	var bits byte
-	l := 1 + 2 + len(n)
+	l := 1 + nameLenLen + len(n)
 	if exported {
 		bits |= 1 << 0
 	}
 	if len(tag) > 0 {
-		l += 2 + len(tag)
+		l += tagLenLen + len(tag)
 		bits |= 1 << 1
 	}
 
 	b := make([]byte, l)
 	b[0] = bits
-	b[1] = uint8(len(n) >> 8)
-	b[2] = uint8(len(n))
-	copy(b[3:], n)
+	copy(b[1:], nameLen[:nameLenLen])
+	copy(b[1+nameLenLen:], n)
 	if len(tag) > 0 {
-		tb := b[3+len(n):]
-		tb[0] = uint8(len(tag) >> 8)
-		tb[1] = uint8(len(tag))
-		copy(tb[2:], tag)
+		tb := b[1+nameLenLen+len(n):]
+		copy(tb, tagLen[:tagLenLen])
+		copy(tb[tagLenLen:], tag)
 	}
 
 	return name{bytes: &b[0]}
@@ -2570,7 +2597,7 @@ func StructOf(fields []StructField) Type {
 		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
 
 		repr = append(repr, (" " + ft.String())...)
-		if f.name.tagLen() > 0 {
+		if f.name.hasTag() {
 			hash = fnv1(hash, []byte(f.name.tag())...)
 			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
 		}
