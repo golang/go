@@ -534,6 +534,10 @@ type Analyzer struct {
 	// ActionKind is the kind of code action this analyzer produces. If
 	// unspecified the type defaults to quickfix.
 	ActionKind []protocol.CodeActionKind
+
+	// Severity is the severity set for diagnostics reported by this
+	// analyzer. If left unset it defaults to Warning.
+	Severity protocol.DiagnosticSeverity
 }
 
 func (a Analyzer) IsEnabled(view View) bool {

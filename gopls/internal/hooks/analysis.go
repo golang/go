@@ -8,6 +8,7 @@
 package hooks
 
 import (
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"honnef.co/go/tools/analysis/lint"
 	"honnef.co/go/tools/simple"
@@ -16,6 +17,24 @@ import (
 )
 
 func updateAnalyzers(options *source.Options) {
+	mapSeverity := func(severity lint.Severity) protocol.DiagnosticSeverity {
+		switch severity {
+		case lint.SeverityError:
+			return protocol.SeverityError
+		case lint.SeverityDeprecated:
+			// TODO(dh): in LSP, deprecated is a tag, not a severity.
+			//   We'll want to support this once we enable SA5011.
+			return protocol.SeverityWarning
+		case lint.SeverityWarning:
+			return protocol.SeverityWarning
+		case lint.SeverityInfo:
+			return protocol.SeverityInformation
+		case lint.SeverityHint:
+			return protocol.SeverityHint
+		default:
+			return protocol.SeverityWarning
+		}
+	}
 	add := func(analyzers []*lint.Analyzer, skip map[string]struct{}) {
 		for _, a := range analyzers {
 			if _, ok := skip[a.Analyzer.Name]; ok {
@@ -23,7 +42,7 @@ func updateAnalyzers(options *source.Options) {
 			}
 
 			enabled := !a.Doc.NonDefault
-			options.AddStaticcheckAnalyzer(a.Analyzer, enabled)
+			options.AddStaticcheckAnalyzer(a.Analyzer, enabled, mapSeverity(a.Doc.Severity))
 		}
 	}
 
