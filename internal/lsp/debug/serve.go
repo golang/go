@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	rpprof "runtime/pprof"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,6 +77,46 @@ type State struct {
 	mu      sync.Mutex
 	clients []*Client
 	servers []*Server
+
+	// bugs maps bug description -> formatted event
+	bugs map[string]string
+}
+
+func Bug(ctx context.Context, desc string) {
+	labels := [3]label.Label{
+		tag.Bug.Of(desc),
+	}
+	_, file, line, ok := runtime.Caller(1)
+	if ok {
+		labels[1] = tag.Callsite.Of(fmt.Sprintf("%s:%d", file, line))
+	}
+	core.Export(ctx, core.MakeEvent(labels, nil))
+}
+
+type bug struct {
+	Description, Event string
+}
+
+func (st *State) Bugs() []bug {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	var bugs []bug
+	for k, v := range st.bugs {
+		bugs = append(bugs, bug{k, v})
+	}
+	sort.Slice(bugs, func(i, j int) bool {
+		return bugs[i].Description < bugs[j].Description
+	})
+	return bugs
+}
+
+func (st *State) recordBug(description, event string) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.bugs == nil {
+		st.bugs = make(map[string]string)
+	}
+	st.bugs[description] = event
 }
 
 // Caches returns the set of Cache objects currently being served.
@@ -338,7 +379,7 @@ func (i *Instance) AddService(s protocol.Server, session *cache.Session) {
 	stdlog.Printf("unable to find a Client to add the protocol.Server to")
 }
 
-func getMemory(r *http.Request) interface{} {
+func getMemory(_ *http.Request) interface{} {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	return m
@@ -636,6 +677,9 @@ func makeInstanceExporter(i *Instance) event.Exporter {
 				}
 			}
 		}
+		if b := tag.Bug.Get(ev); b != "" {
+			i.State.recordBug(b, fmt.Sprintf("%v", ev))
+		}
 		return ctx
 	}
 	// StdTrace must be above export.Spans below (by convention, export
@@ -766,6 +810,8 @@ var MainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 <ul>{{range .State.Clients}}<li>{{template "clientlink" .Session.ID}}</li>{{end}}</ul>
 <h2>Servers</h2>
 <ul>{{range .State.Servers}}<li>{{template "serverlink" .ID}}</li>{{end}}</ul>
+<h2>Known bugs encountered</h2>
+<dl>{{range .State.Bugs}}<dt>{{.Description}}</dt><dd>{{.Event}}</dd>{{end}}</dl>
 {{end}}
 `))
 

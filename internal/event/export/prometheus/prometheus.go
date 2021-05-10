@@ -27,13 +27,13 @@ type Exporter struct {
 	metrics []metric.Data
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, ln label.Map) context.Context {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) context.Context {
 	if !event.IsMetric(ev) {
 		return ctx
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	metrics := metric.Entries.Get(ln).([]metric.Data)
+	metrics := metric.Entries.Get(lm).([]metric.Data)
 	for _, data := range metrics {
 		name := data.Handle()
 		// We keep the metrics in name sorted order so the page is stable and easy
