@@ -1,8 +1,5 @@
 cp go.mod go.mod.orig
 
-# Populate go.sum.
-go mod download
-
 # 'go list pkg' does not report an error when a retracted version is used.
 go list -e -f '{{if .Error}}{{.Error}}{{end}}' ./use
 ! stdout .
@@ -32,6 +29,11 @@ go 1.15
 
 require example.com/retract v1.0.0-bad
 
+-- go.sum --
+example.com/retract v1.0.0-bad h1:liAW69rbtjY67x2CcNzat668L/w+YGgNX3lhJsWIJis=
+example.com/retract v1.0.0-bad/go.mod h1:0DvGGofJ9hr1q63cBrOY/jSY52OwhRGA0K47NE80I5Y=
+example.com/retract/self/prev v1.1.0 h1:0/8I/GTG+1eJTFeDQ/fUbgrMsVHHyKhh3Z8DSZp1fuA=
+example.com/retract/self/prev v1.1.0/go.mod h1:xl2EcklWuZZHVtHWcpzfSJQmnzAGpKZYpA/Wto7SZN4=
 -- use/use.go --
 package use
 
