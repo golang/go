@@ -1579,6 +1579,16 @@ func (w *exportWriter) expr(n ir.Node) {
 		// We don't need a type here, as the type will be provided at the
 		// declaration of n.
 		w.op(ir.ONAME)
+
+		// This handles the case where we haven't yet transformed a call
+		// to a builtin, so we must write out the builtin as a name in the
+		// builtin package.
+		isBuiltin := n.BuiltinOp != ir.OXXX
+		w.bool(isBuiltin)
+		if isBuiltin {
+			w.string(n.Sym().Name)
+			break
+		}
 		w.localName(n)
 
 	// case OPACK, ONONAME:

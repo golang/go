@@ -1184,6 +1184,10 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.ONAME:
+		isBuiltin := r.bool()
+		if isBuiltin {
+			return types.BuiltinPkg.Lookup(r.string()).Def.(*ir.Name)
+		}
 		return r.localName()
 
 	// case OPACK, ONONAME:
