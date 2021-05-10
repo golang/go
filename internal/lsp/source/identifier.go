@@ -41,6 +41,11 @@ type IdentifierInfo struct {
 	qf  types.Qualifier
 }
 
+func (i *IdentifierInfo) IsImport() bool {
+	_, ok := i.Declaration.node.(*ast.ImportSpec)
+	return ok
+}
+
 type Declaration struct {
 	MappedRange []MappedRange
 	node        ast.Node
