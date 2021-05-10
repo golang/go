@@ -386,14 +386,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		load.CheckPackageErrors(pkgs)
 
-		haveExe := false
+		haveExternalExe := false
 		for _, pkg := range pkgs {
-			if pkg.Name == "main" {
-				haveExe = true
+			if pkg.Name == "main" && pkg.Module != nil && pkg.Module.Path != modload.Target.Path {
+				haveExternalExe = true
 				break
 			}
 		}
-		if haveExe {
+		if haveExternalExe {
 			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
 			var altMsg string
 			if modload.HasModRoot() {
