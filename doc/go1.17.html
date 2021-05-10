@@ -186,6 +186,17 @@ Do not send CLs removing the interior tags from such phrases.
   password-protected SSH keys.
 </p>
 
+<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
+
+<p><!-- golang.org/issue/45332 -->
+  When <code>go</code> <code>mod</code> <code>download</code> is invoked without
+  arguments, it will no longer save sums for downloaded module content to
+  <code>go.sum</code>. It may still make changes to <code>go.mod</code> and
+  <code>go.sum</code> needed to load the build list. This is the same as the
+  behavior in Go 1.15. To save sums for all modules, use <code>go</code>
+  <code>mod</code> <code>download</code> <code>all</code>.
+</p>
+
 <p><!-- CL 249759 -->
   TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
 </p>
