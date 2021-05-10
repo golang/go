@@ -1523,7 +1523,12 @@ func (w *exportWriter) commList(cases []*ir.CommClause) {
 	w.uint64(uint64(len(cases)))
 	for _, cas := range cases {
 		w.pos(cas.Pos())
-		w.node(cas.Comm)
+		defaultCase := cas.Comm == nil
+		w.bool(defaultCase)
+		if !defaultCase {
+			// Only call w.node for non-default cause (cas.Comm is non-nil)
+			w.node(cas.Comm)
+		}
 		w.stmtList(cas.Body)
 	}
 }

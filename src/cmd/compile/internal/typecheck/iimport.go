@@ -1121,7 +1121,13 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
 func (r *importReader) commList() []*ir.CommClause {
 	cases := make([]*ir.CommClause, r.uint64())
 	for i := range cases {
-		cases[i] = ir.NewCommStmt(r.pos(), r.node(), r.stmtList())
+		pos := r.pos()
+		defaultCase := r.bool()
+		var comm ir.Node
+		if !defaultCase {
+			comm = r.node()
+		}
+		cases[i] = ir.NewCommStmt(pos, comm, r.stmtList())
 	}
 	return cases
 }
@@ -1256,6 +1262,12 @@ func (r *importReader) node() ir.Node {
 		fn.OClosure = clo
 		if go117ExportTypes {
 			clo.SetType(typ)
+		}
+		if r.curfn.Type().HasTParam() {
+			// Generic functions aren't inlined, so give the closure a
+			// function name now, which is then available for use
+			// (after appending the type args) for each stenciling.
+			fn.Nname.SetSym(ClosureName(r.curfn))
 		}
 
 		return clo
