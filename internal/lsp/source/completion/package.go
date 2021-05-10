@@ -17,6 +17,7 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -43,7 +44,7 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 		return nil, nil, err
 	}
 
-	surrounding, err := packageCompletionSurrounding(snapshot.FileSet(), fh, pgf, rng.Start)
+	surrounding, err := packageCompletionSurrounding(ctx, snapshot.FileSet(), pgf, rng.Start)
 	if err != nil {
 		return nil, nil, errors.Errorf("invalid position for package completion: %w", err)
 	}
@@ -70,23 +71,25 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 // packageCompletionSurrounding returns surrounding for package completion if a
 // package completions can be suggested at a given position. A valid location
 // for package completion is above any declarations or import statements.
-func packageCompletionSurrounding(fset *token.FileSet, fh source.FileHandle, pgf *source.ParsedGoFile, pos token.Pos) (*Selection, error) {
-	src, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
+func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, pgf *source.ParsedGoFile, pos token.Pos) (*Selection, error) {
 	// If the file lacks a package declaration, the parser will return an empty
 	// AST. As a work-around, try to parse an expression from the file contents.
-	expr, _ := parser.ParseExprFrom(fset, fh.URI().Filename(), src, parser.Mode(0))
+	filename := pgf.URI.Filename()
+	expr, _ := parser.ParseExprFrom(fset, filename, pgf.Src, parser.Mode(0))
 	if expr == nil {
-		return nil, fmt.Errorf("unparseable file (%s)", fh.URI())
+		return nil, fmt.Errorf("unparseable file (%s)", pgf.URI)
 	}
 	tok := fset.File(expr.Pos())
+	offset := pgf.Tok.Offset(pos)
+	if offset > tok.Size() {
+		debug.Bug(ctx, "out of bounds cursor", "cursor offset (%d) out of bounds for %s (size: %d)", offset, pgf.URI, tok.Size())
+		return nil, fmt.Errorf("cursor out of bounds")
+	}
 	cursor := tok.Pos(pgf.Tok.Offset(pos))
 	m := &protocol.ColumnMapper{
 		URI:       pgf.URI,
-		Content:   src,
-		Converter: span.NewContentConverter(fh.URI().Filename(), src),
+		Content:   pgf.Src,
+		Converter: span.NewContentConverter(filename, pgf.Src),
 	}
 
 	// If we were able to parse out an identifier as the first expression from
@@ -114,7 +117,7 @@ func packageCompletionSurrounding(fset *token.FileSet, fh source.FileHandle, pgf
 	// *ast.BadDecl since it is a keyword. This logic would allow "package" to
 	// appear on any line of the file as long as it's the first code expression
 	// in the file.
-	lines := strings.Split(string(src), "\n")
+	lines := strings.Split(string(pgf.Src), "\n")
 	cursorLine := tok.Line(cursor)
 	if cursorLine <= 0 || cursorLine > len(lines) {
 		return nil, fmt.Errorf("invalid line number")
@@ -150,7 +153,7 @@ func packageCompletionSurrounding(fset *token.FileSet, fh source.FileHandle, pgf
 	}
 
 	// If the cursor is in a comment, don't offer any completions.
-	if cursorInComment(fset, cursor, src) {
+	if cursorInComment(fset, cursor, pgf.Src) {
 		return nil, fmt.Errorf("cursor in comment")
 	}
 

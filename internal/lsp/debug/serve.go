@@ -82,15 +82,14 @@ type State struct {
 	bugs map[string]string
 }
 
-func Bug(ctx context.Context, desc string) {
-	labels := [3]label.Label{
-		tag.Bug.Of(desc),
-	}
+func Bug(ctx context.Context, desc, format string, args ...interface{}) {
+	labels := []label.Label{tag.Bug.Of(desc)}
 	_, file, line, ok := runtime.Caller(1)
 	if ok {
-		labels[1] = tag.Callsite.Of(fmt.Sprintf("%s:%d", file, line))
+		labels = append(labels, tag.Callsite.Of(fmt.Sprintf("%s:%d", file, line)))
 	}
-	core.Export(ctx, core.MakeEvent(labels, nil))
+	msg := fmt.Sprintf(format, args...)
+	event.Log(ctx, msg, labels...)
 }
 
 type bug struct {
