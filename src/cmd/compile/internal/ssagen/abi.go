@@ -6,13 +6,13 @@ package ssagen
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -21,46 +21,40 @@ import (
 	"cmd/internal/objabi"
 )
 
-// useNewABIWrapGen returns TRUE if the compiler should generate an
-// ABI wrapper for the function 'f'.
-func useABIWrapGen(f *ir.Func) bool {
-	if !base.Flag.ABIWrap {
-		return false
-	}
+// SymABIs records information provided by the assembler about symbol
+// definition ABIs and reference ABIs.
+type SymABIs struct {
+	defs map[string]obj.ABI
+	refs map[string]obj.ABISet
 
-	// Support limit option for bisecting.
-	if base.Flag.ABIWrapLimit == 1 {
-		return false
-	}
-	if base.Flag.ABIWrapLimit < 1 {
-		return true
-	}
-	base.Flag.ABIWrapLimit--
-	if base.Debug.ABIWrap != 0 && base.Flag.ABIWrapLimit == 1 {
-		fmt.Fprintf(os.Stderr, "=-= limit reached after new wrapper for %s\n",
-			f.LSym.Name)
-	}
-
-	return true
+	localPrefix string
 }
 
-// symabiDefs and symabiRefs record the defined and referenced ABIs of
-// symbols required by non-Go code. These are keyed by link symbol
-// name, where the local package prefix is always `"".`
-var symabiDefs, symabiRefs map[string]obj.ABI
-
-func CgoSymABIs() {
-	// The linker expects an ABI0 wrapper for all cgo-exported
-	// functions.
-	for _, prag := range typecheck.Target.CgoPragmas {
-		switch prag[0] {
-		case "cgo_export_static", "cgo_export_dynamic":
-			if symabiRefs == nil {
-				symabiRefs = make(map[string]obj.ABI)
-			}
-			symabiRefs[prag[1]] = obj.ABI0
-		}
+func NewSymABIs(myimportpath string) *SymABIs {
+	var localPrefix string
+	if myimportpath != "" {
+		localPrefix = objabi.PathToPrefix(myimportpath) + "."
 	}
+
+	return &SymABIs{
+		defs:        make(map[string]obj.ABI),
+		refs:        make(map[string]obj.ABISet),
+		localPrefix: localPrefix,
+	}
+}
+
+// canonicalize returns the canonical name used for a linker symbol in
+// s's maps. Symbols in this package may be written either as "".X or
+// with the package's import path already in the symbol. This rewrites
+// both to `"".`, which matches compiler-generated linker symbol names.
+func (s *SymABIs) canonicalize(linksym string) string {
+	// If the symbol is already prefixed with localPrefix,
+	// rewrite it to start with "" so it matches the
+	// compiler's internal symbol names.
+	if s.localPrefix != "" && strings.HasPrefix(linksym, s.localPrefix) {
+		return `"".` + linksym[len(s.localPrefix):]
+	}
+	return linksym
 }
 
 // ReadSymABIs reads a symabis file that specifies definitions and
@@ -72,21 +66,10 @@ func CgoSymABIs() {
 // symbol using an ABI. For both "def" and "ref", the second field is
 // the symbol name and the third field is the ABI name, as one of the
 // named cmd/internal/obj.ABI constants.
-func ReadSymABIs(file, myimportpath string) {
+func (s *SymABIs) ReadSymABIs(file string) {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-symabis: %v", err)
-	}
-
-	symabiDefs = make(map[string]obj.ABI)
-	symabiRefs = make(map[string]obj.ABI)
-
-	localPrefix := ""
-	if myimportpath != "" {
-		// Symbols in this package may be written either as
-		// "".X or with the package's import path already in
-		// the symbol.
-		localPrefix = objabi.PathToPrefix(myimportpath) + "."
 	}
 
 	for lineNum, line := range strings.Split(string(data), "\n") {
@@ -109,23 +92,135 @@ func ReadSymABIs(file, myimportpath string) {
 				log.Fatalf(`%s:%d: invalid symabi: unknown abi "%s"`, file, lineNum, abistr)
 			}
 
-			// If the symbol is already prefixed with
-			// myimportpath, rewrite it to start with ""
-			// so it matches the compiler's internal
-			// symbol names.
-			if localPrefix != "" && strings.HasPrefix(sym, localPrefix) {
-				sym = `"".` + sym[len(localPrefix):]
-			}
+			sym = s.canonicalize(sym)
 
 			// Record for later.
 			if parts[0] == "def" {
-				symabiDefs[sym] = abi
+				s.defs[sym] = abi
 			} else {
-				symabiRefs[sym] = abi
+				s.refs[sym] |= obj.ABISetOf(abi)
 			}
 		default:
 			log.Fatalf(`%s:%d: invalid symabi type "%s"`, file, lineNum, parts[0])
 		}
+	}
+}
+
+// GenABIWrappers applies ABI information to Funcs and generates ABI
+// wrapper functions where necessary.
+func (s *SymABIs) GenABIWrappers() {
+	// For cgo exported symbols, we tell the linker to export the
+	// definition ABI to C. That also means that we don't want to
+	// create ABI wrappers even if there's a linkname.
+	//
+	// TODO(austin): Maybe we want to create the ABI wrappers, but
+	// ensure the linker exports the right ABI definition under
+	// the unmangled name?
+	cgoExports := make(map[string][]*[]string)
+	for i, prag := range typecheck.Target.CgoPragmas {
+		switch prag[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			symName := s.canonicalize(prag[1])
+			pprag := &typecheck.Target.CgoPragmas[i]
+			cgoExports[symName] = append(cgoExports[symName], pprag)
+		}
+	}
+
+	// Apply ABI defs and refs to Funcs and generate wrappers.
+	//
+	// This may generate new decls for the wrappers, but we
+	// specifically *don't* want to visit those, lest we create
+	// wrappers for wrappers.
+	for _, fn := range typecheck.Target.Decls {
+		if fn.Op() != ir.ODCLFUNC {
+			continue
+		}
+		fn := fn.(*ir.Func)
+		nam := fn.Nname
+		if ir.IsBlank(nam) {
+			continue
+		}
+		sym := nam.Sym()
+		var symName string
+		if sym.Linkname != "" {
+			symName = s.canonicalize(sym.Linkname)
+		} else {
+			// These names will already be canonical.
+			symName = sym.Pkg.Prefix + "." + sym.Name
+		}
+
+		// Apply definitions.
+		defABI, hasDefABI := s.defs[symName]
+		if hasDefABI {
+			fn.ABI = defABI
+		}
+
+		if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+			// CgoUnsafeArgs indicates the function (or its callee) uses
+			// offsets to dispatch arguments, which currently using ABI0
+			// frame layout. Pin it to ABI0.
+			fn.ABI = obj.ABI0
+		}
+
+		// If cgo-exported, add the definition ABI to the cgo
+		// pragmas.
+		cgoExport := cgoExports[symName]
+		for _, pprag := range cgoExport {
+			// The export pragmas have the form:
+			//
+			//   cgo_export_* <local> [<remote>]
+			//
+			// If <remote> is omitted, it's the same as
+			// <local>.
+			//
+			// Expand to
+			//
+			//   cgo_export_* <local> <remote> <ABI>
+			if len(*pprag) == 2 {
+				*pprag = append(*pprag, (*pprag)[1])
+			}
+			// Add the ABI argument.
+			*pprag = append(*pprag, fn.ABI.String())
+		}
+
+		// Apply references.
+		if abis, ok := s.refs[symName]; ok {
+			fn.ABIRefs |= abis
+		}
+		// Assume all functions are referenced at least as
+		// ABIInternal, since they may be referenced from
+		// other packages.
+		fn.ABIRefs.Set(obj.ABIInternal, true)
+
+		// If a symbol is defined in this package (either in
+		// Go or assembly) and given a linkname, it may be
+		// referenced from another package, so make it
+		// callable via any ABI. It's important that we know
+		// it's defined in this package since other packages
+		// may "pull" symbols using linkname and we don't want
+		// to create duplicate ABI wrappers.
+		//
+		// However, if it's given a linkname for exporting to
+		// C, then we don't make ABI wrappers because the cgo
+		// tool wants the original definition.
+		hasBody := len(fn.Body) != 0
+		if sym.Linkname != "" && (hasBody || hasDefABI) && len(cgoExport) == 0 {
+			fn.ABIRefs |= obj.ABISetCallable
+		}
+
+		// Double check that cgo-exported symbols don't get
+		// any wrappers.
+		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
+			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+		}
+
+		if !buildcfg.Experiment.RegabiWrappers {
+			// We'll generate ABI aliases instead of
+			// wrappers once we have LSyms in InitLSym.
+			continue
+		}
+
+		forEachWrapperABI(fn, makeABIWrapper)
 	}
 }
 
@@ -138,96 +233,73 @@ func ReadSymABIs(file, myimportpath string) {
 // For body-less functions, we only create the LSym; for functions
 // with bodies call a helper to setup up / populate the LSym.
 func InitLSym(f *ir.Func, hasBody bool) {
-	// FIXME: for new-style ABI wrappers, we set up the lsym at the
-	// point the wrapper is created.
-	if f.LSym != nil && base.Flag.ABIWrap {
-		return
-	}
-	staticdata.NeedFuncSym(f.Sym())
-	selectLSym(f, hasBody)
-	if hasBody {
-		setupTextLSym(f, 0)
-	}
-}
-
-// selectLSym sets up the LSym for a given function, and
-// makes calls to helpers to create ABI wrappers if needed.
-func selectLSym(f *ir.Func, hasBody bool) {
 	if f.LSym != nil {
 		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
 	}
 
 	if nam := f.Nname; !ir.IsBlank(nam) {
-
-		var wrapperABI obj.ABI
-		needABIWrapper := false
-		defABI, hasDefABI := symabiDefs[nam.Linksym().Name]
-		if hasDefABI && defABI == obj.ABI0 {
-			// Symbol is defined as ABI0. Create an
-			// Internal -> ABI0 wrapper.
-			f.LSym = nam.LinksymABI(obj.ABI0)
-			needABIWrapper, wrapperABI = true, obj.ABIInternal
-		} else {
-			f.LSym = nam.Linksym()
-			// No ABI override. Check that the symbol is
-			// using the expected ABI.
-			want := obj.ABIInternal
-			if f.LSym.ABI() != want {
-				base.Fatalf("function symbol %s has the wrong ABI %v, expected %v", f.LSym.Name, f.LSym.ABI(), want)
-			}
-		}
+		f.LSym = nam.LinksymABI(f.ABI)
 		if f.Pragma&ir.Systemstack != 0 {
 			f.LSym.Set(obj.AttrCFunc, true)
 		}
-
-		isLinknameExported := nam.Sym().Linkname != "" && (hasBody || hasDefABI)
-		if abi, ok := symabiRefs[f.LSym.Name]; (ok && abi == obj.ABI0) || isLinknameExported {
-			// Either 1) this symbol is definitely
-			// referenced as ABI0 from this package; or 2)
-			// this symbol is defined in this package but
-			// given a linkname, indicating that it may be
-			// referenced from another package. Create an
-			// ABI0 -> Internal wrapper so it can be
-			// called as ABI0. In case 2, it's important
-			// that we know it's defined in this package
-			// since other packages may "pull" symbols
-			// using linkname and we don't want to create
-			// duplicate ABI wrappers.
-			if f.LSym.ABI() != obj.ABI0 {
-				needABIWrapper, wrapperABI = true, obj.ABI0
-			}
+		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
+			// Function values can only point to
+			// ABIInternal entry points. This will create
+			// the funcsym for either the defining
+			// function or its wrapper as appropriate.
+			//
+			// If we're using ABI aliases instead of
+			// wrappers, we only InitLSym for the defining
+			// ABI of a function, so we make the funcsym
+			// when we see that.
+			staticdata.NeedFuncSym(f)
 		}
-
-		if needABIWrapper {
-			if !useABIWrapGen(f) {
-				// Fallback: use alias instead. FIXME.
-
-				// These LSyms have the same name as the
-				// native function, so we create them directly
-				// rather than looking them up. The uniqueness
-				// of f.lsym ensures uniqueness of asym.
-				asym := &obj.LSym{
-					Name: f.LSym.Name,
-					Type: objabi.SABIALIAS,
-					R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
-				}
-				asym.SetABI(wrapperABI)
-				asym.Set(obj.AttrDuplicateOK, true)
-				base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
-			} else {
-				if base.Debug.ABIWrap != 0 {
-					fmt.Fprintf(os.Stderr, "=-= %v to %v wrapper for %s.%s\n",
-						wrapperABI, 1-wrapperABI, types.LocalPkg.Path, f.LSym.Name)
-				}
-				makeABIWrapper(f, wrapperABI)
-			}
+		if !buildcfg.Experiment.RegabiWrappers {
+			// Create ABI aliases instead of wrappers.
+			forEachWrapperABI(f, makeABIAlias)
 		}
+	}
+	if hasBody {
+		setupTextLSym(f, 0)
 	}
 }
 
-// makeABIWrapper creates a new function that wraps a cross-ABI call
-// to "f".  The wrapper is marked as an ABIWRAPPER.
+func forEachWrapperABI(fn *ir.Func, cb func(fn *ir.Func, wrapperABI obj.ABI)) {
+	need := fn.ABIRefs &^ obj.ABISetOf(fn.ABI)
+	if need == 0 {
+		return
+	}
+
+	for wrapperABI := obj.ABI(0); wrapperABI < obj.ABICount; wrapperABI++ {
+		if !need.Get(wrapperABI) {
+			continue
+		}
+		cb(fn, wrapperABI)
+	}
+}
+
+// makeABIAlias creates a new ABI alias so calls to f via wrapperABI
+// will be resolved directly to f's ABI by the linker.
+func makeABIAlias(f *ir.Func, wrapperABI obj.ABI) {
+	// These LSyms have the same name as the native function, so
+	// we create them directly rather than looking them up.
+	// The uniqueness of f.lsym ensures uniqueness of asym.
+	asym := &obj.LSym{
+		Name: f.LSym.Name,
+		Type: objabi.SABIALIAS,
+		R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
+	}
+	asym.SetABI(wrapperABI)
+	asym.Set(obj.AttrDuplicateOK, true)
+	base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
+}
+
+// makeABIWrapper creates a new function that will be called with
+// wrapperABI and calls "f" using f.ABI.
 func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+	if base.Debug.ABIWrap != 0 {
+		fmt.Fprintf(os.Stderr, "=-= %v to %v wrapper for %v\n", wrapperABI, f.ABI, f)
+	}
 
 	// Q: is this needed?
 	savepos := base.Pos
@@ -239,7 +311,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	// At the moment we don't support wrapping a method, we'd need machinery
 	// below to handle the receiver. Panic if we see this scenario.
-	ft := f.Nname.Ntype.Type()
+	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
 		panic("makeABIWrapper support for wrapping methods not implemented")
 	}
@@ -253,16 +325,10 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 
 	// Reuse f's types.Sym to create a new ODCLFUNC/function.
 	fn := typecheck.DeclFunc(f.Nname.Sym(), tfn)
-	fn.SetDupok(true)
-	fn.SetWrapper(true) // ignore frame for panic+recover matching
+	fn.ABI = wrapperABI
 
-	// Select LSYM now.
-	asym := base.Ctxt.LookupABI(f.LSym.Name, wrapperABI)
-	asym.Type = objabi.STEXT
-	if fn.LSym != nil {
-		panic("unexpected")
-	}
-	fn.LSym = asym
+	fn.SetABIWrapper(true)
+	fn.SetDupok(true)
 
 	// ABI0-to-ABIInternal wrappers will be mainly loading params from
 	// stack into registers (and/or storing stack locations back to
@@ -279,7 +345,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// things in registers and pushing them onto the stack prior to
 	// the ABI0 call, meaning that they will always need to allocate
 	// stack space. If the compiler marks them as NOSPLIT this seems
-	// as though it could lead to situations where the the linker's
+	// as though it could lead to situations where the linker's
 	// nosplit-overflow analysis would trigger a link failure. On the
 	// other hand if they not tagged NOSPLIT then this could cause
 	// problems when building the runtime (since there may be calls to
@@ -289,7 +355,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// into trouble here.
 	// FIXME: at the moment all.bash does not pass when I leave out
 	// NOSPLIT for these wrappers, so all are currently tagged with NOSPLIT.
-	setupTextLSym(fn, obj.NOSPLIT|obj.ABIWRAPPER)
+	fn.Pragma |= ir.Nosplit
 
 	// Generate call. Use tail call if no params and no returns,
 	// but a regular call otherwise.
@@ -337,8 +403,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	escape.Batch([]*ir.Func{fn}, false)
-
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	// Restore previous context.
@@ -355,6 +419,9 @@ func setupTextLSym(f *ir.Func, flag int) {
 	if f.Wrapper() {
 		flag |= obj.WRAPPER
 	}
+	if f.ABIWrapper() {
+		flag |= obj.ABIWRAPPER
+	}
 	if f.Needctxt() {
 		flag |= obj.NEEDCTXT
 	}
@@ -366,10 +433,20 @@ func setupTextLSym(f *ir.Func, flag int) {
 	}
 
 	// Clumsy but important.
+	// For functions that could be on the path of invoking a deferred
+	// function that can recover (runtime.reflectcall, reflect.callReflect,
+	// and reflect.callMethod), we want the panic+recover special handling.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
-	if base.Ctxt.Pkgpath == "reflect" {
-		switch f.Sym().Name {
+	//
+	// runtime.reflectcall is an assembly function which tailcalls
+	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
+	// flag as well.
+	fnname := f.Sym().Name
+	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
+		flag |= obj.WRAPPER
+	} else if base.Ctxt.Pkgpath == "reflect" {
+		switch fnname {
 		case "callReflect", "callMethod":
 			flag |= obj.WRAPPER
 		}

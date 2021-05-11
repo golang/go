@@ -1720,8 +1720,6 @@ var v = "v";
 `
 
 func TestEscapeRace(t *testing.T) {
-	t.Skip("this test currently fails with -race; see issue #39807")
-
 	tmpl := New("")
 	_, err := tmpl.New("templ.html").Parse(raceText)
 	if err != nil {

@@ -11,9 +11,9 @@ import (
 	"sync"
 )
 
-// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+// Object represents an ir.Node, but without needing to import cmd/compile/internal/ir,
 // which would cause an import cycle. The uses in other packages must type assert
-// values of type IRNode to ir.Node or a more specific type.
+// values of type Object to ir.Node or a more specific type.
 type Object interface {
 	Pos() src.XPos
 	Sym() *Sym
@@ -157,11 +157,15 @@ type Type struct {
 	// Width is the width of this Type in bytes.
 	Width int64 // valid if Align > 0
 
-	methods    Fields
+	// list of base methods (excluding embedding)
+	methods Fields
+	// list of all methods (including embedding)
 	allMethods Fields
 
-	nod        Object // canonical OTYPE node
-	underlying *Type  // original type (type literal or predefined type)
+	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
+	nod Object
+	// the underlying type (type literal or predeclared type) for a defined type
+	underlying *Type
 
 	// Cache of composite types, with this type being the element type.
 	cache struct {
@@ -177,10 +181,13 @@ type Type struct {
 
 	flags bitset8
 
-	// Type params (in order) of this named type that need to be instantiated.
-	// TODO(danscales): for space reasons, should probably be a pointer to a
-	// slice, possibly change the name of this field.
-	RParams []*Type
+	// For defined (named) generic types, a pointer to the list of type params
+	// (in order) of this type that need to be instantiated. For
+	// fully-instantiated generic types, this is the targs used to instantiate
+	// them (which are used when generating the corresponding instantiated
+	// methods). rparams is only set for named types that are generic or are
+	// fully-instantiated from a generic type, and is otherwise set to nil.
+	rparams *[]*Type
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -234,6 +241,32 @@ func (t *Type) Pos() src.XPos {
 		return t.nod.Pos()
 	}
 	return src.NoXPos
+}
+
+func (t *Type) RParams() []*Type {
+	if t.rparams == nil {
+		return nil
+	}
+	return *t.rparams
+}
+
+func (t *Type) SetRParams(rparams []*Type) {
+	if len(rparams) == 0 {
+		base.Fatalf("Setting nil or zero-length rparams")
+	}
+	t.rparams = &rparams
+	if t.HasTParam() {
+		return
+	}
+	// HasTParam should be set if any rparam is or has a type param. This is
+	// to handle the case of a generic type which doesn't reference any of its
+	// type params (e.g. most commonly, an empty struct).
+	for _, rparam := range rparams {
+		if rparam.HasTParam() {
+			t.SetHasTParam(true)
+			break
+		}
+	}
 }
 
 // NoPkg is a nil *Pkg value for clarity.
@@ -341,8 +374,7 @@ func (t *Type) StructType() *Struct {
 
 // Interface contains Type fields specific to interface types.
 type Interface struct {
-	Fields Fields
-	pkg    *Pkg
+	pkg *Pkg
 }
 
 // Ptr contains Type fields specific to pointer types.
@@ -394,8 +426,11 @@ type Slice struct {
 	Elem *Type // element type
 }
 
-// A Field represents a field in a struct or a method in an interface or
-// associated with a named type.
+// A Field is a (Sym, Type) pairing along with some other information, and,
+// depending on the context, is used to represent:
+//  - a field in a struct
+//  - a method in an interface or associated with a named type
+//  - a function parameter
 type Field struct {
 	flags bitset8
 
@@ -411,7 +446,8 @@ type Field struct {
 	Nname Object
 
 	// Offset in bytes of this field or method within its enclosing struct
-	// or interface Type.
+	// or interface Type.  Exception: if field is function receiver, arg or
+	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
 	Offset int64
 }
 
@@ -581,10 +617,17 @@ func NewTuple(t1, t2 *Type) *Type {
 	return t
 }
 
-func NewResults(types []*Type) *Type {
+func newResults(types []*Type) *Type {
 	t := New(TRESULTS)
 	t.Extra.(*Results).Types = types
 	return t
+}
+
+func NewResults(types []*Type) *Type {
+	if len(types) == 1 && types[0] == TypeMem {
+		return TypeResultMem
+	}
+	return newResults(types)
 }
 
 func newSSA(name string) *Type {
@@ -887,40 +930,49 @@ func (t *Type) IsFuncArgStruct() bool {
 	return t.kind == TSTRUCT && t.Extra.(*Struct).Funarg != FunargNone
 }
 
+// Methods returns a pointer to the base methods (excluding embedding) for type t.
+// These can either be concrete methods (for non-interface types) or interface
+// methods (for interface types).
 func (t *Type) Methods() *Fields {
-	// TODO(mdempsky): Validate t?
 	return &t.methods
 }
 
+// AllMethods returns a pointer to all the methods (including embedding) for type t.
+// For an interface type, this is the set of methods that are typically iterated over.
 func (t *Type) AllMethods() *Fields {
-	// TODO(mdempsky): Validate t?
+	if t.kind == TINTER {
+		// Calculate the full method set of an interface type on the fly
+		// now, if not done yet.
+		CalcSize(t)
+	}
 	return &t.allMethods
 }
 
-func (t *Type) Fields() *Fields {
-	switch t.kind {
-	case TSTRUCT:
-		return &t.Extra.(*Struct).fields
-	case TINTER:
-		CalcSize(t)
-		return &t.Extra.(*Interface).Fields
-	}
-	base.Fatalf("Fields: type %v does not have fields", t)
-	return nil
+// SetAllMethods sets the set of all methods (including embedding) for type t.
+// Use this method instead of t.AllMethods().Set(), which might call CalcSize() on
+// an uninitialized interface type.
+func (t *Type) SetAllMethods(fs []*Field) {
+	t.allMethods.Set(fs)
 }
 
-// Field returns the i'th field/method of struct/interface type t.
+// Fields returns the fields of struct type t.
+func (t *Type) Fields() *Fields {
+	t.wantEtype(TSTRUCT)
+	return &t.Extra.(*Struct).fields
+}
+
+// Field returns the i'th field of struct type t.
 func (t *Type) Field(i int) *Field {
 	return t.Fields().Slice()[i]
 }
 
-// FieldSlice returns a slice of containing all fields/methods of
-// struct/interface type t.
+// FieldSlice returns a slice of containing all fields of
+// a struct type t.
 func (t *Type) FieldSlice() []*Field {
 	return t.Fields().Slice()
 }
 
-// SetFields sets struct/interface type t's fields/methods to fields.
+// SetFields sets struct type t's fields to fields.
 func (t *Type) SetFields(fields []*Field) {
 	// If we've calculated the width of t before,
 	// then some other type such as a function signature
@@ -946,6 +998,7 @@ func (t *Type) SetFields(fields []*Field) {
 	t.Fields().Set(fields)
 }
 
+// SetInterface sets the base methods of an interface type t.
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
 	t.Methods().Set(methods)
@@ -1196,8 +1249,8 @@ func (t *Type) cmp(x *Type) Cmp {
 		return CMPeq
 
 	case TINTER:
-		tfs := t.FieldSlice()
-		xfs := x.FieldSlice()
+		tfs := t.AllMethods().Slice()
+		xfs := x.AllMethods().Slice()
 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
 			t1, x1 := tfs[i], xfs[i]
 			if c := t1.Sym.cmpsym(x1.Sym); c != CMPeq {
@@ -1385,7 +1438,7 @@ func (t *Type) IsInterface() bool {
 
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
-	return t.IsInterface() && t.NumFields() == 0
+	return t.IsInterface() && t.AllMethods().Len() == 0
 }
 
 // IsScalar reports whether 't' is a scalar Go type, e.g.
@@ -1407,6 +1460,9 @@ func (t *Type) PtrTo() *Type {
 }
 
 func (t *Type) NumFields() int {
+	if t.kind == TRESULTS {
+		return len(t.Extra.(*Results).Types)
+	}
 	return t.Fields().Len()
 }
 func (t *Type) FieldType(i int) *Type {
@@ -1597,14 +1653,19 @@ func FakeRecvType() *Type {
 
 var (
 	// TSSA types. HasPointers assumes these are pointer-free.
-	TypeInvalid = newSSA("invalid")
-	TypeMem     = newSSA("mem")
-	TypeFlags   = newSSA("flags")
-	TypeVoid    = newSSA("void")
-	TypeInt128  = newSSA("int128")
+	TypeInvalid   = newSSA("invalid")
+	TypeMem       = newSSA("mem")
+	TypeFlags     = newSSA("flags")
+	TypeVoid      = newSSA("void")
+	TypeInt128    = newSSA("int128")
+	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
-// NewNamed returns a new named type for the given type name.
+// NewNamed returns a new named type for the given type name. obj should be an
+// ir.Name. The new type is incomplete (marked as TFORW kind), and the underlying
+// type should be set later via SetUnderlying(). References to the type are
+// maintained until the type is filled in, so those references can be updated when
+// the type is complete.
 func NewNamed(obj Object) *Type {
 	t := New(TFORW)
 	t.sym = obj.Sym()
@@ -1612,7 +1673,7 @@ func NewNamed(obj Object) *Type {
 	return t
 }
 
-// Obj returns the type name for the named type t.
+// Obj returns the canonical type name node for a named type t, nil for an unnamed type.
 func (t *Type) Obj() Object {
 	if t.sym != nil {
 		return t.nod
@@ -1620,7 +1681,8 @@ func (t *Type) Obj() Object {
 	return nil
 }
 
-// SetUnderlying sets the underlying type.
+// SetUnderlying sets the underlying type. SetUnderlying automatically updates any
+// types that were waiting for this type to be completed.
 func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.kind == TFORW {
 		// This type isn't computed yet; when it is, update n.
@@ -1690,6 +1752,13 @@ func NewBasic(kind Kind, obj Object) *Type {
 func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	t := New(TINTER)
 	t.SetInterface(methods)
+	for _, f := range methods {
+		// f.Type could be nil for a broken interface declaration
+		if f.Type != nil && f.Type.HasTParam() {
+			t.SetHasTParam(true)
+			break
+		}
+	}
 	if anyBroke(methods) {
 		t.SetBroke(true)
 	}
@@ -1697,19 +1766,24 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 	return t
 }
 
-// NewTypeParam returns a new type param with the given constraint (which may
-// not really be needed except for the type checker).
-func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+// NewTypeParam returns a new type param.
+func NewTypeParam(pkg *Pkg) *Type {
 	t := New(TTYPEPARAM)
-	constraint.wantEtype(TINTER)
-	t.methods = constraint.methods
 	t.Extra.(*Interface).pkg = pkg
 	t.SetHasTParam(true)
 	return t
 }
 
+const BOGUS_FUNARG_OFFSET = -1000000000
+
+func unzeroFieldOffsets(f []*Field) {
+	for i := range f {
+		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
+	}
+}
+
 // NewSignature returns a new function type for the given receiver,
-// parametes, results, and type parameters, any of which may be nil.
+// parameters, results, and type parameters, any of which may be nil.
 func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {
@@ -1728,7 +1802,13 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 		return s
 	}
 
+	if recv != nil {
+		recv.Offset = BOGUS_FUNARG_OFFSET
+	}
+	unzeroFieldOffsets(params)
+	unzeroFieldOffsets(results)
 	ft.Receiver = funargs(recvs, FunargRcvr)
+	// TODO(danscales): just use nil here (save memory) if no tparams
 	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)

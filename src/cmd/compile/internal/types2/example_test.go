@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -6,6 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
+//go:build !arm && !arm64
 // +build !arm,!arm64
 
 package types2_test

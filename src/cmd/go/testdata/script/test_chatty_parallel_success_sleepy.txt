@@ -5,7 +5,7 @@ go test -parallel 3 chatty_parallel_test.go -v
 stdout '--- PASS: TestFast \([0-9.]{4}s\)\n=== CONT  TestSlow\n    chatty_parallel_test.go:31: this is the second TestSlow log\n--- PASS: TestSlow \([0-9.]{4}s\)'
 
 -- chatty_parallel_test.go --
-package chatty_paralell_test
+package chatty_parallel_test
 
 import (
 	"testing"

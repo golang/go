@@ -26,7 +26,7 @@ import (
 )
 
 var CmdGet = &base.Command{
-	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]",
+	UsageLine: "go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads the packages named by the import paths, along with their
@@ -42,13 +42,6 @@ of the original.
 
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
-
-The -insecure flag permits fetching from repositories and resolving
-custom domains using insecure schemes such as HTTP. Use with caution.
-This flag is deprecated and will be removed in a future version of go.
-The GOINSECURE environment variable should be used instead, since it
-provides control over which packages may be retrieved using an insecure
-scheme. See 'go help environment' for details.
 
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
@@ -105,17 +98,17 @@ Usage: ` + CmdGet.UsageLine + `
 }
 
 var (
-	getD   = CmdGet.Flag.Bool("d", false, "")
-	getF   = CmdGet.Flag.Bool("f", false, "")
-	getT   = CmdGet.Flag.Bool("t", false, "")
-	getU   = CmdGet.Flag.Bool("u", false, "")
-	getFix = CmdGet.Flag.Bool("fix", false, "")
+	getD        = CmdGet.Flag.Bool("d", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "")
+	getT        = CmdGet.Flag.Bool("t", false, "")
+	getU        = CmdGet.Flag.Bool("u", false, "")
+	getFix      = CmdGet.Flag.Bool("fix", false, "")
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
 )
 
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag|work.OmitModCommonFlags)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.BoolVar(&cfg.Insecure, "insecure", cfg.Insecure, "")
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
@@ -129,11 +122,11 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	if *getF && !*getU {
 		base.Fatalf("go get: cannot use -f flag without -u")
 	}
-	if cfg.Insecure {
-		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
+	if *getInsecure {
+		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
-	// Disable any prompting for passwords by Git.
+	// Disable any prompting for passwords by Git itself.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
 	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
@@ -143,7 +136,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		os.Setenv("GIT_TERMINAL_PROMPT", "0")
 	}
 
-	// Disable any ssh connection pooling by Git.
+	// Also disable prompting for passwords by the 'ssh' subprocess spawned by
+	// Git, because apparently GIT_TERMINAL_PROMPT isn't sufficient to do that.
+	// Adding '-o BatchMode=yes' should do the trick.
+	//
 	// If a Git subprocess forks a child into the background to cache a new connection,
 	// that child keeps stdout/stderr open. After the Git subprocess exits,
 	// os /exec expects to be able to read from the stdout/stderr pipe
@@ -157,7 +153,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// assume they know what they are doing and don't step on it.
 	// But default to turning off ControlMaster.
 	if os.Getenv("GIT_SSH") == "" && os.Getenv("GIT_SSH_COMMAND") == "" {
-		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no")
+		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no -o BatchMode=yes")
+	}
+
+	// And one more source of Git prompts: the Git Credential Manager Core for Windows.
+	//
+	// See https://github.com/microsoft/Git-Credential-Manager-Core/blob/master/docs/environment.md#gcm_interactive.
+	if os.Getenv("GCM_INTERACTIVE") == "" {
+		os.Setenv("GCM_INTERACTIVE", "never")
 	}
 
 	// Phase 1. Download/update.
@@ -180,7 +183,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// everything.
 	load.ClearPackageCache()
 
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	load.CheckPackageErrors(pkgs)
 
 	// Phase 3. Install.
@@ -255,9 +258,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
 			mode := 0 // don't do module or vendor resolution
-			return load.LoadImport(context.TODO(), path, base.Cwd, nil, stk, nil, mode)
+			return load.LoadImport(context.TODO(), load.PackageOpts{}, path, base.Cwd(), nil, stk, nil, mode)
 		}
-		return load.LoadImport(context.TODO(), path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		return load.LoadImport(context.TODO(), load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
 	}
 
 	p := load1(arg, mode)
@@ -431,11 +434,11 @@ func downloadPackage(p *load.Package) error {
 		}
 		importPrefix = importPrefix[:slash]
 	}
-	if err := module.CheckImportPath(importPrefix); err != nil {
+	if err := checkImportPath(importPrefix); err != nil {
 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
 	}
 	security := web.SecureOnly
-	if cfg.Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
 		security = web.Insecure
 	}
 
@@ -590,4 +593,32 @@ func selectTag(goVersion string, tags []string) (match string) {
 		}
 	}
 	return ""
+}
+
+// checkImportPath is like module.CheckImportPath, but it forbids leading dots
+// in path elements. This can lead to 'go get' creating .git and other VCS
+// directories in places we might run VCS tools later.
+func checkImportPath(path string) error {
+	if err := module.CheckImportPath(path); err != nil {
+		return err
+	}
+	checkElem := func(elem string) error {
+		if elem[0] == '.' {
+			return fmt.Errorf("malformed import path %q: leading dot in path element", path)
+		}
+		return nil
+	}
+	elemStart := 0
+	for i, r := range path {
+		if r == '/' {
+			if err := checkElem(path[elemStart:]); err != nil {
+				return err
+			}
+			elemStart = i + 1
+		}
+	}
+	if err := checkElem(path[elemStart:]); err != nil {
+		return err
+	}
+	return nil
 }

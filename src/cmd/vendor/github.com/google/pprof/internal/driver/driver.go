@@ -163,7 +163,7 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 	trim := cfg.Trim
 
 	switch cmd {
-	case "disasm", "weblist":
+	case "disasm":
 		trim = false
 		cfg.Granularity = "addresses"
 		// Force the 'noinlines' mode so that source locations for a given address
@@ -172,6 +172,10 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 		// This is because the merge is done by address and in case of an inlined
 		// stack each of the inlined entries is a separate callgraph node.
 		cfg.NoInlines = true
+	case "weblist":
+		trim = false
+		cfg.Granularity = "addresses"
+		cfg.NoInlines = false // Need inline info to support call expansion
 	case "peek":
 		trim = false
 	case "list":

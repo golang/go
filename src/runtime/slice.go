@@ -112,6 +112,25 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 	return makeslice(et, len, cap)
 }
 
+func unsafeslice(et *_type, len int) {
+	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+	if overflow || mem > maxAlloc || len < 0 {
+		panicunsafeslicelen()
+	}
+}
+
+func unsafeslice64(et *_type, len64 int64) {
+	len := int(len64)
+	if int64(len) != len64 {
+		panicunsafeslicelen()
+	}
+	unsafeslice(et, len)
+}
+
+func panicunsafeslicelen() {
+	panic(errorString("unsafe.Slice: len out of range"))
+}
+
 // growslice handles slice growth during append.
 // It is passed the slice element type, the old slice, and the desired new minimum capacity,
 // and it returns a new slice with at least that capacity, with the old data

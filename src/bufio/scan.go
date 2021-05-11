@@ -48,7 +48,8 @@ type Scanner struct {
 // and the next token to return to the user, if any, plus an error, if any.
 //
 // Scanning stops if the function returns an error, in which case some of
-// the input may be discarded.
+// the input may be discarded. If that error is ErrFinalToken, scanning
+// stops with no error.
 //
 // Otherwise, the Scanner advances the input. If the token is not nil,
 // the Scanner returns it to the user. If the token is nil, the

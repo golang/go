@@ -126,6 +126,7 @@ func init() {
 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
 		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
 		gpcas    = regInfo{inputs: []regMask{gpspsbgMask, gpgMask, gpgMask}, outputs: []regMask{gpMask}}
+		gpatomic = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}}
 
 		fp11    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{fpMask}}
 		fp21    = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{fpMask}}
@@ -167,9 +168,6 @@ func init() {
 		{name: "MOVaddr", argLength: 1, reg: gp11sb, asm: "MOV", aux: "SymOff", rematerializeable: true, symEffect: "RdWr"}, // arg0 + auxint + offset encoded in aux
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
 
-		{name: "MOVBconst", reg: gp01, asm: "MOV", typ: "UInt8", aux: "Int8", rematerializeable: true},   // 8 low bits of auxint
-		{name: "MOVHconst", reg: gp01, asm: "MOV", typ: "UInt16", aux: "Int16", rematerializeable: true}, // 16 low bits of auxint
-		{name: "MOVWconst", reg: gp01, asm: "MOV", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
 		{name: "MOVDconst", reg: gp01, asm: "MOV", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
 		// Loads: load <size> bits from arg0+auxint+aux and extend to 64 bits; arg1=mem
@@ -335,7 +333,7 @@ func init() {
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
 
 		// Atomic stores.
-		// store arg1 to arg0. arg2=mem. returns memory.
+		// store arg1 to *arg0. arg2=mem. returns memory.
 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
@@ -366,6 +364,11 @@ func init() {
 		// MOV  $1, Rout
 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// Atomic 32 bit AND/OR.
+		// *arg0 &= (|=) arg1. arg2=mem. returns nil.
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpatomic, asm: "AMOANDW", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpatomic, asm: "AMOORW", faultOnNilArg0: true, hasSideEffects: true},
 
 		// Lowering pass-throughs
 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.

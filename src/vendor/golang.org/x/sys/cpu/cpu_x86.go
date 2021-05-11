@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build 386 || amd64 || amd64p32
 // +build 386 amd64 amd64p32
 
 package cpu
@@ -86,8 +87,14 @@ func archInit() {
 		// Check if XMM and YMM registers have OS support.
 		osSupportsAVX = isSet(1, eax) && isSet(2, eax)
 
-		// Check if OPMASK and ZMM registers have OS support.
-		osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)
+		if runtime.GOOS == "darwin" {
+			// Check darwin commpage for AVX512 support. Necessary because:
+			// https://github.com/apple/darwin-xnu/blob/0a798f6738bc1db01281fc08ae024145e84df927/osfmk/i386/fpu.c#L175-L201
+			osSupportsAVX512 = osSupportsAVX && darwinSupportsAVX512()
+		} else {
+			// Check if OPMASK and ZMM registers have OS support.
+			osSupportsAVX512 = osSupportsAVX && isSet(5, eax) && isSet(6, eax) && isSet(7, eax)
+		}
 	}
 
 	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX

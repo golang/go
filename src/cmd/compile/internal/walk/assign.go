@@ -157,15 +157,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	t := r.X.Type()
 
 	fast := mapfast(t)
-	var key ir.Node
-	if fast != mapslow {
-		// fast versions take key by value
-		key = r.Index
-	} else {
-		// standard version takes key by reference
-		// order.expr made sure key is addressable.
-		key = typecheck.NodAddr(r.Index)
-	}
+	key := mapKeyArg(fast, r, r.Index)
 
 	// from:
 	//   a,b = m[i]
@@ -176,10 +168,10 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 
 	var call *ir.CallExpr
 	if w := t.Elem().Width; w <= zeroValSize {
-		fn := mapfn(mapaccess2[fast], t)
+		fn := mapfn(mapaccess2[fast], t, false)
 		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.TypePtr(t), r.X, key)
 	} else {
-		fn := mapfn("mapaccess2_fat", t)
+		fn := mapfn("mapaccess2_fat", t, true)
 		z := reflectdata.ZeroAddr(w)
 		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.TypePtr(t), r.X, key, z)
 	}
@@ -270,7 +262,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
 		}
 
 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
-		res.Offset = base.Ctxt.FixedFrameSize() + r.Offset
+		res.Index = int64(i)
 		res.SetType(r.Type)
 		res.SetTypecheck(1)
 
@@ -330,6 +322,13 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
 		// Save subexpressions needed on left side.
 		// Drill through non-dereferences.
 		for {
+			// If an expression has init statements, they must be evaluated
+			// before any of its saved sub-operands (#45706).
+			// TODO(mdempsky): Disallow init statements on lvalues.
+			init := ir.TakeInit(l)
+			walkStmtList(init)
+			early.Append(init...)
+
 			switch ll := l.(type) {
 			case *ir.IndexExpr:
 				if ll.X.Type().IsArray() {
@@ -558,7 +557,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return s
 }
 
-// isAppendOfMake reports whether n is of the form append(x , make([]T, y)...).
+// isAppendOfMake reports whether n is of the form append(x, make([]T, y)...).
 // isAppendOfMake assumes n has already been typechecked.
 func isAppendOfMake(n ir.Node) bool {
 	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting {

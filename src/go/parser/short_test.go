@@ -6,7 +6,10 @@
 
 package parser
 
-import "testing"
+import (
+	"go/internal/typeparams"
+	"testing"
+)
 
 var valids = []string{
 	"package p\n",
@@ -64,8 +67,8 @@ var valids = []string{
 }
 
 // validWithTParamsOnly holds source code examples that are valid if
-// ParseTypeParams is set, but invalid if not. When checking with the
-// ParseTypeParams set, errors are ignored.
+// parseTypeParams is set, but invalid if not. When checking with the
+// parseTypeParams set, errors are ignored.
 var validWithTParamsOnly = []string{
 	`package p; type _ []T[ /* ERROR "expected ';', found '\['" */ int]`,
 	`package p; type T[P any /* ERROR "expected ']', found any" */ ] struct { P }`,
@@ -130,19 +133,22 @@ func TestValid(t *testing.T) {
 		}
 	})
 	t.Run("tparams", func(t *testing.T) {
+		if !typeparams.Enabled {
+			t.Skip("type params are not enabled")
+		}
 		for _, src := range valids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, false)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
 		}
 		for _, src := range validWithTParamsOnly {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, false)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
 		}
 	})
 }
 
 // TestSingle is useful to track down a problem with a single short test program.
 func TestSingle(t *testing.T) {
-	const src = `package p; var _ = T[P]{}`
-	checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
+	const src = `package p; var _ = T{}`
+	checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
 }
 
 var invalids = []string{
@@ -250,21 +256,24 @@ var invalidTParamErrs = []string{
 func TestInvalid(t *testing.T) {
 	t.Run("no tparams", func(t *testing.T) {
 		for _, src := range invalids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
 		}
 		for _, src := range validWithTParamsOnly {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
 		}
 		for _, src := range invalidNoTParamErrs {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors|typeparams.DisallowParsing, true)
 		}
 	})
 	t.Run("tparams", func(t *testing.T) {
+		if !typeparams.Enabled {
+			t.Skip("type params are not enabled")
+		}
 		for _, src := range invalids {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
 		}
 		for _, src := range invalidTParamErrs {
-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
+			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
 		}
 	})
 }

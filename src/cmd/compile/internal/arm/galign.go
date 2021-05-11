@@ -8,14 +8,14 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/arm"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 )
 
 func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &arm.Linkarm
 	arch.REGSP = arm.REGSP
 	arch.MAXWIDTH = (1 << 32) - 1
-	arch.SoftFloat = objabi.GOARM == 5
+	arch.SoftFloat = buildcfg.GOARM == 5
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 	arch.Ginsnopdefer = ginsnop

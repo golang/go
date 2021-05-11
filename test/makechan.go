@@ -16,7 +16,7 @@ var sink T
 
 func main() {
 	sink = make(T, -1)            // ERROR "negative buffer argument in make.*|must not be negative"
-	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*|out of bounds"
+	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*|overflows int"
 
 	sink = make(T, 0.5) // ERROR "constant 0.5 truncated to integer|truncated to int"
 	sink = make(T, 1.0)

@@ -14,9 +14,10 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
 	MOVD	R26, 8(RSP)
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, 16(RSP)
-	MOVB	$0, 32(RSP)
-	ADD	$32, RSP, R3
+	MOVB	$0, 40(RSP)
+	ADD	$40, RSP, R3
 	MOVD	R3, 24(RSP)
+	MOVD	$0, 32(RSP)
 	BL	·callReflect(SB)
 	RET
 
@@ -29,8 +30,9 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
 	MOVD	R26, 8(RSP)
 	MOVD	$argframe+0(FP), R3
 	MOVD	R3, 16(RSP)
-	MOVB	$0, 32(RSP)
-	ADD	$32, RSP, R3
+	MOVB	$0, 40(RSP)
+	ADD	$40, RSP, R3
 	MOVD	R3, 24(RSP)
+	MOVD	$0, 32(RSP)
 	BL	·callMethod(SB)
 	RET

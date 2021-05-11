@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test use of raw connections.
+//go:build !plan9 && !js
 // +build !plan9,!js
 
 package os_test

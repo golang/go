@@ -1,4 +1,4 @@
-// +build amd64 s390x
+// +build amd64 s390x arm64
 // errorcheck -0 -d=ssa/phiopt/debug=3
 
 // Copyright 2016 The Go Authors. All rights reserved.
@@ -102,6 +102,30 @@ func f7or(a bool, b bool) bool {
 //go:noinline
 func f7and(a bool, b bool) bool {
 	return a && b // ERROR "converted OpPhi to AndB$"
+}
+
+//go:noinline
+func f8(s string) (string, bool) {
+	neg := false
+	if s[0] == '-' {    // ERROR "converted OpPhi to Copy$"
+		neg = true
+		s = s[1:]
+	}
+	return s, neg
+}
+
+var d int
+
+//go:noinline
+func f9(a, b int) bool {
+	c := false
+	if a < 0 {          // ERROR "converted OpPhi to Copy$"
+		if b < 0 {
+			d = d + 1
+		}
+		c = true
+	}
+	return c
 }
 
 func main() {

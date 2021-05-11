@@ -26,13 +26,12 @@ import (
 
 var (
 	// main operation modes
-	list            = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
-	write           = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	rewriteRule     = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
-	simplifyAST     = flag.Bool("s", false, "simplify code")
-	doDiff          = flag.Bool("d", false, "display diffs instead of rewriting files")
-	allErrors       = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
-	allowTypeParams = flag.Bool("G", false, "allow generic code")
+	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
+	simplifyAST = flag.Bool("s", false, "simplify code")
+	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
+	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
 	// debugging
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
@@ -71,9 +70,6 @@ func initParserMode() {
 	parserMode = parser.ParseComments
 	if *allErrors {
 		parserMode |= parser.AllErrors
-	}
-	if *allowTypeParams {
-		parserMode |= parser.ParseTypeParams
 	}
 }
 
@@ -155,7 +151,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
-			fmt.Printf("diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
+			fmt.Fprintf(out, "diff -u %s %s\n", filepath.ToSlash(filename+".orig"), filepath.ToSlash(filename))
 			out.Write(data)
 		}
 	}
@@ -168,19 +164,13 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 }
 
 func visitFile(path string, f fs.DirEntry, err error) error {
-	if err == nil && isGoFile(f) {
-		err = processFile(path, nil, os.Stdout, false)
+	if err != nil || !isGoFile(f) {
+		return err
 	}
-	// Don't complain if a file was deleted in the meantime (i.e.
-	// the directory changed concurrently while running gofmt).
-	if err != nil && !os.IsNotExist(err) {
+	if err := processFile(path, nil, os.Stdout, false); err != nil {
 		report(err)
 	}
 	return nil
-}
-
-func walkDir(path string) {
-	filepath.WalkDir(path, visitFile)
 }
 
 func main() {
@@ -210,7 +200,8 @@ func gofmtMain() {
 	initParserMode()
 	initRewrite()
 
-	if flag.NArg() == 0 {
+	args := flag.Args()
+	if len(args) == 0 {
 		if *write {
 			fmt.Fprintln(os.Stderr, "error: cannot use -w with standard input")
 			exitCode = 2
@@ -222,15 +213,18 @@ func gofmtMain() {
 		return
 	}
 
-	for i := 0; i < flag.NArg(); i++ {
-		path := flag.Arg(i)
-		switch dir, err := os.Stat(path); {
+	for _, arg := range args {
+		switch info, err := os.Stat(arg); {
 		case err != nil:
 			report(err)
-		case dir.IsDir():
-			walkDir(path)
+		case !info.IsDir():
+			// Non-directory arguments are always formatted.
+			if err := processFile(arg, nil, os.Stdout, false); err != nil {
+				report(err)
+			}
 		default:
-			if err := processFile(path, nil, os.Stdout, false); err != nil {
+			// Directories are walked, ignoring non-Go files.
+			if err := filepath.WalkDir(arg, visitFile); err != nil {
 				report(err)
 			}
 		}

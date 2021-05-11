@@ -308,6 +308,9 @@ func (subst *subster) typ(typ Type) Type {
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || types != t.types || ecopied {
 			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
+			if subst.check == nil {
+				panic("internal error: cannot instantiate interfaces yet")
+			}
 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
 			subst.check.completeInterface(nopos, iface)
 			return iface
@@ -327,12 +330,14 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Named:
-		subst.check.indent++
-		defer func() {
-			subst.check.indent--
-		}()
-		dump := func(format string, args ...interface{}) {
-			if subst.check.conf.Trace {
+		// dump is for debugging
+		dump := func(string, ...interface{}) {}
+		if subst.check != nil && subst.check.conf.Trace {
+			subst.check.indent++
+			defer func() {
+				subst.check.indent--
+			}()
+			dump = func(format string, args ...interface{}) {
 				subst.check.trace(subst.pos, format, args...)
 			}
 		}
@@ -377,24 +382,27 @@ func (subst *subster) typ(typ Type) Type {
 		// before creating a new named type, check if we have this one already
 		h := instantiatedHash(t, new_targs)
 		dump(">>> new type hash: %s", h)
-		if named, found := subst.check.typMap[h]; found {
-			dump(">>> found %s", named)
-			subst.cache[t] = named
-			return named
+		if subst.check != nil {
+			if named, found := subst.check.typMap[h]; found {
+				dump(">>> found %s", named)
+				subst.cache[t] = named
+				return named
+			}
 		}
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := subst.check.NewNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
-		named.tparams = t.tparams                                     // new type is still parameterized
+		named := subst.check.newNamed(tname, t, t.underlying, t.tparams, t.methods) // method signatures are updated lazily
 		named.targs = new_targs
-		subst.check.typMap[h] = named
+		if subst.check != nil {
+			subst.check.typMap[h] = named
+		}
 		subst.cache[t] = named
 
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
 		named.underlying = subst.typOrNil(t.underlying)
-		named.orig = named.underlying // for cycle detection (Checker.validType)
+		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
 
 		return named
 

@@ -108,13 +108,13 @@ func (s *Scope) Insert(obj Object) Object {
 	return nil
 }
 
-// Squash merges s with its parent scope p by adding all
+// squash merges s with its parent scope p by adding all
 // objects of s to p, adding all children of s to the
 // children of p, and removing s from p's children.
 // The function f is called for each object obj in s which
 // has an object alt in p. s should be discarded after
 // having been squashed.
-func (s *Scope) Squash(err func(obj, alt Object)) {
+func (s *Scope) squash(err func(obj, alt Object)) {
 	p := s.parent
 	assert(p != nil)
 	for _, obj := range s.elems {

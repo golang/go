@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-func (c *UDPConn) readFrom(b []byte) (n int, addr *UDPAddr, err error) {
+func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	buf := make([]byte, udpHeaderSize+len(b))
 	m, err := c.fd.Read(buf)
 	if err != nil {
@@ -23,8 +23,9 @@ func (c *UDPConn) readFrom(b []byte) (n int, addr *UDPAddr, err error) {
 	buf = buf[:m]
 
 	h, buf := unmarshalUDPHeader(buf)
-	n = copy(b, buf)
-	return n, &UDPAddr{IP: h.raddr, Port: int(h.rport)}, nil
+	n := copy(b, buf)
+	*addr = UDPAddr{IP: h.raddr, Port: int(h.rport)}
+	return n, addr, nil
 }
 
 func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {

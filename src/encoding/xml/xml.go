@@ -261,7 +261,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // call to Token. To acquire a copy of the bytes, call CopyToken
 // or the token's Copy method.
 //
-// Token expands self-closing elements such as <br/>
+// Token expands self-closing elements such as <br>
 // into separate start and end elements returned by successive calls.
 //
 // Token guarantees that the StartElement and EndElement
@@ -271,7 +271,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // it will return an error.
 //
 // Token implements XML name spaces as described by
-// https://www.w3.org/TR/REC-xml-names/.  Each of the
+// https://www.w3.org/TR/REC-xml-names/. Each of the
 // Name structures contained in the Token has the Space
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
@@ -285,16 +285,17 @@ func (d *Decoder) Token() (Token, error) {
 	if d.nextToken != nil {
 		t = d.nextToken
 		d.nextToken = nil
-	} else if t, err = d.rawToken(); err != nil {
-		switch {
-		case err == io.EOF && d.t != nil:
-			err = nil
-		case err == io.EOF && d.stk != nil && d.stk.kind != stkEOF:
-			err = d.syntaxError("unexpected EOF")
+	} else {
+		if t, err = d.rawToken(); t == nil && err != nil {
+			if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+				err = d.syntaxError("unexpected EOF")
+			}
+			return nil, err
 		}
-		return t, err
+		// We still have a token to process, so clear any
+		// errors (e.g. EOF) and proceed.
+		err = nil
 	}
-
 	if !d.Strict {
 		if t1, ok := d.autoClose(t); ok {
 			d.nextToken = t
@@ -767,6 +768,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					}
 					b0, b1 = b1, b
 				}
+
+				// Replace the comment with a space in the returned Directive
+				// body, so that markup parts that were separated by the comment
+				// (like a "<" and a "!") don't get joined when re-encoding the
+				// Directive, taking new semantic meaning.
+				d.buf.WriteByte(' ')
 			}
 		}
 		return Directive(d.buf.Bytes()), nil
@@ -1155,8 +1162,9 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	i := strings.Index(s, ":")
-	if i < 0 {
+	if strings.Count(s, ":") > 1 {
+		name.Local = s
+	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
 		name.Local = s
 	} else {
 		name.Space = s[0:i]

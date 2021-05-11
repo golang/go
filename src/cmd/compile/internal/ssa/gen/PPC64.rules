@@ -12,20 +12,20 @@
 (Sub64F ...) => (FSUB ...)
 
 // Combine 64 bit integer multiply and adds
-(ADD l:(MULLD x y) z) && objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
+(ADD l:(MULLD x y) z) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
 
 (Mod16 x y) => (Mod32 (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))
 (Mod8u x y) => (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
-(Mod64 x y) && objabi.GOPPC64 >=9 => (MODSD x y)
-(Mod64 x y) && objabi.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
-(Mod64u x y) && objabi.GOPPC64 >= 9 => (MODUD x y)
-(Mod64u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
-(Mod32 x y) && objabi.GOPPC64 >= 9 => (MODSW x y)
-(Mod32 x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
-(Mod32u x y) && objabi.GOPPC64 >= 9 => (MODUW x y)
-(Mod32u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
+(Mod64 x y) && buildcfg.GOPPC64 >=9 => (MODSD x y)
+(Mod64 x y) && buildcfg.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
+(Mod64u x y) && buildcfg.GOPPC64 >= 9 => (MODUD x y)
+(Mod64u x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
+(Mod32 x y) && buildcfg.GOPPC64 >= 9 => (MODSW x y)
+(Mod32 x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
+(Mod32u x y) && buildcfg.GOPPC64 >= 9 => (MODUW x y)
+(Mod32u x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
 
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
@@ -71,6 +71,7 @@
 (Round(32|64)F ...) => (LoweredRound(32|64)F ...)
 
 (Sqrt ...) => (FSQRT ...)
+(Sqrt32 ...) => (FSQRTS ...)
 (Floor ...) => (FFLOOR ...)
 (Ceil ...) => (FCEIL ...)
 (Trunc ...) => (FTRUNC ...)
@@ -100,7 +101,7 @@
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
 (ConstNil) => (MOVDconst [0])
-(ConstBool [b]) => (MOVDconst [b2i(b)])
+(ConstBool [t]) => (MOVDconst [b2i(t)])
 
 // Constant folding
 (FABS (FMOVDconst [x])) => (FMOVDconst [math.Abs(x)])
@@ -350,9 +351,9 @@
 (Ctz32NonZero ...) => (Ctz32 ...)
 (Ctz64NonZero ...) => (Ctz64 ...)
 
-(Ctz64 x) && objabi.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+(Ctz64 x) && buildcfg.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
 (Ctz64 x) => (CNTTZD x)
-(Ctz32 x) && objabi.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz32 x) && buildcfg.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
 (Ctz32 x) => (CNTTZW (MOVWZreg x))
 (Ctz16 x) => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
 (Ctz8 x)  => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
@@ -606,24 +607,18 @@
 		(MOVHstorezero [4] destptr
 			(MOVWstorezero destptr mem)))
 
-// MOVD for store with DS must have offsets that are multiple of 4
-(Zero [8] {t} destptr mem) && t.Alignment()%4 == 0 =>
-        (MOVDstorezero destptr mem)
-(Zero [8] destptr mem) =>
-        (MOVWstorezero [4] destptr
-                (MOVWstorezero [0] destptr mem))
-// Handle these cases only if aligned properly, otherwise use general case below
-(Zero [12] {t} destptr mem) && t.Alignment()%4 == 0 =>
+(Zero [8] {t} destptr mem) => (MOVDstorezero destptr mem)
+(Zero [12] {t} destptr mem) =>
         (MOVWstorezero [8] destptr
                 (MOVDstorezero [0] destptr mem))
-(Zero [16] {t} destptr mem) && t.Alignment()%4 == 0 =>
+(Zero [16] {t} destptr mem) =>
        (MOVDstorezero [8] destptr
                 (MOVDstorezero [0] destptr mem))
-(Zero [24] {t} destptr mem) && t.Alignment()%4 == 0 =>
+(Zero [24] {t} destptr mem) =>
        (MOVDstorezero [16] destptr
                (MOVDstorezero [8] destptr
                        (MOVDstorezero [0] destptr mem)))
-(Zero [32] {t} destptr mem) && t.Alignment()%4 == 0 =>
+(Zero [32] {t} destptr mem) =>
        (MOVDstorezero [24] destptr
                (MOVDstorezero [16] destptr
                        (MOVDstorezero [8] destptr
@@ -632,15 +627,12 @@
 // Handle cases not handled above
 // Lowered Short cases do not generate loops, and as a result don't clobber
 // the address registers or flags.
-(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 && s < 64 => (LoweredZeroShort [s] ptr mem)
-(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 => (LoweredZero [s] ptr mem)
-(Zero [s] ptr mem) && s < 128 && objabi.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr mem)
-(Zero [s] ptr mem) && objabi.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
+(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 && s < 64 => (LoweredZeroShort [s] ptr mem)
+(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 => (LoweredZero [s] ptr mem)
+(Zero [s] ptr mem) && s < 128 && buildcfg.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr mem)
+(Zero [s] ptr mem) && buildcfg.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
 
 // moves
-// Only the MOVD and MOVW instructions require 4 byte
-// alignment in the offset field.  The other MOVx instructions
-// allow any alignment.
 (Move [0] _ _ mem) => mem
 (Move [1] dst src mem) => (MOVBstore dst (MOVBZload src mem) mem)
 (Move [2] dst src mem) =>
@@ -648,11 +640,8 @@
 (Move [4] dst src mem) =>
 	(MOVWstore dst (MOVWZload src mem) mem)
 // MOVD for load and store must have offsets that are multiple of 4
-(Move [8] {t} dst src mem) && t.Alignment()%4 == 0 =>
+(Move [8] {t} dst src mem) =>
 	(MOVDstore dst (MOVDload src mem) mem)
-(Move [8] dst src mem) =>
-	(MOVWstore [4] dst (MOVWZload [4] src mem)
-		(MOVWstore dst (MOVWZload src mem) mem))
 (Move [3] dst src mem) =>
         (MOVBstore [2] dst (MOVBZload [2] src mem)
                 (MOVHstore dst (MOVHload src mem) mem))
@@ -669,11 +658,11 @@
 
 // Large move uses a loop. Since the address is computed and the
 // offset is zero, any alignment can be used.
-(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s) =>
         (LoweredMove [s] dst src mem)
-(Move [s] dst src mem) && s > 8 && s <= 64 && objabi.GOPPC64 >= 9 =>
+(Move [s] dst src mem) && s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9 =>
         (LoweredQuadMoveShort [s] dst src mem)
-(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s) =>
         (LoweredQuadMove [s] dst src mem)
 
 // Calls
@@ -874,7 +863,7 @@
 (MFVSRD x:(FMOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVDload [off] {sym} ptr mem)
 
 // Fold offsets for stores.
-(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVDstore [off1+int32(off2)] {sym} x val mem)
+(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVDstore [off1+int32(off2)] {sym} x val mem)
 (MOVWstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVWstore [off1+int32(off2)] {sym} x val mem)
 (MOVHstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVHstore [off1+int32(off2)] {sym} x val mem)
 (MOVBstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVBstore [off1+int32(off2)] {sym} x val mem)
@@ -897,7 +886,7 @@
 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
+	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (FMOVSstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
@@ -917,13 +906,13 @@
 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVHZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
+	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVWZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
+	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
         (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
@@ -936,8 +925,8 @@
 (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(int64(off1)+off2) => (FMOVSload [off1+int32(off2)] {sym} ptr mem)
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(int64(off1)+off2) => (FMOVDload [off1+int32(off2)] {sym} ptr mem)
 
-(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVDload [off1+int32(off2)] {sym} x mem)
-(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVWload [off1+int32(off2)] {sym} x mem)
+(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVDload [off1+int32(off2)] {sym} x mem)
+(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVWload [off1+int32(off2)] {sym} x mem)
 (MOVWZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVWZload [off1+int32(off2)] {sym} x mem)
 (MOVHload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVHload [off1+int32(off2)] {sym} x mem)
 (MOVHZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVHZload [off1+int32(off2)] {sym} x mem)
@@ -946,7 +935,10 @@
 // Determine load + addressing that can be done as a register indexed load
 (MOV(D|W|WZ|H|HZ|BZ)load [0] {sym} p:(ADD ptr idx) mem) && sym == nil && p.Uses == 1 => (MOV(D|W|WZ|H|HZ|BZ)loadidx ptr idx mem)
 
-// Determine indexed loads with constant values that can be done without index
+// Determine if there is benefit to using a non-indexed load, since that saves the load
+// of the index register. With MOVDload and MOVWload, there is no benefit if the offset
+// value is not a multiple of 4, since that results in an extra instruction in the base
+// register address computation.
 (MOV(D|W)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
 (MOV(WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
 (MOV(D|W)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
@@ -959,7 +951,7 @@
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
 
 // Fold offsets for storezero
-(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 =>
+(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) =>
     (MOVDstorezero [off1+int32(off2)] {sym} x mem)
 (MOVWstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) =>
     (MOVWstorezero [off1+int32(off2)] {sym} x mem)
@@ -972,6 +964,7 @@
 (MOV(D|W|H|B)store [0] {sym} p:(ADD ptr idx) val mem) && sym == nil && p.Uses == 1 => (MOV(D|W|H|B)storeidx ptr idx val mem)
 
 // Stores with constant index values can be done without indexed instructions
+// No need to lower the idx cases if c%4 is not 0
 (MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
 (MOV(W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) => (MOV(W|H|B)store [int32(c)] ptr val mem)
 (MOVDstoreidx (MOVDconst [c]) ptr val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
@@ -979,7 +972,7 @@
 
 // Fold symbols into storezero
 (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
-	&& (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
+	&& (x.Op != OpSB || p.Uses == 1) =>
     (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 (MOVWstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
 	&& (x.Op != OpSB || p.Uses == 1) =>
@@ -1055,7 +1048,7 @@
 (SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
 // special case for power9
-(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
+(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && buildcfg.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
 
 // Lose widening ops fed to stores
 (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)
@@ -1293,7 +1286,6 @@
 	o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32])
 	x0:(MOVWZload {s} [i0] p mem)))))
 	&& !config.BigEndian
-	&& i0%4 == 0
 	&& i4 == i0+4
 	&& i5 == i0+5
 	&& i6 == i0+6
@@ -1430,7 +1422,6 @@
 	x2:(MOVBstore [i4] {s} p (SRDconst w [32])
 	x3:(MOVWstore [i0] {s} p w mem)))))
 	&& !config.BigEndian
-	&& i0%4 == 0
 	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1
 	&& i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
 	&& clobber(x0, x1, x2, x3)

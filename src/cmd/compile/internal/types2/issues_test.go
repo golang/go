@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -29,7 +28,6 @@ func mustParse(t *testing.T, src string) *syntax.File {
 func TestIssue5770(t *testing.T) {
 	f := mustParse(t, `package p; type S struct{T}`)
 	var conf Config
-	// conf := Config{Importer: importer.Default()}
 	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
 	want := "undeclared name: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
@@ -76,7 +74,7 @@ var (
 			}
 		case *syntax.Name:
 			if x.Value == "nil" {
-				want = NewInterfaceType(nil, nil) // interface{}
+				want = NewInterfaceType(nil, nil) // interface{} (for now, go/types types this as "untyped nil")
 			}
 		}
 		if want != nil && !Identical(tv.Type, want) {
@@ -197,7 +195,7 @@ L7 uses var z int`
 	}
 }
 
-// This tests that the package associated with the types.Object.Pkg method
+// This tests that the package associated with the types2.Object.Pkg method
 // is the type's package independent of the order in which the imports are
 // listed in the sources src1, src2 below.
 // The actual issue is in go/internal/gcimporter which has a corresponding
@@ -300,8 +298,6 @@ func TestIssue22525(t *testing.T) {
 }
 
 func TestIssue25627(t *testing.T) {
-	t.Skip("requires syntax tree inspection")
-
 	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
 	// The src strings (without prefix) are constructed such that the number of semicolons
 	// plus one corresponds to the number of fields expected in the respective struct.
@@ -325,20 +321,17 @@ func TestIssue25627(t *testing.T) {
 			}
 		}
 
-		unimplemented()
-		/*
-			ast.Inspect(f, func(n syntax.Node) bool {
-				if spec, _ := n.(*syntax.TypeDecl); spec != nil {
-					if tv, ok := info.Types[spec.Type]; ok && spec.Name.Value == "T" {
-						want := strings.Count(src, ";") + 1
-						if got := tv.Type.(*Struct).NumFields(); got != want {
-							t.Errorf("%s: got %d fields; want %d", src, got, want)
-						}
+		syntax.Walk(f, func(n syntax.Node) bool {
+			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
+				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
+					want := strings.Count(src, ";") + 1
+					if got := tv.Type.(*Struct).NumFields(); got != want {
+						t.Errorf("%s: got %d fields; want %d", src, got, want)
 					}
 				}
-				return true
-			})
-		*/
+			}
+			return false
+		})
 	}
 }
 
@@ -392,9 +385,6 @@ func TestIssue28005(t *testing.T) {
 			t.Fatal("object X not found")
 		}
 		iface := obj.Type().Underlying().(*Interface) // object X must be an interface
-		if iface == nil {
-			t.Fatalf("%s is not an interface", obj)
-		}
 
 		// Each iface method m is embedded; and m's receiver base type name
 		// must match the method's name per the choice in the source file.
@@ -484,7 +474,7 @@ func TestIssue34151(t *testing.T) {
 	}
 
 	bast := mustParse(t, bsrc)
-	conf := Config{Importer: importHelper{a}}
+	conf := Config{Importer: importHelper{pkg: a}}
 	b, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
 	if err != nil {
 		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
@@ -492,14 +482,18 @@ func TestIssue34151(t *testing.T) {
 }
 
 type importHelper struct {
-	pkg *Package
+	pkg      *Package
+	fallback Importer
 }
 
 func (h importHelper) Import(path string) (*Package, error) {
-	if path != h.pkg.Path() {
+	if path == h.pkg.Path() {
+		return h.pkg, nil
+	}
+	if h.fallback == nil {
 		return nil, fmt.Errorf("got package path %q; want %q", path, h.pkg.Path())
 	}
-	return h.pkg, nil
+	return h.fallback.Import(path)
 }
 
 // TestIssue34921 verifies that we don't update an imported type's underlying
@@ -523,7 +517,7 @@ func TestIssue34921(t *testing.T) {
 	var pkg *Package
 	for _, src := range sources {
 		f := mustParse(t, src)
-		conf := Config{Importer: importHelper{pkg}}
+		conf := Config{Importer: importHelper{pkg: pkg}}
 		res, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
 		if err != nil {
 			t.Errorf("%q failed to typecheck: %v", src, err)
@@ -534,25 +528,85 @@ func TestIssue34921(t *testing.T) {
 
 func TestIssue43088(t *testing.T) {
 	// type T1 struct {
-	//         x T2
+	//         _ T2
 	// }
 	//
 	// type T2 struct {
-	//         x struct {
-	//                 x T2
+	//         _ struct {
+	//                 _ T2
 	//         }
 	// }
 	n1 := NewTypeName(syntax.Pos{}, nil, "T1", nil)
 	T1 := NewNamed(n1, nil, nil)
 	n2 := NewTypeName(syntax.Pos{}, nil, "T2", nil)
 	T2 := NewNamed(n2, nil, nil)
-	s1 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", T2, false)}, nil)
+	s1 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", T2, false)}, nil)
 	T1.SetUnderlying(s1)
-	s2 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", T2, false)}, nil)
-	s3 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "x", s2, false)}, nil)
+	s2 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(syntax.Pos{}, nil, "_", s2, false)}, nil)
 	T2.SetUnderlying(s3)
 
 	// These calls must terminate (no endless recursion).
 	Comparable(T1)
 	Comparable(T2)
+}
+
+func TestIssue44515(t *testing.T) {
+	typ := Unsafe.Scope().Lookup("Pointer").Type()
+
+	got := TypeString(typ, nil)
+	want := "unsafe.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+
+	qf := func(pkg *Package) string {
+		if pkg == Unsafe {
+			return "foo"
+		}
+		return ""
+	}
+	got = TypeString(typ, qf)
+	want = "foo.Pointer"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+func TestIssue43124(t *testing.T) {
+	// All involved packages have the same name (template). Error messages should
+	// disambiguate between text/template and html/template by printing the full
+	// path.
+	const (
+		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
+		bsrc = `package b; import ("a"; "html/template"); func _() { a.F(template.Template{}) }`
+		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
+	)
+
+	a, err := pkgFor("a", asrc, nil)
+	if err != nil {
+		t.Fatalf("package a failed to typecheck: %v", err)
+	}
+	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
+
+	// Packages should be fully qualified when there is ambiguity within the
+	// error string itself.
+	bast := mustParse(t, bsrc)
+	_, err = conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
+	if err == nil {
+		t.Fatal("package b had no errors")
+	}
+	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
+		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
+	}
+
+	// ...and also when there is any ambiguity in reachable packages.
+	cast := mustParse(t, csrc)
+	_, err = conf.Check(cast.PkgName.Value, []*syntax.File{cast}, nil)
+	if err == nil {
+		t.Fatal("package c had no errors")
+	}
+	if !strings.Contains(err.Error(), "html/template") {
+		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+	}
 }

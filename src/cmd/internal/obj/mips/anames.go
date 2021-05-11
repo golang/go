@@ -78,6 +78,8 @@ var Anames = []string{
 	"REM",
 	"REMU",
 	"RFE",
+	"ROTR",
+	"ROTRV",
 	"SC",
 	"SCV",
 	"SGT",

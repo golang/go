@@ -111,7 +111,7 @@ var dependentTestTypes = []testEntry{
 	// interfaces
 	dup(`interface{io.Reader; io.Writer}`),
 	dup(`interface{m() int; io.Writer}`),
-	{`interface{m() interface{T}}`, `interface{m() interface{p.T}}`},
+	{`interface{m() interface{T}}`, `interface{m() interface{generic_p.T}}`},
 }
 
 func TestTypeString(t *testing.T) {
@@ -122,7 +122,7 @@ func TestTypeString(t *testing.T) {
 	tests = append(tests, dependentTestTypes...)
 
 	for _, test := range tests {
-		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
+		src := `package generic_p; import "io"; type _ io.Writer; type T ` + test.src
 		pkg, err := makePkg(src)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)

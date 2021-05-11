@@ -1,0 +1,129 @@
+# This test illustrates a case where an upgrade–downgrade–upgrade cycle could
+# add extraneous dependencies due to another module depending on an
+# otherwise-unlisted version (such as a pseudo-version).
+#
+# This case corresponds to the "downhiddenartifact" test in the mvs package.
+
+# The initial package import graph used in the test looks like:
+#
+# a --- b
+#  \     \
+#   \     \
+#    c --- d
+#
+# The module dependency graph initially looks like:
+#
+# a --- b.3
+#  \      \
+#   \      \
+#   c.2 --- d.2
+#
+# c.1 --- b.2 (pseudo)
+#
+# b.1 --- e.1
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+
+# When we downgrade d.2 to d.1, no dependency on e should be added
+# because nothing else in the module or import graph requires it.
+go get -d example.net/d@v0.1.0
+
+go list -m all
+stdout '^example.net/b v0.2.1-0.20210219000000-000000000000 '
+stdout '^example.net/c v0.1.0 '
+stdout '^example.net/d v0.1.0 '
+! stdout '^example.net/e '
+
+-- go.mod --
+module example.net/a
+
+go 1.16
+
+require (
+	example.net/b v0.3.0
+	example.net/c v0.2.0
+)
+
+replace (
+	example.net/b v0.1.0 => ./b1
+	example.net/b v0.2.1-0.20210219000000-000000000000 => ./b2
+	example.net/b v0.3.0 => ./b3
+	example.net/c v0.1.0 => ./c1
+	example.net/c v0.2.0 => ./c2
+	example.net/d v0.1.0 => ./d
+	example.net/d v0.2.0 => ./d
+	example.net/e v0.1.0 => ./e
+)
+-- a.go --
+package a
+
+import (
+	_ "example.net/b"
+	_ "example.net/c"
+)
+
+-- b1/go.mod --
+module example.net/b
+
+go 1.16
+
+require example.net/e v0.1.0
+-- b1/b.go --
+package b
+
+import _ "example.net/e"
+
+-- b2/go.mod --
+module example.net/b
+
+go 1.16
+-- b2/b.go --
+package b
+
+-- b3/go.mod --
+module example.net/b
+
+go 1.16
+
+require example.net/d v0.2.0
+-- b3/b.go --
+package b
+
+import _ "example.net/d"
+-- c1/go.mod --
+module example.net/c
+
+go 1.16
+
+require example.net/b v0.2.1-0.20210219000000-000000000000
+-- c1/c.go --
+package c
+
+import _ "example.net/b"
+
+-- c2/go.mod --
+module example.net/c
+
+go 1.16
+
+require example.net/d v0.2.0
+-- c2/c.go --
+package c
+
+import _ "example.net/d"
+
+-- d/go.mod --
+module example.net/d
+
+go 1.16
+-- d/d.go --
+package d
+
+-- e/go.mod --
+module example.net/e
+
+go 1.16
+-- e/e.go --
+package e

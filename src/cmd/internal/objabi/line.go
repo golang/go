@@ -5,6 +5,7 @@
 package objabi
 
 import (
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,8 +39,8 @@ func AbsFile(dir, file, rewrites string) string {
 	}
 
 	abs, rewritten := ApplyRewrites(abs, rewrites)
-	if !rewritten && hasPathPrefix(abs, GOROOT) {
-		abs = "$GOROOT" + abs[len(GOROOT):]
+	if !rewritten && hasPathPrefix(abs, buildcfg.GOROOT) {
+		abs = "$GOROOT" + abs[len(buildcfg.GOROOT):]
 	}
 
 	if abs == "" {

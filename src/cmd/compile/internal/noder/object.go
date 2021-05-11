@@ -22,16 +22,26 @@ func (g *irgen) def(name *syntax.Name) (*ir.Name, types2.Object) {
 	return g.obj(obj), obj
 }
 
+// use returns the Name node associated with the use of name. The returned node
+// will have the correct type and be marked as typechecked.
 func (g *irgen) use(name *syntax.Name) *ir.Name {
-	obj, ok := g.info.Uses[name]
+	obj2, ok := g.info.Uses[name]
 	if !ok {
 		base.FatalfAt(g.pos(name), "unknown name %v", name)
 	}
-	return ir.CaptureName(g.pos(obj), ir.CurFunc, g.obj(obj))
+	obj := ir.CaptureName(g.pos(obj2), ir.CurFunc, g.obj(obj2))
+	if obj.Defn != nil && obj.Defn.Op() == ir.ONAME {
+		// If CaptureName created a closure variable, then transfer the
+		// type of the captured name to the new closure variable.
+		obj.SetTypecheck(1)
+		obj.SetType(obj.Defn.Type())
+	}
+	return obj
 }
 
-// obj returns the Name that represents the given object. If no such
-// Name exists yet, it will be implicitly created.
+// obj returns the Name that represents the given object. If no such Name exists
+// yet, it will be implicitly created. The returned node will have the correct
+// type and be marked as typechecked.
 //
 // For objects declared at function scope, ir.CurFunc must already be
 // set to the respective function when the Name is created.
@@ -45,6 +55,7 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 		}
 		n := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
 		if n, ok := n.(*ir.Name); ok {
+			n.SetTypecheck(1)
 			return n
 		}
 		base.FatalfAt(g.pos(obj), "failed to resolve %v", obj)
@@ -117,6 +128,7 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 	}
 
 	g.objs[obj] = name
+	name.SetTypecheck(1)
 	return name
 }
 
@@ -135,9 +147,6 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
 		sym.SetFunc(true)
 	}
 
-	// We already know name's type, but typecheck is really eager to try
-	// recomputing it later. This appears to prevent that at least.
-	name.Ntype = ir.TypeNode(typ)
 	name.SetTypecheck(1)
 	name.SetWalkdef(1)
 

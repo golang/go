@@ -73,8 +73,8 @@ func ValidPath(name string) bool {
 
 // A File provides access to a single file.
 // The File interface is the minimum implementation required of the file.
-// A file may implement additional interfaces, such as
-// ReadDirFile, ReaderAt, or Seeker, to provide additional or optimized functionality.
+// Directory files should also implement ReadDirFile.
+// A file may implement io.ReaderAt or io.Seeker as optimizations.
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)

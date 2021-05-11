@@ -84,9 +84,6 @@ type Link struct {
 	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
 
-	cgo_export_static  map[string]bool
-	cgo_export_dynamic map[string]bool
-
 	datap  []loader.Sym
 	dynexp []loader.Sym
 

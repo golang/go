@@ -17,19 +17,6 @@ type writer interface {
 	Flush() error
 }
 
-// An errWriteCloser is an io.WriteCloser that always returns a given error.
-type errWriteCloser struct {
-	err error
-}
-
-func (e *errWriteCloser) Write([]byte) (int, error) {
-	return 0, e.err
-}
-
-func (e *errWriteCloser) Close() error {
-	return e.err
-}
-
 const (
 	// A code is a 12 bit value, stored as a uint32 when encoding to avoid
 	// type conversions when shifting bits.
@@ -44,14 +31,15 @@ const (
 	invalidEntry = 0
 )
 
-// encoder is LZW compressor.
-type encoder struct {
+// Writer is an LZW compressor. It writes the compressed form of the data
+// to an underlying writer (see NewWriter).
+type Writer struct {
 	// w is the writer that compressed bytes are written to.
 	w writer
 	// order, write, bits, nBits and width are the state for
 	// converting a code stream into a byte stream.
 	order Order
-	write func(*encoder, uint32) error
+	write func(*Writer, uint32) error
 	bits  uint32
 	nBits uint
 	width uint
@@ -63,7 +51,7 @@ type encoder struct {
 	// savedCode is the accumulated code at the end of the most recent Write
 	// call. It is equal to invalidCode if there was no such call.
 	savedCode uint32
-	// err is the first error encountered during writing. Closing the encoder
+	// err is the first error encountered during writing. Closing the writer
 	// will make any future Write calls return errClosed
 	err error
 	// table is the hash table from 20-bit keys to 12-bit values. Each table
@@ -74,80 +62,80 @@ type encoder struct {
 }
 
 // writeLSB writes the code c for "Least Significant Bits first" data.
-func (e *encoder) writeLSB(c uint32) error {
-	e.bits |= c << e.nBits
-	e.nBits += e.width
-	for e.nBits >= 8 {
-		if err := e.w.WriteByte(uint8(e.bits)); err != nil {
+func (w *Writer) writeLSB(c uint32) error {
+	w.bits |= c << w.nBits
+	w.nBits += w.width
+	for w.nBits >= 8 {
+		if err := w.w.WriteByte(uint8(w.bits)); err != nil {
 			return err
 		}
-		e.bits >>= 8
-		e.nBits -= 8
+		w.bits >>= 8
+		w.nBits -= 8
 	}
 	return nil
 }
 
 // writeMSB writes the code c for "Most Significant Bits first" data.
-func (e *encoder) writeMSB(c uint32) error {
-	e.bits |= c << (32 - e.width - e.nBits)
-	e.nBits += e.width
-	for e.nBits >= 8 {
-		if err := e.w.WriteByte(uint8(e.bits >> 24)); err != nil {
+func (w *Writer) writeMSB(c uint32) error {
+	w.bits |= c << (32 - w.width - w.nBits)
+	w.nBits += w.width
+	for w.nBits >= 8 {
+		if err := w.w.WriteByte(uint8(w.bits >> 24)); err != nil {
 			return err
 		}
-		e.bits <<= 8
-		e.nBits -= 8
+		w.bits <<= 8
+		w.nBits -= 8
 	}
 	return nil
 }
 
-// errOutOfCodes is an internal error that means that the encoder has run out
+// errOutOfCodes is an internal error that means that the writer has run out
 // of unused codes and a clear code needs to be sent next.
 var errOutOfCodes = errors.New("lzw: out of codes")
 
 // incHi increments e.hi and checks for both overflow and running out of
 // unused codes. In the latter case, incHi sends a clear code, resets the
-// encoder state and returns errOutOfCodes.
-func (e *encoder) incHi() error {
-	e.hi++
-	if e.hi == e.overflow {
-		e.width++
-		e.overflow <<= 1
+// writer state and returns errOutOfCodes.
+func (w *Writer) incHi() error {
+	w.hi++
+	if w.hi == w.overflow {
+		w.width++
+		w.overflow <<= 1
 	}
-	if e.hi == maxCode {
-		clear := uint32(1) << e.litWidth
-		if err := e.write(e, clear); err != nil {
+	if w.hi == maxCode {
+		clear := uint32(1) << w.litWidth
+		if err := w.write(w, clear); err != nil {
 			return err
 		}
-		e.width = e.litWidth + 1
-		e.hi = clear + 1
-		e.overflow = clear << 1
-		for i := range e.table {
-			e.table[i] = invalidEntry
+		w.width = w.litWidth + 1
+		w.hi = clear + 1
+		w.overflow = clear << 1
+		for i := range w.table {
+			w.table[i] = invalidEntry
 		}
 		return errOutOfCodes
 	}
 	return nil
 }
 
-// Write writes a compressed representation of p to e's underlying writer.
-func (e *encoder) Write(p []byte) (n int, err error) {
-	if e.err != nil {
-		return 0, e.err
+// Write writes a compressed representation of p to w's underlying writer.
+func (w *Writer) Write(p []byte) (n int, err error) {
+	if w.err != nil {
+		return 0, w.err
 	}
 	if len(p) == 0 {
 		return 0, nil
 	}
-	if maxLit := uint8(1<<e.litWidth - 1); maxLit != 0xff {
+	if maxLit := uint8(1<<w.litWidth - 1); maxLit != 0xff {
 		for _, x := range p {
 			if x > maxLit {
-				e.err = errors.New("lzw: input byte too large for the litWidth")
-				return 0, e.err
+				w.err = errors.New("lzw: input byte too large for the litWidth")
+				return 0, w.err
 			}
 		}
 	}
 	n = len(p)
-	code := e.savedCode
+	code := w.savedCode
 	if code == invalidCode {
 		// The first code sent is always a literal code.
 		code, p = uint32(p[0]), p[1:]
@@ -159,77 +147,84 @@ loop:
 		// If there is a hash table hit for this key then we continue the loop
 		// and do not emit a code yet.
 		hash := (key>>12 ^ key) & tableMask
-		for h, t := hash, e.table[hash]; t != invalidEntry; {
+		for h, t := hash, w.table[hash]; t != invalidEntry; {
 			if key == t>>12 {
 				code = t & maxCode
 				continue loop
 			}
 			h = (h + 1) & tableMask
-			t = e.table[h]
+			t = w.table[h]
 		}
 		// Otherwise, write the current code, and literal becomes the start of
 		// the next emitted code.
-		if e.err = e.write(e, code); e.err != nil {
-			return 0, e.err
+		if w.err = w.write(w, code); w.err != nil {
+			return 0, w.err
 		}
 		code = literal
 		// Increment e.hi, the next implied code. If we run out of codes, reset
-		// the encoder state (including clearing the hash table) and continue.
-		if err1 := e.incHi(); err1 != nil {
+		// the writer state (including clearing the hash table) and continue.
+		if err1 := w.incHi(); err1 != nil {
 			if err1 == errOutOfCodes {
 				continue
 			}
-			e.err = err1
-			return 0, e.err
+			w.err = err1
+			return 0, w.err
 		}
 		// Otherwise, insert key -> e.hi into the map that e.table represents.
 		for {
-			if e.table[hash] == invalidEntry {
-				e.table[hash] = (key << 12) | e.hi
+			if w.table[hash] == invalidEntry {
+				w.table[hash] = (key << 12) | w.hi
 				break
 			}
 			hash = (hash + 1) & tableMask
 		}
 	}
-	e.savedCode = code
+	w.savedCode = code
 	return n, nil
 }
 
-// Close closes the encoder, flushing any pending output. It does not close or
-// flush e's underlying writer.
-func (e *encoder) Close() error {
-	if e.err != nil {
-		if e.err == errClosed {
+// Close closes the Writer, flushing any pending output. It does not close
+// w's underlying writer.
+func (w *Writer) Close() error {
+	if w.err != nil {
+		if w.err == errClosed {
 			return nil
 		}
-		return e.err
+		return w.err
 	}
 	// Make any future calls to Write return errClosed.
-	e.err = errClosed
+	w.err = errClosed
 	// Write the savedCode if valid.
-	if e.savedCode != invalidCode {
-		if err := e.write(e, e.savedCode); err != nil {
+	if w.savedCode != invalidCode {
+		if err := w.write(w, w.savedCode); err != nil {
 			return err
 		}
-		if err := e.incHi(); err != nil && err != errOutOfCodes {
+		if err := w.incHi(); err != nil && err != errOutOfCodes {
 			return err
 		}
 	}
 	// Write the eof code.
-	eof := uint32(1)<<e.litWidth + 1
-	if err := e.write(e, eof); err != nil {
+	eof := uint32(1)<<w.litWidth + 1
+	if err := w.write(w, eof); err != nil {
 		return err
 	}
 	// Write the final bits.
-	if e.nBits > 0 {
-		if e.order == MSB {
-			e.bits >>= 24
+	if w.nBits > 0 {
+		if w.order == MSB {
+			w.bits >>= 24
 		}
-		if err := e.w.WriteByte(uint8(e.bits)); err != nil {
+		if err := w.w.WriteByte(uint8(w.bits)); err != nil {
 			return err
 		}
 	}
-	return e.w.Flush()
+	return w.w.Flush()
+}
+
+// Reset clears the Writer's state and allows it to be reused again
+// as a new Writer.
+func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
+	*w = Writer{}
+	w.init(dst, order, litWidth)
 }
 
 // NewWriter creates a new io.WriteCloser.
@@ -238,32 +233,43 @@ func (e *encoder) Close() error {
 // finished writing.
 // The number of bits to use for literal codes, litWidth, must be in the
 // range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
+//
+// It is guaranteed that the underlying type of the returned io.WriteCloser
+// is a *Writer.
 func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
-	var write func(*encoder, uint32) error
+	return newWriter(w, order, litWidth)
+}
+
+func newWriter(dst io.Writer, order Order, litWidth int) *Writer {
+	w := new(Writer)
+	w.init(dst, order, litWidth)
+	return w
+}
+
+func (w *Writer) init(dst io.Writer, order Order, litWidth int) {
 	switch order {
 	case LSB:
-		write = (*encoder).writeLSB
+		w.write = (*Writer).writeLSB
 	case MSB:
-		write = (*encoder).writeMSB
+		w.write = (*Writer).writeMSB
 	default:
-		return &errWriteCloser{errors.New("lzw: unknown order")}
+		w.err = errors.New("lzw: unknown order")
+		return
 	}
 	if litWidth < 2 || 8 < litWidth {
-		return &errWriteCloser{fmt.Errorf("lzw: litWidth %d out of range", litWidth)}
+		w.err = fmt.Errorf("lzw: litWidth %d out of range", litWidth)
+		return
 	}
-	bw, ok := w.(writer)
-	if !ok {
-		bw = bufio.NewWriter(w)
+	bw, ok := dst.(writer)
+	if !ok && dst != nil {
+		bw = bufio.NewWriter(dst)
 	}
+	w.w = bw
 	lw := uint(litWidth)
-	return &encoder{
-		w:         bw,
-		order:     order,
-		write:     write,
-		width:     1 + lw,
-		litWidth:  lw,
-		hi:        1<<lw + 1,
-		overflow:  1 << (lw + 1),
-		savedCode: invalidCode,
-	}
+	w.order = order
+	w.width = 1 + lw
+	w.litWidth = lw
+	w.hi = 1<<lw + 1
+	w.overflow = 1 << (lw + 1)
+	w.savedCode = invalidCode
 }

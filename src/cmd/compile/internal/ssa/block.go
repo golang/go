@@ -358,6 +358,22 @@ func (b *Block) AuxIntString() string {
 	}
 }
 
+// likelyBranch reports whether block b is the likely branch of all of its predecessors.
+func (b *Block) likelyBranch() bool {
+	if len(b.Preds) == 0 {
+		return false
+	}
+	for _, e := range b.Preds {
+		p := e.b
+		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].b == b ||
+			p.Likely == BranchUnlikely && p.Succs[1].b == b) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
 func (b *Block) Log() bool                              { return b.Func.Log() }
 func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }

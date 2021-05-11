@@ -14,7 +14,7 @@ import (
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *TypeParam, *instance:
+	case *Basic, *Named, *_TypeParam, *instance:
 		return true
 	}
 	return false
@@ -32,7 +32,7 @@ func is(typ Type, what BasicInfo) bool {
 	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
-	case *Sum:
+	case *_Sum:
 		return t.is(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
@@ -109,7 +109,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	//
 	// is not comparable because []byte is not comparable.
 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
-		return t.Bound().IsComparable()
+		return t.Bound()._IsComparable()
 	}
 
 	switch t := optype(T).(type) {
@@ -128,13 +128,13 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return true
 	case *Array:
 		return comparable(t.elem, seen)
-	case *Sum:
+	case *_Sum:
 		pred := func(t Type) bool {
 			return comparable(t, seen)
 		}
 		return t.is(pred)
-	case *TypeParam:
-		return t.Bound().IsComparable()
+	case *_TypeParam:
+		return t.Bound()._IsComparable()
 	}
 	return false
 }
@@ -146,7 +146,7 @@ func hasNil(typ Type) bool {
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
-	case *Sum:
+	case *_Sum:
 		return t.is(hasNil)
 	}
 	return false
@@ -265,14 +265,14 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 				check.identical0(x.results, y.results, cmpTags, p)
 		}
 
-	case *Sum:
+	case *_Sum:
 		// Two sum types are identical if they contain the same types.
 		// (Sum types always consist of at least two types. Also, the
 		// the set (list) of types in a sum type consists of unique
 		// types - each type appears exactly once. Thus, two sum types
 		// must contain the same number of types to have chance of
 		// being equal.
-		if y, ok := y.(*Sum); ok && len(x.types) == len(y.types) {
+		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
 			// Every type in x.types must be in y.types.
 			// Quadratic algorithm, but probably good enough for now.
 			// TODO(gri) we need a fast quick type ID/hash for all types.
@@ -370,7 +370,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			return x.obj == y.obj
 		}
 
-	case *TypeParam:
+	case *_TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
 
 	// case *instance:
@@ -397,7 +397,7 @@ func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifaceP
 	}
 	for i, x := range x {
 		y := y[i]
-		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
+		if !check.identical0(x.typ.(*_TypeParam).bound, y.typ.(*_TypeParam).bound, cmpTags, p) {
 			return false
 		}
 	}

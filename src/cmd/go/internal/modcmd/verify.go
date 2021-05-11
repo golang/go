@@ -54,7 +54,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
 	// Use a slice of result channels, so that the output is deterministic.
-	mods := modload.LoadAllModules(ctx)[1:]
+	mods := modload.LoadModGraph(ctx).BuildList()[1:]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {

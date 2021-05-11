@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"path"
 	"reflect"
 	"sort"
@@ -23,7 +22,7 @@ import (
 // opening and checking that each file behaves correctly.
 // It also checks that the file system contains at least the expected files.
 // As a special case, if no expected files are listed, fsys must be empty.
-// Otherwise, fsys must only contain at least the listed files: it can also contain others.
+// Otherwise, fsys must contain at least the listed files; it can also contain others.
 // The contents of fsys must not change concurrently with TestFS.
 //
 // If TestFS finds any misbehaviors, it returns an error reporting all of them.
@@ -303,7 +302,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		for i, e := range elem {
 			var pattern []rune
 			for j, r := range e {
-				if r == '*' || r == '?' || r == '\\' || r == '[' {
+				if r == '*' || r == '?' || r == '\\' || r == '[' || r == '-' {
 					pattern = append(pattern, '\\', r)
 					continue
 				}
@@ -514,7 +513,7 @@ func (t *fsTester) checkFile(file string) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		f.Close()
 		t.errorf("%s: Open+ReadAll: %v", file, err)
@@ -537,6 +536,18 @@ func (t *fsTester) checkFile(file string) {
 			return
 		}
 		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
+
+		// Modify the data and check it again. Modifying the
+		// returned byte slice should not affect the next call.
+		for i := range data2 {
+			data2[i]++
+		}
+		data2, err = fsys.ReadFile(file)
+		if err != nil {
+			t.errorf("%s: second call to fsys.ReadFile: %v", file, err)
+			return
+		}
+		t.checkFileRead(file, "Readall vs second fsys.ReadFile", data, data2)
 
 		t.checkBadPath(file, "ReadFile",
 			func(name string) error { _, err := fsys.ReadFile(name); return err })

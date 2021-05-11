@@ -8,8 +8,8 @@
 #define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 
-// func ·Max(x, y float64) float64
-TEXT ·Max(SB),NOSPLIT,$0
+// func ·archMax(x, y float64) float64
+TEXT ·archMax(SB),NOSPLIT,$0
 	// +Inf special cases
 	MOVQ    $PosInf, AX
 	MOVQ    x+0(FP), R8
@@ -52,8 +52,8 @@ isMaxZero:
 	MOVQ    R9, ret+16(FP) // return other 0
 	RET
 
-// func Min(x, y float64) float64
-TEXT ·Min(SB),NOSPLIT,$0
+// func archMin(x, y float64) float64
+TEXT ·archMin(SB),NOSPLIT,$0
 	// -Inf special cases
 	MOVQ    $NegInf, AX
 	MOVQ    x+0(FP), R8

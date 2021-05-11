@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -33,8 +32,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type
 		// bool, rune, int, float64, complex128 or string respectively, depending
-		// on whether the value is a boolean, rune, integer, floating-point, complex,
-		// or string constant."
+		// on whether the value is a boolean, rune, integer, floating-point,
+		// complex, or string constant."
 		if x.isNil() {
 			if T == nil {
 				check.errorf(x, "use of untyped nil in %s", context)
@@ -44,9 +43,26 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		} else if T == nil || IsInterface(T) {
 			target = Default(x.typ)
 		}
-		check.convertUntyped(x, target)
-		if x.mode == invalid {
+		newType, val, code := check.implicitTypeAndValue(x, target)
+		if code != 0 {
+			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
+			switch code {
+			case _TruncatedFloat:
+				msg += " (truncated)"
+			case _NumericOverflow:
+				msg += " (overflows)"
+			}
+			check.error(x, msg)
+			x.mode = invalid
 			return
+		}
+		if val != nil {
+			x.val = val
+			check.updateExprVal(x.expr, val)
+		}
+		if newType != x.typ {
+			x.typ = newType
+			check.updateExprType(x.expr, newType, false)
 		}
 	}
 	// x.typ is typed
@@ -63,7 +79,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if reason := ""; !x.assignableTo(check, T, &reason) {
+	reason := ""
+	if ok, _ := x.assignableTo(check, T, &reason); !ok {
 		if check.conf.CompilerErrorMessages {
 			check.errorf(x, "incompatible type: cannot use %s as %s value", x, T)
 		} else {
@@ -113,6 +130,8 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
+		// Note: This was reverted in go/types (https://golang.org/cl/292751).
+		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
 		lhs.used = true // avoid follow-on "declared but not used" errors
 		return nil
 	}
@@ -194,7 +213,7 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	case variable, mapindex:
 		// ok
 	case nilvalue:
-		check.errorf(&z, "cannot assign to nil") // default would print "untyped nil"
+		check.error(&z, "cannot assign to nil") // default would print "untyped nil"
 		return nil
 	default:
 		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
@@ -311,40 +330,59 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	scope := check.scope
 
 	// collect lhs variables
-	var newVars []*Var
-	var lhsVars = make([]*Var, len(lhs))
+	seen := make(map[string]bool, len(lhs))
+	lhsVars := make([]*Var, len(lhs))
+	newVars := make([]*Var, 0, len(lhs))
+	hasErr := false
 	for i, lhs := range lhs {
-		var obj *Var
-		if ident, _ := lhs.(*syntax.Name); ident != nil {
-			// Use the correct obj if the ident is redeclared. The
-			// variable's scope starts after the declaration; so we
-			// must use Scope.Lookup here and call Scope.Insert
-			// (via check.declare) later.
-			name := ident.Value
-			if alt := scope.Lookup(name); alt != nil {
-				// redeclared object must be a variable
-				if alt, _ := alt.(*Var); alt != nil {
-					obj = alt
-				} else {
-					check.errorf(lhs, "cannot assign to %s", lhs)
-				}
-				check.recordUse(ident, alt)
-			} else {
-				// declare new variable, possibly a blank (_) variable
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
-				if name != "_" {
-					newVars = append(newVars, obj)
-				}
-				check.recordDef(ident, obj)
-			}
-		} else {
+		ident, _ := lhs.(*syntax.Name)
+		if ident == nil {
 			check.useLHS(lhs)
-			check.errorf(lhs, "cannot declare %s", lhs)
+			check.errorf(lhs, "non-name %s on left side of :=", lhs)
+			hasErr = true
+			continue
 		}
-		if obj == nil {
-			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+
+		name := ident.Value
+		if name != "_" {
+			if seen[name] {
+				check.errorf(lhs, "%s repeated on left side of :=", lhs)
+				hasErr = true
+				continue
+			}
+			seen[name] = true
 		}
+
+		// Use the correct obj if the ident is redeclared. The
+		// variable's scope starts after the declaration; so we
+		// must use Scope.Lookup here and call Scope.Insert
+		// (via check.declare) later.
+		if alt := scope.Lookup(name); alt != nil {
+			check.recordUse(ident, alt)
+			// redeclared object must be a variable
+			if obj, _ := alt.(*Var); obj != nil {
+				lhsVars[i] = obj
+			} else {
+				check.errorf(lhs, "cannot assign to %s", lhs)
+				hasErr = true
+			}
+			continue
+		}
+
+		// declare new variable
+		obj := NewVar(ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
+		if name != "_" {
+			newVars = append(newVars, obj)
+		}
+		check.recordDef(ident, obj)
+	}
+
+	// create dummy variables where the lhs is invalid
+	for i, obj := range lhsVars {
+		if obj == nil {
+			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+		}
 	}
 
 	check.initVars(lhsVars, rhs, nopos)
@@ -352,17 +390,18 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)
 
-	// declare new variables
-	if len(newVars) > 0 {
-		// spec: "The scope of a constant or variable identifier declared inside
-		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
-		// for short variable declarations) and ends at the end of the innermost
-		// containing block."
-		scopePos := endPos(rhs[len(rhs)-1])
-		for _, obj := range newVars {
-			check.declare(scope, nil, obj, scopePos) // recordObject already called
-		}
-	} else {
+	if len(newVars) == 0 && !hasErr {
 		check.softErrorf(pos, "no new variables on left side of :=")
+		return
+	}
+
+	// declare new variables
+	// spec: "The scope of a constant or variable identifier declared inside
+	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+	// for short variable declarations) and ends at the end of the innermost
+	// containing block."
+	scopePos := syntax.EndPos(rhs[len(rhs)-1])
+	for _, obj := range newVars {
+		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
 	}
 }

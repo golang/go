@@ -3,6 +3,7 @@
 [short] skip
 
 ! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
+stdout '^panic: test timed out'
 grep . cpu.pprof
 grep . mem.pprof
 
@@ -12,6 +13,14 @@ module profiling
 go 1.16
 -- timeout_test.go --
 package timeouttest_test
-import "testing"
-import "time"
-func TestSleep(t *testing.T) { time.Sleep(time.Second) }
+
+import (
+	"testing"
+	"time"
+)
+
+func TestSleep(t *testing.T) {
+	for {
+		time.Sleep(1 * time.Second)
+	}
+}

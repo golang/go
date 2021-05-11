@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -786,10 +787,12 @@ func (t *Transport) CancelRequest(req *Request) {
 // Cancel an in-flight request, recording the error value.
 // Returns whether the request was canceled.
 func (t *Transport) cancelRequest(key cancelKey, err error) bool {
+	// This function must not return until the cancel func has completed.
+	// See: https://golang.org/issue/34658
 	t.reqMu.Lock()
+	defer t.reqMu.Unlock()
 	cancel := t.reqCanceler[key]
 	delete(t.reqCanceler, key)
-	t.reqMu.Unlock()
 	if cancel != nil {
 		cancel(err)
 	}
@@ -1185,7 +1188,7 @@ type wantConn struct {
 
 	// hooks for testing to know when dials are done
 	// beforeDial is called in the getConn goroutine when the dial is queued.
-	// afterDial is called when the dial is completed or cancelled.
+	// afterDial is called when the dial is completed or canceled.
 	beforeDial func()
 	afterDial  func()
 
@@ -1373,7 +1376,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
 		}
 		if w.err != nil {
-			// If the request has been cancelled, that's probably
+			// If the request has been canceled, that's probably
 			// what caused w.err; if so, prefer to return the
 			// cancellation error (see golang.org/issue/16049).
 			select {
@@ -1435,7 +1438,7 @@ func (t *Transport) queueForDial(w *wantConn) {
 
 // dialConnFor dials on behalf of w and delivers the result to w.
 // dialConnFor has received permission to dial w.cm and is counted in t.connCount[w.cm.key()].
-// If the dial is cancelled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
+// If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
 func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 
@@ -1505,7 +1508,7 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
-func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) error {
+func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
@@ -1527,7 +1530,7 @@ func (pconn *persistConn) addTLS(name string, trace *httptrace.ClientTrace) erro
 		if trace != nil && trace.TLSHandshakeStart != nil {
 			trace.TLSHandshakeStart()
 		}
-		err := tlsConn.Handshake()
+		err := tlsConn.HandshakeContext(ctx)
 		if timer != nil {
 			timer.Stop()
 		}
@@ -1583,7 +1586,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			if trace != nil && trace.TLSHandshakeStart != nil {
 				trace.TLSHandshakeStart()
 			}
-			if err := tc.Handshake(); err != nil {
+			if err := tc.HandshakeContext(ctx); err != nil {
 				go pconn.conn.Close()
 				if trace != nil && trace.TLSHandshakeDone != nil {
 					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
@@ -1607,7 +1610,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
 				return nil, wrapErr(err)
 			}
-			if err = pconn.addTLS(firstTLSHost, trace); err != nil {
+			if err = pconn.addTLS(ctx, firstTLSHost, trace); err != nil {
 				return nil, wrapErr(err)
 			}
 		}
@@ -1721,7 +1724,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
-		if err := pconn.addTLS(cm.tlsHost(), trace); err != nil {
+		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
 			return nil, err
 		}
 	}
@@ -2183,7 +2186,7 @@ func (pc *persistConn) readLoop() {
 		}
 
 		resp.Body = body
-		if rc.addedGzip && strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		if rc.addedGzip && ascii.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 			resp.Body = &gzipReader{body: body}
 			resp.Header.Del("Content-Encoding")
 			resp.Header.Del("Content-Length")

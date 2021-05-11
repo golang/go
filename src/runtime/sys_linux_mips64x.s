@@ -213,8 +213,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R2, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVV	R29, R16	// R16 is unchanged by C code
 	MOVV	R29, R1
 
@@ -319,7 +319,7 @@ noswitch:
 	BEQ	R25, fallback
 
 	JAL	(R25)
-	// see walltime1 for detail
+	// see walltime for detail
 	BEQ	R2, R0, finish
 	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
 	MOVW	$1, R4 // CLOCK_MONOTONIC

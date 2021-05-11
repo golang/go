@@ -12,10 +12,12 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"context"
+
+	"golang.org/x/mod/modfile"
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-e] [-v]",
+	UsageLine: "go mod tidy [-e] [-v] [-go=version]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -30,22 +32,38 @@ to standard error.
 The -e flag causes tidy to attempt to proceed despite errors
 encountered while loading packages.
 
+The -go flag causes tidy to update the 'go' directive in the go.mod
+file to the given version, which may change which module dependencies
+are retained as explicit requirements in the go.mod file.
+(Go versions 1.17 and higher retain more requirements in order to
+support lazy module loading.)
+
 See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
 }
 
-var tidyE bool // if true, report errors but proceed anyway.
+var (
+	tidyE  bool   // if true, report errors but proceed anyway.
+	tidyGo string // go version to write to the tidied go.mod file (toggles lazy loading)
+)
 
 func init() {
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+	cmdTidy.Flag.StringVar(&tidyGo, "go", "", "")
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
 		base.Fatalf("go mod tidy: no arguments allowed")
+	}
+
+	if tidyGo != "" {
+		if !modfile.GoVersionRE.MatchString(tidyGo) {
+			base.Fatalf(`go mod: invalid -go option %q; expecting something like "-go 1.17"`, tidyGo)
+		}
 	}
 
 	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
@@ -62,13 +80,13 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	modload.RootMode = modload.NeedRoot
 
 	modload.LoadPackages(ctx, modload.PackageOpts{
-		Tags:                  imports.AnyTags(),
-		ResolveMissingImports: true,
-		LoadTests:             true,
-		AllowErrors:           tidyE,
+		GoVersion:                tidyGo,
+		Tags:                     imports.AnyTags(),
+		Tidy:                     true,
+		VendorModulesInGOROOTSrc: true,
+		ResolveMissingImports:    true,
+		LoadTests:                true,
+		AllowErrors:              tidyE,
+		SilenceMissingStdImports: true,
 	}, "all")
-
-	modload.TidyBuildList()
-	modload.TrimGoSum()
-	modload.WriteGoMod()
 }

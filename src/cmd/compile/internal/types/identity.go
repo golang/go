@@ -61,11 +61,11 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 		return true
 
 	case TINTER:
-		if t1.NumFields() != t2.NumFields() {
+		if t1.AllMethods().Len() != t2.AllMethods().Len() {
 			return false
 		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
+		for i, f1 := range t1.AllMethods().Slice() {
+			f2 := t2.AllMethods().Index(i)
 			if f1.Sym != f2.Sym || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
 				return false
 			}

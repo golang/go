@@ -98,9 +98,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("<nil>")
 
 	case *Basic:
-		if t.kind == UnsafePointer {
-			buf.WriteString("unsafe.")
+		// exported basic types go into package unsafe
+		// (currently this is just unsafe.Pointer)
+		if isExported(t.name) {
+			if obj, _ := Unsafe.scope.Lookup(t.name).(*TypeName); obj != nil {
+				writeTypeName(buf, obj, qf)
+				break
+			}
 		}
+
 		if gcCompatibilityMode {
 			// forget the alias names
 			switch t.kind {

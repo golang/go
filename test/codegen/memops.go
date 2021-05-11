@@ -36,50 +36,34 @@ func compMem1() int {
 	return 0
 }
 
-//go:noinline
-func f(x int) bool {
-	return false
+type T struct {
+	x   bool
+	x8  uint8
+	x16 uint16
+	x32 uint32
+	x64 uint64
+	a   [2]int // force it passed in memory
 }
 
-//go:noinline
-func f8(x int) int8 {
-	return 0
-}
-
-//go:noinline
-func f16(x int) int16 {
-	return 0
-}
-
-//go:noinline
-func f32(x int) int32 {
-	return 0
-}
-
-//go:noinline
-func f64(x int) int64 {
-	return 0
-}
-
-func compMem2() int {
-	// amd64:`CMPB\t8\(SP\), [$]0`
-	if f(3) {
+func compMem2(t T) int {
+	// amd64:`CMPB\t.*\(SP\), [$]0`
+	if t.x {
 		return 1
 	}
-	// amd64:`CMPB\t8\(SP\), [$]7`
-	if f8(3) == 7 {
+	// amd64:`CMPB\t.*\(SP\), [$]7`
+	if t.x8 == 7 {
 		return 1
 	}
-	// amd64:`CMPW\t8\(SP\), [$]7`
-	if f16(3) == 7 {
+	// amd64:`CMPW\t.*\(SP\), [$]7`
+	if t.x16 == 7 {
 		return 1
 	}
-	// amd64:`CMPL\t8\(SP\), [$]7`
-	if f32(3) == 7 {
+	// amd64:`CMPL\t.*\(SP\), [$]7`
+	if t.x32 == 7 {
 		return 1
 	}
-	// amd64:`CMPQ\t8\(SP\), [$]7`
-	if f64(3) == 7 {
+	// amd64:`CMPQ\t.*\(SP\), [$]7`
+	if t.x64 == 7 {
 		return 1
 	}
 	return 0
@@ -177,9 +161,11 @@ func idxFloat32(x, y []float32, i int) {
 	var t float32
 	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
 	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+	//    arm64: `FMOVS\t\(R[0-9]*\)\(R[0-9]*<<2\), F[0-9]+`
 	t = x[i+1]
 	//    amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
 	// 386/sse2: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+	//    arm64: `FMOVS\tF[0-9]+, \(R[0-9]*\)\(R[0-9]*<<2\)`
 	y[i+1] = t
 	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
 	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
@@ -193,9 +179,11 @@ func idxFloat64(x, y []float64, i int) {
 	var t float64
 	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
 	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+	//    arm64: `FMOVD\t\(R[0-9]*\)\(R[0-9]*<<3\), F[0-9]+`
 	t = x[i+1]
 	//    amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
 	// 386/sse2: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+	//    arm64: `FMOVD\tF[0-9]+, \(R[0-9]*\)\(R[0-9]*<<3\)`
 	y[i+1] = t
 	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
 	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`

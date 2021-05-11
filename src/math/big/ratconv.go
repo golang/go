@@ -51,7 +51,8 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 // An optional base-10 ``e'' or base-2 ``p'' (or their upper-case variants)
 // exponent may be provided as well, except for hexadecimal floats which
 // only accept an (optional) ``p'' exponent (because an ``e'' or ``E'' cannot
-// be distinguished from a mantissa digit).
+// be distinguished from a mantissa digit). If the exponent's absolute value
+// is too large, the operation may fail.
 // The entire string, not just a prefix, must be valid for success. If the
 // operation failed, the value of z is undefined but the returned value is nil.
 func (z *Rat) SetString(s string) (*Rat, bool) {
@@ -169,6 +170,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		if n < 0 {
 			n = -n
 		}
+		if n > 1e6 {
+			return nil, false // avoid excessively large exponents
+		}
 		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil) // use underlying array of z.b.abs
 		if exp5 > 0 {
 			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
@@ -181,15 +185,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 
 	// apply exp2 contributions
+	if exp2 < -1e7 || exp2 > 1e7 {
+		return nil, false // avoid excessively large exponents
+	}
 	if exp2 > 0 {
-		if int64(uint(exp2)) != exp2 {
-			panic("exponent too large")
-		}
 		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
 	} else if exp2 < 0 {
-		if int64(uint(-exp2)) != -exp2 {
-			panic("exponent too large")
-		}
 		z.b.abs = z.b.abs.shl(z.b.abs, uint(-exp2))
 	}
 

@@ -143,7 +143,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 
 		n1 := n + uint64(d)
 		if n1 < n || n1 > maxVal {
-			// n+v overflows
+			// n+d overflows
 			return maxVal, rangeError(fnParseUint, s0)
 		}
 		n = n1

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !android && !js && !ppc64le
 // +build !android,!js,!ppc64le
 
 // Note: we don't run on Android or ppc64 because if there is any non-race test

@@ -23,10 +23,14 @@ func (g *irgen) match(t1 *types.Type, t2 types2.Type, hasOK bool) bool {
 	}
 
 	if hasOK {
-		// For has-ok values, types2 represents the expression's type as
-		// a 2-element tuple, whereas ir just uses the first type and
-		// infers that the second type is boolean.
-		return tuple.Len() == 2 && types.Identical(t1, g.typ(tuple.At(0).Type()))
+		// For has-ok values, types2 represents the expression's type as a
+		// 2-element tuple, whereas ir just uses the first type and infers
+		// that the second type is boolean. Must match either, since we
+		// sometimes delay the transformation to the ir form.
+		if tuple.Len() == 2 && types.Identical(t1, g.typ(tuple.At(0).Type())) {
+			return true
+		}
+		return types.Identical(t1, g.typ(t2))
 	}
 
 	if t1 == nil || tuple == nil {
@@ -96,9 +100,7 @@ func (g *irgen) unsafeExpr(name string, arg syntax.Expr) int64 {
 	selection := g.info.Selections[sel]
 
 	typ := g.typ(g.info.Types[sel.X].Type)
-	if typ.IsPtr() {
-		typ = typ.Elem()
-	}
+	typ = deref(typ)
 
 	var offset int64
 	for _, i := range selection.Index() {

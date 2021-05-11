@@ -25,10 +25,10 @@ package ir
 //
 //	var do func(ir.Node) bool
 //	do = func(x ir.Node) bool {
-//		... processing BEFORE visting children ...
+//		... processing BEFORE visiting children ...
 //		if ... should visit children ... {
 //			ir.DoChildren(x, do)
-//			... processing AFTER visting children ...
+//			... processing AFTER visiting children ...
 //		}
 //		if ... should stop parent DoChildren call from visiting siblings ... {
 //			return true
@@ -43,11 +43,11 @@ package ir
 //
 //	var do func(ir.Node) bool
 //	do = func(x ir.Node) bool {
-//		... processing BEFORE visting children ...
+//		... processing BEFORE visiting children ...
 //		if ... should visit children ... {
 //			ir.DoChildren(x, do)
 //		}
-//		... processing AFTER visting children ...
+//		... processing AFTER visiting children ...
 //		return false
 //	}
 //	do(root)
