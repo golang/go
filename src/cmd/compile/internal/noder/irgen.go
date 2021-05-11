@@ -36,19 +36,10 @@ func check2(noders []*noder) {
 	// typechecking
 	conf := types2.Config{
 		GoVersion:             base.Flag.Lang,
-		InferFromConstraints:  true,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
 		Error: func(err error) {
 			terr := err.(types2.Error)
-			if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
-				// types2 reports error clarifications via separate
-				// error messages which are indented with a tab.
-				// Ignore them to satisfy tools and tests that expect
-				// only one error in such cases.
-				// TODO(gri) Need to adjust error reporting in types2.
-				return
-			}
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
 		},
 		Importer: &gcimports{
@@ -68,10 +59,10 @@ func check2(noders []*noder) {
 	}
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
 	files = nil
+	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
 	}
-	base.ExitIfErrors()
 	if base.Flag.G < 2 {
 		os.Exit(0)
 	}
@@ -100,6 +91,9 @@ type irgen struct {
 	objs   map[types2.Object]*ir.Name
 	typs   map[types2.Type]*types.Type
 	marker dwarfgen.ScopeMarker
+
+	// Fully-instantiated generic types whose methods should be instantiated
+	instTypeList []*types.Type
 }
 
 func (g *irgen) generate(noders []*noder) {

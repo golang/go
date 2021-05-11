@@ -30,7 +30,6 @@ type verifyTest struct {
 	systemSkip    bool
 	systemLax     bool
 	keyUsages     []ExtKeyUsage
-	ignoreCN      bool
 
 	errorCallback  func(*testing.T, error)
 	expectedChains [][]string
@@ -297,8 +296,6 @@ var verifyTests = []verifyTest{
 		errorCallback: expectNotAuthorizedError,
 	},
 	{
-		// If any SAN extension is present (even one without any DNS
-		// names), the CN should be ignored.
 		name:        "IgnoreCNWithSANs",
 		leaf:        ignoreCNWithSANLeaf,
 		dnsName:     "foo.example.com",
@@ -325,7 +322,6 @@ var verifyTests = []verifyTest{
 		// verify error.
 		name:          "CriticalExtLeaf",
 		leaf:          criticalExtLeafWithExt,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediate},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -338,7 +334,6 @@ var verifyTests = []verifyTest{
 		// cause a verify error.
 		name:          "CriticalExtIntermediate",
 		leaf:          criticalExtLeaf,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediateWithExt},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -347,60 +342,12 @@ var verifyTests = []verifyTest{
 		errorCallback: expectUnhandledCriticalExtension,
 	},
 	{
-		// Test that invalid CN are ignored.
-		name:        "InvalidCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-
-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
-	},
-	{
-		// Test that valid CN are respected.
 		name:        "ValidCN",
 		leaf:        validCNWithoutSAN,
 		dnsName:     "foo.example.com",
 		roots:       []string{invalidCNRoot},
 		currentTime: 1540000000,
 		systemSkip:  true, // does not chain to a system root
-
-		expectedChains: [][]string{
-			{"foo.example.com", "Test root"},
-		},
-	},
-	// Replicate CN tests with ignoreCN = true
-	{
-		name:        "IgnoreCNWithSANs/ignoreCN",
-		leaf:        ignoreCNWithSANLeaf,
-		dnsName:     "foo.example.com",
-		roots:       []string{ignoreCNWithSANRoot},
-		currentTime: 1486684488,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "InvalidCN/ignoreCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "ValidCN/ignoreCN",
-		leaf:        validCNWithoutSAN,
-		dnsName:     "foo.example.com",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
 
 		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
 	},
@@ -503,9 +450,6 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
-	defer func(savedIgnoreCN bool) { ignoreCN = savedIgnoreCN }(ignoreCN)
-
-	ignoreCN = test.ignoreCN
 	opts := VerifyOptions{
 		Intermediates: NewCertPool(),
 		DNSName:       test.dnsName,
@@ -1587,16 +1531,6 @@ CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
 QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
 oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
 XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
------END CERTIFICATE-----`
-
-const invalidCNWithoutSAN = `-----BEGIN CERTIFICATE-----
-MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
-A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
-FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
-90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
-hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
-xfOcLt/vbvo=
 -----END CERTIFICATE-----`
 
 const validCNWithoutSAN = `-----BEGIN CERTIFICATE-----

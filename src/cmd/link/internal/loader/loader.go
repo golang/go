@@ -51,30 +51,14 @@ type Reloc struct {
 	*goobj.Reloc
 	r *oReader
 	l *Loader
-
-	// External reloc types may not fit into a uint8 which the Go object file uses.
-	// Store it here, instead of in the byte of goobj.Reloc.
-	// For Go symbols this will always be zero.
-	// goobj.Reloc.Type() + typ is always the right type, for both Go and external
-	// symbols.
-	typ objabi.RelocType
 }
 
-func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
-func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
-func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
-func (rel Reloc) IsMarker() bool         { return rel.Siz() == 0 }
-
-func (rel Reloc) SetType(t objabi.RelocType) {
-	if t != objabi.RelocType(uint8(t)) {
-		panic("SetType: type doesn't fit into Reloc")
-	}
-	rel.Reloc.SetType(uint8(t))
-	if rel.typ != 0 {
-		// should use SymbolBuilder.SetRelocType
-		panic("wrong method to set reloc type")
-	}
-}
+func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) &^ objabi.R_WEAK }
+func (rel Reloc) Weak() bool                 { return objabi.RelocType(rel.Reloc.Type())&objabi.R_WEAK != 0 }
+func (rel Reloc) SetType(t objabi.RelocType) { rel.Reloc.SetType(uint16(t)) }
+func (rel Reloc) Sym() Sym                   { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+func (rel Reloc) SetSym(s Sym)               { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) IsMarker() bool             { return rel.Siz() == 0 }
 
 // Aux holds a "handle" to access an aux symbol record from an
 // object file.
@@ -273,6 +257,9 @@ type Loader struct {
 	// the symbol that triggered the marking of symbol K as live.
 	Reachparent []Sym
 
+	// CgoExports records cgo-exported symbols by SymName.
+	CgoExports map[string]Sym
+
 	flags uint32
 
 	hasUnknownPkgPath bool // if any Go object has unknown package path
@@ -307,15 +294,14 @@ type elfsetstringFunc func(str string, off int)
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
-	name     string // TODO: would this be better as offset into str table?
-	size     int64
-	ver      int
-	kind     sym.SymKind
-	objidx   uint32 // index of original object if sym made by cloneToExternal
-	relocs   []goobj.Reloc
-	reltypes []objabi.RelocType // relocation types
-	data     []byte
-	auxs     []goobj.Aux
+	name   string // TODO: would this be better as offset into str table?
+	size   int64
+	ver    int
+	kind   sym.SymKind
+	objidx uint32 // index of original object if sym made by cloneToExternal
+	relocs []goobj.Reloc
+	data   []byte
+	auxs   []goobj.Aux
 }
 
 const (
@@ -485,14 +471,14 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		// new symbol overwrites old symbol.
 		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 		l.objSyms[oldi] = objSym{r.objidx, li}
 	} else {
 		// old symbol overwrites new symbol.
 		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !typ.IsData() { // only allow overwriting data symbol
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 	}
 	return oldi
@@ -529,6 +515,36 @@ func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
 		l.symsByName[ver][name] = i
 	}
 	return i
+}
+
+// AddCgoExport records a cgo-exported symbol in l.CgoExports.
+// This table is used to identify the correct Go symbol ABI to use
+// to resolve references from host objects (which don't have ABIs).
+func (l *Loader) AddCgoExport(s Sym) {
+	if l.CgoExports == nil {
+		l.CgoExports = make(map[string]Sym)
+	}
+	l.CgoExports[l.SymName(s)] = s
+}
+
+// LookupOrCreateCgoExport is like LookupOrCreateSym, but if ver
+// indicates a global symbol, it uses the CgoExport table to determine
+// the appropriate symbol version (ABI) to use. ver must be either 0
+// or a static symbol version.
+func (l *Loader) LookupOrCreateCgoExport(name string, ver int) Sym {
+	if ver >= sym.SymVerStatic {
+		return l.LookupOrCreateSym(name, ver)
+	}
+	if ver != 0 {
+		panic("ver must be 0 or a static version")
+	}
+	// Look for a cgo-exported symbol from Go.
+	if s, ok := l.CgoExports[name]; ok {
+		return s
+	}
+	// Otherwise, this must just be a symbol in the host object.
+	// Create a version 0 symbol for it.
+	return l.LookupOrCreateSym(name, 0)
 }
 
 func (l *Loader) IsExternal(i Sym) bool {
@@ -755,6 +771,9 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
+	if r == nil {
+		return "?"
+	}
 	name := r.Sym(li).Name(r.Reader)
 	if !r.NeedNameExpansion() {
 		return name
@@ -1427,7 +1446,7 @@ func (l *Loader) SetSymLocalElfSym(i Sym, es int32) {
 	}
 }
 
-// SymPlt returns the plt value for pe symbols.
+// SymPlt returns the PLT offset of symbol s.
 func (l *Loader) SymPlt(s Sym) int32 {
 	if v, ok := l.plt[s]; ok {
 		return v
@@ -1435,7 +1454,7 @@ func (l *Loader) SymPlt(s Sym) int32 {
 	return -1
 }
 
-// SetPlt sets the plt value for pe symbols.
+// SetPlt sets the PLT offset of symbol i.
 func (l *Loader) SetPlt(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetPlt")
@@ -1447,7 +1466,7 @@ func (l *Loader) SetPlt(i Sym, v int32) {
 	}
 }
 
-// SymGot returns the got value for pe symbols.
+// SymGot returns the GOT offset of symbol s.
 func (l *Loader) SymGot(s Sym) int32 {
 	if v, ok := l.got[s]; ok {
 		return v
@@ -1455,7 +1474,7 @@ func (l *Loader) SymGot(s Sym) int32 {
 	return -1
 }
 
-// SetGot sets the got value for pe symbols.
+// SetGot sets the GOT offset of symbol i.
 func (l *Loader) SetGot(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetGot")
@@ -1547,7 +1566,7 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 // regular compiler-generated Go symbols), but in the case of
 // building with "-linkshared" (when a symbol is read from a
 // shared library), will hold the library name.
-// NOTE: this correspondes to sym.Symbol.File field.
+// NOTE: this corresponds to sym.Symbol.File field.
 func (l *Loader) SymPkg(i Sym) string {
 	if f, ok := l.symPkg[i]; ok {
 		return f
@@ -1833,10 +1852,9 @@ func (relocs *Relocs) Count() int { return len(relocs.rs) }
 // At returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
 	if relocs.l.isExtReader(relocs.r) {
-		pp := relocs.l.payloads[relocs.li]
-		return Reloc{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
+		return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 	}
-	return Reloc{&relocs.rs[j], relocs.r, relocs.l, 0}
+	return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 }
 
 // Relocs returns a Relocs object for the given global sym.
@@ -2226,7 +2244,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		pkg := r.Pkg(i)
 		objidx, ok := l.objByPkg[pkg]
 		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
 		}
 		r.pkg[i] = objidx
 	}
@@ -2337,13 +2355,11 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
 		pp.relocs = make([]goobj.Reloc, relocs.Count())
-		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
 			rel := relocs.At(i)
-			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
-			pp.reltypes[i] = rel.Type()
+			pp.relocs[i].Set(rel.Off(), rel.Siz(), uint16(rel.Type()), rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
 		}
 
 		// Copy data
@@ -2558,7 +2574,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
-					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
+					if !assignedToUnit.Has(sym) {
 						textp = append(textp, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {

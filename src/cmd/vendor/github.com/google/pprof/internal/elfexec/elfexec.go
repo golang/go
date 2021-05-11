@@ -283,3 +283,72 @@ func FindTextProgHeader(f *elf.File) *elf.ProgHeader {
 	}
 	return nil
 }
+
+// ProgramHeadersForMapping returns the loadable program segment headers that
+// are fully contained in the runtime mapping with file offset pgoff and memory
+// size memsz, and if the binary includes any loadable segments.
+func ProgramHeadersForMapping(f *elf.File, pgoff, memsz uint64) ([]*elf.ProgHeader, bool) {
+	const (
+		// pageSize defines the virtual memory page size used by the loader. This
+		// value is dependent on the memory management unit of the CPU. The page
+		// size is 4KB virtually on all the architectures that we care about, so we
+		// define this metric as a constant. If we encounter architectures where
+		// page sie is not 4KB, we must try to guess the page size on the system
+		// where the profile was collected, possibly using the architecture
+		// specified in the ELF file header.
+		pageSize       = 4096
+		pageOffsetMask = pageSize - 1
+		pageMask       = ^uint64(pageOffsetMask)
+	)
+	var headers []*elf.ProgHeader
+	hasLoadables := false
+	for _, p := range f.Progs {
+		// The segment must be fully included in the mapping.
+		if p.Type == elf.PT_LOAD && pgoff <= p.Off && p.Off+p.Memsz <= pgoff+memsz {
+			alignedOffset := uint64(0)
+			if p.Off > (p.Vaddr & pageOffsetMask) {
+				alignedOffset = p.Off - (p.Vaddr & pageOffsetMask)
+			}
+			if alignedOffset <= pgoff {
+				headers = append(headers, &p.ProgHeader)
+			}
+		}
+		if p.Type == elf.PT_LOAD {
+			hasLoadables = true
+		}
+	}
+	if len(headers) < 2 {
+		return headers, hasLoadables
+	}
+
+	// If we have more than one matching segments, try a strict check on the
+	// segment memory size. We use a heuristic to compute the minimum mapping size
+	// required for a segment, assuming mappings are page aligned.
+	// The memory size based heuristic makes sense only if the mapping size is a
+	// multiple of page size.
+	if memsz%pageSize != 0 {
+		return headers, hasLoadables
+	}
+
+	// Return all found headers if we cannot narrow the selection to a single
+	// program segment.
+	var ph *elf.ProgHeader
+	for _, h := range headers {
+		wantSize := (h.Vaddr+h.Memsz+pageSize-1)&pageMask - (h.Vaddr & pageMask)
+		if wantSize != memsz {
+			continue
+		}
+		if ph != nil {
+			// Found a second program header matching, so return all previously
+			// identified headers.
+			return headers, hasLoadables
+		}
+		ph = h
+	}
+	if ph == nil {
+		// No matching header for the strict check. Return all previously identified
+		// headers.
+		return headers, hasLoadables
+	}
+	return []*elf.ProgHeader{ph}, hasLoadables
+}

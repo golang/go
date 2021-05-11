@@ -61,7 +61,7 @@ func TestAllDependencies(t *testing.T) {
 				_, err := cmd.Output()
 				if err != nil {
 					t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
-					t.Logf("(Run 'go mod vendor' in %s to ensure that dependecies have been vendored.)", m.Dir)
+					t.Logf("(Run 'go mod vendor' in %s to ensure that dependencies have been vendored.)", m.Dir)
 				}
 				return
 			}
@@ -163,8 +163,8 @@ func TestAllDependencies(t *testing.T) {
 				Env: append(os.Environ(),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
-					// Explicitly clear PWD and GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
-					"PWD=",
+					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
+					"PWD="+filepath.Join(gorootCopyDir, rel),
 					"GOROOT_FINAL=",
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
@@ -179,7 +179,7 @@ func TestAllDependencies(t *testing.T) {
 			r.run(t, goBinCopy, "generate", `-run=^//go:generate bundle `, pkgs) // See issue 41409.
 			advice := "$ cd " + m.Dir + "\n" +
 				"$ go mod tidy                               # to remove extraneous dependencies\n" +
-				"$ go mod vendor                             # to vendor dependecies\n" +
+				"$ go mod vendor                             # to vendor dependencies\n" +
 				"$ go generate -run=bundle " + pkgs + "               # to regenerate bundled packages\n"
 			if m.Path == "std" {
 				r.run(t, goBinCopy, "generate", "syscall", "internal/syscall/...") // See issue 43440.
@@ -420,6 +420,12 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// In https://golang.org/issue/37929 it was observed to somehow contain
 				// a module cache, so it is important to skip. (That helps with the
 				// running time of this test anyway.)
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".") {
+				// _ and . prefixed directories can be used for internal modules
+				// without a vendor directory that don't contribute to the build
+				// but might be used for example as code generators.
 				return filepath.SkipDir
 			}
 			if info.IsDir() || info.Name() != "go.mod" {

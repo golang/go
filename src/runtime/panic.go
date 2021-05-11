@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -159,6 +160,12 @@ func goPanicSlice3CU(x uint, y int) {
 	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
 }
 
+// failures in the conversion (*[x]T)s, 0 <= x <= y, x == cap(s)
+func goPanicSliceConvert(x int, y int) {
+	panicCheck1(getcallerpc(), "slice length too short to convert to pointer to array")
+	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
+}
+
 // Implemented in assembly, as they take arguments in registers.
 // Declared here to mark them as ABIInternal.
 func panicIndex(x int, y int)
@@ -177,6 +184,7 @@ func panicSlice3B(x int, y int)
 func panicSlice3BU(x uint, y int)
 func panicSlice3C(x int, y int)
 func panicSlice3CU(x uint, y int)
+func panicSliceConvert(x int, y int)
 
 var shiftError = error(errorString("negative shift amount"))
 
@@ -226,6 +234,11 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
+	}
+
+	if goexperiment.RegabiDefer && siz != 0 {
+		// TODO: Make deferproc just take a func().
+		throw("defer with non-empty frame")
 	}
 
 	// the arguments of fn are in a perilous state. The stack map
@@ -279,6 +292,9 @@ func deferprocStack(d *_defer) {
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
+	}
+	if goexperiment.RegabiDefer && d.siz != 0 {
+		throw("defer with non-empty frame")
 	}
 	// siz and fn are already set.
 	// The other fields are junk on entry to deferprocStack and
@@ -372,6 +388,19 @@ func deferArgs(d *_defer) unsafe.Pointer {
 		return nil
 	}
 	return add(unsafe.Pointer(d), unsafe.Sizeof(*d))
+}
+
+// deferFunc returns d's deferred function. This is temporary while we
+// support both modes of GOEXPERIMENT=regabidefer. Once we commit to
+// that experiment, we should change the type of d.fn.
+//go:nosplit
+func deferFunc(d *_defer) func() {
+	if !goexperiment.RegabiDefer {
+		throw("requires GOEXPERIMENT=regabidefer")
+	}
+	var fn func()
+	*(**funcval)(unsafe.Pointer(&fn)) = d.fn
+	return fn
 }
 
 var deferType *_type // type of _defer struct
@@ -519,10 +548,8 @@ func freedeferfn() {
 // modifying the caller's frame in order to reuse the frame to call the deferred
 // function.
 //
-// The single argument isn't actually used - it just has its address
-// taken so it can be matched against pending defers.
 //go:nosplit
-func deferreturn(arg0 uintptr) {
+func deferreturn() {
 	gp := getg()
 	d := gp._defer
 	if d == nil {
@@ -548,13 +575,14 @@ func deferreturn(arg0 uintptr) {
 	// nosplit because the garbage collector won't know the form
 	// of the arguments until the jmpdefer can flip the PC over to
 	// fn.
+	argp := getcallersp() + sys.MinFrameSize
 	switch d.siz {
 	case 0:
 		// Do nothing.
 	case sys.PtrSize:
-		*(*uintptr)(unsafe.Pointer(&arg0)) = *(*uintptr)(deferArgs(d))
+		*(*uintptr)(unsafe.Pointer(argp)) = *(*uintptr)(deferArgs(d))
 	default:
-		memmove(unsafe.Pointer(&arg0), deferArgs(d), uintptr(d.siz))
+		memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
 	}
 	fn := d.fn
 	d.fn = nil
@@ -566,7 +594,7 @@ func deferreturn(arg0 uintptr) {
 	// stack, because the stack trace can be incorrect in that case - see
 	// issue #8153).
 	_ = fn.fn
-	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
+	jmpdefer(fn, argp)
 }
 
 // Goexit terminates the goroutine that calls it. No other goroutine is affected.
@@ -627,10 +655,15 @@ func Goexit() {
 				addOneOpenDeferFrame(gp, 0, nil)
 			}
 		} else {
-
-			// Save the pc/sp in reflectcallSave(), so we can "recover" back to this
-			// loop if necessary.
-			reflectcallSave(&p, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz))
+			if goexperiment.RegabiDefer {
+				// Save the pc/sp in deferCallSave(), so we can "recover" back to this
+				// loop if necessary.
+				deferCallSave(&p, deferFunc(d))
+			} else {
+				// Save the pc/sp in reflectcallSave(), so we can "recover" back to this
+				// loop if necessary.
+				reflectcallSave(&p, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz))
+			}
 		}
 		if p.aborted {
 			// We had a recursive panic in the defer d we started, and
@@ -699,7 +732,7 @@ func printpanics(p *_panic) {
 // specified by sp. If sp is nil, it uses the sp from the current defer record
 // (which has just been finished). Hence, it continues the stack scan from the
 // frame of the defer that just finished. It skips any frame that already has an
-// open-coded _defer record, which would have been been created from a previous
+// open-coded _defer record, which would have been created from a previous
 // (unrecovered) panic.
 //
 // Note: All entries of the defer chain (including this new open-coded entry) have
@@ -824,6 +857,9 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		argWidth, fd = readvarintUnsafe(fd)
 		closureOffset, fd = readvarintUnsafe(fd)
 		nArgs, fd = readvarintUnsafe(fd)
+		if goexperiment.RegabiDefer && argWidth != 0 {
+			throw("defer with non-empty frame")
+		}
 		if deferBits&(1<<i) == 0 {
 			for j := uint32(0); j < nArgs; j++ {
 				_, fd = readvarintUnsafe(fd)
@@ -849,7 +885,11 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		deferBits = deferBits &^ (1 << i)
 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
 		p := d._panic
-		reflectcallSave(p, unsafe.Pointer(closure), deferArgs, argWidth)
+		if goexperiment.RegabiDefer {
+			deferCallSave(p, deferFunc(d))
+		} else {
+			reflectcallSave(p, unsafe.Pointer(closure), deferArgs, argWidth)
+		}
 		if p != nil && p.aborted {
 			break
 		}
@@ -869,19 +909,45 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 // panic record. This allows the runtime to return to the Goexit defer processing
 // loop, in the unusual case where the Goexit may be bypassed by a successful
 // recover.
+//
+// This is marked as a wrapper by the compiler so it doesn't appear in
+// tracebacks.
 func reflectcallSave(p *_panic, fn, arg unsafe.Pointer, argsize uint32) {
+	if goexperiment.RegabiDefer {
+		throw("not allowed with GOEXPERIMENT=regabidefer")
+	}
 	if p != nil {
-		p.argp = unsafe.Pointer(getargp(0))
+		p.argp = unsafe.Pointer(getargp())
 		p.pc = getcallerpc()
 		p.sp = unsafe.Pointer(getcallersp())
 	}
-	// Pass a dummy RegArgs for now since no function actually implements
-	// the register-based ABI.
-	//
-	// TODO(mknyszek): Implement this properly, setting up arguments in
-	// registers as necessary in the caller.
+	// Pass a dummy RegArgs since we'll only take this path if
+	// we're not using the register ABI.
 	var regs abi.RegArgs
 	reflectcall(nil, fn, arg, argsize, argsize, argsize, &regs)
+	if p != nil {
+		p.pc = 0
+		p.sp = unsafe.Pointer(nil)
+	}
+}
+
+// deferCallSave calls fn() after saving the caller's pc and sp in the
+// panic record. This allows the runtime to return to the Goexit defer
+// processing loop, in the unusual case where the Goexit may be
+// bypassed by a successful recover.
+//
+// This is marked as a wrapper by the compiler so it doesn't appear in
+// tracebacks.
+func deferCallSave(p *_panic, fn func()) {
+	if !goexperiment.RegabiDefer {
+		throw("only allowed with GOEXPERIMENT=regabidefer")
+	}
+	if p != nil {
+		p.argp = unsafe.Pointer(getargp())
+		p.pc = getcallerpc()
+		p.sp = unsafe.Pointer(getcallersp())
+	}
+	fn()
 	if p != nil {
 		p.pc = 0
 		p.sp = unsafe.Pointer(nil)
@@ -959,7 +1025,7 @@ func gopanic(e interface{}) {
 
 		// Mark defer as started, but keep on list, so that traceback
 		// can find and update the defer's argument frame if stack growth
-		// or a garbage collection happens before reflectcall starts executing d.fn.
+		// or a garbage collection happens before executing d.fn.
 		d.started = true
 
 		// Record the panic that is running the defer.
@@ -974,14 +1040,21 @@ func gopanic(e interface{}) {
 				addOneOpenDeferFrame(gp, 0, nil)
 			}
 		} else {
-			p.argp = unsafe.Pointer(getargp(0))
+			p.argp = unsafe.Pointer(getargp())
 
-			var regs abi.RegArgs
-			reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz), uint32(d.siz), &regs)
+			if goexperiment.RegabiDefer {
+				fn := deferFunc(d)
+				fn()
+			} else {
+				// Pass a dummy RegArgs since we'll only take this path if
+				// we're not using the register ABI.
+				var regs abi.RegArgs
+				reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz), uint32(d.siz), &regs)
+			}
 		}
 		p.argp = nil
 
-		// reflectcall did not panic. Remove d.
+		// Deferred function did not panic. Remove d.
 		if gp._defer != d {
 			throw("bad defer entry in panic")
 		}
@@ -1079,9 +1152,8 @@ func gopanic(e interface{}) {
 // writes outgoing function call arguments.
 //go:nosplit
 //go:noinline
-func getargp(x int) uintptr {
-	// x is an argument mainly so that we can return its address.
-	return uintptr(noescape(unsafe.Pointer(&x)))
+func getargp() uintptr {
+	return getcallersp() + sys.MinFrameSize
 }
 
 // The implementation of the predeclared function recover.
@@ -1418,5 +1490,9 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
 //
 //go:nosplit
 func isAbortPC(pc uintptr) bool {
-	return pc == funcPC(abort) || ((GOARCH == "arm" || GOARCH == "arm64") && pc == funcPC(abort)+sys.PCQuantum)
+	f := findfunc(pc)
+	if !f.valid() {
+		return false
+	}
+	return f.funcID == funcID_abort
 }

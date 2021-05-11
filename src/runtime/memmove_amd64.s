@@ -31,11 +31,20 @@
 // See memmove Go doc for important implementation constraints.
 
 // func memmove(to, from unsafe.Pointer, n uintptr)
-TEXT runtime·memmove(SB), NOSPLIT, $0-24
-
+// ABIInternal for performance.
+TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT, $0-24
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = to
+	// BX = from
+	// CX = n
+	MOVQ	AX, DI
+	MOVQ	BX, SI
+	MOVQ	CX, BX
+#else
 	MOVQ	to+0(FP), DI
 	MOVQ	from+8(FP), SI
 	MOVQ	n+16(FP), BX
+#endif
 
 	// REP instructions have a high startup cost, so we handle small sizes
 	// with some straightline code. The REP MOVSQ instruction is really fast
@@ -244,6 +253,10 @@ move_129through256:
 	MOVOU	X13, -48(DI)(BX*1)
 	MOVOU	X14, -32(DI)(BX*1)
 	MOVOU	X15, -16(DI)(BX*1)
+#ifdef GOEXPERIMENT_regabig
+	// X15 must be zero on return
+	PXOR	X15, X15
+#endif
 	RET
 move_256through2048:
 	SUBQ	$256, BX
@@ -283,6 +296,10 @@ move_256through2048:
 	LEAQ	256(SI), SI
 	LEAQ	256(DI), DI
 	JGE	move_256through2048
+#ifdef GOEXPERIMENT_regabig
+	// X15 must be zero on return
+	PXOR	X15, X15
+#endif
 	JMP	tail
 
 avxUnaligned:

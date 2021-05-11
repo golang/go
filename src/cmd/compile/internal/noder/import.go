@@ -7,6 +7,7 @@ package noder
 import (
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 	pathpkg "path"
@@ -108,7 +109,7 @@ func openPackage(path string) (*os.File, error) {
 		}
 	}
 
-	if objabi.GOROOT != "" {
+	if buildcfg.GOROOT != "" {
 		suffix := ""
 		if base.Flag.InstallSuffix != "" {
 			suffix = "_" + base.Flag.InstallSuffix
@@ -118,10 +119,10 @@ func openPackage(path string) (*os.File, error) {
 			suffix = "_msan"
 		}
 
-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
 			return file, nil
 		}
-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
 			return file, nil
 		}
 	}
@@ -243,9 +244,9 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		base.Errorf("import %s: not a go object file: %s", file, p)
 		base.ErrorExit()
 	}
-	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-	if p[10:] != q {
-		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
+	q := objabi.HeaderString()
+	if p != q {
+		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
 		base.ErrorExit()
 	}
 

@@ -215,8 +215,7 @@ func main() {
 	}
 	optional := fileFeatures(*nextFile)
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception,
-		*allowNew && strings.Contains(runtime.Version(), "devel"))
+	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
 }
 
 // export emits the exported package features.

@@ -15,7 +15,7 @@ func RaceDetectorSupported(goos, goarch string) bool {
 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
 	case "darwin":
 		return goarch == "amd64" || goarch == "arm64"
-	case "freebsd", "netbsd", "windows":
+	case "freebsd", "netbsd", "openbsd", "windows":
 		return goarch == "amd64"
 	default:
 		return false
@@ -23,7 +23,8 @@ func RaceDetectorSupported(goos, goarch string) bool {
 }
 
 // MSanSupported reports whether goos/goarch supports the memory
-// sanitizer option. There is a copy of this function in cmd/dist/test.go.
+// sanitizer option.
+// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func MSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":

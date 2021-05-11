@@ -19,7 +19,7 @@ func ConstType(n Node) constant.Kind {
 	return n.Val().Kind()
 }
 
-// ValueInterface returns the constant value stored in n as an interface{}.
+// ConstValue returns the constant value stored in n as an interface{}.
 // It returns int64s for ints and runes, float64s for floats,
 // and complex128s for complex values.
 func ConstValue(n Node) interface{} {
@@ -40,7 +40,7 @@ func ConstValue(n Node) interface{} {
 	}
 }
 
-// int64Val returns v converted to int64.
+// IntVal returns v converted to int64.
 // Note: if t is uint64, very large values will be converted to negative int64.
 func IntVal(t *types.Type, v constant.Value) int64 {
 	if t.IsUnsigned() {
@@ -90,7 +90,7 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 	panic("unreachable")
 }
 
-// nodlit returns a new untyped constant with value v.
+// NewLiteral returns a new untyped constant with value v.
 func NewLiteral(v constant.Value) Node {
 	return NewBasicLit(base.Pos, v)
 }

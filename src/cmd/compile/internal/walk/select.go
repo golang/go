@@ -106,7 +106,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		ir.SetPos(n)
 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		*r.PtrInit() = cas.Init()
-		var call ir.Node
+		var cond ir.Node
 		switch n.Op() {
 		default:
 			base.Fatalf("select %v", n.Op())
@@ -115,7 +115,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 			// if selectnbsend(c, v) { body } else { default body }
 			n := n.(*ir.SendStmt)
 			ch := n.Chan
-			call = mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
+			cond = mkcall1(chanfn("selectnbsend", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), ch, n.Value)
 
 		case ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
@@ -125,18 +125,14 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 			if ir.IsBlank(elem) {
 				elem = typecheck.NodNil()
 			}
-			if ir.IsBlank(n.Lhs[1]) {
-				// if selectnbrecv(&v, c) { body } else { default body }
-				call = mkcall1(chanfn("selectnbrecv", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, ch)
-			} else {
-				// TODO(cuonglm): make this use selectnbrecv()
-				// if selectnbrecv2(&v, &received, c) { body } else { default body }
-				receivedp := typecheck.Expr(typecheck.NodAddr(n.Lhs[1]))
-				call = mkcall1(chanfn("selectnbrecv2", 2, ch.Type()), types.Types[types.TBOOL], r.PtrInit(), elem, receivedp, ch)
-			}
+			cond = typecheck.Temp(types.Types[types.TBOOL])
+			fn := chanfn("selectnbrecv", 2, ch.Type())
+			call := mkcall1(fn, fn.Type().Results(), r.PtrInit(), elem, ch)
+			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
+			r.PtrInit().Append(typecheck.Stmt(as))
 		}
 
-		r.Cond = typecheck.Expr(call)
+		r.Cond = typecheck.Expr(cond)
 		r.Body = cas.Body
 		r.Else = append(dflt.Init(), dflt.Body...)
 		return []ir.Node{r, ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)}

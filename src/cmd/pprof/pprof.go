@@ -232,9 +232,9 @@ func (f *file) Name() string {
 	return f.name
 }
 
-func (f *file) Base() uint64 {
+func (f *file) ObjAddr(addr uint64) (uint64, error) {
 	// No support for shared libraries.
-	return 0
+	return 0, nil
 }
 
 func (f *file) BuildID() string {

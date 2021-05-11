@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -17,7 +16,7 @@ import (
 var nopos syntax.Pos
 
 // debugging/development support
-const debug = true // leave on during development
+const debug = false // leave on during development
 
 // If forceStrict is set, the type-checker enforces additional
 // rules not specified by the Go 1 spec, but which will
@@ -31,11 +30,6 @@ const debug = true // leave on during development
 //   for both x and T have different signatures.
 //
 const forceStrict = false
-
-// If methodTypeParamsOk is set, type parameters are
-// permitted in method declarations (in interfaces, too).
-// Generalization and experimental feature.
-const methodTypeParamsOk = true
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -89,12 +83,20 @@ type Checker struct {
 	pkg  *Package
 	*Info
 	version version                     // accepted language version
-	nextId  uint64                      // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
 	posMap  map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
 	typMap  map[string]*Named           // maps an instantiated named type hash to a *Named type
-	pkgCnt  map[string]int              // counts number of imported packages with a given name (for better error messages)
+
+	// pkgPathMap maps package names to the set of distinct import paths we've
+	// seen for that name, anywhere in the import graph. It is used for
+	// disambiguating package names in error messages.
+	//
+	// pkgPathMap is allocated lazily, so that we don't pay the price of building
+	// it on the happy path. seenPkgMap tracks the packages that we've already
+	// walked.
+	pkgPathMap map[string]map[string]bool
+	seenPkgMap map[*Package]bool
 
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
@@ -107,7 +109,6 @@ type Checker struct {
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
 	untyped  map[syntax.Expr]exprInfo // map of expressions without final type
 	delayed  []func()                 // stack of delayed action segments; segments are processed in FIFO order
-	finals   []func()                 // list of final actions; processed at the end of type-checking the current set of files
 	objPath  []Object                 // path of object dependencies during type inference (for cycle reporting)
 
 	// context within which the current object is type-checked
@@ -145,14 +146,6 @@ func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode,
 // (so that f still sees the scope before any new declarations).
 func (check *Checker) later(f func()) {
 	check.delayed = append(check.delayed, f)
-}
-
-// atEnd adds f to the list of actions processed at the end
-// of type-checking, before initialization order computation.
-// Actions added by atEnd are processed after any actions
-// added by later.
-func (check *Checker) atEnd(f func()) {
-	check.finals = append(check.finals, f)
 }
 
 // push pushes obj onto the object path and returns its index in the path.
@@ -193,12 +186,10 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		pkg:     pkg,
 		Info:    info,
 		version: version,
-		nextId:  1,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
 		posMap:  make(map[*Interface][]syntax.Pos),
 		typMap:  make(map[string]*Named),
-		pkgCnt:  make(map[string]int),
 	}
 }
 
@@ -214,7 +205,6 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	check.methods = nil
 	check.untyped = nil
 	check.delayed = nil
-	check.finals = nil
 
 	// determine package name and collect valid files
 	pkg := check.pkg
@@ -224,7 +214,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			if name != "_" {
 				pkg.name = name
 			} else {
-				check.errorf(file.PkgName, "invalid package name _")
+				check.error(file.PkgName, "invalid package name _")
 			}
 			fallthrough
 
@@ -281,7 +271,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 
 	print("== processDelayed ==")
 	check.processDelayed(0) // incl. all functions
-	check.processFinals()
 
 	print("== initOrder ==")
 	check.initOrder()
@@ -290,9 +279,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 		print("== unusedImports ==")
 		check.unusedImports()
 	}
-	// no longer needed - release memory
-	check.imports = nil
-	check.dotImportMap = nil
 
 	print("== recordUntyped ==")
 	check.recordUntyped()
@@ -303,6 +289,12 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	}
 
 	check.pkg.complete = true
+
+	// no longer needed - release memory
+	check.imports = nil
+	check.dotImportMap = nil
+	check.pkgPathMap = nil
+	check.seenPkgMap = nil
 
 	// TODO(gri) There's more memory we should release at this point.
 
@@ -324,13 +316,30 @@ func (check *Checker) processDelayed(top int) {
 	check.delayed = check.delayed[:top]
 }
 
-func (check *Checker) processFinals() {
-	n := len(check.finals)
-	for _, f := range check.finals {
-		f() // must not append to check.finals
+func (check *Checker) record(x *operand) {
+	// convert x into a user-friendly set of values
+	// TODO(gri) this code can be simplified
+	var typ Type
+	var val constant.Value
+	switch x.mode {
+	case invalid:
+		typ = Typ[Invalid]
+	case novalue:
+		typ = (*Tuple)(nil)
+	case constant_:
+		typ = x.typ
+		val = x.val
+	default:
+		typ = x.typ
 	}
-	if len(check.finals) != n {
-		panic("internal error: final action list grew")
+	assert(x.expr != nil && typ != nil)
+
+	if isUntyped(typ) {
+		// delay type and value recording until we know the type
+		// or until the end of type checking
+		check.rememberUntyped(x.expr, false, x.mode, typ.(*Basic), val)
+	} else {
+		check.recordTypeAndValue(x.expr, x.mode, typ, val)
 	}
 }
 
@@ -356,7 +365,9 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 	}
 	if mode == constant_ {
 		assert(val != nil)
-		assert(typ == Typ[Invalid] || isConstType(typ))
+		// We check is(typ, IsConstType) here as constant expressions may be
+		// recorded as type parameters.
+		assert(typ == Typ[Invalid] || is(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
@@ -364,14 +375,14 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 }
 
 func (check *Checker) recordBuiltinType(f syntax.Expr, sig *Signature) {
-	// f must be a (possibly parenthesized) identifier denoting a built-in
-	// (built-ins in package unsafe always produce a constant result and
-	// we don't record their signatures, so we don't see qualified idents
-	// here): record the signature for f and possible children.
+	// f must be a (possibly parenthesized, possibly qualified)
+	// identifier denoting a built-in (including unsafe's non-constant
+	// functions Add and Slice): record the signature for f and possible
+	// children.
 	for {
 		check.recordTypeAndValue(f, builtin, sig, nil)
 		switch p := f.(type) {
-		case *syntax.Name:
+		case *syntax.Name, *syntax.SelectorExpr:
 			return // we're done
 		case *syntax.ParenExpr:
 			f = p.X

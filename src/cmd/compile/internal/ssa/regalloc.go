@@ -114,12 +114,13 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"fmt"
+	"internal/buildcfg"
 	"math/bits"
 	"unsafe"
 )
@@ -150,6 +151,14 @@ func regalloc(f *Func) {
 type register uint8
 
 const noRegister register = 255
+
+// For bulk initializing
+var noRegisters [32]register = [32]register{
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+	noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister, noRegister,
+}
 
 // A regMask encodes a set of machine registers.
 // TODO: regMask -> regSet?
@@ -233,12 +242,6 @@ type regAllocState struct {
 	GReg        register
 	allocatable regMask
 
-	// for each block, its primary predecessor.
-	// A predecessor of b is primary if it is the closest
-	// predecessor that appears before b in the layout order.
-	// We record the index in the Preds list where the primary predecessor sits.
-	primary []int32
-
 	// live values at the end of each block.  live[b.ID] is a list of value IDs
 	// which are live at the end of b, together with a count of how many instructions
 	// forward to the next use.
@@ -296,6 +299,12 @@ type regAllocState struct {
 
 	// choose a good order in which to visit blocks for allocation purposes.
 	visitOrder []*Block
+
+	// blockOrder[b.ID] corresponds to the index of block b in visitOrder.
+	blockOrder []int32
+
+	// whether to insert instructions that clobber dead registers at call sites
+	doClobber bool
 }
 
 type endReg struct {
@@ -331,6 +340,17 @@ func (s *regAllocState) freeReg(r register) {
 func (s *regAllocState) freeRegs(m regMask) {
 	for m&s.used != 0 {
 		s.freeReg(pickReg(m & s.used))
+	}
+}
+
+// clobberRegs inserts instructions that clobber registers listed in m.
+func (s *regAllocState) clobberRegs(m regMask) {
+	m &= s.allocatable & s.f.Config.gpRegMask // only integer register can contain pointers, only clobber them
+	for m != 0 {
+		r := pickReg(m)
+		m &^= 1 << r
+		x := s.curBlock.NewValue0(src.NoXPos, OpClobberReg, types.TypeVoid)
+		s.f.setHome(x, &s.registers[r])
 	}
 }
 
@@ -589,18 +609,12 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.hasGReg {
 		s.allocatable &^= 1 << s.GReg
 	}
-	if objabi.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+	if buildcfg.FramePointerEnabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
 	if s.f.Config.LinkReg != -1 {
 		if isLeaf(f) {
 			// Leaf functions don't save/restore the link register.
-			s.allocatable &^= 1 << uint(s.f.Config.LinkReg)
-		}
-		if s.f.Config.arch == "arm" && objabi.GOARM == 5 {
-			// On ARMv5 we insert softfloat calls at each FP instruction.
-			// This clobbers LR almost everywhere. Disable allocating LR
-			// on ARMv5.
 			s.allocatable &^= 1 << uint(s.f.Config.LinkReg)
 		}
 	}
@@ -634,9 +648,9 @@ func (s *regAllocState) init(f *Func) {
 
 	// Compute block order. This array allows us to distinguish forward edges
 	// from backward edges and compute how far they go.
-	blockOrder := make([]int32, f.NumBlocks())
+	s.blockOrder = make([]int32, f.NumBlocks())
 	for i, b := range s.visitOrder {
-		blockOrder[b.ID] = int32(i)
+		s.blockOrder[b.ID] = int32(i)
 	}
 
 	s.regs = make([]regState, s.numRegs)
@@ -661,22 +675,6 @@ func (s *regAllocState) init(f *Func) {
 		}
 	}
 	s.computeLive()
-
-	// Compute primary predecessors.
-	s.primary = make([]int32, f.NumBlocks())
-	for _, b := range s.visitOrder {
-		best := -1
-		for i, e := range b.Preds {
-			p := e.b
-			if blockOrder[p.ID] >= blockOrder[b.ID] {
-				continue // backward edge
-			}
-			if best == -1 || blockOrder[p.ID] > blockOrder[b.Preds[best].b.ID] {
-				best = i
-			}
-		}
-		s.primary[b.ID] = int32(best)
-	}
 
 	s.endRegs = make([][]endReg, f.NumBlocks())
 	s.startRegs = make([][]startReg, f.NumBlocks())
@@ -716,6 +714,14 @@ func (s *regAllocState) init(f *Func) {
 				}
 			}
 		}
+	}
+
+	// The clobberdeadreg experiment inserts code to clobber dead registers
+	// at call sites.
+	// Ignore huge functions to avoid doing too much work.
+	if base.Flag.ClobberDeadReg && len(s.f.Blocks) <= 10000 {
+		// TODO: honor GOCLOBBERDEADHASH, or maybe GOSSAHASH.
+		s.doClobber = true
 	}
 }
 
@@ -761,6 +767,9 @@ func (s *regAllocState) advanceUses(v *Value) {
 // current instruction.
 func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
 	u := s.values[v.ID].uses
+	if u == nil {
+		panic(fmt.Errorf("u is nil, v = %s, s.values[v.ID] = %v", v.LongString(), s.values[v.ID]))
+	}
 	d := u.dist
 	for u != nil && u.dist == d {
 		u = u.next
@@ -797,13 +806,30 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 }
 
 // regspec returns the regInfo for operation op.
-func (s *regAllocState) regspec(op Op) regInfo {
+func (s *regAllocState) regspec(v *Value) regInfo {
+	op := v.Op
 	if op == OpConvert {
 		// OpConvert is a generic op, so it doesn't have a
 		// register set in the static table. It can use any
 		// allocatable integer register.
 		m := s.allocatable & s.f.Config.gpRegMask
 		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
+	}
+	if op == OpArgIntReg {
+		reg := v.Block.Func.Config.intParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op == OpArgFloatReg {
+		reg := v.Block.Func.Config.floatParamRegs[v.AuxInt8()]
+		return regInfo{outputs: []outputInfo{{regs: 1 << uint(reg)}}}
+	}
+	if op.IsCall() {
+		if ac, ok := v.Aux.(*AuxCall); ok && ac.reg != nil {
+			return *ac.Reg(&opcodeTable[op].reg, s.f.Config)
+		}
+	}
+	if op == OpMakeResult && s.f.OwnAux.reg != nil {
+		return *s.f.OwnAux.ResultReg(s.f.Config)
 	}
 	return opcodeTable[op].reg
 }
@@ -935,10 +961,49 @@ func (s *regAllocState) regalloc(f *Func) {
 			// This is the complicated case. We have more than one predecessor,
 			// which means we may have Phi ops.
 
-			// Start with the final register state of the primary predecessor
-			idx := s.primary[b.ID]
+			// Start with the final register state of the predecessor with least spill values.
+			// This is based on the following points:
+			// 1, The less spill value indicates that the register pressure of this path is smaller,
+			//    so the values of this block are more likely to be allocated to registers.
+			// 2, Avoid the predecessor that contains the function call, because the predecessor that
+			//    contains the function call usually generates a lot of spills and lose the previous
+			//    allocation state.
+			// TODO: Improve this part. At least the size of endRegs of the predecessor also has
+			// an impact on the code size and compiler speed. But it is not easy to find a simple
+			// and efficient method that combines multiple factors.
+			idx := -1
+			for i, p := range b.Preds {
+				// If the predecessor has not been visited yet, skip it because its end state
+				// (redRegs and spillLive) has not been computed yet.
+				pb := p.b
+				if s.blockOrder[pb.ID] >= s.blockOrder[b.ID] {
+					continue
+				}
+				if idx == -1 {
+					idx = i
+					continue
+				}
+				pSel := b.Preds[idx].b
+				if len(s.spillLive[pb.ID]) < len(s.spillLive[pSel.ID]) {
+					idx = i
+				} else if len(s.spillLive[pb.ID]) == len(s.spillLive[pSel.ID]) {
+					// Use a bit of likely information. After critical pass, pb and pSel must
+					// be plain blocks, so check edge pb->pb.Preds instead of edge pb->b.
+					// TODO: improve the prediction of the likely predecessor. The following
+					// method is only suitable for the simplest cases. For complex cases,
+					// the prediction may be inaccurate, but this does not affect the
+					// correctness of the program.
+					// According to the layout algorithm, the predecessor with the
+					// smaller blockOrder is the true branch, and the test results show
+					// that it is better to choose the predecessor with a smaller
+					// blockOrder than no choice.
+					if pb.likelyBranch() && !pSel.likelyBranch() || s.blockOrder[pb.ID] < s.blockOrder[pSel.ID] {
+						idx = i
+					}
+				}
+			}
 			if idx < 0 {
-				f.Fatalf("block with no primary predecessor %s", b)
+				f.Fatalf("bad visitOrder, no predecessor of %s has been visited before it", b)
 			}
 			p := b.Preds[idx].b
 			s.setState(s.endRegs[p.ID])
@@ -1026,7 +1091,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// If one of the other inputs of v is in a register, and the register is available,
 				// select this register, which can save some unnecessary copies.
 				for i, pe := range b.Preds {
-					if int32(i) == idx {
+					if i == idx {
 						continue
 					}
 					ri := noRegister
@@ -1160,7 +1225,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		for i := len(oldSched) - 1; i >= 0; i-- {
 			v := oldSched[i]
 			prefs := desired.remove(v.ID)
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			desired.clobber(regspec.clobbers)
 			for _, j := range regspec.inputs {
 				if countRegs(j.regs) != 1 {
@@ -1190,7 +1255,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
-			regspec := s.regspec(v.Op)
+			regspec := s.regspec(v)
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
@@ -1208,13 +1273,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.sb = v.ID
 				continue
 			}
-			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
 				if s.values[v.ID].needReg {
-					var i = 0
-					if v.Op == OpSelect1 {
-						i = 1
+					if v.Op == OpSelectN {
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*Register).num), v, v)
+					} else {
+						var i = 0
+						if v.Op == OpSelect1 {
+							i = 1
+						}
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 					}
-					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1268,6 +1337,9 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
 				// No register allocation required (or none specified yet)
+				if s.doClobber && v.Op.IsCall() {
+					s.clobberRegs(regspec.clobbers)
+				}
 				s.freeRegs(regspec.clobbers)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1305,12 +1377,58 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Move arguments to registers. Process in an ordering defined
-			// by the register specification (most constrained first).
-			args = append(args[:0], v.Args...)
+			// Move arguments to registers.
+			// First, if an arg must be in a specific register and it is already
+			// in place, keep it.
+			args = append(args[:0], make([]*Value, len(v.Args))...)
+			for i, a := range v.Args {
+				if !s.values[a.ID].needReg {
+					args[i] = a
+				}
+			}
 			for _, i := range regspec.inputs {
 				mask := i.regs
-				if mask&s.values[args[i.idx].ID].regs == 0 {
+				if countRegs(mask) == 1 && mask&s.values[v.Args[i.idx].ID].regs != 0 {
+					args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+				}
+			}
+			// Then, if an arg must be in a specific register and that
+			// register is free, allocate that one. Otherwise when processing
+			// another input we may kick a value into the free register, which
+			// then will be kicked out again.
+			// This is a common case for passing-in-register arguments for
+			// function calls.
+			for {
+				freed := false
+				for _, i := range regspec.inputs {
+					if args[i.idx] != nil {
+						continue // already allocated
+					}
+					mask := i.regs
+					if countRegs(mask) == 1 && mask&^s.used != 0 {
+						args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+						// If the input is in other registers that will be clobbered by v,
+						// or the input is dead, free the registers. This may make room
+						// for other inputs.
+						oldregs := s.values[v.Args[i.idx].ID].regs
+						if oldregs&^regspec.clobbers == 0 || !s.liveAfterCurrentInstruction(v.Args[i.idx]) {
+							s.freeRegs(oldregs &^ mask &^ s.nospill)
+							freed = true
+						}
+					}
+				}
+				if !freed {
+					break
+				}
+			}
+			// Last, allocate remaining ones, in an ordering defined
+			// by the register specification (most constrained first).
+			for _, i := range regspec.inputs {
+				if args[i.idx] != nil {
+					continue // already allocated
+				}
+				mask := i.regs
+				if mask&s.values[v.Args[i.idx].ID].regs == 0 {
 					// Need a new register for the input.
 					mask &= s.allocatable
 					mask &^= s.nospill
@@ -1329,7 +1447,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
-				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Pos)
+				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
 			// If the output clobbers the input register, make sure we have
@@ -1375,9 +1493,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					goto ok
 				}
 
-				// Try to move an input to the desired output.
+				// Try to move an input to the desired output, if allowed.
 				for _, r := range dinfo[idx].out {
-					if r != noRegister && m>>r&1 != 0 {
+					if r != noRegister && (m&regspec.outputs[0].regs)>>r&1 != 0 {
 						m = regMask(1) << r
 						args[0] = s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: we update args[0] so the instruction will
@@ -1429,12 +1547,18 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			// Dump any registers which will be clobbered
+			if s.doClobber && v.Op.IsCall() {
+				// clobber registers that are marked as clobber in regmask, but
+				// don't clobber inputs.
+				s.clobberRegs(regspec.clobbers &^ s.tmpused &^ s.nospill)
+			}
 			s.freeRegs(regspec.clobbers)
 			s.tmpused |= regspec.clobbers
 
 			// Pick registers for outputs.
 			{
-				outRegs := [2]register{noRegister, noRegister}
+				outRegs := noRegisters // TODO if this is costly, hoist and clear incrementally below.
+				maxOutIdx := -1
 				var used regMask
 				for _, out := range regspec.outputs {
 					mask := out.regs & s.allocatable &^ used
@@ -1445,6 +1569,9 @@ func (s *regAllocState) regalloc(f *Func) {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
 							r := register(s.f.getHome(args[0].ID).(*Register).num)
+							if mask>>r&1 == 0 {
+								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.getHome(args[0].ID).(*Register), v.LongString())
+							}
 							mask = regMask(1) << r
 						} else {
 							// Output must use the same register as input 0 or 1.
@@ -1480,6 +1607,9 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 					r := s.allocReg(mask, v)
+					if out.idx > maxOutIdx {
+						maxOutIdx = out.idx
+					}
 					outRegs[out.idx] = r
 					used |= regMask(1) << r
 					s.tmpused |= regMask(1) << r
@@ -1495,6 +1625,15 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 					s.f.setHome(v, outLocs)
 					// Note that subsequent SelectX instructions will do the assignReg calls.
+				} else if v.Type.IsResults() {
+					// preallocate outLocs to the right size, which is maxOutIdx+1
+					outLocs := make(LocResults, maxOutIdx+1, maxOutIdx+1)
+					for i := 0; i <= maxOutIdx; i++ {
+						if r := outRegs[i]; r != noRegister {
+							outLocs[i] = &s.registers[r]
+						}
+					}
+					s.f.setHome(v, outLocs)
 				} else {
 					if r := outRegs[0]; r != noRegister {
 						s.assignReg(r, v, v)
@@ -1767,6 +1906,9 @@ func (s *regAllocState) placeSpills() {
 		// put the spill of v.  At the start "best" is the best place
 		// we have found so far.
 		// TODO: find a way to make this O(1) without arbitrary cutoffs.
+		if v == nil {
+			panic(fmt.Errorf("nil v, s.orig[%d], vi = %v, spill = %s", i, vi, spill.LongString()))
+		}
 		best := v.Block
 		bestArg := v
 		var bestDepth int16
@@ -2437,7 +2579,7 @@ func (s *regAllocState) computeLive() {
 					// desired registers back though phi nodes.
 					continue
 				}
-				regspec := s.regspec(v.Op)
+				regspec := s.regspec(v)
 				// Cancel desired registers if they get clobbered.
 				desired.clobber(regspec.clobbers)
 				// Update desired registers if there are any fixed register inputs.

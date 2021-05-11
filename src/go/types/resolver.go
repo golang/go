@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"sort"
 	"strconv"
@@ -130,7 +131,7 @@ func (check *Checker) filename(fileNo int) string {
 	return fmt.Sprintf("file[%d]", fileNo)
 }
 
-func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 	// If we already have a package for the given (path, dir)
 	// pair, use it instead of doing a full import.
 	// Checker.impMap only caches packages that are marked Complete
@@ -170,7 +171,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 			imp = nil // create fake package below
 		}
 		if err != nil {
-			check.errorf(atPos(pos), _BrokenImport, "could not import %s (%s)", path, err)
+			check.errorf(at, _BrokenImport, "could not import %s (%s)", path, err)
 			if imp == nil {
 				// create a new fake package
 				// come up with a sensible package name (heuristic)
@@ -191,7 +192,11 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
-		check.pkgCnt[imp.name]++
+		// Once we've formatted an error message once, keep the pkgPathMap
+		// up-to-date on subsequent imports.
+		if check.pkgPathMap != nil {
+			check.markImports(imp)
+		}
 		return imp
 	}
 
@@ -254,7 +259,7 @@ func (check *Checker) collectObjects() {
 					return
 				}
 
-				imp := check.importPackage(d.spec.Path.Pos(), path, fileDir)
+				imp := check.importPackage(d.spec.Path, path, fileDir)
 				if imp == nil {
 					return
 				}
@@ -389,8 +394,8 @@ func (check *Checker) collectObjects() {
 						if name == "main" {
 							code = _InvalidMainDecl
 						}
-						if d.decl.Type.TParams != nil {
-							check.softErrorf(d.decl.Type.TParams, code, "func %s must have no type parameters", name)
+						if tparams := typeparams.Get(d.decl.Type); tparams != nil {
+							check.softErrorf(tparams, code, "func %s must have no type parameters", name)
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
@@ -497,7 +502,7 @@ L: // unpack receiver type
 	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
 		rtyp = ptyp.X
 		if unpackParams {
-			for _, arg := range unpackExpr(ptyp.Index) {
+			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:

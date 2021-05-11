@@ -313,3 +313,17 @@ func _() {
 	t = u       // ERROR "cannot use .* in assignment|incompatible type"
 	t = (*T)(u) // ERROR "cannot convert"
 }
+
+func _() {
+	var s []byte
+	_ = ([4]byte)(s) // ERROR "cannot convert"
+	_ = (*[4]byte)(s)
+
+	type A [4]byte
+	_ = (A)(s) // ERROR "cannot convert"
+	_ = (*A)(s)
+
+	type P *[4]byte
+	_ = (P)(s)
+	_ = (*P)(s) // ERROR "cannot convert"
+}

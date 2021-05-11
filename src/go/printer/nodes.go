@@ -11,6 +11,7 @@ package printer
 import (
 	"bytes"
 	"go/ast"
+	"go/internal/typeparams"
 	"go/token"
 	"math"
 	"strconv"
@@ -382,8 +383,8 @@ func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
 }
 
 func (p *printer) signature(sig *ast.FuncType) {
-	if sig.TParams != nil {
-		p.parameters(sig.TParams, true)
+	if tparams := typeparams.Get(sig); tparams != nil {
+		p.parameters(tparams, true)
 	}
 	if sig.Params != nil {
 		p.parameters(sig.Params, false)
@@ -870,8 +871,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.print(x.Lbrack, token.LBRACK)
-		if e, _ := x.Index.(*ast.ListExpr); e != nil {
-			p.exprList(x.Lbrack, e.ElemList, depth+1, commaTerm, x.Rbrack, false)
+		// Note: we're a bit defensive here to handle the case of a ListExpr of
+		// length 1.
+		if list := typeparams.UnpackExpr(x.Index); len(list) > 0 {
+			if len(list) > 1 {
+				p.exprList(x.Lbrack, list, depth+1, commaTerm, x.Rbrack, false)
+			} else {
+				p.expr0(list[0], depth+1)
+			}
 		} else {
 			p.expr0(x.Index, depth+1)
 		}
@@ -1628,8 +1635,8 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 	case *ast.TypeSpec:
 		p.setComment(s.Doc)
 		p.expr(s.Name)
-		if s.TParams != nil {
-			p.parameters(s.TParams, true)
+		if tparams := typeparams.Get(s); tparams != nil {
+			p.parameters(tparams, true)
 		}
 		if n == 1 {
 			p.print(blank)

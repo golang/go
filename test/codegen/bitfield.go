@@ -244,3 +244,34 @@ func shift_no_cmp(x int) int {
 	// mips64:`SLLV\t[$]17`,-`SGT`
 	return x << 17
 }
+
+func rev16(c uint64) (uint64, uint64, uint64) {
+	// arm64:`REV16`,-`AND`,-`LSR`,-`AND`,-`ORR\tR[0-9]+<<8`
+	b1 := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
+	// arm64:-`ADD\tR[0-9]+<<8`
+	b2 := ((c & 0xff00ff00ff00ff00) >> 8) + ((c & 0x00ff00ff00ff00ff) << 8)
+	// arm64:-`EOR\tR[0-9]+<<8`
+	b3 := ((c & 0xff00ff00ff00ff00) >> 8) ^ ((c & 0x00ff00ff00ff00ff) << 8)
+	return b1, b2, b3
+}
+
+func rev16w(c uint32) (uint32, uint32, uint32) {
+	// arm64:`REV16W`,-`AND`,-`UBFX`,-`AND`,-`ORR\tR[0-9]+<<8`
+	b1 := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
+	// arm64:-`ADD\tR[0-9]+<<8`
+	b2 := ((c & 0xff00ff00) >> 8) + ((c & 0x00ff00ff) << 8)
+	// arm64:-`EOR\tR[0-9]+<<8`
+	b3 := ((c & 0xff00ff00) >> 8) ^ ((c & 0x00ff00ff) << 8)
+	return b1, b2, b3
+}
+
+func shift(x uint32, y uint16, z uint8) uint64 {
+	// arm64:-`MOVWU`,-`LSR\t[$]32`
+	a := uint64(x) >> 32
+	// arm64:-`MOVHU
+	b := uint64(y) >> 16
+	// arm64:-`MOVBU`
+	c := uint64(z) >> 8
+	// arm64:`MOVD\tZR`,-`ADD\tR[0-9]+>>16`,-`ADD\tR[0-9]+>>8`,
+	return a + b + c
+}

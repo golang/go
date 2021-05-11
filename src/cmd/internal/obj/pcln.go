@@ -37,7 +37,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 	oldval := val
 	fn := func_.Func()
 	if fn.Text == nil {
-		// Return the emtpy symbol we've built so far.
+		// Return the empty symbol we've built so far.
 		return sym
 	}
 

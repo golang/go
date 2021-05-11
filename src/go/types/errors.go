@@ -28,13 +28,38 @@ func unreachable() {
 func (check *Checker) qualifier(pkg *Package) string {
 	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
+		if check.pkgPathMap == nil {
+			check.pkgPathMap = make(map[string]map[string]bool)
+			check.seenPkgMap = make(map[*Package]bool)
+			check.markImports(pkg)
+		}
 		// If the same package name was used by multiple packages, display the full path.
-		if check.pkgCnt[pkg.name] > 1 {
+		if len(check.pkgPathMap[pkg.name]) > 1 {
 			return strconv.Quote(pkg.path)
 		}
 		return pkg.name
 	}
 	return ""
+}
+
+// markImports recursively walks pkg and its imports, to record unique import
+// paths in pkgPathMap.
+func (check *Checker) markImports(pkg *Package) {
+	if check.seenPkgMap[pkg] {
+		return
+	}
+	check.seenPkgMap[pkg] = true
+
+	forName, ok := check.pkgPathMap[pkg.name]
+	if !ok {
+		forName = make(map[string]bool)
+		check.pkgPathMap[pkg.name] = forName
+	}
+	forName[pkg.path] = true
+
+	for _, imp := range pkg.imports {
+		check.markImports(imp)
+	}
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {

@@ -232,6 +232,9 @@ var sampleTokens = [...]struct {
 	{_Literal, "`\r`", 0, 0},
 
 	// operators
+	{_Operator, "!", Not, 0},
+	{_Operator, "~", Tilde, 0},
+
 	{_Operator, "||", OrOr, precOrOr},
 
 	{_Operator, "&&", AndAnd, precAndAnd},
@@ -547,7 +550,7 @@ func TestNumbers(t *testing.T) {
 				t.Errorf("%q: got error but bad not set", test.src)
 			}
 
-			// compute lit where where s.lit is not defined
+			// compute lit where s.lit is not defined
 			var lit string
 			switch s.tok {
 			case _Name, _Literal:
@@ -601,7 +604,7 @@ func TestScanErrors(t *testing.T) {
 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
 		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid character U+00BD '½' in identifier", 0, 8 /* byte offset */},
 
-		{"x + ~y", "invalid character U+007E '~'", 0, 4},
+		{"x + #y", "invalid character U+0023 '#'", 0, 4},
 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
 		{"0123456789", "invalid digit '8' in octal literal", 0, 8},
 		{"0123456789. /* foobar", "comment not terminated", 0, 12},   // valid float constant

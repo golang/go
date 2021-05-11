@@ -1,9 +1,8 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file tests types.Check by using it to
+// This file tests types2.Check by using it to
 // typecheck the standard library and tests.
 
 package types2_test
@@ -14,7 +13,6 @@ import (
 	"fmt"
 	"go/build"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -91,7 +89,7 @@ func firstComment(filename string) (first string) {
 }
 
 func testTestDir(t *testing.T, path string, ignore ...string) {
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,17 +182,16 @@ func TestStdFixed(t *testing.T) {
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
-		"issue16369.go",  // go/types handles this correctly - not an issue
-		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
-		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
-		"issue20529.go",  // go/types does not have constraints on stack size
-		"issue22200.go",  // go/types does not have constraints on stack size
-		"issue22200b.go", // go/types does not have constraints on stack size
-		"issue25507.go",  // go/types does not have constraints on stack size
-		"issue20780.go",  // go/types does not have constraints on stack size
-		"issue42058a.go", // go/types does not have constraints on channel element size
-		"issue42058b.go", // go/types does not have constraints on channel element size
-		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+		"issue16369.go",  // types2 handles this correctly - not an issue
+		"issue18459.go",  // types2 doesn't check validity of //go:xxx directives
+		"issue18882.go",  // types2 doesn't check validity of //go:xxx directives
+		"issue20529.go",  // types2 does not have constraints on stack size
+		"issue22200.go",  // types2 does not have constraints on stack size
+		"issue22200b.go", // types2 does not have constraints on stack size
+		"issue25507.go",  // types2 does not have constraints on stack size
+		"issue20780.go",  // types2 does not have constraints on stack size
+		"issue42058a.go", // types2 does not have constraints on channel element size
+		"issue42058b.go", // types2 does not have constraints on channel element size
 	)
 }
 
@@ -207,6 +204,9 @@ func TestStdKen(t *testing.T) {
 // Package paths of excluded packages.
 var excluded = map[string]bool{
 	"builtin": true,
+
+	// See #46027: some imports are missing for this submodule.
+	"crypto/ed25519/internal/edwards25519/field/_asm": true,
 }
 
 // typecheck typechecks the given package files.
@@ -298,7 +298,7 @@ func (w *walker) walk(dir string) {
 		return
 	}
 
-	fis, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		w.errh(err)
 		return
@@ -318,9 +318,9 @@ func (w *walker) walk(dir string) {
 	}
 
 	// traverse subdirectories, but don't walk into testdata
-	for _, fi := range fis {
-		if fi.IsDir() && fi.Name() != "testdata" {
-			w.walk(filepath.Join(dir, fi.Name()))
+	for _, f := range files {
+		if f.IsDir() && f.Name() != "testdata" {
+			w.walk(filepath.Join(dir, f.Name()))
 		}
 	}
 }

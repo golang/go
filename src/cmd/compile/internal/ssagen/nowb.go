@@ -61,6 +61,12 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 			continue
 		}
 		c.curfn = n.(*ir.Func)
+		if c.curfn.ABIWrapper() {
+			// We only want "real" calls to these
+			// functions, not the generated ones within
+			// their own ABI wrappers.
+			continue
+		}
 		ir.Visit(n, c.findExtraCalls)
 	}
 	c.curfn = nil

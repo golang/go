@@ -7,6 +7,7 @@ package http
 import (
 	"log"
 	"net"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"strconv"
 	"strings"
@@ -93,15 +94,23 @@ func readSetCookies(h Header) []*Cookie {
 			if j := strings.Index(attr, "="); j >= 0 {
 				attr, val = attr[:j], attr[j+1:]
 			}
-			lowerAttr := strings.ToLower(attr)
+			lowerAttr, isASCII := ascii.ToLower(attr)
+			if !isASCII {
+				continue
+			}
 			val, ok = parseCookieValue(val, false)
 			if !ok {
 				c.Unparsed = append(c.Unparsed, parts[i])
 				continue
 			}
+
 			switch lowerAttr {
 			case "samesite":
-				lowerVal := strings.ToLower(val)
+				lowerVal, ascii := ascii.ToLower(val)
+				if !ascii {
+					c.SameSite = SameSiteDefaultMode
+					continue
+				}
 				switch lowerVal {
 				case "lax":
 					c.SameSite = SameSiteLaxMode

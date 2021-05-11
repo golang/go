@@ -31,6 +31,7 @@ var (
 type vendorMetadata struct {
 	Explicit    bool
 	Replacement module.Version
+	GoVersion   string
 }
 
 // readVendorList reads the list of vendored modules from vendor/modules.txt.
@@ -103,6 +104,10 @@ func readVendorList() {
 					entry = strings.TrimSpace(entry)
 					if entry == "explicit" {
 						meta.Explicit = true
+					}
+					if strings.HasPrefix(entry, "go ") {
+						meta.GoVersion = strings.TrimPrefix(entry, "go ")
+						rawGoVersion.Store(mod, meta.GoVersion)
 					}
 					// All other tokens are reserved for future use.
 				}

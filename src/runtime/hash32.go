@@ -3,110 +3,61 @@
 // license that can be found in the LICENSE file.
 
 // Hashing algorithm inspired by
-//   xxhash: https://code.google.com/p/xxhash/
-// cityhash: https://code.google.com/p/cityhash/
+// wyhash: https://github.com/wangyi-fudan/wyhash/blob/ceb019b530e2c1c14d70b79bfa2bc49de7d95bc1/Modern%20Non-Cryptographic%20Hash%20Function%20and%20Pseudorandom%20Number%20Generator.pdf
 
+//go:build 386 || arm || mips || mipsle
 // +build 386 arm mips mipsle
 
 package runtime
 
 import "unsafe"
 
-const (
-	// Constants for multiplication: four random odd 32-bit numbers.
-	m1 = 3168982561
-	m2 = 3339683297
-	m3 = 832293441
-	m4 = 2336365089
-)
-
-func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
-	h := uint32(seed + s*hashkey[0])
-tail:
-	switch {
-	case s == 0:
-	case s < 4:
-		h ^= uint32(*(*byte)(p))
-		h ^= uint32(*(*byte)(add(p, s>>1))) << 8
-		h ^= uint32(*(*byte)(add(p, s-1))) << 16
-		h = rotl_15(h*m1) * m2
-	case s == 4:
-		h ^= readUnaligned32(p)
-		h = rotl_15(h*m1) * m2
-	case s <= 8:
-		h ^= readUnaligned32(p)
-		h = rotl_15(h*m1) * m2
-		h ^= readUnaligned32(add(p, s-4))
-		h = rotl_15(h*m1) * m2
-	case s <= 16:
-		h ^= readUnaligned32(p)
-		h = rotl_15(h*m1) * m2
-		h ^= readUnaligned32(add(p, 4))
-		h = rotl_15(h*m1) * m2
-		h ^= readUnaligned32(add(p, s-8))
-		h = rotl_15(h*m1) * m2
-		h ^= readUnaligned32(add(p, s-4))
-		h = rotl_15(h*m1) * m2
-	default:
-		v1 := h
-		v2 := uint32(seed * hashkey[1])
-		v3 := uint32(seed * hashkey[2])
-		v4 := uint32(seed * hashkey[3])
-		for s >= 16 {
-			v1 ^= readUnaligned32(p)
-			v1 = rotl_15(v1*m1) * m2
-			p = add(p, 4)
-			v2 ^= readUnaligned32(p)
-			v2 = rotl_15(v2*m2) * m3
-			p = add(p, 4)
-			v3 ^= readUnaligned32(p)
-			v3 = rotl_15(v3*m3) * m4
-			p = add(p, 4)
-			v4 ^= readUnaligned32(p)
-			v4 = rotl_15(v4*m4) * m1
-			p = add(p, 4)
-			s -= 16
-		}
-		h = v1 ^ v2 ^ v3 ^ v4
-		goto tail
-	}
-	h ^= h >> 17
-	h *= m3
-	h ^= h >> 13
-	h *= m4
-	h ^= h >> 16
-	return uintptr(h)
-}
-
 func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	h := uint32(seed + 4*hashkey[0])
-	h ^= readUnaligned32(p)
-	h = rotl_15(h*m1) * m2
-	h ^= h >> 17
-	h *= m3
-	h ^= h >> 13
-	h *= m4
-	h ^= h >> 16
-	return uintptr(h)
+	a, b := mix32(uint32(seed), uint32(4^hashkey[0]))
+	t := readUnaligned32(p)
+	a ^= t
+	b ^= t
+	a, b = mix32(a, b)
+	a, b = mix32(a, b)
+	return uintptr(a ^ b)
 }
 
 func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	h := uint32(seed + 8*hashkey[0])
-	h ^= readUnaligned32(p)
-	h = rotl_15(h*m1) * m2
-	h ^= readUnaligned32(add(p, 4))
-	h = rotl_15(h*m1) * m2
-	h ^= h >> 17
-	h *= m3
-	h ^= h >> 13
-	h *= m4
-	h ^= h >> 16
-	return uintptr(h)
+	a, b := mix32(uint32(seed), uint32(8^hashkey[0]))
+	a ^= readUnaligned32(p)
+	b ^= readUnaligned32(add(p, 4))
+	a, b = mix32(a, b)
+	a, b = mix32(a, b)
+	return uintptr(a ^ b)
 }
 
-// Note: in order to get the compiler to issue rotl instructions, we
-// need to constant fold the shift amount by hand.
-// TODO: convince the compiler to issue rotl instructions after inlining.
-func rotl_15(x uint32) uint32 {
-	return (x << 15) | (x >> (32 - 15))
+func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+
+	a, b := mix32(uint32(seed), uint32(s^hashkey[0]))
+	if s == 0 {
+		return uintptr(a ^ b)
+	}
+	for ; s > 8; s -= 8 {
+		a ^= readUnaligned32(p)
+		b ^= readUnaligned32(add(p, 4))
+		a, b = mix32(a, b)
+		p = add(p, 8)
+	}
+	if s >= 4 {
+		a ^= readUnaligned32(p)
+		b ^= readUnaligned32(add(p, s-4))
+	} else {
+		t := uint32(*(*byte)(p))
+		t |= uint32(*(*byte)(add(p, s>>1))) << 8
+		t |= uint32(*(*byte)(add(p, s-1))) << 16
+		b ^= t
+	}
+	a, b = mix32(a, b)
+	a, b = mix32(a, b)
+	return uintptr(a ^ b)
+}
+
+func mix32(a, b uint32) (uint32, uint32) {
+	c := uint64(a^uint32(hashkey[1])) * uint64(b^uint32(hashkey[2]))
+	return uint32(c), uint32(c >> 32)
 }

@@ -5,7 +5,9 @@
 package reflectdata
 
 import (
+	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"sort"
 	"strings"
@@ -50,6 +52,9 @@ var (
 	signatmu    sync.Mutex // protects signatset and signatslice
 	signatset   = make(map[*types.Type]struct{})
 	signatslice []*types.Type
+
+	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
+	gcsymset = make(map[*types.Type]struct{})
 
 	itabs []itabEntry
 	ptabs []*ir.Name
@@ -364,7 +369,7 @@ func methods(t *types.Type) []*typeSig {
 // imethods returns the methods of the interface type t, sorted by name.
 func imethods(t *types.Type) []*typeSig {
 	var methods []*typeSig
-	for _, f := range t.Fields().Slice() {
+	for _, f := range t.AllMethods().Slice() {
 		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
 			continue
 		}
@@ -469,21 +474,25 @@ func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 
 // dnameData writes the contents of a reflect.name into s at offset ot.
 func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported bool) int {
-	if len(name) > 1<<16-1 {
-		base.Fatalf("name too long: %s", name)
+	if len(name) >= 1<<29 {
+		base.Fatalf("name too long: %d %s...", len(name), name[:1024])
 	}
-	if len(tag) > 1<<16-1 {
-		base.Fatalf("tag too long: %s", tag)
+	if len(tag) >= 1<<29 {
+		base.Fatalf("tag too long: %d %s...", len(tag), tag[:1024])
 	}
+	var nameLen [binary.MaxVarintLen64]byte
+	nameLenLen := binary.PutUvarint(nameLen[:], uint64(len(name)))
+	var tagLen [binary.MaxVarintLen64]byte
+	tagLenLen := binary.PutUvarint(tagLen[:], uint64(len(tag)))
 
 	// Encode name and tag. See reflect/type.go for details.
 	var bits byte
-	l := 1 + 2 + len(name)
+	l := 1 + nameLenLen + len(name)
 	if exported {
 		bits |= 1 << 0
 	}
 	if len(tag) > 0 {
-		l += 2 + len(tag)
+		l += tagLenLen + len(tag)
 		bits |= 1 << 1
 	}
 	if pkg != nil {
@@ -491,14 +500,12 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 	}
 	b := make([]byte, l)
 	b[0] = bits
-	b[1] = uint8(len(name) >> 8)
-	b[2] = uint8(len(name))
-	copy(b[3:], name)
+	copy(b[1:], nameLen[:nameLenLen])
+	copy(b[1+nameLenLen:], name)
 	if len(tag) > 0 {
-		tb := b[3+len(name):]
-		tb[0] = uint8(len(tag) >> 8)
-		tb[1] = uint8(len(tag))
-		copy(tb[2:], tag)
+		tb := b[1+nameLenLen+len(name):]
+		copy(tb, tagLen[:tagLenLen])
+		copy(tb[tagLenLen:], tag)
 	}
 
 	ot = int(s.WriteBytes(base.Ctxt, int64(ot), b))
@@ -594,7 +601,7 @@ func typePkg(t *types.Type) *types.Pkg {
 			}
 		}
 	}
-	if tsym != nil && t != types.Types[t.Kind()] && t != types.ErrorType {
+	if tsym != nil && tsym.Pkg != types.BuiltinPkg {
 		return tsym.Pkg
 	}
 	return nil
@@ -693,7 +700,8 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		sptr = writeType(tptr)
 	}
 
-	gcsym, useGCProg, ptrdata := dgcsym(t)
+	gcsym, useGCProg, ptrdata := dgcsym(t, true)
+	delete(gcsymset, t)
 
 	// ../../../../reflect/type.go:/^type.rtype
 	// actual type structure
@@ -1320,6 +1328,16 @@ func WriteRuntimeTypes() {
 			}
 		}
 	}
+
+	// Emit GC data symbols.
+	gcsyms := make([]typeAndStr, 0, len(gcsymset))
+	for t := range gcsymset {
+		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+	}
+	sort.Sort(typesByString(gcsyms))
+	for _, ts := range gcsyms {
+		dgcsym(ts.t, true)
+	}
 }
 
 func WriteTabs() {
@@ -1338,7 +1356,7 @@ func WriteTabs() {
 		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
 		o += 4                                          // skip unused field
 		for _, fn := range genfun(i.t, i.itype) {
-			o = objw.SymPtr(i.lsym, o, fn, 0) // method pointer for each method
+			o = objw.SymPtrWeak(i.lsym, o, fn, 0) // method pointer for each method
 		}
 		// Nothing writes static itabs, so they are read only.
 		objw.Global(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
@@ -1489,31 +1507,46 @@ func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 //
 const maxPtrmaskBytes = 2048
 
-// dgcsym emits and returns a data symbol containing GC information for type t,
-// along with a boolean reporting whether the UseGCProg bit should be set in
-// the type kind, and the ptrdata field to record in the reflect type information.
-func dgcsym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+// GCSym returns a data symbol containing GC information for type t, along
+// with a boolean reporting whether the UseGCProg bit should be set in the
+// type kind, and the ptrdata field to record in the reflect type information.
+// GCSym may be called in concurrent backend, so it does not emit the symbol
+// content.
+func GCSym(t *types.Type) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
+	// Record that we need to emit the GC symbol.
+	gcsymmu.Lock()
+	if _, ok := gcsymset[t]; !ok {
+		gcsymset[t] = struct{}{}
+	}
+	gcsymmu.Unlock()
+
+	return dgcsym(t, false)
+}
+
+// dgcsym returns a data symbol containing GC information for type t, along
+// with a boolean reporting whether the UseGCProg bit should be set in the
+// type kind, and the ptrdata field to record in the reflect type information.
+// When write is true, it writes the symbol data.
+func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
 	if ptrdata/int64(types.PtrSize) <= maxPtrmaskBytes*8 {
-		lsym = dgcptrmask(t)
+		lsym = dgcptrmask(t, write)
 		return
 	}
 
 	useGCProg = true
-	lsym, ptrdata = dgcprog(t)
+	lsym, ptrdata = dgcprog(t, write)
 	return
 }
 
 // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
-func dgcptrmask(t *types.Type) *obj.LSym {
+func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
 	fillptrmask(t, ptrmask)
-	p := fmt.Sprintf("gcbits.%x", ptrmask)
+	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
 
-	sym := ir.Pkgs.Runtime.Lookup(p)
-	lsym := sym.Linksym()
-	if !sym.Uniq() {
-		sym.SetUniq(true)
+	lsym := base.Ctxt.Lookup(p)
+	if write && !lsym.OnList() {
 		for i, x := range ptrmask {
 			objw.Uint8(lsym, i, x)
 		}
@@ -1525,7 +1558,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
 
 // fillptrmask fills in ptrmask with 1s corresponding to the
 // word offsets in t that hold pointers.
-// ptrmask is assumed to fit at least typeptrdata(t)/Widthptr bits.
+// ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
 func fillptrmask(t *types.Type, ptrmask []byte) {
 	for i := range ptrmask {
 		ptrmask[i] = 0
@@ -1546,17 +1579,18 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
 }
 
 // dgcprog emits and returns the symbol containing a GC program for type t
-// along with the size of the data described by the program (in the range [typeptrdata(t), t.Width]).
-// In practice, the size is typeptrdata(t) except for non-trivial arrays.
+// along with the size of the data described by the program (in the range
+// [types.PtrDataSize(t), t.Width]).
+// In practice, the size is types.PtrDataSize(t) except for non-trivial arrays.
 // For non-trivial arrays, the program describes the full t.Width size.
-func dgcprog(t *types.Type) (*obj.LSym, int64) {
+func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
 	types.CalcSize(t)
 	if t.Width == types.BADWIDTH {
 		base.Fatalf("dgcprog: %v badwidth", t)
 	}
 	lsym := TypeLinksymPrefix(".gcprog", t)
 	var p gcProg
-	p.init(lsym)
+	p.init(lsym, write)
 	p.emit(t, 0)
 	offset := p.w.BitIndex() * int64(types.PtrSize)
 	p.end()
@@ -1570,11 +1604,17 @@ type gcProg struct {
 	lsym   *obj.LSym
 	symoff int
 	w      gcprog.Writer
+	write  bool
 }
 
-func (p *gcProg) init(lsym *obj.LSym) {
+func (p *gcProg) init(lsym *obj.LSym, write bool) {
 	p.lsym = lsym
+	p.write = write && !lsym.OnList()
 	p.symoff = 4 // first 4 bytes hold program length
+	if !write {
+		p.w.Init(func(byte) {})
+		return
+	}
 	p.w.Init(p.writeByte)
 	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
@@ -1588,8 +1628,12 @@ func (p *gcProg) writeByte(x byte) {
 
 func (p *gcProg) end() {
 	p.w.End()
+	if !p.write {
+		return
+	}
 	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
 	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	p.lsym.Set(obj.AttrContentAddressable, true)
 	if base.Debug.GCProg > 0 {
 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
 	}
@@ -1740,6 +1784,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		typecheck.NewFuncParams(method.Type.Params(), true),
 		typecheck.NewFuncParams(method.Type.Results(), false))
 
+	// TODO(austin): SelectorExpr may have created one or more
+	// ir.Names for these already with a nil Func field. We should
+	// consolidate these and always attach a Func to the Name.
 	fn := typecheck.DeclFunc(newnam, tfn)
 	fn.SetDupok(true)
 
@@ -1766,7 +1813,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+	//
+	// Disable tailcall for RegabiArgs for now. The IR does not connect the
+	// arguments with the OTAILCALL node, and the arguments are not marshaled
+	// correctly.
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		left := dot.X // skip final .M
 		if !left.Type().IsPtr() {
@@ -1828,12 +1879,16 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 // MarkUsedIfaceMethod marks that an interface method is used in the current
 // function. n is OCALLINTER node.
 func MarkUsedIfaceMethod(n *ir.CallExpr) {
+	// skip unnamed functions (func _())
+	if ir.CurFunc.LSym == nil {
+		return
+	}
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
-	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
+	// dot.Xoffset is the method index * PtrSize (the offset of code pointer
 	// in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)

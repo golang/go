@@ -6,6 +6,11 @@ package types
 
 // sanitizeInfo walks the types contained in info to ensure that all instances
 // are expanded.
+//
+// This includes some objects that may be shared across concurrent
+// type-checking passes (such as those in the universe scope), so we are
+// careful here not to write types that are already sanitized. This avoids a
+// data race as any shared types should already be sanitized.
 func sanitizeInfo(info *Info) {
 	var s sanitizer = make(map[Type]Type)
 
@@ -13,27 +18,43 @@ func sanitizeInfo(info *Info) {
 	// If modified, they must be assigned back.
 
 	for e, tv := range info.Types {
-		tv.Type = s.typ(tv.Type)
-		info.Types[e] = tv
+		if typ := s.typ(tv.Type); typ != tv.Type {
+			tv.Type = typ
+			info.Types[e] = tv
+		}
 	}
 
-	for e, inf := range info.Inferred {
+	inferred := getInferred(info)
+	for e, inf := range inferred {
+		changed := false
 		for i, targ := range inf.Targs {
-			inf.Targs[i] = s.typ(targ)
+			if typ := s.typ(targ); typ != targ {
+				inf.Targs[i] = typ
+				changed = true
+			}
 		}
-		inf.Sig = s.typ(inf.Sig).(*Signature)
-		info.Inferred[e] = inf
+		if typ := s.typ(inf.Sig); typ != inf.Sig {
+			inf.Sig = typ.(*Signature)
+			changed = true
+		}
+		if changed {
+			inferred[e] = inf
+		}
 	}
 
 	for _, obj := range info.Defs {
 		if obj != nil {
-			obj.setType(s.typ(obj.Type()))
+			if typ := s.typ(obj.Type()); typ != obj.Type() {
+				obj.setType(typ)
+			}
 		}
 	}
 
 	for _, obj := range info.Uses {
 		if obj != nil {
-			obj.setType(s.typ(obj.Type()))
+			if typ := s.typ(obj.Type()); typ != obj.Type() {
+				obj.setType(typ)
+			}
 		}
 	}
 
@@ -47,26 +68,36 @@ func sanitizeInfo(info *Info) {
 type sanitizer map[Type]Type
 
 func (s sanitizer) typ(typ Type) Type {
+	if typ == nil {
+		return nil
+	}
+
 	if t, found := s[typ]; found {
 		return t
 	}
 	s[typ] = typ
 
 	switch t := typ.(type) {
-	case nil, *Basic, *bottom, *top:
+	case *Basic, *bottom, *top:
 		// nothing to do
 
 	case *Array:
-		t.elem = s.typ(t.elem)
+		if elem := s.typ(t.elem); elem != t.elem {
+			t.elem = elem
+		}
 
 	case *Slice:
-		t.elem = s.typ(t.elem)
+		if elem := s.typ(t.elem); elem != t.elem {
+			t.elem = elem
+		}
 
 	case *Struct:
 		s.varList(t.fields)
 
 	case *Pointer:
-		t.base = s.typ(t.base)
+		if base := s.typ(t.base); base != t.base {
+			t.base = base
+		}
 
 	case *Tuple:
 		s.tuple(t)
@@ -76,31 +107,47 @@ func (s sanitizer) typ(typ Type) Type {
 		s.tuple(t.params)
 		s.tuple(t.results)
 
-	case *Sum:
+	case *_Sum:
 		s.typeList(t.types)
 
 	case *Interface:
 		s.funcList(t.methods)
-		s.typ(t.types)
+		if types := s.typ(t.types); types != t.types {
+			t.types = types
+		}
 		s.typeList(t.embeddeds)
 		s.funcList(t.allMethods)
-		s.typ(t.allTypes)
+		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
+			t.allTypes = allTypes
+		}
 
 	case *Map:
-		t.key = s.typ(t.key)
-		t.elem = s.typ(t.elem)
+		if key := s.typ(t.key); key != t.key {
+			t.key = key
+		}
+		if elem := s.typ(t.elem); elem != t.elem {
+			t.elem = elem
+		}
 
 	case *Chan:
-		t.elem = s.typ(t.elem)
+		if elem := s.typ(t.elem); elem != t.elem {
+			t.elem = elem
+		}
 
 	case *Named:
-		t.orig = s.typ(t.orig)
-		t.underlying = s.typ(t.underlying)
+		if orig := s.typ(t.orig); orig != t.orig {
+			t.orig = orig
+		}
+		if under := s.typ(t.underlying); under != t.underlying {
+			t.underlying = under
+		}
 		s.typeList(t.targs)
 		s.funcList(t.methods)
 
-	case *TypeParam:
-		t.bound = s.typ(t.bound)
+	case *_TypeParam:
+		if bound := s.typ(t.bound); bound != t.bound {
+			t.bound = bound
+		}
 
 	case *instance:
 		typ = t.expand()
@@ -115,7 +162,9 @@ func (s sanitizer) typ(typ Type) Type {
 
 func (s sanitizer) var_(v *Var) {
 	if v != nil {
-		v.typ = s.typ(v.typ)
+		if typ := s.typ(v.typ); typ != v.typ {
+			v.typ = typ
+		}
 	}
 }
 
@@ -133,7 +182,9 @@ func (s sanitizer) tuple(t *Tuple) {
 
 func (s sanitizer) func_(f *Func) {
 	if f != nil {
-		f.typ = s.typ(f.typ)
+		if typ := s.typ(f.typ); typ != f.typ {
+			f.typ = typ
+		}
 	}
 }
 
@@ -145,6 +196,8 @@ func (s sanitizer) funcList(list []*Func) {
 
 func (s sanitizer) typeList(list []Type) {
 	for i, t := range list {
-		list[i] = s.typ(t)
+		if typ := s.typ(t); typ != t {
+			list[i] = typ
+		}
 	}
 }

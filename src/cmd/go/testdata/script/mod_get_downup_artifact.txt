@@ -61,14 +61,8 @@ go list -m all
 stdout '^example.com/a v0.1.0 '
 stdout '^example.com/b v0.1.0 '
 stdout '^example.com/c v0.1.0 '
-
-	# BUG: d should remain at v0.1.0, because it is not transitively imported by a
-	# with b@v0.1.0. Today, it is spuriously upgraded to v0.2.0.
-stdout '^example.com/d v0.2.0 '
-
-	# BUG: e should not be added, because it is not transitively imported by a
-	# with b@v0.1.0. Today, it is spuriously added.
-stdout '^example.com/e v0.1.0 '
+stdout '^example.com/d v0.1.0 '
+! stdout '^example.com/e '
 
 -- go.mod --
 module example.com/m

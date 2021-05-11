@@ -303,59 +303,65 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 	}
 }
 
-// unpack unpacks an *ast.ListExpr into a list of ast.Expr.
-// TODO(gri) Should find a more efficient solution that doesn't
-//           require introduction of a new slice for simple
-//           expressions.
-func unpackExpr(x ast.Expr) []ast.Expr {
-	if x, _ := x.(*ast.ListExpr); x != nil {
-		return x.ElemList
-	}
-	if x != nil {
-		return []ast.Expr{x}
-	}
-	return nil
-}
-
 func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	top := len(check.delayed)
 	scope := check.scope
 
 	// collect lhs variables
-	var newVars []*Var
-	var lhsVars = make([]*Var, len(lhs))
+	seen := make(map[string]bool, len(lhs))
+	lhsVars := make([]*Var, len(lhs))
+	newVars := make([]*Var, 0, len(lhs))
+	hasErr := false
 	for i, lhs := range lhs {
-		var obj *Var
-		if ident, _ := lhs.(*ast.Ident); ident != nil {
-			// Use the correct obj if the ident is redeclared. The
-			// variable's scope starts after the declaration; so we
-			// must use Scope.Lookup here and call Scope.Insert
-			// (via check.declare) later.
-			name := ident.Name
-			if alt := scope.Lookup(name); alt != nil {
-				// redeclared object must be a variable
-				if alt, _ := alt.(*Var); alt != nil {
-					obj = alt
-				} else {
-					check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
-				}
-				check.recordUse(ident, alt)
-			} else {
-				// declare new variable, possibly a blank (_) variable
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
-				if name != "_" {
-					newVars = append(newVars, obj)
-				}
-				check.recordDef(ident, obj)
-			}
-		} else {
+		ident, _ := lhs.(*ast.Ident)
+		if ident == nil {
 			check.useLHS(lhs)
-			check.invalidAST(lhs, "cannot declare %s", lhs)
+			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
+			check.errorf(lhs, _BadDecl, "non-name %s on left side of :=", lhs)
+			hasErr = true
+			continue
 		}
-		if obj == nil {
-			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+
+		name := ident.Name
+		if name != "_" {
+			if seen[name] {
+				check.errorf(lhs, _RepeatedDecl, "%s repeated on left side of :=", lhs)
+				hasErr = true
+				continue
+			}
+			seen[name] = true
 		}
+
+		// Use the correct obj if the ident is redeclared. The
+		// variable's scope starts after the declaration; so we
+		// must use Scope.Lookup here and call Scope.Insert
+		// (via check.declare) later.
+		if alt := scope.Lookup(name); alt != nil {
+			check.recordUse(ident, alt)
+			// redeclared object must be a variable
+			if obj, _ := alt.(*Var); obj != nil {
+				lhsVars[i] = obj
+			} else {
+				check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
+				hasErr = true
+			}
+			continue
+		}
+
+		// declare new variable
+		obj := NewVar(ident.Pos(), check.pkg, name, nil)
 		lhsVars[i] = obj
+		if name != "_" {
+			newVars = append(newVars, obj)
+		}
+		check.recordDef(ident, obj)
+	}
+
+	// create dummy variables where the lhs is invalid
+	for i, obj := range lhsVars {
+		if obj == nil {
+			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+		}
 	}
 
 	check.initVars(lhsVars, rhs, token.NoPos)
@@ -363,17 +369,18 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)
 
-	// declare new variables
-	if len(newVars) > 0 {
-		// spec: "The scope of a constant or variable identifier declared inside
-		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
-		// for short variable declarations) and ends at the end of the innermost
-		// containing block."
-		scopePos := rhs[len(rhs)-1].End()
-		for _, obj := range newVars {
-			check.declare(scope, nil, obj, scopePos) // recordObject already called
-		}
-	} else {
+	if len(newVars) == 0 && !hasErr {
 		check.softErrorf(pos, _NoNewVar, "no new variables on left side of :=")
+		return
+	}
+
+	// declare new variables
+	// spec: "The scope of a constant or variable identifier declared inside
+	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+	// for short variable declarations) and ends at the end of the innermost
+	// containing block."
+	scopePos := rhs[len(rhs)-1].End()
+	for _, obj := range newVars {
+		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
 	}
 }

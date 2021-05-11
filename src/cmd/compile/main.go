@@ -18,8 +18,8 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/wasm"
 	"cmd/compile/internal/x86"
-	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 )
@@ -45,9 +45,10 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("compile: ")
 
-	archInit, ok := archInits[objabi.GOARCH]
+	buildcfg.Check()
+	archInit, ok := archInits[buildcfg.GOARCH]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", objabi.GOARCH)
+		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", buildcfg.GOARCH)
 		os.Exit(2)
 	}
 

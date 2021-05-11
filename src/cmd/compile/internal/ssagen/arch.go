@@ -5,8 +5,10 @@
 package ssagen
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
 
@@ -39,4 +41,12 @@ type ArchInfo struct {
 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *State, b, next *ssa.Block)
+
+	// LoadRegResults emits instructions that loads register-assigned results
+	// into registers. They are already in memory (PPARAMOUT nodes).
+	// Used in open-coded defer return path.
+	LoadRegResults func(s *State, f *ssa.Func)
+
+	// SpillArgReg emits instructions that spill reg to n+off.
+	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
 }

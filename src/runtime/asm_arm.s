@@ -142,6 +142,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 
 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
 
+#ifdef GOOS_openbsd
+	// Save g to TLS so that it is available from signal trampoline.
+	BL	runtime·save_g(SB)
+#endif
+
 	BL	runtime·_initcgo(SB)	// will clobber R0-R3
 
 	// update stackguard after _cgo_init
@@ -252,9 +257,6 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
-	MOVB	runtime·iscgo(SB), R11
-	CMP	$0, R11
-	BL.NE	runtime·save_g(SB)
 	MOVW	fn+0(FP), R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	SUB	$8, R13
@@ -636,9 +638,13 @@ TEXT	·cgocallback(SB),NOSPLIT,$12-12
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
+#ifdef GOOS_openbsd
+	BL	runtime·load_g(SB)
+#else
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	BL.NE	runtime·load_g(SB)
+#endif
 
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
@@ -748,6 +754,9 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 #ifdef GOOS_windows
 	B	runtime·save_g(SB)
 #else
+#ifdef GOOS_openbsd
+	B	runtime·save_g(SB)
+#else
 	MOVB	runtime·iscgo(SB), R0
 	CMP	$0, R0
 	B.EQ	2(PC)
@@ -755,6 +764,7 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOVW	g, R0
 	RET
+#endif
 #endif
 
 TEXT runtime·emptyfunc(SB),0,$0-0
@@ -992,6 +1002,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
 	MOVW	R0, x+0(FP)
 	MOVW	R1, y+4(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
+	MOVW	R2, x+0(FP)
+	MOVW	R3, y+4(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 // Extended versions for 64-bit indexes.
 TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12

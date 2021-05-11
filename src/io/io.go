@@ -566,7 +566,7 @@ func (t *teeReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-// Discard is an Writer on which all Write calls succeed
+// Discard is a Writer on which all Write calls succeed
 // without doing anything.
 var Discard Writer = discard{}
 

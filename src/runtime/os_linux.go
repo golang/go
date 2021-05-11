@@ -385,7 +385,7 @@ func mdestroy(mp *m) {
 //#endif
 
 func sigreturn()
-func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
+func sigtramp() // Called via C ABI
 func cgoSigtramp()
 
 //go:noescape

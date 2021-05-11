@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -56,6 +57,7 @@ func defaultAllCodeGen() bool {
 
 var (
 	goos, goarch string
+	cgoEnabled   bool
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -82,6 +84,10 @@ func main() {
 
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
+	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
+	if err == nil {
+		cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
+	}
 
 	findExecCmd()
 
@@ -367,9 +373,10 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
 }
 
 type context struct {
-	GOOS     string
-	GOARCH   string
-	noOptEnv bool
+	GOOS       string
+	GOARCH     string
+	cgoEnabled bool
+	noOptEnv   bool
 }
 
 // shouldTest looks for build tags in a source file and returns
@@ -391,9 +398,10 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 		}
 		gcFlags := os.Getenv("GO_GCFLAGS")
 		ctxt := &context{
-			GOOS:     goos,
-			GOARCH:   goarch,
-			noOptEnv: strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+			GOOS:       goos,
+			GOARCH:     goarch,
+			cgoEnabled: cgoEnabled,
+			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 		}
 
 		words := strings.Fields(line)
@@ -436,6 +444,19 @@ func (ctxt *context) match(name string) bool {
 		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
 			return false
 		}
+	}
+
+	if strings.HasPrefix(name, "goexperiment.") {
+		for _, tag := range build.Default.ToolTags {
+			if tag == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	if name == "cgo" && ctxt.cgoEnabled {
+		return true
 	}
 
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
@@ -513,7 +534,7 @@ func (t *test) run() {
 		return
 	}
 
-	var args, flags []string
+	var args, flags, runenv []string
 	var tim int
 	wantError := false
 	wantAuto := false
@@ -572,6 +593,9 @@ func (t *test) run() {
 			if err != nil {
 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
 			}
+		case "-goexperiment": // set GOEXPERIMENT environment
+			args = args[1:]
+			runenv = append(runenv, "GOEXPERIMENT="+args[0])
 
 		default:
 			flags = append(flags, args[0])
@@ -628,6 +652,7 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
 
@@ -725,7 +750,7 @@ func (t *test) run() {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -757,7 +782,7 @@ func (t *test) run() {
 		// up and running against the existing test cases. The explicitly
 		// listed files don't pass yet, usually because the error messages
 		// are slightly different (this list is not complete). Any errorcheck
-		// tests that require output from analysis phases past intial type-
+		// tests that require output from analysis phases past initial type-
 		// checking are also excluded since these phases are not running yet.
 		// We can get rid of this code once types2 is fully plugged in.
 
@@ -830,6 +855,7 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
+		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
 		// If errorcheckandrundir and wantError, compilation of the package prior the last must fail.
@@ -1179,7 +1205,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1934,7 +1960,6 @@ var excluded = map[string]bool{
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
-	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
 	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)

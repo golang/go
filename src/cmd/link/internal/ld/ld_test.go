@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -25,11 +24,6 @@ func TestUndefinedRelocErrors(t *testing.T) {
 	testenv.MustInternalLink(t)
 
 	t.Parallel()
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
 
 	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
 	if err == nil {
@@ -108,11 +102,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 	case "openbsd", "windows":
 		t.Skip("c-archive unsupported")
 	}
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	srcfile := filepath.Join(dir, "test.go")
 	arfile := filepath.Join(dir, "test.a")
@@ -141,34 +131,36 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
 	}
 }
 
-func TestPPC64LargeTextSectionSplitting(t *testing.T) {
-	// The behavior we're checking for is of interest only on ppc64.
-	if !strings.HasPrefix(runtime.GOARCH, "ppc64") {
-		t.Skip("test useful only for ppc64")
+func TestLargeTextSectionSplitting(t *testing.T) {
+	switch runtime.GOARCH {
+	case "ppc64", "ppc64le":
+	case "arm64":
+		if runtime.GOOS == "darwin" {
+			break
+		}
+		fallthrough
+	default:
+		t.Skipf("text section splitting is not done in %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	t.Parallel()
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
-	// NB: the use of -ldflags=-debugppc64textsize=1048576 tells the linker to
+	// NB: the use of -ldflags=-debugtextsize=1048576 tells the linker to
 	// split text sections at a size threshold of 1M instead of the
-	// architected limit of 67M. The choice of building cmd/go is
-	// arbitrary; we just need something sufficiently large that uses
+	// architected limit of 67M or larger. The choice of building cmd/go
+	// is arbitrary; we just need something sufficiently large that uses
 	// external linking.
 	exe := filepath.Join(dir, "go.exe")
-	out, eerr := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugppc64textsize=1048576", "cmd/go").CombinedOutput()
+	out, eerr := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "-ldflags=-linkmode=external -debugtextsize=1048576", "cmd/go").CombinedOutput()
 	if eerr != nil {
 		t.Fatalf("build failure: %s\n%s\n", eerr, string(out))
 	}
 
 	// Result should be runnable.
-	_, err = exec.Command(exe, "version").CombinedOutput()
+	_, err := exec.Command(exe, "version").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,11 +186,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "go-build")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	srcfile := filepath.Join(dir, "test.go")
 	objfile := filepath.Join(dir, "test.dll")
@@ -240,5 +228,105 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
 		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
 	} else if !useASLR && hasASLR {
 		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag should not be set")
+	}
+}
+
+// TestMemProfileCheck tests that cmd/link sets
+// runtime.disableMemoryProfiling if the runtime.MemProfile
+// symbol is unreachable after deadcode (and not dynlinking).
+// The runtime then uses that to set the default value of
+// runtime.MemProfileRate, which this test checks.
+func TestMemProfileCheck(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		prog    string
+		wantOut string
+	}{
+		{
+			"no_memprofile",
+			`
+package main
+import "runtime"
+func main() {
+	println(runtime.MemProfileRate)
+}
+`,
+			"0",
+		},
+		{
+			"with_memprofile",
+			`
+package main
+import "runtime"
+func main() {
+	runtime.MemProfile(nil, false)
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_indirect",
+			`
+package main
+import "runtime"
+var f = runtime.MemProfile
+func main() {
+	if f == nil {
+		panic("no f")
+	}
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_runtime_pprof",
+			`
+package main
+import "runtime"
+import "runtime/pprof"
+func main() {
+        _ = pprof.Profiles()
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+		{
+			"with_memprofile_http_pprof",
+			`
+package main
+import "runtime"
+import _ "net/http/pprof"
+func main() {
+	println(runtime.MemProfileRate)
+}
+`,
+			"524288",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tempDir := t.TempDir()
+			src := filepath.Join(tempDir, "x.go")
+			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := strings.TrimSpace(string(out))
+			if got != tt.wantOut {
+				t.Errorf("got %q; want %q", got, tt.wantOut)
+			}
+		})
 	}
 }

@@ -34,7 +34,7 @@ var bad4 = "a" + 1   // ERROR "literals|incompatible|convert|invalid"
 var bad5 = "a" + 'a' // ERROR "literals|incompatible|convert|invalid"
 
 var bad6 int = 1.5       // ERROR "convert|truncate"
-var bad7 int = 1e100     // ERROR "overflow|truncated to int"
+var bad7 int = 1e100     // ERROR "overflow|truncated to int|truncated"
 var bad8 float32 = 1e200 // ERROR "overflow"
 
 // but these implicit conversions are okay
