@@ -3136,7 +3136,7 @@ func checkIdleGCNoP() (*p, *g) {
 	// an available P and available worker G.
 	//
 	// We can attempt to acquire these in either order, though both have
-	// synchonization concerns (see below). Workers are almost always
+	// synchronization concerns (see below). Workers are almost always
 	// available (see comment in findRunnableGCWorker for the one case
 	// there may be none). Since we're slightly less likely to find a P,
 	// check for that first.
