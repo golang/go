@@ -10,9 +10,6 @@ import (
 	"testing"
 )
 
-// TODO(mattn):
-//	test ProxyAuth
-
 var cacheKeysTests = []struct {
 	proxy  string
 	scheme string
@@ -47,4 +44,43 @@ func ResetProxyEnv() {
 		os.Unsetenv(v)
 	}
 	ResetCachedEnvironment()
+}
+
+var proxyAuthTests = []struct {
+	proxy string
+	key   string
+}{
+	{
+		"",
+		"",
+	},
+	{
+		"http://bar.com",
+		"",
+	},
+	{
+		"http://foo@bar.com",
+		"Basic Zm9vOg==",
+	},
+	{
+		"http://foo:bar@bar.com",
+		"Basic Zm9vOmJhcg==",
+	},
+}
+
+func TestProxyAuthKeys(t *testing.T) {
+	for _, tt := range proxyAuthTests {
+		var proxy *url.URL
+		if tt.proxy != "" {
+			u, err := url.Parse(tt.proxy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			proxy = u
+		}
+		cm := connectMethod{proxyURL: proxy}
+		if got := cm.proxyAuth(); got != tt.key {
+			t.Fatalf("{%q} proxyAuth key = %q; want %q", tt.proxy, got, tt.key)
+		}
+	}
 }
