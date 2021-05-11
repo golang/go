@@ -197,7 +197,7 @@ func main() {
 }`
 
 func TestDebugInfoLifecycle(t *testing.T) {
-	sb, err := fake.NewSandbox(&fake.SandboxConfig{Files: exampleProgram})
+	sb, err := fake.NewSandbox(&fake.SandboxConfig{Files: fake.UnpackTxt(exampleProgram)})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -38,7 +38,7 @@ type SandboxConfig struct {
 	//
 	// For convenience, the special substring "$SANDBOX_WORKDIR" is replaced with
 	// the sandbox's resolved working directory before writing files.
-	Files string
+	Files map[string][]byte
 	// InGoPath specifies that the working directory should be within the
 	// temporary GOPATH.
 	InGoPath bool
@@ -51,10 +51,9 @@ type SandboxConfig struct {
 	//
 	// This option is incompatible with InGoPath or Files.
 	Workdir string
-
 	// ProxyFiles holds a txtar-encoded archive of files to populate a file-based
 	// Go proxy.
-	ProxyFiles string
+	ProxyFiles map[string][]byte
 	// GOPROXY is the explicit GOPROXY value that should be used for the sandbox.
 	//
 	// This option is incompatible with ProxyFiles.
@@ -141,12 +140,11 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 // Tempdir creates a new temp directory with the given txtar-encoded files. It
 // is the responsibility of the caller to call os.RemoveAll on the returned
 // file path when it is no longer needed.
-func Tempdir(txt string) (string, error) {
+func Tempdir(files map[string][]byte) (string, error) {
 	dir, err := ioutil.TempDir("", "gopls-tempdir-")
 	if err != nil {
 		return "", err
 	}
-	files := unpackTxt(txt)
 	for name, data := range files {
 		if err := WriteFileData(name, data, RelativeTo(dir)); err != nil {
 			return "", errors.Errorf("writing to tempdir: %w", err)
@@ -155,7 +153,7 @@ func Tempdir(txt string) (string, error) {
 	return dir, nil
 }
 
-func unpackTxt(txt string) map[string][]byte {
+func UnpackTxt(txt string) map[string][]byte {
 	dataMap := make(map[string][]byte)
 	archive := txtar.Parse([]byte(txt))
 	for _, f := range archive.Files {
@@ -165,13 +163,13 @@ func unpackTxt(txt string) map[string][]byte {
 }
 
 func validateConfig(config SandboxConfig) error {
-	if filepath.IsAbs(config.Workdir) && (config.Files != "" || config.InGoPath) {
+	if filepath.IsAbs(config.Workdir) && (config.Files != nil || config.InGoPath) {
 		return errors.New("absolute Workdir cannot be set in conjunction with Files or InGoPath")
 	}
 	if config.Workdir != "" && config.InGoPath {
 		return errors.New("Workdir cannot be set in conjunction with InGoPath")
 	}
-	if config.GOPROXY != "" && config.ProxyFiles != "" {
+	if config.GOPROXY != "" && config.ProxyFiles != nil {
 		return errors.New("GOPROXY cannot be set in conjunction with ProxyFiles")
 	}
 	return nil

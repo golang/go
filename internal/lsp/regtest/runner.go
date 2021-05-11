@@ -109,7 +109,7 @@ func Timeout(d time.Duration) RunOption {
 // ProxyFiles configures a file proxy using the given txtar-encoded string.
 func ProxyFiles(txt string) RunOption {
 	return optionSetter(func(opts *runConfig) {
-		opts.sandbox.ProxyFiles = txt
+		opts.sandbox.ProxyFiles = fake.UnpackTxt(txt)
 	})
 }
 
@@ -176,6 +176,10 @@ func DebugAddress(addr string) RunOption {
 		opts.debugAddr = addr
 	})
 }
+
+var WindowsLineEndings = optionSetter(func(opts *runConfig) {
+	opts.editor.WindowsLineEndings = true
+})
 
 // SkipLogs skips the buffering of logs during test execution. It is intended
 // for long-running stress tests.
@@ -268,6 +272,12 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			rootDir := filepath.Join(r.TempDir, filepath.FromSlash(t.Name()))
 			if err := os.MkdirAll(rootDir, 0755); err != nil {
 				t.Fatal(err)
+			}
+			files := fake.UnpackTxt(files)
+			if config.editor.WindowsLineEndings {
+				for name, data := range files {
+					files[name] = bytes.ReplaceAll(data, []byte("\n"), []byte("\r\n"))
+				}
 			}
 			config.sandbox.Files = files
 			config.sandbox.RootDir = rootDir
@@ -385,7 +395,7 @@ func singletonServer(ctx context.Context, t *testing.T, optsHook func(*source.Op
 	return lsprpc.NewStreamServer(cache.New(optsHook), false)
 }
 
-func experimentalWorkspaceModule(_ context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func experimentalWorkspaceModule(_ context.Context, _ *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
 		optsHook(o)
 		o.ExperimentalWorkspaceModule = true

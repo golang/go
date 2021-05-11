@@ -30,7 +30,7 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
 		t.Fatal(err)
 	}
 	wd := NewWorkdir(tmpdir)
-	if err := wd.writeInitialFiles(data); err != nil {
+	if err := wd.writeInitialFiles(UnpackTxt(data)); err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {

@@ -269,7 +269,7 @@ replace gopls.test => ../../gopls.test2`, false},
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			ctx := context.Background()
-			dir, err := fake.Tempdir(test.initial)
+			dir, err := fake.Tempdir(fake.UnpackTxt(test.initial))
 			if err != nil {
 				t.Fatal(err)
 			}

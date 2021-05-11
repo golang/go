@@ -12,8 +12,7 @@ import (
 
 // WriteProxy creates a new proxy file tree using the txtar-encoded content,
 // and returns its URL.
-func WriteProxy(tmpdir, txt string) (string, error) {
-	files := unpackTxt(txt)
+func WriteProxy(tmpdir string, files map[string][]byte) (string, error) {
 	type moduleVersion struct {
 		modulePath, version string
 	}

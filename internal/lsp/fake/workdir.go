@@ -50,7 +50,7 @@ func (r RelativeTo) RelPath(fp string) string {
 }
 
 func writeTxtar(txt string, rel RelativeTo) error {
-	files := unpackTxt(txt)
+	files := UnpackTxt(txt)
 	for name, data := range files {
 		if err := WriteFileData(name, data, rel); err != nil {
 			return errors.Errorf("writing to workdir: %w", err)
@@ -96,8 +96,7 @@ func hashFile(data []byte) string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
 
-func (w *Workdir) writeInitialFiles(txt string) error {
-	files := unpackTxt(txt)
+func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
 	w.files = map[string]string{}
 	for name, data := range files {
 		w.files[name] = hashFile(data)

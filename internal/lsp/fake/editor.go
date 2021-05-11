@@ -55,14 +55,19 @@ type CallCounts struct {
 }
 
 type buffer struct {
-	version int
-	path    string
-	lines   []string
-	dirty   bool
+	windowsLineEndings bool
+	version            int
+	path               string
+	lines              []string
+	dirty              bool
 }
 
 func (b buffer) text() string {
-	return strings.Join(b.lines, "\n")
+	eol := "\n"
+	if b.windowsLineEndings {
+		eol = "\r\n"
+	}
+	return strings.Join(b.lines, eol)
 }
 
 // EditorConfig configures the editor's LSP session. This is similar to
@@ -105,6 +110,9 @@ type EditorConfig struct {
 	// Whether to send the current process ID, for testing data that is joined to
 	// the PID. This can only be set by one test.
 	SendPID bool
+
+	// Whether to edit files with windows line endings.
+	WindowsLineEndings bool
 
 	DirectoryFilters []string
 
@@ -338,11 +346,11 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 					continue // A race with some other operation.
 				}
 				// No need to update if the buffer content hasn't changed.
-				if content == strings.Join(buf.lines, "\n") {
+				if content == buf.text() {
 					continue
 				}
 				// During shutdown, this call will fail. Ignore the error.
-				_ = e.setBufferContentLocked(ctx, evt.Path, false, strings.Split(content, "\n"), nil)
+				_ = e.setBufferContentLocked(ctx, evt.Path, false, lines(content), nil)
 			}
 		}
 		e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
@@ -383,10 +391,11 @@ func (e *Editor) CreateBuffer(ctx context.Context, path, content string) error {
 
 func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, content string) error {
 	buf := buffer{
-		version: 1,
-		path:    path,
-		lines:   strings.Split(content, "\n"),
-		dirty:   dirty,
+		windowsLineEndings: e.Config.WindowsLineEndings,
+		version:            1,
+		path:               path,
+		lines:              lines(content),
+		dirty:              dirty,
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -404,6 +413,15 @@ func (e *Editor) createBuffer(ctx context.Context, path string, dirty bool, cont
 		e.callsMu.Unlock()
 	}
 	return nil
+}
+
+// lines returns line-ending agnostic line representation of content.
+func lines(content string) []string {
+	lines := strings.Split(content, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimSuffix(l, "\r")
+	}
+	return lines
 }
 
 // CloseBuffer removes the current buffer (regardless of whether it is saved).
@@ -528,6 +546,7 @@ var (
 // regexpRange returns the start and end of the first occurrence of either re
 // or its singular subgroup. It returns ErrNoMatch if the regexp doesn't match.
 func regexpRange(content, re string) (Pos, Pos, error) {
+	content = normalizeEOL(content)
 	var start, end int
 	rec, err := regexp.Compile(re)
 	if err != nil {
@@ -556,6 +575,10 @@ func regexpRange(content, re string) (Pos, Pos, error) {
 		return Pos{}, Pos{}, err
 	}
 	return startPos, endPos, nil
+}
+
+func normalizeEOL(content string) string {
+	return strings.Join(lines(content), "\n")
 }
 
 // RegexpRange returns the first range in the buffer bufName matching re. See
@@ -615,7 +638,7 @@ func (e *Editor) EditBuffer(ctx context.Context, path string, edits []Edit) erro
 func (e *Editor) SetBufferContent(ctx context.Context, path, content string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	lines := strings.Split(content, "\n")
+	lines := lines(content)
 	return e.setBufferContentLocked(ctx, path, true, lines, nil)
 }
 

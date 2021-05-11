@@ -48,7 +48,7 @@ func main() {
 `
 
 func TestClientEditing(t *testing.T) {
-	ws, err := NewSandbox(&SandboxConfig{Files: exampleProgram})
+	ws, err := NewSandbox(&SandboxConfig{Files: UnpackTxt(exampleProgram)})
 	if err != nil {
 		t.Fatal(err)
 	}

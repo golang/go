@@ -66,7 +66,7 @@ module de
 -- f/g/go.mod --
 module fg
 `
-	dir, err := fake.Tempdir(workspace)
+	dir, err := fake.Tempdir(fake.UnpackTxt(workspace))
 	if err != nil {
 		t.Fatal(err)
 	}

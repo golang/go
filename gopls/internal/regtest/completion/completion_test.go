@@ -503,3 +503,41 @@ func doit() {
 		}
 	})
 }
+
+func TestUnimportedCompletion_VSCodeIssue1489(t *testing.T) {
+	t.Skip("broken due to golang/vscode-go#1489")
+	testenv.NeedsGo1Point(t, 14)
+
+	const src = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("a")
+	math.Sqr
+}
+`
+	WithOptions(
+		WindowsLineEndings,
+		ProxyFiles(proxy),
+	).Run(t, src, func(t *testing.T, env *Env) {
+		// Trigger unimported completions for the example.com/blah package.
+		env.OpenFile("main.go")
+		env.Await(env.DoneWithOpen())
+		pos := env.RegexpSearch("main.go", "Sqr()")
+		completions := env.Completion("main.go", pos)
+		if len(completions.Items) == 0 {
+			t.Fatalf("no completion items")
+		}
+		env.AcceptCompletion("main.go", pos, completions.Items[0])
+		env.Await(env.DoneWithChange())
+		t.Log(env.Editor.BufferText("main.go"))
+	})
+}
