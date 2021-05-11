@@ -709,7 +709,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		t.Fatalf("checking if go.mod exists: %v", err)
 	}
 	if err == nil {
-		if _, err := env.invokeGo(context.Background(), "mod", "download"); err != nil {
+		if _, err := env.invokeGo(context.Background(), "mod", "download", "all"); err != nil {
 			t.Fatal(err)
 		}
 	}
