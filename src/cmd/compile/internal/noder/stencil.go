@@ -565,10 +565,10 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
 }
 
 // tstruct substitutes type params in types of the fields of a structure type. For
-// each field, if Nname is set, tstruct also translates the Nname using
-// subst.vars, if Nname is in subst.vars. To always force the creation of a new
-// (top-level) struct, regardless of whether anything changed with the types or
-// names of the struct's fields, set force to true.
+// each field, tstruct copies the Nname, and translates it if Nname is in
+// subst.vars. To always force the creation of a new (top-level) struct,
+// regardless of whether anything changed with the types or names of the struct's
+// fields, set force to true.
 func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
 	if t.NumFields() == 0 {
 		if t.HasTParam() {
@@ -597,15 +597,21 @@ func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
 			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			if f.Nname != nil {
-				// f.Nname may not be in subst.vars[] if this is
-				// a function name or a function instantiation type
-				// that we are translating
 				v := subst.vars[f.Nname.(*ir.Name)]
-				// Be careful not to put a nil var into Nname,
-				// since Nname is an interface, so it would be a
-				// non-nil interface.
 				if v != nil {
+					// This is the case where we are
+					// translating the type of the function we
+					// are substituting, so its dcls are in
+					// the subst.vars table, and we want to
+					// change to reference the new dcl.
 					newfields[i].Nname = v
+				} else {
+					// This is the case where we are
+					// translating the type of a function
+					// reference inside the function we are
+					// substituting, so we leave the Nname
+					// value as is.
+					newfields[i].Nname = f.Nname
 				}
 			}
 		}
