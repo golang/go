@@ -96,7 +96,15 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		return err
 	}
 	z.r = r
-	z.File = make([]*File, 0, end.directoryRecords)
+	// Since the number of directory records is not validated, it is not
+	// safe to preallocate z.File without first checking that the specified
+	// number of files is reasonable, since a malformed archive may
+	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
+	// header which will be _at least_ 30 bytes we can safely preallocate
+	// if (data size / 30) >= end.directoryRecords.
+	if (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
+		z.File = make([]*File, 0, end.directoryRecords)
+	}
 	z.Comment = end.comment
 	rs := io.NewSectionReader(r, 0, size)
 	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
