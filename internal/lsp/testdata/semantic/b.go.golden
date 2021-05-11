@@ -24,4 +24,13 @@
 /*⇒12,comment,[]*/multiline */ /*⇒2,comment,[]*//*
 /*⇒9,comment,[]*/multiline
 /*⇒2,comment,[]*/*/
+/*⇒4,keyword,[]*/type /*⇒2,type,[definition]*/AA /*⇒3,type,[defaultLibrary]*/int
+/*⇒4,keyword,[]*/type /*⇒2,type,[definition]*/BB /*⇒6,keyword,[]*/struct {
+	/*⇒2,type,[]*/AA
+}
+/*⇒4,keyword,[]*/type /*⇒2,type,[definition]*/CC /*⇒6,keyword,[]*/struct {
+	/*⇒2,variable,[definition]*/AA /*⇒3,type,[defaultLibrary]*/int
+}
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/D /*⇒4,keyword,[]*/func(/*⇒2,variable,[definition]*/aa /*⇒2,type,[]*/AA) (/*⇒2,variable,[definition]*/BB /*⇒5,type,[]*/error)
+/*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/E /*⇒4,keyword,[]*/func(/*⇒2,type,[]*/AA) /*⇒2,type,[]*/BB
 

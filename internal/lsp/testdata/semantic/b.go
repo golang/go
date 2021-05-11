@@ -23,3 +23,12 @@ func weirⰀd() { /*😀*/ // comment
 multiline */ /*
 multiline
 */
+type AA int
+type BB struct {
+	AA
+}
+type CC struct {
+	AA int
+}
+type D func(aa AA) (BB error)
+type E func(AA) BB

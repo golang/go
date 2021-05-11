@@ -511,9 +511,14 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 			// (type A func(b uint64)) (err error)
 			// b and err should not be tokType, but tokVaraible
 			// and in GenDecl/TpeSpec/StructType/FieldList/Field/Ident
-			// (type A struct{b uint64})
+			// (type A struct{b uint64}
+			// but on type B struct{C}), C is a type, but is not being defined.
 			fldm := e.stack[len(e.stack)-2]
-			if _, ok := fldm.(*ast.Field); ok {
+			if fld, ok := fldm.(*ast.Field); ok {
+				// if len(fld.names) == 0 this is a tokType, being used
+				if len(fld.Names) == 0 {
+					return tokType, nil
+				}
 				return tokVariable, mods
 			}
 			return tokType, mods
