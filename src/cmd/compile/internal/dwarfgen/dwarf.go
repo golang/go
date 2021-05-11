@@ -222,7 +222,62 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 	}
 
+	// Sort decls and vars.
+	sortDeclsAndVars(fn, decls, vars)
+
 	return decls, vars
+}
+
+// sortDeclsAndVars sorts the decl and dwarf var lists according to
+// parameter declaration order, so as to insure that when a subprogram
+// DIE is emitted, its parameter children appear in declaration order.
+// Prior to the advent of the register ABI, sorting by frame offset
+// would achieve this; with the register we now need to go back to the
+// original function signature.
+func sortDeclsAndVars(fn *ir.Func, decls []*ir.Name, vars []*dwarf.Var) {
+	paramOrder := make(map[*ir.Name]int)
+	idx := 1
+	for _, selfn := range types.RecvsParamsResults {
+		fsl := selfn(fn.Type()).FieldSlice()
+		for _, f := range fsl {
+			if n, ok := f.Nname.(*ir.Name); ok {
+				paramOrder[n] = idx
+				idx++
+			}
+		}
+	}
+	sort.Stable(varsAndDecls{decls, vars, paramOrder})
+}
+
+type varsAndDecls struct {
+	decls      []*ir.Name
+	vars       []*dwarf.Var
+	paramOrder map[*ir.Name]int
+}
+
+func (v varsAndDecls) Len() int {
+	return len(v.decls)
+}
+
+func (v varsAndDecls) Less(i, j int) bool {
+	nameLT := func(ni, nj *ir.Name) bool {
+		oi, foundi := v.paramOrder[ni]
+		oj, foundj := v.paramOrder[nj]
+		if foundi {
+			if foundj {
+				return oi < oj
+			} else {
+				return true
+			}
+		}
+		return false
+	}
+	return nameLT(v.decls[i], v.decls[j])
+}
+
+func (v varsAndDecls) Swap(i, j int) {
+	v.vars[i], v.vars[j] = v.vars[j], v.vars[i]
+	v.decls[i], v.decls[j] = v.decls[j], v.decls[i]
 }
 
 // Given a function that was inlined at some point during the
