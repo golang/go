@@ -609,9 +609,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("no packages to test")
 	}
 
-	if testC && len(pkgs) != 1 {
-		base.Fatalf("cannot use -c flag with multiple packages")
-	}
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
