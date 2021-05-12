@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/progress"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/xcontext"
@@ -36,6 +37,8 @@ type Session struct {
 
 	// gocmdRunner guards go command calls from concurrency errors.
 	gocmdRunner *gocommand.Runner
+
+	progress *progress.Tracker
 }
 
 type overlay struct {
@@ -129,6 +132,11 @@ func (s *Session) SetOptions(options *source.Options) {
 	s.optionsMu.Lock()
 	defer s.optionsMu.Unlock()
 	s.options = options
+}
+
+func (s *Session) SetProgressTracker(tracker *progress.Tracker) {
+	// The progress tracker should be set before any view is initialized.
+	s.progress = tracker
 }
 
 func (s *Session) Shutdown(ctx context.Context) {

@@ -384,7 +384,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 
 	if s.criticalErrorStatus == nil {
 		if errMsg != "" {
-			s.criticalErrorStatus = s.progress.start(ctx, WorkspaceLoadFailure, errMsg, nil, nil)
+			s.criticalErrorStatus = s.progress.Start(ctx, WorkspaceLoadFailure, errMsg, nil, nil)
 		}
 		return
 	}
@@ -392,10 +392,10 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	// If an error is already shown to the user, update it or mark it as
 	// resolved.
 	if errMsg == "" {
-		s.criticalErrorStatus.end("Done.")
+		s.criticalErrorStatus.End("Done.")
 		s.criticalErrorStatus = nil
 	} else {
-		s.criticalErrorStatus.report(errMsg, 0)
+		s.criticalErrorStatus.Report(errMsg, 0)
 	}
 }
 

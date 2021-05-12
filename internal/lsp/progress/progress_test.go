@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lsp
+package progress
 
 import (
 	"context"
@@ -63,10 +63,10 @@ func (c *fakeClient) ShowMessage(context.Context, *protocol.ShowMessageParams) e
 	return nil
 }
 
-func setup(token protocol.ProgressToken) (context.Context, *progressTracker, *fakeClient) {
+func setup(token protocol.ProgressToken) (context.Context, *Tracker, *fakeClient) {
 	c := &fakeClient{}
-	tracker := newProgressTracker(c)
-	tracker.supportsWorkDoneProgress = true
+	tracker := NewTracker(c)
+	tracker.SetSupportsWorkDoneProgress(true)
 	return context.Background(), tracker, c
 }
 
@@ -113,7 +113,7 @@ func TestProgressTracker_Reporting(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			tracker.supportsWorkDoneProgress = test.supported
-			work := tracker.start(ctx, "work", "message", test.token, nil)
+			work := tracker.Start(ctx, "work", "message", test.token, nil)
 			client.mu.Lock()
 			gotCreated, gotBegun := client.created, client.begun
 			client.mu.Unlock()
@@ -124,14 +124,14 @@ func TestProgressTracker_Reporting(t *testing.T) {
 				t.Errorf("got %d work begun, want %d", gotBegun, test.wantBegun)
 			}
 			// Ignore errors: this is just testing the reporting behavior.
-			work.report("report", 50)
+			work.Report("report", 50)
 			client.mu.Lock()
 			gotReported := client.reported
 			client.mu.Unlock()
 			if gotReported != test.wantReported {
 				t.Errorf("got %d progress reports, want %d", gotReported, test.wantCreated)
 			}
-			work.end("done")
+			work.End("done")
 			client.mu.Lock()
 			gotEnded, gotMessages := client.ended, client.messages
 			client.mu.Unlock()
@@ -150,8 +150,8 @@ func TestProgressTracker_Cancellation(t *testing.T) {
 		ctx, tracker, _ := setup(token)
 		var canceled bool
 		cancel := func() { canceled = true }
-		work := tracker.start(ctx, "work", "message", token, cancel)
-		if err := tracker.cancel(ctx, work.token); err != nil {
+		work := tracker.Start(ctx, "work", "message", token, cancel)
+		if err := tracker.Cancel(ctx, work.Token()); err != nil {
 			t.Fatal(err)
 		}
 		if !canceled {

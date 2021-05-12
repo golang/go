@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/progress"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
@@ -349,6 +350,9 @@ type Session interface {
 	// known by the view. For views within a module, this is the module root,
 	// any directory in the module root, and any replace targets.
 	FileWatchingGlobPatterns(ctx context.Context) map[string]struct{}
+
+	// SetProgressTracker sets the progress tracker for the session.
+	SetProgressTracker(tracker *progress.Tracker)
 }
 
 // Overlay is the type for a file held in memory on a session.

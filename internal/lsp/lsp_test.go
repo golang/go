@@ -92,6 +92,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		normalizers: tests.CollectNormalizers(datum.Exported),
 		editRecv:    make(chan map[span.URI]string, 1),
 	}
+
 	r.server = NewServer(session, testClient{runner: r})
 	tests.Run(t, r, datum)
 }

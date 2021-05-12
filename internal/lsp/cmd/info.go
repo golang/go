@@ -178,6 +178,6 @@ func (l *licenses) Run(ctx context.Context, args ...string) error {
 	} else {
 		txt += opts.LicensesText
 	}
-	fmt.Fprintf(os.Stdout, txt)
+	fmt.Fprint(os.Stdout, txt)
 	return nil
 }

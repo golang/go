@@ -207,11 +207,11 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	// modification.
 	var diagnosticWG sync.WaitGroup
 	if s.session.Options().VerboseWorkDoneProgress {
-		work := s.progress.start(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil, nil)
+		work := s.progress.Start(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil, nil)
 		defer func() {
 			go func() {
 				diagnosticWG.Wait()
-				work.end("Done.")
+				work.End("Done.")
 			}()
 		}()
 	}

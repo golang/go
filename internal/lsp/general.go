@@ -46,7 +46,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		event.Error(ctx, "creating temp dir", err)
 		s.tempDir = ""
 	}
-	s.progress.supportsWorkDoneProgress = params.Capabilities.Window.WorkDoneProgress
+	s.progress.SetSupportsWorkDoneProgress(params.Capabilities.Window.WorkDoneProgress)
 
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
@@ -217,11 +217,11 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 
 	var wg sync.WaitGroup
 	if s.session.Options().VerboseWorkDoneProgress {
-		work := s.progress.start(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
+		work := s.progress.Start(ctx, DiagnosticWorkTitle(FromInitialWorkspaceLoad), "Calculating diagnostics for initial workspace load...", nil, nil)
 		defer func() {
 			go func() {
 				wg.Wait()
-				work.end("Done.")
+				work.End("Done.")
 			}()
 		}()
 	}
@@ -233,11 +233,11 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		if !uri.IsFile() {
 			continue
 		}
-		work := s.progress.start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
+		work := s.progress.Start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
 		snapshot, release, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
-			work.end(fmt.Sprintf("Error loading packages: %s", err))
+			work.End(fmt.Sprintf("Error loading packages: %s", err))
 			continue
 		}
 		var swg sync.WaitGroup
@@ -247,7 +247,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			defer swg.Done()
 			defer allFoldersWg.Done()
 			snapshot.AwaitInitialized(ctx)
-			work.end("Finished loading packages.")
+			work.End("Finished loading packages.")
 		}()
 
 		// Print each view's environment.

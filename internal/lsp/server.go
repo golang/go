@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/progress"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -22,6 +23,8 @@ const concurrentAnalyses = 1
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
 func NewServer(session source.Session, client protocol.ClientCloser) *Server {
+	tracker := progress.NewTracker(client)
+	session.SetProgressTracker(tracker)
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[string]struct{}),
@@ -30,7 +33,7 @@ func NewServer(session source.Session, client protocol.ClientCloser) *Server {
 		session:               session,
 		client:                client,
 		diagnosticsSema:       make(chan struct{}, concurrentAnalyses),
-		progress:              newProgressTracker(client),
+		progress:              tracker,
 		debouncer:             newDebouncer(),
 	}
 }
@@ -99,7 +102,7 @@ type Server struct {
 	// expensive.
 	diagnosticsSema chan struct{}
 
-	progress *progressTracker
+	progress *progress.Tracker
 
 	// debouncer is used for debouncing diagnostics.
 	debouncer *debouncer
@@ -107,11 +110,11 @@ type Server struct {
 	// When the workspace fails to load, we show its status through a progress
 	// report with an error message.
 	criticalErrorStatusMu sync.Mutex
-	criticalErrorStatus   *workDone
+	criticalErrorStatus   *progress.WorkDone
 }
 
 func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
-	return s.progress.cancel(ctx, params.Token)
+	return s.progress.Cancel(ctx, params.Token)
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {

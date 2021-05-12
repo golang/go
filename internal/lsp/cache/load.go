@@ -55,6 +55,15 @@ type metadata struct {
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
 func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) error {
+	if s.view.Options().VerboseWorkDoneProgress {
+		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading scopes %s", scopes), nil, nil)
+		defer func() {
+			go func() {
+				work.End("Done.")
+			}()
+		}()
+	}
+
 	var query []string
 	var containsDir bool // for logging
 	for _, scope := range scopes {
