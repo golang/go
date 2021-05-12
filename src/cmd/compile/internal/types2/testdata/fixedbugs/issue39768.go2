@@ -1,0 +1,20 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+type T[P any] P
+type A = T
+var x A[int]
+var _ A /* ERROR cannot use generic type */
+
+type B = T[int]
+var y B = x
+var _ B /* ERROR not a generic type */ [int]
+
+// test case from issue
+
+type Vector[T any] []T
+type VectorAlias = Vector
+var v Vector[int]

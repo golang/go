@@ -7,6 +7,9 @@ package atomic_test
 import (
 	"math/rand"
 	"runtime"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	. "sync/atomic"
 	"testing"
 )
@@ -132,4 +135,140 @@ func BenchmarkValueRead(b *testing.B) {
 			}
 		}
 	})
+}
+
+var Value_SwapTests = []struct {
+	init interface{}
+	new  interface{}
+	want interface{}
+	err  interface{}
+}{
+	{init: nil, new: nil, err: "sync/atomic: swap of nil value into Value"},
+	{init: nil, new: true, want: nil, err: nil},
+	{init: true, new: "", err: "sync/atomic: swap of inconsistently typed value into Value"},
+	{init: true, new: false, want: true, err: nil},
+}
+
+func TestValue_Swap(t *testing.T) {
+	for i, tt := range Value_SwapTests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			var v Value
+			if tt.init != nil {
+				v.Store(tt.init)
+			}
+			defer func() {
+				err := recover()
+				switch {
+				case tt.err == nil && err != nil:
+					t.Errorf("should not panic, got %v", err)
+				case tt.err != nil && err == nil:
+					t.Errorf("should panic %v, got <nil>", tt.err)
+				}
+			}()
+			if got := v.Swap(tt.new); got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+			if got := v.Load(); got != tt.new {
+				t.Errorf("got %v, want %v", got, tt.new)
+			}
+		})
+	}
+}
+
+func TestValueSwapConcurrent(t *testing.T) {
+	var v Value
+	var count uint64
+	var g sync.WaitGroup
+	var m, n uint64 = 10000, 10000
+	if testing.Short() {
+		m = 1000
+		n = 1000
+	}
+	for i := uint64(0); i < m*n; i += n {
+		i := i
+		g.Add(1)
+		go func() {
+			var c uint64
+			for new := i; new < i+n; new++ {
+				if old := v.Swap(new); old != nil {
+					c += old.(uint64)
+				}
+			}
+			atomic.AddUint64(&count, c)
+			g.Done()
+		}()
+	}
+	g.Wait()
+	if want, got := (m*n-1)*(m*n)/2, count+v.Load().(uint64); got != want {
+		t.Errorf("sum from 0 to %d was %d, want %v", m*n-1, got, want)
+	}
+}
+
+var heapA, heapB = struct{ uint }{0}, struct{ uint }{0}
+
+var Value_CompareAndSwapTests = []struct {
+	init interface{}
+	new  interface{}
+	old  interface{}
+	want bool
+	err  interface{}
+}{
+	{init: nil, new: nil, old: nil, err: "sync/atomic: compare and swap of nil value into Value"},
+	{init: nil, new: true, old: "", err: "sync/atomic: compare and swap of inconsistently typed values into Value"},
+	{init: nil, new: true, old: true, want: false, err: nil},
+	{init: nil, new: true, old: nil, want: true, err: nil},
+	{init: true, new: "", err: "sync/atomic: compare and swap of inconsistently typed value into Value"},
+	{init: true, new: true, old: false, want: false, err: nil},
+	{init: true, new: true, old: true, want: true, err: nil},
+	{init: heapA, new: struct{ uint }{1}, old: heapB, want: true, err: nil},
+}
+
+func TestValue_CompareAndSwap(t *testing.T) {
+	for i, tt := range Value_CompareAndSwapTests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			var v Value
+			if tt.init != nil {
+				v.Store(tt.init)
+			}
+			defer func() {
+				err := recover()
+				switch {
+				case tt.err == nil && err != nil:
+					t.Errorf("got %v, wanted no panic", err)
+				case tt.err != nil && err == nil:
+					t.Errorf("did not panic, want %v", tt.err)
+				}
+			}()
+			if got := v.CompareAndSwap(tt.old, tt.new); got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValueCompareAndSwapConcurrent(t *testing.T) {
+	var v Value
+	var w sync.WaitGroup
+	v.Store(0)
+	m, n := 1000, 100
+	if testing.Short() {
+		m = 100
+		n = 100
+	}
+	for i := 0; i < m; i++ {
+		i := i
+		w.Add(1)
+		go func() {
+			for j := i; j < m*n; runtime.Gosched() {
+				if v.CompareAndSwap(j, j+1) {
+					j += m
+				}
+			}
+			w.Done()
+		}()
+	}
+	w.Wait()
+	if stop := v.Load().(int); stop != m*n {
+		t.Errorf("did not get to %v, stopped at %v", m*n, stop)
+	}
 }

@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 type mOS struct {
 	initialized bool
@@ -221,7 +224,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
@@ -361,11 +364,11 @@ func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	if fn == funcPC(sighandler) {
+	if fn == funcPC(sighandler) { // funcPC(sighandler) matches the callers in signal_unix.go
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn

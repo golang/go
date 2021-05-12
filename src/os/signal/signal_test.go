@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package signal
@@ -15,7 +16,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/trace"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -45,6 +48,13 @@ func init() {
 		//
 		// See https://golang.org/issue/33174.
 		settleTime = 11 * time.Second
+	} else if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "ppc64") {
+		// Older linux kernels seem to have some hiccups delivering the signal
+		// in a timely manner on ppc64 and ppc64le. When running on a
+		// ppc64le/ubuntu 16.04/linux 4.4 host the time can vary quite
+		// substantially even on a idle system. 5 seconds is twice any value
+		// observed when running 10000 tests on such a system.
+		settleTime = 5 * time.Second
 	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
 		if scale, err := strconv.Atoi(s); err == nil {
 			settleTime *= time.Duration(scale)
@@ -852,4 +862,45 @@ func TestNotifyContextStringer(t *testing.T) {
 	if got := fmt.Sprint(c); got != want {
 		t.Errorf("c.String() = %q, want %q", got, want)
 	}
+}
+
+// #44193 test signal handling while stopping and starting the world.
+func TestSignalTrace(t *testing.T) {
+	done := make(chan struct{})
+	quit := make(chan struct{})
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGHUP)
+
+	// Source and sink for signals busy loop unsynchronized with
+	// trace starts and stops. We are ultimately validating that
+	// signals and runtime.(stop|start)TheWorldGC are compatible.
+	go func() {
+		defer close(done)
+		defer Stop(c)
+		pid := syscall.Getpid()
+		for {
+			select {
+			case <-quit:
+				return
+			default:
+				syscall.Kill(pid, syscall.SIGHUP)
+			}
+			waitSig(t, c, syscall.SIGHUP)
+		}
+	}()
+
+	for i := 0; i < 100; i++ {
+		buf := new(bytes.Buffer)
+		if err := trace.Start(buf); err != nil {
+			t.Fatalf("[%d] failed to start tracing: %v", i, err)
+		}
+		time.After(1 * time.Microsecond)
+		trace.Stop()
+		size := buf.Len()
+		if size == 0 {
+			t.Fatalf("[%d] trace is empty", i)
+		}
+	}
+	close(quit)
+	<-done
 }

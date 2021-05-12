@@ -539,6 +539,9 @@ type ParseError struct {
 
 func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
 
+func (e *ParseError) Timeout() bool   { return false }
+func (e *ParseError) Temporary() bool { return false }
+
 type AddrError struct {
 	Err  string
 	Addr string
@@ -642,7 +645,7 @@ var errClosed = poll.ErrNetClosing
 // another goroutine before the I/O is completed. This may be wrapped
 // in another error, and should normally be tested using
 // errors.Is(err, net.ErrClosed).
-var ErrClosed = errClosed
+var ErrClosed error = errClosed
 
 type writerOnly struct {
 	io.Writer
@@ -733,6 +736,7 @@ func (v *Buffers) consume(n int64) {
 			return
 		}
 		n -= ln0
+		(*v)[0] = nil
 		*v = (*v)[1:]
 	}
 }

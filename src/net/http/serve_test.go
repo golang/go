@@ -6507,3 +6507,20 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 		t.Fatalf("unexpected value read from body:\ngot: %q\nwant: %q", b, "hello")
 	}
 }
+
+func TestMuxRedirectRelative(t *testing.T) {
+	setParallel(t)
+	req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET http://example.com HTTP/1.1\r\nHost: test\r\n\r\n")))
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	mux := NewServeMux()
+	resp := httptest.NewRecorder()
+	mux.ServeHTTP(resp, req)
+	if got, want := resp.Header().Get("Location"), "/"; got != want {
+		t.Errorf("Location header expected %q; got %q", want, got)
+	}
+	if got, want := resp.Code, StatusMovedPermanently; got != want {
+		t.Errorf("Expected response code %d; got %d", want, got)
+	}
+}

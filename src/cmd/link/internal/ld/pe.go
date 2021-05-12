@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // PE (Portable Executable) file writing
-// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+// https://docs.microsoft.com/en-us/windows/win32/debug/pe-format
 
 package ld
 
@@ -15,6 +15,7 @@ import (
 	"debug/pe"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,12 +62,37 @@ const (
 	IMAGE_SCN_CNT_CODE               = 0x00000020
 	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
 	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
+	IMAGE_SCN_LNK_OTHER              = 0x00000100
+	IMAGE_SCN_LNK_INFO               = 0x00000200
+	IMAGE_SCN_LNK_REMOVE             = 0x00000800
+	IMAGE_SCN_LNK_COMDAT             = 0x00001000
+	IMAGE_SCN_GPREL                  = 0x00008000
+	IMAGE_SCN_MEM_PURGEABLE          = 0x00020000
+	IMAGE_SCN_MEM_16BIT              = 0x00020000
+	IMAGE_SCN_MEM_LOCKED             = 0x00040000
+	IMAGE_SCN_MEM_PRELOAD            = 0x00080000
+	IMAGE_SCN_ALIGN_1BYTES           = 0x00100000
+	IMAGE_SCN_ALIGN_2BYTES           = 0x00200000
+	IMAGE_SCN_ALIGN_4BYTES           = 0x00300000
+	IMAGE_SCN_ALIGN_8BYTES           = 0x00400000
+	IMAGE_SCN_ALIGN_16BYTES          = 0x00500000
+	IMAGE_SCN_ALIGN_32BYTES          = 0x00600000
+	IMAGE_SCN_ALIGN_64BYTES          = 0x00700000
+	IMAGE_SCN_ALIGN_128BYTES         = 0x00800000
+	IMAGE_SCN_ALIGN_256BYTES         = 0x00900000
+	IMAGE_SCN_ALIGN_512BYTES         = 0x00A00000
+	IMAGE_SCN_ALIGN_1024BYTES        = 0x00B00000
+	IMAGE_SCN_ALIGN_2048BYTES        = 0x00C00000
+	IMAGE_SCN_ALIGN_4096BYTES        = 0x00D00000
+	IMAGE_SCN_ALIGN_8192BYTES        = 0x00E00000
+	IMAGE_SCN_LNK_NRELOC_OVFL        = 0x01000000
+	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
+	IMAGE_SCN_MEM_NOT_CACHED         = 0x04000000
+	IMAGE_SCN_MEM_NOT_PAGED          = 0x08000000
+	IMAGE_SCN_MEM_SHARED             = 0x10000000
 	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
 	IMAGE_SCN_MEM_READ               = 0x40000000
 	IMAGE_SCN_MEM_WRITE              = 0x80000000
-	IMAGE_SCN_MEM_DISCARDABLE        = 0x2000000
-	IMAGE_SCN_LNK_NRELOC_OVFL        = 0x1000000
-	IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 )
 
 // See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
@@ -418,14 +444,16 @@ func (f *peFile) addSection(name string, sectsize int, filesize int) *peSection 
 		name:             name,
 		shortName:        name,
 		index:            len(f.sections) + 1,
-		virtualSize:      uint32(sectsize),
 		virtualAddress:   f.nextSectOffset,
 		pointerToRawData: f.nextFileOffset,
 	}
 	f.nextSectOffset = uint32(Rnd(int64(f.nextSectOffset)+int64(sectsize), PESECTALIGN))
 	if filesize > 0 {
+		sect.virtualSize = uint32(sectsize)
 		sect.sizeOfRawData = uint32(Rnd(int64(filesize), PEFILEALIGN))
 		f.nextFileOffset += sect.sizeOfRawData
+	} else {
+		sect.sizeOfRawData = uint32(sectsize)
 	}
 	f.sections = append(f.sections, sect)
 	return sect
@@ -447,7 +475,7 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	off := f.stringTable.add(name)
 	h := f.addSection(name, size, size)
 	h.shortName = fmt.Sprintf("/%d", off)
-	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
+	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	return h
 }
 
@@ -476,27 +504,26 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
 	// that this will need to grow in the future.
 	var size int
-	switch objabi.GOARCH {
+	var alignment uint32
+	switch buildcfg.GOARCH {
 	default:
-		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
-	case "386":
+		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", buildcfg.GOARCH)
+	case "386", "arm":
 		size = 4
-	case "amd64":
+		alignment = IMAGE_SCN_ALIGN_4BYTES
+	case "amd64", "arm64":
 		size = 8
-	case "arm":
-		size = 4
-	case "arm64":
-		size = 8
+		alignment = IMAGE_SCN_ALIGN_8BYTES
 	}
 	sect := f.addSection(".ctors", size, size)
-	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | alignment
 	sect.sizeOfRawData = uint32(size)
 	ctxt.Out.SeekSet(int64(sect.pointerToRawData))
 	sect.checkOffset(ctxt.Out.Offset())
 
 	init_entry := ctxt.loader.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(ctxt.loader.SymValue(init_entry)) - ctxt.loader.SymSect(init_entry).Vaddr
-	switch objabi.GOARCH {
+	switch buildcfg.GOARCH {
 	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
 	case "amd64", "arm64":
@@ -520,7 +547,6 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 			return 0
 		}
-		nrelocs := 0
 		sect.Reloff = uint64(ctxt.Out.Offset())
 		for i, s := range syms {
 			if !ldr.AttrReachable(s) {
@@ -531,12 +557,12 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 				break
 			}
 		}
-		eaddr := int32(sect.Vaddr + sect.Length)
+		eaddr := int64(sect.Vaddr + sect.Length)
 		for _, s := range syms {
 			if !ldr.AttrReachable(s) {
 				continue
 			}
-			if ldr.SymValue(s) >= int64(eaddr) {
+			if ldr.SymValue(s) >= eaddr {
 				break
 			}
 			// Compute external relocations on the go, and pass to PEreloc1
@@ -556,13 +582,13 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
 				}
 				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rr, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
-					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
+					ctxt.Errorf(s, "unsupported obj reloc %v/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
 				}
-				nrelocs++
 			}
 		}
 		sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
-		return nrelocs
+		const relocLen = 4 + 4 + 2
+		return int(sect.Rellen / relocLen)
 	}
 
 	sects := []struct {
@@ -603,13 +629,17 @@ dwarfLoop:
 		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
 	}
 
+	if f.ctorsSect == nil {
+		return
+	}
+
 	f.ctorsSect.emitRelocations(ctxt.Out, func() int {
 		dottext := ldr.Lookup(".text", 0)
 		ctxt.Out.Write32(0)
 		ctxt.Out.Write32(uint32(ldr.SymDynid(dottext)))
-		switch objabi.GOARCH {
+		switch buildcfg.GOARCH {
 		default:
-			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
+			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", buildcfg.GOARCH)
 		case "386":
 			ctxt.Out.Write16(IMAGE_REL_I386_DIR32)
 		case "amd64":
@@ -674,6 +704,12 @@ func (f *peFile) mapToPESection(ldr *loader.Loader, s loader.Sym, linkmode LinkM
 	return f.bssSect.index, int64(v - Segdata.Filelen), nil
 }
 
+var isLabel = make(map[loader.Sym]bool)
+
+func AddPELabelSym(ldr *loader.Loader, s loader.Sym) {
+	isLabel[s] = true
+}
+
 // writeSymbols writes all COFF symbol table records.
 func (f *peFile) writeSymbols(ctxt *Link) {
 	ldr := ctxt.loader
@@ -690,6 +726,8 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s)) {
 			name = "_" + name
 		}
+
+		name = mangleABIName(ctxt, ldr, s, name)
 
 		var peSymType uint16
 		if ctxt.IsExternal() {
@@ -768,6 +806,10 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		switch t {
 		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
 			addsym(s)
+		default:
+			if len(isLabel) > 0 && isLabel[s] {
+				addsym(s)
+			}
 		}
 	}
 }
@@ -942,9 +984,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// calls that may need more stack than we think.
 	//
 	// The default stack reserve size directly affects only the main
-	// thread, ctrlhandler thread, and profileloop thread. For
-	// these, it must be greater than the stack size assumed by
-	// externalthreadhandler.
+	// thread.
 	//
 	// For other threads, the runtime explicitly asks the kernel
 	// to use the default stack size so that all stacks are
@@ -1589,7 +1629,7 @@ func addpersrc(ctxt *Link) {
 
 func asmbPe(ctxt *Link) {
 	t := pefile.addSection(".text", int(Segtext.Length), int(Segtext.Length))
-	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
+	t.characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
 	if ctxt.LinkMode == LinkExternal {
 		// some data symbols (e.g. masks) end up in the .text section, and they normally
 		// expect larger alignment requirement than the default text section alignment.

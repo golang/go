@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.13
 // +build go1.13
 
 // Package ed25519 implements the Ed25519 signature algorithm. See

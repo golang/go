@@ -206,8 +206,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	INT	$0x80
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
 	MOVL	$CLOCK_REALTIME, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -375,6 +375,10 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	// fn should never return
 	MOVL	$0x1234, 0x1005
 	RET
+
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$SYS___sigaltstack14, AX

@@ -360,7 +360,21 @@ func (p *Prog) SetFrom3(a Addr) {
 	p.RestArgs = []AddrPos{{a, Source}}
 }
 
-// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Reg(reg int16) {
+	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
+}
+
+// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Const(off int64) {
+	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
+}
+
+// SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
 func (p *Prog) SetTo2(a Addr) {
 	p.RestArgs = []AddrPos{{a, Destination}}
@@ -459,6 +473,7 @@ type FuncInfo struct {
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
 	InlMarks []InlMark
+	spills   []RegSpill
 
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym
@@ -470,6 +485,7 @@ type FuncInfo struct {
 	GCLocals           *LSym
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
+	ArgInfo            *LSym // argument info for traceback
 
 	FuncInfoSym *LSym
 }
@@ -538,6 +554,11 @@ func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
 	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
 }
 
+// AddSpill appends a spill record to the list for FuncInfo fi
+func (fi *FuncInfo) AddSpill(s RegSpill) {
+	fi.spills = append(fi.spills, s)
+}
+
 // Record the type symbol for an auto variable so that the linker
 // an emit DWARF type information for the type.
 func (fi *FuncInfo) RecordAutoType(gotype *LSym) {
@@ -581,6 +602,48 @@ func ParseABI(abistr string) (ABI, bool) {
 	case "ABIInternal":
 		return ABIInternal, true
 	}
+}
+
+// ABISet is a bit set of ABI values.
+type ABISet uint8
+
+const (
+	// ABISetCallable is the set of all ABIs any function could
+	// potentially be called using.
+	ABISetCallable ABISet = (1 << ABI0) | (1 << ABIInternal)
+)
+
+// Ensure ABISet is big enough to hold all ABIs.
+var _ ABISet = 1 << (ABICount - 1)
+
+func ABISetOf(abi ABI) ABISet {
+	return 1 << abi
+}
+
+func (a *ABISet) Set(abi ABI, value bool) {
+	if value {
+		*a |= 1 << abi
+	} else {
+		*a &^= 1 << abi
+	}
+}
+
+func (a *ABISet) Get(abi ABI) bool {
+	return (*a>>abi)&1 != 0
+}
+
+func (a ABISet) String() string {
+	s := "{"
+	for i := ABI(0); a != 0; i++ {
+		if a&(1<<i) != 0 {
+			if s != "{" {
+				s += ","
+			}
+			s += i.String()
+			a &^= 1 << i
+		}
+	}
+	return s + "}"
 }
 
 // Attribute is a set of symbol attributes.
@@ -789,12 +852,12 @@ type Auto struct {
 	Gotype  *LSym
 }
 
-// RegArg provides spill/fill information for a register-resident argument
+// RegSpill provides spill/fill information for a register-resident argument
 // to a function.  These need spilling/filling in the safepoint/stackgrowth case.
 // At the time of fill/spill, the offset must be adjusted by the architecture-dependent
 // adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
 // at Offset+8 because the return address was pushed.
-type RegArg struct {
+type RegSpill struct {
 	Addr           Addr
 	Reg            int16
 	Spill, Unspill As
@@ -830,7 +893,6 @@ type Link struct {
 	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
-	RegArgs            []RegArg
 
 	InParallel    bool // parallel backend phase in effect
 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
@@ -879,9 +941,11 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 	ctxt.Bso.Flush()
 }
 
-func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+// SpillRegisterArgs emits the code to spill register args into whatever
+// locations the spill records specify.
+func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	// Spill register args.
-	for _, ra := range ctxt.RegArgs {
+	for _, ra := range fi.spills {
 		spill := Appendp(last, pa)
 		spill.As = ra.Spill
 		spill.From.Type = TYPE_REG
@@ -892,9 +956,11 @@ func (ctxt *Link) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	return last
 }
 
-func (ctxt *Link) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+// UnspillRegisterArgs emits the code to restore register args from whatever
+// locations the spill records specify.
+func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	// Unspill any spilled register args
-	for _, ra := range ctxt.RegArgs {
+	for _, ra := range fi.spills {
 		unspill := Appendp(last, pa)
 		unspill.As = ra.Unspill
 		unspill.From = ra.Addr
@@ -926,6 +992,7 @@ func (ctxt *Link) FixedFrameSize() int64 {
 type LinkArch struct {
 	*sys.Arch
 	Init           func(*Link)
+	ErrorCheck     func(*Link, *LSym)
 	Preprocess     func(*Link, *LSym, ProgAlloc)
 	Assemble       func(*Link, *LSym, ProgAlloc)
 	Progedit       func(*Link, *Prog, ProgAlloc)

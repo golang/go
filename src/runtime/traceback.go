@@ -457,17 +457,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					name = "panic"
 				}
 				print(name, "(")
-				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
-				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
-					if i >= 10 {
-						print(", ...")
-						break
-					}
-					if i != 0 {
-						print(", ")
-					}
-					print(hex(argp[i]))
-				}
+				argp := unsafe.Pointer(frame.argp)
+				printArgs(f, argp)
 				print(")\n")
 				print("\t", file, ":", line)
 				if frame.pc > f.entry {
@@ -579,6 +570,82 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
+// printArgs prints function arguments in traceback.
+func printArgs(f funcInfo, argp unsafe.Pointer) {
+	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
+	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
+	// encoding.
+	// These constants need to be in sync with the compiler.
+	const (
+		_endSeq         = 0xff
+		_startAgg       = 0xfe
+		_endAgg         = 0xfd
+		_dotdotdot      = 0xfc
+		_offsetTooLarge = 0xfb
+	)
+
+	const (
+		limit    = 10                       // print no more than 10 args/components
+		maxDepth = 5                        // no more than 5 layers of nesting
+		maxLen   = (maxDepth*3+2)*limit + 1 // max length of _FUNCDATA_ArgInfo (see the compiler side for reasoning)
+	)
+
+	p := (*[maxLen]uint8)(funcdata(f, _FUNCDATA_ArgInfo))
+	if p == nil {
+		return
+	}
+
+	print1 := func(off, sz uint8) {
+		x := readUnaligned64(add(argp, uintptr(off)))
+		// mask out irrelavant bits
+		if sz < 8 {
+			shift := 64 - sz*8
+			if sys.BigEndian {
+				x = x >> shift
+			} else {
+				x = x << shift >> shift
+			}
+		}
+		print(hex(x))
+	}
+
+	start := true
+	printcomma := func() {
+		if !start {
+			print(", ")
+		}
+	}
+	pi := 0
+printloop:
+	for {
+		o := p[pi]
+		pi++
+		switch o {
+		case _endSeq:
+			break printloop
+		case _startAgg:
+			printcomma()
+			print("{")
+			start = true
+			continue
+		case _endAgg:
+			print("}")
+		case _dotdotdot:
+			printcomma()
+			print("...")
+		case _offsetTooLarge:
+			printcomma()
+			print("_")
+		default:
+			printcomma()
+			sz := p[pi]
+			pi++
+			print1(o, sz)
+		}
+		start = false
+	}
+}
+
 // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
 // and reflect.methodValue.
 type reflectMethodValue struct {
@@ -630,7 +697,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// Figure out whether the return values are valid.
 				// Reflect will update this value after it copies
 				// in the return values.
-				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*sys.PtrSize))
 			}
 			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
@@ -945,19 +1012,16 @@ func tracebackothers(me *g) {
 		traceback(^uintptr(0), ^uintptr(0), 0, curgp)
 	}
 
-	// We can't take allglock here because this may be during fatal
-	// throw/panic, where locking allglock could be out-of-order or a
-	// direct deadlock.
+	// We can't call locking forEachG here because this may be during fatal
+	// throw/panic, where locking could be out-of-order or a direct
+	// deadlock.
 	//
-	// Instead, use atomic access to allgs which requires no locking. We
-	// don't lock against concurrent creation of new Gs, but even with
-	// allglock we may miss Gs created after this loop.
-	ptr, length := atomicAllG()
-	for i := uintptr(0); i < length; i++ {
-		gp := atomicAllGIndex(ptr, i)
-
+	// Instead, use forEachGRace, which requires no locking. We don't lock
+	// against concurrent creation of new Gs, but even with allglock we may
+	// miss Gs created after this loop.
+	forEachGRace(func(gp *g) {
 		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
-			continue
+			return
 		}
 		print("\n")
 		goroutineheader(gp)
@@ -971,7 +1035,7 @@ func tracebackothers(me *g) {
 		} else {
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
 		}
-	}
+	})
 }
 
 // tracebackHexdump hexdumps part of stk around frame.sp and frame.fp

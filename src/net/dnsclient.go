@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/itoa"
 	"sort"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -33,7 +34,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 		return "", &DNSError{Err: "unrecognized address", Name: addr}
 	}
 	if ip.To4() != nil {
-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+		return itoa.Uitoa(uint(ip[15])) + "." + itoa.Uitoa(uint(ip[14])) + "." + itoa.Uitoa(uint(ip[13])) + "." + itoa.Uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
 	}
 	// Must be IPv6
 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))

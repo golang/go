@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build dragonfly || freebsd
 // +build dragonfly freebsd
 
 package poll
@@ -22,7 +23,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
 		return 0, err
 	}
 
-	dst := int(dstFD.Sysfd)
+	dst := dstFD.Sysfd
 	var written int64
 	var err error
 	for remain > 0 {

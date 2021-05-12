@@ -11,7 +11,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha1"
-	_ "crypto/sha256"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/big"
 	"os"
@@ -229,6 +229,24 @@ func TestPSSSigning(t *testing.T) {
 		if (err == nil) != test.good {
 			t.Errorf("#%d: bad result, wanted: %t, got: %s", i, test.good, err)
 		}
+	}
+}
+
+func TestSignWithPSSSaltLengthAuto(t *testing.T) {
+	key, err := GenerateKey(rand.Reader, 513)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("message"))
+	signature, err := key.Sign(rand.Reader, digest[:], &PSSOptions{
+		SaltLength: PSSSaltLengthAuto,
+		Hash:       crypto.SHA256,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(signature) == 0 {
+		t.Fatal("empty signature returned")
 	}
 }
 

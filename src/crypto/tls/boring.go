@@ -6,14 +6,10 @@ package tls
 
 import (
 	"crypto/ecdsa"
-	"crypto/internal/boring"
 	"crypto/internal/boring/fipstls"
 	"crypto/rsa"
 	"crypto/x509"
 )
-
-// boringEnabled is an alias of boring.Enabled to avoid a new import in common.go.
-const boringEnabled = boring.Enabled
 
 // needFIPS returns fipstls.Required(); it avoids a new import in common.go.
 func needFIPS() bool {
@@ -53,9 +49,8 @@ func fipsCurvePreferences(c *Config) []CurveID {
 	return list
 }
 
-// default FIPSCipherSuites is the FIPS-allowed cipher suites,
-// in preference order (most preferable first).
-var defaultFIPSCipherSuites = []uint16{
+// defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
+var defaultCipherSuitesFIPS = []uint16{
 	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
@@ -67,11 +62,11 @@ var defaultFIPSCipherSuites = []uint16{
 // fipsCipherSuites replaces c.cipherSuites in FIPS-only mode.
 func fipsCipherSuites(c *Config) []uint16 {
 	if c == nil || c.CipherSuites == nil {
-		return defaultFIPSCipherSuites
+		return defaultCipherSuitesFIPS
 	}
-	var list []uint16
+	list := make([]uint16, 0, len(defaultCipherSuitesFIPS))
 	for _, id := range c.CipherSuites {
-		for _, allowed := range defaultFIPSCipherSuites {
+		for _, allowed := range defaultCipherSuitesFIPS {
 			if id == allowed {
 				list = append(list, id)
 				break

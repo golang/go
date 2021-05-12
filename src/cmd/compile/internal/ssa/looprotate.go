@@ -68,12 +68,15 @@ func loopRotate(f *Func) {
 			if nextb == p { // original loop predecessor is next
 				break
 			}
-			if loopnest.b2l[nextb.ID] != loop { // about to leave loop
-				break
+			if loopnest.b2l[nextb.ID] == loop {
+				after[p.ID] = append(after[p.ID], nextb)
 			}
-			after[p.ID] = append(after[p.ID], nextb)
 			b = nextb
 		}
+		// Swap b and p so that we'll handle p before b when moving blocks.
+		f.Blocks[idToIdx[loop.header.ID]] = p
+		f.Blocks[idToIdx[p.ID]] = loop.header
+		idToIdx[loop.header.ID], idToIdx[p.ID] = idToIdx[p.ID], idToIdx[loop.header.ID]
 
 		// Place b after p.
 		for _, b := range after[p.ID] {
@@ -86,21 +89,23 @@ func loopRotate(f *Func) {
 	// before the rest of the loop.  And that relies on the
 	// fact that we only identify reducible loops.
 	j := 0
-	for i, b := range f.Blocks {
+	// Some blocks that are not part of a loop may be placed
+	// between loop blocks. In order to avoid these blocks from
+	// being overwritten, use a temporary slice.
+	newOrder := make([]*Block, 0, f.NumBlocks())
+	for _, b := range f.Blocks {
 		if _, ok := move[b.ID]; ok {
 			continue
 		}
-		f.Blocks[j] = b
+		newOrder = append(newOrder, b)
 		j++
 		for _, a := range after[b.ID] {
-			if j > i {
-				f.Fatalf("head before tail in loop %s", b)
-			}
-			f.Blocks[j] = a
+			newOrder = append(newOrder, a)
 			j++
 		}
 	}
 	if j != len(f.Blocks) {
 		f.Fatalf("bad reordering in looprotate")
 	}
+	f.Blocks = newOrder
 }

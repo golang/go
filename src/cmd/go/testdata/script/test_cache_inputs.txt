@@ -99,6 +99,15 @@ rm $WORK/external.txt
 go test testcache -run=ExternalFile
 stdout '\(cached\)'
 
+# The -benchtime flag without -bench should not affect caching.
+go test testcache -run=Benchtime -benchtime=1x
+go test testcache -run=Benchtime -benchtime=1x
+stdout '\(cached\)'
+
+go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
+! stdout '\(cached\)'
+
 # Executables within GOROOT and GOPATH should affect caching,
 # even if the test does not stat them explicitly.
 
@@ -228,6 +237,10 @@ func TestExternalFile(t *testing.T) {
 func TestOSArgs(t *testing.T) {
 	t.Log(os.Args)
 }
+
+func TestBenchtime(t *testing.T) {
+}
+
 -- mkold.go --
 package main
 

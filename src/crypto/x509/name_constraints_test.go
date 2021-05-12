@@ -614,7 +614,8 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 
-	// #30: without SANs, a certificate with a CN is rejected in a constrained chain.
+	// #30: without SANs, a certificate with a CN is still accepted in a
+	// constrained chain, since we ignore the CN in VerifyHostname.
 	{
 		roots: []constraintsSpec{
 			{
@@ -630,7 +631,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{},
 			cn:   "foo.com",
 		},
-		expectedError: "leaf doesn't have a SAN extension",
 	},
 
 	// #31: IPv6 addresses work in constraints: roots can permit them as
@@ -1595,26 +1595,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 			cn:   "foo.bar",
 		},
 	},
-
-	// #85: without SANs, a certificate with a valid CN is accepted in a
-	// constrained chain if x509ignoreCN is set.
-	{
-		roots: []constraintsSpec{
-			{
-				ok: []string{"dns:foo.com", "dns:.foo.com"},
-			},
-		},
-		intermediates: [][]constraintsSpec{
-			{
-				{},
-			},
-		},
-		leaf: leafSpec{
-			sans: []string{},
-			cn:   "foo.com",
-		},
-		ignoreCN: true,
-	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
@@ -1865,10 +1845,6 @@ func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIden
 }
 
 func TestConstraintCases(t *testing.T) {
-	defer func(savedIgnoreCN bool) {
-		ignoreCN = savedIgnoreCN
-	}(ignoreCN)
-
 	privateKeys := sync.Pool{
 		New: func() interface{} {
 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -1960,7 +1936,6 @@ func TestConstraintCases(t *testing.T) {
 			}
 		}
 
-		ignoreCN = test.ignoreCN
 		verifyOpts := VerifyOptions{
 			Roots:         rootPool,
 			Intermediates: intermediatePool,
@@ -1999,7 +1974,6 @@ func TestConstraintCases(t *testing.T) {
 		for _, key := range keys {
 			privateKeys.Put(key)
 		}
-		keys = keys[:0]
 	}
 }
 

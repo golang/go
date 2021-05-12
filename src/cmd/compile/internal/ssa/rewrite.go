@@ -27,7 +27,7 @@ const (
 	removeDeadValues                 = true
 )
 
-// deadcode indicates that rewrite should try to remove any values that become dead.
+// deadcode indicates whether rewrite should try to remove any values that become dead.
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
@@ -159,7 +159,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				f.freeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
+			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
 				pendingLines.remove(vl)
 				v.Pos = v.Pos.WithIsStmt()
 			}
@@ -765,7 +765,7 @@ func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
 		return nil
 	}
 	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.args, va.results)
+	return StaticAuxCall(lsym, va.abiInfo)
 }
 
 // de-virtualize an InterLECall
@@ -793,7 +793,8 @@ func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
 
 func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
-	v.Aux.(*AuxCall).Fn = sym
+	auxcall := v.Aux.(*AuxCall)
+	auxcall.Fn = sym
 	v.RemoveArg(0)
 	return v
 }
@@ -858,13 +859,13 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
 			return true
 		}
-		return p2.Op == OpArg && p1.Args[0].Op == OpSP
-	case OpArg:
+		return (p2.Op == OpArg || p2.Op == OpArgIntReg) && p1.Args[0].Op == OpSP
+	case OpArg, OpArgIntReg:
 		if p2.Op == OpSP || p2.Op == OpLocalAddr {
 			return true
 		}
 	case OpSP:
-		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
+		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
 	}
 	return false
 }
@@ -1413,7 +1414,7 @@ func isPPC64WordRotateMask(v64 int64) bool {
 	return (v&vp == 0 || vn&vpn == 0) && v != 0
 }
 
-// Compress mask and and shift into single value of the form
+// Compress mask and shift into single value of the form
 // me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
 // be used to regenerate the input mask.
 func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
@@ -1491,7 +1492,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
 	if !isPPC64WordRotateMask(mask) {
 		return 0
 	}
-	return encodePPC64RotateMask(32-s, mask, 32)
+	return encodePPC64RotateMask((32-s)&31, mask, 32)
 }
 
 // Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
@@ -1611,18 +1612,18 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	if !f.Config.Race {
 		return false
 	}
-	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncenterfp") && !isSameCall(sym, "runtime.racefuncexit") {
+	if !isSameCall(sym, "runtime.racefuncenter") && !isSameCall(sym, "runtime.racefuncexit") {
 		return false
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpStaticCall:
-				// Check for racefuncenter/racefuncenterfp will encounter racefuncexit and vice versa.
+			case OpStaticCall, OpStaticLECall:
+				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				s := v.Aux.(*AuxCall).Fn.String()
 				switch s {
-				case "runtime.racefuncenter", "runtime.racefuncenterfp", "runtime.racefuncexit",
+				case "runtime.racefuncenter", "runtime.racefuncexit",
 					"runtime.panicdivide", "runtime.panicwrap",
 					"runtime.panicshift":
 					continue
@@ -1632,15 +1633,20 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 				return false
 			case OpPanicBounds, OpPanicExtend:
 				// Note: these are panic generators that are ok (like the static calls above).
-			case OpClosureCall, OpInterCall:
+			case OpClosureCall, OpInterCall, OpClosureLECall, OpInterLECall:
 				// We must keep the race functions if there are any other call types.
 				return false
 			}
 		}
 	}
 	if isSameCall(sym, "runtime.racefuncenter") {
+		// TODO REGISTER ABI this needs to be cleaned up.
 		// If we're removing racefuncenter, remove its argument as well.
 		if v.Args[0].Op != OpStore {
+			if v.Op == OpStaticLECall {
+				// there is no store, yet.
+				return true
+			}
 			return false
 		}
 		mem := v.Args[0].Args[2]

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -137,8 +138,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	var vars []*dwarf.Var
 	var decls []*ir.Name
 	var selected ir.NameSet
+
 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
+	} else if fn.ABI == obj.ABIInternal && base.Flag.N != 0 && complexOK {
+		decls, vars, selected = createABIVars(fnsym, fn, apDecls)
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
@@ -264,20 +268,29 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
 	var offs int64
 
-	switch n.Class {
-	case ir.PAUTO:
+	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
-		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled {
+		if buildcfg.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
 		}
+		return offs
+	}
 
+	switch n.Class {
+	case ir.PAUTO:
+		offs = localAutoOffset()
+		abbrev = dwarf.DW_ABRV_AUTO
 	case ir.PPARAM, ir.PPARAMOUT:
 		abbrev = dwarf.DW_ABRV_PARAM
-		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+		if n.IsOutputParamInRegisters() {
+			offs = localAutoOffset()
+		} else {
+			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+		}
+
 	default:
 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
 	}
@@ -307,6 +320,37 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		InlIndex:      int32(inlIndex),
 		ChildIndex:    -1,
 	}
+}
+
+// createABIVars creates DWARF variables for functions in which the
+// register ABI is enabled but optimization is turned off. It uses a
+// hybrid approach in which register-resident input params are
+// captured with location lists, and all other vars use the "simple"
+// strategy.
+func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
+
+	// Invoke createComplexVars to generate dwarf vars for input parameters
+	// that are register-allocated according to the ABI rules.
+	decls, vars, selected := createComplexVars(fnsym, fn)
+
+	// Now fill in the remainder of the variables: input parameters
+	// that are not register-resident, output parameters, and local
+	// variables.
+	for _, n := range apDecls {
+		if ir.IsAutoTmp(n) {
+			continue
+		}
+		if _, ok := selected[n]; ok {
+			// already handled
+			continue
+		}
+
+		decls = append(decls, n)
+		vars = append(vars, createSimpleVar(fnsym, n))
+		selected.Add(n)
+	}
+
+	return decls, vars, selected
 }
 
 // createComplexVars creates recomposed DWARF vars with location lists,

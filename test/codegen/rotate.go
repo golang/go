@@ -16,8 +16,6 @@ func rot64(x uint64) uint64 {
 	var a uint64
 
 	// amd64:"ROLQ\t[$]7"
-	// arm64:"ROR\t[$]57"
-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
 	// ppc64:"ROTL\t[$]7"
 	// ppc64le:"ROTL\t[$]7"
 	a += x<<7 | x>>57
@@ -36,6 +34,8 @@ func rot64(x uint64) uint64 {
 	// ppc64le:"ROTL\t[$]9"
 	a += x<<9 ^ x>>55
 
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
+	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
 	return a
 }
 
@@ -44,8 +44,6 @@ func rot32(x uint32) uint32 {
 
 	// amd64:"ROLL\t[$]7"
 	// arm:"MOVW\tR\\d+@>25"
-	// arm64:"RORW\t[$]25"
-	// s390x:"RLL\t[$]7"
 	// ppc64:"ROTLW\t[$]7"
 	// ppc64le:"ROTLW\t[$]7"
 	a += x<<7 | x>>25
@@ -66,6 +64,8 @@ func rot32(x uint32) uint32 {
 	// ppc64le:"ROTLW\t[$]9"
 	a += x<<9 ^ x>>23
 
+	// s390x:"RLL\t[$]7"
+	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
 	return a
 }
 
@@ -176,38 +176,38 @@ func f32(x uint32) uint32 {
 func checkMaskedRotate32(a []uint32, r int) {
 	i := 0
 
-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[i], 16) & 0xFF0000
 	i++
-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]8, [$]15, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[i]&0xFF, 16)
 	i++
-	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
-	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]27, R[0-9]+"
+	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]27, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[i], 4) & 0xFF0
 	i++
-	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
-	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]24, [$]31, R[0-9]+"
+	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]24, [$]31, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[i]&0xFF0000, 16)
 	i++
 
-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]8, [$]15, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]8, [$]15, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[i], r) & 0xFF0000
 	i++
-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16, [$]23, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
 	i++
 
-	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
-	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
+	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
+	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
 	i++
-	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
-	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
+	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]20, [$]11, R[0-9]+"
 	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
 	i++
 }

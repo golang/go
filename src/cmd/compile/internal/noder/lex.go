@@ -6,11 +6,11 @@ package noder
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
-	"cmd/internal/objabi"
 )
 
 func isSpace(c rune) bool {
@@ -28,7 +28,7 @@ const (
 		ir.Nosplit |
 		ir.Noinline |
 		ir.NoCheckPtr |
-		ir.RegisterParams | // TODO remove after register abi is working
+		ir.RegisterParams | // TODO(register args) remove after register abi is working
 		ir.CgoUnsafeArgs |
 		ir.UintptrEscapes |
 		ir.Systemstack |
@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 	case "go:build":
 		return ir.GoBuildPragma
 	case "go:nointerface":
-		if objabi.Fieldtrack_enabled != 0 {
+		if buildcfg.Experiment.FieldTrack {
 			return ir.Nointerface
 		}
 	case "go:noescape":
@@ -80,7 +80,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 		// in the argument list.
 		// Used in syscall/dll_windows.go.
 		return ir.UintptrEscapes
-	case "go:registerparams": // TODO remove after register abi is working
+	case "go:registerparams": // TODO(register args) remove after register abi is working
 		return ir.RegisterParams
 	case "go:notinheap":
 		return ir.NotInHeap
@@ -110,7 +110,7 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
 			f[3] = strings.Trim(f[3], `"`)
-			if objabi.GOOS == "aix" && f[3] != "" {
+			if buildcfg.GOOS == "aix" && f[3] != "" {
 				// On Aix, library pattern must be "lib.a/object.o"
 				// or "lib.a/libname.so.X"
 				n := strings.Split(f[3], "/")

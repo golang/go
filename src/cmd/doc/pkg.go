@@ -950,6 +950,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			// Not an interface type.
 			continue
 		}
+
+		// Collect and print only the methods that match.
+		var methods []*ast.Field
 		for _, iMethod := range inter.Methods.List {
 			// This is an interface, so there can be only one name.
 			// TODO: Anonymous methods (embedding)
@@ -958,21 +961,20 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 			}
 			name := iMethod.Names[0].Name
 			if match(method, name) {
-				if iMethod.Doc != nil {
-					for _, comment := range iMethod.Doc.List {
-						doc.ToText(&pkg.buf, comment.Text, "", indent, indentedWidth)
-					}
-				}
-				s := pkg.oneLineNode(iMethod.Type)
-				// Hack: s starts "func" but there is no name present.
-				// We could instead build a FuncDecl but it's not worthwhile.
-				lineComment := ""
-				if iMethod.Comment != nil {
-					lineComment = fmt.Sprintf("  %s", iMethod.Comment.List[0].Text)
-				}
-				pkg.Printf("func %s%s%s\n", name, s[4:], lineComment)
+				methods = append(methods, iMethod)
 				found = true
 			}
+		}
+		if found {
+			pkg.Printf("type %s ", spec.Name)
+			inter.Methods.List, methods = methods, inter.Methods.List
+			err := format.Node(&pkg.buf, pkg.fs, inter)
+			if err != nil {
+				log.Fatal(err)
+			}
+			pkg.newlines(1)
+			// Restore the original methods.
+			inter.Methods.List = methods
 		}
 	}
 	return found

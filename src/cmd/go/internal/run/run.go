@@ -8,13 +8,16 @@ package run
 import (
 	"context"
 	"fmt"
+	"go/build"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
@@ -24,9 +27,20 @@ var CmdRun = &base.Command{
 	Short:     "compile and run Go program",
 	Long: `
 Run compiles and runs the named main Go package.
-Typically the package is specified as a list of .go source files from a single directory,
-but it may also be an import path, file system path, or pattern
+Typically the package is specified as a list of .go source files from a single
+directory, but it may also be an import path, file system path, or pattern
 matching a single known package, as in 'go run .' or 'go run my/cmd'.
+
+If the package argument has a version suffix (like @latest or @v1.0.0),
+"go run" builds the program in module-aware mode, ignoring the go.mod file in
+the current directory or any parent directory, if there is one. This is useful
+for running programs without affecting the dependencies of the main module.
+
+If the package argument doesn't have a version suffix, "go run" may run in
+module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+variable and the presence of a go.mod file. See 'go help modules' for details.
+If module-aware mode is enabled, "go run" runs in the context of the main
+module.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -59,14 +73,26 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
+	if shouldUseOutsideModuleMode(args) {
+		// Set global module flags for 'go run cmd@version'.
+		// This must be done before modload.Init, but we need to call work.BuildInit
+		// before loading packages, since it affects package locations, e.g.,
+		// for -race and -msan.
+		modload.ForceUseModules = true
+		modload.RootMode = modload.NoRoot
+		modload.AllowMissingModuleImports()
+		modload.Init()
+	}
 	work.BuildInit()
 	var b work.Builder
 	b.Init()
 	b.Print = printStderr
+
 	i := 0
 	for i < len(args) && strings.HasSuffix(args[i], ".go") {
 		i++
 	}
+	pkgOpts := load.PackageOpts{MainOnly: true}
 	var p *load.Package
 	if i > 0 {
 		files := args[:i]
@@ -77,18 +103,29 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go run: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(ctx, files)
+		p = load.GoFilesPackage(ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		pkgs := load.PackagesAndErrors(ctx, args[:1])
+		arg := args[0]
+		var pkgs []*load.Package
+		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
+			var err error
+			pkgs, err = load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args[:1])
+			if err != nil {
+				base.Fatalf("go run: %v", err)
+			}
+		} else {
+			pkgs = load.PackagesAndErrors(ctx, pkgOpts, args[:1])
+		}
+
 		if len(pkgs) == 0 {
-			base.Fatalf("go run: no packages loaded from %s", args[0])
+			base.Fatalf("go run: no packages loaded from %s", arg)
 		}
 		if len(pkgs) > 1 {
 			var names []string
 			for _, p := range pkgs {
 				names = append(names, p.ImportPath)
 			}
-			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", args[0], strings.Join(names, "\n\t"))
+			base.Fatalf("go run: pattern %s matches multiple packages:\n\t%s", arg, strings.Join(names, "\n\t"))
 		}
 		p = pkgs[0]
 		i++
@@ -96,28 +133,9 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go run: no go files listed")
 	}
 	cmdArgs := args[i:]
-	if p.Error != nil {
-		base.Fatalf("%s", p.Error)
-	}
+	load.CheckPackageErrors([]*load.Package{p})
 
 	p.Internal.OmitDebug = true
-	if len(p.DepsErrors) > 0 {
-		// Since these are errors in dependencies,
-		// the same error might show up multiple times,
-		// once in each package that depends on it.
-		// Only print each once.
-		printed := map[*load.PackageError]bool{}
-		for _, err := range p.DepsErrors {
-			if !printed[err] {
-				printed[err] = true
-				base.Errorf("%s", err)
-			}
-		}
-	}
-	base.ExitIfErrors()
-	if p.Name != "main" {
-		base.Fatalf("go run: cannot run non-main package")
-	}
 	p.Target = "" // must build - not up to date
 	if p.Internal.CmdlineFiles {
 		//set executable name if go file is given as cmd-argument
@@ -139,9 +157,32 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		p.Internal.ExeName = path.Base(p.ImportPath)
 	}
+
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
+}
+
+// shouldUseOutsideModuleMode returns whether 'go run' will load packages in
+// module-aware mode, ignoring the go.mod file in the current directory. It
+// returns true if the first argument contains "@", does not begin with "-"
+// (resembling a flag) or end with ".go" (a file). The argument must not be a
+// local or absolute file path.
+//
+// These rules are slightly different than other commands. Whether or not
+// 'go run' uses this mode, it interprets arguments ending with ".go" as files
+// and uses arguments up to the last ".go" argument to comprise the package.
+// If there are no ".go" arguments, only the first argument is interpreted
+// as a package path, since there can be only one package.
+func shouldUseOutsideModuleMode(args []string) bool {
+	// NOTE: "@" not allowed in import paths, but it is allowed in non-canonical
+	// versions.
+	return len(args) > 0 &&
+		!strings.HasSuffix(args[0], ".go") &&
+		!strings.HasPrefix(args[0], "-") &&
+		strings.Contains(args[0], "@") &&
+		!build.IsLocalImport(args[0]) &&
+		!filepath.IsAbs(args[0])
 }
 
 // buildRunProgram is the action for running a binary that has already

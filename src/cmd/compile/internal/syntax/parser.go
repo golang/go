@@ -735,9 +735,9 @@ func (p *parser) binaryExpr(prec int) Expr {
 		t := new(Operation)
 		t.pos = p.pos()
 		t.Op = p.op
-		t.X = x
 		tprec := p.prec
 		p.next()
+		t.X = x
 		t.Y = p.binaryExpr(tprec)
 		x = t
 	}
@@ -1291,16 +1291,15 @@ func (p *parser) typeInstance(typ Expr) Expr {
 
 	pos := p.pos()
 	p.want(_Lbrack)
-	if p.tok == _Rbrack {
-		p.error("expecting type")
-		p.next()
-		return typ
-	}
-
 	x := new(IndexExpr)
 	x.pos = pos
 	x.X = typ
-	x.Index, _ = p.typeList()
+	if p.tok == _Rbrack {
+		p.syntaxError("expecting type")
+		x.Index = p.badExpr()
+	} else {
+		x.Index, _ = p.typeList()
+	}
 	p.want(_Rbrack)
 	return x
 }
@@ -1381,7 +1380,9 @@ func (p *parser) structType() *StructType {
 	return typ
 }
 
-// InterfaceType = "interface" "{" { MethodSpec ";" } "}" .
+// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem | TypeList ) ";" } "}" .
+// TypeList      = "type" Type { "," Type } .
+// TODO(gri) remove TypeList syntax if we accept #45346
 func (p *parser) interfaceType() *InterfaceType {
 	if trace {
 		defer p.trace("interfaceType")()
@@ -1395,9 +1396,15 @@ func (p *parser) interfaceType() *InterfaceType {
 	p.list(_Semi, _Rbrace, func() bool {
 		switch p.tok {
 		case _Name:
-			typ.MethodList = append(typ.MethodList, p.methodDecl())
+			f := p.methodDecl()
+			if f.Name == nil && p.mode&AllowGenerics != 0 {
+				f = p.embeddedElem(f)
+			}
+			typ.MethodList = append(typ.MethodList, f)
+			return false
 
 		case _Lparen:
+			// TODO(gri) Need to decide how to adjust this restriction.
 			p.syntaxError("cannot parenthesize embedded type")
 			f := new(Field)
 			f.pos = p.pos()
@@ -1405,10 +1412,17 @@ func (p *parser) interfaceType() *InterfaceType {
 			f.Type = p.qualifiedName(nil)
 			p.want(_Rparen)
 			typ.MethodList = append(typ.MethodList, f)
+			return false
+
+		case _Operator:
+			if p.op == Tilde && p.mode&AllowGenerics != 0 {
+				typ.MethodList = append(typ.MethodList, p.embeddedElem(nil))
+				return false
+			}
 
 		case _Type:
+			// TODO(gri) remove TypeList syntax if we accept #45346
 			if p.mode&AllowGenerics != 0 {
-				// TODO(gri) factor this better
 				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
 				p.next()
 				if p.tok != _Semi && p.tok != _Rbrace {
@@ -1427,19 +1441,18 @@ func (p *parser) interfaceType() *InterfaceType {
 				} else {
 					p.syntaxError("expecting type")
 				}
-				break
-			}
-			fallthrough
-
-		default:
-			if p.mode&AllowGenerics != 0 {
-				p.syntaxError("expecting method, interface name, or type list")
-				p.advance(_Semi, _Rbrace, _Type)
-			} else {
-				p.syntaxError("expecting method or interface name")
-				p.advance(_Semi, _Rbrace)
+				return false
 			}
 		}
+
+		if p.mode&AllowGenerics != 0 {
+			p.syntaxError("expecting method, type list, or embedded element")
+			p.advance(_Semi, _Rbrace, _Type) // TODO(gri) remove _Type if we don't accept it anymore
+			return false
+		}
+
+		p.syntaxError("expecting method or interface name")
+		p.advance(_Semi, _Rbrace)
 		return false
 	})
 
@@ -1732,6 +1745,56 @@ func (p *parser) methodDecl() *Field {
 	return f
 }
 
+// EmbeddedElem = MethodSpec | EmbeddedTerm { "|" EmbeddedTerm } .
+func (p *parser) embeddedElem(f *Field) *Field {
+	if trace {
+		defer p.trace("embeddedElem")()
+	}
+
+	if f == nil {
+		f = new(Field)
+		f.pos = p.pos()
+		f.Type = p.embeddedTerm()
+	}
+
+	for p.tok == _Operator && p.op == Or {
+		t := new(Operation)
+		t.pos = p.pos()
+		t.Op = Or
+		p.next()
+		t.X = f.Type
+		t.Y = p.embeddedTerm()
+		f.Type = t
+	}
+
+	return f
+}
+
+// EmbeddedTerm = [ "~" ] Type .
+func (p *parser) embeddedTerm() Expr {
+	if trace {
+		defer p.trace("embeddedTerm")()
+	}
+
+	if p.tok == _Operator && p.op == Tilde {
+		t := new(Operation)
+		t.pos = p.pos()
+		t.Op = Tilde
+		p.next()
+		t.X = p.type_()
+		return t
+	}
+
+	t := p.typeOrNil()
+	if t == nil {
+		t = p.badExpr()
+		p.syntaxError("expecting ~ term or type")
+		p.advance(_Operator, _Semi, _Rparen, _Rbrack, _Rbrace)
+	}
+
+	return t
+}
+
 // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 func (p *parser) paramDeclOrNil(name *Name) *Field {
 	if trace {
@@ -1772,7 +1835,7 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 		t.Elem = p.typeOrNil()
 		if t.Elem == nil {
 			t.Elem = p.badExpr()
-			p.syntaxError("final argument in variadic function missing type")
+			p.syntaxError("... is missing type")
 		}
 		f.Type = t
 		return f

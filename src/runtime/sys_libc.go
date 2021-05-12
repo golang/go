@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin openbsd,amd64 openbsd,arm64
+//go:build darwin || (openbsd && 386) || (openbsd && amd64) || (openbsd && arm64)
+// +build darwin openbsd,386 openbsd,amd64 openbsd,arm64
 
 package runtime
 

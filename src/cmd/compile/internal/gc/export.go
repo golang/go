@@ -152,7 +152,7 @@ func (p *exporter) markType(t *types.Type) {
 		}
 
 	case types.TINTER:
-		for _, f := range t.FieldSlice() {
+		for _, f := range t.AllMethods().Slice() {
 			if types.IsExported(f.Sym.Name) {
 				p.markType(f.Type)
 			}

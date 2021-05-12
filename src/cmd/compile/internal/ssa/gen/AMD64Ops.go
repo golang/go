@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -121,6 +122,7 @@ func init() {
 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
+		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
 		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
@@ -360,20 +362,6 @@ func init() {
 		{name: "BTSLconst", argLength: 1, reg: gp11, asm: "BTSL", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // set bit auxint in arg0, 0 <= auxint < 32
 		{name: "BTSQconst", argLength: 1, reg: gp11, asm: "BTSQ", resultInArg0: true, clobberFlags: true, aux: "Int8"}, // set bit auxint in arg0, 0 <= auxint < 64
 
-		// direct bit operation on memory operand
-		{name: "BTCQmodify", argLength: 3, reg: gpstore, asm: "BTCQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // complement bit arg1 in 64-bit arg0+auxint+aux, arg2=mem
-		{name: "BTCLmodify", argLength: 3, reg: gpstore, asm: "BTCL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // complement bit arg1 in 32-bit arg0+auxint+aux, arg2=mem
-		{name: "BTSQmodify", argLength: 3, reg: gpstore, asm: "BTSQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // set bit arg1 in 64-bit arg0+auxint+aux, arg2=mem
-		{name: "BTSLmodify", argLength: 3, reg: gpstore, asm: "BTSL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // set bit arg1 in 32-bit arg0+auxint+aux, arg2=mem
-		{name: "BTRQmodify", argLength: 3, reg: gpstore, asm: "BTRQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // reset bit arg1 in 64-bit arg0+auxint+aux, arg2=mem
-		{name: "BTRLmodify", argLength: 3, reg: gpstore, asm: "BTRL", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"},     // reset bit arg1 in 32-bit arg0+auxint+aux, arg2=mem
-		{name: "BTCQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTCQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // complement bit ValAndOff(AuxInt).Val() in 64-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-		{name: "BTCLconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTCL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // complement bit ValAndOff(AuxInt).Val() in 32-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-		{name: "BTSQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTSQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // set bit ValAndOff(AuxInt).Val() in 64-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-		{name: "BTSLconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTSL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // set bit ValAndOff(AuxInt).Val() in 32-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-		{name: "BTRQconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTRQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // reset bit ValAndOff(AuxInt).Val() in 64-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-		{name: "BTRLconstmodify", argLength: 2, reg: gpstoreconst, asm: "BTRL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // reset bit ValAndOff(AuxInt).Val() in 32-bit arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
-
 		{name: "TESTQ", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTQ", typ: "Flags"}, // (arg0 & arg1) compare to 0
 		{name: "TESTL", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTL", typ: "Flags"}, // (arg0 & arg1) compare to 0
 		{name: "TESTW", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTW", typ: "Flags"}, // (arg0 & arg1) compare to 0
@@ -406,6 +394,9 @@ func init() {
 		{name: "SARLconst", argLength: 1, reg: gp11, asm: "SARL", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
 		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int16(arg0) >> auxint, shift amount 0-15
 		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int8(arg0) >> auxint, shift amount 0-7
+
+		{name: "SHRDQ", argLength: 3, reg: gp31shift, asm: "SHRQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 >> arg2, shifting in bits from arg1 (==(arg1<<64+arg0)>>arg2, keeping low 64 bits), shift amount is mod 64
+		{name: "SHLDQ", argLength: 3, reg: gp31shift, asm: "SHLQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 << arg2, shifting in bits from arg1 (==(arg0<<64+arg1)<<arg2, keeping high 64 bits), shift amount is mod 64
 
 		{name: "ROLQ", argLength: 2, reg: gp21shift, asm: "ROLQ", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
 		{name: "ROLL", argLength: 2, reg: gp21shift, asm: "ROLL", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
@@ -593,6 +584,7 @@ func init() {
 		{name: "POPCNTL", argLength: 1, reg: gp11, asm: "POPCNTL", clobberFlags: true}, // count number of set bits in arg0
 
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS"}, // sqrt(arg0), float32
 
 		// ROUNDSD instruction isn't guaranteed to be on the target platform (it is SSE4.1)
 		// Any use must be preceded by a successful check of runtime.x86HasSSE41.
@@ -769,9 +761,10 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific in and out registers.
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -929,16 +922,18 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:            "AMD64",
-		pkg:             "cmd/internal/obj/x86",
-		genfile:         "../../amd64/ssa.go",
-		ops:             AMD64ops,
-		blocks:          AMD64blocks,
-		regnames:        regNamesAMD64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		specialregmask:  x15,
-		framepointerreg: int8(num["BP"]),
-		linkreg:         -1, // not used
+		name:               "AMD64",
+		pkg:                "cmd/internal/obj/x86",
+		genfile:            "../../amd64/ssa.go",
+		ops:                AMD64ops,
+		blocks:             AMD64blocks,
+		regnames:           regNamesAMD64,
+		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
+		ParamFloatRegNames: "X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		specialregmask:     x15,
+		framepointerreg:    int8(num["BP"]),
+		linkreg:            -1, // not used
 	})
 }

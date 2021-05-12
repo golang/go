@@ -29,3 +29,12 @@ func TestSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDash(t *testing.T) {
+	m := MapFS{
+		"a-b/a": {Data: []byte("a-b/a")},
+	}
+	if err := TestFS(m, "a-b/a"); err != nil {
+		t.Error(err)
+	}
+}

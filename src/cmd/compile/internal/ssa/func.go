@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"crypto/sha1"
@@ -43,6 +44,10 @@ type Func struct {
 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	ABI0           *abi.ABIConfig // A copy, for no-sync access
+	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABISelf        *abi.ABIConfig // ABI for function being compiled
+	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
@@ -59,7 +64,7 @@ type Func struct {
 	Names []LocalSlot
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
-	RegArgs []ArgPair
+	RegArgs []Spill
 	// AuxCall describing parameters and results for this function.
 	OwnAux *AuxCall
 
@@ -546,7 +551,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
-// NewValue4I returns a new value in the block with four arguments and and auxint value.
+// NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -648,7 +653,19 @@ func (f *Func) Frontend() Frontend                                  { return f.f
 func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
 func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
 func (f *Func) Log() bool                                           { return f.fe.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
+
+func (f *Func) Fatalf(msg string, args ...interface{}) {
+	stats := "crashed"
+	if f.Log() {
+		f.Logf("  pass %s end %s\n", f.pass.name, stats)
+		printFunc(f)
+	}
+	if f.HTMLWriter != nil {
+		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
+		f.HTMLWriter.flushPhases()
+	}
+	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+}
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {

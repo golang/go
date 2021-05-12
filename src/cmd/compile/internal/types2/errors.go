@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -29,19 +28,61 @@ func unreachable() {
 	panic("unreachable")
 }
 
-func (check *Checker) qualifier(pkg *Package) string {
-	// Qualify the package unless it's the package being type-checked.
-	if pkg != check.pkg {
-		// If the same package name was used by multiple packages, display the full path.
-		if check.pkgCnt[pkg.name] > 1 {
-			return strconv.Quote(pkg.path)
-		}
-		return pkg.name
-	}
-	return ""
+// An error_ represents a type-checking error.
+// To report an error_, call Checker.report.
+type error_ struct {
+	desc []errorDesc
+	soft bool // TODO(gri) eventually determine this from an error code
 }
 
-func (check *Checker) sprintf(format string, args ...interface{}) string {
+// An errorDesc describes part of a type-checking error.
+type errorDesc struct {
+	pos    syntax.Pos
+	format string
+	args   []interface{}
+}
+
+func (err *error_) empty() bool {
+	return err.desc == nil
+}
+
+func (err *error_) pos() syntax.Pos {
+	if err.empty() {
+		return nopos
+	}
+	return err.desc[0].pos
+}
+
+func (err *error_) msg(qf Qualifier) string {
+	if err.empty() {
+		return "no error"
+	}
+	var buf bytes.Buffer
+	for i := range err.desc {
+		p := &err.desc[i]
+		if i > 0 {
+			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
+		}
+		buf.WriteString(sprintf(qf, p.format, p.args...))
+	}
+	return buf.String()
+}
+
+// String is for testing.
+func (err *error_) String() string {
+	if err.empty() {
+		return "no error"
+	}
+	return fmt.Sprintf("%s: %s", err.pos(), err.msg(nil))
+}
+
+// errorf adds formatted error information to err.
+// It may be called multiple times to provide additional information.
+func (err *error_) errorf(at poser, format string, args ...interface{}) {
+	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
+}
+
+func sprintf(qf Qualifier, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -49,19 +90,67 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 		case operand:
 			panic("internal error: should always pass *operand")
 		case *operand:
-			arg = operandString(a, check.qualifier)
+			arg = operandString(a, qf)
 		case syntax.Pos:
 			arg = a.String()
 		case syntax.Expr:
 			arg = syntax.String(a)
 		case Object:
-			arg = ObjectString(a, check.qualifier)
+			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, check.qualifier)
+			arg = TypeString(a, qf)
 		}
 		args[i] = arg
 	}
 	return fmt.Sprintf(format, args...)
+}
+
+func (check *Checker) qualifier(pkg *Package) string {
+	// Qualify the package unless it's the package being type-checked.
+	if pkg != check.pkg {
+		if check.pkgPathMap == nil {
+			check.pkgPathMap = make(map[string]map[string]bool)
+			check.seenPkgMap = make(map[*Package]bool)
+			check.markImports(pkg)
+		}
+		// If the same package name was used by multiple packages, display the full path.
+		if len(check.pkgPathMap[pkg.name]) > 1 {
+			return strconv.Quote(pkg.path)
+		}
+		return pkg.name
+	}
+	return ""
+}
+
+// markImports recursively walks pkg and its imports, to record unique import
+// paths in pkgPathMap.
+func (check *Checker) markImports(pkg *Package) {
+	if check.seenPkgMap[pkg] {
+		return
+	}
+	check.seenPkgMap[pkg] = true
+
+	forName, ok := check.pkgPathMap[pkg.name]
+	if !ok {
+		forName = make(map[string]bool)
+		check.pkgPathMap[pkg.name] = forName
+	}
+	forName[pkg.path] = true
+
+	for _, imp := range pkg.imports {
+		check.markImports(imp)
+	}
+}
+
+func (check *Checker) sprintf(format string, args ...interface{}) string {
+	return sprintf(check.qualifier, format, args...)
+}
+
+func (check *Checker) report(err *error_) {
+	if err.empty() {
+		panic("internal error: reporting no error")
+	}
+	check.err(err.pos(), err.msg(check.qualifier), err.soft)
 }
 
 func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {
@@ -77,7 +166,7 @@ func (check *Checker) dump(format string, args ...interface{}) {
 	fmt.Println(check.sprintf(format, args...))
 }
 
-func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
+func (check *Checker) err(at poser, msg string, soft bool) {
 	// Cheap trick: Don't report errors with messages containing
 	// "invalid operand" or "invalid type" as those tend to be
 	// follow-on errors which don't add useful information. Only
@@ -86,6 +175,8 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
 		return
 	}
+
+	pos := posFor(at)
 
 	// If we are encountering an error while evaluating an inherited
 	// constant initialization expression, pos is the position of in
@@ -114,32 +205,26 @@ func (check *Checker) err(pos syntax.Pos, msg string, soft bool) {
 	f(err)
 }
 
+const (
+	invalidAST = "invalid AST: "
+	invalidArg = "invalid argument: "
+	invalidOp  = "invalid operation: "
+)
+
 type poser interface {
 	Pos() syntax.Pos
 }
 
 func (check *Checker) error(at poser, msg string) {
-	check.err(posFor(at), msg, false)
+	check.err(at, msg, false)
 }
 
 func (check *Checker) errorf(at poser, format string, args ...interface{}) {
-	check.err(posFor(at), check.sprintf(format, args...), false)
+	check.err(at, check.sprintf(format, args...), false)
 }
 
 func (check *Checker) softErrorf(at poser, format string, args ...interface{}) {
-	check.err(posFor(at), check.sprintf(format, args...), true)
-}
-
-func (check *Checker) invalidASTf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid AST: "+format, args...)
-}
-
-func (check *Checker) invalidArgf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid argument: "+format, args...)
-}
-
-func (check *Checker) invalidOpf(at poser, format string, args ...interface{}) {
-	check.errorf(at, "invalid operation: "+format, args...)
+	check.err(at, check.sprintf(format, args...), true)
 }
 
 // posFor reports the left (= start) position of at.
@@ -147,10 +232,10 @@ func posFor(at poser) syntax.Pos {
 	switch x := at.(type) {
 	case *operand:
 		if x.expr != nil {
-			return startPos(x.expr)
+			return syntax.StartPos(x.expr)
 		}
 	case syntax.Node:
-		return startPos(x)
+		return syntax.StartPos(x)
 	}
 	return at.Pos()
 }

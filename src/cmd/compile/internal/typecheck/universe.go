@@ -85,9 +85,11 @@ var unsafeFuncs = [...]struct {
 	name string
 	op   ir.Op
 }{
+	{"Add", ir.OUNSAFEADD},
 	{"Alignof", ir.OALIGNOF},
 	{"Offsetof", ir.OOFFSETOF},
 	{"Sizeof", ir.OSIZEOF},
+	{"Slice", ir.OUNSAFESLICE},
 }
 
 // InitUniverse initializes the universe block.
@@ -354,9 +356,4 @@ func DeclareUniverse() {
 		s1.Def = s.Def
 		s1.Block = s.Block
 	}
-
-	ir.RegFP = NewName(Lookup(".fp"))
-	ir.RegFP.SetType(types.Types[types.TINT32])
-	ir.RegFP.Class = ir.PPARAM
-	ir.RegFP.SetUsed(true)
 }

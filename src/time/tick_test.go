@@ -52,9 +52,14 @@ func TestTicker(t *testing.T) {
 		t1 := Now()
 		dt := t1.Sub(t0)
 		target := 3 * delta * Duration(count/2)
-		slop := target * 2 / 10
+		slop := target * 3 / 10
 		if dt < target-slop || dt > target+slop {
-			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
+			errs = append(errs, fmt.Sprintf("%d %s ticks then %d %s ticks took %s, expected [%s,%s]", count/2, delta, count/2, delta*2, dt, target-slop, target+slop))
+			if dt > target+slop {
+				// System may be overloaded; sleep a bit
+				// in the hopes it will recover.
+				Sleep(Second / 2)
+			}
 			continue
 		}
 		// Now test that the ticker stopped.

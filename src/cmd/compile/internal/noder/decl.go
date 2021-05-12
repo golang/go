@@ -134,14 +134,14 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	}
 
 	// We need to use g.typeExpr(decl.Type) here to ensure that for
-	// chained, defined-type declarations like
+	// chained, defined-type declarations like:
 	//
 	//	type T U
 	//
 	//	//go:notinheap
 	//	type U struct { … }
 	//
-	// that we mark both T and U as NotInHeap. If we instead used just
+	// we mark both T and U as NotInHeap. If we instead used just
 	// g.typ(otyp.Underlying()), then we'd instead set T's underlying
 	// type directly to the struct type (which is not marked NotInHeap)
 	// and fail to mark T as NotInHeap.
@@ -154,6 +154,12 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// [mdempsky: Subtleties like these are why I always vehemently
 	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
+	if len(decl.TParamList) > 0 {
+		// Set HasTParam if there are any tparams, even if no tparams are
+		// used in the type itself (e.g., if it is an empty struct, or no
+		// fields in the struct use the tparam).
+		ntyp.SetHasTParam(true)
+	}
 	types.ResumeCheckSize()
 
 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
@@ -205,11 +211,24 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 			} else if ir.CurFunc == nil {
 				name.Defn = as
 			}
-			out.Append(typecheck.Stmt(as))
+			lhs := []ir.Node{as.X}
+			rhs := []ir.Node{}
+			if as.Y != nil {
+				rhs = []ir.Node{as.Y}
+			}
+			transformAssign(as, lhs, rhs)
+			as.X = lhs[0]
+			if as.Y != nil {
+				as.Y = rhs[0]
+			}
+			as.SetTypecheck(1)
+			out.Append(as)
 		}
 	}
 	if as2 != nil {
-		out.Append(typecheck.Stmt(as2))
+		transformAssign(as2, as2.Lhs, as2.Rhs)
+		as2.SetTypecheck(1)
+		out.Append(as2)
 	}
 }
 

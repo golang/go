@@ -779,7 +779,8 @@ func removeZone(host string) string {
 }
 
 // ParseHTTPVersion parses an HTTP version string.
-// "HTTP/1.0" returns (1, 0, true).
+// "HTTP/1.0" returns (1, 0, true). Note that strings without
+// a minor version, such as "HTTP/2", are not valid.
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	const Big = 1000000 // arbitrary upper bound
 	switch vers {
@@ -823,7 +824,7 @@ func validMethod(method string) bool {
 	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
 }
 
-// NewRequest wraps NewRequestWithContext using the background context.
+// NewRequest wraps NewRequestWithContext using context.Background.
 func NewRequest(method, url string, body io.Reader) (*Request, error) {
 	return NewRequestWithContext(context.Background(), method, url, body)
 }
@@ -1009,16 +1010,16 @@ func putTextprotoReader(r *textproto.Reader) {
 // requests and handle them via the Handler interface. ReadRequest
 // only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
 func ReadRequest(b *bufio.Reader) (*Request, error) {
-	return readRequest(b, deleteHostHeader)
+	req, err := readRequest(b)
+	if err != nil {
+		return nil, err
+	}
+
+	delete(req.Header, "Host")
+	return req, err
 }
 
-// Constants for readRequest's deleteHostHeader parameter.
-const (
-	deleteHostHeader = true
-	keepHostHeader   = false
-)
-
-func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err error) {
+func readRequest(b *bufio.Reader) (req *Request, err error) {
 	tp := newTextprotoReader(b)
 	req = new(Request)
 
@@ -1076,6 +1077,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 		return nil, err
 	}
 	req.Header = Header(mimeHeader)
+	if len(req.Header["Host"]) > 1 {
+		return nil, fmt.Errorf("too many Host headers")
+	}
 
 	// RFC 7230, section 5.3: Must treat
 	//	GET /index.html HTTP/1.1
@@ -1087,9 +1091,6 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	req.Host = req.URL.Host
 	if req.Host == "" {
 		req.Host = req.Header.get("Host")
-	}
-	if deleteHostHeader {
-		delete(req.Header, "Host")
 	}
 
 	fixPragmaCacheControl(req.Header)
@@ -1123,6 +1124,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 // MaxBytesReader prevents clients from accidentally or maliciously
 // sending a large request and wasting server resources.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+	if n < 0 { // Treat negative limits as equivalent to 0.
+		n = 0
+	}
 	return &maxBytesReader{w: w, r: r, n: n}
 }
 

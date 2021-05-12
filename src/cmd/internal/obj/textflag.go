@@ -27,7 +27,8 @@ const (
 	// This data contains no pointers.
 	NOPTR = 16
 
-	// This is a wrapper function and should not count as disabling 'recover'.
+	// This is a wrapper function and should not count as
+	// disabling 'recover' or appear in tracebacks by default.
 	WRAPPER = 32
 
 	// This function uses its incoming context register.

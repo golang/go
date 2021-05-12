@@ -12,6 +12,7 @@ import (
 	"go/build/constraint"
 	"go/doc"
 	"go/token"
+	"internal/buildcfg"
 	exec "internal/execabs"
 	"internal/goroot"
 	"internal/goversion"
@@ -48,16 +49,18 @@ type Context struct {
 	UseAllFiles bool   // use files regardless of +build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
-	// The build and release tags specify build constraints
+	// The build, tool, and release tags specify build constraints
 	// that should be considered satisfied when processing +build lines.
 	// Clients creating a new context may customize BuildTags, which
-	// defaults to empty, but it is usually an error to customize ReleaseTags,
-	// which defaults to the list of Go releases the current release is compatible with.
+	// defaults to empty, but it is usually an error to customize ToolTags or ReleaseTags.
+	// ToolTags defaults to build tags appropriate to the current Go toolchain configuration.
+	// ReleaseTags defaults to the list of Go releases the current release is compatible with.
 	// BuildTags is not set for the Default build Context.
-	// In addition to the BuildTags and ReleaseTags, build constraints
+	// In addition to the BuildTags, ToolTags, and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
 	// The last element in ReleaseTags is assumed to be the current release.
 	BuildTags   []string
+	ToolTags    []string
 	ReleaseTags []string
 
 	// The install suffix specifies a suffix to use in the name of the installation
@@ -188,6 +191,7 @@ func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
 		return f(path)
 	}
+	// TODO: use os.ReadDir
 	return ioutil.ReadDir(path)
 }
 
@@ -291,16 +295,26 @@ func defaultGOPATH() string {
 	return ""
 }
 
-var defaultReleaseTags []string
+var defaultToolTags, defaultReleaseTags []string
 
 func defaultContext() Context {
 	var c Context
 
-	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
-	c.GOOS = envOr("GOOS", runtime.GOOS)
+	c.GOARCH = buildcfg.GOARCH
+	c.GOOS = buildcfg.GOOS
 	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
+
+	// For each experiment that has been enabled in the toolchain, define a
+	// build tag with the same name but prefixed by "goexperiment." which can be
+	// used for compiling alternative files for the experiment. This allows
+	// changes for the experiment, like extra struct fields in the runtime,
+	// without affecting the base non-experiment code at all.
+	for _, exp := range buildcfg.EnabledExperiments() {
+		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
+	}
+	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
 
 	// Each major Go release in the Go 1.x series adds a new
 	// "go1.x" release tag. That is, the go1.x tag is present in
@@ -1055,7 +1069,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
 	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
-		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ToolTags, defaultToolTags) || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
 		return errNoModules
 	}
 
@@ -1892,6 +1906,11 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 
 	// other tags
 	for _, tag := range ctxt.BuildTags {
+		if tag == name {
+			return true
+		}
+	}
+	for _, tag := range ctxt.ToolTags {
 		if tag == name {
 			return true
 		}
