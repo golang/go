@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "textflag.h"
-
 
 // For more details about how various memory models are
 // enforced on POWER, the following paper provides more

@@ -179,6 +179,7 @@ func copyARM64(w io.Writer) {
 
 func tagsPPC64x(w io.Writer) {
 	fmt.Fprintln(w)
+	fmt.Fprintln(w, "//go:build ppc64 || ppc64le")
 	fmt.Fprintln(w, "// +build ppc64 ppc64le")
 	fmt.Fprintln(w)
 }
@@ -202,6 +203,7 @@ func copyPPC64x(w io.Writer) {
 
 func tagsMIPS64x(w io.Writer) {
 	fmt.Fprintln(w)
+	fmt.Fprintln(w, "//go:build mips64 || mips64le")
 	fmt.Fprintln(w, "// +build mips64 mips64le")
 	fmt.Fprintln(w)
 }
