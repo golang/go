@@ -87,19 +87,20 @@ func (g *irgen) stencil() {
 			call := n.(*ir.CallExpr)
 			inst := call.X.(*ir.InstExpr)
 			st := g.getInstantiationForNode(inst)
-			// Replace the OFUNCINST with a direct reference to the
-			// new stenciled function
-			call.X = st.Nname
 			if inst.X.Op() == ir.OCALLPART {
-				// When we create an instantiation of a method
-				// call, we make it a function. So, move the
-				// receiver to be the first arg of the function
-				// call.
-				withRecv := make([]ir.Node, len(call.Args)+1)
-				dot := inst.X.(*ir.SelectorExpr)
-				withRecv[0] = dot.X
-				copy(withRecv[1:], call.Args)
-				call.Args = withRecv
+				// Replace the OFUNCINST with the selector
+				// expression, and update the selector expression
+				// to refer to the new stenciled function.
+				call.X = inst.X
+				se := call.X.(*ir.SelectorExpr)
+				se.Selection = types.NewField(se.Pos(), se.Sel, st.Type())
+				se.Selection.Nname = st.Nname
+				se.SetOp(ir.ODOTMETH)
+				se.SetType(st.Type())
+			} else {
+				// Replace the OFUNCINST with a direct reference to the
+				// new stenciled function
+				call.X = st.Nname
 			}
 			// Transform the Call now, which changes OCALL
 			// to OCALLFUNC and does typecheckaste/assignconvfn.
@@ -165,13 +166,13 @@ func (g *irgen) instantiateMethods() {
 		baseSym := typ.Sym().Pkg.Lookup(genericTypeName(typ.Sym()))
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, m := range typ.Methods().Slice() {
-			name := m.Nname.(*ir.Name)
 			targs := make([]ir.Node, len(typ.RParams()))
 			for k, targ := range typ.RParams() {
 				targs[k] = ir.TypeNode(targ)
 			}
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
-			name.Func = g.getInstantiation(baseNname, targs, true)
+			f := g.getInstantiation(baseNname, targs, true)
+			m.Nname = f.Nname
 		}
 	}
 	g.instTypeList = nil
@@ -315,15 +316,25 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
 		newf.Dcl[i] = subst.node(n).(*ir.Name)
 	}
 
-	// Ugly: we have to insert the Name nodes of the parameters/results into
+	// Replace the types in the function signature.
+	// Ugly: also, we have to insert the Name nodes of the parameters/results into
 	// the function type. The current function type has no Nname fields set,
 	// because it came via conversion from the types2 type.
 	oldt := nameNode.Type()
-	// We also transform a generic method type to the corresponding
-	// instantiated function type where the receiver is the first parameter.
-	newt := types.NewSignature(oldt.Pkg(), nil, nil,
-		subst.fields(ir.PPARAM, append(oldt.Recvs().FieldSlice(), oldt.Params().FieldSlice()...), newf.Dcl),
-		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), newf.Dcl))
+	dcl := newf.Dcl
+	var newrecv *types.Field
+	if oldt.Recv() != nil {
+		newrecv = subst.fields(ir.PPARAM, oldt.Recvs().FieldSlice(), dcl)[0]
+		if newrecv.Nname != nil {
+			// If we found the receiver in the dcl list, then skip it
+			// when we scan for the remaining params below.
+			assert(newrecv.Nname == dcl[0])
+			dcl = dcl[1:]
+		}
+	}
+	newt := types.NewSignature(oldt.Pkg(), newrecv, nil,
+		subst.fields(ir.PPARAM, oldt.Params().FieldSlice(), dcl),
+		subst.fields(ir.PPARAMOUT, oldt.Results().FieldSlice(), dcl))
 
 	newf.Nname.SetType(newt)
 	ir.MarkFunc(newf.Nname)
