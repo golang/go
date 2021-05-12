@@ -1400,7 +1400,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
 	}
 
 	ldr := ctxt.loader
-	eaddr := int32(sect.Vaddr + sect.Length)
+	eaddr := sect.Vaddr + sect.Length
 	for _, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
