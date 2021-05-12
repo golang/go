@@ -387,6 +387,9 @@ and of course there is nothing stopping the C code from doing anything
 it likes. However, programs that break these rules are likely to fail
 in unexpected and unpredictable ways.
 
+The runtime/cgo.Handle type can be used to safely pass Go values
+between Go and C. See the runtime/cgo package documentation for details.
+
 Note: the current implementation has a bug. While Go code is permitted
 to write nil or a C pointer (but not a Go pointer) to C memory, the
 current implementation may sometimes cause a runtime error if the

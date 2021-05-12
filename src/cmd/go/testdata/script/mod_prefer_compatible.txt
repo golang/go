@@ -23,8 +23,8 @@ stdout '^github.com/russross/blackfriday v1\.'
 go list -m github.com/russross/blackfriday@upgrade
 stdout '^github.com/russross/blackfriday v1\.'
 
-go list -m github.com/russross/blackfriday@patch
-stdout '^github.com/russross/blackfriday v1\.'
+! go list -m github.com/russross/blackfriday@patch
+stderr '^go list -m: github.com/russross/blackfriday@patch: can''t query version "patch" of module github.com/russross/blackfriday: no existing version is required$'
 
 # If we're fetching directly from version control, ignored +incompatible
 # versions should also be omitted by 'go list'.

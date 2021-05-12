@@ -33,10 +33,10 @@ var errRx = regexp.MustCompile(`^ *ERROR *"?([^"]*)"?`)
 // for each Error is the position of the token immediately preceding
 // the comment, the Error message is the message msg extracted from
 // the comment, with all errors that are on the same line collected
-// in a slice. If there is no preceding token (the `ERROR` comment
-// appears in the beginning of the file), then the recorded position
-// is unknown (line, col = 0, 0). If there are no ERROR comments, the
-// result is nil.
+// in a slice, in source order. If there is no preceding token (the
+// `ERROR` comment appears in the beginning of the file), then the
+// recorded position is unknown (line, col = 0, 0). If there are no
+// ERROR comments, the result is nil.
 func ErrorMap(src io.Reader) (errmap map[uint][]Error) {
 	// position of previous token
 	var base *PosBase

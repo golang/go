@@ -53,8 +53,8 @@ const (
 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
 )
 
+// InlinePackage finds functions that can be inlined and clones them before walk expands them.
 func InlinePackage() {
-	// Find functions that can be inlined and clone them before walk expands them.
 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		numfns := numNonClosures(list)
 		for _, n := range list {
@@ -74,8 +74,8 @@ func InlinePackage() {
 }
 
 // CanInline determines whether fn is inlineable.
-// If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
-// fn and ->nbody will already have been typechecked.
+// If so, CanInline saves copies of fn.Body and fn.Dcl in fn.Inl.
+// fn and fn.Body will already have been typechecked.
 func CanInline(fn *ir.Func) {
 	if fn.Nname == nil {
 		base.Fatalf("CanInline no nname %+v", fn)
@@ -354,15 +354,13 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		return true
 
 	case ir.OCLOSURE:
-		// TODO(danscales,mdempsky): Get working with -G.
-		// Probably after #43818 is fixed.
-		if base.Flag.G > 0 {
-			v.reason = "inlining closures not yet working with -G"
+		if base.Debug.InlFuncsWithClosures == 0 {
+			v.reason = "not inlining functions with closures"
 			return true
 		}
 
-		// TODO(danscales) - fix some bugs when budget is lowered below 15
-		// Maybe make budget proportional to number of closure variables, e.g.:
+		// TODO(danscales): Maybe make budget proportional to number of closure
+		// variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
 		v.budget -= 15
 		// Scan body of closure (which DoChildren doesn't automatically
@@ -383,6 +381,22 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 
 	case ir.OAPPEND:
 		v.budget -= inlineExtraAppendCost
+
+	case ir.ODEREF:
+		// *(*X)(unsafe.Pointer(&x)) is low-cost
+		n := n.(*ir.StarExpr)
+
+		ptr := n.X
+		for ptr.Op() == ir.OCONVNOP {
+			ptr = ptr.(*ir.ConvExpr).X
+		}
+		if ptr.Op() == ir.OADDR {
+			v.budget += 1 // undo half of default cost of ir.ODEREF+ir.OADDR
+		}
+
+	case ir.OCONVNOP:
+		// This doesn't produce code, but the children might.
+		v.budget++ // undo default cost
 
 	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
@@ -492,7 +506,10 @@ func inlcopy(n ir.Node) ir.Node {
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
 			// XXX OK to share fn.Type() ??
 			newfn.Nname.SetType(oldfn.Nname.Type())
-			newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+			// Ntype can be nil for -G=3 mode.
+			if oldfn.Nname.Ntype != nil {
+				newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+			}
 			newfn.Body = inlcopylist(oldfn.Body)
 			// Make shallow copy of the Dcl and ClosureVar slices
 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
@@ -503,7 +520,7 @@ func inlcopy(n ir.Node) ir.Node {
 	return edit(n)
 }
 
-// Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+// InlineCalls/inlnode walks fn's statements and expressions and substitutes any
 // calls made to inlineable functions. This is the external entry point.
 func InlineCalls(fn *ir.Func) {
 	savefn := ir.CurFunc
@@ -836,17 +853,25 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		}
 	}
 
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's exactly one "return" statement in the inlined function;
+	// (2) it's not an empty return statement (#44355); and
+	// (3) the result parameters aren't named.
+	delayretvars := true
+
 	nreturns := 0
 	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
-		if n != nil && n.Op() == ir.ORETURN {
+		if n, ok := n.(*ir.ReturnStmt); ok {
 			nreturns++
+			if len(n.Results) == 0 {
+				delayretvars = false // empty return statement (case 2)
+			}
 		}
 	})
 
-	// We can delay declaring+initializing result parameters if:
-	// (1) there's only one "return" statement in the inlined
-	// function, and (2) the result parameters aren't named.
-	delayretvars := nreturns == 1
+	if nreturns != 1 {
+		delayretvars = false // not exactly one return statement (case 1)
+	}
 
 	// temporaries for return values.
 	var retvars []ir.Node
@@ -857,7 +882,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			m = inlvar(n)
 			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
-			delayretvars = false // found a named result parameter
+			delayretvars = false // found a named result parameter (case 3)
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -977,6 +1002,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		retvars:      retvars,
 		delayretvars: delayretvars,
 		inlvars:      inlvars,
+		defnMarker:   ir.NilExpr{},
 		bases:        make(map[*src.PosBase]*src.PosBase),
 		newInlIndex:  newIndex,
 		fn:           fn,
@@ -988,7 +1014,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	lab := ir.NewLabelStmt(base.Pos, retlabel)
 	body = append(body, lab)
 
-	typecheck.Stmts(body)
+	if !typecheck.Go117ExportTypes {
+		typecheck.Stmts(body)
+	}
 
 	if base.Flag.GenDwarfInl > 0 {
 		for _, v := range inlfvars {
@@ -1076,6 +1104,10 @@ type inlsubst struct {
 	delayretvars bool
 
 	inlvars map[*ir.Name]*ir.Name
+	// defnMarker is used to mark a Node for reassignment.
+	// inlsubst.clovar set this during creating new ONAME.
+	// inlsubst.node will set the correct Defn for inlvar.
+	defnMarker ir.NilExpr
 
 	// bases maps from original PosBase to PosBase with an extra
 	// inlined call frame.
@@ -1133,7 +1165,11 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 	m := &ir.Name{}
 	*m = *n
 	m.Curfn = subst.newclofn
-	if n.Defn != nil && n.Defn.Op() == ir.ONAME {
+
+	switch defn := n.Defn.(type) {
+	case nil:
+		// ok
+	case *ir.Name:
 		if !n.IsClosureVar() {
 			base.FatalfAt(n.Pos(), "want closure variable, got: %+v", n)
 		}
@@ -1155,7 +1191,15 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 		if subst.inlvars[n.Defn.(*ir.Name)] != nil {
 			m.Defn = subst.node(n.Defn)
 		}
+	case *ir.AssignStmt, *ir.AssignListStmt:
+		// Mark node for reassignment at the end of inlsubst.node.
+		m.Defn = &subst.defnMarker
+	case *ir.TypeSwitchGuard:
+		// TODO(mdempsky): Set m.Defn properly. See discussion on #45743.
+	default:
+		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
 	}
+
 	if n.Outer != nil {
 		// Either the outer variable is defined in function being inlined,
 		// and we will replace it with the substituted variable, or it is
@@ -1191,7 +1235,10 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	newfn.SetIsHiddenClosure(true)
 	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
 	newfn.Nname.Func = newfn
-	newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+	// Ntype can be nil for -G=3 mode.
+	if oldfn.Nname.Ntype != nil {
+		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+	}
 	newfn.Nname.Defn = newfn
 
 	m.(*ir.ClosureExpr).Func = newfn
@@ -1347,6 +1394,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		return ir.NewBlockStmt(base.Pos, init)
 
 	case ir.OGOTO:
+		if subst.newclofn != nil {
+			// Don't do special substitutions if inside a closure
+			break
+		}
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
@@ -1376,6 +1427,20 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	m := ir.Copy(n)
 	m.SetPos(subst.updatedPos(m.Pos()))
 	ir.EditChildren(m, subst.edit)
+
+	switch m := m.(type) {
+	case *ir.AssignStmt:
+		if lhs, ok := m.X.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
+			lhs.Defn = m
+		}
+	case *ir.AssignListStmt:
+		for _, lhs := range m.Lhs {
+			if lhs, ok := lhs.(*ir.Name); ok && lhs.Defn == &subst.defnMarker {
+				lhs.Defn = m
+			}
+		}
+	}
+
 	return m
 }
 

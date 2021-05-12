@@ -6,7 +6,10 @@
 
 package p
 
-func f(x int) {
-	_ = ~x    // ERROR "invalid character"
-	_ = x ~ x // ERROR "invalid character" "unexpected x at end of statement"
+func _(x int) {
+	_ = ~x    // ERROR "unexpected ~"
+}
+
+func _(x int) {
+	_ = x ~ x // ERROR "unexpected ~ at end of statement"
 }

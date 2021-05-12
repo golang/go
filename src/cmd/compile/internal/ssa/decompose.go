@@ -24,7 +24,7 @@ func decomposeBuiltIn(f *Func) {
 	}
 
 	// Decompose other values
-	// Note: deadcode is false because we need to keep the original
+	// Note: Leave dead values because we need to keep the original
 	// values around so the name component resolution below can still work.
 	applyRewrite(f, rewriteBlockdec, rewriteValuedec, leaveDeadValues)
 	if f.Config.RegSize == 4 {

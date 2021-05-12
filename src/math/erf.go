@@ -185,7 +185,12 @@ const (
 //	Erf(+Inf) = 1
 //	Erf(-Inf) = -1
 //	Erf(NaN) = NaN
-func Erf(x float64) float64
+func Erf(x float64) float64 {
+	if haveArchErf {
+		return archErf(x)
+	}
+	return erf(x)
+}
 
 func erf(x float64) float64 {
 	const (
@@ -264,7 +269,12 @@ func erf(x float64) float64 {
 //	Erfc(+Inf) = 0
 //	Erfc(-Inf) = 2
 //	Erfc(NaN) = NaN
-func Erfc(x float64) float64
+func Erfc(x float64) float64 {
+	if haveArchErfc {
+		return archErfc(x)
+	}
+	return erfc(x)
+}
 
 func erfc(x float64) float64 {
 	const Tiny = 1.0 / (1 << 56) // 2**-56

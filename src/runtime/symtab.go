@@ -102,7 +102,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		name := funcname(funcInfo)
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
-			ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, pc, nil)
+			// Non-strict as cgoTraceback may have added bogus PCs
+			// with a valid funcInfo but invalid PCDATA.
+			ix := pcdatavalue1(funcInfo, _PCDATA_InlTreeIndex, pc, nil, false)
 			if ix >= 0 {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
@@ -183,7 +185,9 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 	var cache pcvalueCache
 	inltree := (*[1 << 20]inlinedCall)(inldata)
 	for {
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+		// Non-strict as cgoTraceback may have added bogus PCs
+		// with a valid funcInfo but invalid PCDATA.
+		ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, tracepc, &cache, false)
 		if ix < 0 {
 			break
 		}
@@ -277,6 +281,7 @@ const (
 	_FUNCDATA_StackObjects       = 2
 	_FUNCDATA_InlTree            = 3
 	_FUNCDATA_OpenCodedDeferInfo = 4
+	_FUNCDATA_ArgInfo            = 5
 
 	_ArgsSizeUnknown = -0x80000000
 )
@@ -308,11 +313,11 @@ type funcID uint8
 
 const (
 	funcID_normal funcID = iota // not a special function
+	funcID_abort
 	funcID_asmcgocall
 	funcID_asyncPreempt
 	funcID_cgocallback
-	funcID_debugCallV1
-	funcID_externalthreadhandler
+	funcID_debugCallV2
 	funcID_gcBgMarkWorker
 	funcID_goexit
 	funcID_gogo
@@ -557,7 +562,11 @@ func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
 	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
-		println("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+		if datap.pluginpath != "" {
+			print(", plugin:", datap.pluginpath)
+		}
+		println()
 		throw("invalid function symbol table\n")
 	}
 
@@ -572,7 +581,11 @@ func moduledataverify1(datap *moduledata) {
 			if i+1 < nftab {
 				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
+			print("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
+			if datap.pluginpath != "" {
+				print(", plugin:", datap.pluginpath)
+			}
+			println()
 			for j := 0; j <= i; j++ {
 				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
 			}
@@ -667,6 +680,12 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	return file, int(line32)
 }
 
+// findmoduledatap looks up the moduledata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findmoduledatap(pc uintptr) *moduledata {
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		if datap.minpc <= pc && pc < datap.maxpc {
@@ -689,6 +708,12 @@ func (f funcInfo) _Func() *Func {
 	return (*Func)(unsafe.Pointer(f._func))
 }
 
+// findfunc looks up function metadata for a PC.
+//
+// It is nosplit because it's part of the isgoexception
+// implementation.
+//
+//go:nosplit
 func findfunc(pc uintptr) funcInfo {
 	datap := findmoduledatap(pc)
 	if datap == nil {

@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -236,65 +235,45 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 // isNil reports whether x is a typed or the untyped nil value.
 func (x *operand) isNil() bool { return x.mode == nilvalue }
 
-// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
-//           checker.representable, and checker.assignment are
-//           overlapping in functionality. Need to simplify and clean up.
-
-// assignableTo reports whether x is assignable to a variable of type T.
-// If the result is false and a non-nil reason is provided, it may be set
-// to a more detailed explanation of the failure (result != "").
-// The check parameter may be nil if assignableTo is invoked through
-// an exported API call, i.e., when all methods have been type-checked.
-func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+// assignableTo reports whether x is assignable to a variable of type T. If the
+// result is false and a non-nil reason is provided, it may be set to a more
+// detailed explanation of the failure (result != ""). The returned error code
+// is only valid if the (first) result is false. The check parameter may be nil
+// if assignableTo is invoked through an exported API call, i.e., when all
+// methods have been type-checked.
+func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
 	if x.mode == invalid || T == Typ[Invalid] {
-		return true // avoid spurious errors
+		return true, 0 // avoid spurious errors
 	}
 
 	V := x.typ
 
 	// x's type is identical to T
 	if check.identical(V, T) {
-		return true
+		return true, 0
 	}
 
 	Vu := optype(V)
 	Tu := optype(T)
 
-	// x is an untyped value representable by a value of type T
-	// TODO(gri) This is borrowing from checker.convertUntyped and
-	//           checker.representable. Need to clean up.
+	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		switch t := Tu.(type) {
-		case *Basic:
-			if x.isNil() && t.kind == UnsafePointer {
-				return true
-			}
-			if x.mode == constant_ {
-				return representableConst(x.val, check, t, nil)
-			}
-			// The result of a comparison is an untyped boolean,
-			// but may not be a constant.
-			if Vb, _ := Vu.(*Basic); Vb != nil {
-				return Vb.kind == UntypedBool && isBoolean(Tu)
-			}
-		case *Sum:
+		if t, ok := Tu.(*Sum); ok {
 			return t.is(func(t Type) bool {
 				// TODO(gri) this could probably be more efficient
-				return x.assignableTo(check, t, reason)
-			})
-		case *Interface:
-			check.completeInterface(nopos, t)
-			return x.isNil() || t.Empty()
-		case *Pointer, *Signature, *Slice, *Map, *Chan:
-			return x.isNil()
+				ok, _ := x.assignableTo(check, t, reason)
+				return ok
+			}), _IncompatibleAssign
 		}
+		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
-		return true
+		return true, 0
 	}
 
 	// T is an interface type and x implements T
@@ -312,9 +291,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 					*reason = "missing method " + m.Name()
 				}
 			}
-			return false
+			return false, _InvalidIfaceAssign
 		}
-		return true
+		return true, 0
 	}
 
 	// x is a bidirectional channel value, T is a channel
@@ -322,11 +301,11 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T)
+			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
 		}
 	}
 
-	return false
+	return false, _IncompatibleAssign
 }
 
 // kind2tok translates syntax.LitKinds into token.Tokens.

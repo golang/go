@@ -68,7 +68,7 @@ func (f *subFS) shorten(name string) (rel string, ok bool) {
 	return "", false
 }
 
-// fixErr shortens any reported names in PathErrors by stripping dir.
+// fixErr shortens any reported names in PathErrors by stripping f.dir.
 func (f *subFS) fixErr(err error) error {
 	if e, ok := err.(*PathError); ok {
 		if short, ok := f.shorten(e.Path); ok {
@@ -124,4 +124,15 @@ func (f *subFS) Glob(pattern string) ([]string, error) {
 		list[i] = name
 	}
 	return list, f.fixErr(err)
+}
+
+func (f *subFS) Sub(dir string) (FS, error) {
+	if dir == "." {
+		return f, nil
+	}
+	full, err := f.fullName("sub", dir)
+	if err != nil {
+		return nil, err
+	}
+	return &subFS{f.fsys, full}, nil
 }

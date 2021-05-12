@@ -10,10 +10,10 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 )
 
-var darwin = objabi.GOOS == "darwin" || objabi.GOOS == "ios"
+var darwin = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios"
 
 func padframe(frame int64) int64 {
 	// arm64 requires that the frame size (not counting saved FP&LR)

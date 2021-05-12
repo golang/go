@@ -14,6 +14,10 @@ import (
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
+	if check.conf.IgnoreFuncBodies {
+		panic("internal error: function body not ignored")
+	}
+
 	if trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
@@ -907,7 +911,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *Sum:
+	case *_Sum:
 		first := true
 		var key, val Type
 		var msg string

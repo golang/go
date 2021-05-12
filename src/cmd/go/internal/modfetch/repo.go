@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	web "cmd/go/internal/web"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 const traceRepo = false // trace all repo actions, for debugging
@@ -35,7 +33,7 @@ type Repo interface {
 	// Pseudo-versions are not included.
 	//
 	// Versions should be returned sorted in semver order
-	// (implementations can use SortVersions).
+	// (implementations can use semver.Sort).
 	//
 	// Versions returns a non-nil error only if there was a problem
 	// fetching the list of versions: it may return an empty list
@@ -171,15 +169,6 @@ type RevInfo struct {
 // and it can check that the path can be resolved to a target repository.
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
-//
-// The ImportRepoRev function is a variant of Import which is limited
-// to code in a source code repository at a particular revision identifier
-// (usually a commit hash or source code repository tag, not necessarily
-// a module version).
-// ImportRepoRev is used when converting legacy dependency requirements
-// from older systems into go.mod files. Those older systems worked
-// at either package or repository granularity, and most of the time they
-// recorded commit hashes, not tagged versions.
 
 var lookupCache par.Cache
 
@@ -194,7 +183,8 @@ type lookupCacheKey struct {
 // from its origin, and "noproxy" indicates that the patch should be fetched
 // directly only if GONOPROXY matches the given path.
 //
-// For the distinguished proxy "off", Lookup always returns a non-nil error.
+// For the distinguished proxy "off", Lookup always returns a Repo that returns
+// a non-nil error for every method call.
 //
 // A successful return does not guarantee that the module
 // has any defined versions.
@@ -267,7 +257,7 @@ var (
 func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
 
-	if allowInsecure(path) {
+	if module.MatchPrefixPatterns(cfg.GOINSECURE, path) {
 		security = web.Insecure
 	}
 	rr, err := vcs.RepoRootForImportPath(path, vcs.PreferMod, security)
@@ -297,63 +287,6 @@ func lookupCodeRepo(rr *vcs.RepoRoot) (codehost.Repo, error) {
 		return nil, fmt.Errorf("lookup %s: %v", rr.Root, err)
 	}
 	return code, nil
-}
-
-// ImportRepoRev returns the module and version to use to access
-// the given import path loaded from the source code repository that
-// the original "go get" would have used, at the specific repository revision
-// (typically a commit hash, but possibly also a source control tag).
-func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
-	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
-		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
-	}
-
-	// Note: Because we are converting a code reference from a legacy
-	// version control system, we ignore meta tags about modules
-	// and use only direct source control entries (get.IgnoreMod).
-	security := web.SecureOnly
-	if allowInsecure(path) {
-		security = web.Insecure
-	}
-	rr, err := vcs.RepoRootForImportPath(path, vcs.IgnoreMod, security)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	code, err := lookupCodeRepo(rr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	revInfo, err := code.Stat(rev)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: Look in repo to find path, check for go.mod files.
-	// For now we're just assuming rr.Root is the module path,
-	// which is true in the absence of go.mod files.
-
-	repo, err := newCodeRepo(code, rr.Root, rr.Root)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	info, err := repo.(*codeRepo).convert(revInfo, rev)
-	if err != nil {
-		return nil, nil, err
-	}
-	return repo, info, nil
-}
-
-func SortVersions(list []string) {
-	sort.Slice(list, func(i, j int) bool {
-		cmp := semver.Compare(list[i], list[j])
-		if cmp != 0 {
-			return cmp < 0
-		}
-		return list[i] < list[j]
-	})
 }
 
 // A loggingRepo is a wrapper around an underlying Repo

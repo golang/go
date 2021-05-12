@@ -130,7 +130,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			arg(&x, i)
 			xlist = append(xlist, &x)
 		}
-		check.arguments(call, sig, xlist) // discard result (we know the result type)
+		check.arguments(call, sig, nil, xlist) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value
@@ -179,7 +179,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				mode = value
 			}
 
-		case *Sum:
+		case *_Sum:
 			if t.is(func(t Type) bool {
 				switch t := under(t).(type) {
 				case *Basic:
@@ -469,7 +469,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				m = 2
 			case *Map, *Chan:
 				m = 1
-			case *Sum:
+			case *_Sum:
 				return t.is(valid)
 			default:
 				return false
@@ -586,6 +586,25 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
 		}
 
+	case _Add:
+		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
+		if x.mode == invalid {
+			return
+		}
+
+		var y operand
+		arg(&y, 1)
+		if !check.isValidIndex(&y, _InvalidUnsafeAdd, "length", true) {
+			return
+		}
+
+		x.mode = value
+		x.typ = Typ[UnsafePointer]
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, x.typ, y.typ))
+		}
+
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
 		if asTypeParam(x.typ) != nil {
@@ -663,6 +682,26 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.typ = Typ[Uintptr]
 		// result is constant - no need to record signature
 
+	case _Slice:
+		// unsafe.Slice(ptr *T, len IntegerType) []T
+		typ := asPointer(x.typ)
+		if typ == nil {
+			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
+			return
+		}
+
+		var y operand
+		arg(&y, 1)
+		if !check.isValidIndex(&y, _InvalidUnsafeSlice, "length", false) {
+			return
+		}
+
+		x.mode = value
+		x.typ = NewSlice(typ.base)
+		if check.Types != nil {
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
+		}
+
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
@@ -732,8 +771,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		tsum := NewSum(rtypes)
+		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+		tsum := _NewSum(rtypes)
 		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
 
 		return ptyp

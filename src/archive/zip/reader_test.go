@@ -499,9 +499,15 @@ func TestReader(t *testing.T) {
 func readTestZip(t *testing.T, zt ZipTest) {
 	var z *Reader
 	var err error
+	var raw []byte
 	if zt.Source != nil {
 		rat, size := zt.Source()
 		z, err = NewReader(rat, size)
+		raw = make([]byte, size)
+		if _, err := rat.ReadAt(raw, 0); err != nil {
+			t.Errorf("ReadAt error=%v", err)
+			return
+		}
 	} else {
 		path := filepath.Join("testdata", zt.Name)
 		if zt.Obscured {
@@ -518,6 +524,12 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		if err == nil {
 			defer rc.Close()
 			z = &rc.Reader
+		}
+		var err2 error
+		raw, err2 = os.ReadFile(path)
+		if err2 != nil {
+			t.Errorf("ReadFile(%s) error=%v", path, err2)
+			return
 		}
 	}
 	if err != zt.Error {
@@ -545,7 +557,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 
 	// test read of each file
 	for i, ft := range zt.File {
-		readTestFile(t, zt, ft, z.File[i])
+		readTestFile(t, zt, ft, z.File[i], raw)
 	}
 	if t.Failed() {
 		return
@@ -557,7 +569,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
 	for i := 0; i < 5; i++ {
 		for j, ft := range zt.File {
 			go func(j int, ft ZipTestFile) {
-				readTestFile(t, zt, ft, z.File[j])
+				readTestFile(t, zt, ft, z.File[j], raw)
 				done <- true
 			}(j, ft)
 			n++
@@ -574,7 +586,7 @@ func equalTimeAndZone(t1, t2 time.Time) bool {
 	return t1.Equal(t2) && name1 == name2 && offset1 == offset2
 }
 
-func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File, raw []byte) {
 	if f.Name != ft.Name {
 		t.Errorf("name=%q, want %q", f.Name, ft.Name)
 	}
@@ -592,6 +604,31 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 		size = f.UncompressedSize64
 	} else if size != f.UncompressedSize64 {
 		t.Errorf("%v: UncompressedSize=%#x does not match UncompressedSize64=%#x", f.Name, size, f.UncompressedSize64)
+	}
+
+	// Check that OpenRaw returns the correct byte segment
+	rw, err := f.OpenRaw()
+	if err != nil {
+		t.Errorf("%v: OpenRaw error=%v", f.Name, err)
+		return
+	}
+	start, err := f.DataOffset()
+	if err != nil {
+		t.Errorf("%v: DataOffset error=%v", f.Name, err)
+		return
+	}
+	got, err := io.ReadAll(rw)
+	if err != nil {
+		t.Errorf("%v: OpenRaw ReadAll error=%v", f.Name, err)
+		return
+	}
+	end := uint64(start) + f.CompressedSize64
+	want := raw[start:end]
+	if !bytes.Equal(got, want) {
+		t.Logf("got %q", got)
+		t.Logf("want %q", want)
+		t.Errorf("%v: OpenRaw returned unexpected bytes", f.Name)
+		return
 	}
 
 	r, err := f.Open()
@@ -776,8 +813,8 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //		"archive/zip"
 //		"bytes"
 //		"io"
-//		"io/ioutil"
 //		"log"
+//		"os"
 //	)
 //
 //	type zeros struct{}
@@ -1073,11 +1110,218 @@ func TestIssue12449(t *testing.T) {
 }
 
 func TestFS(t *testing.T) {
-	z, err := OpenReader("testdata/unix.zip")
+	for _, test := range []struct {
+		file string
+		want []string
+	}{
+		{
+			"testdata/unix.zip",
+			[]string{"hello", "dir/bar", "readonly"},
+		},
+		{
+			"testdata/subdir.zip",
+			[]string{"a/b/c"},
+		},
+	} {
+		t.Run(test.file, func(t *testing.T) {
+			t.Parallel()
+			z, err := OpenReader(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer z.Close()
+			if err := fstest.TestFS(z, test.want...); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestFSModTime(t *testing.T) {
+	t.Parallel()
+	z, err := OpenReader("testdata/subdir.zip")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := fstest.TestFS(z, "hello", "dir/bar", "dir/empty", "readonly"); err != nil {
-		t.Fatal(err)
+	defer z.Close()
+
+	for _, test := range []struct {
+		name string
+		want time.Time
+	}{
+		{
+			"a",
+			time.Date(2021, 4, 19, 12, 29, 56, 0, timeZone(-7*time.Hour)).UTC(),
+		},
+		{
+			"a/b/c",
+			time.Date(2021, 4, 19, 12, 29, 59, 0, timeZone(-7*time.Hour)).UTC(),
+		},
+	} {
+		fi, err := fs.Stat(z, test.name)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		if got := fi.ModTime(); !got.Equal(test.want) {
+			t.Errorf("%s: got modtime %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+func TestCVE202127919(t *testing.T) {
+	// Archive containing only the file "../test.txt"
+	data := []byte{
+		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x00,
+		0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x2e, 0x2e,
+		0x2f, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78,
+		0x74, 0x0a, 0xc9, 0xc8, 0x2c, 0x56, 0xc8, 0x2c,
+		0x56, 0x48, 0x54, 0x28, 0x49, 0x2d, 0x2e, 0x51,
+		0x28, 0x49, 0xad, 0x28, 0x51, 0x48, 0xcb, 0xcc,
+		0x49, 0xd5, 0xe3, 0x02, 0x04, 0x00, 0x00, 0xff,
+		0xff, 0x50, 0x4b, 0x07, 0x08, 0xc0, 0xd7, 0xed,
+		0xc3, 0x20, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x00,
+		0x00, 0x50, 0x4b, 0x01, 0x02, 0x14, 0x00, 0x14,
+		0x00, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0xc0, 0xd7, 0xed, 0xc3, 0x20, 0x00, 0x00,
+		0x00, 0x1a, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2e,
+		0x2e, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x74,
+		0x78, 0x74, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x00,
+		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
+		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	if err != nil {
+		t.Fatalf("Error reading the archive: %v", err)
+	}
+	_, err = r.Open("test.txt")
+	if err != nil {
+		t.Errorf("Error reading file: %v", err)
+	}
+}
+
+func TestReadDataDescriptor(t *testing.T) {
+	tests := []struct {
+		desc    string
+		in      []byte
+		zip64   bool
+		want    *dataDescriptor
+		wantErr error
+	}{{
+		desc: "valid 32 bit with signature",
+		in: []byte{
+			0x50, 0x4b, 0x07, 0x08, // signature
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, // compressed size
+			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
+		},
+		want: &dataDescriptor{
+			crc32:            0x03020100,
+			compressedSize:   0x07060504,
+			uncompressedSize: 0x0b0a0908,
+		},
+	}, {
+		desc: "valid 32 bit without signature",
+		in: []byte{
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, // compressed size
+			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
+		},
+		want: &dataDescriptor{
+			crc32:            0x03020100,
+			compressedSize:   0x07060504,
+			uncompressedSize: 0x0b0a0908,
+		},
+	}, {
+		desc: "valid 64 bit with signature",
+		in: []byte{
+			0x50, 0x4b, 0x07, 0x08, // signature
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
+		},
+		zip64: true,
+		want: &dataDescriptor{
+			crc32:            0x03020100,
+			compressedSize:   0x0b0a090807060504,
+			uncompressedSize: 0x131211100f0e0d0c,
+		},
+	}, {
+		desc: "valid 64 bit without signature",
+		in: []byte{
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
+		},
+		zip64: true,
+		want: &dataDescriptor{
+			crc32:            0x03020100,
+			compressedSize:   0x0b0a090807060504,
+			uncompressedSize: 0x131211100f0e0d0c,
+		},
+	}, {
+		desc: "invalid 32 bit with signature",
+		in: []byte{
+			0x50, 0x4b, 0x07, 0x08, // signature
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, // unexpected end
+		},
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		desc: "invalid 32 bit without signature",
+		in: []byte{
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, // unexpected end
+		},
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		desc: "invalid 64 bit with signature",
+		in: []byte{
+			0x50, 0x4b, 0x07, 0x08, // signature
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
+		},
+		zip64:   true,
+		wantErr: io.ErrUnexpectedEOF,
+	}, {
+		desc: "invalid 64 bit without signature",
+		in: []byte{
+			0x00, 0x01, 0x02, 0x03, // crc32
+			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
+		},
+		zip64:   true,
+		wantErr: io.ErrUnexpectedEOF,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			r := bytes.NewReader(test.in)
+
+			desc, err := readDataDescriptor(r, test.zip64)
+			if err != test.wantErr {
+				t.Fatalf("got err %v; want nil", err)
+			}
+			if test.want == nil {
+				return
+			}
+			if desc == nil {
+				t.Fatalf("got nil DataDescriptor; want non-nil")
+			}
+			if desc.crc32 != test.want.crc32 {
+				t.Errorf("got CRC32 %#x; want %#x", desc.crc32, test.want.crc32)
+			}
+			if desc.compressedSize != test.want.compressedSize {
+				t.Errorf("got CompressedSize %#x; want %#x", desc.compressedSize, test.want.compressedSize)
+			}
+			if desc.uncompressedSize != test.want.uncompressedSize {
+				t.Errorf("got UncompressedSize %#x; want %#x", desc.uncompressedSize, test.want.uncompressedSize)
+			}
+		})
 	}
 }

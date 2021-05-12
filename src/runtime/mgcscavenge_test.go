@@ -152,12 +152,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 			max:   PallocChunkPages,
 			want:  BitRange{0, uint(m)},
 		}
-		tests["StartFree"+suffix] = test{
-			alloc: []BitRange{{uint(m), PallocChunkPages - uint(m)}},
-			min:   m,
-			max:   PallocChunkPages,
-			want:  BitRange{0, uint(m)},
-		}
 		tests["EndFree"+suffix] = test{
 			alloc: []BitRange{{0, PallocChunkPages - uint(m)}},
 			min:   m,

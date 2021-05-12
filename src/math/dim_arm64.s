@@ -8,8 +8,8 @@
 #define NaN    0x7FF8000000000001
 #define NegInf 0xFFF0000000000000
 
-// func ·Max(x, y float64) float64
-TEXT ·Max(SB),NOSPLIT,$0
+// func ·archMax(x, y float64) float64
+TEXT ·archMax(SB),NOSPLIT,$0
 	// +Inf special cases
 	MOVD	$PosInf, R0
 	MOVD	x+0(FP), R1
@@ -28,8 +28,8 @@ isPosInf: // return +Inf
 	MOVD	R0, ret+16(FP)
 	RET
 
-// func Min(x, y float64) float64
-TEXT ·Min(SB),NOSPLIT,$0
+// func archMin(x, y float64) float64
+TEXT ·archMin(SB),NOSPLIT,$0
 	// -Inf special cases
 	MOVD	$NegInf, R0
 	MOVD	x+0(FP), R1

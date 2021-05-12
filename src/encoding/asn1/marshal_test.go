@@ -306,7 +306,7 @@ func TestIssue11130(t *testing.T) {
 		return
 	}
 	if !reflect.DeepEqual(v, v1) {
-		t.Errorf("got: %#v data=%q , want : %#v data=%q\n ", v1, data1, v, data)
+		t.Errorf("got: %#v data=%q, want : %#v data=%q\n ", v1, data1, v, data)
 	}
 }
 

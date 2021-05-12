@@ -6,12 +6,12 @@ package base
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"runtime/debug"
 	"sort"
 	"strings"
 
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -217,7 +217,7 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 		fmt.Printf("\n")
 
 		// If this is a released compiler version, ask for a bug report.
-		if strings.HasPrefix(objabi.Version, "go") {
+		if strings.HasPrefix(buildcfg.Version, "go") {
 			fmt.Printf("\n")
 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
 			fmt.Printf("https://golang.org/issue/new\n")

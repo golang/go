@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
@@ -150,6 +151,12 @@ var BlockEnd = &Value{
 	ID:  -20000,
 	Op:  OpInvalid,
 	Aux: StringToAux("BlockEnd"),
+}
+
+var FuncEnd = &Value{
+	ID:  -30000,
+	Op:  OpInvalid,
+	Aux: StringToAux("FuncEnd"),
 }
 
 // RegisterSet is a bitmap of registers, indexed by Register.num.
@@ -901,10 +908,10 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 			if opcodeTable[v.Op].zeroWidth {
 				if changed {
-					if v.Op == OpArg || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
+					if hasAnyArgOp(v) || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
 						// These ranges begin at true beginning of block, not after first instruction
 						if zeroWidthPending {
-							b.Func.Fatalf("Unexpected op mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", b, b.Func.Name, b.Func)
+							panic(fmt.Errorf("Unexpected op '%s' mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
 						}
 						apcChangedSize = len(state.changedVars.contents())
 						continue
@@ -948,7 +955,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 	// Flush any leftover entries live at the end of the last block.
 	for varID := range state.lists {
-		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
+		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
 		list := state.lists[varID]
 		if state.loggingEnabled {
 			if len(list) == 0 {
@@ -1118,8 +1125,11 @@ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym
 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
 }
 
-// Pack a value and block ID into an address-sized uint, returning ~0 if they
-// don't fit.
+// Pack a value and block ID into an address-sized uint, returning encoded
+// value and boolean indicating whether the encoding succeeded.  For
+// 32-bit architectures the process may fail for very large procedures
+// (the theory being that it's ok to have degraded debug quality in
+// this case).
 func encodeValue(ctxt *obj.Link, b, v ID) (uint64, bool) {
 	if ctxt.Arch.PtrSize == 8 {
 		result := uint64(b)<<32 | uint64(uint32(v))
@@ -1185,4 +1195,277 @@ func readPtr(ctxt *obj.Link, buf []byte) uint64 {
 		panic("unexpected pointer size")
 	}
 
+}
+
+// setupLocList creates the initial portion of a location list for a
+// user variable. It emits the encoded start/end of the range and a
+// placeholder for the size. Return value is the new list plus the
+// slot in the list holding the size (to be updated later).
+func setupLocList(ctxt *obj.Link, f *Func, list []byte, st, en ID) ([]byte, int) {
+	start, startOK := encodeValue(ctxt, f.Entry.ID, st)
+	end, endOK := encodeValue(ctxt, f.Entry.ID, en)
+	if !startOK || !endOK {
+		// This could happen if someone writes a function that uses
+		// >65K values on a 32-bit platform. Hopefully a degraded debugging
+		// experience is ok in that case.
+		return nil, 0
+	}
+	list = appendPtr(ctxt, list, start)
+	list = appendPtr(ctxt, list, end)
+
+	// Where to write the length of the location description once
+	// we know how big it is.
+	sizeIdx := len(list)
+	list = list[:len(list)+2]
+	return list, sizeIdx
+}
+
+// locatePrologEnd walks the entry block of a function with incoming
+// register arguments and locates the last instruction in the prolog
+// that spills a register arg. It returns the ID of that instruction
+// Example:
+//
+//   b1:
+//       v3 = ArgIntReg <int> {p1+0} [0] : AX
+//       ... more arg regs ..
+//       v4 = ArgFloatReg <float32> {f1+0} [0] : X0
+//       v52 = MOVQstore <mem> {p1} v2 v3 v1
+//       ... more stores ...
+//       v68 = MOVSSstore <mem> {f4} v2 v67 v66
+//       v38 = MOVQstoreconst <mem> {blob} [val=0,off=0] v2 v32
+//
+// Important: locatePrologEnd is expected to work properly only with
+// optimization turned off (e.g. "-N"). If optimization is enabled
+// we can't be assured of finding all input arguments spilled in the
+// entry block prolog.
+func locatePrologEnd(f *Func) ID {
+
+	// returns true if this instruction looks like it moves an ABI
+	// register to the stack, along with the value being stored.
+	isRegMoveLike := func(v *Value) (bool, ID) {
+		n, ok := v.Aux.(*ir.Name)
+		var r ID
+		if !ok || n.Class != ir.PPARAM {
+			return false, r
+		}
+		regInputs, memInputs, spInputs := 0, 0, 0
+		for _, a := range v.Args {
+			if a.Op == OpArgIntReg || a.Op == OpArgFloatReg {
+				regInputs++
+				r = a.ID
+			} else if a.Type.IsMemory() {
+				memInputs++
+			} else if a.Op == OpSP {
+				spInputs++
+			} else {
+				return false, r
+			}
+		}
+		return v.Type.IsMemory() && memInputs == 1 &&
+			regInputs == 1 && spInputs == 1, r
+	}
+
+	// OpArg*Reg values we've seen so far on our forward walk,
+	// for which we have not yet seen a corresponding spill.
+	regArgs := make([]ID, 0, 32)
+
+	// removeReg tries to remove a value from regArgs, returning true
+	// if found and removed, or false otherwise.
+	removeReg := func(r ID) bool {
+		for i := 0; i < len(regArgs); i++ {
+			if regArgs[i] == r {
+				regArgs = append(regArgs[:i], regArgs[i+1:]...)
+				return true
+			}
+		}
+		return false
+	}
+
+	// Walk forwards through the block. When we see OpArg*Reg, record
+	// the value it produces in the regArgs list. When see a store that uses
+	// the value, remove the entry. When we hit the last store (use)
+	// then we've arrived at the end of the prolog.
+	for k, v := range f.Entry.Values {
+		if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+			regArgs = append(regArgs, v.ID)
+			continue
+		}
+		if ok, r := isRegMoveLike(v); ok {
+			if removed := removeReg(r); removed {
+				if len(regArgs) == 0 {
+					// Found our last spill; return the value after
+					// it. Note that it is possible that this spill is
+					// the last instruction in the block. If so, then
+					// return the "end of block" sentinel.
+					if k < len(f.Entry.Values)-1 {
+						return f.Entry.Values[k+1].ID
+					}
+					return BlockEnd.ID
+				}
+			}
+		}
+		if v.Op.IsCall() {
+			// if we hit a call, we've gone too far.
+			return v.ID
+		}
+	}
+	// nothing found
+	return ID(-1)
+}
+
+// isNamedRegParam returns true if the param corresponding to "p"
+// is a named, non-blank input parameter assigned to one or more
+// registers.
+func isNamedRegParam(p abi.ABIParamAssignment) bool {
+	if p.Name == nil {
+		return false
+	}
+	n := p.Name.(*ir.Name)
+	if n.Sym() == nil || n.Sym().IsBlank() {
+		return false
+	}
+	if len(p.Registers) == 0 {
+		return false
+	}
+	return true
+}
+
+// BuildFuncDebugNoOptimized constructs a FuncDebug object with
+// entries corresponding to the register-resident input parameters for
+// the function "f"; it is used when we are compiling without
+// optimization but the register ABI is enabled. For each reg param,
+// it constructs a 2-element location list: the first element holds
+// the input register, and the second element holds the stack location
+// of the param (the assumption being that when optimization is off,
+// each input param reg will be spilled in the prolog.
+func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32) *FuncDebug {
+	fd := FuncDebug{}
+
+	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
+
+	// Look to see if we have any named register-promoted parameters.
+	// If there are none, bail early and let the caller sort things
+	// out for the remainder of the params/locals.
+	numRegParams := 0
+	for _, inp := range pri.InParams() {
+		if isNamedRegParam(inp) {
+			numRegParams++
+		}
+	}
+	if numRegParams == 0 {
+		return &fd
+	}
+
+	state := debugState{f: f}
+
+	if loggingEnabled {
+		state.logf("generating -N reg param loc lists for func %q\n", f.Name)
+	}
+
+	// Allocate location lists.
+	fd.LocationLists = make([][]byte, numRegParams)
+
+	// Locate the value corresponding to the last spill of
+	// an input register.
+	afterPrologVal := locatePrologEnd(f)
+
+	// Walk the input params again and process the register-resident elements.
+	pidx := 0
+	for _, inp := range pri.InParams() {
+		if !isNamedRegParam(inp) {
+			// will be sorted out elsewhere
+			continue
+		}
+
+		n := inp.Name.(*ir.Name)
+		sl := LocalSlot{N: n, Type: inp.Type, Off: 0}
+		fd.Vars = append(fd.Vars, n)
+		fd.Slots = append(fd.Slots, sl)
+		slid := len(fd.VarSlots)
+		fd.VarSlots = append(fd.VarSlots, []SlotID{SlotID(slid)})
+
+		if afterPrologVal == ID(-1) {
+			// This can happen for degenerate functions with infinite
+			// loops such as that in issue 45948. In such cases, leave
+			// the var/slot set up for the param, but don't try to
+			// emit a location list.
+			if loggingEnabled {
+				state.logf("locatePrologEnd failed, skipping %v\n", n)
+			}
+			pidx++
+			continue
+		}
+
+		// Param is arriving in one or more registers. We need a 2-element
+		// location expression for it. First entry in location list
+		// will correspond to lifetime in input registers.
+		list, sizeIdx := setupLocList(ctxt, f, fd.LocationLists[pidx],
+			BlockStart.ID, afterPrologVal)
+		if list == nil {
+			pidx++
+			continue
+		}
+		if loggingEnabled {
+			state.logf("param %v:\n  [<entry>, %d]:\n", n, afterPrologVal)
+		}
+		rtypes, _ := inp.RegisterTypesAndOffsets()
+		padding := make([]uint64, 0, 32)
+		padding = inp.ComputePadding(padding)
+		for k, r := range inp.Registers {
+			reg := ObjRegForAbiReg(r, f.Config)
+			dwreg := ctxt.Arch.DWARFRegisters[reg]
+			if dwreg < 32 {
+				list = append(list, dwarf.DW_OP_reg0+byte(dwreg))
+			} else {
+				list = append(list, dwarf.DW_OP_regx)
+				list = dwarf.AppendUleb128(list, uint64(dwreg))
+			}
+			if loggingEnabled {
+				state.logf("    piece %d -> dwreg %d", k, dwreg)
+			}
+			if len(inp.Registers) > 1 {
+				list = append(list, dwarf.DW_OP_piece)
+				ts := rtypes[k].Width
+				list = dwarf.AppendUleb128(list, uint64(ts))
+				if padding[k] > 0 {
+					if loggingEnabled {
+						state.logf(" [pad %d bytes]", padding[k])
+					}
+					list = append(list, dwarf.DW_OP_piece)
+					list = dwarf.AppendUleb128(list, padding[k])
+				}
+			}
+			if loggingEnabled {
+				state.logf("\n")
+			}
+		}
+		// fill in length of location expression element
+		ctxt.Arch.ByteOrder.PutUint16(list[sizeIdx:], uint16(len(list)-sizeIdx-2))
+
+		// Second entry in the location list will be the stack home
+		// of the param, once it has been spilled.  Emit that now.
+		list, sizeIdx = setupLocList(ctxt, f, list,
+			afterPrologVal, FuncEnd.ID)
+		if list == nil {
+			pidx++
+			continue
+		}
+		soff := stackOffset(sl)
+		if soff == 0 {
+			list = append(list, dwarf.DW_OP_call_frame_cfa)
+		} else {
+			list = append(list, dwarf.DW_OP_fbreg)
+			list = dwarf.AppendSleb128(list, int64(soff))
+		}
+		if loggingEnabled {
+			state.logf("  [%d, <end>): stackOffset=%d\n", afterPrologVal, soff)
+		}
+
+		// fill in size
+		ctxt.Arch.ByteOrder.PutUint16(list[sizeIdx:], uint16(len(list)-sizeIdx-2))
+
+		fd.LocationLists[pidx] = list
+		pidx++
+	}
+	return &fd
 }

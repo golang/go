@@ -16,17 +16,36 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+// cmpVersion implements the comparison for versions in the module loader.
+//
+// It is consistent with semver.Compare except that as a special case,
+// the version "" is considered higher than all other versions.
+// The main module (also known as the target) has no version and must be chosen
+// over other versions of the same module in the module dependency graph.
+func cmpVersion(v1, v2 string) int {
+	if v2 == "" {
+		if v1 == "" {
+			return 0
+		}
+		return -1
+	}
+	if v1 == "" {
+		return 1
+	}
+	return semver.Compare(v1, v2)
+}
+
 // mvsReqs implements mvs.Reqs for module semantic versions,
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
-	buildList []module.Version
+	roots []module.Version
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 	if mod == Target {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
-		return r.buildList[1:], nil
+		return r.roots, nil
 	}
 
 	if mod.Version == "none" {
@@ -47,7 +66,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 // be chosen over other versions of the same module in the module dependency
 // graph.
 func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && (v2 == "" || semver.Compare(v1, v2) == -1) {
+	if cmpVersion(v1, v2) < 0 {
 		return v2
 	}
 	return v1
@@ -86,12 +105,12 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 	return versions, err
 }
 
-// Previous returns the tagged version of m.Path immediately prior to
+// previousVersion returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
 //
 // Since the version of Target is not found in the version list,
 // it has no previous version.
-func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+func previousVersion(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
 
 	if m == Target {
@@ -110,4 +129,8 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 		return module.Version{Path: m.Path, Version: list[i-1]}, nil
 	}
 	return module.Version{Path: m.Path, Version: "none"}, nil
+}
+
+func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+	return previousVersion(m)
 }

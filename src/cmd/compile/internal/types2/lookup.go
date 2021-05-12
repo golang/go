@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -141,7 +140,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
-				typ = under(named)
+				typ = named.under()
 				if asTypeParam(typ) != nil {
 					continue
 				}
@@ -207,8 +206,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				}
 				if obj == nil {
 					// At this point we're not (yet) looking into methods
-					// that any underlyng type of the types in the type list
-					// migth have.
+					// that any underlying type of the types in the type list
+					// might have.
 					// TODO(gri) Do we want to specify the language that way?
 				}
 			}
@@ -428,13 +427,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 // method required by V and whether it is missing or just has the wrong type.
 // The receiver may be nil if assertableTo is invoked through an exported API call
 // (such as AssertableTo), i.e., when all methods have been type-checked.
-// If strict (or the global constant forceStrict) is set, assertions that
-// are known to fail are not permitted.
-func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, wrongType *Func) {
+// If the global constant forceStrict is set, assertions that are known to fail
+// are not permitted.
+func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if asInterface(T) != nil && !(strict || forceStrict) {
+	if asInterface(T) != nil && !forceStrict {
 		return
 	}
 	return check.missingMethod(T, V, false)

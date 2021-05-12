@@ -169,6 +169,7 @@ var rsaSignatureSchemes = []struct {
 // and optionally filtered by its explicit SupportedSignatureAlgorithms.
 //
 // This function must be kept in sync with supportedSignatureAlgorithms.
+// FIPS filtering is applied in the caller, selectSignatureScheme.
 func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
 	priv, ok := cert.PrivateKey.(crypto.Signer)
 	if !ok {

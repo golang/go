@@ -83,10 +83,10 @@ func As(err error, target interface{}) bool {
 	if typ.Kind() != reflectlite.Ptr || val.IsNil() {
 		panic("errors: target must be a non-nil pointer")
 	}
-	if e := typ.Elem(); e.Kind() != reflectlite.Interface && !e.Implements(errorType) {
+	targetType := typ.Elem()
+	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
 		panic("errors: *target must be interface or implement error")
 	}
-	targetType := typ.Elem()
 	for err != nil {
 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
 			val.Elem().Set(reflectlite.ValueOf(err))

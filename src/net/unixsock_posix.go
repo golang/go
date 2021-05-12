@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package net
@@ -112,7 +113,11 @@ func (c *UnixConn) readFrom(b []byte) (int, *UnixAddr, error) {
 
 func (c *UnixConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
 	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, readMsgFlags)
+	if readMsgFlags == 0 && err == nil && oobn > 0 {
+		setReadMsgCloseOnExec(oob[:oobn])
+	}
+
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
 		if sa.Name != "" {

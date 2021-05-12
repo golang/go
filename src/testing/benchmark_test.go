@@ -102,6 +102,30 @@ func TestRunParallelFail(t *testing.T) {
 	})
 }
 
+func TestRunParallelFatal(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if b.N > 1 {
+					b.Fatal("error")
+				}
+			}
+		})
+	})
+}
+
+func TestRunParallelSkipNow(t *testing.T) {
+	testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if b.N > 1 {
+					b.SkipNow()
+				}
+			}
+		})
+	})
+}
+
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {

@@ -262,7 +262,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 	if off == -1 {
 		// -1 is the sentinel value for unreachable code.
 		// See cmd/link/internal/ld/data.go:relocsym.
-		return unsafe.Pointer(^uintptr(0))
+		return unsafe.Pointer(funcPC(unreachableMethod))
 	}
 	base := uintptr(unsafe.Pointer(t))
 	var md *moduledata

@@ -157,12 +157,16 @@ func chanfn(name string, n int, t *types.Type) ir.Node {
 	return fn
 }
 
-func mapfn(name string, t *types.Type) ir.Node {
+func mapfn(name string, t *types.Type, isfat bool) ir.Node {
 	if !t.IsMap() {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	if mapfast(t) == mapslow || isfat {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key(), t.Elem())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Elem())
+	}
 	return fn
 }
 
@@ -171,7 +175,11 @@ func mapfndel(name string, t *types.Type) ir.Node {
 		base.Fatalf("mapfn %v", t)
 	}
 	fn := typecheck.LookupRuntime(name)
-	fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	if mapfast(t) == mapslow {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem(), t.Key())
+	} else {
+		fn = typecheck.SubstArgTypes(fn, t.Key(), t.Elem())
+	}
 	return fn
 }
 
@@ -237,24 +245,6 @@ func walkAppendArgs(n *ir.CallExpr, init *ir.Nodes) {
 	}
 }
 
-// Rewrite
-//	go builtin(x, y, z)
-// into
-//	go func(a1, a2, a3) {
-//		builtin(a1, a2, a3)
-//	}(x, y, z)
-// for print, println, and delete.
-//
-// Rewrite
-//	go f(x, y, uintptr(unsafe.Pointer(z)))
-// into
-//	go func(a1, a2, a3) {
-//		builtin(a1, a2, uintptr(a3))
-//	}(x, y, unsafe.Pointer(z))
-// for function contains unsafe-uintptr arguments.
-
-var wrapCall_prgen int
-
 // appendWalkStmt typechecks and walks stmt and then appends it to init.
 func appendWalkStmt(init *ir.Nodes, stmt ir.Node) {
 	op := stmt.Op()
@@ -318,7 +308,8 @@ func mayCall(n ir.Node) bool {
 		default:
 			base.FatalfAt(n.Pos(), "mayCall %+v", n)
 
-		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER,
+			ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,

@@ -189,8 +189,15 @@ func (t *Time) addSec(d int64) {
 		t.stripMono()
 	}
 
-	// TODO: Check for overflow.
-	t.ext += d
+	// Check if the sum of t.ext and d overflows and handle it properly.
+	sum := t.ext + d
+	if (sum > t.ext) == (d > 0) {
+		t.ext = sum
+	} else if d > 0 {
+		t.ext = 1<<63 - 1
+	} else {
+		t.ext = -(1<<63 - 1)
+	}
 }
 
 // setLoc sets the location associated with the time.
@@ -440,7 +447,7 @@ func (t Time) abs() uint64 {
 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
 			sec += int64(l.cacheZone.offset)
 		} else {
-			_, offset, _, _ := l.lookup(sec)
+			_, offset, _, _, _ := l.lookup(sec)
 			sec += int64(offset)
 		}
 	}
@@ -461,7 +468,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
 			name = l.cacheZone.name
 			offset = l.cacheZone.offset
 		} else {
-			name, offset, _, _ = l.lookup(sec)
+			name, offset, _, _, _ = l.lookup(sec)
 		}
 		sec += int64(offset)
 	} else {
@@ -1114,7 +1121,7 @@ func (t Time) Location() *Location {
 // Zone computes the time zone in effect at time t, returning the abbreviated
 // name of the zone (such as "CET") and its offset in seconds east of UTC.
 func (t Time) Zone() (name string, offset int) {
-	name, offset, _, _ = t.loc.lookup(t.unixSec())
+	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
 	return
 }
 
@@ -1126,6 +1133,24 @@ func (t Time) Zone() (name string, offset int) {
 // value it is valid for billions of years into the past or future.
 func (t Time) Unix() int64 {
 	return t.unixSec()
+}
+
+// UnixMilli returns t as a Unix time, the number of milliseconds elapsed since
+// January 1, 1970 UTC. The result is undefined if the Unix time in
+// milliseconds cannot be represented by an int64 (a date more than 292 million
+// years before or after 1970). The result does not depend on the
+// location associated with t.
+func (t Time) UnixMilli() int64 {
+	return t.unixSec()*1e3 + int64(t.nsec())/1e6
+}
+
+// UnixMicro returns t as a Unix time, the number of microseconds elapsed since
+// January 1, 1970 UTC. The result is undefined if the Unix time in
+// microseconds cannot be represented by an int64 (a date before year -290307 or
+// after year 294246). The result does not depend on the location associated
+// with t.
+func (t Time) UnixMicro() int64 {
+	return t.unixSec()*1e6 + int64(t.nsec())/1e3
 }
 
 // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
@@ -1212,7 +1237,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	if offset == -1*60 {
 		t.setLoc(&utcLoc)
-	} else if _, localoff, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
 		t.setLoc(Local)
 	} else {
 		t.setLoc(FixedZone("", offset))
@@ -1302,6 +1327,24 @@ func Unix(sec int64, nsec int64) Time {
 	return unixTime(sec, int32(nsec))
 }
 
+// UnixMilli returns the local Time corresponding to the given Unix time,
+// msec milliseconds since January 1, 1970 UTC.
+func UnixMilli(msec int64) Time {
+	return Unix(msec/1e3, (msec%1e3)*1e6)
+}
+
+// UnixMicro returns the local Time corresponding to the given Unix time,
+// usec milliseconds since January 1, 1970 UTC.
+func UnixMicro(usec int64) Time {
+	return Unix(usec/1e6, (usec%1e6)*1e3)
+}
+
+// IsDST reports whether the time in the configured location is in Daylight Savings Time.
+func (t *Time) IsDST() bool {
+	_, _, _, _, isDST := t.loc.lookup(t.Unix())
+	return isDST
+}
+
 func isLeap(year int) bool {
 	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
 }
@@ -1377,13 +1420,13 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	// The lookup function expects UTC, so we pass t in the
 	// hope that it will not be too close to a zone transition,
 	// and then adjust if it is.
-	_, offset, start, end := loc.lookup(unix)
+	_, offset, start, end, _ := loc.lookup(unix)
 	if offset != 0 {
 		switch utc := unix - int64(offset); {
 		case utc < start:
-			_, offset, _, _ = loc.lookup(start - 1)
+			_, offset, _, _, _ = loc.lookup(start - 1)
 		case utc >= end:
-			_, offset, _, _ = loc.lookup(end)
+			_, offset, _, _, _ = loc.lookup(end)
 		}
 		unix -= int64(offset)
 	}

@@ -252,9 +252,6 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	CMP	g, R1
 	B.NE	2(PC)
 	B	runtime·badmcall(SB)
-	MOVB	runtime·iscgo(SB), R11
-	CMP	$0, R11
-	BL.NE	runtime·save_g(SB)
 	MOVW	fn+0(FP), R0
 	MOVW	(g_sched+gobuf_sp)(g), R13
 	SUB	$8, R13
@@ -992,6 +989,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
 	MOVW	R0, x+0(FP)
 	MOVW	R1, y+4(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
+	MOVW	R2, x+0(FP)
+	MOVW	R3, y+4(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 // Extended versions for 64-bit indexes.
 TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12

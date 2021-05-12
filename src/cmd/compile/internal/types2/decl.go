@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -11,12 +10,12 @@ import (
 	"go/constant"
 )
 
-func (check *Checker) reportAltDecl(obj Object) {
+func (err *error_) recordAltDecl(obj Object) {
 	if pos := obj.Pos(); pos.IsKnown() {
 		// We use "other" rather than "previous" here because
 		// the first declaration seen may not be textually
 		// earlier in the source.
-		check.errorf(pos, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
+		err.errorf(pos, "other declaration of %s", obj.Name())
 	}
 }
 
@@ -27,8 +26,10 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
 	// binding."
 	if obj.Name() != "_" {
 		if alt := scope.Insert(obj); alt != nil {
-			check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
-			check.reportAltDecl(alt)
+			var err error_
+			err.errorf(obj, "%s redeclared in this block", obj.Name())
+			err.recordAltDecl(alt)
+			check.report(&err)
 			return
 		}
 		obj.setScopePos(pos)
@@ -323,7 +324,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 		// don't report a 2nd error if we already know the type is invalid
-		// (e.g., if a cycle was detected earlier, via Checker.underlying).
+		// (e.g., if a cycle was detected earlier, via under).
 		if t.underlying == Typ[Invalid] {
 			t.info = invalid
 			return invalid
@@ -332,7 +333,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		switch t.info {
 		case unknown:
 			t.info = marked
-			t.info = check.validType(t.orig, append(path, t.obj)) // only types of current package added to path
+			t.info = check.validType(t.fromRHS, append(path, t.obj)) // only types of current package added to path
 		case marked:
 			// cycle detected
 			for i, tn := range path {
@@ -364,53 +365,22 @@ func (check *Checker) cycleError(cycle []Object) {
 	//           cycle? That would be more consistent with other error messages.
 	i := firstInSrc(cycle)
 	obj := cycle[i]
+	var err error_
 	if check.conf.CompilerErrorMessages {
-		check.errorf(obj.Pos(), "invalid recursive type %s", obj.Name())
+		err.errorf(obj, "invalid recursive type %s", obj.Name())
 	} else {
-		check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
+		err.errorf(obj, "illegal cycle in declaration of %s", obj.Name())
 	}
 	for range cycle {
-		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+		err.errorf(obj, "%s refers to", obj.Name())
 		i++
 		if i >= len(cycle) {
 			i = 0
 		}
 		obj = cycle[i]
 	}
-	check.errorf(obj.Pos(), "\t%s", obj.Name())
-}
-
-// TODO(gri) This functionality should probably be with the Pos implementation.
-func cmpPos(p, q syntax.Pos) int {
-	// TODO(gri) is RelFilename correct here?
-	pname := p.RelFilename()
-	qname := q.RelFilename()
-	switch {
-	case pname < qname:
-		return -1
-	case pname > qname:
-		return +1
-	}
-
-	pline := p.Line()
-	qline := q.Line()
-	switch {
-	case pline < qline:
-		return -1
-	case pline > qline:
-		return +1
-	}
-
-	pcol := p.Col()
-	qcol := q.Col()
-	switch {
-	case pcol < qcol:
-		return -1
-	case pcol > qcol:
-		return +1
-	}
-
-	return 0
+	err.errorf(obj, "%s", obj.Name())
+	check.report(&err)
 }
 
 // firstInSrc reports the index of the object with the "smallest"
@@ -418,7 +388,7 @@ func cmpPos(p, q syntax.Pos) int {
 func firstInSrc(path []Object) int {
 	fst, pos := 0, path[0].Pos()
 	for i, t := range path[1:] {
-		if cmpPos(t.Pos(), pos) < 0 {
+		if t.Pos().Cmp(pos) < 0 {
 			fst, pos = i+1, t.Pos()
 		}
 	}
@@ -625,14 +595,18 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if alias && tdecl.TParamList != nil {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.errorf(tdecl, "generic type cannot be alias")
+		check.error(tdecl, "generic type cannot be alias")
 		alias = false
 	}
 
 	if alias {
 		// type alias declaration
-		if !check.allowVersion(obj.pkg, 1, 9) {
-			check.errorf(tdecl, "type aliases requires go1.9 or later")
+		if !check.allowVersion(check.pkg, 1, 9) {
+			if check.conf.CompilerErrorMessages {
+				check.error(tdecl, "type aliases only supported as of -lang=go1.9")
+			} else {
+				check.error(tdecl, "type aliases requires go1.9 or later")
+			}
 		}
 
 		obj.typ = Typ[Invalid]
@@ -641,9 +615,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	} else {
 		// defined type declaration
 
-		named := &Named{check: check, obj: obj}
+		named := check.newNamed(obj, nil, nil, nil, nil)
 		def.setUnderlying(named)
-		obj.typ = named // make sure recursive type declarations terminate
 
 		if tdecl.TParamList != nil {
 			check.openScope(tdecl, "type parameters")
@@ -652,7 +625,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		// determine underlying type of named
-		named.orig = check.definedType(tdecl.Type, named)
+		named.fromRHS = check.definedType(tdecl.Type, named)
 
 		// The underlying type of named may be itself a named type that is
 		// incomplete:
@@ -667,7 +640,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		// and which has as its underlying type the named type B.
 		// Determine the (final, unnamed) underlying type by resolving
 		// any forward chain.
-		// TODO(gri) Investigate if we can just use named.origin here
+		// TODO(gri) Investigate if we can just use named.fromRHS here
 		//           and rely on lazy computation of the underlying type.
 		named.underlying = under(named)
 	}
@@ -707,7 +680,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
 		// The predeclared identifier "any" is visible only as a constraint
 		// in a type parameter list. Look for it before general constraint
 		// resolution.
-		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
+		if tident, _ := unparen(f.Type).(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
 			bound = universeAny
 		} else {
 			bound = check.typ(f.Type)
@@ -787,19 +760,21 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		// to it must be unique."
 		assert(m.name != "_")
 		if alt := mset.insert(m); alt != nil {
+			var err error_
 			switch alt.(type) {
 			case *Var:
-				check.errorf(m.pos, "field and method with the same name %s", m.name)
+				err.errorf(m.pos, "field and method with the same name %s", m.name)
 			case *Func:
 				if check.conf.CompilerErrorMessages {
-					check.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
+					err.errorf(m.pos, "%s.%s redeclared in this block", obj.Name(), m.name)
 				} else {
-					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+					err.errorf(m.pos, "method %s already declared for %s", m.name, obj)
 				}
 			default:
 				unreachable()
 			}
-			check.reportAltDecl(alt)
+			err.recordAltDecl(alt)
+			check.report(&err)
 			continue
 		}
 
@@ -896,7 +871,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			// inside a function begins at the end of the ConstSpec or VarSpec
 			// (ShortVarDecl for short variable declarations) and ends at the
 			// end of the innermost containing block."
-			scopePos := endPos(s)
+			scopePos := syntax.EndPos(s)
 			for i, name := range s.NameList {
 				check.declare(check.scope, name, lhs[i], scopePos)
 			}
@@ -953,7 +928,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 
 			// declare all variables
 			// (only at this point are the variable scopes (parents) set)
-			scopePos := endPos(s) // see constant declarations
+			scopePos := syntax.EndPos(s) // see constant declarations
 			for i, name := range s.NameList {
 				// see constant declarations
 				check.declare(check.scope, name, lhs0[i], scopePos)
@@ -972,7 +947,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
 			check.pop().setColor(black)
 
 		default:
-			check.invalidASTf(s, "unknown syntax.Decl node %T", s)
+			check.errorf(s, invalidAST+"unknown syntax.Decl node %T", s)
 		}
 	}
 }

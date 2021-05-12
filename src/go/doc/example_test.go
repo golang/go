@@ -352,6 +352,25 @@ func main() {
 }
 `
 
+const exampleWholeFileExternalFunction = `package foo_test
+
+func foo(int)
+
+func Example() {
+	foo(42)
+	// Output:
+}
+`
+
+const exampleWholeFileExternalFunctionOutput = `package main
+
+func foo(int)
+
+func main() {
+	foo(42)
+}
+`
+
 var exampleWholeFileTestCases = []struct {
 	Title, Source, Play, Output string
 }{
@@ -366,6 +385,12 @@ var exampleWholeFileTestCases = []struct {
 		exampleWholeFileFunction,
 		exampleWholeFileFunctionOutput,
 		"Hello, world!\n",
+	},
+	{
+		"ExternalFunction",
+		exampleWholeFileExternalFunction,
+		exampleWholeFileExternalFunctionOutput,
+		"",
 	},
 }
 

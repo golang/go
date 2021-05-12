@@ -102,7 +102,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 
 	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
 		if cfg.BuildTrimpath {
-			args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
+			args = append(args, "-ffile-prefix-map="+base.Cwd()+"=.")
 			args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
 		}
 		if fsys.OverlayFile != "" {
@@ -114,9 +114,9 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
 				}
 				toPath := absPath
 				// gccgo only applies the last matching rule, so also handle the case where
-				// BuildTrimpath is true and the path is relative to base.Cwd.
-				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd) {
-					toPath = "." + toPath[len(base.Cwd):]
+				// BuildTrimpath is true and the path is relative to base.Cwd().
+				if cfg.BuildTrimpath && str.HasFilePathPrefix(toPath, base.Cwd()) {
+					toPath = "." + toPath[len(base.Cwd()):]
 				}
 				args = append(args, "-ffile-prefix-map="+overlayPath+"="+toPath)
 			}
@@ -572,7 +572,7 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
 	}
 	defs = tools.maybePIC(defs)
 	if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
-		defs = append(defs, "-ffile-prefix-map="+base.Cwd+"=.")
+		defs = append(defs, "-ffile-prefix-map="+base.Cwd()+"=.")
 		defs = append(defs, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
 	} else if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		defs = append(defs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")

@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -22,8 +21,6 @@
 // Type inference computes the type (Type) of every expression (syntax.Expr)
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
-//
-// For a tutorial, see https://golang.org/s/types-tutorial.
 //
 package types2
 
@@ -109,13 +106,6 @@ type Config struct {
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
 	IgnoreFuncBodies bool
-
-	// If AcceptMethodTypeParams is set, methods may have type parameters.
-	AcceptMethodTypeParams bool
-
-	// If InferFromConstraints is set, constraint type inference is used
-	// if some function type arguments are missing.
-	InferFromConstraints bool
 
 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
 	// declares an empty "C" package and errors are omitted for qualified
@@ -408,14 +398,15 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T, false)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
+	return ok
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.

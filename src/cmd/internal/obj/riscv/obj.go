@@ -151,6 +151,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case ASBREAK:
 		// SBREAK is the old name for EBREAK.
 		p.As = AEBREAK
+
+	case AMOV:
+		// Put >32-bit constants in memory and load them.
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+			p.From.Type = obj.TYPE_MEM
+			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+			p.From.Name = obj.NAME_EXTERN
+			p.From.Offset = 0
+		}
 	}
 }
 
@@ -302,7 +311,10 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		//   LUI top20bits(c), R
 		//   ADD bottom12bits(c), R, R
 		if p.As != AMOV {
-			ctxt.Diag("unsupported constant load at %v", p)
+			ctxt.Diag("%v: unsupported constant load", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("%v: constant load must target register", p)
 		}
 		off := p.From.Offset
 		to := p.To
@@ -972,88 +984,57 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	var to_done, to_more *obj.Prog
 
 	if framesize <= objabi.StackSmall {
-		// small stack: SP < stackguard
-		//	BLTU	SP, stackguard, done
+		// small stack
+		//	// if SP > stackguard { goto done }
+		//	BLTU	stackguard, SP, done
 		p = obj.Appendp(p, newprog)
 		p.As = ABLTU
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_X10
 		p.Reg = REG_SP
-		p.To.Type = obj.TYPE_BRANCH
-		to_done = p
-	} else if framesize <= objabi.StackBig {
-		// large stack: SP-framesize < stackguard-StackSmall
-		//	ADD	$-(framesize-StackSmall), SP, X11
-		//	BLTU	X11, stackguard, done
-		p = obj.Appendp(p, newprog)
-		// TODO(sorear): logic inconsistent with comment, but both match all non-x86 arches
-		p.As = AADDI
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
-		p.Reg = REG_SP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_X11
-
-		p = obj.Appendp(p, newprog)
-		p.As = ABLTU
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_X10
-		p.Reg = REG_X11
 		p.To.Type = obj.TYPE_BRANCH
 		to_done = p
 	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	// stackguard is X10
-		//	MOV	$StackPreempt, X11
-		//	BEQ	X10, X11, more
-		//	ADD	$StackGuard, SP, X11
-		//	SUB	X10, X11
-		//	MOV	$(framesize+(StackGuard-StackSmall)), X10
-		//	BGTU	X11, X10, done
-		p = obj.Appendp(p, newprog)
-		p.As = AMOV
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackPreempt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_X11
+		// large stack: SP-framesize < stackguard-StackSmall
+		offset := int64(framesize) - objabi.StackSmall
+		if framesize > objabi.StackBig {
+			// Such a large stack we need to protect against underflow.
+			// The runtime guarantees SP > objabi.StackBig, but
+			// framesize is large enough that SP-framesize may
+			// underflow, causing a direct comparison with the
+			// stack guard to incorrectly succeed. We explicitly
+			// guard against underflow.
+			//
+			//	MOV	$(framesize-StackSmall), X11
+			//	BLTU	SP, X11, label-of-call-to-morestack
 
-		p = obj.Appendp(p, newprog)
-		to_more = p
-		p.As = ABEQ
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_X10
-		p.Reg = REG_X11
-		p.To.Type = obj.TYPE_BRANCH
+			p = obj.Appendp(p, newprog)
+			p.As = AMOV
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = offset
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_X11
 
+			p = obj.Appendp(p, newprog)
+			p.As = ABLTU
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = REG_SP
+			p.Reg = REG_X11
+			p.To.Type = obj.TYPE_BRANCH
+			to_more = p
+		}
+
+		// Check against the stack guard. We've ensured this won't underflow.
+		//	ADD	$-(framesize-StackSmall), SP, X11
+		//	// if X11 > stackguard { goto done }
+		//	BLTU	stackguard, X11, done
 		p = obj.Appendp(p, newprog)
 		p.As = AADDI
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
+		p.From.Offset = -offset
 		p.Reg = REG_SP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_X11
-
-		p = obj.Appendp(p, newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_X10
-		p.Reg = REG_X11
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_X11
-
-		p = obj.Appendp(p, newprog)
-		p.As = AMOV
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_X10
 
 		p = obj.Appendp(p, newprog)
 		p.As = ABLTU

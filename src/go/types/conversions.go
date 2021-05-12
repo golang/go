@@ -17,6 +17,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
 	var ok bool
+	var reason string
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion
@@ -31,14 +32,18 @@ func (check *Checker) conversion(x *operand, T Type) {
 			x.val = constant.MakeString(string(codepoint))
 			ok = true
 		}
-	case x.convertibleTo(check, T):
+	case x.convertibleTo(check, T, &reason):
 		// non-constant conversion
 		x.mode = value
 		ok = true
 	}
 
 	if !ok {
-		check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+		if reason != "" {
+			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, reason)
+		} else {
+			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
+		}
 		x.mode = invalid
 		return
 	}
@@ -79,7 +84,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // convertibleTo reports whether T(x) is valid.
 // The check parameter may be nil if convertibleTo is invoked through an
 // exported API call, i.e., when all methods have been type-checked.
-func (x *operand) convertibleTo(check *Checker, T Type) bool {
+func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
 	// "x is assignable to T"
 	if ok, _ := x.assignableTo(check, T, nil); ok {
 		return true
@@ -133,6 +138,23 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 		return true
 	}
 
+	// "x is a slice, T is a pointer-to-array type,
+	// and the slice and array types have identical element types."
+	if s := asSlice(V); s != nil {
+		if p := asPointer(T); p != nil {
+			if a := asArray(p.Elem()); a != nil {
+				if check.identical(s.Elem(), a.Elem()) {
+					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+						return true
+					}
+					if reason != nil {
+						*reason = "conversion of slices to array pointers requires go1.17 or later"
+					}
+				}
+			}
+		}
+	}
+
 	return false
 }
 
@@ -142,7 +164,7 @@ func isUintptr(typ Type) bool {
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this asBasic() instead of typ.(*Basic) correct?
+	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
 	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.

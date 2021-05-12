@@ -88,28 +88,22 @@ func (t LocPair) String() string {
 	return fmt.Sprintf("<%s,%s>", n0, n1)
 }
 
-type ArgPair struct {
-	reg *Register
-	mem LocalSlot
-}
+type LocResults []Location
 
-func (ap *ArgPair) Reg() int16 {
-	return ap.reg.objNum
-}
-
-func (ap *ArgPair) Type() *types.Type {
-	return ap.mem.Type
-}
-
-func (ap *ArgPair) Mem() *LocalSlot {
-	return &ap.mem
-}
-
-func (t ArgPair) String() string {
-	n0 := "nil"
-	if t.reg != nil {
-		n0 = t.reg.String()
+func (t LocResults) String() string {
+	s := "<"
+	a := ""
+	for _, r := range t {
+		a += s
+		s = ","
+		a += r.String()
 	}
-	n1 := t.mem.String()
-	return fmt.Sprintf("<%s,%s>", n0, n1)
+	a += ">"
+	return a
+}
+
+type Spill struct {
+	Type   *types.Type
+	Offset int64
+	Reg    int16
 }

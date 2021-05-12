@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-// TestIntendedInlining tests that specific runtime functions are inlined.
+// TestIntendedInlining tests that specific functions are inlined.
 // This allows refactoring for code clarity and re-use without fear that
 // changes to the compiler will cause silent performance regressions.
 func TestIntendedInlining(t *testing.T) {
@@ -155,6 +155,9 @@ func TestIntendedInlining(t *testing.T) {
 			"(*rngSource).Int63",
 			"(*rngSource).Uint64",
 		},
+		"net": {
+			"(*UDPConn).ReadFromUDP",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
@@ -172,8 +175,8 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
 	if bits.UintSize == 64 {
-		// rotl_31 is only defined on 64-bit architectures
-		want["runtime"] = append(want["runtime"], "rotl_31")
+		// mix is only defined on 64-bit architectures
+		want["runtime"] = append(want["runtime"], "mix")
 	}
 
 	switch runtime.GOARCH {

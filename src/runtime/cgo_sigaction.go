@@ -4,6 +4,7 @@
 
 // Support for memory sanitizer. See runtime/cgo/sigaction.go.
 
+//go:build (linux && amd64) || (freebsd && amd64) || (linux && arm64)
 // +build linux,amd64 freebsd,amd64 linux,arm64
 
 package runtime

@@ -36,7 +36,7 @@ func assembleScopes(fnsym *obj.LSym, fn *ir.Func, dwarfVars []*dwarf.Var, varSco
 		dwarfScopes[i+1].Parent = int32(parent)
 	}
 
-	scopeVariables(dwarfVars, varScopes, dwarfScopes)
+	scopeVariables(dwarfVars, varScopes, dwarfScopes, fnsym.ABI() != obj.ABI0)
 	if fnsym.Func().Text != nil {
 		scopePCs(fnsym, fn.Marks, dwarfScopes)
 	}
@@ -44,8 +44,12 @@ func assembleScopes(fnsym *obj.LSym, fn *ir.Func, dwarfVars []*dwarf.Var, varSco
 }
 
 // scopeVariables assigns DWARF variable records to their scopes.
-func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ir.ScopeID, dwarfScopes []dwarf.Scope) {
-	sort.Stable(varsByScopeAndOffset{dwarfVars, varScopes})
+func scopeVariables(dwarfVars []*dwarf.Var, varScopes []ir.ScopeID, dwarfScopes []dwarf.Scope, regabi bool) {
+	if regabi {
+		sort.Stable(varsByScope{dwarfVars, varScopes})
+	} else {
+		sort.Stable(varsByScopeAndOffset{dwarfVars, varScopes})
+	}
 
 	i0 := 0
 	for i := range dwarfVars {
@@ -109,6 +113,24 @@ func (v varsByScopeAndOffset) Less(i, j int) bool {
 }
 
 func (v varsByScopeAndOffset) Swap(i, j int) {
+	v.vars[i], v.vars[j] = v.vars[j], v.vars[i]
+	v.scopes[i], v.scopes[j] = v.scopes[j], v.scopes[i]
+}
+
+type varsByScope struct {
+	vars   []*dwarf.Var
+	scopes []ir.ScopeID
+}
+
+func (v varsByScope) Len() int {
+	return len(v.vars)
+}
+
+func (v varsByScope) Less(i, j int) bool {
+	return v.scopes[i] < v.scopes[j]
+}
+
+func (v varsByScope) Swap(i, j int) {
 	v.vars[i], v.vars[j] = v.vars[j], v.vars[i]
 	v.scopes[i], v.scopes[j] = v.scopes[j], v.scopes[i]
 }

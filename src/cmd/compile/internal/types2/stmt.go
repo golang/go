@@ -1,4 +1,3 @@
-// UNREVIEWED
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -14,16 +13,20 @@ import (
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *syntax.BlockStmt, iota constant.Value) {
+	if check.conf.IgnoreFuncBodies {
+		panic("internal error: function body not ignored")
+	}
+
 	if check.conf.Trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
-			check.trace(endPos(body), "--- <end>")
+			check.trace(syntax.EndPos(body), "--- <end>")
 		}()
 	}
 
 	// set function scope extent
 	sig.scope.pos = body.Pos()
-	sig.scope.end = endPos(body)
+	sig.scope.end = syntax.EndPos(body)
 
 	// save/restore current context and setup function context
 	// (and use 0 indentation at function start)
@@ -67,7 +70,7 @@ func (check *Checker) usage(scope *Scope) {
 		}
 	}
 	sort.Slice(unused, func(i, j int) bool {
-		return cmpPos(unused[i].pos, unused[j].pos) < 0
+		return unused[i].pos.Cmp(unused[j].pos) < 0
 	})
 	for _, v := range unused {
 		check.softErrorf(v.pos, "%s declared but not used", v.name)
@@ -155,7 +158,7 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
 }
 
 func (check *Checker) openScope(node syntax.Node, comment string) {
-	check.openScopeUntil(node, endPos(node), comment)
+	check.openScopeUntil(node, syntax.EndPos(node), comment)
 }
 
 func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
@@ -253,8 +256,10 @@ L:
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
 				if check.identical(v.typ, vt.typ) {
-					check.errorf(&v, "duplicate case %s in expression switch", &v)
-					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+					var err error_
+					err.errorf(&v, "duplicate case %s in expression switch", &v)
+					err.errorf(vt.pos, "previous case")
+					check.report(&err)
 					continue L
 				}
 			}
@@ -263,7 +268,7 @@ L:
 	}
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos, strict bool) (T Type) {
+func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
 L:
 	for _, e := range types {
 		T = check.typOrNil(e)
@@ -275,21 +280,23 @@ L:
 		}
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
-		for t, pos := range seen {
+		for t, other := range seen {
 			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
 					Ts = T.String()
 				}
-				check.errorf(e, "duplicate case %s in type switch", Ts)
-				check.error(pos, "\tprevious case") // secondary error, \t indented
+				var err error_
+				err.errorf(e, "duplicate case %s in type switch", Ts)
+				err.errorf(other, "previous case")
+				check.report(&err)
 				continue L
 			}
 		}
-		seen[T] = e.Pos()
+		seen[T] = e
 		if T != nil {
-			check.typeAssertion(e.Pos(), x, xtyp, T, strict)
+			check.typeAssertion(e.Pos(), x, xtyp, T)
 		}
 	}
 	return
@@ -353,12 +360,12 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		tch := asChan(ch.typ)
 		if tch == nil {
-			check.invalidOpf(s, "cannot send to non-chan type %s", ch.typ)
+			check.errorf(s, invalidOp+"cannot send to non-chan type %s", ch.typ)
 			return
 		}
 
 		if tch.dir == RecvOnly {
-			check.invalidOpf(s, "cannot send to receive-only type %s", tch)
+			check.errorf(s, invalidOp+"cannot send to receive-only type %s", tch)
 			return
 		}
 
@@ -369,7 +376,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if s.Rhs == nil {
 			// x++ or x--
 			if len(lhs) != 1 {
-				check.invalidASTf(s, "%s%s requires one operand", s.Op, s.Op)
+				check.errorf(s, invalidAST+"%s%s requires one operand", s.Op, s.Op)
 				return
 			}
 			var x operand
@@ -378,7 +385,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				return
 			}
 			if !isNumeric(x.typ) {
-				check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+				check.errorf(lhs[0], invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
 				return
 			}
 			check.assignVar(lhs[0], &x)
@@ -405,11 +412,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
 		check.assignVar(lhs[0], &x)
 
-	// case *syntax.GoStmt:
-	// 	check.suspendedCall("go", s.Call)
-
-	// case *syntax.DeferStmt:
-	// 	check.suspendedCall("defer", s.Call)
 	case *syntax.CallStmt:
 		// TODO(gri) get rid of this conversion to string
 		kind := "go"
@@ -430,8 +432,10 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 				// with the same name as a result parameter is in scope at the place of the return."
 				for _, obj := range res.vars {
 					if alt := check.lookup(obj.name); alt != nil && alt != obj {
-						check.errorf(s, "result parameter %s not in scope at return", obj.name)
-						check.errorf(alt, "\tinner declaration of %s", obj)
+						var err error_
+						err.errorf(s, "result parameter %s not in scope at return", obj.name)
+						err.errorf(alt, "inner declaration of %s", obj)
+						check.report(&err)
 						// ok to continue
 					}
 				}
@@ -478,7 +482,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// goto's must have labels, should have been caught above
 			fallthrough
 		default:
-			check.invalidASTf(s, "branch statement: %s", s.Tok)
+			check.errorf(s, invalidAST+"branch statement: %s", s.Tok)
 		}
 
 	case *syntax.BlockStmt:
@@ -636,7 +640,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 	seen := make(valueMap) // map of seen case values to positions and types
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.invalidASTf(clause, "incorrect expression switch case")
+			check.error(clause, invalidAST+"incorrect expression switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -680,6 +684,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if x.mode == invalid {
 		return
 	}
+	// Caution: We're not using asInterface here because we don't want
+	//          to switch on a suitably constrained type parameter (for
+	//          now).
+	// TODO(gri) Need to revisit this.
 	xtyp, _ := under(x.typ).(*Interface)
 	if xtyp == nil {
 		check.errorf(&x, "%s is not an interface type", &x)
@@ -689,11 +697,11 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 
 	check.multipleSwitchDefaults(s.Body)
 
-	var lhsVars []*Var                // list of implicitly declared lhs variables
-	seen := make(map[Type]syntax.Pos) // map of seen types to positions
+	var lhsVars []*Var                 // list of implicitly declared lhs variables
+	seen := make(map[Type]syntax.Expr) // map of seen types to positions
 	for i, clause := range s.Body {
 		if clause == nil {
-			check.invalidASTf(s, "incorrect type switch case")
+			check.error(s, invalidAST+"incorrect type switch case")
 			continue
 		}
 		end := s.Rbrace
@@ -702,7 +710,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		}
 		// Check each type in this type switch case.
 		cases := unpackExpr(clause.Cases)
-		T := check.caseTypes(&x, xtyp, cases, seen, false)
+		T := check.caseTypes(&x, xtyp, cases, seen)
 		check.openScopeUntil(clause, end, "case")
 		// If lhs exists, declare a corresponding variable in the case-local scope.
 		if lhs != nil {
@@ -719,7 +727,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			// "at the end of the TypeSwitchCase" in #16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
-				scopePos = endPos(cases[n-1])
+				scopePos = syntax.EndPos(cases[n-1])
 			}
 			check.declare(check.scope, nil, obj, scopePos)
 			check.recordImplicit(clause, obj)
@@ -733,6 +741,9 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	}
 
 	// If lhs exists, we must have at least one lhs variable that was used.
+	// (We can't use check.usage because that only looks at one scope; and
+	// we don't want to use the same variable for all scopes and change the
+	// variable type underfoot.)
 	if lhs != nil {
 		var used bool
 		for _, v := range lhsVars {
@@ -759,7 +770,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	var sValue syntax.Expr
 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
 		if len(p.ElemList) != 2 {
-			check.invalidASTf(s, "invalid lhs in range clause")
+			check.error(s, invalidAST+"invalid lhs in range clause")
 			return
 		}
 		sKey = p.ElemList[0]
@@ -833,7 +844,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 
 		// declare variables
 		if len(vars) > 0 {
-			scopePos := endPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
+			scopePos := syntax.EndPos(rclause.X) // TODO(gri) should this just be s.Body.Pos (spec clarification)?
 			for _, obj := range vars {
 				// spec: "The scope of a constant or variable identifier declared inside
 				// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl

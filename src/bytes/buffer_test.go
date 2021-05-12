@@ -6,6 +6,7 @@ package bytes_test
 
 import (
 	. "bytes"
+	"fmt"
 	"io"
 	"math/rand"
 	"testing"
@@ -384,6 +385,16 @@ func TestRuneIO(t *testing.T) {
 		if r1 != r2 || r1 != r || nbytes != size || err != nil {
 			t.Fatalf("ReadRune(%U) after UnreadRune got %U,%d not %U,%d (err=%s)", r, r2, nbytes, r, size, err)
 		}
+	}
+}
+
+func TestWriteInvalidRune(t *testing.T) {
+	// Invalid runes, including negative ones, should be written as
+	// utf8.RuneError.
+	for _, r := range []rune{-1, utf8.MaxRune + 1} {
+		var buf Buffer
+		buf.WriteRune(r)
+		check(t, fmt.Sprintf("TestWriteInvalidRune (%d)", r), &buf, "\uFFFD")
 	}
 }
 

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build openbsd,!amd64,!arm64
+//go:build openbsd && !386 && !amd64 && !arm64
+// +build openbsd,!386,!amd64,!arm64
 
 package runtime
 

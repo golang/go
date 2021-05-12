@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build race
 // +build race
 
 package race_test
@@ -19,11 +20,7 @@ import (
 )
 
 func TestOutput(t *testing.T) {
-	pkgdir, err := os.MkdirTemp("", "go-build-race-output")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(pkgdir)
+	pkgdir := t.TempDir()
 	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "testing").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go install -race: %v\n%s", err, out)
@@ -34,11 +31,7 @@ func TestOutput(t *testing.T) {
 			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
 			continue
 		}
-		dir, err := os.MkdirTemp("", "go-build")
-		if err != nil {
-			t.Fatalf("failed to create temp directory: %v", err)
-		}
-		defer os.RemoveAll(dir)
+		dir := t.TempDir()
 		source := "main.go"
 		if test.run == "test" {
 			source = "main_test.go"
@@ -105,6 +98,8 @@ var tests = []struct {
 	{"simple", "run", "", "atexit_sleep_ms=0", `
 package main
 import "time"
+var xptr *int
+var donechan chan bool
 func main() {
 	done := make(chan bool)
 	x := 0
@@ -116,32 +111,34 @@ func store(x *int, v int) {
 	*x = v
 }
 func startRacer(x *int, done chan bool) {
-	go racer(x, done)
+	xptr = x
+	donechan = done
+	go racer()
 }
-func racer(x *int, done chan bool) {
+func racer() {
 	time.Sleep(10*time.Millisecond)
-	store(x, 42)
-	done <- true
+	store(xptr, 42)
+	donechan <- true
 }
 `, []string{`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.store\(\)
-      .+/main\.go:12 \+0x[0-9,a-f]+
+      .+/main\.go:14 \+0x[0-9,a-f]+
   main\.racer\(\)
-      .+/main\.go:19 \+0x[0-9,a-f]+
+      .+/main\.go:23 \+0x[0-9,a-f]+
 
 Previous write at 0x[0-9,a-f]+ by main goroutine:
   main\.store\(\)
-      .+/main\.go:12 \+0x[0-9,a-f]+
+      .+/main\.go:14 \+0x[0-9,a-f]+
   main\.main\(\)
-      .+/main\.go:8 \+0x[0-9,a-f]+
+      .+/main\.go:10 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   main\.startRacer\(\)
-      .+/main\.go:15 \+0x[0-9,a-f]+
+      .+/main\.go:19 \+0x[0-9,a-f]+
   main\.main\(\)
-      .+/main\.go:7 \+0x[0-9,a-f]+
+      .+/main\.go:9 \+0x[0-9,a-f]+
 ==================
 Found 1 data race\(s\)
 exit status 66
@@ -238,15 +235,15 @@ func main() {
 package main
 
 var x int
-
+var c chan int
 func main() {
-	c := make(chan int)
-	go f(c)
+	c = make(chan int)
+	go f()
 	x = 1
 	<-c
 }
 
-func f(c chan int) {
+func f() {
 	g(c)
 }
 

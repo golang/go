@@ -15,6 +15,9 @@ import (
 	"strings"
 )
 
+// Disabled by default, but enabled when running tests (via types_test.go).
+var acceptMethodTypeParams bool
+
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
 // For the meaning of def, see Checker.definedType, below.
@@ -29,7 +32,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 	scope, obj := check.scope.LookupParent(e.Value, check.pos)
 	if obj == nil {
 		if e.Value == "_" {
-			check.errorf(e, "cannot use _ as value or type")
+			check.error(e, "cannot use _ as value or type")
 		} else {
 			if check.conf.CompilerErrorMessages {
 				check.errorf(e, "undefined: %s", e.Value)
@@ -76,7 +79,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		}
 		if obj == universeIota {
 			if check.iota == nil {
-				check.errorf(e, "cannot use iota outside constant declaration")
+				check.error(e, "cannot use iota outside constant declaration")
 				return
 			}
 			x.val = check.iota
@@ -131,7 +134,7 @@ func (check *Checker) typ(e syntax.Expr) Type {
 // (see ordinaryType).
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
-	check.ordinaryType(startPos(e), typ)
+	check.ordinaryType(syntax.StartPos(e), typ)
 	return typ
 }
 
@@ -141,7 +144,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	// We don't want to call under() (via Interface) or complete interfaces while we
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
-	check.atEnd(func() {
+	check.later(func() {
 		if t := asInterface(typ); t != nil {
 			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
 			if t.allTypes != nil {
@@ -336,8 +339,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// Always type-check method type parameters but complain if they are not enabled.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
-		if recvPar != nil && !check.conf.AcceptMethodTypeParams {
-			check.errorf(ftyp, "methods cannot have type parameters")
+		if recvPar != nil && !acceptMethodTypeParams {
+			check.error(ftyp, "methods cannot have type parameters")
 		}
 	}
 
@@ -352,8 +355,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	params, variadic := check.collectParams(scope, ftyp.ParamList, nil, true)
 	results, _ := check.collectParams(scope, ftyp.ResultList, nil, false)
 	scope.Squash(func(obj, alt Object) {
-		check.errorf(obj, "%s redeclared in this block", obj.Name())
-		check.reportAltDecl(alt)
+		var err error_
+		err.errorf(obj, "%s redeclared in this block", obj.Name())
+		err.recordAltDecl(alt)
+		check.report(&err)
 	})
 
 	if recvPar != nil {
@@ -426,9 +431,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 }
 
 // goTypeName returns the Go type name for typ and
-// removes any occurences of "types." from that name.
+// removes any occurrences of "types2." from that name.
 func goTypeName(typ Type) string {
-	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
+	return strings.Replace(fmt.Sprintf("%T", typ), "types2.", "", -1) // strings.ReplaceAll is not available in Go 1.4
 }
 
 // typInternal drives type checking of types.
@@ -509,11 +514,14 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			typ.len = check.arrayLength(e.Len)
 		} else {
 			// [...]array
-			check.errorf(e, "invalid use of [...] array (outside a composite literal)")
+			check.error(e, "invalid use of [...] array (outside a composite literal)")
 			typ.len = -1
 		}
 		typ.elem = check.varType(e.Elem)
-		return typ
+		if typ.len >= 0 {
+			return typ
+		}
+		// report error if we encountered [...]
 
 	case *syntax.SliceType:
 		typ := new(Slice)
@@ -572,7 +580,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		//
 		// Delay this check because it requires fully setup types;
 		// it is safe to continue in any case (was issue 6667).
-		check.atEnd(func() {
+		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
 				if asTypeParam(typ.key) != nil {
@@ -597,7 +605,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 		case syntax.RecvOnly:
 			dir = RecvOnly
 		default:
-			check.invalidASTf(e, "unknown channel direction %d", e.Dir)
+			check.errorf(e, invalidAST+"unknown channel direction %d", e.Dir)
 			// ok to continue
 		}
 
@@ -669,12 +677,12 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
 	// determine argument positions (for error reporting)
 	typ.poslist = make([]syntax.Pos, len(targs))
 	for i, arg := range targs {
-		typ.poslist[i] = arg.Pos()
+		typ.poslist[i] = syntax.StartPos(arg)
 	}
 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid
-	check.atEnd(func() {
+	check.later(func() {
 		t := typ.expand()
 		check.validType(t, nil)
 	})
@@ -710,7 +718,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
 }
 
 // typeList provides the list of types corresponding to the incoming expression list.
-// If an error occured, the result is nil, but all list elements were type-checked.
+// If an error occurred, the result is nil, but all list elements were type-checked.
 func (check *Checker) typeList(list []syntax.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
 	for i, x := range list {
@@ -761,7 +769,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 			// named parameter
 			name := field.Name.Value
 			if name == "" {
-				check.invalidASTf(field.Name, "anonymous parameter")
+				check.error(field.Name, invalidAST+"anonymous parameter")
 				// ok to continue
 			}
 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
@@ -778,7 +786,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 	}
 
 	if named && anonymous {
-		check.invalidASTf(list[0], "list contains both named and anonymous parameters")
+		check.error(list[0], invalidAST+"list contains both named and anonymous parameters")
 		// ok to continue
 	}
 
@@ -796,8 +804,10 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 
 func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
 	if alt := oset.insert(obj); alt != nil {
-		check.errorf(pos, "%s redeclared", obj.Name())
-		check.reportAltDecl(alt)
+		var err error_
+		err.errorf(pos, "%s redeclared", obj.Name())
+		err.recordAltDecl(alt)
+		check.report(&err)
 		return false
 	}
 	return true
@@ -813,9 +823,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			name := f.Name.Value
 			if name == "_" {
 				if check.conf.CompilerErrorMessages {
-					check.errorf(f.Name, "methods must have a unique non-blank name")
+					check.error(f.Name, "methods must have a unique non-blank name")
 				} else {
-					check.errorf(f.Name, "invalid method name _")
+					check.error(f.Name, "invalid method name _")
 				}
 				continue // ignore
 			}
@@ -826,7 +836,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 				// the author intended to include all types.
 				types = append(types, f.Type)
 				if tname != nil && tname != f.Name {
-					check.errorf(f.Name, "cannot have multiple type lists in an interface")
+					check.error(f.Name, "cannot have multiple type lists in an interface")
 				}
 				tname = f.Name
 				continue
@@ -836,7 +846,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			sig, _ := typ.(*Signature)
 			if sig == nil {
 				if typ != Typ[Invalid] {
-					check.invalidASTf(f.Type, "%s is not a method signature", typ)
+					check.errorf(f.Type, invalidAST+"%s is not a method signature", typ)
 				}
 				continue // ignore
 			}
@@ -844,8 +854,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			// Always type-check method type parameters but complain if they are not enabled.
 			// (This extra check is needed here because interface method signatures don't have
 			// a receiver specification.)
-			if sig.tparams != nil && !check.conf.AcceptMethodTypeParams {
-				check.errorf(f.Type, "methods cannot have type parameters")
+			if sig.tparams != nil && !acceptMethodTypeParams {
+				check.error(f.Type, "methods cannot have type parameters")
 			}
 
 			// use named receiver type if available (for better error messages)
@@ -940,18 +950,22 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			methods = append(methods, m)
 			mpos[m] = pos
 		case explicit:
-			check.errorf(pos, "duplicate method %s", m.name)
-			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+			var err error_
+			err.errorf(pos, "duplicate method %s", m.name)
+			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+			check.report(&err)
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
 			// Check method signatures after all types are computed (issue #33656).
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.
-			check.atEnd(func() {
+			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
-					check.errorf(pos, "duplicate method %s", m.name)
-					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
+					var err error_
+					err.errorf(pos, "duplicate method %s", m.name)
+					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+					check.report(&err)
 				}
 			})
 		}
@@ -1079,7 +1093,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
 				return val
 			}
 		}
-		check.invalidASTf(t, "incorrect tag syntax: %q", t.Value)
+		check.errorf(t, invalidAST+"incorrect tag syntax: %q", t.Value)
 	}
 	return ""
 }
@@ -1146,7 +1160,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// spec: "An embedded type must be specified as a type name T or as a
 			// pointer to a non-interface type name *T, and T itself may not be a
 			// pointer type."
-			pos := startPos(f.Type)
+			pos := syntax.StartPos(f.Type)
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(pos, "invalid embedded field type %s", f.Type)
@@ -1162,7 +1176,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			// (via under(t)) a possibly incomplete type.
 			embeddedTyp := typ // for closure below
 			embeddedPos := pos
-			check.atEnd(func() {
+			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
 				switch t := optype(t).(type) {
 				case *Basic:
@@ -1172,13 +1186,13 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 					}
 					// unsafe.Pointer is treated like a regular pointer
 					if t.kind == UnsafePointer {
-						check.errorf(embeddedPos, "embedded field type cannot be unsafe.Pointer")
+						check.error(embeddedPos, "embedded field type cannot be unsafe.Pointer")
 					}
 				case *Pointer:
-					check.errorf(embeddedPos, "embedded field type cannot be a pointer")
+					check.error(embeddedPos, "embedded field type cannot be a pointer")
 				case *Interface:
 					if isPtr {
-						check.errorf(embeddedPos, "embedded field type cannot be a pointer to an interface")
+						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
 					}
 				}
 			})
@@ -1212,7 +1226,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 	list := make([]Type, 0, len(types)) // assume all types are correct
 	for _, texpr := range types {
 		if texpr == nil {
-			check.invalidASTf(pos, "missing type constraint")
+			check.error(pos, invalidAST+"missing type constraint")
 			continue
 		}
 		list = append(list, check.varType(texpr))
@@ -1222,7 +1236,7 @@ func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr
 	// interfaces, which may not be complete yet. It's ok to do this check at the
 	// end because it's not a requirement for correctness of the code.
 	// Note: This is a quadratic algorithm, but type lists tend to be short.
-	check.atEnd(func() {
+	check.later(func() {
 		for i, t := range list {
 			if t := asInterface(t); t != nil {
 				check.completeInterface(types[i].Pos(), t)

@@ -107,7 +107,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
-		var tpar *TypeParam // set if obj receiver is a type parameter
+		var tpar *_TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
@@ -142,6 +142,8 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(gri) is this what we want to do for type parameters? (spec question)
+				// TODO(#45639) the error message produced as a result of skipping an
+				//              underlying type parameter should be improved.
 				typ = named.under()
 				if asTypeParam(typ) != nil {
 					continue
@@ -195,7 +197,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					indirect = e.indirect
 				}
 
-			case *TypeParam:
+			case *_TypeParam:
 				// only consider explicit methods in the type parameter bound, not
 				// methods that may be common to all types in the type list.
 				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {

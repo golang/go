@@ -275,6 +275,60 @@ B1:
 build A:        A B2
 downgrade A B1: A B1
 
+# Both B3 and C2 require D2.
+# If we downgrade D to D1, then in isolation B3 would downgrade to B1,
+# because B2 is hidden — B1 is the next-highest version that is not hidden.
+# However, if we downgrade D, we will also downgrade C to C1.
+# And C1 requires B2.hidden, and B2.hidden also meets our requirements:
+# it is compatible with D1 and a strict downgrade from B3.
+#
+# Since neither the initial nor the final build list includes B1,
+# and the nothing in the final downgraded build list requires E at all,
+# no dependency on E1 (required by only B1) should be introduced.
+#
+name: downhiddenartifact
+A: B3 C2
+A1: B3
+B1: E1
+B2.hidden:
+B3: D2
+C1: B2.hidden
+C2: D2
+D1:
+D2:
+build A1: A1 B3 D2
+downgrade A1 D1: A1 B1 D1 E1
+build A: A B3 C2 D2
+downgrade A D1: A B2.hidden C1 D1
+
+# Both B3 and C3 require D2.
+# If we downgrade D to D1, then in isolation B3 would downgrade to B1,
+# and C3 would downgrade to C1.
+# But C1 requires B2.hidden, and B1 requires C2.hidden, so we can't
+# downgrade to either of those without pulling the other back up a little.
+#
+# B2.hidden and C2.hidden are both compatible with D1, so that still
+# meets our requirements — but then we're in an odd state in which
+# B and C have both been downgraded to hidden versions, without any
+# remaining requirements to explain how those hidden versions got there.
+#
+# TODO(bcmills): Would it be better to force downgrades to land on non-hidden
+# versions?
+# In this case, that would remove the dependencies on B and C entirely.
+#
+name: downhiddencross
+A: B3 C3
+B1: C2.hidden
+B2.hidden:
+B3: D2
+C1: B2.hidden
+C2.hidden:
+C3: D2
+D1:
+D2:
+build A: A B3 C3 D2
+downgrade A D1: A B2.hidden C2.hidden D1
+
 # golang.org/issue/25542.
 name: noprev1
 A: B4 C2

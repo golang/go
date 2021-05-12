@@ -100,9 +100,11 @@ func genIndexedOperand(v *ssa.Value) obj.Addr {
 	// Reg: base register, Index: (shifted) index register
 	mop := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
 	switch v.Op {
-	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8:
+	case ssa.OpARM64MOVDloadidx8, ssa.OpARM64MOVDstoreidx8, ssa.OpARM64MOVDstorezeroidx8,
+		ssa.OpARM64FMOVDloadidx8, ssa.OpARM64FMOVDstoreidx8:
 		mop.Index = arm64.REG_LSL | 3<<5 | v.Args[1].Reg()&31
-	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4:
+	case ssa.OpARM64MOVWloadidx4, ssa.OpARM64MOVWUloadidx4, ssa.OpARM64MOVWstoreidx4, ssa.OpARM64MOVWstorezeroidx4,
+		ssa.OpARM64FMOVSloadidx4, ssa.OpARM64FMOVSstoreidx4:
 		mop.Index = arm64.REG_LSL | 2<<5 | v.Args[1].Reg()&31
 	case ssa.OpARM64MOVHloadidx2, ssa.OpARM64MOVHUloadidx2, ssa.OpARM64MOVHstoreidx2, ssa.OpARM64MOVHstorezeroidx2:
 		mop.Index = arm64.REG_LSL | 1<<5 | v.Args[1].Reg()&31
@@ -140,9 +142,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
 	case ssa.OpARM64MOVDnop:
-		if v.Reg() != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
@@ -230,7 +229,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = ra
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = rm
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: rn})
+		p.SetFrom3Reg(rn)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rt
 	case ssa.OpARM64ADDconst,
@@ -293,7 +292,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+		p.SetFrom3Reg(v.Args[0].Reg())
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -435,7 +434,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64MOVHUloadidx2,
 		ssa.OpARM64MOVWloadidx4,
 		ssa.OpARM64MOVWUloadidx4,
-		ssa.OpARM64MOVDloadidx8:
+		ssa.OpARM64MOVDloadidx8,
+		ssa.OpARM64FMOVDloadidx8,
+		ssa.OpARM64FMOVSloadidx4:
 		p := s.Prog(v.Op.Asm())
 		p.From = genIndexedOperand(v)
 		p.To.Type = obj.TYPE_REG
@@ -472,7 +473,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FMOVDstoreidx,
 		ssa.OpARM64MOVHstoreidx2,
 		ssa.OpARM64MOVWstoreidx4,
-		ssa.OpARM64MOVDstoreidx8:
+		ssa.OpARM64FMOVSstoreidx4,
+		ssa.OpARM64MOVDstoreidx8,
+		ssa.OpARM64FMOVDstoreidx8:
 		p := s.Prog(v.Op.Asm())
 		p.To = genIndexedOperand(v)
 		p.From.Type = obj.TYPE_REG
@@ -516,17 +519,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.To, v)
 	case ssa.OpARM64BFI,
 		ssa.OpARM64BFXIL:
-		r := v.Reg()
-		if r != v.Args[0].Reg() {
-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
-		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
+		p.SetFrom3Const(v.AuxInt & 0xff)
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
+		p.To.Reg = v.Reg()
 	case ssa.OpARM64SBFIZ,
 		ssa.OpARM64SBFX,
 		ssa.OpARM64UBFIZ,
@@ -534,7 +533,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt >> 8
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
+		p.SetFrom3Const(v.AuxInt & 0xff)
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
@@ -894,6 +893,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FMOVSgpfp,
 		ssa.OpARM64FNEGS,
 		ssa.OpARM64FNEGD,
+		ssa.OpARM64FSQRTS,
 		ssa.OpARM64FSQRTD,
 		ssa.OpARM64FCVTZSSW,
 		ssa.OpARM64FCVTZSDW,
@@ -915,6 +915,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64FCVTDS,
 		ssa.OpARM64REV,
 		ssa.OpARM64REVW,
+		ssa.OpARM64REV16,
 		ssa.OpARM64REV16W,
 		ssa.OpARM64RBIT,
 		ssa.OpARM64RBITW,
@@ -953,7 +954,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
 		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
 		p.Reg = v.Args[0].Reg()
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r1})
+		p.SetFrom3Reg(r1)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSINC, ssa.OpARM64CSINV, ssa.OpARM64CSNEG:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
+		p.Reg = v.Args[0].Reg()
+		p.SetFrom3Reg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64CSETM:
+		p := s.Prog(arm64.ACSETM)
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = condBits[ssa.Op(v.AuxInt)]
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpARM64DUFFZERO:
@@ -1086,7 +1101,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
 	case ssa.OpARM64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

@@ -41,7 +41,7 @@ type Name struct {
 	pragma    PragmaFlag // int16
 	flags     bitset16
 	sym       *types.Sym
-	Func      *Func
+	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
 	Offset_   int64
 	val       constant.Value
 	Opt       interface{} // for use by escape analysis
@@ -49,7 +49,9 @@ type Name struct {
 
 	PkgName *PkgName // real package for import . names
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
-	// For a closure var, the ONAME node of the outer captured variable
+	// For a closure var, the ONAME node of the outer captured variable.
+	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
+	// For the name of a function, points to corresponding Func node.
 	Defn Node
 
 	// The function, method, or closure in which local variable or param is declared.
@@ -246,44 +248,47 @@ func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
 func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
 
 const (
-	nameReadonly              = 1 << iota
-	nameByval                 // is the variable captured by value or by reference
-	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
-	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
-	nameUsed                  // for variable declared and not used error
-	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original (if any) at n.Defn
-	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
-	nameAddrtaken             // address taken, even if not moved to heap
-	nameInlFormal             // PAUTO created by inliner, derived from callee formal
-	nameInlLocal              // PAUTO created by inliner, derived from callee local
-	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
-	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
-	nameAlias                 // is type name an alias
+	nameReadonly                 = 1 << iota
+	nameByval                    // is the variable captured by value or by reference
+	nameNeedzero                 // if it contains pointers, needs to be zeroed on function entry
+	nameAutoTemp                 // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed                     // for variable declared and not used error
+	nameIsClosureVar             // PAUTOHEAP closure pseudo-variable; original (if any) at n.Defn
+	nameIsOutputParamHeapAddr    // pointer to a result parameter's heap copy
+	nameIsOutputParamInRegisters // output parameter in registers spills as an auto
+	nameAddrtaken                // address taken, even if not moved to heap
+	nameInlFormal                // PAUTO created by inliner, derived from callee formal
+	nameInlLocal                 // PAUTO created by inliner, derived from callee local
+	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
+	nameLibfuzzerExtraCounter    // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+	nameAlias                    // is type name an alias
 )
 
-func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
-func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
-func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
-func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
-func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
-func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
-func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
-func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
-func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
-func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
+func (n *Name) Readonly() bool                 { return n.flags&nameReadonly != 0 }
+func (n *Name) Needzero() bool                 { return n.flags&nameNeedzero != 0 }
+func (n *Name) AutoTemp() bool                 { return n.flags&nameAutoTemp != 0 }
+func (n *Name) Used() bool                     { return n.flags&nameUsed != 0 }
+func (n *Name) IsClosureVar() bool             { return n.flags&nameIsClosureVar != 0 }
+func (n *Name) IsOutputParamHeapAddr() bool    { return n.flags&nameIsOutputParamHeapAddr != 0 }
+func (n *Name) IsOutputParamInRegisters() bool { return n.flags&nameIsOutputParamInRegisters != 0 }
+func (n *Name) Addrtaken() bool                { return n.flags&nameAddrtaken != 0 }
+func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal != 0 }
+func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
+func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
+func (n *Name) LibfuzzerExtraCounter() bool    { return n.flags&nameLibfuzzerExtraCounter != 0 }
 
-func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
-func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
-func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
-func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
-func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
-func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
-func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
-func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
-func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
-func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
+func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
+func (n *Name) SetAutoTemp(b bool)                 { n.flags.set(nameAutoTemp, b) }
+func (n *Name) SetUsed(b bool)                     { n.flags.set(nameUsed, b) }
+func (n *Name) SetIsClosureVar(b bool)             { n.flags.set(nameIsClosureVar, b) }
+func (n *Name) SetIsOutputParamHeapAddr(b bool)    { n.flags.set(nameIsOutputParamHeapAddr, b) }
+func (n *Name) SetIsOutputParamInRegisters(b bool) { n.flags.set(nameIsOutputParamInRegisters, b) }
+func (n *Name) SetAddrtaken(b bool)                { n.flags.set(nameAddrtaken, b) }
+func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal, b) }
+func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
+func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
+func (n *Name) SetLibfuzzerExtraCounter(b bool)    { n.flags.set(nameLibfuzzerExtraCounter, b) }
 
 // OnStack reports whether variable n may reside on the stack.
 func (n *Name) OnStack() bool {
@@ -398,7 +403,7 @@ func FinishCaptureNames(pos src.XPos, outerfn, fn *Func) {
 	// unhook them.
 	// make the list of pointers for the closure call.
 	for _, cv := range fn.ClosureVars {
-		// Unlink from n; see comment in syntax.go type Param for these fields.
+		// Unlink from n; see comment above on type Name for these fields.
 		n := cv.Defn.(*Name)
 		n.Innermost = cv.Outer
 
@@ -509,5 +514,3 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
 	p.pos = pos
 	return p
 }
-
-var RegFP *Name

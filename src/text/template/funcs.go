@@ -23,6 +23,9 @@ import (
 // return value evaluates to non-nil during execution, execution terminates and
 // Execute returns that error.
 //
+// Errors returned by Execute wrap the underlying error; call errors.As to
+// uncover them.
+//
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
 // apply to arguments of arbitrary type can use parameters of type interface{} or
@@ -344,7 +347,7 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 
 		var err error
 		if argv[i], err = prepareArg(arg, argType); err != nil {
-			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
+			return reflect.Value{}, fmt.Errorf("arg %d: %w", i, err)
 		}
 	}
 	return safeCall(fn, argv)
@@ -475,7 +478,9 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case k1 == uintKind && k2 == intKind:
 				truth = arg.Int() >= 0 && arg1.Uint() == uint64(arg.Int())
 			default:
-				return false, errBadComparison
+				if arg1 != zero && arg != zero {
+					return false, errBadComparison
+				}
 			}
 		} else {
 			switch k1 {
@@ -492,7 +497,7 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 			case uintKind:
 				truth = arg1.Uint() == arg.Uint()
 			default:
-				if arg == zero {
+				if arg == zero || arg1 == zero {
 					truth = arg1 == arg
 				} else {
 					if t2 := arg.Type(); !t2.Comparable() {

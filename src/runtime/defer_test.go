@@ -370,7 +370,7 @@ func g2() {
 	defer ap.method2()
 	defer ap.method1()
 	ff1(ap, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-	// Try to get the stack to be be moved by growing it too large, so
+	// Try to get the stack to be moved by growing it too large, so
 	// existing stack-allocated defer becomes invalid.
 	rec1(2000)
 }

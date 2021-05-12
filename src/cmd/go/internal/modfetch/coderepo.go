@@ -159,7 +159,7 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 		if r.codeDir != "" {
 			v = v[len(r.codeDir)+1:]
 		}
-		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
+		if v == "" || v != module.CanonicalVersion(v) || module.IsPseudoVersion(v) {
 			continue
 		}
 
@@ -172,8 +172,8 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
 
 		list = append(list, v)
 	}
-	SortVersions(list)
-	SortVersions(incompatible)
+	semver.Sort(list)
+	semver.Sort(incompatible)
 
 	return r.appendIncompatibleVersions(list, incompatible)
 }
@@ -385,7 +385,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	if statVers != "" && statVers == module.CanonicalVersion(statVers) {
 		info2.Version = statVers
 
-		if IsPseudoVersion(info2.Version) {
+		if module.IsPseudoVersion(info2.Version) {
 			if err := r.validatePseudoVersion(info, info2.Version); err != nil {
 				return nil, err
 			}
@@ -433,7 +433,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		}
 		trimmed := tag[len(tagPrefix):]
 		// Tags that look like pseudo-versions would be confusing. Ignore them.
-		if IsPseudoVersion(tag) {
+		if module.IsPseudoVersion(tag) {
 			return "", false
 		}
 
@@ -531,7 +531,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
 	}
 
-	info2.Version = PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
+	info2.Version = module.PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
 	return checkGoMod()
 }
 
@@ -560,7 +560,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return err
 	}
 
-	rev, err := PseudoVersionRev(version)
+	rev, err := module.PseudoVersionRev(version)
 	if err != nil {
 		return err
 	}
@@ -575,12 +575,12 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		}
 	}
 
-	t, err := PseudoVersionTime(version)
+	t, err := module.PseudoVersionTime(version)
 	if err != nil {
 		return err
 	}
 	if !t.Equal(info.Time.Truncate(time.Second)) {
-		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
+		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(module.PseudoVersionTimestampFormat))
 	}
 
 	tagPrefix := ""
@@ -604,7 +604,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 	// not enforce that property when resolving existing pseudo-versions: we don't
 	// know when the parent tags were added, and the highest-tagged parent may not
 	// have existed when the pseudo-version was first resolved.
-	base, err := PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
+	base, err := module.PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
 	if err != nil {
 		return err
 	}
@@ -661,7 +661,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		if err != nil {
 			return err
 		}
-		rev, err := PseudoVersionRev(version)
+		rev, err := module.PseudoVersionRev(version)
 		if err != nil {
 			return fmt.Errorf("not a descendent of preceding tag (%s)", lastTag)
 		}
@@ -672,8 +672,8 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 
 func (r *codeRepo) revToRev(rev string) string {
 	if semver.IsValid(rev) {
-		if IsPseudoVersion(rev) {
-			r, _ := PseudoVersionRev(rev)
+		if module.IsPseudoVersion(rev) {
+			r, _ := module.PseudoVersionRev(rev)
 			return r
 		}
 		if semver.Build(rev) == "+incompatible" {
@@ -843,7 +843,7 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
 		return nil, fmt.Errorf("version %s is not canonical", version)
 	}
 
-	if IsPseudoVersion(version) {
+	if module.IsPseudoVersion(version) {
 		// findDir ignores the metadata encoded in a pseudo-version,
 		// only using the revision at the end.
 		// Invoke Stat to verify the metadata explicitly so we don't return
@@ -942,7 +942,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
 		return fmt.Errorf("version %s is not canonical", version)
 	}
 
-	if IsPseudoVersion(version) {
+	if module.IsPseudoVersion(version) {
 		// findDir ignores the metadata encoded in a pseudo-version,
 		// only using the revision at the end.
 		// Invoke Stat to verify the metadata explicitly so we don't return

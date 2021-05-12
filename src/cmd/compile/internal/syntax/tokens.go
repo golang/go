@@ -111,9 +111,10 @@ const (
 	_ Operator = iota
 
 	// Def is the : in :=
-	Def  // :
-	Not  // !
-	Recv // <-
+	Def   // :
+	Not   // !
+	Recv  // <-
+	Tilde // ~
 
 	// precOrOr
 	OrOr // ||
