@@ -289,7 +289,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 
 	newf.Dcl = make([]*ir.Name, len(gf.Dcl))
 	for i, n := range gf.Dcl {
-		newf.Dcl[i] = subst.node(n).(*ir.Name)
+		newf.Dcl[i] = subst.localvar(n)
 	}
 
 	// Replace the types in the function signature.
@@ -315,9 +315,28 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	return newf
 }
 
-// node is like DeepCopy(), but creates distinct ONAME nodes, and also descends
-// into closures. It substitutes type arguments for type parameters in all the new
-// nodes.
+// localvar creates a new name node for the specified local variable and enters it
+// in subst.vars. It substitutes type arguments for type parameters in the type of
+// name as needed.
+func (subst *subster) localvar(name *ir.Name) *ir.Name {
+	m := ir.NewNameAt(name.Pos(), name.Sym())
+	if name.IsClosureVar() {
+		m.SetIsClosureVar(true)
+	}
+	m.SetType(subst.typ(name.Type()))
+	m.BuiltinOp = name.BuiltinOp
+	m.Curfn = subst.newf
+	m.Class = name.Class
+	assert(name.Class != ir.PEXTERN && name.Class != ir.PFUNC)
+	m.Func = name.Func
+	subst.vars[name] = m
+	m.SetTypecheck(1)
+	return m
+}
+
+// node is like DeepCopy(), but substitutes ONAME nodes based on subst.vars, and
+// also descends into closures. It substitutes type arguments for type parameters
+// in all the new nodes.
 func (subst *subster) node(n ir.Node) ir.Node {
 	// Use closure to capture all state needed by the ir.EditChildren argument.
 	var edit func(ir.Node) ir.Node
@@ -327,28 +346,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			return ir.TypeNode(subst.typ(x.Type()))
 
 		case ir.ONAME:
-			name := x.(*ir.Name)
-			if v := subst.vars[name]; v != nil {
+			if v := subst.vars[x.(*ir.Name)]; v != nil {
 				return v
 			}
-			m := ir.NewNameAt(name.Pos(), name.Sym())
-			if name.IsClosureVar() {
-				m.SetIsClosureVar(true)
-			}
-			t := x.Type()
-			if t == nil {
-				assert(name.BuiltinOp != 0)
-			} else {
-				newt := subst.typ(t)
-				m.SetType(newt)
-			}
-			m.BuiltinOp = name.BuiltinOp
-			m.Curfn = subst.newf
-			m.Class = name.Class
-			m.Func = name.Func
-			subst.vars[name] = m
-			m.SetTypecheck(1)
-			return m
+			return x
 		case ir.OLITERAL, ir.ONIL:
 			if x.Sym() != nil {
 				return x
@@ -545,7 +546,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 func (subst *subster) namelist(l []*ir.Name) []*ir.Name {
 	s := make([]*ir.Name, len(l))
 	for i, n := range l {
-		s[i] = subst.node(n).(*ir.Name)
+		s[i] = subst.localvar(n)
 		if n.Defn != nil {
 			s[i].Defn = subst.node(n.Defn)
 		}
