@@ -302,14 +302,11 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 }
 
 func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source.ParseMode, deps map[packagePath]*packageHandle) (*pkg, error) {
-	var pkg *pkg
-	var err error
-
 	var filter *unexportedFilter
 	if mode == source.ParseExported {
 		filter = &unexportedFilter{uses: map[string]bool{}}
 	}
-	pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, filter)
+	pkg, err := doTypeCheck(ctx, snapshot, m, mode, deps, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -322,11 +319,17 @@ func typeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode source
 		if len(unexpected) == 0 && len(missing) != 0 {
 			event.Log(ctx, fmt.Sprintf("discovered missing identifiers: %v", missing), tag.Package.Of(string(m.id)))
 			pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, filter)
+			if err != nil {
+				return nil, err
+			}
 			missing, unexpected = filter.ProcessErrors(pkg.typeErrors)
 		}
 		if len(unexpected) != 0 || len(missing) != 0 {
 			event.Log(ctx, fmt.Sprintf("falling back to safe trimming due to type errors: %v or still-missing identifiers: %v", unexpected, missing), tag.Package.Of(string(m.id)))
 			pkg, err = doTypeCheck(ctx, snapshot, m, mode, deps, nil)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
