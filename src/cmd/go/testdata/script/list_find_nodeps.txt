@@ -33,6 +33,16 @@ func F() {
     println(C.INT_MAX)
 }
 
+-- cgo/pkg_notcgo.go --
+//go:build !cgo
+// +build !cgo
+
+package cgopkg
+
+func F() {
+    println(0)
+}
+
 -- swig/pkg.go --
 package swigpkg
 
