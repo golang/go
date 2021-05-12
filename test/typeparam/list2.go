@@ -597,5 +597,14 @@ func TestTransform() {
 
 func main() {
 	TestList()
+	TestExtending()
+	TestRemove()
+	TestIssue4103()
+	TestIssue6349()
+	TestMove()
+	TestZeroList()
+	TestInsertBeforeUnknownMark()
+	TestInsertAfterUnknownMark()
+	TestTransform()
 }
 
