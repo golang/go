@@ -49,8 +49,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	ans := protocol.SemanticTokens{
 		Data: []uint32{},
 	}
-	kind := source.DetectLanguage("", td.URI.SpanURI().Filename())
-	snapshot, _, ok, release, err := s.beginFileRequest(ctx, td.URI, kind)
+	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, td.URI, source.UnknownKind)
 	defer release()
 	if !ok {
 		return nil, err
@@ -61,7 +60,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		// the client won't remember the wrong answer
 		return nil, errors.Errorf("semantictokens are disabled")
 	}
-	if kind == source.Tmpl {
+	if fh.Kind() == source.Tmpl {
 		// this is a little cumbersome to avoid both exporting 'encoded' and its methods
 		// and to avoid import cycles
 		e := &encoded{
@@ -76,14 +75,14 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		data := func() ([]uint32, error) {
 			return e.Data()
 		}
-		return template.SemanticTokens(ctx, snapshot, td.URI.SpanURI(), add, data)
+		return template.SemanticTokens(ctx, snapshot, fh.URI(), add, data)
 	}
-	pkg, err := snapshot.PackageForFile(ctx, td.URI.SpanURI(), source.TypecheckFull, source.WidestPackage)
+	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
 	if err != nil {
 		return nil, err
 	}
 	info := pkg.GetTypesInfo()
-	pgf, err := pkg.File(td.URI.SpanURI())
+	pgf, err := pkg.File(fh.URI())
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +91,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	}
 	if rng == nil && len(pgf.Src) > maxFullFileSize {
 		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
-			td.URI.SpanURI().Filename(), len(pgf.Src), maxFullFileSize)
+			fh.URI().Filename(), len(pgf.Src), maxFullFileSize)
 		return nil, err
 	}
 	e := &encoded{
