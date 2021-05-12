@@ -150,7 +150,7 @@ func References(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	return ans, nil
 }
 
-func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI, add func(line, start, len uint32), d func() ([]uint32, error)) (*protocol.SemanticTokens, error) {
+func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI, add func(line, start, len uint32), d func() []uint32) (*protocol.SemanticTokens, error) {
 	if skipTemplates(snapshot) {
 		return nil, nil
 	}
@@ -184,12 +184,7 @@ func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI,
 		line, col := p.LineCol(t.Start)
 		add(line, col, uint32(sz))
 	}
-	data, err := d()
-	if err != nil {
-		// this is an internal error, likely caused by a typo
-		// for a token or modifier
-		return nil, err
-	}
+	data := d()
 	ans := &protocol.SemanticTokens{
 		Data: data,
 		// for small cache, some day. for now, the LSP client ignores this

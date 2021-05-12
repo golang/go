@@ -23,6 +23,10 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+// The LSP says that errors for the semantic token requests should only be returned
+// for exceptions (a word not otherwise defined). This code treats a too-large file
+// as an exception. On parse errors, the code does what it can.
+
 // reject full semantic token requests for large files
 const maxFullFileSize int = 100000
 
@@ -72,7 +76,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		add := func(line, start uint32, len uint32) {
 			e.add(line, start, len, tokMacro, nil)
 		}
-		data := func() ([]uint32, error) {
+		data := func() []uint32 {
 			return e.Data()
 		}
 		return template.SemanticTokens(ctx, snapshot, fh.URI(), add, data)
@@ -89,9 +93,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	if err != nil {
 		return nil, err
 	}
-	if pgf.ParseErr != nil {
-		return nil, pgf.ParseErr
-	}
+	// don't return errors on pgf.ParseErr. Do what we can.
 	if rng == nil && len(pgf.Src) > maxFullFileSize {
 		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
 			fh.URI().Filename(), len(pgf.Src), maxFullFileSize)
@@ -107,16 +109,13 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		tokMods:  s.session.Options().SemanticMods,
 	}
 	if err := e.init(); err != nil {
+		// e.init should never return an error, unless there's some
+		// seemingly impossible race condition
 		return nil, err
 	}
 	e.semantics()
-	ans.Data, err = e.Data()
-	if err != nil {
-		// this is an internal error, likely caused by a typo
-		// for a token or modifier
-		return nil, err
-	}
-	// for small cache, some day. for now, the client ignores this
+	ans.Data = e.Data()
+	// For delta requests, but we've never seen any.
 	ans.ResultID = fmt.Sprintf("%v", time.Now())
 	return &ans, nil
 }
@@ -182,7 +181,8 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 		// "column mapper is for file...instead of..."
 		// "line is beyond end of file..."
 		// see line 116 of internal/span/token.go which uses Position not PositionFor
-		event.Error(e.ctx, "failed to convert to range", err)
+		// (it is too verbose to print the error on every token. some other RPC will fail)
+		// event.Error(e.ctx, "failed to convert to range", err)
 		return
 	}
 	if lspRange.End.Line != lspRange.Start.Line {
@@ -381,11 +381,13 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.UnaryExpr:
 		e.token(x.OpPos, len(x.Op.String()), tokOperator, nil)
 	case *ast.ValueSpec:
-	// things we won't see
-	case *ast.BadDecl, *ast.BadExpr, *ast.BadStmt,
-		*ast.File, *ast.Package:
+	// things we only see with parsing or type errors, so we ignore them
+	case *ast.BadDecl, *ast.BadExpr, *ast.BadStmt:
+		return true
+	// not going to see these
+	case *ast.File, *ast.Package:
 		log.Printf("implement %T %s", x, e.pgf.Tok.PositionFor(x.Pos(), false))
-	// things we knowingly ignore
+	// other things we knowingly ignore
 	case *ast.Comment, *ast.CommentGroup:
 		pop()
 		return false
@@ -578,14 +580,14 @@ func (e *encoded) init() error {
 	}
 	span, err := e.pgf.Mapper.RangeSpan(*e.rng)
 	if err != nil {
-		return errors.Errorf("range span (%v) error for %s", err, e.pgf.File.Name)
+		return errors.Errorf("range span (%w) error for %s", err, e.pgf.File.Name)
 	}
 	e.end = e.start + token.Pos(span.End().Offset())
 	e.start += token.Pos(span.Start().Offset())
 	return nil
 }
 
-func (e *encoded) Data() ([]uint32, error) {
+func (e *encoded) Data() []uint32 {
 	// binary operators, at least, will be out of order
 	sort.Slice(e.items, func(i, j int) bool {
 		if e.items[i].line != e.items[j].line {
@@ -616,7 +618,7 @@ func (e *encoded) Data() ([]uint32, error) {
 		}
 		x[j+4] = uint32(mask)
 	}
-	return x, nil
+	return x
 }
 
 func (e *encoded) importSpec(d *ast.ImportSpec) {
