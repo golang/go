@@ -1061,6 +1061,8 @@ func Peinit(ctxt *Link) {
 		// linker will honour that requirement.
 		PESECTALIGN = 32
 		PEFILEALIGN = 0
+		// We are creating an object file. The absolute address is irrelevant.
+		PEBASE = 0
 	}
 
 	var sh [16]pe.SectionHeader32
