@@ -54,7 +54,7 @@ func _() {
 }
 
 func _() {
-	type myStruct struct{ i int }
+	type myStruct struct{ i int } //@item(myStructType, "myStruct", "struct{...}", "struct")
 
 	myStruct{}  //@item(litStruct, "myStruct{}", "", "var")
 	&myStruct{} //@item(litStructPtr, "&myStruct{}", "", "var")
@@ -66,6 +66,11 @@ func _() {
 	msPtr = m //@snippet(" //", litStructPtr, "&myStruct{$0\\}", "&myStruct{$0\\}")
 
 	msPtr = &m //@snippet(" //", litStruct, "myStruct{$0\\}", "myStruct{$0\\}")
+
+	type myStructCopy struct { i int } //@item(myStructCopyType, "myStructCopy", "struct{...}", "struct")
+
+	// Don't offer literal completion for convertible structs.
+	ms = myStruct //@complete(" //", litStruct, myStructType, myStructCopyType)
 }
 
 type myImpl struct{}

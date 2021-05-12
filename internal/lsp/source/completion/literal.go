@@ -67,7 +67,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 		cand.addressable = true
 	}
 
-	if !c.matchingCandidate(&cand) {
+	if !c.matchingCandidate(&cand) || cand.convertTo != nil {
 		return
 	}
 
