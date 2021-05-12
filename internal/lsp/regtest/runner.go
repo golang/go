@@ -178,10 +178,6 @@ func DebugAddress(addr string) RunOption {
 	})
 }
 
-var WindowsLineEndings = optionSetter(func(opts *runConfig) {
-	opts.editor.WindowsLineEndings = true
-})
-
 // SkipLogs skips the buffering of logs during test execution. It is intended
 // for long-running stress tests.
 func SkipLogs() RunOption {

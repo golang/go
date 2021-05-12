@@ -19,7 +19,9 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/lsppos"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 )
 
 // Format formats a file with a given range.
@@ -177,7 +179,7 @@ func computeFixEdits(snapshot Snapshot, pgf *ParsedGoFile, options *imports.Opti
 	if err != nil {
 		return nil, err
 	}
-	return ToProtocolEdits(pgf.Mapper, edits)
+	return ProtocolEditsFromSource([]byte(left), edits, pgf.Mapper.Converter)
 }
 
 // importPrefix returns the prefix of the given file content through the final
@@ -278,6 +280,37 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 		return nil, err
 	}
 	return ToProtocolEdits(pgf.Mapper, edits)
+}
+
+// ProtocolEditsFromSource converts text edits to LSP edits using the original
+// source.
+func ProtocolEditsFromSource(src []byte, edits []diff.TextEdit, converter span.Converter) ([]protocol.TextEdit, error) {
+	m := lsppos.NewMapper(src)
+	var result []protocol.TextEdit
+	for _, edit := range edits {
+		spn, err := edit.Span.WithOffset(converter)
+		if err != nil {
+			return nil, fmt.Errorf("computing offsets: %v", err)
+		}
+		startLine, startChar := m.Position(spn.Start().Offset())
+		endLine, endChar := m.Position(spn.End().Offset())
+		if startLine < 0 || endLine < 0 {
+			return nil, fmt.Errorf("out of bound span: %v", spn)
+		}
+
+		pstart := protocol.Position{Line: uint32(startLine), Character: uint32(startChar)}
+		pend := protocol.Position{Line: uint32(endLine), Character: uint32(endChar)}
+		if pstart == pend && edit.NewText == "" {
+			// Degenerate case, which may result from a diff tool wanting to delete
+			// '\r' in line endings. Filter it out.
+			continue
+		}
+		result = append(result, protocol.TextEdit{
+			Range:   protocol.Range{Start: pstart, End: pend},
+			NewText: edit.NewText,
+		})
+	}
+	return result, nil
 }
 
 func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.TextEdit) ([]protocol.TextEdit, error) {

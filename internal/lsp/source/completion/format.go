@@ -143,6 +143,7 @@ Suffixes:
 	// add the additional text edits needed.
 	if cand.imp != nil {
 		addlEdits, err := c.importEdits(cand.imp)
+
 		if err != nil {
 			return CompletionItem{}, err
 		}

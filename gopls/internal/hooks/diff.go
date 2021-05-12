@@ -14,7 +14,7 @@ import (
 
 func ComputeEdits(uri span.URI, before, after string) (edits []diff.TextEdit, err error) {
 	// The go-diff library has an unresolved panic (see golang/go#278774).
-	// TOOD(rstambler): Remove the recover once the issue has been fixed
+	// TODO(rstambler): Remove the recover once the issue has been fixed
 	// upstream.
 	defer func() {
 		if r := recover(); r != nil {
