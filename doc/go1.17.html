@@ -507,7 +507,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="sync/atomic"><dt><a href="/pkg/sync/atomic/">sync/atomic</a></dt>
   <dd>
     <p><!-- CL 241678 -->
-      TODO: <a href="https://golang.org/cl/241678">https://golang.org/cl/241678</a>: add (*Value).Swap and (*Value).CompareAndSwap
+      <code>atomic.Value</code> now has <a href="/pkg/sync/atomic/#Value.Swap"><code>Swap</code></a> and
+      <a href="/pkg/sync/atomic/#Value.CompareAndSwap"><code>CompareAndSwap</code></a> methods that provide
+      additional atomic operations.
     </p>
   </dd>
 </dl><!-- sync/atomic -->
