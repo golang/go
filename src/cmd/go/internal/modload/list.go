@@ -153,12 +153,12 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				matches = append(matches, path)
 			}
 
-			for _, m := range matches {
+			for _, mPath := range matches {
 				var current string
 				if mg == nil {
-					current, _ = rs.rootSelected(m)
+					current, _ = rs.rootSelected(mPath)
 				} else {
-					current = mg.Selected(m)
+					current = mg.Selected(mPath)
 				}
 
 				if current == "none" && mgErr != nil {
@@ -170,20 +170,20 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 					}
 				}
 
-				info, err := Query(ctx, m, vers, current, allowed)
+				info, err := Query(ctx, mPath, vers, current, allowed)
 					if err != nil {
 					mods = append(mods, &modinfo.ModulePublic{
-						Path:    m,
+						Path:    mPath,
 						Version: vers,
-						Error:   modinfoError(m, vers, err),
+						Error:   modinfoError(mPath, vers, err),
 					})
 					continue
 				}
 
 				// Indicate that m was resolved from outside of rs by passing a nil
-				// *Requirements instead.
+				// *Requirements instead thereby marking the module as "not indirect".
 				var noRS *Requirements
-				version := module.Version{Path: m, Version: info.Version}
+				version := module.Version{Path: mPath, Version: info.Version}
 				if !matchedModule[version] {
 					matchedModule[version] = true
 					mods = append(mods, moduleInfo(ctx, noRS, version, mode))
