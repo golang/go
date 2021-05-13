@@ -465,14 +465,18 @@ func (c *coordinator) updateStats(result fuzzResult) {
 }
 
 func (c *coordinator) logStats() {
-	// TODO(jayconrod,katiehockman): consider printing the amount of coverage
-	// that has been reached so far (perhaps a percentage of edges?)
 	elapsed := time.Since(c.startTime)
 	if c.coverageOnlyRun() {
 		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
 	} else {
 		rate := float64(c.count) / elapsed.Seconds()
-		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount)
+		edges, hits := len(c.coverageData), 0
+		for _, c := range c.coverageData {
+			if c > 0 {
+				hits++
+			}
+		}
+		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d, coverage: %d/%d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount, hits, edges)
 	}
 }
 
