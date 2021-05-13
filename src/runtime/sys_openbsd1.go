@@ -7,31 +7,34 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 //go:nosplit
 //go:cgo_unsafe_args
 func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(thrsleep_trampoline)), unsafe.Pointer(&ident))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(thrsleep_trampoline)), unsafe.Pointer(&ident))
 }
 func thrsleep_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func thrwakeup(ident uintptr, n int32) int32 {
-	return libcCall(unsafe.Pointer(funcPC(thrwakeup_trampoline)), unsafe.Pointer(&ident))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(thrwakeup_trampoline)), unsafe.Pointer(&ident))
 }
 func thrwakeup_trampoline()
 
 //go:nosplit
 func osyield() {
-	libcCall(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(sched_yield_trampoline)), unsafe.Pointer(nil))
 }
 func sched_yield_trampoline()
 
 //go:nosplit
 func osyield_no_g() {
-	asmcgocall_no_g(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
+	asmcgocall_no_g(unsafe.Pointer(abi.FuncPCABI0(sched_yield_trampoline)), unsafe.Pointer(nil))
 }
 
 //go:cgo_import_dynamic libc_thrsleep __thrsleep "libc.so"
