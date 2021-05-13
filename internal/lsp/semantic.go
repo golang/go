@@ -77,6 +77,9 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		}
 		return template.SemanticTokens(ctx, snapshot, fh.URI(), add, data)
 	}
+	if fh.Kind() != source.Go {
+		return nil, nil
+	}
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
 	if err != nil {
 		return nil, err
