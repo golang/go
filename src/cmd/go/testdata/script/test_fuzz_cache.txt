@@ -39,7 +39,15 @@ import "testing"
 
 func FuzzY(f *testing.F) {
 	f.Add([]byte("y"))
-	f.Fuzz(func(t *testing.T, b []byte) {})
+	f.Fuzz(func(t *testing.T, b []byte) { Y(b) })
+}
+-- y.go --
+package y
+
+import "bytes"
+
+func Y(b []byte) bool {
+	return bytes.Equal(b, []byte("y"))
 }
 -- empty/empty.go --
 package empty
