@@ -43,6 +43,7 @@ func runTidy(cmd *base.Command, args []string) {
 	}
 
 	modload.SilenceMissingStdImports = true
+	modload.CheckTidyVersion()
 	modload.LoadALL()
 	modload.TidyBuildList()
 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
