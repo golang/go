@@ -108,6 +108,34 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
 }
 
 func TestRWMutex(t *testing.T) {
+	var m RWMutex
+
+	m.Lock()
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex locked")
+	}
+	if m.TryRLock() {
+		t.Fatalf("TryRLock succeeded with mutex locked")
+	}
+	m.Unlock()
+
+	if !m.TryLock() {
+		t.Fatalf("TryLock failed with mutex unlocked")
+	}
+	m.Unlock()
+
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex unlocked")
+	}
+	if !m.TryRLock() {
+		t.Fatalf("TryRLock failed with mutex rlocked")
+	}
+	if m.TryLock() {
+		t.Fatalf("TryLock succeeded with mutex rlocked")
+	}
+	m.RUnlock()
+	m.RUnlock()
+
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
 	n := 1000
 	if testing.Short() {
