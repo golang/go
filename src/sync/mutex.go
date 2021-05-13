@@ -81,6 +81,21 @@ func (m *Mutex) Lock() {
 	m.lockSlow()
 }
 
+// TryLock tries to lock m and reports whether it succeeded.
+//
+// Note that while correct uses of TryLock do exist, they are rare,
+// and use of TryLock is often a sign of a deeper problem
+// in a particular use of mutexes.
+func (m *Mutex) TryLock() bool {
+	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
+		if race.Enabled {
+			race.Acquire(unsafe.Pointer(m))
+		}
+		return true
+	}
+	return false
+}
+
 func (m *Mutex) lockSlow() {
 	var waitStartTime int64
 	starving := false
