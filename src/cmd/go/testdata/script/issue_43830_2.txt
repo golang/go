@@ -2,10 +2,10 @@
 
 [!cgo] skip 'skipping test without cgo'
 [!exec:gcc] skip 'skipping test without gcc present'
-[openbsd] skip 'skipping test on openbsd due to older gcc'
+[openbsd] env CC='clang'
+[!openbsd] env CC=`gcc`
 
 env CGO_CFLAGS='-flto -ffat-lto-objects'
-env CC='gcc'
 
 go build main.go
 
