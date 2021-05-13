@@ -340,6 +340,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if weak && !ldr.AttrReachable(rs) {
 				// Redirect it to runtime.unreachableMethod, which will throw if called.
 				rs = syms.unreachableMethod
+				rs = ldr.ResolveABIAlias(rs)
 			}
 			if target.IsExternal() {
 				nExtReloc++
@@ -623,6 +624,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		rs := ldr.ResolveABIAlias(r.Sym())
 		if r.Weak() && !ldr.AttrReachable(rs) {
 			rs = ctxt.ArchSyms.unreachableMethod
+			rs = ldr.ResolveABIAlias(rs)
 		}
 		rs, off := FoldSubSymbolOffset(ldr, rs)
 		rr.Xadd = r.Add() + off
