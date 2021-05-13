@@ -3,7 +3,7 @@
 [!cgo] skip 'skipping test without cgo'
 [!exec:gcc] skip 'skipping test without gcc present'
 [openbsd] env CC='clang'
-[!openbsd] env CC=`gcc`
+[!openbsd] env CC='gcc'
 
 env CGO_CFLAGS='-flto -ffat-lto-objects'
 
