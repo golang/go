@@ -5270,7 +5270,6 @@ func TestMissingStatusNoPanic(t *testing.T) {
 
 	ln := newLocalListener(t)
 	addr := ln.Addr().String()
-	shutdown := make(chan bool, 1)
 	done := make(chan bool)
 	fullAddrURL := fmt.Sprintf("http://%s", addr)
 	raw := "HTTP/1.1 400\r\n" +
@@ -5282,10 +5281,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
 		"Aloha Olaa"
 
 	go func() {
-		defer func() {
-			ln.Close()
-			close(done)
-		}()
+		defer close(done)
 
 		conn, _ := ln.Accept()
 		if conn != nil {
@@ -5316,7 +5312,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
 		t.Errorf("got=%v want=%q", err, want)
 	}
 
-	close(shutdown)
+	ln.Close()
 	<-done
 }
 
