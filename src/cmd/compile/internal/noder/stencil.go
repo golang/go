@@ -374,45 +374,43 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		}
 		ir.EditChildren(m, edit)
 
-		if x.Typecheck() == 3 {
-			// These are nodes whose transforms were delayed until
-			// their instantiated type was known.
-			m.SetTypecheck(1)
-			if typecheck.IsCmp(x.Op()) {
-				transformCompare(m.(*ir.BinaryExpr))
-			} else {
-				switch x.Op() {
-				case ir.OSLICE, ir.OSLICE3:
-					transformSlice(m.(*ir.SliceExpr))
+		m.SetTypecheck(1)
+		if typecheck.IsCmp(x.Op()) {
+			transformCompare(m.(*ir.BinaryExpr))
+		} else {
+			switch x.Op() {
+			case ir.OSLICE, ir.OSLICE3:
+				transformSlice(m.(*ir.SliceExpr))
 
-				case ir.OADD:
-					m = transformAdd(m.(*ir.BinaryExpr))
+			case ir.OADD:
+				m = transformAdd(m.(*ir.BinaryExpr))
 
-				case ir.OINDEX:
-					transformIndex(m.(*ir.IndexExpr))
+			case ir.OINDEX:
+				transformIndex(m.(*ir.IndexExpr))
 
-				case ir.OAS2:
-					as2 := m.(*ir.AssignListStmt)
-					transformAssign(as2, as2.Lhs, as2.Rhs)
+			case ir.OAS2:
+				as2 := m.(*ir.AssignListStmt)
+				transformAssign(as2, as2.Lhs, as2.Rhs)
 
-				case ir.OAS:
-					as := m.(*ir.AssignStmt)
+			case ir.OAS:
+				as := m.(*ir.AssignStmt)
+				if as.Y != nil {
+					// transformAssign doesn't handle the case
+					// of zeroing assignment of a dcl (rhs[0] is nil).
 					lhs, rhs := []ir.Node{as.X}, []ir.Node{as.Y}
 					transformAssign(as, lhs, rhs)
-
-				case ir.OASOP:
-					as := m.(*ir.AssignOpStmt)
-					transformCheckAssign(as, as.X)
-
-				case ir.ORETURN:
-					transformReturn(m.(*ir.ReturnStmt))
-
-				case ir.OSEND:
-					transformSend(m.(*ir.SendStmt))
-
-				default:
-					base.Fatalf("Unexpected node with Typecheck() == 3")
 				}
+
+			case ir.OASOP:
+				as := m.(*ir.AssignOpStmt)
+				transformCheckAssign(as, as.X)
+
+			case ir.ORETURN:
+				transformReturn(m.(*ir.ReturnStmt))
+
+			case ir.OSEND:
+				transformSend(m.(*ir.SendStmt))
+
 			}
 		}
 
