@@ -1735,7 +1735,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.expr(n.X)
 		w.expr(n.Index)
 		if go117ExportTypes {
-			w.typ(n.Type())
+			w.exoticType(n.Type())
 			if n.Op() == ir.OINDEXMAP {
 				w.bool(n.Assigned)
 			}

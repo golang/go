@@ -1025,6 +1025,10 @@ func (r *importReader) funcBody(fn *ir.Func) {
 	fn.Inl.Body = body
 
 	r.curfn = outerfn
+	if base.Flag.W >= 3 {
+		fmt.Printf("Imported for %v", fn)
+		ir.DumpList("", fn.Inl.Body)
+	}
 }
 
 func (r *importReader) readNames(fn *ir.Func) []*ir.Name {
@@ -1349,7 +1353,7 @@ func (r *importReader) node() ir.Node {
 		n := ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
 		if go117ExportTypes {
 			n.SetOp(op)
-			n.SetType(r.typ())
+			n.SetType(r.exoticType())
 			if op == ir.OINDEXMAP {
 				n.Assigned = r.bool()
 			}
