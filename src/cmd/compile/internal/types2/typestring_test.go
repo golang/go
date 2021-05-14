@@ -138,6 +138,10 @@ func TestTypeString(t *testing.T) {
 var nopos syntax.Pos
 
 func TestIncompleteInterfaces(t *testing.T) {
+	if !Debug {
+		t.Skip("requires type checker to be compiled with debug = true")
+	}
+
 	sig := NewSignature(nil, nil, nil, false)
 	m := NewFunc(nopos, nil, "m", sig)
 	for _, test := range []struct {
