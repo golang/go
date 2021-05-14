@@ -34,28 +34,23 @@ go list -m all
 cmp stdout m_all.txt
 
 go mod edit -go=1.16
+go list -m all
+cmp stdout m_all.txt
+
+
+# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
+# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
+
+cp go.mod.orig go.mod
+go mod tidy -compat=1.17
+cmp go.mod go.mod.orig
+
+go list -m all
+cmp stdout m_all.txt
+
+go mod edit -go=1.16
 ! go list -m all
 stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
-
-
-# If we combine a Go 1.16 go.sum file...
-go mod tidy -go=1.16
-
-# ...with a Go 1.17 go.mod file...
-cp go.mod.orig go.mod
-
-# ...then Go 1.17 continues to work...
-go list -m all
-cmp stdout m_all.txt
-
-# ...and now 1.16 can load the same build list!
-go mod edit -go=1.16
-go list -m all
-cmp stdout m_all.txt
-
-
-# TODO(#46141): Add a cleaner way to tidy a Go 1.17 module while preserving
-# the checksums needed to work within it with Go 1.16.
 
 
 -- go.mod --

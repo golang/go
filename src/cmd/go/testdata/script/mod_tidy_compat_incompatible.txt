@@ -27,12 +27,23 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
 # the main module).
 
 
-# TODO(#46141): 'go mod tidy' should by default diagnose the difference in
-# dependencies as an error, but it should still be possible to simply drop
-# compatibility with Go 1.16 by passing an appropriate '-compat' flag.
+# 'go mod tidy' should by default diagnose the difference in dependencies as an
+# error, with useful suggestions about how to resolve it.
 
 cp go.mod go.mod.orig
-go mod tidy
+! go mod tidy
+stderr '^example\.com/m imports\n\texample\.net/lazy imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
+stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1\.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/wiki/PruningModules\n'
+
+cmp go.mod go.mod.orig
+
+
+# The suggested '-compat' flag to ignore differences should silence the error
+# and leave go.mod unchanged, resulting in checksum errors when Go 1.16 tries
+# to load a module pruned out by Go 1.17.
+
+go mod tidy -compat=1.17
+! stderr .
 cmp go.mod go.mod.orig
 
 go mod edit -go=1.16
@@ -44,6 +55,7 @@ stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requir
 # There are two ways for the module author to bring the two into alignment.
 # One is to *explicitly* 'exclude' the version that is already *implicitly*
 # pruned out under 1.17.
+
 go mod edit -exclude=example.com/retract/incompatible@v2.0.0+incompatible
 go list -f $MODFMT -deps ./...
 stdout '^example.com/retract/incompatible v1\.0\.0$'
@@ -51,13 +63,20 @@ stdout '^example.com/retract/incompatible v1\.0\.0$'
 
 
 # The other is to explicitly upgrade the version required under Go 1.17
-# to match the version selected by Go 1.16.
+# to match the version selected by Go 1.16. The commands suggested by
+# 'go mod tidy' should do exactly that.
+
 cp go.mod.orig go.mod
 
-go get -d example.com/retract/incompatible@v2.0.0+incompatible
-	# Note that we are not running 'go mod tidy' here: we need to preserve
-	# the checksum for v1.0.0 because it is also still in the module graph
-	# as seen by Go 1.16.
+go mod tidy -go=1.16
+go list -f $MODFMT -deps ./...
+stdout '^example.com/retract/incompatible v2\.0\.0\+incompatible$'
+! stdout 'v1\.0\.0'
+
+go mod tidy -go=1.17
+go list -f $MODFMT -deps ./...
+stdout '^example.com/retract/incompatible v2\.0\.0\+incompatible$'
+! stdout 'v1\.0\.0'
 
 go mod edit -go=1.16
 go list -f $MODFMT -deps ./...

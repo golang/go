@@ -19,7 +19,7 @@ import (
 )
 
 var cmdTidy = &base.Command{
-	UsageLine: "go mod tidy [-e] [-v] [-go=version]",
+	UsageLine: "go mod tidy [-e] [-v] [-go=version] [-compat=version]",
 	Short:     "add missing and remove unused modules",
 	Long: `
 Tidy makes sure go.mod matches the source code in the module.
@@ -40,20 +40,30 @@ are retained as explicit requirements in the go.mod file.
 (Go versions 1.17 and higher retain more requirements in order to
 support lazy module loading.)
 
+The -compat flag preserves any additional checksums needed for the
+'go' command from the indicated major Go release to successfully load
+the module graph, and causes tidy to error out if that version of the
+'go' command would load any imported package from a different module
+version. By default, tidy acts as if the -compat flag were set to the
+version prior to the one indicated by the 'go' directive in the go.mod
+file.
+
 See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 	`,
 	Run: runTidy,
 }
 
 var (
-	tidyE  bool          // if true, report errors but proceed anyway.
-	tidyGo goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
+	tidyE      bool          // if true, report errors but proceed anyway.
+	tidyGo     goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
+	tidyCompat goVersionFlag // go version for which the tidied go.mod and go.sum files should be “compatible”
 )
 
 func init() {
 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
 	cmdTidy.Flag.Var(&tidyGo, "go", "")
+	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
 	base.AddModCommonFlags(&cmdTidy.Flag)
 }
 
@@ -105,6 +115,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 		GoVersion:                tidyGo.String(),
 		Tags:                     imports.AnyTags(),
 		Tidy:                     true,
+		TidyCompatibleVersion:    tidyCompat.String(),
 		VendorModulesInGOROOTSrc: true,
 		ResolveMissingImports:    true,
 		LoadTests:                true,
