@@ -186,7 +186,7 @@ func (q *query) validate() error {
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
 		if !modload.HasModRoot() {
-			return fmt.Errorf(`cannot match "all": working directory is not part of a module`)
+			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
 		}
 		if !versionOkForMainModule(q.version) {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
@@ -281,14 +281,14 @@ func reportError(q *query, err error) {
 	// TODO(bcmills): Use errors.As to unpack these errors instead of parsing
 	// strings with regular expressions.
 
-	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:)\"`]|$)")
+	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
 		if q.rawVersion == "" {
 			base.Errorf("go get: %s", errStr)
 			return
 		}
 
-		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :)\"`]|$)")
+		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
 		if versionRE.MatchString(errStr) {
 			base.Errorf("go get: %s", errStr)
 			return

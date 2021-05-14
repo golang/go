@@ -92,10 +92,6 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 			if usesLR {
 				c.setlr(pc)
 			} else {
-				if sys.RegSize > sys.PtrSize {
-					sp -= sys.PtrSize
-					*(*uintptr)(unsafe.Pointer(sp)) = 0
-				}
 				sp -= sys.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = pc
 				c.setsp(sp)
@@ -104,7 +100,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		if usesLR {
 			c.setpc(funcPC(sigpanictramp))
 		} else {
-			c.setpc(funcPC(sigpanic))
+			c.setpc(funcPC(sigpanic0))
 		}
 		return _NCONT
 	}

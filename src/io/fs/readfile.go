@@ -15,6 +15,9 @@ type ReadFileFS interface {
 	// A successful call returns a nil error, not io.EOF.
 	// (Because ReadFile reads the whole file, the expected EOF
 	// from the final Read is not treated as an error to be reported.)
+	//
+	// The caller is permitted to modify the returned byte slice.
+	// This method should return a copy of the underlying data.
 	ReadFile(name string) ([]byte, error)
 }
 

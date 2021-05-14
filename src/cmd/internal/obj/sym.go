@@ -35,6 +35,7 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"math"
 	"sort"
@@ -49,15 +50,15 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Arch = arch
 	ctxt.Pathname = objabi.WorkingDir()
 
-	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
-		log.Fatalf("unknown goos %s", objabi.GOOS)
+	if err := ctxt.Headtype.Set(buildcfg.GOOS); err != nil {
+		log.Fatalf("unknown goos %s", buildcfg.GOOS)
 	}
 
 	ctxt.Flag_optimize = true
 	return ctxt
 }
 
-// LookupDerived looks up or creates the symbol with name name derived from symbol s.
+// LookupDerived looks up or creates the symbol with name derived from symbol s.
 // The resulting symbol will be static iff s is.
 func (ctxt *Link) LookupDerived(s *LSym, name string) *LSym {
 	if s.Static() {

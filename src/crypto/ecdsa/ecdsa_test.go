@@ -21,216 +21,148 @@ import (
 	"testing"
 )
 
-func testKeyGeneration(t *testing.T, c elliptic.Curve, tag string) {
-	priv, err := GenerateKey(c, rand.Reader)
-	if err != nil {
-		t.Errorf("%s: error: %s", tag, err)
-		return
+func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
+	tests := []struct {
+		name  string
+		curve elliptic.Curve
+	}{
+		{"P256", elliptic.P256()},
+		{"P224", elliptic.P224()},
+		{"P384", elliptic.P384()},
+		{"P521", elliptic.P521()},
 	}
-	if !c.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
-		t.Errorf("%s: public key invalid: %s", tag, err)
+	if testing.Short() {
+		tests = tests[:1]
+	}
+	for _, test := range tests {
+		curve := test.curve
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			f(t, curve)
+		})
 	}
 }
 
 func TestKeyGeneration(t *testing.T) {
-	testKeyGeneration(t, elliptic.P224(), "p224")
-	if testing.Short() {
-		return
+	testAllCurves(t, testKeyGeneration)
+}
+
+func testKeyGeneration(t *testing.T, c elliptic.Curve) {
+	priv, err := GenerateKey(c, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
 	}
-	testKeyGeneration(t, elliptic.P256(), "p256")
-	testKeyGeneration(t, elliptic.P384(), "p384")
-	testKeyGeneration(t, elliptic.P521(), "p521")
+	if !c.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
+		t.Errorf("public key invalid: %s", err)
+	}
 }
 
-func BenchmarkSignP256(b *testing.B) {
-	b.ResetTimer()
-	p256 := elliptic.P256()
-	hashed := []byte("testing")
-	priv, _ := GenerateKey(p256, rand.Reader)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, _, _ = Sign(rand.Reader, priv, hashed)
-		}
-	})
+func TestSignAndVerify(t *testing.T) {
+	testAllCurves(t, testSignAndVerify)
 }
 
-func BenchmarkSignP384(b *testing.B) {
-	b.ResetTimer()
-	p384 := elliptic.P384()
-	hashed := []byte("testing")
-	priv, _ := GenerateKey(p384, rand.Reader)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			_, _, _ = Sign(rand.Reader, priv, hashed)
-		}
-	})
-}
-
-func BenchmarkVerifyP256(b *testing.B) {
-	b.ResetTimer()
-	p256 := elliptic.P256()
-	hashed := []byte("testing")
-	priv, _ := GenerateKey(p256, rand.Reader)
-	r, s, _ := Sign(rand.Reader, priv, hashed)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			Verify(&priv.PublicKey, hashed, r, s)
-		}
-	})
-}
-
-func BenchmarkKeyGeneration(b *testing.B) {
-	b.ResetTimer()
-	p256 := elliptic.P256()
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			GenerateKey(p256, rand.Reader)
-		}
-	})
-}
-
-func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
+func testSignAndVerify(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
 	hashed := []byte("testing")
 	r, s, err := Sign(rand.Reader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	if !Verify(&priv.PublicKey, hashed, r, s) {
-		t.Errorf("%s: Verify failed", tag)
+		t.Errorf("Verify failed")
 	}
 
 	hashed[0] ^= 0xff
 	if Verify(&priv.PublicKey, hashed, r, s) {
-		t.Errorf("%s: Verify always works!", tag)
+		t.Errorf("Verify always works!")
 	}
 }
 
-func TestSignAndVerify(t *testing.T) {
-	testSignAndVerify(t, elliptic.P224(), "p224")
-	if testing.Short() {
-		return
-	}
-	testSignAndVerify(t, elliptic.P256(), "p256")
-	testSignAndVerify(t, elliptic.P384(), "p384")
-	testSignAndVerify(t, elliptic.P521(), "p521")
+func TestSignAndVerifyASN1(t *testing.T) {
+	testAllCurves(t, testSignAndVerifyASN1)
 }
 
-func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve, tag string) {
+func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
 	hashed := []byte("testing")
 	sig, err := SignASN1(rand.Reader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	if !VerifyASN1(&priv.PublicKey, hashed, sig) {
-		t.Errorf("%s: VerifyASN1 failed", tag)
+		t.Errorf("VerifyASN1 failed")
 	}
 
 	hashed[0] ^= 0xff
 	if VerifyASN1(&priv.PublicKey, hashed, sig) {
-		t.Errorf("%s: VerifyASN1 always works!", tag)
+		t.Errorf("VerifyASN1 always works!")
 	}
 }
 
-func TestSignAndVerifyASN1(t *testing.T) {
-	testSignAndVerifyASN1(t, elliptic.P224(), "p224")
-	if testing.Short() {
-		return
-	}
-	testSignAndVerifyASN1(t, elliptic.P256(), "p256")
-	testSignAndVerifyASN1(t, elliptic.P384(), "p384")
-	testSignAndVerifyASN1(t, elliptic.P521(), "p521")
+func TestNonceSafety(t *testing.T) {
+	testAllCurves(t, testNonceSafety)
 }
 
-func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
+func testNonceSafety(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
 	hashed := []byte("testing")
 	r0, s0, err := Sign(zeroReader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	hashed = []byte("testing...")
 	r1, s1, err := Sign(zeroReader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	if s0.Cmp(s1) == 0 {
 		// This should never happen.
-		t.Errorf("%s: the signatures on two different messages were the same", tag)
+		t.Errorf("the signatures on two different messages were the same")
 	}
 
 	if r0.Cmp(r1) == 0 {
-		t.Errorf("%s: the nonce used for two different messages was the same", tag)
+		t.Errorf("the nonce used for two different messages was the same")
 	}
 }
 
-func TestNonceSafety(t *testing.T) {
-	testNonceSafety(t, elliptic.P224(), "p224")
-	if testing.Short() {
-		return
-	}
-	testNonceSafety(t, elliptic.P256(), "p256")
-	testNonceSafety(t, elliptic.P384(), "p384")
-	testNonceSafety(t, elliptic.P521(), "p521")
+func TestINDCCA(t *testing.T) {
+	testAllCurves(t, testINDCCA)
 }
 
-func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
+func testINDCCA(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
 	hashed := []byte("testing")
 	r0, s0, err := Sign(rand.Reader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	r1, s1, err := Sign(rand.Reader, priv, hashed)
 	if err != nil {
-		t.Errorf("%s: error signing: %s", tag, err)
+		t.Errorf("error signing: %s", err)
 		return
 	}
 
 	if s0.Cmp(s1) == 0 {
-		t.Errorf("%s: two signatures of the same message produced the same result", tag)
+		t.Errorf("two signatures of the same message produced the same result")
 	}
 
 	if r0.Cmp(r1) == 0 {
-		t.Errorf("%s: two signatures of the same message produced the same nonce", tag)
+		t.Errorf("two signatures of the same message produced the same nonce")
 	}
-}
-
-func TestINDCCA(t *testing.T) {
-	testINDCCA(t, elliptic.P224(), "p224")
-	if testing.Short() {
-		return
-	}
-	testINDCCA(t, elliptic.P256(), "p256")
-	testINDCCA(t, elliptic.P384(), "p384")
-	testINDCCA(t, elliptic.P521(), "p521")
 }
 
 func fromHex(s string) *big.Int {
@@ -351,10 +283,14 @@ func TestVectors(t *testing.T) {
 	}
 }
 
-func testNegativeInputs(t *testing.T, curve elliptic.Curve, tag string) {
+func TestNegativeInputs(t *testing.T) {
+	testAllCurves(t, testNegativeInputs)
+}
+
+func testNegativeInputs(t *testing.T, curve elliptic.Curve) {
 	key, err := GenerateKey(curve, rand.Reader)
 	if err != nil {
-		t.Errorf("failed to generate key for %q", tag)
+		t.Errorf("failed to generate key")
 	}
 
 	var hash [32]byte
@@ -363,35 +299,103 @@ func testNegativeInputs(t *testing.T, curve elliptic.Curve, tag string) {
 	r.Neg(r)
 
 	if Verify(&key.PublicKey, hash[:], r, r) {
-		t.Errorf("bogus signature accepted for %q", tag)
+		t.Errorf("bogus signature accepted")
 	}
-}
-
-func TestNegativeInputs(t *testing.T) {
-	testNegativeInputs(t, elliptic.P224(), "p224")
-	testNegativeInputs(t, elliptic.P256(), "p256")
-	testNegativeInputs(t, elliptic.P384(), "p384")
-	testNegativeInputs(t, elliptic.P521(), "p521")
 }
 
 func TestZeroHashSignature(t *testing.T) {
+	testAllCurves(t, testZeroHashSignature)
+}
+
+func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
 	zeroHash := make([]byte, 64)
 
-	for _, curve := range []elliptic.Curve{elliptic.P224(), elliptic.P256(), elliptic.P384(), elliptic.P521()} {
-		privKey, err := GenerateKey(curve, rand.Reader)
-		if err != nil {
-			panic(err)
-		}
-
-		// Sign a hash consisting of all zeros.
-		r, s, err := Sign(rand.Reader, privKey, zeroHash)
-		if err != nil {
-			panic(err)
-		}
-
-		// Confirm that it can be verified.
-		if !Verify(&privKey.PublicKey, zeroHash, r, s) {
-			t.Errorf("zero hash signature verify failed for %T", curve)
-		}
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
 	}
+
+	// Sign a hash consisting of all zeros.
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	// Confirm that it can be verified.
+	if !Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("zero hash signature verify failed for %T", curve)
+	}
+}
+
+func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
+	tests := []struct {
+		name  string
+		curve elliptic.Curve
+	}{
+		{"P256", elliptic.P256()},
+		{"P224", elliptic.P224()},
+		{"P384", elliptic.P384()},
+		{"P521", elliptic.P521()},
+	}
+	for _, test := range tests {
+		curve := test.curve
+		t.Run(test.name, func(t *testing.B) {
+			f(t, curve)
+		})
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+		priv, err := GenerateKey(curve, rand.Reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		hashed := []byte("testing")
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			sig, err := SignASN1(rand.Reader, priv, hashed)
+			if err != nil {
+				b.Fatal(err)
+			}
+			// Prevent the compiler from optimizing out the operation.
+			hashed[0] = sig[0]
+		}
+	})
+}
+
+func BenchmarkVerify(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+		priv, err := GenerateKey(curve, rand.Reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		hashed := []byte("testing")
+		r, s, err := Sign(rand.Reader, priv, hashed)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if !Verify(&priv.PublicKey, hashed, r, s) {
+				b.Fatal("verify failed")
+			}
+		}
+	})
+}
+
+func BenchmarkGenerateKey(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if _, err := GenerateKey(curve, rand.Reader); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }

@@ -113,3 +113,5 @@ func (r RotateParams) OutMerge(mask uint64) *RotateParams {
 func (r RotateParams) InMerge(mask uint64) *RotateParams {
 	return r.OutMerge(bits.RotateLeft64(mask, int(r.Amount)))
 }
+
+func (RotateParams) CanBeAnSSAAux() {}

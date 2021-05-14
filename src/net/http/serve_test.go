@@ -6460,13 +6460,15 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 		w.Header().Set("Connection", "Upgrade")
 		w.Header().Set("Upgrade", "someProto")
 		w.WriteHeader(StatusSwitchingProtocols)
-		c, _, err := w.(Hijacker).Hijack()
+		c, buf, err := w.(Hijacker).Hijack()
 		if err != nil {
 			return
 		}
 		defer c.Close()
 
-		io.Copy(c, c)
+		// Copy from the *bufio.ReadWriter, which may contain buffered data.
+		// Copy to the net.Conn, to avoid buffering the output.
+		io.Copy(c, buf)
 	}))
 	s.Config.SetKeepAlivesEnabled(false)
 	s.Start()
@@ -6503,5 +6505,22 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 
 	if string(b) != "hello" {
 		t.Fatalf("unexpected value read from body:\ngot: %q\nwant: %q", b, "hello")
+	}
+}
+
+func TestMuxRedirectRelative(t *testing.T) {
+	setParallel(t)
+	req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET http://example.com HTTP/1.1\r\nHost: test\r\n\r\n")))
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+	mux := NewServeMux()
+	resp := httptest.NewRecorder()
+	mux.ServeHTTP(resp, req)
+	if got, want := resp.Header().Get("Location"), "/"; got != want {
+		t.Errorf("Location header expected %q; got %q", want, got)
+	}
+	if got, want := resp.Code, StatusMovedPermanently; got != want {
+		t.Errorf("Expected response code %d; got %d", want, got)
 	}
 }

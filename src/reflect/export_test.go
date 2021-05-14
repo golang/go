@@ -4,7 +4,10 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 // MakeRO returns a copy of v with the read-only flag set.
 func MakeRO(v Value) Value {
@@ -21,21 +24,45 @@ var CallGC = &callGC
 
 const PtrSize = ptrSize
 
-func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
+// FuncLayout calls funcLayout and returns a subset of the results for testing.
+//
+// Bitmaps like stack, gc, inReg, and outReg are expanded such that each bit
+// takes up one byte, so that writing out test cases is a little clearer.
+// If ptrs is false, gc will be nil.
+func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack, gc, inReg, outReg []byte, ptrs bool) {
 	var ft *rtype
-	var s *bitVector
+	var abid abiDesc
 	if rcvr != nil {
-		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
+		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
 	} else {
-		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
+		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
+	// Extract size information.
+	argSize = abid.stackCallArgsSize
+	retOffset = abid.retOffset
 	frametype = ft
-	for i := uint32(0); i < s.n; i++ {
-		stack = append(stack, s.data[i/8]>>(i%8)&1)
+
+	// Expand stack pointer bitmap into byte-map.
+	for i := uint32(0); i < abid.stackPtrs.n; i++ {
+		stack = append(stack, abid.stackPtrs.data[i/8]>>(i%8)&1)
+	}
+
+	// Expand register pointer bitmaps into byte-maps.
+	bool2byte := func(b bool) byte {
+		if b {
+			return 1
+		}
+		return 0
+	}
+	for i := 0; i < intArgRegs; i++ {
+		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
+		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
 	if ft.kind&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
+
+	// Expand frame type's GC bitmap into byte-map.
 	ptrs = ft.ptrdata != 0
 	if ptrs {
 		nptrs := ft.ptrdata / ptrSize
@@ -119,4 +146,19 @@ func ResolveReflectName(s string) {
 
 type Buffer struct {
 	buf []byte
+}
+
+func clearLayoutCache() {
+	layoutCache = sync.Map{}
+}
+
+func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, oldFloatSize uintptr) {
+	oldInts = intArgRegs
+	oldFloats = floatArgRegs
+	oldFloatSize = floatRegSize
+	intArgRegs = ints
+	floatArgRegs = floats
+	floatRegSize = floatSize
+	clearLayoutCache()
+	return
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build goexperiment.staticlockranking
 // +build goexperiment.staticlockranking
 
 package runtime
@@ -22,19 +23,6 @@ type lockRankStruct struct {
 	// pad field to make sure lockRankStruct is a multiple of 8 bytes, even on
 	// 32-bit systems.
 	pad int
-}
-
-// init checks that the partial order in lockPartialOrder fits within the total
-// order determined by the order of the lockRank constants.
-func init() {
-	for rank, list := range lockPartialOrder {
-		for _, entry := range list {
-			if entry > lockRank(rank) {
-				println("lockPartial order row", lockRank(rank).String(), "entry", entry.String())
-				throw("lockPartialOrder table is inconsistent with total lock ranking order")
-			}
-		}
-	}
 }
 
 func lockInit(l *mutex, rank lockRank) {
@@ -64,12 +52,11 @@ func lockWithRank(l *mutex, rank lockRank) {
 		// rank recording for it, since print/println are used when
 		// printing out a lock ordering problem below.
 		//
-		// paniclk has an ordering problem, since it can be acquired
-		// during a panic with any other locks held (especially if the
-		// panic is because of a directed segv), and yet also allg is
-		// acquired after paniclk in tracebackothers()). This is a genuine
-		// problem, so for now we don't do lock rank recording for paniclk
-		// either.
+		// paniclk is only used for fatal throw/panic. Don't do lock
+		// ranking recording for it, since we throw after reporting a
+		// lock ordering problem. Additionally, paniclk may be taken
+		// after effectively any lock (anywhere we might panic), which
+		// the partial order doesn't cover.
 		lock2(l)
 		return
 	}
@@ -219,7 +206,7 @@ func releaseLockRank(rank lockRank) {
 func lockWithRankMayAcquire(l *mutex, rank lockRank) {
 	gp := getg()
 	if gp.m.locksHeldLen == 0 {
-		// No possibilty of lock ordering problem if no other locks held
+		// No possibility of lock ordering problem if no other locks held
 		return
 	}
 

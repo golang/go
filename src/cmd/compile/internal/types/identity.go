@@ -25,17 +25,17 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 	if t1 == t2 {
 		return true
 	}
-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke() || t2.Broke() {
+	if t1 == nil || t2 == nil || t1.kind != t2.kind || t1.Broke() || t2.Broke() {
 		return false
 	}
-	if t1.Sym != nil || t2.Sym != nil {
+	if t1.sym != nil || t2.sym != nil {
 		// Special case: we keep byte/uint8 and rune/int32
 		// separate for error messages. Treat them as equal.
-		switch t1.Etype {
+		switch t1.kind {
 		case TUINT8:
-			return (t1 == Types[TUINT8] || t1 == Bytetype) && (t2 == Types[TUINT8] || t2 == Bytetype)
+			return (t1 == Types[TUINT8] || t1 == ByteType) && (t2 == Types[TUINT8] || t2 == ByteType)
 		case TINT32:
-			return (t1 == Types[TINT32] || t1 == Runetype) && (t2 == Types[TINT32] || t2 == Runetype)
+			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
 		default:
 			return false
 		}
@@ -52,7 +52,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 	}
 	assumedEqual[typePair{t1, t2}] = struct{}{}
 
-	switch t1.Etype {
+	switch t1.kind {
 	case TIDEAL:
 		// Historically, cmd/compile used a single "untyped
 		// number" type, so all untyped number types were
@@ -61,11 +61,11 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 		return true
 
 	case TINTER:
-		if t1.NumFields() != t2.NumFields() {
+		if t1.AllMethods().Len() != t2.AllMethods().Len() {
 			return false
 		}
-		for i, f1 := range t1.FieldSlice() {
-			f2 := t2.Field(i)
+		for i, f1 := range t1.AllMethods().Slice() {
+			f2 := t2.AllMethods().Index(i)
 			if f1.Sym != f2.Sym || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
 				return false
 			}

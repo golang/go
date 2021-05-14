@@ -9,15 +9,17 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/doc"
 	"go/token"
+	"internal/buildcfg"
+	exec "internal/execabs"
 	"internal/goroot"
 	"internal/goversion"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -47,16 +49,18 @@ type Context struct {
 	UseAllFiles bool   // use files regardless of +build lines, file names
 	Compiler    string // compiler to assume when computing target paths
 
-	// The build and release tags specify build constraints
+	// The build, tool, and release tags specify build constraints
 	// that should be considered satisfied when processing +build lines.
 	// Clients creating a new context may customize BuildTags, which
-	// defaults to empty, but it is usually an error to customize ReleaseTags,
-	// which defaults to the list of Go releases the current release is compatible with.
+	// defaults to empty, but it is usually an error to customize ToolTags or ReleaseTags.
+	// ToolTags defaults to build tags appropriate to the current Go toolchain configuration.
+	// ReleaseTags defaults to the list of Go releases the current release is compatible with.
 	// BuildTags is not set for the Default build Context.
-	// In addition to the BuildTags and ReleaseTags, build constraints
+	// In addition to the BuildTags, ToolTags, and ReleaseTags, build constraints
 	// consider the values of GOARCH and GOOS as satisfied tags.
 	// The last element in ReleaseTags is assumed to be the current release.
 	BuildTags   []string
+	ToolTags    []string
 	ReleaseTags []string
 
 	// The install suffix specifies a suffix to use in the name of the installation
@@ -187,6 +191,7 @@ func (ctxt *Context) readDir(path string) ([]fs.FileInfo, error) {
 	if f := ctxt.ReadDir; f != nil {
 		return f(path)
 	}
+	// TODO: use os.ReadDir
 	return ioutil.ReadDir(path)
 }
 
@@ -290,16 +295,26 @@ func defaultGOPATH() string {
 	return ""
 }
 
-var defaultReleaseTags []string
+var defaultToolTags, defaultReleaseTags []string
 
 func defaultContext() Context {
 	var c Context
 
-	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
-	c.GOOS = envOr("GOOS", runtime.GOOS)
+	c.GOARCH = buildcfg.GOARCH
+	c.GOOS = buildcfg.GOOS
 	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
 	c.Compiler = runtime.Compiler
+
+	// For each experiment that has been enabled in the toolchain, define a
+	// build tag with the same name but prefixed by "goexperiment." which can be
+	// used for compiling alternative files for the experiment. This allows
+	// changes for the experiment, like extra struct fields in the runtime,
+	// without affecting the base non-experiment code at all.
+	for _, exp := range buildcfg.EnabledExperiments() {
+		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
+	}
+	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
 
 	// Each major Go release in the Go 1.x series adds a new
 	// "go1.x" release tag. That is, the go1.x tag is present in
@@ -449,9 +464,12 @@ type Package struct {
 	//	//go:embed a* b.c
 	// then the list will contain those two strings as separate entries.
 	// (See package embed for more details about //go:embed.)
-	EmbedPatterns      []string // patterns from GoFiles, CgoFiles
-	TestEmbedPatterns  []string // patterns from TestGoFiles
-	XTestEmbedPatterns []string // patterns from XTestGoFiles
+	EmbedPatterns        []string                    // patterns from GoFiles, CgoFiles
+	EmbedPatternPos      map[string][]token.Position // line information for EmbedPatterns
+	TestEmbedPatterns    []string                    // patterns from TestGoFiles
+	TestEmbedPatternPos  map[string][]token.Position // line information for TestEmbedPatterns
+	XTestEmbedPatterns   []string                    // patterns from XTestGoFiles
+	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
 }
 
 // IsCommand reports whether the package is considered a
@@ -792,12 +810,25 @@ Found:
 	}
 
 	var badGoError error
+	badFiles := make(map[string]bool)
+	badFile := func(name string, err error) {
+		if badGoError == nil {
+			badGoError = err
+		}
+		if !badFiles[name] {
+			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
+			badFiles[name] = true
+		}
+	}
+
 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile, firstCommentFile string
-	var embeds, testEmbeds, xTestEmbeds []string
-	imported := make(map[string][]token.Position)
-	testImported := make(map[string][]token.Position)
-	xTestImported := make(map[string][]token.Position)
+	embedPos := make(map[string][]token.Position)
+	testEmbedPos := make(map[string][]token.Position)
+	xTestEmbedPos := make(map[string][]token.Position)
+	importPos := make(map[string][]token.Position)
+	testImportPos := make(map[string][]token.Position)
+	xTestImportPos := make(map[string][]token.Position)
 	allTags := make(map[string]bool)
 	fset := token.NewFileSet()
 	for _, d := range dirs {
@@ -814,16 +845,9 @@ Found:
 		name := d.Name()
 		ext := nameExt(name)
 
-		badFile := func(err error) {
-			if badGoError == nil {
-				badGoError = err
-			}
-			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-		}
-
 		info, err := ctxt.matchFile(p.Dir, name, allTags, &p.BinaryOnly, fset)
 		if err != nil {
-			badFile(err)
+			badFile(name, err)
 			continue
 		}
 		if info == nil {
@@ -854,15 +878,18 @@ Found:
 		}
 
 		if info.parseErr != nil {
-			badFile(info.parseErr)
-			continue
+			badFile(name, info.parseErr)
+			// Fall through: we might still have a partial AST in info.parsed,
+			// and we want to list files with parse errors anyway.
 		}
-		pf := info.parsed
 
-		pkg := pf.Name.Name
-		if pkg == "documentation" {
-			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
-			continue
+		var pkg string
+		if info.parsed != nil {
+			pkg = info.parsed.Name.Name
+			if pkg == "documentation" {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+				continue
+			}
 		}
 
 		isTest := strings.HasSuffix(name, "_test.go")
@@ -876,16 +903,18 @@ Found:
 			p.Name = pkg
 			firstFile = name
 		} else if pkg != p.Name {
-			badFile(&MultiplePackageError{
+			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
+			// order. Instead of resolving p.Name arbitrarily, we should clear out the
+			// existing name and mark the existing files as also invalid.
+			badFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
 			})
-			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
 		}
 		// Grab the first package comment as docs, provided it is not from a test file.
-		if pf.Doc != nil && p.Doc == "" && !isTest && !isXTest {
-			p.Doc = doc.Synopsis(pf.Doc.Text())
+		if info.parsed != nil && info.parsed.Doc != nil && p.Doc == "" && !isTest && !isXTest {
+			p.Doc = doc.Synopsis(info.parsed.Doc.Text())
 		}
 
 		if mode&ImportComment != 0 {
@@ -893,12 +922,12 @@ Found:
 			if line != 0 {
 				com, err := strconv.Unquote(qcom)
 				if err != nil {
-					badFile(fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
+					badFile(name, fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
 				} else if p.ImportComment == "" {
 					p.ImportComment = com
 					firstCommentFile = name
 				} else if p.ImportComment != com {
-					badFile(fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
+					badFile(name, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
 				}
 			}
 		}
@@ -908,43 +937,43 @@ Found:
 		for _, imp := range info.imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(fmt.Errorf("use of cgo in test %s not supported", filename))
+					badFile(name, fmt.Errorf("use of cgo in test %s not supported", filename))
 					continue
 				}
 				isCgo = true
 				if imp.doc != nil {
 					if err := ctxt.saveCgo(filename, p, imp.doc); err != nil {
-						badFile(err)
+						badFile(name, err)
 					}
 				}
 			}
 		}
 
-		var fileList, embedList *[]string
-		var importMap map[string][]token.Position
+		var fileList *[]string
+		var importMap, embedMap map[string][]token.Position
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
 			if ctxt.CgoEnabled {
 				fileList = &p.CgoFiles
-				importMap = imported
-				embedList = &embeds
+				importMap = importPos
+				embedMap = embedPos
 			} else {
-				// Ignore imports from cgo files if cgo is disabled.
+				// Ignore imports and embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
 			}
 		case isXTest:
 			fileList = &p.XTestGoFiles
-			importMap = xTestImported
-			embedList = &xTestEmbeds
+			importMap = xTestImportPos
+			embedMap = xTestEmbedPos
 		case isTest:
 			fileList = &p.TestGoFiles
-			importMap = testImported
-			embedList = &testEmbeds
+			importMap = testImportPos
+			embedMap = testEmbedPos
 		default:
 			fileList = &p.GoFiles
-			importMap = imported
-			embedList = &embeds
+			importMap = importPos
+			embedMap = embedPos
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -952,8 +981,10 @@ Found:
 				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
 			}
 		}
-		if embedList != nil {
-			*embedList = append(*embedList, info.embeds...)
+		if embedMap != nil {
+			for _, emb := range info.embeds {
+				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
+			}
 		}
 	}
 
@@ -962,13 +993,13 @@ Found:
 	}
 	sort.Strings(p.AllTags)
 
-	p.EmbedPatterns = uniq(embeds)
-	p.TestEmbedPatterns = uniq(testEmbeds)
-	p.XTestEmbedPatterns = uniq(xTestEmbeds)
+	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
+	p.XTestEmbedPatterns, p.XTestEmbedPatternPos = cleanDecls(xTestEmbedPos)
 
-	p.Imports, p.ImportPos = cleanImports(imported)
-	p.TestImports, p.TestImportPos = cleanImports(testImported)
-	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
+	p.Imports, p.ImportPos = cleanDecls(importPos)
+	p.TestImports, p.TestImportPos = cleanDecls(testImportPos)
+	p.XTestImports, p.XTestImportPos = cleanDecls(xTestImportPos)
 
 	// add the .S/.sx files only if we are using cgo
 	// (which means gcc will compile them).
@@ -1047,7 +1078,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	// we must not being doing special things like AllowBinary or IgnoreVendor,
 	// and all the file system callbacks must be nil (we're meant to use the local file system).
 	if mode&AllowBinary != 0 || mode&IgnoreVendor != 0 ||
-		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
+		ctxt.JoinPath != nil || ctxt.SplitPathList != nil || ctxt.IsAbsPath != nil || ctxt.IsDir != nil || ctxt.HasSubdir != nil || ctxt.ReadDir != nil || ctxt.OpenFile != nil || !equal(ctxt.ToolTags, defaultToolTags) || !equal(ctxt.ReleaseTags, defaultReleaseTags) {
 		return errNoModules
 	}
 
@@ -1340,7 +1371,7 @@ type fileInfo struct {
 	parsed   *ast.File
 	parseErr error
 	imports  []fileImport
-	embeds   []string
+	embeds   []fileEmbed
 	embedErr error
 }
 
@@ -1348,6 +1379,11 @@ type fileImport struct {
 	path string
 	pos  token.Pos
 	doc  *ast.CommentGroup
+}
+
+type fileEmbed struct {
+	pattern string
+	pos     token.Position
 }
 
 // matchFile determines whether the file with the given name in the given directory
@@ -1411,7 +1447,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	// Look for +build comments to accept or reject the file.
 	ok, sawBinaryOnly, err := ctxt.shouldBuild(info.header, allTags)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %v", name, err)
 	}
 	if !ok && !ctxt.UseAllFiles {
 		return nil, nil
@@ -1424,7 +1460,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
 	return info, nil
 }
 
-func cleanImports(m map[string][]token.Position) ([]string, map[string][]token.Position) {
+func cleanDecls(m map[string][]token.Position) ([]string, map[string][]token.Position) {
 	all := make([]string, 0, len(m))
 	for path := range m {
 		all = append(all, path)
@@ -1447,11 +1483,12 @@ var (
 	bSlashSlash = []byte(slashSlash)
 	bStarSlash  = []byte(starSlash)
 	bSlashStar  = []byte(slashStar)
+	bPlusBuild  = []byte("+build")
 
 	goBuildComment = []byte("//go:build")
 
 	errGoBuildWithoutBuild = errors.New("//go:build comment without // +build comment")
-	errMultipleGoBuild     = errors.New("multiple //go:build comments") // unused in Go 1.(N-1)
+	errMultipleGoBuild     = errors.New("multiple //go:build comments")
 )
 
 func isGoBuildComment(line []byte) bool {
@@ -1486,8 +1523,7 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
 // shouldBuild reports whether the file should be built
 // and whether a //go:binary-only-package comment was found.
 func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shouldBuild, binaryOnly bool, err error) {
-
-	// Pass 1. Identify leading run of // comments and blank lines,
+	// Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
 	// Also identify any //go:build comments.
 	content, goBuild, sawBinaryOnly, err := parseFileHeader(content)
@@ -1495,42 +1531,40 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
 		return false, false, err
 	}
 
-	// Pass 2.  Process each +build line in the run.
-	p := content
-	shouldBuild = true
-	sawBuild := false
-	for len(p) > 0 {
-		line := p
-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
-			line, p = line[:i], p[i+1:]
-		} else {
-			p = p[len(p):]
+	// If //go:build line is present, it controls.
+	// Otherwise fall back to +build processing.
+	switch {
+	case goBuild != nil:
+		x, err := constraint.Parse(string(goBuild))
+		if err != nil {
+			return false, false, fmt.Errorf("parsing //go:build line: %v", err)
 		}
-		line = bytes.TrimSpace(line)
-		if !bytes.HasPrefix(line, bSlashSlash) {
-			continue
-		}
-		line = bytes.TrimSpace(line[len(bSlashSlash):])
-		if len(line) > 0 && line[0] == '+' {
-			// Looks like a comment +line.
-			f := strings.Fields(string(line))
-			if f[0] == "+build" {
-				sawBuild = true
-				ok := false
-				for _, tok := range f[1:] {
-					if ctxt.match(tok, allTags) {
-						ok = true
-					}
-				}
-				if !ok {
+		shouldBuild = ctxt.eval(x, allTags)
+
+	default:
+		shouldBuild = true
+		p := content
+		for len(p) > 0 {
+			line := p
+			if i := bytes.IndexByte(line, '\n'); i >= 0 {
+				line, p = line[:i], p[i+1:]
+			} else {
+				p = p[len(p):]
+			}
+			line = bytes.TrimSpace(line)
+			if !bytes.HasPrefix(line, bSlashSlash) || !bytes.Contains(line, bPlusBuild) {
+				continue
+			}
+			text := string(line)
+			if !constraint.IsPlusBuild(text) {
+				continue
+			}
+			if x, err := constraint.Parse(text); err == nil {
+				if !ctxt.eval(x, allTags) {
 					shouldBuild = false
 				}
 			}
 		}
-	}
-
-	if goBuild != nil && !sawBuild {
-		return false, false, errGoBuildWithoutBuild
 	}
 
 	return shouldBuild, sawBinaryOnly, nil
@@ -1568,7 +1602,7 @@ Lines:
 		}
 
 		if !inSlashStar && isGoBuildComment(line) {
-			if false && goBuild != nil { // enabled in Go 1.N
+			if goBuild != nil {
 				return nil, nil, false, errMultipleGoBuild
 			}
 			goBuild = line
@@ -1637,7 +1671,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if len(cond) > 0 {
 			ok := false
 			for _, c := range cond {
-				if ctxt.match(c, nil) {
+				if ctxt.matchAuto(c, nil) {
 					ok = true
 					break
 				}
@@ -1819,48 +1853,42 @@ func splitQuoted(s string) (r []string, err error) {
 	return args, err
 }
 
-// match reports whether the name is one of:
+// matchAuto interprets text as either a +build or //go:build expression (whichever works),
+// reporting whether the expression matches the build context.
 //
+// matchAuto is only used for testing of tag evaluation
+// and in #cgo lines, which accept either syntax.
+func (ctxt *Context) matchAuto(text string, allTags map[string]bool) bool {
+	if strings.ContainsAny(text, "&|()") {
+		text = "//go:build " + text
+	} else {
+		text = "// +build " + text
+	}
+	x, err := constraint.Parse(text)
+	if err != nil {
+		return false
+	}
+	return ctxt.eval(x, allTags)
+}
+
+func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
+	return x.Eval(func(tag string) bool { return ctxt.matchTag(tag, allTags) })
+}
+
+// matchTag reports whether the name is one of:
+//
+//	cgo (if cgo is enabled)
 //	$GOOS
 //	$GOARCH
-//	cgo (if cgo is enabled)
-//	!cgo (if cgo is disabled)
 //	ctxt.Compiler
-//	!ctxt.Compiler
+//	linux (if GOOS = android)
+//	solaris (if GOOS = illumos)
 //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
-//	!tag (if tag is not listed in ctxt.BuildTags or ctxt.ReleaseTags)
-//	a comma-separated list of any of these
 //
-func (ctxt *Context) match(name string, allTags map[string]bool) bool {
-	if name == "" {
-		if allTags != nil {
-			allTags[name] = true
-		}
-		return false
-	}
-	if i := strings.Index(name, ","); i >= 0 {
-		// comma-separated list
-		ok1 := ctxt.match(name[:i], allTags)
-		ok2 := ctxt.match(name[i+1:], allTags)
-		return ok1 && ok2
-	}
-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
-		return false
-	}
-	if strings.HasPrefix(name, "!") { // negation
-		return len(name) > 1 && !ctxt.match(name[1:], allTags)
-	}
-
+// It records all consulted tags in allTags.
+func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if allTags != nil {
 		allTags[name] = true
-	}
-
-	// Tags must be letters, digits, underscores or dots.
-	// Unlike in Go identifiers, all digits are fine (e.g., "386").
-	for _, c := range name {
-		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
-			return false
-		}
 	}
 
 	// special tags
@@ -1882,6 +1910,11 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
 
 	// other tags
 	for _, tag := range ctxt.BuildTags {
+		if tag == name {
+			return true
+		}
+	}
+	for _, tag := range ctxt.ToolTags {
 		if tag == name {
 			return true
 		}
@@ -1934,10 +1967,10 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 	}
 	n := len(l)
 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
-		return ctxt.match(l[n-1], allTags) && ctxt.match(l[n-2], allTags)
+		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
 	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
-		return ctxt.match(l[n-1], allTags)
+		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true
 }

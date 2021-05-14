@@ -11,7 +11,7 @@ cp go.mod.orig go.mod
 go mod edit -require example.com/retract/self/prev@v1.9.0
 go get -d example.com/retract/self/prev
 stderr '^go: warning: example.com/retract/self/prev@v1.9.0: retracted by module author: self$'
-stderr '^go: run ''go get example.com/retract/self/prev@latest'' to switch to the latest unretracted version$'
+stderr '^go: to switch to the latest unretracted version, run:\n\tgo get example.com/retract/self/prev@latest\n$'
 go list -m example.com/retract/self/prev
 stdout '^example.com/retract/self/prev v1.9.0$'
 

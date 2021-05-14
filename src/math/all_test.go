@@ -2067,6 +2067,21 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
 }
 
+var sqrt32 = []float32{
+	0,
+	float32(Copysign(0, -1)),
+	float32(NaN()),
+	float32(Inf(1)),
+	float32(Inf(-1)),
+	1,
+	2,
+	-2,
+	4.9790119248836735e+00,
+	7.7388724745781045e+00,
+	-2.7688005719200159e-01,
+	-5.0106036182710749e+00,
+}
+
 func tolerance(a, b, e float64) bool {
 	// Multiplying by e here can underflow denormal values to zero.
 	// Check a==b so that at least if a and b are small and identical
@@ -3177,6 +3192,34 @@ func TestFloatMinMax(t *testing.T) {
 		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("Sprint(%v) = %s, want %s", tt.name, s, tt.str)
+		}
+	}
+}
+
+func TestFloatMinima(t *testing.T) {
+	if q := float32(SmallestNonzeroFloat32 / 2); q != 0 {
+		t.Errorf("float32(SmallestNonzeroFloat32 / 2) = %g, want 0", q)
+	}
+	if q := float64(SmallestNonzeroFloat64 / 2); q != 0 {
+		t.Errorf("float64(SmallestNonzeroFloat64 / 2) = %g, want 0", q)
+	}
+}
+
+var indirectSqrt = Sqrt
+
+// TestFloat32Sqrt checks the correctness of the float32 square root optimization result.
+func TestFloat32Sqrt(t *testing.T) {
+	for _, v := range sqrt32 {
+		want := float32(indirectSqrt(float64(v)))
+		got := float32(Sqrt(float64(v)))
+		if IsNaN(float64(want)) {
+			if !IsNaN(float64(got)) {
+				t.Errorf("got=%#v want=NaN, v=%#v", got, v)
+			}
+			continue
+		}
+		if got != want {
+			t.Errorf("got=%#v want=%#v, v=%#v", got, want, v)
 		}
 	}
 }

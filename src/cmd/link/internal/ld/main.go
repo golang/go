@@ -37,6 +37,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
 	"flag"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"runtime"
@@ -87,16 +88,14 @@ var (
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
-	FlagDebugTextSize = flag.Int("debugppc64textsize", 0, "debug PPC64 text section max")
+	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
 	FlagStrictDups    = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
 	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr      = flag.Int64("T", -1, "set text segment `address`")
 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
-
-	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
-	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
-	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
-
+	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
 )
@@ -117,11 +116,17 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	final := gorootFinal()
-	addstrdata1(ctxt, "runtime/internal/sys.DefaultGoroot="+final)
-	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+	addstrdata1(ctxt, "internal/buildcfg.defaultGOROOT="+final)
+
+	buildVersion := buildcfg.Version
+	if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+		buildVersion += " X:" + goexperiment
+	}
+	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
 
 	// TODO(matloob): define these above and then check flag values here
-	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+	if ctxt.Arch.Family == sys.AMD64 && buildcfg.GOOS == "plan9" {
 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	flagHeadType := flag.String("H", "", "set header `type`")
@@ -155,7 +160,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		}
 	}
 	if ctxt.HeadType == objabi.Hunknown {
-		ctxt.HeadType.Set(objabi.GOOS)
+		ctxt.HeadType.Set(buildcfg.GOOS)
 	}
 
 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
@@ -182,6 +187,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	interpreter = *flagInterpreter
+
+	if *flagBuildid == "" && ctxt.Target.IsOpenbsd() {
+		// TODO(jsing): Remove once direct syscalls are no longer in use.
+		// OpenBSD 6.7 onwards will not permit direct syscalls from a
+		// dynamically linked binary unless it identifies the binary
+		// contains a .note.go.buildid ELF note. See issue #36435.
+		*flagBuildid = "go-openbsd"
+	}
 
 	// enable benchmarking
 	var bench *benchmark.Metrics
@@ -243,7 +256,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("dostrdata")
 	ctxt.dostrdata()
-	if objabi.Fieldtrack_enabled != 0 {
+	if buildcfg.Experiment.FieldTrack {
 		bench.Start("fieldtrack")
 		fieldtrack(ctxt.Arch, ctxt.loader)
 	}
@@ -282,7 +295,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("textbuildid")
 	ctxt.textbuildid()
 	bench.Start("addexport")
-	setupdynexp(ctxt)
 	ctxt.setArchSyms()
 	ctxt.addexport()
 	bench.Start("Gentext")
@@ -322,13 +334,15 @@ func Main(arch *sys.Arch, theArch Arch) {
 		// Don't mmap if we're building for Wasm. Wasm file
 		// layout is very different so filesize is meaningless.
 		if err := ctxt.Out.Mmap(filesize); err != nil {
-			panic(err)
+			Exitf("mapping output file failed: %v", err)
 		}
 	}
 	// asmb will redirect symbols to the output file mmap, and relocations
 	// will be applied directly there.
 	bench.Start("Asmb")
 	asmb(ctxt)
+
+	exitIfErrors()
 
 	// Generate additional symbols for the native symbol table just prior
 	// to code generation.

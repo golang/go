@@ -35,3 +35,5 @@
 // Function is the top of the call stack. Call stack unwinders should stop
 // at this function.
 #define TOPFRAME 2048
+// Function is an ABI wrapper.
+#define ABIWRAPPER 4096

@@ -37,5 +37,5 @@ var sigtable = [...]sigTabT{
 	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
-	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
+	/* 32 */ {0, "SIGTHR: reserved"}, // thread AST - cannot be registered.
 }

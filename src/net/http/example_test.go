@@ -45,12 +45,15 @@ func ExampleGet() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	robots, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	res.Body.Close()
+	if res.StatusCode > 299 {
+		log.Fatalf("Response failed with status code: %d and\nbody: %s\n", res.StatusCode, body)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s", robots)
+	fmt.Printf("%s", body)
 }
 
 func ExampleFileServer() {

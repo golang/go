@@ -768,7 +768,7 @@
 	=> mem
 
 // Collapse OffPtr
-(OffPtr (OffPtr p [b]) [a]) => (OffPtr p [a+b])
+(OffPtr (OffPtr p [y]) [x]) => (OffPtr p [x+y])
 (OffPtr p [0]) && v.Type.Compare(p.Type) == types.CMPeq => p
 
 // indexing operations
@@ -847,7 +847,7 @@
             f0 mem))))
 
 // Putting struct{*byte} and similar into direct interfaces.
-(IMake typ (StructMake1 val)) => (IMake typ val)
+(IMake _typ (StructMake1 val)) => (IMake _typ val)
 (StructSelect [0] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
@@ -869,7 +869,7 @@
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
 
 // Putting [1]*byte and similar into direct interfaces.
-(IMake typ (ArrayMake1 val)) => (IMake typ val)
+(IMake _typ (ArrayMake1 val)) => (IMake _typ val)
 (ArraySelect [0] (IData x)) => (IData x)
 
 // string ops
@@ -1968,43 +1968,15 @@
 (Div32F x (Const32F <t> [c])) && reciprocalExact32(c) => (Mul32F x (Const32F <t> [1/c]))
 (Div64F x (Const64F <t> [c])) && reciprocalExact64(c) => (Mul64F x (Const64F <t> [1/c]))
 
+// rewrite single-precision sqrt expression "float32(math.Sqrt(float64(x)))"
+(Cvt64Fto32F sqrt0:(Sqrt (Cvt32Fto64F x))) && sqrt0.Uses==1 => (Sqrt32 x)
+
 (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
 
-// recognize runtime.newobject and don't Zero/Nilcheck it
-(Zero (Load (OffPtr [c] (SP)) mem) mem)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-(Store (Load (OffPtr [c] (SP)) mem) x mem)
-	&& isConstZero(x)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-(Store (OffPtr (Load (OffPtr [c] (SP)) mem)) x mem)
-	&& isConstZero(x)
-	&& mem.Op == OpStaticCall
-	&& isSameCall(mem.Aux, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	=> mem
-// nil checks just need to rewrite to something useless.
-// they will be deadcode eliminated soon afterwards.
-(NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
-	&& isSameCall(sym, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
-(NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
-	&& isSameCall(sym, "runtime.newobject")
-	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
-	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
-	=> (Invalid)
-
 // for rewriting results of some late-expanded rewrites (below)
-(SelectN [0] (MakeResult a ___)) => a
-(SelectN [1] (MakeResult a b ___)) => b
-(SelectN [2] (MakeResult a b c ___)) => c
+(SelectN [0] (MakeResult x ___)) => x
+(SelectN [1] (MakeResult x y ___)) => y
+(SelectN [2] (MakeResult x y z ___)) => z
 
 // for late-expanded calls, recognize newobject and remove zeroing and nilchecks
 (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
@@ -2021,12 +1993,12 @@
 	&& isSameCall(call.Aux, "runtime.newobject")
 	=> mem
 
-(NilCheck (SelectN [0] call:(StaticLECall _ _)) (SelectN [1] call))
+(NilCheck (SelectN [0] call:(StaticLECall _ _)) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 
-(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) (SelectN [1] call))
+(NilCheck (OffPtr (SelectN [0] call:(StaticLECall _ _))) _)
 	&& isSameCall(call.Aux, "runtime.newobject")
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
@@ -2041,18 +2013,18 @@
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])
 (NeqPtr x x) => (ConstBool [false])
-(EqPtr  (Addr {a} _) (Addr {b} _)) => (ConstBool [a == b])
-(EqPtr  (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a == b && o == 0])
-(EqPtr  (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a == b && o1 == o2])
-(NeqPtr (Addr {a} _) (Addr {b} _)) => (ConstBool [a != b])
-(NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a != b || o != 0])
-(NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a != b || o1 != o2])
-(EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a == b])
-(EqPtr  (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a == b && o == 0])
-(EqPtr  (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a == b && o1 == o2])
-(NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a != b])
-(NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a != b || o != 0])
-(NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a != b || o1 != o2])
+(EqPtr  (Addr {x} _) (Addr {y} _)) => (ConstBool [x == y])
+(EqPtr  (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x == y && o == 0])
+(EqPtr  (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x == y && o1 == o2])
+(NeqPtr (Addr {x} _) (Addr {y} _)) => (ConstBool [x != y])
+(NeqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x != y || o != 0])
+(NeqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x != y || o1 != o2])
+(EqPtr  (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x == y])
+(EqPtr  (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x == y && o == 0])
+(EqPtr  (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x == y && o1 == o2])
+(NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x != y])
+(NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x != y || o != 0])
+(NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x != y || o1 != o2])
 (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 == 0])
 (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 != 0])
 (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 == o2])
@@ -2085,32 +2057,39 @@
 
 // Inline small or disjoint runtime.memmove calls with constant length.
 // See the comment in op Move in genericOps.go for discussion of the type.
-(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+
+// Because expand calls runs after prove, constants useful to this pattern may not appear.
+// Both versions need to exist; the memory and register variants.
+//
+// Match post-expansion calls, memory version.
+(SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
 	&& sz >= 0
 	&& isSameCall(sym, "runtime.memmove")
-	&& t.IsPtr() // avoids TUINTPTR, see issue 30061
+	&& t.IsPtr() // avoids TUNSAFEPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst, src, int64(sz), config)
-	&& clobber(s1, s2, s3)
+	&& clobber(s1, s2, s3, call)
 	=> (Move {t.Elem()} [int64(sz)] dst src mem)
 
-// Inline small or disjoint runtime.memmove calls with constant length.
-// See the comment in op Move in genericOps.go for discussion of the type.
-(SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
+// Match post-expansion calls, register version.
+(SelectN [0] call:(StaticCall {sym} dst src (Const(64|32) [sz]) mem))
 	&& sz >= 0
 	&& call.Uses == 1 // this will exclude all calls with results
 	&& isSameCall(sym, "runtime.memmove")
-	&& dst.Type.IsPtr() // avoids TUINTPTR, see issue 30061
+	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
 	&& isInlinableMemmove(dst, src, int64(sz), config)
 	&& clobber(call)
 	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
 
-// De-virtualize interface calls into static calls.
-// Note that (ITab (IMake)) doesn't get
-// rewritten until after the first opt pass,
-// so this rule should trigger reliably.
-(InterCall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) mem) && devirt(v, auxCall, itab, off) != nil =>
-	(StaticCall [int32(argsize)] {devirt(v, auxCall, itab, off)} mem)
+// Match pre-expansion calls.
+(SelectN [0] call:(StaticLECall {sym} dst src (Const(64|32) [sz]) mem))
+	&& sz >= 0
+	&& call.Uses == 1 // this will exclude all calls with results
+	&& isSameCall(sym, "runtime.memmove")
+	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+	&& isInlinableMemmove(dst, src, int64(sz), config)
+	&& clobber(call)
+	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
 
 // De-virtualize late-expanded interface calls into late-expanded static calls.
 // Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
@@ -2499,8 +2478,8 @@
 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
 					(Zero {t1} [n] dst mem)))))
 
-// TODO this does not fire before call expansion; is that acceptable?
-(StaticCall {sym} x) && needRaceCleanup(sym, v) => x
+(SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
+(SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
 
 // Collapse moving A -> B -> C into just A -> C.
 // Later passes (deadstore, elim unread auto) will remove the A -> B move, if possible.
@@ -2512,7 +2491,7 @@
 (Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
 	&& t1.Compare(t2) == types.CMPeq
 	&& isSamePtr(tmp1, tmp2)
-	&& isStackPtr(src)
+	&& isStackPtr(src) && !isVolatile(src)
 	&& disjoint(src, s, tmp2, s)
 	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)
@@ -2521,7 +2500,7 @@
 (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
 	&& t1.Compare(t2) == types.CMPeq
 	&& isSamePtr(tmp1, tmp2)
-	&& isStackPtr(src)
+	&& isStackPtr(src) && !isVolatile(src)
 	&& disjoint(src, s, tmp2, s)
 	&& (disjoint(src, s, dst, s) || isInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)

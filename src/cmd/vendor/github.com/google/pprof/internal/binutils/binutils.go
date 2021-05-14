@@ -18,6 +18,7 @@ package binutils
 import (
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -41,7 +42,12 @@ type Binutils struct {
 	rep *binrep
 }
 
-var objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
+var (
+	objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
+
+	// Defined for testing
+	elfOpen = elf.Open
+)
 
 // binrep is an immutable representation for Binutils.  It is atomically
 // replaced on every mutation to provide thread-safe access.
@@ -255,7 +261,7 @@ func (bu *Binutils) Disasm(file string, start, end uint64, intelSyntax bool) ([]
 	if !b.objdumpFound {
 		return nil, errors.New("cannot disasm: no objdump tool available")
 	}
-	args := []string{"--disassemble-all", "--demangle", "--no-show-raw-insn",
+	args := []string{"--disassemble", "--demangle", "--no-show-raw-insn",
 		"--line-numbers", fmt.Sprintf("--start-address=%#x", start),
 		fmt.Sprintf("--stop-address=%#x", end)}
 
@@ -337,6 +343,15 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
 		return f, nil
 	}
 
+	peMagic := string(header[:2])
+	if peMagic == "MZ" {
+		f, err := b.openPE(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading PE file %s: %v", name, err)
+		}
+		return f, nil
+	}
+
 	return nil, fmt.Errorf("unrecognized binary format: %s", name)
 }
 
@@ -411,14 +426,23 @@ func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.Obj
 }
 
 func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
-	ef, err := elf.Open(name)
+	ef, err := elfOpen(name)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing %s: %v", name, err)
 	}
 	defer ef.Close()
 
-	var stextOffset *uint64
-	var pageAligned = func(addr uint64) bool { return addr%4096 == 0 }
+	buildID := ""
+	if f, err := os.Open(name); err == nil {
+		if id, err := elfexec.GetBuildID(f); err == nil {
+			buildID = fmt.Sprintf("%x", id)
+		}
+	}
+
+	var (
+		stextOffset *uint64
+		pageAligned = func(addr uint64) bool { return addr%4096 == 0 }
+	)
 	if strings.Contains(name, "vmlinux") || !pageAligned(start) || !pageAligned(limit) || !pageAligned(offset) {
 		// Reading all Symbols is expensive, and we only rarely need it so
 		// we don't want to do it every time. But if _stext happens to be
@@ -440,37 +464,171 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 		}
 	}
 
-	base, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset)
-	if err != nil {
+	// Check that we can compute a base for the binary. This may not be the
+	// correct base value, so we don't save it. We delay computing the actual base
+	// value until we have a sample address for this mapping, so that we can
+	// correctly identify the associated program segment that is needed to compute
+	// the base.
+	if _, err := elfexec.GetBase(&ef.FileHeader, elfexec.FindTextProgHeader(ef), stextOffset, start, limit, offset); err != nil {
 		return nil, fmt.Errorf("could not identify base for %s: %v", name, err)
 	}
 
-	buildID := ""
-	if f, err := os.Open(name); err == nil {
-		if id, err := elfexec.GetBuildID(f); err == nil {
-			buildID = fmt.Sprintf("%x", id)
-		}
+	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
+		return &fileNM{file: file{
+			b:       b,
+			name:    name,
+			buildID: buildID,
+			m:       &elfMapping{start: start, limit: limit, offset: offset, stextOffset: stextOffset},
+		}}, nil
+	}
+	return &fileAddr2Line{file: file{
+		b:       b,
+		name:    name,
+		buildID: buildID,
+		m:       &elfMapping{start: start, limit: limit, offset: offset, stextOffset: stextOffset},
+	}}, nil
+}
+
+func (b *binrep) openPE(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	pf, err := pe.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+	}
+	defer pf.Close()
+
+	var imageBase uint64
+	switch h := pf.OptionalHeader.(type) {
+	case *pe.OptionalHeader32:
+		imageBase = uint64(h.ImageBase)
+	case *pe.OptionalHeader64:
+		imageBase = uint64(h.ImageBase)
+	default:
+		return nil, fmt.Errorf("unknown OptionalHeader %T", pf.OptionalHeader)
+	}
+
+	var base uint64
+	if start > 0 {
+		base = start - imageBase
 	}
 	if b.fast || (!b.addr2lineFound && !b.llvmSymbolizerFound) {
-		return &fileNM{file: file{b, name, base, buildID}}, nil
+		return &fileNM{file: file{b: b, name: name, base: base}}, nil
 	}
-	return &fileAddr2Line{file: file{b, name, base, buildID}}, nil
+	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
+}
+
+// elfMapping stores the parameters of a runtime mapping that are needed to
+// identify the ELF segment associated with a mapping.
+type elfMapping struct {
+	// Runtime mapping parameters.
+	start, limit, offset uint64
+	// Offset of _stext symbol. Only defined for kernel images, nil otherwise.
+	stextOffset *uint64
 }
 
 // file implements the binutils.ObjFile interface.
 type file struct {
 	b       *binrep
 	name    string
-	base    uint64
 	buildID string
+
+	baseOnce sync.Once // Ensures the base, baseErr and isData are computed once.
+	base     uint64
+	baseErr  error // Any eventual error while computing the base.
+	isData   bool
+	// Mapping information. Relevant only for ELF files, nil otherwise.
+	m *elfMapping
+}
+
+// computeBase computes the relocation base for the given binary file only if
+// the elfMapping field is set. It populates the base and isData fields and
+// returns an error.
+func (f *file) computeBase(addr uint64) error {
+	if f == nil || f.m == nil {
+		return nil
+	}
+	if addr < f.m.start || addr >= f.m.limit {
+		return fmt.Errorf("specified address %x is outside the mapping range [%x, %x] for file %q", addr, f.m.start, f.m.limit, f.name)
+	}
+	ef, err := elfOpen(f.name)
+	if err != nil {
+		return fmt.Errorf("error parsing %s: %v", f.name, err)
+	}
+	defer ef.Close()
+
+	var ph *elf.ProgHeader
+	// For user space executables, find the actual program segment that is
+	// associated with the given mapping. Skip this search if limit <= start.
+	// We cannot use just a check on the start address of the mapping to tell if
+	// it's a kernel / .ko module mapping, because with quipper address remapping
+	// enabled, the address would be in the lower half of the address space.
+	if f.m.stextOffset == nil && f.m.start < f.m.limit && f.m.limit < (uint64(1)<<63) {
+		// Get all program headers associated with the mapping.
+		headers, hasLoadables := elfexec.ProgramHeadersForMapping(ef, f.m.offset, f.m.limit-f.m.start)
+
+		// Some ELF files don't contain any loadable program segments, e.g. .ko
+		// kernel modules. It's not an error to have no header in such cases.
+		if hasLoadables {
+			ph, err = matchUniqueHeader(headers, addr-f.m.start+f.m.offset)
+			if err != nil {
+				return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
+			}
+		}
+	} else {
+		// For the kernel, find the program segment that includes the .text section.
+		ph = elfexec.FindTextProgHeader(ef)
+	}
+
+	base, err := elfexec.GetBase(&ef.FileHeader, ph, f.m.stextOffset, f.m.start, f.m.limit, f.m.offset)
+	if err != nil {
+		return err
+	}
+	f.base = base
+	f.isData = ph != nil && ph.Flags&elf.PF_X == 0
+	return nil
+}
+
+// matchUniqueHeader attempts to identify a unique header from the given list,
+// using the given file offset to disambiguate between multiple segments. It
+// returns an error if the header list is empty or if it cannot identify a
+// unique header.
+func matchUniqueHeader(headers []*elf.ProgHeader, fileOffset uint64) (*elf.ProgHeader, error) {
+	if len(headers) == 0 {
+		return nil, errors.New("no program header matches mapping info")
+	}
+	if len(headers) == 1 {
+		// Don't use the file offset if we already have a single header.
+		return headers[0], nil
+	}
+	// We have multiple input segments. Attempt to identify a unique one
+	// based on the given file offset.
+	var ph *elf.ProgHeader
+	for _, h := range headers {
+		if fileOffset >= h.Off && fileOffset < h.Off+h.Memsz {
+			if ph != nil {
+				// Assuming no other bugs, this can only happen if we have two or
+				// more small program segments that fit on the same page, and a
+				// segment other than the last one includes uninitialized data.
+				return nil, fmt.Errorf("found second program header (%#v) that matches file offset %x, first program header is %#v. Does first program segment contain uninitialized data?", *h, fileOffset, *ph)
+			}
+			ph = h
+		}
+	}
+	if ph == nil {
+		return nil, fmt.Errorf("no program header matches file offset %x", fileOffset)
+	}
+	return ph, nil
 }
 
 func (f *file) Name() string {
 	return f.name
 }
 
-func (f *file) Base() uint64 {
-	return f.base
+func (f *file) ObjAddr(addr uint64) (uint64, error) {
+	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
+	if f.baseErr != nil {
+		return 0, f.baseErr
+	}
+	return addr - f.base, nil
 }
 
 func (f *file) BuildID() string {
@@ -478,7 +636,11 @@ func (f *file) BuildID() string {
 }
 
 func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
-	return []plugin.Frame{}, nil
+	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
+	if f.baseErr != nil {
+		return nil, f.baseErr
+	}
+	return nil, nil
 }
 
 func (f *file) Close() error {
@@ -505,6 +667,10 @@ type fileNM struct {
 }
 
 func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
+	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
+	if f.baseErr != nil {
+		return nil, f.baseErr
+	}
 	if f.addr2linernm == nil {
 		addr2liner, err := newAddr2LinerNM(f.b.nm, f.name, f.base)
 		if err != nil {
@@ -524,9 +690,14 @@ type fileAddr2Line struct {
 	file
 	addr2liner     *addr2Liner
 	llvmSymbolizer *llvmSymbolizer
+	isData         bool
 }
 
 func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
+	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
+	if f.baseErr != nil {
+		return nil, f.baseErr
+	}
 	f.once.Do(f.init)
 	if f.llvmSymbolizer != nil {
 		return f.llvmSymbolizer.addrInfo(addr)
@@ -538,7 +709,7 @@ func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 func (f *fileAddr2Line) init() {
-	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base); err == nil {
+	if llvmSymbolizer, err := newLLVMSymbolizer(f.b.llvmSymbolizer, f.name, f.base, f.isData); err == nil {
 		f.llvmSymbolizer = llvmSymbolizer
 		return
 	}

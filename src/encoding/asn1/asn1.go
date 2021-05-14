@@ -914,7 +914,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		structType := fieldType
 
 		for i := 0; i < structType.NumField(); i++ {
-			if structType.Field(i).PkgPath != "" {
+			if !structType.Field(i).IsExported() {
 				err = StructuralError{"struct contains unexported fields"}
 				return
 			}
@@ -1066,6 +1066,15 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	optional    marks the field as ASN.1 OPTIONAL
 //	set         causes a SET, rather than a SEQUENCE type to be expected
 //	tag:x       specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+//
+// When decoding an ASN.1 value with an IMPLICIT tag into a string field,
+// Unmarshal will default to a PrintableString, which doesn't support
+// characters such as '@' and '&'. To force other encodings, use the following
+// tags:
+//
+//	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
+//	numeric causes strings to be unmarshaled as ASN.1 NumericString values
+//	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.

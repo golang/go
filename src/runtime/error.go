@@ -134,6 +134,7 @@ const (
 	boundsSlice3B    // s[?:x:y], 0 <= x <= y failed (but boundsSlice3A didn't happen)
 	boundsSlice3C    // s[x:y:?], 0 <= x <= y failed (but boundsSlice3A/B didn't happen)
 
+	boundsConvert // (*[x]T)(s), 0 <= x <= len(s) failed
 	// Note: in the above, len(s) and cap(s) are stored in y
 )
 
@@ -149,6 +150,7 @@ var boundsErrorFmts = [...]string{
 	boundsSlice3Acap: "slice bounds out of range [::%x] with capacity %y",
 	boundsSlice3B:    "slice bounds out of range [:%x:%y]",
 	boundsSlice3C:    "slice bounds out of range [%x:%y:]",
+	boundsConvert:    "cannot convert slice with length %y to pointer to array with length %x",
 }
 
 // boundsNegErrorFmts are overriding formats if x is negative. In this case there's no need to report y.

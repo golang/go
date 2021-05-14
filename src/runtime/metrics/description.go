@@ -23,6 +23,11 @@ type Description struct {
 	// Examples of units might be "seconds", "bytes", "bytes/second", "cpu-seconds",
 	// "byte*cpu-seconds", and "bytes/second/second".
 	//
+	// For histograms, multiple units may apply. For instance, the units of the buckets and
+	// the count. By convention, for histograms, the units of the count are always "samples"
+	// with the type of sample evident by the metric's name, while the unit in the name
+	// specifies the buckets' unit.
+	//
 	// A complete name might look like "/memory/heap/free:bytes".
 	Name string
 
@@ -41,10 +46,6 @@ type Description struct {
 	//
 	// This flag thus indicates whether or not it's useful to compute a rate from this value.
 	Cumulative bool
-
-	// StopTheWorld is whether or not the metric requires a stop-the-world
-	// event in order to collect it.
-	StopTheWorld bool
 }
 
 // The English language descriptions below must be kept in sync with the
@@ -69,14 +70,49 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/allocs-by-size:objects",
-		Description: "Distribution of all objects allocated by approximate size.",
-		Kind:        KindFloat64Histogram,
+		Name: "/gc/heap/allocs-by-size:bytes",
+		Description: "Distribution of heap allocations by approximate size. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindFloat64Histogram,
+		Cumulative: true,
 	},
 	{
-		Name:        "/gc/heap/frees-by-size:objects",
-		Description: "Distribution of all objects freed by approximate size.",
-		Kind:        KindFloat64Histogram,
+		Name:        "/gc/heap/allocs:bytes",
+		Description: "Cumulative sum of memory allocated to the heap by the application.",
+		Kind:        KindUint64,
+		Cumulative:  true,
+	},
+	{
+		Name: "/gc/heap/allocs:objects",
+		Description: "Cumulative count of heap allocations triggered by the application. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/heap/frees-by-size:bytes",
+		Description: "Distribution of freed heap allocations by approximate size. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindFloat64Histogram,
+		Cumulative: true,
+	},
+	{
+		Name:        "/gc/heap/frees:bytes",
+		Description: "Cumulative sum of heap memory freed by the garbage collector.",
+		Kind:        KindUint64,
+		Cumulative:  true,
+	},
+	{
+		Name: "/gc/heap/frees:objects",
+		Description: "Cumulative count of heap allocations whose storage was freed " +
+			"by the garbage collector. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindUint64,
+		Cumulative: true,
 	},
 	{
 		Name:        "/gc/heap/goal:bytes",
@@ -89,9 +125,20 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name: "/gc/heap/tiny/allocs:objects",
+		Description: "Count of small allocations that are packed together into blocks. " +
+			"These allocations are counted separately from other allocations " +
+			"because each individual allocation is not tracked by the runtime, " +
+			"only their block. Each block is already accounted for in " +
+			"allocs-by-size and frees-by-size.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
 		Name:        "/gc/pauses:seconds",
 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name: "/memory/classes/heap/free:bytes",
@@ -171,6 +218,11 @@ var allDesc = []Description{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/latencies:seconds",
+		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
+		Kind:        KindFloat64Histogram,
 	},
 }
 

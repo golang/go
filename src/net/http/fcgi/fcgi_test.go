@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var sizeTests = []struct {
@@ -221,7 +222,11 @@ var cleanUpTests = []struct {
 }
 
 type nopWriteCloser struct {
-	io.ReadWriter
+	io.Reader
+}
+
+func (nopWriteCloser) Write(buf []byte) (int, error) {
+	return len(buf), nil
 }
 
 func (nopWriteCloser) Close() error {
@@ -235,7 +240,7 @@ func TestChildServeCleansUp(t *testing.T) {
 	for _, tt := range cleanUpTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -325,7 +330,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
 	for _, tt := range envVarTests {
 		input := make([]byte, len(tt.input))
 		copy(input, tt.input)
-		rc := nopWriteCloser{bytes.NewBuffer(input)}
+		rc := nopWriteCloser{bytes.NewReader(input)}
 		done := make(chan bool)
 		c := newChild(rc, http.HandlerFunc(func(
 			w http.ResponseWriter,
@@ -375,7 +380,7 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := make([]byte, len(streamFullRequestStdin))
 			copy(input, streamFullRequestStdin)
-			rc := nopWriteCloser{bytes.NewBuffer(input)}
+			rc := nopWriteCloser{bytes.NewReader(input)}
 			done := make(chan bool)
 			var resp *response
 			c := newChild(rc, http.HandlerFunc(func(
@@ -393,5 +398,57 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
 				t.Errorf("got a Content-Type of %q; expected it to start with %q", got, tt.wantCT)
 			}
 		})
+	}
+}
+
+type signallingNopCloser struct {
+	io.Reader
+	closed chan bool
+}
+
+func (*signallingNopCloser) Write(buf []byte) (int, error) {
+	return len(buf), nil
+}
+
+func (rc *signallingNopCloser) Close() error {
+	close(rc.closed)
+	return nil
+}
+
+// Test whether server properly closes connection when processing slow
+// requests
+func TestSlowRequest(t *testing.T) {
+	pr, pw := io.Pipe()
+	go func(w io.Writer) {
+		for _, buf := range [][]byte{
+			streamBeginTypeStdin,
+			makeRecord(typeStdin, 1, nil),
+		} {
+			pw.Write(buf)
+			time.Sleep(100 * time.Millisecond)
+		}
+	}(pw)
+
+	rc := &signallingNopCloser{pr, make(chan bool)}
+	handlerDone := make(chan bool)
+
+	c := newChild(rc, http.HandlerFunc(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) {
+		w.WriteHeader(200)
+		close(handlerDone)
+	}))
+	go c.serve()
+	defer c.cleanUp()
+
+	timeout := time.After(2 * time.Second)
+
+	<-handlerDone
+	select {
+	case <-rc.closed:
+		t.Log("FastCGI child closed connection")
+	case <-timeout:
+		t.Error("FastCGI child did not close socket after handling request")
 	}
 }

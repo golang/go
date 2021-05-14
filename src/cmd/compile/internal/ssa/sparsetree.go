@@ -178,6 +178,12 @@ func (t SparseTree) Child(x *Block) *Block {
 	return t[x.ID].child
 }
 
+// Parent returns the parent of x in the dominator tree, or
+// nil if x is the function's entry.
+func (t SparseTree) Parent(x *Block) *Block {
+	return t[x.ID].parent
+}
+
 // isAncestorEq reports whether x is an ancestor of or equal to y.
 func (t SparseTree) IsAncestorEq(x, y *Block) bool {
 	if x == y {

@@ -39,7 +39,7 @@ stdout example.com/notfound
 
 # Listing the missing dependency directly should fail outright...
 ! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
-stderr 'no required module provides package example.com/notfound; try ''go get -d example.com/notfound'' to add it'
+stderr 'no required module provides package example.com/notfound; to add it:\n\tgo get example.com/notfound'
 ! stdout error
 ! stdout incomplete
 

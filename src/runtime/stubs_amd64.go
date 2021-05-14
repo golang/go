@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from compiled code; declared for vet; do NOT call from Go.
 func gcWriteBarrierCX()
 func gcWriteBarrierDX()
@@ -35,3 +37,13 @@ func retpolineR12()
 func retpolineR13()
 func retpolineR14()
 func retpolineR15()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)
+
+// Used by reflectcall and the reflect package.
+//
+// Spills/loads arguments in registers to/from an internal/abi.RegArgs
+// respectively. Does not follow the Go ABI.
+func spillArgs()
+func unspillArgs()

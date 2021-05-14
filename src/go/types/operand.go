@@ -158,7 +158,16 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if x.typ != Typ[Invalid] {
-			buf.WriteString(" of type ")
+			var intro string
+			switch {
+			case isGeneric(x.typ):
+				intro = " of generic type "
+			case asTypeParam(x.typ) != nil:
+				intro = " of type parameter type "
+			default:
+				intro = " of type "
+			}
+			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
 		} else {
 			buf.WriteString(" with invalid type")
@@ -213,9 +222,10 @@ func (x *operand) isNil() bool {
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil reason is provided, it may be set to a more
-// detailed explanation of the failure (result != ""). The check parameter may
-// be nil if assignableTo is invoked through an exported API call, i.e., when
-// all methods have been type-checked.
+// detailed explanation of the failure (result != ""). The returned error code
+// is only valid if the (first) result is false. The check parameter may be nil
+// if assignableTo is invoked through an exported API call, i.e., when all
+// methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true, 0 // avoid spurious errors
@@ -228,20 +238,25 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		return true, 0
 	}
 
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := optype(V)
+	Tu := optype(T)
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
-			return representableConst(x.val, check, t, nil), _IncompatibleAssign
+		if t, ok := Tu.(*_Sum); ok {
+			return t.is(func(t Type) bool {
+				// TODO(gri) this could probably be more efficient
+				ok, _ := x.assignableTo(check, t, reason)
+				return ok
+			}), _IncompatibleAssign
 		}
-		return check.implicitType(x, Tu) != nil, _IncompatibleAssign
+		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
-	// x's type V and T have identical underlying types and at least one of V or
-	// T is not a named type.
+	// x's type V and T have identical underlying types
+	// and at least one of V or T is not a named type
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true, 0
 	}
@@ -271,11 +286,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			if !isNamed(V) || !isNamed(T) {
-				return true, 0
-			} else {
-				return false, _InvalidChanAssign
-			}
+			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
 		}
 	}
 

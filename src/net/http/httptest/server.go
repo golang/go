@@ -316,6 +316,13 @@ func (s *Server) wrap() {
 	s.Config.ConnState = func(c net.Conn, cs http.ConnState) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
+
+		// Keep Close from returning until the user's ConnState hook
+		// (if any) finishes. Without this, the call to forgetConn
+		// below might send the count to 0 before we run the hook.
+		s.wg.Add(1)
+		defer s.wg.Done()
+
 		switch cs {
 		case http.StateNew:
 			s.wg.Add(1)

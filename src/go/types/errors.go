@@ -28,13 +28,38 @@ func unreachable() {
 func (check *Checker) qualifier(pkg *Package) string {
 	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
+		if check.pkgPathMap == nil {
+			check.pkgPathMap = make(map[string]map[string]bool)
+			check.seenPkgMap = make(map[*Package]bool)
+			check.markImports(pkg)
+		}
 		// If the same package name was used by multiple packages, display the full path.
-		if check.pkgCnt[pkg.name] > 1 {
+		if len(check.pkgPathMap[pkg.name]) > 1 {
 			return strconv.Quote(pkg.path)
 		}
 		return pkg.name
 	}
 	return ""
+}
+
+// markImports recursively walks pkg and its imports, to record unique import
+// paths in pkgPathMap.
+func (check *Checker) markImports(pkg *Package) {
+	if check.seenPkgMap[pkg] {
+		return
+	}
+	check.seenPkgMap[pkg] = true
+
+	forName, ok := check.pkgPathMap[pkg.name]
+	if !ok {
+		forName = make(map[string]bool)
+		check.pkgPathMap[pkg.name] = forName
+	}
+	forName[pkg.path] = true
+
+	for _, imp := range pkg.imports {
+		check.markImports(imp)
+	}
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
@@ -89,15 +114,18 @@ func (check *Checker) err(err error) {
 		return
 	}
 
-	if check.errpos != nil && isInternal {
-		// If we have an internal error and the errpos override is set, use it to
-		// augment our error positioning.
-		// TODO(rFindley) we may also want to augment the error message and refer
-		// to the position (pos) in the original expression.
-		span := spanOf(check.errpos)
-		e.Pos = span.pos
-		e.go116start = span.start
-		e.go116end = span.end
+	if isInternal {
+		e.Msg = stripAnnotations(e.Msg)
+		if check.errpos != nil {
+			// If we have an internal error and the errpos override is set, use it to
+			// augment our error positioning.
+			// TODO(rFindley) we may also want to augment the error message and refer
+			// to the position (pos) in the original expression.
+			span := spanOf(check.errpos)
+			e.Pos = span.pos
+			e.go116start = span.start
+			e.go116end = span.end
+		}
 		err = e
 	}
 
@@ -224,4 +252,19 @@ func spanOf(at positioner) posSpan {
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}
 	}
+}
+
+// stripAnnotations removes internal (type) annotations from s.
+func stripAnnotations(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		// strip #'s and subscript digits
+		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() < len(s) {
+		return b.String()
+	}
+	return s
 }

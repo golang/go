@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -257,13 +258,14 @@ var genericOps = []opData{
 	{name: "RotateLeft32", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 	{name: "RotateLeft64", argLength: 2}, // Rotate bits in arg[0] left by arg[1]
 
-	// Square root, float64 only.
+	// Square root.
 	// Special cases:
 	//   +∞  → +∞
 	//   ±0  → ±0 (sign preserved)
 	//   x<0 → NaN
 	//   NaN → NaN
-	{name: "Sqrt", argLength: 1}, // √arg0
+	{name: "Sqrt", argLength: 1},   // √arg0 (floating point, double precision)
+	{name: "Sqrt32", argLength: 1}, // √arg0 (floating point, single precision)
 
 	// Round to integer, float64 only.
 	// Special cases:
@@ -332,6 +334,11 @@ var genericOps = []opData{
 	{name: "InitMem", zeroWidth: true},                               // memory input to the function.
 	{name: "Arg", aux: "SymOff", symEffect: "Read", zeroWidth: true}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
+	// Like Arg, these are generic ops that survive lowering. AuxInt is a register index, and the actual output register for each index is defined by the architecture.
+	// AuxInt = integer argument index (not a register number). ABI-specified spill loc obtained from function
+	{name: "ArgIntReg", aux: "NameOffsetInt8", zeroWidth: true},   // argument to the function in an int reg.
+	{name: "ArgFloatReg", aux: "NameOffsetInt8", zeroWidth: true}, // argument to the function in a float reg.
+
 	// The address of a variable.  arg0 is the base pointer.
 	// If the variable is a global, the base pointer will be SB and
 	// the Aux field will be a *obj.LSym.
@@ -389,9 +396,28 @@ var genericOps = []opData{
 	// TODO(josharian): ClosureCall and InterCall should have Int32 aux
 	// to match StaticCall's 32 bit arg size limit.
 	// TODO(drchase,josharian): could the arg size limit be bundled into the rules for CallOff?
-	{name: "ClosureCall", argLength: 3, aux: "CallOff", call: true},    // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall", argLength: 1, aux: "CallOff", call: true},     // call function aux.(*obj.LSym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "InterCall", argLength: 2, aux: "CallOff", call: true},      // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+
+	// Before lowering, LECalls receive their fixed inputs (first), memory (last),
+	// and a variable number of input values in the middle.
+	// They produce a variable number of result values.
+	// These values are not necessarily "SSA-able"; they can be too large,
+	// but in that case inputs are loaded immediately before with OpDereference,
+	// and outputs are stored immediately with OpStore.
+	//
+	// After call expansion, Calls have the same fixed-middle-memory arrangement of inputs,
+	// with the difference that the "middle" is only the register-resident inputs,
+	// and the non-register inputs are instead stored at ABI-defined offsets from SP
+	// (and the stores thread through the memory that is ultimately an input to the call).
+	// Outputs follow a similar pattern; register-resident outputs are the leading elements
+	// of a Result-typed output, with memory last, and any memory-resident outputs have been
+	// stored to ABI-defined locations.  Each non-memory input or output fits in a register.
+	//
+	// Subsequent architecture-specific lowering only changes the opcode.
+
+	{name: "ClosureCall", argLength: -1, aux: "CallOff", call: true}, // arg0=code pointer, arg1=context ptr, arg2..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "StaticCall", argLength: -1, aux: "CallOff", call: true},  // call function aux.(*obj.LSym), arg0..argN-1 are register inputs, argN=memory.  auxint=arg size.  Returns Result of register results, plus memory.
+	{name: "InterCall", argLength: -1, aux: "CallOff", call: true},   // interface call.  arg0=code pointer, arg1..argN-1 are register inputs, argN=memory, auxint=arg size.  Returns Result of register results, plus memory.
+
 	{name: "ClosureLECall", argLength: -1, aux: "CallOff", call: true}, // late-expanded closure call. arg0=code pointer, arg1=context ptr,  arg2..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "StaticLECall", argLength: -1, aux: "CallOff", call: true},  // late-expanded static call function aux.(*ssa.AuxCall.Fn). arg0..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
 	{name: "InterLECall", argLength: -1, aux: "CallOff", call: true},   // late-expanded interface call. arg0=code pointer, arg1..argN-1 are inputs, argN is mem. auxint = arg size. Result is tuple of result(s), plus mem.
@@ -453,6 +479,10 @@ var genericOps = []opData{
 	{name: "SlicePtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
 	{name: "SliceLen", argLength: 1},                 // len(arg0)
 	{name: "SliceCap", argLength: 1},                 // cap(arg0)
+	// SlicePtrUnchecked, like SlicePtr, extracts the pointer from a slice.
+	// SlicePtr values are assumed non-nil, because they are guarded by bounds checks.
+	// SlicePtrUnchecked values can be nil.
+	{name: "SlicePtrUnchecked", argLength: 1},
 
 	// Complex (part/whole)
 	{name: "ComplexMake", argLength: 2}, // arg0=real, arg1=imag
@@ -587,6 +617,7 @@ var genericOps = []opData{
 
 	// Clobber experiment op
 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
 }
 
 //     kind          controls        successors   implicit exit

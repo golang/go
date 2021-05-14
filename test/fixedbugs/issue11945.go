@@ -13,6 +13,10 @@ const (
 	_ = real(0) // from bug report
 	_ = imag(0) // from bug report
 
+	// same as above, but exported for #43891
+	Real0 = real(0)
+	Imag0 = imag(0)
+
 	// if the arguments are untyped, the results must be untyped
 	// (and compatible with types that can represent the values)
 	_ int = real(1)

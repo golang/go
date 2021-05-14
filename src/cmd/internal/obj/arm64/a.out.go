@@ -239,7 +239,7 @@ const (
 	REGCTXT = REG_R26 // environment for closures
 	REGTMP  = REG_R27 // reserved for liblink
 	REGG    = REG_R28 // G
-	REGFP   = REG_R29 // frame pointer, unused in the Go toolchain
+	REGFP   = REG_R29 // frame pointer
 	REGLINK = REG_R30
 
 	// ARM64 uses R31 as both stack pointer and zero register,
@@ -420,16 +420,21 @@ const (
 	C_LBRA
 
 	C_ZAUTO       // 0(RSP)
+	C_NSAUTO_16   // -256 <= x < 0, 0 mod 16
 	C_NSAUTO_8    // -256 <= x < 0, 0 mod 8
 	C_NSAUTO_4    // -256 <= x < 0, 0 mod 4
 	C_NSAUTO      // -256 <= x < 0
+	C_NPAUTO_16   // -512 <= x < 0, 0 mod 16
 	C_NPAUTO      // -512 <= x < 0, 0 mod 8
+	C_NQAUTO_16   // -1024 <= x < 0, 0 mod 16
 	C_NAUTO4K     // -4095 <= x < 0
+	C_PSAUTO_16   // 0 to 255, 0 mod 16
 	C_PSAUTO_8    // 0 to 255, 0 mod 8
 	C_PSAUTO_4    // 0 to 255, 0 mod 4
 	C_PSAUTO      // 0 to 255
 	C_PPAUTO_16   // 0 to 504, 0 mod 16
 	C_PPAUTO      // 0 to 504, 0 mod 8
+	C_PQAUTO_16   // 0 to 1008, 0 mod 16
 	C_UAUTO4K_16  // 0 to 4095, 0 mod 16
 	C_UAUTO4K_8   // 0 to 4095, 0 mod 8
 	C_UAUTO4K_4   // 0 to 4095, 0 mod 4
@@ -454,17 +459,22 @@ const (
 	C_SEXT16 // 0 to 65520
 	C_LEXT
 
-	C_ZOREG    // 0(R)
-	C_NSOREG_8 // must mirror C_NSAUTO_8, etc
+	C_ZOREG     // 0(R)
+	C_NSOREG_16 // must mirror C_NSAUTO_16, etc
+	C_NSOREG_8
 	C_NSOREG_4
 	C_NSOREG
+	C_NPOREG_16
 	C_NPOREG
+	C_NQOREG_16
 	C_NOREG4K
+	C_PSOREG_16
 	C_PSOREG_8
 	C_PSOREG_4
 	C_PSOREG
 	C_PPOREG_16
 	C_PPOREG
+	C_PQOREG_16
 	C_UOREG4K_16
 	C_UOREG4K_8
 	C_UOREG4K_4
@@ -898,6 +908,7 @@ const (
 	AFDIVD
 	AFDIVS
 	AFLDPD
+	AFLDPQ
 	AFLDPS
 	AFMOVQ
 	AFMOVD
@@ -912,6 +923,7 @@ const (
 	AFSQRTD
 	AFSQRTS
 	AFSTPD
+	AFSTPQ
 	AFSTPS
 	AFSUBD
 	AFSUBS
@@ -1019,6 +1031,8 @@ const (
 	AVEXT
 	AVRBIT
 	AVRAX1
+	AVUMAX
+	AVUMIN
 	AVUSHR
 	AVUSHLL
 	AVUSHLL2

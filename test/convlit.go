@@ -17,8 +17,8 @@ var x2 string = string(1)
 var x3 = int(1.5)     // ERROR "convert|truncate"
 var x4 int = int(1.5) // ERROR "convert|truncate"
 var x5 = "a" + string(1)
-var x6 = int(1e100)      // ERROR "overflow"
-var x7 = float32(1e1000) // ERROR "overflow"
+var x6 = int(1e100)      // ERROR "overflow|cannot convert"
+var x7 = float32(1e1000) // ERROR "overflow|cannot convert"
 
 // unsafe.Pointer can only convert to/from uintptr
 var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert|conversion"
@@ -34,7 +34,7 @@ var bad4 = "a" + 1   // ERROR "literals|incompatible|convert|invalid"
 var bad5 = "a" + 'a' // ERROR "literals|incompatible|convert|invalid"
 
 var bad6 int = 1.5       // ERROR "convert|truncate"
-var bad7 int = 1e100     // ERROR "overflow"
+var bad7 int = 1e100     // ERROR "overflow|truncated to int|truncated"
 var bad8 float32 = 1e200 // ERROR "overflow"
 
 // but these implicit conversions are okay
@@ -48,8 +48,8 @@ var _ = []rune("abc")
 var _ = []byte("abc")
 
 // implicit is not
-var _ []int = "abc"  // ERROR "cannot use|incompatible|invalid"
-var _ []byte = "abc" // ERROR "cannot use|incompatible|invalid"
+var _ []int = "abc"  // ERROR "cannot use|incompatible|invalid|cannot convert"
+var _ []byte = "abc" // ERROR "cannot use|incompatible|invalid|cannot convert"
 
 // named string is okay
 type Tstring string
@@ -70,5 +70,5 @@ var _ = Trune("abc") // ok
 var _ = Tbyte("abc") // ok
 
 // implicit is still not
-var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid"
-var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid"
+var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid|cannot convert"
+var _ Tbyte = "abc" // ERROR "cannot use|incompatible|invalid|cannot convert"
