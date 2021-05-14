@@ -145,7 +145,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
-			args := fuzzArgs{Count: input.countRequested, Duration: workerFuzzDuration, CoverageOnly: input.coverageOnly}
+			args := fuzzArgs{Limit: input.countRequested, Timeout: workerFuzzDuration, CoverageOnly: input.coverageOnly}
 			if interestingCount < input.interestingCount {
 				// The coordinator's coverage data has changed, so send the data
 				// to the client.
@@ -180,21 +180,25 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// the other workers from receiving more inputs.
 				message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 				err = w.waitErr
-				res, minimized, minErr := w.minimize(ctx)
+				var result fuzzResult
+				var minimized bool
+				if !input.coverageOnly {
+					var minErr error
+					result, minimized, minErr = w.minimize(ctx)
+					if minErr != nil {
+						err = minErr
+					}
+				}
 				if !minimized {
 					// Minimization did not find a smaller crashing value, so
 					// return the one we already found.
-					res = fuzzResult{
-						entry:      CorpusEntry{Data: value},
-						crasherMsg: message,
-					}
+					result.entry = CorpusEntry{Data: value}
+					result.crasherMsg = message
 				}
-				if minErr != nil {
-					err = minErr
-				}
-				w.coordinator.resultC <- res
+				w.coordinator.resultC <- result
 				return err
 			}
+
 			result := fuzzResult{
 				countRequested: input.countRequested,
 				count:          resp.Count,
@@ -212,26 +216,54 @@ func (w *worker) coordinate(ctx context.Context) error {
 	}
 }
 
-// minimize asks a workerServer to attempt to minimize what is currently in
-// shared memory. It runs for a maxium of 1 minute. The worker must be stopped
-// when minimize is called.
+// minimize asks a workerServer to attempt to minimize a value that caused an
+// unexpected termination of the worker process. The value must be in shared
+// memory, and the worker must be stopped. The execution count in shared memory
+// is reset once before restarting the worker.
 func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, retErr error) {
-	fmt.Fprint(w.coordinator.opts.Log, "found a crash, currently minimizing for up to 1 minute\n")
+	if w.coordinator.opts.MinimizeTimeout != 0 {
+		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing for up to %v\n", w.coordinator.opts.MinimizeTimeout)
+	} else if w.coordinator.opts.MinimizeLimit != 0 {
+		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing for up to %d execs\n", w.coordinator.opts.MinimizeLimit)
+	} else {
+		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing...\n")
+	}
+	start := time.Now()
+	if w.coordinator.opts.MinimizeTimeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, w.coordinator.opts.MinimizeTimeout)
+		defer cancel()
+	}
 	defer func() {
 		w.stop()
 		if retErr == nil {
 			retErr = w.waitErr
 		}
 	}()
-	// In case we can't minimize it at all, save the last crash value that we
-	// found to send to the coordinator once the time is up.
-	minimizeDeadline := time.Now().Add(time.Minute)
-	for rem := time.Until(minimizeDeadline); rem > 0; {
+
+	mem := <-w.memMu
+	mem.header().count = 0
+	w.memMu <- mem
+
+	for {
+		if ctx.Err() != nil {
+			return res, minimized, retErr
+		}
 		// Restart the worker.
 		if err := w.start(); err != nil {
 			return res, minimized, err
 		}
-		args := minimizeArgs{Duration: rem}
+		if err := w.client.ping(ctx); err != nil {
+			return res, minimized, err
+		}
+		args := minimizeArgs{Limit: w.coordinator.opts.MinimizeLimit}
+		if w.coordinator.opts.MinimizeTimeout != 0 {
+			elapsed := time.Now().Sub(start)
+			args.Timeout = w.coordinator.opts.MinimizeTimeout - elapsed
+			if args.Timeout < 0 {
+				return res, minimized, retErr
+			}
+		}
 		value, err := w.client.minimize(ctx, args)
 		if err == nil {
 			// Minimization finished successfully, meaning that it
@@ -239,6 +271,7 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, 
 			// so stop trying.
 			return res, minimized, nil
 		}
+		w.stop()
 		// Minimization will return an error for a non-recoverable problem, so
 		// a non-nil error is expected. However, make sure it didn't fail for
 		// some other reason which should cause us to stop minimizing.
@@ -248,7 +281,6 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, 
 
 		// The bytes in memory caused a legitimate crash, so stop the worker and
 		// save this value and error message.
-		w.stop()
 		message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 		res = fuzzResult{
 			entry:      CorpusEntry{Data: value},
@@ -256,7 +288,6 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, 
 		}
 		minimized = true
 	}
-	return res, minimized, nil
 	// TODO(jayconrod,katiehockman): while minimizing, every panic message is
 	// logged to STDOUT. We should probably suppress all but the last one to
 	// lower the noise.
@@ -447,7 +478,14 @@ type call struct {
 // minimizeArgs contains arguments to workerServer.minimize. The value to
 // minimize is already in shared memory.
 type minimizeArgs struct {
-	Duration time.Duration
+	// Timeout is the time to spend minimizing. This may include time to start up,
+	// especially if the input causes the worker process to terminated, requiring
+	// repeated restarts.
+	Timeout time.Duration
+
+	// Limit is the maximum number of values to test, without spending more time
+	// than Duration. 0 indicates no limit.
+	Limit int64
 }
 
 // minimizeResponse contains results from workerServer.minimize.
@@ -456,13 +494,13 @@ type minimizeResponse struct{}
 // fuzzArgs contains arguments to workerServer.fuzz. The value to fuzz is
 // passed in shared memory.
 type fuzzArgs struct {
-	// Duration is the time to spend fuzzing, not including starting or
+	// Timeout is the time to spend fuzzing, not including starting or
 	// cleaning up.
-	Duration time.Duration
+	Timeout time.Duration
 
-	// Count is the number of values to test, without spending more time
-	// than Duration.
-	Count int64
+	// Limit is the maximum number of values to test, without spending more time
+	// than Duration. 0 indicates no limit.
+	Limit int64
 
 	// CoverageOnly indicates whether this is a coverage-only run (ie. fuzzing
 	// should not occur).
@@ -604,10 +642,13 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	start := time.Now()
 	defer func() { resp.Duration = time.Since(start) }()
 
-	fuzzCtx, cancel := context.WithTimeout(ctx, args.Duration)
+	fuzzCtx, cancel := context.WithTimeout(ctx, args.Timeout)
 	defer cancel()
 	mem := <-ws.memMu
-	defer func() { ws.memMu <- mem }()
+	defer func() {
+		ws.memMu <- mem
+		resp.Count = mem.header().count
+	}()
 
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
 	if err != nil {
@@ -629,15 +670,17 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 			return resp
 
 		default:
-			resp.Count++
+			mem.header().count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
-				// TODO(jayconrod,katiehockman): consider making the maximum
-				// minimization time customizable with a go command flag.
+				// TODO(jayconrod,katiehockman): report unminimized input to coordinator
+				// immediately so it can stop other workers.
+				// TODO(jayconrod,katiehockman): use -fuzzminimizetime to limit time or
+				// iterations spent on minimization.
 				minCtx, minCancel := context.WithTimeout(ctx, time.Minute)
 				defer minCancel()
-				if minErr := ws.minimizeInput(minCtx, vals, mem); minErr != nil {
+				if minErr := ws.minimizeInput(minCtx, vals, mem, &mem.header().count, args.Limit); minErr != nil {
 					// Minimization found a different error, so use that one.
 					err = minErr
 				}
@@ -654,24 +697,27 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 					return resp
 				}
 			}
-			if args.Count > 0 && resp.Count == args.Count {
+			if args.Limit > 0 && mem.header().count == args.Limit {
 				return resp
 			}
 		}
 	}
 }
 
-func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) minimizeResponse {
+func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp minimizeResponse) {
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancel := context.WithTimeout(ctx, args.Duration)
-	defer cancel()
-	ws.minimizeInput(ctx, vals, mem)
-	return minimizeResponse{}
+	if args.Timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, args.Timeout)
+		defer cancel()
+	}
+	ws.minimizeInput(ctx, vals, mem, &mem.header().count, args.Limit)
+	return resp
 }
 
 // minimizeInput applies a series of minimizing transformations on the provided
@@ -680,9 +726,16 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) minimiz
 // mem just in case an unrecoverable error occurs. It uses the context to
 // determine how long to run, stopping once closed. It returns the last error it
 // found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem) (retErr error) {
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, count *int64, limit int64) (retErr error) {
 	// Make sure the last crashing value is written to mem.
 	defer writeToMem(vals, mem)
+
+	shouldStop := func() bool {
+		return ctx.Err() != nil || (limit > 0 && *count >= limit)
+	}
+	if shouldStop() {
+		return nil
+	}
 
 	// tryMinimized will run the fuzz function for the values in vals at the
 	// time the function is called. If err is nil, then the minimization was
@@ -698,6 +751,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 			// The fuzz function failed, so save the most recent error.
 			retErr = err
 		}
+		*count++
 		return err
 	}
 	for valI := range vals {
@@ -710,7 +764,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 			// First, try to cut the tail.
 			for n := 1024; n != 0; n /= 2 {
 				for len(v) > n {
-					if ctx.Err() != nil {
+					if shouldStop() {
 						return retErr
 					}
 					vals[valI] = v[:len(v)-n]
@@ -725,7 +779,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 			// Then, try to remove each individual byte.
 			tmp := make([]byte, len(v))
 			for i := 0; i < len(v)-1; i++ {
-				if ctx.Err() != nil {
+				if shouldStop() {
 					return retErr
 				}
 				candidate := tmp[:len(v)-1]
@@ -747,7 +801,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 			for i := 0; i < len(v)-1; i++ {
 				copy(tmp, v[:i])
 				for j := len(v); j > i+1; j-- {
-					if ctx.Err() != nil {
+					if shouldStop() {
 						return retErr
 					}
 					candidate := tmp[:len(v)-j+i]
@@ -862,6 +916,7 @@ func (wc *workerClient) fuzz(ctx context.Context, valueIn []byte, args fuzzArgs)
 	if !ok {
 		return nil, fuzzResponse{}, errSharedMemClosed
 	}
+	mem.header().count = 0
 	mem.setValue(valueIn)
 	wc.memMu <- mem
 

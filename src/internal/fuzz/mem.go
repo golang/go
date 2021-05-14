@@ -37,7 +37,12 @@ type sharedMem struct {
 
 // sharedMemHeader stores metadata in shared memory.
 type sharedMemHeader struct {
-	length int
+	// count is the number of times the worker has called the fuzz function.
+	// May be reset by coordinator.
+	count int64
+
+	// valueLen is the length of the value that was last fuzzed.
+	valueLen int
 }
 
 // sharedMemSize returns the size needed for a shared memory buffer that can
@@ -81,7 +86,7 @@ func (m *sharedMem) header() *sharedMemHeader {
 // valueRef returns the value currently stored in shared memory. The returned
 // slice points to shared memory; it is not a copy.
 func (m *sharedMem) valueRef() []byte {
-	length := m.header().length
+	length := m.header().valueLen
 	valueOffset := int(unsafe.Sizeof(sharedMemHeader{}))
 	return m.region[valueOffset : valueOffset+length]
 }
@@ -102,7 +107,7 @@ func (m *sharedMem) setValue(b []byte) {
 	if len(b) > cap(v) {
 		panic(fmt.Sprintf("value length %d larger than shared memory capacity %d", len(b), cap(v)))
 	}
-	m.header().length = len(b)
+	m.header().valueLen = len(b)
 	copy(v[:cap(v)], b)
 }
 
@@ -117,7 +122,7 @@ func (m *sharedMem) setValueLen(n int) {
 	if n > cap(v) {
 		panic(fmt.Sprintf("length %d larger than shared memory capacity %d", n, cap(v)))
 	}
-	m.header().length = n
+	m.header().valueLen = n
 }
 
 // TODO(jayconrod): add method to resize the buffer. We'll need that when the

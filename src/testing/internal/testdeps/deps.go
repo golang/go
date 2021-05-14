@@ -133,21 +133,32 @@ func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
 }
 
-func (TestDeps) CoordinateFuzzing(timeout time.Duration, count int64, parallel int, seed []fuzz.CorpusEntry, types []reflect.Type, corpusDir, cacheDir string) (err error) {
+func (TestDeps) CoordinateFuzzing(
+	timeout time.Duration,
+	limit int64,
+	minimizeTimeout time.Duration,
+	minimizeLimit int64,
+	parallel int,
+	seed []fuzz.CorpusEntry,
+	types []reflect.Type,
+	corpusDir,
+	cacheDir string) (err error) {
 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
 	// In either case, we'll stop worker processes gracefully and save
 	// crashers and interesting values.
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 	err = fuzz.CoordinateFuzzing(ctx, fuzz.CoordinateFuzzingOpts{
-		Log:       os.Stderr,
-		Timeout:   timeout,
-		Count:     count,
-		Parallel:  parallel,
-		Seed:      seed,
-		Types:     types,
-		CorpusDir: corpusDir,
-		CacheDir:  cacheDir,
+		Log:             os.Stderr,
+		Timeout:         timeout,
+		Limit:           limit,
+		MinimizeTimeout: minimizeTimeout,
+		MinimizeLimit:   minimizeLimit,
+		Parallel:        parallel,
+		Seed:            seed,
+		Types:           types,
+		CorpusDir:       corpusDir,
+		CacheDir:        cacheDir,
 	})
 	if err == ctx.Err() {
 		return nil

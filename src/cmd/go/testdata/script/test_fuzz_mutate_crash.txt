@@ -185,22 +185,25 @@ func FuzzWithTwoTypes(f *testing.F) {
 }
 
 func FuzzInt(f *testing.F) {
+	f.Add(0)
 	f.Fuzz(func(t *testing.T, a int) {
-		if a > 200 && a < 250 {
+		if a != 0 {
 			panic("this input caused a crash!")
 		}
 	})
 }
 
 func FuzzUint(f *testing.F) {
+	f.Add(uint(0))
 	f.Fuzz(func(t *testing.T, a uint) {
-		if a > 200 && a < 250 {
+		if a != 0 {
 			panic("this input caused a crash!")
 		}
 	})
 }
 
 func FuzzBool(f *testing.F) {
+	f.Add(false)
 	f.Fuzz(func(t *testing.T, a bool) {
 		if a {
 			panic("this input caused a crash!")
@@ -218,22 +221,25 @@ func FuzzFloat(f *testing.F) {
 }
 
 func FuzzByte(f *testing.F) {
+	f.Add(byte(0))
 	f.Fuzz(func(t *testing.T, a byte) {
-		if a > 50 {
+		if a != 0 {
 			panic("this input caused a crash!")
 		}
 	})
 }
 
 func FuzzRune(f *testing.F) {
+	f.Add(rune(0))
 	f.Fuzz(func(t *testing.T, a rune) {
-		if a > 50 {
+		if a != 0 {
 			panic("this input caused a crash!")
 		}
 	})
 }
 
 func FuzzString(f *testing.F) {
+	f.Add("")
 	f.Fuzz(func(t *testing.T, a string) {
 		if a != "" {
 			panic("this input caused a crash!")

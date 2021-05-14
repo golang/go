@@ -18,16 +18,18 @@ import (
 
 func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
-	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing default is to run indefinitely")
+	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
+	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a crash; default is to minimize for 60s")
 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
 }
 
 var (
-	matchFuzz    *string
-	fuzzDuration durationOrCountFlag
-	fuzzCacheDir *string
-	isFuzzWorker *bool
+	matchFuzz        *string
+	fuzzDuration     durationOrCountFlag
+	minimizeDuration = durationOrCountFlag{d: 60 * time.Second}
+	fuzzCacheDir     *string
+	isFuzzWorker     *bool
 
 	// corpusDir is the parent directory of the target's seed corpus within
 	// the package.
@@ -357,7 +359,16 @@ func (f *F) Fuzz(ff interface{}) {
 		// actual fuzzing.
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
-		err := f.fuzzContext.coordinateFuzzing(fuzzDuration.d, int64(fuzzDuration.n), *parallel, f.corpus, types, corpusTargetDir, cacheTargetDir)
+		err := f.fuzzContext.coordinateFuzzing(
+			fuzzDuration.d,
+			int64(fuzzDuration.n),
+			minimizeDuration.d,
+			int64(minimizeDuration.n),
+			*parallel,
+			f.corpus,
+			types,
+			corpusTargetDir,
+			cacheTargetDir)
 		if err != nil {
 			f.result = FuzzResult{Error: err}
 			f.Fail()
@@ -451,7 +462,7 @@ type fuzzCrashError interface {
 // fuzzContext holds all fields that are common to all fuzz targets.
 type fuzzContext struct {
 	importPath        func() string
-	coordinateFuzzing func(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+	coordinateFuzzing func(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	runFuzzWorker     func(func(corpusEntry) error) error
 	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
 	resetCoverage     func()
