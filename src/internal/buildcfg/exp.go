@@ -20,7 +20,7 @@ import (
 // was built with.)
 var Experiment goexperiment.Flags = parseExperiments()
 
-var regabiSupported = GOARCH == "amd64" && (GOOS == "android" || GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
+var regabiSupported = GOARCH == "amd64"
 
 // experimentBaseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
