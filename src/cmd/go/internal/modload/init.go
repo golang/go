@@ -767,9 +767,31 @@ func LatestGoVersion() string {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
-		base.Fatalf("go: unrecognized default version %q", version)
+		base.Fatalf("go: internal error: unrecognized default version %q", version)
 	}
 	return version[2:]
+}
+
+// priorGoVersion returns the Go major release immediately preceding v,
+// or v itself if v is the first Go major release (1.0) or not a supported
+// Go version.
+func priorGoVersion(v string) string {
+	vTag := "go" + v
+	tags := build.Default.ReleaseTags
+	for i, tag := range tags {
+		if tag == vTag {
+			if i == 0 {
+				return v
+			}
+
+			version := tags[i-1]
+			if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+				base.Fatalf("go: internal error: unrecognized version %q", version)
+			}
+			return version[2:]
+		}
+	}
+	return v
 }
 
 var altConfigs = []string{

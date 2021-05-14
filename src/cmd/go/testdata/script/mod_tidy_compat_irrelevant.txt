@@ -27,34 +27,28 @@ cp go.mod go.mod.orig
 go mod tidy
 cmp go.mod go.mod.orig
 
-go list -m all
-stdout '^example\.com/retract/incompatible v1\.0\.0$'
-
-go mod edit -go=1.16
-! go list -deps -test -f $MODFMT all
-	# TODO(#46160): -count=1 instead of -count=2.
-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
-
-
-# If we combine a Go 1.16 go.sum file...
-go mod tidy -go=1.16
-
-# ...with a Go 1.17 go.mod file...
-cp go.mod.orig go.mod
-
-# ...then Go 1.17 continues to work...
 go list -deps -test -f $MODFMT all
 cp stdout out-117.txt
 
-# ...and 1.16 also works, and selects the same versions for all packages
-# even remotely relevant to the main module.
 go mod edit -go=1.16
 go list -deps -test -f $MODFMT all
 cmp stdout out-117.txt
 
 
-# TODO(#46160): Add a cleaner way to tidy a Go 1.17 module while preserving
-# the checksums needed to work within it with Go 1.16.
+# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
+# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
+
+cp go.mod.orig go.mod
+go mod tidy -compat=1.17
+cmp go.mod go.mod.orig
+
+go list -deps -test -f $MODFMT all
+cmp stdout out-117.txt
+
+go mod edit -go=1.16
+! go list -deps -test -f $MODFMT all
+	# TODO(#46160): -count=1 instead of -count=2.
+stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
 
 
 -- go.mod --
