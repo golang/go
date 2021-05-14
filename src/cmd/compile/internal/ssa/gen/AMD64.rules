@@ -2217,3 +2217,5 @@
 (AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
 (XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
 (AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
+
+(BSWAP(Q|L) (BSWAP(Q|L) p)) => p
