@@ -27,7 +27,7 @@ type Builder struct {
 //go:nocheckptr
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+	return unsafe.Pointer(x)
 }
 
 func (b *Builder) copyCheck() {
