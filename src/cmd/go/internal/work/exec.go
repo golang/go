@@ -2972,9 +2972,8 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
 		if !str.Contains(ldflags, "-no-pie") {
-			// if we do'nt see '-no-pie',
-			// we add "-pie" keep backward-compatibility
-			// (https://golang.org/cl/5989058)
+			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
+			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
 			ldflags = append(ldflags, "-pie")
 		}
 		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
