@@ -91,12 +91,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		args = []string{"all"}
 	}
 	if modload.HasModRoot() {
-		modload.LoadModFile(ctx) // to fill Target
-		targetAtUpgrade := modload.Target.Path + "@upgrade"
-		targetAtPatch := modload.Target.Path + "@patch"
+		modload.LoadModFile(ctx) // to fill MainModules
+
+		if len(modload.MainModules.Versions()) != 1 {
+			panic(modload.TODOWorkspaces("TODO: multiple main modules not supported in Download"))
+		}
+		mainModule := modload.MainModules.Versions()[0]
+
+		targetAtUpgrade := mainModule.Path + "@upgrade"
+		targetAtPatch := mainModule.Path + "@patch"
 		for _, arg := range args {
 			switch arg {
-			case modload.Target.Path, targetAtUpgrade, targetAtPatch:
+			case mainModule.Path, targetAtUpgrade, targetAtPatch:
 				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
 			}
 		}

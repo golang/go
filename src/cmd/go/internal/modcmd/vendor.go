@@ -82,7 +82,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
 		m := modload.PackageModule(pkg)
-		if m.Path == "" || m == modload.Target {
+		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
 			continue
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)

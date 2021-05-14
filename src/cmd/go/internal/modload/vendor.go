@@ -219,6 +219,7 @@ func checkVendorConsistency() {
 	}
 
 	if vendErrors.Len() > 0 {
+		modRoot := MainModules.ModRoot(MainModules.mustGetSingleMainModule())
 		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor", modRoot, vendErrors)
 	}
 }

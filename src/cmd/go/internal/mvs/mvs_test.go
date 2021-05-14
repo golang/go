@@ -507,7 +507,7 @@ func Test(t *testing.T) {
 				t.Fatalf("build takes one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
-				list, err := BuildList(m(kf[1]), reqs)
+				list, err := BuildList([]module.Version{m(kf[1])}, reqs)
 				checkList(t, key, list, err, val)
 			})
 			continue
