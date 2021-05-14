@@ -6,6 +6,7 @@ package elliptic
 
 import (
 	"crypto/elliptic/internal/fiat"
+	"crypto/subtle"
 	"math/big"
 )
 
@@ -243,13 +244,42 @@ func (curve p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *bi
 	B := newP521PointFromAffine(Bx, By)
 	p, t := newP521Point(), newP521Point()
 
+	// table holds the first 16 multiples of q. The explicit newP521Point calls
+	// get inlined, letting the allocations live on the stack.
+	var table = [16]*p521Point{
+		newP521Point(), newP521Point(), newP521Point(), newP521Point(),
+		newP521Point(), newP521Point(), newP521Point(), newP521Point(),
+		newP521Point(), newP521Point(), newP521Point(), newP521Point(),
+		newP521Point(), newP521Point(), newP521Point(), newP521Point(),
+	}
+	for i := 1; i < 16; i++ {
+		table[i].Add(table[i-1], B)
+	}
+
+	// Instead of doing the classic double-and-add chain, we do it with a
+	// four-bit window: we double four times, and then add [0-15]P.
 	for _, byte := range scalar {
-		for bitNum := 0; bitNum < 8; bitNum++ {
-			p.Double(p)
-			t.Add(p, B)
-			bit := (byte >> (7 - bitNum)) & 1
-			p.Select(t, p, int(bit))
+		p.Double(p)
+		p.Double(p)
+		p.Double(p)
+		p.Double(p)
+
+		for i := uint8(0); i < 16; i++ {
+			cond := subtle.ConstantTimeByteEq(byte>>4, i)
+			t.Select(table[i], t, cond)
 		}
+		p.Add(p, t)
+
+		p.Double(p)
+		p.Double(p)
+		p.Double(p)
+		p.Double(p)
+
+		for i := uint8(0); i < 16; i++ {
+			cond := subtle.ConstantTimeByteEq(byte&0b1111, i)
+			t.Select(table[i], t, cond)
+		}
+		p.Add(p, t)
 	}
 
 	return p.Affine()
