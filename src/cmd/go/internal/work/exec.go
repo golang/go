@@ -2963,18 +2963,24 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	linkobj := str.StringList(ofile, outObj, mkAbsFiles(p.Dir, p.SysoFiles))
 	dynobj := objdir + "_cgo_.o"
 
-	// we need to use -pie for Linux/ARM to get accurate imported sym
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		// -static -pie doesn't make sense, and causes link errors.
-		// Issue 26197.
-		n := make([]string, 0, len(ldflags))
-		for _, flag := range ldflags {
-			if flag != "-static" {
-				n = append(n, flag)
-			}
+		if !str.Contains(ldflags, "-no-pie") {
+			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
+			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
+			ldflags = append(ldflags, "-pie")
 		}
-		ldflags = append(n, "-pie")
+		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
+			// -static -pie doesn't make sense, and causes link errors.
+			// Issue 26197.
+			n := make([]string, 0, len(ldflags)-1)
+			for _, flag := range ldflags {
+				if flag != "-static" {
+					n = append(n, flag)
+				}
+			}
+			ldflags = n
+		}
 	}
 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
 		return err
