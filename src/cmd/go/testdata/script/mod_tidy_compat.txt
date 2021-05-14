@@ -1,0 +1,100 @@
+# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
+# default preserve enough checksums for the module to be used by Go 1.16.
+#
+# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
+# 'go' version in the go.mod file to 1.16, without actually updating the
+# requirements to match.
+
+[short] skip
+
+env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+
+
+# This module has the same module dependency graph in Go 1.16 as in Go 1.17,
+# but in 1.16 requires (checksums for) additional (irrelevant) go.mod files.
+#
+# The module graph under both versions looks like:
+#
+# m ---- example.com/version v1.1.0
+# |
+# + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
+#
+# Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
+# (because it is lower than the verison explicitly required by m,
+# and the module that requires it — m — specifies 'go 1.17').
+#
+# That go.mod file happens not to affect the final 1.16 module graph anyway,
+# so the pruned graph is equivalent to the unpruned one.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+go list -m all
+cmp stdout m_all.txt
+
+go mod edit -go=1.16
+! go list -m all
+stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
+
+
+# If we combine a Go 1.16 go.sum file...
+go mod tidy -go=1.16
+
+# ...with a Go 1.17 go.mod file...
+cp go.mod.orig go.mod
+
+# ...then Go 1.17 continues to work...
+go list -m all
+cmp stdout m_all.txt
+
+# ...and now 1.16 can load the same build list!
+go mod edit -go=1.16
+go list -m all
+cmp stdout m_all.txt
+
+
+# TODO(#46141): Add a cleaner way to tidy a Go 1.17 module while preserving
+# the checksums needed to work within it with Go 1.16.
+
+
+-- go.mod --
+// Module m happens to have the exact same build list as what would be
+// selected under Go 1.16, but computes that build list without looking at
+// as many go.mod files.
+module example.com/m
+
+go 1.17
+
+replace example.net/lazy v0.1.0 => ./lazy
+
+require (
+	example.com/version v1.1.0
+	example.net/lazy v0.1.0
+)
+-- m_all.txt --
+example.com/m
+example.com/version v1.1.0
+example.net/lazy v0.1.0 => ./lazy
+-- compatible.go --
+package compatible
+
+import (
+	_ "example.com/version"
+	_ "example.net/lazy"
+)
+-- lazy/go.mod --
+// Module lazy requires example.com/version v1.0.1.
+//
+// However, since this module is lazy, its dependents
+// should not need checksums for that version of the module
+// unless they actually import packages from it.
+module example.net/lazy
+
+go 1.17
+
+require example.com/version v1.0.1
+-- lazy/lazy.go --
+package lazy
+
+import _ "example.com/version"
