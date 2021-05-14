@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !faketime
 // +build !faketime
 
 package runtime
@@ -17,10 +18,6 @@ var faketime int64
 //go:nosplit
 func nanotime() int64 {
 	return nanotime1()
-}
-
-func walltime() (sec int64, nsec int32) {
-	return walltime1()
 }
 
 // write must be nosplit on Windows (see write1)

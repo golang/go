@@ -28,6 +28,7 @@ import (
 	"cmd/internal/src"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 	"runtime"
@@ -105,7 +106,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
@@ -139,8 +140,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	types.ParseLangFlag()
 
+	symABIs := ssagen.NewSymABIs(base.Ctxt.Pkgpath)
 	if base.Flag.SymABIs != "" {
-		ssagen.ReadSymABIs(base.Flag.SymABIs, base.Ctxt.Pkgpath)
+		symABIs.ReadSymABIs(base.Flag.SymABIs)
 	}
 
 	if base.Compiling(base.NoInstrumentPkgs) {
@@ -157,6 +159,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
 	}
 	if base.Debug.SoftFloat != 0 {
+		if buildcfg.Experiment.RegabiArgs {
+			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
+		}
 		ssagen.Arch.SoftFloat = true
 	}
 
@@ -187,7 +192,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	noder.LoadPackage(flag.Args())
 
 	dwarfgen.RecordPackageName()
-	ssagen.CgoSymABIs()
 
 	// Build init task.
 	if initTask := pkginit.Task(); initTask != nil {
@@ -232,6 +236,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 	ir.CurFunc = nil
+
+	// Generate ABI wrappers. Must happen before escape analysis
+	// and doesn't benefit from dead-coding or inlining.
+	symABIs.GenABIWrappers()
 
 	// Escape analysis.
 	// Required for moving heap allocations onto stack,
@@ -328,7 +336,7 @@ func writebench(filename string) error {
 	}
 
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "commit:", objabi.Version)
+	fmt.Fprintln(&buf, "commit:", buildcfg.Version)
 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
 	base.Timer.Write(&buf, "BenchmarkCompile:"+base.Ctxt.Pkgpath+":")

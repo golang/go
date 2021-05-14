@@ -13,19 +13,28 @@ import (
 	"strings"
 )
 
-// TODO(gri) Consider removing the linebreaks flag from this signature.
-// Its likely rarely used in common cases.
+// Form controls print formatting.
+type Form uint
 
-func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
+const (
+	_         Form = iota // default
+	LineForm              // use spaces instead of linebreaks where possible
+	ShortForm             // like LineForm but print "…" for non-empty function or composite literal bodies
+)
+
+// Fprint prints node x to w in the specified form.
+// It returns the number of bytes written, and whether there was an error.
+func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
 	p := printer{
 		output:     w,
-		linebreaks: linebreaks,
+		form:       form,
+		linebreaks: form == 0,
 	}
 
 	defer func() {
 		n = p.written
 		if e := recover(); e != nil {
-			err = e.(localError).err // re-panics if it's not a localError
+			err = e.(writeError).err // re-panics if it's not a writeError
 		}
 	}()
 
@@ -35,11 +44,13 @@ func Fprint(w io.Writer, x Node, linebreaks bool) (n int, err error) {
 	return
 }
 
+// String is a convenience functions that prints n in ShortForm
+// and returns the printed string.
 func String(n Node) string {
 	var buf bytes.Buffer
-	_, err := Fprint(&buf, n, false)
+	_, err := Fprint(&buf, n, ShortForm)
 	if err != nil {
-		panic(err) // TODO(gri) print something sensible into buf instead
+		fmt.Fprintf(&buf, "<<< ERROR: %s", err)
 	}
 	return buf.String()
 }
@@ -65,7 +76,8 @@ type whitespace struct {
 
 type printer struct {
 	output     io.Writer
-	written    int  // number of bytes written
+	written    int // number of bytes written
+	form       Form
 	linebreaks bool // print linebreaks instead of semis
 
 	indent  int // current indentation level
@@ -81,7 +93,7 @@ func (p *printer) write(data []byte) {
 	n, err := p.output.Write(data)
 	p.written += n
 	if err != nil {
-		panic(localError{err})
+		panic(writeError{err})
 	}
 }
 
@@ -355,17 +367,34 @@ func (p *printer) printRawNode(n Node) {
 		p.print(_Name, n.Value) // _Name requires actual value following immediately
 
 	case *FuncLit:
-		p.print(n.Type, blank, n.Body)
+		p.print(n.Type, blank)
+		if n.Body != nil {
+			if p.form == ShortForm {
+				p.print(_Lbrace)
+				if len(n.Body.List) > 0 {
+					p.print(_Name, "…")
+				}
+				p.print(_Rbrace)
+			} else {
+				p.print(n.Body)
+			}
+		}
 
 	case *CompositeLit:
 		if n.Type != nil {
 			p.print(n.Type)
 		}
 		p.print(_Lbrace)
-		if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
-			p.printExprLines(n.ElemList)
+		if p.form == ShortForm {
+			if len(n.ElemList) > 0 {
+				p.print(_Name, "…")
+			}
 		} else {
-			p.printExprList(n.ElemList)
+			if n.NKeys > 0 && n.NKeys == len(n.ElemList) {
+				p.printExprLines(n.ElemList)
+			} else {
+				p.printExprList(n.ElemList)
+			}
 		}
 		p.print(_Rbrace)
 
@@ -450,9 +479,13 @@ func (p *printer) printRawNode(n Node) {
 		}
 		p.print(_Lbrace)
 		if len(n.FieldList) > 0 {
-			p.print(newline, indent)
-			p.printFieldList(n.FieldList, n.TagList)
-			p.print(outdent, newline)
+			if p.linebreaks {
+				p.print(newline, indent)
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
+				p.print(outdent, newline)
+			} else {
+				p.printFieldList(n.FieldList, n.TagList, _Semi)
+			}
 		}
 		p.print(_Rbrace)
 
@@ -461,14 +494,38 @@ func (p *printer) printRawNode(n Node) {
 		p.printSignature(n)
 
 	case *InterfaceType:
+		// separate type list and method list
+		var types []Expr
+		var methods []*Field
+		for _, f := range n.MethodList {
+			if f.Name != nil && f.Name.Value == "type" {
+				types = append(types, f.Type)
+			} else {
+				// method or embedded interface
+				methods = append(methods, f)
+			}
+		}
+
+		multiLine := len(n.MethodList) > 0 && p.linebreaks
 		p.print(_Interface)
-		if len(n.MethodList) > 0 && p.linebreaks {
+		if multiLine {
 			p.print(blank)
 		}
 		p.print(_Lbrace)
-		if len(n.MethodList) > 0 {
+		if multiLine {
 			p.print(newline, indent)
-			p.printMethodList(n.MethodList)
+		}
+		if len(types) > 0 {
+			p.print(_Type, blank)
+			p.printExprList(types)
+			if len(methods) > 0 {
+				p.print(_Semi, blank)
+			}
+		}
+		if len(methods) > 0 {
+			p.printMethodList(methods)
+		}
+		if multiLine {
 			p.print(outdent, newline)
 		}
 		p.print(_Rbrace)
@@ -484,7 +541,15 @@ func (p *printer) printRawNode(n Node) {
 		if n.Dir == SendOnly {
 			p.print(_Arrow)
 		}
-		p.print(blank, n.Elem)
+		p.print(blank)
+		if e, _ := n.Elem.(*ChanType); n.Dir == 0 && e != nil && e.Dir == RecvOnly {
+			// don't print chan (<-chan T) as chan <-chan T
+			p.print(_Lparen)
+			p.print(n.Elem)
+			p.print(_Rparen)
+		} else {
+			p.print(n.Elem)
+		}
 
 	// statements
 	case *DeclStmt:
@@ -504,7 +569,7 @@ func (p *printer) printRawNode(n Node) {
 
 	case *AssignStmt:
 		p.print(n.Lhs)
-		if n.Rhs == ImplicitOne {
+		if n.Rhs == nil {
 			// TODO(gri) This is going to break the mayCombine
 			//           check once we enable that again.
 			p.print(n.Op, n.Op) // ++ or --
@@ -622,7 +687,13 @@ func (p *printer) printRawNode(n Node) {
 		if n.Group == nil {
 			p.print(_Type, blank)
 		}
-		p.print(n.Name, blank)
+		p.print(n.Name)
+		if n.TParamList != nil {
+			p.print(_Lbrack)
+			p.printFieldList(n.TParamList, nil, _Comma)
+			p.print(_Rbrack)
+		}
+		p.print(blank)
 		if n.Alias {
 			p.print(_Assign, blank)
 		}
@@ -651,6 +722,11 @@ func (p *printer) printRawNode(n Node) {
 			p.print(_Rparen, blank)
 		}
 		p.print(n.Name)
+		if n.TParamList != nil {
+			p.print(_Lbrack)
+			p.printFieldList(n.TParamList, nil, _Comma)
+			p.print(_Rbrack)
+		}
 		p.printSignature(n.Type)
 		if n.Body != nil {
 			p.print(blank, n.Body)
@@ -701,14 +777,14 @@ func (p *printer) printFields(fields []*Field, tags []*BasicLit, i, j int) {
 	}
 }
 
-func (p *printer) printFieldList(fields []*Field, tags []*BasicLit) {
+func (p *printer) printFieldList(fields []*Field, tags []*BasicLit, sep token) {
 	i0 := 0
 	var typ Expr
 	for i, f := range fields {
 		if f.Name == nil || f.Type != typ {
 			if i0 < i {
 				p.printFields(fields, tags, i0, i)
-				p.print(_Semi, newline)
+				p.print(sep, newline)
 				i0 = i
 			}
 			typ = f.Type

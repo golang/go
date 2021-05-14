@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"os"
 
@@ -25,7 +26,8 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
 
-	GOARCH := objabi.GOARCH
+	buildcfg.Check()
+	GOARCH := buildcfg.GOARCH
 
 	architecture := arch.Set(GOARCH)
 	if architecture == nil {
@@ -68,7 +70,7 @@ func main() {
 	defer buf.Close()
 
 	if !*flags.SymABIs {
-		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
+		buf.WriteString(objabi.HeaderString())
 		fmt.Fprintf(buf, "!\n")
 	}
 

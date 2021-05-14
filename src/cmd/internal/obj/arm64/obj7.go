@@ -35,6 +35,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/buildcfg"
 	"log"
 	"math"
 )
@@ -107,55 +108,35 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Reg = REG_R1
 		p.Reg = REG_R2
 	} else {
-		// Such a large stack we need to protect against wraparound
-		// if SP is close to zero.
-		//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//	CMP	$StackPreempt, R1
-		//	BEQ	label_of_call_to_morestack
-		//	ADD	$StackGuard, SP, R2
-		//	SUB	R1, R2
-		//	MOV	$(framesize+(StackGuard-StackSmall)), R3
-		//	CMP	R3, R2
-		p = obj.Appendp(p, c.newprog)
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
+		//
+		//	SUBS	$(framesize-StackSmall), SP, R2
+		//	// On underflow, jump to morestack
+		//	BLO	label_of_call_to_morestack
+		//	CMP	stackguard, R2
 
-		p.As = ACMP
+		p = obj.Appendp(p, c.newprog)
+		p.As = ASUBS
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackPreempt
-		p.Reg = REG_R1
-
-		p = obj.Appendp(p, c.newprog)
-		q = p
-		p.As = ABEQ
-		p.To.Type = obj.TYPE_BRANCH
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
+		p.From.Offset = int64(framesize) - objabi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R2
 
 		p = obj.Appendp(p, c.newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R3
+		q = p
+		p.As = ABLO
+		p.To.Type = obj.TYPE_BRANCH
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
+		p.From.Reg = REG_R1
 		p.Reg = REG_R2
 	}
 
@@ -314,13 +295,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// For 32-bit logical instruction with constant,
-	// rewrite the high 32-bit to be a repetition of
-	// the low 32-bit, so that the BITCON test can be
-	// shared for both 32-bit and 64-bit. 32-bit ops
-	// will zero the high 32-bit of the destination
-	// register anyway.
-	if isANDWop(p.As) && p.From.Type == obj.TYPE_CONST {
+	// For 32-bit instruction with constant, rewrite
+	// the high 32-bit to be a repetition of the low
+	// 32-bit, so that the BITCON test can be shared
+	// for both 32-bit and 64-bit. 32-bit ops will
+	// zero the high 32-bit of the destination register
+	// anyway.
+	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW) && p.From.Type == obj.TYPE_CONST {
 		v := p.From.Offset & 0xffffffff
 		p.From.Offset = v | v<<32
 	}
@@ -539,6 +520,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
+			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
@@ -590,7 +577,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
 
-				if objabi.GOOS == "ios" {
+				if buildcfg.GOOS == "ios" {
 					// iOS does not support SA_ONSTACK. We will run the signal handler
 					// on the G stack. If we write below SP, it may be clobbered by
 					// the signal handler. So we save LR after decrementing SP.

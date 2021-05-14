@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -79,7 +78,7 @@ func main() {
 
 func runMain() (int, error) {
 	var err error
-	tmpdir, err = ioutil.TempDir("", "go_ios_exec_")
+	tmpdir, err = os.MkdirTemp("", "go_ios_exec_")
 	if err != nil {
 		return 1, err
 	}
@@ -205,13 +204,13 @@ func assembleApp(appdir, bin string) error {
 	}
 
 	entitlementsPath := filepath.Join(tmpdir, "Entitlements.plist")
-	if err := ioutil.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
+	if err := os.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist(pkgpath)), 0744); err != nil {
+	if err := os.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist(pkgpath)), 0744); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
+	if err := os.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
 		return err
 	}
 	return nil

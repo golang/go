@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package os
 
 import (
+	"internal/itoa"
 	"internal/syscall/execenv"
 	"runtime"
 	"syscall"
@@ -103,17 +105,17 @@ func (p *ProcessState) String() string {
 	switch {
 	case status.Exited():
 		code := status.ExitStatus()
-		if runtime.GOOS == "windows" && code >= 1<<16 { // windows uses large hex numbers
+		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
 			res = "exit status " + uitox(uint(code))
 		} else { // unix systems use small decimal integers
-			res = "exit status " + itoa(code) // unix
+			res = "exit status " + itoa.Itoa(code) // unix
 		}
 	case status.Signaled():
 		res = "signal: " + status.Signal().String()
 	case status.Stopped():
 		res = "stop signal: " + status.StopSignal().String()
 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
-			res += " (trap " + itoa(status.TrapCause()) + ")"
+			res += " (trap " + itoa.Itoa(status.TrapCause()) + ")"
 		}
 	case status.Continued():
 		res = "continued"

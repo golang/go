@@ -5,6 +5,8 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"crypto/sha1"
@@ -43,6 +45,10 @@ type Func struct {
 	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+	ABI0           *abi.ABIConfig // A copy, for no-sync access
+	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABISelf        *abi.ABIConfig // ABI for function being compiled
+	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
 	scheduled   bool  // Values in Blocks are in final order
 	laidout     bool  // Blocks are ordered
@@ -56,10 +62,14 @@ type Func struct {
 	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
-	Names []LocalSlot
+	Names []*LocalSlot
+	// Canonicalize root/top-level local slots, and canonicalize their pieces.
+	// Because LocalSlot pieces refer to their parents with a pointer, this ensures that equivalent slots really are equal.
+	CanonicalLocalSlots  map[LocalSlot]*LocalSlot
+	CanonicalLocalSplits map[LocalSlotSplitKey]*LocalSlot
 
 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
-	RegArgs []ArgPair
+	RegArgs []Spill
 	// AuxCall describing parameters and results for this function.
 	OwnAux *AuxCall
 
@@ -82,10 +92,16 @@ type Func struct {
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
+type LocalSlotSplitKey struct {
+	parent *LocalSlot
+	Off    int64       // offset of slot in N
+	Type   *types.Type // type of slot
+}
+
 // NewFunc returns a new, empty function object.
 // Caller must set f.Config and f.Cache before using f.
 func NewFunc(fe Frontend) *Func {
-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value)}
+	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -186,6 +202,101 @@ func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
 // retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
 func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
 	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+}
+
+func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
+	a, ok := f.CanonicalLocalSlots[slot]
+	if !ok {
+		a = new(LocalSlot)
+		*a = slot // don't escape slot
+		f.CanonicalLocalSlots[slot] = a
+	}
+	return a
+}
+
+func (f *Func) SplitString(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	ptrType := types.NewPtr(types.Types[types.TUINT8])
+	lenType := types.Types[types.TINT]
+	// Split this string up into two separate variables.
+	p := f.SplitSlot(name, ".ptr", 0, ptrType)
+	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
+	return p, l
+}
+
+func (f *Func) SplitInterface(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	n := name.N
+	u := types.Types[types.TUINTPTR]
+	t := types.NewPtr(types.Types[types.TUINT8])
+	// Split this interface up into two separate variables.
+	sfx := ".itab"
+	if n.Type().IsEmptyInterface() {
+		sfx = ".type"
+	}
+	c := f.SplitSlot(name, sfx, 0, u) // see comment in typebits.Set
+	d := f.SplitSlot(name, ".data", u.Size(), t)
+	return c, d
+}
+
+func (f *Func) SplitSlice(name *LocalSlot) (*LocalSlot, *LocalSlot, *LocalSlot) {
+	ptrType := types.NewPtr(name.Type.Elem())
+	lenType := types.Types[types.TINT]
+	p := f.SplitSlot(name, ".ptr", 0, ptrType)
+	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
+	c := f.SplitSlot(name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+	return p, l, c
+}
+
+func (f *Func) SplitComplex(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	s := name.Type.Size() / 2
+	var t *types.Type
+	if s == 8 {
+		t = types.Types[types.TFLOAT64]
+	} else {
+		t = types.Types[types.TFLOAT32]
+	}
+	r := f.SplitSlot(name, ".real", 0, t)
+	i := f.SplitSlot(name, ".imag", t.Size(), t)
+	return r, i
+}
+
+func (f *Func) SplitInt64(name *LocalSlot) (*LocalSlot, *LocalSlot) {
+	var t *types.Type
+	if name.Type.IsSigned() {
+		t = types.Types[types.TINT32]
+	} else {
+		t = types.Types[types.TUINT32]
+	}
+	if f.Config.BigEndian {
+		return f.SplitSlot(name, ".hi", 0, t), f.SplitSlot(name, ".lo", t.Size(), types.Types[types.TUINT32])
+	}
+	return f.SplitSlot(name, ".hi", t.Size(), t), f.SplitSlot(name, ".lo", 0, types.Types[types.TUINT32])
+}
+
+func (f *Func) SplitStruct(name *LocalSlot, i int) *LocalSlot {
+	st := name.Type
+	return f.SplitSlot(name, st.FieldName(i), st.FieldOff(i), st.FieldType(i))
+}
+func (f *Func) SplitArray(name *LocalSlot) *LocalSlot {
+	n := name.N
+	at := name.Type
+	if at.NumElem() != 1 {
+		base.FatalfAt(n.Pos(), "bad array size")
+	}
+	et := at.Elem()
+	return f.SplitSlot(name, "[0]", 0, et)
+}
+
+func (f *Func) SplitSlot(name *LocalSlot, sfx string, offset int64, t *types.Type) *LocalSlot {
+	lssk := LocalSlotSplitKey{name, offset, t}
+	if als, ok := f.CanonicalLocalSplits[lssk]; ok {
+		return als
+	}
+	// Note: the _ field may appear several times.  But
+	// have no fear, identically-named but distinct Autos are
+	// ok, albeit maybe confusing for a debugger.
+	ls := f.fe.SplitSlot(name, sfx, offset, t)
+	f.CanonicalLocalSplits[lssk] = &ls
+	return &ls
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
@@ -546,7 +657,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
-// NewValue4I returns a new value in the block with four arguments and and auxint value.
+// NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -648,7 +759,19 @@ func (f *Func) Frontend() Frontend                                  { return f.f
 func (f *Func) Warnl(pos src.XPos, msg string, args ...interface{}) { f.fe.Warnl(pos, msg, args...) }
 func (f *Func) Logf(msg string, args ...interface{})                { f.fe.Logf(msg, args...) }
 func (f *Func) Log() bool                                           { return f.fe.Log() }
-func (f *Func) Fatalf(msg string, args ...interface{})              { f.fe.Fatalf(f.Entry.Pos, msg, args...) }
+
+func (f *Func) Fatalf(msg string, args ...interface{}) {
+	stats := "crashed"
+	if f.Log() {
+		f.Logf("  pass %s end %s\n", f.pass.name, stats)
+		printFunc(f)
+	}
+	if f.HTMLWriter != nil {
+		f.HTMLWriter.WritePhase(f.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", f.pass.name, stats))
+		f.HTMLWriter.flushPhases()
+	}
+	f.fe.Fatalf(f.Entry.Pos, msg, args...)
+}
 
 // postorder returns the reachable blocks in f in a postorder traversal.
 func (f *Func) postorder() []*Block {

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -137,8 +138,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	var vars []*dwarf.Var
 	var decls []*ir.Name
 	var selected ir.NameSet
+
 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
 		decls, vars, selected = createComplexVars(fnsym, fn)
+	} else if fn.ABI == obj.ABIInternal && base.Flag.N != 0 && complexOK {
+		decls, vars, selected = createABIVars(fnsym, fn, apDecls)
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
 	}
@@ -218,7 +222,62 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 	}
 
+	// Sort decls and vars.
+	sortDeclsAndVars(fn, decls, vars)
+
 	return decls, vars
+}
+
+// sortDeclsAndVars sorts the decl and dwarf var lists according to
+// parameter declaration order, so as to insure that when a subprogram
+// DIE is emitted, its parameter children appear in declaration order.
+// Prior to the advent of the register ABI, sorting by frame offset
+// would achieve this; with the register we now need to go back to the
+// original function signature.
+func sortDeclsAndVars(fn *ir.Func, decls []*ir.Name, vars []*dwarf.Var) {
+	paramOrder := make(map[*ir.Name]int)
+	idx := 1
+	for _, selfn := range types.RecvsParamsResults {
+		fsl := selfn(fn.Type()).FieldSlice()
+		for _, f := range fsl {
+			if n, ok := f.Nname.(*ir.Name); ok {
+				paramOrder[n] = idx
+				idx++
+			}
+		}
+	}
+	sort.Stable(varsAndDecls{decls, vars, paramOrder})
+}
+
+type varsAndDecls struct {
+	decls      []*ir.Name
+	vars       []*dwarf.Var
+	paramOrder map[*ir.Name]int
+}
+
+func (v varsAndDecls) Len() int {
+	return len(v.decls)
+}
+
+func (v varsAndDecls) Less(i, j int) bool {
+	nameLT := func(ni, nj *ir.Name) bool {
+		oi, foundi := v.paramOrder[ni]
+		oj, foundj := v.paramOrder[nj]
+		if foundi {
+			if foundj {
+				return oi < oj
+			} else {
+				return true
+			}
+		}
+		return false
+	}
+	return nameLT(v.decls[i], v.decls[j])
+}
+
+func (v varsAndDecls) Swap(i, j int) {
+	v.vars[i], v.vars[j] = v.vars[j], v.vars[i]
+	v.decls[i], v.decls[j] = v.decls[j], v.decls[i]
 }
 
 // Given a function that was inlined at some point during the
@@ -264,20 +323,29 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 	var abbrev int
 	var offs int64
 
-	switch n.Class {
-	case ir.PAUTO:
+	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
-		abbrev = dwarf.DW_ABRV_AUTO
 		if base.Ctxt.FixedFrameSize() == 0 {
 			offs -= int64(types.PtrSize)
 		}
-		if objabi.Framepointer_enabled {
+		if buildcfg.FramePointerEnabled {
 			offs -= int64(types.PtrSize)
 		}
+		return offs
+	}
 
+	switch n.Class {
+	case ir.PAUTO:
+		offs = localAutoOffset()
+		abbrev = dwarf.DW_ABRV_AUTO
 	case ir.PPARAM, ir.PPARAMOUT:
 		abbrev = dwarf.DW_ABRV_PARAM
-		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+		if n.IsOutputParamInRegisters() {
+			offs = localAutoOffset()
+		} else {
+			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+		}
+
 	default:
 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
 	}
@@ -307,6 +375,37 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		InlIndex:      int32(inlIndex),
 		ChildIndex:    -1,
 	}
+}
+
+// createABIVars creates DWARF variables for functions in which the
+// register ABI is enabled but optimization is turned off. It uses a
+// hybrid approach in which register-resident input params are
+// captured with location lists, and all other vars use the "simple"
+// strategy.
+func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
+
+	// Invoke createComplexVars to generate dwarf vars for input parameters
+	// that are register-allocated according to the ABI rules.
+	decls, vars, selected := createComplexVars(fnsym, fn)
+
+	// Now fill in the remainder of the variables: input parameters
+	// that are not register-resident, output parameters, and local
+	// variables.
+	for _, n := range apDecls {
+		if ir.IsAutoTmp(n) {
+			continue
+		}
+		if _, ok := selected[n]; ok {
+			// already handled
+			continue
+		}
+
+		decls = append(decls, n)
+		vars = append(vars, createSimpleVar(fnsym, n))
+		selected.Add(n)
+	}
+
+	return decls, vars, selected
 }
 
 // createComplexVars creates recomposed DWARF vars with location lists,

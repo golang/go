@@ -13,7 +13,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 	"math"
 	"strings"
 )
@@ -419,7 +419,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// If it is a Compare-and-Swap-Release operation, set the EH field with
 		// the release hint.
 		if v.AuxInt == 0 {
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
+			p.SetFrom3Const(0)
 		}
 		// CMP reg1,reg2
 		p1 := s.Prog(cmp)
@@ -586,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -598,7 +598,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -610,7 +610,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
+		p.SetFrom3Const(ssa.GetPPC64Shiftmb(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -653,21 +653,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		// Auxint holds encoded rotate + mask
 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
-		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 
 		// Auxint holds mask
 	case ssa.OpPPC64RLWNM:
-		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
+		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
+		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
 
 	case ssa.OpPPC64MADDLD:
 		r := v.Reg()
@@ -679,7 +679,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r2
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
+		p.SetFrom3Reg(r3)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -693,7 +693,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r1
 		p.Reg = r3
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r2})
+		p.SetFrom3Reg(r2)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -720,7 +720,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpPPC64SUBFCconst:
 		p := s.Prog(v.Op.Asm())
-		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt})
+		p.SetFrom3Const(v.AuxInt)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
@@ -798,42 +798,63 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.To.Type = obj.TYPE_REG
 
-	case ssa.OpPPC64MOVDload:
+	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload:
 
-		// MOVDload uses a DS instruction which requires the offset value of the data to be a multiple of 4.
-		// For offsets known at compile time, a MOVDload won't be selected, but in the case of a go.string,
-		// the offset is not known until link time. If the load of a go.string uses relocation for the
-		// offset field of the instruction, and if the offset is not aligned to 4, then a link error will occur.
-		// To avoid this problem, the full address of the go.string is computed and loaded into the base register,
-		// and that base register is used for the MOVDload using a 0 offset. This problem can only occur with
-		// go.string types because other types will have proper alignment.
+		// MOVDload and MOVWload are DS form instructions that are restricted to
+		// offsets that are a multiple of 4. If the offset is not a multple of 4,
+		// then the address of the symbol to be loaded is computed (base + offset)
+		// and used as the new base register and the offset field in the instruction
+		// can be set to zero.
 
-		gostring := false
-		switch n := v.Aux.(type) {
-		case *obj.LSym:
-			gostring = strings.HasPrefix(n.Name, "go.string.")
+		// This same problem can happen with gostrings since the final offset is not
+		// known yet, but could be unaligned after the relocation is resolved.
+		// So gostrings are handled the same way.
+
+		// This allows the MOVDload and MOVWload to be generated in more cases and
+		// eliminates some offset and alignment checking in the rules file.
+
+		fromAddr := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+		ssagen.AddAux(&fromAddr, v)
+
+		genAddr := false
+
+		switch fromAddr.Name {
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// Special case for a rule combines the bytes of gostring.
+			// The v alignment might seem OK, but we don't want to load it
+			// using an offset because relocation comes later.
+			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go.string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
+		default:
+			genAddr = fromAddr.Offset%4 != 0
 		}
-		if gostring {
-			// Generate full addr of the go.string const
-			// including AuxInt
+		if genAddr {
+			// Load full address into the temp register.
 			p := s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_ADDR
 			p.From.Reg = v.Args[0].Reg()
 			ssagen.AddAux(&p.From, v)
+			// Load target using temp as base register
+			// and offset zero. Setting NAME_NONE
+			// prevents any extra offsets from being
+			// added.
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = v.Reg()
-			// Load go.string using 0 offset
-			p = s.Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = v.Reg()
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = v.Reg()
-			break
+			p.To.Reg = ppc64.REGTMP
+			fromAddr.Reg = ppc64.REGTMP
+			// Clear the offset field and other
+			// information that might be used
+			// by the assembler to add to the
+			// final offset value.
+			fromAddr.Offset = 0
+			fromAddr.Name = obj.NAME_NONE
+			fromAddr.Sym = nil
 		}
-		// Not a go.string, generate a normal load
-		fallthrough
+		p := s.Prog(v.Op.Asm())
+		p.From = fromAddr
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		break
 
-	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
+	case ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -865,7 +886,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-	case ssa.OpPPC64MOVDstorezero, ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
+	case ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = ppc64.REGZERO
@@ -873,7 +894,46 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
 
-	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
+	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVDstorezero:
+
+		// MOVDstore and MOVDstorezero become DS form instructions that are restricted
+		// to offset values that are a multple of 4. If the offset field is not a
+		// multiple of 4, then the full address of the store target is computed (base +
+		// offset) and used as the new base register and the offset in the instruction
+		// is set to 0.
+
+		// This allows the MOVDstore and MOVDstorezero to be generated in more cases,
+		// and prevents checking of the offset value and alignment in the rules.
+
+		toAddr := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+		ssagen.AddAux(&toAddr, v)
+
+		if toAddr.Offset%4 != 0 {
+			p := s.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_ADDR
+			p.From.Reg = v.Args[0].Reg()
+			ssagen.AddAux(&p.From, v)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REGTMP
+			toAddr.Reg = ppc64.REGTMP
+			// Clear the offset field and other
+			// information that might be used
+			// by the assembler to add to the
+			// final offset value.
+			toAddr.Offset = 0
+			toAddr.Name = obj.NAME_NONE
+			toAddr.Sym = nil
+		}
+		p := s.Prog(v.Op.Asm())
+		p.To = toAddr
+		p.From.Type = obj.TYPE_REG
+		if v.Op == ssa.OpPPC64MOVDstorezero {
+			p.From.Reg = ppc64.REGZERO
+		} else {
+			p.From.Reg = v.Args[1].Reg()
+		}
+
+	case ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -910,7 +970,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// AuxInt values 4,5,6 implemented with reverse operand order from 0,1,2
 		if v.AuxInt > 3 {
 			p.Reg = r.Reg
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[0].Reg()})
+			p.SetFrom3Reg(v.Args[0].Reg())
 		} else {
 			p.Reg = v.Args[0].Reg()
 			p.SetFrom3(r)
@@ -1476,7 +1536,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			case rem >= 8:
 				op, size = ppc64.AMOVD, 8
 			case rem >= 4:
-				op, size = ppc64.AMOVW, 4
+				op, size = ppc64.AMOVWZ, 4
 			case rem >= 2:
 				op, size = ppc64.AMOVH, 2
 			}
@@ -1743,7 +1803,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			case rem >= 8:
 				op, size = ppc64.AMOVD, 8
 			case rem >= 4:
-				op, size = ppc64.AMOVW, 4
+				op, size = ppc64.AMOVWZ, 4
 			case rem >= 2:
 				op, size = ppc64.AMOVH, 2
 			}
@@ -1784,7 +1844,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		pp.To.Reg = ppc64.REG_LR
 
 		// Insert a hint this is not a subroutine return.
-		pp.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 1})
+		pp.SetFrom3Const(1)
 
 		if base.Ctxt.Flag_shared {
 			// When compiling Go into PIC, the function we just
@@ -1813,7 +1873,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.UseArgs(16) // space used in callee args area by assembly stubs
 
 	case ssa.OpPPC64LoweredNilCheck:
-		if objabi.GOOS == "aix" {
+		if buildcfg.GOOS == "aix" {
 			// CMP Rarg0, R0
 			// BNE 2(PC)
 			// STW R0, 0(R0)
@@ -1867,7 +1927,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
-	case ssa.OpClobber:
+	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

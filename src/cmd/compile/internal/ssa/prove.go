@@ -726,6 +726,20 @@ var (
 	}
 )
 
+// cleanup returns the posets to the free list
+func (ft *factsTable) cleanup(f *Func) {
+	for _, po := range []*poset{ft.orderS, ft.orderU} {
+		// Make sure it's empty as it should be. A non-empty poset
+		// might cause errors and miscompilations if reused.
+		if checkEnabled {
+			if err := po.CheckEmpty(); err != nil {
+				f.Fatalf("poset not empty after function %s: %v", f.Name, err)
+			}
+		}
+		f.retPoset(po)
+	}
+}
+
 // prove removes redundant BlockIf branches that can be inferred
 // from previous dominating comparisons.
 //
@@ -778,7 +792,14 @@ func prove(f *Func) {
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
 				}
-				ft.lens[v.Args[0].ID] = v
+				// Set all len Values for the same slice as equal in the poset.
+				// The poset handles transitive relations, so Values related to
+				// any OpSliceLen for this slice will be correctly related to others.
+				if l, ok := ft.lens[v.Args[0].ID]; ok {
+					ft.update(b, v, l, signed, eq)
+				} else {
+					ft.lens[v.Args[0].ID] = v
+				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 				if v.Args[0].Op == OpSliceMake {
 					if lensVars == nil {
@@ -790,7 +811,12 @@ func prove(f *Func) {
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
 				}
-				ft.caps[v.Args[0].ID] = v
+				// Same as case OpSliceLen above, but for slice cap.
+				if c, ok := ft.caps[v.Args[0].ID]; ok {
+					ft.update(b, v, c, signed, eq)
+				} else {
+					ft.caps[v.Args[0].ID] = v
+				}
 				ft.update(b, v, ft.zero, signed, gt|eq)
 				if v.Args[0].Op == OpSliceMake {
 					if lensVars == nil {
@@ -905,17 +931,7 @@ func prove(f *Func) {
 
 	ft.restore()
 
-	// Return the posets to the free list
-	for _, po := range []*poset{ft.orderS, ft.orderU} {
-		// Make sure it's empty as it should be. A non-empty poset
-		// might cause errors and miscompilations if reused.
-		if checkEnabled {
-			if err := po.CheckEmpty(); err != nil {
-				f.Fatalf("prove poset not empty after function %s: %v", f.Name, err)
-			}
-		}
-		f.retPoset(po)
-	}
+	ft.cleanup(f)
 }
 
 // getBranch returns the range restrictions added by p

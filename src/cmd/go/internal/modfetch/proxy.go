@@ -228,7 +228,7 @@ func (p *proxyRepo) versionError(version string, err error) error {
 			Path: p.path,
 			Err: &module.InvalidVersionError{
 				Version: version,
-				Pseudo:  IsPseudoVersion(version),
+				Pseudo:  module.IsPseudoVersion(version),
 				Err:     err,
 			},
 		}
@@ -276,11 +276,11 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	var list []string
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !IsPseudoVersion(f[0]) {
+		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !module.IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
-	SortVersions(list)
+	semver.Sort(list)
 	return list, nil
 }
 
@@ -307,8 +307,8 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 			)
 			if len(f) >= 2 {
 				ft, _ = time.Parse(time.RFC3339, f[1])
-			} else if IsPseudoVersion(f[0]) {
-				ft, _ = PseudoVersionTime(f[0])
+			} else if module.IsPseudoVersion(f[0]) {
+				ft, _ = module.PseudoVersionTime(f[0])
 				ftIsFromPseudo = true
 			} else {
 				// Repo.Latest promises that this method is only called where there are

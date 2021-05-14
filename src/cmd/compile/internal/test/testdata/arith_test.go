@@ -1452,3 +1452,46 @@ func testDivisibility(t *testing.T) {
 		}
 	}
 }
+
+//go:noinline
+func genREV16_1(c uint64) uint64 {
+	b := ((c & 0xff00ff00ff00ff00) >> 8) | ((c & 0x00ff00ff00ff00ff) << 8)
+	return b
+}
+
+//go:noinline
+func genREV16_2(c uint64) uint64 {
+	b := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
+	return b
+}
+
+//go:noinline
+func genREV16W(c uint32) uint32 {
+	b := ((c & 0xff00ff00) >> 8) | ((c & 0x00ff00ff) << 8)
+	return b
+}
+
+func TestREV16(t *testing.T) {
+	x := uint64(0x8f7f6f5f4f3f2f1f)
+	want1 := uint64(0x7f8f5f6f3f4f1f2f)
+	want2 := uint64(0x3f4f1f2f)
+
+	got1 := genREV16_1(x)
+	if got1 != want1 {
+		t.Errorf("genREV16_1(%#x) = %#x want %#x", x, got1, want1)
+	}
+	got2 := genREV16_2(x)
+	if got2 != want2 {
+		t.Errorf("genREV16_2(%#x) = %#x want %#x", x, got2, want2)
+	}
+}
+
+func TestREV16W(t *testing.T) {
+	x := uint32(0x4f3f2f1f)
+	want := uint32(0x3f4f1f2f)
+
+	got := genREV16W(x)
+	if got != want {
+		t.Errorf("genREV16W(%#x) = %#x want %#x", x, got, want)
+	}
+}

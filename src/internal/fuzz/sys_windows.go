@@ -95,6 +95,7 @@ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%q", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memName))
+	cmd.SysProcAttr = &syscall.SysProcAttr{AdditionalInheritedHandles: []syscall.Handle{syscall.Handle(comm.fuzzIn.Fd()), syscall.Handle(comm.fuzzOut.Fd())}}
 }
 
 // getWorkerComm returns communication channels in the worker process.

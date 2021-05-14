@@ -531,7 +531,7 @@ func usleep(µs uint32) {
 	usleep1(µs)
 }
 
-func walltime1() (sec int64, nsec int32) {
+func walltime() (sec int64, nsec int32) {
 	var ts mts
 	sysvicall2(&libc_clock_gettime, _CLOCK_REALTIME, uintptr(unsafe.Pointer(&ts)))
 	return ts.tv_sec, int32(ts.tv_nsec)

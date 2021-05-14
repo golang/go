@@ -3,106 +3,91 @@
 // license that can be found in the LICENSE file.
 
 // Hashing algorithm inspired by
-//   xxhash: https://code.google.com/p/xxhash/
-// cityhash: https://code.google.com/p/cityhash/
+// wyhash: https://github.com/wangyi-fudan/wyhash
 
+//go:build amd64 || arm64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x || wasm
 // +build amd64 arm64 mips64 mips64le ppc64 ppc64le riscv64 s390x wasm
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/math"
+	"unsafe"
+)
 
 const (
-	// Constants for multiplication: four random odd 64-bit numbers.
-	m1 = 16877499708836156737
-	m2 = 2820277070424839065
-	m3 = 9497967016996688599
-	m4 = 15839092249703872147
+	m1 = 0xa0761d6478bd642f
+	m2 = 0xe7037ed1a0b428db
+	m3 = 0x8ebc6af09c88c6e3
+	m4 = 0x589965cc75374cc3
+	m5 = 0x1d8e4e27c47d124f
 )
 
 func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
-	h := uint64(seed + s*hashkey[0])
-tail:
+	var a, b uintptr
+	seed ^= hashkey[0] ^ m1
 	switch {
 	case s == 0:
+		return seed
 	case s < 4:
-		h ^= uint64(*(*byte)(p))
-		h ^= uint64(*(*byte)(add(p, s>>1))) << 8
-		h ^= uint64(*(*byte)(add(p, s-1))) << 16
-		h = rotl_31(h*m1) * m2
-	case s <= 8:
-		h ^= uint64(readUnaligned32(p))
-		h ^= uint64(readUnaligned32(add(p, s-4))) << 32
-		h = rotl_31(h*m1) * m2
+		a = uintptr(*(*byte)(p))
+		a |= uintptr(*(*byte)(add(p, s>>1))) << 8
+		a |= uintptr(*(*byte)(add(p, s-1))) << 16
+	case s == 4:
+		a = r4(p)
+		b = a
+	case s < 8:
+		a = r4(p)
+		b = r4(add(p, s-4))
+	case s == 8:
+		a = r8(p)
+		b = a
 	case s <= 16:
-		h ^= readUnaligned64(p)
-		h = rotl_31(h*m1) * m2
-		h ^= readUnaligned64(add(p, s-8))
-		h = rotl_31(h*m1) * m2
-	case s <= 32:
-		h ^= readUnaligned64(p)
-		h = rotl_31(h*m1) * m2
-		h ^= readUnaligned64(add(p, 8))
-		h = rotl_31(h*m1) * m2
-		h ^= readUnaligned64(add(p, s-16))
-		h = rotl_31(h*m1) * m2
-		h ^= readUnaligned64(add(p, s-8))
-		h = rotl_31(h*m1) * m2
+		a = r8(p)
+		b = r8(add(p, s-8))
 	default:
-		v1 := h
-		v2 := uint64(seed * hashkey[1])
-		v3 := uint64(seed * hashkey[2])
-		v4 := uint64(seed * hashkey[3])
-		for s >= 32 {
-			v1 ^= readUnaligned64(p)
-			v1 = rotl_31(v1*m1) * m2
-			p = add(p, 8)
-			v2 ^= readUnaligned64(p)
-			v2 = rotl_31(v2*m2) * m3
-			p = add(p, 8)
-			v3 ^= readUnaligned64(p)
-			v3 = rotl_31(v3*m3) * m4
-			p = add(p, 8)
-			v4 ^= readUnaligned64(p)
-			v4 = rotl_31(v4*m4) * m1
-			p = add(p, 8)
-			s -= 32
+		l := s
+		if l > 48 {
+			seed1 := seed
+			seed2 := seed
+			for ; l > 48; l -= 48 {
+				seed = mix(r8(p)^m2, r8(add(p, 8))^seed)
+				seed1 = mix(r8(add(p, 16))^m3, r8(add(p, 24))^seed1)
+				seed2 = mix(r8(add(p, 32))^m4, r8(add(p, 40))^seed2)
+				p = add(p, 48)
+			}
+			seed ^= seed1 ^ seed2
 		}
-		h = v1 ^ v2 ^ v3 ^ v4
-		goto tail
+		for ; l > 16; l -= 16 {
+			seed = mix(r8(p)^m2, r8(add(p, 8))^seed)
+			p = add(p, 16)
+		}
+		a = r8(add(p, l-16))
+		b = r8(add(p, l-8))
 	}
 
-	h ^= h >> 29
-	h *= m3
-	h ^= h >> 32
-	return uintptr(h)
+	return mix(m5^s, mix(a^m2, b^seed))
 }
 
 func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	h := uint64(seed + 4*hashkey[0])
-	v := uint64(readUnaligned32(p))
-	h ^= v
-	h ^= v << 32
-	h = rotl_31(h*m1) * m2
-	h ^= h >> 29
-	h *= m3
-	h ^= h >> 32
-	return uintptr(h)
+	a := r4(p)
+	return mix(m5^4, mix(a^m2, a^seed^hashkey[0]^m1))
 }
 
 func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	h := uint64(seed + 8*hashkey[0])
-	h ^= uint64(readUnaligned32(p)) | uint64(readUnaligned32(add(p, 4)))<<32
-	h = rotl_31(h*m1) * m2
-	h ^= h >> 29
-	h *= m3
-	h ^= h >> 32
-	return uintptr(h)
+	a := r8(p)
+	return mix(m5^8, mix(a^m2, a^seed^hashkey[0]^m1))
 }
 
-// Note: in order to get the compiler to issue rotl instructions, we
-// need to constant fold the shift amount by hand.
-// TODO: convince the compiler to issue rotl instructions after inlining.
-func rotl_31(x uint64) uint64 {
-	return (x << 31) | (x >> (64 - 31))
+func mix(a, b uintptr) uintptr {
+	hi, lo := math.Mul64(uint64(a), uint64(b))
+	return uintptr(hi ^ lo)
+}
+
+func r4(p unsafe.Pointer) uintptr {
+	return uintptr(readUnaligned32(p))
+}
+
+func r8(p unsafe.Pointer) uintptr {
+	return uintptr(readUnaligned64(p))
 }

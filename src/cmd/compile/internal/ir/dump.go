@@ -20,12 +20,12 @@ import (
 	"cmd/internal/src"
 )
 
-// dump is like fdump but prints to stderr.
+// DumpAny is like FDumpAny but prints to stderr.
 func DumpAny(root interface{}, filter string, depth int) {
 	FDumpAny(os.Stderr, root, filter, depth)
 }
 
-// fdump prints the structure of a rooted data structure
+// FDumpAny prints the structure of a rooted data structure
 // to w by depth-first traversal of the data structure.
 //
 // The filter parameter is a regular expression. If it is

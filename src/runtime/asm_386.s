@@ -195,6 +195,10 @@ nocpuinfo:
 	JMP ok
 #endif
 needtls:
+#ifdef GOOS_openbsd
+	// skip runtime·ldt0setup(SB) and tls test on OpenBSD in all cases
+	JMP	ok
+#endif
 #ifdef GOOS_plan9
 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
 	JMP	ok
@@ -618,7 +622,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
 	TESTL	AX, AX
 	JZ	2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	POPL	BX
 	POPL	AX
 	RET
@@ -1473,6 +1477,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
 	MOVL	AX, x+0(FP)
 	MOVL	CX, y+4(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
+	MOVL	DX, x+0(FP)
+	MOVL	BX, y+4(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 // Extended versions for 64-bit indexes.
 TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12

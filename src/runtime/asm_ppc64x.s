@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "go_asm.h"
@@ -547,7 +548,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	(g_sched+gobuf_ctxt)(g), R31
 	CMP	R0, R31
 	BEQ	2(PC)
-	BL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
 	RET
 
 #ifdef GOOS_aix
@@ -1022,3 +1023,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOVD	R3, x+0(FP)
 	MOVD	R4, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+	MOVD	R5, x+0(FP)
+	MOVD	R6, y+8(FP)
+	JMP	runtime·goPanicSliceConvert(SB)

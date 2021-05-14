@@ -13,14 +13,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"cmd/internal/objabi"
 )
 
 // Debug holds the parsed debugging configuration values.
-var Debug = DebugFlags{
-	Fieldtrack: &objabi.Fieldtrack_enabled,
-}
+var Debug DebugFlags
 
 // DebugFlags defines the debugging configuration values (see var Debug).
 // Each struct field is a different value, named for the lower-case of the field name.
@@ -29,28 +25,29 @@ var Debug = DebugFlags{
 // The -d option takes a comma-separated list of settings.
 // Each setting is name=value; for ints, name is short for name=1.
 type DebugFlags struct {
-	Append        int    `help:"print information about append compilation"`
-	Checkptr      int    `help:"instrument unsafe pointer conversions"`
-	Closure       int    `help:"print information about closure compilation"`
-	DclStack      int    `help:"run internal dclstack check"`
-	Defer         int    `help:"print information about defer compilation"`
-	DisableNil    int    `help:"disable nil checks"`
-	DumpPtrs      int    `help:"show Node pointers values in dump output"`
-	DwarfInl      int    `help:"print information about DWARF inlined function creation"`
-	Export        int    `help:"print export data"`
-	Fieldtrack    *int   `help:"enable field tracking"`
-	GCProg        int    `help:"print dump of GC programs"`
-	Libfuzzer     int    `help:"enable coverage instrumentation for libfuzzer"`
-	LocationLists int    `help:"print information about DWARF location list creation"`
-	Nil           int    `help:"print information about nil checks"`
-	PCTab         string `help:"print named pc-value table"`
-	Panic         int    `help:"show all compiler panics"`
-	Slice         int    `help:"print information about slice compilation"`
-	SoftFloat     int    `help:"force compiler to emit soft-float code"`
-	TypeAssert    int    `help:"print information about type assertion inlining"`
-	TypecheckInl  int    `help:"eager typechecking of inline function bodies"`
-	WB            int    `help:"print information about write barriers"`
-	ABIWrap       int    `help:"print information about ABI wrapper generation"`
+	Append               int    `help:"print information about append compilation"`
+	Checkptr             int    `help:"instrument unsafe pointer conversions"`
+	Closure              int    `help:"print information about closure compilation"`
+	DclStack             int    `help:"run internal dclstack check"`
+	Defer                int    `help:"print information about defer compilation"`
+	DisableNil           int    `help:"disable nil checks"`
+	DumpPtrs             int    `help:"show Node pointers values in dump output"`
+	DwarfInl             int    `help:"print information about DWARF inlined function creation"`
+	Export               int    `help:"print export data"`
+	GCProg               int    `help:"print dump of GC programs"`
+	InlFuncsWithClosures int    `help:"allow functions with closures to be inlined"`
+	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
+	LocationLists        int    `help:"print information about DWARF location list creation"`
+	Nil                  int    `help:"print information about nil checks"`
+	NoOpenDefer          int    `help:"disable open-coded defers"`
+	PCTab                string `help:"print named pc-value table"`
+	Panic                int    `help:"show all compiler panics"`
+	Slice                int    `help:"print information about slice compilation"`
+	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+	TypeAssert           int    `help:"print information about type assertion inlining"`
+	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
+	WB                   int    `help:"print information about write barriers"`
+	ABIWrap              int    `help:"print information about ABI wrapper generation"`
 
 	any bool // set when any of the values have been set
 }
@@ -85,8 +82,6 @@ func init() {
 			panic(fmt.Sprintf("base.Debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
 		case *int, *string:
 			// ok
-		case **int:
-			ptr = *ptr.(**int) // record the *int itself
 		}
 		debugTab = append(debugTab, debugField{name, help, ptr})
 	}

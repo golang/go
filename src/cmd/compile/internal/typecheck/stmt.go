@@ -74,7 +74,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 			if ir.DeclaredBy(nn, n) {
 				nn.SetType(t)
 			} else if nn.Type() != nil {
-				if op, why := assignop(t, nn.Type()); op == ir.OXXX {
+				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
 					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
 				}
 			}
@@ -519,8 +519,8 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
 			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
 				base.ErrorfAt(ncase.Pos(), "invalid case %L in switch (incomparable type)", n1)
 			} else {
-				op1, _ := assignop(n1.Type(), t)
-				op2, _ := assignop(t, n1.Type())
+				op1, _ := Assignop(n1.Type(), t)
+				op2, _ := Assignop(t, n1.Type())
 				if op1 == ir.OXXX && op2 == ir.OXXX {
 					if n.Tag != nil {
 						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)

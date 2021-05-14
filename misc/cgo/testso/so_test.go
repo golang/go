@@ -7,7 +7,6 @@
 package so_test
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -37,7 +36,7 @@ func requireTestSOSupported(t *testing.T) {
 func TestSO(t *testing.T) {
 	requireTestSOSupported(t)
 
-	GOPATH, err := ioutil.TempDir("", "cgosotest")
+	GOPATH, err := os.MkdirTemp("", "cgosotest")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +46,7 @@ func TestSO(t *testing.T) {
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		log.Panic(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 
@@ -80,6 +79,10 @@ func TestSO(t *testing.T) {
 	case "windows":
 		ext = "dll"
 		args = append(args, "-DEXPORT_DLL")
+		// At least in mingw-clang it is not permitted to just name a .dll
+		// on the command line. You must name the corresponding import
+		// library instead, even though the dll is used when the executable is run.
+		args = append(args, "-Wl,-out-implib,libcgosotest.a")
 	case "aix":
 		ext = "so.1"
 	}

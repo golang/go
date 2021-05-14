@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (ppc64 || ppc64le)
 // +build linux
 // +build ppc64 ppc64le
 
@@ -184,8 +185,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R3, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVD	R1, R15		// R15 is unchanged by C code
 	MOVD	g_m(g), R21	// R21 = m
 
@@ -336,6 +337,26 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVW	R3, ret+32(FP)
 	RET
 
+#ifdef GOARCH_ppc64le
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
+	MOVD    sig+0(FP), R3
+	MOVD    new+8(FP), R4
+	MOVD    old+16(FP), R5
+	MOVD     _cgo_sigaction(SB), R12
+	MOVD    R12, CTR                // R12 should contain the function address
+	MOVD    R1, R15                 // Save R1
+	MOVD    R2, 24(R1)              // Save R2
+	SUB     $48, R1                 // reserve 32 (frame) + 16 bytes for sp-8 where fp may be saved.
+	RLDICR  $0, R1, $59, R1         // Align to 16 bytes for C code
+	BL      (CTR)
+	XOR     R0, R0, R0              // Clear R0 as Go expects
+	MOVD    R15, R1                 // Restore R1
+	MOVD    24(R1), R2              // Restore R2
+	MOVW    R3, ret+24(FP)          // Return result
+	RET
+#endif
+
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R3
 	MOVD	info+16(FP), R4
@@ -351,15 +372,97 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
 
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
+// Save callee-save registers in the case of signal forwarding.
+// Same as on ARM64 https://golang.org/issue/31827 .
+TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$sigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT sigtramp<>(SB),NOSPLIT,$64
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 #endif
+	// Start with standard C stack frame layout and linkage.
+	MOVD    LR, R0
+	MOVD    R0, 16(R1) // Save LR in caller's frame.
+	MOVW    CR, R0     // Save CR in caller's frame
+	MOVD    R0, 8(R1)
+	// The stack must be acquired here and not
+	// in the automatic way based on stack size
+	// since that sequence clobbers R31 before it
+	// gets saved.
+	// We are being ultra safe here in saving the
+	// Vregs. The case where they might need to
+	// be saved is very unlikely.
+	MOVDU   R1, -544(R1)
+	MOVD    R14, 64(R1)
+	MOVD    R15, 72(R1)
+	MOVD    R16, 80(R1)
+	MOVD    R17, 88(R1)
+	MOVD    R18, 96(R1)
+	MOVD    R19, 104(R1)
+	MOVD    R20, 112(R1)
+	MOVD    R21, 120(R1)
+	MOVD    R22, 128(R1)
+	MOVD    R23, 136(R1)
+	MOVD    R24, 144(R1)
+	MOVD    R25, 152(R1)
+	MOVD    R26, 160(R1)
+	MOVD    R27, 168(R1)
+	MOVD    R28, 176(R1)
+	MOVD    R29, 184(R1)
+	MOVD    g, 192(R1) // R30
+	MOVD    R31, 200(R1)
+	FMOVD   F14, 208(R1)
+	FMOVD   F15, 216(R1)
+	FMOVD   F16, 224(R1)
+	FMOVD   F17, 232(R1)
+	FMOVD   F18, 240(R1)
+	FMOVD   F19, 248(R1)
+	FMOVD   F20, 256(R1)
+	FMOVD   F21, 264(R1)
+	FMOVD   F22, 272(R1)
+	FMOVD   F23, 280(R1)
+	FMOVD   F24, 288(R1)
+	FMOVD   F25, 296(R1)
+	FMOVD   F26, 304(R1)
+	FMOVD   F27, 312(R1)
+	FMOVD   F28, 320(R1)
+	FMOVD   F29, 328(R1)
+	FMOVD   F30, 336(R1)
+	FMOVD   F31, 344(R1)
+	// Save V regs
+	// STXVD2X and LXVD2X used since
+	// we aren't sure of alignment.
+	// Endianness doesn't matter
+	// if we are just loading and
+	// storing values.
+	MOVD	$352, R7 // V20
+	STXVD2X VS52, (R7)(R1)
+	ADD	$16, R7 // V21 368
+	STXVD2X VS53, (R7)(R1)
+	ADD	$16, R7 // V22 384
+	STXVD2X VS54, (R7)(R1)
+	ADD	$16, R7 // V23 400
+	STXVD2X VS55, (R7)(R1)
+	ADD	$16, R7 // V24 416
+	STXVD2X	VS56, (R7)(R1)
+	ADD	$16, R7 // V25 432
+	STXVD2X	VS57, (R7)(R1)
+	ADD	$16, R7 // V26 448
+	STXVD2X VS58, (R7)(R1)
+	ADD	$16, R7 // V27 464
+	STXVD2X VS59, (R7)(R1)
+	ADD	$16, R7 // V28 480
+	STXVD2X VS60, (R7)(R1)
+	ADD	$16, R7 // V29 496
+	STXVD2X VS61, (R7)(R1)
+	ADD	$16, R7 // V30 512
+	STXVD2X VS62, (R7)(R1)
+	ADD	$16, R7 // V31 528
+	STXVD2X VS63, (R7)(R1)
+
 	// initialize essential registers (just in case)
 	BL	runtime·reginit(SB)
 
@@ -376,7 +479,74 @@ TEXT sigtramp<>(SB),NOSPLIT,$64
 	MOVD	$runtime·sigtrampgo(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
-	MOVD	24(R1), R2
+	MOVD	24(R1), R2 // Should this be here? Where is it saved?
+	// Starts at 64; FIXED_FRAME is 32
+	MOVD    64(R1), R14
+	MOVD    72(R1), R15
+	MOVD    80(R1), R16
+	MOVD    88(R1), R17
+	MOVD    96(R1), R18
+	MOVD    104(R1), R19
+	MOVD    112(R1), R20
+	MOVD    120(R1), R21
+	MOVD    128(R1), R22
+	MOVD    136(R1), R23
+	MOVD    144(R1), R24
+	MOVD    152(R1), R25
+	MOVD    160(R1), R26
+	MOVD    168(R1), R27
+	MOVD    176(R1), R28
+	MOVD    184(R1), R29
+	MOVD    192(R1), g // R30
+	MOVD    200(R1), R31
+	FMOVD   208(R1), F14
+	FMOVD   216(R1), F15
+	FMOVD   224(R1), F16
+	FMOVD   232(R1), F17
+	FMOVD   240(R1), F18
+	FMOVD   248(R1), F19
+	FMOVD   256(R1), F20
+	FMOVD   264(R1), F21
+	FMOVD   272(R1), F22
+	FMOVD   280(R1), F23
+	FMOVD   288(R1), F24
+	FMOVD   292(R1), F25
+	FMOVD   300(R1), F26
+	FMOVD   308(R1), F27
+	FMOVD   316(R1), F28
+	FMOVD   328(R1), F29
+	FMOVD   336(R1), F30
+	FMOVD   344(R1), F31
+	MOVD	$352, R7
+	LXVD2X	(R7)(R1), VS52
+	ADD	$16, R7 // 368 V21
+	LXVD2X	(R7)(R1), VS53
+	ADD	$16, R7 // 384 V22
+	LXVD2X	(R7)(R1), VS54
+	ADD	$16, R7 // 400 V23
+	LXVD2X	(R7)(R1), VS55
+	ADD	$16, R7 // 416 V24
+	LXVD2X	(R7)(R1), VS56
+	ADD	$16, R7 // 432 V25
+	LXVD2X	(R7)(R1), VS57
+	ADD	$16, R7 // 448 V26
+	LXVD2X	(R7)(R1), VS58
+	ADD	$16, R8 // 464 V27
+	LXVD2X	(R7)(R1), VS59
+	ADD	$16, R7 // 480 V28
+	LXVD2X	(R7)(R1), VS60
+	ADD	$16, R7 // 496 V29
+	LXVD2X	(R7)(R1), VS61
+	ADD	$16, R7 // 512 V30
+	LXVD2X	(R7)(R1), VS62
+	ADD	$16, R7 // 528 V31
+	LXVD2X	(R7)(R1), VS63
+	ADD	$544, R1
+	MOVD	8(R1), R0
+	MOVFL	R0, $0xff
+	MOVD	16(R1), R0
+	MOVD	R0, LR
+
 	RET
 
 #ifdef GOARCH_ppc64le
@@ -406,6 +576,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 
 	// Figure out if we are currently in a cgo call.
 	// If not, just do usual sigtramp.
+	// compared to ARM64 and others.
 	CMP	$0, g
 	BEQ	sigtrampnog // g == nil
 	MOVD	g_m(g), R6

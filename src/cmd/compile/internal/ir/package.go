@@ -32,4 +32,7 @@ type Package struct {
 
 	// Exported (or re-exported) symbols.
 	Exports []*Name
+
+	// Map from function names of stencils to already-created stencils.
+	Stencils map[*types.Sym]*Func
 }

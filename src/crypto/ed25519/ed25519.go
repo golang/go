@@ -12,9 +12,6 @@
 // 8032 private key as the “seed”.
 package ed25519
 
-// This code is a port of the public domain, “ref10” implementation of ed25519
-// from SUPERCOP.
-
 import (
 	"bytes"
 	"crypto"
@@ -128,20 +125,14 @@ func newKeyFromSeed(privateKey, seed []byte) {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
 
-	digest := sha512.Sum512(seed)
-	digest[0] &= 248
-	digest[31] &= 127
-	digest[31] |= 64
+	h := sha512.Sum512(seed)
+	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	A := (&edwards25519.Point{}).ScalarBaseMult(s)
 
-	var A edwards25519.ExtendedGroupElement
-	var hBytes [32]byte
-	copy(hBytes[:], digest[:])
-	edwards25519.GeScalarMultBase(&A, &hBytes)
-	var publicKeyBytes [32]byte
-	A.ToBytes(&publicKeyBytes)
+	publicKey := A.Bytes()
 
 	copy(privateKey, seed)
-	copy(privateKey[32:], publicKeyBytes[:])
+	copy(privateKey[32:], publicKey)
 }
 
 // Sign signs the message with privateKey and returns a signature. It will
@@ -158,44 +149,33 @@ func sign(signature, privateKey, message []byte) {
 	if l := len(privateKey); l != PrivateKeySize {
 		panic("ed25519: bad private key length: " + strconv.Itoa(l))
 	}
+	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:]
 
-	h := sha512.New()
-	h.Write(privateKey[:32])
+	h := sha512.Sum512(seed)
+	s := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	prefix := h[32:]
 
-	var digest1, messageDigest, hramDigest [64]byte
-	var expandedSecretKey [32]byte
-	h.Sum(digest1[:0])
-	copy(expandedSecretKey[:], digest1[:])
-	expandedSecretKey[0] &= 248
-	expandedSecretKey[31] &= 63
-	expandedSecretKey[31] |= 64
+	mh := sha512.New()
+	mh.Write(prefix)
+	mh.Write(message)
+	messageDigest := make([]byte, 0, sha512.Size)
+	messageDigest = mh.Sum(messageDigest)
+	r := edwards25519.NewScalar().SetUniformBytes(messageDigest)
 
-	h.Reset()
-	h.Write(digest1[32:])
-	h.Write(message)
-	h.Sum(messageDigest[:0])
+	R := (&edwards25519.Point{}).ScalarBaseMult(r)
 
-	var messageDigestReduced [32]byte
-	edwards25519.ScReduce(&messageDigestReduced, &messageDigest)
-	var R edwards25519.ExtendedGroupElement
-	edwards25519.GeScalarMultBase(&R, &messageDigestReduced)
+	kh := sha512.New()
+	kh.Write(R.Bytes())
+	kh.Write(publicKey)
+	kh.Write(message)
+	hramDigest := make([]byte, 0, sha512.Size)
+	hramDigest = kh.Sum(hramDigest)
+	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 
-	var encodedR [32]byte
-	R.ToBytes(&encodedR)
+	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
 
-	h.Reset()
-	h.Write(encodedR[:])
-	h.Write(privateKey[32:])
-	h.Write(message)
-	h.Sum(hramDigest[:0])
-	var hramDigestReduced [32]byte
-	edwards25519.ScReduce(&hramDigestReduced, &hramDigest)
-
-	var s [32]byte
-	edwards25519.ScMulAdd(&s, &hramDigestReduced, &expandedSecretKey, &messageDigestReduced)
-
-	copy(signature[:], encodedR[:])
-	copy(signature[32:], s[:])
+	copy(signature[:32], R.Bytes())
+	copy(signature[32:], S.Bytes())
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey. It
@@ -209,38 +189,27 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 		return false
 	}
 
-	var A edwards25519.ExtendedGroupElement
-	var publicKeyBytes [32]byte
-	copy(publicKeyBytes[:], publicKey)
-	if !A.FromBytes(&publicKeyBytes) {
-		return false
-	}
-	edwards25519.FeNeg(&A.X, &A.X)
-	edwards25519.FeNeg(&A.T, &A.T)
-
-	h := sha512.New()
-	h.Write(sig[:32])
-	h.Write(publicKey[:])
-	h.Write(message)
-	var digest [64]byte
-	h.Sum(digest[:0])
-
-	var hReduced [32]byte
-	edwards25519.ScReduce(&hReduced, &digest)
-
-	var R edwards25519.ProjectiveGroupElement
-	var s [32]byte
-	copy(s[:], sig[32:])
-
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !edwards25519.ScMinimal(&s) {
+	A, err := (&edwards25519.Point{}).SetBytes(publicKey)
+	if err != nil {
 		return false
 	}
 
-	edwards25519.GeDoubleScalarMultVartime(&R, &hReduced, &A, &s)
+	kh := sha512.New()
+	kh.Write(sig[:32])
+	kh.Write(publicKey)
+	kh.Write(message)
+	hramDigest := make([]byte, 0, sha512.Size)
+	hramDigest = kh.Sum(hramDigest)
+	k := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 
-	var checkR [32]byte
-	R.ToBytes(&checkR)
-	return bytes.Equal(sig[:32], checkR[:])
+	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
+	if err != nil {
+		return false
+	}
+
+	// [S]B = R + [k]A --> [k](-A) + [S]B = R
+	minusA := (&edwards25519.Point{}).Negate(A)
+	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
+
+	return bytes.Equal(sig[:32], R.Bytes())
 }

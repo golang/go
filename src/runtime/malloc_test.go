@@ -154,6 +154,9 @@ func TestStringConcatenationAllocs(t *testing.T) {
 }
 
 func TestTinyAlloc(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
 	const N = 16
 	var v [N]unsafe.Pointer
 	for i := range v {
@@ -182,6 +185,9 @@ type obj12 struct {
 }
 
 func TestTinyAllocIssue37262(t *testing.T) {
+	if runtime.Raceenabled {
+		t.Skip("tinyalloc suppressed when running in race mode")
+	}
 	// Try to cause an alignment access fault
 	// by atomically accessing the first 64-bit
 	// value of a tiny-allocated object.

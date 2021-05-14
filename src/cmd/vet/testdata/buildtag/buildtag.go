@@ -4,12 +4,14 @@
 
 // This file contains tests for the buildtag checker.
 
-// +builder // ERROR "possible malformed \+build comment"
+// ERRORNEXT "possible malformed [+]build comment"
+// +builder
 // +build !ignore
 
 package testdata
 
-// +build toolate // ERROR "build comment must appear before package clause and be followed by a blank line$"
+// ERRORNEXT "misplaced \+build comment"
+// +build toolate
 
 var _ = 3
 

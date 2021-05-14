@@ -4,7 +4,10 @@
 
 package bidi
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // This implementation is a port based on the reference implementation found at:
 // https://www.unicode.org/Public/PROGRAMS/BidiReferenceJava/
@@ -97,13 +100,20 @@ type paragraph struct {
 // rune (suggested is the rune of the open bracket for opening and matching
 // close brackets, after normalization). The embedding levels are optional, but
 // may be supplied to encode embedding levels of styled text.
-//
-// TODO: return an error.
-func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, levels level) *paragraph {
-	validateTypes(types)
-	validatePbTypes(pairTypes)
-	validatePbValues(pairValues, pairTypes)
-	validateParagraphEmbeddingLevel(levels)
+func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, levels level) (*paragraph, error) {
+	var err error
+	if err = validateTypes(types); err != nil {
+		return nil, err
+	}
+	if err = validatePbTypes(pairTypes); err != nil {
+		return nil, err
+	}
+	if err = validatePbValues(pairValues, pairTypes); err != nil {
+		return nil, err
+	}
+	if err = validateParagraphEmbeddingLevel(levels); err != nil {
+		return nil, err
+	}
 
 	p := &paragraph{
 		initialTypes:   append([]Class(nil), types...),
@@ -115,7 +125,7 @@ func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, lev
 		resultTypes: append([]Class(nil), types...),
 	}
 	p.run()
-	return p
+	return p, nil
 }
 
 func (p *paragraph) Len() int { return len(p.initialTypes) }
@@ -1001,58 +1011,61 @@ func typeForLevel(level level) Class {
 	return R
 }
 
-// TODO: change validation to not panic
-
-func validateTypes(types []Class) {
+func validateTypes(types []Class) error {
 	if len(types) == 0 {
-		log.Panic("types is null")
+		return fmt.Errorf("types is null")
 	}
 	for i, t := range types[:len(types)-1] {
 		if t == B {
-			log.Panicf("B type before end of paragraph at index: %d", i)
+			return fmt.Errorf("B type before end of paragraph at index: %d", i)
 		}
 	}
+	return nil
 }
 
-func validateParagraphEmbeddingLevel(embeddingLevel level) {
+func validateParagraphEmbeddingLevel(embeddingLevel level) error {
 	if embeddingLevel != implicitLevel &&
 		embeddingLevel != 0 &&
 		embeddingLevel != 1 {
-		log.Panicf("illegal paragraph embedding level: %d", embeddingLevel)
+		return fmt.Errorf("illegal paragraph embedding level: %d", embeddingLevel)
 	}
+	return nil
 }
 
-func validateLineBreaks(linebreaks []int, textLength int) {
+func validateLineBreaks(linebreaks []int, textLength int) error {
 	prev := 0
 	for i, next := range linebreaks {
 		if next <= prev {
-			log.Panicf("bad linebreak: %d at index: %d", next, i)
+			return fmt.Errorf("bad linebreak: %d at index: %d", next, i)
 		}
 		prev = next
 	}
 	if prev != textLength {
-		log.Panicf("last linebreak was %d, want %d", prev, textLength)
+		return fmt.Errorf("last linebreak was %d, want %d", prev, textLength)
 	}
+	return nil
 }
 
-func validatePbTypes(pairTypes []bracketType) {
+func validatePbTypes(pairTypes []bracketType) error {
 	if len(pairTypes) == 0 {
-		log.Panic("pairTypes is null")
+		return fmt.Errorf("pairTypes is null")
 	}
 	for i, pt := range pairTypes {
 		switch pt {
 		case bpNone, bpOpen, bpClose:
 		default:
-			log.Panicf("illegal pairType value at %d: %v", i, pairTypes[i])
+			return fmt.Errorf("illegal pairType value at %d: %v", i, pairTypes[i])
 		}
 	}
+	return nil
 }
 
-func validatePbValues(pairValues []rune, pairTypes []bracketType) {
+func validatePbValues(pairValues []rune, pairTypes []bracketType) error {
 	if pairValues == nil {
-		log.Panic("pairValues is null")
+		return fmt.Errorf("pairValues is null")
 	}
 	if len(pairTypes) != len(pairValues) {
-		log.Panic("pairTypes is different length from pairValues")
+		return fmt.Errorf("pairTypes is different length from pairValues")
 	}
+	return nil
 }

@@ -16,6 +16,7 @@ go mod edit -droprequire example.net/tools
 # error out if dependencies of tag-guarded files are missing.
 
 go get -d example.net/tools@v0.1.0
+! stderr 'no Go source files'
 
 ! go list example.net/tools
 stderr '^package example.net/tools: build constraints exclude all Go files in .*[/\\]tools$'
@@ -28,6 +29,19 @@ go list -deps example.net/cmd/tool
 
 ! go list example.net/missing
 stderr '^no required module provides package example.net/missing; to add it:\n\tgo get example.net/missing$'
+
+
+# https://golang.org/issue/33526: 'go get' without '-d' should succeed
+# for a module whose root is a constrained-out package.
+#
+# Ideally it should silently succeed, but today it logs the "no Go source files"
+# error and succeeds anyway.
+
+go get example.net/tools@v0.1.0
+! stderr .
+
+! go build example.net/tools
+stderr '^package example.net/tools: build constraints exclude all Go files in .*[/\\]tools$'
 
 
 # https://golang.org/issue/29268

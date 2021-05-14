@@ -4,6 +4,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m64 _const.go
 
+//go:build amd64 && openbsd
 // +build amd64,openbsd
 
 package syscall
@@ -890,6 +891,7 @@ const (
 	MCL_CURRENT                       = 0x1
 	MCL_FUTURE                        = 0x2
 	MSG_BCAST                         = 0x100
+	MSG_CMSG_CLOEXEC                  = 0x800
 	MSG_CTRUNC                        = 0x20
 	MSG_DONTROUTE                     = 0x4
 	MSG_DONTWAIT                      = 0x80

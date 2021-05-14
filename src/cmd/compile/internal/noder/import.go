@@ -7,6 +7,8 @@ package noder
 import (
 	"errors"
 	"fmt"
+	"internal/buildcfg"
+	"io"
 	"os"
 	pathpkg "path"
 	"runtime"
@@ -17,16 +19,41 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/importer"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/compile/internal/types2"
 	"cmd/internal/archive"
 	"cmd/internal/bio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
+
+// Temporary import helper to get type2-based type-checking going.
+type gcimports struct {
+	packages map[string]*types2.Package
+}
+
+func (m *gcimports) Import(path string) (*types2.Package, error) {
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
+}
+
+func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+	if mode != 0 {
+		panic("mode must be 0")
+	}
+
+	path, err := resolveImportPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := func(path string) (io.ReadCloser, error) { return openPackage(path) }
+	return importer.Import(m.packages, path, srcDir, lookup)
+}
 
 func isDriveLetter(b byte) bool {
 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
@@ -82,7 +109,7 @@ func openPackage(path string) (*os.File, error) {
 		}
 	}
 
-	if objabi.GOROOT != "" {
+	if buildcfg.GOROOT != "" {
 		suffix := ""
 		if base.Flag.InstallSuffix != "" {
 			suffix = "_" + base.Flag.InstallSuffix
@@ -92,10 +119,10 @@ func openPackage(path string) (*os.File, error) {
 			suffix = "_msan"
 		}
 
-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
 			return file, nil
 		}
-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
+		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
 			return file, nil
 		}
 	}
@@ -217,9 +244,9 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		base.Errorf("import %s: not a go object file: %s", file, p)
 		base.ErrorExit()
 	}
-	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-	if p[10:] != q {
-		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
+	q := objabi.HeaderString()
+	if p != q {
+		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
 		base.ErrorExit()
 	}
 

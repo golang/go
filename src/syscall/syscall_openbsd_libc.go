@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build openbsd,amd64 openbsd,arm64
+//go:build openbsd && !mips64
+// +build openbsd,!mips64
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/abi"
+)
 
 func init() {
 	execveOpenBSD = execve
@@ -15,23 +18,23 @@ func init() {
 //sys directSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr) (ret uintptr, err error) = SYS_syscall
 
 func syscallInternal(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
-	return syscall6X(funcPC(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
+	return syscall6X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
 }
 
 func syscall6Internal(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
-	return syscall10X(funcPC(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
+	return syscall10X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
 }
 
 func rawSyscallInternal(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
-	return rawSyscall6X(funcPC(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
+	return rawSyscall6X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
 }
 
 func rawSyscall6Internal(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
-	return rawSyscall10X(funcPC(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
+	return rawSyscall10X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
 }
 
 func syscall9Internal(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
-	return rawSyscall10X(funcPC(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+	return rawSyscall10X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 }
 
 // Implemented in the runtime package (runtime/sys_openbsd3.go)
@@ -51,13 +54,6 @@ func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, e
 }
 func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
 	return syscall10X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, 0)
-}
-
-// Find the entry point for f. See comments in runtime/proc.go for the
-// function of the same name.
-//go:nosplit
-func funcPC(f func()) uintptr {
-	return **(**uintptr)(unsafe.Pointer(&f))
 }
 
 //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_read
