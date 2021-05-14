@@ -335,6 +335,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64ORshiftRL(v)
 	case OpARM64ORshiftRO:
 		return rewriteValueARM64_OpARM64ORshiftRO(v)
+	case OpARM64REV:
+		return rewriteValueARM64_OpARM64REV(v)
+	case OpARM64REVW:
+		return rewriteValueARM64_OpARM64REVW(v)
 	case OpARM64ROR:
 		return rewriteValueARM64_OpARM64ROR(v)
 	case OpARM64RORW:
@@ -20295,6 +20299,34 @@ func rewriteValueARM64_OpARM64ORshiftRO(v *Value) bool {
 			break
 		}
 		v.copyOf(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64REV(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (REV (REV p))
+	// result: p
+	for {
+		if v_0.Op != OpARM64REV {
+			break
+		}
+		p := v_0.Args[0]
+		v.copyOf(p)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64REVW(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (REVW (REVW p))
+	// result: p
+	for {
+		if v_0.Op != OpARM64REVW {
+			break
+		}
+		p := v_0.Args[0]
+		v.copyOf(p)
 		return true
 	}
 	return false

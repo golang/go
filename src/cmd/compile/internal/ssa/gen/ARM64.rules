@@ -2931,3 +2931,5 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(call)
 	=> (Move [sz] dst src mem)
+
+((REV|REVW) ((REV|REVW) p)) => p
