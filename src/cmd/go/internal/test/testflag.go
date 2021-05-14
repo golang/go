@@ -69,6 +69,7 @@ func init() {
 	cf.Bool("short", false, "")
 	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "")
 	cf.String("fuzztime", "", "")
+	cf.String("fuzzminimizetime", "", "")
 	cf.StringVar(&testTrace, "trace", "", "")
 	cf.BoolVar(&testV, "v", false, "")
 	cf.Var(&testShuffle, "shuffle", "")

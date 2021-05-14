@@ -33,9 +33,18 @@ type CoordinateFuzzingOpts struct {
 	// has loaded. If zero, there will be no time limit.
 	Timeout time.Duration
 
-	// Count is the number of random values to generate and test. If zero,
+	// Limit is the number of random values to generate and test. If zero,
 	// there will be no limit on the number of generated values.
-	Count int64
+	Limit int64
+
+	// MinimizeTimeout is the amount of wall clock time to spend minimizing
+	// after discovering a crasher. If zero, there will be no time limit.
+	MinimizeTimeout time.Duration
+
+	// MinimizeLimit is the maximum number of calls to the fuzz function to be
+	// made while minimizing after finding a crash. If zero, there will be
+	// no limit.
+	MinimizeLimit int64
 
 	// parallel is the number of worker processes to run in parallel. If zero,
 	// CoordinateFuzzing will run GOMAXPROCS workers.
@@ -77,9 +86,9 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	if opts.Parallel == 0 {
 		opts.Parallel = runtime.GOMAXPROCS(0)
 	}
-	if opts.Count > 0 && int64(opts.Parallel) > opts.Count {
+	if opts.Limit > 0 && int64(opts.Parallel) > opts.Limit {
 		// Don't start more workers than we need.
-		opts.Parallel = int(opts.Count)
+		opts.Parallel = int(opts.Limit)
 	}
 
 	c, err := newCoordinator(opts)
@@ -190,7 +199,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 		case result := <-c.resultC:
 			// Received response from worker.
 			c.updateStats(result)
-			if c.opts.Count > 0 && c.count >= c.opts.Count {
+			if c.opts.Limit > 0 && c.count >= c.opts.Limit {
 				stop(nil)
 			}
 
@@ -485,7 +494,7 @@ func (c *coordinator) logStats() {
 // a limit for one worker. If there are no executions left, nextInput returns
 // a zero value and false.
 func (c *coordinator) nextInput() (fuzzInput, bool) {
-	if c.opts.Count > 0 && c.count+c.countWaiting >= c.opts.Count {
+	if c.opts.Limit > 0 && c.count+c.countWaiting >= c.opts.Limit {
 		// Workers already testing all requested inputs.
 		return fuzzInput{}, false
 	}
@@ -503,12 +512,12 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 		return input, true
 	}
 
-	if c.opts.Count > 0 {
-		input.countRequested = c.opts.Count / int64(c.opts.Parallel)
-		if c.opts.Count%int64(c.opts.Parallel) > 0 {
+	if c.opts.Limit > 0 {
+		input.countRequested = c.opts.Limit / int64(c.opts.Parallel)
+		if c.opts.Limit%int64(c.opts.Parallel) > 0 {
 			input.countRequested++
 		}
-		remaining := c.opts.Count - c.count - c.countWaiting
+		remaining := c.opts.Limit - c.count - c.countWaiting
 		if input.countRequested > remaining {
 			input.countRequested = remaining
 		}

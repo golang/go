@@ -10,6 +10,9 @@
 
 [short] skip
 
+# TODO(b/181800488): remove -parallel=1, here and below. For now, when a
+# crash is found, all workers keep running, wasting resources and reducing
+# the number of executions available to the minimizer, increasing flakiness.
 go test -fuzz=FuzzA -fuzztime=100x -parallel=1 -log=fuzz
 go run check_logs.go fuzz fuzz.worker
 
@@ -20,7 +23,7 @@ stdout FAIL
 stdout 'mutator found enough unique mutations'
 
 # Test that minimization is working for recoverable errors.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=1000x minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=10000x -parallel=1 minimizer_test.go
 ! stdout '^ok'
 stdout 'got the minimum size!'
 stdout 'contains a letter'
@@ -33,7 +36,7 @@ go run check_testdata.go FuzzMinimizerRecoverable 50
 ! go test -run=FuzzMinimizerRecoverable minimizer_test.go
 
 # Test that minimization is working for non-recoverable errors.
-! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=1000x minimizer_test.go
+! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=100x -fuzzminimizetime=10000x -parallel=1 minimizer_test.go
 ! stdout '^ok'
 stdout 'got the minimum size!'
 stdout 'contains a letter'
@@ -42,9 +45,9 @@ stdout FAIL
 # Check that the bytes written to testdata are of length 50 (the minimum size)
 go run check_testdata.go FuzzMinimizerNonrecoverable 50
 
-# Test that minimization can be cancelled by fuzztime and the latest crash will
-# still be logged and written to testdata.
-! go test -fuzz=FuzzNonMinimizable -run=FuzzNonMinimizable -parallel=1 -fuzztime=5s minimizer_test.go
+# Test that minimization can be cancelled by fuzzminimizetime and the latest
+# crash will still be logged and written to testdata.
+! go test -fuzz=FuzzNonMinimizable -run=FuzzNonMinimizable -parallel=1 -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
 ! stdout '^ok'
 stdout 'testdata[/\\]corpus[/\\]FuzzNonMinimizable[/\\]'
 ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
@@ -108,7 +111,6 @@ package fuzz_test
 import (
 	"bytes"
 	"testing"
-	"time"
 )
 
 func FuzzMinimizerRecoverable(f *testing.F) {
@@ -155,7 +157,6 @@ func FuzzNonMinimizable(f *testing.F) {
 		if len(b) == 20 {
 			t.Log("got the minimum size!")
 		}
-		time.Sleep(4 * time.Second)
 	})
 }
 
@@ -301,7 +302,7 @@ func main() {
 		os.Exit(1)
 	}
 	if want, got := numBytes, len(s); want != got {
-		fmt.Fprintf(os.Stderr, "want %d bytes, got %d", want, got)
+		fmt.Fprintf(os.Stderr, "want %d bytes, got %d\n", want, got)
 		os.Exit(1)
 	}
 }
