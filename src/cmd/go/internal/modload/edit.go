@@ -75,7 +75,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 		// We promote the modules in mustSelect to be explicit requirements.
 		var rootPaths []string
 		for _, m := range mustSelect {
-			if m.Version != "none" && m.Path != Target.Path {
+			if !MainModules.Contains(m.Path) && m.Version != "none" {
 				rootPaths = append(rootPaths, m.Path)
 			}
 		}
@@ -97,7 +97,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
 			}
 		}
 
-		roots, err = mvs.Req(Target, rootPaths, &mvsReqs{roots: mods})
+		roots, err = mvs.Req(MainModules.mustGetSingleMainModule(), rootPaths, &mvsReqs{roots: mods})
 		if err != nil {
 			return nil, false, err
 		}
@@ -218,8 +218,8 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
 		eagerUpgrades = tryUpgrade
 	} else {
 		for _, m := range tryUpgrade {
-			if m.Path == Target.Path {
-				// Target is already considered to be higher than any possible m, so we
+			if MainModules.Contains(m.Path) {
+				// The main module versions are already considered to be higher than any possible m, so we
 				// won't be upgrading to it anyway and there is no point scanning its
 				// dependencies.
 				continue
@@ -318,7 +318,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
 
 	mods = make([]module.Version, 0, len(limiter.selected))
 	for path, v := range limiter.selected {
-		if v != "none" && path != Target.Path {
+		if v != "none" && !MainModules.Contains(path) {
 			mods = append(mods, module.Version{Path: path, Version: v})
 		}
 	}
@@ -334,7 +334,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
 	}
 	mods = make([]module.Version, 0, len(limiter.selected))
 	for path, _ := range limiter.selected {
-		if path != Target.Path {
+		if !MainModules.Contains(path) {
 			if v := mg.Selected(path); v != "none" {
 				mods = append(mods, module.Version{Path: path, Version: v})
 			}
@@ -415,10 +415,14 @@ func (dq dqState) isDisqualified() bool {
 // itself lazy, its unrestricted dependencies are skipped when scanning
 // requirements.
 func newVersionLimiter(depth modDepth, max map[string]string) *versionLimiter {
+	selected := make(map[string]string)
+	for _, m := range MainModules.Versions() {
+		selected[m.Path] = m.Version
+	}
 	return &versionLimiter{
 		depth:     depth,
 		max:       max,
-		selected:  map[string]string{Target.Path: Target.Version},
+		selected:  selected,
 		dqReason:  map[module.Version]dqState{},
 		requiring: map[module.Version][]module.Version{},
 	}
@@ -492,7 +496,7 @@ func (l *versionLimiter) Select(m module.Version) (conflict module.Version, err 
 // as is feasible, we don't want to retain test dependencies that are only
 // marginally relevant at best.
 func (l *versionLimiter) check(m module.Version, depth modDepth) dqState {
-	if m.Version == "none" || m == Target {
+	if m.Version == "none" || m == MainModules.mustGetSingleMainModule() {
 		// version "none" has no requirements, and the dependencies of Target are
 		// tautological.
 		return dqState{}

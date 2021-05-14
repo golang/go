@@ -225,7 +225,8 @@ func downloadPaths(patterns []string) []string {
 	base.ExitIfErrors()
 
 	var pkgs []string
-	for _, m := range search.ImportPathsQuiet(patterns) {
+	noModRoots := []string{}
+	for _, m := range search.ImportPathsQuiet(patterns, noModRoots) {
 		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern(), "...") {
 			pkgs = append(pkgs, m.Pattern())
 		} else {
@@ -315,7 +316,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if wildcardOkay && strings.Contains(arg, "...") {
 			match := search.NewMatch(arg)
 			if match.IsLocal() {
-				match.MatchDirs()
+				noModRoots := []string{} // We're in gopath mode, so there are no modroots.
+				match.MatchDirs(noModRoots)
 				args = match.Dirs
 			} else {
 				match.MatchPackages()

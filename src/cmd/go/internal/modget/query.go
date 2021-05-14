@@ -192,9 +192,9 @@ func (q *query) validate() error {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
-			return &modload.QueryMatchesMainModuleError{
-				Pattern: q.pattern,
-				Query:   q.version,
+			return &modload.QueryUpgradesAllError{
+				MainModules: modload.MainModules.Versions(),
+				Query:       q.version,
 			}
 		}
 	}
