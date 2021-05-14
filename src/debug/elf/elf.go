@@ -123,8 +123,8 @@ const (
 	ELFOSABI_NONE       OSABI = 0   /* UNIX System V ABI */
 	ELFOSABI_HPUX       OSABI = 1   /* HP-UX operating system */
 	ELFOSABI_NETBSD     OSABI = 2   /* NetBSD */
-	ELFOSABI_LINUX      OSABI = 3   /* GNU/Linux */
-	ELFOSABI_HURD       OSABI = 4   /* GNU/Hurd */
+	ELFOSABI_LINUX      OSABI = 3   /* Linux */
+	ELFOSABI_HURD       OSABI = 4   /* Hurd */
 	ELFOSABI_86OPEN     OSABI = 5   /* 86Open common IA32 ABI */
 	ELFOSABI_SOLARIS    OSABI = 6   /* Solaris */
 	ELFOSABI_AIX        OSABI = 7   /* AIX */
@@ -644,6 +644,7 @@ const (
 	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
 	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
 	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
+	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
 	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
 	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
 	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
@@ -675,6 +676,7 @@ var shtStrings = []intName{
 	{0x6ffffffe, "SHT_GNU_VERNEED"},
 	{0x6fffffff, "SHT_GNU_VERSYM"},
 	{0x70000000, "SHT_LOPROC"},
+	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
 	{0x7fffffff, "SHT_HIPROC"},
 	{0x80000000, "SHT_LOUSER"},
 	{0xffffffff, "SHT_HIUSER"},

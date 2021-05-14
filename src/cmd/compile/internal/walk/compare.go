@@ -426,9 +426,10 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
 		return n, true
 	case types.ASPECIAL:
 		sym := reflectdata.TypeSymPrefix(".eq", t)
+		// TODO(austin): This creates an ir.Name with a nil Func.
 		n := typecheck.NewName(sym)
 		ir.MarkFunc(n)
-		n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+		n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.NewPtr(t)),
 			types.NewField(base.Pos, nil, types.NewPtr(t)),
 		}, []*types.Field{

@@ -9,7 +9,7 @@
 // See golang.org/issue/9432.
 package p
 
-type foo struct { // ERROR "invalid recursive type"
+type foo struct { // ERROR "invalid recursive type|cycle"
 	bar  foo
 	blah foo
 }

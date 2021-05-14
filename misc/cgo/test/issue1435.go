@@ -8,7 +8,7 @@ package cgotest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"syscall"
 	"testing"
@@ -64,7 +64,7 @@ import "C"
 func compareStatus(filter, expect string) error {
 	expected := filter + expect
 	pid := syscall.Getpid()
-	fs, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
+	fs, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
 	if err != nil {
 		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
 	}
@@ -72,7 +72,7 @@ func compareStatus(filter, expect string) error {
 	foundAThread := false
 	for _, f := range fs {
 		tf := fmt.Sprintf("/proc/%s/status", f.Name())
-		d, err := ioutil.ReadFile(tf)
+		d, err := os.ReadFile(tf)
 		if err != nil {
 			// There are a surprising number of ways this
 			// can error out on linux.  We've seen all of

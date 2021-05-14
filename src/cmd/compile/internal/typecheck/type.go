@@ -88,7 +88,7 @@ func tcFuncType(n *ir.FuncType) ir.Node {
 		recv = tcField(n.Recv, misc)
 	}
 
-	t := types.NewSignature(types.LocalPkg, recv, tcFields(n.Params, misc), tcFields(n.Results, misc))
+	t := types.NewSignature(types.LocalPkg, recv, nil, tcFields(n.Params, misc), tcFields(n.Results, misc))
 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
 
 	base.Pos = lno

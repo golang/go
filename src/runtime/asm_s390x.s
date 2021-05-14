@@ -511,7 +511,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R1
 	CMPBEQ	R1, $0, 2(PC)
-	BL	runtime·badctxt(SB)
+	BL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -906,3 +906,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+	MOVD	R2, x+0(FP)
+	MOVD	R3, y+8(FP)
+	JMP	runtime·goPanicSliceConvert(SB)

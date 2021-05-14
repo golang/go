@@ -106,9 +106,11 @@ type Type interface {
 	AssignableTo(u Type) bool
 
 	// ConvertibleTo reports whether a value of the type is convertible to type u.
+	// Even if ConvertibleTo returns true, the conversion may still panic.
 	ConvertibleTo(u Type) bool
 
 	// Comparable reports whether values of this type are comparable.
+	// Even if Comparable returns true, the comparison may still panic.
 	Comparable() bool
 
 	// Methods applicable only to some types, depending on Kind.
@@ -448,14 +450,11 @@ type structType struct {
 //	1<<1 tag data follows the name
 //	1<<2 pkgPath nameOff follows the name and tag
 //
-// The next two bytes are the data length:
+// Following that, there is a varint-encoded length of the name,
+// followed by the name itself.
 //
-//	 l := uint16(data[1])<<8 | uint16(data[2])
-//
-// Bytes [3:3+l] are the string data.
-//
-// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
-// with the data following.
+// If tag data is present, it also has a varint-encoded length
+// followed by the tag itself.
 //
 // If the import path follows, then 4 bytes at the end of
 // the data form a nameOff. The import path is only set for concrete
@@ -463,6 +462,13 @@ type structType struct {
 //
 // If a name starts with "*", then the exported bit represents
 // whether the pointed to type is exported.
+//
+// Note: this encoding must match here and in:
+//   cmd/compile/internal/reflectdata/reflect.go
+//   runtime/type.go
+//   internal/reflectlite/type.go
+//   cmd/link/internal/ld/decodesym.go
+
 type name struct {
 	bytes *byte
 }
@@ -475,49 +481,70 @@ func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n name) nameLen() int {
-	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
+func (n name) hasTag() bool {
+	return (*n.bytes)&(1<<1) != 0
 }
 
-func (n name) tagLen() int {
-	if *n.data(0, "name flag field")&(1<<1) == 0 {
-		return 0
+// readVarint parses a varint as encoded by encoding/binary.
+// It returns the number of encoded bytes and the encoded value.
+func (n name) readVarint(off int) (int, int) {
+	v := 0
+	for i := 0; ; i++ {
+		x := *n.data(off+i, "read varint")
+		v += int(x&0x7f) << (7 * i)
+		if x&0x80 == 0 {
+			return i + 1, v
+		}
 	}
-	off := 3 + n.nameLen()
-	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
+}
+
+// writeVarint writes n to buf in varint form. Returns the
+// number of bytes written. n must be nonnegative.
+// Writes at most 10 bytes.
+func writeVarint(buf []byte, n int) int {
+	for i := 0; ; i++ {
+		b := byte(n & 0x7f)
+		n >>= 7
+		if n == 0 {
+			buf[i] = b
+			return i + 1
+		}
+		buf[i] = b | 0x80
+	}
 }
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
 		return
 	}
-	b := (*[4]byte)(unsafe.Pointer(n.bytes))
-
+	i, l := n.readVarint(1)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[3])
-	hdr.Len = int(b[1])<<8 | int(b[2])
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
+	hdr.Len = l
+	return
 }
 
 func (n name) tag() (s string) {
-	tl := n.tagLen()
-	if tl == 0 {
+	if !n.hasTag() {
 		return ""
 	}
-	nl := n.nameLen()
+	i, l := n.readVarint(1)
+	i2, l2 := n.readVarint(1 + i + l)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
-	hdr.Len = tl
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
+	hdr.Len = l2
+	return
 }
 
 func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
 		return ""
 	}
-	off := 3 + n.nameLen()
-	if tl := n.tagLen(); tl > 0 {
-		off += 2 + tl
+	i, l := n.readVarint(1)
+	off := 1 + i + l
+	if n.hasTag() {
+		i2, l2 := n.readVarint(off)
+		off += i2 + l2
 	}
 	var nameOff int32
 	// Note that this field may not be aligned in memory,
@@ -528,33 +555,35 @@ func (n name) pkgPath() string {
 }
 
 func newName(n, tag string, exported bool) name {
-	if len(n) > 1<<16-1 {
-		panic("reflect.nameFrom: name too long: " + n)
+	if len(n) >= 1<<29 {
+		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
 	}
-	if len(tag) > 1<<16-1 {
-		panic("reflect.nameFrom: tag too long: " + tag)
+	if len(tag) >= 1<<29 {
+		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
 	}
+	var nameLen [10]byte
+	var tagLen [10]byte
+	nameLenLen := writeVarint(nameLen[:], len(n))
+	tagLenLen := writeVarint(tagLen[:], len(tag))
 
 	var bits byte
-	l := 1 + 2 + len(n)
+	l := 1 + nameLenLen + len(n)
 	if exported {
 		bits |= 1 << 0
 	}
 	if len(tag) > 0 {
-		l += 2 + len(tag)
+		l += tagLenLen + len(tag)
 		bits |= 1 << 1
 	}
 
 	b := make([]byte, l)
 	b[0] = bits
-	b[1] = uint8(len(n) >> 8)
-	b[2] = uint8(len(n))
-	copy(b[3:], n)
+	copy(b[1:], nameLen[:nameLenLen])
+	copy(b[1+nameLenLen:], n)
 	if len(tag) > 0 {
-		tb := b[3+len(n):]
-		tb[0] = uint8(len(tag) >> 8)
-		tb[1] = uint8(len(tag))
-		copy(tb[2:], tag)
+		tb := b[1+nameLenLen+len(n):]
+		copy(tb, tagLen[:tagLenLen])
+		copy(tb[tagLenLen:], tag)
 	}
 
 	return name{bytes: &b[0]}
@@ -568,17 +597,23 @@ func newName(n, tag string, exported bool) name {
 // Method represents a single method.
 type Method struct {
 	// Name is the method name.
+	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// method name. It is empty for upper case (exported) method names.
 	// The combination of PkgPath and Name uniquely identifies a method
 	// in a method set.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-	Name    string
 	PkgPath string
 
 	Type  Type  // method type
 	Func  Value // func with receiver as first argument
 	Index int   // index for Type.Method
+}
+
+// IsExported reports whether the method is exported.
+func (m Method) IsExported() bool {
+	return m.PkgPath == ""
 }
 
 const (
@@ -1090,6 +1125,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 type StructField struct {
 	// Name is the field name.
 	Name string
+
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// field name. It is empty for upper case (exported) field names.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
@@ -1100,6 +1136,11 @@ type StructField struct {
 	Offset    uintptr   // offset within struct, in bytes
 	Index     []int     // index sequence for Type.FieldByIndex
 	Anonymous bool      // is an embedded field
+}
+
+// IsExported reports whether the field is exported.
+func (f StructField) IsExported() bool {
+	return f.PkgPath == ""
 }
 
 // A StructTag is the tag string in a struct field.
@@ -1587,7 +1628,7 @@ func haveIdenticalType(T, V Type, cmpTags bool) bool {
 		return T == V
 	}
 
-	if T.Name() != V.Name() || T.Kind() != V.Kind() {
+	if T.Name() != V.Name() || T.Kind() != V.Kind() || T.PkgPath() != V.PkgPath() {
 		return false
 	}
 
@@ -1723,7 +1764,7 @@ func typesByString(s string) []*rtype {
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
 		i, j := 0, len(offs)
 		for i < j {
-			h := i + (j-i)/2 // avoid overflow when computing h
+			h := i + (j-i)>>1 // avoid overflow when computing h
 			// i ≤ h < j
 			if !(rtypeOff(section, offs[h]).String() >= s) {
 				i = h + 1 // preserves f(i-1) == false
@@ -2556,7 +2597,7 @@ func StructOf(fields []StructField) Type {
 		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
 
 		repr = append(repr, (" " + ft.String())...)
-		if f.name.tagLen() > 0 {
+		if f.name.hasTag() {
 			hash = fnv1(hash, []byte(f.name.tag())...)
 			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
 		}
@@ -2771,8 +2812,7 @@ func runtimeStructField(field StructField) (structField, string) {
 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
 
-	exported := field.PkgPath == ""
-	if exported {
+	if field.IsExported() {
 		// Best-effort check for misuse.
 		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
 		c := field.Name[0]
@@ -2788,7 +2828,7 @@ func runtimeStructField(field StructField) (structField, string) {
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	f := structField{
-		name:        newName(field.Name, string(field.Tag), exported),
+		name:        newName(field.Name, string(field.Tag), field.IsExported()),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}
@@ -2824,22 +2864,26 @@ func typeptrdata(t *rtype) uintptr {
 // See cmd/compile/internal/gc/reflect.go for derivation of constant.
 const maxPtrmaskBytes = 2048
 
-// ArrayOf returns the array type with the given count and element type.
+// ArrayOf returns the array type with the given length and element type.
 // For example, if t represents int, ArrayOf(5, t) represents [5]int.
 //
 // If the resulting type would be larger than the available address space,
 // ArrayOf panics.
-func ArrayOf(count int, elem Type) Type {
+func ArrayOf(length int, elem Type) Type {
+	if length < 0 {
+		panic("reflect: negative length passed to ArrayOf")
+	}
+
 	typ := elem.(*rtype)
 
 	// Look in cache.
-	ckey := cacheKey{Array, typ, nil, uintptr(count)}
+	ckey := cacheKey{Array, typ, nil, uintptr(length)}
 	if array, ok := lookupCache.Load(ckey); ok {
 		return array.(Type)
 	}
 
 	// Look in known types.
-	s := "[" + strconv.Itoa(count) + "]" + typ.String()
+	s := "[" + strconv.Itoa(length) + "]" + typ.String()
 	for _, tt := range typesByString(s) {
 		array := (*arrayType)(unsafe.Pointer(tt))
 		if array.elem == typ {
@@ -2855,7 +2899,7 @@ func ArrayOf(count int, elem Type) Type {
 	array.tflag = typ.tflag & tflagRegularMemory
 	array.str = resolveReflectName(newName(s, "", false))
 	array.hash = fnv1(typ.hash, '[')
-	for n := uint32(count); n > 0; n >>= 8 {
+	for n := uint32(length); n > 0; n >>= 8 {
 		array.hash = fnv1(array.hash, byte(n))
 	}
 	array.hash = fnv1(array.hash, ']')
@@ -2863,17 +2907,17 @@ func ArrayOf(count int, elem Type) Type {
 	array.ptrToThis = 0
 	if typ.size > 0 {
 		max := ^uintptr(0) / typ.size
-		if uintptr(count) > max {
+		if uintptr(length) > max {
 			panic("reflect.ArrayOf: array size would exceed virtual address space")
 		}
 	}
-	array.size = typ.size * uintptr(count)
-	if count > 0 && typ.ptrdata != 0 {
-		array.ptrdata = typ.size*uintptr(count-1) + typ.ptrdata
+	array.size = typ.size * uintptr(length)
+	if length > 0 && typ.ptrdata != 0 {
+		array.ptrdata = typ.size*uintptr(length-1) + typ.ptrdata
 	}
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
-	array.len = uintptr(count)
+	array.len = uintptr(length)
 	array.slice = SliceOf(elem).(*rtype)
 
 	switch {
@@ -2882,7 +2926,7 @@ func ArrayOf(count int, elem Type) Type {
 		array.gcdata = nil
 		array.ptrdata = 0
 
-	case count == 1:
+	case length == 1:
 		// In memory, 1-element array looks just like the element.
 		array.kind |= typ.kind & kindGCProg
 		array.gcdata = typ.gcdata
@@ -2891,7 +2935,7 @@ func ArrayOf(count int, elem Type) Type {
 	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
-		// into count 1 bits in larger mask.
+		// into length 1 bits in larger mask.
 		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
 		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
@@ -2912,14 +2956,14 @@ func ArrayOf(count int, elem Type) Type {
 				prog = appendVarint(prog, elemWords-elemPtrs-1)
 			}
 		}
-		// Repeat count-1 times.
+		// Repeat length-1 times.
 		if elemWords < 0x80 {
 			prog = append(prog, byte(elemWords|0x80))
 		} else {
 			prog = append(prog, 0x80)
 			prog = appendVarint(prog, elemWords)
 		}
-		prog = appendVarint(prog, uintptr(count)-1)
+		prog = appendVarint(prog, uintptr(length)-1)
 		prog = append(prog, 0)
 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
 		array.kind |= kindGCProg
@@ -2933,9 +2977,9 @@ func ArrayOf(count int, elem Type) Type {
 	array.equal = nil
 	if eequal := etyp.equal; eequal != nil {
 		array.equal = func(p, q unsafe.Pointer) bool {
-			for i := 0; i < count; i++ {
-				pi := arrayAt(p, i, esize, "i < count")
-				qi := arrayAt(q, i, esize, "i < count")
+			for i := 0; i < length; i++ {
+				pi := arrayAt(p, i, esize, "i < length")
+				qi := arrayAt(q, i, esize, "i < length")
 				if !eequal(pi, qi) {
 					return false
 				}
@@ -2946,7 +2990,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 
 	switch {
-	case count == 1 && !ifaceIndir(typ):
+	case length == 1 && !ifaceIndir(typ):
 		// array of 1 direct iface type can be direct
 		array.kind |= kindDirectIface
 	default:

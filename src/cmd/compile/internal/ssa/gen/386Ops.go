@@ -146,14 +146,14 @@ func init() {
 
 	var _386ops = []opData{
 		// fp ops
-		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true, usesScratch: true}, // fp32 add
-		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true},                    // fp64 add
-		{name: "SUBSS", argLength: 2, reg: fp21, asm: "SUBSS", resultInArg0: true, usesScratch: true},                    // fp32 sub
-		{name: "SUBSD", argLength: 2, reg: fp21, asm: "SUBSD", resultInArg0: true},                                       // fp64 sub
-		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true, usesScratch: true}, // fp32 mul
-		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true},                    // fp64 mul
-		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true, usesScratch: true},                    // fp32 div
-		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                                       // fp64 div
+		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true}, // fp32 add
+		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true}, // fp64 add
+		{name: "SUBSS", argLength: 2, reg: fp21, asm: "SUBSS", resultInArg0: true},                    // fp32 sub
+		{name: "SUBSD", argLength: 2, reg: fp21, asm: "SUBSD", resultInArg0: true},                    // fp64 sub
+		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true}, // fp32 mul
+		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true}, // fp64 mul
+		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true},                    // fp32 div
+		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                    // fp64 div
 
 		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp32 load
 		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp64 load
@@ -246,8 +246,8 @@ func init() {
 		{name: "CMPWconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPW", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
 		{name: "CMPBconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPB", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
 
-		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f32
-		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f64
+		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
+		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
 
 		{name: "TESTL", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTL", typ: "Flags"}, // (arg0 & arg1) compare to 0
 		{name: "TESTW", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTW", typ: "Flags"}, // (arg0 & arg1) compare to 0
@@ -308,6 +308,7 @@ func init() {
 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
 
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS"}, // sqrt(arg0), float32
 
 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
@@ -341,12 +342,12 @@ func init() {
 
 		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
 
-		{name: "CVTTSD2SL", argLength: 1, reg: fpgp, asm: "CVTTSD2SL", usesScratch: true}, // convert float64 to int32
-		{name: "CVTTSS2SL", argLength: 1, reg: fpgp, asm: "CVTTSS2SL", usesScratch: true}, // convert float32 to int32
-		{name: "CVTSL2SS", argLength: 1, reg: gpfp, asm: "CVTSL2SS", usesScratch: true},   // convert int32 to float32
-		{name: "CVTSL2SD", argLength: 1, reg: gpfp, asm: "CVTSL2SD", usesScratch: true},   // convert int32 to float64
-		{name: "CVTSD2SS", argLength: 1, reg: fp11, asm: "CVTSD2SS", usesScratch: true},   // convert float64 to float32
-		{name: "CVTSS2SD", argLength: 1, reg: fp11, asm: "CVTSS2SD"},                      // convert float32 to float64
+		{name: "CVTTSD2SL", argLength: 1, reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
+		{name: "CVTTSS2SL", argLength: 1, reg: fpgp, asm: "CVTTSS2SL"}, // convert float32 to int32
+		{name: "CVTSL2SS", argLength: 1, reg: gpfp, asm: "CVTSL2SS"},   // convert int32 to float32
+		{name: "CVTSL2SD", argLength: 1, reg: gpfp, asm: "CVTSL2SD"},   // convert int32 to float64
+		{name: "CVTSD2SS", argLength: 1, reg: fp11, asm: "CVTSD2SS"},   // convert float64 to float32
+		{name: "CVTSS2SD", argLength: 1, reg: fp11, asm: "CVTSS2SD"},   // convert float32 to float64
 
 		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
 

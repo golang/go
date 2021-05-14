@@ -249,6 +249,7 @@ func writefile(text, file string, flag int) {
 	if flag&writeExec != 0 {
 		mode = 0777
 	}
+	xremove(file) // in case of symlink tricks by misc/reboot test
 	err := ioutil.WriteFile(file, new, mode)
 	if err != nil {
 		fatalf("%v", err)

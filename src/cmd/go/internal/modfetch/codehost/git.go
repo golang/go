@@ -296,6 +296,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	// Or maybe it's the prefix of a hash of a named ref.
 	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
 	r.refsOnce.Do(r.loadRefs)
+	// loadRefs may return an error if git fails, for example segfaults, or
+	// could not load a private repo, but defer checking to the else block
+	// below, in case we already have the rev in question in the local cache.
 	var ref, hash string
 	if r.refs["refs/tags/"+rev] != "" {
 		ref = "refs/tags/" + rev
@@ -332,6 +335,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 			hash = rev
 		}
 	} else {
+		if r.refsErr != nil {
+			return nil, r.refsErr
+		}
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
 

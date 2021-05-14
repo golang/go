@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
@@ -54,6 +55,7 @@ func main() {
 		nilfunc.Analyzer,
 		printf.Analyzer,
 		shift.Analyzer,
+		sigchanyzer.Analyzer,
 		stdmethods.Analyzer,
 		stringintconv.Analyzer,
 		structtag.Analyzer,

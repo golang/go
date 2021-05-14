@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !linux,!netbsd
-// +build arm64
+//go:build !linux && !netbsd && arm64
+// +build !linux,!netbsd,arm64
 
 package cpu
 

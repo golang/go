@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -24,6 +25,7 @@ import (
 
 type clientHandshakeState struct {
 	c            *Conn
+	ctx          context.Context
 	serverHello  *serverHelloMsg
 	hello        *clientHelloMsg
 	suite        *cipherSuite
@@ -82,22 +84,24 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		hello.secureRenegotiation = c.clientFinished[:]
 	}
 
-	possibleCipherSuites := config.cipherSuites()
-	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
+	preferenceOrder := cipherSuitesPreferenceOrder
+	if !hasAESGCMHardwareSupport {
+		preferenceOrder = cipherSuitesPreferenceOrderNoAES
+	}
+	configCipherSuites := config.cipherSuites()
+	hello.cipherSuites = make([]uint16, 0, len(configCipherSuites))
 
-	for _, suiteId := range possibleCipherSuites {
-		for _, suite := range cipherSuites {
-			if suite.id != suiteId {
-				continue
-			}
-			// Don't advertise TLS 1.2-only cipher suites unless
-			// we're attempting TLS 1.2.
-			if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
-				break
-			}
-			hello.cipherSuites = append(hello.cipherSuites, suiteId)
-			break
+	for _, suiteId := range preferenceOrder {
+		suite := mutualCipherSuite(configCipherSuites, suiteId)
+		if suite == nil {
+			continue
 		}
+		// Don't advertise TLS 1.2-only cipher suites unless
+		// we're attempting TLS 1.2.
+		if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+			continue
+		}
+		hello.cipherSuites = append(hello.cipherSuites, suiteId)
 	}
 
 	_, err := io.ReadFull(config.rand(), hello.random)
@@ -118,7 +122,11 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 
 	var params ecdheParameters
 	if hello.supportedVersions[0] == VersionTLS13 {
-		hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13()...)
+		if hasAESGCMHardwareSupport {
+			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
+		} else {
+			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13NoAES...)
+		}
 
 		curveID := config.curvePreferences()[0]
 		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
@@ -134,7 +142,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 	return hello, params, nil
 }
 
-func (c *Conn) clientHandshake() (err error) {
+func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	if c.config == nil {
 		c.config = defaultConfig()
 	}
@@ -198,6 +206,7 @@ func (c *Conn) clientHandshake() (err error) {
 	if c.vers == VersionTLS13 {
 		hs := &clientHandshakeStateTLS13{
 			c:           c,
+			ctx:         ctx,
 			serverHello: serverHello,
 			hello:       hello,
 			ecdheParams: ecdheParams,
@@ -212,6 +221,7 @@ func (c *Conn) clientHandshake() (err error) {
 
 	hs := &clientHandshakeState{
 		c:           c,
+		ctx:         ctx,
 		serverHello: serverHello,
 		hello:       hello,
 		session:     session,
@@ -540,7 +550,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		certRequested = true
 		hs.finishedHash.Write(certReq.marshal())
 
-		cri := certificateRequestInfoFromMsg(c.vers, certReq)
+		cri := certificateRequestInfoFromMsg(hs.ctx, c.vers, certReq)
 		if chainToSend, err = c.getClientCertificate(cri); err != nil {
 			c.sendAlert(alertInternalError)
 			return err
@@ -880,10 +890,11 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
 // <= 1.2 CertificateRequest, making an effort to fill in missing information.
-func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
+func certificateRequestInfoFromMsg(ctx context.Context, vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
 	cri := &CertificateRequestInfo{
 		AcceptableCAs: certReq.certificateAuthorities,
 		Version:       vers,
+		ctx:           ctx,
 	}
 
 	var rsaAvail, ecAvail bool

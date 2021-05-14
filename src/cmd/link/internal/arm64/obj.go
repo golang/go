@@ -45,6 +45,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		TrampLimit: 0x7c00000, // 26-bit signed offset * 4, leave room for PLT etc.
 
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
@@ -59,6 +60,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Machoreloc1:      machoreloc1,
 		MachorelocSize:   8,
 		PEreloc1:         pereloc1,
+		Trampoline:       trampoline,
 
 		Androiddynld: "/system/bin/linker64",
 		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",

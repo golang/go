@@ -98,6 +98,20 @@ func initMetrics() {
 				}
 			},
 		},
+		"/gc/heap/allocs:bytes": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalAllocated
+			},
+		},
+		"/gc/heap/allocs:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalAllocs
+			},
+		},
 		"/gc/heap/frees-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -108,6 +122,20 @@ func initMetrics() {
 				for i, count := range in.heapStats.smallFreeCount[1:] {
 					hist.counts[i] = uint64(count)
 				}
+			},
+		},
+		"/gc/heap/frees:bytes": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalFreed
+			},
+		},
+		"/gc/heap/frees:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalFrees
 			},
 		},
 		"/gc/heap/goal:bytes": {
@@ -122,6 +150,13 @@ func initMetrics() {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.heapStats.numObjects
+			},
+		},
+		"/gc/heap/tiny/allocs:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.heapStats.tinyAllocCount)
 			},
 		},
 		"/gc/pauses:seconds": {
@@ -245,6 +280,15 @@ func initMetrics() {
 				out.scalar = uint64(gcount())
 			},
 		},
+		"/sched/latencies:seconds": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				hist := out.float64HistOrInit(timeHistBuckets)
+				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
+				for i := range sched.timeToRun.counts {
+					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
+				}
+			},
+		},
 	}
 	metricsInit = true
 }
@@ -321,6 +365,22 @@ type heapStatsAggregate struct {
 
 	// numObjects is the number of live objects in the heap.
 	numObjects uint64
+
+	// totalAllocated is the total bytes of heap objects allocated
+	// over the lifetime of the program.
+	totalAllocated uint64
+
+	// totalFreed is the total bytes of heap objects freed
+	// over the lifetime of the program.
+	totalFreed uint64
+
+	// totalAllocs is the number of heap objects allocated over
+	// the lifetime of the program.
+	totalAllocs uint64
+
+	// totalFrees is the number of heap objects freed over
+	// the lifetime of the program.
+	totalFrees uint64
 }
 
 // compute populates the heapStatsAggregate with values from the runtime.
@@ -328,13 +388,20 @@ func (a *heapStatsAggregate) compute() {
 	memstats.heapStats.read(&a.heapStatsDelta)
 
 	// Calculate derived stats.
-	a.inObjects = uint64(a.largeAlloc - a.largeFree)
-	a.numObjects = uint64(a.largeAllocCount - a.largeFreeCount)
+	a.totalAllocs = uint64(a.largeAllocCount)
+	a.totalFrees = uint64(a.largeFreeCount)
+	a.totalAllocated = uint64(a.largeAlloc)
+	a.totalFreed = uint64(a.largeFree)
 	for i := range a.smallAllocCount {
-		n := uint64(a.smallAllocCount[i] - a.smallFreeCount[i])
-		a.inObjects += n * uint64(class_to_size[i])
-		a.numObjects += n
+		na := uint64(a.smallAllocCount[i])
+		nf := uint64(a.smallFreeCount[i])
+		a.totalAllocs += na
+		a.totalFrees += nf
+		a.totalAllocated += na * uint64(class_to_size[i])
+		a.totalFreed += nf * uint64(class_to_size[i])
 	}
+	a.inObjects = a.totalAllocated - a.totalFreed
+	a.numObjects = a.totalAllocs - a.totalFrees
 }
 
 // sysStatsAggregate represents system memory stats obtained
@@ -364,7 +431,7 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
-	a.heapGoal = atomic.Load64(&memstats.next_gc)
+	a.heapGoal = atomic.Load64(&gcController.heapGoal)
 	a.gcCyclesDone = uint64(memstats.numgc)
 	a.gcCyclesForced = uint64(memstats.numforcedgc)
 
@@ -481,7 +548,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 
 	// Acquire the metricsSema but with handoff. This operation
 	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticably better-behaved.
+	// off between them will be noticeably better-behaved.
 	semacquire1(&metricsSema, true, 0, 0)
 
 	// Ensure the map is initialized.

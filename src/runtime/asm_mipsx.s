@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build mips || mipsle
 // +build mips mipsle
 
 #include "go_asm.h"
@@ -413,7 +414,7 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)
-	JAL	runtime·badctxt(SB)
+	JAL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -801,6 +802,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
 	MOVW	R1, x+0(FP)
 	MOVW	R2, y+4(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
+	MOVW	R3, x+0(FP)
+	MOVW	R4, y+4(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 // Extended versions for 64-bit indexes.
 TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12

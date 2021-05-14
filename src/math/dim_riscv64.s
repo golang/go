@@ -9,8 +9,8 @@
 #define	PosInf	0x080
 #define	NaN	0x200
 
-// func Max(x, y float64) float64
-TEXT ·Max(SB),NOSPLIT,$0
+// func archMax(x, y float64) float64
+TEXT ·archMax(SB),NOSPLIT,$0
 	MOVD	x+0(FP), F0
 	MOVD	y+8(FP), F1
 	FCLASSD	F0, X5
@@ -39,8 +39,8 @@ isMaxY: // return y
 	MOVD	F1, ret+16(FP)
 	RET
 
-// func Min(x, y float64) float64
-TEXT ·Min(SB),NOSPLIT,$0
+// func archMin(x, y float64) float64
+TEXT ·archMin(SB),NOSPLIT,$0
 	MOVD	x+0(FP), F0
 	MOVD	y+8(FP), F1
 	FCLASSD	F0, X5

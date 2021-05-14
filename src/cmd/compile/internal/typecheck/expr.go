@@ -48,7 +48,7 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
 }
 
 func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
-	if l.Type() == nil || l.Type() == nil {
+	if l.Type() == nil || r.Type() == nil {
 		return l, r, nil
 	}
 
@@ -77,6 +77,10 @@ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
 	return l, r, t
 }
 
+func IsCmp(op ir.Op) bool {
+	return iscmp[op]
+}
+
 // tcArith typechecks operands of a binary arithmetic expression.
 // The result of tcArith MUST be assigned back to original operands,
 // t is the type of the expression, and should be set by the caller. e.g:
@@ -102,7 +106,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		// The conversion allocates, so only do it if the concrete type is huge.
 		converted := false
 		if r.Type().Kind() != types.TBLANK {
-			aop, _ = assignop(l.Type(), r.Type())
+			aop, _ = Assignop(l.Type(), r.Type())
 			if aop != ir.OXXX {
 				if r.Type().IsInterface() && !l.Type().IsInterface() && !types.IsComparable(l.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type()))
@@ -121,7 +125,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 
 		if !converted && l.Type().Kind() != types.TBLANK {
-			aop, _ = assignop(r.Type(), l.Type())
+			aop, _ = Assignop(r.Type(), l.Type())
 			if aop != ir.OXXX {
 				if l.Type().IsInterface() && !r.Type().IsInterface() && !types.IsComparable(r.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type()))
@@ -362,9 +366,9 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				}
 				l := l.(*ir.StructKeyExpr)
 
-				f := lookdot1(nil, l.Field, t, t.Fields(), 0)
+				f := Lookdot1(nil, l.Field, t, t.Fields(), 0)
 				if f == nil {
-					if ci := lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
+					if ci := Lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
 						if visible(ci.Sym) {
 							base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", l.Field, t, ci.Sym)
 						} else if nonexported(l.Field) && l.Field.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
@@ -415,7 +419,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		n.SetType(nil)
 		return n
 	}
-	op, why := convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
 		if !n.Diag() && !n.Type().Broke() && !n.X.Diag() {
 			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
@@ -492,7 +496,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 		return n
 	}
 
-	if lookdot(n, t, 0) == nil {
+	if Lookdot(n, t, 0) == nil {
 		// Legitimate field or method lookup failed, try to explain the error
 		switch {
 		case t.IsEmptyInterface():
@@ -502,12 +506,12 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 			// Pointer to interface is almost always a mistake.
 			base.Errorf("%v undefined (type %v is pointer to interface, not interface)", n, n.X.Type())
 
-		case lookdot(n, t, 1) != nil:
+		case Lookdot(n, t, 1) != nil:
 			// Field or method matches by name, but it is not exported.
 			base.Errorf("%v undefined (cannot refer to unexported field or method %v)", n, n.Sel)
 
 		default:
-			if mt := lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
+			if mt := Lookdot(n, t, 2); mt != nil && visible(mt.Sym) { // Case-insensitive lookup.
 				base.Errorf("%v undefined (type %v has no field or method %v, but does have %v)", n, n.X.Type(), n.Sel, mt.Sym)
 			} else {
 				base.Errorf("%v undefined (type %v has no field or method %v)", n, n.X.Type(), n.Sel)

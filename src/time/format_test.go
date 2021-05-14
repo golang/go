@@ -129,6 +129,31 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+var goStringTests = []struct {
+	in   Time
+	want string
+}{
+	{Date(2009, February, 5, 5, 0, 57, 12345600, UTC),
+		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.UTC)"},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, Local),
+		"time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Local)"},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Europe/Berlin", 3*60*60)),
+		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Europe/Berlin"))`,
+	},
+	{Date(2009, February, 5, 5, 0, 57, 12345600, FixedZone("Non-ASCII character ⏰", 3*60*60)),
+		`time.Date(2009, time.February, 5, 5, 0, 57, 12345600, time.Location("Non-ASCII character \xe2\x8f\xb0"))`,
+	},
+}
+
+func TestGoString(t *testing.T) {
+	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2009
+	for _, tt := range goStringTests {
+		if tt.in.GoString() != tt.want {
+			t.Errorf("GoString (%q): got %q want %q", tt.in, tt.in.GoString(), tt.want)
+		}
+	}
+}
+
 // issue 12440.
 func TestFormatSingleDigits(t *testing.T) {
 	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
@@ -207,9 +232,13 @@ var parseTests = []ParseTest{
 	{"ANSIC", ANSIC, "THU FEB 4 21:00:57 2010", false, true, 1, 0},
 	{"ANSIC", ANSIC, "thu feb 4 21:00:57 2010", false, true, 1, 0},
 	// Fractional seconds.
-	{"millisecond", "Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
-	{"microsecond", "Mon Jan _2 15:04:05.000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
-	{"nanosecond", "Mon Jan _2 15:04:05.000000000 2006", "Thu Feb  4 21:00:57.012345678 2010", false, true, 1, 9},
+	{"millisecond:: dot separator", "Mon Jan _2 15:04:05.000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
+	{"microsecond:: dot separator", "Mon Jan _2 15:04:05.000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
+	{"nanosecond:: dot separator", "Mon Jan _2 15:04:05.000000000 2006", "Thu Feb  4 21:00:57.012345678 2010", false, true, 1, 9},
+	{"millisecond:: comma separator", "Mon Jan _2 15:04:05,000 2006", "Thu Feb  4 21:00:57.012 2010", false, true, 1, 3},
+	{"microsecond:: comma separator", "Mon Jan _2 15:04:05,000000 2006", "Thu Feb  4 21:00:57.012345 2010", false, true, 1, 6},
+	{"nanosecond:: comma separator", "Mon Jan _2 15:04:05,000000000 2006", "Thu Feb  4 21:00:57.012345678 2010", false, true, 1, 9},
+
 	// Leading zeros in other places should not be taken as fractional seconds.
 	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
 	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
@@ -222,12 +251,20 @@ var parseTests = []ParseTest{
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
 	// cases would succeed, but the next four would not. Go 1.1 accepts all six.
+	// decimal "." separator.
 	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
 	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
 	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
 	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
 	{"", "2006-01-02 15:04:05.9999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
 	{"", "2006-01-02 15:04:05.999999999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
+	// comma "," separator.
+	{"", "2006-01-02 15:04:05,9999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
+	{"", "2006-01-02 15:04:05,999999999 -0700 MST", "2010-02-04 21:00:57 -0800 PST", true, false, 1, 0},
+	{"", "2006-01-02 15:04:05,9999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
+	{"", "2006-01-02 15:04:05,999999999 -0700 MST", "2010-02-04 21:00:57.0123 -0800 PST", true, false, 1, 4},
+	{"", "2006-01-02 15:04:05,9999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
+	{"", "2006-01-02 15:04:05,999999999 -0700 MST", "2010-02-04 21:00:57.012345678 -0800 PST", true, false, 1, 9},
 
 	// issue 4502.
 	{"", StampNano, "Feb  4 21:00:57.012345678", false, false, -1, 9},
@@ -551,6 +588,10 @@ var parseErrorTests = []ParseErrorTest{
 	// invalid or mismatched day-of-year
 	{"Jan _2 002 2006", "Feb  4 034 2006", "day-of-year does not match day"},
 	{"Jan _2 002 2006", "Feb  4 004 2006", "day-of-year does not match month"},
+
+	// issue 45391.
+	{`"2006-01-02T15:04:05Z07:00"`, "0", `parsing time "0" as "\"2006-01-02T15:04:05Z07:00\"": cannot parse "0" as "\""`},
+	{RFC3339, "\"", `parsing time "\"" as "2006-01-02T15:04:05Z07:00": cannot parse "\"" as "2006"`},
 }
 
 func TestParseErrors(t *testing.T) {
@@ -769,4 +810,25 @@ func TestParseYday(t *testing.T) {
 			t.Errorf("got year %d yearday %d, want %d %d", tm.Year(), tm.YearDay(), 2020, i)
 		}
 	}
+}
+
+// Issue 45391.
+func TestQuote(t *testing.T) {
+	tests := []struct {
+		s, want string
+	}{
+		{`"`, `"\""`},
+		{`abc"xyz"`, `"abc\"xyz\""`},
+		{"", `""`},
+		{"abc", `"abc"`},
+		{`☺`, `"\xe2\x98\xba"`},
+		{`☺ hello ☺ hello`, `"\xe2\x98\xba hello \xe2\x98\xba hello"`},
+		{"\x04", `"\x04"`},
+	}
+	for _, tt := range tests {
+		if q := Quote(tt.s); q != tt.want {
+			t.Errorf("Quote(%q) = got %q, want %q", tt.s, q, tt.want)
+		}
+	}
+
 }

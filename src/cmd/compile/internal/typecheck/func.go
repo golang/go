@@ -100,9 +100,18 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
-// because they're a copy of an already checked body.
+// True if we are typechecking an inline body in ImportedBody below. We use this
+// flag to not create a new closure function in tcClosure when we are just
+// typechecking an inline body, as opposed to the body of a real function.
+var inTypeCheckInl bool
+
+// ImportedBody returns immediately if the inlining information for fn is
+// populated. Otherwise, fn must be an imported function. If so, ImportedBody
+// loads in the dcls and body for fn, and typechecks as needed.
 func ImportedBody(fn *ir.Func) {
+	if fn.Inl.Body != nil {
+		return
+	}
 	lno := ir.SetPos(fn.Nname)
 
 	// When we load an inlined body, we need to allow OADDR
@@ -136,18 +145,18 @@ func ImportedBody(fn *ir.Func) {
 		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
 	}
 
-	savefn := ir.CurFunc
-	ir.CurFunc = fn
-	Stmts(fn.Inl.Body)
-	ir.CurFunc = savefn
-
-	// During ImportBody (which imports fn.Func.Inl.Body),
-	// declarations are added to fn.Func.Dcl by funcBody(). Move them
-	// to fn.Func.Inl.Dcl for consistency with how local functions
-	// behave. (Append because ImportedBody may be called multiple
-	// times on same fn.)
-	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
-	fn.Dcl = nil
+	if !go117ExportTypes {
+		// If we didn't export & import types, typecheck the code here.
+		savefn := ir.CurFunc
+		ir.CurFunc = fn
+		if inTypeCheckInl {
+			base.Fatalf("inTypeCheckInl should not be set recursively")
+		}
+		inTypeCheckInl = true
+		Stmts(fn.Inl.Body)
+		inTypeCheckInl = false
+		ir.CurFunc = savefn
+	}
 
 	base.Pos = lno
 }
@@ -172,7 +181,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 	return fn.Sym().Pkg
 }
 
-// closurename generates a new unique name for a closure within
+// ClosureName generates a new unique name for a closure within
 // outerfunc.
 func ClosureName(outerfunc *ir.Func) *types.Sym {
 	outer := "glob."
@@ -303,11 +312,10 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		return
 	}
 
-	// Don't give a name and add to xtop if we are typechecking an inlined
+	// Don't give a name and add to Target.Decls if we are typechecking an inlined
 	// body in ImportedBody(), since we only want to create the named function
 	// when the closure is actually inlined (and then we force a typecheck
 	// explicitly in (*inlsubst).node()).
-	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
 	if !inTypeCheckInl {
 		fn.Nname.SetSym(ClosureName(ir.CurFunc))
 		ir.MarkFunc(fn.Nname)
@@ -350,7 +358,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 		ir.Dump(s, fn)
 	}
 	if !inTypeCheckInl {
-		// Add function to xtop once only when we give it a name
+		// Add function to Target.Decls once only when we give it a name
 		Target.Decls = append(Target.Decls, fn)
 	}
 }
@@ -423,7 +431,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
 			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
 
-		case ir.OCOMPLEX, ir.OCOPY:
+		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			typecheckargs(n)
 			arg1, arg2, ok := needTwoArgs(n)
 			if !ok {
@@ -455,7 +463,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 
 		n := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
 		n.SetType(l.Type())
-		return typecheck1(n, top)
+		return tcConv(n)
 	}
 
 	typecheckargs(n)
@@ -968,5 +976,41 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 	}
 
 	n.SetType(types.Types[types.TINTER])
+	return n
+}
+
+// tcUnsafeAdd typechecks an OUNSAFEADD node.
+func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
+	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	if !n.Y.Type().IsInteger() {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(n.X.Type())
+	return n
+}
+
+// tcUnsafeSlice typechecks an OUNSAFESLICE node.
+func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(n.X)
+	n.Y = Expr(n.Y)
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	t := n.X.Type()
+	if !t.IsPtr() {
+		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
+	}
+	if !checkunsafeslice(&n.Y) {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(types.NewSlice(t.Elem()))
 	return n
 }

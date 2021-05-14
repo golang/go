@@ -287,9 +287,10 @@ func hashfor(t *types.Type) ir.Node {
 		sym = TypeSymPrefix(".hash", t)
 	}
 
+	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 	}, []*types.Field{
@@ -352,7 +353,7 @@ func geneq(t *types.Type) *obj.LSym {
 			return closure
 		}
 		if memequalvarlen == nil {
-			memequalvarlen = typecheck.LookupRuntimeVar("memequal_varlen") // asm func
+			memequalvarlen = typecheck.LookupRuntimeFunc("memequal_varlen")
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
@@ -775,9 +776,10 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 func hashmem(t *types.Type) ir.Node {
 	sym := ir.Pkgs.Runtime.Lookup("memhash")
 
+	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, []*types.Field{
+	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),

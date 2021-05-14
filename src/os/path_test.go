@@ -6,7 +6,6 @@ package os_test
 
 import (
 	"internal/testenv"
-	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -78,27 +77,19 @@ func TestMkdirAll(t *testing.T) {
 func TestMkdirAllWithSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllWithSymlink-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	dir := tmpDir + "/dir"
-	err = Mkdir(dir, 0755)
-	if err != nil {
+	if err := Mkdir(dir, 0755); err != nil {
 		t.Fatalf("Mkdir %s: %s", dir, err)
 	}
 
 	link := tmpDir + "/link"
-	err = Symlink("dir", link)
-	if err != nil {
+	if err := Symlink("dir", link); err != nil {
 		t.Fatalf("Symlink %s: %s", link, err)
 	}
 
 	path := link + "/foo"
-	err = MkdirAll(path, 0755)
-	if err != nil {
+	if err := MkdirAll(path, 0755); err != nil {
 		t.Errorf("MkdirAll %q: %s", path, err)
 	}
 }

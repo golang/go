@@ -160,7 +160,7 @@ func (out *OutBuf) copyHeap() bool {
 	total := uint64(bufLen + heapLen)
 	if heapLen != 0 {
 		if err := out.Mmap(total); err != nil { // Mmap will copy out.heap over to out.buf
-			panic(err)
+			Exitf("mapping output file failed: %v", err)
 		}
 	}
 	return true

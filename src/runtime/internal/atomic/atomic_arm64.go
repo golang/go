@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build arm64
 // +build arm64
 
 package atomic
 
-import "unsafe"
+import (
+	"unsafe"
+	"internal/cpu"
+)
+
+const (
+	offsetARM64HasATOMICS = unsafe.Offsetof(cpu.ARM64.HasATOMICS)
+)
 
 //go:noescape
 func Xadd(ptr *uint32, delta int32) uint32

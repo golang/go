@@ -11,7 +11,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/itoa"
+	"unsafe"
+)
 
 func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
 
@@ -225,7 +228,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 func Futimes(fd int, tv []Timeval) (err error) {
 	// Believe it or not, this is the best we can do on Linux
 	// (and is what glibc does).
-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+	return Utimes("/proc/self/fd/"+itoa.Itoa(fd), tv)
 }
 
 const ImplementsGetwd = true
@@ -550,7 +553,11 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	nfd, err = accept(fd, &rsa, &len)
+	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
+	nfd, err = accept4(fd, &rsa, &len, 0)
+	if err == ENOSYS {
+		nfd, err = accept(fd, &rsa, &len)
+	}
 	if err != nil {
 		return
 	}

@@ -97,7 +97,7 @@ func Main(analyzers ...*analysis.Analyzer) {
 
 Usage of %[1]s:
 	%.16[1]s unit.cfg	# execute analysis specified by config file
-	%.16[1]s help    	# general help
+	%.16[1]s help    	# general help, including listing analyzers and flags
 	%.16[1]s help name	# help on specific analyzer and its flags
 `, progname)
 		os.Exit(1)

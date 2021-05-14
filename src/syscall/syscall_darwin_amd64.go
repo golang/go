@@ -4,7 +4,10 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
@@ -44,7 +47,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	var length = uint64(count)
 
-	_, _, e1 := syscall6(funcPC(libc_sendfile_trampoline), uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(unsafe.Pointer(&length)), 0, 0)
+	_, _, e1 := syscall6(abi.FuncPCABI0(libc_sendfile_trampoline), uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(unsafe.Pointer(&length)), 0, 0)
 
 	written = int(length)
 

@@ -29,8 +29,6 @@ func asmb(ctxt *Link) {
 	}
 
 	var wg sync.WaitGroup
-	sect := Segtext.Sections[0]
-	offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
 	f := func(ctxt *Link, out *OutBuf, start, length int64) {
 		pad := thearch.CodePad
 		if pad == nil {
@@ -39,22 +37,13 @@ func asmb(ctxt *Link) {
 		CodeblkPad(ctxt, out, start, length, pad)
 	}
 
-	if !thearch.WriteTextBlocks {
-		writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
-		for _, sect := range Segtext.Sections[1:] {
-			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
+	for _, sect := range Segtext.Sections {
+		offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
+		// Handle text sections with Codeblk
+		if sect.Name == ".text" {
+			writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+		} else {
 			writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
-		}
-	} else {
-		// TODO why can't we handle all sections this way?
-		for _, sect := range Segtext.Sections {
-			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
-			// Handle additional text sections with Codeblk
-			if sect.Name == ".text" {
-				writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
-			} else {
-				writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
-			}
 		}
 	}
 
@@ -178,7 +167,10 @@ func sizeExtRelocs(ctxt *Link, relsize uint32) {
 		}
 	}
 	filesz := ctxt.Out.Offset() + sz
-	ctxt.Out.Mmap(uint64(filesz))
+	err := ctxt.Out.Mmap(uint64(filesz))
+	if err != nil {
+		Exitf("mapping output file failed: %v", err)
+	}
 }
 
 // relocSectFn wraps the function writing relocations of a section

@@ -107,3 +107,4 @@ import _ "m"
 -- go.mod --
 module m
 
+go 1.16

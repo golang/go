@@ -669,6 +669,33 @@ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.ReturnVars, edit)
 }
 
+func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *InstExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	c.Targs = copyNodes(c.Targs)
+	return &c
+}
+func (n *InstExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if doNodes(n.Targs, do) {
+		return true
+	}
+	return false
+}
+func (n *InstExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	editNodes(n.Targs, edit)
+}
+
 func (n *InterfaceType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *InterfaceType) copy() Node {
 	c := *n

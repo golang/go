@@ -459,7 +459,6 @@ func StaticName(t *types.Type) *ir.Name {
 	statuniqgen++
 	typecheck.Declare(n, ir.PEXTERN)
 	n.SetType(t)
-	n.Linksym().Set(obj.AttrLocal, true)
 	return n
 }
 

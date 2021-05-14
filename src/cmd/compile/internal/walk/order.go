@@ -6,6 +6,8 @@ package walk
 
 import (
 	"fmt"
+	"go/constant"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
@@ -268,10 +270,52 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 	// Most map calls need to take the address of the key.
 	// Exception: map*_fast* calls. See golang.org/issue/19015.
-	if mapfast(t) == mapslow {
+	alg := mapfast(t)
+	if alg == mapslow {
 		return o.addrTemp(n)
 	}
-	return n
+	var kt *types.Type
+	switch alg {
+	case mapfast32:
+		kt = types.Types[types.TUINT32]
+	case mapfast64:
+		kt = types.Types[types.TUINT64]
+	case mapfast32ptr, mapfast64ptr:
+		kt = types.Types[types.TUNSAFEPTR]
+	case mapfaststr:
+		kt = types.Types[types.TSTRING]
+	}
+	nt := n.Type()
+	switch {
+	case nt == kt:
+		return n
+	case nt.Kind() == kt.Kind(), nt.IsPtrShaped() && kt.IsPtrShaped():
+		// can directly convert (e.g. named type to underlying type, or one pointer to another)
+		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONVNOP, kt, n))
+	case nt.IsInteger() && kt.IsInteger():
+		// can directly convert (e.g. int32 to uint32)
+		if n.Op() == ir.OLITERAL && nt.IsSigned() {
+			// avoid constant overflow error
+			n = ir.NewConstExpr(constant.MakeUint64(uint64(ir.Int64Val(n))), n)
+			n.SetType(kt)
+			return n
+		}
+		return typecheck.Expr(ir.NewConvExpr(n.Pos(), ir.OCONV, kt, n))
+	default:
+		// Unsafe cast through memory.
+		// We'll need to do a load with type kt. Create a temporary of type kt to
+		// ensure sufficient alignment. nt may be under-aligned.
+		if kt.Align < nt.Align {
+			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
+		}
+		tmp := o.newTemp(kt, true)
+		// *(*nt)(&tmp) = n
+		var e ir.Node = typecheck.NodAddr(tmp)
+		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)
+		e = ir.NewStarExpr(n.Pos(), e)
+		o.append(ir.NewAssignStmt(base.Pos, e, n))
+		return tmp
+	}
 }
 
 // mapKeyReplaceStrConv replaces OBYTES2STR by OBYTES2STRTMP
@@ -500,6 +544,14 @@ func (o *orderState) call(nn ir.Node) {
 
 	n := nn.(*ir.CallExpr)
 	typecheck.FixVariadicCall(n)
+
+	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
+		// do not introduce temporaries here, so it is easier to rewrite it
+		// to symbol address reference later in walk.
+		return
+	}
+
 	n.X = o.expr(n.X, nil)
 	o.exprList(n.Args)
 
@@ -731,6 +783,16 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.init(n.Call)
 		o.call(n.Call)
+		if n.Call.Op() == ir.ORECOVER {
+			// Special handling of "defer recover()". We need to evaluate the FP
+			// argument before wrapping.
+			var init ir.Nodes
+			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
+			o.stmtList(init)
+		}
+		if buildcfg.Experiment.RegabiDefer {
+			o.wrapGoDefer(n)
+		}
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -1136,7 +1198,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		if n.X.Type().IsInterface() {
 			return n
 		}
-		if _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
+		if _, _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
 			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
@@ -1434,4 +1496,326 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
 
 	o.out = append(o.out, n)
 	o.stmt(typecheck.Stmt(as))
+}
+
+var wrapGoDefer_prgen int
+
+// wrapGoDefer wraps the target of a "go" or "defer" statement with a
+// new "function with no arguments" closure. Specifically, it converts
+//
+//   defer f(x, y)
+//
+// to
+//
+//   x1, y1 := x, y
+//   defer func() { f(x1, y1) }()
+//
+// This is primarily to enable a quicker bringup of defers under the
+// new register ABI; by doing this conversion, we can simplify the
+// code in the runtime that invokes defers on the panic path.
+func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+	call := n.Call
+
+	var callX ir.Node        // thing being called
+	var callArgs []ir.Node   // call arguments
+	var keepAlive []*ir.Name // KeepAlive list from call, if present
+
+	// A helper to recreate the call within the closure.
+	var mkNewCall func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node
+
+	// Defer calls come in many shapes and sizes; not all of them
+	// are ir.CallExpr's. Examine the type to see what we're dealing with.
+	switch x := call.(type) {
+	case *ir.CallExpr:
+		callX = x.X
+		callArgs = x.Args
+		keepAlive = x.KeepAlive
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			newcall := ir.NewCallExpr(pos, op, fun, args)
+			newcall.IsDDD = x.IsDDD
+			return ir.Node(newcall)
+		}
+	case *ir.UnaryExpr: // ex: OCLOSE
+		callArgs = []ir.Node{x.X}
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			if len(args) != 1 {
+				panic("internal error, expecting single arg")
+			}
+			return ir.Node(ir.NewUnaryExpr(pos, op, args[0]))
+		}
+	case *ir.BinaryExpr: // ex: OCOPY
+		callArgs = []ir.Node{x.X, x.Y}
+		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+			if len(args) != 2 {
+				panic("internal error, expecting two args")
+			}
+			return ir.Node(ir.NewBinaryExpr(pos, op, args[0], args[1]))
+		}
+	default:
+		panic("unhandled op")
+	}
+
+	// No need to wrap if called func has no args, no receiver, and no results.
+	// However in the case of "defer func() { ... }()" we need to
+	// protect against the possibility of directClosureCall rewriting
+	// things so that the call does have arguments.
+	//
+	// Do wrap method calls (OCALLMETH, OCALLINTER), because it has
+	// a receiver.
+	//
+	// Also do wrap builtin functions, because they may be expanded to
+	// calls with arguments (e.g. ORECOVER).
+	//
+	// TODO: maybe not wrap if the called function has no arguments and
+	// only in-register results?
+	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
+			cloFunc := callX.(*ir.ClosureExpr).Func
+			cloFunc.SetClosureCalled(false)
+			c.PreserveClosure = true
+		}
+		return
+	}
+
+	if c, ok := call.(*ir.CallExpr); ok {
+		// To simplify things, turn f(a, b, []T{c, d, e}...) back
+		// into f(a, b, c, d, e) -- when the final call is run through the
+		// type checker below, it will rebuild the proper slice literal.
+		undoVariadic(c)
+		callX = c.X
+		callArgs = c.Args
+	}
+
+	// This is set to true if the closure we're generating escapes
+	// (needs heap allocation).
+	cloEscapes := func() bool {
+		if n.Op() == ir.OGO {
+			// For "go", assume that all closures escape.
+			return true
+		}
+		// For defer, just use whatever result escape analysis
+		// has determined for the defer.
+		return n.Esc() != ir.EscNever
+	}()
+
+	// A helper for making a copy of an argument. Note that it is
+	// not safe to use o.copyExpr(arg) if we're putting a
+	// reference to the temp into the closure (as opposed to
+	// copying it in by value), since in the by-reference case we
+	// need a temporary whose lifetime extends to the end of the
+	// function (as opposed to being local to the current block or
+	// statement being ordered).
+	mkArgCopy := func(arg ir.Node) *ir.Name {
+		t := arg.Type()
+		byval := t.Size() <= 128 || cloEscapes
+		var argCopy *ir.Name
+		if byval {
+			argCopy = o.copyExpr(arg)
+		} else {
+			argCopy = typecheck.Temp(t)
+			o.append(ir.NewAssignStmt(base.Pos, argCopy, arg))
+		}
+		// The value of 128 below is meant to be consistent with code
+		// in escape analysis that picks byval/byaddr based on size.
+		argCopy.SetByval(byval)
+		return argCopy
+	}
+
+	// getUnsafeArg looks for an unsafe.Pointer arg that has been
+	// previously captured into the call's keepalive list, returning
+	// the name node for it if found.
+	getUnsafeArg := func(arg ir.Node) *ir.Name {
+		// Look for uintptr(unsafe.Pointer(name))
+		if arg.Op() != ir.OCONVNOP {
+			return nil
+		}
+		if !arg.Type().IsUintptr() {
+			return nil
+		}
+		if !arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
+			return nil
+		}
+		arg = arg.(*ir.ConvExpr).X
+		argname, ok := arg.(*ir.Name)
+		if !ok {
+			return nil
+		}
+		for i := range keepAlive {
+			if argname == keepAlive[i] {
+				return argname
+			}
+		}
+		return nil
+	}
+
+	// Copy the arguments to the function into temps.
+	//
+	// For calls with uintptr(unsafe.Pointer(...)) args that are being
+	// kept alive (see code in (*orderState).call that does this), use
+	// the existing arg copy instead of creating a new copy.
+	unsafeArgs := make([]*ir.Name, len(callArgs))
+	origArgs := callArgs
+	var newNames []*ir.Name
+	for i := range callArgs {
+		arg := callArgs[i]
+		var argname *ir.Name
+		unsafeArgName := getUnsafeArg(arg)
+		if unsafeArgName != nil {
+			// arg has been copied already, use keepalive copy
+			argname = unsafeArgName
+			unsafeArgs[i] = unsafeArgName
+		} else {
+			argname = mkArgCopy(arg)
+		}
+		newNames = append(newNames, argname)
+	}
+
+	// Deal with cases where the function expression (what we're
+	// calling) is not a simple function symbol.
+	var fnExpr *ir.Name
+	var methSelectorExpr *ir.SelectorExpr
+	if callX != nil {
+		switch {
+		case callX.Op() == ir.ODOTMETH || callX.Op() == ir.ODOTINTER:
+			// Handle defer of a method call, e.g. "defer v.MyMethod(x, y)"
+			n := callX.(*ir.SelectorExpr)
+			n.X = mkArgCopy(n.X)
+			methSelectorExpr = n
+			if callX.Op() == ir.ODOTINTER {
+				// Currently for "defer i.M()" if i is nil it panics at the
+				// point of defer statement, not when deferred function is called.
+				// (I think there is an issue discussing what is the intended
+				// behavior but I cannot find it.)
+				// We need to do the nil check outside of the wrapper.
+				tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
+				c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, tab)
+				c.SetTypecheck(1)
+				o.append(c)
+			}
+		case !(callX.Op() == ir.ONAME && callX.(*ir.Name).Class == ir.PFUNC):
+			// Deal with "defer returnsafunc()(x, y)" (for
+			// example) by copying the callee expression.
+			fnExpr = mkArgCopy(callX)
+			if callX.Op() == ir.OCLOSURE {
+				// For "defer func(...)", in addition to copying the
+				// closure into a temp, mark it as no longer directly
+				// called.
+				callX.(*ir.ClosureExpr).Func.SetClosureCalled(false)
+			}
+		}
+	}
+
+	// Create a new no-argument function that we'll hand off to defer.
+	var noFuncArgs []*ir.Field
+	noargst := ir.NewFuncType(base.Pos, nil, noFuncArgs, nil)
+	wrapGoDefer_prgen++
+	outerfn := ir.CurFunc
+	wrapname := fmt.Sprintf("%v·dwrap·%d", outerfn, wrapGoDefer_prgen)
+	sym := types.LocalPkg.Lookup(wrapname)
+	fn := typecheck.DeclFunc(sym, noargst)
+	fn.SetIsHiddenClosure(true)
+	fn.SetWrapper(true)
+
+	// helper for capturing reference to a var declared in an outer scope.
+	capName := func(pos src.XPos, fn *ir.Func, n *ir.Name) *ir.Name {
+		t := n.Type()
+		cv := ir.CaptureName(pos, fn, n)
+		cv.SetType(t)
+		return typecheck.Expr(cv).(*ir.Name)
+	}
+
+	// Call args (x1, y1) need to be captured as part of the newly
+	// created closure.
+	newCallArgs := []ir.Node{}
+	for i := range newNames {
+		var arg ir.Node
+		arg = capName(callArgs[i].Pos(), fn, newNames[i])
+		if unsafeArgs[i] != nil {
+			arg = ir.NewConvExpr(arg.Pos(), origArgs[i].Op(), origArgs[i].Type(), arg)
+		}
+		newCallArgs = append(newCallArgs, arg)
+	}
+	// Also capture the function or method expression (if needed) into
+	// the closure.
+	if fnExpr != nil {
+		callX = capName(callX.Pos(), fn, fnExpr)
+	}
+	if methSelectorExpr != nil {
+		methSelectorExpr.X = capName(callX.Pos(), fn, methSelectorExpr.X.(*ir.Name))
+	}
+	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
+
+	// This flags a builtin as opposed to a regular call.
+	irregular := (call.Op() != ir.OCALLFUNC &&
+		call.Op() != ir.OCALLMETH &&
+		call.Op() != ir.OCALLINTER)
+
+	// Construct new function body:  f(x1, y1)
+	op := ir.OCALL
+	if irregular {
+		op = call.Op()
+	}
+	newcall := mkNewCall(call.Pos(), op, callX, newCallArgs)
+
+	// Type-check the result.
+	if !irregular {
+		typecheck.Call(newcall.(*ir.CallExpr))
+	} else {
+		typecheck.Stmt(newcall)
+	}
+
+	// Finalize body, register function on the main decls list.
+	fn.Body = []ir.Node{newcall}
+	typecheck.FinishFuncBody()
+	typecheck.Func(fn)
+	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+
+	// Create closure expr
+	clo := ir.NewClosureExpr(n.Pos(), fn)
+	fn.OClosure = clo
+	clo.SetType(fn.Type())
+
+	// Set escape properties for closure.
+	if n.Op() == ir.OGO {
+		// For "go", assume that the closure is going to escape
+		// (with an exception for the runtime, which doesn't
+		// permit heap-allocated closures).
+		if base.Ctxt.Pkgpath != "runtime" {
+			clo.SetEsc(ir.EscHeap)
+		}
+	} else {
+		// For defer, just use whatever result escape analysis
+		// has determined for the defer.
+		if n.Esc() == ir.EscNever {
+			clo.SetTransient(true)
+			clo.SetEsc(ir.EscNone)
+		}
+	}
+
+	// Create new top level call to closure over argless function.
+	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, []ir.Node{})
+	typecheck.Call(topcall)
+
+	// Tag the call to insure that directClosureCall doesn't undo our work.
+	topcall.PreserveClosure = true
+
+	fn.SetClosureCalled(false)
+
+	// Finally, point the defer statement at the newly generated call.
+	n.Call = topcall
+}
+
+// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+func isFuncPCIntrinsic(n *ir.CallExpr) bool {
+	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
+		return false
+	}
+	fn := n.X.(*ir.Name).Sym()
+	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
+		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
+}
+
+// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
+func isIfaceOfFunc(n ir.Node) bool {
+	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
 }

@@ -37,7 +37,6 @@
 //      } else {
 //              return 0;
 //      }
-
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOV	ptr+0(FP), A0
 	MOVW	old+8(FP), A1
@@ -121,6 +120,12 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	JMP	·Cas64(SB)
 
+TEXT ·Casint32(SB),NOSPLIT,$0-17
+	JMP	·Cas(SB)
+
+TEXT ·Casint64(SB),NOSPLIT,$0-25
+	JMP	·Cas64(SB)
+
 TEXT ·Casuintptr(SB),NOSPLIT,$0-25
 	JMP	·Cas64(SB)
 
@@ -130,14 +135,26 @@ TEXT ·CasRel(SB), NOSPLIT, $0-17
 TEXT ·Loaduintptr(SB),NOSPLIT,$0-16
 	JMP	·Load64(SB)
 
+TEXT ·Storeint32(SB),NOSPLIT,$0-12
+	JMP	·Store(SB)
+
+TEXT ·Storeint64(SB),NOSPLIT,$0-16
+	JMP	·Store64(SB)
+
 TEXT ·Storeuintptr(SB),NOSPLIT,$0-16
 	JMP	·Store64(SB)
 
 TEXT ·Loaduint(SB),NOSPLIT,$0-16
 	JMP ·Loaduintptr(SB)
 
+TEXT ·Loadint32(SB),NOSPLIT,$0-12
+	JMP ·Load(SB)
+
 TEXT ·Loadint64(SB),NOSPLIT,$0-16
-	JMP ·Loaduintptr(SB)
+	JMP ·Load64(SB)
+
+TEXT ·Xaddint32(SB),NOSPLIT,$0-20
+	JMP ·Xadd(SB)
 
 TEXT ·Xaddint64(SB),NOSPLIT,$0-24
 	MOV	ptr+0(FP), A0
@@ -214,6 +231,14 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
 // func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
 TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
+
+// func Xchgint32(ptr *int32, new int32) int32
+TEXT ·Xchgint32(SB), NOSPLIT, $0-20
+	JMP	·Xchg(SB)
+
+// func Xchgint64(ptr *int64, new int64) int64
+TEXT ·Xchgint64(SB), NOSPLIT, $0-24
+	JMP	·Xchg64(SB)
 
 // func Xchguintptr(ptr *uintptr, new uintptr) uintptr
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-24

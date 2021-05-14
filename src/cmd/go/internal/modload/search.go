@@ -86,7 +86,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&fs.ModeSymlink != 0 && want {
+				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
@@ -187,7 +187,7 @@ func MatchInModule(ctx context.Context, pattern string, m module.Version, tags m
 		matchPackages(ctx, match, tags, includeStd, nil)
 	}
 
-	LoadModFile(ctx)
+	LoadModFile(ctx) // Sets Target, needed by fetch and matchPackages.
 
 	if !match.IsLiteral() {
 		matchPackages(ctx, match, tags, omitStd, []module.Version{m})

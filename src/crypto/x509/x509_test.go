@@ -2995,3 +2995,182 @@ func TestCertificateRequestRoundtripFields(t *testing.T) {
 		t.Fatalf("Unexpected URIs: got %v, want %v", out.URIs, in.URIs)
 	}
 }
+
+func BenchmarkParseCertificate(b *testing.B) {
+	cases := []struct {
+		name string
+		pem  string
+	}{
+		{
+			name: "ecdsa leaf",
+			pem: `-----BEGIN CERTIFICATE-----
+MIIINjCCBx6gAwIBAgIQHdQ6oBMoe/MJAAAAAEHzmTANBgkqhkiG9w0BAQsFADBG
+MQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExM
+QzETMBEGA1UEAxMKR1RTIENBIDFDMzAeFw0yMDEyMDgwOTExMzZaFw0yMTAzMDIw
+OTExMzVaMBcxFTATBgNVBAMMDCouZ29vZ2xlLmNvbTBZMBMGByqGSM49AgEGCCqG
+SM49AwEHA0IABEFYegyHh1AHRS1nar5+zYJgMACcsIQMtg0YMyK/59ml8ERIt/JF
+kXM3XIvQuCJhghUawZrrAcAs8djZF1U9M4mjggYYMIIGFDAOBgNVHQ8BAf8EBAMC
+B4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQU
+6SWWF36XBsmXJ6iV0EHPXUFoMbwwHwYDVR0jBBgwFoAUinR/r4XN7pXNPZzQ4kYU
+83E1HScwagYIKwYBBQUHAQEEXjBcMCcGCCsGAQUFBzABhhtodHRwOi8vb2NzcC5w
+a2kuZ29vZy9ndHMxYzMwMQYIKwYBBQUHMAKGJWh0dHA6Ly9wa2kuZ29vZy9yZXBv
+L2NlcnRzL2d0czFjMy5kZXIwggTCBgNVHREEggS5MIIEtYIMKi5nb29nbGUuY29t
+gg0qLmFuZHJvaWQuY29tghYqLmFwcGVuZ2luZS5nb29nbGUuY29tggkqLmJkbi5k
+ZXaCEiouY2xvdWQuZ29vZ2xlLmNvbYIYKi5jcm93ZHNvdXJjZS5nb29nbGUuY29t
+ghgqLmRhdGFjb21wdXRlLmdvb2dsZS5jb22CBiouZy5jb4IOKi5nY3AuZ3Z0Mi5j
+b22CESouZ2NwY2RuLmd2dDEuY29tggoqLmdncGh0LmNugg4qLmdrZWNuYXBwcy5j
+boIWKi5nb29nbGUtYW5hbHl0aWNzLmNvbYILKi5nb29nbGUuY2GCCyouZ29vZ2xl
+LmNsgg4qLmdvb2dsZS5jby5pboIOKi5nb29nbGUuY28uanCCDiouZ29vZ2xlLmNv
+LnVrgg8qLmdvb2dsZS5jb20uYXKCDyouZ29vZ2xlLmNvbS5hdYIPKi5nb29nbGUu
+Y29tLmJygg8qLmdvb2dsZS5jb20uY2+CDyouZ29vZ2xlLmNvbS5teIIPKi5nb29n
+bGUuY29tLnRygg8qLmdvb2dsZS5jb20udm6CCyouZ29vZ2xlLmRlggsqLmdvb2ds
+ZS5lc4ILKi5nb29nbGUuZnKCCyouZ29vZ2xlLmh1ggsqLmdvb2dsZS5pdIILKi5n
+b29nbGUubmyCCyouZ29vZ2xlLnBsggsqLmdvb2dsZS5wdIISKi5nb29nbGVhZGFw
+aXMuY29tgg8qLmdvb2dsZWFwaXMuY26CESouZ29vZ2xlY25hcHBzLmNughQqLmdv
+b2dsZWNvbW1lcmNlLmNvbYIRKi5nb29nbGV2aWRlby5jb22CDCouZ3N0YXRpYy5j
+boINKi5nc3RhdGljLmNvbYISKi5nc3RhdGljY25hcHBzLmNuggoqLmd2dDEuY29t
+ggoqLmd2dDIuY29tghQqLm1ldHJpYy5nc3RhdGljLmNvbYIMKi51cmNoaW4uY29t
+ghAqLnVybC5nb29nbGUuY29tghMqLndlYXIuZ2tlY25hcHBzLmNughYqLnlvdXR1
+YmUtbm9jb29raWUuY29tgg0qLnlvdXR1YmUuY29tghYqLnlvdXR1YmVlZHVjYXRp
+b24uY29tghEqLnlvdXR1YmVraWRzLmNvbYIHKi55dC5iZYILKi55dGltZy5jb22C
+GmFuZHJvaWQuY2xpZW50cy5nb29nbGUuY29tggthbmRyb2lkLmNvbYIbZGV2ZWxv
+cGVyLmFuZHJvaWQuZ29vZ2xlLmNughxkZXZlbG9wZXJzLmFuZHJvaWQuZ29vZ2xl
+LmNuggRnLmNvgghnZ3BodC5jboIMZ2tlY25hcHBzLmNuggZnb28uZ2yCFGdvb2ds
+ZS1hbmFseXRpY3MuY29tggpnb29nbGUuY29tgg9nb29nbGVjbmFwcHMuY26CEmdv
+b2dsZWNvbW1lcmNlLmNvbYIYc291cmNlLmFuZHJvaWQuZ29vZ2xlLmNuggp1cmNo
+aW4uY29tggp3d3cuZ29vLmdsggh5b3V0dS5iZYILeW91dHViZS5jb22CFHlvdXR1
+YmVlZHVjYXRpb24uY29tgg95b3V0dWJla2lkcy5jb22CBXl0LmJlMCEGA1UdIAQa
+MBgwCAYGZ4EMAQIBMAwGCisGAQQB1nkCBQMwNQYDVR0fBC4wLDAqoCigJoYkaHR0
+cDovL2NybC5wa2kuZ29vZy9ndHNyMS9ndHMxYzMuY3JsMBMGCisGAQQB1nkCBAMB
+Af8EAgUAMA0GCSqGSIb3DQEBCwUAA4IBAQAlDQm5zY7JcPxcJ9ulfTGsWV/m6Pro
+gLYmAlBUPGKy313aetT4Zjz44ZseVtUOKsXVHh4avPA9O+ta1FgkASlbkgJ05ivb
+j/+MMqkrLemdMv9Svvx3CNaAq2jJ2E+8GdrA1RzMkiNthJCiRafaPnXnN6hOHGNr
+GtqYfMHsvrRHW8J2IPHW0/MUHmJ/NDu/vNchxke2OEfCPLtseo3hJt8l8HbH+yE8
+DFrt8YVRi1CLomEyuPJDF4og3O3ZsoXuxcPd9UPxULOCxycdolRw8Iv/Xgr082j3
+svXC3HUd3apM2Yy3xJAlk/mUkzVXfdJZ+Zy1huNsUoJ+gM8rmpyGhYyx
+-----END CERTIFICATE-----`,
+		},
+		{
+			name: "rsa leaf",
+			pem: `-----BEGIN CERTIFICATE-----
+MIIJXjCCCEagAwIBAgIRAPYaTUsjP4iRBQAAAACHSSgwDQYJKoZIhvcNAQELBQAw
+QjELMAkGA1UEBhMCVVMxHjAcBgNVBAoTFUdvb2dsZSBUcnVzdCBTZXJ2aWNlczET
+MBEGA1UEAxMKR1RTIENBIDFPMTAeFw0yMTAxMjYwODQ2MzRaFw0yMTA0MjAwODQ2
+MzNaMGYxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQH
+Ew1Nb3VudGFpbiBWaWV3MRMwEQYDVQQKEwpHb29nbGUgTExDMRUwEwYDVQQDDAwq
+Lmdvb2dsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC76xx0
+UdZ36/41rZNPfQ/yQ05vsBLUO0d+3uMOhvDlpst+XvIsG6L+vLDgf3RiQRFlei0h
+KqqLOtWLDc/y0+OmaaC+8ft1zljBYdvQlAYoZrT79Cc5pAIDq7G1OZ7cC4ahDno/
+n46FHjT/UTUAMYa8cKWBaMPneMIsKvn8nMdZzHkfO2nUd6OEecn90XweMvNmx8De
+6h5AlIgG3m66hkD/UCSdxn7yJHBQVdHgkfTqzv3sz2YyBQGNi288F1bn541f6khE
+fYti1MvXRtkky7yLCQNUG6PtvuSU4cKaNvRklHigf5i1nVdGEuH61gAElZIklSia
+OVK46UyU4DGtbdWNAgMBAAGjggYpMIIGJTAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0l
+BAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQU8zCvllLd3jhB
+k//+Wdjo40Q+T3gwHwYDVR0jBBgwFoAUmNH4bhDrz5vsYJ8YkBug630J/SswaAYI
+KwYBBQUHAQEEXDBaMCsGCCsGAQUFBzABhh9odHRwOi8vb2NzcC5wa2kuZ29vZy9n
+dHMxbzFjb3JlMCsGCCsGAQUFBzAChh9odHRwOi8vcGtpLmdvb2cvZ3NyMi9HVFMx
+TzEuY3J0MIIE1wYDVR0RBIIEzjCCBMqCDCouZ29vZ2xlLmNvbYINKi5hbmRyb2lk
+LmNvbYIWKi5hcHBlbmdpbmUuZ29vZ2xlLmNvbYIJKi5iZG4uZGV2ghIqLmNsb3Vk
+Lmdvb2dsZS5jb22CGCouY3Jvd2Rzb3VyY2UuZ29vZ2xlLmNvbYIYKi5kYXRhY29t
+cHV0ZS5nb29nbGUuY29tghMqLmZsYXNoLmFuZHJvaWQuY29tggYqLmcuY2+CDiou
+Z2NwLmd2dDIuY29tghEqLmdjcGNkbi5ndnQxLmNvbYIKKi5nZ3BodC5jboIOKi5n
+a2VjbmFwcHMuY26CFiouZ29vZ2xlLWFuYWx5dGljcy5jb22CCyouZ29vZ2xlLmNh
+ggsqLmdvb2dsZS5jbIIOKi5nb29nbGUuY28uaW6CDiouZ29vZ2xlLmNvLmpwgg4q
+Lmdvb2dsZS5jby51a4IPKi5nb29nbGUuY29tLmFygg8qLmdvb2dsZS5jb20uYXWC
+DyouZ29vZ2xlLmNvbS5icoIPKi5nb29nbGUuY29tLmNvgg8qLmdvb2dsZS5jb20u
+bXiCDyouZ29vZ2xlLmNvbS50coIPKi5nb29nbGUuY29tLnZuggsqLmdvb2dsZS5k
+ZYILKi5nb29nbGUuZXOCCyouZ29vZ2xlLmZyggsqLmdvb2dsZS5odYILKi5nb29n
+bGUuaXSCCyouZ29vZ2xlLm5sggsqLmdvb2dsZS5wbIILKi5nb29nbGUucHSCEiou
+Z29vZ2xlYWRhcGlzLmNvbYIPKi5nb29nbGVhcGlzLmNughEqLmdvb2dsZWNuYXBw
+cy5jboIUKi5nb29nbGVjb21tZXJjZS5jb22CESouZ29vZ2xldmlkZW8uY29tggwq
+LmdzdGF0aWMuY26CDSouZ3N0YXRpYy5jb22CEiouZ3N0YXRpY2NuYXBwcy5jboIK
+Ki5ndnQxLmNvbYIKKi5ndnQyLmNvbYIUKi5tZXRyaWMuZ3N0YXRpYy5jb22CDCou
+dXJjaGluLmNvbYIQKi51cmwuZ29vZ2xlLmNvbYITKi53ZWFyLmdrZWNuYXBwcy5j
+boIWKi55b3V0dWJlLW5vY29va2llLmNvbYINKi55b3V0dWJlLmNvbYIWKi55b3V0
+dWJlZWR1Y2F0aW9uLmNvbYIRKi55b3V0dWJla2lkcy5jb22CByoueXQuYmWCCyou
+eXRpbWcuY29tghphbmRyb2lkLmNsaWVudHMuZ29vZ2xlLmNvbYILYW5kcm9pZC5j
+b22CG2RldmVsb3Blci5hbmRyb2lkLmdvb2dsZS5jboIcZGV2ZWxvcGVycy5hbmRy
+b2lkLmdvb2dsZS5jboIEZy5jb4IIZ2dwaHQuY26CDGdrZWNuYXBwcy5jboIGZ29v
+LmdsghRnb29nbGUtYW5hbHl0aWNzLmNvbYIKZ29vZ2xlLmNvbYIPZ29vZ2xlY25h
+cHBzLmNughJnb29nbGVjb21tZXJjZS5jb22CGHNvdXJjZS5hbmRyb2lkLmdvb2ds
+ZS5jboIKdXJjaGluLmNvbYIKd3d3Lmdvby5nbIIIeW91dHUuYmWCC3lvdXR1YmUu
+Y29tghR5b3V0dWJlZWR1Y2F0aW9uLmNvbYIPeW91dHViZWtpZHMuY29tggV5dC5i
+ZTAhBgNVHSAEGjAYMAgGBmeBDAECAjAMBgorBgEEAdZ5AgUDMDMGA1UdHwQsMCow
+KKAmoCSGImh0dHA6Ly9jcmwucGtpLmdvb2cvR1RTMU8xY29yZS5jcmwwEwYKKwYB
+BAHWeQIEAwEB/wQCBQAwDQYJKoZIhvcNAQELBQADggEBAHh9/ozYUGRd+W5akWlM
+4WvX808TK2oUISnagbxCCFZ2trpg2oi03CJf4o4o3Je5Qzzz10s22oQY6gPHAR0B
+QHzrpqAveQw9D5vd8xjgtQ/SAujPzPKNQee5511rS7/EKW9I83ccd5XhhoEyx8A1
+/65RTS+2hKpJKTMkr0yHBPJV7kUW+n/KIef5YaSOA9VYK7hyH0niDpvm9EmoqvWS
+U5xAFAe/Xrrq3sxTuDJPQA8alk6h/ql5Klkw6dL53csiPka/MevDqdifWkzuT/6n
+YK/ePeJzPD17FA9V+N1rcuF3Wk29AZvCOSasdIkIuE82vGr3dfNrsrn9E9lWIbCr
+Qc4=
+-----END CERTIFICATE-----`,
+		},
+	}
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			pemBlock, _ := pem.Decode([]byte(c.pem))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := ParseCertificate(pemBlock.Bytes)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestParseCertificateRawEquals(t *testing.T) {
+	p, _ := pem.Decode([]byte(pemCertificate))
+	cert, err := ParseCertificate(p.Bytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+	if !bytes.Equal(p.Bytes, cert.Raw) {
+		t.Fatalf("unexpected Certificate.Raw\ngot: %x\nwant: %x\n", cert.Raw, p.Bytes)
+	}
+	fmt.Printf("in:  %x\nout: %x\n", p.Bytes, cert.Raw)
+}
+
+// mismatchingSigAlgIDPEM contains a certificate where the Certificate
+// signatureAlgorithm and the TBSCertificate signature contain
+// mismatching OIDs
+const mismatchingSigAlgIDPEM = `-----BEGIN CERTIFICATE-----
+MIIBBzCBrqADAgECAgEAMAoGCCqGSM49BAMCMAAwIhgPMDAwMTAxMDEwMDAwMDBa
+GA8wMDAxMDEwMTAwMDAwMFowADBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOqV
+EDuVXxwZgIU3+dOwv1SsMu0xuV48hf7xmK8n7sAMYgllB+96DnPqBeboJj4snYnx
+0AcE0PDVQ1l4Z3YXsQWjFTATMBEGA1UdEQEB/wQHMAWCA2FzZDAKBggqhkjOPQQD
+AwNIADBFAiBi1jz/T2HT5nAfrD7zsgR+68qh7Erc6Q4qlxYBOgKG4QIhAOtjIn+Q
+tA+bq+55P3ntxTOVRq0nv1mwnkjwt9cQR9Fn
+-----END CERTIFICATE-----`
+
+// mismatchingSigAlgParamPEM contains a certificate where the Certificate
+// signatureAlgorithm and the TBSCertificate signature contain
+// mismatching parameters
+const mismatchingSigAlgParamPEM = `-----BEGIN CERTIFICATE-----
+MIIBCTCBrqADAgECAgEAMAoGCCqGSM49BAMCMAAwIhgPMDAwMTAxMDEwMDAwMDBa
+GA8wMDAxMDEwMTAwMDAwMFowADBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOqV
+EDuVXxwZgIU3+dOwv1SsMu0xuV48hf7xmK8n7sAMYgllB+96DnPqBeboJj4snYnx
+0AcE0PDVQ1l4Z3YXsQWjFTATMBEGA1UdEQEB/wQHMAWCA2FzZDAMBggqhkjOPQQD
+AgUAA0gAMEUCIGLWPP9PYdPmcB+sPvOyBH7ryqHsStzpDiqXFgE6AobhAiEA62Mi
+f5C0D5ur7nk/ee3FM5VGrSe/WbCeSPC31xBH0Wc=
+-----END CERTIFICATE-----`
+
+func TestSigAlgMismatch(t *testing.T) {
+	for _, certPEM := range []string{mismatchingSigAlgIDPEM, mismatchingSigAlgParamPEM} {
+		b, _ := pem.Decode([]byte(certPEM))
+		if b == nil {
+			t.Fatalf("couldn't decode test certificate")
+		}
+		_, err := ParseCertificate(b.Bytes)
+		if err == nil {
+			t.Fatalf("expected ParseCertificate to fail")
+		}
+		expected := "x509: inner and outer signature algorithm identifiers don't match"
+		if err.Error() != expected {
+			t.Errorf("unexpected error from ParseCertificate: got %q, want %q", err.Error(), expected)
+		}
+	}
+}

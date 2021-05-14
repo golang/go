@@ -93,7 +93,7 @@ type Func struct {
 
 	FieldTrack map[*obj.LSym]struct{}
 	DebugInfo  interface{}
-	LSym       *obj.LSym
+	LSym       *obj.LSym // Linker object in this function's native ABI (Func.ABI)
 
 	Inl *Inline
 
@@ -109,7 +109,22 @@ type Func struct {
 
 	Pragma PragmaFlag // go:xxx function annotations
 
-	flags      bitset16
+	flags bitset16
+
+	// ABI is a function's "definition" ABI. This is the ABI that
+	// this function's generated code is expecting to be called by.
+	//
+	// For most functions, this will be obj.ABIInternal. It may be
+	// a different ABI for functions defined in assembly or ABI wrappers.
+	//
+	// This is included in the export data and tracked across packages.
+	ABI obj.ABI
+	// ABIRefs is the set of ABIs by which this function is referenced.
+	// For ABIs other than this function's definition ABI, the
+	// compiler generates ABI wrapper functions. This is only tracked
+	// within a package.
+	ABIRefs obj.ABISet
+
 	NumDefers  int32 // number of defer calls in the function
 	NumReturns int32 // number of explicit returns in the function
 
@@ -124,6 +139,9 @@ func NewFunc(pos src.XPos) *Func {
 	f.pos = pos
 	f.op = ODCLFUNC
 	f.Iota = -1
+	// Most functions are ABIInternal. The importer or symabis
+	// pass may override this.
+	f.ABI = obj.ABIInternal
 	return f
 }
 
@@ -142,7 +160,10 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
 type Inline struct {
 	Cost int32 // heuristic cost of inlining this function
 
-	// Copies of Func.Dcl and Nbody for use during inlining.
+	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
+	// needed because the function's dcl/body may be changed by later compiler
+	// transformations. These fields are also populated when a function from
+	// another package is imported.
 	Dcl  []*Name
 	Body []Node
 }
@@ -162,7 +183,8 @@ type ScopeID int32
 
 const (
 	funcDupok         = 1 << iota // duplicate definitions ok
-	funcWrapper                   // is method wrapper
+	funcWrapper                   // hide frame from users (elide in tracebacks, don't count as a frame for recover())
+	funcABIWrapper                // is an ABI wrapper (also set flagWrapper)
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	// true if closure inside a function; false if a simple function or a
@@ -184,6 +206,7 @@ type SymAndPos struct {
 
 func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
 func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
+func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper != 0 }
 func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
 func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
 func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
@@ -197,6 +220,7 @@ func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalle
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper, b) }
 func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
 func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
 func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
@@ -217,7 +241,7 @@ func (f *Func) SetWBPos(pos src.XPos) {
 	}
 }
 
-// funcname returns the name (without the package) of the function n.
+// FuncName returns the name (without the package) of the function n.
 func FuncName(f *Func) string {
 	if f == nil || f.Nname == nil {
 		return "<nil>"
@@ -225,7 +249,7 @@ func FuncName(f *Func) string {
 	return f.Sym().Name
 }
 
-// pkgFuncName returns the name of the function referenced by n, with package prepended.
+// PkgFuncName returns the name of the function referenced by n, with package prepended.
 // This differs from the compiler's internal convention where local functions lack a package
 // because the ultimate consumer of this is a human looking at an IDE; package is only empty
 // if the compilation package is actually the empty string.

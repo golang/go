@@ -128,7 +128,7 @@ func FMA(x, y, z float64) float64 {
 	pe -= int32(is62zero)
 
 	// Swap addition operands so |p| >= |z|
-	if pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2))) {
+	if pe < ze || pe == ze && pm1 < zm1 {
 		ps, pe, pm1, pm2, zs, ze, zm1, zm2 = zs, ze, zm1, zm2, ps, pe, pm1, pm2
 	}
 

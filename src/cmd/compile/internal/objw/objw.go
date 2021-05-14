@@ -11,6 +11,8 @@ import (
 	"cmd/internal/obj"
 )
 
+// Uint8 writes an unsigned byte v into s at offset off,
+// and returns the next unused offset (i.e., off+1).
 func Uint8(s *obj.LSym, off int, v uint8) int {
 	return UintN(s, off, uint64(v), 1)
 }
@@ -27,6 +29,8 @@ func Uintptr(s *obj.LSym, off int, v uint64) int {
 	return UintN(s, off, v, types.PtrSize)
 }
 
+// UintN writes an unsigned integer v of size wid bytes into s at offset off,
+// and returns the next unused offset.
 func UintN(s *obj.LSym, off int, v uint64, wid int) int {
 	if off&(wid-1) != 0 {
 		base.Fatalf("duintxxLSym: misaligned: v=%d wid=%d off=%d", v, wid, off)
@@ -38,6 +42,13 @@ func UintN(s *obj.LSym, off int, v uint64, wid int) int {
 func SymPtr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
 	s.WriteAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
+	off += types.PtrSize
+	return off
+}
+
+func SymPtrWeak(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+	off = int(types.Rnd(int64(off), int64(types.PtrSize)))
+	s.WriteWeakAddr(base.Ctxt, int64(off), types.PtrSize, x, int64(xoff))
 	off += types.PtrSize
 	return off
 }
@@ -62,6 +73,8 @@ func Global(s *obj.LSym, width int32, flags int16) {
 	base.Ctxt.Globl(s, int64(width), int(flags))
 }
 
+// Bitvec writes the contents of bv into s as sequence of bytes
+// in little-endian order, and returns the next unused offset.
 func BitVec(s *obj.LSym, off int, bv bitvec.BitVec) int {
 	// Runtime reads the bitmaps as byte arrays. Oblige.
 	for j := 0; int32(j) < bv.N; j += 8 {

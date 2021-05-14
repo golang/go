@@ -7,6 +7,7 @@ package binary
 import (
 	"bytes"
 	"io"
+	"math"
 	"testing"
 )
 
@@ -121,10 +122,66 @@ func TestBufferTooSmall(t *testing.T) {
 	}
 }
 
+// Ensure that we catch overflows of bytes going past MaxVarintLen64.
+// See issue https://golang.org/issues/41185
+func TestBufferTooBigWithOverflow(t *testing.T) {
+	tests := []struct {
+		in        []byte
+		name      string
+		wantN     int
+		wantValue uint64
+	}{
+		{
+			name: "invalid: 1000 bytes",
+			in: func() []byte {
+				b := make([]byte, 1000)
+				for i := range b {
+					b[i] = 0xff
+				}
+				b[999] = 0
+				return b
+			}(),
+			wantN:     -11,
+			wantValue: 0,
+		},
+		{
+			name:      "valid: math.MaxUint64-40",
+			in:        []byte{0xd7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01},
+			wantValue: math.MaxUint64 - 40,
+			wantN:     10,
+		},
+		{
+			name:      "invalid: with more than MaxVarintLen64 bytes",
+			in:        []byte{0xd7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01},
+			wantN:     -11,
+			wantValue: 0,
+		},
+		{
+			name:      "invalid: 10th byte",
+			in:        []byte{0xd7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+			wantN:     -10,
+			wantValue: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			value, n := Uvarint(tt.in)
+			if g, w := n, tt.wantN; g != w {
+				t.Errorf("bytes returned=%d, want=%d", g, w)
+			}
+			if g, w := value, tt.wantValue; g != w {
+				t.Errorf("value=%d, want=%d", g, w)
+			}
+		})
+	}
+}
+
 func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 	x, n := Uvarint(buf)
 	if x != 0 || n != n0 {
-		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, %d", buf, x, n, n0)
+		t.Errorf("Uvarint(% X): got x = %d, n = %d; want 0, %d", buf, x, n, n0)
 	}
 
 	r := bytes.NewReader(buf)
@@ -140,8 +197,8 @@ func testOverflow(t *testing.T, buf []byte, x0 uint64, n0 int, err0 error) {
 
 func TestOverflow(t *testing.T) {
 	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x2}, 0, -10, overflow)
-	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -13, overflow)
-	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, 0, overflow) // 11 bytes, should overflow
+	testOverflow(t, []byte{0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x1, 0, 0}, 0, -11, overflow)
+	testOverflow(t, []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 1<<64-1, -11, overflow) // 11 bytes, should overflow
 }
 
 func TestNonCanonicalZero(t *testing.T) {

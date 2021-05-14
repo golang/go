@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/build"
 	"hash/fnv"
 	"io"
 	"io/fs"
@@ -56,10 +57,11 @@ func defaultAllCodeGen() bool {
 
 var (
 	goos, goarch string
+	cgoEnabled   bool
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -82,6 +84,10 @@ func main() {
 
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
+	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
+	if err == nil {
+		cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
+	}
 
 	findExecCmd()
 
@@ -367,9 +373,10 @@ func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
 }
 
 type context struct {
-	GOOS     string
-	GOARCH   string
-	noOptEnv bool
+	GOOS       string
+	GOARCH     string
+	cgoEnabled bool
+	noOptEnv   bool
 }
 
 // shouldTest looks for build tags in a source file and returns
@@ -391,9 +398,10 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 		}
 		gcFlags := os.Getenv("GO_GCFLAGS")
 		ctxt := &context{
-			GOOS:     goos,
-			GOARCH:   goarch,
-			noOptEnv: strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+			GOOS:       goos,
+			GOARCH:     goarch,
+			cgoEnabled: cgoEnabled,
+			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 		}
 
 		words := strings.Fields(line)
@@ -436,6 +444,19 @@ func (ctxt *context) match(name string) bool {
 		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
 			return false
 		}
+	}
+
+	if strings.HasPrefix(name, "goexperiment.") {
+		for _, tag := range build.Default.ToolTags {
+			if tag == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	if name == "cgo" && ctxt.cgoEnabled {
+		return true
 	}
 
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
@@ -513,7 +534,7 @@ func (t *test) run() {
 		return
 	}
 
-	var args, flags []string
+	var args, flags, runenv []string
 	var tim int
 	wantError := false
 	wantAuto := false
@@ -572,6 +593,9 @@ func (t *test) run() {
 			if err != nil {
 				t.err = fmt.Errorf("need number of seconds for -t timeout, got %s instead", args[0])
 			}
+		case "-goexperiment": // set GOEXPERIMENT environment
+			args = args[1:]
+			runenv = append(runenv, "GOEXPERIMENT="+args[0])
 
 		default:
 			flags = append(flags, args[0])
@@ -628,6 +652,7 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
 
@@ -725,7 +750,7 @@ func (t *test) run() {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -749,7 +774,66 @@ func (t *test) run() {
 			t.updateErrors(string(out), long)
 		}
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
-		return
+		if t.err != nil {
+			return // don't hide error if run below succeeds
+		}
+
+		// The following is temporary scaffolding to get types2 typechecker
+		// up and running against the existing test cases. The explicitly
+		// listed files don't pass yet, usually because the error messages
+		// are slightly different (this list is not complete). Any errorcheck
+		// tests that require output from analysis phases past initial type-
+		// checking are also excluded since these phases are not running yet.
+		// We can get rid of this code once types2 is fully plugged in.
+
+		// For now we're done when we can't handle the file or some of the flags.
+		// The first goal is to eliminate the excluded list; the second goal is to
+		// eliminate the flag list.
+
+		// Excluded files.
+		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+		if excluded[filename] {
+			if *verbose {
+				fmt.Printf("excl\t%s\n", filename)
+			}
+			return // cannot handle file yet
+		}
+
+		// Excluded flags.
+		for _, flag := range flags {
+			for _, pattern := range []string{
+				"-m",
+			} {
+				if strings.Contains(flag, pattern) {
+					if *verbose {
+						fmt.Printf("excl\t%s\t%s\n", filename, flags)
+					}
+					return // cannot handle flag
+				}
+			}
+		}
+
+		// Run errorcheck again with -G option (new typechecker).
+		cmdline = []string{goTool(), "tool", "compile", "-G=3", "-C", "-e", "-o", "a.o"}
+		// No need to add -dynlink even if linkshared if we're just checking for errors...
+		cmdline = append(cmdline, flags...)
+		cmdline = append(cmdline, long)
+		out, err = runcmd(cmdline...)
+		if wantError {
+			if err == nil {
+				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+				return
+			}
+		} else {
+			if err != nil {
+				t.err = err
+				return
+			}
+		}
+		if *updateErrors {
+			t.updateErrors(string(out), long)
+		}
+		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
 		// Compile Go file.
@@ -771,6 +855,7 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
+		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
 		// If errorcheckandrundir and wantError, compilation of the package prior the last must fail.
@@ -1120,7 +1205,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1854,4 +1939,67 @@ func overlayDir(dstRoot, srcRoot string) error {
 		}
 		return err
 	})
+}
+
+// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+var excluded = map[string]bool{
+	"complit1.go":     true, // types2 reports extra errors
+	"const2.go":       true, // types2 not run after syntax errors
+	"ddd1.go":         true, // issue #42987
+	"directive.go":    true, // misplaced compiler directive checks
+	"float_lit3.go":   true, // types2 reports extra errors
+	"import1.go":      true, // types2 reports extra errors
+	"import5.go":      true, // issue #42988
+	"import6.go":      true, // issue #43109
+	"initializerr.go": true, // types2 reports extra errors
+	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+	"shift1.go":       true, // issue #42989
+	"typecheck.go":    true, // invalid function is not causing errors when called
+	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
+
+	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+
+	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
+	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
+	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
 }

@@ -60,6 +60,8 @@
 (Trunc ...) => (FRINTZD ...)
 (FMA x y z) => (FMADDD z x y)
 
+(Sqrt32 ...) => (FSQRTS ...)
+
 // lowering rotates
 (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
@@ -196,7 +198,7 @@
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
 (Const(32F|64F) [val]) => (FMOV(S|D)const [float64(val)])
 (ConstNil) => (MOVDconst [0])
-(ConstBool [b]) => (MOVDconst [b2i(b)])
+(ConstBool [t]) => (MOVDconst [b2i(t)])
 
 (Slicemask <t> x) => (SRAconst (NEG <t> x) [63])
 
@@ -792,6 +794,15 @@
 (MOVHUloadidx2 ptr (MOVDconst [c]) mem) && is32Bit(c<<1) => (MOVHUload [int32(c)<<1] ptr mem)
 (MOVHloadidx2  ptr (MOVDconst [c]) mem) && is32Bit(c<<1) => (MOVHload  [int32(c)<<1] ptr mem)
 
+(FMOVDload [off] {sym} (ADDshiftLL [3] ptr idx) mem) && off == 0 && sym == nil => (FMOVDloadidx8 ptr idx mem)
+(FMOVSload [off] {sym} (ADDshiftLL [2] ptr idx) mem) && off == 0 && sym == nil => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx ptr (SLLconst [3] idx) mem) => (FMOVDloadidx8 ptr idx mem)
+(FMOVSloadidx ptr (SLLconst [2] idx) mem) => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx (SLLconst [3] idx) ptr mem) => (FMOVDloadidx8 ptr idx mem)
+(FMOVSloadidx (SLLconst [2] idx) ptr mem) => (FMOVSloadidx4 ptr idx mem)
+(FMOVDloadidx8 ptr (MOVDconst [c]) mem) && is32Bit(c<<3) => (FMOVDload ptr [int32(c)<<3] mem)
+(FMOVSloadidx4 ptr (MOVDconst [c]) mem) && is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
+
 (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
 	(MOVBstore [off1+int32(off2)] {sym} ptr val mem)
@@ -864,6 +875,15 @@
 (MOVDstoreidx8 ptr (MOVDconst [c]) val mem) && is32Bit(c<<3) => (MOVDstore [int32(c)<<3] ptr val mem)
 (MOVWstoreidx4 ptr (MOVDconst [c]) val mem) && is32Bit(c<<2) => (MOVWstore [int32(c)<<2] ptr val mem)
 (MOVHstoreidx2 ptr (MOVDconst [c]) val mem) && is32Bit(c<<1) => (MOVHstore [int32(c)<<1] ptr val mem)
+
+(FMOVDstore [off] {sym} (ADDshiftLL [3] ptr idx) val mem) && off == 0 && sym == nil => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstore [off] {sym} (ADDshiftLL [2] ptr idx) val mem) && off == 0 && sym == nil => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx ptr (SLLconst [3] idx) val mem) => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstoreidx ptr (SLLconst [2] idx) val mem) => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx (SLLconst [3] idx) ptr val mem) => (FMOVDstoreidx8 ptr idx val mem)
+(FMOVSstoreidx (SLLconst [2] idx) ptr val mem) => (FMOVSstoreidx4 ptr idx val mem)
+(FMOVDstoreidx8 ptr (MOVDconst [c]) val mem) && is32Bit(c<<3) => (FMOVDstore [int32(c)<<3] ptr val mem)
+(FMOVSstoreidx4 ptr (MOVDconst [c]) val mem) && is32Bit(c<<2) => (FMOVSstore [int32(c)<<2] ptr val mem)
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
@@ -1127,6 +1147,10 @@
 // MOVDnop doesn't emit instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
 
+// TODO: we should be able to get rid of MOVDnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+
 // fold constant into arithmatic ops
 (ADD x (MOVDconst [c])) => (ADDconst [c] x)
 (SUB x (MOVDconst [c])) => (SUBconst [c] x)
@@ -1335,8 +1359,18 @@
 (XOR x (MVN y)) => (EON x y)
 (OR  x (MVN y)) => (ORN x y)
 (MVN (XOR x y)) => (EON x y)
+
+(CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
+(CSEL [cc] (MOVDconst [0]) (MOVDconst [-1]) flag) => (CSETM [arm64Negate(cc)] flag)
 (CSEL [cc] x (MOVDconst [0]) flag) => (CSEL0 [cc] x flag)
 (CSEL [cc] (MOVDconst [0]) y flag) => (CSEL0 [arm64Negate(cc)] y flag)
+(CSEL [cc] x (ADDconst [1] a) flag) => (CSINC [cc] x a flag)
+(CSEL [cc] (ADDconst [1] a) x flag) => (CSINC [arm64Negate(cc)] x a flag)
+(CSEL [cc] x (MVN a) flag) => (CSINV [cc] x a flag)
+(CSEL [cc] (MVN a) x flag) => (CSINV [arm64Negate(cc)] x a flag)
+(CSEL [cc] x (NEG a) flag) => (CSNEG [cc] x a flag)
+(CSEL [cc] (NEG a) x flag) => (CSNEG [arm64Negate(cc)] x a flag)
+
 (SUB x (SUB y z)) => (SUB (ADD <v.Type> x z) y)
 (SUB (SUB x y) z) => (SUB x (ADD <y.Type> y z))
 
@@ -1491,9 +1525,13 @@
 (LEnoov (InvertFlags cmp) yes no) => (GEnoov cmp yes no)
 (GTnoov (InvertFlags cmp) yes no) => (LTnoov cmp yes no)
 
-// absorb InvertFlags into CSEL(0)
+// absorb InvertFlags into conditional instructions
 (CSEL [cc] x y (InvertFlags cmp)) => (CSEL [arm64Invert(cc)] x y cmp)
 (CSEL0 [cc] x (InvertFlags cmp)) => (CSEL0 [arm64Invert(cc)] x cmp)
+(CSETM [cc] (InvertFlags cmp)) => (CSETM [arm64Invert(cc)] cmp)
+(CSINC [cc] x y (InvertFlags cmp)) => (CSINC [arm64Invert(cc)] x y cmp)
+(CSINV [cc] x y (InvertFlags cmp)) => (CSINV [arm64Invert(cc)] x y cmp)
+(CSNEG [cc] x y (InvertFlags cmp)) => (CSNEG [arm64Invert(cc)] x y cmp)
 
 // absorb flag constants into boolean values
 (Equal (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
@@ -1532,6 +1570,14 @@
 (CSEL [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => y
 (CSEL0 [cc] x flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSEL0 [cc] _ flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
+(CSNEG [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSNEG [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (NEG y)
+(CSINV [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINV [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (Not y)
+(CSINC [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
+(CSINC [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (ADDconst [1] y)
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) > 0 => (MOVDconst [-1])
+(CSETM [cc] flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
 (CSEL [cc] x y (CMPWconst [0] boolval)) && cc == OpARM64NotEqual && flagArg(boolval) != nil =>
@@ -1724,8 +1770,24 @@
 		(CMPconst [64]  (SUB <t> (MOVDconst [32]) (ANDconst <t> [31] y))))) && cc == OpARM64LessThanU
 	=> (RORW x y)
 
+// rev16w | rev16
 // ((x>>8) | (x<<8)) => (REV16W x), the type of x is uint16, "|" can also be "^" or "+".
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (UBFX <typ.UInt16> [armBFAuxInt(8, 8)] x) x) => (REV16W x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (UBFX [armBFAuxInt(8, 24)] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& uint32(c1) == 0xff00ff00 && uint32(c2) == 0x00ff00ff
+	=> (REV16W x)
+
+// ((x & 0xff00ff00ff00ff00)>>8) | ((x & 0x00ff00ff00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& (uint64(c1) == 0xff00ff00ff00ff00 && uint64(c2) == 0x00ff00ff00ff00ff)
+	=> (REV16 x)
+
+// ((x & 0xff00ff00)>>8) | ((x & 0x00ff00ff)<<8), "|" can also be "^" or "+".
+((ADDshiftLL|ORshiftLL|XORshiftLL) [8] (SRLconst [8] (ANDconst [c1] x)) (ANDconst [c2] x))
+	&& (uint64(c1) == 0xff00ff00 && uint64(c2) == 0x00ff00ff)
+	=> (REV16 (ANDconst <x.Type> [0xffffffff] x))
 
 // Extract from reg pair
 (ADDshiftLL [c] (SRLconst x [64-c]) x2) => (EXTRconst [64-c] x2 x)
@@ -1746,6 +1808,16 @@
 
 // Special case setting bit as 1. An example is math.Copysign(c,-1)
 (ORconst [c1] (ANDconst [c2] x)) && c2|c1 == ^0  => (ORconst [c1] x)
+
+// If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
+(MOVWUreg (SLLconst [lc] x)) && lc >= 32 => (MOVDconst [0])
+(MOVHUreg (SLLconst [lc] x)) && lc >= 16 => (MOVDconst [0])
+(MOVBUreg (SLLconst [lc] x)) && lc >= 8 => (MOVDconst [0])
+
+// After zero extension, the upper (64-datasize(32|16|8)) bits are zero, we can optimiza to constant 0.
+(SRLconst [rc] (MOVWUreg x)) && rc >= 32 => (MOVDconst [0])
+(SRLconst [rc] (MOVHUreg x)) && rc >= 16 => (MOVDconst [0])
+(SRLconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVDconst [0])
 
 // bitfield ops
 
@@ -2787,3 +2859,12 @@
 (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(s1, s2, s3, call)
+	=> (Move [sz] dst src mem)

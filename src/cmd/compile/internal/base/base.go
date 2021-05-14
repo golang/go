@@ -70,6 +70,6 @@ var NoInstrumentPkgs = []string{
 	"internal/cpu",
 }
 
-// Don't insert racefuncenterfp/racefuncexit into the following packages.
+// Don't insert racefuncenter/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var NoRacePkgs = []string{"sync", "sync/atomic"}

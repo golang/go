@@ -108,7 +108,7 @@ ok2:
 	RET
 
 // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
 	MOVQ	a1+8(FP), DI
 	MOVQ	$0, SI
 	MOVQ	$0, DX
