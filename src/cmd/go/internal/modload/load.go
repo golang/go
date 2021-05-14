@@ -314,10 +314,6 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
 
-	if opts.GoVersion == "" {
-		opts.GoVersion = modFileGoVersion()
-	}
-
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
 		requirements: initialRS,
@@ -380,7 +376,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
 	loaded = ld
-	commitRequirements(ctx, opts.GoVersion, loaded.requirements)
+	commitRequirements(ctx, loaded.GoVersion, loaded.requirements)
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -605,10 +601,8 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	goVersion := modFileGoVersion()
 	loaded = loadFromRoots(ctx, loaderParams{
 		PackageOpts: PackageOpts{
-			GoVersion:             goVersion,
 			Tags:                  tags,
 			ResolveMissingImports: true,
 			SilencePackageErrors:  true,
@@ -620,7 +614,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			return roots
 		},
 	})
-	commitRequirements(ctx, goVersion, loaded.requirements)
+	commitRequirements(ctx, loaded.GoVersion, loaded.requirements)
 }
 
 // DirImportPath returns the effective import path for dir,
@@ -921,26 +915,25 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
 	}
 
-	if params.GoVersion != "" {
-		goVersionV := "v" + params.GoVersion
-		if semver.Compare(goVersionV, narrowAllVersionV) < 0 && !ld.UseVendorAll {
-			// The module's go version explicitly predates the change in "all" for lazy
-			// loading, so continue to use the older interpretation.
-			// (If params.GoVersion is empty, we are probably not in any module at all
-			// and should use the latest semantics.)
-			ld.allClosesOverTests = true
-		}
+	if ld.GoVersion == "" {
+		ld.GoVersion = modFileGoVersion()
 
-		if ld.Tidy && semver.Compare(goVersionV, "v"+LatestGoVersion()) > 0 {
-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, LatestGoVersion())
+		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
+			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
+	}
 
-		var err error
-		ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(params.GoVersion))
-		if err != nil {
-			ld.errorf("go: %v\n", err)
-		}
+	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+		// The module's go version explicitly predates the change in "all" for lazy
+		// loading, so continue to use the older interpretation.
+		ld.allClosesOverTests = true
+	}
+
+	var err error
+	ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(ld.GoVersion))
+	if err != nil {
+		ld.errorf("go: %v\n", err)
 	}
 
 	if ld.requirements.depth == eager {
