@@ -931,8 +931,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.allClosesOverTests = true
 		}
 
-		if ld.Tidy && semver.Compare(goVersionV, "v"+latestGoVersion()) > 0 {
-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, latestGoVersion())
+		if ld.Tidy && semver.Compare(goVersionV, "v"+LatestGoVersion()) > 0 {
+			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
 

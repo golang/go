@@ -196,7 +196,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editGo != "" {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
 		}
 	}
 

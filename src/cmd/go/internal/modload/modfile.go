@@ -55,7 +55,7 @@ var modFile *modfile.File
 // in modFile are intepreted, or the latest Go version if modFile is nil.
 func modFileGoVersion() string {
 	if modFile == nil {
-		return latestGoVersion()
+		return LatestGoVersion()
 	}
 	if modFile.Go == nil || modFile.Go.Version == "" {
 		// The main module necessarily has a go.mod file, and that file lacks a
