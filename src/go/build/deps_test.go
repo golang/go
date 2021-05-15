@@ -396,6 +396,7 @@ var depsRules = `
 	< crypto/subtle
 	< crypto/internal/subtle
 	< crypto/elliptic/internal/fiat
+	< crypto/elliptic/internal/nistec
 	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
 	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
