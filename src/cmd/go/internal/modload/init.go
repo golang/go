@@ -405,7 +405,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	if modRoot == "" {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
-		goVersion := latestGoVersion()
+		goVersion := LatestGoVersion()
 		rawGoVersion.Store(Target, goVersion)
 		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
 		return requirements, false
@@ -448,7 +448,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		// TODO(#45551): Do something more principled instead of checking
 		// cfg.CmdName directly here.
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
-			addGoStmt(latestGoVersion())
+			addGoStmt(LatestGoVersion())
 			if go117EnableLazyLoading {
 				// We need to add a 'go' version to the go.mod file, but we must assume
 				// that its existing contents match something between Go 1.11 and 1.16.
@@ -500,7 +500,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	modFile = new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	initTarget(modFile.Module.Mod)
-	addGoStmt(latestGoVersion()) // Add the go directive before converted module requirements.
+	addGoStmt(LatestGoVersion()) // Add the go directive before converted module requirements.
 
 	convertedFrom, err := convertLegacyConfig(modPath)
 	if convertedFrom != "" {
@@ -793,9 +793,9 @@ func addGoStmt(v string) {
 	rawGoVersion.Store(Target, v)
 }
 
-// latestGoVersion returns the latest version of the Go language supported by
+// LatestGoVersion returns the latest version of the Go language supported by
 // this toolchain, like "1.17".
-func latestGoVersion() string {
+func LatestGoVersion() string {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
