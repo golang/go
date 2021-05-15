@@ -21,9 +21,12 @@ import (
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
 //
-// Note that the point at infinity (0, 0) is not considered on the curve, and
-// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
-// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
+// The output of Add, Double, and ScalarMult when the input is not a point on
+// the curve is undefined.
+//
+// Note that the conventional point at infinity (0, 0) is not considered on the
+// curve, although it can be returned by Add, Double, ScalarMult, or
+// ScalarBaseMult (but not Unmarshal or UnmarshalCompressed).
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
