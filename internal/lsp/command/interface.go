@@ -115,9 +115,14 @@ type Interface interface {
 	// (Re)generate the gopls.mod file for a workspace.
 	GenerateGoplsMod(context.Context, URIArg) error
 
+	// ListKnownPackages: retrieves a list of packages
+	// that are importable from the given URI.
 	ListKnownPackages(context.Context, URIArg) (ListKnownPackagesResult, error)
 
-	AddImport(context.Context, AddImportArgs) (AddImportResult, error)
+	// AddImport: asks the server to add an import path to a given Go file.
+	// The method will call applyEdit on the client so that clients don't have
+	// to apply the edit themselves.
+	AddImport(context.Context, AddImportArgs) error
 
 	WorkspaceMetadata(context.Context) (WorkspaceMetadataResult, error)
 
@@ -196,18 +201,21 @@ type GoGetPackageArgs struct {
 	AddRequire bool
 }
 
-// TODO (Marwan): document :)
-
 type AddImportArgs struct {
+	// ImportPath is the target import path that should
+	// be added to the URI file
 	ImportPath string
-	URI        protocol.DocumentURI
-}
-
-type AddImportResult struct {
-	Edits []protocol.TextDocumentEdit
+	// URI is the file that the ImportPath should be
+	// added to
+	URI protocol.DocumentURI
 }
 
 type ListKnownPackagesResult struct {
+	// Packages is a list of packages relative
+	// to the URIArg passed by the command request.
+	// In other words, it omits paths that are already
+	// imported or cannot be imported due to compiler
+	// restrictions.
 	Packages []string
 }
 

@@ -77,7 +77,7 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
-		return s.AddImport(ctx, a0)
+		return nil, s.AddImport(ctx, a0)
 	case "gopls.apply_fix":
 		var a0 ApplyFixArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {

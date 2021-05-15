@@ -54,7 +54,7 @@ type commandHandler struct {
 
 // commandConfig configures common command set-up and execution.
 type commandConfig struct {
-	async       bool                 // whether to run the command asynchronously. Async commands cannot return results.
+	async       bool                 // whether to run the command asynchronously. Async commands can only return errors.
 	requireSave bool                 // whether all files must be saved for the command to work
 	progress    string               // title to use for progress reporting. If empty, no progress will be reported.
 	forURI      protocol.DocumentURI // URI to resolve to a snapshot. If unset, snapshot will be nil.
@@ -108,7 +108,16 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 		return err
 	}
 	if cfg.async {
-		go runcmd()
+		go func() {
+			if err := runcmd(); err != nil {
+				if showMessageErr := c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Error,
+					Message: err.Error(),
+				}); showMessageErr != nil {
+					event.Error(ctx, fmt.Sprintf("failed to show message: %q", err.Error()), showMessageErr)
+				}
+			}
+		}()
 		return nil
 	}
 	return runcmd()
@@ -335,15 +344,8 @@ func (c *commandHandler) RunTests(ctx context.Context, args command.RunTestsArgs
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
 		if err := c.runTests(ctx, deps.snapshot, deps.work, args.URI, args.Tests, args.Benchmarks); err != nil {
-			if err := c.s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf("Running tests failed: %v", err),
-			}); err != nil {
-				event.Error(ctx, "running tests: failed to show message", err)
-			}
+			return errors.Errorf("running tests failed: %w", err)
 		}
-		// Since we're running asynchronously, any error returned here would be
-		// ignored.
 		return nil
 	})
 }
@@ -664,26 +666,33 @@ func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIA
 func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URIArg) (command.ListKnownPackagesResult, error) {
 	var result command.ListKnownPackagesResult
 	err := c.run(ctx, commandConfig{
-		progress: "Listing packages", // optional, causes a progress report during command execution
-		forURI:   args.URI,           // optional, populates deps.snapshot and deps.fh
+		progress: "Listing packages",
+		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		// Marwan: add implementation here. deps.snapshot and deps.fh are available for use.
-		result.Packages = []string{}
-		return nil
+		var err error
+		result.Packages, err = source.KnownPackages(ctx, deps.snapshot, deps.fh)
+		return err
 	})
 	return result, err
 }
-
-func (c *commandHandler) AddImport(ctx context.Context, args command.AddImportArgs) (command.AddImportResult, error) {
-	var result command.AddImportResult
-	err := c.run(ctx, commandConfig{
+func (c *commandHandler) AddImport(ctx context.Context, args command.AddImportArgs) error {
+	return c.run(ctx, commandConfig{
 		progress: "Adding import",
 		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		result.Edits = nil
+		edits, err := source.AddImport(ctx, deps.snapshot, deps.fh, args.ImportPath)
+		if err != nil {
+			return fmt.Errorf("could not add import: %v", err)
+		}
+		if _, err := c.s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: documentChanges(deps.fh, edits),
+			},
+		}); err != nil {
+			return fmt.Errorf("could not apply import edits: %v", err)
+		}
 		return nil
 	})
-	return result, err
 }
 
 func (c *commandHandler) WorkspaceMetadata(ctx context.Context) (command.WorkspaceMetadataResult, error) {

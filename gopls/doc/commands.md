@@ -21,16 +21,21 @@ Args:
 }
 ```
 
-### ****
+### **asks the server to add an import path to a given Go file.**
 Identifier: `gopls.add_import`
 
-
+The method will call applyEdit on the client so that clients don't have
+to apply the edit themselves.
 
 Args:
 
 ```
 {
+	// ImportPath is the target import path that should
+	// be added to the URI file
 	"ImportPath": string,
+	// URI is the file that the ImportPath should be
+	// added to
 	"URI": string,
 }
 ```
@@ -136,10 +141,10 @@ Args:
 }
 ```
 
-### ****
+### **retrieves a list of packages**
 Identifier: `gopls.list_known_packages`
 
-
+that are importable from the given URI.
 
 Args:
 

@@ -55,7 +55,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case packagePath:
-			if isCommandLineArguments(string(scope)) {
+			if source.IsCommandLineArguments(string(scope)) {
 				panic("attempted to load command-line-arguments")
 			}
 			// The only time we pass package paths is when we're doing a

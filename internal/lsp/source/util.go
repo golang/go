@@ -507,3 +507,24 @@ func inDirLex(dir, path string) bool {
 		return false
 	}
 }
+
+// IsValidImport returns whether importPkgPath is importable
+// by pkgPath
+func IsValidImport(pkgPath, importPkgPath string) bool {
+	i := strings.LastIndex(string(importPkgPath), "/internal/")
+	if i == -1 {
+		return true
+	}
+	if IsCommandLineArguments(string(pkgPath)) {
+		return true
+	}
+	return strings.HasPrefix(string(pkgPath), string(importPkgPath[:i]))
+}
+
+// IsCommandLineArguments reports whether a given value denotes
+// "command-line-arguments" package, which is a package with an unknown ID
+// created by the go command. It can have a test variant, which is why callers
+// should not check that a value equals "command-line-arguments" directly.
+func IsCommandLineArguments(s string) bool {
+	return strings.Contains(s, "command-line-arguments")
+}

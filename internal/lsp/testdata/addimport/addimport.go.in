@@ -1,0 +1,3 @@
+package addimport //@addimport("", "bytes")
+
+func main() {}

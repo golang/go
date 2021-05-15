@@ -74,6 +74,7 @@ type SymbolInformation map[span.Span]protocol.SymbolInformation
 type WorkspaceSymbols map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
+type AddImport map[span.URI]string
 
 type Data struct {
 	Config                   packages.Config
@@ -107,6 +108,7 @@ type Data struct {
 	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
+	AddImport                AddImport
 
 	t         testing.TB
 	fragments map[string]string
@@ -147,6 +149,7 @@ type Tests interface {
 	WorkspaceSymbols(*testing.T, span.URI, string, WorkspaceSymbolsTestType)
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
+	AddImport(*testing.T, span.URI, string)
 }
 
 type Definition struct {
@@ -293,6 +296,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
+		AddImport:                make(AddImport),
 
 		t:         t,
 		dir:       dir,
@@ -447,6 +451,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"extractfunc":     datum.collectFunctionExtractions,
 		"incomingcalls":   datum.collectIncomingCalls,
 		"outgoingcalls":   datum.collectOutgoingCalls,
+		"addimport":       datum.collectAddImports,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -786,6 +791,15 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
+	t.Run("AddImport", func(t *testing.T) {
+		t.Helper()
+		for uri, exp := range data.AddImport {
+			t.Run(uriName(uri), func(t *testing.T) {
+				tests.AddImport(t, uri, exp)
+			})
+		}
+	})
+
 	if *UpdateGolden {
 		for _, golden := range data.golden {
 			if !golden.Modified {
@@ -1075,6 +1089,10 @@ func (data *Data) collectFormats(spn span.Span) {
 
 func (data *Data) collectImports(spn span.Span) {
 	data.Imports = append(data.Imports, spn)
+}
+
+func (data *Data) collectAddImports(spn span.Span, imp string) {
+	data.AddImport[spn.URI()] = imp
 }
 
 func (data *Data) collectSemanticTokens(spn span.Span) {

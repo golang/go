@@ -503,7 +503,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode sour
 			if dep == nil {
 				return nil, snapshot.missingPkgError(pkgPath)
 			}
-			if !isValidImport(m.pkgPath, dep.m.pkgPath) {
+			if !source.IsValidImport(string(m.pkgPath), string(dep.m.pkgPath)) {
 				return nil, errors.Errorf("invalid use of internal package %s", pkgPath)
 			}
 			depPkg, err := dep.check(ctx, snapshot)
@@ -832,17 +832,6 @@ func resolveImportPath(importPath string, pkg *pkg, deps map[packagePath]*packag
 		}
 	}
 	return nil
-}
-
-func isValidImport(pkgPath, importPkgPath packagePath) bool {
-	i := strings.LastIndex(string(importPkgPath), "/internal/")
-	if i == -1 {
-		return true
-	}
-	if isCommandLineArguments(string(pkgPath)) {
-		return true
-	}
-	return strings.HasPrefix(string(pkgPath), string(importPkgPath[:i]))
 }
 
 // An importFunc is an implementation of the single-method

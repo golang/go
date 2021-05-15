@@ -995,7 +995,7 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 		}
 		// If the package previously only had a command-line-arguments ID,
 		// we should just replace it.
-		if isCommandLineArguments(string(existingID)) {
+		if source.IsCommandLineArguments(string(existingID)) {
 			s.ids[uri][i] = id
 			// Delete command-line-arguments if it was a workspace package.
 			delete(s.workspacePackages, existingID)
@@ -1010,14 +1010,6 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 		return newIDs[i] < newIDs[j]
 	})
 	s.ids[uri] = append(newIDs, id)
-}
-
-// isCommandLineArguments reports whether a given value denotes
-// "command-line-arguments" package, which is a package with an unknown ID
-// created by the go command. It can have a test variant, which is why callers
-// should not check that a value equals "command-line-arguments" directly.
-func isCommandLineArguments(s string) bool {
-	return strings.Contains(s, "command-line-arguments")
 }
 
 func (s *snapshot) isWorkspacePackage(id packageID) bool {
@@ -1169,7 +1161,7 @@ func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Pack
 
 func containsCommandLineArguments(pkgs []source.Package) bool {
 	for _, pkg := range pkgs {
-		if isCommandLineArguments(pkg.ID()) {
+		if source.IsCommandLineArguments(pkg.ID()) {
 			return true
 		}
 	}
@@ -1237,7 +1229,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 		missingMetadata = true
 
 		// Don't try to reload "command-line-arguments" directly.
-		if isCommandLineArguments(string(pkgPath)) {
+		if source.IsCommandLineArguments(string(pkgPath)) {
 			continue
 		}
 		pkgPathSet[pkgPath] = struct{}{}
@@ -1646,7 +1638,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// go command when the user is outside of GOPATH and outside of a
 		// module. Do not cache them as workspace packages for longer than
 		// necessary.
-		if isCommandLineArguments(string(id)) {
+		if source.IsCommandLineArguments(string(id)) {
 			if invalidateMetadata, ok := idsToInvalidate[id]; invalidateMetadata && ok {
 				continue
 			}
