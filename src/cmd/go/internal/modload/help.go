@@ -21,6 +21,13 @@ https://golang.org/doc/tutorial/create-module.
 
 For a detailed reference on modules, see https://golang.org/ref/mod.
 
+Versioning is intrinsic to go modules, it should be noted that once the
+version of a public module has been defined and registered with a public
+proxy server; The version is permanent and can no longer be modified.
+
+For a detailed reference on versioning, see
+https://golang.org/doc/modules/version-numbers
+
 By default, the go command may download modules from https://proxy.golang.org.
 It may authenticate modules using the checksum database at
 https://sum.golang.org. Both services are operated by the Go team at Google.
@@ -31,6 +38,15 @@ respectively.
 The go command's download behavior may be configured using GOPROXY, GOSUMDB,
 GOPRIVATE, and other environment variables. See 'go help environment'
 and https://golang.org/ref/mod#private-module-privacy for more information.
+
+Public modules may incur delays upon modification, thus new versions may not
+be available for remote update instantaneously.
+
+In the case that a rapid cycle of continuous integration be required; The
+module can either be made accessible locally, by way of the 'replace'
+directive, else, the public version proxy cache can be accelerated by
+revving the modules version number and the use of an in development
+numbering strategy.
 	`,
 }
 
