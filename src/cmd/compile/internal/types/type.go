@@ -279,6 +279,13 @@ func (t *Type) SetRParams(rparams []*Type) {
 	}
 }
 
+// IsInstantiated reports whether t is a fully instantiated generic type; i.e. an
+// instantiated generic type where all type arguments are non-generic or fully
+// instantiated generic types.
+func (t *Type) IsInstantiated() bool {
+	return len(t.RParams()) > 0 && !t.HasTParam()
+}
+
 // NoPkg is a nil *Pkg value for clarity.
 // It's intended for use when constructing types that aren't exported
 // and thus don't need to be associated with any package.
