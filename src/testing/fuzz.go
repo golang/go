@@ -338,7 +338,9 @@ func (f *F) Fuzz(ff interface{}) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
+			f.fuzzContext.resetCoverage()
 			fn.Call(args)
+			f.fuzzContext.snapshotCoverage()
 		})
 		<-t.signal
 		f.inFuzzFn = false
@@ -452,6 +454,8 @@ type fuzzContext struct {
 	coordinateFuzzing func(time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	runFuzzWorker     func(func(corpusEntry) error) error
 	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
+	resetCoverage     func()
+	snapshotCoverage  func()
 }
 
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
@@ -465,8 +469,10 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
 	m := newMatcher(deps.MatchString, *match, "-test.run")
 	tctx := newTestContext(*parallel, m)
 	fctx := &fuzzContext{
-		importPath: deps.ImportPath,
-		readCorpus: deps.ReadCorpus,
+		importPath:       deps.ImportPath,
+		readCorpus:       deps.ReadCorpus,
+		resetCoverage:    deps.ResetCoverage,
+		snapshotCoverage: deps.SnapshotCoverage,
 	}
 	root := common{w: os.Stdout} // gather output in one place
 	if Verbose() {
@@ -519,8 +525,10 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
 	tctx := newTestContext(1, m)
 	fctx := &fuzzContext{
-		importPath: deps.ImportPath,
-		readCorpus: deps.ReadCorpus,
+		importPath:       deps.ImportPath,
+		readCorpus:       deps.ReadCorpus,
+		resetCoverage:    deps.ResetCoverage,
+		snapshotCoverage: deps.SnapshotCoverage,
 	}
 	if *isFuzzWorker {
 		fctx.runFuzzWorker = deps.RunFuzzWorker
