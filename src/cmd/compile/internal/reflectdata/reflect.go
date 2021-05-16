@@ -956,7 +956,7 @@ func writeType(t *types.Type) *obj.LSym {
 		// in the local package, even if they may be marked as part of
 		// another package (the package of their base generic type).
 		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg &&
-			len(tbase.RParams()) == 0 {
+			!tbase.IsInstantiated() {
 			if i := typecheck.BaseTypeIndex(t); i >= 0 {
 				lsym.Pkg = tbase.Sym().Pkg.Prefix
 				lsym.SymIdx = int32(i)
@@ -1777,9 +1777,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		return lsym
 	}
 
-	// Only generate (*T).M wrappers for T.M in T's own package.
+	// Only generate (*T).M wrappers for T.M in T's own package, except for
+	// instantiated methods.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg {
+		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg &&
+		!rcvr.Elem().IsInstantiated() {
 		return lsym
 	}
 
