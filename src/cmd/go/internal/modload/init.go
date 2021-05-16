@@ -432,7 +432,10 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	initTarget(f.Module.Mod)
 	index = indexModFile(data, f, fixed)
 
-	if err := checkModulePathLax(f.Module.Mod.Path); err != nil {
+	if err := module.CheckImportPath(f.Module.Mod.Path); err != nil {
+		if pathErr, ok := err.(*module.InvalidPathError); ok {
+			pathErr.Kind = "module"
+		}
 		base.Fatalf("go: %v", err)
 	}
 
@@ -492,7 +495,15 @@ func CreateModFile(ctx context.Context, modPath string) {
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
-	} else if err := checkModulePathLax(modPath); err != nil {
+	} else if err := module.CheckImportPath(modPath); err != nil {
+		if pathErr, ok := err.(*module.InvalidPathError); ok {
+			pathErr.Kind = "module"
+			// Same as build.IsLocalPath()
+			if pathErr.Path == "." || pathErr.Path == ".." ||
+				strings.HasPrefix(pathErr.Path, "./") || strings.HasPrefix(pathErr.Path, "../") {
+				pathErr.Err = errors.New("is a local import path")
+			}
+		}
 		base.Fatalf("go: %v", err)
 	}
 
@@ -534,49 +545,6 @@ func CreateModFile(ctx context.Context, modPath string) {
 	if !empty {
 		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
 	}
-}
-
-// checkModulePathLax checks that the path meets some minimum requirements
-// to avoid confusing users or the module cache. The requirements are weaker
-// than those of module.CheckPath to allow room for weakening module path
-// requirements in the future, but strong enough to help users avoid significant
-// problems.
-func checkModulePathLax(p string) error {
-	// TODO(matloob): Replace calls of this function in this CL with calls
-	// to module.CheckImportPath once it's been laxened, if it becomes laxened.
-	// See golang.org/issue/29101 for a discussion about whether to make CheckImportPath
-	// more lax or more strict.
-
-	errorf := func(format string, args ...interface{}) error {
-		return fmt.Errorf("invalid module path %q: %s", p, fmt.Sprintf(format, args...))
-	}
-
-	// Disallow shell characters " ' * < > ? ` | to avoid triggering bugs
-	// with file systems and subcommands. Disallow file path separators : and \
-	// because path separators other than / will confuse the module cache.
-	// See fileNameOK in golang.org/x/mod/module/module.go.
-	shellChars := "`" + `"'*<>?|`
-	fsChars := `\:`
-	if i := strings.IndexAny(p, shellChars); i >= 0 {
-		return errorf("contains disallowed shell character %q", p[i])
-	}
-	if i := strings.IndexAny(p, fsChars); i >= 0 {
-		return errorf("contains disallowed path separator character %q", p[i])
-	}
-
-	// Ensure path.IsAbs and build.IsLocalImport are false, and that the path is
-	// invariant under path.Clean, also to avoid confusing the module cache.
-	if path.IsAbs(p) {
-		return errorf("is an absolute path")
-	}
-	if build.IsLocalImport(p) {
-		return errorf("is a local import path")
-	}
-	if path.Clean(p) != p {
-		return errorf("is not clean")
-	}
-
-	return nil
 }
 
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
@@ -918,14 +886,8 @@ func findModulePath(dir string) (string, error) {
 		}
 		if rel := search.InDir(dir, filepath.Join(gpdir, "src")); rel != "" && rel != "." {
 			path := filepath.ToSlash(rel)
-			// TODO(matloob): replace this with module.CheckImportPath
-			// once it's been laxened.
-			// Only checkModulePathLax here. There are some unpublishable
-			// module names that are compatible with checkModulePathLax
-			// but they already work in GOPATH so don't break users
-			// trying to do a build with modules. gorelease will alert users
-			// publishing their modules to fix their paths.
-			if err := checkModulePathLax(path); err != nil {
+			// gorelease will alert users publishing their modules to fix their paths.
+			if err := module.CheckImportPath(path); err != nil {
 				badPathErr = err
 				break
 			}
