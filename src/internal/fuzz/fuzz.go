@@ -439,13 +439,13 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		covOnlyInputs: covOnlyInputs,
 	}
 
-	cov := coverageCopy()
-	if len(cov) == 0 {
+	covSize := len(coverage())
+	if covSize == 0 {
 		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
 		c.covOnlyInputs = 0
 	} else {
 		// Set c.coverageData to a clean []byte full of zeros.
-		c.coverageData = make([]byte, len(cov))
+		c.coverageData = make([]byte, covSize)
 	}
 
 	if c.covOnlyInputs > 0 {

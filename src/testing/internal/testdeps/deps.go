@@ -174,3 +174,11 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
 func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
 	return fuzz.ReadCorpus(dir, types)
 }
+
+func (TestDeps) ResetCoverage() {
+	fuzz.ResetCoverage()
+}
+
+func (TestDeps) SnapshotCoverage() {
+	fuzz.SnapshotCoverage()
+}

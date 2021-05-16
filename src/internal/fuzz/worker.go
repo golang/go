@@ -615,15 +615,12 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 
 	if args.CoverageOnly {
-		// Reset the coverage each time before running the fuzzFn.
-		resetCoverage()
 		ws.fuzzFn(CorpusEntry{Values: vals})
-		resp.CoverageData = coverageCopy()
+		resp.CoverageData = coverageSnapshot
 		return resp
 	}
 
-	cov := coverage()
-	if len(cov) != len(ws.coverageData) {
+	if cov := coverage(); len(cov) != len(ws.coverageData) {
 		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(cov), len(ws.coverageData)))
 	}
 	for {
@@ -635,7 +632,6 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 			resp.Count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
-			resetCoverage()
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
 				// TODO(jayconrod,katiehockman): consider making the maximum
 				// minimization time customizable with a go command flag.
@@ -651,12 +647,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 				}
 				return resp
 			}
-			for i := range cov {
-				if ws.coverageData[i] == 0 && cov[i] > ws.coverageData[i] {
+			for i := range coverageSnapshot {
+				if ws.coverageData[i] == 0 && coverageSnapshot[i] > ws.coverageData[i] {
 					// TODO(jayconrod,katie): minimize this.
-					// This run hit a new edge. Only allocate a new slice as a
-					// copy of cov if we are returning, since it is expensive.
-					resp.CoverageData = coverageCopy()
+					resp.CoverageData = coverageSnapshot
 					return resp
 				}
 			}
