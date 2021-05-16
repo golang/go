@@ -320,11 +320,19 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 258360 -->
-      TODO: <a href="https://golang.org/cl/258360">https://golang.org/cl/258360</a>: close driver.Connector if it implements io.Closer
+      The <a href="/pkg/database/sql/#DB.Close"><code>DB.Close</code></a> method now closes
+      the <code>connector</code> field if the type in this field implements the
+      <a href="/pkg/io/#Closer"><code>io.Closer</code></a> interface.
     </p>
 
     <p><!-- CL 311572 -->
-      TODO: <a href="https://golang.org/cl/311572">https://golang.org/cl/311572</a>: add NullInt16 and NullByte
+      The new
+      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
+      and 
+      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
+      structs represent the int16 and byte values that may be null. These can be used as
+      destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
+      similar to NullString.
     </p>
   </dd>
 </dl><!-- database/sql -->
