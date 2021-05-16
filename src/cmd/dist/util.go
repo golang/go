@@ -172,6 +172,9 @@ func bgwait(wg *sync.WaitGroup) {
 	select {
 	case <-done:
 	case <-dying:
+		// Don't return to the caller, to avoid reporting additional errors
+		// to the user.
+		select {}
 	}
 }
 
