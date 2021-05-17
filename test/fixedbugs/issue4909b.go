@@ -73,7 +73,7 @@ func writeDot(ns ...int) {
 		}
 		fmt.Print(")")
 		if isIndirect {
-			fmt.Print(` // ERROR "indirection"`)
+			fmt.Print(` // ERROR "indirection|embedded via a pointer"`)
 		}
 		fmt.Print("\n")
 	}
