@@ -137,7 +137,3 @@ func CleanroomDo(f func()) {
 	f()
 	pkgMap = saved
 }
-
-func IsDotAlias(sym *Sym) bool {
-	return sym.Def != nil && sym.Def.Sym() != sym
-}

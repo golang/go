@@ -101,6 +101,7 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 	case *types2.TypeName:
 		if obj.IsAlias() {
 			name = g.objCommon(pos, ir.OTYPE, g.sym(obj), class, g.typ(obj.Type()))
+			name.SetAlias(true)
 		} else {
 			name = ir.NewDeclNameAt(pos, ir.OTYPE, g.sym(obj))
 			g.objFinish(name, class, types.NewNamed(name))
