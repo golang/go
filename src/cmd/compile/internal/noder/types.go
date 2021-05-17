@@ -316,13 +316,16 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 						tparams[i] = g.typ1(rparam.Type())
 					}
 					assert(len(tparams) == len(targs))
-					subst := &subster{
-						g:       g,
-						tparams: tparams,
-						targs:   targs,
+					ts := typecheck.Tsubster{
+						Tparams: tparams,
+						Targs:   targs,
 					}
 					// Do the substitution of the type
-					meth2.SetType(subst.typ(meth.Type()))
+					meth2.SetType(ts.Typ(meth.Type()))
+					// Add any new fully instantiated types
+					// seen during the substitution to
+					// g.instTypeList.
+					g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
 					newsym.Def = meth2
 				}
 				meth = meth2

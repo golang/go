@@ -51,6 +51,11 @@ const (
 	iexportVersionCurrent = iexportVersionGenerics + 1
 )
 
+type ident struct {
+	pkg  string
+	name string
+}
+
 const predeclReserved = 32
 
 type itag uint64
@@ -124,6 +129,9 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 		declData: declData,
 		pkgIndex: make(map[*types2.Package]map[string]uint64),
 		typCache: make(map[uint64]types2.Type),
+		// Separate map for typeparams, keyed by their package and unique
+		// name (name with subscript).
+		tparamIndex: make(map[ident]types2.Type),
 	}
 
 	for i, pt := range predeclared {
@@ -202,9 +210,10 @@ type iimporter struct {
 	pkgCache     map[uint64]*types2.Package
 	posBaseCache map[uint64]*syntax.PosBase
 
-	declData []byte
-	pkgIndex map[*types2.Package]map[string]uint64
-	typCache map[uint64]types2.Type
+	declData    []byte
+	pkgIndex    map[*types2.Package]map[string]uint64
+	typCache    map[uint64]types2.Type
+	tparamIndex map[ident]types2.Type
 
 	interfaceList []*types2.Interface
 }
@@ -357,6 +366,28 @@ func (r *importReader) obj(name string) {
 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
 			}
 		}
+
+	case 'P':
+		// We need to "declare" a typeparam in order to have a name that
+		// can be referenced recursively (if needed) in the type param's
+		// bound.
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected type param type")
+		}
+		index := int(r.int64())
+		name0, sub := parseSubscript(name)
+		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
+		t := (*types2.Checker)(nil).NewTypeParam(tn, index, nil)
+		if sub == 0 {
+			errorf("missing subscript")
+		}
+		t.SetId(sub)
+		// To handle recursive references to the typeparam within its
+		// bound, save the partial type in tparamIndex before reading the bounds.
+		id := ident{r.currPkg.Name(), name}
+		r.p.tparamIndex[id] = t
+
+		t.SetBound(r.typ())
 
 	case 'V':
 		typ := r.typ()
@@ -617,34 +648,15 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		r.currPkg = r.pkg()
-		pos := r.pos()
-		name := r.string()
-
-		// Extract the subscript value from the type param name. We export
-		// and import the subscript value, so that all type params have
-		// unique names.
-		sub := uint64(0)
-		startsub := -1
-		for i, r := range name {
-			if '₀' <= r && r < '₀'+10 {
-				if startsub == -1 {
-					startsub = i
-				}
-				sub = sub*10 + uint64(r-'₀')
-			}
+		pkg, name := r.qualifiedIdent()
+		id := ident{pkg.Name(), name}
+		if t, ok := r.p.tparamIndex[id]; ok {
+			// We're already in the process of importing this typeparam.
+			return t
 		}
-		if startsub >= 0 {
-			name = name[:startsub]
-		}
-		index := int(r.int64())
-		bound := r.typ()
-		tn := types2.NewTypeName(pos, r.currPkg, name, nil)
-		t := (*types2.Checker)(nil).NewTypeParam(tn, index, bound)
-		if sub >= 0 {
-			t.SetId(sub)
-		}
-		return t
+		// Otherwise, import the definition of the typeparam now.
+		r.p.doDecl(pkg, name)
+		return r.p.tparamIndex[id]
 
 	case instType:
 		if r.p.exportVersion < iexportVersionGenerics {
@@ -752,4 +764,24 @@ func baseType(typ types2.Type) *types2.Named {
 	// receiver base types are always (possibly generic) types2.Named types
 	n, _ := typ.(*types2.Named)
 	return n
+}
+
+func parseSubscript(name string) (string, uint64) {
+	// Extract the subscript value from the type param name. We export
+	// and import the subscript value, so that all type params have
+	// unique names.
+	sub := uint64(0)
+	startsub := -1
+	for i, r := range name {
+		if '₀' <= r && r < '₀'+10 {
+			if startsub == -1 {
+				startsub = i
+			}
+			sub = sub*10 + uint64(r-'₀')
+		}
+	}
+	if startsub >= 0 {
+		name = name[:startsub]
+	}
+	return name, sub
 }

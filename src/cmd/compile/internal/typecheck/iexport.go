@@ -506,6 +506,20 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.constExt(n)
 
 	case ir.OTYPE:
+		if n.Type().Kind() == types.TTYPEPARAM && n.Type().Underlying() == n.Type() {
+			// Even though it has local scope, a typeparam requires a
+			// declaration via its package and unique name, because it
+			// may be referenced within its type bound during its own
+			// definition.
+			w.tag('P')
+			// A typeparam has a name, and has a type bound rather
+			// than an underlying type.
+			w.pos(n.Pos())
+			w.int64(int64(n.Type().Index()))
+			w.typ(n.Type().Bound())
+			break
+		}
+
 		if n.Alias() {
 			// Alias.
 			w.tag('A')
@@ -519,9 +533,10 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.pos(n.Pos())
 
 		if base.Flag.G > 0 {
-			// Export any new typeparams needed for this type
+			// Export type parameters, if any, needed for this type
 			w.typeList(n.Type().RParams())
 		}
+
 		underlying := n.Type().Underlying()
 		if underlying == types.ErrorType.Underlying() {
 			// For "type T error", use error as the
@@ -837,26 +852,6 @@ func (w *exportWriter) startType(k itag) {
 }
 
 func (w *exportWriter) doTyp(t *types.Type) {
-	if t.Kind() == types.TTYPEPARAM {
-		assert(base.Flag.G > 0)
-		// A typeparam has a name, but doesn't have an underlying type.
-		// Just write out the details of the type param here. All other
-		// uses of this typeparam type will be written out as its unique
-		// type offset.
-		w.startType(typeParamType)
-		s := t.Sym()
-		w.setPkg(s.Pkg, true)
-		w.pos(t.Pos())
-
-		// We are writing out the name with the subscript, so that the
-		// typeparam name is unique.
-		w.string(s.Name)
-		w.int64(int64(t.Index()))
-
-		w.typ(t.Bound())
-		return
-	}
-
 	s := t.Sym()
 	if s != nil && t.OrigSym != nil {
 		assert(base.Flag.G > 0)
@@ -877,6 +872,21 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// Export a reference to the base type.
 		baseType := t.OrigSym.Def.(*ir.Name).Type()
 		w.typ(baseType)
+		return
+	}
+
+	// The 't.Underlying() == t' check is to confirm this is a base typeparam
+	// type, rather than a defined type with typeparam underlying type, like:
+	// type orderedAbs[T any] T
+	if t.Kind() == types.TTYPEPARAM && t.Underlying() == t {
+		assert(base.Flag.G > 0)
+		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+			base.Fatalf("builtin type missing from typIndex: %v", t)
+		}
+		// Write out the first use of a type param as a qualified ident.
+		// This will force a "declaration" of the type param.
+		w.startType(typeParamType)
+		w.qualifiedIdent(t.Obj().(*ir.Name))
 		return
 	}
 
@@ -1325,14 +1335,20 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	// Inline body.
 	if n.Type().HasTParam() {
 		if n.Func.Inl != nil {
-			base.FatalfAt(n.Pos(), "generic function is marked inlineable")
-		}
-		// Populate n.Func.Inl, so body of exported generic function will
-		// be written out.
-		n.Func.Inl = &ir.Inline{
-			Cost: 1,
-			Dcl:  n.Func.Dcl,
-			Body: n.Func.Body,
+			// n.Func.Inl may already be set on a generic function if
+			// we imported it from another package, but shouldn't be
+			// set for a generic function in the local package.
+			if n.Sym().Pkg == types.LocalPkg {
+				base.FatalfAt(n.Pos(), "generic function is marked inlineable")
+			}
+		} else {
+			// Populate n.Func.Inl, so body of exported generic function will
+			// be written out.
+			n.Func.Inl = &ir.Inline{
+				Cost: 1,
+				Dcl:  n.Func.Dcl,
+				Body: n.Func.Body,
+			}
 		}
 	}
 	if n.Func.Inl != nil {

@@ -1,13 +1,10 @@
-// run -gcflags=-G=3
-
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package a
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -67,31 +64,12 @@ func (a complexAbs[T]) Abs() complexAbs[T] {
 
 // OrderedAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of an ordered type.
-func orderedAbsDifference[T orderedNumeric](a, b T) T {
+func OrderedAbsDifference[T orderedNumeric](a, b T) T {
 	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
 }
 
 // ComplexAbsDifference returns the absolute value of the difference
 // between a and b, where a and b are of a complex type.
-func complexAbsDifference[T Complex](a, b T) T {
+func ComplexAbsDifference[T Complex](a, b T) T {
 	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
-}
-
-func main() {
-	if got, want := orderedAbsDifference(1.0, -2.0), 3.0; got != want {
-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
-	}
-	if got, want := orderedAbsDifference(-1.0, 2.0), 3.0; got != want {
-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
-	}
-	if got, want := orderedAbsDifference(-20, 15), 35; got != want {
-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
-	}
-
-	if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5+0i; got != want {
-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
-	}
-	if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5+0i; got != want {
-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
-	}
 }

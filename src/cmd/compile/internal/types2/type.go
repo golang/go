@@ -640,9 +640,8 @@ type TypeParam struct {
 // Obj returns the type name for the type parameter t.
 func (t *TypeParam) Obj() *TypeName { return t.obj }
 
-// NewTypeParam returns a new TypeParam.
+// NewTypeParam returns a new TypeParam.  bound can be nil (and set later).
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
-	assert(bound != nil)
 	// Always increment lastID, even if it is not used.
 	id := nextID()
 	if check != nil {
@@ -679,11 +678,20 @@ func (t *TypeParam) Bound() *Interface {
 	return iface
 }
 
-// optype returns a type's operational type. Except for type parameters,
-// the operational type is the same as the underlying type (as returned
-// by under). For Type parameters, the operational type is determined
-// by the corresponding type constraint. The result may be the top type,
-// but it is never the incoming type parameter.
+func (t *TypeParam) SetBound(bound Type) {
+	if bound == nil {
+		panic("types2.TypeParam.SetBound: bound must not be nil")
+	}
+	t.bound = bound
+}
+
+// optype returns a type's operational type. Except for
+// type parameters, the operational type is the same
+// as the underlying type (as returned by under). For
+// Type parameters, the operational type is determined
+// by the corresponding type bound's type list. The
+// result may be the bottom or top type, but it is never
+// the incoming type parameter.
 func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have

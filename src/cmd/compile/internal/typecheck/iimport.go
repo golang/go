@@ -342,19 +342,22 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		// declaration before recursing.
 		n := importtype(r.p.ipkg, pos, sym)
 		t := n.Type()
-
-		// We also need to defer width calculations until
-		// after the underlying type has been assigned.
-		types.DeferCheckSize()
-		underlying := r.typ()
-		t.SetUnderlying(underlying)
-		types.ResumeCheckSize()
-
 		if rparams != nil {
 			t.SetRParams(rparams)
 		}
 
+		// We also need to defer width calculations until
+		// after the underlying type has been assigned.
+		types.DeferCheckSize()
+		deferDoInst()
+		underlying := r.typ()
+		t.SetUnderlying(underlying)
+
 		if underlying.IsInterface() {
+			// Finish up all type instantiations and CheckSize calls
+			// now that a top-level type is fully constructed.
+			resumeDoInst()
+			types.ResumeCheckSize()
 			r.typeExt(t)
 			return n
 		}
@@ -380,11 +383,37 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		}
 		t.Methods().Set(ms)
 
+		// Finish up all instantiations and CheckSize calls now
+		// that a top-level type is fully constructed.
+		resumeDoInst()
+		types.ResumeCheckSize()
+
 		r.typeExt(t)
 		for _, m := range ms {
 			r.methExt(m)
 		}
 		return n
+
+	case 'P':
+		if r.p.exportVersion < iexportVersionGenerics {
+			base.Fatalf("unexpected type param type")
+		}
+		if sym.Def != nil {
+			// Make sure we use the same type param type for the same
+			// name, whether it is created during types1-import or
+			// this types2-to-types1 translation.
+			return sym.Def.(*ir.Name)
+		}
+		index := int(r.int64())
+		t := types.NewTypeParam(sym, index)
+		// Nname needed to save the pos.
+		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+		sym.Def = nname
+		nname.SetType(t)
+		t.SetNod(nname)
+
+		t.SetBound(r.typ())
+		return nname
 
 	case 'V':
 		typ := r.typ()
@@ -545,7 +574,12 @@ func (r *importReader) pos() src.XPos {
 }
 
 func (r *importReader) typ() *types.Type {
-	return r.p.typAt(r.uint64())
+	// If this is a top-level type call, defer type instantiations until the
+	// type is fully constructed.
+	deferDoInst()
+	t := r.p.typAt(r.uint64())
+	resumeDoInst()
+	return t
 }
 
 func (r *importReader) exoticType() *types.Type {
@@ -683,7 +717,13 @@ func (p *iimporter) typAt(off uint64) *types.Type {
 		// are pushed to compile queue, then draining from the queue for compiling.
 		// During this process, the size calculation is disabled, so it is not safe for
 		// calculating size during SSA generation anymore. See issue #44732.
-		types.CheckSize(t)
+		//
+		// No need to calc sizes for re-instantiated generic types, and
+		// they are not necessarily resolved until the top-level type is
+		// defined (because of recursive types).
+		if t.OrigSym == nil || !t.HasTParam() {
+			types.CheckSize(t)
+		}
 		p.typCache[off] = t
 	}
 	return t
@@ -779,27 +819,18 @@ func (r *importReader) typ1() *types.Type {
 		if r.p.exportVersion < iexportVersionGenerics {
 			base.Fatalf("unexpected type param type")
 		}
-		r.setPkg()
-		pos := r.pos()
-		name := r.string()
-		sym := r.currPkg.Lookup(name)
-		index := int(r.int64())
-		bound := r.typ()
-		if sym.Def != nil {
-			// Make sure we use the same type param type for the same
-			// name, whether it is created during types1-import or
-			// this types2-to-types1 translation.
-			return sym.Def.Type()
+		// Similar to code for defined types, since we "declared"
+		// typeparams to deal with recursion (typeparam is used within its
+		// own type bound).
+		ident := r.qualifiedIdent()
+		if ident.Sym().Def != nil {
+			return ident.Sym().Def.(*ir.Name).Type()
 		}
-		t := types.NewTypeParam(sym, index)
-		// Nname needed to save the pos.
-		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
-		sym.Def = nname
-		nname.SetType(t)
-		t.SetNod(nname)
-
-		t.SetBound(bound)
-		return t
+		n := expandDecl(ident)
+		if n.Op() != ir.OTYPE {
+			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
+		}
+		return n.Type()
 
 	case instType:
 		if r.p.exportVersion < iexportVersionGenerics {
@@ -1758,20 +1789,91 @@ func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types
 	name := InstTypeName(baseSym.Name, targs)
 	instSym := baseSym.Pkg.Lookup(name)
 	if instSym.Def != nil {
+		// May match existing type from previous import or
+		// types2-to-types1 conversion, or from in-progress instantiation
+		// in the current type import stack.
 		return instSym.Def.Type()
 	}
 
 	t := NewIncompleteNamedType(baseType.Pos(), instSym)
 	t.SetRParams(targs)
-	// baseType may not yet be complete (since we are in the middle of
-	// importing it), but its underlying type will be updated when baseType's
-	// underlying type is finished.
-	t.SetUnderlying(baseType.Underlying())
-
-	// As with types2, the methods are the generic method signatures (without
-	// substitution).
-	t.Methods().Set(baseType.Methods().Slice())
 	t.OrigSym = baseSym
 
+	// baseType may still be TFORW or its methods may not be fully filled in
+	// (since we are in the middle of importing it). So, delay call to
+	// substInstType until we get back up to the top of the current top-most
+	// type import.
+	deferredInstStack = append(deferredInstStack, t)
+
 	return t
+}
+
+var deferredInstStack []*types.Type
+var deferInst int
+
+// deferDoInst defers substitution on instantiated types until we are at the
+// top-most defined type, so the base types are fully defined.
+func deferDoInst() {
+	deferInst++
+}
+
+func resumeDoInst() {
+	if deferInst == 1 {
+		for len(deferredInstStack) > 0 {
+			t := deferredInstStack[0]
+			deferredInstStack = deferredInstStack[1:]
+			substInstType(t, t.OrigSym.Def.(*ir.Name).Type(), t.RParams())
+		}
+	}
+	deferInst--
+}
+
+// doInst creates a new instantiation type (which will be added to
+// deferredInstStack for completion later) for an incomplete type encountered
+// during a type substitution for an instantiation. This is needed for
+// instantiations of mutually recursive types.
+func doInst(t *types.Type) *types.Type {
+	return Instantiate(t.Pos(), t.OrigSym.Def.(*ir.Name).Type(), t.RParams())
+}
+
+// substInstType completes the instantiation of a generic type by doing a
+// substitution on the underlying type itself and any methods. t is the
+// instantiation being created, baseType is the base generic type, and targs are
+// the type arguments that baseType is being instantiated with.
+func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+	subst := Tsubster{
+		Tparams:       baseType.RParams(),
+		Targs:         targs,
+		SubstForwFunc: doInst,
+	}
+	t.SetUnderlying(subst.Typ(baseType.Underlying()))
+
+	newfields := make([]*types.Field, baseType.Methods().Len())
+	for i, f := range baseType.Methods().Slice() {
+		recvType := f.Type.Recv().Type
+		if recvType.IsPtr() {
+			recvType = recvType.Elem()
+		}
+		// Substitute in the method using the type params used in the
+		// method (not the type params in the definition of the generic type).
+		subst := Tsubster{
+			Tparams:       recvType.RParams(),
+			Targs:         targs,
+			SubstForwFunc: doInst,
+		}
+		t2 := subst.Typ(f.Type)
+		oldsym := f.Nname.Sym()
+		newsym := MakeInstName(oldsym, targs, true)
+		var nname *ir.Name
+		if newsym.Def != nil {
+			nname = newsym.Def.(*ir.Name)
+		} else {
+			nname = ir.NewNameAt(f.Pos, newsym)
+			nname.SetType(t2)
+			newsym.Def = nname
+		}
+		newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+		newfields[i].Nname = nname
+	}
+	t.Methods().Set(newfields)
 }
