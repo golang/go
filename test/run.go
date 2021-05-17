@@ -42,6 +42,7 @@ var (
 	linkshared     = flag.Bool("linkshared", false, "")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
+	generics       = flag.String("G", "0,3", "a comma-separated list of -G compiler flags to test with")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
@@ -82,6 +83,15 @@ const maxTests = 5000
 func main() {
 	flag.Parse()
 
+	var glevels []int
+	for _, s := range strings.Split(*generics, ",") {
+		glevel, err := strconv.Atoi(s)
+		if err != nil {
+			log.Fatalf("invalid -G flag: %v", err)
+		}
+		glevels = append(glevels, glevel)
+	}
+
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
 	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
@@ -113,11 +123,11 @@ func main() {
 			}
 			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
 				for _, baseGoFile := range goFiles(arg) {
-					tests = append(tests, startTest(arg, baseGoFile))
+					tests = append(tests, startTests(arg, baseGoFile, glevels)...)
 				}
 			} else if strings.HasSuffix(arg, ".go") {
 				dir, file := filepath.Split(arg)
-				tests = append(tests, startTest(dir, file))
+				tests = append(tests, startTests(dir, file, glevels)...)
 			} else {
 				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
 			}
@@ -125,7 +135,7 @@ func main() {
 	} else {
 		for _, dir := range dirs {
 			for _, baseGoFile := range goFiles(dir) {
-				tests = append(tests, startTest(dir, baseGoFile))
+				tests = append(tests, startTests(dir, baseGoFile, glevels)...)
 			}
 		}
 	}
@@ -151,7 +161,8 @@ func main() {
 		resCount[status]++
 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
 		if status == "FAIL" {
-			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
+			fmt.Printf("# go run run.go -G=%v %s\n%s\nFAIL\t%s\t%s\n",
+				test.glevel,
 				path.Join(test.dir, test.gofile),
 				errStr, test.goFileName(), dt)
 			continue
@@ -270,6 +281,7 @@ type test struct {
 	dir, gofile string
 	donec       chan bool // closed when done
 	dt          time.Duration
+	glevel      int // what -G level this test should use
 
 	src string
 
@@ -277,23 +289,27 @@ type test struct {
 	err     error
 }
 
-// startTest
-func startTest(dir, gofile string) *test {
-	t := &test{
-		dir:    dir,
-		gofile: gofile,
-		donec:  make(chan bool, 1),
+func startTests(dir, gofile string, glevels []int) []*test {
+	tests := make([]*test, len(glevels))
+	for i, glevel := range glevels {
+		t := &test{
+			dir:    dir,
+			gofile: gofile,
+			glevel: glevel,
+			donec:  make(chan bool, 1),
+		}
+		if toRun == nil {
+			toRun = make(chan *test, maxTests)
+			go runTests()
+		}
+		select {
+		case toRun <- t:
+		default:
+			panic("toRun buffer size (maxTests) is too small")
+		}
+		tests[i] = t
 	}
-	if toRun == nil {
-		toRun = make(chan *test, maxTests)
-		go runTests()
-	}
-	select {
-	case toRun <- t:
-	default:
-		panic("toRun buffer size (maxTests) is too small")
-	}
-	return t
+	return tests
 }
 
 // runTests runs tests in parallel, but respecting the order they
@@ -480,12 +496,16 @@ func init() { checkShouldTest() }
 // This must match the flags used for building the standard library,
 // or else the commands will rebuild any needed packages (like runtime)
 // over and over.
-func goGcflags() string {
-	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
+func (t *test) goGcflags() string {
+	flags := os.Getenv("GO_GCFLAGS")
+	if t.glevel != 0 {
+		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
+	}
+	return "-gcflags=all=" + flags
 }
 
-func goGcflagsIsEmpty() bool {
-	return "" == os.Getenv("GO_GCFLAGS")
+func (t *test) goGcflagsIsEmpty() bool {
+	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == 0
 }
 
 var errTimeout = errors.New("command exceeded time limit")
@@ -497,6 +517,17 @@ func (t *test) run() {
 		t.dt = time.Since(start)
 		close(t.donec)
 	}()
+
+	if t.glevel > 0 {
+		// Files excluded from generics testing.
+		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+		if excludedFiles[filename] {
+			if *verbose {
+				fmt.Printf("excl\t%s\n", filename)
+			}
+			return
+		}
+	}
 
 	srcBytes, err := ioutil.ReadFile(t.goFileName())
 	if err != nil {
@@ -616,6 +647,49 @@ func (t *test) run() {
 		}
 	}
 
+	type Tool int
+
+	const (
+		_ Tool = iota
+		AsmCheck
+		Build
+		Run
+		Compile
+	)
+
+	// checkFlags reports whether the current test configuration should
+	// be skipped because flags (which should be an arguments list for
+	// "go tool compile", not "go build") contains an excluded flag.
+	// It will also update flags as appropriate.
+	checkFlags := func(tool Tool) bool {
+		if t.glevel > 0 {
+			return true
+		}
+
+		switch tool {
+		case Build, Run:
+			// ok; handled in goGcflags
+
+		case Compile:
+			for _, flag := range flags {
+				for _, pattern := range excludedFlags {
+					if strings.Contains(flag, pattern) {
+						if *verbose {
+							fmt.Printf("excl\t%s\t%s\n", t.goFileName(), flags)
+						}
+						return true // cannot handle flag
+					}
+				}
+			}
+			flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
+
+		default:
+			return false
+		}
+
+		return true
+	}
+
 	t.makeTempDir()
 	if !*keep {
 		defer os.RemoveAll(t.tempDir)
@@ -692,6 +766,10 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "asmcheck":
+		if !checkFlags(AsmCheck) {
+			return
+		}
+
 		// Compile Go file and match the generated assembly
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
@@ -746,6 +824,10 @@ func (t *test) run() {
 		return
 
 	case "errorcheck":
+		if !checkFlags(Compile) {
+			return
+		}
+
 		// Compile Go file.
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
@@ -774,72 +856,20 @@ func (t *test) run() {
 			t.updateErrors(string(out), long)
 		}
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
-		if t.err != nil {
-			return // don't hide error if run below succeeds
-		}
-
-		// The following is temporary scaffolding to get types2 typechecker
-		// up and running against the existing test cases. The explicitly
-		// listed files don't pass yet, usually because the error messages
-		// are slightly different (this list is not complete). Any errorcheck
-		// tests that require output from analysis phases past initial type-
-		// checking are also excluded since these phases are not running yet.
-		// We can get rid of this code once types2 is fully plugged in.
-
-		// For now we're done when we can't handle the file or some of the flags.
-		// The first goal is to eliminate the excluded list; the second goal is to
-		// eliminate the flag list.
-
-		// Excluded files.
-		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
-		if excluded[filename] {
-			if *verbose {
-				fmt.Printf("excl\t%s\n", filename)
-			}
-			return // cannot handle file yet
-		}
-
-		// Excluded flags.
-		for _, flag := range flags {
-			for _, pattern := range []string{
-				"-m",
-			} {
-				if strings.Contains(flag, pattern) {
-					if *verbose {
-						fmt.Printf("excl\t%s\t%s\n", filename, flags)
-					}
-					return // cannot handle flag
-				}
-			}
-		}
-
-		// Run errorcheck again with -G option (new typechecker).
-		cmdline = []string{goTool(), "tool", "compile", "-G=3", "-C", "-e", "-o", "a.o"}
-		// No need to add -dynlink even if linkshared if we're just checking for errors...
-		cmdline = append(cmdline, flags...)
-		cmdline = append(cmdline, long)
-		out, err = runcmd(cmdline...)
-		if wantError {
-			if err == nil {
-				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
-				return
-			}
-		} else {
-			if err != nil {
-				t.err = err
-				return
-			}
-		}
-		if *updateErrors {
-			t.updateErrors(string(out), long)
-		}
-		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
+		if !checkFlags(Compile) {
+			return
+		}
+
 		// Compile Go file.
 		_, t.err = compileFile(runcmd, long, flags)
 
 	case "compiledir":
+		if !checkFlags(Compile) {
+			return
+		}
+
 		// Compile all files in the directory as packages in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
@@ -855,6 +885,10 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
+		if !checkFlags(Compile) {
+			return
+		}
+
 		flags = append(flags, "-d=panic")
 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
 		// If errorcheckdir and wantError, compilation of the last package must fail.
@@ -900,6 +934,10 @@ func (t *test) run() {
 		fallthrough
 
 	case "rundir":
+		if !checkFlags(Run) {
+			return
+		}
+
 		// Compile all files in the directory as packages in lexicographic order.
 		// In case of errorcheckandrundir, ignore failed compilation of the package before the last.
 		// Link as if the last file is the main package, run it.
@@ -958,6 +996,10 @@ func (t *test) run() {
 		}
 
 	case "runindir":
+		if !checkFlags(Run) {
+			return
+		}
+
 		// Make a shallow copy of t.goDirName() in its own module and GOPATH, and
 		// run "go run ." in it. The module path (and hence import path prefix) of
 		// the copy is equal to the basename of the source directory.
@@ -983,7 +1025,7 @@ func (t *test) run() {
 			return
 		}
 
-		cmd := []string{goTool(), "run", goGcflags()}
+		cmd := []string{goTool(), "run", t.goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -997,13 +1039,21 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "build":
+		if !checkFlags(Build) {
+			return
+		}
+
 		// Build Go file.
-		_, err := runcmd(goTool(), "build", goGcflags(), "-o", "a.exe", long)
+		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
 		if err != nil {
 			t.err = err
 		}
 
 	case "builddir", "buildrundir":
+		if !checkFlags(Build) {
+			return
+		}
+
 		// Build an executable from all the .go and .s files in a subdirectory.
 		// Run it and verify its output in the buildrundir case.
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -1083,10 +1133,14 @@ func (t *test) run() {
 		}
 
 	case "buildrun":
+		if !checkFlags(Build) {
+			return
+		}
+
 		// Build an executable from Go file, then run it, verify its output.
 		// Useful for timeout tests where failure mode is infinite loop.
 		// TODO: not supported on NaCl
-		cmd := []string{goTool(), "build", goGcflags(), "-o", "a.exe"}
+		cmd := []string{goTool(), "build", t.goGcflags(), "-o", "a.exe"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -1108,13 +1162,17 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "run":
+		if !checkFlags(Run) {
+			return
+		}
+
 		// Run Go file if no special go command flags are provided;
 		// otherwise build an executable and run it.
 		// Verify the output.
 		runInDir = ""
 		var out []byte
 		var err error
-		if len(flags)+len(args) == 0 && goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
+		if len(flags)+len(args) == 0 && t.goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
 			// If we're not using special go command flags,
 			// skip all the go command machinery.
 			// This avoids any time the go command would
@@ -1136,7 +1194,7 @@ func (t *test) run() {
 			}
 			out, err = runcmd(append([]string{exe}, args...)...)
 		} else {
-			cmd := []string{goTool(), "run", goGcflags()}
+			cmd := []string{goTool(), "run", t.goGcflags()}
 			if *linkshared {
 				cmd = append(cmd, "-linkshared")
 			}
@@ -1151,6 +1209,10 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "runoutput":
+		if !checkFlags(Run) {
+			return
+		}
+
 		// Run Go file and write its output into temporary Go file.
 		// Run generated Go file and verify its output.
 		rungatec <- true
@@ -1158,7 +1220,7 @@ func (t *test) run() {
 			<-rungatec
 		}()
 		runInDir = ""
-		cmd := []string{goTool(), "run", goGcflags()}
+		cmd := []string{goTool(), "run", t.goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -1173,7 +1235,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmd = []string{goTool(), "run", goGcflags()}
+		cmd = []string{goTool(), "run", t.goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -1186,10 +1248,14 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
+		if !checkFlags(Compile) {
+			return
+		}
+
 		// Run Go file and write its output into temporary Go file.
 		// Compile and errorCheck generated Go file.
 		runInDir = ""
-		cmd := []string{goTool(), "run", goGcflags()}
+		cmd := []string{goTool(), "run", t.goGcflags()}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
 		}
@@ -1941,9 +2007,26 @@ func overlayDir(dstRoot, srcRoot string) error {
 	})
 }
 
+// The following is temporary scaffolding to get types2 typechecker
+// up and running against the existing test cases. The explicitly
+// listed files don't pass yet, usually because the error messages
+// are slightly different (this list is not complete). Any errorcheck
+// tests that require output from analysis phases past initial type-
+// checking are also excluded since these phases are not running yet.
+// We can get rid of this code once types2 is fully plugged in.
+
+// For now we skip tests when we can't handle the file or some of the flags.
+// The first goal is to eliminate the excluded list; the second goal is to
+// eliminate the flag list.
+
+var excludedFlags = []string{
+	"-G", // skip redundant testing
+	"-m",
+}
+
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
-var excluded = map[string]bool{
+var excludedFiles = map[string]bool{
 	"complit1.go":     true, // types2 reports extra errors
 	"const2.go":       true, // types2 not run after syntax errors
 	"ddd1.go":         true, // issue #42987
@@ -1955,51 +2038,73 @@ var excluded = map[string]bool{
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+	"printbig.go":     true, // large untyped int passed to print (32-bit)
 	"shift1.go":       true, // issue #42989
+	"shift2.go":       true, // bad code generation; constant.Value of the wrong kind?
 	"typecheck.go":    true, // invalid function is not causing errors when called
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
+	"interface/private.go": true, // types2 phrases errors differently (doesn't use non-spec "private" term)
+
+	"fixedbugs/bug114.go":    true, // large untyped int passed to println (32-bit)
 	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+	"fixedbugs/bug228.go":    true, // types2 doesn't run when there are syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+	"fixedbugs/bug248.go":    true, // types2 reports different (but ok) error message
 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+	"fixedbugs/bug345.go":    true, // types2 reports different (but ok) error message
 	"fixedbugs/bug351.go":    true, // types2 reports extra errors
 	"fixedbugs/bug374.go":    true, // types2 reports extra errors
 	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
 	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
 	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+	"fixedbugs/bug420.go":    true, // ICE in irgen
+	"fixedbugs/bug460.go":    true, // types2 reports different (but probably ok) error message
 
+	"fixedbugs/issue10700.go":  true, // types2 reports ok hint, but does not match regexp
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
 	"fixedbugs/issue13415.go":  true, // declared but not used conflict
 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+	"fixedbugs/issue16133.go":  true, // types2 doesn't use package path for qualified identifiers when package name is ambiguous
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
 	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue17270.go":  true, // ICE in irgen
 	"fixedbugs/issue17645.go":  true, // multiple errors on same line
 	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
 	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+	"fixedbugs/issue18419.go":  true, // types2 reports
 	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+	"fixedbugs/issue20174.go":  true, // ICE due to width not calculated (probably irgen's fault)
 	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
 	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
 	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue23305.go":  true, // large untyped int passed to println (32-bit)
 	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+	"fixedbugs/issue31053.go":  true, // types2 reports "unknown field" instead of "cannot refer to unexported field"
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
+	"fixedbugs/issue43962.go":  true, // types2 panics when importing package named "init"
+	"fixedbugs/issue44432.go":  true, // types2 reports different (but ok) error message
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
+	"fixedbugs/issue4909b.go":  true, // types2 reports different (but ok) error message
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
-	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
 }
