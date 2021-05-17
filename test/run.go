@@ -2091,7 +2091,6 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
-	"fixedbugs/issue43962.go":  true, // types2 panics when importing package named "init"
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
