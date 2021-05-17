@@ -8,13 +8,16 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"sort"
 	"strconv"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
 
@@ -48,8 +51,16 @@ func (i *IdentifierInfo) IsImport() bool {
 
 type Declaration struct {
 	MappedRange []MappedRange
-	node        ast.Node
-	obj         types.Object
+
+	// The typechecked node.
+	node ast.Node
+	// Optional: the fully parsed spec, to be used for formatting in cases where
+	// node has missing information. This could be the case when node was parsed
+	// in ParseExported mode.
+	fullSpec ast.Spec
+
+	// The typechecked object.
+	obj types.Object
 
 	// typeSwitchImplicit indicates that the declaration is in an implicit
 	// type switch. Its type is the type of the variable on the right-hand
@@ -88,7 +99,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 			return nil, err
 		}
 		var ident *IdentifierInfo
-		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf.File, rng.Start)
+		ident, findErr = findIdentifier(ctx, snapshot, pkg, pgf, rng.Start)
 		if findErr == nil {
 			return ident, nil
 		}
@@ -99,7 +110,8 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 // ErrNoIdentFound is error returned when no identifer is found at a particular position
 var ErrNoIdentFound = errors.New("no identifier found")
 
-func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos) (*IdentifierInfo, error) {
+	file := pgf.File
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
 	if result, err := importSpec(snapshot, pkg, file, pos); result != nil || err != nil {
@@ -269,6 +281,12 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 	if result.Declaration.node, err = snapshot.PosToDecl(ctx, declPkg, result.Declaration.obj.Pos()); err != nil {
 		return nil, err
 	}
+	// Ensure that we have the full declaration, in case the declaration was
+	// parsed in ParseExported and therefore could be missing information.
+	result.Declaration.fullSpec, err = fullSpec(snapshot, result.Declaration.obj, declPkg)
+	if err != nil {
+		return nil, err
+	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
 	if typ == nil {
 		return result, nil
@@ -285,6 +303,38 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *a
 		}
 	}
 	return result, nil
+}
+
+// fullSpec tries to extract the full spec corresponding to obj's declaration.
+// If the package was not parsed in full, the declaration file will be
+// re-parsed to ensure it has complete syntax.
+func fullSpec(snapshot Snapshot, obj types.Object, pkg Package) (ast.Spec, error) {
+	// declaration in a different package... make sure we have full AST information.
+	tok := snapshot.FileSet().File(obj.Pos())
+	uri := span.URIFromPath(tok.Name())
+	pgf, err := pkg.File(uri)
+	if err != nil {
+		return nil, err
+	}
+	file := pgf.File
+	pos := obj.Pos()
+	if pgf.Mode != ParseFull {
+		fset := snapshot.FileSet()
+		file2, _ := parser.ParseFile(fset, tok.Name(), pgf.Src, parser.AllErrors|parser.ParseComments)
+		if file2 != nil {
+			offset := tok.Offset(obj.Pos())
+			file = file2
+			tok2 := fset.File(file2.Pos())
+			pos = tok2.Pos(offset)
+		}
+	}
+	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	if len(path) > 1 {
+		if spec, _ := path[1].(*ast.TypeSpec); spec != nil {
+			return spec, nil
+		}
+	}
+	return nil, nil
 }
 
 func searchForEnclosing(info *types.Info, path []ast.Node) types.Type {

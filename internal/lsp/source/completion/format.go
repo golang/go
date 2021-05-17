@@ -223,7 +223,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if err != nil {
 		return CompletionItem{}, err
 	}
-	hover, err := source.HoverInfo(ctx, c.snapshot, pkg, obj, decl)
+	hover, err := source.HoverInfo(ctx, c.snapshot, pkg, obj, decl, nil)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil

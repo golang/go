@@ -97,7 +97,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	defer done()
 
 	fset := i.Snapshot.FileSet()
-	h, err := HoverInfo(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node)
+	h, err := HoverInfo(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node, i.Declaration.fullSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 
 // HoverInfo returns a HoverInformation struct for an ast node and its type
 // object.
-func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
+func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, node ast.Node, spec ast.Spec) (*HoverInformation, error) {
 	var info *HoverInformation
 
 	switch node := node.(type) {
@@ -292,7 +292,7 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, n
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
 			var err error
-			info, err = formatGenDecl(node, obj, obj.Type())
+			info, err = formatGenDecl(node, spec, obj, obj.Type())
 			if err != nil {
 				return nil, err
 			}
@@ -364,18 +364,19 @@ func isFunctionParam(obj types.Object, node *ast.FuncDecl) bool {
 	return false
 }
 
-func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverInformation, error) {
+func formatGenDecl(node *ast.GenDecl, spec ast.Spec, obj types.Object, typ types.Type) (*HoverInformation, error) {
 	if _, ok := typ.(*types.Named); ok {
 		switch typ.Underlying().(type) {
 		case *types.Interface, *types.Struct:
-			return formatGenDecl(node, obj, typ.Underlying())
+			return formatGenDecl(node, spec, obj, typ.Underlying())
 		}
 	}
-	var spec ast.Spec
-	for _, s := range node.Specs {
-		if s.Pos() <= obj.Pos() && obj.Pos() <= s.End() {
-			spec = s
-			break
+	if spec == nil {
+		for _, s := range node.Specs {
+			if s.Pos() <= obj.Pos() && obj.Pos() <= s.End() {
+				spec = s
+				break
+			}
 		}
 	}
 	if spec == nil {
@@ -390,25 +391,29 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 	// Handle types.
 	switch spec := spec.(type) {
 	case *ast.TypeSpec:
-		comment := spec.Doc
-		if comment == nil {
-			comment = node.Doc
-		}
-		if comment == nil {
-			comment = spec.Comment
-		}
-		return &HoverInformation{
-			source:      spec.Type,
-			comment:     comment,
-			typeName:    spec.Name.Name,
-			isTypeAlias: spec.Assign.IsValid(),
-		}, nil
+		return formatTypeSpec(spec, node), nil
 	case *ast.ValueSpec:
 		return &HoverInformation{source: spec, comment: spec.Doc}, nil
 	case *ast.ImportSpec:
 		return &HoverInformation{source: spec, comment: spec.Doc}, nil
 	}
 	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
+}
+
+func formatTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverInformation {
+	comment := spec.Doc
+	if comment == nil && decl != nil {
+		comment = decl.Doc
+	}
+	if comment == nil {
+		comment = spec.Comment
+	}
+	return &HoverInformation{
+		source:      spec.Type,
+		comment:     comment,
+		typeName:    spec.Name.Name,
+		isTypeAlias: spec.Assign.IsValid(),
+	}
 }
 
 func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInformation {

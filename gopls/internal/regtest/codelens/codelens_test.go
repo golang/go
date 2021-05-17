@@ -90,7 +90,7 @@ go 1.12
 package hi
 
 var Goodbye error
-	-- golang.org/x/hello@v1.2.3/go.mod --
+-- golang.org/x/hello@v1.2.3/go.mod --
 module golang.org/x/hello
 
 go 1.12
@@ -108,8 +108,8 @@ go 1.14
 
 require golang.org/x/hello v1.2.3
 -- go.sum --
-golang.org/x/hello v1.2.3 h1:jOtNXLsiCuLzU6KM3wRHidpc29IxcKpofHZiOW1hYKA=
-golang.org/x/hello v1.2.3/go.mod h1:X79D30QqR94cGK8aIhQNhCZLq4mIr5Gimj5qekF08rY=
+golang.org/x/hello v1.2.3 h1:7Wesfkx/uBd+eFgPrq0irYj/1XfmbvLV8jZ/W7C2Dwg=
+golang.org/x/hello v1.2.3/go.mod h1:OgtlzsxVMUUdsdQCIDYgaauCTH47B8T8vofouNJfzgY=
 -- main.go --
 package main
 

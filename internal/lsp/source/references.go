@@ -73,7 +73,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	if err != nil {
 		return nil, err
 	}
-	declIdent, err := findIdentifier(ctx, snapshot, qos[0].pkg, pgf.File, qos[0].obj.Pos())
+	declIdent, err := findIdentifier(ctx, snapshot, qos[0].pkg, pgf, qos[0].obj.Pos())
 	if err != nil {
 		return nil, err
 	}
