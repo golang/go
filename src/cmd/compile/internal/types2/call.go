@@ -576,17 +576,23 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 
 		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
 
+		sig := m.typ.(*Signature)
+		if sig.recv == nil {
+			check.error(e, "illegal cycle in method declaration")
+			goto Error
+		}
+
 		// the receiver type becomes the type of the first function
 		// argument of the method expression's function type
 		var params []*Var
-		sig := m.typ.(*Signature)
 		if sig.params != nil {
 			params = sig.params.vars
 		}
+		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, sig.recv.name, x.typ)}, params...)
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,
-			params:   NewTuple(append([]*Var{NewVar(nopos, check.pkg, "_", x.typ)}, params...)...),
+			params:   NewTuple(params...),
 			results:  sig.results,
 			variadic: sig.variadic,
 		}
