@@ -1889,11 +1889,6 @@ func typecheckdef(n *ir.Name) {
 					n.SetDiag(true)
 					goto ret
 				}
-				// For package-level type aliases, set n.Sym.Def so we can identify
-				// it as a type alias during export. See also #31959.
-				if n.Curfn == nil {
-					n.Sym().Def = n.Ntype
-				}
 			}
 			break
 		}

@@ -479,7 +479,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.constExt(n)
 
 	case ir.OTYPE:
-		if types.IsDotAlias(n.Sym()) {
+		if n.Alias() {
 			// Alias.
 			w.tag('A')
 			w.pos(n.Pos())

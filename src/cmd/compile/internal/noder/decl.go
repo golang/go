@@ -104,13 +104,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
-
-		// TODO(mdempsky): This matches how typecheckdef marks aliases for
-		// export, but this won't generalize to exporting function-scoped
-		// type aliases. We should maybe just use n.Alias() instead.
-		if ir.CurFunc == nil {
-			name.Sym().Def = ir.TypeNode(name.Type())
-		}
+		assert(name.Alias()) // should be set by irgen.obj
 
 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
 		return
