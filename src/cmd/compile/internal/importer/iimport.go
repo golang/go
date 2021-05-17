@@ -99,9 +99,10 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 		ipath:   path,
 		version: int(version),
 
-		stringData:  stringData,
-		stringCache: make(map[uint64]string),
-		pkgCache:    make(map[uint64]*types2.Package),
+		stringData:   stringData,
+		stringCache:  make(map[uint64]string),
+		pkgCache:     make(map[uint64]*types2.Package),
+		posBaseCache: make(map[uint64]*syntax.PosBase),
 
 		declData: declData,
 		pkgIndex: make(map[*types2.Package]map[string]uint64),
@@ -173,9 +174,10 @@ type iimporter struct {
 	ipath   string
 	version int
 
-	stringData  []byte
-	stringCache map[uint64]string
-	pkgCache    map[uint64]*types2.Package
+	stringData   []byte
+	stringCache  map[uint64]string
+	pkgCache     map[uint64]*types2.Package
+	posBaseCache map[uint64]*syntax.PosBase
 
 	declData []byte
 	pkgIndex map[*types2.Package]map[string]uint64
@@ -228,6 +230,16 @@ func (p *iimporter) pkgAt(off uint64) *types2.Package {
 	return nil
 }
 
+func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
+	if posBase, ok := p.posBaseCache[off]; ok {
+		return posBase
+	}
+	filename := p.stringAt(off)
+	posBase := syntax.NewFileBase(filename)
+	p.posBaseCache[off] = posBase
+	return posBase
+}
+
 func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	if t, ok := p.typCache[off]; ok && (base == nil || !isInterface(t)) {
 		return t
@@ -251,12 +263,12 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 }
 
 type importReader struct {
-	p          *iimporter
-	declReader bytes.Reader
-	currPkg    *types2.Package
-	prevFile   string
-	prevLine   int64
-	prevColumn int64
+	p           *iimporter
+	declReader  bytes.Reader
+	currPkg     *types2.Package
+	prevPosBase *syntax.PosBase
+	prevLine    int64
+	prevColumn  int64
 }
 
 func (r *importReader) obj(name string) {
@@ -439,12 +451,11 @@ func (r *importReader) pos() syntax.Pos {
 		r.posv0()
 	}
 
-	if r.prevFile == "" && r.prevLine == 0 && r.prevColumn == 0 {
+	if (r.prevPosBase == nil || r.prevPosBase.Filename() == "") && r.prevLine == 0 && r.prevColumn == 0 {
 		return syntax.Pos{}
 	}
-	// TODO(gri) fix this
-	// return r.p.fake.pos(r.prevFile, int(r.prevLine), int(r.prevColumn))
-	return syntax.Pos{}
+
+	return syntax.MakePos(r.prevPosBase, uint(r.prevLine), uint(r.prevColumn))
 }
 
 func (r *importReader) posv0() {
@@ -454,7 +465,7 @@ func (r *importReader) posv0() {
 	} else if l := r.int64(); l == -1 {
 		r.prevLine += deltaNewFile
 	} else {
-		r.prevFile = r.string()
+		r.prevPosBase = r.posBase()
 		r.prevLine = l
 	}
 }
@@ -466,7 +477,7 @@ func (r *importReader) posv1() {
 		delta = r.int64()
 		r.prevLine += delta >> 1
 		if delta&1 != 0 {
-			r.prevFile = r.string()
+			r.prevPosBase = r.posBase()
 		}
 	}
 }
@@ -480,8 +491,9 @@ func isInterface(t types2.Type) bool {
 	return ok
 }
 
-func (r *importReader) pkg() *types2.Package { return r.p.pkgAt(r.uint64()) }
-func (r *importReader) string() string       { return r.p.stringAt(r.uint64()) }
+func (r *importReader) pkg() *types2.Package     { return r.p.pkgAt(r.uint64()) }
+func (r *importReader) string() string           { return r.p.stringAt(r.uint64()) }
+func (r *importReader) posBase() *syntax.PosBase { return r.p.posBaseAt(r.uint64()) }
 
 func (r *importReader) doType(base *types2.Named) types2.Type {
 	switch k := r.kind(); k {
