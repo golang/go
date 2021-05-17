@@ -2051,16 +2051,13 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
 	"fixedbugs/bug228.go":    true, // types2 doesn't run when there are syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
-	"fixedbugs/bug248.go":    true, // types2 reports different (but ok) error message
 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
-	"fixedbugs/bug345.go":    true, // types2 reports different (but ok) error message
 	"fixedbugs/bug351.go":    true, // types2 reports extra errors
 	"fixedbugs/bug374.go":    true, // types2 reports extra errors
 	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
 	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
 	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
 	"fixedbugs/bug420.go":    true, // ICE in irgen
-	"fixedbugs/bug460.go":    true, // types2 reports different (but probably ok) error message
 
 	"fixedbugs/issue10700.go":  true, // types2 reports ok hint, but does not match regexp
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
@@ -2095,10 +2092,8 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
 	"fixedbugs/issue43962.go":  true, // types2 panics when importing package named "init"
-	"fixedbugs/issue44432.go":  true, // types2 reports different (but ok) error message
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue4909b.go":  true, // types2 reports different (but ok) error message
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

@@ -50,8 +50,8 @@ var p0i2 p1.I = t0(0) // ERROR "does not implement|incompatible"
 func foobar() {
 	// check that cannot assign one to the other,
 	// but can convert.
-	v0 = v1 // ERROR "assign"
-	v1 = v0 // ERROR "assign"
+	v0 = v1 // ERROR "assign|cannot use"
+	v1 = v0 // ERROR "assign|cannot use"
 
 	v0 = p0.T(v1)
 	v1 = p1.T(v0)
