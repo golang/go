@@ -7,58 +7,18 @@ package time
 import "errors"
 
 // These are predefined layouts for use in Time.Format and time.Parse.
-// The reference time used in the layouts is the specific time:
-//	Mon Jan 2 15:04:05 MST 2006
-// which is Unix time 1136239445. Since MST is GMT-0700,
-// the reference time can be thought of as
+// The reference time used in these layouts is the specific time stamp:
 //	01/02 03:04:05PM '06 -0700
-// To define your own format, write down what the reference time would look
-// like formatted your way; see the values of constants like ANSIC,
-// StampMicro or Kitchen for examples. The model is to demonstrate what the
-// reference time looks like so that the Format and Parse methods can apply
-// the same transformation to a general time value.
+// (January 2, 15:04:05, 2006, in time zone seven hours west of GMT).
+// That value is recorded as the constant named Layout, listed below. As a Unix
+// time, this is 1136239445. Since MST is GMT-0700, the reference would be
+// printed by the Unix date command as:
+//	Mon Jan 2 15:04:05 MST 2006
+// It is a regrettable historic error that the date uses the American convention
+// of putting the numerical month before the day.
 //
-// Some valid layouts are invalid time values for time.Parse, due to formats
-// such as _ for space padding and Z for zone information.
-//
-// Within the format string, an underscore _ represents a space that may be
-// replaced by a digit if the following number (a day) has two digits; for
-// compatibility with fixed-width Unix time formats.
-//
-// A decimal point followed by one or more zeros represents a fractional
-// second, printed to the given number of decimal places.
-// Either a comma or decimal point followed by one or more nines represents
-// a fractional second, printed to the given number of decimal places, with
-// trailing zeros removed.
-// When parsing (only), the input may contain a fractional second
-// field immediately after the seconds field, even if the layout does not
-// signify its presence. In that case either a comma or a decimal point
-// followed by a maximal series of digits is parsed as a fractional second.
-//
-// Numeric time zone offsets format as follows:
-//	-0700  ±hhmm
-//	-07:00 ±hh:mm
-//	-07    ±hh
-// Replacing the sign in the format with a Z triggers
-// the ISO 8601 behavior of printing Z instead of an
-// offset for the UTC zone. Thus:
-//	Z0700  Z or ±hhmm
-//	Z07:00 Z or ±hh:mm
-//	Z07    Z or ±hh
-//
-// The recognized day of week formats are "Mon" and "Monday".
-// The recognized month formats are "Jan" and "January".
-//
-// The formats 2, _2, and 02 are unpadded, space-padded, and zero-padded
-// day of month. The formats __2 and 002 are space-padded and zero-padded
-// three-character day of year; there is no unpadded day of year format.
-//
-// Text in the format string that is not recognized as part of the reference
-// time is echoed verbatim during Format and expected to appear verbatim
-// in the input to Parse.
-//
-// The executable example for Time.Format demonstrates the working
-// of the layout string in detail and is a good reference.
+// The example for Time.Format demonstrates the working of the layout string
+// in detail and is a good reference.
 //
 // Note that the RFC822, RFC850, and RFC1123 formats should be applied
 // only to local times. Applying them to UTC times will use "UTC" as the
@@ -71,7 +31,65 @@ import "errors"
 // permitted by the RFCs and they do accept time formats not formally defined.
 // The RFC3339Nano format removes trailing zeros from the seconds field
 // and thus may not sort correctly once formatted.
+//
+// Most programs can use one of the defined constants as the layout passed to
+// Format or Parse. The rest of this comment can be ignored unless you are
+// creating a custom layout string.
+//
+// To define your own format, write down what the reference time would look like
+// formatted your way; see the values of constants like ANSIC, StampMicro or
+// Kitchen for examples. The model is to demonstrate what the reference time
+// looks like so that the Format and Parse methods can apply the same
+// transformation to a general time value.
+//
+// Here is a summary of the components of a layout string. Each element shows by
+// example the formatting of an element of the reference time. Only these values
+// are recognized. Text in the layout string that is not recognized as part of
+// the reference time is echoed verbatim during Format and expected to appear
+// verbatim in the input to Parse.
+//
+//	Year: "2006" "06"
+//	Month: "Jan" "January"
+//	Textual day of the week: "Mon" "Monday"
+//	Numeric day of the month: "2" "_2" "02"
+//	Numeric day of the year: "__2" "002"
+//	Hour: "15" "3" "03" (PM or AM)
+//	Minute: "4" "04"
+//	Second: "5" "05"
+//	AM/PM mark: "PM"
+//
+// Numeric time zone offsets format as follows:
+//	"-0700"  ±hhmm
+//	"-07:00" ±hh:mm
+//	"-07"    ±hh
+// Replacing the sign in the format with a Z triggers
+// the ISO 8601 behavior of printing Z instead of an
+// offset for the UTC zone. Thus:
+//	"Z0700"  Z or ±hhmm
+//	"Z07:00" Z or ±hh:mm
+//	"Z07"    Z or ±hh
+//
+// Within the format string, the underscores in "_2" and "__2" represent spaces
+// that may be replaced by digits if the following number has multiple digits,
+// for compatibility with fixed-width Unix time formats. A leading zero represents
+// a zero-padded value.
+//
+// The formats  and 002 are space-padded and zero-padded
+// three-character day of year; there is no unpadded day of year format.
+//
+// A decimal point followed by one or more zeros represents a fractional
+// second, printed to the given number of decimal places.
+// Either a comma or decimal point followed by one or more nines represents
+// a fractional second, printed to the given number of decimal places, with
+// trailing zeros removed.
+// For example "15:04:05,000" or "15:04:05.000" formats or parses with
+// millisecond precision.
+//
+// Some valid layouts are invalid time values for time.Parse, due to formats
+// such as _ for space padding and Z for zone information.
+//
 const (
+	Layout      = "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
 	RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
@@ -531,23 +549,12 @@ func (t Time) GoString() string {
 	return string(buf)
 }
 
-// Format returns a textual representation of the time value formatted
-// according to layout, which defines the format by showing how the reference
-// time, defined to be
-//	Mon Jan 2 15:04:05 -0700 MST 2006
-// would be displayed if it were the value; it serves as an example of the
-// desired output. The same display rules will then be applied to the time
-// value.
+// Format returns a textual representation of the time value formatted according
+// to the layout defined by the argument. See the documentation for the
+// constant called Layout to see how to represent the layout format.
 //
-// A fractional second is represented by adding either a comma or a
-// period and zeros to the end of the seconds section of layout string,
-// as in "15:04:05,000" or "15:04:05.000" to format a time stamp with
-// millisecond precision.
-//
-// Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
-// and convenient representations of the reference time. For more information
-// about the formats and the definition of the reference time, see the
-// documentation for ANSIC and the other constants defined by this package.
+// The executable example for Time.Format demonstrates the working
+// of the layout string in detail and is a good reference.
 func (t Time) Format(layout string) string {
 	const bufSize = 64
 	var b []byte
@@ -855,21 +862,19 @@ func skip(value, prefix string) (string, error) {
 }
 
 // Parse parses a formatted string and returns the time value it represents.
-// The layout defines the format by showing how the reference time,
-// defined to be
-//	Mon Jan 2 15:04:05 -0700 MST 2006
-// would be interpreted if it were the value; it serves as an example of
-// the input format. The same interpretation will then be made to the
-// input string.
+// See the documentation for the constant called Layout to see how to
+// represent the format. The second argument must be parseable using
+// the format string (layout) provided as the first argument.
 //
-// Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
-// and convenient representations of the reference time. For more information
-// about the formats and the definition of the reference time, see the
-// documentation for ANSIC and the other constants defined by this package.
-// Also, the executable example for Time.Format demonstrates the working
-// of the layout string in detail and is a good reference.
+// The example for Time.Format demonstrates the working of the layout string
+// in detail and is a good reference.
 //
-// Elements omitted from the value are assumed to be zero or, when
+// When parsing (only), the input may contain a fractional second
+// field immediately after the seconds field, even if the layout does not
+// signify its presence. In that case either a comma or a decimal point
+// followed by a maximal series of digits is parsed as a fractional second.
+//
+// Elements omitted from the layout are assumed to be zero or, when
 // zero is impossible, one, so parsing "3:04pm" returns the time
 // corresponding to Jan 1, year 0, 15:04:00 UTC (note that because the year is
 // 0, this time is before the zero Time).
@@ -878,6 +883,8 @@ func skip(value, prefix string) (string, error) {
 //
 // For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
 // as 19NN and a value NN < 69 will be treated as 20NN.
+//
+// The remainder of this comment describes the handling of time zones.
 //
 // In the absence of a time zone indicator, Parse returns a time in UTC.
 //
