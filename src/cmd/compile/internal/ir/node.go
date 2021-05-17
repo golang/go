@@ -563,7 +563,7 @@ func OuterValue(n Node) Node {
 	for {
 		switch nn := n; nn.Op() {
 		case OXDOT:
-			base.Fatalf("OXDOT in walk")
+			base.FatalfAt(n.Pos(), "OXDOT in walk: %v", n)
 		case ODOT:
 			nn := nn.(*SelectorExpr)
 			n = nn.X
