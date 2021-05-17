@@ -767,8 +767,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		//           uses of real() where the result is used to
 		//           define type and initialize a variable?
 
-		// construct a suitable new type parameter
-		tpar := NewTypeName(nopos, nil /* = Universe pkg */, "<type parameter>", nil)
+		// Construct a suitable new type parameter for the sum type. The
+		// type param is placed in the current package so export/import
+		// works as expected.
+		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
 		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
 		tsum := newUnion(rtypes, tildes)
 		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}

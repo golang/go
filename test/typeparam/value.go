@@ -12,7 +12,7 @@ type value[T any] struct {
 	val T
 }
 
-func get[T2 any](v *value[T2]) T2 {
+func get[T any](v *value[T]) T {
 	return v.val
 }
 
@@ -20,11 +20,11 @@ func set[T any](v *value[T], val T) {
 	v.val = val
 }
 
-func (v *value[T2]) set(val T2) {
+func (v *value[T]) set(val T) {
 	v.val = val
 }
 
-func (v *value[T2]) get() T2 {
+func (v *value[T]) get() T {
 	return v.val
 }
 

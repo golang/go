@@ -15,7 +15,6 @@ import (
 	"cmd/compile/internal/types"
 	"fmt"
 	"go/constant"
-	"strings"
 )
 
 // For catching problems as we add more features
@@ -425,13 +424,6 @@ func (g *irgen) instantiateMethods() {
 
 }
 
-// genericSym returns the name of the base generic type for the type named by
-// sym. It simply returns the name obtained by removing everything after the
-// first bracket ("[").
-func genericTypeName(sym *types.Sym) string {
-	return sym.Name[0:strings.Index(sym.Name, "[")]
-}
-
 // getInstantiationForNode returns the function/method instantiation for a
 // InstExpr node inst.
 func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
@@ -479,11 +471,7 @@ type subster struct {
 	g        *irgen
 	isMethod bool     // If a method is being instantiated
 	newf     *ir.Func // Func node for the new stenciled function
-	tparams  []*types.Type
-	targs    []*types.Type
-	// The substitution map from name nodes in the generic function to the
-	// name nodes in the new stenciled function.
-	vars map[*ir.Name]*ir.Name
+	ts       typecheck.Tsubster
 }
 
 // genericSubst returns a new function with name newsym. The function is an
@@ -526,9 +514,11 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 		g:        g,
 		isMethod: isMethod,
 		newf:     newf,
-		tparams:  tparams,
-		targs:    targs,
-		vars:     make(map[*ir.Name]*ir.Name),
+		ts: typecheck.Tsubster{
+			Tparams: tparams,
+			Targs:   targs,
+			Vars:    make(map[*ir.Name]*ir.Name),
+		},
 	}
 
 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
@@ -574,6 +564,9 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	newf.Body.Prepend(g.checkDictionary(dictionaryName, targs)...)
 
 	ir.CurFunc = savef
+	// Add any new, fully instantiated types seen during the substitution to
+	// g.instTypeList.
+	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
 
 	return newf
 }
@@ -586,13 +579,13 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 	if name.IsClosureVar() {
 		m.SetIsClosureVar(true)
 	}
-	m.SetType(subst.typ(name.Type()))
+	m.SetType(subst.ts.Typ(name.Type()))
 	m.BuiltinOp = name.BuiltinOp
 	m.Curfn = subst.newf
 	m.Class = name.Class
 	assert(name.Class != ir.PEXTERN && name.Class != ir.PFUNC)
 	m.Func = name.Func
-	subst.vars[name] = m
+	subst.ts.Vars[name] = m
 	m.SetTypecheck(1)
 	return m
 }
@@ -635,7 +628,7 @@ func (g *irgen) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.N
 	return
 }
 
-// node is like DeepCopy(), but substitutes ONAME nodes based on subst.vars, and
+// node is like DeepCopy(), but substitutes ONAME nodes based on subst.ts.vars, and
 // also descends into closures. It substitutes type arguments for type parameters
 // in all the new nodes.
 func (subst *subster) node(n ir.Node) ir.Node {
@@ -644,10 +637,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 	edit = func(x ir.Node) ir.Node {
 		switch x.Op() {
 		case ir.OTYPE:
-			return ir.TypeNode(subst.typ(x.Type()))
+			return ir.TypeNode(subst.ts.Typ(x.Type()))
 
 		case ir.ONAME:
-			if v := subst.vars[x.(*ir.Name)]; v != nil {
+			if v := subst.ts.Vars[x.(*ir.Name)]; v != nil {
 				return v
 			}
 			return x
@@ -673,7 +666,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
 				}
 			} else if x.Op() != ir.OCLOSURE {
-				m.SetType(subst.typ(x.Type()))
+				m.SetType(subst.ts.Typ(x.Type()))
 			}
 		}
 		ir.EditChildren(m, edit)
@@ -815,7 +808,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m.(*ir.ClosureExpr).Func = newfn
 			// Closure name can already have brackets, if it derives
 			// from a generic method
-			newsym := typecheck.MakeInstName(oldfn.Nname.Sym(), subst.targs, subst.isMethod)
+			newsym := typecheck.MakeInstName(oldfn.Nname.Sym(), subst.ts.Targs, subst.isMethod)
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), newsym)
 			newfn.Nname.Func = newfn
 			newfn.Nname.Defn = newfn
@@ -828,7 +821,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.Dcl = subst.namelist(oldfn.Dcl)
 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
 
-			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
+			typed(subst.ts.Typ(oldfn.Nname.Type()), newfn.Nname)
 			typed(newfn.Nname.Type(), m)
 			newfn.SetTypecheck(1)
 
@@ -867,298 +860,6 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
 	return s
 }
 
-// tstruct substitutes type params in types of the fields of a structure type. For
-// each field, tstruct copies the Nname, and translates it if Nname is in
-// subst.vars. To always force the creation of a new (top-level) struct,
-// regardless of whether anything changed with the types or names of the struct's
-// fields, set force to true.
-func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
-	if t.NumFields() == 0 {
-		if t.HasTParam() {
-			// For an empty struct, we need to return a new type,
-			// since it may now be fully instantiated (HasTParam
-			// becomes false).
-			return types.NewStruct(t.Pkg(), nil)
-		}
-		return t
-	}
-	var newfields []*types.Field
-	if force {
-		newfields = make([]*types.Field, t.NumFields())
-	}
-	for i, f := range t.Fields().Slice() {
-		t2 := subst.typ(f.Type)
-		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
-			newfields = make([]*types.Field, t.NumFields())
-			for j := 0; j < i; j++ {
-				newfields[j] = t.Field(j)
-			}
-		}
-		if newfields != nil {
-			// TODO(danscales): make sure this works for the field
-			// names of embedded types (which should keep the name of
-			// the type param, not the instantiated type).
-			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
-			if f.Nname != nil {
-				v := subst.vars[f.Nname.(*ir.Name)]
-				if v != nil {
-					// This is the case where we are
-					// translating the type of the function we
-					// are substituting, so its dcls are in
-					// the subst.vars table, and we want to
-					// change to reference the new dcl.
-					newfields[i].Nname = v
-				} else {
-					// This is the case where we are
-					// translating the type of a function
-					// reference inside the function we are
-					// substituting, so we leave the Nname
-					// value as is.
-					newfields[i].Nname = f.Nname
-				}
-			}
-		}
-	}
-	if newfields != nil {
-		return types.NewStruct(t.Pkg(), newfields)
-	}
-	return t
-
-}
-
-// tinter substitutes type params in types of the methods of an interface type.
-func (subst *subster) tinter(t *types.Type) *types.Type {
-	if t.Methods().Len() == 0 {
-		return t
-	}
-	var newfields []*types.Field
-	for i, f := range t.Methods().Slice() {
-		t2 := subst.typ(f.Type)
-		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
-			newfields = make([]*types.Field, t.Methods().Len())
-			for j := 0; j < i; j++ {
-				newfields[j] = t.Methods().Index(j)
-			}
-		}
-		if newfields != nil {
-			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
-		}
-	}
-	if newfields != nil {
-		return types.NewInterface(t.Pkg(), newfields)
-	}
-	return t
-}
-
-// typ computes the type obtained by substituting any type parameter in t with the
-// corresponding type argument in subst. If t contains no type parameters, the
-// result is t; otherwise the result is a new type. It deals with recursive types
-// by using TFORW types and finding partially or fully created types via sym.Def.
-func (subst *subster) typ(t *types.Type) *types.Type {
-	if !t.HasTParam() && t.Kind() != types.TFUNC {
-		// Note: function types need to be copied regardless, as the
-		// types of closures may contain declarations that need
-		// to be copied. See #45738.
-		return t
-	}
-
-	if t.Kind() == types.TTYPEPARAM {
-		for i, tp := range subst.tparams {
-			if tp == t {
-				return subst.targs[i]
-			}
-		}
-		// If t is a simple typeparam T, then t has the name/symbol 'T'
-		// and t.Underlying() == t.
-		//
-		// However, consider the type definition: 'type P[T any] T'. We
-		// might use this definition so we can have a variant of type T
-		// that we can add new methods to. Suppose t is a reference to
-		// P[T]. t has the name 'P[T]', but its kind is TTYPEPARAM,
-		// because P[T] is defined as T. If we look at t.Underlying(), it
-		// is different, because the name of t.Underlying() is 'T' rather
-		// than 'P[T]'. But the kind of t.Underlying() is also TTYPEPARAM.
-		// In this case, we do the needed recursive substitution in the
-		// case statement below.
-		if t.Underlying() == t {
-			// t is a simple typeparam that didn't match anything in tparam
-			return t
-		}
-		// t is a more complex typeparam (e.g. P[T], as above, whose
-		// definition is just T).
-		assert(t.Sym() != nil)
-	}
-
-	var newsym *types.Sym
-	var neededTargs []*types.Type
-	var forw *types.Type
-
-	if t.Sym() != nil {
-		// Translate the type params for this type according to
-		// the tparam/targs mapping from subst.
-		neededTargs = make([]*types.Type, len(t.RParams()))
-		for i, rparam := range t.RParams() {
-			neededTargs[i] = subst.typ(rparam)
-		}
-		// For a named (defined) type, we have to change the name of the
-		// type as well. We do this first, so we can look up if we've
-		// already seen this type during this substitution or other
-		// definitions/substitutions.
-		genName := genericTypeName(t.Sym())
-		newsym = t.Sym().Pkg.Lookup(typecheck.InstTypeName(genName, neededTargs))
-		if newsym.Def != nil {
-			// We've already created this instantiated defined type.
-			return newsym.Def.Type()
-		}
-
-		// In order to deal with recursive generic types, create a TFORW
-		// type initially and set the Def field of its sym, so it can be
-		// found if this type appears recursively within the type.
-		forw = typecheck.NewIncompleteNamedType(t.Pos(), newsym)
-		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
-		forw.SetRParams(neededTargs)
-		// Copy the OrigSym from the re-instantiated type (which is the sym of
-		// the base generic type).
-		assert(t.OrigSym != nil)
-		forw.OrigSym = t.OrigSym
-	}
-
-	var newt *types.Type
-
-	switch t.Kind() {
-	case types.TTYPEPARAM:
-		if t.Sym() == newsym {
-			// The substitution did not change the type.
-			return t
-		}
-		// Substitute the underlying typeparam (e.g. T in P[T], see
-		// the example describing type P[T] above).
-		newt = subst.typ(t.Underlying())
-		assert(newt != t)
-
-	case types.TARRAY:
-		elem := t.Elem()
-		newelem := subst.typ(elem)
-		if newelem != elem {
-			newt = types.NewArray(newelem, t.NumElem())
-		}
-
-	case types.TPTR:
-		elem := t.Elem()
-		newelem := subst.typ(elem)
-		if newelem != elem {
-			newt = types.NewPtr(newelem)
-		}
-
-	case types.TSLICE:
-		elem := t.Elem()
-		newelem := subst.typ(elem)
-		if newelem != elem {
-			newt = types.NewSlice(newelem)
-		}
-
-	case types.TSTRUCT:
-		newt = subst.tstruct(t, false)
-		if newt == t {
-			newt = nil
-		}
-
-	case types.TFUNC:
-		newrecvs := subst.tstruct(t.Recvs(), false)
-		newparams := subst.tstruct(t.Params(), false)
-		newresults := subst.tstruct(t.Results(), false)
-		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() {
-			// If any types have changed, then the all the fields of
-			// of recv, params, and results must be copied, because they have
-			// offset fields that are dependent, and so must have an
-			// independent copy for each new signature.
-			var newrecv *types.Field
-			if newrecvs.NumFields() > 0 {
-				if newrecvs == t.Recvs() {
-					newrecvs = subst.tstruct(t.Recvs(), true)
-				}
-				newrecv = newrecvs.Field(0)
-			}
-			if newparams == t.Params() {
-				newparams = subst.tstruct(t.Params(), true)
-			}
-			if newresults == t.Results() {
-				newresults = subst.tstruct(t.Results(), true)
-			}
-			newt = types.NewSignature(t.Pkg(), newrecv, t.TParams().FieldSlice(), newparams.FieldSlice(), newresults.FieldSlice())
-		}
-
-	case types.TINTER:
-		newt = subst.tinter(t)
-		if newt == t {
-			newt = nil
-		}
-
-	case types.TMAP:
-		newkey := subst.typ(t.Key())
-		newval := subst.typ(t.Elem())
-		if newkey != t.Key() || newval != t.Elem() {
-			newt = types.NewMap(newkey, newval)
-		}
-
-	case types.TCHAN:
-		elem := t.Elem()
-		newelem := subst.typ(elem)
-		if newelem != elem {
-			newt = types.NewChan(newelem, t.ChanDir())
-			if !newt.HasTParam() {
-				// TODO(danscales): not sure why I have to do this
-				// only for channels.....
-				types.CheckSize(newt)
-			}
-		}
-	}
-	if newt == nil {
-		// Even though there were typeparams in the type, there may be no
-		// change if this is a function type for a function call (which will
-		// have its own tparams/targs in the function instantiation).
-		return t
-	}
-
-	if t.Sym() == nil {
-		// Not a named type, so there was no forwarding type and there are
-		// no methods to substitute.
-		assert(t.Methods().Len() == 0)
-		return newt
-	}
-
-	forw.SetUnderlying(newt)
-	newt = forw
-
-	if t.Kind() != types.TINTER && t.Methods().Len() > 0 {
-		// Fill in the method info for the new type.
-		var newfields []*types.Field
-		newfields = make([]*types.Field, t.Methods().Len())
-		for i, f := range t.Methods().Slice() {
-			t2 := subst.typ(f.Type)
-			oldsym := f.Nname.Sym()
-			newsym := typecheck.MakeInstName(oldsym, subst.targs, true)
-			// TODO: use newsym?
-			var nname *ir.Name
-			if newsym.Def != nil {
-				nname = newsym.Def.(*ir.Name)
-			} else {
-				nname = ir.NewNameAt(f.Pos, oldsym)
-				nname.SetType(t2)
-				oldsym.Def = nname
-			}
-			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
-			newfields[i].Nname = nname
-		}
-		newt.Methods().Set(newfields)
-		if !newt.HasTParam() {
-			// Generate all the methods for a new fully-instantiated type.
-			subst.g.instTypeList = append(subst.g.instTypeList, newt)
-		}
-	}
-	return newt
-}
-
 // fields sets the Nname field for the Field nodes inside a type signature, based
 // on the corresponding in/out parameters in dcl. It depends on the in and out
 // parameters being in order in dcl.
@@ -1178,7 +879,7 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
 	newfields := make([]*types.Field, len(oldfields))
 	for j := range oldfields {
 		newfields[j] = oldfields[j].Copy()
-		newfields[j].Type = subst.typ(oldfields[j].Type)
+		newfields[j].Type = subst.ts.Typ(oldfields[j].Type)
 		// A PPARAM field will be missing from dcl if its name is
 		// unspecified or specified as "_". So, we compare the dcl sym
 		// with the field sym (or sym of the field's Nname node). (Unnamed
