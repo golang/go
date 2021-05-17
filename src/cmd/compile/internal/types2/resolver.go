@@ -265,7 +265,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				if name == "init" {
-					check.error(s.LocalPkgName, "cannot import package as init - init must be a func")
+					check.error(s, "cannot import package as init - init must be a func")
 					continue
 				}
 
