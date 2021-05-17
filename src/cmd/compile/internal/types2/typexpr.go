@@ -778,7 +778,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 			named = true
 		} else {
 			// anonymous parameter
-			par := NewParam(ftype.Pos(), check.pkg, "", typ)
+			par := NewParam(field.Pos(), check.pkg, "", typ)
 			check.recordImplicit(field, par)
 			params = append(params, par)
 			anonymous = true
