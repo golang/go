@@ -849,7 +849,9 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 				buildMode = build.ImportComment
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
-			if data.p.Root == "" && cfg.ModulesEnabled {
+			if cfg.ModulesEnabled {
+				// Override data.p.Root, since ImportDir sets it to $GOPATH, if
+				// the module is inside $GOPATH/src.
 				if info := modload.PackageModuleInfo(ctx, path); info != nil {
 					data.p.Root = info.Dir
 				}
@@ -1797,35 +1799,37 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		}
 	}
 
-	// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
-	// except for certain packages, to avoid circular dependencies.
-	if p.UsesCgo() {
-		addImport("unsafe", true)
-	}
-	if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
-		addImport("runtime/cgo", true)
-	}
-	if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
-		addImport("syscall", true)
-	}
-
-	// SWIG adds imports of some standard packages.
-	if p.UsesSwig() {
-		addImport("unsafe", true)
-		if cfg.BuildContext.Compiler != "gccgo" {
+	if !opts.IgnoreImports {
+		// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
+		// except for certain packages, to avoid circular dependencies.
+		if p.UsesCgo() {
+			addImport("unsafe", true)
+		}
+		if p.UsesCgo() && (!p.Standard || !cgoExclude[p.ImportPath]) && cfg.BuildContext.Compiler != "gccgo" {
 			addImport("runtime/cgo", true)
 		}
-		addImport("syscall", true)
-		addImport("sync", true)
+		if p.UsesCgo() && (!p.Standard || !cgoSyscallExclude[p.ImportPath]) {
+			addImport("syscall", true)
+		}
 
-		// TODO: The .swig and .swigcxx files can use
-		// %go_import directives to import other packages.
-	}
+		// SWIG adds imports of some standard packages.
+		if p.UsesSwig() {
+			addImport("unsafe", true)
+			if cfg.BuildContext.Compiler != "gccgo" {
+				addImport("runtime/cgo", true)
+			}
+			addImport("syscall", true)
+			addImport("sync", true)
 
-	// The linker loads implicit dependencies.
-	if p.Name == "main" && !p.Internal.ForceLibrary {
-		for _, dep := range LinkerDeps(p) {
-			addImport(dep, false)
+			// TODO: The .swig and .swigcxx files can use
+			// %go_import directives to import other packages.
+		}
+
+		// The linker loads implicit dependencies.
+		if p.Name == "main" && !p.Internal.ForceLibrary {
+			for _, dep := range LinkerDeps(p) {
+				addImport(dep, false)
+			}
 		}
 	}
 
@@ -2387,7 +2391,9 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
 // PackageOpts control the behavior of PackagesAndErrors and other package
 // loading functions.
 type PackageOpts struct {
-	// IgnoreImports controls whether we ignore imports when loading packages.
+	// IgnoreImports controls whether we ignore explicit and implicit imports
+	// when loading packages.  Implicit imports are added when supporting Cgo
+	// or SWIG and when linking main packages.
 	IgnoreImports bool
 
 	// ModResolveTests indicates whether calls to the module loader should also

@@ -263,6 +263,13 @@ func TestIssue25756(t *testing.T) {
 	}
 }
 
+// Test with main using -buildmode=pie with plugin for issue #43228
+func TestIssue25756pie(t *testing.T) {
+	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
+	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
+	run(t, "./issue25756pie.exe")
+}
+
 func TestMethod(t *testing.T) {
 	// Exported symbol's method must be live.
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")

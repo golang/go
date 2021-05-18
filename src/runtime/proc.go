@@ -3136,7 +3136,7 @@ func checkIdleGCNoP() (*p, *g) {
 	// an available P and available worker G.
 	//
 	// We can attempt to acquire these in either order, though both have
-	// synchonization concerns (see below). Workers are almost always
+	// synchronization concerns (see below). Workers are almost always
 	// available (see comment in findRunnableGCWorker for the one case
 	// there may be none). Since we're slightly less likely to find a P,
 	// check for that first.
@@ -3570,6 +3570,21 @@ func preemptPark(gp *g) {
 		throw("bad g status")
 	}
 	gp.waitreason = waitReasonPreempted
+
+	if gp.asyncSafePoint {
+		// Double-check that async preemption does not
+		// happen in SPWRITE assembly functions.
+		// isAsyncSafePoint must exclude this case.
+		f := findfunc(gp.sched.pc)
+		if !f.valid() {
+			throw("preempt at unknown pc")
+		}
+		if f.flag&funcFlag_SPWRITE != 0 {
+			println("runtime: unexpected SPWRITE function", funcname(f), "in async preempt")
+			throw("preempt SPWRITE")
+		}
+	}
+
 	// Transition from _Grunning to _Gscan|_Gpreempted. We can't
 	// be in _Grunning when we dropg because then we'd be running
 	// without an M, but the moment we're in _Gpreempted,

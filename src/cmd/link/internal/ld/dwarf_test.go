@@ -1660,16 +1660,16 @@ func TestOutputParamAbbrevAndAttr(t *testing.T) {
 package main
 
 //go:noinline
-func ABC(p1, p2, p3 int, f1, f2, f3 float32, b1 [1024]int) (r1 int, r2 int, r3 [1024]int, r4 byte) {
-	b1[0] = 6
-	r1, r2, r3, r4 = p3, p2, b1, 'a'
+func ABC(c1, c2, c3 int, d1, d2, d3, d4 string, f1, f2, f3 float32, g1 [1024]int) (r1 int, r2 int, r3 [1024]int, r4 byte, r5 string, r6 float32) {
+	g1[0] = 6
+	r1, r2, r3, r4, r5, r6 = c3, c2+c1, g1, 'a', d1+d2+d3+d4, f1+f2+f3
 	return
 }
 
 func main() {
 	a := [1024]int{}
-	v1, v2, v3, v4 := ABC(1, 2, 3, 1.0, 2.0, 1.0, a)
-	println(v1, v2, v3[0], v4)
+	v1, v2, v3, v4, v5, v6 := ABC(1, 2, 3, "a", "b", "c", "d", 1.0, 2.0, 1.0, a)
+	println(v1, v2, v3[0], v4, v5, v6)
 }
 `
 	dir := t.TempDir()
@@ -1708,18 +1708,20 @@ func main() {
 	// OK to have it missing for input parameters, but for the moment
 	// we verify that the attr is present but set to false.
 
-	// Values in this map:
+	// Values in this map are of the form <order>:<varparam>
+	// where order is the order within the child DIE list of the param,
+	// and <varparam> is an integer:
 	//
-	//   0: <no param of this name>
 	//  -1: varparm attr not found
 	//   1: varparm found with value false
 	//   2: varparm found with value true
 	//
-	foundParams := make(map[string]int)
+	foundParams := make(map[string]string)
 
 	// Walk ABCs's children looking for params.
 	abcIdx := ex.idxFromOffset(abcdie.Offset)
 	childDies := ex.Children(abcIdx)
+	idx := 0
 	for _, child := range childDies {
 		if child.Tag == dwarf.TagFormalParameter {
 			st := -1
@@ -1731,7 +1733,8 @@ func main() {
 				}
 			}
 			if name, ok := child.Val(dwarf.AttrName).(string); ok {
-				foundParams[name] = st
+				foundParams[name] = fmt.Sprintf("%d:%d", idx, st)
+				idx++
 			}
 		}
 	}
@@ -1739,13 +1742,14 @@ func main() {
 	// Digest the result.
 	found := make([]string, 0, len(foundParams))
 	for k, v := range foundParams {
-		found = append(found, fmt.Sprintf("%s:%d", k, v))
+		found = append(found, fmt.Sprintf("%s:%s", k, v))
 	}
 	sort.Strings(found)
 
-	// Make sure we see all of the expected params, that they have
-	// the varparam attr, and the varparm is set for the returns.
-	expected := "[b1:1 f1:1 f2:1 f3:1 p1:1 p2:1 p3:1 r1:2 r2:2 r3:2 r4:2]"
+	// Make sure we see all of the expected params in the proper
+	// order, that they have the varparam attr, and the varparm is set
+	// for the returns.
+	expected := "[c1:0:1 c2:1:1 c3:2:1 d1:3:1 d2:4:1 d3:5:1 d4:6:1 f1:7:1 f2:8:1 f3:9:1 g1:10:1 r1:11:2 r2:12:2 r3:13:2 r4:14:2 r5:15:2 r6:16:2]"
 	if fmt.Sprintf("%+v", found) != expected {
 		t.Errorf("param check failed, wanted %s got %s\n",
 			expected, found)

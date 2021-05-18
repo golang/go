@@ -402,7 +402,7 @@ without corrupting arguments or results.
 Special-purpose registers are as follows:
 
 | Register | Call meaning | Return meaning | Body meaning |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | RSP | Stack pointer | Same | Same |
 | RBP | Frame pointer | Same | Same |
 | RDX | Closure context pointer | Scratch | Scratch |
