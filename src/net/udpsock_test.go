@@ -8,7 +8,9 @@
 package net
 
 import (
+	"errors"
 	"internal/testenv"
+	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -443,6 +445,33 @@ func TestUDPReadSizeError(t *testing.T) {
 		if n != len(b1)-1 {
 			t.Fatalf("got %d; want %d", n, len(b1)-1)
 		}
+	}
+}
+
+// TestUDPReadTimeout verifies that ReadFromUDP with timeout returns an error
+// without data or an address.
+func TestUDPReadTimeout(t *testing.T) {
+	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := ListenUDP("udp4", la)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	c.SetDeadline(time.Now())
+	b := make([]byte, 1)
+	n, addr, err := c.ReadFromUDP(b)
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Errorf("ReadFromUDP got err %v want os.ErrDeadlineExceeded", err)
+	}
+	if n != 0 {
+		t.Errorf("ReadFromUDP got n %d want 0", n)
+	}
+	if addr != nil {
+		t.Errorf("ReadFromUDP got addr %+#v want nil", addr)
 	}
 }
 
