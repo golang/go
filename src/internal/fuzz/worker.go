@@ -714,7 +714,7 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 // mem just in case an unrecoverable error occurs. It uses the context to
 // determine how long to run, stopping once closed. It returns the last error it
 // found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, count *int64, limit int64) (retErr error) {
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, count *int64, limit int64) error {
 	// Make sure the last crashing value is written to mem.
 	defer writeToMem(vals, mem)
 
@@ -725,87 +725,116 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 		return nil
 	}
 
-	// tryMinimized will run the fuzz function for the values in vals at the
-	// time the function is called. If err is nil, then the minimization was
-	// unsuccessful, since we expect an error to still occur.
-	tryMinimized := func(i int, prevVal interface{}) error {
-		writeToMem(vals, mem) // write to mem in case a non-recoverable crash occurs
+	var valI int
+	var retErr error
+	tryMinimized := func(candidate interface{}) bool {
+		prev := vals[valI]
+		// Set vals[valI] to the candidate after it has been
+		// properly cast. We know that candidate must be of
+		// the same type as prev, so use that as a reference.
+		switch c := candidate.(type) {
+		case float64:
+			switch prev.(type) {
+			case float32:
+				vals[valI] = float32(c)
+			case float64:
+				vals[valI] = c
+			default:
+				panic("impossible")
+			}
+		case uint:
+			switch prev.(type) {
+			case uint:
+				vals[valI] = c
+			case uint8:
+				vals[valI] = uint8(c)
+			case uint16:
+				vals[valI] = uint16(c)
+			case uint32:
+				vals[valI] = uint32(c)
+			case uint64:
+				vals[valI] = uint64(c)
+			case int:
+				vals[valI] = int(c)
+			case int8:
+				vals[valI] = int8(c)
+			case int16:
+				vals[valI] = int16(c)
+			case int32:
+				vals[valI] = int32(c)
+			case int64:
+				vals[valI] = int64(c)
+			default:
+				panic("impossible")
+			}
+		case []byte:
+			switch prev.(type) {
+			case []byte:
+				vals[valI] = c
+			case string:
+				vals[valI] = string(c)
+			default:
+				panic("impossible")
+			}
+		default:
+			panic("impossible")
+		}
+		writeToMem(vals, mem)
 		err := ws.fuzzFn(CorpusEntry{Values: vals})
-		if err == nil {
-			// The fuzz function succeeded, so return the value at index i back
-			// to the previously failing input.
-			vals[i] = prevVal
-		} else {
-			// The fuzz function failed, so save the most recent error.
+		if err != nil {
 			retErr = err
+			return true
 		}
 		*count++
-		return err
+		vals[valI] = prev
+		return false
 	}
-	for valI := range vals {
+
+	for valI = range vals {
+		if shouldStop() {
+			return retErr
+		}
 		switch v := vals[valI].(type) {
-		case bool, byte, rune:
+		case bool:
 			continue // can't minimize
-		case string, int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64:
-			// TODO(jayconrod,katiehockman): support minimizing other types
+		case float32:
+			minimizeFloat(ctx, float64(v), tryMinimized, shouldStop)
+		case float64:
+			minimizeFloat(ctx, v, tryMinimized, shouldStop)
+		case uint:
+			minimizeInteger(ctx, v, tryMinimized, shouldStop)
+		case uint8:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case uint16:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case uint32:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case uint64:
+			if uint64(uint(v)) != v {
+				// Skip minimizing a uint64 on 32 bit platforms, since we'll truncate the
+				// value when casting
+				continue
+			}
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case int:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case int8:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case int16:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case int32:
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case int64:
+			if int64(int(v)) != v {
+				// Skip minimizing a int64 on 32 bit platforms, since we'll truncate the
+				// value when casting
+				continue
+			}
+			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+		case string:
+			minimizeBytes(ctx, []byte(v), tryMinimized, shouldStop)
 		case []byte:
-			// First, try to cut the tail.
-			for n := 1024; n != 0; n /= 2 {
-				for len(v) > n {
-					if shouldStop() {
-						return retErr
-					}
-					vals[valI] = v[:len(v)-n]
-					if tryMinimized(valI, v) == nil {
-						break
-					}
-					// Set v to the new value to continue iterating.
-					v = v[:len(v)-n]
-				}
-			}
-
-			// Then, try to remove each individual byte.
-			tmp := make([]byte, len(v))
-			for i := 0; i < len(v)-1; i++ {
-				if shouldStop() {
-					return retErr
-				}
-				candidate := tmp[:len(v)-1]
-				copy(candidate[:i], v[:i])
-				copy(candidate[i:], v[i+1:])
-				vals[valI] = candidate
-				if tryMinimized(valI, v) == nil {
-					continue
-				}
-				// Update v to delete the value at index i.
-				copy(v[i:], v[i+1:])
-				v = v[:len(candidate)]
-				// v[i] is now different, so decrement i to redo this iteration
-				// of the loop with the new value.
-				i--
-			}
-
-			// Then, try to remove each possible subset of bytes.
-			for i := 0; i < len(v)-1; i++ {
-				copy(tmp, v[:i])
-				for j := len(v); j > i+1; j-- {
-					if shouldStop() {
-						return retErr
-					}
-					candidate := tmp[:len(v)-j+i]
-					copy(candidate[i:], v[j:])
-					vals[valI] = candidate
-					if tryMinimized(valI, v) == nil {
-						continue
-					}
-					// Update v and reset the loop with the new length.
-					copy(v[i:], v[j:])
-					v = v[:len(candidate)]
-					j = len(v)
-				}
-			}
-			// TODO(jayconrod,katiehockman): consider adding canonicalization
-			// which replaces each individual byte with '0'
+			minimizeBytes(ctx, v, tryMinimized, shouldStop)
 		default:
 			panic("unreachable")
 		}
