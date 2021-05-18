@@ -745,6 +745,10 @@ func (r *importReader) typ1() *types.Type {
 			methods[i] = types.NewField(pos, sym, typ)
 		}
 
+		if len(embeddeds)+len(methods) == 0 {
+			return types.Types[types.TINTER]
+		}
+
 		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
 
 		// Ensure we expand the interface in the frontend (#25055).
