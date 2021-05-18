@@ -64,7 +64,9 @@ func TestClientLogging(t *testing.T) {
 	cc := ts.Connect(ctx)
 	cc.Go(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
 
-	protocol.ServerDispatcher(cc).DidOpen(ctx, &protocol.DidOpenTextDocumentParams{})
+	if err := protocol.ServerDispatcher(cc).DidOpen(ctx, &protocol.DidOpenTextDocumentParams{}); err != nil {
+		t.Errorf("DidOpen: %v", err)
+	}
 
 	select {
 	case got := <-client.logs:

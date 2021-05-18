@@ -21,7 +21,7 @@ const concurrentAnalyses = 1
 
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
-func NewServer(session source.Session, client protocol.Client) *Server {
+func NewServer(session source.Session, client protocol.ClientCloser) *Server {
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[string]struct{}),
@@ -60,7 +60,7 @@ func (s serverState) String() string {
 
 // Server implements the protocol.Server interface.
 type Server struct {
-	client protocol.Client
+	client protocol.ClientCloser
 
 	stateMu sync.Mutex
 	state   serverState

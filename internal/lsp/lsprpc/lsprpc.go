@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/jsonrpc2"
+	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/command"
@@ -54,6 +55,19 @@ type StreamServer struct {
 // records RPC statistics.
 func NewStreamServer(cache *cache.Cache, daemon bool) *StreamServer {
 	return &StreamServer{cache: cache, daemon: daemon}
+}
+
+func (s *StreamServer) Binder() *ServerBinder {
+	newServer := func(ctx context.Context, client protocol.ClientCloser) protocol.Server {
+		session := s.cache.NewSession(ctx)
+		server := s.serverForTest
+		if server == nil {
+			server = lsp.NewServer(session, client)
+			debug.GetInstance(ctx).AddService(server, session)
+		}
+		return server
+	}
+	return NewServerBinder(newServer)
 }
 
 // ServeStream implements the jsonrpc2.StreamServer interface, by handling
@@ -280,6 +294,14 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	return err
 }
 
+func (f *Forwarder) Binder() *ForwardBinder {
+	network, address := realNetworkAddress(f.network, f.addr, f.goplsPath)
+	dialer := jsonrpc2_v2.NetDialer(network, address, net.Dialer{
+		Timeout: 5 * time.Second,
+	})
+	return NewForwardBinder(dialer)
+}
+
 func (f *Forwarder) handshake(ctx context.Context) {
 	var (
 		hreq = handshakeRequest{
@@ -328,19 +350,21 @@ func ConnectToRemote(ctx context.Context, addr string, opts ...RemoteOption) (ne
 	return connectToRemote(ctx, network, address, goplsPath, rcfg)
 }
 
+func realNetworkAddress(inNetwork, inAddr, goplsPath string) (network, address string) {
+	if inNetwork != AutoNetwork {
+		return inNetwork, inAddr
+	}
+	// The "auto" network is a fake network used for service discovery. It
+	// resolves a known address based on gopls binary path.
+	return autoNetworkAddress(goplsPath, inAddr)
+}
+
 func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, rcfg remoteConfig) (net.Conn, error) {
 	var (
 		netConn          net.Conn
 		err              error
-		network, address = inNetwork, inAddr
+		network, address = realNetworkAddress(inNetwork, inAddr, goplsPath)
 	)
-	if inNetwork == AutoNetwork {
-		// f.network is overloaded to support a concept of 'automatic' addresses,
-		// which signals that the gopls remote address should be automatically
-		// derived.
-		// So we need to resolve a real network and address here.
-		network, address = autoNetworkAddress(goplsPath, inAddr)
-	}
 	// Attempt to verify that we own the remote. This is imperfect, but if we can
 	// determine that the remote is owned by a different user, we should fail.
 	ok, err := verifyRemoteOwnership(network, address)

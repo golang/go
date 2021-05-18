@@ -101,6 +101,10 @@ type testClient struct {
 	runner *runner
 }
 
+func (c testClient) Close() error {
+	return nil
+}
+
 // Trivially implement PublishDiagnostics so that we can call
 // server.publishReports below to de-dup sent diagnostics.
 func (c testClient) PublishDiagnostics(context.Context, *protocol.PublishDiagnosticsParams) error {

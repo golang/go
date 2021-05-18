@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -498,8 +497,7 @@ func (s *Server) exit(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 
-	// TODO: We need a better way to find the conn close method.
-	s.client.(io.Closer).Close()
+	s.client.Close()
 
 	if s.state != serverShutDown {
 		// TODO: We should be able to do better than this.

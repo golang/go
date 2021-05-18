@@ -5,7 +5,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: d58c00bbf8837b9fd0144924db5e7b1c543d839e
-// last fetched Sat Apr 17 2021 08:26:29 GMT-0400 (Eastern Daylight Time)
+// last fetched Tue May 18 2021 13:45:07 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.

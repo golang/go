@@ -51,6 +51,12 @@ func (defaultHandler) Handle(context.Context, *Request) (interface{}, error) {
 	return nil, ErrNotHandled
 }
 
+type HandlerFunc func(ctx context.Context, req *Request) (interface{}, error)
+
+func (f HandlerFunc) Handle(ctx context.Context, req *Request) (interface{}, error) {
+	return f(ctx, req)
+}
+
 // async is a small helper for things with an asynchronous result that you can
 // wait for.
 type async struct {

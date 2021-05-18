@@ -1191,7 +1191,7 @@ function goNot(side: side, m: string) {
   const arg3 = a == '' || a == 'void' ? 'nil' : 'params';
   side.calls.push(`
   func (s *${side.name}Dispatcher) ${sig(nm, a, '', true)} {
-    return s.Conn.Notify(ctx, "${m}", ${arg3})
+    return s.sender.Notify(ctx, "${m}", ${arg3})
   }`);
 }
 
@@ -1241,18 +1241,18 @@ function goReq(side: side, m: string) {
   side.cases.push(`${caseHdr}\n${case1}\n${case2}`);
 
   const callHdr = `func (s *${side.name}Dispatcher) ${sig(nm, a, b, true)} {`;
-  let callBody = `return Call(ctx, s.Conn, "${m}", nil, nil)\n}`;
+  let callBody = `return s.sender.Call(ctx, "${m}", nil, nil)\n}`;
   if (b != '' && b != 'void') {
     const p2 = a == '' ? 'nil' : 'params';
     const returnType = indirect(b) ? `*${b}` : b;
     callBody = `var result ${returnType}
-			if err := Call(ctx, s.Conn, "${m}", ${p2}, &result); err != nil {
+			if err := s.sender.Call(ctx, "${m}", ${p2}, &result); err != nil {
 				return nil, err
       }
       return result, nil
     }`;
   } else if (a != '') {
-    callBody = `return Call(ctx, s.Conn, "${m}", params, nil) // Call, not Notify
+    callBody = `return s.sender.Call(ctx, "${m}", params, nil) // Call, not Notify
   }`;
   }
   side.calls.push(`${callHdr}\n${callBody}\n`);
@@ -1359,7 +1359,7 @@ function nonstandardRequests() {
   server.calls.push(
     `func (s *serverDispatcher) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
       var result interface{}
-      if err := Call(ctx, s.Conn, method, params, &result); err != nil {
+      if err := s.sender.Call(ctx, method, params, &result); err != nil {
         return nil, err
       }
       return result, nil
