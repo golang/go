@@ -815,7 +815,8 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 
 		roots = make([]module.Version, 0, len(rs.rootModules))
 		rootsUpgraded = false
-		inRootPaths := make(map[string]bool, len(rs.rootModules))
+		inRootPaths := make(map[string]bool, len(rs.rootModules)+1)
+		inRootPaths[Target.Path] = true
 		for _, m := range rs.rootModules {
 			if inRootPaths[m.Path] {
 				// This root specifies a redundant path. We already retained the

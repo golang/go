@@ -922,12 +922,18 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 
 	if params.GoVersion != "" {
-		if semver.Compare("v"+params.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+		goVersionV := "v" + params.GoVersion
+		if semver.Compare(goVersionV, narrowAllVersionV) < 0 && !ld.UseVendorAll {
 			// The module's go version explicitly predates the change in "all" for lazy
 			// loading, so continue to use the older interpretation.
 			// (If params.GoVersion is empty, we are probably not in any module at all
 			// and should use the latest semantics.)
 			ld.allClosesOverTests = true
+		}
+
+		if ld.Tidy && semver.Compare(goVersionV, "v"+latestGoVersion()) > 0 {
+			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, latestGoVersion())
+			base.ExitIfErrors()
 		}
 
 		var err error
