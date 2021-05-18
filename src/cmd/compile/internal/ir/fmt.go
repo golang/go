@@ -1114,16 +1114,21 @@ func dumpNodeHeader(w io.Writer, n Node) {
 	}
 
 	if n.Pos().IsKnown() {
-		pfx := ""
+		fmt.Fprint(w, " # ")
 		switch n.Pos().IsStmt() {
 		case src.PosNotStmt:
-			pfx = "_" // "-" would be confusing
+			fmt.Fprint(w, "_") // "-" would be confusing
 		case src.PosIsStmt:
-			pfx = "+"
+			fmt.Fprint(w, "+")
 		}
-		pos := base.Ctxt.PosTable.Pos(n.Pos())
-		file := filepath.Base(pos.Filename())
-		fmt.Fprintf(w, " # %s%s:%d", pfx, file, pos.Line())
+		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
+			if i > 0 {
+				fmt.Fprint(w, ",")
+			}
+			// TODO(mdempsky): Print line pragma details too.
+			file := filepath.Base(pos.Filename())
+			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
+		}
 	}
 }
 
