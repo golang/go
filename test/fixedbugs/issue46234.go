@@ -96,7 +96,7 @@ func main() {
 		log.Fatalf("Passed, expected an error")
 	}
 
-	want := []byte("segmentation violation")
+	want := []byte("nil pointer dereference")
 	if !bytes.Contains(output, want) {
 		log.Fatalf("Unmatched error message %q:\nin\n%s\nError: %v", want, output, err)
 	}
