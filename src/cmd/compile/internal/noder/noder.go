@@ -625,6 +625,9 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*ir.Field {
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
+		if i > 0 && params[i].Type == params[i-1].Type {
+			nodes[i].Ntype = nodes[i-1].Ntype
+		}
 	}
 	return nodes
 }
@@ -916,6 +919,9 @@ func (p *noder) structType(expr *syntax.StructType) ir.Node {
 			n = p.embedded(field.Type)
 		} else {
 			n = ir.NewField(p.pos(field), p.name(field.Name), p.typeExpr(field.Type), nil)
+		}
+		if i > 0 && expr.FieldList[i].Type == expr.FieldList[i-1].Type {
+			n.Ntype = l[i-1].Ntype
 		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
 			n.Note = constant.StringVal(p.basicLit(expr.TagList[i]))
