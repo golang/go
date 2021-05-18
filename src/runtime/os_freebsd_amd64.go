@@ -4,6 +4,8 @@
 
 package runtime
 
+import "internal/abi"
+
 func cgoSigtramp()
 
 //go:nosplit
@@ -14,9 +16,9 @@ func setsig(i uint32, fn uintptr) {
 	sa.sa_mask = sigset_all
 	if fn == funcPC(sighandler) {
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	sa.sa_handler = fn
