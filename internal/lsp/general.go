@@ -200,7 +200,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			},
 		}
 		if options.SemanticTokens {
-			registrations = append(registrations, semanticTokenRegistration())
+			registrations = append(registrations, semanticTokenRegistration(options.SemanticTypes, options.SemanticMods))
 		}
 		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
 			Registrations: registrations,

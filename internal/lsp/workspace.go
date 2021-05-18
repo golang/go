@@ -86,10 +86,11 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		}()
 	}
 
+	registration := semanticTokenRegistration(options.SemanticTypes, options.SemanticMods)
 	// Update any session-specific registrations or unregistrations.
 	if !semanticTokensRegistered && options.SemanticTokens {
 		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: []protocol.Registration{semanticTokenRegistration()},
+			Registrations: []protocol.Registration{registration},
 		}); err != nil {
 			return err
 		}
@@ -97,8 +98,8 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		if err := s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
 			Unregisterations: []protocol.Unregistration{
 				{
-					ID:     semanticTokenRegistration().ID,
-					Method: semanticTokenRegistration().Method,
+					ID:     registration.ID,
+					Method: registration.Method,
 				},
 			},
 		}); err != nil {
@@ -108,7 +109,7 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	return nil
 }
 
-func semanticTokenRegistration() protocol.Registration {
+func semanticTokenRegistration(tokenTypes, tokenModifiers []string) protocol.Registration {
 	return protocol.Registration{
 		ID:     "textDocument/semanticTokens",
 		Method: "textDocument/semanticTokens",
@@ -116,8 +117,8 @@ func semanticTokenRegistration() protocol.Registration {
 			Legend: protocol.SemanticTokensLegend{
 				// TODO(pjw): trim these to what we use (and an unused one
 				// at position 0 of TokTypes, to catch typos)
-				TokenTypes:     SemanticTypes(),
-				TokenModifiers: SemanticModifiers(),
+				TokenTypes:     tokenTypes,
+				TokenModifiers: tokenModifiers,
 			},
 			Full:  true,
 			Range: true,
