@@ -99,11 +99,11 @@ func TestServe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			conn, shutdown, err := newFake(ctx, fake)
+			conn, shutdown, err := newFake(t, ctx, fake)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer shutdown(ctx)
+			defer shutdown()
 			var got msg
 			if err := conn.Call(ctx, "ping", &msg{"ting"}).Await(ctx, &got); err != nil {
 				t.Fatal(err)
@@ -115,7 +115,7 @@ func TestServe(t *testing.T) {
 	}
 }
 
-func newFake(ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, func(context.Context), error) {
+func newFake(t *testing.T, ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, func(), error) {
 	l = jsonrpc2.NewIdleListener(100*time.Millisecond, l)
 	server, err := jsonrpc2.Serve(ctx, l, jsonrpc2.ConnectionOptions{
 		Handler: fakeHandler{},
@@ -132,9 +132,13 @@ func newFake(ctx context.Context, l jsonrpc2.Listener) (*jsonrpc2.Connection, fu
 	if err != nil {
 		return nil, nil, err
 	}
-	return client, func(ctx context.Context) {
-		l.Close()
-		client.Close()
+	return client, func() {
+		if err := l.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := client.Close(); err != nil {
+			t.Fatal(err)
+		}
 		server.Wait()
 	}, nil
 }

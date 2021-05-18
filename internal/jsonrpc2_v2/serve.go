@@ -133,13 +133,18 @@ func isClosingError(err error) bool {
 	if err == nil {
 		return false
 	}
-	// fully unwrap the error, so the following tests work
+	// Fully unwrap the error, so the following tests work.
 	for wrapped := err; wrapped != nil; wrapped = errors.Unwrap(err) {
 		err = wrapped
 	}
 
-	// was it based on an EOF error?
+	// Was it based on an EOF error?
 	if err == io.EOF {
+		return true
+	}
+
+	// Was it based on a closed pipe?
+	if err == io.ErrClosedPipe {
 		return true
 	}
 
