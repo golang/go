@@ -92,9 +92,9 @@ func o() int {
 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
 	func(x int) {                  // ERROR "can inline o.func2"
 		if x > 10 {
-			foo = func() int { return 2 } // ERROR "can inline o.func2"
+			foo = func() int { return 2 } // ERROR "func literal does not escape" "can inline o.func2"
 		}
-	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
+	}(11) // ERROR "inlining call to o.func2"
 	return foo()
 }
 
