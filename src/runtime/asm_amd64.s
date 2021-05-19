@@ -1600,7 +1600,9 @@ TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
 #ifdef GOEXPERIMENT_regabig
 	get_tls(R14)
 	MOVQ	g(R14), R14
+#ifndef GOOS_plan9
 	XORPS	X15, X15
+#endif
 #endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
