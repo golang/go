@@ -448,6 +448,7 @@ type common struct {
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
+	fuzzing    bool           // Whether the current test is a fuzzing target.
 	hasSub     int32          // Written atomically.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
@@ -653,6 +654,20 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
 		// itself follow a test-name header when it is finally flushed to stdout.
 		fmt.Fprintf(p.w, format, args...)
 	}
+}
+
+// isFuzzing returns whether the current context, or any of the parent contexts,
+// are a fuzzing target
+func (c *common) isFuzzing() bool {
+	if c.fuzzing {
+		return true
+	}
+	for parent := c.parent; parent != nil; parent = parent.parent {
+		if parent.fuzzing {
+			return true
+		}
+	}
+	return false
 }
 
 type indenter struct {
@@ -1221,10 +1236,11 @@ func tRunner(t *T, fn func(t *T)) {
 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
 		didPanic := false
 		defer func() {
-			if didPanic {
+			isFuzzing := t.common.isFuzzing()
+			if didPanic && !isFuzzing {
 				return
 			}
-			if err != nil {
+			if err != nil && !isFuzzing {
 				panic(err)
 			}
 			// Only report that the test is complete if it doesn't panic,
@@ -1250,6 +1266,12 @@ func tRunner(t *T, fn func(t *T)) {
 				}
 			}
 			didPanic = true
+			if t.common.fuzzing {
+				for root := &t.common; root.parent != nil; root = root.parent {
+					fmt.Fprintf(root.parent.w, "panic: %s\n%s\n", err, string(debug.Stack()))
+				}
+				return
+			}
 			panic(err)
 		}
 		if err != nil {
