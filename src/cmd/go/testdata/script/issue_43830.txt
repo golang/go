@@ -5,7 +5,7 @@
 [openbsd] env CC='clang'
 [!openbsd] env CC='gcc'
 
-env CGO_CFLAGS='-flto -ffat-lto-objects'
+env CGO_CFLAGS='-Wno-ignored-optimization-argument -flto -ffat-lto-objects'
 
 go build main.go add.go
 
