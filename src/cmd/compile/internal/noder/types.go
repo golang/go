@@ -240,9 +240,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 // and for actually generating the methods for instantiated types.
 func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 	if typ.NumMethods() != 0 {
-		targs := make([]ir.Node, len(typ.TArgs()))
+		targs := make([]*types.Type, len(typ.TArgs()))
 		for i, targ := range typ.TArgs() {
-			targs[i] = ir.TypeNode(g.typ1(targ))
+			targs[i] = g.typ1(targ)
 		}
 
 		methods := make([]*types.Field, typ.NumMethods())

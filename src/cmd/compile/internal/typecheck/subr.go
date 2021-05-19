@@ -5,6 +5,7 @@
 package typecheck
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -873,4 +874,61 @@ var slist []symlink
 
 type symlink struct {
 	field *types.Field
+}
+
+// TypesOf converts a list of nodes to a list
+// of types of those nodes.
+func TypesOf(x []ir.Node) []*types.Type {
+	r := make([]*types.Type, len(x))
+	for i, n := range x {
+		r[i] = n.Type()
+	}
+	return r
+}
+
+// MakeInstName makes the unique name for a stenciled generic function or method,
+// based on the name of the function fy=nsym and the targs. It replaces any
+// existing bracket type list in the name. makeInstName asserts that fnsym has
+// brackets in its name if and only if hasBrackets is true.
+// TODO(danscales): remove the assertions and the hasBrackets argument later.
+//
+// Names of declared generic functions have no brackets originally, so hasBrackets
+// should be false. Names of generic methods already have brackets, since the new
+// type parameter is specified in the generic type of the receiver (e.g. func
+// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
+//
+// The standard naming is something like: 'genFn[int,bool]' for functions and
+// '(*genType[int,bool]).methodName' for methods
+func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+	b := bytes.NewBufferString("")
+	name := fnsym.Name
+	i := strings.Index(name, "[")
+	assert(hasBrackets == (i >= 0))
+	if i >= 0 {
+		b.WriteString(name[0:i])
+	} else {
+		b.WriteString(name)
+	}
+	b.WriteString("[")
+	for i, targ := range targs {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(targ.String())
+	}
+	b.WriteString("]")
+	if i >= 0 {
+		i2 := strings.Index(name[i:], "]")
+		assert(i2 >= 0)
+		b.WriteString(name[i+i2+1:])
+	}
+	return Lookup(b.String())
+}
+
+// For catching problems as we add more features
+// TODO(danscales): remove assertions or replace with base.FatalfAt()
+func assert(p bool) {
+	if !p {
+		panic("assertion failed")
+	}
 }
