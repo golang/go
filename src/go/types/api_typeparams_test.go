@@ -109,7 +109,7 @@ func TestInferredInfo(t *testing.T) {
 				panic(fmt.Sprintf("unexpected call expression type %T", call))
 			}
 			if ExprString(fun) == test.fun {
-				targs = inf.Targs
+				targs = inf.TArgs
 				sig = inf.Sig
 				break
 			}
