@@ -9,8 +9,8 @@ package lsprpc
 
 import (
 	"context"
-	"log"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,29 +18,57 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-func TestClientLoggingV2(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+type testEnv struct {
+	listener  jsonrpc2_v2.Listener
+	conn      *jsonrpc2_v2.Connection
+	rpcServer *jsonrpc2_v2.Server
+}
 
+func (e testEnv) Shutdown(t *testing.T) {
+	if err := e.listener.Close(); err != nil {
+		t.Error(err)
+	}
+	if err := e.conn.Close(); err != nil {
+		t.Error(err)
+	}
+	if err := e.rpcServer.Wait(); err != nil {
+		t.Error(err)
+	}
+}
+
+func startServing(ctx context.Context, t *testing.T, server protocol.Server, client protocol.Client) testEnv {
 	listener, err := jsonrpc2_v2.NetPipe(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	newServer := func(ctx context.Context, client protocol.ClientCloser) protocol.Server {
-		return pingServer{}
+		return server
 	}
 	serverBinder := NewServerBinder(newServer)
-	server, err := jsonrpc2_v2.Serve(ctx, listener, serverBinder)
+	rpcServer, err := jsonrpc2_v2.Serve(ctx, listener, serverBinder)
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := fakeClient{logs: make(chan string, 10)}
 	clientBinder := NewClientBinder(func(context.Context, protocol.Server) protocol.Client { return client })
 	conn, err := jsonrpc2_v2.Dial(ctx, listener.Dialer(), clientBinder)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := protocol.ServerDispatcherV2(conn).DidOpen(ctx, &protocol.DidOpenTextDocumentParams{}); err != nil {
+	return testEnv{
+		listener:  listener,
+		rpcServer: rpcServer,
+		conn:      conn,
+	}
+}
+
+func TestClientLoggingV2(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := fakeClient{logs: make(chan string, 10)}
+	env := startServing(ctx, t, pingServer{}, client)
+	defer env.Shutdown(t)
+	if err := protocol.ServerDispatcherV2(env.conn).DidOpen(ctx, &protocol.DidOpenTextDocumentParams{}); err != nil {
 		t.Errorf("DidOpen: %v", err)
 	}
 	select {
@@ -56,13 +84,34 @@ func TestClientLoggingV2(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Error("timeout waiting for client log")
 	}
-	if err := listener.Close(); err != nil {
-		t.Error(err)
+}
+
+func TestRequestCancellationV2(t *testing.T) {
+	ctx := context.Background()
+
+	server := waitableServer{
+		started:   make(chan struct{}),
+		completed: make(chan error),
 	}
-	if err := conn.Close(); err != nil {
-		t.Fatal(err)
+	client := fakeClient{logs: make(chan string, 10)}
+	env := startServing(ctx, t, server, client)
+	defer env.Shutdown(t)
+
+	sd := protocol.ServerDispatcherV2(env.conn)
+	ctx, cancel := context.WithCancel(ctx)
+
+	result := make(chan error)
+	go func() {
+		_, err := sd.Hover(ctx, &protocol.HoverParams{})
+		result <- err
+	}()
+	// Wait for the Hover request to start.
+	<-server.started
+	cancel()
+	if err := <-result; err == nil {
+		t.Error("nil error for cancelled Hover(), want non-nil")
 	}
-	if err := server.Wait(); err != nil {
-		log.Fatal(err)
+	if err := <-server.completed; err == nil || !strings.Contains(err.Error(), "cancelled hover") {
+		t.Errorf("Hover(): unexpected server-side error %v", err)
 	}
 }

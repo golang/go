@@ -6,8 +6,9 @@ package lsprpc
 
 import (
 	"context"
+	"errors"
 	"regexp"
-	"sync"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,15 +90,19 @@ func TestClientLogging(t *testing.T) {
 type waitableServer struct {
 	fakeServer
 
-	started chan struct{}
+	started   chan struct{}
+	completed chan error
 }
 
-func (s waitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (*protocol.Hover, error) {
+func (s waitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (_ *protocol.Hover, err error) {
 	s.started <- struct{}{}
+	defer func() {
+		s.completed <- err
+	}()
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-time.After(200 * time.Millisecond):
+		return nil, errors.New("cancelled hover")
+	case <-time.After(10 * time.Second):
 	}
 	return &protocol.Hover{}, nil
 }
@@ -132,7 +137,8 @@ func setupForwarding(ctx context.Context, t *testing.T, s protocol.Server) (dire
 func TestRequestCancellation(t *testing.T) {
 	ctx := context.Background()
 	server := waitableServer{
-		started: make(chan struct{}),
+		started:   make(chan struct{}),
+		completed: make(chan error),
 	}
 	tsDirect, tsForwarded, cleanup := setupForwarding(ctx, t, server)
 	defer cleanup()
@@ -153,32 +159,21 @@ func TestRequestCancellation(t *testing.T) {
 					jsonrpc2.MethodNotFound))
 
 			ctx := context.Background()
-			ctx1, cancel1 := context.WithCancel(ctx)
-			var (
-				err1, err2 error
-				wg         sync.WaitGroup
-			)
-			wg.Add(2)
+			ctx, cancel := context.WithCancel(ctx)
+
+			result := make(chan error)
 			go func() {
-				defer wg.Done()
-				_, err1 = sd.Hover(ctx1, &protocol.HoverParams{})
-			}()
-			go func() {
-				defer wg.Done()
-				_, err2 = sd.Resolve(ctx, &protocol.CompletionItem{})
+				_, err := sd.Hover(ctx, &protocol.HoverParams{})
+				result <- err
 			}()
 			// Wait for the Hover request to start.
 			<-server.started
-			cancel1()
-			wg.Wait()
-			if err1 == nil {
-				t.Errorf("cancelled Hover(): got nil err")
+			cancel()
+			if err := <-result; err == nil {
+				t.Error("nil error for cancelled Hover(), want non-nil")
 			}
-			if err2 != nil {
-				t.Errorf("uncancelled Hover(): err: %v", err2)
-			}
-			if _, err := sd.Resolve(ctx, &protocol.CompletionItem{}); err != nil {
-				t.Errorf("subsequent Hover(): %v", err)
+			if err := <-server.completed; err == nil || !strings.Contains(err.Error(), "cancelled hover") {
+				t.Errorf("Hover(): unexpected server-side error %v", err)
 			}
 		})
 	}

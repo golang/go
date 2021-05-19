@@ -86,7 +86,13 @@ func (c clientConnV2) Notify(ctx context.Context, method string, params interfac
 }
 
 func (c clientConnV2) Call(ctx context.Context, method string, params interface{}, result interface{}) error {
-	return c.conn.Call(ctx, method, params).Await(ctx, result)
+	call := c.conn.Call(ctx, method, params)
+	err := call.Await(ctx, result)
+	if ctx.Err() != nil {
+		detached := xcontext.Detach(ctx)
+		c.conn.Notify(detached, "$/cancelRequest", &CancelParams{ID: call.ID().Raw()})
+	}
+	return err
 }
 
 // ServerDispatcher returns a Server that dispatches LSP requests across the

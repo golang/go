@@ -6,9 +6,11 @@ package lsprpc
 
 import (
 	"context"
+	"encoding/json"
 
 	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/lsp/protocol"
+	errors "golang.org/x/xerrors"
 )
 
 type ServerFunc func(context.Context, protocol.ClientCloser) protocol.Server
@@ -33,9 +35,38 @@ func (b *ServerBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) (
 		ctx = protocol.WithClient(ctx, client)
 		return serverHandler.Handle(ctx, req)
 	})
+	preempter := &canceler{
+		conn: conn,
+	}
 	return jsonrpc2_v2.ConnectionOptions{
-		Handler: wrapped,
+		Handler:   wrapped,
+		Preempter: preempter,
 	}, nil
+}
+
+type canceler struct {
+	conn *jsonrpc2_v2.Connection
+}
+
+func (c *canceler) Preempt(ctx context.Context, req *jsonrpc2_v2.Request) (interface{}, error) {
+	if req.Method != "$/cancelRequest" {
+		return nil, jsonrpc2_v2.ErrNotHandled
+	}
+	var params protocol.CancelParams
+	if err := json.Unmarshal(req.Params, &params); err != nil {
+		return nil, errors.Errorf("%w: %v", jsonrpc2_v2.ErrParse, err)
+	}
+	var id jsonrpc2_v2.ID
+	switch raw := params.ID.(type) {
+	case float64:
+		id = jsonrpc2_v2.Int64ID(int64(raw))
+	case string:
+		id = jsonrpc2_v2.StringID(raw)
+	default:
+		return nil, errors.Errorf("%w: invalid ID type %T", jsonrpc2_v2.ErrParse, params.ID)
+	}
+	c.conn.Cancel(id)
+	return nil, nil
 }
 
 type ForwardBinder struct {
