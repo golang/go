@@ -1443,6 +1443,18 @@ func (p *parser) interfaceType() *InterfaceType {
 				}
 				return false
 			}
+
+		default:
+			if p.mode&AllowGenerics != 0 {
+				pos := p.pos()
+				if t := p.typeOrNil(); t != nil {
+					f := new(Field)
+					f.pos = pos
+					f.Type = t
+					typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
+					return false
+				}
+			}
 		}
 
 		if p.mode&AllowGenerics != 0 {
