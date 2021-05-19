@@ -1005,14 +1005,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64CALLstatic:
 		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
 		s.Call(v)
 		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1306,7 +1310,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRetJmp:
 		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
