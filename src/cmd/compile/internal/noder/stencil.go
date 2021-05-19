@@ -217,7 +217,7 @@ type subster struct {
 	g        *irgen
 	isMethod bool     // If a method is being instantiated
 	newf     *ir.Func // Func node for the new stenciled function
-	tparams  []*types.Field
+	tparams  []*types.Type
 	targs    []*types.Type
 	// The substitution map from name nodes in the generic function to the
 	// name nodes in the new stenciled function.
@@ -231,18 +231,19 @@ type subster struct {
 // instantiated method would still need to be transformed by later compiler
 // phases.
 func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*types.Type, isMethod bool) *ir.Func {
-	var tparams []*types.Field
+	var tparams []*types.Type
 	if isMethod {
 		// Get the type params from the method receiver (after skipping
 		// over any pointer)
 		recvType := nameNode.Type().Recv().Type
 		recvType = deref(recvType)
-		tparams = make([]*types.Field, len(recvType.RParams()))
-		for i, rparam := range recvType.RParams() {
-			tparams[i] = types.NewField(src.NoXPos, nil, rparam)
-		}
+		tparams = recvType.RParams()
 	} else {
-		tparams = nameNode.Type().TParams().Fields().Slice()
+		fields := nameNode.Type().TParams().Fields().Slice()
+		tparams = make([]*types.Type, len(fields))
+		for i, f := range fields {
+			tparams[i] = f.Type
+		}
 	}
 	gf := nameNode.Func
 	// Pos of the instantiated function is same as the generic function
@@ -660,7 +661,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 
 	if t.Kind() == types.TTYPEPARAM {
 		for i, tp := range subst.tparams {
-			if tp.Type == t {
+			if tp == t {
 				return subst.targs[i]
 			}
 		}
