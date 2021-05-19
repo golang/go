@@ -132,6 +132,7 @@ Outer:
 			}
 		}
 	}
+	assert(myheight == g.self.Height())
 	types.LocalPkg.Height = myheight
 
 	// 2. Process all package-block type declarations. As with imports,

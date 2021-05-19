@@ -1055,14 +1055,14 @@ func sortTypes(list []Type) {
 type byUniqueTypeName []Type
 
 func (a byUniqueTypeName) Len() int           { return len(a) }
-func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
+func (a byUniqueTypeName) Less(i, j int) bool { return sortObj(a[i]).less(sortObj(a[j])) }
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func sortName(t Type) string {
+func sortObj(t Type) *object {
 	if named := asNamed(t); named != nil {
-		return named.obj.Id()
+		return &named.obj.object
 	}
-	return ""
+	return nil
 }
 
 func sortMethods(list []*Func) {
@@ -1082,7 +1082,7 @@ func assertSortedMethods(list []*Func) {
 type byUniqueMethodName []*Func
 
 func (a byUniqueMethodName) Len() int           { return len(a) }
-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(a[j]) }
+func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (check *Checker) tag(t *syntax.BasicLit) string {
