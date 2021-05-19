@@ -118,17 +118,22 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 		pkgPathOff := r.uint64()
 		pkgPath := p.stringAt(pkgPathOff)
 		pkgName := p.stringAt(r.uint64())
-		_ = r.uint64() // package height; unused by go/types
+		pkgHeight := int(r.uint64())
 
 		if pkgPath == "" {
 			pkgPath = path
 		}
 		pkg := imports[pkgPath]
 		if pkg == nil {
-			pkg = types2.NewPackage(pkgPath, pkgName)
+			pkg = types2.NewPackageHeight(pkgPath, pkgName, pkgHeight)
 			imports[pkgPath] = pkg
-		} else if pkg.Name() != pkgName {
-			errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
+		} else {
+			if pkg.Name() != pkgName {
+				errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
+			}
+			if pkg.Height() != pkgHeight {
+				errorf("conflicting heights %v and %v for package %q", pkg.Height(), pkgHeight, path)
+			}
 		}
 
 		p.pkgCache[pkgPathOff] = pkg
