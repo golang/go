@@ -42,45 +42,40 @@ var (
 )
 
 func commentToMarkdown(w io.Writer, text string) {
-	isFirstLine := true
-	for _, b := range blocks(text) {
+	blocks := blocks(text)
+	for i, b := range blocks {
 		switch b.op {
 		case opPara:
-			if !isFirstLine {
-				w.Write(mdNewline)
-			}
-
 			for _, line := range b.lines {
 				emphasize(w, line, true)
 			}
 		case opHead:
-			if !isFirstLine {
-				w.Write(mdNewline)
+			// The header block can consist of only one line.
+			// However, check the number of lines, just in case.
+			if len(b.lines) == 0 {
+				// Skip this block.
+				continue
 			}
-			w.Write(mdNewline)
+			header := b.lines[0]
 
-			for _, line := range b.lines {
-				w.Write(mdHeader)
-				commentEscape(w, line, true)
-				w.Write(mdNewline)
-			}
+			w.Write(mdHeader)
+			commentEscape(w, header, true)
+			// Header doesn't end with \n unlike the lines of other blocks.
+			w.Write(mdNewline)
 		case opPre:
-			if !isFirstLine {
-				w.Write(mdNewline)
-			}
-			w.Write(mdNewline)
-
 			for _, line := range b.lines {
 				if isBlank(line) {
 					w.Write(mdNewline)
-				} else {
-					w.Write(mdIndent)
-					w.Write([]byte(line))
-					w.Write(mdNewline)
+					continue
 				}
+				w.Write(mdIndent)
+				w.Write([]byte(line))
 			}
 		}
-		isFirstLine = false
+
+		if i < len(blocks)-1 {
+			w.Write(mdNewline)
+		}
 	}
 }
 
