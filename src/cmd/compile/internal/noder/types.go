@@ -273,9 +273,9 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				} else {
 					meth2 = ir.NewNameAt(meth.Pos(), newsym)
 					rparams := types2.AsSignature(m.Type()).RParams()
-					tparams := make([]*types.Field, len(rparams))
+					tparams := make([]*types.Type, len(rparams))
 					for i, rparam := range rparams {
-						tparams[i] = types.NewField(src.NoXPos, nil, g.typ1(rparam.Type()))
+						tparams[i] = g.typ1(rparam.Type())
 					}
 					assert(len(tparams) == len(targs))
 					subst := &subster{
