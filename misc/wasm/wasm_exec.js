@@ -106,6 +106,9 @@
 		const nodeCrypto = require("crypto");
 		global.crypto = {
 			getRandomValues(b) {
+				if (b.byteLength > 65536) {
+					throw new Error(`Failed to execute 'getRandomValues' on 'Crypto': The ArrayBufferView's byte length (${b.byteLength}) exceeds the number of bytes of entropy available via this API (65536).`);
+				}
 				nodeCrypto.randomFillSync(b);
 			},
 		};

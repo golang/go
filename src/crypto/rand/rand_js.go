@@ -22,6 +22,11 @@ var uint8Array = js.Global().Get("Uint8Array")
 type reader struct{}
 
 func (r *reader) Read(b []byte) (int, error) {
+	// the specification states that getRandomValues fails if called with
+	// a buffer length of over 65536 bytes
+	if len(b) > 65536 {
+		b = b[:65536]
+	}
 	a := uint8Array.New(len(b))
 	jsCrypto.Call("getRandomValues", a)
 	js.CopyBytesToGo(b, a)
