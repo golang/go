@@ -166,12 +166,8 @@ func (g *irgen) instantiateMethods() {
 		baseSym := typ.Sym().Pkg.Lookup(genericTypeName(typ.Sym()))
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, m := range typ.Methods().Slice() {
-			targs := make([]ir.Node, len(typ.RParams()))
-			for k, targ := range typ.RParams() {
-				targs[k] = ir.TypeNode(targ)
-			}
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
-			f := g.getInstantiation(baseNname, targs, true)
+			f := g.getInstantiation(baseNname, typ.RParams(), true)
 			m.Nname = f.Nname
 		}
 	}
@@ -190,17 +186,17 @@ func genericTypeName(sym *types.Sym) string {
 // InstExpr node inst.
 func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
 	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
-		return g.getInstantiation(meth.Selection.Nname.(*ir.Name), inst.Targs, true)
+		return g.getInstantiation(meth.Selection.Nname.(*ir.Name), typecheck.TypesOf(inst.Targs), true)
 	} else {
-		return g.getInstantiation(inst.X.(*ir.Name), inst.Targs, false)
+		return g.getInstantiation(inst.X.(*ir.Name), typecheck.TypesOf(inst.Targs), false)
 	}
 }
 
 // getInstantiation gets the instantiantion of the function or method nameNode
 // with the type arguments targs. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []ir.Node, isMeth bool) *ir.Func {
-	sym := makeInstName(nameNode.Sym(), targs, isMeth)
+func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
 	st := g.target.Stencils[sym]
 	if st == nil {
 		// If instantiation doesn't exist yet, create it and add
@@ -215,45 +211,6 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []ir.Node, isMeth bool
 	return st
 }
 
-// makeInstName makes the unique name for a stenciled generic function or method,
-// based on the name of the function fy=nsym and the targs. It replaces any
-// existing bracket type list in the name. makeInstName asserts that fnsym has
-// brackets in its name if and only if hasBrackets is true.
-// TODO(danscales): remove the assertions and the hasBrackets argument later.
-//
-// Names of declared generic functions have no brackets originally, so hasBrackets
-// should be false. Names of generic methods already have brackets, since the new
-// type parameter is specified in the generic type of the receiver (e.g. func
-// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
-//
-// The standard naming is something like: 'genFn[int,bool]' for functions and
-// '(*genType[int,bool]).methodName' for methods
-func makeInstName(fnsym *types.Sym, targs []ir.Node, hasBrackets bool) *types.Sym {
-	b := bytes.NewBufferString("")
-	name := fnsym.Name
-	i := strings.Index(name, "[")
-	assert(hasBrackets == (i >= 0))
-	if i >= 0 {
-		b.WriteString(name[0:i])
-	} else {
-		b.WriteString(name)
-	}
-	b.WriteString("[")
-	for i, targ := range targs {
-		if i > 0 {
-			b.WriteString(",")
-		}
-		b.WriteString(targ.Type().String())
-	}
-	b.WriteString("]")
-	if i >= 0 {
-		i2 := strings.Index(name[i:], "]")
-		assert(i2 >= 0)
-		b.WriteString(name[i+i2+1:])
-	}
-	return typecheck.Lookup(b.String())
-}
-
 // Struct containing info needed for doing the substitution as we create the
 // instantiation of a generic function with specified type arguments.
 type subster struct {
@@ -261,7 +218,7 @@ type subster struct {
 	isMethod bool     // If a method is being instantiated
 	newf     *ir.Func // Func node for the new stenciled function
 	tparams  []*types.Field
-	targs    []ir.Node
+	targs    []*types.Type
 	// The substitution map from name nodes in the generic function to the
 	// name nodes in the new stenciled function.
 	vars map[*ir.Name]*ir.Name
@@ -273,7 +230,7 @@ type subster struct {
 // function type where the receiver becomes the first parameter. Otherwise the
 // instantiated method would still need to be transformed by later compiler
 // phases.
-func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.Node, isMethod bool) *ir.Func {
+func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*types.Type, isMethod bool) *ir.Func {
 	var tparams []*types.Field
 	if isMethod {
 		// Get the type params from the method receiver (after skipping
@@ -545,7 +502,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m.(*ir.ClosureExpr).Func = newfn
 			// Closure name can already have brackets, if it derives
 			// from a generic method
-			newsym := makeInstName(oldfn.Nname.Sym(), subst.targs, subst.isMethod)
+			newsym := typecheck.MakeInstName(oldfn.Nname.Sym(), subst.targs, subst.isMethod)
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), newsym)
 			newfn.Nname.Func = newfn
 			newfn.Nname.Defn = newfn
@@ -704,7 +661,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 	if t.Kind() == types.TTYPEPARAM {
 		for i, tp := range subst.tparams {
 			if tp.Type == t {
-				return subst.targs[i].Type()
+				return subst.targs[i]
 			}
 		}
 		// If t is a simple typeparam T, then t has the name/symbol 'T'
@@ -872,7 +829,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
 		for i, f := range t.Methods().Slice() {
 			t2 := subst.typ(f.Type)
 			oldsym := f.Nname.Sym()
-			newsym := makeInstName(oldsym, subst.targs, true)
+			newsym := typecheck.MakeInstName(oldsym, subst.targs, true)
 			var nname *ir.Name
 			if newsym.Def != nil {
 				nname = newsym.Def.(*ir.Name)
