@@ -333,6 +333,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			if len(ftyp.tparams) != len(mtyp.tparams) {
 				return m, f
 			}
+			if !acceptMethodTypeParams && len(ftyp.tparams) > 0 {
+				panic("internal error: method with type parameters")
+			}
 
 			// If the methods have type parameters we don't care whether they
 			// are the same or not, as long as they match up. Use unification
@@ -386,6 +389,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		if len(ftyp.tparams) != len(mtyp.tparams) {
 			return m, f
 		}
+		if !acceptMethodTypeParams && len(ftyp.tparams) > 0 {
+			panic("internal error: method with type parameters")
+		}
 
 		// If V is a (instantiated) generic type, its methods are still
 		// parameterized using the original (declaration) receiver type
@@ -413,7 +419,20 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(check, true)
-		u.x.init(ftyp.tparams)
+		if len(ftyp.tparams) > 0 {
+			// We reach here only if we accept method type parameters.
+			// In this case, unification must consider any receiver
+			// and method type parameters as "free" type parameters.
+			assert(acceptMethodTypeParams)
+			// We don't have a test case for this at the moment since
+			// we can't parse method type parameters. Keeping the
+			// unimplemented call so that we test this code if we
+			// enable method type parameters.
+			unimplemented()
+			u.x.init(append(ftyp.rparams, ftyp.tparams...))
+		} else {
+			u.x.init(ftyp.rparams)
+		}
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}
