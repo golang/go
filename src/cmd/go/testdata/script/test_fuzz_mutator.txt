@@ -110,6 +110,8 @@ package fuzz_test
 
 import (
 	"bytes"
+	"fmt"
+	"os"
 	"testing"
 )
 
@@ -123,7 +125,7 @@ func FuzzMinimizerRecoverable(f *testing.F) {
 		// minimizer to trim down the value a bit.
 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
 			if len(b) == 50 {
-				t.Log("got the minimum size!")
+				fmt.Fprint(os.Stderr, "got the minimum size!\n")
 			}
 			t.Error("contains a letter")
 		}
@@ -140,7 +142,7 @@ func FuzzMinimizerNonrecoverable(f *testing.F) {
 		// minimizer to trim down the value quite a bit.
 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
 			if len(b) == 50 {
-				t.Log("got the minimum size!")
+				fmt.Fprint(os.Stderr, "got the minimum size!\n")
 			}
 			panic("contains a letter")
 		}
@@ -155,7 +157,7 @@ func FuzzNonMinimizable(f *testing.F) {
 		}
 		panic("at least 20 bytes")
 		if len(b) == 20 {
-			t.Log("got the minimum size!")
+			fmt.Fprint(os.Stderr, "got the minimum size!\n")
 		}
 	})
 }

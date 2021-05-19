@@ -95,7 +95,6 @@ func (w *worker) coordinate(ctx context.Context) error {
 			return nil
 		}
 		return fmt.Errorf("fuzzing process terminated without fuzzing: %w", err)
-		// TODO(jayconrod,katiehockman): record and return stderr.
 	}
 
 	// interestingCount starts at -1, like the coordinator does, so that the
@@ -141,7 +140,6 @@ func (w *worker) coordinate(ctx context.Context) error {
 			// (for example, SIGSEGV) while fuzzing.
 			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
-			// TODO(jayconrod,katiehockman): record and return stderr.
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
@@ -288,9 +286,6 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, 
 		}
 		minimized = true
 	}
-	// TODO(jayconrod,katiehockman): while minimizing, every panic message is
-	// logged to STDOUT. We should probably suppress all but the last one to
-	// lower the noise.
 }
 
 // start runs a new worker process.
@@ -314,9 +309,6 @@ func (w *worker) start() (err error) {
 	cmd := exec.Command(w.binPath, w.args...)
 	cmd.Dir = w.dir
 	cmd.Env = w.env[:len(w.env):len(w.env)] // copy on append to ensure workers don't overwrite each other.
-	// TODO(jayconrod): set stdout and stderr to nil or buffer. A large number
-	// of workers may be very noisy, but for now, this output is useful for
-	// debugging.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
