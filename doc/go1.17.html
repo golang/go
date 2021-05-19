@@ -50,6 +50,24 @@ Do not send CLs removing the interior tags from such phrases.
   <code>windows/arm64</code> port). This port supports cgo.
 </p>
 
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- golang.org/issue/43005 -->
+  The 64-bit MIPS architecture on OpenBSD (the <code>openbsd/mips64</code>
+  port) now supports cgo.
+</p>
+
+<p><!-- golang.org/issue/36435 -->
+  In Go 1.16, on the 64-bit x86 and 64-bit ARM architectures on
+  OpenBSD (the <code>openbsd/amd64</code> and <code>openbsd/arm64</code>
+  ports) system calls are made through <code>libc</code>, instead
+  of directly using the machine instructions. In Go 1.17, this is
+  also done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+  (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
+  This ensures forward-compatibility with future versions of
+  OpenBSD.
+</p>
+
 <p>
   TODO: complete the Ports section
 </p>
