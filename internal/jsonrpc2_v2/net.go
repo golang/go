@@ -80,11 +80,11 @@ func (n *netDialer) Dial(ctx context.Context) (io.ReadWriteCloser, error) {
 	return n.dialer.DialContext(ctx, n.network, n.address)
 }
 
-// NetPipe returns a new Listener that listens using net.Pipe.
+// NetPipeListener returns a new Listener that listens using net.Pipe.
 // It is only possibly to connect to it using the Dialier returned by the
 // Dialer method, each call to that method will generate a new pipe the other
 // side of which will be returnd from the Accept call.
-func NetPipe(ctx context.Context) (Listener, error) {
+func NetPipeListener(ctx context.Context) (Listener, error) {
 	return &netPiper{
 		done:   make(chan struct{}),
 		dialed: make(chan io.ReadWriteCloser),

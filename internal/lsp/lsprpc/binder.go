@@ -7,9 +7,12 @@ package lsprpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"golang.org/x/tools/internal/event"
 	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -87,8 +90,19 @@ func (b *ForwardBinder) Bind(ctx context.Context, conn *jsonrpc2_v2.Connection) 
 		return opts, err
 	}
 	server := protocol.ServerDispatcherV2(serverConn)
+	preempter := &canceler{
+		conn: conn,
+	}
+	detached := xcontext.Detach(ctx)
+	go func() {
+		conn.Wait()
+		if err := serverConn.Close(); err != nil {
+			event.Log(detached, fmt.Sprintf("closing remote connection: %v", err))
+		}
+	}()
 	return jsonrpc2_v2.ConnectionOptions{
-		Handler: protocol.ServerHandlerV2(server),
+		Handler:   protocol.ServerHandlerV2(server),
+		Preempter: preempter,
 	}, nil
 }
 

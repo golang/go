@@ -89,7 +89,7 @@ func TestServe(t *testing.T) {
 			return jsonrpc2.NetListener(ctx, "tcp", "localhost:0", jsonrpc2.NetListenOptions{})
 		}},
 		{"pipe", func(ctx context.Context) (jsonrpc2.Listener, error) {
-			return jsonrpc2.NetPipe(ctx)
+			return jsonrpc2.NetPipeListener(ctx)
 		}},
 	}
 

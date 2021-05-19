@@ -126,7 +126,7 @@ func TestConnectionHeader(t *testing.T) {
 func testConnection(t *testing.T, framer jsonrpc2.Framer) {
 	stacktest.NoLeak(t)
 	ctx := eventtest.NewContext(context.Background(), t)
-	listener, err := jsonrpc2.NetPipe(ctx)
+	listener, err := jsonrpc2.NetPipeListener(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -112,6 +112,7 @@ func newConnection(ctx context.Context, rwc io.ReadWriteCloser, binder Binder) (
 	go c.readIncoming(ctx, reader, readToQueue)
 	go c.manageQueue(ctx, options.Preempter, readToQueue, queueToDeliver)
 	go c.deliverMessages(ctx, options.Handler, queueToDeliver)
+
 	// releaseing the writer must be the last thing we do in case any requests
 	// are blocked waiting for the connection to be ready
 	c.writerBox <- options.Framer.Writer(rwc)
