@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -346,7 +347,7 @@ func getRandomData(r []byte) {
 
 func initsig(preinit bool) {
 	if !preinit {
-		notify(unsafe.Pointer(funcPC(sigtramp)))
+		notify(unsafe.Pointer(abi.FuncPCABI0(sigtramp)))
 	}
 }
 
