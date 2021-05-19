@@ -435,7 +435,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 		Severity: protocol.SeverityWarning,
 		Source:   source.ListError,
 		Message: fmt.Sprintf(`No packages found for open file %s: %v.
-If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlag" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
+If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlags" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
 Otherwise, see the troubleshooting guidelines for help investigating (https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md).
 `, fh.URI().Filename(), err),
 	}
