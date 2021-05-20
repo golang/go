@@ -370,10 +370,9 @@ func TestMapIterSet(t *testing.T) {
 			iter.SetValue(e)
 		}
 	}))
-	// Making a *MapIter and making an hiter both allocate.
-	// Those should be the only two allocations.
-	if got != 2 {
-		t.Errorf("wanted 2 allocs, got %d", got)
+	// Making a *MapIter allocates. This should be the only allocation.
+	if got != 1 {
+		t.Errorf("wanted 1 alloc, got %d", got)
 	}
 }
 
