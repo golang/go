@@ -320,10 +320,6 @@ func (w *worker) start() (err error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// TODO(jayconrod): set up shared memory between the coordinator and worker to
-	// transfer values and coverage data. If the worker crashes, we need to be
-	// able to find the value that caused the crash.
-
 	// Create the "fuzz_in" and "fuzz_out" pipes so we can communicate with
 	// the worker. We don't use stdin and stdout, since the test binary may
 	// do something else with those.
