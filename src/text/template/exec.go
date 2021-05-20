@@ -5,6 +5,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"internal/fmtsort"
 	"io"
@@ -243,6 +244,12 @@ func (t *Template) DefinedTemplates() string {
 	return b.String()
 }
 
+// Sentinel errors for use with panic to signal early exits from range loops.
+var (
+	walkBreak    = errors.New("break")
+	walkContinue = errors.New("continue")
+)
+
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
 func (s *state) walk(dot reflect.Value, node parse.Node) {
@@ -255,7 +262,11 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
 		}
+	case *parse.BreakNode:
+		panic(walkBreak)
 	case *parse.CommentNode:
+	case *parse.ContinueNode:
+		panic(walkContinue)
 	case *parse.IfNode:
 		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:
@@ -334,6 +345,11 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 
 func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	s.at(r)
+	defer func() {
+		if r := recover(); r != nil && r != walkBreak {
+			panic(r)
+		}
+	}()
 	defer s.pop(s.mark())
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
@@ -347,8 +363,14 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if len(r.Pipe.Decl) > 1 {
 			s.setTopVar(2, index)
 		}
+		defer s.pop(mark)
+		defer func() {
+			// Consume panic(walkContinue)
+			if r := recover(); r != nil && r != walkContinue {
+				panic(r)
+			}
+		}()
 		s.walk(elem, r.List)
-		s.pop(mark)
 	}
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
