@@ -128,8 +128,7 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {

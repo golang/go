@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -149,7 +150,7 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {
@@ -429,13 +430,13 @@ func setsig(i uint32, fn uintptr) {
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
 	if GOARCH == "386" || GOARCH == "amd64" {
-		sa.sa_restorer = funcPC(sigreturn)
+		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
 	}
 	if fn == funcPC(sighandler) {
 		if iscgo {
-			fn = funcPC(cgoSigtramp)
+			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
-			fn = funcPC(sigtramp)
+			fn = abi.FuncPCABI0(sigtramp)
 		}
 	}
 	sa.sa_handler = fn

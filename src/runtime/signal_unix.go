@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -329,7 +330,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	if wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
 			// Adjust the PC and inject a call to asyncPreempt.
-			ctxt.pushCall(funcPC(asyncPreempt), newpc)
+			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
 		}
 	}
 

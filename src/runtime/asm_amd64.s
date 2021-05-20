@@ -469,7 +469,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 
 #ifdef GOEXPERIMENT_regabireflect
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOVQ AX, 0(R12)
 	MOVQ BX, 8(R12)
 	MOVQ CX, 16(R12)
@@ -497,7 +497,7 @@ TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
 
 // unspillArgs loads args into registers from a *internal/abi.RegArgs in R12.
-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	MOVQ 0(R12), AX
 	MOVQ 8(R12), BX
 	MOVQ 16(R12), CX
@@ -525,11 +525,11 @@ TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
 #else
 // spillArgs stores return values from registers to a pointer in R12.
-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	RET
 
 // unspillArgs loads args into registers from a pointer in R12.
-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	RET
 #endif
 
@@ -588,7 +588,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	REP;MOVSB;				\
 	/* set up argument registers */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    ·unspillArgs<ABIInternal>(SB);		\
+	CALL    ·unspillArgs(SB);		\
 	/* call function */			\
 	MOVQ	f+8(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
@@ -596,7 +596,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	CALL	R12;				\
 	/* copy register return values back */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    ·spillArgs<ABIInternal>(SB);		\
+	CALL    ·spillArgs(SB);		\
 	MOVLQZX	stackArgsSize+24(FP), CX;		\
 	MOVLQZX	stackRetOffset+28(FP), BX;		\
 	MOVQ	stackArgs+16(FP), DI;		\
@@ -1596,7 +1596,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // This function is injected from the signal handler for panicking
 // signals. It is quite painful to set X15 in the signal context,
 // so we do it here.
-TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 #ifdef GOEXPERIMENT_regabig
 	get_tls(R14)
 	MOVQ	g(R14), R14

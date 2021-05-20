@@ -441,9 +441,7 @@ call:
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
 // RARG0 contains command code. RARG1 contains command-specific context.
 // See racecallback for command codes.
-// Defined as ABIInternal so as to avoid introducing a wrapper,
-// because its address is passed to C via funcPC.
-TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $0-0
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $0-0
 	// Handle command raceGetProcCmd (0) here.
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will
