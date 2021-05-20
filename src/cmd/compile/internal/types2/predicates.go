@@ -284,6 +284,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			return true
 		}
 
+	case *Union:
+		unimplemented()
+
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from

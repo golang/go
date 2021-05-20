@@ -11,72 +11,84 @@ import (
 )
 
 func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
-	var tname *syntax.Name // most recent "type" name
-	var types []syntax.Expr
+	var tlist []syntax.Expr // types collected from all type lists
+	var tname *syntax.Name  // most recent "type" name
+
 	for _, f := range iface.MethodList {
-		if f.Name != nil {
-			// We have a method with name f.Name, or a type
-			// of a type list (f.Name.Value == "type").
-			name := f.Name.Value
-			if name == "_" {
-				if check.conf.CompilerErrorMessages {
-					check.error(f.Name, "methods must have a unique non-blank name")
-				} else {
-					check.error(f.Name, "invalid method name _")
-				}
-				continue // ignore
-			}
-
-			if name == "type" {
-				// Always collect all type list entries, even from
-				// different type lists, under the assumption that
-				// the author intended to include all types.
-				types = append(types, f.Type)
-				if tname != nil && tname != f.Name {
-					check.error(f.Name, "cannot have multiple type lists in an interface")
-				}
-				tname = f.Name
-				continue
-			}
-
-			typ := check.typ(f.Type)
-			sig, _ := typ.(*Signature)
-			if sig == nil {
-				if typ != Typ[Invalid] {
-					check.errorf(f.Type, invalidAST+"%s is not a method signature", typ)
-				}
-				continue // ignore
-			}
-
-			// Always type-check method type parameters but complain if they are not enabled.
-			// (This extra check is needed here because interface method signatures don't have
-			// a receiver specification.)
-			if sig.tparams != nil && !acceptMethodTypeParams {
-				check.error(f.Type, "methods cannot have type parameters")
-			}
-
-			// use named receiver type if available (for better error messages)
-			var recvTyp Type = ityp
-			if def != nil {
-				recvTyp = def
-			}
-			sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
-
-			m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
-			check.recordDef(f.Name, m)
-			ityp.methods = append(ityp.methods, m)
-		} else {
-			// We have an embedded type. completeInterface will
-			// eventually verify that we have an interface.
-			ityp.embeddeds = append(ityp.embeddeds, check.typ(f.Type))
+		if f.Name == nil {
+			// We have an embedded type; possibly a union of types.
+			ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, flattenUnion(nil, f.Type)))
 			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
+			continue
 		}
+		// f.Name != nil
+
+		// We have a method with name f.Name, or a type of a type list (f.Name.Value == "type").
+		name := f.Name.Value
+		if name == "_" {
+			if check.conf.CompilerErrorMessages {
+				check.error(f.Name, "methods must have a unique non-blank name")
+			} else {
+				check.error(f.Name, "invalid method name _")
+			}
+			continue // ignore
+		}
+
+		if name == "type" {
+			// For now, collect all type list entries as if it
+			// were a single union, where each union element is
+			// of the form ~T.
+			// TODO(gri) remove once we disallow type lists
+			op := new(syntax.Operation)
+			// We should also set the position (but there is no setter);
+			// we don't care because this code will eventually go away.
+			op.Op = syntax.Tilde
+			op.X = f.Type
+			tlist = append(tlist, op)
+			if tname != nil && tname != f.Name {
+				check.error(f.Name, "cannot have multiple type lists in an interface")
+			}
+			tname = f.Name
+			continue
+		}
+
+		typ := check.typ(f.Type)
+		sig, _ := typ.(*Signature)
+		if sig == nil {
+			if typ != Typ[Invalid] {
+				check.errorf(f.Type, invalidAST+"%s is not a method signature", typ)
+			}
+			continue // ignore
+		}
+
+		// Always type-check method type parameters but complain if they are not enabled.
+		// (This extra check is needed here because interface method signatures don't have
+		// a receiver specification.)
+		if sig.tparams != nil && !acceptMethodTypeParams {
+			check.error(f.Type, "methods cannot have type parameters")
+		}
+
+		// use named receiver type if available (for better error messages)
+		var recvTyp Type = ityp
+		if def != nil {
+			recvTyp = def
+		}
+		sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
+
+		m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
+		check.recordDef(f.Name, m)
+		ityp.methods = append(ityp.methods, m)
 	}
 
-	// type constraints
-	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
+	// If we saw a type list, add it like an embedded union.
+	if tlist != nil {
+		ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, tlist))
+		// Types T in a type list are added as ~T expressions but we don't
+		// have the position of the '~'. Use the first type position instead.
+		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*syntax.Operation).X.Pos())
+	}
 
-	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
+	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
 		// empty interface
 		ityp.allMethods = markComplete
 		return
@@ -89,32 +101,12 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
 
-func (check *Checker) collectTypeConstraints(pos syntax.Pos, types []syntax.Expr) []Type {
-	list := make([]Type, 0, len(types)) // assume all types are correct
-	for _, texpr := range types {
-		if texpr == nil {
-			check.error(pos, invalidAST+"missing type constraint")
-			continue
-		}
-		list = append(list, check.varType(texpr))
+func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
+	if o, _ := x.(*syntax.Operation); o != nil && o.Op == syntax.Or {
+		list = flattenUnion(list, o.X)
+		x = o.Y
 	}
-
-	// Ensure that each type is only present once in the type list.  Types may be
-	// interfaces, which may not be complete yet. It's ok to do this check at the
-	// end because it's not a requirement for correctness of the code.
-	// Note: This is a quadratic algorithm, but type lists tend to be short.
-	check.later(func() {
-		for i, t := range list {
-			if t := asInterface(t); t != nil {
-				check.completeInterface(types[i].Pos(), t)
-			}
-			if includes(list[:i], t) {
-				check.softErrorf(types[i], "duplicate type %s in type list", t)
-			}
-		}
-	})
-
-	return list
+	return append(list, x)
 }
 
 // includes reports whether typ is in list
@@ -143,6 +135,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	completeInterface(check, pos, ityp)
 }
 
+// completeInterface may be called with check == nil.
 func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 	assert(ityp.allMethods == nil)
 
@@ -195,6 +188,7 @@ func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 			if check == nil {
 				panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
 			}
+			// check != nil
 			var err error_
 			err.errorf(pos, "duplicate method %s", m.name)
 			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
@@ -210,6 +204,7 @@ func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 				todo = append(todo, m, other.(*Func))
 				break
 			}
+			// check != nil
 			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					var err error_
@@ -225,9 +220,8 @@ func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 		addMethod(m.pos, m, true)
 	}
 
-	// collect types
-	allTypes := ityp.types
-
+	// collect embedded elements
+	var allTypes Type
 	var posList []syntax.Pos
 	if check != nil {
 		posList = check.posMap[ityp]
@@ -237,31 +231,36 @@ func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 		if posList != nil {
 			pos = posList[i]
 		}
-		utyp := under(typ)
-		etyp := asInterface(utyp)
-		if etyp == nil {
-			if utyp != Typ[Invalid] {
-				var format string
-				if _, ok := utyp.(*TypeParam); ok {
-					format = "%s is a type parameter, not an interface"
-				} else {
-					format = "%s is not an interface"
-				}
-				if check != nil {
-					check.errorf(pos, format, typ)
-				} else {
-					panic(fmt.Sprintf("%s: "+format, pos, typ))
-				}
+		var types Type
+		switch t := under(typ).(type) {
+		case *Interface:
+			if t.allMethods == nil {
+				completeInterface(check, pos, t)
 			}
-			continue
+			for _, m := range t.allMethods {
+				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+			}
+			types = t.allTypes
+		case *Union:
+			types = NewSum(t.terms)
+			// TODO(gri) don't ignore tilde information
+		case *TypeParam:
+			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(pos, "%s is a type parameter, not an interface", typ)
+				continue
+			}
+			types = t
+		default:
+			if t == Typ[Invalid] {
+				continue
+			}
+			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(pos, "%s is not an interface", typ)
+				continue
+			}
+			types = t
 		}
-		if etyp.allMethods == nil {
-			completeInterface(check, pos, etyp)
-		}
-		for _, m := range etyp.allMethods {
-			addMethod(pos, m, false) // use embedding position pos rather than m.pos
-		}
-		allTypes = intersect(allTypes, etyp.allTypes)
+		allTypes = intersect(allTypes, types)
 	}
 
 	// process todo's (this only happens if check == nil)
@@ -281,7 +280,7 @@ func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
 }
 
 // intersect computes the intersection of the types x and y.
-// Note: A incomming nil type stands for the top type. A top
+// Note: An incomming nil type stands for the top type. A top
 // type result is returned as nil.
 func intersect(x, y Type) (r Type) {
 	defer func() {

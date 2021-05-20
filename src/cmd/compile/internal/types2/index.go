@@ -126,7 +126,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			case *TypeParam:
 				check.errorf(x, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
 			case *instance:
-				panic("unimplemented")
+				unimplemented()
 			}
 			if e == nil || telem != nil && !Identical(e, telem) {
 				return false
