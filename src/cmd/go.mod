@@ -10,6 +10,6 @@ require (
 	golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd
 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
-	golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5
+	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )

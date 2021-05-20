@@ -16,7 +16,7 @@ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mU
 golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
 golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
-golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5 h1:ImcI7RFHWLu2QWpFDXaReu0j+sQAHIy65vUFZImXiqY=
-golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5/go.mod h1:sH/Eidr0EddymY8HZSakBo32zU3fG5ovDq874hJLjVg=
+golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9 h1:2XlR/j4I4xz5GQZI7zBjqTfezYyRIE2jD5IMousB2rg=
+golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
