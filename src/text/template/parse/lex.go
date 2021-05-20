@@ -62,6 +62,8 @@ const (
 	// Keywords appear after all the rest.
 	itemKeyword  // used only to delimit the keywords
 	itemBlock    // block keyword
+	itemBreak    // break keyword
+	itemContinue // continue keyword
 	itemDot      // the cursor, spelled '.'
 	itemDefine   // define keyword
 	itemElse     // else keyword
@@ -76,6 +78,8 @@ const (
 var key = map[string]itemType{
 	".":        itemDot,
 	"block":    itemBlock,
+	"break":    itemBreak,
+	"continue": itemContinue,
 	"define":   itemDefine,
 	"else":     itemElse,
 	"end":      itemEnd,
@@ -119,6 +123,8 @@ type lexer struct {
 	parenDepth  int       // nesting depth of ( ) exprs
 	line        int       // 1+number of newlines seen
 	startLine   int       // start line of this item
+	breakOK     bool      // break keyword allowed
+	continueOK  bool      // continue keyword allowed
 }
 
 // next returns the next rune in the input.
@@ -461,7 +467,12 @@ Loop:
 			}
 			switch {
 			case key[word] > itemKeyword:
-				l.emit(key[word])
+				item := key[word]
+				if item == itemBreak && !l.breakOK || item == itemContinue && !l.continueOK {
+					l.emit(itemIdentifier)
+				} else {
+					l.emit(item)
+				}
 			case word[0] == '.':
 				l.emit(itemField)
 			case word == "true", word == "false":

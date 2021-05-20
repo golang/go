@@ -920,6 +920,22 @@ func TestErrors(t *testing.T) {
 			"<a href='/foo?{{range .Items}}&{{.K}}={{.V}}{{end}}'>",
 			"",
 		},
+		{
+			"{{range .Items}}<a{{if .X}}{{end}}>{{end}}",
+			"",
+		},
+		{
+			"{{range .Items}}<a{{if .X}}{{end}}>{{continue}}{{end}}",
+			"",
+		},
+		{
+			"{{range .Items}}<a{{if .X}}{{end}}>{{break}}{{end}}",
+			"",
+		},
+		{
+			"{{range .Items}}<a{{if .X}}{{end}}>{{if .X}}{{break}}{{end}}{{end}}",
+			"",
+		},
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
@@ -954,6 +970,14 @@ func TestErrors(t *testing.T) {
 		{
 			"\n{{range .Items}} x='<a{{end}}",
 			"z:2:8: on range loop re-entry: {{range}} branches",
+		},
+		{
+			"{{range .Items}}<a{{if .X}}{{break}}{{end}}>{{end}}",
+			"z:1:29: at range loop break: {{range}} branches end in different contexts",
+		},
+		{
+			"{{range .Items}}<a{{if .X}}{{continue}}{{end}}>{{end}}",
+			"z:1:29: at range loop continue: {{range}} branches end in different contexts",
 		},
 		{
 			"<a b=1 c={{.H}}",

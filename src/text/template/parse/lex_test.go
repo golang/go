@@ -35,6 +35,8 @@ var itemName = map[itemType]string{
 	// keywords
 	itemDot:      ".",
 	itemBlock:    "block",
+	itemBreak:    "break",
+	itemContinue: "continue",
 	itemDefine:   "define",
 	itemElse:     "else",
 	itemIf:       "if",
