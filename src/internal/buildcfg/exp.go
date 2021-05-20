@@ -29,7 +29,7 @@ var experimentBaseline = goexperiment.Flags{
 	RegabiWrappers: regabiSupported,
 	RegabiG:        regabiSupported,
 	RegabiReflect:  regabiSupported,
-	RegabiDefer:    regabiSupported,
+	RegabiDefer:    true,
 	RegabiArgs:     regabiSupported,
 }
 
@@ -103,7 +103,6 @@ func parseExperiments() goexperiment.Flags {
 		flags.RegabiWrappers = false
 		flags.RegabiG = false
 		flags.RegabiReflect = false
-		flags.RegabiDefer = false
 		flags.RegabiArgs = false
 	}
 	// Check regabi dependencies.
