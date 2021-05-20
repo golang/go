@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -543,7 +544,7 @@ func initLongPathSupport() {
 }
 
 func osinit() {
-	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
 
 	setBadSignalMsg()
 
@@ -906,7 +907,7 @@ func semacreate(mp *m) {
 func newosproc(mp *m) {
 	// We pass 0 for the stack size to use the default for this binary.
 	thandle := stdcall6(_CreateThread, 0, 0,
-		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
+		abi.FuncPCABI0(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		0, 0)
 
 	if thandle == 0 {
@@ -1385,7 +1386,7 @@ func preemptM(mp *m) {
 	if gp != nil && wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
 			// Inject call to asyncPreempt
-			targetPC := funcPC(asyncPreempt)
+			targetPC := abi.FuncPCABI0(asyncPreempt)
 			switch GOARCH {
 			default:
 				throw("unsupported architecture")

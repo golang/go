@@ -224,7 +224,7 @@ func callbackasmAddr(i int) uintptr {
 		// followed by a branch instruction
 		entrySize = 8
 	}
-	return funcPC(callbackasm) + uintptr(i*entrySize)
+	return abi.FuncPCABI0(callbackasm) + uintptr(i*entrySize)
 }
 
 const callbackMaxFrame = 64 * sys.PtrSize

@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -100,7 +101,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		if usesLR {
 			c.setpc(funcPC(sigpanictramp))
 		} else {
-			c.setpc(funcPC(sigpanic0))
+			c.setpc(abi.FuncPCABI0(sigpanic0))
 		}
 		return _NCONT
 	}

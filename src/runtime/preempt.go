@@ -53,6 +53,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -315,7 +316,7 @@ func asyncPreempt2() {
 var asyncPreemptStack = ^uintptr(0)
 
 func init() {
-	f := findfunc(funcPC(asyncPreempt))
+	f := findfunc(abi.FuncPCABI0(asyncPreempt))
 	total := funcMaxSPDelta(f)
 	f = findfunc(funcPC(asyncPreempt2))
 	total += funcMaxSPDelta(f)

@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -361,7 +362,7 @@ func raceinit() (gctx, pctx uintptr) {
 		throw("raceinit: race build must use cgo")
 	}
 
-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
+	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)

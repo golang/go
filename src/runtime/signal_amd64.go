@@ -9,6 +9,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -70,10 +71,10 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// Go special registers. We inject sigpanic0 (instead of sigpanic),
 	// which takes care of that.
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		c.pushCall(funcPC(sigpanic0), pc)
+		c.pushCall(abi.FuncPCABI0(sigpanic0), pc)
 	} else {
 		// Not safe to push the call. Just clobber the frame.
-		c.set_rip(uint64(funcPC(sigpanic0)))
+		c.set_rip(uint64(abi.FuncPCABI0(sigpanic0)))
 	}
 }
 
