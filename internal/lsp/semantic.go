@@ -611,9 +611,14 @@ func (e *encoded) Data() []uint32 {
 			x[j+1] = e.items[i].start - e.items[i-1].start
 		}
 		x[j+2] = e.items[i].len
-		x[j+3] = uint32(typeMap[e.items[i].typeStr])
+		typ, ok := typeMap[e.items[i].typeStr]
+		if !ok {
+			continue // client doesn't want typeStr
+		}
+		x[j+3] = uint32(typ)
 		mask := 0
 		for _, s := range e.items[i].mods {
+			// modMpa[s] is 0 if the client doesn't want this modifier
 			mask |= modMap[s]
 		}
 		x[j+4] = uint32(mask)
