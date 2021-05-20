@@ -320,6 +320,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		// Thus, we only need to look at the input and result parameters.
 		return w.isParameterized(t.params) || w.isParameterized(t.results)
 
+	case *Union:
+		unimplemented()
+
 	case *Interface:
 		if t.allMethods != nil {
 			// interface is complete - quick test
@@ -337,7 +340,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 					return true
 				}
 			}
-			return w.isParameterizedList(unpack(t.types))
+			return w.isParameterizedList(t.embeddeds)
 		}, nil)
 
 	case *Map:

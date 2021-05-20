@@ -4,7 +4,7 @@
 
 // type declarations
 
-package decls0
+package go1_17 // don't permit non-interface elements in interfaces
 
 import "unsafe"
 

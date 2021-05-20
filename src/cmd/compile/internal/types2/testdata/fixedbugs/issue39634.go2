@@ -36,7 +36,7 @@ func bar8[A foo8[A]](a A) {}
 func main8() {}
 
 // crash 9
-type foo9[A any] interface { type foo9 /* ERROR interface contains type constraints */ [A] }
+type foo9[A any] interface { type foo9 /* ERROR cannot use interface */ [A] }
 func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
 
 // crash 12

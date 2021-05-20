@@ -109,11 +109,11 @@ func (s sanitizer) typ(typ Type) Type {
 	case *Sum:
 		s.typeList(t.types)
 
+	case *Union:
+		s.typeList(t.terms)
+
 	case *Interface:
 		s.funcList(t.methods)
-		if types := s.typ(t.types); types != t.types {
-			t.types = types
-		}
 		s.typeList(t.embeddeds)
 		s.funcList(t.allMethods)
 		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
@@ -153,7 +153,7 @@ func (s sanitizer) typ(typ Type) Type {
 		s[t] = typ
 
 	default:
-		panic("unimplemented")
+		unimplemented()
 	}
 
 	return typ
