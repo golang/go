@@ -291,15 +291,15 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·exceptionhandler<ABIInternal>(SB), R1
+	MOVD	$runtime·exceptionhandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·firstcontinuehandler<ABIInternal>(SB), R1
+	MOVD	$runtime·firstcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+	MOVD	$runtime·lastcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
