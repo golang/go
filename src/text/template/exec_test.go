@@ -481,6 +481,10 @@ var execTests = []execTest{
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 true}} {{or 1 1}}", "0 1 true 1", nil, true},
+	{"or short-circuit", "{{or 0 1 (die)}}", "1", nil, true},
+	{"and short-circuit", "{{and 1 0 (die)}}", "0", nil, true},
+	{"or short-circuit2", "{{or 0 0 (die)}}", "", nil, false},
+	{"and short-circuit2", "{{and 1 1 (die)}}", "", nil, false},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
@@ -764,6 +768,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"add":         add,
 		"count":       count,
 		"dddArg":      dddArg,
+		"die":         func() bool { panic("die") },
 		"echo":        echo,
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,

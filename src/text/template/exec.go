@@ -572,11 +572,11 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ide
 func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(node)
 	name := node.Ident
-	function, ok := findFunction(name, s.tmpl)
+	function, isBuiltin, ok := findFunction(name, s.tmpl)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
-	return s.evalCall(dot, function, cmd, name, args, final)
+	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }
 
 // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
@@ -605,7 +605,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		ptr = ptr.Addr()
 	}
 	if method := ptr.MethodByName(fieldName); method.IsValid() {
-		return s.evalCall(dot, method, node, fieldName, args, final)
+		return s.evalCall(dot, method, false, node, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final != missingVal
 	// It's not a method; must be a field of a struct or an element of a map.
@@ -669,7 +669,7 @@ var (
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
 // it looks just like a function call. The arg list, if non-nil, includes (in the manner of the shell), arg[0]
 // as the function itself.
-func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
+func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
 	if args != nil {
 		args = args[1:] // Zeroth arg is function name/node; not passed to function.
 	}
@@ -691,6 +691,20 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
 		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
 	}
+
+	// Special case for builtin and/or, which short-circuit.
+	if isBuiltin && (name == "and" || name == "or") {
+		argType := typ.In(0)
+		var v reflect.Value
+		for _, arg := range args {
+			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
+			if truth(v) == (name == "or") {
+				break
+			}
+		}
+		return v
+	}
+
 	// Build the arg list.
 	argv := make([]reflect.Value, numIn)
 	// Args must be evaluated. Fixed args first.
