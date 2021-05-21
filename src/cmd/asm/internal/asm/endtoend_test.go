@@ -455,6 +455,9 @@ func TestLOONG64Encoder(t *testing.T) {
 
 func TestPPC64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64")
+
+	// The assembler accepts all instructions irrespective of the GOPPC64 value.
+	testEndToEnd(t, "ppc64", "ppc64_p10")
 }
 
 func TestRISCVEndToEnd(t *testing.T) {

@@ -36,7 +36,9 @@ import (
 
 func init() {
 	obj.RegisterRegister(obj.RBasePPC64, REG_SPR0+1024, rconv)
-	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+	// Note, the last entry in Anames is "LASTAOUT", it is not a real opcode.
+	obj.RegisterOpcode(obj.ABasePPC64, Anames[:len(Anames)-1])
+	obj.RegisterOpcode(AFIRSTGEN, GenAnames)
 }
 
 func rconv(r int) string {
