@@ -1609,3 +1609,15 @@ func TestPKCS1OnlyCert(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestVersionName(t *testing.T) {
+	for version, name := range versionNames {
+		if got := VersionName(version); got != name {
+			t.Errorf("%#04x: unexpected VersionName: got %q, expected %q", version, got, name)
+		}
+	}
+
+	if got := VersionName(0x123); got != "0x0123" {
+		t.Errorf("unexpected fallback VersionName: got %q, expected 0x0123", got)
+	}
+}

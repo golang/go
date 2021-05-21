@@ -36,6 +36,24 @@ const (
 	VersionSSL30 = 0x0300
 )
 
+var versionNames = map[uint16]string{
+	VersionSSL30: "SSLv3",
+	VersionTLS10: "TLSv1.0",
+	VersionTLS11: "TLSv1.1",
+	VersionTLS12: "TLSv1.2",
+	VersionTLS13: "TLSv1.3",
+}
+
+// VersionName returns the name for the passed TLS version number (e.g. "TLSv1.3"),
+// or a fallback representation of the value if the version is not implemented by this package.
+func VersionName(version uint16) string {
+	if name, ok := versionNames[version]; ok {
+		return name
+	}
+
+	return fmt.Sprintf("0x%04X", version)
+}
+
 const (
 	maxPlaintext       = 16384        // maximum plaintext payload length
 	maxCiphertext      = 16384 + 2048 // maximum ciphertext payload length
