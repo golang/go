@@ -48,8 +48,6 @@ var (
 	exe              string
 	defaultcc        map[string]string
 	defaultcxx       map[string]string
-	defaultcflags    string
-	defaultldflags   string
 	defaultpkgconfig string
 	defaultldso      string
 
@@ -208,9 +206,6 @@ func xinit() {
 	}
 	defaultcc = compilerEnv("CC", cc)
 	defaultcxx = compilerEnv("CXX", cxx)
-
-	defaultcflags = os.Getenv("CFLAGS")
-	defaultldflags = os.Getenv("LDFLAGS")
 
 	b = os.Getenv("PKG_CONFIG")
 	if b == "" {
