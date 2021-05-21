@@ -1717,22 +1717,6 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 	} else {
 		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
 	}
-	// If we are creating an OpArgIntReg/OpArgFloatReg that
-	// corresponds to an in-param that fits entirely in a register,
-	// then enter it into the name/value table. The LocalSlot
-	// is somewhat fictitious, since there is no incoming live
-	// memory version of the parameter, but we need an entry in
-	// NamedValues in order for ssa debug tracking to include
-	// the value in the tracking analysis.
-	if len(pa.Registers) == 1 {
-		loc := LocalSlot{N: aux.Name, Type: t, Off: 0}
-		values, ok := x.f.NamedValues[loc]
-		if !ok {
-			ploc := x.f.localSlotAddr(loc)
-			x.f.Names = append(x.f.Names, ploc)
-		}
-		x.f.NamedValues[loc] = append(values, w)
-	}
 	x.commonArgs[key] = w
 	if toReplace != nil {
 		toReplace.copyOf(w)
