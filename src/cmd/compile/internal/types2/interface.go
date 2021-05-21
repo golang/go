@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"fmt"
 	"sort"
 )
 
@@ -139,7 +140,13 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 		panic("internal error: incomplete interface")
 	}
 
-	if check.conf.Trace {
+	completeInterface(check, pos, ityp)
+}
+
+func completeInterface(check *Checker, pos syntax.Pos, ityp *Interface) {
+	assert(ityp.allMethods == nil)
+
+	if check != nil && check.conf.Trace {
 		// Types don't generally have position information.
 		// If we don't have a valid pos provided, try to use
 		// one close enough.
@@ -175,6 +182,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	// we can get rid of the mpos map below and simply use the cloned method's
 	// position.
 
+	var todo []*Func
 	var seen objset
 	var methods []*Func
 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
@@ -184,6 +192,9 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			methods = append(methods, m)
 			mpos[m] = pos
 		case explicit:
+			if check == nil {
+				panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
+			}
 			var err error_
 			err.errorf(pos, "duplicate method %s", m.name)
 			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
@@ -194,6 +205,11 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.
+			if check == nil {
+				// check method signatures after all locally embedded interfaces are computed
+				todo = append(todo, m, other.(*Func))
+				break
+			}
 			check.later(func() {
 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
 					var err error_
@@ -212,9 +228,15 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 	// collect types
 	allTypes := ityp.types
 
-	posList := check.posMap[ityp]
+	var posList []syntax.Pos
+	if check != nil {
+		posList = check.posMap[ityp]
+	}
 	for i, typ := range ityp.embeddeds {
-		pos := posList[i] // embedding position
+		var pos syntax.Pos // embedding position
+		if posList != nil {
+			pos = posList[i]
+		}
 		utyp := under(typ)
 		etyp := asInterface(utyp)
 		if etyp == nil {
@@ -225,15 +247,30 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
 				} else {
 					format = "%s is not an interface"
 				}
-				check.errorf(pos, format, typ)
+				if check != nil {
+					check.errorf(pos, format, typ)
+				} else {
+					panic(fmt.Sprintf("%s: "+format, pos, typ))
+				}
 			}
 			continue
 		}
-		check.completeInterface(pos, etyp)
+		if etyp.allMethods == nil {
+			completeInterface(check, pos, etyp)
+		}
 		for _, m := range etyp.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
 		allTypes = intersect(allTypes, etyp.allTypes)
+	}
+
+	// process todo's (this only happens if check == nil)
+	for i := 0; i < len(todo); i += 2 {
+		m := todo[i]
+		other := todo[i+1]
+		if !Identical(m.typ, other.typ) {
+			panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
+		}
 	}
 
 	if methods != nil {
