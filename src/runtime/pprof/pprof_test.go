@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"internal/abi"
 	"internal/profile"
 	"internal/testenv"
 	"io"
@@ -116,7 +117,7 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
 // findInlinedCall returns the PC of an inlined function call within
 // the function body for the function f if any.
 func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
-	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
+	fFunc := runtime.FuncForPC(uintptr(abi.FuncPCABIInternal(f)))
 	if fFunc == nil || fFunc.Entry() == 0 {
 		panic("failed to locate function entry")
 	}
