@@ -6487,7 +6487,8 @@ func doInit(t *initTask) {
 			// Load stats non-atomically since tracinit is updated only by this init goroutine.
 			after := inittrace
 
-			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
+			f := *(*func())(unsafe.Pointer(&firstFunc))
+			pkg := funcpkgpath(findfunc(funcPC(f)))
 
 			var sbuf [24]byte
 			print("init ", pkg, " @")
