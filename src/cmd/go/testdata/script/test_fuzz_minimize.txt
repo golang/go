@@ -6,12 +6,8 @@
 # We clean the fuzz cache during this test. Don't clean the user's cache.
 env GOCACHE=$WORK/gocache
 
-# TODO(b/181800488): remove -parallel=1, here and below. For now, when a
-# crash is found, all workers keep running, wasting resources and reducing
-# the number of executions available to the minimizer, increasing flakiness.
-
 # Test that minimization is working for recoverable errors.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=10000x -parallel=1 minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=10000x minimizer_test.go
 ! stdout '^ok'
 stdout 'got the minimum size!'
 stdout 'contains a non-zero byte'
@@ -25,11 +21,10 @@ go run check_testdata.go FuzzMinimizerRecoverable 50
 rm testdata
 
 # Test that minimization is working for non-recoverable errors.
-! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=100x -fuzzminimizetime=10000x -parallel=1 minimizer_test.go
+! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=100x -fuzzminimizetime=10000x minimizer_test.go
 ! stdout '^ok'
-# TODO(jayconrod): fix in CL 321835.
 stdout 'found a crash, minimizing'
-# stdout 'fuzzing process terminated unexpectedly while minimizing: exit status 99'
+stdout 'fuzzing process terminated unexpectedly while minimizing: exit status 99'
 stdout FAIL
 
 # Check that re-running the value causes a crash.
@@ -42,11 +37,10 @@ go clean -fuzzcache
 
 # Test that minimization can be cancelled by fuzzminimizetime and the latest
 # crash will still be logged and written to testdata.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -parallel=1 -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
 ! stdout '^ok'
 stdout 'testdata[/\\]corpus[/\\]FuzzMinimizerRecoverable[/\\]'
-# TODO(jayconrod): implement -fuzzminimizetime in 321835.
-# ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
+! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
 stdout FAIL
 
 # Test that re-running the unminimized value causes a crash.
