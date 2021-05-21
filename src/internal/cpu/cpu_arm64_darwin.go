@@ -19,6 +19,7 @@ func osInit() {
 	ARM64.HasPMULL = true
 	ARM64.HasSHA1 = true
 	ARM64.HasSHA2 = true
+	ARM64.HasSHA3 = true
 }
 
 //go:noescape

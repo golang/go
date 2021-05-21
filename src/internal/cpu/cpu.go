@@ -54,6 +54,7 @@ var ARM struct {
 }
 
 // The booleans in ARM64 contain the correspondingly named cpu feature bit.
+// Only the using features are added.
 // The struct is padded to avoid false sharing.
 var ARM64 struct {
 	_            CacheLinePad
@@ -61,6 +62,7 @@ var ARM64 struct {
 	HasPMULL     bool
 	HasSHA1      bool
 	HasSHA2      bool
+	HasSHA3      bool
 	HasCRC32     bool
 	HasATOMICS   bool
 	HasCPUID     bool
