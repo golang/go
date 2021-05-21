@@ -54,6 +54,9 @@ type ProcAttr struct {
 	// standard error. An implementation may support additional entries,
 	// depending on the underlying operating system. A nil entry corresponds
 	// to that file being closed when the process starts.
+	// On Unix systems, StartProcess will change these File values
+	// to blocking mode, which means that SetDeadline will stop working
+	// and calling Close will not interrupt a Read or Write.
 	Files []*File
 
 	// Operating system-specific process creation attributes.
