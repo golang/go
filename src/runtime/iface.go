@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -317,7 +318,7 @@ var (
 
 func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
+		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2E))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -390,7 +391,7 @@ func convTslice(val []byte) (x unsafe.Pointer) {
 
 func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Enoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Enoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -405,7 +406,7 @@ func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
 func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
+		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
@@ -420,7 +421,7 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Inoptr))
+		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Inoptr))
 	}
 	if msanenabled {
 		msanread(elem, t.size)

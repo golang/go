@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -42,10 +43,10 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	sp := uintptr(c.esp())
 
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		c.pushCall(funcPC(sigpanic), pc)
+		c.pushCall(abi.FuncPCABIInternal(sigpanic), pc)
 	} else {
 		// Not safe to push the call. Just clobber the frame.
-		c.set_eip(uint32(funcPC(sigpanic)))
+		c.set_eip(uint32(abi.FuncPCABIInternal(sigpanic)))
 	}
 }
 

@@ -466,18 +466,6 @@ func releaseSudog(s *sudog) {
 	releasem(mp)
 }
 
-// funcPC returns the entry PC of the function f.
-// It assumes that f is a func value. Otherwise the behavior is undefined.
-// CAREFUL: In programs with plugins, funcPC can return different values
-// for the same function (because there are actually multiple copies of
-// the same function in the address space). To be safe, don't use the
-// results of this function in any == expression. It is only safe to
-// use the result as an address at which to start executing code.
-//go:nosplit
-func funcPC(f interface{}) uintptr {
-	return *(*uintptr)(efaceOf(&f).data)
-}
-
 // called from assembly
 func badmcall(fn func(*g)) {
 	throw("runtime: mcall called on m->g0 stack")
@@ -2043,7 +2031,7 @@ func oneNewExtraM() {
 	gp.lockedm.set(mp)
 	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
 	if raceenabled {
-		gp.racectx = racegostart(funcPC(newextram) + sys.PCQuantum)
+		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
@@ -4741,16 +4729,16 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2
 			if inVDSOPage(pc) {
-				pc = funcPC(_VDSO) + sys.PCQuantum
+				pc = abi.FuncPCABIInternal(_VDSO) + sys.PCQuantum
 			} else if pc > firstmoduledata.etext {
 				// "ExternalCode" is better than "etext".
-				pc = funcPC(_ExternalCode) + sys.PCQuantum
+				pc = abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum
 			}
 			stk[0] = pc
 			if mp.preemptoff != "" {
-				stk[1] = funcPC(_GC) + sys.PCQuantum
+				stk[1] = abi.FuncPCABIInternal(_GC) + sys.PCQuantum
 			} else {
-				stk[1] = funcPC(_System) + sys.PCQuantum
+				stk[1] = abi.FuncPCABIInternal(_System) + sys.PCQuantum
 			}
 		}
 	}
@@ -4794,7 +4782,7 @@ func sigprofNonGoPC(pc uintptr) {
 	if prof.hz != 0 {
 		stk := []uintptr{
 			pc,
-			funcPC(_ExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
 		}
 		cpuprof.addNonGo(stk)
 	}
@@ -6488,7 +6476,7 @@ func doInit(t *initTask) {
 			after := inittrace
 
 			f := *(*func())(unsafe.Pointer(&firstFunc))
-			pkg := funcpkgpath(findfunc(funcPC(f)))
+			pkg := funcpkgpath(findfunc(abi.FuncPCABIInternal(f)))
 
 			var sbuf [24]byte
 			print("init ", pkg, " @")

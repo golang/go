@@ -27,8 +27,6 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
-var FuncPC = funcPC
-
 var Fastlog2 = fastlog2
 
 var Atoi = atoi

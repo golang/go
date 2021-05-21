@@ -9,6 +9,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -80,7 +81,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	}
 
 	// In case we are panicking from external C code
-	sigpanicPC := uint64(funcPC(sigpanic))
+	sigpanicPC := uint64(abi.FuncPCABIInternal(sigpanic))
 	c.set_r28(sigpanicPC >> 32 << 32) // RSB register
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(sigpanicPC)

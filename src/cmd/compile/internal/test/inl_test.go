@@ -48,7 +48,6 @@ func TestIntendedInlining(t *testing.T) {
 			"fastlog2",
 			"fastrand",
 			"float64bits",
-			"funcPC",
 			"getArgInfoFast",
 			"getm",
 			"getMCache",

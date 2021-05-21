@@ -7,6 +7,7 @@ package runtime
 // This file contains the implementation of Go select statements.
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -22,8 +23,8 @@ type scase struct {
 }
 
 var (
-	chansendpc = funcPC(chansend)
-	chanrecvpc = funcPC(chanrecv)
+	chansendpc = abi.FuncPCABIInternal(chansend)
+	chanrecvpc = abi.FuncPCABIInternal(chanrecv)
 )
 
 func selectsetpc(pc *uintptr) {

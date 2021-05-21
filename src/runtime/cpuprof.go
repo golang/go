@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -166,8 +167,8 @@ func (p *cpuProfile) addExtra() {
 	if p.lostExtra > 0 {
 		hdr := [1]uint64{p.lostExtra}
 		lostStk := [2]uintptr{
-			funcPC(_LostExternalCode) + sys.PCQuantum,
-			funcPC(_ExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_LostExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
 		}
 		p.log.write(nil, 0, hdr[:], lostStk[:])
 		p.lostExtra = 0
@@ -176,8 +177,8 @@ func (p *cpuProfile) addExtra() {
 	if p.lostAtomic > 0 {
 		hdr := [1]uint64{p.lostAtomic}
 		lostStk := [2]uintptr{
-			funcPC(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
-			funcPC(_System) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_LostSIGPROFDuringAtomic64) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_System) + sys.PCQuantum,
 		}
 		p.log.write(nil, 0, hdr[:], lostStk[:])
 		p.lostAtomic = 0
