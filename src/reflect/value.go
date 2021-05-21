@@ -1686,6 +1686,9 @@ func (it *MapIter) SetValue(dst Value) {
 // entry. It returns false when the iterator is exhausted; subsequent
 // calls to Key, Value, or Next will panic.
 func (it *MapIter) Next() bool {
+	if !it.m.IsValid() {
+		panic("MapIter.Next called on an iterator that does not have an associated map Value")
+	}
 	if !it.hiter.initialized() {
 		mapiterinit(it.m.typ, it.m.pointer(), &it.hiter)
 	} else {
