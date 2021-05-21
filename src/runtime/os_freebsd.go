@@ -237,7 +237,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	// However, newosproc0 is currently unreachable because builds
 	// utilizing c-shared/c-archive force external linking.
 	param := thrparam{
-		start_func: funcPC(fn),
+		start_func: uintptr(fn),
 		arg:        nil,
 		stack_base: uintptr(stack), //+stacksize?
 		stack_size: stacksize,
