@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -33,7 +34,7 @@ func newosproc(mp *m) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
+	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if ret < 0 {

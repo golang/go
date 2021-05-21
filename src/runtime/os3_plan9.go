@@ -99,7 +99,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 			}
 		}
 		if usesLR {
-			c.setpc(funcPC(sigpanictramp))
+			c.setpc(abi.FuncPCABI0(sigpanictramp))
 		} else {
 			c.setpc(abi.FuncPCABI0(sigpanic0))
 		}

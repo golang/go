@@ -61,4 +61,4 @@ func dumpregs(u *ureg) {
 	print("gs    ", hex(u.gs), "\n")
 }
 
-func sigpanictramp() {}
+func sigpanictramp()

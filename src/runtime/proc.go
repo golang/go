@@ -2236,7 +2236,7 @@ func newm1(mp *m) {
 		}
 		ts.g.set(mp.g0)
 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
-		ts.fn = unsafe.Pointer(funcPC(mstart))
+		ts.fn = unsafe.Pointer(abi.FuncPCABI0(mstart))
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
