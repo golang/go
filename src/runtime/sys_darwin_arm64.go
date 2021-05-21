@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -14,14 +15,14 @@ import (
 //go:nosplit
 //go:cgo_unsafe_args
 func g0_pthread_key_create(k *pthreadkey, destructor uintptr) int32 {
-	return asmcgocall(unsafe.Pointer(funcPC(pthread_key_create_trampoline)), unsafe.Pointer(&k))
+	return asmcgocall(unsafe.Pointer(abi.FuncPCABI0(pthread_key_create_trampoline)), unsafe.Pointer(&k))
 }
 func pthread_key_create_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func g0_pthread_setspecific(k pthreadkey, value uintptr) int32 {
-	return asmcgocall(unsafe.Pointer(funcPC(pthread_setspecific_trampoline)), unsafe.Pointer(&k))
+	return asmcgocall(unsafe.Pointer(abi.FuncPCABI0(pthread_setspecific_trampoline)), unsafe.Pointer(&k))
 }
 func pthread_setspecific_trampoline()
 

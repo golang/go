@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -197,11 +198,11 @@ func thr_start()
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", abi.FuncPCABI0(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	param := thrparam{
-		start_func: funcPC(thr_start),
+		start_func: abi.FuncPCABI0(thr_start),
 		arg:        unsafe.Pointer(mp),
 		stack_base: mp.g0.stack.lo,
 		stack_size: uintptr(stk) - mp.g0.stack.lo,

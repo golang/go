@@ -143,7 +143,7 @@ func newosproc(mp *m) {
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", abi.FuncPCABI0(clone), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// Disable signals during clone, so that the new thread starts
