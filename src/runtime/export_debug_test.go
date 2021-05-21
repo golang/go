@@ -125,7 +125,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		h.savedFP = *h.savedRegs.fpstate
 		h.savedRegs.fpstate = nil
 		// Set PC to debugCallV2.
-		ctxt.set_rip(uint64(funcPC(debugCallV2)))
+		ctxt.set_rip(uint64(abi.FuncPCABIInternal(debugCallV2)))
 		// Call injected. Switch to the debugCall protocol.
 		testSigtrap = h.handleF
 	case _Grunnable:

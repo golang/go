@@ -432,7 +432,7 @@ func setsig(i uint32, fn uintptr) {
 	if GOARCH == "386" || GOARCH == "amd64" {
 		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
 	}
-	if fn == funcPC(sighandler) {
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
 			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {

@@ -1112,7 +1112,7 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
 	if fv != nil {
 		fn = unsafe.Pointer(fv.fn)
 	} else {
-		fn = unsafe.Pointer(funcPC(nilfunc))
+		fn = unsafe.Pointer(abi.FuncPCABIInternal(nilfunc))
 	}
 	gostartcall(gobuf, fn, unsafe.Pointer(fv))
 }

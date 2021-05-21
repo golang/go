@@ -318,7 +318,7 @@ var asyncPreemptStack = ^uintptr(0)
 func init() {
 	f := findfunc(abi.FuncPCABI0(asyncPreempt))
 	total := funcMaxSPDelta(f)
-	f = findfunc(funcPC(asyncPreempt2))
+	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
 	total += funcMaxSPDelta(f)
 	// Add some overhead for return PCs, etc.
 	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize

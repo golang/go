@@ -18,6 +18,7 @@ package runtime
 //  c.qcount < c.dataqsiz implies that c.sendq is empty.
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"unsafe"
@@ -169,7 +170,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 
 	if raceenabled {
-		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
+		racereadpc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(chansend))
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -365,7 +366,7 @@ func closechan(c *hchan) {
 
 	if raceenabled {
 		callerpc := getcallerpc()
-		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
+		racewritepc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(closechan))
 		racerelease(c.raceaddr())
 	}
 

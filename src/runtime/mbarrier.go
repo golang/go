@@ -177,8 +177,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {
-		raceWriteObjectPC(typ, dst, getcallerpc(), funcPC(reflect_typedmemmove))
-		raceReadObjectPC(typ, src, getcallerpc(), funcPC(reflect_typedmemmove))
+		raceWriteObjectPC(typ, dst, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
 	}
 	if msanenabled {
 		msanwrite(dst, typ.size)
@@ -254,7 +254,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 	// code and needs its own instrumentation.
 	if raceenabled {
 		callerpc := getcallerpc()
-		pc := funcPC(slicecopy)
+		pc := abi.FuncPCABIInternal(slicecopy)
 		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
 		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
 	}

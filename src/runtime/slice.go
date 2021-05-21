@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/math"
 	"runtime/internal/sys"
 	"unsafe"
@@ -68,7 +69,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
 
 	if raceenabled {
 		callerpc := getcallerpc()
-		pc := funcPC(makeslicecopy)
+		pc := abi.FuncPCABIInternal(makeslicecopy)
 		racereadrangepc(from, copymem, callerpc, pc)
 	}
 	if msanenabled {
@@ -144,7 +145,7 @@ func panicunsafeslicelen() {
 func growslice(et *_type, old slice, cap int) slice {
 	if raceenabled {
 		callerpc := getcallerpc()
-		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, funcPC(growslice))
+		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
 	}
 	if msanenabled {
 		msanread(old.array, uintptr(old.len*int(et.size)))
@@ -280,7 +281,7 @@ func slicecopy(toPtr unsafe.Pointer, toLen int, fromPtr unsafe.Pointer, fromLen 
 	size := uintptr(n) * width
 	if raceenabled {
 		callerpc := getcallerpc()
-		pc := funcPC(slicecopy)
+		pc := abi.FuncPCABIInternal(slicecopy)
 		racereadrangepc(fromPtr, size, callerpc, pc)
 		racewriterangepc(toPtr, size, callerpc, pc)
 	}
