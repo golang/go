@@ -168,14 +168,14 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	BL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
+	SUB	$12, R13
 	MOVW	$runtime·mainPC(SB), R0
-	MOVW.W	R0, -4(R13)
-	MOVW	$8, R0
-	MOVW.W	R0, -4(R13)
+	MOVW	R0, 8(R13)	// arg 2: fn
 	MOVW	$0, R0
-	MOVW.W	R0, -4(R13)	// push $0 as guard
+	MOVW	R0, 4(R13)	// arg 1: siz
+	MOVW	R0, 0(R13)	// dummy LR
 	BL	runtime·newproc(SB)
-	MOVW	$12(R13), R13	// pop args and LR
+	ADD	$12, R13	// pop args and LR
 
 	// start this M
 	BL	runtime·mstart(SB)
