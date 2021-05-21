@@ -70,39 +70,28 @@ func (w *worker) cleanup() error {
 
 // coordinate runs the test binary to perform fuzzing.
 //
-// coordinate loops until ctx is cancelled or a fatal error is encountered. While
-// looping, coordinate receives inputs from w.coordinator.inputC, then passes
-// those on to the worker process.
+// coordinate loops until ctx is cancelled or a fatal error is encountered.
+// If a test process terminates unexpectedly while fuzzing, coordinate will
+// attempt to restart and continue unless the termination can be attributed
+// to an interruption (from a timer or the user).
+//
+// While looping, coordinate receives inputs from the coordinator, passes
+// those inputs to the worker process, then passes the results back to
+// the coordinator.
 func (w *worker) coordinate(ctx context.Context) error {
-	// Start the process.
-	if err := w.start(); err != nil {
-		// We couldn't start the worker process. We can't do anything, and it's
-		// likely that other workers can't either, so don't try to restart.
-		return err
-	}
-
-	// Send the worker a message to make sure it can respond.
-	// Errors that occur before we get a response likely indicate that
-	// the worker did not call F.Fuzz or called F.Fail first.
-	// We don't record crashers for these errors.
-	if err := w.client.ping(ctx); err != nil {
-		w.stop()
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if isInterruptError(err) {
-			// User may have pressed ^C before worker responded.
-			return nil
-		}
-		return fmt.Errorf("fuzzing process terminated without fuzzing: %w", err)
-	}
-
 	// interestingCount starts at -1, like the coordinator does, so that the
 	// worker client's coverage data is updated after a coverage-only run.
 	interestingCount := int64(-1)
 
 	// Main event loop.
 	for {
+		// Start or restart the worker if it's not running.
+		if !w.isRunning() {
+			if err := w.startAndPing(ctx); err != nil {
+				return err
+			}
+		}
+
 		select {
 		case <-ctx.Done():
 			// Worker was told to stop.
@@ -170,33 +159,10 @@ func (w *worker) coordinate(ctx context.Context) error {
 					// Since we expect I/O errors around interrupts, ignore this error.
 					return nil
 				}
-				// Unexpected termination. Attempt to minimize, then inform the
-				// coordinator about the crash.
-				// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
-				// TODO(jayconrod,katiehockman): consider informing the
-				// coordinator that this worker is minimizing, in order to block
-				// the other workers from receiving more inputs.
-				message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
-				err = w.waitErr
-				var result fuzzResult
-				var minimized bool
-				if !input.coverageOnly {
-					var minErr error
-					result, minimized, minErr = w.minimize(ctx)
-					if minErr != nil {
-						err = minErr
-					}
-				}
-				if !minimized {
-					// Minimization did not find a smaller crashing value, so
-					// return the one we already found.
-					result.entry = CorpusEntry{Data: value}
-					result.crasherMsg = message
-				}
-				w.coordinator.resultC <- result
-				return err
+				// Unexpected termination. Set error message and fall through.
+				// We'll restart the worker on the next iteration.
+				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 			}
-
 			result := fuzzResult{
 				countRequested: input.countRequested,
 				count:          resp.Count,
@@ -210,82 +176,99 @@ func (w *worker) coordinate(ctx context.Context) error {
 				result.coverageData = resp.CoverageData
 			}
 			w.coordinator.resultC <- result
+
+		case crasher := <-w.coordinator.minimizeC:
+			// Received input to minimize from coordinator.
+			minRes, err := w.minimize(ctx, crasher)
+			if err != nil {
+				// Failed to minimize. Send back the original crash.
+				fmt.Fprintln(w.coordinator.opts.Log, err)
+				minRes = crasher
+				minRes.minimized = true
+			}
+			w.coordinator.resultC <- minRes
 		}
 	}
 }
 
-// minimize asks a workerServer to attempt to minimize a value that caused an
-// unexpected termination of the worker process. The value must be in shared
-// memory, and the worker must be stopped. The execution count in shared memory
-// is reset once before restarting the worker.
-func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, retErr error) {
-	if w.coordinator.opts.MinimizeTimeout != 0 {
-		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing for up to %v\n", w.coordinator.opts.MinimizeTimeout)
-	} else if w.coordinator.opts.MinimizeLimit != 0 {
-		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing for up to %d execs\n", w.coordinator.opts.MinimizeLimit)
-	} else {
-		fmt.Fprintf(w.coordinator.opts.Log, "found a crash, minimizing...\n")
-	}
-	start := time.Now()
+// minimize tells a worker process to attempt to find a smaller value that
+// causes an error. minimize may restart the worker repeatedly if the error
+// causes (or already caused) the worker process to terminate.
+//
+// TODO: support minimizing inputs that expand coverage in a specific way,
+// for example, by ensuring that an input activates a specific set of counters.
+func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult, err error) {
 	if w.coordinator.opts.MinimizeTimeout != 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, w.coordinator.opts.MinimizeTimeout)
 		defer cancel()
 	}
-	defer func() {
-		w.stop()
-		if retErr == nil {
-			retErr = w.waitErr
-		}
-	}()
 
-	mem := <-w.memMu
-	mem.header().count = 0
-	w.memMu <- mem
+	min = input
+	min.minimized = true
 
-	for {
-		if ctx.Err() != nil {
-			return res, minimized, retErr
-		}
-		// Restart the worker.
-		if err := w.start(); err != nil {
-			return res, minimized, err
-		}
-		if err := w.client.ping(ctx); err != nil {
-			return res, minimized, err
-		}
-		args := minimizeArgs{Limit: w.coordinator.opts.MinimizeLimit}
-		if w.coordinator.opts.MinimizeTimeout != 0 {
-			elapsed := time.Now().Sub(start)
-			args.Timeout = w.coordinator.opts.MinimizeTimeout - elapsed
-			if args.Timeout < 0 {
-				return res, minimized, retErr
-			}
-		}
-		value, err := w.client.minimize(ctx, args)
-		if err == nil {
-			// Minimization finished successfully, meaning that it
-			// couldn't find any smaller inputs that caused a crash,
-			// so stop trying.
-			return res, minimized, nil
-		}
-		w.stop()
-		// Minimization will return an error for a non-recoverable problem, so
-		// a non-nil error is expected. However, make sure it didn't fail for
-		// some other reason which should cause us to stop minimizing.
-		if ctx.Err() != nil || w.interrupted || isInterruptError(w.waitErr) {
-			return res, minimized, nil
-		}
-
-		// The bytes in memory caused a legitimate crash, so stop the worker and
-		// save this value and error message.
-		message := fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
-		res = fuzzResult{
-			entry:      CorpusEntry{Data: value},
-			crasherMsg: message,
-		}
-		minimized = true
+	args := minimizeArgs{
+		Limit:   w.coordinator.opts.MinimizeLimit,
+		Timeout: w.coordinator.opts.MinimizeTimeout,
 	}
+	value, resp, err := w.client.minimize(ctx, input.entry.Data, args)
+	if err != nil {
+		// Error communicating with worker.
+		w.stop()
+		if ctx.Err() != nil || w.interrupted || isInterruptError(w.waitErr) {
+			// Worker was interrupted, possibly by the user pressing ^C.
+			// Normally, workers can handle interrupts and timeouts gracefully and
+			// will return without error. An error here indicates the worker
+			// may not have been in a good state, but the error won't be meaningful
+			// to the user. Just return the original crasher without logging anything.
+			return min, nil
+		}
+		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
+	}
+
+	if resp.Err == "" {
+		// Minimization did not find a smaller input that caused a crash.
+		return min, nil
+	}
+	min.crasherMsg = resp.Err
+	min.count = resp.Count
+	min.duration = resp.Duration
+	min.entry.Data = value
+	return min, nil
+}
+
+func (w *worker) isRunning() bool {
+	return w.cmd != nil
+}
+
+// startAndPing starts the worker process and sends it a message to make sure it
+// can communicate.
+//
+// startAndPing returns an error if any part of this didn't work, including if
+// the context is expired or the worker process was interrupted before it
+// responded. Errors that happen after start but before the ping response
+// likely indicate that the worker did not call F.Fuzz or called F.Fail first.
+// We don't record crashers for these errors.
+func (w *worker) startAndPing(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if err := w.start(); err != nil {
+		return err
+	}
+	if err := w.client.ping(ctx); err != nil {
+		w.stop()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if isInterruptError(err) {
+			// User may have pressed ^C before worker responded.
+			return err
+		}
+		// TODO: record and return stderr.
+		return fmt.Errorf("fuzzing process terminated without fuzzing: %w", err)
+	}
+	return nil
 }
 
 // start runs a new worker process.
@@ -299,7 +282,7 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool, 
 // When the process terminates, w.waitErr is set to the error (if any), and
 // w.termC is closed.
 func (w *worker) start() (err error) {
-	if w.cmd != nil {
+	if w.isRunning() {
 		panic("worker already started")
 	}
 	w.waitErr = nil
@@ -477,7 +460,18 @@ type minimizeArgs struct {
 }
 
 // minimizeResponse contains results from workerServer.minimize.
-type minimizeResponse struct{}
+type minimizeResponse struct {
+	// Err is the error string caused by the value in shared memory.
+	// If Err is empty, minimize was unable to find any shorter values that
+	// caused errors, and the value in shared memory is the original value.
+	Err string
+
+	// Duration is the time spent minimizing, not including starting or cleaning up.
+	Duration time.Duration
+
+	// Count is the number of values tested.
+	Count int64
+}
 
 // fuzzArgs contains arguments to workerServer.fuzz. The value to fuzz is
 // passed in shared memory.
@@ -634,8 +628,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	defer cancel()
 	mem := <-ws.memMu
 	defer func() {
-		ws.memMu <- mem
 		resp.Count = mem.header().count
+		ws.memMu <- mem
 	}()
 
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
@@ -662,16 +656,6 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
-				// TODO(jayconrod,katiehockman): report unminimized input to coordinator
-				// immediately so it can stop other workers.
-				// TODO(jayconrod,katiehockman): use -fuzzminimizetime to limit time or
-				// iterations spent on minimization.
-				minCtx, minCancel := context.WithTimeout(ctx, time.Minute)
-				defer minCancel()
-				if minErr := ws.minimizeInput(minCtx, vals, mem, &mem.header().count, args.Limit); minErr != nil {
-					// Minimization found a different error, so use that one.
-					err = minErr
-				}
 				resp.Err = err.Error()
 				if resp.Err == "" {
 					resp.Err = "fuzz function failed with no output"
@@ -693,6 +677,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 }
 
 func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp minimizeResponse) {
+	start := time.Now()
+	defer func() { resp.Duration = time.Now().Sub(start) }()
 	mem := <-ws.memMu
 	defer func() { ws.memMu <- mem }()
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
@@ -704,7 +690,15 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 		ctx, cancel = context.WithTimeout(ctx, args.Timeout)
 		defer cancel()
 	}
-	ws.minimizeInput(ctx, vals, mem, &mem.header().count, args.Limit)
+
+	// Minimize the values in vals, then write to shared memory. We only write
+	// to shared memory after completing minimization. If the worker terminates
+	// unexpectedly before then, the coordinator will use the original input.
+	err = ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit)
+	writeToMem(vals, mem)
+	if err != nil {
+		resp.Err = err.Error()
+	}
 	return resp
 }
 
@@ -714,10 +708,7 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 // mem just in case an unrecoverable error occurs. It uses the context to
 // determine how long to run, stopping once closed. It returns the last error it
 // found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, count *int64, limit int64) error {
-	// Make sure the last crashing value is written to mem.
-	defer writeToMem(vals, mem)
-
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64) error {
 	shouldStop := func() bool {
 		return ctx.Err() != nil || (limit > 0 && *count >= limit)
 	}
@@ -779,7 +770,6 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 		default:
 			panic("impossible")
 		}
-		writeToMem(vals, mem)
 		err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err != nil {
 			retErr = err
@@ -798,43 +788,43 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 		case bool:
 			continue // can't minimize
 		case float32:
-			minimizeFloat(ctx, float64(v), tryMinimized, shouldStop)
+			minimizeFloat(float64(v), tryMinimized, shouldStop)
 		case float64:
-			minimizeFloat(ctx, v, tryMinimized, shouldStop)
+			minimizeFloat(v, tryMinimized, shouldStop)
 		case uint:
-			minimizeInteger(ctx, v, tryMinimized, shouldStop)
+			minimizeInteger(v, tryMinimized, shouldStop)
 		case uint8:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case uint16:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case uint32:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case uint64:
 			if uint64(uint(v)) != v {
 				// Skip minimizing a uint64 on 32 bit platforms, since we'll truncate the
 				// value when casting
 				continue
 			}
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case int:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case int8:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case int16:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case int32:
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case int64:
 			if int64(int(v)) != v {
 				// Skip minimizing a int64 on 32 bit platforms, since we'll truncate the
 				// value when casting
 				continue
 			}
-			minimizeInteger(ctx, uint(v), tryMinimized, shouldStop)
+			minimizeInteger(uint(v), tryMinimized, shouldStop)
 		case string:
-			minimizeBytes(ctx, []byte(v), tryMinimized, shouldStop)
+			minimizeBytes([]byte(v), tryMinimized, shouldStop)
 		case []byte:
-			minimizeBytes(ctx, v, tryMinimized, shouldStop)
+			minimizeBytes(v, tryMinimized, shouldStop)
 		default:
 			panic("unreachable")
 		}
@@ -844,7 +834,6 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, m
 
 func writeToMem(vals []interface{}, mem *sharedMem) {
 	b := marshalCorpusFile(vals...)
-	mem.setValueLen(len(b))
 	mem.setValue(b)
 }
 
@@ -907,21 +896,29 @@ var errSharedMemClosed = errors.New("internal error: shared memory was closed an
 
 // minimize tells the worker to call the minimize method. See
 // workerServer.minimize.
-func (wc *workerClient) minimize(ctx context.Context, args minimizeArgs) (valueOut []byte, err error) {
+func (wc *workerClient) minimize(ctx context.Context, valueIn []byte, args minimizeArgs) (valueOut []byte, resp minimizeResponse, err error) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
-	var resp minimizeResponse
-	c := call{Minimize: &args}
-	err = wc.call(ctx, c, &resp)
 	mem, ok := <-wc.memMu
 	if !ok {
-		return nil, errSharedMemClosed
+		return nil, minimizeResponse{}, errSharedMemClosed
 	}
-	valueOut = mem.valueCopy()
+	mem.header().count = 0
+	mem.setValue(valueIn)
 	wc.memMu <- mem
 
-	return valueOut, err
+	c := call{Minimize: &args}
+	err = wc.call(ctx, c, &resp)
+	mem, ok = <-wc.memMu
+	if !ok {
+		return nil, minimizeResponse{}, errSharedMemClosed
+	}
+	valueOut = mem.valueCopy()
+	resp.Count = mem.header().count
+	wc.memMu <- mem
+
+	return valueOut, resp, err
 }
 
 // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
@@ -944,6 +941,7 @@ func (wc *workerClient) fuzz(ctx context.Context, valueIn []byte, args fuzzArgs)
 		return nil, fuzzResponse{}, errSharedMemClosed
 	}
 	valueOut = mem.valueCopy()
+	resp.Count = mem.header().count
 	wc.memMu <- mem
 
 	return valueOut, resp, err

@@ -5,11 +5,20 @@
 package fuzz
 
 import (
-	"context"
 	"math"
+	"reflect"
 )
 
-func minimizeBytes(ctx context.Context, v []byte, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func isMinimizable(t reflect.Type) bool {
+	for _, v := range zeroVals {
+		if t == reflect.TypeOf(v) {
+			return true
+		}
+	}
+	return false
+}
+
+func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop func() bool) {
 	// First, try to cut the tail.
 	for n := 1024; n != 0; n /= 2 {
 		for len(v) > n {
@@ -67,7 +76,7 @@ func minimizeBytes(ctx context.Context, v []byte, stillCrashes func(interface{})
 	return
 }
 
-func minimizeInteger(ctx context.Context, v uint, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func minimizeInteger(v uint, stillCrashes func(interface{}) bool, shouldStop func() bool) {
 	// TODO(rolandshoemaker): another approach could be either unsetting/setting all bits
 	// (depending on signed-ness), or rotating bits? When operating on cast signed integers
 	// this would probably be more complex though.
@@ -84,7 +93,7 @@ func minimizeInteger(ctx context.Context, v uint, stillCrashes func(interface{})
 	return
 }
 
-func minimizeFloat(ctx context.Context, v float64, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func minimizeFloat(v float64, stillCrashes func(interface{}) bool, shouldStop func() bool) {
 	if math.IsNaN(v) {
 		return
 	}

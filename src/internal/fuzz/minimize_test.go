@@ -190,27 +190,18 @@ func TestMinimizeInput(t *testing.T) {
 		})
 	}
 
-	sm, err := sharedMemTempFile(workerSharedMemSize)
-	if err != nil {
-		t.Fatalf("failed to create temporary shared memory file: %s", err)
-	}
-	defer sm.Close()
-
 	for _, tc := range cases {
 		ws := &workerServer{
 			fuzzFn: tc.fn,
 		}
 		count := int64(0)
-		err = ws.minimizeInput(context.Background(), tc.input, sm, &count, 0)
+		vals := tc.input
+		err := ws.minimizeInput(context.Background(), vals, &count, 0)
 		if err == nil {
 			t.Error("minimizeInput didn't fail")
 		}
 		if expected := fmt.Sprintf("bad %v", tc.input[0]); err.Error() != expected {
 			t.Errorf("unexpected error: got %s, want %s", err, expected)
-		}
-		vals, err := unmarshalCorpusFile(sm.valueCopy())
-		if err != nil {
-			t.Fatalf("failed to unmarshal values from shared memory file: %s", err)
 		}
 		if !reflect.DeepEqual(vals, tc.expected) {
 			t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)
