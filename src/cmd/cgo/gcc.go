@@ -1614,6 +1614,8 @@ func (p *Package) gccCmd() []string {
 		c = append(c, "-maix64")
 		c = append(c, "-mcmodel=large")
 	}
+	// disable LTO so we get a real object
+	c = append(c, "-fno-lto")
 	c = append(c, "-") //read input from standard input
 	return c
 }
