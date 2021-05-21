@@ -24,10 +24,8 @@
 // See the comment on the declaration of makeFuncStub in makefunc.go
 // for more details.
 // No arg size here; runtime pulls arg map out of the func value.
-// makeFuncStub must be ABIInternal because it is placed directly
-// in function values.
 // This frame contains two locals. See the comment above LOCAL_RETVALID.
-TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$312
 	NO_LOCAL_POINTERS
 	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
@@ -55,10 +53,8 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
 // See the comment on the declaration of methodValueCall in makefunc.go
 // for more details.
 // No arg size here; runtime pulls arg map out of the func value.
-// methodValueCall must be ABIInternal because it is placed directly
-// in function values.
 // This frame contains two locals. See the comment above LOCAL_RETVALID.
-TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$312
 	NO_LOCAL_POINTERS
 	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
