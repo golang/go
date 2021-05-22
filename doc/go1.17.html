@@ -228,7 +228,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
-<p>
+<p><!-- CL 283112, golang.org/issue/28727 -->
+
+  Functions containing closures can now be inlined. One effect of this change is
+  that a function with a closure may actually produce a distinct closure function
+  for each place that the function is inlined. Hence, this change could reveal
+  bugs where Go functions are compared (incorrectly) by pointer value. Go
+  functions are by definition not comparable.
+
   TODO: complete the Compiler section, or delete if not needed
 </p>
 
