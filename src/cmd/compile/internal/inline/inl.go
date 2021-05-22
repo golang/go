@@ -1153,17 +1153,21 @@ func (subst *inlsubst) fields(oldt *types.Type) []*types.Field {
 // clovar creates a new ONAME node for a local variable or param of a closure
 // inside a function being inlined.
 func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
-	// TODO(danscales): want to get rid of this shallow copy, with code like the
-	// following, but it is hard to copy all the necessary flags in a maintainable way.
-	// m := ir.NewNameAt(n.Pos(), n.Sym())
-	// m.Class = n.Class
-	// m.SetType(n.Type())
-	// m.SetTypecheck(1)
-	//if n.IsClosureVar() {
-	//	m.SetIsClosureVar(true)
-	//}
-	m := &ir.Name{}
-	*m = *n
+	m := ir.NewNameAt(n.Pos(), n.Sym())
+	m.Class = n.Class
+	m.SetType(n.Type())
+	m.SetTypecheck(1)
+	if n.IsClosureVar() {
+		m.SetIsClosureVar(true)
+	}
+	if n.Addrtaken() {
+		m.SetAddrtaken(true)
+	}
+	if n.Used() {
+		m.SetUsed(true)
+	}
+	m.Defn = n.Defn
+
 	m.Curfn = subst.newclofn
 
 	switch defn := n.Defn.(type) {
