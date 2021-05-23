@@ -6,6 +6,7 @@ package fuzz
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -166,13 +167,28 @@ func (w *worker) coordinate(ctx context.Context) error {
 			result := fuzzResult{
 				countRequested: input.countRequested,
 				count:          resp.Count,
-				duration:       resp.Duration,
+				totalDuration:  resp.TotalDuration,
+				entryDuration:  resp.InterestingDuration,
 			}
 			if resp.Err != "" {
-				result.entry = CorpusEntry{Data: value}
+				h := sha256.Sum256(value)
+				name := fmt.Sprintf("%x", h[:4])
+				result.entry = CorpusEntry{
+					Name:       name,
+					Parent:     input.entry.Name,
+					Data:       value,
+					Generation: input.entry.Generation + 1,
+				}
 				result.crasherMsg = resp.Err
 			} else if resp.CoverageData != nil {
-				result.entry = CorpusEntry{Data: value}
+				h := sha256.Sum256(value)
+				name := fmt.Sprintf("%x", h[:4])
+				result.entry = CorpusEntry{
+					Name:       name,
+					Parent:     input.entry.Name,
+					Data:       value,
+					Generation: input.entry.Generation + 1,
+				}
 				result.coverageData = resp.CoverageData
 			}
 			w.coordinator.resultC <- result
@@ -232,7 +248,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult
 	}
 	min.crasherMsg = resp.Err
 	min.count = resp.Count
-	min.duration = resp.Duration
+	min.totalDuration = resp.Duration
 	min.entry.Data = value
 	return min, nil
 }
@@ -496,7 +512,8 @@ type fuzzArgs struct {
 // fuzzResponse contains results from workerServer.fuzz.
 type fuzzResponse struct {
 	// Duration is the time spent fuzzing, not including starting or cleaning up.
-	Duration time.Duration
+	TotalDuration       time.Duration
+	InterestingDuration time.Duration
 
 	// Count is the number of values tested.
 	Count int64
@@ -622,7 +639,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		ws.coverageData = args.CoverageData
 	}
 	start := time.Now()
-	defer func() { resp.Duration = time.Since(start) }()
+	defer func() { resp.TotalDuration = time.Since(start) }()
 
 	fuzzCtx, cancel := context.WithTimeout(ctx, args.Timeout)
 	defer cancel()
@@ -638,7 +655,9 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 
 	if args.CoverageOnly {
+		fStart := time.Now()
 		ws.fuzzFn(CorpusEntry{Values: vals})
+		resp.InterestingDuration = time.Since(fStart)
 		resp.CoverageData = coverageSnapshot
 		return resp
 	}
@@ -655,7 +674,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 			mem.header().count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
 			writeToMem(vals, mem)
-			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
+			fStart := time.Now()
+			err := ws.fuzzFn(CorpusEntry{Values: vals})
+			fDur := time.Since(fStart)
+			if err != nil {
 				resp.Err = err.Error()
 				if resp.Err == "" {
 					resp.Err = "fuzz function failed with no output"
@@ -666,6 +688,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 				if ws.coverageData[i] == 0 && coverageSnapshot[i] > ws.coverageData[i] {
 					// TODO(jayconrod,katie): minimize this.
 					resp.CoverageData = coverageSnapshot
+					resp.InterestingDuration = fDur
 					return resp
 				}
 			}
