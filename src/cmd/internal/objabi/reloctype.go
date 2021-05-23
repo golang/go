@@ -101,6 +101,9 @@ const (
 	// *rtype, and may be set to zero by the linker if it determines the method
 	// text is unreachable by the linked program.
 	R_METHODOFF
+	// R_KEEP tells the linker to keep the referred-to symbol in the final binary
+	// if the symbol containing the R_KEEP relocation is in the final binary.
+	R_KEEP
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
