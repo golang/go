@@ -66,9 +66,11 @@ var _ TB = (*F)(nil)
 // We use a type alias because we don't want to export this type, and we can't
 // importing internal/fuzz from testing.
 type corpusEntry = struct {
-	Name   string
-	Data   []byte
-	Values []interface{}
+	Parent     string
+	Name       string
+	Data       []byte
+	Values     []interface{}
+	Generation int
 }
 
 // Cleanup registers a function to be called when the test and all its

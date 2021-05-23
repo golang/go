@@ -45,6 +45,16 @@ func SnapshotCoverage() {
 	copy(coverageSnapshot, cov)
 }
 
+func countEdges(cov []byte) int {
+	n := 0
+	for _, c := range cov {
+		if c > 0 {
+			n++
+		}
+	}
+	return n
+}
+
 var coverageSnapshot []byte
 
 // _counters and _ecounters mark the start and end, respectively, of where
