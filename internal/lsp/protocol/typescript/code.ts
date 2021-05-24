@@ -1077,17 +1077,19 @@ function goTypeLiteral(n: ts.TypeLiteralNode, nm: string): string {
       res = res.concat(`${v} ${goName(nx.name.getText())} ${typ}`, json, '\n');
       ans.push(`${v}${goName(nx.name.getText())} ${typ} ${json}\n`);
     } else if (ts.isIndexSignatureDeclaration(nx)) {
+      const comment = nx.getText().replace(/[/]/g, '');
       if (nx.getText() == '[uri: string]: TextEdit[];') {
         res = 'map[string][]TextEdit';
-        ans.push('map[string][]TextEdit');  // this is never used
-        return;
-      }
-      if (nx.getText() == '[id: string /* ChangeAnnotationIdentifier */]: ChangeAnnotation;') {
+      } else if (nx.getText() == '[id: string /* ChangeAnnotationIdentifier */]: ChangeAnnotation;') {
         res = 'map[string]ChangeAnnotationIdentifier';
-        ans.push(res);
-        return;
+      } else if (nx.getText().startsWith('[uri: string')) {
+        res = 'map[string]interface{}';
+      } else {
+        throw new Error(`1088 handle ${nx.getText()} ${loc(nx)}`);
       }
-      throw new Error(`1087 handle ${nx.getText()} ${loc(nx)}`);
+      res += ` /*${comment}*/`;
+      ans.push(res);
+      return;
     } else
       throw new Error(`TypeLiteral had ${strKind(nx)}`);
   };
