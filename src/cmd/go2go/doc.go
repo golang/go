@@ -5,6 +5,9 @@
 // go2go is a command for trying out generic Go code.
 // It supports a small number of commands similar to cmd/go.
 //
+// This tool was intended for experimental use during the development
+// of the generics proposal, and is no longer maintained.
+//
 // Usage:
 //
 //	go2go [options] <command> [go2go flags] [arguments]

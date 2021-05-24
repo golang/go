@@ -1,5 +1,15 @@
 # dev.go2go branch
 
+This branch provides an experimental go2go tool for testing the use of
+the generics design draft.
+This branch was published in 2020 and is no longer being maintained.
+The [generics
+proposal](https://go.googlesource.com/proposal/+/refs/heads/master/design/43651-type-parameters.md)
+has [been accepted](https://golang.org/issue/43651) and development is
+now focused on implementing the proposal in the ordinary Go tools.
+
+## Original README
+
 This branch contains a type checker and a translation tool for
 experimentation with generics in Go.
 This implements the [generics design draft](https://go.googlesource.com/proposal/+/refs/heads/master/design/go2draft-type-parameters.md).
