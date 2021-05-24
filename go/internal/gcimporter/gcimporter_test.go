@@ -30,43 +30,6 @@ func TestMain(m *testing.M) {
 }
 
 // ----------------------------------------------------------------------------
-// The following three functions (Builder, HasGoBuild, MustHaveGoBuild) were
-// copied from $GOROOT/src/internal/testenv since that package is not available
-// in x/tools.
-
-// Builder reports the name of the builder running this test
-// (for example, "linux-amd64" or "windows-386-gce").
-// If the test is not running on the build infrastructure,
-// Builder returns the empty string.
-func Builder() string {
-	return os.Getenv("GO_BUILDER_NAME")
-}
-
-// HasGoBuild reports whether the current system can build programs with ``go build''
-// and then run them with os.StartProcess or exec.Command.
-func HasGoBuild() bool {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		return false
-	case "darwin":
-		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			return false
-		}
-	}
-	return true
-}
-
-// MustHaveGoBuild checks that the current system can build programs with ``go build''
-// and then run them with os.StartProcess or exec.Command.
-// If not, MustHaveGoBuild calls t.Skip with an explanation.
-func MustHaveGoBuild(t *testing.T) {
-	testenv.NeedsTool(t, "go")
-	if !HasGoBuild() {
-		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
-}
-
-// ----------------------------------------------------------------------------
 
 // skipSpecialPlatforms causes the test to be skipped for platforms where
 // builders (build.golang.org) don't have access to compiled packages for
@@ -82,10 +45,21 @@ func skipSpecialPlatforms(t *testing.T) {
 	}
 }
 
+func needsCompiler(t *testing.T, compiler string) {
+	if runtime.Compiler == compiler {
+		return
+	}
+	switch compiler {
+	case "gc":
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+}
+
 // compile runs the compiler on filename, with dirname as the working directory,
 // and writes the output file to outdirname.
 func compile(t *testing.T, dirname, filename, outdirname string) string {
-	/* testenv. */ MustHaveGoBuild(t)
+	testenv.NeedsGoBuild(t)
+
 	// filename must end with ".go"
 	if !strings.HasSuffix(filename, ".go") {
 		t.Fatalf("filename doesn't end in .go: %s", filename)
@@ -159,10 +133,7 @@ func mktmpdir(t *testing.T) string {
 const testfile = "exports.go"
 
 func TestImportTestdata(t *testing.T) {
-	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
@@ -194,9 +165,7 @@ func TestVersionHandling(t *testing.T) {
 	skipSpecialPlatforms(t) // we really only need to exclude nacl platforms, but this is fine
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	const dir = "./testdata/versions"
 	list, err := ioutil.ReadDir(dir)
@@ -275,12 +244,10 @@ func TestImportStdLib(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	dt := maxTime
-	if testing.Short() && /* testenv. */ Builder() == "" {
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		dt = 10 * time.Millisecond
 	}
 	nimports := testDir(t, "", time.Now().Add(dt)) // installed packages
@@ -316,9 +283,7 @@ func TestImportedTypes(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	for _, test := range importedObjectTests {
 		obj := importObject(t, test.name)
@@ -424,9 +389,7 @@ func TestIssue5815(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	pkg := importPkg(t, "strings", ".")
 
@@ -453,9 +416,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	imports := make(map[string]*types.Package)
 	_, err := Import(imports, "net/http", ".", nil)
@@ -476,9 +437,7 @@ func TestIssue13566(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
@@ -515,9 +474,7 @@ func TestIssue13898(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// import go/internal/gcimporter which imports go/types partially
 	imports := make(map[string]*types.Package)
@@ -561,9 +518,7 @@ func TestIssue15517(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
@@ -600,9 +555,7 @@ func TestIssue15920(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
@@ -617,9 +570,7 @@ func TestIssue20046(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
@@ -640,9 +591,7 @@ func TestIssue25301(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-	}
+	needsCompiler(t, "gc")
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
