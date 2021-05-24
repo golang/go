@@ -91,50 +91,49 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 	case *types2.Basic:
 		return g.basic(typ)
 	case *types2.Named:
-		if typ.TParams() != nil {
+		// If tparams is set, but targs is not, typ is a base generic
+		// type. typ is appearing as part of the source type of an alias,
+		// since that is the only use of a generic type that doesn't
+		// involve instantiation. We just translate the named type in the
+		// normal way below using g.obj().
+		if typ.TParams() != nil && typ.TArgs() != nil {
 			// typ is an instantiation of a defined (named) generic type.
 			// This instantiation should also be a defined (named) type.
 			// types2 gives us the substituted type in t.Underlying()
 			// The substituted type may or may not still have type
 			// params. We might, for example, be substituting one type
 			// param for another type param.
-
-			if typ.TArgs() == nil {
-				base.Fatalf("In typ0, Targs should be set if TParams is set")
-			}
-
-			// When converted to types.Type, typ must have a name,
-			// based on the names of the type arguments. We need a
-			// name to deal with recursive generic types (and it also
-			// looks better when printing types).
+			//
+			// When converted to types.Type, typ has a unique name,
+			// based on the names of the type arguments.
 			instName := instTypeName2(typ.Obj().Name(), typ.TArgs())
 			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
 			if s.Def != nil {
-				// We have already encountered this instantiation,
-				// so use the type we previously created, since there
+				// We have already encountered this instantiation.
+				// Use the type we previously created, since there
 				// must be exactly one instance of a defined type.
 				return s.Def.Type()
 			}
 
 			// Create a forwarding type first and put it in the g.typs
-			// map, in order to deal with recursive generic types.
-			// Fully set up the extra ntyp information (Def, RParams,
-			// which may set HasTParam) before translating the
-			// underlying type itself, so we handle recursion
-			// correctly, including via method signatures.
+			// map, in order to deal with recursive generic types
+			// (including via method signatures).. Set up the extra
+			// ntyp information (Def, RParams, which may set
+			// HasTParam) before translating the underlying type
+			// itself, so we handle recursion correctly.
 			ntyp := typecheck.NewIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
 			g.typs[typ] = ntyp
 
 			// If ntyp still has type params, then we must be
 			// referencing something like 'value[T2]', as when
-			// specifying the generic receiver of a method,
-			// where value was defined as "type value[T any]
-			// ...". Save the type args, which will now be the
-			// new type  of the current type.
+			// specifying the generic receiver of a method, where
+			// value was defined as "type value[T any] ...". Save the
+			// type args, which will now be the new typeparams of the
+			// current type.
 			//
 			// If ntyp does not have type params, we are saving the
-			// concrete types used to instantiate this type. We'll use
-			// these when instantiating the methods of the
+			// non-generic types used to instantiate this type. We'll
+			// use these when instantiating the methods of the
 			// instantiated type.
 			rparams := make([]*types.Type, len(typ.TArgs()))
 			for i, targ := range typ.TArgs() {
