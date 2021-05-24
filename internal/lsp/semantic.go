@@ -396,6 +396,7 @@ func (e *encoded) inspector(n ast.Node) bool {
 	}
 	return true
 }
+
 func (e *encoded) ident(x *ast.Ident) {
 	def := e.ti.Defs[x]
 	if def != nil {
@@ -641,6 +642,9 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		}
 		// and fall through for _
 	}
+	if d.Path.Value == "" {
+		return
+	}
 	nm := d.Path.Value[1 : len(d.Path.Value)-1] // trailing "
 	v := strings.LastIndex(nm, "/")
 	if v != -1 {
@@ -704,8 +708,10 @@ var (
 		"namespace", "type", "class", "enum", "interface",
 		"struct", "typeParameter", "parameter", "variable", "property", "enumMember",
 		"event", "function", "member", "macro", "keyword", "modifier", "comment",
-		"string", "number", "regexp", "operator"}
+		"string", "number", "regexp", "operator",
+	}
 	semanticModifiers = [...]string{
 		"declaration", "definition", "readonly", "static",
-		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary"}
+		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary",
+	}
 )
