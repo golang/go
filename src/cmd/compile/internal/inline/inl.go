@@ -1029,6 +1029,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 	n.SetType(var_.Type())
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
+	n.SetAutoTemp(var_.AutoTemp())
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	n.SetAddrtaken(var_.Addrtaken())
 
