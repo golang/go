@@ -157,7 +157,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	t := r.X.Type()
 
 	fast := mapfast(t)
-	key := mapKeyArg(fast, r, r.Index)
+	key := mapKeyArg(fast, r, r.Index, false)
 
 	// from:
 	//   a,b = m[i]
