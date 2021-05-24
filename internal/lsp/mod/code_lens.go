@@ -81,10 +81,6 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	if err != nil || pm.File == nil {
 		return nil, err
 	}
-	if len(pm.File.Require) == 0 {
-		// Nothing to vendor.
-		return nil, nil
-	}
 	uri := protocol.URIFromSpanURI(fh.URI())
 	cmd, err := command.NewTidyCommand("Run go mod tidy", command.URIArgs{URIs: []protocol.DocumentURI{uri}})
 	if err != nil {
@@ -104,6 +100,10 @@ func vendorLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil || pm.File == nil {
 		return nil, err
+	}
+	if len(pm.File.Require) == 0 {
+		// Nothing to vendor.
+		return nil, nil
 	}
 	rng, err := moduleStmtRange(fh, pm)
 	if err != nil {
