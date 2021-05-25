@@ -47,7 +47,7 @@ func explode(s []byte, n int) [][]byte {
 		s = s[size:]
 		na++
 	}
-	return a[0:na]
+	return a[:na]
 }
 
 // Count counts the number of non-overlapping instances of sep in s.
@@ -535,7 +535,7 @@ func Join(s [][]byte, sep []byte) []byte {
 
 // HasPrefix tests whether the byte slice s begins with prefix.
 func HasPrefix(s, prefix []byte) bool {
-	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
+	return len(s) >= len(prefix) && Equal(s[:len(prefix)], prefix)
 }
 
 // HasSuffix tests whether the byte slice s ends with suffix.
@@ -570,14 +570,14 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
 				// Grow the buffer.
 				maxbytes = maxbytes*2 + utf8.UTFMax
 				nb := make([]byte, maxbytes)
-				copy(nb, b[0:nbytes])
+				copy(nb, b[:nbytes])
 				b = nb
 			}
 			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], r)
 		}
 		i += wid
 	}
-	return b[0:nbytes]
+	return b[:nbytes]
 }
 
 // Repeat returns a new byte slice consisting of count copies of b.
@@ -784,7 +784,7 @@ func TrimRightFunc(s []byte, f func(r rune) bool) []byte {
 	} else {
 		i++
 	}
-	return s[0:i]
+	return s[:i]
 }
 
 // TrimFunc returns a subslice of s by slicing off all leading and trailing
@@ -851,7 +851,7 @@ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
 	for i := len(s); i > 0; {
 		r, size := rune(s[i-1]), 1
 		if r >= utf8.RuneSelf {
-			r, size = utf8.DecodeLastRune(s[0:i])
+			r, size = utf8.DecodeLastRune(s[:i])
 		}
 		i -= size
 		if f(r) == truth {
@@ -1019,7 +1019,7 @@ func Replace(s, old, new []byte, n int) []byte {
 		start = j + len(old)
 	}
 	w += copy(t[w:], s[start:])
-	return t[0:w]
+	return t[:w]
 }
 
 // ReplaceAll returns a copy of the slice s with all
