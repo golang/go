@@ -1598,7 +1598,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	// Report deprecations, then retractions.
 	for _, mm := range deprecations {
 		if mm.message != "" {
-			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+			fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", mm.m.Path, mm.message)
 		}
 	}
 	var retractPath string

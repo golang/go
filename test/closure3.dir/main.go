@@ -94,10 +94,10 @@ func main() {
 			return x + 2
 		}
 		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
-			return func(x int) int { // ERROR "can inline main.func12"
+			return func(x int) int { // ERROR "func literal does not escape" "can inline main.func12"
 				return x + 1
 			}, 42
-		}() // ERROR "func literal does not escape" "inlining call to main.func12"
+		}() // ERROR "inlining call to main.func12"
 		if y(40) != 41 {
 			ppanic("y(40) != 41")
 		}
@@ -109,10 +109,10 @@ func main() {
 				return x + 2
 			}
 			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
-				return func(x int) int { // ERROR "can inline main.func13.2"
+				return func(x int) int { // ERROR  "func literal does not escape" "can inline main.func13.2"
 					return x + 1
 				}, 42
-			}() // ERROR "inlining call to main.func13.2" "func literal does not escape"
+			}() // ERROR "inlining call to main.func13.2"
 			if y(40) != 41 {
 				ppanic("y(40) != 41")
 			}

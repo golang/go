@@ -426,6 +426,9 @@ func parsePlusBuildExpr(text string) Expr {
 			x = or(x, y)
 		}
 	}
+	if x == nil {
+		x = tag("ignore")
+	}
 	return x
 }
 

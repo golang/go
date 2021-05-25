@@ -389,6 +389,10 @@ var cbFuncs = []cbFunc{
 	{func(i1, i2, i3, i4, i5 uint8Pair) uintptr {
 		return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
 	}},
+	{func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
+		runtime.GC()
+		return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+	}},
 }
 
 //go:registerparams
@@ -461,6 +465,16 @@ func sum5andPair(i1, i2, i3, i4, i5 uint8Pair) uintptr {
 	return uintptr(i1.x + i1.y + i2.x + i2.y + i3.x + i3.y + i4.x + i4.y + i5.x + i5.y)
 }
 
+// This test forces a GC. The idea is to have enough arguments
+// that insufficient spill slots allocated (according to the ABI)
+// may cause compiler-generated spills to clobber the return PC.
+// Then, the GC stack scanning will catch that.
+//go:registerparams
+func sum9andGC(i1, i2, i3, i4, i5, i6, i7, i8, i9 uint32) uintptr {
+	runtime.GC()
+	return uintptr(i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9)
+}
+
 // TODO(register args): Remove this once we switch to using the register
 // calling convention by default, since this is redundant with the existing
 // tests.
@@ -479,6 +493,7 @@ var cbFuncsRegABI = []cbFunc{
 	{sum9int8},
 	{sum5mix},
 	{sum5andPair},
+	{sum9andGC},
 }
 
 func getCallbackTestFuncs() []cbFunc {
