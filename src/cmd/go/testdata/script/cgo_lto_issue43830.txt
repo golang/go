@@ -1,0 +1,39 @@
+# tests golang.org/issue/43830
+
+[!cgo] skip 'skipping test without cgo'
+[openbsd] env CC='clang'
+[openbsd] [!exec:clang] skip 'skipping test without clang present'
+[!openbsd] env CC='gcc'
+[!openbsd] [!exec:gcc] skip 'skipping test without gcc present'
+
+env CGO_CFLAGS='-Wno-ignored-optimization-argument -flto -ffat-lto-objects'
+
+go build main.go add.go
+
+-- main.go --
+
+package main
+
+/*
+int c_add(int a, int b) {
+	return myadd(a, b);
+}
+*/
+import "C"
+
+func main() {
+	println(C.c_add(1, 2))
+}
+
+-- add.go --
+
+package main
+
+import "C"
+
+/* test */
+
+//export myadd
+func myadd(a C.int, b C.int) C.int {
+	return a + b
+}
