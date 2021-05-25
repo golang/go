@@ -305,6 +305,8 @@ func main() {
 // This change tests that the version of the module used changes after it has
 // been deleted from the workspace.
 func TestDeleteModule_Interdependent(t *testing.T) {
+	t.Skip("Skipping due to golang/go#46375: race due to orphaned file reloading")
+
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
