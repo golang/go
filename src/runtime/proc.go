@@ -5383,7 +5383,7 @@ func sysmon() {
 		}
 		// poll network if not polled for more than 10ms
 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
-		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
+		if netpollinited() && lastpoll != 0 && lastpoll + forcePreemptNS < now {
 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
 			list := netpoll(0) // non-blocking - returns list of goroutines
 			if !list.empty() {
@@ -5501,7 +5501,7 @@ func retake(now int64) uint32 {
 			// On the one hand we don't want to retake Ps if there is no other work to do,
 			// but on the other hand we want to retake them eventually
 			// because they can prevent the sysmon thread from deep sleep.
-			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+			if runqempty(_p_) && atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) > 0 && pd.syscallwhen + forcePreemptNS > now {
 				continue
 			}
 			// Drop allpLock so we can take sched.lock.
