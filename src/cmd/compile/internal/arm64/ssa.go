@@ -162,7 +162,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
-		// TODO: generate morestack spill code
+		// The assembler needs to wrap the entry safepoint/stack growth code with spill/unspill
+		// The loop only runs once.
+		for _, a := range v.Block.Func.RegArgs {
+			// Pass the spill/unspill information along to the assembler, offset by size of
+			// the saved LR slot.
+			addr := ssagen.SpillSlotAddr(a, arm64.REGSP, base.Ctxt.FixedFrameSize())
+			s.FuncInfo().AddSpill(
+				obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+		}
+		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
 	case ssa.OpARM64ADD,
 		ssa.OpARM64SUB,

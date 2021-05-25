@@ -161,17 +161,20 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
 	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
+	if q != nil {
+		q.To.SetTarget(pcdata)
+	}
+	bls.To.SetTarget(pcdata)
+
+	spill := c.cursym.Func().SpillRegisterArgs(pcdata, c.newprog)
+
 	// MOV	LR, R3
-	movlr := obj.Appendp(pcdata, c.newprog)
+	movlr := obj.Appendp(spill, c.newprog)
 	movlr.As = AMOVD
 	movlr.From.Type = obj.TYPE_REG
 	movlr.From.Reg = REGLINK
 	movlr.To.Type = obj.TYPE_REG
 	movlr.To.Reg = REG_R3
-	if q != nil {
-		q.To.SetTarget(movlr)
-	}
-	bls.To.SetTarget(movlr)
 
 	debug := movlr
 	if false {
@@ -196,7 +199,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
-	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
+	pcdata = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
 
 	// B	start
 	jmp := obj.Appendp(pcdata, c.newprog)
