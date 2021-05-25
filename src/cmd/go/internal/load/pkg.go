@@ -210,7 +210,6 @@ type PackageInternal struct {
 	BuildInfo         string               // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
-	FlagsSet          bool                 // whether the flags have been set
 	OrigImportPath    string               // original import path before adding '_test' suffix
 
 	Asmflags   []string // -asmflags for this package
@@ -2628,18 +2627,20 @@ func (e *mainPackageError) ImportPath() string {
 
 func setToolFlags(pkgs ...*Package) {
 	for _, p := range PackageList(pkgs) {
-		// TODO(jayconrod,katiehockman): See if there's a better way to do this.
-		if p.Internal.FlagsSet {
-			// The flags have already been set, so don't re-run this and
-			// potentially clear existing flags.
-			continue
-		} else {
-			p.Internal.FlagsSet = true
+		appendFlags(p, &p.Internal.Asmflags, &BuildAsmflags)
+		appendFlags(p, &p.Internal.Gcflags, &BuildGcflags)
+		appendFlags(p, &p.Internal.Ldflags, &BuildLdflags)
+		appendFlags(p, &p.Internal.Gccgoflags, &BuildGccgoflags)
+	}
+}
+
+func appendFlags(p *Package, flags *[]string, packageFlag *PerPackageFlag) {
+	if !packageFlag.seenPackages[p] {
+		if packageFlag.seenPackages == nil {
+			packageFlag.seenPackages = make(map[*Package]bool)
 		}
-		p.Internal.Asmflags = BuildAsmflags.For(p)
-		p.Internal.Gcflags = BuildGcflags.For(p)
-		p.Internal.Ldflags = BuildLdflags.For(p)
-		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+		packageFlag.seenPackages[p] = true
+		*flags = append(*flags, packageFlag.For(p)...)
 	}
 }
 
