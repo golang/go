@@ -826,11 +826,21 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	// Inform the compiler that it should instrument the binary at
+	// build-time when fuzzing is enabled.
 	fuzzFlags := work.FuzzInstrumentFlags()
 	if testFuzz != "" && fuzzFlags != nil {
-		// Inform the compiler that it should instrument the binary at
-		// build-time when fuzzing is enabled.
-		for _, p := range load.PackageList(pkgs) {
+		// Don't instrument packages which may affect coverage guidance but are
+		// unlikely to be useful.
+		var fuzzNoInstrument = map[string]bool{
+			"testing":       true,
+			"internal/fuzz": true,
+			"runtime":       true,
+		}
+		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
+			if fuzzNoInstrument[p.ImportPath] {
+				continue
+			}
 			p.Internal.Gcflags = append(p.Internal.Gcflags, fuzzFlags...)
 		}
 	}
