@@ -220,7 +220,7 @@ func schedule(f *Func) {
 			// unless they are phi values (which must be first).
 			// OpArg also goes first -- if it is stack it register allocates
 			// to a LoadReg, if it is register it is from the beginning anyway.
-			if c.Op == OpPhi || c.Op == OpArg {
+			if score[c.ID] == ScorePhi || score[c.ID] == ScoreArg {
 				continue
 			}
 			score[c.ID] = ScoreControl
