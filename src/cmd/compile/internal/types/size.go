@@ -104,8 +104,14 @@ func expandiface(t *Type) {
 			continue
 		}
 
+		if m.Type.IsUnion() {
+			continue
+		}
+
+		// Once we go to 1.18, then embedded types can be anything, but
+		// for now, just interfaces and unions.
 		if !m.Type.IsInterface() {
-			base.ErrorfAt(m.Pos, "interface contains embedded non-interface %v", m.Type)
+			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
 			m.SetBroke(true)
 			t.SetBroke(true)
 			// Add to fields so that error messages
@@ -404,6 +410,12 @@ func CalcSize(t *Type) {
 		w = 2 * int64(PtrSize)
 		t.Align = uint8(PtrSize)
 		expandiface(t)
+
+	case TUNION:
+		// Always part of an interface for now, so size/align don't matter.
+		// Pretend a union is represented like an interface.
+		w = 2 * int64(PtrSize)
+		t.Align = uint8(PtrSize)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)

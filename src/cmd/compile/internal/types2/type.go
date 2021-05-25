@@ -368,9 +368,6 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 }
 
 // NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
-// Each embedded type must have an underlying type of interface type (this property is not
-// verified for defined types, which may be in the process of being set up and which don't
-// have a valid underlying type yet).
 // NewInterfaceType takes ownership of the provided methods and may modify their types by setting
 // missing receivers. To compute the method set of the interface, Complete must be called.
 func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
@@ -383,16 +380,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
-		}
-	}
-
-	// All embedded types should be interfaces; however, defined types
-	// may not yet be fully resolved. Only verify that non-defined types
-	// are interfaces. This matches the behavior of the code before the
-	// fix for #25301 (issue #25596).
-	for _, t := range embeddeds {
-		if _, ok := t.(*Named); !ok && !IsInterface(t) {
-			panic("embedded type is not an interface")
 		}
 	}
 

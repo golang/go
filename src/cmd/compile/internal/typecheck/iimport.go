@@ -790,6 +790,19 @@ func (r *importReader) typ1() *types.Type {
 		baseType := r.typ()
 		t := Instantiate(pos, baseType, targs)
 		return t
+
+	case unionType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			base.Fatalf("unexpected instantiation type")
+		}
+		nt := int(r.uint64())
+		terms := make([]*types.Type, nt)
+		tildes := make([]bool, nt)
+		for i := range terms {
+			terms[i] = r.typ()
+			tildes[i] = r.bool()
+		}
+		return types.NewUnion(terms, tildes)
 	}
 }
 

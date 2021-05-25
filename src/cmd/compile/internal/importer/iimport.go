@@ -68,6 +68,7 @@ const (
 	interfaceType
 	typeParamType
 	instType
+	unionType
 )
 
 const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
@@ -660,6 +661,19 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		// we must always use the methods of the base (orig) type.
 		t := types2.Instantiate(pos, baseType, targs)
 		return t
+
+	case unionType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected instantiation type")
+		}
+		nt := int(r.uint64())
+		terms := make([]types2.Type, nt)
+		tildes := make([]bool, nt)
+		for i := range terms {
+			terms[i] = r.typ()
+			tildes[i] = r.bool()
+		}
+		return types2.NewUnion(terms, tildes)
 	}
 }
 
