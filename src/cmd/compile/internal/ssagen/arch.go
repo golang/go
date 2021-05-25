@@ -42,10 +42,10 @@ type ArchInfo struct {
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *State, b, next *ssa.Block)
 
-	// LoadRegResults emits instructions that loads register-assigned results
-	// into registers. They are already in memory (PPARAMOUT nodes).
-	// Used in open-coded defer return path.
-	LoadRegResults func(s *State, f *ssa.Func)
+	// LoadRegResult emits instructions that loads register-assigned result
+	// at n+off (n is PPARAMOUT) to register reg. The result is already in
+	// memory. Used in open-coded defer return path.
+	LoadRegResult func(s *State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
 
 	// SpillArgReg emits instructions that spill reg to n+off.
 	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
