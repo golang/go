@@ -43,6 +43,7 @@ var (
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 	generics       = flag.String("G", "0,3", "a comma-separated list of -G compiler flags to test with")
+	force          = flag.Bool("f", false, "run expected-failure generics tests rather than skipping them")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
@@ -518,7 +519,7 @@ func (t *test) run() {
 		close(t.donec)
 	}()
 
-	if t.glevel > 0 {
+	if t.glevel > 0 && !*force {
 		// Files excluded from generics testing.
 		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
 		if excludedFiles[filename] {
@@ -657,13 +658,23 @@ func (t *test) run() {
 		Compile
 	)
 
-	// checkFlags reports whether the current test configuration should
-	// be skipped because flags (which should be an arguments list for
-	// "go tool compile", not "go build") contains an excluded flag.
-	// It will also update flags as appropriate.
-	checkFlags := func(tool Tool) bool {
-		if t.glevel > 0 {
+	// validForGLevel reports whether the current test is valid to run
+	// at the specified -G level. If so, it may update flags as
+	// necessary to test with -G.
+	validForGLevel := func(tool Tool) bool {
+		if t.glevel == 0 {
+			// default -G level; always valid
 			return true
+		}
+
+		for _, flag := range flags {
+			if strings.Contains(flag, "-G") {
+				// test provides explicit -G flag already
+				if *verbose {
+					fmt.Printf("excl\t%s\n", t.goFileName())
+				}
+				return false
+			}
 		}
 
 		switch tool {
@@ -671,19 +682,13 @@ func (t *test) run() {
 			// ok; handled in goGcflags
 
 		case Compile:
-			for _, flag := range flags {
-				for _, pattern := range excludedFlags {
-					if strings.Contains(flag, pattern) {
-						if *verbose {
-							fmt.Printf("excl\t%s\t%s\n", t.goFileName(), flags)
-						}
-						return true // cannot handle flag
-					}
-				}
-			}
 			flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
 
 		default:
+			// we don't know how to add -G for this test yet
+			if *verbose {
+				fmt.Printf("excl\t%s\n", t.goFileName())
+			}
 			return false
 		}
 
@@ -766,7 +771,7 @@ func (t *test) run() {
 		t.err = fmt.Errorf("unimplemented action %q", action)
 
 	case "asmcheck":
-		if !checkFlags(AsmCheck) {
+		if !validForGLevel(AsmCheck) {
 			return
 		}
 
@@ -824,7 +829,7 @@ func (t *test) run() {
 		return
 
 	case "errorcheck":
-		if !checkFlags(Compile) {
+		if !validForGLevel(Compile) {
 			return
 		}
 
@@ -858,7 +863,7 @@ func (t *test) run() {
 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
 
 	case "compile":
-		if !checkFlags(Compile) {
+		if !validForGLevel(Compile) {
 			return
 		}
 
@@ -866,7 +871,7 @@ func (t *test) run() {
 		_, t.err = compileFile(runcmd, long, flags)
 
 	case "compiledir":
-		if !checkFlags(Compile) {
+		if !validForGLevel(Compile) {
 			return
 		}
 
@@ -885,7 +890,7 @@ func (t *test) run() {
 		}
 
 	case "errorcheckdir", "errorcheckandrundir":
-		if !checkFlags(Compile) {
+		if !validForGLevel(Compile) {
 			return
 		}
 
@@ -934,7 +939,7 @@ func (t *test) run() {
 		fallthrough
 
 	case "rundir":
-		if !checkFlags(Run) {
+		if !validForGLevel(Run) {
 			return
 		}
 
@@ -996,7 +1001,7 @@ func (t *test) run() {
 		}
 
 	case "runindir":
-		if !checkFlags(Run) {
+		if !validForGLevel(Run) {
 			return
 		}
 
@@ -1039,7 +1044,7 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "build":
-		if !checkFlags(Build) {
+		if !validForGLevel(Build) {
 			return
 		}
 
@@ -1050,7 +1055,7 @@ func (t *test) run() {
 		}
 
 	case "builddir", "buildrundir":
-		if !checkFlags(Build) {
+		if !validForGLevel(Build) {
 			return
 		}
 
@@ -1133,7 +1138,7 @@ func (t *test) run() {
 		}
 
 	case "buildrun":
-		if !checkFlags(Build) {
+		if !validForGLevel(Build) {
 			return
 		}
 
@@ -1162,7 +1167,7 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "run":
-		if !checkFlags(Run) {
+		if !validForGLevel(Run) {
 			return
 		}
 
@@ -1209,7 +1214,7 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "runoutput":
-		if !checkFlags(Run) {
+		if !validForGLevel(Run) {
 			return
 		}
 
@@ -1248,7 +1253,7 @@ func (t *test) run() {
 		t.checkExpectedOutput(out)
 
 	case "errorcheckoutput":
-		if !checkFlags(Compile) {
+		if !validForGLevel(Compile) {
 			return
 		}
 
@@ -2015,15 +2020,6 @@ func overlayDir(dstRoot, srcRoot string) error {
 // checking are also excluded since these phases are not running yet.
 // We can get rid of this code once types2 is fully plugged in.
 
-// For now we skip tests when we can't handle the file or some of the flags.
-// The first goal is to eliminate the excluded list; the second goal is to
-// eliminate the flag list.
-
-var excludedFlags = []string{
-	"-G", // skip redundant testing
-	"-m",
-}
-
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var excludedFiles = map[string]bool{
@@ -2101,4 +2097,39 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+
+	// tests that rely on -m diagnostics, which currently differ with -G=3
+	//
+	// TODO(mdempsky): Triage, though most of the issues seem to fall into:
+	// - Anonymous result parameters given different names (e.g., ~r0 vs ~r1)
+	// - Some escape analysis diagnostics being printed without position information
+	// - Some expressions printed differently (e.g., "int(100)" instead
+	//   of "100" or "&composite literal" instead of "&[4]int{...}").
+	"closure3.go":              true,
+	"escape2.go":               true,
+	"escape2n.go":              true,
+	"escape4.go":               true,
+	"escape5.go":               true,
+	"escape_array.go":          true,
+	"escape_calls.go":          true,
+	"escape_field.go":          true,
+	"escape_iface.go":          true,
+	"escape_indir.go":          true,
+	"escape_level.go":          true,
+	"escape_map.go":            true,
+	"escape_param.go":          true,
+	"escape_slice.go":          true,
+	"escape_struct_param1.go":  true,
+	"escape_struct_param2.go":  true,
+	"fixedbugs/issue12006.go":  true,
+	"fixedbugs/issue13799.go":  true,
+	"fixedbugs/issue21709.go":  true,
+	"fixedbugs/issue24651a.go": true,
+	"fixedbugs/issue24651b.go": true,
+	"fixedbugs/issue27557.go":  true,
+	"fixedbugs/issue31573.go":  true,
+	"fixedbugs/issue37837.go":  true,
+	"fixedbugs/issue39292.go":  true,
+	"fixedbugs/issue7921.go":   true,
+	"inline.go":                true,
 }
