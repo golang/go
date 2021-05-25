@@ -722,14 +722,29 @@ func (t *tester) registerTests() {
 				},
 			})
 			if t.hasCxx() {
-				t.tests = append(t.tests, distTest{
-					name:    "swig_callback",
-					heading: "../misc/swig/callback",
-					fn: func(dt *distTest) error {
-						t.addCmd(dt, "misc/swig/callback", t.goTest())
-						return nil
+				t.tests = append(t.tests,
+					distTest{
+						name:    "swig_callback",
+						heading: "../misc/swig/callback",
+						fn: func(dt *distTest) error {
+							t.addCmd(dt, "misc/swig/callback", t.goTest())
+							return nil
+						},
 					},
-				})
+					distTest{
+						name:    "swig_callback_lto",
+						heading: "../misc/swig/callback",
+						fn: func(dt *distTest) error {
+							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
+							cmd.Env = append(os.Environ(),
+								"CGO_CFLAGS=-flto",
+								"CGO_CXXFLAGS=-flto",
+								"CGO_LDFLAGS=-flto",
+							)
+							return nil
+						},
+					},
+				)
 			}
 		}
 	}

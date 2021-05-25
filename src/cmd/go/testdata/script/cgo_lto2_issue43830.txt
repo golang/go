@@ -1,0 +1,33 @@
+# tests golang.org/issue/43830
+
+[!cgo] skip 'skipping test without cgo'
+[openbsd] env CC='clang'
+[openbsd] [!exec:clang] skip 'skipping test without clang present'
+[!openbsd] env CC='gcc'
+[!openbsd] [!exec:gcc] skip 'skipping test without gcc present'
+
+env CGO_CFLAGS='-Wno-ignored-optimization-argument -flto -ffat-lto-objects'
+
+go build main.go
+
+-- main.go --
+
+package main
+
+import "fmt"
+
+// #include "hello.h"
+import "C"
+
+func main() {
+	hello := C.hello
+	fmt.Printf("%v\n", hello)
+}
+
+-- hello.h --
+
+#include <stdio.h>
+
+void hello(void) {
+  printf("hello\n");
+}
