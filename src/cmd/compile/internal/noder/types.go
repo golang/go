@@ -187,6 +187,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		for i := range embeddeds {
 			// TODO(mdempsky): Get embedding position.
 			e := typ.EmbeddedType(i)
+
+			// With Go 1.18, an embedded element can be any type, not
+			// just an interface.
 			if t := types2.AsInterface(e); t != nil {
 				if t.IsComparable() {
 					// Ignore predefined type 'comparable', since it
@@ -194,11 +197,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 					// relevant methods.
 					continue
 				}
-				embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
-				j++
 			}
-			// Ignore embedded non-interface types - they correspond
-			// to type lists which we currently don't handle here.
+			embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
+			j++
 		}
 		embeddeds = embeddeds[:j]
 
@@ -233,6 +234,16 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		bound := g.typ1(typ.Bound())
 		tp.SetBound(bound)
 		return tp
+
+	case *types2.Union:
+		nt := typ.NumTerms()
+		tlist := make([]*types.Type, nt)
+		tildes := make([]bool, nt)
+		for i := range tlist {
+			term, _ := typ.Term(i)
+			tlist[i] = g.typ1(term)
+		}
+		return types.NewUnion(tlist, tildes)
 
 	case *types2.Tuple:
 		// Tuples are used for the type of a function call (i.e. the

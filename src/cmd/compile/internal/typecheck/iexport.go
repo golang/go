@@ -256,6 +256,7 @@ const (
 	interfaceType
 	typeParamType
 	instType
+	unionType
 )
 
 const (
@@ -941,6 +942,18 @@ func (w *exportWriter) doTyp(t *types.Type) {
 			w.pos(f.Pos)
 			w.selector(f.Sym)
 			w.signature(f.Type)
+		}
+
+	case types.TUNION:
+		// TODO(danscales): possibly put out the tilde bools in more
+		// compact form.
+		w.startType(unionType)
+		nt := t.NumTerms()
+		w.uint64(uint64(nt))
+		for i := 0; i < nt; i++ {
+			t, b := t.Term(i)
+			w.typ(t)
+			w.bool(b)
 		}
 
 	default:

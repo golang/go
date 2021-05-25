@@ -73,6 +73,7 @@ const (
 	TSTRING
 	TUNSAFEPTR
 	TTYPEPARAM
+	TUNION
 
 	// pseudo-types for literals
 	TIDEAL // untyped numeric constants
@@ -392,6 +393,12 @@ type Typeparam struct {
 	bound *Type
 }
 
+// Union contains Type fields specific to union types.
+type Union struct {
+	terms  []*Type
+	tildes []bool // whether terms[i] is of form ~T
+}
+
 // Ptr contains Type fields specific to pointer types.
 type Ptr struct {
 	Elem *Type // element type
@@ -574,6 +581,8 @@ func New(et Kind) *Type {
 		t.Extra = new(Results)
 	case TTYPEPARAM:
 		t.Extra = new(Typeparam)
+	case TUNION:
+		t.Extra = new(Union)
 	}
 	return t
 }
@@ -1453,6 +1462,10 @@ func (t *Type) IsInterface() bool {
 	return t.kind == TINTER
 }
 
+func (t *Type) IsUnion() bool {
+	return t.kind == TUNION
+}
+
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
 	return t.IsInterface() && t.AllMethods().Len() == 0
@@ -1809,6 +1822,32 @@ func (t *Type) SetBound(bound *Type) {
 func (t *Type) Bound() *Type {
 	t.wantEtype(TTYPEPARAM)
 	return t.Extra.(*Typeparam).bound
+}
+
+// NewUnion returns a new union with the specified set of terms (types). If
+// tildes[i] is true, then terms[i] represents ~T, rather than just T.
+func NewUnion(terms []*Type, tildes []bool) *Type {
+	t := New(TUNION)
+	if len(terms) != len(tildes) {
+		base.Fatalf("Mismatched terms and tildes for NewUnion")
+	}
+	t.Extra.(*Union).terms = terms
+	t.Extra.(*Union).tildes = tildes
+	return t
+}
+
+// NumTerms returns the number of terms in a union type.
+func (t *Type) NumTerms() int {
+	t.wantEtype(TUNION)
+	return len(t.Extra.(*Union).terms)
+}
+
+// Term returns ith term of a union type as (term, tilde). If tilde is true, term
+// represents ~T, rather than just T.
+func (t *Type) Term(i int) (*Type, bool) {
+	t.wantEtype(TUNION)
+	u := t.Extra.(*Union)
+	return u.terms[i], u.tildes[i]
 }
 
 const BOGUS_FUNARG_OFFSET = -1000000000
