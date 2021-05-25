@@ -228,10 +228,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
-		// XXX commented out for now. Uncomment it will enable register args for
-		// go:registerparams functions, which isn't fully working, so tests fail.
-		//c.intParamRegs = paramIntRegARM64
-		//c.floatParamRegs = paramFloatRegARM64
+		c.intParamRegs = paramIntRegARM64
+		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
