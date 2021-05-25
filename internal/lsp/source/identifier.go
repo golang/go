@@ -276,7 +276,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 	declPkg, err := FindPackageFromPos(ctx, snapshot, result.Declaration.obj.Pos())
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	if result.Declaration.node, err = snapshot.PosToDecl(ctx, declPkg, result.Declaration.obj.Pos()); err != nil {
 		return nil, err
