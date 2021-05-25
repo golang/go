@@ -43,6 +43,31 @@ Do not send CLs removing the interior tags from such phrases.
   for previous versions has been discontinued.
 </p>
 
+<h3 id="windows">Windows</h3>
+
+<p><!-- golang.org/issue/36439 -->
+  Go 1.17 adds support of 64-bit ARM architecture on Windows (the
+  <code>windows/arm64</code> port). This port supports cgo.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- golang.org/issue/43005 -->
+  The 64-bit MIPS architecture on OpenBSD (the <code>openbsd/mips64</code>
+  port) now supports cgo.
+</p>
+
+<p><!-- golang.org/issue/36435 -->
+  In Go 1.16, on the 64-bit x86 and 64-bit ARM architectures on
+  OpenBSD (the <code>openbsd/amd64</code> and <code>openbsd/arm64</code>
+  ports) system calls are made through <code>libc</code>, instead
+  of directly using the machine instructions. In Go 1.17, this is
+  also done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+  (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
+  This ensures forward-compatibility with future versions of
+  OpenBSD.
+</p>
+
 <p>
   TODO: complete the Ports section
 </p>
@@ -80,6 +105,11 @@ Do not send CLs removing the interior tags from such phrases.
 <pre>
   go mod tidy -go=1.17
 </pre>
+
+<p><!-- golang.org/issue/46141 -->
+  TODO: Describe the <code>-compat</code> flag
+  for <code>go</code> <code>mod</code> <code>tidy</code>.
+</p>
 
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
 
@@ -161,6 +191,17 @@ Do not send CLs removing the interior tags from such phrases.
   password-protected SSH keys.
 </p>
 
+<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
+
+<p><!-- golang.org/issue/45332 -->
+  When <code>go</code> <code>mod</code> <code>download</code> is invoked without
+  arguments, it will no longer save sums for downloaded module content to
+  <code>go.sum</code>. It may still make changes to <code>go.mod</code> and
+  <code>go.sum</code> needed to load the build list. This is the same as the
+  behavior in Go 1.15. To save sums for all modules, use <code>go</code>
+  <code>mod</code> <code>download</code> <code>all</code>.
+</p>
+
 <p><!-- CL 249759 -->
   TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
 </p>
@@ -187,7 +228,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
-<p>
+<p><!-- CL 283112, golang.org/issue/28727 -->
+
+  Functions containing closures can now be inlined. One effect of this change is
+  that a function with a closure may actually produce a distinct closure function
+  for each place that the function is inlined. Hence, this change could reveal
+  bugs where Go functions are compared (incorrectly) by pointer value. Go
+  functions are by definition not comparable.
+
   TODO: complete the Compiler section, or delete if not needed
 </p>
 
@@ -247,7 +295,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- CL 312310 -->
-      TODO: <a href="https://golang.org/cl/312310">https://golang.org/cl/312310</a>: add File.OpenRaw, Writer.CreateRaw, Writer.Copy
+      The new methods <a href="/pkg/archive/zip#File.OpenRaw"><code>File.OpenRaw</code></a>, <a href="/pkg/archive/zip#Writer.CreateRaw"><code>Writer.CreateRaw</code></a>, <a href="/pkg/archive/zip#Writer.Copy"><code>Writer.Copy</code></a> provide support for cases where performance is a primary concern.
     </p>
   </dd>
 </dl><!-- archive/zip -->
@@ -295,11 +343,19 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 258360 -->
-      TODO: <a href="https://golang.org/cl/258360">https://golang.org/cl/258360</a>: close driver.Connector if it implements io.Closer
+      The <a href="/pkg/database/sql/#DB.Close"><code>DB.Close</code></a> method now closes
+      the <code>connector</code> field if the type in this field implements the
+      <a href="/pkg/io/#Closer"><code>io.Closer</code></a> interface.
     </p>
 
     <p><!-- CL 311572 -->
-      TODO: <a href="https://golang.org/cl/311572">https://golang.org/cl/311572</a>: add NullInt16 and NullByte
+      The new
+      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
+      and 
+      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
+      structs represent the int16 and byte values that may be null. These can be used as
+      destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
+      similar to NullString.
     </p>
   </dd>
 </dl><!-- database/sql -->
@@ -326,7 +382,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
     <p><!-- CL 293649 -->
-      TODO: <a href="https://golang.org/cl/293649">https://golang.org/cl/293649</a>: implement FileInfoToDirEntry
+      The new <a href="/pkg/io/fs/#FileInfoToDirEntry"><code>FileInfoToDirEntry</code></a> function converts a <code>FileInfo</code> to a <code>DirEntry</code>.
     </p>
   </dd>
 </dl><!-- io/fs -->
@@ -334,7 +390,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 247058 -->
-      TODO: <a href="https://golang.org/cl/247058">https://golang.org/cl/247058</a>: add MaxUint, MinInt, MaxInt
+      The math package now defines three more constants: <code>MaxUint</code>, <code>MaxInt</code> and <code>MinInt</code>.
+      For 32-bit systems their values are <code>2^32 - 1</code>, <code>2^31 - 1</code> and <code>-2^31</code>, respectively.
+      For 64-bit systems their values are <code>2^64 - 1</code>, <code>2^63 - 1</code> and <code>-2^63</code>, respectively.
     </p>
   </dd>
 </dl><!-- math -->
@@ -377,7 +435,8 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 308952 -->
-      TODO: <a href="https://golang.org/cl/308952">https://golang.org/cl/308952</a>: make ReadRequest return an error when requests have multiple Host headers
+      The <a href="/pkg/net/http/#ReadRequest"><code>ReadRequest</code></a> function
+      now returns an error when the request has multiple Host headers.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -401,7 +460,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 268020 -->
-      TODO: <a href="https://golang.org/cl/268020">https://golang.org/cl/268020</a>: avoid allocation in File.WriteString
+      The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
+      has been optimized to no longer make a copy of the input string.
     </p>
   </dd>
 </dl><!-- os -->
@@ -460,7 +520,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="sync/atomic"><dt><a href="/pkg/sync/atomic/">sync/atomic</a></dt>
   <dd>
     <p><!-- CL 241678 -->
-      TODO: <a href="https://golang.org/cl/241678">https://golang.org/cl/241678</a>: add (*Value).Swap and (*Value).CompareAndSwap
+      <code>atomic.Value</code> now has <a href="/pkg/sync/atomic/#Value.Swap"><code>Swap</code></a> and
+      <a href="/pkg/sync/atomic/#Value.CompareAndSwap"><code>CompareAndSwap</code></a> methods that provide
+      additional atomic operations.
     </p>
   </dd>
 </dl><!-- sync/atomic -->

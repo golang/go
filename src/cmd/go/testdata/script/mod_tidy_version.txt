@@ -32,12 +32,22 @@
 
 cp go.mod go.mod.orig
 
+
 # An invalid argument should be rejected.
 
 ! go mod tidy -go=bananas
-stderr '^go mod: invalid -go option "bananas"; expecting something like "-go 1.17"$'
+stderr '^invalid value "bananas" for flag -go: expecting a Go version like "'$goversion'"$'
 cmp go.mod go.mod.orig
 
+! go mod tidy -go=0.9
+stderr '^invalid value "0.9" for flag -go: expecting a Go version like "'$goversion'"$'
+
+! go mod tidy -go=2000.0
+stderr '^invalid value "2000.0" for flag -go: maximum supported Go version is '$goversion'$'
+
+
+# Supported versions should change the go.mod file to be tidy according to the
+# indicated version.
 
 go mod tidy -go=1.15
 cmp go.mod go.mod.115

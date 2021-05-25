@@ -1799,3 +1799,124 @@ func TestPTRandNonPTR(t *testing.T) {
 		t.Errorf("names = %q; want %q", names, want)
 	}
 }
+
+func TestCVE202133195(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:                 q.Header.ID,
+					Response:           true,
+					RCode:              dnsmessage.RCodeSuccess,
+					RecursionAvailable: true,
+				},
+				Questions: q.Questions,
+			}
+			switch q.Questions[0].Type {
+			case dnsmessage.TypeCNAME:
+				r.Answers = []dnsmessage.Resource{}
+			case dnsmessage.TypeA: // CNAME lookup uses a A/AAAA as a proxy
+				r.Answers = append(r.Answers,
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("<html>.golang.org."),
+							Type:   dnsmessage.TypeA,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.AResource{
+							A: TestAddr,
+						},
+					},
+				)
+			case dnsmessage.TypeSRV:
+				n := q.Questions[0].Name
+				if n.String() == "_hdr._tcp.golang.org." {
+					n = dnsmessage.MustNewName("<html>.golang.org.")
+				}
+				r.Answers = append(r.Answers,
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   n,
+							Type:   dnsmessage.TypeSRV,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.SRVResource{
+							Target: dnsmessage.MustNewName("<html>.golang.org."),
+						},
+					},
+				)
+			case dnsmessage.TypeMX:
+				r.Answers = append(r.Answers,
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("<html>.golang.org."),
+							Type:   dnsmessage.TypeMX,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("<html>.golang.org."),
+						},
+					},
+				)
+			case dnsmessage.TypeNS:
+				r.Answers = append(r.Answers,
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("<html>.golang.org."),
+							Type:   dnsmessage.TypeNS,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.NSResource{
+							NS: dnsmessage.MustNewName("<html>.golang.org."),
+						},
+					},
+				)
+			case dnsmessage.TypePTR:
+				r.Answers = append(r.Answers,
+					dnsmessage.Resource{
+						Header: dnsmessage.ResourceHeader{
+							Name:   dnsmessage.MustNewName("<html>.golang.org."),
+							Type:   dnsmessage.TypePTR,
+							Class:  dnsmessage.ClassINET,
+							Length: 4,
+						},
+						Body: &dnsmessage.PTRResource{
+							PTR: dnsmessage.MustNewName("<html>.golang.org."),
+						},
+					},
+				)
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+
+	_, err := r.LookupCNAME(context.Background(), "golang.org")
+	if expected := "lookup golang.org: CNAME target is invalid"; err.Error() != expected {
+		t.Errorf("LookupCNAME returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+	_, _, err = r.LookupSRV(context.Background(), "target", "tcp", "golang.org")
+	if expected := "lookup golang.org: SRV target is invalid"; err.Error() != expected {
+		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org")
+	if expected := "lookup golang.org: SRV header name is invalid"; err.Error() != expected {
+		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+	_, err = r.LookupMX(context.Background(), "golang.org")
+	if expected := "lookup golang.org: MX target is invalid"; err.Error() != expected {
+		t.Errorf("LookupMX returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+	_, err = r.LookupNS(context.Background(), "golang.org")
+	if expected := "lookup golang.org: NS target is invalid"; err.Error() != expected {
+		t.Errorf("LookupNS returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+	_, err = r.LookupAddr(context.Background(), "1.2.3.4")
+	if expected := "lookup 1.2.3.4: PTR target is invalid"; err.Error() != expected {
+		t.Errorf("LookupAddr returned unexpected error, got %q, want %q", err.Error(), expected)
+	}
+}

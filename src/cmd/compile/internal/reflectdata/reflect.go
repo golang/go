@@ -1116,6 +1116,15 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 		ot = objw.Uint32(lsym, ot, flags)
 		ot = dextratype(lsym, ot, t, 0)
+		if u := t.Underlying(); u != t {
+			// If t is a named map type, also keep the underlying map
+			// type live in the binary. This is important to make sure that
+			// a named map and that same map cast to its underlying type via
+			// reflection, use the same hash function. See issue 37716.
+			r := obj.Addrel(lsym)
+			r.Sym = writeType(u)
+			r.Type = objabi.R_KEEP
+		}
 
 	case types.TPTR:
 		if t.Elem().Kind() == types.TANY {

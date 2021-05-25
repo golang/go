@@ -53,6 +53,48 @@ import (
 	"golang.org/x/net/idna"
 )
 
+// asciiEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+// are equal, ASCII-case-insensitively.
+func http2asciiEqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if http2lower(s[i]) != http2lower(t[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// lower returns the ASCII lowercase version of b.
+func http2lower(b byte) byte {
+	if 'A' <= b && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
+}
+
+// isASCIIPrint returns whether s is ASCII and printable according to
+// https://tools.ietf.org/html/rfc20#section-4.2.
+func http2isASCIIPrint(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < ' ' || s[i] > '~' {
+			return false
+		}
+	}
+	return true
+}
+
+// asciiToLower returns the lowercase version of s if s is ASCII and printable,
+// and whether or not it was.
+func http2asciiToLower(s string) (lower string, ok bool) {
+	if !http2isASCIIPrint(s) {
+		return "", false
+	}
+	return strings.ToLower(s), true
+}
+
 // A list of the possible cipher suite ids. Taken from
 // https://www.iana.org/assignments/tls-parameters/tls-parameters.txt
 
@@ -2907,6 +2949,20 @@ func http2traceGot1xxResponseFunc(trace *httptrace.ClientTrace) func(int, textpr
 	return nil
 }
 
+// dialTLSWithContext uses tls.Dialer, added in Go 1.15, to open a TLS
+// connection.
+func (t *http2Transport) dialTLSWithContext(ctx context.Context, network, addr string, cfg *tls.Config) (*tls.Conn, error) {
+	dialer := &tls.Dialer{
+		Config: cfg,
+	}
+	cn, err := dialer.DialContext(ctx, network, addr)
+	if err != nil {
+		return nil, err
+	}
+	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
+	return tlsCn, nil
+}
+
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
 type http2goroutineLock uint64
@@ -3128,12 +3184,12 @@ func http2buildCommonHeaderMaps() {
 	}
 }
 
-func http2lowerHeader(v string) string {
+func http2lowerHeader(v string) (lower string, ascii bool) {
 	http2buildCommonHeaderMapsOnce()
 	if s, ok := http2commonLowerHeader[v]; ok {
-		return s
+		return s, true
 	}
-	return strings.ToLower(v)
+	return http2asciiToLower(v)
 }
 
 var (
@@ -3831,13 +3887,12 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 
 	if s.TLSConfig == nil {
 		s.TLSConfig = new(tls.Config)
-	} else if s.TLSConfig.CipherSuites != nil {
-		// If they already provided a CipherSuite list, return
-		// an error if it has a bad order or is missing
-		// ECDHE_RSA_WITH_AES_128_GCM_SHA256 or ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.
+	} else if s.TLSConfig.CipherSuites != nil && s.TLSConfig.MinVersion < tls.VersionTLS13 {
+		// If they already provided a TLS 1.0–1.2 CipherSuite list, return an
+		// error if it is missing ECDHE_RSA_WITH_AES_128_GCM_SHA256 or
+		// ECDHE_ECDSA_WITH_AES_128_GCM_SHA256.
 		haveRequired := false
-		sawBad := false
-		for i, cs := range s.TLSConfig.CipherSuites {
+		for _, cs := range s.TLSConfig.CipherSuites {
 			switch cs {
 			case tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				// Alternative MTI cipher to not discourage ECDSA-only servers.
@@ -3845,14 +3900,9 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
 				haveRequired = true
 			}
-			if http2isBadCipher(cs) {
-				sawBad = true
-			} else if sawBad {
-				return fmt.Errorf("http2: TLSConfig.CipherSuites index %d contains an HTTP/2-approved cipher suite (%#04x), but it comes after unapproved cipher suites. With this configuration, clients that don't support previous, approved cipher suites may be given an unapproved one and reject the connection.", i, cs)
-			}
 		}
 		if !haveRequired {
-			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing an HTTP/2-required AES_128_GCM_SHA256 cipher (need at least one of TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 or TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).")
+			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing an HTTP/2-required AES_128_GCM_SHA256 cipher (need at least one of TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 or TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)")
 		}
 	}
 
@@ -6394,8 +6444,12 @@ func (w *http2responseWriter) Push(target string, opts *PushOptions) error {
 		// but PUSH_PROMISE requests cannot have a body.
 		// http://tools.ietf.org/html/rfc7540#section-8.2
 		// Also disallow Host, since the promised URL must be absolute.
-		switch strings.ToLower(k) {
-		case "content-length", "content-encoding", "trailer", "te", "expect", "host":
+		if http2asciiEqualFold(k, "content-length") ||
+			http2asciiEqualFold(k, "content-encoding") ||
+			http2asciiEqualFold(k, "trailer") ||
+			http2asciiEqualFold(k, "te") ||
+			http2asciiEqualFold(k, "expect") ||
+			http2asciiEqualFold(k, "host") {
 			return fmt.Errorf("promised request headers cannot include %q", k)
 		}
 	}
@@ -7148,14 +7202,10 @@ func (t *http2Transport) dialTLS(ctx context.Context) func(string, string, *tls.
 		return t.DialTLS
 	}
 	return func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-		dialer := &tls.Dialer{
-			Config: cfg,
-		}
-		cn, err := dialer.DialContext(ctx, network, addr)
+		tlsCn, err := t.dialTLSWithContext(ctx, network, addr, cfg)
 		if err != nil {
 			return nil, err
 		}
-		tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
 		state := tlsCn.ConnectionState()
 		if p := state.NegotiatedProtocol; p != http2NextProtoTLS {
 			return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, http2NextProtoTLS)
@@ -7163,7 +7213,7 @@ func (t *http2Transport) dialTLS(ctx context.Context) func(string, string, *tls.
 		if !state.NegotiatedProtocolIsMutual {
 			return nil, errors.New("http2: could not negotiate protocol mutually")
 		}
-		return cn, nil
+		return tlsCn, nil
 	}
 }
 
@@ -7552,7 +7602,7 @@ func http2checkConnHeaders(req *Request) error {
 	if vv := req.Header["Transfer-Encoding"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "chunked") {
 		return fmt.Errorf("http2: invalid Transfer-Encoding request header: %q", vv)
 	}
-	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !strings.EqualFold(vv[0], "close") && !strings.EqualFold(vv[0], "keep-alive")) {
+	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !http2asciiEqualFold(vv[0], "close") && !http2asciiEqualFold(vv[0], "keep-alive")) {
 		return fmt.Errorf("http2: invalid Connection request header: %q", vv)
 	}
 	return nil
@@ -8078,19 +8128,21 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 
 		var didUA bool
 		for k, vv := range req.Header {
-			if strings.EqualFold(k, "host") || strings.EqualFold(k, "content-length") {
+			if http2asciiEqualFold(k, "host") || http2asciiEqualFold(k, "content-length") {
 				// Host is :authority, already sent.
 				// Content-Length is automatic, set below.
 				continue
-			} else if strings.EqualFold(k, "connection") || strings.EqualFold(k, "proxy-connection") ||
-				strings.EqualFold(k, "transfer-encoding") || strings.EqualFold(k, "upgrade") ||
-				strings.EqualFold(k, "keep-alive") {
+			} else if http2asciiEqualFold(k, "connection") ||
+				http2asciiEqualFold(k, "proxy-connection") ||
+				http2asciiEqualFold(k, "transfer-encoding") ||
+				http2asciiEqualFold(k, "upgrade") ||
+				http2asciiEqualFold(k, "keep-alive") {
 				// Per 8.1.2.2 Connection-Specific Header
 				// Fields, don't send connection-specific
 				// fields. We have already checked if any
 				// are error-worthy so just ignore the rest.
 				continue
-			} else if strings.EqualFold(k, "user-agent") {
+			} else if http2asciiEqualFold(k, "user-agent") {
 				// Match Go's http1 behavior: at most one
 				// User-Agent. If set to nil or empty string,
 				// then omit it. Otherwise if not mentioned,
@@ -8103,7 +8155,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 				if vv[0] == "" {
 					continue
 				}
-			} else if strings.EqualFold(k, "cookie") {
+			} else if http2asciiEqualFold(k, "cookie") {
 				// Per 8.1.2.5 To allow for better compression efficiency, the
 				// Cookie header field MAY be split into separate header fields,
 				// each with one or more cookie-pairs.
@@ -8162,7 +8214,12 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 
 	// Header list size is ok. Write the headers.
 	enumerateHeaders(func(name, value string) {
-		name = strings.ToLower(name)
+		name, ascii := http2asciiToLower(name)
+		if !ascii {
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			return
+		}
 		cc.writeHeader(name, value)
 		if traceHeaders {
 			http2traceWroteHeaderField(trace, name, value)
@@ -8210,9 +8267,14 @@ func (cc *http2ClientConn) encodeTrailers(req *Request) ([]byte, error) {
 	}
 
 	for k, vv := range req.Trailer {
+		lowKey, ascii := http2asciiToLower(k)
+		if !ascii {
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			continue
+		}
 		// Transfer-Encoding, etc.. have already been filtered at the
 		// start of RoundTrip
-		lowKey := strings.ToLower(k)
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
 		}
@@ -9635,7 +9697,12 @@ func http2encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
 	}
 	for _, k := range keys {
 		vv := h[k]
-		k = http2lowerHeader(k)
+		k, ascii := http2lowerHeader(k)
+		if !ascii {
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			continue
+		}
 		if !http2validWireHeaderFieldName(k) {
 			// Skip it as backup paranoia. Per
 			// golang.org/issue/14048, these should
