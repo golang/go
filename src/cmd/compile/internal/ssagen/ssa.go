@@ -6930,8 +6930,12 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// recovers a panic, it will return to caller with right results.
 		// The results are already in memory, because they are not SSA'd
 		// when the function has defers (see canSSAName).
-		if f.OwnAux.ABIInfo().OutRegistersUsed() != 0 {
-			Arch.LoadRegResults(&s, f)
+		for _, o := range f.OwnAux.ABIInfo().OutParams() {
+			n := o.Name.(*ir.Name)
+			rts, offs := o.RegisterTypesAndOffsets()
+			for i := range o.Registers {
+				Arch.LoadRegResult(&s, f, rts[i], ssa.ObjRegForAbiReg(o.Registers[i], f.Config), n, offs[i])
+			}
 		}
 
 		pp.Prog(obj.ARET)
