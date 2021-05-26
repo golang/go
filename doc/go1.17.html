@@ -408,7 +408,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- CL 305230 -->
-      TODO: <a href="https://golang.org/cl/305230">https://golang.org/cl/305230</a>: support reading shared mime-info database on unix systems
+      On Unix systems, the table of MIME types is now read from the local system's
+      <a href="https://specifications.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-0.21.html">Shared MIME-info Database</a>
+      when available.
     </p>
   </dd>
 </dl><!-- mime -->
