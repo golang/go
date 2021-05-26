@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 
 	"fmt"
 	"go/constant"
@@ -15,21 +16,21 @@ import (
 )
 
 // package all the arguments that match a ... T parameter into a []T.
-func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
+func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 	var n ir.Node
 	if len(args) == 0 {
-		n = NodNil()
+		n = ir.NewNilExpr(pos)
 		n.SetType(typ)
 	} else {
-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
-		lit.List.Append(args...)
+		args = append([]ir.Node(nil), args...)
+		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), args)
 		lit.SetImplicit(true)
 		n = lit
 	}
 
 	n = Expr(n)
 	if n.Type() == nil {
-		base.Fatalf("mkdotargslice: typecheck failed")
+		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
 	}
 	return n
 }
@@ -47,7 +48,7 @@ func FixVariadicCall(call *ir.CallExpr) {
 
 	args := call.Args
 	extra := args[vi:]
-	slice := MakeDotArgs(vt, extra)
+	slice := MakeDotArgs(call.Pos(), vt, extra)
 	for i := range extra {
 		extra[i] = nil // allow GC
 	}

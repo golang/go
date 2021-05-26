@@ -793,6 +793,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	defer func() {
 		inlMap[fn] = false
 	}()
+
+	typecheck.FixVariadicCall(n)
+
 	if base.Debug.TypecheckInl == 0 {
 		typecheck.ImportedBody(fn)
 	}
@@ -914,49 +917,15 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 	as.Rhs.Append(n.Args...)
 
-	// For non-dotted calls to variadic functions, we assign the
-	// variadic parameter's temp name separately.
-	var vas *ir.AssignStmt
-
 	if recv := fn.Type().Recv(); recv != nil {
 		as.Lhs.Append(inlParam(recv, as, inlvars))
 	}
 	for _, param := range fn.Type().Params().Fields().Slice() {
-		// For ordinary parameters or variadic parameters in
-		// dotted calls, just add the variable to the
-		// assignment list, and we're done.
-		if !param.IsDDD() || n.IsDDD {
-			as.Lhs.Append(inlParam(param, as, inlvars))
-			continue
-		}
-
-		// Otherwise, we need to collect the remaining values
-		// to pass as a slice.
-
-		x := len(as.Lhs)
-		for len(as.Lhs) < len(as.Rhs) {
-			as.Lhs.Append(argvar(param.Type, len(as.Lhs)))
-		}
-		varargs := as.Lhs[x:]
-
-		vas = ir.NewAssignStmt(base.Pos, nil, nil)
-		vas.X = inlParam(param, vas, inlvars)
-		if len(varargs) == 0 {
-			vas.Y = typecheck.NodNil()
-			vas.Y.SetType(param.Type)
-		} else {
-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
-			lit.List = varargs
-			vas.Y = lit
-		}
+		as.Lhs.Append(inlParam(param, as, inlvars))
 	}
 
 	if len(as.Rhs) != 0 {
 		ninit.Append(typecheck.Stmt(as))
-	}
-
-	if vas != nil {
-		ninit.Append(typecheck.Stmt(vas))
 	}
 
 	if !delayretvars {
@@ -1071,18 +1040,6 @@ func inlvar(var_ *ir.Name) *ir.Name {
 func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
-	n.Class = ir.PAUTO
-	n.SetUsed(true)
-	n.Curfn = ir.CurFunc // the calling function, not the called one
-	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-	return n
-}
-
-// Synthesize a variable to store the inlined function's arguments
-// when they come from a multiple return call.
-func argvar(t *types.Type, i int) ir.Node {
-	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
-	n.SetType(t.Elem())
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
