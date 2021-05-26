@@ -82,6 +82,18 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	return n, wrapSyscallError(writeToSyscallName, err)
 }
 
+func (fd *netFD) writeToInet4(p []byte, sa syscall.SockaddrInet4) (n int, err error) {
+	n, err = fd.pfd.WriteToInet4(p, sa)
+	runtime.KeepAlive(fd)
+	return n, wrapSyscallError(writeToSyscallName, err)
+}
+
+func (fd *netFD) writeToInet6(p []byte, sa syscall.SockaddrInet6) (n int, err error) {
+	n, err = fd.pfd.WriteToInet6(p, sa)
+	runtime.KeepAlive(fd)
+	return n, wrapSyscallError(writeToSyscallName, err)
+}
+
 func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
 	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
 	runtime.KeepAlive(fd)

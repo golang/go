@@ -327,6 +327,58 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 	}
 }
 
+// WriteToInet4 wraps the sendto network call for IPv4 addresses.
+func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := syscall.SendtoInet4(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
+}
+
+// WriteToInet6 wraps the sendto network call for IPv6 addresses.
+func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := syscall.SendtoInet6(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
+}
+
 // WriteTo wraps the sendto network call.
 func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
 	if err := fd.writeLock(); err != nil {
