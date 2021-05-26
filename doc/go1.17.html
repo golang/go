@@ -550,11 +550,16 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 295371 -->
-      TODO: <a href="https://golang.org/cl/295371">https://golang.org/cl/295371</a>: do not overflow key memory in GetQueuedCompletionStatus
+    <p>
+      The <a href="/pkg/syscall/#GetQueuedCompletionStatus"><code>GetQueuedCompletionStatus</code></a> and
+      <a href="/pkg/syscall/#PostQueuedCompletionStatus"><code>PostQueuedCompletionStatus</code></a>
+      functions are now deprecated. These functions have incorrect signatures and are superseded by
+      equivalents in the <a href="https://godoc.org/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> package.
     </p>
 
     <p><!-- CL 313653 -->
-      TODO: <a href="https://golang.org/cl/313653">https://golang.org/cl/313653</a>: restore signal mask after setting foreground process group
+      On Unix-like systems, the process group of a child process is now set with signals blocked.
+      This avoids sending a <code>SIGTTOU</code> to the child when the parent is in a background process group.
     </p>
   </dd>
 </dl><!-- syscall -->
