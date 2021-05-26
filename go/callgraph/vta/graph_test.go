@@ -236,6 +236,11 @@ func TestVTAGraphConstruction(t *testing.T) {
 		"testdata/node_uniqueness.go",
 		"testdata/store_load_alias.go",
 		"testdata/phi_alias.go",
+		"testdata/channels.go",
+		"testdata/select.go",
+		"testdata/stores_arrays.go",
+		"testdata/maps.go",
+		"testdata/ranges.go",
 	} {
 		t.Run(file, func(t *testing.T) {
 			prog, want, err := testProg(file)

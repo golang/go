@@ -319,6 +319,20 @@ func (b *builder) instr(instr ssa.Instruction) {
 		b.field(i)
 	case *ssa.FieldAddr:
 		b.fieldAddr(i)
+	case *ssa.Send:
+		b.send(i)
+	case *ssa.Select:
+		b.selekt(i)
+	case *ssa.Index:
+		b.index(i)
+	case *ssa.IndexAddr:
+		b.indexAddr(i)
+	case *ssa.Lookup:
+		b.lookup(i)
+	case *ssa.MapUpdate:
+		b.mapUpdate(i)
+	case *ssa.Next:
+		b.next(i)
 	case *ssa.MakeChan, *ssa.MakeMap, *ssa.MakeSlice, *ssa.BinOp,
 		*ssa.Alloc, *ssa.DebugRef, *ssa.Convert, *ssa.Jump, *ssa.If,
 		*ssa.Slice, *ssa.Range, *ssa.RunDefers:
@@ -336,7 +350,8 @@ func (b *builder) unop(u *ssa.UnOp) {
 		// Multiplication operator * is used here as a dereference operator.
 		b.addInFlowAliasEdges(b.nodeFromVal(u), b.nodeFromVal(u.X))
 	case token.ARROW:
-		// TODO(zpavlinovic): add support for channels.
+		t := u.X.Type().Underlying().(*types.Chan).Elem()
+		b.addInFlowAliasEdges(b.nodeFromVal(u), channelElem{typ: t})
 	default:
 		// There is no interesting type flow otherwise.
 	}
@@ -386,6 +401,91 @@ func (b *builder) fieldAddr(f *ssa.FieldAddr) {
 	fnode := field{StructType: t, index: f.Field}
 	b.addInFlowEdge(fnode, b.nodeFromVal(f))
 	b.addInFlowEdge(b.nodeFromVal(f), fnode)
+}
+
+func (b *builder) send(s *ssa.Send) {
+	t := s.Chan.Type().Underlying().(*types.Chan).Elem()
+	b.addInFlowAliasEdges(channelElem{typ: t}, b.nodeFromVal(s.X))
+}
+
+// selekt generates flows for select statement
+//   a = select blocking/nonblocking [c_1 <- t_1, c_2 <- t_2, ..., <- o_1, <- o_2, ...]
+// between receiving channel registers c_i and corresponding input register t_i. Further,
+// flows are generated between o_i and a[2 + i]. Note that a is a tuple register of type
+// <int, bool, r_1, r_2, ...> where the type of r_i is the element type of channel o_i.
+func (b *builder) selekt(s *ssa.Select) {
+	recvIndex := 0
+	for _, state := range s.States {
+		t := state.Chan.Type().Underlying().(*types.Chan).Elem()
+
+		if state.Dir == types.SendOnly {
+			b.addInFlowAliasEdges(channelElem{typ: t}, b.nodeFromVal(state.Send))
+		} else {
+			// state.Dir == RecvOnly by definition of select instructions.
+			tupEntry := indexedLocal{val: s, typ: t, index: 2 + recvIndex}
+			b.addInFlowAliasEdges(tupEntry, channelElem{typ: t})
+			recvIndex++
+		}
+	}
+}
+
+// index instruction a := b[c] on slices creates flows between a and
+// SliceElem(t) flow where t is an interface type of c. Arrays and
+// slice elements are both modeled as SliceElem.
+func (b *builder) index(i *ssa.Index) {
+	et := sliceArrayElem(i.X.Type())
+	b.addInFlowAliasEdges(b.nodeFromVal(i), sliceElem{typ: et})
+}
+
+// indexAddr instruction a := &b[c] fetches address of a index
+// into the field so we create bidirectional flow a <-> SliceElem(t)
+// where t is an interface type of c. Arrays and slice elements are
+// both modeled as SliceElem.
+func (b *builder) indexAddr(i *ssa.IndexAddr) {
+	et := sliceArrayElem(i.X.Type())
+	b.addInFlowEdge(sliceElem{typ: et}, b.nodeFromVal(i))
+	b.addInFlowEdge(b.nodeFromVal(i), sliceElem{typ: et})
+}
+
+// lookup handles map query commands a := m[b] where m is of type
+// map[...]V and V is an interface. It creates flows between `a`
+// and MapValue(V).
+func (b *builder) lookup(l *ssa.Lookup) {
+	t, ok := l.X.Type().Underlying().(*types.Map)
+	if !ok {
+		// No interesting flows for string lookups.
+		return
+	}
+	b.addInFlowAliasEdges(b.nodeFromVal(l), mapValue{typ: t.Elem()})
+}
+
+// mapUpdate handles map update commands m[b] = a where m is of type
+// map[K]V and K and V are interfaces. It creates flows between `a`
+// and MapValue(V) as well as between MapKey(K) and `b`.
+func (b *builder) mapUpdate(u *ssa.MapUpdate) {
+	t, ok := u.Map.Type().Underlying().(*types.Map)
+	if !ok {
+		// No interesting flows for string updates.
+		return
+	}
+
+	b.addInFlowAliasEdges(mapKey{typ: t.Key()}, b.nodeFromVal(u.Key))
+	b.addInFlowAliasEdges(mapValue{typ: t.Elem()}, b.nodeFromVal(u.Value))
+}
+
+// next instruction <ok, key, value> := next r, where r
+// is a range over map or string generates flow between
+// key and MapKey as well value and MapValue nodes.
+func (b *builder) next(n *ssa.Next) {
+	if n.IsString {
+		return
+	}
+	tup := n.Type().Underlying().(*types.Tuple)
+	kt := tup.At(1).Type()
+	vt := tup.At(2).Type()
+
+	b.addInFlowAliasEdges(indexedLocal{val: n, typ: kt, index: 1}, mapKey{typ: kt})
+	b.addInFlowAliasEdges(indexedLocal{val: n, typ: vt, index: 2}, mapValue{typ: vt})
 }
 
 // addInFlowAliasEdges adds an edge r -> l to b.graph if l is a node that can

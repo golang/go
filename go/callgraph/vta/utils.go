@@ -84,3 +84,19 @@ func interfaceUnderPtr(t types.Type) types.Type {
 
 	return interfaceUnderPtr(p.Elem())
 }
+
+// sliceArrayElem returns the element type of type `t` that is
+// expected to be a (pointer to) array or slice, consistent with
+// the ssa.Index and ssa.IndexAddr instructions. Panics otherwise.
+func sliceArrayElem(t types.Type) types.Type {
+	u := t.Underlying()
+
+	if p, ok := u.(*types.Pointer); ok {
+		u = p.Elem().Underlying()
+	}
+
+	if a, ok := u.(*types.Array); ok {
+		return a.Elem()
+	}
+	return u.(*types.Slice).Elem()
+}
