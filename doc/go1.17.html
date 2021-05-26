@@ -277,13 +277,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="vet">Vet</h3>
 
-<p><!-- CL 299532 -->
-  TODO: <a href="https://golang.org/cl/299532">https://golang.org/cl/299532</a>: cmd/vet: bring in sigchanyzer to report unbuffered channels to signal.Notify
+<h4 id="vet-buildtags">New warning within buildtags</h4>
+
+<p><!-- CL 240609 -->
+  TODO(rsc): Describe changes to buildtags <a href="https://golang.org/cl/240609">https://golang.org/cl/240609</a>
 </p>
 
-<p>
-  TODO: complete the Vet section
+<h4 id="vet-sigchanyzer">New warning for calling <code>signal.Notify</code> on unbuffered channels</h4>
+
+<p><!-- CL 299532 -->
+  The vet tool now warns about calls to <a href="/pkg/os/signal/#Notify">signal.Notify</a>
+  with incoming signals being sent to an unbuffered channel. Using an unbuffered channel
+  risks missing signals sent on them as <code>signal.Notify</code> does not block when
+  sending to a channel. For example:
 </p>
+
+<pre>
+c := make(chan os.Signal)
+// signals are sent on c before the channel is read from.
+// This signal may be dropped as c is unbuffered.
+signal.Notify(c, os.Interrupt)
+</pre>
+
+<p>
+  Users of <code>signal.Notify</code> should use channels with sufficient buffer space to keep up with the
+  expected signal rate.
+</p>
+
+<h4 id="vet-error-stdmethods">New warnings for Is, As and Unwrap methods</h4>
+
+<p><!-- CL 321389 -->
+  The vet tool now warns about methods named <code>As</code>, <code>Is</code> or <code>Unwrap</code>
+  on types implementing the <code>error</code> interface that have a different signature than the
+  one expected by the <code>errors</code> package. The <code>errors.{As,Is,Unwrap}</code> functions
+  expect such methods to implement either <code>Is(error)</code> <code>bool</code>,
+  <code>As(interface{})</code> <code>bool</code>, or <code>Unwrap()</code> <code>error</code>
+  respectively. The functions <code>errors.{As,Is,Unwrap}</code> will ignore methods with the same
+  names but a different signature. For example:
+</p>
+
+<pre>
+type MyError struct { hint string }
+func (m MyError) Error() string { ... } // MyError implements error.
+func (MyError) Is(target interface{}) bool { ... } // target is interface{} instead of error.
+func Foo() bool {
+	x, y := MyError{"A"}, MyError{"B"}
+	return errors.Is(x, y) // returns false as x != y and MyError does not have an `Is(error) bool` function.
+}
+</pre>
 
 <h3 id="cover">Cover</h3>
 
