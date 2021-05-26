@@ -113,19 +113,21 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
 		}
 
 	case *types2.Var:
-		var sym *types.Sym
-		if class == ir.PPARAMOUT {
+		sym := g.sym(obj)
+		if class == ir.PPARAMOUT && (sym == nil || sym.IsBlank()) {
 			// Backend needs names for result parameters,
 			// even if they're anonymous or blank.
-			switch obj.Name() {
-			case "":
-				sym = typecheck.LookupNum("~r", len(ir.CurFunc.Dcl)) // 'r' for "result"
-			case "_":
-				sym = typecheck.LookupNum("~b", len(ir.CurFunc.Dcl)) // 'b' for "blank"
+			nresults := 0
+			for _, n := range ir.CurFunc.Dcl {
+				if n.Class == ir.PPARAMOUT {
+					nresults++
+				}
 			}
-		}
-		if sym == nil {
-			sym = g.sym(obj)
+			if sym == nil {
+				sym = typecheck.LookupNum("~r", nresults) // 'r' for "result"
+			} else {
+				sym = typecheck.LookupNum("~b", nresults) // 'b' for "blank"
+			}
 		}
 		name = g.objCommon(pos, ir.ONAME, sym, class, g.typ(obj.Type()))
 
