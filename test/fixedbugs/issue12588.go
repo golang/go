@@ -35,7 +35,7 @@ func g(a *A) int { // ERROR "a does not escape"
 	return 0
 }
 
-func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
+func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r0 level=1"
 	for i, x := range &a.b {
 		if i == 0 {
 			return x
@@ -44,7 +44,7 @@ func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
 	return nil
 }
 
-func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
+func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r0 level=1"
 	p := &a.b
 	for i, x := range p {
 		if i == 0 {
@@ -55,7 +55,7 @@ func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
 }
 
 // Seems like below should be level=1, not 0.
-func k(a B) *uint64 { // ERROR "leaking param: a to result ~r1 level=0"
+func k(a B) *uint64 { // ERROR "leaking param: a to result ~r0 level=0"
 	for i, x := range &a.b {
 		if i == 0 {
 			return x

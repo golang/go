@@ -11,7 +11,7 @@
 
 package foo
 
-func f(buf []byte) []byte { // ERROR "leaking param: buf to result ~r1 level=0$"
+func f(buf []byte) []byte { // ERROR "leaking param: buf to result ~r0 level=0$"
 	return buf
 }
 

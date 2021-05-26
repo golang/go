@@ -353,12 +353,10 @@ func funcargs(nt *ir.FuncType) {
 	}
 
 	// declare the out arguments.
-	gen := len(nt.Params)
-	for _, n := range nt.Results {
+	for i, n := range nt.Results {
 		if n.Sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = LookupNum("~r", gen)
-			gen++
+			n.Sym = LookupNum("~r", i)
 		}
 		if n.Sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
@@ -367,8 +365,7 @@ func funcargs(nt *ir.FuncType) {
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = LookupNum("~b", gen)
-			gen++
+			n.Sym = LookupNum("~b", i)
 		}
 
 		funcarg(n, ir.PPARAMOUT)
