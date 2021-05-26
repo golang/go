@@ -5,14 +5,17 @@
 package vta
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/types"
 	"io/ioutil"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 
@@ -185,5 +188,68 @@ func TestVtaGraph(t *testing.T) {
 		if sl := len(g.successors(test.n)); sl != test.l {
 			t.Errorf("want %d successors; got %d", test.l, sl)
 		}
+	}
+}
+
+// vtaGraphStr stringifies vtaGraph into a list of strings
+// where each string represents an edge set of the format
+// node -> succ_1, ..., succ_n. succ_1, ..., succ_n are
+// sorted in alphabetical order.
+func vtaGraphStr(g vtaGraph) []string {
+	var vgs []string
+	for n, succ := range g {
+		var succStr []string
+		for s := range succ {
+			succStr = append(succStr, s.String())
+		}
+		sort.Strings(succStr)
+		entry := fmt.Sprintf("%v -> %v", n.String(), strings.Join(succStr, ", "))
+		vgs = append(vgs, entry)
+	}
+	return vgs
+}
+
+// subGraph checks if a graph `g1` is a subgraph of graph `g2`.
+// Assumes that each element in `g1` and `g2` is an edge set
+// for a particular node in a fixed yet arbitrary format.
+func subGraph(g1, g2 []string) bool {
+	m := make(map[string]bool)
+	for _, s := range g2 {
+		m[s] = true
+	}
+
+	for _, s := range g1 {
+		if _, ok := m[s]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func TestVTAGraphConstruction(t *testing.T) {
+	for _, file := range []string{
+		"testdata/store.go",
+		"testdata/phi.go",
+		"testdata/type_conversions.go",
+		"testdata/type_assertions.go",
+		"testdata/fields.go",
+		"testdata/node_uniqueness.go",
+		"testdata/store_load_alias.go",
+		"testdata/phi_alias.go",
+	} {
+		t.Run(file, func(t *testing.T) {
+			prog, want, err := testProg(file)
+			if err != nil {
+				t.Fatalf("couldn't load test file '%s': %s", file, err)
+			}
+			if len(want) == 0 {
+				t.Fatalf("couldn't find want in `%s`", file)
+			}
+
+			g, _ := typePropGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
+			if gs := vtaGraphStr(g); !subGraph(want, gs) {
+				t.Errorf("`%s`: want superset of %v;\n got %v", file, want, gs)
+			}
+		})
 	}
 }
