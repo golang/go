@@ -95,11 +95,13 @@ Do not send CLs removing the interior tags from such phrases.
   In Go 1.16, on the 64-bit x86 and 64-bit ARM architectures on
   OpenBSD (the <code>openbsd/amd64</code> and <code>openbsd/arm64</code>
   ports) system calls are made through <code>libc</code>, instead
-  of directly using the machine instructions. In Go 1.17, this is
-  also done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+  of directly using machine instructions. In Go 1.17, this is also
+  done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
   (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
   This ensures forward-compatibility with future versions of
-  OpenBSD.
+  OpenBSD, in particular, with OpenBSD 6.9 onwards, which requires
+  system calls to be made through <code>libc</code> for non-static
+  Go binaries.
 </p>
 
 <h3 id="arm64">ARM64</h3>
