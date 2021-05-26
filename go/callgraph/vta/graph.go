@@ -262,6 +262,9 @@ type builder struct {
 }
 
 func (b *builder) visit(funcs map[*ssa.Function]bool) {
+	// Add the fixed edge Panic -> Recover
+	b.graph.addEdge(panicArg{}, recoverReturn{})
+
 	for f, in := range funcs {
 		if in {
 			b.fun(f)
@@ -283,6 +286,8 @@ func (b *builder) instr(instr ssa.Instruction) {
 		b.addInFlowAliasEdges(b.nodeFromVal(i.Addr), b.nodeFromVal(i.Val))
 	case *ssa.MakeInterface:
 		b.addInFlowEdge(b.nodeFromVal(i.X), b.nodeFromVal(i))
+	case *ssa.MakeClosure:
+		b.closure(i)
 	case *ssa.UnOp:
 		b.unop(i)
 	case *ssa.Phi:
@@ -333,14 +338,19 @@ func (b *builder) instr(instr ssa.Instruction) {
 		b.mapUpdate(i)
 	case *ssa.Next:
 		b.next(i)
+	case ssa.CallInstruction:
+		b.call(i)
+	case *ssa.Panic:
+		b.panic(i)
+	case *ssa.Return:
+		b.rtrn(i)
 	case *ssa.MakeChan, *ssa.MakeMap, *ssa.MakeSlice, *ssa.BinOp,
 		*ssa.Alloc, *ssa.DebugRef, *ssa.Convert, *ssa.Jump, *ssa.If,
 		*ssa.Slice, *ssa.Range, *ssa.RunDefers:
 		// No interesting flow here.
 		return
 	default:
-		// TODO(zpavlinovic): make into a panic once all instructions are supported.
-		fmt.Printf("unsupported instruction %v\n", instr)
+		panic(fmt.Sprintf("unsupported instruction %v\n", instr))
 	}
 }
 
@@ -497,6 +507,97 @@ func (b *builder) addInFlowAliasEdges(l, r node) {
 
 	if canAlias(l, r) {
 		b.addInFlowEdge(l, r)
+	}
+}
+
+func (b *builder) closure(c *ssa.MakeClosure) {
+	f := c.Fn.(*ssa.Function)
+	b.addInFlowEdge(function{f: f}, b.nodeFromVal(c))
+
+	for i, fv := range f.FreeVars {
+		b.addInFlowAliasEdges(b.nodeFromVal(fv), b.nodeFromVal(c.Bindings[i]))
+	}
+}
+
+// panic creates a flow from arguments to panic instructions to return
+// registers of all recover statements in the program. Introduces a
+// global panic node Panic and
+//  1) for every panic statement p: add p -> Panic
+//  2) for every recover statement r: add Panic -> r (handled in call)
+// TODO(zpavlinovic): improve precision by explicitly modeling how panic
+// values flow from callees to callers and into deferred recover instructions.
+func (b *builder) panic(p *ssa.Panic) {
+	// Panics often have, for instance, strings as arguments which do
+	// not create interesting flows.
+	if !canHaveMethods(p.X.Type()) {
+		return
+	}
+
+	b.addInFlowEdge(b.nodeFromVal(p.X), panicArg{})
+}
+
+// call adds flows between arguments/parameters and return values/registers
+// for both static and dynamic calls, as well as go and defer calls.
+func (b *builder) call(c ssa.CallInstruction) {
+	// When c is r := recover() call register instruction, we add Recover -> r.
+	if bf, ok := c.Common().Value.(*ssa.Builtin); ok && bf.Name() == "recover" {
+		b.addInFlowEdge(recoverReturn{}, b.nodeFromVal(c.(*ssa.Call)))
+		return
+	}
+
+	for _, f := range siteCallees(c, b.callGraph) {
+		addArgumentFlows(b, c, f)
+	}
+}
+
+func addArgumentFlows(b *builder, c ssa.CallInstruction, f *ssa.Function) {
+	cc := c.Common()
+	// When c is an unresolved method call (cc.Method != nil), cc.Value contains
+	// the receiver object rather than cc.Args[0].
+	if cc.Method != nil {
+		b.addInFlowAliasEdges(b.nodeFromVal(f.Params[0]), b.nodeFromVal(cc.Value))
+	}
+
+	offset := 0
+	if cc.Method != nil {
+		offset = 1
+	}
+	for i, v := range cc.Args {
+		b.addInFlowAliasEdges(b.nodeFromVal(f.Params[i+offset]), b.nodeFromVal(v))
+	}
+}
+
+// rtrn produces flows between values of r and c where
+// c is a call instruction that resolves to the enclosing
+// function of r based on b.callGraph.
+func (b *builder) rtrn(r *ssa.Return) {
+	n := b.callGraph.Nodes[r.Parent()]
+	// n != nil when b.callgraph is sound, but the client can
+	// pass any callgraph, including an underapproximate one.
+	if n == nil {
+		return
+	}
+
+	for _, e := range n.In {
+		if cv, ok := e.Site.(ssa.Value); ok {
+			addReturnFlows(b, r, cv)
+		}
+	}
+}
+
+func addReturnFlows(b *builder, r *ssa.Return, site ssa.Value) {
+	results := r.Results
+	if len(results) == 1 {
+		// When there is only one return value, the destination register does not
+		// have a tuple type.
+		b.addInFlowEdge(b.nodeFromVal(results[0]), b.nodeFromVal(site))
+		return
+	}
+
+	tup := site.Type().Underlying().(*types.Tuple)
+	for i, r := range results {
+		local := indexedLocal{val: site, typ: tup.At(i).Type(), index: i}
+		b.addInFlowEdge(b.nodeFromVal(r), local)
 	}
 }
 

@@ -6,6 +6,9 @@ package vta
 
 import (
 	"go/types"
+
+	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/ssa"
 )
 
 func canAlias(n1, n2 node) bool {
@@ -99,4 +102,37 @@ func sliceArrayElem(t types.Type) types.Type {
 		return a.Elem()
 	}
 	return u.(*types.Slice).Elem()
+}
+
+// siteCallees computes a set of callees for call site `c` given program `callgraph`.
+func siteCallees(c ssa.CallInstruction, callgraph *callgraph.Graph) []*ssa.Function {
+	var matches []*ssa.Function
+
+	node := callgraph.Nodes[c.Parent()]
+	if node == nil {
+		return nil
+	}
+
+	for _, edge := range node.Out {
+		callee := edge.Callee.Func
+		// Skip synthetic functions wrapped around source functions.
+		if edge.Site == c && callee.Synthetic == "" {
+			matches = append(matches, callee)
+		}
+	}
+	return matches
+}
+
+func canHaveMethods(t types.Type) bool {
+	if _, ok := t.(*types.Named); ok {
+		return true
+	}
+
+	u := t.Underlying()
+	switch u.(type) {
+	case *types.Interface, *types.Signature, *types.Struct:
+		return true
+	default:
+		return false
+	}
 }
