@@ -462,7 +462,7 @@ func TestFdReadRace(t *testing.T) {
 		// Give the other goroutine a chance to enter the Read.
 		// It doesn't matter if this occasionally fails, the test
 		// will still pass, it just won't test anything.
-		time.Sleep(10 * time.Millisecond)
+		//time.Sleep(10 * time.Millisecond)
 		r.Fd()
 
 		// The bug was that Fd would hang until Read timed out.

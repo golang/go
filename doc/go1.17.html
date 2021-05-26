@@ -418,15 +418,20 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 272668 -->
-      TODO: <a href="https://golang.org/cl/272668">https://golang.org/cl/272668</a>: add IP.IsPrivate
+      The new method <a href="/pkg/net/#IP.IsPrivate"><code>IP.IsPrivate</code></a> reports whether an address is
+      a private IPv4 address according to <a href="http://tools.ietf.org/html/rfc1918">RFC 1918</a>
+      or a local IPv6 address according <a href="http://tools.ietf.org/html/rfc4193">RFC 4193</a>.
     </p>
 
     <p><!-- CL 301709 -->
-      TODO: <a href="https://golang.org/cl/301709">https://golang.org/cl/301709</a>: make go resolver aware of network parameter
+      The Go DNS resolver now only sends one DNS query when resolving an address for an IPv4-only or IPv6-only network,
+      rather than querying for both address families.
     </p>
 
     <p><!-- CL 307030 -->
-      TODO: <a href="https://golang.org/cl/307030">https://golang.org/cl/307030</a>: make ErrClosed and ParseError implement net.Error
+      The <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a> sentinel error and
+      <a href="/pkg/net/#ParseError"><code>ParseError</code></a> error type now implement
+      the <a href="/pkg/net/#Error"><code>net.Error</code></a> interface.
     </p>
   </dd>
 </dl><!-- net -->
@@ -441,7 +446,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 235437 -->
-      TODO: <a href="https://golang.org/cl/235437">https://golang.org/cl/235437</a>: add to deadlines only when positive
+      Setting the <a href="/pkg/net/http/#Server"><code>Server</code></a>
+      <code>ReadTimeout</code> or <code>WriteTimeout</code> fields to a negative value now indicates no timeout
+      rather than an immediate timeout.
     </p>
 
     <p><!-- CL 308952 -->
@@ -454,7 +461,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 308950 -->
-      TODO: <a href="https://golang.org/cl/308950">https://golang.org/cl/308950</a>: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+      <a href="/pkg/net/http/httptest/#ResponseRecorder.WriteHeader"><code>ResponseRecorder.WriteHeader></code></a>
+      now panics when the provided code is not a valid three-digit HTTP status code.
+      This matches the behavior of <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter></code></a>
+      implementations in the <a href="/pkg/net/http/"><code>net/http</code></a> package.
     </p>
   </dd>
 </dl><!-- net/http/httptest -->
@@ -462,7 +472,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
     <p><!-- CL 314850 -->
-      TODO: <a href="https://golang.org/cl/314850">https://golang.org/cl/314850</a>: add Values.Has
+      The new method <a href="/pkg/net/url/#Values.Has"><code>Values.Has</code></a>
+      reports whether a query parameter is set.
     </p>
   </dd>
 </dl><!-- net/url -->
