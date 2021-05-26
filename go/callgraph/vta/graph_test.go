@@ -6,76 +6,15 @@ package vta
 
 import (
 	"fmt"
-	"go/ast"
-	"go/parser"
 	"go/types"
-	"io/ioutil"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/callgraph/cha"
-	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-
-	"golang.org/x/tools/go/loader"
 )
-
-// want extracts the contents of the first comment
-// section starting with "WANT:\n". The returned
-// content is split into lines without // prefix.
-func want(f *ast.File) []string {
-	for _, c := range f.Comments {
-		text := strings.TrimSpace(c.Text())
-		if t := strings.TrimPrefix(text, "WANT:\n"); t != text {
-			return strings.Split(t, "\n")
-		}
-	}
-	return nil
-}
-
-// testProg returns an ssa representation of a program at
-// `path`, assumed to define package "testdata," and the
-// test want result as list of strings.
-func testProg(path string) (*ssa.Program, []string, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	conf := loader.Config{
-		ParserMode: parser.ParseComments,
-	}
-
-	f, err := conf.ParseFile(path, content)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	conf.CreateFromFiles("testdata", f)
-	iprog, err := conf.Load()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	prog := ssautil.CreateProgram(iprog, 0)
-	// Set debug mode to exercise DebugRef instructions.
-	prog.Package(iprog.Created[0].Pkg).SetDebugMode(true)
-	prog.Build()
-	return prog, want(f), nil
-}
-
-func firstRegInstr(f *ssa.Function) ssa.Value {
-	for _, b := range f.Blocks {
-		for _, i := range b.Instrs {
-			if v, ok := i.(ssa.Value); ok {
-				return v
-			}
-		}
-	}
-	return nil
-}
 
 func TestNodeInterface(t *testing.T) {
 	// Since ssa package does not allow explicit creation of ssa

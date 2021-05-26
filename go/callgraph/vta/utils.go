@@ -136,3 +136,32 @@ func canHaveMethods(t types.Type) bool {
 		return false
 	}
 }
+
+// calls returns the set of call instructions in `f`.
+func calls(f *ssa.Function) []ssa.CallInstruction {
+	var calls []ssa.CallInstruction
+	for _, bl := range f.Blocks {
+		for _, instr := range bl.Instrs {
+			if c, ok := instr.(ssa.CallInstruction); ok {
+				calls = append(calls, c)
+			}
+		}
+	}
+	return calls
+}
+
+// intersect produces an intersection of functions in `fs1` and `fs2`.
+func intersect(fs1, fs2 []*ssa.Function) []*ssa.Function {
+	m := make(map[*ssa.Function]bool)
+	for _, f := range fs1 {
+		m[f] = true
+	}
+
+	var res []*ssa.Function
+	for _, f := range fs2 {
+		if m[f] {
+			res = append(res, f)
+		}
+	}
+	return res
+}

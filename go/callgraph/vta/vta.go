@@ -54,4 +54,120 @@
 
 package vta
 
-// TODO(zpavlinovic): add exported VTA library functions.
+import (
+	"go/types"
+
+	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/ssa"
+)
+
+// CallGraph uses the VTA algorithm to compute call graph for all functions
+// f such that f:true is in `funcs`. VTA refines the results of 'initial'
+// callgraph and uses it to establish interprocedural data flow. VTA is
+// sound if 'initial` is sound modulo reflection and unsage. The resulting
+// callgraph does not have a root node.
+func CallGraph(funcs map[*ssa.Function]bool, initial *callgraph.Graph) *callgraph.Graph {
+	vtaG, canon := typePropGraph(funcs, initial)
+	types := propagate(vtaG, canon)
+
+	c := &constructor{types: types, initial: initial, cache: make(methodCache)}
+	return c.construct(funcs)
+}
+
+// constructor type linearly traverses the input program
+// and constructs a callgraph based on the results of the
+// VTA type propagation phase.
+type constructor struct {
+	types   propTypeMap
+	cache   methodCache
+	initial *callgraph.Graph
+}
+
+func (c *constructor) construct(funcs map[*ssa.Function]bool) *callgraph.Graph {
+	cg := &callgraph.Graph{Nodes: make(map[*ssa.Function]*callgraph.Node)}
+	for f, in := range funcs {
+		if in {
+			c.constrct(cg, f)
+		}
+	}
+	return cg
+}
+
+func (c *constructor) constrct(g *callgraph.Graph, f *ssa.Function) {
+	caller := g.CreateNode(f)
+	for _, call := range calls(f) {
+		for _, c := range c.callees(call) {
+			callgraph.AddEdge(caller, call, g.CreateNode(c))
+		}
+	}
+}
+
+// callees computes the set of functions to which VTA resolves `c`. The resolved
+// functions are intersected with functions to which `initial` resolves `c`.
+func (c *constructor) callees(call ssa.CallInstruction) []*ssa.Function {
+	cc := call.Common()
+	if cc.StaticCallee() != nil {
+		return []*ssa.Function{cc.StaticCallee()}
+	}
+
+	// Skip builtins as they are not *ssa.Function.
+	if _, ok := cc.Value.(*ssa.Builtin); ok {
+		return nil
+	}
+
+	// Cover the case of dynamic higher-order and interface calls.
+	return intersect(resolve(call, c.types, c.cache), siteCallees(call, c.initial))
+}
+
+// resolve returns a set of functions `c` resolves to based on the
+// type propagation results in `types`.
+func resolve(c ssa.CallInstruction, types propTypeMap, cache methodCache) []*ssa.Function {
+	n := local{val: c.Common().Value}
+	var funcs []*ssa.Function
+	for p := range types.propTypes(n) {
+		funcs = append(funcs, propFunc(p, c, cache)...)
+	}
+	return funcs
+}
+
+// propFunc returns the functions modeled with the propagation type `p`
+// assigned to call site `c`. If no such funciton exists, nil is returned.
+func propFunc(p propType, c ssa.CallInstruction, cache methodCache) []*ssa.Function {
+	if p.f != nil {
+		return []*ssa.Function{p.f}
+	}
+
+	if c.Common().Method == nil {
+		return nil
+	}
+
+	return cache.methods(p.typ, c.Common().Method.Name(), c.Parent().Prog)
+}
+
+// methodCache serves as a type -> method name -> methods
+// cache when computing methods of a type using the
+// ssa.Program.MethodSets and ssa.Program.MethodValue
+// APIs. The cache is used to speed up querying of
+// methods of a type as the mentioned APIs are expensive.
+type methodCache map[types.Type]map[string][]*ssa.Function
+
+// methods returns methods of a type `t` named `name`. First consults
+// `mc` and otherwise queries `prog` for the method. If no such method
+// exists, nil is returned.
+func (mc methodCache) methods(t types.Type, name string, prog *ssa.Program) []*ssa.Function {
+	if ms, ok := mc[t]; ok {
+		return ms[name]
+	}
+
+	ms := make(map[string][]*ssa.Function)
+	mset := prog.MethodSets.MethodSet(t)
+	for i, n := 0, mset.Len(); i < n; i++ {
+		// f can be nil when t is an interface or some
+		// other type without any runtime methods.
+		if f := prog.MethodValue(mset.At(i)); f != nil {
+			ms[f.Name()] = append(ms[f.Name()], f)
+		}
+	}
+	mc[t] = ms
+	return ms[name]
+}
