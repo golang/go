@@ -791,6 +791,16 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	return ntotal, nil
 }
 
+// WriteTo wraps the sendto network call for IPv4.
+func (fd *FD) WriteToInet4(buf []byte, sa syscall.SockaddrInet4) (int, error) {
+	return fd.WriteTo(buf, &sa)
+}
+
+// WriteTo wraps the sendto network call for IPv6.
+func (fd *FD) WriteToInet6(buf []byte, sa syscall.SockaddrInet6) (int, error) {
+	return fd.WriteTo(buf, &sa)
+}
+
 // Call ConnectEx. This doesn't need any locking, since it is only
 // called when the descriptor is first created. This is here rather
 // than in the net package so that it can use fd.wop.

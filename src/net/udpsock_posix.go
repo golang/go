@@ -76,11 +76,23 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 	if addr == nil {
 		return 0, errMissingAddress
 	}
-	sa, err := addr.sockaddr(c.fd.family)
-	if err != nil {
-		return 0, err
+
+	switch c.fd.family {
+	case syscall.AF_INET:
+		sa, err := ipToSockaddrInet4(addr.IP, addr.Port)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet4(b, sa)
+	case syscall.AF_INET6:
+		sa, err := ipToSockaddrInet6(addr.IP, addr.Port, addr.Zone)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet6(b, sa)
+	default:
+		return 0, &AddrError{Err: "invalid address family", Addr: addr.IP.String()}
 	}
-	return c.fd.writeTo(b, sa)
 }
 
 func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {

@@ -96,6 +96,14 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) error {
 	return ENOSYS
 }
 
+func SendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) error {
+	return ENOSYS
+}
+
+func SendtoInet6(fd int, p []byte, flags int, to SockaddrInet6) error {
+	return ENOSYS
+}
+
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn, recvflags int, from Sockaddr, err error) {
 	return 0, 0, 0, nil, ENOSYS
 }
