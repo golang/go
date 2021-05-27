@@ -1313,6 +1313,7 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 	}
 	if n.Func.Inl != nil {
 		w.uint64(1 + uint64(n.Func.Inl.Cost))
+		w.bool(n.Func.Inl.CanDelayResults)
 		if n.Func.ExportInline() || n.Type().HasTParam() {
 			w.p.doInline(n)
 		}

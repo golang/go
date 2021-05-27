@@ -927,7 +927,8 @@ func (r *importReader) funcExt(n *ir.Name) {
 	// Inline body.
 	if u := r.uint64(); u > 0 {
 		n.Func.Inl = &ir.Inline{
-			Cost: int32(u - 1),
+			Cost:            int32(u - 1),
+			CanDelayResults: r.bool(),
 		}
 		n.Func.Endlineno = r.pos()
 	}
