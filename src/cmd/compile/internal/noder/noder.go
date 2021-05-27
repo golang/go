@@ -986,6 +986,8 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 }
 
 func (p *noder) embedded(typ syntax.Expr) *ir.Field {
+	pos := p.pos(syntax.StartPos(typ))
+
 	op, isStar := typ.(*syntax.Operation)
 	if isStar {
 		if op.Op != syntax.Mul || op.Y != nil {
@@ -995,11 +997,11 @@ func (p *noder) embedded(typ syntax.Expr) *ir.Field {
 	}
 
 	sym := p.packname(typ)
-	n := ir.NewField(p.pos(typ), typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
+	n := ir.NewField(pos, typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
 	n.Embedded = true
 
 	if isStar {
-		n.Ntype = ir.NewStarExpr(p.pos(op), n.Ntype)
+		n.Ntype = ir.NewStarExpr(pos, n.Ntype)
 	}
 	return n
 }

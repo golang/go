@@ -126,10 +126,15 @@ func expandiface(t *Type) {
 		// (including broken ones, if any) and add to t's
 		// method set.
 		for _, t1 := range m.Type.AllMethods().Slice() {
-			// Use m.Pos rather than t1.Pos to preserve embedding position.
 			f := NewField(m.Pos, t1.Sym, t1.Type)
 			addMethod(f, false)
+
+			// Clear position after typechecking, for consistency with types2.
+			f.Pos = src.NoXPos
 		}
+
+		// Clear position after typechecking, for consistency with types2.
+		m.Pos = src.NoXPos
 	}
 
 	sort.Sort(MethodsByName(methods))
