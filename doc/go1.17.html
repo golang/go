@@ -500,11 +500,13 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 281233 -->
-      TODO: <a href="https://golang.org/cl/281233">https://golang.org/cl/281233</a>: add VisibleFields function
+      The new <a href="/pkg/reflect/#VisibleFields"><code>VisibleFields</code></a> function
+      returns all the visible fields in a struct type, including fields inside anonymous struct members.
     </p>
 
     <p><!-- CL 284136 -->
-      TODO: <a href="https://golang.org/cl/284136">https://golang.org/cl/284136</a>: panic if ArrayOf is called with negative length
+      The <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a> function now panics when
+      called with a negative length.
     </p>
   </dd>
 </dl><!-- reflect -->
