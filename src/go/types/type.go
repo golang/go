@@ -661,11 +661,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
-	if obj.typ == nil {
-		obj.typ = typ
-	}
-	return typ
+	return (*Checker)(nil).newNamed(obj, underlying, methods)
 }
 
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
@@ -681,13 +677,15 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) 
 	//
 	// TODO(rFindley): clean this up so that under is the only function mutating
 	//                 named types.
-	check.later(func() {
-		switch typ.under().(type) {
-		case *Named, *instance:
-			panic("internal error: unexpanded underlying type")
-		}
-		typ.check = nil
-	})
+	if check != nil {
+		check.later(func() {
+			switch typ.under().(type) {
+			case *Named, *instance:
+				panic("internal error: unexpanded underlying type")
+			}
+			typ.check = nil
+		})
+	}
 	return typ
 }
 
