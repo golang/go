@@ -239,16 +239,16 @@ func (server *Server) register(rcvr any, name string, useName bool) error {
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
 	s.rcvr = reflect.ValueOf(rcvr)
-	sname := reflect.Indirect(s.rcvr).Type().Name()
-	if useName {
-		sname = name
+	sname := name
+	if !useName {
+		sname = reflect.Indirect(s.rcvr).Type().Name()
 	}
 	if sname == "" {
 		s := "rpc.Register: no service name for type " + s.typ.String()
 		log.Print(s)
 		return errors.New(s)
 	}
-	if !token.IsExported(sname) && !useName {
+	if !useName && !token.IsExported(sname) {
 		s := "rpc.Register: type " + sname + " is not exported"
 		log.Print(s)
 		return errors.New(s)
