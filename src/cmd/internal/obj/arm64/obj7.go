@@ -325,9 +325,9 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 		//     CALL REGTMP
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero")
+			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy")
+			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = AMOVD
