@@ -331,11 +331,16 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
   <dd>
     <p><!-- CL 273667 -->
-      The new
-      <a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>
-      and
-      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>
-      methods allow reuse of a <code>Reader</code> or <code>Writer</code>.
+      The <a href="/pkg/compress/lzw/#NewReader"><code>NewReader</code></a>
+      function is guaranteed to return a value of the new
+      type <a href="/pkg/compress/lzw/#Reader"><code>Reader</code></a>,
+      and similarly <a href="/pkg/compress/lzw/#NewWriter"><code>NewWriter</code></a>
+      is guaranteed to return a value of the new
+      type <a href="/pkg/compress/lzw/#Writer"><code>Writer</code></a>.
+      These new types both implement a <code>Reset</code> method
+      (<a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>,
+      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>)
+      that allows reuse of the <code>Reader</code> or <code>Writer</code>.
     </p>
   </dd>
 </dl><!-- compress/lzw -->
