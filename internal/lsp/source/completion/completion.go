@@ -365,10 +365,10 @@ type candidate struct {
 	// itself) for a deep candidate.
 	path []types.Object
 
-	// names tracks the names of objects from search root (excluding the
-	// candidate itself) for a deep candidate. This also includes
-	// expanded calls for function invocations.
-	names []string
+	// pathInvokeMask is a bit mask tracking whether each entry in path
+	// should be formatted with "()" (i.e. whether it is a function
+	// invocation).
+	pathInvokeMask uint16
 
 	// mods contains modifications that should be applied to the
 	// candidate when inserted. For example, "foo" may be insterted as
@@ -555,7 +555,6 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	// Deep search collected candidates and their members for more candidates.
 	c.deepSearch(ctx)
-	c.deepState.searchQueue = nil
 
 	for _, callback := range c.completionCallbacks {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, callback); err != nil {
@@ -1088,10 +1087,9 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 					return err
 				}
 			}
-			candidates := c.packageMembers(pkgName.Imported(), stdScore, nil)
-			for _, cand := range candidates {
+			c.packageMembers(pkgName.Imported(), stdScore, nil, func(cand candidate) {
 				c.deepState.enqueue(cand)
-			}
+			})
 			return nil
 		}
 	}
@@ -1099,10 +1097,9 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Invariant: sel is a true selector.
 	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
 	if ok {
-		candidates := c.methodsAndFields(tv.Type, tv.Addressable(), nil)
-		for _, cand := range candidates {
+		c.methodsAndFields(tv.Type, tv.Addressable(), nil, func(cand candidate) {
 			c.deepState.enqueue(cand)
-		}
+		})
 
 		c.addPostfixSnippetCandidates(ctx, sel)
 
@@ -1159,10 +1156,9 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		candidates := c.packageMembers(pkg.GetTypes(), unimportedScore(relevances[path]), imp)
-		for _, cand := range candidates {
+		c.packageMembers(pkg.GetTypes(), unimportedScore(relevances[path]), imp, func(cand candidate) {
 			c.deepState.enqueue(cand)
-		}
+		})
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
@@ -1209,22 +1205,20 @@ func unimportedScore(relevance float64) float64 {
 	return (stdScore + .1*relevance) / 2
 }
 
-func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo) []candidate {
-	var candidates []candidate
+func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo, cb func(candidate)) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		obj := scope.Lookup(name)
-		candidates = append(candidates, candidate{
+		cb(candidate{
 			obj:         obj,
 			score:       score,
 			imp:         imp,
 			addressable: isVar(obj),
 		})
 	}
-	return candidates
 }
 
-func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo) []candidate {
+func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo, cb func(candidate)) {
 	mset := c.methodSetCache[methodSetKey{typ, addressable}]
 	if mset == nil {
 		if addressable && !types.IsInterface(typ) && !isPointer(typ) {
@@ -1237,9 +1231,8 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 		c.methodSetCache[methodSetKey{typ, addressable}] = mset
 	}
 
-	var candidates []candidate
 	for i := 0; i < mset.Len(); i++ {
-		candidates = append(candidates, candidate{
+		cb(candidate{
 			obj:         mset.At(i).Obj(),
 			score:       stdScore,
 			imp:         imp,
@@ -1249,15 +1242,13 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 
 	// Add fields of T.
 	eachField(typ, func(v *types.Var) {
-		candidates = append(candidates, candidate{
+		cb(candidate{
 			obj:         v,
 			score:       stdScore - 0.01,
 			imp:         imp,
 			addressable: addressable || isPointer(typ),
 		})
 	})
-
-	return candidates
 }
 
 // lexical finds completions in the lexical environment.

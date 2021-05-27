@@ -26,8 +26,11 @@ type deepCompletionState struct {
 	// once we're running out of our time budget.
 	queueClosed bool
 
-	// searchQueue holds the current breadth first search queue.
-	searchQueue []candidate
+	// thisQueue holds the current breadth first search queue.
+	thisQueue []candidate
+
+	// nextQueue holds the next breadth first search iteration's queue.
+	nextQueue []candidate
 
 	// highScores tracks the highest deep candidate scores we have found
 	// so far. This is used to avoid work for low scoring deep candidates.
@@ -40,13 +43,13 @@ type deepCompletionState struct {
 
 // enqueue adds a candidate to the search queue.
 func (s *deepCompletionState) enqueue(cand candidate) {
-	s.searchQueue = append(s.searchQueue, cand)
+	s.nextQueue = append(s.nextQueue, cand)
 }
 
 // dequeue removes and returns the leftmost element from the search queue.
 func (s *deepCompletionState) dequeue() *candidate {
 	var cand *candidate
-	cand, s.searchQueue = &s.searchQueue[0], s.searchQueue[1:]
+	cand, s.thisQueue = &s.thisQueue[len(s.thisQueue)-1], s.thisQueue[:len(s.thisQueue)-1]
 	return cand
 }
 
@@ -99,130 +102,135 @@ func (s *deepCompletionState) isHighScore(score float64) bool {
 
 // newPath returns path from search root for an object following a given
 // candidate.
-func (s *deepCompletionState) newPath(cand *candidate, obj types.Object, invoke bool) ([]types.Object, []string) {
-	name := obj.Name()
-	if invoke {
-		name += "()"
-	}
+func (s *deepCompletionState) newPath(cand candidate, obj types.Object) []types.Object {
+	path := make([]types.Object, len(cand.path)+1)
+	copy(path, cand.path)
+	path[len(path)-1] = obj
 
-	// copy the slice since we don't want to overwrite the original slice.
-	path := append([]types.Object{}, cand.path...)
-	names := append([]string{}, cand.names...)
-
-	return append(path, obj), append(names, name)
+	return path
 }
 
 // deepSearch searches a candidate and its subordinate objects for completion
 // items if deep completion is enabled and adds the valid candidates to
 // completion items.
 func (c *completer) deepSearch(ctx context.Context) {
-outer:
-	for len(c.deepState.searchQueue) > 0 {
-		cand := c.deepState.dequeue()
-		obj := cand.obj
+	defer func() {
+		// We can return early before completing the search, so be sure to
+		// clear out our queues to not impact any further invocations.
+		c.deepState.thisQueue = c.deepState.thisQueue[:0]
+		c.deepState.nextQueue = c.deepState.nextQueue[:0]
+	}()
 
-		if obj == nil {
-			continue
-		}
+	for len(c.deepState.nextQueue) > 0 {
+		c.deepState.thisQueue, c.deepState.nextQueue = c.deepState.nextQueue, c.deepState.thisQueue[:0]
 
-		// At the top level, dedupe by object.
-		if len(cand.path) == 0 {
-			if c.seen[obj] {
+	outer:
+		for _, cand := range c.deepState.thisQueue {
+			obj := cand.obj
+
+			if obj == nil {
 				continue
 			}
-			c.seen[obj] = true
-		}
 
-		// If obj is not accessible because it lives in another package and is
-		// not exported, don't treat it as a completion candidate unless it's
-		// a package completion candidate.
-		if !c.completionContext.packageCompletion &&
-			obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
-			continue
-		}
-
-		// If we want a type name, don't offer non-type name candidates.
-		// However, do offer package names since they can contain type names,
-		// and do offer any candidate without a type since we aren't sure if it
-		// is a type name or not (i.e. unimported candidate).
-		if c.wantTypeName() && obj.Type() != nil && !isTypeName(obj) && !isPkgName(obj) {
-			continue
-		}
-
-		// When searching deep, make sure we don't have a cycle in our chain.
-		// We don't dedupe by object because we want to allow both "foo.Baz"
-		// and "bar.Baz" even though "Baz" is represented the same types.Object
-		// in both.
-		for _, seenObj := range cand.path {
-			if seenObj == obj {
-				continue outer
+			// At the top level, dedupe by object.
+			if len(cand.path) == 0 {
+				if c.seen[obj] {
+					continue
+				}
+				c.seen[obj] = true
 			}
-		}
 
-		c.addCandidate(ctx, cand)
+			// If obj is not accessible because it lives in another package and is
+			// not exported, don't treat it as a completion candidate unless it's
+			// a package completion candidate.
+			if !c.completionContext.packageCompletion &&
+				obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
+				continue
+			}
 
-		c.deepState.candidateCount++
-		if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
-			spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				// If we are almost out of budgeted time, no further elements
-				// should be added to the queue. This ensures remaining time is
-				// used for processing current queue.
-				if !c.deepState.queueClosed && spent >= 0.85 {
-					c.deepState.queueClosed = true
+			// If we want a type name, don't offer non-type name candidates.
+			// However, do offer package names since they can contain type names,
+			// and do offer any candidate without a type since we aren't sure if it
+			// is a type name or not (i.e. unimported candidate).
+			if c.wantTypeName() && obj.Type() != nil && !isTypeName(obj) && !isPkgName(obj) {
+				continue
+			}
+
+			// When searching deep, make sure we don't have a cycle in our chain.
+			// We don't dedupe by object because we want to allow both "foo.Baz"
+			// and "bar.Baz" even though "Baz" is represented the same types.Object
+			// in both.
+			for _, seenObj := range cand.path {
+				if seenObj == obj {
+					continue outer
 				}
 			}
-		}
 
-		// if deep search is disabled, don't add any more candidates.
-		if !c.deepState.enabled || c.deepState.queueClosed {
-			continue
-		}
+			c.addCandidate(ctx, &cand)
 
-		// Searching members for a type name doesn't make sense.
-		if isTypeName(obj) {
-			continue
-		}
-		if obj.Type() == nil {
-			continue
-		}
+			c.deepState.candidateCount++
+			if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
+				spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					// If we are almost out of budgeted time, no further elements
+					// should be added to the queue. This ensures remaining time is
+					// used for processing current queue.
+					if !c.deepState.queueClosed && spent >= 0.85 {
+						c.deepState.queueClosed = true
+					}
+				}
+			}
 
-		// Don't search embedded fields because they were already included in their
-		// parent's fields.
-		if v, ok := obj.(*types.Var); ok && v.Embedded() {
-			continue
-		}
+			// if deep search is disabled, don't add any more candidates.
+			if !c.deepState.enabled || c.deepState.queueClosed {
+				continue
+			}
 
-		if sig, ok := obj.Type().Underlying().(*types.Signature); ok {
-			// If obj is a function that takes no arguments and returns one
-			// value, keep searching across the function call.
-			if sig.Params().Len() == 0 && sig.Results().Len() == 1 {
-				path, names := c.deepState.newPath(cand, obj, true)
-				// The result of a function call is not addressable.
-				candidates := c.methodsAndFields(sig.Results().At(0).Type(), false, cand.imp)
-				for _, newCand := range candidates {
-					newCand.path, newCand.names = path, names
+			// Searching members for a type name doesn't make sense.
+			if isTypeName(obj) {
+				continue
+			}
+			if obj.Type() == nil {
+				continue
+			}
+
+			// Don't search embedded fields because they were already included in their
+			// parent's fields.
+			if v, ok := obj.(*types.Var); ok && v.Embedded() {
+				continue
+			}
+
+			if sig, ok := obj.Type().Underlying().(*types.Signature); ok {
+				// If obj is a function that takes no arguments and returns one
+				// value, keep searching across the function call.
+				if sig.Params().Len() == 0 && sig.Results().Len() == 1 {
+					path := c.deepState.newPath(cand, obj)
+					// The result of a function call is not addressable.
+					c.methodsAndFields(sig.Results().At(0).Type(), false, cand.imp, func(newCand candidate) {
+						newCand.pathInvokeMask = cand.pathInvokeMask | (1 << uint64(len(cand.path)))
+						newCand.path = path
+						c.deepState.enqueue(newCand)
+					})
+				}
+			}
+
+			path := c.deepState.newPath(cand, obj)
+			switch obj := obj.(type) {
+			case *types.PkgName:
+				c.packageMembers(obj.Imported(), stdScore, cand.imp, func(newCand candidate) {
+					newCand.pathInvokeMask = cand.pathInvokeMask
+					newCand.path = path
 					c.deepState.enqueue(newCand)
-				}
-			}
-		}
-
-		path, names := c.deepState.newPath(cand, obj, false)
-		switch obj := obj.(type) {
-		case *types.PkgName:
-			candidates := c.packageMembers(obj.Imported(), stdScore, cand.imp)
-			for _, newCand := range candidates {
-				newCand.path, newCand.names = path, names
-				c.deepState.enqueue(newCand)
-			}
-		default:
-			candidates := c.methodsAndFields(obj.Type(), cand.addressable, cand.imp)
-			for _, newCand := range candidates {
-				newCand.path, newCand.names = path, names
-				c.deepState.enqueue(newCand)
+				})
+			default:
+				c.methodsAndFields(obj.Type(), cand.addressable, cand.imp, func(newCand candidate) {
+					newCand.pathInvokeMask = cand.pathInvokeMask
+					newCand.path = path
+					c.deepState.enqueue(newCand)
+				})
 			}
 		}
 	}
@@ -273,10 +281,38 @@ func (c *completer) addCandidate(ctx context.Context, cand *candidate) {
 		cand.score = 0
 	}
 
-	cand.name = strings.Join(append(cand.names, cand.obj.Name()), ".")
+	cand.name = deepCandName(cand)
 	if item, err := c.item(ctx, *cand); err == nil {
 		c.items = append(c.items, item)
 	}
+}
+
+// deepCandName produces the full candidate name including any
+// ancestor objects. For example, "foo.bar().baz" for candidate "baz".
+func deepCandName(cand *candidate) string {
+	totalLen := len(cand.obj.Name())
+	for i, obj := range cand.path {
+		totalLen += len(obj.Name()) + 1
+		if cand.pathInvokeMask&(1<<uint16(i)) > 0 {
+			totalLen += 2
+		}
+	}
+
+	var buf strings.Builder
+	buf.Grow(totalLen)
+
+	for i, obj := range cand.path {
+		buf.WriteString(obj.Name())
+		if cand.pathInvokeMask&(1<<uint16(i)) > 0 {
+			buf.WriteByte('(')
+			buf.WriteByte(')')
+		}
+		buf.WriteByte('.')
+	}
+
+	buf.WriteString(cand.obj.Name())
+
+	return buf.String()
 }
 
 // penalty reports a score penalty for cand in the range (0, 1).

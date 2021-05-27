@@ -20,6 +20,11 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+var (
+	errNoMatch  = errors.New("not a surrounding match")
+	errLowScore = errors.New("not a high scoring candidate")
+)
+
 // item formats a candidate to a CompletionItem.
 func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, error) {
 	obj := cand.obj
@@ -27,13 +32,13 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	// if the object isn't a valid match against the surrounding, return early.
 	matchScore := c.matcher.Score(cand.name)
 	if matchScore <= 0 {
-		return CompletionItem{}, errors.New("not a surrounding match")
+		return CompletionItem{}, errNoMatch
 	}
 	cand.score *= float64(matchScore)
 
 	// Ignore deep candidates that wont be in the MaxDeepCompletions anyway.
 	if len(cand.path) != 0 && !c.deepState.isHighScore(cand.score) {
-		return CompletionItem{}, errors.New("not a high scoring candidate")
+		return CompletionItem{}, errLowScore
 	}
 
 	// Handle builtin types separately.
