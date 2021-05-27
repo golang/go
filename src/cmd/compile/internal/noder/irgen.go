@@ -98,6 +98,7 @@ type irgen struct {
 
 func (g *irgen) generate(noders []*noder) {
 	types.LocalPkg.Name = g.self.Name()
+	types.LocalPkg.Height = g.self.Height()
 	typecheck.TypecheckAllowed = true
 
 	// Prevent size calculations until we set the underlying type
@@ -132,8 +133,6 @@ Outer:
 			}
 		}
 	}
-	assert(myheight == g.self.Height())
-	types.LocalPkg.Height = myheight
 
 	// 2. Process all package-block type declarations. As with imports,
 	// we need to make sure all types are properly instantiated before

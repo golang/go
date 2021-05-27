@@ -46,13 +46,26 @@ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
 
 	g.pragmaFlags(decl.Pragma, 0)
 
-	ipkg := importfile(decl)
+	// Get the imported package's path, as resolved already by types2
+	// and gcimporter. This is the same path as would be computed by
+	// parseImportPath.
+	path := pkgNameOf(g.info, decl).Imported().Path()
+
+	ipkg := readImportFile(g.target, path)
 	if ipkg == ir.Pkgs.Unsafe {
 		p.importedUnsafe = true
 	}
 	if ipkg.Path == "embed" {
 		p.importedEmbed = true
 	}
+}
+
+// pkgNameOf returns the PkgName associated with the given ImportDecl.
+func pkgNameOf(info *types2.Info, decl *syntax.ImportDecl) *types2.PkgName {
+	if name := decl.LocalPkgName; name != nil {
+		return info.Defs[name].(*types2.PkgName)
+	}
+	return info.Implicits[decl].(*types2.PkgName)
 }
 
 func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
