@@ -134,6 +134,9 @@ func (s sanitizer) typ(typ Type) Type {
 		}
 
 	case *Named:
+		if debug && t.check != nil {
+			panic("internal error: Named.check != nil")
+		}
 		if orig := s.typ(t.fromRHS); orig != t.fromRHS {
 			t.fromRHS = orig
 		}
