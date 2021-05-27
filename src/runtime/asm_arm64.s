@@ -310,6 +310,86 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
+#ifdef GOEXPERIMENT_regabireflect
+// spillArgs stores return values from registers to a *internal/abi.RegArgs in R20.
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
+	MOVD	R0, (0*8)(R20)
+	MOVD	R1, (1*8)(R20)
+	MOVD	R2, (2*8)(R20)
+	MOVD	R3, (3*8)(R20)
+	MOVD	R4, (4*8)(R20)
+	MOVD	R5, (5*8)(R20)
+	MOVD	R6, (6*8)(R20)
+	MOVD	R7, (7*8)(R20)
+	MOVD	R8, (8*8)(R20)
+	MOVD	R9, (9*8)(R20)
+	MOVD	R10, (10*8)(R20)
+	MOVD	R11, (11*8)(R20)
+	MOVD	R12, (12*8)(R20)
+	MOVD	R13, (13*8)(R20)
+	MOVD	R14, (14*8)(R20)
+	MOVD	R15, (15*8)(R20)
+	FMOVD	F0, (16*8)(R20)
+	FMOVD	F1, (17*8)(R20)
+	FMOVD	F2, (18*8)(R20)
+	FMOVD	F3, (19*8)(R20)
+	FMOVD	F4, (20*8)(R20)
+	FMOVD	F5, (21*8)(R20)
+	FMOVD	F6, (22*8)(R20)
+	FMOVD	F7, (23*8)(R20)
+	FMOVD	F8, (24*8)(R20)
+	FMOVD	F9, (25*8)(R20)
+	FMOVD	F10, (26*8)(R20)
+	FMOVD	F11, (27*8)(R20)
+	FMOVD	F12, (28*8)(R20)
+	FMOVD	F13, (29*8)(R20)
+	FMOVD	F14, (30*8)(R20)
+	FMOVD	F15, (31*8)(R20)
+	RET
+
+// unspillArgs loads args into registers from a *internal/abi.RegArgs in R20.
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+	MOVD	(0*8)(R20), R0
+	MOVD	(1*8)(R20), R1
+	MOVD	(2*8)(R20), R2
+	MOVD	(3*8)(R20), R3
+	MOVD	(4*8)(R20), R4
+	MOVD	(5*8)(R20), R5
+	MOVD	(6*8)(R20), R6
+	MOVD	(7*8)(R20), R7
+	MOVD	(8*8)(R20), R8
+	MOVD	(9*8)(R20), R9
+	MOVD	(10*8)(R20), R10
+	MOVD	(11*8)(R20), R11
+	MOVD	(12*8)(R20), R12
+	MOVD	(13*8)(R20), R13
+	MOVD	(14*8)(R20), R14
+	MOVD	(15*8)(R20), R15
+	FMOVD	(16*8)(R20), F0
+	FMOVD	(17*8)(R20), F1
+	FMOVD	(18*8)(R20), F2
+	FMOVD	(19*8)(R20), F3
+	FMOVD	(20*8)(R20), F4
+	FMOVD	(21*8)(R20), F5
+	FMOVD	(22*8)(R20), F6
+	FMOVD	(23*8)(R20), F7
+	FMOVD	(24*8)(R20), F8
+	FMOVD	(25*8)(R20), F9
+	FMOVD	(26*8)(R20), F10
+	FMOVD	(27*8)(R20), F11
+	FMOVD	(28*8)(R20), F12
+	FMOVD	(29*8)(R20), F13
+	FMOVD	(30*8)(R20), F14
+	FMOVD	(31*8)(R20), F15
+	RET
+#else
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
+	RET
+
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+	RET
+#endif
+
 // reflectcall: call a function with the given argument list
 // func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
@@ -381,12 +461,17 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	MOVBU.P	R7, 1(R5);			\
 	CMP	R5, R6;				\
 	BNE	-3(PC);				\
+	/* set up argument registers */		\
+	MOVD	regArgs+40(FP), R20;		\
+	CALL	·unspillArgs(SB);		\
 	/* call function */			\
 	MOVD	f+8(FP), R26;			\
-	MOVD	(R26), R0;			\
-	PCDATA  $PCDATA_StackMapIndex, $0;	\
-	BL	(R0);				\
+	MOVD	(R26), R20;			\
+	PCDATA	$PCDATA_StackMapIndex, $0;	\
+	BL	(R20);				\
 	/* copy return values back */		\
+	MOVD	regArgs+40(FP), R20;		\
+	CALL	·spillArgs(SB);		\
 	MOVD	stackArgsType+0(FP), R7;		\
 	MOVD	stackArgs+16(FP), R3;			\
 	MOVWU	stackArgsSize+24(FP), R4;			\
@@ -403,11 +488,12 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
 TEXT callRet<>(SB), NOSPLIT, $48-0
+	NO_LOCAL_POINTERS
 	MOVD	R7, 8(RSP)
 	MOVD	R3, 16(RSP)
 	MOVD	R5, 24(RSP)
 	MOVD	R4, 32(RSP)
-	MOVD	$0, 40(RSP)
+	MOVD	R20, 40(RSP)
 	BL	runtime·reflectcallmove(SB)
 	RET
 
