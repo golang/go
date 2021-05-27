@@ -390,36 +390,37 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
 // particular types is because go/types does *not* report it for
 // them. So in practice this limitation is probably moot.
 func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
-	anyObj := func() types2.Object {
-		switch typ := typ.(type) {
-		case *types2.Signature:
-			if recv := typ.Recv(); recv != nil {
-				return recv
-			}
-			if params := typ.Params(); params.Len() > 0 {
-				return params.At(0)
-			}
-			if results := typ.Results(); results.Len() > 0 {
-				return results.At(0)
-			}
-		case *types2.Struct:
-			if typ.NumFields() > 0 {
-				return typ.Field(0)
-			}
-		case *types2.Interface:
-			if typ.NumExplicitMethods() > 0 {
-				return typ.ExplicitMethod(0)
-			}
-		case *types2.TypeParam:
-			return typ.Obj()
-		}
-		return nil
-	}
-
-	if obj := anyObj(); obj != nil {
+	if obj := anyObj(typ); obj != nil {
 		return g.pkg(obj.Pkg())
 	}
 	return types.LocalPkg
+}
+
+// anyObj returns some object accessible from typ, if any.
+func anyObj(typ types2.Type) types2.Object {
+	switch typ := typ.(type) {
+	case *types2.Signature:
+		if recv := typ.Recv(); recv != nil {
+			return recv
+		}
+		if params := typ.Params(); params.Len() > 0 {
+			return params.At(0)
+		}
+		if results := typ.Results(); results.Len() > 0 {
+			return results.At(0)
+		}
+	case *types2.Struct:
+		if typ.NumFields() > 0 {
+			return typ.Field(0)
+		}
+	case *types2.Interface:
+		if typ.NumExplicitMethods() > 0 {
+			return typ.ExplicitMethod(0)
+		}
+	case *types2.TypeParam:
+		return typ.Obj()
+	}
+	return nil
 }
 
 func (g *irgen) basic(typ *types2.Basic) *types.Type {
