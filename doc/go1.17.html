@@ -68,6 +68,14 @@ Do not send CLs removing the interior tags from such phrases.
   OpenBSD.
 </p>
 
+<h3 id="arm64">ARM64</h3>
+
+<p><!-- CL 288814 -->
+  Go programs now maintain stack frame pointers on the 64-bit ARM
+  architecture on all operating systems. Previously it maintained
+  stack frame pointers only on Linux, macOS, and iOS.
+</p>
+
 <p>
   TODO: complete the Ports section
 </p>
@@ -400,7 +408,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- CL 305230 -->
-      TODO: <a href="https://golang.org/cl/305230">https://golang.org/cl/305230</a>: support reading shared mime-info database on unix systems
+      On Unix systems, the table of MIME types is now read from the local system's
+      <a href="https://specifications.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-0.21.html">Shared MIME-info Database</a>
+      when available.
     </p>
   </dd>
 </dl><!-- mime -->
@@ -408,15 +418,20 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 272668 -->
-      TODO: <a href="https://golang.org/cl/272668">https://golang.org/cl/272668</a>: add IP.IsPrivate
+      The new method <a href="/pkg/net/#IP.IsPrivate"><code>IP.IsPrivate</code></a> reports whether an address is
+      a private IPv4 address according to <a href="http://tools.ietf.org/html/rfc1918">RFC 1918</a>
+      or a local IPv6 address according <a href="http://tools.ietf.org/html/rfc4193">RFC 4193</a>.
     </p>
 
     <p><!-- CL 301709 -->
-      TODO: <a href="https://golang.org/cl/301709">https://golang.org/cl/301709</a>: make go resolver aware of network parameter
+      The Go DNS resolver now only sends one DNS query when resolving an address for an IPv4-only or IPv6-only network,
+      rather than querying for both address families.
     </p>
 
     <p><!-- CL 307030 -->
-      TODO: <a href="https://golang.org/cl/307030">https://golang.org/cl/307030</a>: make ErrClosed and ParseError implement net.Error
+      The <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a> sentinel error and
+      <a href="/pkg/net/#ParseError"><code>ParseError</code></a> error type now implement
+      the <a href="/pkg/net/#Error"><code>net.Error</code></a> interface.
     </p>
   </dd>
 </dl><!-- net -->
@@ -431,7 +446,9 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 235437 -->
-      TODO: <a href="https://golang.org/cl/235437">https://golang.org/cl/235437</a>: add to deadlines only when positive
+      Setting the <a href="/pkg/net/http/#Server"><code>Server</code></a>
+      <code>ReadTimeout</code> or <code>WriteTimeout</code> fields to a negative value now indicates no timeout
+      rather than an immediate timeout.
     </p>
 
     <p><!-- CL 308952 -->
@@ -444,7 +461,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 308950 -->
-      TODO: <a href="https://golang.org/cl/308950">https://golang.org/cl/308950</a>: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+      <a href="/pkg/net/http/httptest/#ResponseRecorder.WriteHeader"><code>ResponseRecorder.WriteHeader></code></a>
+      now panics when the provided code is not a valid three-digit HTTP status code.
+      This matches the behavior of <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter></code></a>
+      implementations in the <a href="/pkg/net/http/"><code>net/http</code></a> package.
     </p>
   </dd>
 </dl><!-- net/http/httptest -->
@@ -452,7 +472,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
     <p><!-- CL 314850 -->
-      TODO: <a href="https://golang.org/cl/314850">https://golang.org/cl/314850</a>: add Values.Has
+      The new method <a href="/pkg/net/url/#Values.Has"><code>Values.Has</code></a>
+      reports whether a query parameter is set.
     </p>
   </dd>
 </dl><!-- net/url -->
@@ -479,14 +500,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 281233 -->
-      TODO: <a href="https://golang.org/cl/281233">https://golang.org/cl/281233</a>: add VisibleFields function
+      The new <a href="/pkg/reflect/#VisibleFields"><code>VisibleFields</code></a> function
+      returns all the visible fields in a struct type, including fields inside anonymous struct members.
     </p>
 
     <p><!-- CL 284136 -->
-      TODO: <a href="https://golang.org/cl/284136">https://golang.org/cl/284136</a>: panic if ArrayOf is called with negative length
+      The <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a> function now panics when
+      called with a negative length.
     </p>
   </dd>
 </dl><!-- reflect -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- CL 308933, CL 312431, CL 312909 -->
+      New metrics were added that track total bytes and objects allocated and freed.
+      A new metric tracking the distribution of goroutine scheduling latencies was
+      also added.
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
@@ -530,11 +563,16 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 295371 -->
-      TODO: <a href="https://golang.org/cl/295371">https://golang.org/cl/295371</a>: do not overflow key memory in GetQueuedCompletionStatus
+    <p>
+      The <a href="/pkg/syscall/#GetQueuedCompletionStatus"><code>GetQueuedCompletionStatus</code></a> and
+      <a href="/pkg/syscall/#PostQueuedCompletionStatus"><code>PostQueuedCompletionStatus</code></a>
+      functions are now deprecated. These functions have incorrect signatures and are superseded by
+      equivalents in the <a href="https://godoc.org/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> package.
     </p>
 
     <p><!-- CL 313653 -->
-      TODO: <a href="https://golang.org/cl/313653">https://golang.org/cl/313653</a>: restore signal mask after setting foreground process group
+      On Unix-like systems, the process group of a child process is now set with signals blocked.
+      This avoids sending a <code>SIGTTOU</code> to the child when the parent is in a background process group.
     </p>
   </dd>
 </dl><!-- syscall -->
@@ -558,9 +596,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 260858 -->
-      time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
-      method that will return a more useful value for times when printed with
-      the <code>"%#v"</code> format specifier in the fmt package.
+      The <a href="/pkg/time/#Time"><code>Time</code></a> type now has a
+      <a href="/pkg/time/#Time.GoString"><code>GoString</code></a> method that
+      will return a more useful value for times when printed with the
+      <code>%#v</code> format specifier in the <code>fmt</code> package.
     </p>
 
     <p><!-- CL 264077 -->
