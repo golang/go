@@ -5,6 +5,8 @@
 package noder
 
 import (
+	"fmt"
+
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/syntax"
@@ -15,6 +17,8 @@ import (
 )
 
 func (g *irgen) expr(expr syntax.Expr) ir.Node {
+	expr = unparen(expr) // skip parens; unneeded after parse+typecheck
+
 	if expr == nil {
 		return nil
 	}
@@ -67,7 +71,9 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 
 	// Constant expression.
 	if tv.Value != nil {
-		return Const(g.pos(expr), g.typ(typ), tv.Value)
+		typ := g.typ(typ)
+		value := FixValue(typ, tv.Value)
+		return OrigConst(g.pos(expr), typ, value, constExprOp(expr), syntax.String(expr))
 	}
 
 	n := g.expr0(typ, expr)
@@ -160,9 +166,6 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
 		typed(g.typ(typ), n)
 		return n
-
-	case *syntax.ParenExpr:
-		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
 
 	case *syntax.SelectorExpr:
 		// Qualified identifier.
@@ -317,13 +320,17 @@ func getTargs(selinfo *types2.Selection) []types2.Type {
 }
 
 func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
+	return g.exprs(unpackListExpr(expr))
+}
+
+func unpackListExpr(expr syntax.Expr) []syntax.Expr {
 	switch expr := expr.(type) {
 	case nil:
 		return nil
 	case *syntax.ListExpr:
-		return g.exprs(expr.ElemList)
+		return expr.ElemList
 	default:
-		return []ir.Node{g.expr(expr)}
+		return []syntax.Expr{expr}
 	}
 }
 
@@ -401,4 +408,36 @@ func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {
 		base.FatalfAt(g.pos(typ), "expected type: %L", n)
 	}
 	return n.Type()
+}
+
+// constExprOp returns an ir.Op that represents the outermost
+// operation of the given constant expression. It's intended for use
+// with ir.RawOrigExpr.
+func constExprOp(expr syntax.Expr) ir.Op {
+	switch expr := expr.(type) {
+	default:
+		panic(fmt.Sprintf("%s: unexpected expression: %T", expr.Pos(), expr))
+
+	case *syntax.BasicLit:
+		return ir.OLITERAL
+	case *syntax.Name, *syntax.SelectorExpr:
+		return ir.ONAME
+	case *syntax.CallExpr:
+		return ir.OCALL
+	case *syntax.Operation:
+		if expr.Y == nil {
+			return unOps[expr.Op]
+		}
+		return binOps[expr.Op]
+	}
+}
+
+func unparen(expr syntax.Expr) syntax.Expr {
+	for {
+		paren, ok := expr.(*syntax.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = paren.X
+	}
 }

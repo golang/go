@@ -567,6 +567,11 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		return
 	}
 
+	if n, ok := n.(*RawOrigExpr); ok {
+		fmt.Fprint(s, n.Raw)
+		return
+	}
+
 	switch n.Op() {
 	case OPAREN:
 		n := n.(*ParenExpr)
