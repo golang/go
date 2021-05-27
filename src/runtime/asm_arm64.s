@@ -103,7 +103,7 @@ nocgo:
 	MOVD	R0, (R0)	// boom
 	UNDEF
 
-DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
@@ -1158,7 +1158,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // It does not clobber any general-purpose registers,
 // but may clobber others (e.g., floating point registers)
 // The act of CALLing gcWriteBarrier will clobber R30 (LR).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$200
+//
+// Defined as ABIInternal since the compiler generates ABIInternal
+// calls to it directly and it does not use the stack-based Go ABI.
+TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
 	// Save the registers clobbered by the fast path.
 	MOVD	R0, 184(RSP)
 	MOVD	R1, 192(RSP)
@@ -1250,71 +1253,74 @@ flush:
 // in the caller's stack frame. These stubs write the args into that stack space and
 // then tail call to the corresponding runtime handler.
 // The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
+//
+// Defined as ABIInternal since the compiler generates ABIInternal
+// calls to it directly and it does not use the stack-based Go ABI.
+TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicIndex<ABIInternal>(SB)
+TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
+TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
+TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
+TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
+TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
+TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
+TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
+TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R2, x+0(FP)
 	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
+TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R2, x+0(FP)
 	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
+TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R2, x+0(FP)
 	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
+TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R2, x+0(FP)
 	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
+TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
+TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R1, x+0(FP)
 	MOVD	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
+TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
+TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R0, x+0(FP)
 	MOVD	R1, y+8(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R2, x+0(FP)
 	MOVD	R3, y+8(FP)
-	JMP	runtime·goPanicSliceConvert(SB)
+	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
