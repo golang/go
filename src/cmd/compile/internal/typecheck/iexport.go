@@ -306,7 +306,12 @@ func WriteExports(out *bufio.Writer) {
 	// Assemble header.
 	var hdr intWriter
 	hdr.WriteByte('i')
-	hdr.uint64(iexportVersionCurrent)
+	if base.Flag.G > 0 {
+		hdr.uint64(iexportVersionCurrent)
+	} else {
+		// Use old export format if doing -G=0 (no generics)
+		hdr.uint64(iexportVersionPosCol)
+	}
 	hdr.uint64(uint64(p.strings.Len()))
 	hdr.uint64(dataLen)
 
@@ -478,7 +483,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// referenced via their type offset (via typOff) in all
 			// other places in the signature and function that they
 			// are used.
-			w.tparamList(n.Type().TParams().FieldSlice())
+			if base.Flag.G > 0 {
+				w.tparamList(n.Type().TParams().FieldSlice())
+			}
 			w.signature(n.Type())
 			w.funcExt(n)
 
@@ -511,8 +518,10 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.tag('T')
 		w.pos(n.Pos())
 
-		// Export any new typeparams needed for this type
-		w.typeList(n.Type().RParams())
+		if base.Flag.G > 0 {
+			// Export any new typeparams needed for this type
+			w.typeList(n.Type().RParams())
+		}
 		underlying := n.Type().Underlying()
 		if underlying == types.ErrorType.Underlying() {
 			// For "type T error", use error as the
@@ -826,6 +835,7 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	if t.Kind() == types.TTYPEPARAM {
+		assert(base.Flag.G > 0)
 		// A typeparam has a name, but doesn't have an underlying type.
 		// Just write out the details of the type param here. All other
 		// uses of this typeparam type will be written out as its unique
@@ -846,6 +856,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 
 	s := t.Sym()
 	if s != nil && t.OrigSym != nil {
+		assert(base.Flag.G > 0)
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
@@ -945,6 +956,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		}
 
 	case types.TUNION:
+		assert(base.Flag.G > 0)
 		// TODO(danscales): possibly put out the tilde bools in more
 		// compact form.
 		w.startType(unionType)
