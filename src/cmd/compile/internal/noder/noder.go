@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"errors"
 	"fmt"
 	"go/constant"
 	"go/token"
@@ -1852,33 +1853,14 @@ func oldname(s *types.Sym) ir.Node {
 }
 
 func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
-	if pragma.Embeds == nil {
-		return
-	}
-
 	pragmaEmbeds := pragma.Embeds
 	pragma.Embeds = nil
-	pos := makeXPos(pragmaEmbeds[0].Pos)
+	if len(pragmaEmbeds) == 0 {
+		return
+	}
 
-	if !haveEmbed {
-		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
-		return
-	}
-	if len(decl.NameList) > 1 {
-		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
-		return
-	}
-	if decl.Values != nil {
-		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
-		return
-	}
-	if decl.Type == nil {
-		// Should not happen, since Values == nil now.
-		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
-		return
-	}
-	if typecheck.DeclContext != ir.PEXTERN {
-		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
+	if err := checkEmbed(decl, haveEmbed, typecheck.DeclContext != ir.PEXTERN); err != nil {
+		base.ErrorfAt(makeXPos(pragmaEmbeds[0].Pos), "%s", err)
 		return
 	}
 
@@ -1888,4 +1870,23 @@ func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.Va
 	}
 	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
 	name.Embed = &embeds
+}
+
+func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+	switch {
+	case !haveEmbed:
+		return errors.New("go:embed only allowed in Go files that import \"embed\"")
+	case len(decl.NameList) > 1:
+		return errors.New("go:embed cannot apply to multiple vars")
+	case decl.Values != nil:
+		return errors.New("go:embed cannot apply to var with initializer")
+	case decl.Type == nil:
+		// Should not happen, since Values == nil now.
+		return errors.New("go:embed cannot apply to var without type")
+	case withinFunc:
+		return errors.New("go:embed cannot apply to var inside func")
+
+	default:
+		return nil
+	}
 }
