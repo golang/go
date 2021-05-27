@@ -166,6 +166,11 @@ type Inline struct {
 	// another package is imported.
 	Dcl  []*Name
 	Body []Node
+
+	// CanDelayResults reports whether it's safe for the inliner to delay
+	// initializing the result parameters until immediately before the
+	// "return" statement.
+	CanDelayResults bool
 }
 
 // A Mark represents a scope boundary.
