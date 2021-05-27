@@ -7,7 +7,6 @@ package bench
 import (
 	"flag"
 	"fmt"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -55,11 +54,6 @@ func benchmarkCompletion(options completionBenchOptions, t *testing.T) {
 			options.preCompletionEdits(env)
 		}
 
-		// Add a comment as a marker at the start of the file, we'll replace
-		// this in every iteration to trigger type checking and hence emulate
-		// a more real world scenario.
-		env.EditBuffer(options.file, fake.Edit{Text: "// 0\n"})
-
 		// Run a completion to make sure the system is warm.
 		pos := env.RegexpSearch(options.file, options.locationRegexp)
 		completions := env.Completion(options.file, pos)
@@ -73,16 +67,6 @@ func benchmarkCompletion(options completionBenchOptions, t *testing.T) {
 
 		results := testing.Benchmark(func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				b.StopTimer()
-				env.RegexpReplace(options.file, `\/\/ \d*`, fmt.Sprintf("// %d", i))
-
-				// explicitly garbage collect since we don't want to count this
-				// time in completion benchmarks.
-				if i%10 == 0 {
-					runtime.GC()
-				}
-				b.StartTimer()
-
 				env.Completion(options.file, pos)
 			}
 		})
@@ -107,7 +91,7 @@ func endPosInBuffer(env *Env, name string) fake.Pos {
 // Benchmark completion at a specified file and location. When no CLI options
 // are specified, this test is skipped.
 // To Run (from x/tools/gopls) against the dummy function above:
-// 	go test -v ./internal/regtest -run=TestBenchmarkConfiguredCompletion
+// 	go test -v ./internal/regtest/bench -run=TestBenchmarkConfiguredCompletion
 // 	-completion_workdir="$HOME/Developer/tools"
 // 	-completion_file="gopls/internal/regtest/completion_bench_test.go"
 // 	-completion_regexp="dummyCompletionFunction.*fmt\.Printf\(\"%s\", s(\))"
@@ -116,7 +100,7 @@ func TestBenchmarkConfiguredCompletion(t *testing.T) {
 }
 
 // To run (from x/tools/gopls):
-// 	go test -v ./internal/regtest -run TestBenchmark<>Completion
+// 	go test -v ./internal/regtest/bench -run TestBenchmark<>Completion
 //	-completion_workdir="$HOME/Developer/tools"
 // where <> is one of the tests below. completion_workdir should be path to
 // x/tools on your system.

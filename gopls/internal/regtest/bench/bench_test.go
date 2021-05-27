@@ -42,9 +42,7 @@ func benchmarkOptions(dir string) []RunOption {
 }
 
 func printBenchmarkResults(result testing.BenchmarkResult) {
-	fmt.Println("Benchmark Statistics:")
-	fmt.Println(result.String())
-	fmt.Println(result.MemString())
+	fmt.Printf("BenchmarkStatistics\t%s\t%s\n", result.String(), result.MemString())
 }
 
 var iwlOptions struct {
