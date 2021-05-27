@@ -448,6 +448,20 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
 	t.SetNod(n)
 }
 
+// A RawOrigExpr represents an arbitrary Go expression as a string value.
+// When printed in diagnostics, the string value is written out exactly as-is.
+type RawOrigExpr struct {
+	miniExpr
+	Raw string
+}
+
+func NewRawOrigExpr(pos src.XPos, op Op, raw string) *RawOrigExpr {
+	n := &RawOrigExpr{Raw: raw}
+	n.pos = pos
+	n.op = op
+	return n
+}
+
 // A ResultExpr represents a direct access to a result.
 type ResultExpr struct {
 	miniExpr

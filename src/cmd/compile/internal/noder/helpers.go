@@ -43,6 +43,32 @@ func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
 	return typed(typ, ir.NewBasicLit(pos, val))
 }
 
+func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
+	orig := ir.NewRawOrigExpr(pos, op, raw)
+	return ir.NewConstExpr(val, typed(typ, orig))
+}
+
+// FixValue returns val after converting and truncating it as
+// appropriate for typ.
+func FixValue(typ *types.Type, val constant.Value) constant.Value {
+	assert(typ.Kind() != types.TFORW)
+	switch {
+	case typ.IsInteger():
+		val = constant.ToInt(val)
+	case typ.IsFloat():
+		val = constant.ToFloat(val)
+	case typ.IsComplex():
+		val = constant.ToComplex(val)
+	}
+	if !typ.IsUntyped() {
+		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
+	}
+	if typ.Kind() != types.TTYPEPARAM {
+		ir.AssertValidTypeForConst(typ, val)
+	}
+	return val
+}
+
 func Nil(pos src.XPos, typ *types.Type) ir.Node {
 	return typed(typ, ir.NewNilExpr(pos))
 }
