@@ -396,9 +396,6 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
 // contain DNS "CNAME" records, as long as host resolves to
 // address records.
 //
-// The returned canonical name is validated to be a properly
-// formatted presentation-format domain name.
-//
 // LookupCNAME uses context.Background internally; to specify the context, use
 // Resolver.LookupCNAME.
 func LookupCNAME(host string) (cname string, err error) {
@@ -415,18 +412,8 @@ func LookupCNAME(host string) (cname string, err error) {
 // LookupCNAME does not return an error if host does not
 // contain DNS "CNAME" records, as long as host resolves to
 // address records.
-//
-// The returned canonical name is validated to be a properly
-// formatted presentation-format domain name.
-func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error) {
-	cname, err := r.lookupCNAME(ctx, host)
-	if err != nil {
-		return "", err
-	}
-	if !isDomainName(cname) {
-		return "", &DNSError{Err: "CNAME target is invalid", Name: host}
-	}
-	return cname, nil
+func (r *Resolver) LookupCNAME(ctx context.Context, host string) (cname string, err error) {
+	return r.lookupCNAME(ctx, host)
 }
 
 // LookupSRV tries to resolve an SRV query of the given service,
@@ -438,9 +425,6 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
-//
-// The returned service names are validated to be properly
-// formatted presentation-format domain names.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
 	return DefaultResolver.lookupSRV(context.Background(), service, proto, name)
 }
@@ -454,32 +438,11 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
-//
-// The returned service names are validated to be properly
-// formatted presentation-format domain names.
-func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
-	cname, addrs, err := r.lookupSRV(ctx, service, proto, name)
-	if err != nil {
-		return "", nil, err
-	}
-	if cname != "" && !isDomainName(cname) {
-		return "", nil, &DNSError{Err: "SRV header name is invalid", Name: name}
-	}
-	for _, addr := range addrs {
-		if addr == nil {
-			continue
-		}
-		if !isDomainName(addr.Target) {
-			return "", nil, &DNSError{Err: "SRV target is invalid", Name: name}
-		}
-	}
-	return cname, addrs, nil
+func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
+	return r.lookupSRV(ctx, service, proto, name)
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-//
-// The returned mail server names are validated to be properly
-// formatted presentation-format domain names.
 //
 // LookupMX uses context.Background internally; to specify the context, use
 // Resolver.LookupMX.
@@ -488,29 +451,11 @@ func LookupMX(name string) ([]*MX, error) {
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
-//
-// The returned mail server names are validated to be properly
-// formatted presentation-format domain names.
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
-	records, err := r.lookupMX(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	for _, mx := range records {
-		if mx == nil {
-			continue
-		}
-		if !isDomainName(mx.Host) {
-			return nil, &DNSError{Err: "MX target is invalid", Name: name}
-		}
-	}
-	return records, nil
+	return r.lookupMX(ctx, name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
-//
-// The returned name server names are validated to be properly
-// formatted presentation-format domain names.
 //
 // LookupNS uses context.Background internally; to specify the context, use
 // Resolver.LookupNS.
@@ -519,23 +464,8 @@ func LookupNS(name string) ([]*NS, error) {
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
-//
-// The returned name server names are validated to be properly
-// formatted presentation-format domain names.
 func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
-	records, err := r.lookupNS(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	for _, ns := range records {
-		if ns == nil {
-			continue
-		}
-		if !isDomainName(ns.Host) {
-			return nil, &DNSError{Err: "NS target is invalid", Name: name}
-		}
-	}
-	return records, nil
+	return r.lookupNS(ctx, name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
@@ -565,18 +495,6 @@ func LookupAddr(addr string) (names []string, err error) {
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
-//
-// The returned names are validated to be properly
-// formatted presentation-format domain names.
-func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
-	names, err := r.lookupAddr(ctx, addr)
-	if err != nil {
-		return nil, err
-	}
-	for _, name := range names {
-		if !isDomainName(name) {
-			return nil, &DNSError{Err: "PTR target is invalid", Name: addr}
-		}
-	}
-	return names, nil
+func (r *Resolver) LookupAddr(ctx context.Context, addr string) (names []string, err error) {
+	return r.lookupAddr(ctx, addr)
 }
