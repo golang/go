@@ -2024,19 +2024,16 @@ func overlayDir(dstRoot, srcRoot string) error {
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var excludedFiles = map[string]bool{
 	"complit1.go":     true, // types2 reports extra errors
-	"const2.go":       true, // types2 not run after syntax errors
 	"ddd1.go":         true, // issue #42987
 	"directive.go":    true, // misplaced compiler directive checks
 	"float_lit3.go":   true, // types2 reports extra errors
 	"import1.go":      true, // types2 reports extra errors
-	"import5.go":      true, // issue #42988
 	"import6.go":      true, // issue #43109
 	"initializerr.go": true, // types2 reports extra errors
 	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
 	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 	"printbig.go":     true, // large untyped int passed to print (32-bit)
 	"shift1.go":       true, // issue #42989
-	"shift2.go":       true, // bad code generation; constant.Value of the wrong kind?
 	"typecheck.go":    true, // invalid function is not causing errors when called
 	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
 
@@ -2048,18 +2045,15 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/bug228.go":    true, // types2 doesn't run when there are syntax errors
 	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
 	"fixedbugs/bug255.go":    true, // types2 reports extra errors
-	"fixedbugs/bug351.go":    true, // types2 reports extra errors
 	"fixedbugs/bug374.go":    true, // types2 reports extra errors
 	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
 	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
 	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
-	"fixedbugs/bug420.go":    true, // ICE in irgen
 
 	"fixedbugs/issue10700.go":  true, // types2 reports ok hint, but does not match regexp
 	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
-	"fixedbugs/issue13415.go":  true, // declared but not used conflict
 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
 	"fixedbugs/issue16133.go":  true, // types2 doesn't use package path for qualified identifiers when package name is ambiguous
 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
@@ -2067,7 +2061,6 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue17270.go":  true, // ICE in irgen
 	"fixedbugs/issue17645.go":  true, // multiple errors on same line
 	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
-	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
 	"fixedbugs/issue18419.go":  true, // types2 reports
 	"fixedbugs/issue19012.go":  true, // multiple errors on same line
 	"fixedbugs/issue20174.go":  true, // ICE due to width not calculated (probably irgen's fault)
@@ -2082,15 +2075,12 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
 	"fixedbugs/issue31053.go":  true, // types2 reports "unknown field" instead of "cannot refer to unexported field"
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
-	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
-	"fixedbugs/issue43479.go":  true, // ICE in iexport due to Syms from the wrong package
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
-	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
@@ -2105,31 +2095,26 @@ var excludedFiles = map[string]bool{
 	// - Some escape analysis diagnostics being printed without position information
 	// - Some expressions printed differently (e.g., "int(100)" instead
 	//   of "100" or "&composite literal" instead of "&[4]int{...}").
-	"closure3.go":              true,
-	"escape2.go":               true,
-	"escape2n.go":              true,
-	"escape4.go":               true,
-	"escape5.go":               true,
-	"escape_array.go":          true,
-	"escape_calls.go":          true,
-	"escape_field.go":          true,
-	"escape_iface.go":          true,
-	"escape_indir.go":          true,
-	"escape_level.go":          true,
-	"escape_map.go":            true,
-	"escape_param.go":          true,
-	"escape_slice.go":          true,
-	"escape_struct_param1.go":  true,
-	"escape_struct_param2.go":  true,
-	"fixedbugs/issue12006.go":  true,
-	"fixedbugs/issue13799.go":  true,
-	"fixedbugs/issue21709.go":  true,
-	"fixedbugs/issue24651a.go": true,
-	"fixedbugs/issue24651b.go": true,
-	"fixedbugs/issue27557.go":  true,
-	"fixedbugs/issue31573.go":  true,
-	"fixedbugs/issue37837.go":  true,
-	"fixedbugs/issue39292.go":  true,
-	"fixedbugs/issue7921.go":   true,
-	"inline.go":                true,
+	"closure3.go":             true,
+	"escape2.go":              true,
+	"escape2n.go":             true,
+	"escape4.go":              true,
+	"escape_calls.go":         true,
+	"escape_field.go":         true,
+	"escape_iface.go":         true,
+	"escape_indir.go":         true,
+	"escape_level.go":         true,
+	"escape_map.go":           true,
+	"escape_param.go":         true,
+	"escape_slice.go":         true,
+	"escape_struct_param1.go": true,
+	"escape_struct_param2.go": true,
+	"fixedbugs/issue12006.go": true,
+	"fixedbugs/issue13799.go": true,
+	"fixedbugs/issue21709.go": true,
+	"fixedbugs/issue31573.go": true,
+	"fixedbugs/issue37837.go": true,
+	"fixedbugs/issue39292.go": true,
+	"fixedbugs/issue7921.go":  true,
+	"inline.go":               true,
 }
