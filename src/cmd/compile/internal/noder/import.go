@@ -175,36 +175,44 @@ func resolveImportPath(path string) (string, error) {
 	return path, nil
 }
 
-// TODO(mdempsky): Return an error instead.
 func importfile(decl *syntax.ImportDecl) *types.Pkg {
-	if decl.Path.Kind != syntax.StringLit {
-		base.Errorf("import path must be a string")
-		return nil
-	}
-
-	path, err := strconv.Unquote(decl.Path.Value)
-	if err != nil {
-		base.Errorf("import path must be a string")
-		return nil
-	}
-
-	if err := checkImportPath(path, false); err != nil {
-		base.Errorf("%s", err.Error())
-		return nil
-	}
-
-	path, err = resolveImportPath(path)
+	path, err := parseImportPath(decl.Path)
 	if err != nil {
 		base.Errorf("%s", err)
 		return nil
 	}
 
+	pkg := readImportFile(typecheck.Target, path)
+	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
+		myheight = pkg.Height + 1
+	}
+	return pkg
+}
+
+func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
+	if pathLit.Kind != syntax.StringLit {
+		return "", errors.New("import path must be a string")
+	}
+
+	path, err := strconv.Unquote(pathLit.Value)
+	if err != nil {
+		return "", errors.New("import path must be a string")
+	}
+
+	if err := checkImportPath(path, false); err != nil {
+		return "", err
+	}
+
+	return resolveImportPath(path)
+}
+
+func readImportFile(target *ir.Package, path string) *types.Pkg {
 	importpkg := types.NewPkg(path, "")
 	if importpkg.Direct {
 		return importpkg // already fully loaded
 	}
 	importpkg.Direct = true
-	typecheck.Target.Imports = append(typecheck.Target.Imports, importpkg)
+	target.Imports = append(target.Imports, importpkg)
 
 	if path == "unsafe" {
 		return importpkg // initialized with universe
@@ -322,10 +330,6 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 	} else {
 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
 		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
-	}
-
-	if importpkg.Height >= myheight {
-		myheight = importpkg.Height + 1
 	}
 
 	return importpkg
