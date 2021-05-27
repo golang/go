@@ -226,31 +226,57 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p><!-- CL 304470 -->
-  TODO: <a href="https://golang.org/cl/304470">https://golang.org/cl/304470</a>: cmd/compile, runtime: add metadata for argument printing in traceback
-</p>
-
 <p>
   TODO: complete the Runtime section
 </p>
 
 <h2 id="compiler">Compiler</h2>
 
-<p><!-- CL 283112, golang.org/issue/28727 -->
+<p><!-- golang.org/issue/40724 -->
+  Go 1.17 implements a new way of passing function arguments and results using
+  registers instead of the stack. This work is enabled for Linux, MacOS, and
+  Windows on the 64-bit x86 architecture (the <code>linux/amd64</code>,
+  <code>darwin/amd64</code>, <code>windows/amd64</code> ports). For a
+  representative set of Go  packages and programs, benchmarking has shown
+  performance improvements of about 5%, and a typical reduction in binary size
+  of about 2%.
+</p>
 
+<p>
+  This change does not affect the functionality of any safe Go code. It can affect
+  code outside the <a href="/doc/go1compat">compatibility guidelines</a> with
+  minimal impact. To maintain compatibility with existing assembly functions,
+  adapter functions converting between the new register-based calling convention
+  and the previous stack-based calling convention (also known as ABI wrappers)
+  are sometimes used. This is mostly invisible to users, except for assembly
+  functions that have their addresses taken in Go. Using <code>reflect.ValueOf(fn).Pointer()</code>
+  (or similar approaches such as via <code>unsafe.Pointer</code>) to get the address
+  of an assembly function will now return the address of the ABI wrapper. This is
+  mostly harmless, except for special-purpose assembly code (such as accessing
+  thread-local storage or requiring a special stack alignment). Assembly functions
+  called indirectly from Go via <code>func</code> values will now be made through
+  ABI wrappers, which may cause a very small performance overhead. Also, calling
+  Go functions from assembly may now go through ABI wrappers, with a very small
+  performance overhead.
+</p>
+
+<p><!-- CL 304470 -->
+  The format of stack traces from the runtime (printed when an uncaught panic
+  occurs, or when <code>runtime.Stack</code> is called) is improved. Previously,
+  the function arguments were printed as hexadecimal words based on the memory
+  layout. Now each argument in the source code is printed separately, separated
+  by commas. Aggregate-typed (struct, array, string, slice, interface, and complex)
+  arguments are delimited by curly braces. A caveat is that the value of an
+  argument that only lives in a register and is not stored to memory may be
+  inaccurate. Results (which were usually inaccurate) are no longer printed.
+</p>
+
+<p><!-- CL 283112, golang.org/issue/28727 -->
   Functions containing closures can now be inlined. One effect of this change is
   that a function with a closure may actually produce a distinct closure function
   for each place that the function is inlined. Hence, this change could reveal
   bugs where Go functions are compared (incorrectly) by pointer value. Go
   functions are by definition not comparable.
-
-  TODO: complete the Compiler section, or delete if not needed
-</p>
-
-<h2 id="linker">Linker</h2>
-
-<p>
-  TODO: complete the Linker section, or delete if not needed
 </p>
 
 <h2 id="library">Core library</h2>
