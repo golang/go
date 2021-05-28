@@ -240,7 +240,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	// typecheck and collect typechecker errors
 	var conf Config
 	conf.Sizes = sizes
-	conf.GoVersion = goVersion
+	SetGoVersion(&conf, goVersion)
 
 	// special case for importC.src
 	if len(filenames) == 1 {
