@@ -369,6 +369,11 @@ func (c *completer) compositeLiteral(T types.Type, typeName string, matchScore f
 // basicLiteral adds a literal completion item for the given basic
 // type name typeName.
 func (c *completer) basicLiteral(T types.Type, typeName string, matchScore float64, edits []protocol.TextEdit) {
+	// Never give type conversions like "untyped int()".
+	if isUntyped(T) {
+		return
+	}
+
 	snip := &snippet.Builder{}
 	snip.WriteText(typeName + "(")
 	snip.WriteFinalTabstop()

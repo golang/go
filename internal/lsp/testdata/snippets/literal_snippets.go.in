@@ -219,3 +219,9 @@ func _() {
 	f := func(...[]int) {}
 	f() //@snippet(")", litIntSlice, "[]int{$0\\}", "[]int{$0\\}")
 }
+
+
+func _() {
+	// don't complete to "untyped int()"
+	[]int{}[untyped] //@complete("] //")
+}
