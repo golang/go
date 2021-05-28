@@ -577,15 +577,37 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
 	u := n0.underlying
-	if u == nil {
-		return Typ[Invalid]
+
+	if u == Typ[Invalid] {
+		return u
 	}
 
 	// If the underlying type of a defined type is not a defined
-	// type, then that is the desired underlying type.
+	// (incl. instance) type, then that is the desired underlying
+	// type.
+	switch u.(type) {
+	case nil:
+		return Typ[Invalid]
+	default:
+		// common case
+		return u
+	case *Named, *instance:
+		// handled below
+	}
+
+	if n0.check == nil {
+		panic("internal error: Named.check == nil but type is incomplete")
+	}
+
+	// Invariant: after this point n0 as well as any named types in its
+	// underlying chain should be set up when this function exits.
+	check := n0.check
+
+	// If we can't expand u at this point, it is invalid.
 	n := asNamed(u)
 	if n == nil {
-		return u // common case
+		n0.underlying = Typ[Invalid]
+		return n0.underlying
 	}
 
 	// Otherwise, follow the forward chain.
@@ -597,7 +619,16 @@ func (n0 *Named) under() Type {
 			u = Typ[Invalid]
 			break
 		}
-		n1 := asNamed(u)
+		var n1 *Named
+		switch u1 := u.(type) {
+		case *Named:
+			n1 = u1
+		case *instance:
+			n1, _ = u1.expand().(*Named)
+			if n1 == nil {
+				u = Typ[Invalid]
+			}
+		}
 		if n1 == nil {
 			break // end of chain
 		}
@@ -608,11 +639,7 @@ func (n0 *Named) under() Type {
 
 		if i, ok := seen[n]; ok {
 			// cycle
-			// TODO(rFindley) revert this to a method on Checker. Having a possibly
-			// nil Checker on Named and TypeParam is too subtle.
-			if n0.check != nil {
-				n0.check.cycleError(path[i:])
-			}
+			check.cycleError(path[i:])
 			u = Typ[Invalid]
 			break
 		}
@@ -622,8 +649,8 @@ func (n0 *Named) under() Type {
 		// We should never have to update the underlying type of an imported type;
 		// those underlying types should have been resolved during the import.
 		// Also, doing so would lead to a race condition (was issue #31749).
-		// Do this check always, not just in debug more (it's cheap).
-		if n0.check != nil && n.obj.pkg != n0.check.pkg {
+		// Do this check always, not just in debug mode (it's cheap).
+		if n.obj.pkg != check.pkg {
 			panic("internal error: imported type with unresolved underlying type")
 		}
 		n.underlying = u
@@ -665,7 +692,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	} else {
 		// defined type declaration
 
-		named := &Named{check: check, obj: obj}
+		named := check.newNamed(obj, nil, nil)
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
 

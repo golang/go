@@ -128,8 +128,8 @@ and test commands:
 		a build will run as if the disk file path exists with the contents
 		given by the backing file paths, or as if the disk file path does not
 		exist if its backing file path is empty. Support for the -overlay flag
-		has some limitations:importantly, cgo files included from outside the
-		include path must be  in the same directory as the Go package they are
+		has some limitations: importantly, cgo files included from outside the
+		include path must be in the same directory as the Go package they are
 		included from, and overlays will not appear when binaries and tests are
 		run through go run and go test respectively.
 	-pkgdir dir

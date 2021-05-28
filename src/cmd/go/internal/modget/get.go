@@ -386,14 +386,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		load.CheckPackageErrors(pkgs)
 
-		haveExe := false
+		haveExternalExe := false
 		for _, pkg := range pkgs {
-			if pkg.Name == "main" {
-				haveExe = true
+			if pkg.Name == "main" && pkg.Module != nil && pkg.Module.Path != modload.Target.Path {
+				haveExternalExe = true
 				break
 			}
 		}
-		if haveExe {
+		if haveExternalExe {
 			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
 			var altMsg string
 			if modload.HasModRoot() {
@@ -1598,7 +1598,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	// Report deprecations, then retractions.
 	for _, mm := range deprecations {
 		if mm.message != "" {
-			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+			fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", mm.m.Path, mm.message)
 		}
 	}
 	var retractPath string

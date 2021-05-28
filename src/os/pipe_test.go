@@ -442,12 +442,14 @@ func TestFdReadRace(t *testing.T) {
 	defer r.Close()
 	defer w.Close()
 
-	c := make(chan bool)
+	const count = 10
+
+	c := make(chan bool, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		var buf [10]byte
+		var buf [count]byte
 		r.SetReadDeadline(time.Now().Add(time.Minute))
 		c <- true
 		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
@@ -466,8 +468,9 @@ func TestFdReadRace(t *testing.T) {
 		r.Fd()
 
 		// The bug was that Fd would hang until Read timed out.
-		// If the bug is fixed, then closing r here will cause
-		// the Read to exit before the timeout expires.
+		// If the bug is fixed, then writing to w and closing r here
+		// will cause the Read to exit before the timeout expires.
+		w.Write(make([]byte, count))
 		r.Close()
 	}()
 

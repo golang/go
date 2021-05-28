@@ -698,7 +698,7 @@ func TestTrampolineCgo(t *testing.T) {
 	if err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
-	if string(out) != "hello\n" {
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 
@@ -717,7 +717,7 @@ func TestTrampolineCgo(t *testing.T) {
 	if err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
-	if string(out) != "hello\n" {
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }

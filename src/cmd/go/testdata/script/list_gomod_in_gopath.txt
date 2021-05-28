@@ -1,0 +1,23 @@
+# Issue 46119
+
+# When a module is inside a GOPATH workspace, Package.Root should be set to
+# Module.Dir instead of $GOPATH/src.
+
+env GOPATH=$WORK/tmp
+cd $WORK/tmp/src/test
+
+go list -f {{.Root}}
+stdout ^$PWD$
+
+# Were we really inside a GOPATH workspace?
+env GO111MODULE=off
+go list -f {{.Root}}
+stdout ^$WORK/tmp$
+
+-- $WORK/tmp/src/test/go.mod --
+module test
+
+-- $WORK/tmp/src/test/main.go --
+package main
+
+func main() {}

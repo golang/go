@@ -48,7 +48,7 @@ stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.i
 # The reported Dir and GoMod for a replaced module should be accurate.
 cp go.mod.orig go.mod
 go mod edit -replace=rsc.io/quote/v3=not-rsc.io/quote@v0.1.0-nomod
-go mod download
+go mod download rsc.io/quote/v3
 go list -m -f '{{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{with .Replace}} => {{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' rsc.io/quote/v3
 stdout '^rsc.io/quote/v3 v3.0.0 '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod => not-rsc.io/quote v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod$'
 

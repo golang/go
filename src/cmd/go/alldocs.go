@@ -174,8 +174,8 @@
 // 		a build will run as if the disk file path exists with the contents
 // 		given by the backing file paths, or as if the disk file path does not
 // 		exist if its backing file path is empty. Support for the -overlay flag
-// 		has some limitations:importantly, cgo files included from outside the
-// 		include path must be  in the same directory as the Go package they are
+// 		has some limitations: importantly, cgo files included from outside the
+// 		include path must be in the same directory as the Go package they are
 // 		included from, and overlays will not appear when binaries and tests are
 // 		run through go run and go test respectively.
 // 	-pkgdir dir
@@ -1221,7 +1221,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-e] [-v] [-go=version]
+// 	go mod tidy [-e] [-v] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1240,6 +1240,14 @@
 // are retained as explicit requirements in the go.mod file.
 // (Go versions 1.17 and higher retain more requirements in order to
 // support lazy module loading.)
+//
+// The -compat flag preserves any additional checksums needed for the
+// 'go' command from the indicated major Go release to successfully load
+// the module graph, and causes tidy to error out if that version of the
+// 'go' command would load any imported package from a different module
+// version. By default, tidy acts as if the -compat flag were set to the
+// version prior to the one indicated by the 'go' directive in the go.mod
+// file.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //

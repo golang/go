@@ -644,7 +644,7 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker    // for Named.under implementation
+	check      *Checker    // for Named.under implementation; nilled once under has been called
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
@@ -661,17 +661,30 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
-	if obj.typ == nil {
-		obj.typ = typ
-	}
-	return typ
+	return (*Checker)(nil).newNamed(obj, underlying, methods)
 }
 
 func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
+	}
+	// Ensure that typ is always expanded, at which point the check field can be
+	// nilled out.
+	//
+	// Note that currently we cannot nil out check inside typ.under(), because
+	// it's possible that typ is expanded multiple times.
+	//
+	// TODO(rFindley): clean this up so that under is the only function mutating
+	//                 named types.
+	if check != nil {
+		check.later(func() {
+			switch typ.under().(type) {
+			case *Named, *instance:
+				panic("internal error: unexpanded underlying type")
+			}
+			typ.check = nil
+		})
 	}
 	return typ
 }
