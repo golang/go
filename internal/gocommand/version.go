@@ -14,7 +14,7 @@ import (
 // It returns the X in Go 1.X.
 func GoVersion(ctx context.Context, inv Invocation, r *Runner) (int, error) {
 	inv.Verb = "list"
-	inv.Args = []string{"-e", "-f", `{{context.ReleaseTags}}`}
+	inv.Args = []string{"-e", "-f", `{{context.ReleaseTags}}`, `--`, `unsafe`}
 	inv.Env = append(append([]string{}, inv.Env...), "GO111MODULE=off")
 	// Unset any unneeded flags, and remove them from BuildFlags, if they're
 	// present.
