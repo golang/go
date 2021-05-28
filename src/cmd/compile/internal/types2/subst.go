@@ -206,7 +206,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 
 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 	if !iface.isSatisfiedBy(targ) {
-		check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
+		check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.allTypes)
 		return false
 	}
 
@@ -249,7 +249,7 @@ func (subst *subster) typ(typ Type) Type {
 		// Call typOrNil if it's possible that typ is nil.
 		panic("nil typ")
 
-	case *Basic, *bottom, *top:
+	case *Basic, *top:
 		// nothing to do
 
 	case *Array:
