@@ -443,9 +443,9 @@ func _() {
 		}{
 			{`var _ a = aaaa()`, []string{"aaaa1", "aaaa2"}},
 			{`var _ b = bbbb()`, []string{"bbbb1", "bbbb2"}},
-			{`var _ c = xxxx()`, []string{"***xxxxd", "**xxxxe", "xxxxc"}},
-			{`var _ d = xxxx()`, []string{"***xxxxe", "*xxxxc", "xxxxd"}},
-			{`var _ e = xxxx()`, []string{"**xxxxc", "*xxxxd", "xxxxe"}},
+			{`var _ c = xxxx()`, []string{"xxxxc", "xxxxd", "xxxxe"}},
+			{`var _ d = xxxx()`, []string{"xxxxc", "xxxxd", "xxxxe"}},
+			{`var _ e = xxxx()`, []string{"xxxxc", "xxxxd", "xxxxe"}},
 		}
 		for _, tt := range tests {
 			completions := env.Completion("main.go", env.RegexpSearch("main.go", tt.re))

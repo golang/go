@@ -32,8 +32,7 @@ func _() {
 	b.b = append(b.b, b) //@rank(")", appendBazzy, appendBazLiteral, appendNestedBaz)
 
 	var aStringsPtr *[]string  //@item(appendStringsPtr, "aStringsPtr", "*[]string", "var")
-	"*aStringsPtr"             //@item(appendStringsDeref, "*aStringsPtr", "*[]string", "var")
-	foo(append([]string{}, a)) //@snippet("))", appendStringsDeref, "*aStringsPtr...", "*aStringsPtr...")
+	foo(append([]string{}, a)) //@snippet("))", appendStringsPtr, "*aStringsPtr...", "*aStringsPtr...")
 
 	foo(append([]string{}, *a)) //@snippet("))", appendStringsPtr, "aStringsPtr...", "aStringsPtr...")
 }

@@ -11,8 +11,8 @@ func _() {
 	// comparable
 	type aStruct struct{} //@item(mapStructType, "aStruct", "struct{...}", "struct")
 
-	map[]a{} //@complete("]", mapSliceTypePtr, mapStructType)
+	map[]a{} //@complete("]", mapSliceType, mapStructType),snippet("]", mapSliceType, "*aSlice", "*aSlice")
 
-	map[a]a{} //@complete("]", mapSliceTypePtr, mapStructType)
+	map[a]a{} //@complete("]", mapSliceType, mapStructType)
 	map[a]a{} //@complete("{", mapSliceType, mapStructType)
 }

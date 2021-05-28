@@ -13,14 +13,12 @@ func (*abcPtrImpl) abc()
 type abcNotImpl struct{} //@item(abcNotImpl, "abcNotImpl", "struct{...}", "struct")
 
 func _() {
-	*abcPtrImpl //@item(abcPtrImplPtr, "*abcPtrImpl", "struct{...}", "struct")
-
 	var a abc
 	switch a.(type) {
-	case ab: //@complete(":", abcPtrImplPtr, abcImpl, abcIntf, abcNotImpl)
+	case ab: //@complete(":", abcImpl, abcPtrImpl, abcIntf, abcNotImpl)
 	case *ab: //@complete(":", abcImpl, abcPtrImpl, abcIntf, abcNotImpl)
 	}
 
-	a.(ab)  //@complete(")", abcPtrImplPtr, abcImpl, abcIntf, abcNotImpl)
+	a.(ab)  //@complete(")", abcImpl, abcPtrImpl, abcIntf, abcNotImpl)
 	a.(*ab) //@complete(")", abcImpl, abcPtrImpl, abcIntf, abcNotImpl)
 }

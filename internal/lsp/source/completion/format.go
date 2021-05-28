@@ -46,20 +46,14 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		detail        = types.TypeString(obj.Type(), c.qf)
 		insert        = label
 		kind          = protocol.TextCompletion
-		snip          *snippet.Builder
+		snip          snippet.Builder
 		protocolEdits []protocol.TextEdit
 	)
 	if obj.Type() == nil {
 		detail = ""
 	}
 
-	// expandFuncCall mutates the completion label, detail, and snippet
-	// to that of an invocation of sig.
-	expandFuncCall := func(sig *types.Signature) {
-		s := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf)
-		snip = c.functionCallSnippet(label, s.Params())
-		detail = "func" + s.Format()
-	}
+	snip.WriteText(insert)
 
 	switch obj := obj.(type) {
 	case *types.TypeName:
@@ -74,16 +68,12 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
-			snip = c.structFieldSnippet(cand, label, detail)
+			c.structFieldSnippet(cand, detail, &snip)
 		} else {
 			kind = protocol.VariableCompletion
 		}
 		if obj.Type() == nil {
 			break
-		}
-
-		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && cand.expandFuncCall {
-			expandFuncCall(sig)
 		}
 	case *types.Func:
 		sig, ok := obj.Type().Underlying().(*types.Signature)
@@ -94,16 +84,55 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if sig != nil && sig.Recv() != nil {
 			kind = protocol.MethodCompletion
 		}
-
-		if cand.expandFuncCall {
-			expandFuncCall(sig)
-		}
 	case *types.PkgName:
 		kind = protocol.ModuleCompletion
 		detail = fmt.Sprintf("%q", obj.Imported().Path())
 	case *types.Label:
 		kind = protocol.ConstantCompletion
 		detail = "label"
+	}
+
+	var prefix string
+	for _, mod := range cand.mods {
+		switch mod {
+		case reference:
+			prefix = "&" + prefix
+		case dereference:
+			prefix = "*" + prefix
+		case chanRead:
+			prefix = "<-" + prefix
+		}
+	}
+
+	var (
+		suffix   string
+		funcType = obj.Type()
+	)
+Suffixes:
+	for _, mod := range cand.mods {
+		switch mod {
+		case invoke:
+			if sig, ok := funcType.Underlying().(*types.Signature); ok {
+				s := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf)
+				c.functionCallSnippet("", s.Params(), &snip)
+				if sig.Results().Len() == 1 {
+					funcType = sig.Results().At(0).Type()
+				}
+				detail = "func" + s.Format()
+			}
+
+			if !c.opts.snippets {
+				// Without snippets the candidate will not include "()". Don't
+				// add further suffixes since they will be invalid. For
+				// example, with snippets "foo()..." would become "foo..."
+				// without snippets if we added the dotDotDot.
+				break Suffixes
+			}
+		case takeSlice:
+			suffix += "[:]"
+		case takeDotDotDot:
+			suffix += "..."
+		}
 	}
 
 	// If this candidate needs an additional import statement,
@@ -123,20 +152,6 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		}
 	}
 
-	var prefix, suffix string
-
-	// Prepend "&" or "*" operator as appropriate.
-	if cand.takeAddress {
-		prefix = "&"
-	} else if cand.makePointer {
-		prefix = "*"
-	} else if cand.dereference > 0 {
-		prefix = strings.Repeat("*", cand.dereference)
-	}
-
-	// Include "*" and "&" prefixes in the label.
-	label = prefix + label
-
 	if cand.convertTo != nil {
 		typeName := types.TypeString(cand.convertTo, c.qf)
 
@@ -151,15 +166,6 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		suffix = ")"
 	}
 
-	if cand.takeSlice {
-		suffix += "[:]"
-	}
-
-	// Add variadic "..." only if snippets if enabled or cand is not a function
-	if cand.variadic && (c.opts.snippets || !cand.expandFuncCall) {
-		suffix += "..."
-	}
-
 	if prefix != "" {
 		// If we are in a selector, add an edit to place prefix before selector.
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
@@ -171,17 +177,13 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		} else {
 			// If there is no selector, just stick the prefix at the start.
 			insert = prefix + insert
-			if snip != nil {
-				snip.PrependText(prefix)
-			}
+			snip.PrependText(prefix)
 		}
 	}
 
 	if suffix != "" {
 		insert += suffix
-		if snip != nil {
-			snip.WriteText(suffix)
-		}
+		snip.WriteText(suffix)
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")
@@ -197,7 +199,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		Kind:                kind,
 		Score:               cand.score,
 		Depth:               len(cand.path),
-		snippet:             snip,
+		snippet:             &snip,
 		obj:                 obj,
 	}
 	// If the user doesn't want documentation for completion items.
@@ -282,7 +284,8 @@ func (c *completer) formatBuiltin(ctx context.Context, cand candidate) (Completi
 			return CompletionItem{}, err
 		}
 		item.Detail = "func" + sig.Format()
-		item.snippet = c.functionCallSnippet(obj.Name(), sig.Params())
+		item.snippet = &snippet.Builder{}
+		c.functionCallSnippet(obj.Name(), sig.Params(), item.snippet)
 	case *types.TypeName:
 		if types.IsInterface(obj.Type()) {
 			item.Kind = protocol.InterfaceCompletion

@@ -11,29 +11,27 @@ import (
 )
 
 // structFieldSnippets calculates the snippet for struct literal field names.
-func (c *completer) structFieldSnippet(cand candidate, label, detail string) *snippet.Builder {
+func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snippet.Builder) {
 	if !c.wantStructFieldCompletions() {
-		return nil
+		return
 	}
 
 	// If we are in a deep completion then we can't be completing a field
 	// name (e.g. "Foo{f<>}" completing to "Foo{f.Bar}" should not generate
 	// a snippet).
 	if len(cand.path) > 0 {
-		return nil
+		return
 	}
 
 	clInfo := c.enclosingCompositeLiteral
 
 	// If we are already in a key-value expression, we don't want a snippet.
 	if clInfo.kv != nil {
-		return nil
+		return
 	}
 
-	snip := &snippet.Builder{}
-
 	// A plain snippet turns "Foo{Ba<>" into "Foo{Bar: <>".
-	snip.WriteText(label + ": ")
+	snip.WriteText(": ")
 	snip.WritePlaceholder(func(b *snippet.Builder) {
 		// A placeholder snippet turns "Foo{Ba<>" into "Foo{Bar: <*int*>".
 		if c.opts.placeholders {
@@ -48,12 +46,10 @@ func (c *completer) structFieldSnippet(cand candidate, label, detail string) *sn
 	if fset.Position(c.pos).Line != fset.Position(clInfo.cl.Lbrace).Line {
 		snip.WriteText(",")
 	}
-
-	return snip
 }
 
 // functionCallSnippets calculates the snippet for function calls.
-func (c *completer) functionCallSnippet(name string, params []string) *snippet.Builder {
+func (c *completer) functionCallSnippet(name string, params []string, snip *snippet.Builder) {
 	// If there is no suffix then we need to reuse existing call parens
 	// "()" if present. If there is an identifier suffix then we always
 	// need to include "()" since we don't overwrite the suffix.
@@ -66,17 +62,17 @@ func (c *completer) functionCallSnippet(name string, params []string) *snippet.B
 			// inserted when fixing the AST. In this case, we do still need
 			// to insert the calling "()" parens.
 			if n.Fun == c.path[0] && n.Lparen != n.Rparen {
-				return nil
+				return
 			}
 		case *ast.SelectorExpr:
 			if len(c.path) > 2 {
 				if call, ok := c.path[2].(*ast.CallExpr); ok && call.Fun == c.path[1] && call.Lparen != call.Rparen {
-					return nil
+					return
 				}
 			}
 		}
 	}
-	snip := &snippet.Builder{}
+
 	snip.WriteText(name + "(")
 
 	if c.opts.placeholders {
@@ -97,6 +93,4 @@ func (c *completer) functionCallSnippet(name string, params []string) *snippet.B
 	}
 
 	snip.WriteText(")")
-
-	return snip
 }

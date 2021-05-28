@@ -370,30 +370,13 @@ type candidate struct {
 	// expanded calls for function invocations.
 	names []string
 
-	// expandFuncCall is true if obj should be invoked in the completion.
-	// For example, expandFuncCall=true yields "foo()", expandFuncCall=false yields "foo".
-	expandFuncCall bool
-
-	// takeAddress is true if the completion should take a pointer to obj.
-	// For example, takeAddress=true yields "&foo", takeAddress=false yields "foo".
-	takeAddress bool
+	// mods contains modifications that should be applied to the
+	// candidate when inserted. For example, "foo" may be insterted as
+	// "*foo" or "foo()".
+	mods []typeModKind
 
 	// addressable is true if a pointer can be taken to the candidate.
 	addressable bool
-
-	// makePointer is true if the candidate type name T should be made into *T.
-	makePointer bool
-
-	// dereference is a count of how many times to dereference the candidate obj.
-	// For example, dereference=2 turns "foo" into "**foo" when formatting.
-	dereference int
-
-	// takeSlice is true if obj is an array that should be converted to a slice.
-	takeSlice bool
-
-	// variadic is true if this candidate fills a variadic param and
-	// needs "..." appended.
-	variadic bool
 
 	// convertTo is a type that this candidate should be cast to. For
 	// example, if convertTo is float64, "foo" should be formatted as
@@ -403,6 +386,15 @@ type candidate struct {
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
+}
+
+func (c candidate) hasMod(mod typeModKind) bool {
+	for _, m := range c.mods {
+		if m == mod {
+			return true
+		}
+	}
+	return false
 }
 
 // ErrIsDefinition is an error that informs the user they got no
@@ -1768,20 +1760,23 @@ func (c *completer) expectedCompositeLiteralType() types.Type {
 	return nil
 }
 
-// typeModifier represents an operator that changes the expected type.
-type typeModifier struct {
-	mod      typeMod
+// typeMod represents an operator that changes the expected type.
+type typeMod struct {
+	mod      typeModKind
 	arrayLen int64
 }
 
-type typeMod int
+type typeModKind int
 
 const (
-	dereference typeMod = iota // pointer indirection: "*"
-	reference                  // adds level of pointer: "&" for values, "*" for type names
-	chanRead                   // channel read operator ("<-")
-	slice                      // make a slice type ("[]" in "[]int")
-	array                      // make an array type ("[2]" in "[2]int")
+	dereference   typeModKind = iota // pointer indirection: "*"
+	reference                        // adds level of pointer: "&" for values, "*" for type names
+	chanRead                         // channel read operator: "<-"
+	sliceType                        // make a slice type: "[]" in "[]int"
+	arrayType                        // make an array type: "[2]" in "[2]int"
+	invoke                           // make a function call: "()" in "foo()"
+	takeSlice                        // take slice of array: "[:]" in "foo[:]"
+	takeDotDotDot                    // turn slice into variadic args: "..." in "foo..."
 )
 
 type objKind int
@@ -1832,7 +1827,7 @@ type candidateInference struct {
 
 	// modifiers are prefixes such as "*", "&" or "<-" that influence how
 	// a candidate type relates to the expected type.
-	modifiers []typeModifier
+	modifiers []typeMod
 
 	// convertibleTo is a type our candidate type must be convertible to.
 	convertibleTo types.Type
@@ -1882,7 +1877,7 @@ type typeNameInference struct {
 
 	// modifiers are prefixes such as "*", "&" or "<-" that influence how
 	// a candidate type relates to the expected type.
-	modifiers []typeModifier
+	modifiers []typeMod
 
 	// assertableFrom is a type that must be assertable to our candidate type.
 	assertableFrom types.Type
@@ -2108,13 +2103,13 @@ Nodes:
 			}
 			return inf
 		case *ast.StarExpr:
-			inf.modifiers = append(inf.modifiers, typeModifier{mod: dereference})
+			inf.modifiers = append(inf.modifiers, typeMod{mod: dereference})
 		case *ast.UnaryExpr:
 			switch node.Op {
 			case token.AND:
-				inf.modifiers = append(inf.modifiers, typeModifier{mod: reference})
+				inf.modifiers = append(inf.modifiers, typeMod{mod: reference})
 			case token.ARROW:
-				inf.modifiers = append(inf.modifiers, typeModifier{mod: chanRead})
+				inf.modifiers = append(inf.modifiers, typeMod{mod: chanRead})
 			}
 		case *ast.DeferStmt, *ast.GoStmt:
 			inf.objKind |= kindFunc
@@ -2209,9 +2204,9 @@ func (ci candidateInference) applyTypeNameModifiers(typ types.Type) types.Type {
 		switch mod.mod {
 		case reference:
 			typ = types.NewPointer(typ)
-		case array:
+		case arrayType:
 			typ = types.NewArray(typ, mod.arrayLen)
-		case slice:
+		case sliceType:
 			typ = types.NewSlice(typ)
 		}
 	}
@@ -2325,7 +2320,7 @@ Nodes:
 			}
 			return typeNameInference{}
 		case *ast.StarExpr:
-			inf.modifiers = append(inf.modifiers, typeModifier{mod: reference})
+			inf.modifiers = append(inf.modifiers, typeMod{mod: reference})
 		case *ast.CompositeLit:
 			// We want a type name if position is in the "Type" part of a
 			// composite literal (e.g. "Foo<>{}").
@@ -2338,7 +2333,7 @@ Nodes:
 					// the composite literal and not the type name, but if
 					// affects our type completion nonetheless.
 					if u, ok := c.path[i+1].(*ast.UnaryExpr); ok && u.Op == token.AND {
-						inf.modifiers = append(inf.modifiers, typeModifier{mod: reference})
+						inf.modifiers = append(inf.modifiers, typeMod{mod: reference})
 					}
 				}
 			}
@@ -2349,13 +2344,13 @@ Nodes:
 				inf.wantTypeName = true
 				if n.Len == nil {
 					// No "Len" expression means a slice type.
-					inf.modifiers = append(inf.modifiers, typeModifier{mod: slice})
+					inf.modifiers = append(inf.modifiers, typeMod{mod: sliceType})
 				} else {
 					// Try to get the array type using the constant value of "Len".
 					tv, ok := c.pkg.GetTypesInfo().Types[n.Len]
 					if ok && tv.Value != nil && tv.Value.Kind() == constant.Int {
 						if arrayLen, ok := constant.Int64Val(tv.Value); ok {
-							inf.modifiers = append(inf.modifiers, typeModifier{mod: array, arrayLen: arrayLen})
+							inf.modifiers = append(inf.modifiers, typeMod{mod: arrayType, arrayLen: arrayLen})
 						}
 					}
 				}
@@ -2417,7 +2412,7 @@ func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) boo
 	if sig, ok := objType.Underlying().(*types.Signature); ok {
 		if sig.Results().Len() == 1 && f(sig.Results().At(0).Type(), false) {
 			// Mark the candidate so we know to append "()" when formatting.
-			c.expandFuncCall = true
+			c.mods = append(c.mods, invoke)
 			return true
 		}
 	}
@@ -2454,8 +2449,10 @@ func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) boo
 		}
 
 		if f(ptr.Elem(), false) {
-			// Mark the candidate so we know to prepend "*" when formatting.
-			c.dereference = ptrDepth
+			for i := 0; i < ptrDepth; i++ {
+				// Mark the candidate so we know to prepend "*" when formatting.
+				c.mods = append(c.mods, dereference)
+			}
 			return true
 		}
 
@@ -2465,13 +2462,13 @@ func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) boo
 	// Check if c is addressable and a pointer to c matches our type inference.
 	if c.addressable && f(types.NewPointer(objType), false) {
 		// Mark the candidate so we know to prepend "&" when formatting.
-		c.takeAddress = true
+		c.mods = append(c.mods, reference)
 		return true
 	}
 
 	if array, ok := objType.Underlying().(*types.Array); ok {
 		if f(types.NewSlice(array.Elem()), false) {
-			c.takeSlice = true
+			c.mods = append(c.mods, takeSlice)
 			return true
 		}
 	}
@@ -2510,7 +2507,7 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	if sig, ok := candType.Underlying().(*types.Signature); ok {
 		if c.inference.assigneesMatch(cand, sig) {
 			// Invoke the candidate if its results are multi-assignable.
-			cand.expandFuncCall = true
+			cand.mods = append(cand.mods, invoke)
 			return true
 		}
 	}
@@ -2518,7 +2515,9 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	// Default to invoking *types.Func candidates. This is so function
 	// completions in an empty statement (or other cases with no expected type)
 	// are invoked by default.
-	cand.expandFuncCall = isFunc(cand.obj)
+	if isFunc(cand.obj) {
+		cand.mods = append(cand.mods, invoke)
+	}
 
 	return false
 }
@@ -2572,7 +2571,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			}
 
 			if expType == variadicType {
-				cand.variadic = true
+				cand.mods = append(cand.mods, takeDotDotDot)
 			}
 
 			// Lower candidate score for untyped conversions. This avoids
@@ -2611,7 +2610,7 @@ func (ci *candidateInference) candTypeMatches(cand *candidate) bool {
 			// matches.
 			if ci.kindMatches(candType) {
 				if ci.objKind == kindFunc {
-					cand.expandFuncCall = true
+					cand.mods = append(cand.mods, invoke)
 				}
 				return true
 			}
@@ -2814,11 +2813,11 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		if c.inference.typeName.compLitType {
 			// If we are completing a composite literal type as in
 			// "foo<>{}", to make a pointer we must prepend "&".
-			cand.takeAddress = true
+			cand.mods = append(cand.mods, reference)
 		} else {
 			// If we are completing a normal type name such as "foo<>", to
 			// make a pointer we must prepend "*".
-			cand.makePointer = true
+			cand.mods = append(cand.mods, dereference)
 		}
 		return true
 	}

@@ -73,14 +73,12 @@ func _() {
 func _() {
 	type foo struct{} //@item(complitFoo, "foo", "struct{...}", "struct")
 
-	"&foo" //@item(complitAndFoo, "&foo", "struct{...}", "struct")
-
-	var _ *foo = &fo{} //@rank("{", complitFoo)
-	var _ *foo = fo{} //@rank("{", complitAndFoo)
+	var _ *foo = &fo{} //@snippet("{", complitFoo, "foo", "foo")
+	var _ *foo = fo{} //@snippet("{", complitFoo, "&foo", "&foo")
 
 	struct { a, b *foo }{
 		a: &fo{}, //@rank("{", complitFoo)
-		b: fo{}, //@rank("{", complitAndFoo)
+		b: fo{}, //@snippet("{", complitFoo, "&foo", "&foo")
 	}
 }
 

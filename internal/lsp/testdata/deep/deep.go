@@ -34,8 +34,8 @@ func _() {
 		*deepCircle
 	}
 	var circle deepCircle   //@item(deepCircle, "circle", "deepCircle", "var")
-	*circle.deepCircle      //@item(deepCircleField, "*circle.deepCircle", "*deepCircle", "field")
-	var _ deepCircle = circ //@deep(" //", deepCircle, deepCircleField)
+	circle.deepCircle       //@item(deepCircleField, "circle.deepCircle", "*deepCircle", "field")
+	var _ deepCircle = circ //@deep(" //", deepCircle, deepCircleField),snippet(" //", deepCircleField, "*circle.deepCircle", "*circle.deepCircle")
 }
 
 func _() {

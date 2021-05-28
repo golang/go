@@ -46,8 +46,7 @@ func _() {
 
 	var _ time.Duration = conv //@rank(" //", convertD, convertE),snippet(" //", convertE, "time.Duration(convE)", "time.Duration(convE)")
 
-	var convP myInt
-	&convP            //@item(convertP, "&convP", "myInt", "var")
+	var convP myInt   //@item(convertP, "convP", "myInt", "var")
 	var _ *int = conv //@snippet(" //", convertP, "(*int)(&convP)", "(*int)(&convP)")
 
 	var ff float64 //@item(convertFloat, "ff", "float64", "var")

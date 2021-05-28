@@ -249,7 +249,7 @@ func (c *completer) addCandidate(ctx context.Context, cand *candidate) {
 	}
 
 	// Lower score of method calls so we prefer fields and vars over calls.
-	if cand.expandFuncCall {
+	if cand.hasMod(invoke) {
 		if sig, ok := obj.Type().Underlying().(*types.Signature); ok && sig.Recv() != nil {
 			cand.score *= 0.9
 		}
