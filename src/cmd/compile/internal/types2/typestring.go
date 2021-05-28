@@ -158,6 +158,10 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		writeSignature(buf, t, qf, visited)
 
 	case *Union:
+		if t.IsEmpty() {
+			buf.WriteString("⊥")
+			break
+		}
 		for i, e := range t.types {
 			if i > 0 {
 				buf.WriteString("|")
@@ -293,9 +297,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteByte('[')
 		writeTypeList(buf, t.targs, qf, visited)
 		buf.WriteByte(']')
-
-	case *bottom:
-		buf.WriteString("⊥")
 
 	case *top:
 		buf.WriteString("⊤")

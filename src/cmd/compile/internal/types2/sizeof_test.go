@@ -34,7 +34,6 @@ func TestSizeof(t *testing.T) {
 		{Named{}, 68, 136},
 		{TypeParam{}, 28, 48},
 		{instance{}, 52, 96},
-		{bottom{}, 0, 0},
 		{top{}, 0, 0},
 
 		// Objects
