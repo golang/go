@@ -73,6 +73,9 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 			// Infer first append() arg type as apparent return type of
 			// append().
 			inf.objType = parentInf.objType
+			if parentInf.variadic {
+				inf.objType = types.NewSlice(inf.objType)
+			}
 			break
 		}
 

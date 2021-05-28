@@ -132,6 +132,10 @@ Suffixes:
 			suffix += "[:]"
 		case takeDotDotDot:
 			suffix += "..."
+		case index:
+			snip.WriteText("[")
+			snip.WritePlaceholder(nil)
+			snip.WriteText("]")
 		}
 	}
 

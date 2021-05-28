@@ -260,6 +260,12 @@ func (c *completer) addCandidate(ctx context.Context, cand *candidate) {
 		cand.score *= 1.1
 	}
 
+	// Slight penalty for index modifier (e.g. changing "foo" to
+	// "foo[]") to curb false positives.
+	if cand.hasMod(index) {
+		cand.score *= 0.9
+	}
+
 	// Favor shallow matches by lowering score according to depth.
 	cand.score -= cand.score * c.deepState.scorePenalty(cand)
 

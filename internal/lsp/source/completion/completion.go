@@ -1777,6 +1777,7 @@ const (
 	invoke                           // make a function call: "()" in "foo()"
 	takeSlice                        // take slice of array: "[:]" in "foo[:]"
 	takeDotDotDot                    // turn slice into variadic args: "..." in "foo..."
+	index                            // index into slice/array: "[0]" in "foo[0]"
 )
 
 type objKind int
@@ -2404,12 +2405,27 @@ func derivableTypes(t types.Type, addressable bool, f func(t types.Type, address
 			return true
 		}
 	case *types.Array:
+		if f(t.Elem(), true, index) {
+			return true
+		}
 		// Try converting array to slice.
 		if f(types.NewSlice(t.Elem()), false, takeSlice) {
 			return true
 		}
 	case *types.Pointer:
 		if f(t.Elem(), false, dereference) {
+			return true
+		}
+	case *types.Slice:
+		if f(t.Elem(), true, index) {
+			return true
+		}
+	case *types.Map:
+		if f(t.Elem(), false, index) {
+			return true
+		}
+	case *types.Chan:
+		if f(t.Elem(), false, chanRead) {
 			return true
 		}
 	}
