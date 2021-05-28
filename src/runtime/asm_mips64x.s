@@ -426,6 +426,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
 	MOVV	g_m(g), R5
+	MOVV	m_gsignal(R5), R6
+	BEQ	R6, g, g0
 	MOVV	m_g0(R5), R6
 	BEQ	R6, g, g0
 
