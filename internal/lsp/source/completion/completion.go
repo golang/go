@@ -2394,86 +2394,67 @@ func (c *completer) fakeObj(T types.Type) *types.Var {
 	return types.NewVar(token.NoPos, c.pkg.GetTypes(), "", T)
 }
 
+// derivableTypes iterates types you can derive from t. For example,
+// from "foo" we might derive "&foo", and "foo()".
+func derivableTypes(t types.Type, addressable bool, f func(t types.Type, addressable bool, mod typeModKind) bool) bool {
+	switch t := t.Underlying().(type) {
+	case *types.Signature:
+		// If t is a func type with a single result, offer the result type.
+		if t.Results().Len() == 1 && f(t.Results().At(0).Type(), false, invoke) {
+			return true
+		}
+	case *types.Array:
+		// Try converting array to slice.
+		if f(types.NewSlice(t.Elem()), false, takeSlice) {
+			return true
+		}
+	case *types.Pointer:
+		if f(t.Elem(), false, dereference) {
+			return true
+		}
+	}
+
+	// Check if c is addressable and a pointer to c matches our type inference.
+	if addressable && f(types.NewPointer(t), false, reference) {
+		return true
+	}
+
+	return false
+}
+
 // anyCandType reports whether f returns true for any candidate type
-// derivable from c. For example, from "foo" we might derive "&foo",
-// and "foo()".
+// derivable from c. It searches up to three levels of type
+// modification. For example, given "foo" we could discover "***foo"
+// or "*foo()".
 func (c *candidate) anyCandType(f func(t types.Type, addressable bool) bool) bool {
 	if c.obj == nil || c.obj.Type() == nil {
 		return false
 	}
 
-	objType := c.obj.Type()
+	const maxDepth = 3
 
-	if f(objType, c.addressable) {
-		return true
-	}
-
-	// If c is a func type with a single result, offer the result type.
-	if sig, ok := objType.Underlying().(*types.Signature); ok {
-		if sig.Results().Len() == 1 && f(sig.Results().At(0).Type(), false) {
-			// Mark the candidate so we know to append "()" when formatting.
-			c.mods = append(c.mods, invoke)
-			return true
-		}
-	}
-
-	var (
-		seenPtrTypes map[types.Type]bool
-		ptrType      = objType
-		ptrDepth     int
-	)
-
-	// Check if dereferencing c would match our type inference. We loop
-	// since c could have arbitrary levels of pointerness.
-	for {
-		ptr, ok := ptrType.Underlying().(*types.Pointer)
-		if !ok {
-			break
-		}
-
-		ptrDepth++
-
-		// Avoid pointer type cycles.
-		if seenPtrTypes[ptrType] {
-			break
-		}
-
-		if _, named := ptrType.(*types.Named); named {
-			// Lazily allocate "seen" since it isn't used normally.
-			if seenPtrTypes == nil {
-				seenPtrTypes = make(map[types.Type]bool)
-			}
-
-			// Track named pointer types we have seen to detect cycles.
-			seenPtrTypes[ptrType] = true
-		}
-
-		if f(ptr.Elem(), false) {
-			for i := 0; i < ptrDepth; i++ {
-				// Mark the candidate so we know to prepend "*" when formatting.
-				c.mods = append(c.mods, dereference)
+	var searchTypes func(t types.Type, addressable bool, mods []typeModKind) bool
+	searchTypes = func(t types.Type, addressable bool, mods []typeModKind) bool {
+		if f(t, addressable) {
+			if len(mods) > 0 {
+				newMods := make([]typeModKind, len(mods)+len(c.mods))
+				copy(newMods, mods)
+				copy(newMods[len(mods):], c.mods)
+				c.mods = newMods
 			}
 			return true
 		}
 
-		ptrType = ptr.Elem()
-	}
-
-	// Check if c is addressable and a pointer to c matches our type inference.
-	if c.addressable && f(types.NewPointer(objType), false) {
-		// Mark the candidate so we know to prepend "&" when formatting.
-		c.mods = append(c.mods, reference)
-		return true
-	}
-
-	if array, ok := objType.Underlying().(*types.Array); ok {
-		if f(types.NewSlice(array.Elem()), false) {
-			c.mods = append(c.mods, takeSlice)
-			return true
+		if len(mods) == maxDepth {
+			return false
 		}
+
+		return derivableTypes(t, addressable, func(t types.Type, addressable bool, mod typeModKind) bool {
+			return searchTypes(t, addressable, append(mods, mod))
+		})
 	}
 
-	return false
+	return searchTypes(c.obj.Type(), c.addressable, make([]typeModKind, 0, maxDepth))
 }
 
 // matchingCandidate reports whether cand matches our type inferences.
