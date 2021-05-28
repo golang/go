@@ -1318,11 +1318,11 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	}
 
 	// stack objects.
-	if GOARCH == "amd64" && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
+	if (GOARCH == "amd64" || GOARCH == "arm64") && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
 		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
 		// We don't actually use argmap in this case, but we need to fake the stack object
-		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset
-		// on amd64.
+		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
+		// This offset matches the assembly code on amd64 and arm64.
 		objs = methodValueCallFrameObjs
 	} else {
 		p := funcdata(f, _FUNCDATA_StackObjects)
