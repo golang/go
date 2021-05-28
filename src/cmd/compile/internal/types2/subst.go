@@ -194,14 +194,15 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 			check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 			return false
 		}
-		for _, t := range unpack(targBound.allTypes) {
-			if !iface.isSatisfiedBy(t) {
+		return iface.is(func(typ Type, tilde bool) bool {
+			// TODO(gri) incorporate tilde information!
+			if !iface.isSatisfiedBy(typ) {
 				// TODO(gri) match this error message with the one below (or vice versa)
-				check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
+				check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.allTypes)
 				return false
 			}
-		}
-		return false
+			return true
+		})
 	}
 
 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
