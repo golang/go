@@ -522,7 +522,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
-	u := n0.underlying
+	u := n0.Underlying()
 
 	if u == Typ[Invalid] {
 		return u
@@ -560,7 +560,7 @@ func (n0 *Named) under() Type {
 	seen := map[*Named]int{n0: 0}
 	path := []Object{n0.obj}
 	for {
-		u = n.underlying
+		u = n.Underlying()
 		if u == nil {
 			u = Typ[Invalid]
 			break
@@ -764,7 +764,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
-		if t, _ := base.underlying.(*Struct); t != nil {
+		if t, _ := base.Underlying().(*Struct); t != nil {
 			for _, fld := range t.fields {
 				if fld.name != "_" {
 					assert(mset.insert(fld) == nil)
@@ -806,6 +806,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		}
 
 		if base != nil {
+			base.expand() // TODO(mdempsky): Probably unnecessary.
 			base.methods = append(base.methods, m)
 		}
 	}
