@@ -2023,8 +2023,6 @@ func overlayDir(dstRoot, srcRoot string) error {
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
 var excludedFiles = map[string]bool{
-	"complit1.go":     true, // types2 reports extra errors
-	"ddd1.go":         true, // issue #42987
 	"directive.go":    true, // misplaced compiler directive checks
 	"float_lit3.go":   true, // types2 reports extra errors
 	"import1.go":      true, // types2 reports extra errors

@@ -17,8 +17,8 @@ var (
 	_ = sum(1, 2, 3)
 	_ = sum()
 	_ = sum(1.0, 2.0)
-	_ = sum(1.5)      // ERROR "integer"
-	_ = sum("hello")  // ERROR ".hello. .type untyped string. as type int|incompatible"
+	_ = sum(1.5)      // ERROR "1\.5 .untyped float constant. as int|integer"
+	_ = sum("hello")  // ERROR ".hello. (.untyped string constant. as int|.type untyped string. as type int)|incompatible"
 	_ = sum([]int{1}) // ERROR "\[\]int{...}.*as type int|incompatible"
 )
 
@@ -27,9 +27,9 @@ func tuple() (int, int, int) { return 1, 2, 3 }
 
 var (
 	_ = sum(tuple())
-	_ = sum(tuple()...) // ERROR "multiple-value"
+	_ = sum(tuple()...) // ERROR "\.{3} with 3-valued|multiple-value"
 	_ = sum3(tuple())
-	_ = sum3(tuple()...) // ERROR "multiple-value" ERROR "invalid use of .*[.][.][.]"
+	_ = sum3(tuple()...) // ERROR "\.{3} in call to non-variadic|multiple-value|invalid use of .*[.][.][.]"
 )
 
 type T []T
@@ -60,5 +60,5 @@ func bad(args ...int) {
 	_ = [...]byte("foo") // ERROR "[.][.][.]"
 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
 
-	Foo(x...) // ERROR "invalid use of .*[.][.][.]"
+	Foo(x...) // ERROR "\.{3} in call to non-variadic|invalid use of .*[.][.][.]"
 }
