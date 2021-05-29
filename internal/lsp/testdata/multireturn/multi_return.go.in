@@ -37,3 +37,12 @@ func _() {
 	var variadic func(int, ...int)
 	variadic() //@rank(")", multiF1, multiF0),rank(")", multiF2, multiF0),rank(")", multiF3, multiF0)
 }
+
+func _() {
+	var baz func(...interface{})
+
+	var otterNap func() (int, int) //@item(multiTwo, "otterNap", "func() (int, int)", "var")
+	var one int                    //@item(multiOne, "one", "int", "var")
+
+	baz(on) //@rank(")", multiOne, multiTwo)
+}

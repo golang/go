@@ -2702,6 +2702,12 @@ func (ci *candidateInference) assigneesMatch(cand *candidate, sig *types.Signatu
 		return false
 	}
 
+	// Don't prefer completing into func(...interface{}) calls since all
+	// functions wouuld match.
+	if ci.variadicAssignees && len(ci.assignees) == 1 && isEmptyInterface(deslice(ci.assignees[0])) {
+		return false
+	}
+
 	var numberOfResultsCouldMatch bool
 	if ci.variadicAssignees {
 		numberOfResultsCouldMatch = sig.Results().Len() >= len(ci.assignees)-1
