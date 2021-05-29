@@ -161,7 +161,9 @@ func (p *parser) parseOctal(b []byte) int64 {
 	// spaces or NULs.
 	// So we remove leading and trailing NULs and spaces to
 	// be sure.
-	b = bytes.Trim(b, " \x00")
+	b = bytes.TrimFunc(b, func(r rune) bool {
+		return r == ' ' || r == '\x00'
+	})
 
 	if len(b) == 0 {
 		return 0
