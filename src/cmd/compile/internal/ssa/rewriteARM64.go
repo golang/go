@@ -25997,7 +25997,7 @@ func rewriteValueARM64_OpSelectN(v *Value) bool {
 			break
 		}
 		call := v_0
-		if call.Op != OpARM64CALLstatic {
+		if call.Op != OpARM64CALLstatic || len(call.Args) != 1 {
 			break
 		}
 		sym := auxToCall(call.Aux)
