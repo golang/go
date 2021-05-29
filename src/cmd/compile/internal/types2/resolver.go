@@ -308,22 +308,26 @@ func (check *Checker) collectObjects() {
 						check.dotImportMap = make(map[dotImportKey]*PkgName)
 					}
 					// merge imported scope with file scope
-					for _, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.elems {
+						// Note: Avoid eager resolve(name, obj) here, so we only
+						// resolve dot-imported objects as needed.
+
 						// A package scope may contain non-exported objects,
 						// do not import them!
-						if obj.Exported() {
+						if isExported(name) {
 							// declare dot-imported object
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
-							if alt := fileScope.Insert(obj); alt != nil {
+							if alt := fileScope.Lookup(name); alt != nil {
 								var err error_
-								err.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
+								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
 								err.recordAltDecl(alt)
 								check.report(&err)
 							} else {
-								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
+								fileScope.insert(name, obj)
+								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
 							}
 						}
 					}
@@ -469,8 +473,9 @@ func (check *Checker) collectObjects() {
 
 	// verify that objects in package and file scopes have different names
 	for _, scope := range fileScopes {
-		for _, obj := range scope.elems {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+		for name, obj := range scope.elems {
+			if alt := pkg.scope.Lookup(name); alt != nil {
+				obj = resolve(name, obj)
 				var err error_
 				if pkg, ok := obj.(*PkgName); ok {
 					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())

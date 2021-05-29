@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"sync"
 	"sync/atomic"
 )
 
@@ -497,6 +498,9 @@ type Named struct {
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+
+	resolve func(*Named) ([]*TypeName, Type, []*Func)
+	once    sync.Once
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -507,6 +511,35 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 		panic("types2.NewNamed: underlying type must not be *Named")
 	}
 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+}
+
+func (t *Named) expand() *Named {
+	if t.resolve == nil {
+		return t
+	}
+
+	t.once.Do(func() {
+		// TODO(mdempsky): Since we're passing t to resolve anyway
+		// (necessary because types2 expects the receiver type for methods
+		// on defined interface types to be the Named rather than the
+		// underlying Interface), maybe it should just handle calling
+		// SetTParams, SetUnderlying, and AddMethod instead?  Those
+		// methods would need to support reentrant calls though.  It would
+		// also make the API more future-proof towards further extensions
+		// (like SetTParams).
+
+		tparams, underlying, methods := t.resolve(t)
+
+		switch underlying.(type) {
+		case nil, *Named:
+			panic("invalid underlying type")
+		}
+
+		t.tparams = tparams
+		t.underlying = underlying
+		t.methods = methods
+	})
+	return t
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
@@ -550,10 +583,10 @@ func (t *Named) Orig() *Named { return t.orig }
 
 // TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() []*TypeName { return t.tparams }
+func (t *Named) TParams() []*TypeName { return t.expand().tparams }
 
 // SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeName) { t.tparams = tparams }
+func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
 
 // TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) TArgs() []Type { return t.targs }
@@ -562,10 +595,10 @@ func (t *Named) TArgs() []Type { return t.targs }
 func (t *Named) SetTArgs(args []Type) { t.targs = args }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
-func (t *Named) NumMethods() int { return len(t.methods) }
+func (t *Named) NumMethods() int { return len(t.expand().methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
-func (t *Named) Method(i int) *Func { return t.methods[i] }
+func (t *Named) Method(i int) *Func { return t.expand().methods[i] }
 
 // SetUnderlying sets the underlying type and marks t as complete.
 func (t *Named) SetUnderlying(underlying Type) {
@@ -575,11 +608,12 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if _, ok := underlying.(*Named); ok {
 		panic("types2.Named.SetUnderlying: underlying type must not be *Named")
 	}
-	t.underlying = underlying
+	t.expand().underlying = underlying
 }
 
 // AddMethod adds method m unless it is already in the method list.
 func (t *Named) AddMethod(m *Func) {
+	t.expand()
 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
 		t.methods = append(t.methods, m)
 	}
@@ -743,7 +777,7 @@ func (t *Signature) Underlying() Type { return t }
 func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
-func (t *Named) Underlying() Type     { return t.underlying }
+func (t *Named) Underlying() Type     { return t.expand().underlying }
 func (t *TypeParam) Underlying() Type { return t }
 func (t *instance) Underlying() Type  { return t }
 func (t *top) Underlying() Type       { return t }
