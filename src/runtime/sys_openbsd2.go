@@ -199,7 +199,9 @@ func sigaction_trampoline()
 //go:nosplit
 //go:cgo_unsafe_args
 func sigprocmask(how uint32, new *sigset, old *sigset) {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(sigprocmask_trampoline)), unsafe.Pointer(&how))
+	// sigprocmask is called from sigsave, which is called from needm.
+	// As such, we have to be able to run with no g here.
+	asmcgocall_no_g(unsafe.Pointer(abi.FuncPCABI0(sigprocmask_trampoline)), unsafe.Pointer(&how))
 }
 func sigprocmask_trampoline()
 
