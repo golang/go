@@ -818,11 +818,6 @@ func (as *asciiSet) contains(c byte) bool {
 }
 
 func makeCutsetFunc(cutset string) func(rune) bool {
-	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
-		return func(r rune) bool {
-			return r == rune(cutset[0])
-		}
-	}
 	if as, isASCII := makeASCIISet(cutset); isASCII {
 		return func(r rune) bool {
 			return r < utf8.RuneSelf && as.contains(byte(r))
@@ -837,6 +832,9 @@ func Trim(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
 	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimLeftByte(trimRightByte(s, cutset[0]), cutset[0])
+	}
 	return TrimFunc(s, makeCutsetFunc(cutset))
 }
 
@@ -848,7 +846,17 @@ func TrimLeft(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
 	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimLeftByte(s, cutset[0])
+	}
 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+}
+
+func trimLeftByte(s string, c byte) string {
+	for len(s) > 0 && s[0] == c {
+		s = s[1:]
+	}
+	return s
 }
 
 // TrimRight returns a slice of the string s, with all trailing
@@ -859,7 +867,17 @@ func TrimRight(s, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
 	}
+	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+		return trimRightByte(s, cutset[0])
+	}
 	return TrimRightFunc(s, makeCutsetFunc(cutset))
+}
+
+func trimRightByte(s string, c byte) string {
+	for len(s) > 0 && s[len(s)-1] == c {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 // TrimSpace returns a slice of the string s, with all leading
