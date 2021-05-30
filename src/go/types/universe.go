@@ -8,6 +8,7 @@ package types
 
 import (
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
 	"strings"
 )
@@ -237,7 +238,9 @@ func init() {
 	defPredeclaredConsts()
 	defPredeclaredNil()
 	defPredeclaredFuncs()
-	defPredeclaredComparable()
+	if typeparams.Enabled {
+		defPredeclaredComparable()
+	}
 
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
