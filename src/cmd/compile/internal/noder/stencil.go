@@ -350,6 +350,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				return v
 			}
 			return x
+		case ir.ONONAME:
+			// This handles the identifier in a type switch guard
+			fallthrough
 		case ir.OLITERAL, ir.ONIL:
 			if x.Sym() != nil {
 				return x
