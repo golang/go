@@ -397,6 +397,10 @@ var drawTests = []drawTest{
 		Over, color.RGBA{81, 0, 102, 255}},
 	{"genericSrcSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
 		Src, color.RGBA{0, 0, 102, 102}},
+	// The source pixel is {0, 48, 0, 90}.
+	{"rgbaVariableMaskOver", vgradGreen(255), vgradAlpha(192), Over, color.RGBA{81, 54, 0, 255}},
+	// The source pixel is {136} in Gray-space, which is {136, 136, 136, 255} in RGBA-space.
+	{"grayVariableMaskOver", vgradGray(), vgradAlpha(192), Over, color.RGBA{136, 54, 54, 255}},
 }
 
 func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {

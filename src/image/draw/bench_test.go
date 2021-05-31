@@ -266,3 +266,11 @@ func BenchmarkGenericSrc(b *testing.B) {
 func BenchmarkGenericMaskSrc(b *testing.B) {
 	bench(b, color.RGBA64Model, color.RGBA64Model, color.AlphaModel, Src)
 }
+
+func BenchmarkRGBA64Over(b *testing.B) {
+	bench(b, color.RGBAModel, color.RGBA64Model, color.AlphaModel, Over)
+}
+
+func BenchmarkGrayOver(b *testing.B) {
+	bench(b, color.RGBAModel, color.GrayModel, color.AlphaModel, Over)
+}
