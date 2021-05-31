@@ -319,31 +319,20 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
 	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] {
-		switch mode {
-		case fmtTypeID, fmtTypeIDName:
-			if verb == 'S' {
-				if t.Vargen != 0 {
-					sconv2(b, t.Sym(), 'S', mode)
-					fmt.Fprintf(b, "·%d", t.Vargen)
-					return
-				}
-				sconv2(b, t.Sym(), 'S', mode)
-				return
-			}
-
-			if mode == fmtTypeIDName {
-				sconv2(b, t.Sym(), 'v', fmtTypeIDName)
-				return
-			}
-
-			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
-				sconv2(b, t.Sym(), 'v', mode)
-				fmt.Fprintf(b, "·%d", t.Vargen)
-				return
-			}
+		// Default to 'v' if verb is invalid.
+		if verb != 'S' {
+			verb = 'v'
 		}
 
-		sconv2(b, t.Sym(), 'v', mode)
+		sconv2(b, t.Sym(), verb, mode)
+
+		// TODO(mdempsky): Investigate including Vargen in fmtTypeIDName
+		// output too. It seems like it should, but that mode is currently
+		// used in string representation used by reflection, which is
+		// user-visible and doesn't expect this.
+		if mode == fmtTypeID && t.Vargen != 0 {
+			fmt.Fprintf(b, "·%d", t.Vargen)
+		}
 		return
 	}
 
