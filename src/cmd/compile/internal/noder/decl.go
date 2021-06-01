@@ -109,6 +109,16 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 	}
 
 	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+	if fn.Type().HasTParam() && fn.Body != nil {
+		// Set pointers to the dcls/body of a generic function/method in
+		// the Inl struct, so it is marked for export, is available for
+		// stenciling, and works with Inline_Flood().
+		fn.Inl = &ir.Inline{
+			Cost: 1,
+			Dcl:  fn.Dcl,
+			Body: fn.Body,
+		}
+	}
 
 	out.Append(fn)
 }

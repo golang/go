@@ -100,25 +100,25 @@ type keyValue[K, V any] struct {
 }
 
 // iterate returns an iterator that traverses the map.
-// func (m *Map[K, V]) Iterate() *Iterator[K, V] {
-// 	sender, receiver := Ranger[keyValue[K, V]]()
-// 	var f func(*node[K, V]) bool
-// 	f = func(n *node[K, V]) bool {
-// 		if n == nil {
-// 			return true
-// 		}
-// 		// Stop the traversal if Send fails, which means that
-// 		// nothing is listening to the receiver.
-// 		return f(n.left) &&
-// 			sender.Send(context.Background(), keyValue[K, V]{n.key, n.val}) &&
-// 			f(n.right)
-// 	}
-// 	go func() {
-// 		f(m.root)
-// 		sender.Close()
-// 	}()
-// 	return &Iterator[K, V]{receiver}
-// }
+func (m *Map[K, V]) Iterate() *Iterator[K, V] {
+	sender, receiver := Ranger[keyValue[K, V]]()
+	var f func(*node[K, V]) bool
+	f = func(n *node[K, V]) bool {
+		if n == nil {
+			return true
+		}
+		// Stop the traversal if Send fails, which means that
+		// nothing is listening to the receiver.
+		return f(n.left) &&
+			sender.Send(context.Background(), keyValue[K, V]{n.key, n.val}) &&
+			f(n.right)
+	}
+	go func() {
+		f(m.root)
+		sender.Close()
+	}()
+	return &Iterator[K, V]{receiver}
+}
 
 // Iterator is used to iterate over the map.
 type Iterator[K, V any] struct {

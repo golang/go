@@ -94,15 +94,14 @@ func (p *exporter) markObject(n ir.Node) {
 // markType recursively visits types reachable from t to identify
 // functions whose inline bodies may be needed.
 func (p *exporter) markType(t *types.Type) {
+	if t.IsInstantiatedGeneric() {
+		// Re-instantiated types don't add anything new, so don't follow them.
+		return
+	}
 	if p.marked[t] {
 		return
 	}
 	p.marked[t] = true
-	if t.HasTParam() {
-		// Don't deal with any generic types or their methods, since we
-		// will only be inlining actual instantiations, not generic methods.
-		return
-	}
 
 	// If this is a named type, mark all of its associated
 	// methods. Skip interface types because t.Methods contains
@@ -159,5 +158,8 @@ func (p *exporter) markType(t *types.Type) {
 				p.markType(f.Type)
 			}
 		}
+
+	case types.TTYPEPARAM:
+		// No other type that needs to be followed.
 	}
 }

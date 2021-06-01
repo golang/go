@@ -17,8 +17,6 @@ import (
 	"go/constant"
 )
 
-// For catching problems as we add more features
-// TODO(danscales): remove assertions or replace with base.FatalfAt()
 func assert(p bool) {
 	if !p {
 		panic("assertion failed")

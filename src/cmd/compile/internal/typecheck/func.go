@@ -74,8 +74,25 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
+
+	// Make sure the .F field is in the same package as the rest of the
+	// fields. This deals with closures in instantiated functions, which are
+	// compiled as if from the source package of the generic function.
+	var pkg *types.Pkg
+	if len(clo.Func.ClosureVars) == 0 {
+		pkg = types.LocalPkg
+	} else {
+		for _, v := range clo.Func.ClosureVars {
+			if pkg == nil {
+				pkg = v.Sym().Pkg
+			} else if pkg != v.Sym().Pkg {
+				base.Fatalf("Closure variables from multiple packages")
+			}
+		}
+	}
+
 	fields := []*types.Field{
-		types.NewField(base.Pos, Lookup(".F"), types.Types[types.TUINTPTR]),
+		types.NewField(base.Pos, pkg.Lookup(".F"), types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars {
 		typ := v.Type()
