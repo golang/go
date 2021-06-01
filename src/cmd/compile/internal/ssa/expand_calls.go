@@ -1107,7 +1107,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 		}
 	}
 	var preArgStore [2]*Value
-	preArgs := append(preArgStore[:0], v.Args[0:firstArg]...)
+	preArgs := append(preArgStore[:0], v.Args[:firstArg]...)
 	v.resetArgs()
 	v.AddArgs(preArgs...)
 	v.AddArgs(newArgs...)

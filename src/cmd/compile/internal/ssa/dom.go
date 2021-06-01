@@ -77,7 +77,7 @@ func (cache *Cache) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []I
 		cache.domblockstore = scratch
 	} else {
 		// Clear as much of scratch as we will (re)use
-		scratch = scratch[0:tot]
+		scratch = scratch[:tot]
 		for i := range scratch {
 			scratch[i] = 0
 		}
