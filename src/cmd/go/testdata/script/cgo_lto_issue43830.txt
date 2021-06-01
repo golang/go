@@ -15,6 +15,7 @@ go build main.go add.go
 package main
 
 /*
+extern int myadd(int, int);
 int c_add(int a, int b) {
 	return myadd(a, b);
 }
