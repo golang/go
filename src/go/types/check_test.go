@@ -240,7 +240,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	// typecheck and collect typechecker errors
 	var conf Config
 	conf.Sizes = sizes
-	conf.GoVersion = goVersion
+	SetGoVersion(&conf, goVersion)
 
 	// special case for importC.src
 	if len(filenames) == 1 {
@@ -328,6 +328,14 @@ func TestLongConstants(t *testing.T) {
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
 	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
+}
+
+func TestIssue46453(t *testing.T) {
+	if typeparams.Enabled {
+		t.Skip("type params are enabled")
+	}
+	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
