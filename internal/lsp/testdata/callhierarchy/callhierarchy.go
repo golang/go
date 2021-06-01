@@ -30,10 +30,13 @@ func D() { //@mark(hierarchyD, "D"),incomingcalls(hierarchyD, hierarchyA, hierar
 	e()
 	x()
 	F()
-	g()
 	outgoing.B()
 	foo := func() {} //@mark(hierarchyFoo, "foo"),incomingcalls(hierarchyFoo, hierarchyD),outgoingcalls(hierarchyFoo)
 	foo()
+
+	func() {
+		g()
+	}()
 
 	var i Interface = impl{}
 	i.H()

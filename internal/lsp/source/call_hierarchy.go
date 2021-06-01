@@ -223,6 +223,10 @@ func collectCallExpressions(fset *token.FileSet, mapper *protocol.ColumnMapper, 
 				start, end = n.Sel.NamePos, call.Lparen
 			case *ast.Ident:
 				start, end = n.NamePos, call.Lparen
+			case *ast.FuncLit:
+				// while we don't add the function literal as an 'outgoing' call
+				// we still want to traverse into it
+				return true
 			default:
 				// ignore any other kind of call expressions
 				// for ex: direct function literal calls since that's not an 'outgoing' call
