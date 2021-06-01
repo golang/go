@@ -28,15 +28,16 @@ type finblock struct {
 	_       int32
 	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
-
-var finlock mutex  // protects the following variables
-var fing *g        // goroutine that runs finalizers
-var finq *finblock // list of finalizers that are to be executed
-var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
-var fingwait bool
-var fingwake bool
-var allfin *finblock // list of all blocks
+var (
+  finlock mutex  // protects the following variables
+  fing *g        // goroutine that runs finalizers
+  finq *finblock // list of finalizers that are to be executed
+  finc *finblock // cache of free blocks
+  finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
+  fingwait bool
+  fingwake bool
+  allfin *finblock // list of all blocks
+)
 
 // NOTE: Layout known to queuefinalizer.
 type finalizer struct {
