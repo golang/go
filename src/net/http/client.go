@@ -433,8 +433,7 @@ func basicAuth(username, password string) string {
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
 // error. Any returned error will be of type *url.Error. The url.Error
-// value's Timeout method will report true if request timed out or was
-// canceled.
+// value's Timeout method will report true if the request timed out.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -589,8 +588,7 @@ func urlErrorOp(method string) string {
 // standard library body types.
 //
 // Any returned error will be of type *url.Error. The url.Error
-// value's Timeout method will report true if request timed out or was
-// canceled.
+// value's Timeout method will report true if the request timed out.
 func (c *Client) Do(req *Request) (*Response, error) {
 	return c.do(req)
 }
@@ -729,7 +727,6 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}

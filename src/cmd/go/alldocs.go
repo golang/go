@@ -293,7 +293,7 @@
 //
 // Usage:
 //
-// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
+// 	go doc [doc flags] [package|[package.]symbol[.methodOrField]]
 //
 // Doc prints the documentation comments associated with the item identified by its
 // arguments (a package, const, func, type, var, method, or struct field)
