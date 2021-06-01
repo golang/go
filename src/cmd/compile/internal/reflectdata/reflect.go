@@ -949,7 +949,7 @@ func writeType(t *types.Type) *obj.LSym {
 		// in the local package, even if they may be marked as part of
 		// another package (the package of their base generic type).
 		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg &&
-			!tbase.IsInstantiated() {
+			!tbase.IsFullyInstantiated() {
 			if i := typecheck.BaseTypeIndex(t); i >= 0 {
 				lsym.Pkg = tbase.Sym().Pkg.Prefix
 				lsym.SymIdx = int32(i)
@@ -1795,7 +1795,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// instantiated methods.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
 		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg &&
-		!rcvr.Elem().IsInstantiated() {
+		!rcvr.Elem().IsFullyInstantiated() {
 		return lsym
 	}
 

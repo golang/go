@@ -311,8 +311,19 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 				f := t.Field(i)
 				s := f.Sym
-				if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
-					base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+
+				// Do the test for assigning to unexported fields.
+				// But if this is an instantiated function, then
+				// the function has already been typechecked. In
+				// that case, don't do the test, since it can fail
+				// for the closure structs created in
+				// walkClosure(), because the instantiated
+				// function is compiled as if in the source
+				// package of the generic function.
+				if !(ir.CurFunc != nil && strings.Index(ir.CurFunc.Nname.Sym().Name, "[") >= 0) {
+					if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
+						base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+					}
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = AssignConv(n1, f.Type, "field value")

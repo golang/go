@@ -41,24 +41,21 @@ func TestMap() {
 		panic(fmt.Sprintf("unexpectedly found %q", []byte("d")))
 	}
 
-	// TODO(danscales): Iterate() has some things to be fixed with inlining in
-	// stenciled functions and using closures across packages.
-
-	// gather := func(it *a.Iterator[[]byte, int]) []int {
-	// 	var r []int
-	// 	for {
-	// 		_, v, ok := it.Next()
-	// 		if !ok {
-	// 			return r
-	// 		}
-	// 		r = append(r, v)
-	// 	}
-	// }
-	// got := gather(m.Iterate())
-	// want := []int{'a', 'b', 'x'}
-	// if !a.SliceEqual(got, want) {
-	// 	panic(fmt.Sprintf("Iterate returned %v, want %v", got, want))
-	// }
+	gather := func(it *a.Iterator[[]byte, int]) []int {
+		var r []int
+		for {
+			_, v, ok := it.Next()
+			if !ok {
+				return r
+			}
+			r = append(r, v)
+		}
+	}
+	got := gather(m.Iterate())
+	want := []int{'a', 'b', 'x'}
+	if !a.SliceEqual(got, want) {
+		panic(fmt.Sprintf("Iterate returned %v, want %v", got, want))
+	}
 
 }
 

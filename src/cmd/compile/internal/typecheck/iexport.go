@@ -1332,24 +1332,9 @@ func (w *exportWriter) funcExt(n *ir.Name) {
 		}
 	}
 
-	// Inline body.
-	if n.Type().HasTParam() {
-		if n.Func.Inl != nil {
-			// n.Func.Inl may already be set on a generic function if
-			// we imported it from another package, but shouldn't be
-			// set for a generic function in the local package.
-			if n.Sym().Pkg == types.LocalPkg {
-				base.FatalfAt(n.Pos(), "generic function is marked inlineable")
-			}
-		} else {
-			// Populate n.Func.Inl, so body of exported generic function will
-			// be written out.
-			n.Func.Inl = &ir.Inline{
-				Cost: 1,
-				Dcl:  n.Func.Dcl,
-				Body: n.Func.Body,
-			}
-		}
+	// Write out inline body or body of a generic function/method.
+	if n.Type().HasTParam() && n.Func.Body != nil && n.Func.Inl == nil {
+		base.FatalfAt(n.Pos(), "generic function is not marked inlineable")
 	}
 	if n.Func.Inl != nil {
 		w.uint64(1 + uint64(n.Func.Inl.Cost))
