@@ -241,7 +241,7 @@ func importPrefix(src []byte) string {
 				// comment by scanning the content of the file.
 				startOffset := tok.Offset(c.Pos())
 				if startLine != endLine && bytes.Contains(src[startOffset:], []byte("\r")) {
-					if commentEnd := scanForCommentEnd(tok, src[startOffset:]); commentEnd > 0 {
+					if commentEnd := scanForCommentEnd(src[startOffset:]); commentEnd > 0 {
 						end = startOffset + commentEnd
 					}
 				}
@@ -257,7 +257,7 @@ func importPrefix(src []byte) string {
 
 // scanForCommentEnd returns the offset of the end of the multi-line comment
 // at the start of the given byte slice.
-func scanForCommentEnd(tok *token.File, src []byte) int {
+func scanForCommentEnd(src []byte) int {
 	var s scanner.Scanner
 	s.Init(bytes.NewReader(src))
 	s.Mode ^= scanner.SkipComments

@@ -252,11 +252,7 @@ func varType(ctx context.Context, snapshot Snapshot, pkg Package, obj *types.Var
 	if field == nil {
 		return nil, fmt.Errorf("no declaration for object %s", obj.Name())
 	}
-	typ, ok := field.Type.(ast.Expr)
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for node (%T)", field.Type)
-	}
-	return typ, nil
+	return field.Type, nil
 }
 
 // qualifyExpr applies the "pkgName." prefix to any *ast.Ident in the expr.

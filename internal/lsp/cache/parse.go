@@ -120,8 +120,7 @@ func (s *snapshot) astCacheData(ctx context.Context, spkg source.Package, pos to
 		return nil, err
 	}
 	astHandle := s.generation.Bind(astCacheKey{pkgHandle.key, pgf.URI}, func(ctx context.Context, arg memoize.Arg) interface{} {
-		snapshot := arg.(*snapshot)
-		return buildASTCache(ctx, snapshot, pgf)
+		return buildASTCache(pgf)
 	}, nil)
 
 	d, err := astHandle.Get(ctx, s.generation, s)
@@ -160,7 +159,7 @@ type astCacheData struct {
 
 // buildASTCache builds caches to aid in quickly going from the typed
 // world to the syntactic world.
-func buildASTCache(ctx context.Context, snapshot *snapshot, pgf *source.ParsedGoFile) *astCacheData {
+func buildASTCache(pgf *source.ParsedGoFile) *astCacheData {
 	var (
 		// path contains all ancestors, including n.
 		path []ast.Node
