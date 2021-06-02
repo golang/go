@@ -8,8 +8,8 @@
 package atomic
 
 import (
-	"unsafe"
 	"internal/cpu"
+	"unsafe"
 )
 
 const (
