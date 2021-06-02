@@ -339,7 +339,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	MOVD	R0, callbackArgs_result(R13)	// result
 
 	// Call cgocallback, which will call callbackWrap(frame).
-	MOVD	$·callbackWrap(SB), R0	// PC of function to call
+	MOVD	$·callbackWrap<ABIInternal>(SB), R0	// PC of function to call, cgocallback takes an ABIInternal entry-point
 	MOVD	R13, R1	// frame (&callbackArgs{...})
 	MOVD	$0, R2	// context
 	MOVD	R0, (1*8)(RSP)
