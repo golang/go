@@ -536,12 +536,14 @@ CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R0
-	CBZ	R0, noaes
+TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R10
+	CBZ	R10, noaes
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
+#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -555,18 +557,24 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V0.D[0], R0
+#else
 	VST1	[V0.D1], (R2)
+#endif
 	RET
 noaes:
-	B	runtime·memhash32Fallback(SB)
+	B	runtime·memhash32Fallback<ABIInternal>(SB)
 
 // func memhash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R0
-	CBZ	R0, noaes
+TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R10
+	CBZ	R10, noaes
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
+#endif
 	MOVD	$runtime·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
@@ -580,75 +588,89 @@ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 	AESMC	V0.B16, V0.B16
 	AESE	V2.B16, V0.B16
 
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V0.D[0], R0
+#else
 	VST1	[V0.D1], (R2)
+#endif
 	RET
 noaes:
-	B	runtime·memhash64Fallback(SB)
+	B	runtime·memhash64Fallback<ABIInternal>(SB)
 
 // func memhash(p unsafe.Pointer, h, size uintptr) uintptr
-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
-	MOVB	runtime·useAeshash(SB), R0
-	CBZ	R0, noaes
+TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	MOVB	runtime·useAeshash(SB), R10
+	CBZ	R10, noaes
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	p+0(FP), R0
-	MOVD	s+16(FP), R1
-	MOVD	h+8(FP), R3
-	MOVD	$ret+24(FP), R2
+	MOVD	h+8(FP), R1
+	MOVD	s+16(FP), R2
+	MOVD	$ret+24(FP), R8
+#endif
 	B	aeshashbody<>(SB)
 noaes:
-	B	runtime·memhashFallback(SB)
+	B	runtime·memhashFallback<ABIInternal>(SB)
 
 // func strhash(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R0
-	CBZ	R0, noaes
-	MOVD	p+0(FP), R10 // string pointer
-	LDP	(R10), (R0, R1) //string data/ length
-	MOVD	h+8(FP), R3
-	MOVD	$ret+16(FP), R2 // return adddress
+TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R10
+	CBZ	R10, noaes
+#ifdef GOEXPERIMENT_regabiargs
+	LDP	(R0), (R0, R2)	// string data / length
+#else
+	MOVD	p+0(FP), R10	// string pointer
+	LDP	(R10), (R0, R2)	// string data / length
+	MOVD	h+8(FP), R1
+	MOVD	$ret+16(FP), R8	// return adddress
+#endif
 	B	aeshashbody<>(SB)
 noaes:
-	B	runtime·strhashFallback(SB)
+	B	runtime·strhashFallback<ABIInternal>(SB)
 
 // R0: data
-// R1: length
-// R2: address to put return value
-// R3: seed data
+// R1: seed data
+// R2: length
+#ifdef GOEXPERIMENT_regabiargs
+// At return, R0 = return value
+#else
+// R8: address to put return value
+#endif
 TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
-	VMOV	R3, V30.D[0]
-	VMOV	R1, V30.D[1] // load length into seed
+	VMOV	R1, V30.D[0]
+	VMOV	R2, V30.D[1] // load length into seed
 
 	MOVD	$runtime·aeskeysched+0(SB), R4
 	VLD1.P	16(R4), [V0.B16]
 	AESE	V30.B16, V0.B16
 	AESMC	V0.B16, V0.B16
-	CMP	$16, R1
+	CMP	$16, R2
 	BLO	aes0to15
 	BEQ	aes16
-	CMP	$32, R1
+	CMP	$32, R2
 	BLS	aes17to32
-	CMP	$64, R1
+	CMP	$64, R2
 	BLS	aes33to64
-	CMP	$128, R1
+	CMP	$128, R2
 	BLS	aes65to128
 	B	aes129plus
 
 aes0to15:
-	CBZ	R1, aes0
+	CBZ	R2, aes0
 	VEOR	V2.B16, V2.B16, V2.B16
-	TBZ	$3, R1, less_than_8
+	TBZ	$3, R2, less_than_8
 	VLD1.P	8(R0), V2.D[0]
 
 less_than_8:
-	TBZ	$2, R1, less_than_4
+	TBZ	$2, R2, less_than_4
 	VLD1.P	4(R0), V2.S[2]
 
 less_than_4:
-	TBZ	$1, R1, less_than_2
+	TBZ	$1, R2, less_than_2
 	VLD1.P	2(R0), V2.H[6]
 
 less_than_2:
-	TBZ	$0, R1, done
+	TBZ	$0, R2, done
 	VLD1	(R0), V2.B[14]
 done:
 	AESE	V0.B16, V2.B16
@@ -657,11 +679,21 @@ done:
 	AESMC	V2.B16, V2.B16
 	AESE	V0.B16, V2.B16
 
-	VST1	[V2.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V2.D[0], R0
+#else
+	VST1	[V2.D1], (R8)
+#endif
 	RET
+
 aes0:
-	VST1	[V0.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V0.D[0], R0
+#else
+	VST1	[V0.D1], (R8)
+#endif
 	RET
+
 aes16:
 	VLD1	(R0), [V2.B16]
 	B	done
@@ -671,7 +703,7 @@ aes17to32:
 	VLD1	(R4), [V1.B16]
 	AESE	V30.B16, V1.B16
 	AESMC	V1.B16, V1.B16
-	SUB	$16, R1, R10
+	SUB	$16, R2, R10
 	VLD1.P	(R0)(R10), [V2.B16]
 	VLD1	(R0), [V3.B16]
 
@@ -689,7 +721,11 @@ aes17to32:
 	AESE	V1.B16, V3.B16
 
 	VEOR	V3.B16, V2.B16, V2.B16
-	VST1	[V2.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V2.D[0], R0
+#else
+	VST1	[V2.D1], (R8)
+#endif
 	RET
 
 aes33to64:
@@ -700,7 +736,7 @@ aes33to64:
 	AESMC	V2.B16, V2.B16
 	AESE	V30.B16, V3.B16
 	AESMC	V3.B16, V3.B16
-	SUB	$32, R1, R10
+	SUB	$32, R2, R10
 
 	VLD1.P	(R0)(R10), [V4.B16, V5.B16]
 	VLD1	(R0), [V6.B16, V7.B16]
@@ -732,7 +768,11 @@ aes33to64:
 	VEOR	V7.B16, V5.B16, V5.B16
 	VEOR	V5.B16, V4.B16, V4.B16
 
-	VST1	[V4.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V4.D[0], R0
+#else
+	VST1	[V4.D1], (R8)
+#endif
 	RET
 
 aes65to128:
@@ -753,7 +793,7 @@ aes65to128:
 	AESE	V30.B16, V7.B16
 	AESMC	V7.B16, V7.B16
 
-	SUB	$64, R1, R10
+	SUB	$64, R2, R10
 	VLD1.P	(R0)(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
 	VLD1	(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
 	AESE	V0.B16,	 V8.B16
@@ -807,7 +847,11 @@ aes65to128:
 	VEOR	V11.B16, V9.B16, V9.B16
 	VEOR	V9.B16, V8.B16, V8.B16
 
-	VST1	[V8.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V8.D[0], R0
+#else
+	VST1	[V8.D1], (R8)
+#endif
 	RET
 
 aes129plus:
@@ -828,12 +872,12 @@ aes129plus:
 	AESMC	V6.B16, V6.B16
 	AESE	V30.B16, V7.B16
 	AESMC	V7.B16, V7.B16
-	ADD	R0, R1, R10
+	ADD	R0, R2, R10
 	SUB	$128, R10, R10
 	VLD1.P	64(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
 	VLD1	(R10), [V12.B16, V13.B16, V14.B16, V15.B16]
-	SUB	$1, R1, R1
-	LSR	$7, R1, R1
+	SUB	$1, R2, R2
+	LSR	$7, R2, R2
 
 aesloop:
 	AESE	V8.B16,	 V0.B16
@@ -872,8 +916,8 @@ aesloop:
 	AESMC	V6.B16,  V6.B16
 	AESE	V15.B16, V7.B16
 	AESMC	V7.B16,  V7.B16
-	SUB	$1, R1, R1
-	CBNZ	R1, aesloop
+	SUB	$1, R2, R2
+	CBNZ	R2, aesloop
 
 	AESE	V8.B16,	 V0.B16
 	AESMC	V0.B16,  V0.B16
@@ -926,7 +970,11 @@ aesloop:
 	VEOR	V4.B16, V6.B16, V4.B16
 	VEOR	V4.B16, V0.B16, V0.B16
 
-	VST1	[V0.D1], (R2)
+#ifdef GOEXPERIMENT_regabiargs
+	VMOV	V0.D[0], R0
+#else
+	VST1	[V0.D1], (R8)
+#endif
 	RET
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
