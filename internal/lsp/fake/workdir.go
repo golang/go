@@ -190,6 +190,9 @@ func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	if err := os.RemoveAll(fp); err != nil {
 		return errors.Errorf("removing %q: %w", path, err)
 	}
+	w.fileMu.Lock()
+	defer w.fileMu.Unlock()
+
 	evts := []FileEvent{{
 		Path: path,
 		ProtocolEvent: protocol.FileEvent{
@@ -198,6 +201,7 @@ func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 		},
 	}}
 	w.sendEvents(ctx, evts)
+	delete(w.files, path)
 	return nil
 }
 

@@ -7,7 +7,6 @@ package diagnostics
 import (
 	"context"
 	"fmt"
-	"log"
 	"os/exec"
 	"testing"
 
@@ -147,12 +146,14 @@ const a = 3`)
 		env.Await(
 			env.DiagnosticAtRegexp("a.go", "a = 1"),
 			env.DiagnosticAtRegexp("b.go", "a = 2"),
-			env.DiagnosticAtRegexp("c.go", "a = 3"))
+			env.DiagnosticAtRegexp("c.go", "a = 3"),
+		)
 		env.CloseBuffer("c.go")
 		env.Await(
 			env.DiagnosticAtRegexp("a.go", "a = 1"),
 			env.DiagnosticAtRegexp("b.go", "a = 2"),
-			EmptyDiagnostics("c.go"))
+			EmptyDiagnostics("c.go"),
+		)
 	})
 }
 
@@ -225,7 +226,6 @@ func TestDeleteTestVariant(t *testing.T) {
 // Tests golang/go#38878: deleting a test file on disk while it's still open
 // should not clear its errors.
 func TestDeleteTestVariant_DiskOnly(t *testing.T) {
-	log.SetFlags(log.Lshortfile)
 	Run(t, test38878, func(t *testing.T, env *Env) {
 		env.OpenFile("a_test.go")
 		env.Await(DiagnosticAt("a_test.go", 5, 3))
@@ -1294,7 +1294,6 @@ package main
 func main() {}
 `
 	Run(t, dir, func(t *testing.T, env *Env) {
-		log.SetFlags(log.Lshortfile)
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
 		x := env.DiagnosticsFor("main.go")
@@ -1974,6 +1973,74 @@ func main() {}
 				env.DoneWithOpen(),
 				LogMatching(protocol.Info, `.*query=\[builtin mod.com/...\].*`, 1, false),
 			),
+		)
+	})
+}
+
+func TestUseOfInvalidMetadata(t *testing.T) {
+	testenv.NeedsGo1Point(t, 13)
+
+	const mod = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+package main
+
+import (
+	"mod.com/a"
+	//"os"
+)
+
+func _() {
+	a.Hello()
+	os.Getenv("")
+	//var x int
+}
+-- a/a.go --
+package a
+
+func Hello() {}
+`
+	WithOptions(
+		EditorConfig{
+			ExperimentalUseInvalidMetadata: true,
+		},
+		Modes(Singleton),
+	).Run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.RegexpReplace("go.mod", "module mod.com", "modul mod.com") // break the go.mod file
+		env.SaveBufferWithoutActions("go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("go.mod", "modul"),
+		)
+		// Confirm that language features work with invalid metadata.
+		env.OpenFile("main.go")
+		file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "Hello"))
+		wantPos := env.RegexpSearch("a/a.go", "Hello")
+		if file != "a/a.go" && pos != wantPos {
+			t.Fatalf("expected a/a.go:%s, got %s:%s", wantPos, file, pos)
+		}
+		// Confirm that new diagnostics appear with invalid metadata by adding
+		// an unused variable to the body of the function.
+		env.RegexpReplace("main.go", "//var x int", "var x int")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "x"),
+		)
+		// Add an import and confirm that we get a diagnostic for it, since the
+		// metadata will not have been updated.
+		env.RegexpReplace("main.go", "//\"os\"", "\"os\"")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"os"`),
+		)
+		// Fix the go.mod file and expect the diagnostic to resolve itself.
+		env.RegexpReplace("go.mod", "modul mod.com", "module mod.com")
+		env.SaveBuffer("go.mod")
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "x"),
+			env.NoDiagnosticAtRegexp("main.go", `"os"`),
+			EmptyDiagnostics("go.mod"),
 		)
 	})
 }

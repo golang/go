@@ -221,7 +221,7 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		generation:        s.cache.store.Generation(generationName(v, 0)),
 		packages:          make(map[packageKey]*packageHandle),
 		ids:               make(map[span.URI][]packageID),
-		metadata:          make(map[packageID]*metadata),
+		metadata:          make(map[packageID]*knownMetadata),
 		files:             make(map[span.URI]source.VersionedFileHandle),
 		goFiles:           make(map[parseKey]*parseGoHandle),
 		importedBy:        make(map[packageID][]packageID),

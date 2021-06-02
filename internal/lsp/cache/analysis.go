@@ -26,9 +26,7 @@ import (
 
 func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.Analyzer) ([]*source.Diagnostic, error) {
 	var roots []*actionHandle
-
 	for _, a := range analyzers {
-
 		if !a.IsEnabled(s.view) {
 			continue
 		}

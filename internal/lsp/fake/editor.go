@@ -114,11 +114,10 @@ type EditorConfig struct {
 	// Whether to edit files with windows line endings.
 	WindowsLineEndings bool
 
-	DirectoryFilters []string
-
-	VerboseOutput bool
-
-	ImportShortcut string
+	ImportShortcut                 string
+	DirectoryFilters               []string
+	VerboseOutput                  bool
+	ExperimentalUseInvalidMetadata bool
 }
 
 // NewEditor Creates a new Editor.
@@ -229,6 +228,9 @@ func (e *Editor) configuration() map[string]interface{} {
 	}
 	if e.Config.DirectoryFilters != nil {
 		config["directoryFilters"] = e.Config.DirectoryFilters
+	}
+	if e.Config.ExperimentalUseInvalidMetadata {
+		config["experimentalUseInvalidMetadata"] = true
 	}
 	if e.Config.CodeLenses != nil {
 		config["codelenses"] = e.Config.CodeLenses

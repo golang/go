@@ -1035,7 +1035,11 @@ func pathExcludedByFilter(path, root, gomodcache string, opts *source.Options) b
 	gomodcache = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(gomodcache, root)), "/")
 
 	excluded := false
-	for _, filter := range append(opts.DirectoryFilters, "-"+gomodcache) {
+	filters := opts.DirectoryFilters
+	if gomodcache != "" {
+		filters = append(filters, "-"+gomodcache)
+	}
+	for _, filter := range filters {
 		op, prefix := filter[0], filter[1:]
 		// Non-empty prefixes have to be precise directory matches.
 		if prefix != "" {

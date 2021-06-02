@@ -322,7 +322,6 @@ func _() {
 		env.AcceptCompletion("main.go", pos, item)
 
 		// Await the diagnostics to add example.com/blah to the go.mod file.
-		env.SaveBufferWithoutActions("main.go")
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
 		)
