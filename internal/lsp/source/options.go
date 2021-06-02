@@ -143,7 +143,6 @@ func DefaultOptions() *Options {
 						string(command.UpgradeDependency): true,
 						string(command.Vendor):            true,
 					},
-					SemanticTokens: true,
 				},
 			},
 			InternalOptions: InternalOptions{

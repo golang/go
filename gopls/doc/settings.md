@@ -213,7 +213,7 @@ Default: `{"gc_details":false,"generate":true,"regenerate_cgo":true,"tidy":true,
 semanticTokens controls whether the LSP server will send
 semantic tokens to the client.
 
-Default: `true`.
+Default: `false`.
 
 #### Completion
 

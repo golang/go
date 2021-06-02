@@ -697,7 +697,7 @@ var GeneratedAPIJSON = &APIJSON{
 					Keys:      nil,
 				},
 				EnumValues: nil,
-				Default:    "true",
+				Default:    "false",
 				Status:     "experimental",
 				Hierarchy:  "ui",
 			},
