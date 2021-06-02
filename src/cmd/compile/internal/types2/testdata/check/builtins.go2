@@ -7,19 +7,19 @@
 package builtins
 
 type Bmc interface {
-	type map[rune]string, chan int
+	~map[rune]string | ~chan int
 }
 
 type Bms interface {
-	type map[string]int, []int
+	~map[string]int | ~[]int
 }
 
 type Bcs interface {
-	type chan bool, []float64
+	~chan bool | ~[]float64
 }
 
 type Bss interface {
-	type []int, []string
+	~[]int | ~[]string
 }
 
 func _[T any] () {
