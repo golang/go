@@ -8,7 +8,7 @@ type T0 interface{
 }
 
 type T1 interface{
-	type int
+	~int
 }
 
 type T2 interface{
