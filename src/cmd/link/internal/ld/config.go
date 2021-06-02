@@ -241,6 +241,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "dynamically linking with a shared library"
 	}
 
+	if unknownObjFormat {
+		return true, "some input objects have an unrecognized file format"
+	}
+
 	return false, ""
 }
 
@@ -248,7 +252,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 //
 // It is called after flags are processed and inputs are processed,
 // so the ctxt.LinkMode variable has an initial value from the -linkmode
-// flag and the iscgo externalobj variables are set.
+// flag and the iscgo, externalobj, and unknownObjFormat variables are set.
 func determineLinkMode(ctxt *Link) {
 	extNeeded, extReason := mustLinkExternal(ctxt)
 	via := ""

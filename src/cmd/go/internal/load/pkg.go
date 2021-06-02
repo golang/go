@@ -849,7 +849,9 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 				buildMode = build.ImportComment
 			}
 			data.p, data.err = cfg.BuildContext.ImportDir(r.dir, buildMode)
-			if data.p.Root == "" && cfg.ModulesEnabled {
+			if cfg.ModulesEnabled {
+				// Override data.p.Root, since ImportDir sets it to $GOPATH, if
+				// the module is inside $GOPATH/src.
 				if info := modload.PackageModuleInfo(ctx, path); info != nil {
 					data.p.Root = info.Dir
 				}

@@ -1,0 +1,32 @@
+# https://golang.org/issue/44725: packages in std should have the same
+# dependencies regardless of whether they are listed from within or outside
+# GOROOT/src.
+
+# Control case: net, viewed from outside the 'std' module,
+# should depend on vendor/golang.org/… instead of golang.org/….
+
+go list -deps net
+stdout '^vendor/golang.org/x/net'
+! stdout '^golang.org/x/net'
+cp stdout $WORK/net-deps.txt
+
+
+# It should still report the same package dependencies when viewed from
+# within GOROOT/src.
+
+cd $GOROOT/src
+
+go list -deps net
+stdout '^vendor/golang.org/x/net'
+! stdout '^golang.org/x/net'
+cmp stdout $WORK/net-deps.txt
+
+
+# However, 'go mod' and 'go get' subcommands should report the original module
+# dependencies, not the vendored packages.
+
+[!net] stop
+
+env GOPROXY=
+go mod why -m golang.org/x/net
+stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'

@@ -1550,7 +1550,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 
 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
 		// These symbols must have the same alignment as their section.
-		// Otherwize, ld might change the layout of Go sections.
+		// Otherwise, ld might change the layout of Go sections.
 		ldr.SetSymAlign(ldr.Lookup("runtime.data", 0), state.dataMaxAlign[sym.SDATA])
 		ldr.SetSymAlign(ldr.Lookup("runtime.bss", 0), state.dataMaxAlign[sym.SBSS])
 	}

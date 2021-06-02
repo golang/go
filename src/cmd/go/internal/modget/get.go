@@ -38,6 +38,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
@@ -386,14 +387,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		load.CheckPackageErrors(pkgs)
 
-		haveExe := false
+		haveExternalExe := false
 		for _, pkg := range pkgs {
-			if pkg.Name == "main" {
-				haveExe = true
+			if pkg.Name == "main" && pkg.Module != nil && pkg.Module.Path != modload.Target.Path {
+				haveExternalExe = true
 				break
 			}
 		}
-		if haveExe {
+		if haveExternalExe {
 			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
 			var altMsg string
 			if modload.HasModRoot() {
@@ -1466,6 +1467,8 @@ func (r *resolver) chooseArbitrarily(cs pathSet) (isPackage bool, m module.Versi
 // checkPackageProblems reloads packages for the given patterns and reports
 // missing and ambiguous package errors. It also reports retractions and
 // deprecations for resolved modules and modules needed to build named packages.
+// It also adds a sum for each updated module in the build list if we had one
+// before and didn't get one while loading packages.
 //
 // We skip missing-package errors earlier in the process, since we want to
 // resolve pathSets ourselves, but at that point, we don't have enough context
@@ -1593,12 +1596,55 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		})
 	}
 
+	// Load sums for updated modules that had sums before. When we update a
+	// module, we may update another module in the build list that provides a
+	// package in 'all' that wasn't loaded as part of this 'go get' command.
+	// If we don't add a sum for that module, builds may fail later.
+	// Note that an incidentally updated package could still import packages
+	// from unknown modules or from modules in the build list that we didn't
+	// need previously. We can't handle that case without loading 'all'.
+	sumErrs := make([]error, len(r.buildList))
+	for i := range r.buildList {
+		i := i
+		m := r.buildList[i]
+		mActual := m
+		if mRepl := modload.Replacement(m); mRepl.Path != "" {
+			mActual = mRepl
+		}
+		old := module.Version{Path: m.Path, Version: r.initialVersion[m.Path]}
+		if old.Version == "" {
+			continue
+		}
+		oldActual := old
+		if oldRepl := modload.Replacement(old); oldRepl.Path != "" {
+			oldActual = oldRepl
+		}
+		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
+			continue
+		}
+		r.work.Add(func() {
+			if _, err := modfetch.DownloadZip(ctx, mActual); err != nil {
+				verb := "upgraded"
+				if semver.Compare(m.Version, old.Version) < 0 {
+					verb = "downgraded"
+				}
+				replaced := ""
+				if mActual != m {
+					replaced = fmt.Sprintf(" (replaced by %s)", mActual)
+				}
+				err = fmt.Errorf("%s %s %s => %s%s: error finding sum for %s: %v", verb, m.Path, old.Version, m.Version, replaced, mActual, err)
+				sumErrs[i] = err
+			}
+		})
+	}
+
 	<-r.work.Idle()
 
-	// Report deprecations, then retractions.
+	// Report deprecations, then retractions, then errors fetching sums.
+	// Only errors fetching sums are hard errors.
 	for _, mm := range deprecations {
 		if mm.message != "" {
-			fmt.Fprintf(os.Stderr, "go: warning: module %s is deprecated: %s\n", mm.m.Path, mm.message)
+			fmt.Fprintf(os.Stderr, "go: module %s is deprecated: %s\n", mm.m.Path, mm.message)
 		}
 	}
 	var retractPath string
@@ -1615,6 +1661,12 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 	if retractPath != "" {
 		fmt.Fprintf(os.Stderr, "go: to switch to the latest unretracted version, run:\n\tgo get %s@latest\n", retractPath)
 	}
+	for _, err := range sumErrs {
+		if err != nil {
+			base.Errorf("go: %v", err)
+		}
+	}
+	base.ExitIfErrors()
 }
 
 // reportChanges logs version changes to os.Stderr.
