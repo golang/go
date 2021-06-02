@@ -1196,7 +1196,8 @@ havem:
 	MOVD	R1, 8(RSP)
 	MOVD	R2, 16(RSP)
 	MOVD	R3, 24(RSP)
-	BL	runtime·cgocallbackg(SB)
+	MOVD	$runtime·cgocallbackg(SB), R0
+	CALL	(R0) // indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(RSP), R5
