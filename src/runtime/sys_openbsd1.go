@@ -23,6 +23,7 @@ func thrwakeup(ident uintptr, n int32) int32 {
 }
 func thrwakeup_trampoline()
 
+//go:nosplit
 func osyield() {
 	libcCall(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
 }

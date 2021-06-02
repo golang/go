@@ -296,7 +296,7 @@ const (
 	// high addresses if viewed as unsigned).
 	//
 	// On aix/ppc64, this offset allows to keep the heapAddrBits to
-	// 48. Otherwize, it would be 60 in order to handle mmap addresses
+	// 48. Otherwise, it would be 60 in order to handle mmap addresses
 	// (in range 0x0a00000000000000 - 0x0afffffffffffff). But in this
 	// case, the memory reserved in (s *pageAlloc).init for chunks
 	// is causing important slowdowns.

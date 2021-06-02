@@ -1124,6 +1124,10 @@ type inlsubst struct {
 	newclofn *ir.Func
 
 	fn *ir.Func // For debug -- the func that is being inlined
+
+	// If true, then don't update source positions during substitution
+	// (retain old source positions).
+	noPosUpdate bool
 }
 
 // list inlines a list of nodes.
@@ -1219,7 +1223,14 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	m := ir.Copy(n)
-	m.SetPos(subst.updatedPos(m.Pos()))
+
+	// Prior to the subst edit, set a flag in the inlsubst to
+	// indicated that we don't want to update the source positions in
+	// the new closure. If we do this, it will appear that the closure
+	// itself has things inlined into it, which is not the case. See
+	// issue #46234 for more details.
+	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
+	subst.noPosUpdate = true
 	ir.EditChildren(m, subst.edit)
 
 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
@@ -1445,6 +1456,9 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 }
 
 func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+	if subst.noPosUpdate {
+		return xpos
+	}
 	pos := base.Ctxt.PosTable.Pos(xpos)
 	oldbase := pos.Base() // can be nil
 	newbase := subst.bases[oldbase]

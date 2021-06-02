@@ -267,20 +267,6 @@ func divWW(x1, x0, y, m Word) (q, r Word) {
 	return Word(qq), Word(r0 >> s)
 }
 
-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
-	r = xn
-	if len(x) == 1 {
-		qq, rr := bits.Div(uint(r), uint(x[0]), uint(y))
-		z[0] = Word(qq)
-		return Word(rr)
-	}
-	rec := reciprocalWord(y)
-	for i := len(z) - 1; i >= 0; i-- {
-		z[i], r = divWW(r, x[i], y, rec)
-	}
-	return r
-}
-
 // reciprocalWord return the reciprocal of the divisor. rec = floor(( _B^2 - 1 ) / u - _B). u = d1 << nlz(d1).
 func reciprocalWord(d1 Word) Word {
 	u := uint(d1 << nlz(d1))

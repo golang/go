@@ -259,7 +259,7 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of (type) parameters or struct fields represented by a FieldList.
+// NumFields returns the number of parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
@@ -972,10 +972,6 @@ type (
 		//                they are only valid for declared functions
 	}
 )
-
-func (f *FuncDecl) IsMethod() bool {
-	return f.Recv.NumFields() != 0
-}
 
 // Pos and End implementations for declaration nodes.
 

@@ -401,6 +401,7 @@
 							storeValue(sp + 56, result);
 							this.mem.setUint8(sp + 64, 1);
 						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 56, err);
 							this.mem.setUint8(sp + 64, 0);
 						}
@@ -417,6 +418,7 @@
 							storeValue(sp + 40, result);
 							this.mem.setUint8(sp + 48, 1);
 						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 40, err);
 							this.mem.setUint8(sp + 48, 0);
 						}
@@ -433,6 +435,7 @@
 							storeValue(sp + 40, result);
 							this.mem.setUint8(sp + 48, 1);
 						} catch (err) {
+							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 40, err);
 							this.mem.setUint8(sp + 48, 0);
 						}

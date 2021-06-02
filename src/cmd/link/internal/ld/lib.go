@@ -343,10 +343,16 @@ var (
 const pkgdef = "__.PKGDEF"
 
 var (
-	// Set if we see an object compiled by the host compiler that is not
-	// from a package that is known to support internal linking mode.
+	// externalobj is set to true if we see an object compiled by
+	// the host compiler that is not from a package that is known
+	// to support internal linking mode.
 	externalobj = false
-	theline     string
+
+	// unknownObjFormat is set to true if we see an object whose
+	// format we don't recognize.
+	unknownObjFormat = false
+
+	theline string
 )
 
 func Lflag(ctxt *Link, arg string) {
@@ -1065,6 +1071,10 @@ func hostobjs(ctxt *Link) {
 		}
 
 		f.MustSeek(h.off, 0)
+		if h.ld == nil {
+			Errorf(nil, "%s: unrecognized object file format", h.pn)
+			continue
+		}
 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		f.Close()
 	}
@@ -1855,6 +1865,14 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
+	if c1 != 'g' || c2 != 'o' || c3 != ' ' || c4 != 'o' {
+		// An unrecognized object is just passed to the external linker.
+		// If we try to read symbols from this object, we will
+		// report an error at that time.
+		unknownObjFormat = true
+		return ldhostobj(nil, ctxt.HeadType, f, pkg, length, pn, file)
+	}
+
 	/* check the header */
 	line, err := f.ReadString('\n')
 	if err != nil {
@@ -1874,7 +1892,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			return nil
 		}
 
-		Errorf(nil, "%s: not an object file: @%d %02x%02x%02x%02x", pn, start, c1, c2, c3, c4)
+		Errorf(nil, "%s: not an object file: @%d %q", pn, start, line)
 		return nil
 	}
 

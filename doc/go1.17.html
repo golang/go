@@ -43,6 +43,39 @@ Do not send CLs removing the interior tags from such phrases.
   for previous versions has been discontinued.
 </p>
 
+<h3 id="windows">Windows</h3>
+
+<p><!-- golang.org/issue/36439 -->
+  Go 1.17 adds support of 64-bit ARM architecture on Windows (the
+  <code>windows/arm64</code> port). This port supports cgo.
+</p>
+
+<h3 id="openbsd">OpenBSD</h3>
+
+<p><!-- golang.org/issue/43005 -->
+  The 64-bit MIPS architecture on OpenBSD (the <code>openbsd/mips64</code>
+  port) now supports cgo.
+</p>
+
+<p><!-- golang.org/issue/36435 -->
+  In Go 1.16, on the 64-bit x86 and 64-bit ARM architectures on
+  OpenBSD (the <code>openbsd/amd64</code> and <code>openbsd/arm64</code>
+  ports) system calls are made through <code>libc</code>, instead
+  of directly using the machine instructions. In Go 1.17, this is
+  also done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+  (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
+  This ensures forward-compatibility with future versions of
+  OpenBSD.
+</p>
+
+<h3 id="arm64">ARM64</h3>
+
+<p><!-- CL 288814 -->
+  Go programs now maintain stack frame pointers on the 64-bit ARM
+  architecture on all operating systems. Previously it maintained
+  stack frame pointers only on Linux, macOS, and iOS.
+</p>
+
 <p>
   TODO: complete the Ports section
 </p>
@@ -60,7 +93,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- golang.org/issue/36460 -->
   If a module specifies <code>go</code> <code>1.17</code> or higher in its
   <code>go.mod</code> file, its transitive requirements are now loaded lazily,
-  avoding the need to download or read <code>go.mod</code> files for
+  avoiding the need to download or read <code>go.mod</code> files for
   otherwise-irrelevant dependencies. To support lazy loading, in Go 1.17 modules
   the <code>go</code> command maintains <em>explicit</em> requirements in
   the <code>go.mod</code> file for every dependency that provides any package
@@ -80,6 +113,11 @@ Do not send CLs removing the interior tags from such phrases.
 <pre>
   go mod tidy -go=1.17
 </pre>
+
+<p><!-- golang.org/issue/46141 -->
+  TODO: Describe the <code>-compat</code> flag
+  for <code>go</code> <code>mod</code> <code>tidy</code>.
+</p>
 
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
 
@@ -161,6 +199,17 @@ Do not send CLs removing the interior tags from such phrases.
   password-protected SSH keys.
 </p>
 
+<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
+
+<p><!-- golang.org/issue/45332 -->
+  When <code>go</code> <code>mod</code> <code>download</code> is invoked without
+  arguments, it will no longer save sums for downloaded module content to
+  <code>go.sum</code>. It may still make changes to <code>go.mod</code> and
+  <code>go.sum</code> needed to load the build list. This is the same as the
+  behavior in Go 1.15. To save sums for all modules, use <code>go</code>
+  <code>mod</code> <code>download</code> <code>all</code>.
+</p>
+
 <p><!-- CL 249759 -->
   TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
 </p>
@@ -175,26 +224,53 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete the Vet section
 </p>
 
-<h2 id="runtime">Runtime</h2>
-
-<p><!-- CL 304470 -->
-  TODO: <a href="https://golang.org/cl/304470">https://golang.org/cl/304470</a>: cmd/compile, runtime: add metadata for argument printing in traceback
-</p>
-
-<p>
-  TODO: complete the Runtime section
-</p>
-
 <h2 id="compiler">Compiler</h2>
 
-<p>
-  TODO: complete the Compiler section, or delete if not needed
+<p><!-- golang.org/issue/40724 -->
+  Go 1.17 implements a new way of passing function arguments and results using
+  registers instead of the stack. This work is enabled for Linux, MacOS, and
+  Windows on the 64-bit x86 architecture (the <code>linux/amd64</code>,
+  <code>darwin/amd64</code>, <code>windows/amd64</code> ports). For a
+  representative set of Go  packages and programs, benchmarking has shown
+  performance improvements of about 5%, and a typical reduction in binary size
+  of about 2%.
 </p>
 
-<h2 id="linker">Linker</h2>
-
 <p>
-  TODO: complete the Linker section, or delete if not needed
+  This change does not affect the functionality of any safe Go code. It can affect
+  code outside the <a href="/doc/go1compat">compatibility guidelines</a> with
+  minimal impact. To maintain compatibility with existing assembly functions,
+  adapter functions converting between the new register-based calling convention
+  and the previous stack-based calling convention (also known as ABI wrappers)
+  are sometimes used. This is mostly invisible to users, except for assembly
+  functions that have their addresses taken in Go. Using <code>reflect.ValueOf(fn).Pointer()</code>
+  (or similar approaches such as via <code>unsafe.Pointer</code>) to get the address
+  of an assembly function will now return the address of the ABI wrapper. This is
+  mostly harmless, except for special-purpose assembly code (such as accessing
+  thread-local storage or requiring a special stack alignment). Assembly functions
+  called indirectly from Go via <code>func</code> values will now be made through
+  ABI wrappers, which may cause a very small performance overhead. Also, calling
+  Go functions from assembly may now go through ABI wrappers, with a very small
+  performance overhead.
+</p>
+
+<p><!-- CL 304470 -->
+  The format of stack traces from the runtime (printed when an uncaught panic
+  occurs, or when <code>runtime.Stack</code> is called) is improved. Previously,
+  the function arguments were printed as hexadecimal words based on the memory
+  layout. Now each argument in the source code is printed separately, separated
+  by commas. Aggregate-typed (struct, array, string, slice, interface, and complex)
+  arguments are delimited by curly braces. A caveat is that the value of an
+  argument that only lives in a register and is not stored to memory may be
+  inaccurate. Results (which were usually inaccurate) are no longer printed.
+</p>
+
+<p><!-- CL 283112, golang.org/issue/28727 -->
+  Functions containing closures can now be inlined. One effect of this change is
+  that a function with a closure may actually produce a distinct closure function
+  for each place that the function is inlined. Hence, this change could reveal
+  bugs where Go functions are compared (incorrectly) by pointer value. Go
+  functions are by definition not comparable.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -247,7 +323,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="archive/zip"><dt><a href="/pkg/archive/zip/">archive/zip</a></dt>
   <dd>
     <p><!-- CL 312310 -->
-      TODO: <a href="https://golang.org/cl/312310">https://golang.org/cl/312310</a>: add File.OpenRaw, Writer.CreateRaw, Writer.Copy
+      The new methods <a href="/pkg/archive/zip#File.OpenRaw"><code>File.OpenRaw</code></a>, <a href="/pkg/archive/zip#Writer.CreateRaw"><code>Writer.CreateRaw</code></a>, <a href="/pkg/archive/zip#Writer.Copy"><code>Writer.Copy</code></a> provide support for cases where performance is a primary concern.
     </p>
   </dd>
 </dl><!-- archive/zip -->
@@ -275,11 +351,16 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="compress/lzw"><dt><a href="/pkg/compress/lzw/">compress/lzw</a></dt>
   <dd>
     <p><!-- CL 273667 -->
-      The new
-      <a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>
-      and
-      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>
-      methods allow reuse of a <code>Reader</code> or <code>Writer</code>.
+      The <a href="/pkg/compress/lzw/#NewReader"><code>NewReader</code></a>
+      function is guaranteed to return a value of the new
+      type <a href="/pkg/compress/lzw/#Reader"><code>Reader</code></a>,
+      and similarly <a href="/pkg/compress/lzw/#NewWriter"><code>NewWriter</code></a>
+      is guaranteed to return a value of the new
+      type <a href="/pkg/compress/lzw/#Writer"><code>Writer</code></a>.
+      These new types both implement a <code>Reset</code> method
+      (<a href="/pkg/compress/lzw/#Reader.Reset"><code>Reader.Reset</code></a>,
+      <a href="/pkg/compress/lzw/#Writer.Reset"><code>Writer.Reset</code></a>)
+      that allows reuse of the <code>Reader</code> or <code>Writer</code>.
     </p>
   </dd>
 </dl><!-- compress/lzw -->
@@ -295,14 +376,31 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
     <p><!-- CL 258360 -->
-      TODO: <a href="https://golang.org/cl/258360">https://golang.org/cl/258360</a>: close driver.Connector if it implements io.Closer
+      The <a href="/pkg/database/sql/#DB.Close"><code>DB.Close</code></a> method now closes
+      the <code>connector</code> field if the type in this field implements the
+      <a href="/pkg/io/#Closer"><code>io.Closer</code></a> interface.
     </p>
 
     <p><!-- CL 311572 -->
-      TODO: <a href="https://golang.org/cl/311572">https://golang.org/cl/311572</a>: add NullInt16 and NullByte
+      The new
+      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
+      and 
+      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
+      structs represent the int16 and byte values that may be null. These can be used as
+      destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
+      similar to NullString.
     </p>
   </dd>
 </dl><!-- database/sql -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- CL 239217 -->
+      The <a href="/pkg/debug/elf/#SHT_MIPS_ABIFLAGS"><code>SHT_MIPS_ABIFLAGS</code></a>
+      constant has been added.
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
 
 <dl id="encoding/binary"><dt><a href="/pkg/encoding/binary/">encoding/binary</a></dt>
   <dd>
@@ -315,18 +413,41 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- encoding/binary -->
 
+<dl id="encoding/csv"><dt><a href="/pkg/encoding/csv/">encoding/csv</a></dt>
+  <dd>
+    <p><!-- CL 291290 -->
+      The new
+      <a href="/pkg/encoding/csv/#Reader.FieldPos"><code>Reader.FieldPos</code></a>
+      method returns the line and column corresponding to the start of
+      a given field in the record most recently returned by
+      <a href="/pkg/encoding/csv/#Reader.Read"><code>Read</code></a>.
+    </p>
+  </dd>
+</dl><!-- encoding/csv -->
+
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 271788 -->
-      TODO: <a href="https://golang.org/cl/271788">https://golang.org/cl/271788</a>: panic if flag name begins with - or contains =
+      Flag declarations now panic if an invalid name is specified.
     </p>
   </dd>
 </dl><!-- flag -->
 
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 310732 -->
+      The new
+      <a href="/pkg/go/build/#Context.ToolTags"><code>Context.ToolTags</code></a>
+      field holds the build tags appropriate to the current Go
+      toolchain configuration.
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
     <p><!-- CL 293649 -->
-      TODO: <a href="https://golang.org/cl/293649">https://golang.org/cl/293649</a>: implement FileInfoToDirEntry
+      The new <a href="/pkg/io/fs/#FileInfoToDirEntry"><code>FileInfoToDirEntry</code></a> function converts a <code>FileInfo</code> to a <code>DirEntry</code>.
     </p>
   </dd>
 </dl><!-- io/fs -->
@@ -334,7 +455,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 247058 -->
-      TODO: <a href="https://golang.org/cl/247058">https://golang.org/cl/247058</a>: add MaxUint, MinInt, MaxInt
+      The math package now defines three more constants: <code>MaxUint</code>, <code>MaxInt</code> and <code>MinInt</code>.
+      For 32-bit systems their values are <code>2^32 - 1</code>, <code>2^31 - 1</code> and <code>-2^31</code>, respectively.
+      For 64-bit systems their values are <code>2^64 - 1</code>, <code>2^63 - 1</code> and <code>-2^63</code>, respectively.
     </p>
   </dd>
 </dl><!-- math -->
@@ -342,7 +465,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- CL 305230 -->
-      TODO: <a href="https://golang.org/cl/305230">https://golang.org/cl/305230</a>: support reading shared mime-info database on unix systems
+      On Unix systems, the table of MIME types is now read from the local system's
+      <a href="https://specifications.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-0.21.html">Shared MIME-info Database</a>
+      when available.
     </p>
   </dd>
 </dl><!-- mime -->
@@ -350,15 +475,20 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 272668 -->
-      TODO: <a href="https://golang.org/cl/272668">https://golang.org/cl/272668</a>: add IP.IsPrivate
+      The new method <a href="/pkg/net/#IP.IsPrivate"><code>IP.IsPrivate</code></a> reports whether an address is
+      a private IPv4 address according to <a href="http://tools.ietf.org/html/rfc1918">RFC 1918</a>
+      or a local IPv6 address according <a href="http://tools.ietf.org/html/rfc4193">RFC 4193</a>.
     </p>
 
     <p><!-- CL 301709 -->
-      TODO: <a href="https://golang.org/cl/301709">https://golang.org/cl/301709</a>: make go resolver aware of network parameter
+      The Go DNS resolver now only sends one DNS query when resolving an address for an IPv4-only or IPv6-only network,
+      rather than querying for both address families.
     </p>
 
     <p><!-- CL 307030 -->
-      TODO: <a href="https://golang.org/cl/307030">https://golang.org/cl/307030</a>: make ErrClosed and ParseError implement net.Error
+      The <a href="/pkg/net/#ErrClosed"><code>ErrClosed</code></a> sentinel error and
+      <a href="/pkg/net/#ParseError"><code>ParseError</code></a> error type now implement
+      the <a href="/pkg/net/#Error"><code>net.Error</code></a> interface.
     </p>
   </dd>
 </dl><!-- net -->
@@ -373,11 +503,14 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 235437 -->
-      TODO: <a href="https://golang.org/cl/235437">https://golang.org/cl/235437</a>: add to deadlines only when positive
+      Setting the <a href="/pkg/net/http/#Server"><code>Server</code></a>
+      <code>ReadTimeout</code> or <code>WriteTimeout</code> fields to a negative value now indicates no timeout
+      rather than an immediate timeout.
     </p>
 
     <p><!-- CL 308952 -->
-      TODO: <a href="https://golang.org/cl/308952">https://golang.org/cl/308952</a>: make ReadRequest return an error when requests have multiple Host headers
+      The <a href="/pkg/net/http/#ReadRequest"><code>ReadRequest</code></a> function
+      now returns an error when the request has multiple Host headers.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -385,7 +518,10 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 308950 -->
-      TODO: <a href="https://golang.org/cl/308950">https://golang.org/cl/308950</a>: panic on non-3 digit (XXX) status code in Recorder.WriteHeader
+      <a href="/pkg/net/http/httptest/#ResponseRecorder.WriteHeader"><code>ResponseRecorder.WriteHeader></code></a>
+      now panics when the provided code is not a valid three-digit HTTP status code.
+      This matches the behavior of <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter></code></a>
+      implementations in the <a href="/pkg/net/http/"><code>net/http</code></a> package.
     </p>
   </dd>
 </dl><!-- net/http/httptest -->
@@ -393,7 +529,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
     <p><!-- CL 314850 -->
-      TODO: <a href="https://golang.org/cl/314850">https://golang.org/cl/314850</a>: add Values.Has
+      The new method <a href="/pkg/net/url/#Values.Has"><code>Values.Has</code></a>
+      reports whether a query parameter is set.
     </p>
   </dd>
 </dl><!-- net/url -->
@@ -401,7 +538,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
   <dd>
     <p><!-- CL 268020 -->
-      TODO: <a href="https://golang.org/cl/268020">https://golang.org/cl/268020</a>: avoid allocation in File.WriteString
+      The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
+      has been optimized to no longer make a copy of the input string.
     </p>
   </dd>
 </dl><!-- os -->
@@ -419,14 +557,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 281233 -->
-      TODO: <a href="https://golang.org/cl/281233">https://golang.org/cl/281233</a>: add VisibleFields function
+      The new <a href="/pkg/reflect/#VisibleFields"><code>VisibleFields</code></a> function
+      returns all the visible fields in a struct type, including fields inside anonymous struct members.
     </p>
 
     <p><!-- CL 284136 -->
-      TODO: <a href="https://golang.org/cl/284136">https://golang.org/cl/284136</a>: panic if ArrayOf is called with negative length
+      The <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a> function now panics when
+      called with a negative length.
     </p>
   </dd>
 </dl><!-- reflect -->
+
+<dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics">runtime/metrics</a></dt>
+  <dd>
+    <p><!-- CL 308933, CL 312431, CL 312909 -->
+      New metrics were added that track total bytes and objects allocated and freed.
+      A new metric tracking the distribution of goroutine scheduling latencies was
+      also added.
+    </p>
+  </dd>
+</dl><!-- runtime/metrics -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
@@ -460,7 +610,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="sync/atomic"><dt><a href="/pkg/sync/atomic/">sync/atomic</a></dt>
   <dd>
     <p><!-- CL 241678 -->
-      TODO: <a href="https://golang.org/cl/241678">https://golang.org/cl/241678</a>: add (*Value).Swap and (*Value).CompareAndSwap
+      <code>atomic.Value</code> now has <a href="/pkg/sync/atomic/#Value.Swap"><code>Swap</code></a> and
+      <a href="/pkg/sync/atomic/#Value.CompareAndSwap"><code>CompareAndSwap</code></a> methods that provide
+      additional atomic operations.
     </p>
   </dd>
 </dl><!-- sync/atomic -->
@@ -468,11 +620,38 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 295371 -->
-      TODO: <a href="https://golang.org/cl/295371">https://golang.org/cl/295371</a>: do not overflow key memory in GetQueuedCompletionStatus
+    <p>
+      The <a href="/pkg/syscall/#GetQueuedCompletionStatus"><code>GetQueuedCompletionStatus</code></a> and
+      <a href="/pkg/syscall/#PostQueuedCompletionStatus"><code>PostQueuedCompletionStatus</code></a>
+      functions are now deprecated. These functions have incorrect signatures and are superseded by
+      equivalents in the <a href="https://godoc.org/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a> package.
     </p>
 
     <p><!-- CL 313653 -->
-      TODO: <a href="https://golang.org/cl/313653">https://golang.org/cl/313653</a>: restore signal mask after setting foreground process group
+      On Unix-like systems, the process group of a child process is now set with signals blocked.
+      This avoids sending a <code>SIGTTOU</code> to the child when the parent is in a background process group.
+    </p>
+
+    <p><!-- CL 288298, CL 288300 -->
+      The Windows version of
+      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
+      has two new fields. <code>AdditionalInheritedHandles</code> is
+      a list of additional handles to be inherited by the new child
+      process. <code>ParentProcess</code> permits specifying the
+      parent process of the new process.
+
+    <p><!-- CL 311570 -->
+      The constant <code>MSG_CMSG_CLOEXEC</code> is now defined on
+      DragonFly and all OpenBSD systems (it was already defined on
+      some OpenBSD systems and all FreeBSD, NetBSD, and Linux systems).
+    </p>
+
+    <p><!-- CL 315281 -->
+      The constants <code>SYS_WAIT6</code> and <code>WEXITED</code>
+      are now defined on NetBSD systems (<code>SYS_WAIT6</code> was
+      already defined on DragonFly and FreeBSD systems;
+      <code>WEXITED</code> was already defined on Darwin, DragonFly,
+      FreeBSD, Linux, and Solaris systems).
     </p>
   </dd>
 </dl><!-- syscall -->
@@ -482,13 +661,22 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 310033 -->
       TODO: <a href="https://golang.org/cl/310033">https://golang.org/cl/310033</a>: add -shuffle=off|on|N to alter the execution order of tests and benchmarks
     </p>
+
+    <p><!-- CL 260577 -->
+      The new
+      <a href="/pkg/testing/#T.Setenv"><code>T.Setenv</code></a>
+      and <a href="/pkg/testing/#B.Setenv"><code>B.Setenv</code></a>
+      methods support setting an environment variable for the duration
+      of the test or benchmark.
+    </p>
   </dd>
 </dl><!-- testing -->
 
 <dl id="text/template/parse"><dt><a href="/pkg/text/template/parse/">text/template/parse</a></dt>
   <dd>
     <p><!-- CL 301493 -->
-      TODO: <a href="https://golang.org/cl/301493">https://golang.org/cl/301493</a>: add a mode to skip func-check on parsing
+      The new <a href="/pkg/text/template/parse/#Mode"><code>SkipFuncCheck</code></a> <a href=><code>Mode</code></a>
+      value changes the template parser to not verify that functions are defined.
     </p>
   </dd>
 </dl><!-- text/template/parse -->
@@ -496,21 +684,38 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
     <p><!-- CL 260858 -->
-      time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
-      method that will return a more useful value for times when printed with
-      the <code>"%#v"</code> format specifier in the fmt package.
+      The <a href="/pkg/time/#Time"><code>Time</code></a> type now has a
+      <a href="/pkg/time/#Time.GoString"><code>GoString</code></a> method that
+      will return a more useful value for times when printed with the
+      <code>%#v</code> format specifier in the <code>fmt</code> package.
     </p>
 
     <p><!-- CL 264077 -->
-      TODO: <a href="https://golang.org/cl/264077">https://golang.org/cl/264077</a>: add Time.IsDST() to check if its Location is in Daylight Savings Time
+      The new <a href="/pkg/time/#Time.IsDST"><code>Time.IsDST</code></a> method can be used to check whether the time
+      is in Daylight Savings Time in its configured location.
     </p>
 
     <p><!-- CL 293349 -->
-      TODO: <a href="https://golang.org/cl/293349">https://golang.org/cl/293349</a>: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+      The new <a href="/pkg/time/#Time.UnixMilli"><code>Time.UnixMilli</code></a> and
+      <a href="/pkg/time/#Time.UnixMicro"><code>Time.UnixMicro</code></a> methods return the number of milliseconds and
+      microseconds elapsed since January 1, 1970 UTC respectively.<br>
+      The new <code>UnixMilli</code> and <code>UnixMicro</code> functions return local Time corresponding to given
+      Unix time.
     </p>
 
     <p><!-- CL 300996 -->
-      TODO: <a href="https://golang.org/cl/300996">https://golang.org/cl/300996</a>: support &#34;,&#34; as separator for fractional seconds
+      The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
+      The following time formats are now accepted:
+      <ul>
+        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
+        <li>Mon Jan _2 14:06:03,120007 2006</li>
+        <li>Mon Jan 2 14:06:03,120007 2006</li>
+      </ul>
+    </p>
+
+    <p><!-- CL 320252 -->
+      The new constant <a href="/pkg/time/#Layout"><code>Layout</code></a>
+      defines the reference time.
     </p>
   </dd>
 </dl><!-- time -->

@@ -52,7 +52,7 @@ func (curve p521Curve) IsOnCurve(x, y *big.Int) bool {
 	return x3.Equal(y2) == 1
 }
 
-type p512Point struct {
+type p521Point struct {
 	x, y, z *fiat.P521Element
 }
 
@@ -67,7 +67,7 @@ func fiatP521ToBigInt(x *fiat.P521Element) *big.Int {
 // affineFromJacobian brings a point in Jacobian coordinates back to affine
 // coordinates, with (0, 0) representing infinity by convention. It also goes
 // back to big.Int values to match the exposed API.
-func (curve p521Curve) affineFromJacobian(p *p512Point) (x, y *big.Int) {
+func (curve p521Curve) affineFromJacobian(p *p521Point) (x, y *big.Int) {
 	if p.z.IsZero() == 1 {
 		return new(big.Int), new(big.Int)
 	}
@@ -99,17 +99,17 @@ func bigIntToFiatP521(x *big.Int) *fiat.P521Element {
 // jacobianFromAffine converts (x, y) affine coordinates into (x, y, z) Jacobian
 // coordinates. It also converts from big.Int to fiat, which is necessarily a
 // messy and variable-time operation, which we can't avoid due to the exposed API.
-func (curve p521Curve) jacobianFromAffine(x, y *big.Int) *p512Point {
+func (curve p521Curve) jacobianFromAffine(x, y *big.Int) *p521Point {
 	// (0, 0) is by convention the point at infinity, which can't be represented
 	// in affine coordinates, but is (0, 0, 0) in Jacobian.
 	if x.Sign() == 0 && y.Sign() == 0 {
-		return &p512Point{
+		return &p521Point{
 			x: new(fiat.P521Element),
 			y: new(fiat.P521Element),
 			z: new(fiat.P521Element),
 		}
 	}
-	return &p512Point{
+	return &p521Point{
 		x: bigIntToFiatP521(x),
 		y: bigIntToFiatP521(y),
 		z: new(fiat.P521Element).One(),
@@ -123,7 +123,7 @@ func (curve p521Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 }
 
 // addJacobian sets q = p1 + p2, and returns q. The points may overlap.
-func (q *p512Point) addJacobian(p1, p2 *p512Point) *p512Point {
+func (q *p521Point) addJacobian(p1, p2 *p521Point) *p521Point {
 	// https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
 	z1IsZero := p1.z.IsZero()
 	z2IsZero := p2.z.IsZero()
@@ -189,7 +189,7 @@ func (curve p521Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 }
 
 // doubleJacobian sets q = p + p, and returns q. The points may overlap.
-func (q *p512Point) doubleJacobian(p *p512Point) *p512Point {
+func (q *p521Point) doubleJacobian(p *p521Point) *p521Point {
 	// https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
 	delta := new(fiat.P521Element).Square(p.z)
 	gamma := new(fiat.P521Element).Square(p.y)
@@ -230,11 +230,11 @@ func (q *p512Point) doubleJacobian(p *p512Point) *p512Point {
 
 func (curve p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	B := curve.jacobianFromAffine(Bx, By)
-	p, t := &p512Point{
+	p, t := &p521Point{
 		x: new(fiat.P521Element),
 		y: new(fiat.P521Element),
 		z: new(fiat.P521Element),
-	}, &p512Point{
+	}, &p521Point{
 		x: new(fiat.P521Element),
 		y: new(fiat.P521Element),
 		z: new(fiat.P521Element),
