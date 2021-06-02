@@ -121,11 +121,14 @@ func testCGOLTO(t *testing.T, cc string, test int) {
 		t.Logf("go build failed: %v", err)
 
 		// Error messages we've seen indicating that LTO is not supported.
+		// These errors come from GCC or clang, not Go.
 		var noLTO = []string{
 			`unrecognized command line option "-flto"`,
 			"unable to pass LLVM bit-code files to linker",
 			"file not recognized: File format not recognized",
 			"LTO support has not been enabled",
+			"linker command failed with exit code",
+			"gcc: can't load library",
 		}
 		for _, msg := range noLTO {
 			if bytes.Contains(out, []byte(msg)) {
