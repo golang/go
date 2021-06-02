@@ -145,19 +145,6 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy:  "build",
 			},
 			{
-				Name: "experimentalUseInvalidMetadata",
-				Type: "bool",
-				Doc:  "experimentalUseInvalidMetadata enables gopls to fall back on outdated\npackage metadata to provide editor features if the go command fails to\nload packages for some reason (like an invalid go.mod file). This will\neventually be the default behavior, and this setting will be removed.\n",
-				EnumKeys: EnumKeys{
-					ValueType: "",
-					Keys:      nil,
-				},
-				EnumValues: nil,
-				Default:    "false",
-				Status:     "experimental",
-				Hierarchy:  "build",
-			},
-			{
 				Name: "hoverKind",
 				Type: "enum",
 				Doc:  "hoverKind controls the information that appears in the hover text.\nSingleLine and Structured are intended for use only by authors of editor plugins.\n",

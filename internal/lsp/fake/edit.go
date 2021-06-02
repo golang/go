@@ -18,10 +18,6 @@ type Pos struct {
 	Line, Column int
 }
 
-func (p Pos) String() string {
-	return fmt.Sprintf("%v:%v", p.Line, p.Column)
-}
-
 // Range corresponds to protocol.Range, but uses the editor friend Pos
 // instead of UTF-16 oriented protocol.Position
 type Range struct {
