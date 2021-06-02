@@ -42,11 +42,10 @@ type ListNum[T OrderedNum] struct {
 const Clip = 5
 
 // clippedLargest returns the largest in the list of OrderNums, but a max of 5.
-// TODO(danscales): fix export/import of an untype constant with typeparam type
 func (l *ListNum[T]) ClippedLargest() T {
         var max T
         for p := l; p != nil; p = p.Next {
-                if p.Val > max && p.Val < T(Clip) {
+                if p.Val > max && p.Val < Clip {
                         max = p.Val
                 }
         }
