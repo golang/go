@@ -5,8 +5,8 @@
 package a
 
 func Fact[T interface { type int, int64, float64 }](n T) T {
-	if n == T(1) {
-		return T(1)
+	if n == 1 {
+		return 1
 	}
-	return n * Fact(n - T(1))
+	return n * Fact(n - 1)
 }

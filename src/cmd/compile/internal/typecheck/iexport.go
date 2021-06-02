@@ -1061,26 +1061,50 @@ func constTypeOf(typ *types.Type) constant.Kind {
 }
 
 func (w *exportWriter) value(typ *types.Type, v constant.Value) {
-	ir.AssertValidTypeForConst(typ, v)
 	w.typ(typ)
+	var kind constant.Kind
+	var valType *types.Type
 
-	// Each type has only one admissible constant representation,
-	// so we could type switch directly on v.U here. However,
-	// switching on the type increases symmetry with import logic
-	// and provides a useful consistency check.
+	if typ.Kind() == types.TTYPEPARAM {
+		// A constant will have a TYPEPARAM type if it appears in a place
+		// where it must match that typeparam type (e.g. in a binary
+		// operation with a variable of that typeparam type). If so, then
+		// we must write out its actual constant kind as well, so its
+		// constant val can be read in properly during import.
+		kind = v.Kind()
+		w.int64(int64(kind))
 
-	switch constTypeOf(typ) {
+		switch kind {
+		case constant.Int:
+			valType = types.Types[types.TINT64]
+		case constant.Float:
+			valType = types.Types[types.TFLOAT64]
+		case constant.Complex:
+			valType = types.Types[types.TCOMPLEX128]
+		}
+	} else {
+		ir.AssertValidTypeForConst(typ, v)
+		kind = constTypeOf(typ)
+		valType = typ
+	}
+
+	// Each type has only one admissible constant representation, so we could
+	// type switch directly on v.Kind() here. However, switching on the type
+	// (in the non-typeparam case) increases symmetry with import logic and
+	// provides a useful consistency check.
+
+	switch kind {
 	case constant.Bool:
 		w.bool(constant.BoolVal(v))
 	case constant.String:
 		w.string(constant.StringVal(v))
 	case constant.Int:
-		w.mpint(v, typ)
+		w.mpint(v, valType)
 	case constant.Float:
-		w.mpfloat(v, typ)
+		w.mpfloat(v, valType)
 	case constant.Complex:
-		w.mpfloat(constant.Real(v), typ)
-		w.mpfloat(constant.Imag(v), typ)
+		w.mpfloat(constant.Real(v), valType)
+		w.mpfloat(constant.Imag(v), valType)
 	}
 }
 

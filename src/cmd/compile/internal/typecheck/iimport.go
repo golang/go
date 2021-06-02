@@ -400,19 +400,39 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 }
 
 func (p *importReader) value(typ *types.Type) constant.Value {
-	switch constTypeOf(typ) {
+	var kind constant.Kind
+	var valType *types.Type
+
+	if typ.Kind() == types.TTYPEPARAM {
+		// If a constant had a typeparam type, then we wrote out its
+		// actual constant kind as well.
+		kind = constant.Kind(p.int64())
+		switch kind {
+		case constant.Int:
+			valType = types.Types[types.TINT64]
+		case constant.Float:
+			valType = types.Types[types.TFLOAT64]
+		case constant.Complex:
+			valType = types.Types[types.TCOMPLEX128]
+		}
+	} else {
+		kind = constTypeOf(typ)
+		valType = typ
+	}
+
+	switch kind {
 	case constant.Bool:
 		return constant.MakeBool(p.bool())
 	case constant.String:
 		return constant.MakeString(p.string())
 	case constant.Int:
 		var i big.Int
-		p.mpint(&i, typ)
+		p.mpint(&i, valType)
 		return constant.Make(&i)
 	case constant.Float:
-		return p.float(typ)
+		return p.float(valType)
 	case constant.Complex:
-		return makeComplex(p.float(typ), p.float(typ))
+		return makeComplex(p.float(valType), p.float(valType))
 	}
 
 	base.Fatalf("unexpected value type: %v", typ)
