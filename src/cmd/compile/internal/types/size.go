@@ -90,6 +90,26 @@ func expandiface(t *Type) {
 		methods = append(methods, m)
 	}
 
+	{
+		methods := t.Methods().Slice()
+		sort.SliceStable(methods, func(i, j int) bool {
+			mi, mj := methods[i], methods[j]
+
+			// Sort embedded types by type name (if any).
+			if mi.Sym == nil && mj.Sym == nil {
+				return mi.Type.Sym().Less(mj.Type.Sym())
+			}
+
+			// Sort methods before embedded types.
+			if mi.Sym == nil || mj.Sym == nil {
+				return mi.Sym != nil
+			}
+
+			// Sort methods by symbol name.
+			return mi.Sym.Less(mj.Sym)
+		})
+	}
+
 	for _, m := range t.Methods().Slice() {
 		if m.Sym == nil {
 			continue
