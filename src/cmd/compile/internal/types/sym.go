@@ -110,6 +110,14 @@ func (a *Sym) Less(b *Sym) bool {
 		return false
 	}
 
+	// Nil before non-nil.
+	if a == nil {
+		return true
+	}
+	if b == nil {
+		return false
+	}
+
 	// Exported symbols before non-exported.
 	ea := IsExported(a.Name)
 	eb := IsExported(b.Name)
