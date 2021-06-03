@@ -258,9 +258,18 @@ var supportedTypes = map[reflect.Type]bool{
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
 // arguments, those arguments will be added to the seed corpus.
 //
+// ff must be a function with no return value whose first argument is *T and
+// whose remaining arguments are the types to be fuzzed.
+// For example:
+//
+// f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+//
+// This function should be fast, deterministic, and stateless.
+// None of the pointers to any input data should be retained between executions.
+//
 // This is a terminal function which will terminate the currently running fuzz
-// target by calling runtime.Goexit. To run any code after this function, use
-// Cleanup.
+// target by calling runtime.Goexit.
+// To run any code after fuzzing stops, use (*F).Cleanup.
 func (f *F) Fuzz(ff interface{}) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")

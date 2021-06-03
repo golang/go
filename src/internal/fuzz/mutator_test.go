@@ -15,6 +15,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
 	origEnv := os.Getenv("GODEBUG")
 	defer func() { os.Setenv("GODEBUG", origEnv) }()
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
+	m := newMutator()
 
 	for _, size := range []int{
 		1,
@@ -24,7 +25,6 @@ func BenchmarkMutatorBytes(b *testing.B) {
 		10000,
 		100000,
 	} {
-		size := size
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			buf := make([]byte, size)
 			b.ResetTimer()
@@ -32,7 +32,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
-				m := newMutator()
+				m.r = newPcgRand()
 				m.mutate([]interface{}{buf}, workerSharedMemSize)
 			}
 		})
@@ -43,6 +43,7 @@ func BenchmarkMutatorString(b *testing.B) {
 	origEnv := os.Getenv("GODEBUG")
 	defer func() { os.Setenv("GODEBUG", origEnv) }()
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
+	m := newMutator()
 
 	for _, size := range []int{
 		1,
@@ -52,7 +53,6 @@ func BenchmarkMutatorString(b *testing.B) {
 		10000,
 		100000,
 	} {
-		size := size
 		b.Run(strconv.Itoa(size), func(b *testing.B) {
 			buf := make([]byte, size)
 			b.ResetTimer()
@@ -60,7 +60,7 @@ func BenchmarkMutatorString(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				// resize buffer to the correct shape and reset the PCG
 				buf = buf[0:size]
-				m := newMutator()
+				m.r = newPcgRand()
 				m.mutate([]interface{}{string(buf)}, workerSharedMemSize)
 			}
 		})
@@ -71,6 +71,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 	origEnv := os.Getenv("GODEBUG")
 	defer func() { os.Setenv("GODEBUG", origEnv) }()
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
+	m := newMutator()
 
 	types := []interface{}{
 		[]byte(""),
@@ -92,7 +93,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 	for _, t := range types {
 		b.Run(fmt.Sprintf("%T", t), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				m := newMutator()
+				m.r = newPcgRand()
 				m.mutate([]interface{}{t}, workerSharedMemSize)
 			}
 		})

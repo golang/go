@@ -13,7 +13,8 @@ import (
 )
 
 type mutator struct {
-	r mutatorRand
+	r       mutatorRand
+	scratch []byte // scratch slice to avoid additional allocations
 }
 
 func newMutator() *mutator {
@@ -95,27 +96,34 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 	case byte: // uint8
 		vals[i] = byte(m.mutateUInt(uint64(v), math.MaxUint8))
 	case string:
-		// TODO(jayconrod,katiehockman): Keep a []byte somewhere (maybe in
-		// mutator) that we mutate repeatedly to avoid re-allocating the data
-		// every time.
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
 		}
-		b := []byte(v)
-		if cap(b) < maxPerVal {
-			b = append(make([]byte, 0, maxPerVal), b...)
+		if cap(m.scratch) < maxPerVal {
+			m.scratch = append(make([]byte, 0, maxPerVal), v...)
+		} else {
+			m.scratch = m.scratch[:len(v)]
+			copy(m.scratch, v)
 		}
-		m.mutateBytes(&b)
-		vals[i] = string(b)
+		m.mutateBytes(&m.scratch)
+		var s string
+		shdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
+		bhdr := (*reflect.SliceHeader)(unsafe.Pointer(&m.scratch))
+		shdr.Data = bhdr.Data
+		shdr.Len = bhdr.Len
+		vals[i] = s
 	case []byte:
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
 		}
-		if cap(v) < maxPerVal {
-			v = append(make([]byte, 0, maxPerVal), v...)
+		if cap(m.scratch) < maxPerVal {
+			m.scratch = append(make([]byte, 0, maxPerVal), v...)
+		} else {
+			m.scratch = m.scratch[:len(v)]
+			copy(m.scratch, v)
 		}
-		m.mutateBytes(&v)
-		vals[i] = v
+		m.mutateBytes(&m.scratch)
+		vals[i] = m.scratch
 	default:
 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
 	}
