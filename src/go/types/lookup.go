@@ -327,10 +327,14 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, f
 			}
 
+			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
 			if len(ftyp.tparams) != len(mtyp.tparams) {
 				return m, f
+			}
+			if len(ftyp.tparams) > 0 {
+				panic("internal error: method with type parameters")
 			}
 
 			// If the methods have type parameters we don't care whether they
@@ -385,6 +389,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		if len(ftyp.tparams) != len(mtyp.tparams) {
 			return m, f
 		}
+		if len(ftyp.tparams) > 0 {
+			panic("internal error: method with type parameters")
+		}
 
 		// If V is a (instantiated) generic type, its methods are still
 		// parameterized using the original (declaration) receiver type
@@ -412,7 +419,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(check, true)
-		u.x.init(ftyp.tparams)
+		u.x.init(ftyp.rparams)
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}
