@@ -1570,8 +1570,9 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// only in-register results?
 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
 		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
-			cloFunc := callX.(*ir.ClosureExpr).Func
-			cloFunc.SetClosureCalled(false)
+			clo := callX.(*ir.ClosureExpr)
+			clo.Func.SetClosureCalled(false)
+			clo.IsGoWrap = true
 			c.PreserveClosure = true
 		}
 		return
@@ -1777,12 +1778,9 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 
 	// Set escape properties for closure.
 	if n.Op() == ir.OGO {
-		// For "go", assume that the closure is going to escape
-		// (with an exception for the runtime, which doesn't
-		// permit heap-allocated closures).
-		if base.Ctxt.Pkgpath != "runtime" {
-			clo.SetEsc(ir.EscHeap)
-		}
+		// For "go", assume that the closure is going to escape.
+		clo.SetEsc(ir.EscHeap)
+		clo.IsGoWrap = true
 	} else {
 		// For defer, just use whatever result escape analysis
 		// has determined for the defer.

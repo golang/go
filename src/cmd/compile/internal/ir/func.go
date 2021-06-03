@@ -301,8 +301,8 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
 		}
 	}
-	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
-		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
+	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
+		base.ErrorfAt(clo.Pos(), "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
 	}
 }
 
