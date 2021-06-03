@@ -20,16 +20,16 @@ import (
 // was built with.)
 var Experiment goexperiment.Flags = parseExperiments()
 
-var regabiSupported = GOARCH == "amd64"
-var regabiDeveloping = GOARCH == "arm64"
+var regabiSupported = GOARCH == "amd64" || GOARCH == "arm64"
+var regabiDeveloping = false
 
 // experimentBaseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
 var experimentBaseline = goexperiment.Flags{
-	RegabiWrappers: regabiSupported || regabiDeveloping,
+	RegabiWrappers: regabiSupported,
 	RegabiG:        regabiSupported,
-	RegabiReflect:  regabiSupported || regabiDeveloping,
+	RegabiReflect:  regabiSupported,
 	RegabiDefer:    true,
 	RegabiArgs:     regabiSupported,
 }
