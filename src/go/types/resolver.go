@@ -276,7 +276,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				if name == "init" {
-					check.errorf(d.spec.Name, _InvalidInitDecl, "cannot import package as init - init must be a func")
+					check.errorf(d.spec, _InvalidInitDecl, "cannot import package as init - init must be a func")
 					return
 				}
 
