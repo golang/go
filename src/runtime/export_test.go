@@ -145,40 +145,28 @@ func RunSchedLocalQueueStealTest() {
 	}
 }
 
-// Temporary to enable register ABI bringup.
-// TODO(register args): convert back to local variables in RunSchedLocalQueueEmptyTest that
-// get passed to the "go" stmts there.
-var RunSchedLocalQueueEmptyState struct {
-	done  chan bool
-	ready *uint32
-	p     *p
-}
-
 func RunSchedLocalQueueEmptyTest(iters int) {
 	// Test that runq is not spuriously reported as empty.
 	// Runq emptiness affects scheduling decisions and spurious emptiness
 	// can lead to underutilization (both runnable Gs and idle Ps coexist
 	// for arbitrary long time).
 	done := make(chan bool, 1)
-	RunSchedLocalQueueEmptyState.done = done
 	p := new(p)
-	RunSchedLocalQueueEmptyState.p = p
 	gs := make([]g, 2)
 	ready := new(uint32)
-	RunSchedLocalQueueEmptyState.ready = ready
 	for i := 0; i < iters; i++ {
 		*ready = 0
 		next0 := (i & 1) == 0
 		next1 := (i & 2) == 0
 		runqput(p, &gs[0], next0)
 		go func() {
-			for atomic.Xadd(RunSchedLocalQueueEmptyState.ready, 1); atomic.Load(RunSchedLocalQueueEmptyState.ready) != 2; {
+			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
 			}
-			if runqempty(RunSchedLocalQueueEmptyState.p) {
-				//println("next:", next0, next1)
+			if runqempty(p) {
+				println("next:", next0, next1)
 				throw("queue is empty")
 			}
-			RunSchedLocalQueueEmptyState.done <- true
+			done <- true
 		}()
 		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
 		}
