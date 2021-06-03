@@ -227,7 +227,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				empty = false
 			}
 		}
-		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
+		if debug && (t.allMethods == nil || len(t.methods) > len(t.allMethods)) {
 			if !empty {
 				buf.WriteByte(' ')
 			}
