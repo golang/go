@@ -239,8 +239,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		tlist := make([]*types.Type, nt)
 		tildes := make([]bool, nt)
 		for i := range tlist {
-			term, _ := typ.Term(i)
+			term, tilde := typ.Term(i)
 			tlist[i] = g.typ1(term)
+			tildes[i] = tilde
 		}
 		return types.NewUnion(tlist, tildes)
 
