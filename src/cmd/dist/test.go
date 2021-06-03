@@ -737,9 +737,9 @@ func (t *tester) registerTests() {
 						fn: func(dt *distTest) error {
 							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
 							cmd.Env = append(os.Environ(),
-								"CGO_CFLAGS=-flto",
-								"CGO_CXXFLAGS=-flto",
-								"CGO_LDFLAGS=-flto",
+								"CGO_CFLAGS=-flto -Wno-lto-type-mismatch",
+								"CGO_CXXFLAGS=-flto -Wno-lto-type-mismatch",
+								"CGO_LDFLAGS=-flto -Wno-lto-type-mismatch",
 							)
 							return nil
 						},
