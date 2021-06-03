@@ -525,6 +525,11 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	// Get the list of IDs from the snapshot again, in case it has changed.
 	var phs []*packageHandle
 	for _, id := range s.getIDsForURI(uri) {
+		// Filter out any intermediate test variants. We typically aren't
+		// interested in these packages for file= style queries.
+		if m := s.getMetadata(id); m != nil && m.isIntermediateTestVariant {
+			continue
+		}
 		var parseModes []source.ParseMode
 		switch mode {
 		case source.TypecheckAll:

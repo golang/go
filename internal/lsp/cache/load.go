@@ -45,6 +45,11 @@ type metadata struct {
 
 	// config is the *packages.Config associated with the loaded package.
 	config *packages.Config
+
+	// isIntermediateTestVariant reports whether the given package is an
+	// intermediate test variant, e.g.
+	// "golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]".
+	isIntermediateTestVariant bool
 }
 
 // load calls packages.Load for the given scopes, updating package metadata,
@@ -463,6 +468,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 			s.workspacePackages[m.id] = m.forTest
 		default:
 			// A test variant of some intermediate package. We don't care about it.
+			m.isIntermediateTestVariant = true
 		}
 	}
 	return m, nil
