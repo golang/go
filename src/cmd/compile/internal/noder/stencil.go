@@ -144,13 +144,19 @@ func (g *irgen) stencil() {
 		// call.
 		if closureRequired {
 			var edit func(ir.Node) ir.Node
+			var outer *ir.Func
+			if f, ok := decl.(*ir.Func); ok {
+				outer = f
+			}
 			edit = func(x ir.Node) ir.Node {
 				ir.EditChildren(x, edit)
 				switch {
 				case x.Op() == ir.OFUNCINST:
-					return g.buildClosure(decl.(*ir.Func), x)
+					// TODO: only set outer!=nil if this instantiation uses
+					// a type parameter from outer. See comment in buildClosure.
+					return g.buildClosure(outer, x)
 				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0: // TODO: test for ptr-to-method case
-					return g.buildClosure(decl.(*ir.Func), x)
+					return g.buildClosure(outer, x)
 				}
 				return x
 			}
@@ -170,7 +176,8 @@ func (g *irgen) stencil() {
 }
 
 // buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR
-// of generic type. outer is the containing function.
+// of generic type. outer is the containing function (or nil if closure is
+// in a global assignment instead of a function).
 func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	pos := x.Pos()
 	var target *ir.Func   // target instantiated function/method
@@ -276,19 +283,25 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	fn.SetIsHiddenClosure(true)
 
 	// This is the dictionary we want to use.
-	// Note: for now this is a compile-time constant, so we don't really need a closure
-	// to capture it (a wrapper function would work just as well). But eventually it
-	// will be a read of a subdictionary from the parent dictionary.
-	dictVar := ir.NewNameAt(pos, typecheck.LookupNum(".dict", g.dnum))
-	g.dnum++
-	dictVar.Class = ir.PAUTO
-	typed(types.Types[types.TUINTPTR], dictVar)
-	dictVar.Curfn = outer
-	dictAssign := ir.NewAssignStmt(pos, dictVar, dictValue)
-	dictAssign.SetTypecheck(1)
-	dictVar.Defn = dictAssign
-	outer.Dcl = append(outer.Dcl, dictVar)
-
+	// It may be a constant, or it may be a dictionary acquired from the outer function's dictionary.
+	// For the latter, dictVar is a variable in the outer function's scope, set to the subdictionary
+	// read from the outer function's dictionary.
+	var dictVar *ir.Name
+	var dictAssign *ir.AssignStmt
+	if outer != nil {
+		// Note: for now this is a compile-time constant, so we don't really need a closure
+		// to capture it (a wrapper function would work just as well). But eventually it
+		// will be a read of a subdictionary from the parent dictionary.
+		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(".dict", g.dnum))
+		g.dnum++
+		dictVar.Class = ir.PAUTO
+		typed(types.Types[types.TUINTPTR], dictVar)
+		dictVar.Curfn = outer
+		dictAssign = ir.NewAssignStmt(pos, dictVar, dictValue)
+		dictAssign.SetTypecheck(1)
+		dictVar.Defn = dictAssign
+		outer.Dcl = append(outer.Dcl, dictVar)
+	}
 	// assign the receiver to a temporary.
 	var rcvrVar *ir.Name
 	var rcvrAssign ir.Node
@@ -335,6 +348,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	sym := typecheck.ClosureName(outer)
 	sym.SetFunc(true)
 	fn.Nname = ir.NewNameAt(pos, sym)
+	fn.Nname.Class = ir.PFUNC
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
 	typed(closureType, fn.Nname)
@@ -343,8 +357,18 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	// Build body of closure. This involves just calling the wrapped function directly
 	// with the additional dictionary argument.
 
-	// First, capture the dictionary variable for use in the closure.
-	dict2Var := ir.CaptureName(pos, fn, dictVar)
+	// First, figure out the dictionary argument.
+	var dict2Var ir.Node
+	if outer != nil {
+		// If there's an outer function, the dictionary value will be read from
+		// the dictionary of the outer function.
+		// TODO: only use a subdictionary if any of the instantiating types
+		// depend on the type params of the outer function.
+		dict2Var = ir.CaptureName(pos, fn, dictVar)
+	} else {
+		// No outer function, instantiating types are known concrete types.
+		dict2Var = dictValue
+	}
 	// Also capture the receiver variable.
 	var rcvr2Var *ir.Name
 	if rcvrValue != nil {
@@ -376,13 +400,19 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	typecheck.Stmt(innerCall)
 	ir.CurFunc = nil
 	fn.Body = []ir.Node{innerCall}
+	if outer == nil {
+		g.target.Decls = append(g.target.Decls, fn)
+	}
 
 	// We're all done with the captured dictionary (and receiver, for method values).
 	ir.FinishCaptureNames(pos, outer, fn)
 
 	// Make a closure referencing our new internal function.
 	c := ir.NewClosureExpr(pos, fn)
-	init := []ir.Node{dictAssign}
+	var init []ir.Node
+	if outer != nil {
+		init = append(init, dictAssign)
+	}
 	if rcvrValue != nil {
 		init = append(init, rcvrAssign)
 	}
