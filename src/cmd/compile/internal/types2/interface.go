@@ -34,18 +34,25 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 			continue // ignore
 		}
 
+		// TODO(gri) Remove type list handling once the parser doesn't accept type lists anymore.
 		if name == "type" {
+			// Report an error for the first type list per interface
+			// if we don't allow type lists, but continue.
+			if !check.conf.AllowTypeLists && tlist == nil {
+				check.softErrorf(f.Name, "use generalized embedding syntax instead of a type list")
+			}
 			// For now, collect all type list entries as if it
 			// were a single union, where each union element is
 			// of the form ~T.
-			// TODO(gri) remove once we disallow type lists
 			op := new(syntax.Operation)
 			// We should also set the position (but there is no setter);
 			// we don't care because this code will eventually go away.
 			op.Op = syntax.Tilde
 			op.X = f.Type
 			tlist = append(tlist, op)
-			if tname != nil && tname != f.Name {
+			// Report an error if we have multiple type lists in an
+			// interface, but only if they are permitted in the first place.
+			if check.conf.AllowTypeLists && tname != nil && tname != f.Name {
 				check.error(f.Name, "cannot have multiple type lists in an interface")
 			}
 			tname = f.Name
