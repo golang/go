@@ -176,12 +176,12 @@ type _ interface {
 // Interface type lists can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
-func add1[T interface{~MyInt}](x T) T {
+func add1[T interface{MyInt}](x T) T {
 	return x + 1
 }
 
 type MyString string
-func double[T interface{~MyInt | ~MyString}](x T) T {
+func double[T interface{MyInt|MyString}](x T) T {
 	return x + x
 }
 
