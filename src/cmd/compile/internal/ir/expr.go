@@ -192,6 +192,7 @@ type ClosureExpr struct {
 	miniExpr
 	Func     *Func `mknode:"-"`
 	Prealloc *Name
+	IsGoWrap bool // whether this is wrapper closure of a go statement
 }
 
 func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
