@@ -659,13 +659,8 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 310033 -->
-      Added a new <a href="/cmd/go/#hdr-Testing_flags">testing flag</a> <code>-shuffle</code> which alters the execution order of tests and benchmarks.
+      Added a new <a href="/cmd/go/#hdr-Testing_flags">testing flag</a> <code>-shuffle</code> which controls the execution order of tests and benchmarks.
     </p>
-    <p><!-- CL 260577 -->
-      <code>testing.T</code> now has a <a href="/pkg/testing/#T.Setenv"><code>Setenv</code></a> method to set up environment variables
-      only for the isolated lifetime of the test, and will clean up and unset these variables when the test ends.
-    </p>
-
     <p><!-- CL 260577 -->
       The new
       <a href="/pkg/testing/#T.Setenv"><code>T.Setenv</code></a>
