@@ -11,7 +11,7 @@ import (
 )
 
 type Ordered interface {
-	type int, int64, float64, string
+	~int | ~int64 | ~float64 | ~string
 }
 
 func min[T Ordered](x, y T) T {

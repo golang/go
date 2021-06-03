@@ -12,10 +12,10 @@ import (
 )
 
 type Numeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		complex64, complex128
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64 |
+		~complex64 | ~complex128
 }
 
 // numericAbs matches numeric types with an Abs method.
@@ -33,14 +33,14 @@ func absDifference[T numericAbs[T]](a, b T) T {
 
 // orderedNumeric matches numeric types that support the < operator.
 type orderedNumeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
 }
 
 // Complex matches the two complex types, which do not have a < operator.
 type Complex interface {
-	type complex64, complex128
+	~complex64 | ~complex128
 }
 
 // orderedAbs is a helper type that defines an Abs method for

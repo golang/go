@@ -5,10 +5,10 @@
 package a
 
 type Ordered interface {
-        type int, int8, int16, int32, int64,
-                uint, uint8, uint16, uint32, uint64, uintptr,
-                float32, float64,
-                string
+        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+                ~float32 | ~float64 |
+                ~string
 }
 
 // List is a linked list of ordered values of type T.
@@ -28,9 +28,9 @@ func (l *List[T]) Largest() T {
 }
 
 type OrderedNum interface {
-        type int, int8, int16, int32, int64,
-                uint, uint8, uint16, uint32, uint64, uintptr,
-                float32, float64
+        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+                ~float32 | ~float64
 }
 
 // ListNum is a linked _List of ordered numeric values of type T.
