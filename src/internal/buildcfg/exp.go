@@ -29,7 +29,7 @@ var regabiDeveloping = GOARCH == "arm64"
 var experimentBaseline = goexperiment.Flags{
 	RegabiWrappers: regabiSupported || regabiDeveloping,
 	RegabiG:        regabiSupported,
-	RegabiReflect:  regabiSupported,
+	RegabiReflect:  regabiSupported || regabiDeveloping,
 	RegabiDefer:    true,
 	RegabiArgs:     regabiSupported,
 }
