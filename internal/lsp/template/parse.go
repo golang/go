@@ -28,6 +28,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 var (
@@ -85,6 +86,10 @@ func parseBuffer(buf []byte) *Parsed {
 	ans := &Parsed{
 		buf:   buf,
 		check: -1,
+	}
+	if len(buf) == 0 {
+		ans.ParseErr = errors.New("empty buffer")
+		return ans
 	}
 	// how to compute allAscii...
 	for _, b := range buf {
