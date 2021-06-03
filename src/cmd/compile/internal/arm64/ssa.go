@@ -1114,8 +1114,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
 	case ssa.OpARM64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpClobber, ssa.OpClobberReg:
-		// TODO: implement for clobberdead experiment. Nop is ok for now.
+	case ssa.OpClobber:
+		// MOVW	$0xdeaddead, REGTMP
+		// MOVW	REGTMP, (slot)
+		// MOVW	REGTMP, 4(slot)
+		p := s.Prog(arm64.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0xdeaddead
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm64.REGTMP
+		p = s.Prog(arm64.AMOVW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arm64.REGTMP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = arm64.REGSP
+		ssagen.AddAux(&p.To, v)
+		p = s.Prog(arm64.AMOVW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arm64.REGTMP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = arm64.REGSP
+		ssagen.AddAux2(&p.To, v, v.AuxInt+4)
+	case ssa.OpClobberReg:
+		x := uint64(0xdeaddeaddeaddead)
+		p := s.Prog(arm64.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(x)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
