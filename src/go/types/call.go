@@ -575,17 +575,38 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
 
+		sig := m.typ.(*Signature)
+		if sig.recv == nil {
+			check.error(e, _InvalidDeclCycle, "illegal cycle in method declaration")
+			goto Error
+		}
+
 		// the receiver type becomes the type of the first function
 		// argument of the method expression's function type
 		var params []*Var
-		sig := m.typ.(*Signature)
 		if sig.params != nil {
 			params = sig.params.vars
 		}
+		// Be consistent about named/unnamed parameters.
+		needName := true
+		for _, param := range params {
+			if param.Name() == "" {
+				needName = false
+				break
+			}
+		}
+		name := ""
+		if needName {
+			name = sig.recv.name
+			if name == "" {
+				name = "_"
+			}
+		}
+		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,
-			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "_", x.typ)}, params...)...),
+			params:   NewTuple(params...),
 			results:  sig.results,
 			variadic: sig.variadic,
 		}
