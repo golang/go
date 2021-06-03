@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"go/token"
 	"sync/atomic"
 )
@@ -538,64 +537,9 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
 // form other types. The interface must not contain duplicate methods or a
 // panic occurs. Complete returns the receiver.
 func (t *Interface) Complete() *Interface {
-	// TODO(gri) consolidate this method with Checker.completeInterface
-	if t.allMethods != nil {
-		return t
+	if t.allMethods == nil {
+		completeInterface(nil, token.NoPos, t)
 	}
-
-	t.allMethods = markComplete // avoid infinite recursion
-
-	var todo []*Func
-	var methods []*Func
-	var seen objset
-	addMethod := func(m *Func, explicit bool) {
-		switch other := seen.insert(m); {
-		case other == nil:
-			methods = append(methods, m)
-		case explicit:
-			panic("duplicate method " + m.name)
-		default:
-			// check method signatures after all locally embedded interfaces are computed
-			todo = append(todo, m, other.(*Func))
-		}
-	}
-
-	for _, m := range t.methods {
-		addMethod(m, true)
-	}
-
-	allTypes := t.types
-
-	for _, typ := range t.embeddeds {
-		utyp := under(typ)
-		etyp := asInterface(utyp)
-		if etyp == nil {
-			if utyp != Typ[Invalid] {
-				panic(fmt.Sprintf("%s is not an interface", typ))
-			}
-			continue
-		}
-		etyp.Complete()
-		for _, m := range etyp.allMethods {
-			addMethod(m, false)
-		}
-		allTypes = intersect(allTypes, etyp.allTypes)
-	}
-
-	for i := 0; i < len(todo); i += 2 {
-		m := todo[i]
-		other := todo[i+1]
-		if !Identical(m.typ, other.typ) {
-			panic("duplicate method " + m.name)
-		}
-	}
-
-	if methods != nil {
-		sortMethods(methods)
-		t.allMethods = methods
-	}
-	t.allTypes = allTypes
-
 	return t
 }
 
