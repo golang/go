@@ -386,10 +386,10 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	// If s is nil, the virtual address has never been part of the heap.
 	// This pointer may be to some mmap'd region, so we allow it.
 	if s == nil {
-		if GOARCH == "amd64" && p == clobberdeadPtr && debug.invalidptr != 0 {
-			// Crash if clobberdeadPtr is seen. Only on AMD64 for now, as
-			// it is the only platform where compiler's clobberdead mode is
-			// implemented. On AMD64 clobberdeadPtr cannot be a valid address.
+		if (GOARCH == "amd64" || GOARCH == "arm64") && p == clobberdeadPtr && debug.invalidptr != 0 {
+			// Crash if clobberdeadPtr is seen. Only on AMD64 and ARM64 for now,
+			// as they are the only platform where compiler's clobberdead mode is
+			// implemented. On these platforms clobberdeadPtr cannot be a valid address.
 			badPointer(s, p, refBase, refOff)
 		}
 		return
