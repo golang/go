@@ -642,12 +642,15 @@ func (c *Chan) Dir() ChanDir { return c.dir }
 // Elem returns the element type of channel c.
 func (c *Chan) Elem() Type { return c.elem }
 
+// TODO(rfindley) Clean up Named struct below; specifically the fromRHS field (can we use underlying?).
+
 // A Named represents a named (defined) type.
 type Named struct {
 	check      *Checker    // for Named.under implementation; nilled once under has been called
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
-	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+	orig       *Named      // original, uninstantiated type
+	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
@@ -661,11 +664,14 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	return (*Checker)(nil).newNamed(obj, underlying, methods)
+	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
 }
 
-func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
-	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams []*TypeName, methods []*Func) *Named {
+	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+	if typ.orig == nil {
+		typ.orig = typ
+	}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -692,6 +698,10 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) 
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
+// _Orig returns the original generic type an instantiated type is derived from.
+// If t is not an instantiated type, the result is t.
+func (t *Named) _Orig() *Named { return t.orig }
+
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
 
@@ -699,10 +709,13 @@ func (t *Named) Obj() *TypeName { return t.obj }
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
 func (t *Named) _TParams() []*TypeName { return t.tparams }
 
+// _SetTParams sets the type parameters of the named type t.
+func (t *Named) _SetTParams(tparams []*TypeName) { t.tparams = tparams }
+
 // _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) _TArgs() []Type { return t.targs }
 
-// _SetTArgs sets the type arguments of Named.
+// SetTArgs sets the type arguments of the named type t.
 func (t *Named) _SetTArgs(args []Type) { t.targs = args }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
@@ -741,9 +754,9 @@ func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
 // A _TypeParam represents a type parameter type.
 type _TypeParam struct {
 	check *Checker  // for lazy type bound completion
-	id    uint64    // unique id
+	id    uint64    // unique id, for debugging only
 	obj   *TypeName // corresponding type name
-	index int       // parameter index
+	index int       // type parameter index in source order, starting at 0
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 

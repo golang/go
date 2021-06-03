@@ -396,8 +396,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := subst.check.newNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
-		named.tparams = t.tparams                                     // new type is still parameterized
+		named := subst.check.newNamed(tname, t, t.underlying, t.tparams, t.methods) // method signatures are updated lazily
 		named.targs = newTargs
 		if subst.check != nil {
 			subst.check.typMap[h] = named
@@ -407,7 +406,7 @@ func (subst *subster) typ(typ Type) Type {
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTargs)
 		named.underlying = subst.typOrNil(t.underlying)
-		named.orig = named.underlying // for cycle detection (Checker.validType)
+		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
 
 		return named
 
