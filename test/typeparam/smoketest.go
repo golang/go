@@ -37,7 +37,7 @@ func (x T2[P1, P2, P3]) m() {}
 type _ interface {
 	m1()
 	m2()
-	type int, float32, string
+	int | float32 | string
 	m3()
 }
 

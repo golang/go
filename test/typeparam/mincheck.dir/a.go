@@ -5,7 +5,7 @@
 package a
 
 type Ordered interface {
-        type int, int64, float64
+        int | int64 | float64
 }
 
 func Min[T Ordered](x, y T) T {

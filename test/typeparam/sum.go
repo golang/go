@@ -10,7 +10,7 @@ import (
 	"fmt"
 )
 
-func Sum[T interface{ type int, float64 }](vec []T) T {
+func Sum[T interface{ int | float64 }](vec []T) T {
 	var sum T
 	for _, elt := range vec {
 		sum = sum + elt

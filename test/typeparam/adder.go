@@ -11,7 +11,7 @@ import (
 )
 
 type AddType interface {
-	type int, int64, string
+	int | int64 | string
 }
 
 // Add can add numbers or strings
