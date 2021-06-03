@@ -421,79 +421,41 @@ func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
 // The interface must have been completed.
-func (t *Interface) NumMethods() int { t.assertCompleteness(); return len(t.allMethods) }
-
-func (t *Interface) assertCompleteness() {
-	if t.allMethods == nil {
-		panic("interface is incomplete")
-	}
-}
+func (t *Interface) NumMethods() int { t.Complete(); return len(t.allMethods) }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 // The methods are ordered by their unique Id.
 // The interface must have been completed.
-func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
+func (t *Interface) Method(i int) *Func { t.Complete(); return t.allMethods[i] }
 
 // Empty reports whether t is the empty interface.
 func (t *Interface) Empty() bool {
-	if t.allMethods != nil {
-		// interface is complete - quick test
-		// A non-nil allTypes may still be empty and represents the bottom type.
-		return len(t.allMethods) == 0 && t.allTypes == nil
-	}
-	return !t.iterate(func(t *Interface) bool {
-		return len(t.methods) > 0 || t.types != nil
-	}, nil)
+	t.Complete()
+	// A non-nil allTypes may still have length 0 but represents the bottom type.
+	return len(t.allMethods) == 0 && t.allTypes == nil
 }
 
 // _HasTypeList reports whether interface t has a type list, possibly from an embedded type.
 func (t *Interface) _HasTypeList() bool {
-	if t.allMethods != nil {
-		// interface is complete - quick test
-		return t.allTypes != nil
-	}
-
-	return t.iterate(func(t *Interface) bool {
-		return t.types != nil
-	}, nil)
+	t.Complete()
+	return t.allTypes != nil
 }
 
 // _IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
 func (t *Interface) _IsComparable() bool {
-	if t.allMethods != nil {
-		// interface is complete - quick test
-		_, m := lookupMethod(t.allMethods, nil, "==")
-		return m != nil
-	}
-
-	return t.iterate(func(t *Interface) bool {
-		_, m := lookupMethod(t.methods, nil, "==")
-		return m != nil
-	}, nil)
+	t.Complete()
+	_, m := lookupMethod(t.allMethods, nil, "==")
+	return m != nil
 }
 
 // _IsConstraint reports t.HasTypeList() || t.IsComparable().
 func (t *Interface) _IsConstraint() bool {
-	if t.allMethods != nil {
-		// interface is complete - quick test
-		if t.allTypes != nil {
-			return true
-		}
-		_, m := lookupMethod(t.allMethods, nil, "==")
-		return m != nil
-	}
-
-	return t.iterate(func(t *Interface) bool {
-		if t.types != nil {
-			return true
-		}
-		_, m := lookupMethod(t.methods, nil, "==")
-		return m != nil
-	}, nil)
+	return t._HasTypeList() || t._IsComparable()
 }
 
 // iterate calls f with t and then with any embedded interface of t, recursively, until f returns true.
 // iterate reports whether any call to f returned true.
+// TODO(rfindley) This is now only used by infer.go - see if we can eliminate it.
 func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) bool {
 	if f(t) {
 		return true
