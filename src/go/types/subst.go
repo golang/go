@@ -121,91 +121,100 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 	// check bounds
 	for i, tname := range tparams {
-		tpar := tname.typ.(*_TypeParam)
-		iface := tpar.Bound()
-		if iface.Empty() {
-			continue // no type bound
-		}
-
-		targ := targs[i]
-
 		// best position for error reporting
 		pos := pos
 		if i < len(poslist) {
 			pos = poslist[i]
 		}
 
-		// The type parameter bound is parameterized with the same type parameters
-		// as the instantiated type; before we can use it for bounds checking we
-		// need to instantiate it with the type arguments with which we instantiate
-		// the parameterized type.
-		iface = check.subst(pos, iface, smap).(*Interface)
-
-		// targ must implement iface (methods)
-		// - check only if we have methods
-		check.completeInterface(token.NoPos, iface)
-		if len(iface.allMethods) > 0 {
-			// If the type argument is a pointer to a type parameter, the type argument's
-			// method set is empty.
-			// TODO(gri) is this what we want? (spec question)
-			if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
-				check.errorf(atPos(pos), 0, "%s has no methods", targ)
-				break
-			}
-			if m, wrong := check.missingMethod(targ, iface, true); m != nil {
-				// TODO(gri) needs to print updated name to avoid major confusion in error message!
-				//           (print warning for now)
-				// Old warning:
-				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
-				if m.name == "==" {
-					// We don't want to report "missing method ==".
-					check.softErrorf(atPos(pos), 0, "%s does not satisfy comparable", targ)
-				} else if wrong != nil {
-					// TODO(gri) This can still report uninstantiated types which makes the error message
-					//           more difficult to read then necessary.
-					// TODO(rFindley) should this use parentheses rather than ':' for qualification?
-					check.softErrorf(atPos(pos), _Todo,
-						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
-						targ, tpar.bound, wrong, m,
-					)
-				} else {
-					check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
-				}
-				break
-			}
-		}
-
-		// targ's underlying type must also be one of the interface types listed, if any
-		if iface.allTypes == nil {
-			continue // nothing to do
-		}
-
-		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
-		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
-		if targ := asTypeParam(targ); targ != nil {
-			targBound := targ.Bound()
-			if targBound.allTypes == nil {
-				check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
-				break
-			}
-			for _, t := range unpackType(targBound.allTypes) {
-				if !iface.isSatisfiedBy(t) {
-					// TODO(gri) match this error message with the one below (or vice versa)
-					check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
-					break
-				}
-			}
-			break
-		}
-
-		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
-		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s or %s not found in %s)", targ, tpar.bound, targ, under(targ), iface.allTypes)
+		// stop checking bounds after the first failure
+		if !check.satisfies(pos, targs[i], tname.typ.(*_TypeParam), smap) {
 			break
 		}
 	}
 
 	return check.subst(pos, typ, smap)
+}
+
+// satisfies reports whether the type argument targ satisfies the constraint of type parameter
+// parameter tpar (after any of its type parameters have been substituted through smap).
+// A suitable error is reported if the result is false.
+func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap *substMap) bool {
+	iface := tpar.Bound()
+	if iface.Empty() {
+		return true // no type bound
+	}
+
+	// The type parameter bound is parameterized with the same type parameters
+	// as the instantiated type; before we can use it for bounds checking we
+	// need to instantiate it with the type arguments with which we instantiate
+	// the parameterized type.
+	iface = check.subst(pos, iface, smap).(*Interface)
+
+	// targ must implement iface (methods)
+	// - check only if we have methods
+	check.completeInterface(token.NoPos, iface)
+	if len(iface.allMethods) > 0 {
+		// If the type argument is a pointer to a type parameter, the type argument's
+		// method set is empty.
+		// TODO(gri) is this what we want? (spec question)
+		if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
+			check.errorf(atPos(pos), 0, "%s has no methods", targ)
+			return false
+		}
+		if m, wrong := check.missingMethod(targ, iface, true); m != nil {
+			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+			//           (print warning for now)
+			// Old warning:
+			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+			if m.name == "==" {
+				// We don't want to report "missing method ==".
+				check.softErrorf(atPos(pos), 0, "%s does not satisfy comparable", targ)
+			} else if wrong != nil {
+				// TODO(gri) This can still report uninstantiated types which makes the error message
+				//           more difficult to read then necessary.
+				// TODO(rFindley) should this use parentheses rather than ':' for qualification?
+				check.softErrorf(atPos(pos), _Todo,
+					"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
+					targ, tpar.bound, wrong, m,
+				)
+			} else {
+				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
+			}
+			return false
+		}
+	}
+
+	// targ's underlying type must also be one of the interface types listed, if any
+	if iface.allTypes == nil {
+		return true // nothing to do
+	}
+
+	// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
+	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+	if targ := asTypeParam(targ); targ != nil {
+		targBound := targ.Bound()
+		if targBound.allTypes == nil {
+			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+			return false
+		}
+		for _, t := range unpackType(targBound.allTypes) {
+			if !iface.isSatisfiedBy(t) {
+				// TODO(gri) match this error message with the one below (or vice versa)
+				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
+				return false
+			}
+		}
+		return false
+	}
+
+	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+	if !iface.isSatisfiedBy(targ) {
+		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
+		return false
+	}
+
+	return true
 }
 
 // subst returns the type typ with its type parameters tpars replaced by
