@@ -91,7 +91,6 @@ const (
 	SYS_SYNC                   = 81
 	SYS_FSYNC                  = 82
 	SYS_FDATASYNC              = 83
-	SYS_SYNC_FILE_RANGE2       = 84
 	SYS_SYNC_FILE_RANGE        = 84
 	SYS_TIMERFD_CREATE         = 85
 	SYS_TIMERFD_SETTIME        = 86
@@ -275,4 +274,29 @@ const (
 	SYS_MEMFD_CREATE           = 279
 	SYS_BPF                    = 280
 	SYS_EXECVEAT               = 281
+	SYS_USERFAULTFD            = 282
+	SYS_MEMBARRIER             = 283
+	SYS_MLOCK2                 = 284
+	SYS_COPY_FILE_RANGE        = 285
+	SYS_PREADV2                = 286
+	SYS_PWRITEV2               = 287
+	SYS_PKEY_MPROTECT          = 288
+	SYS_PKEY_ALLOC             = 289
+	SYS_PKEY_FREE              = 290
+	SYS_STATX                  = 291
+	SYS_IO_PGETEVENTS          = 292
+	SYS_RSEQ                   = 293
+	SYS_KEXEC_FILE_LOAD        = 294
+	SYS_PIDFD_SEND_SIGNAL      = 424
+	SYS_IO_URING_SETUP         = 425
+	SYS_IO_URING_ENTER         = 426
+	SYS_IO_URING_REGISTER      = 427
+	SYS_OPEN_TREE              = 428
+	SYS_MOVE_MOUNT             = 429
+	SYS_FSOPEN                 = 430
+	SYS_FSCONFIG               = 431
+	SYS_FSMOUNT                = 432
+	SYS_FSPICK                 = 433
+	SYS_PIDFD_OPEN             = 434
+	SYS_CLONE3                 = 435
 )
