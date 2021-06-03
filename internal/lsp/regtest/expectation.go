@@ -79,24 +79,30 @@ func (e SimpleExpectation) Description() string {
 
 // OnceMet returns an Expectation that, once the precondition is met, asserts
 // that mustMeet is met.
-func OnceMet(precondition Expectation, mustMeet Expectation) *SimpleExpectation {
+func OnceMet(precondition Expectation, mustMeets ...Expectation) *SimpleExpectation {
 	check := func(s State) Verdict {
 		switch pre := precondition.Check(s); pre {
 		case Unmeetable:
 			return Unmeetable
 		case Met:
-			verdict := mustMeet.Check(s)
-			if verdict != Met {
-				return Unmeetable
+			for _, mustMeet := range mustMeets {
+				verdict := mustMeet.Check(s)
+				if verdict != Met {
+					return Unmeetable
+				}
 			}
 			return Met
 		default:
 			return Unmet
 		}
 	}
+	var descriptions []string
+	for _, mustMeet := range mustMeets {
+		descriptions = append(descriptions, mustMeet.Description())
+	}
 	return &SimpleExpectation{
 		check:       check,
-		description: fmt.Sprintf("once %q is met, must have %q", precondition.Description(), mustMeet.Description()),
+		description: fmt.Sprintf("once %q is met, must have %q", precondition.Description(), strings.Join(descriptions, "\n")),
 	}
 }
 
@@ -303,7 +309,7 @@ func NoErrorLogs() LogExpectation {
 
 // LogMatching asserts that the client has received a log message
 // of type typ matching the regexp re.
-func LogMatching(typ protocol.MessageType, re string, count int) LogExpectation {
+func LogMatching(typ protocol.MessageType, re string, count int, atLeast bool) LogExpectation {
 	rec, err := regexp.Compile(re)
 	if err != nil {
 		panic(err)
@@ -315,14 +321,19 @@ func LogMatching(typ protocol.MessageType, re string, count int) LogExpectation 
 				found++
 			}
 		}
-		if found == count {
+		// Check for an exact or "at least" match.
+		if found == count || (found >= count && atLeast) {
 			return Met
 		}
 		return Unmet
 	}
+	desc := fmt.Sprintf("log message matching %q expected %v times", re, count)
+	if atLeast {
+		desc = fmt.Sprintf("log message matching %q expected at least %v times", re, count)
+	}
 	return LogExpectation{
 		check:       check,
-		description: fmt.Sprintf("log message matching %q", re),
+		description: desc,
 	}
 }
 

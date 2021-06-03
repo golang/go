@@ -438,7 +438,7 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 func TestMissingDependency(t *testing.T) {
 	Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
 		env.OpenFile("print.go")
-		env.Await(LogMatching(protocol.Error, "initial workspace load failed", 1))
+		env.Await(LogMatching(protocol.Error, "initial workspace load failed", 1, false))
 	})
 }
 
@@ -1886,29 +1886,33 @@ package main
 	})
 }
 
-// Tests golang/go#45075, a panic in fillreturns breaks diagnostics.
+// Tests golang/go#45075: A panic in fillreturns broke diagnostics.
+// Expect an error log indicating that fillreturns panicked, as well type
+// errors for the broken code.
 func TestFillReturnsPanic(t *testing.T) {
 	// At tip, the panic no longer reproduces.
 	testenv.SkipAfterGo1Point(t, 16)
+
 	const files = `
 -- go.mod --
 module mod.com
 
-go 1.16
+go 1.15
 -- main.go --
 package main
-
 
 func foo() int {
 	return x, nil
 }
-
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("main.go", `return x`, "wrong number of return values"),
-			LogMatching(protocol.Error, `.*analysis fillreturns.*panicked.*`, 2),
+			OnceMet(
+				env.DoneWithOpen(),
+				LogMatching(protocol.Error, `.*analysis fillreturns.*panicked.*`, 1, true),
+				env.DiagnosticAtRegexpWithMessage("main.go", `return x`, "wrong number of return values"),
+			),
 		)
 	})
 }
@@ -1931,7 +1935,7 @@ func main() {}
 		env.Await(
 			OnceMet(
 				env.DoneWithOpen(),
-				LogMatching(protocol.Info, `.*query=\[builtin mod.com/...\].*`, 1),
+				LogMatching(protocol.Info, `.*query=\[builtin mod.com/...\].*`, 1, false),
 			),
 		)
 	})
