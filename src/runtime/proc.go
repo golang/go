@@ -5229,6 +5229,10 @@ func checkdead() {
 // This is a variable for testing purposes. It normally doesn't change.
 var forcegcperiod int64 = 2 * 60 * 1e9
 
+// needSysmonWorkaround is true if the workaround for
+// golang.org/issue/42515 is needed on NetBSD.
+var needSysmonWorkaround bool = false
+
 // Always runs without a P, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
@@ -5337,7 +5341,7 @@ func sysmon() {
 			}
 		}
 		mDoFixup()
-		if GOOS == "netbsd" {
+		if GOOS == "netbsd" && needSysmonWorkaround {
 			// netpoll is responsible for waiting for timer
 			// expiration, so we typically don't have to worry
 			// about starting an M to service timers. (Note that
