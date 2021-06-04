@@ -204,7 +204,6 @@
 package typecheck
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
@@ -264,13 +263,22 @@ const (
 	magic = 0x6742937dc293105
 )
 
-func WriteExports(out *bufio.Writer) {
+// WriteExports writes the indexed export format to out. If extensions
+// is true, then the compiler-only extensions are included.
+func WriteExports(out io.Writer, extensions bool) {
+	if extensions {
+		// If we're exporting inline bodies, invoke the crawler to mark
+		// which bodies to include.
+		crawlExports(Target.Exports)
+	}
+
 	p := iexporter{
 		allPkgs:     map[*types.Pkg]bool{},
 		stringIndex: map[string]uint64{},
 		declIndex:   map[*types.Sym]uint64{},
 		inlineIndex: map[*types.Sym]uint64{},
 		typIndex:    map[*types.Type]uint64{},
+		extensions:  extensions,
 	}
 
 	for i, pt := range predeclared() {
@@ -397,6 +405,8 @@ type iexporter struct {
 	declIndex   map[*types.Sym]uint64
 	inlineIndex map[*types.Sym]uint64
 	typIndex    map[*types.Type]uint64
+
+	extensions bool
 }
 
 // stringOff returns the offset of s within the string section.
@@ -467,7 +477,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			w.tag('V')
 			w.pos(n.Pos())
 			w.typ(n.Type())
-			w.varExt(n)
+			if w.p.extensions {
+				w.varExt(n)
+			}
 
 		case ir.PFUNC:
 			if ir.IsMethod(n) {
@@ -487,7 +499,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 				w.tparamList(n.Type().TParams().FieldSlice())
 			}
 			w.signature(n.Type())
-			w.funcExt(n)
+			if w.p.extensions {
+				w.funcExt(n)
+			}
 
 		default:
 			base.Fatalf("unexpected class: %v, %v", n, n.Class)
@@ -503,7 +517,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		w.tag('C')
 		w.pos(n.Pos())
 		w.value(n.Type(), n.Val())
-		w.constExt(n)
+		if w.p.extensions {
+			w.constExt(n)
+		}
 
 	case ir.OTYPE:
 		if n.Type().Kind() == types.TTYPEPARAM && n.Type().Underlying() == n.Type() {
@@ -551,7 +567,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 
 		t := n.Type()
 		if t.IsInterface() {
-			w.typeExt(t)
+			if w.p.extensions {
+				w.typeExt(t)
+			}
 			break
 		}
 
@@ -567,9 +585,11 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			w.signature(m.Type)
 		}
 
-		w.typeExt(t)
-		for _, m := range methods {
-			w.methExt(m)
+		if w.p.extensions {
+			w.typeExt(t)
+			for _, m := range methods {
+				w.methExt(m)
+			}
 		}
 
 	default:
