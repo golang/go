@@ -227,7 +227,7 @@ func panicmemAddr(addr uintptr) {
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
-func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
+func deferproc(fn func()) {
 	gp := getg()
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
@@ -361,16 +361,6 @@ func testdefersizes() {
 			throw("bad defer size class")
 		}
 	}
-}
-
-// deferFunc returns d's deferred function. This is temporary while we
-// support both modes of GOEXPERIMENT=regabidefer. Once we commit to
-// that experiment, we should change the type of d.fn.
-//go:nosplit
-func deferFunc(d *_defer) func() {
-	var fn func()
-	*(**funcval)(unsafe.Pointer(&fn)) = d.fn
-	return fn
 }
 
 var deferType *_type // type of _defer struct
@@ -555,7 +545,9 @@ func deferreturn() {
 	// called with a callback on an LR architecture and jmpdefer is on the
 	// stack, because the stack trace can be incorrect in that case - see
 	// issue #8153).
-	_ = fn.fn
+	if fn == nil {
+		fn()
+	}
 	jmpdefer(fn, argp)
 }
 
@@ -619,7 +611,7 @@ func Goexit() {
 		} else {
 			// Save the pc/sp in deferCallSave(), so we can "recover" back to this
 			// loop if necessary.
-			deferCallSave(&p, deferFunc(d))
+			deferCallSave(&p, d.fn)
 		}
 		if p.aborted {
 			// We had a recursive panic in the defer d we started, and
@@ -824,12 +816,12 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 			}
 			continue
 		}
-		closure := *(**funcval)(unsafe.Pointer(d.varp - uintptr(closureOffset)))
+		closure := *(*func())(unsafe.Pointer(d.varp - uintptr(closureOffset)))
 		d.fn = closure
 		deferBits = deferBits &^ (1 << i)
 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
 		p := d._panic
-		deferCallSave(p, deferFunc(d))
+		deferCallSave(p, d.fn)
 		if p != nil && p.aborted {
 			break
 		}
@@ -950,8 +942,7 @@ func gopanic(e interface{}) {
 			}
 		} else {
 			p.argp = unsafe.Pointer(getargp())
-			fn := deferFunc(d)
-			fn()
+			d.fn()
 		}
 		p.argp = nil
 
