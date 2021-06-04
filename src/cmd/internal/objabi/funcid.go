@@ -74,7 +74,6 @@ var funcIDs = map[string]FuncID{
 	// Don't show in call stack but otherwise not special.
 	"deferreturn":       FuncID_wrapper,
 	"runOpenDeferFrame": FuncID_wrapper,
-	"reflectcallSave":   FuncID_wrapper,
 	"deferCallSave":     FuncID_wrapper,
 }
 
