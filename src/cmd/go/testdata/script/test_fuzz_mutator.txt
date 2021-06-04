@@ -1,5 +1,5 @@
 # TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
+[!freebsd] [!darwin] [!linux] [!windows] skip
 
 # Test basic fuzzing mutator behavior.
 #

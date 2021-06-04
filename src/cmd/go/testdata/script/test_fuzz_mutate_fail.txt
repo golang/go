@@ -1,5 +1,5 @@
 # TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
+[!freebsd] [!darwin] [!linux] [!windows] skip
 
 # Check that if a worker does not call F.Fuzz or calls F.Fail first,
 # 'go test' exits non-zero and no crasher is recorded.

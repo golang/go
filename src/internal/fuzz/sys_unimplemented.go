@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // TODO(jayconrod): support more platforms.
-//go:build !darwin && !linux && !windows
-// +build !darwin,!linux,!windows
+//go:build !darwin && !linux && !windows && !freebsd
+// +build !darwin,!linux,!windows,!freebsd
 
 package fuzz
 

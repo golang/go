@@ -1,5 +1,5 @@
 # TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
+[!freebsd] [!darwin] [!linux] [!windows] skip
 
 # Tests that a crash caused by a mutator-discovered input writes the bad input
 # to testdata, and fails+reports correctly. This tests the end-to-end behavior
