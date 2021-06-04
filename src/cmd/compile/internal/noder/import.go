@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"internal/buildcfg"
-	"io"
 	"os"
 	pathpkg "path"
 	"runtime"
@@ -46,13 +45,8 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 		panic("mode must be 0")
 	}
 
-	path, err := resolveImportPath(path)
-	if err != nil {
-		return nil, err
-	}
-
-	lookup := func(path string) (io.ReadCloser, error) { return openPackage(path) }
-	return importer.Import(m.packages, path, srcDir, lookup)
+	_, pkg, err := readImportFile(path, typecheck.Target, m.packages)
+	return pkg, err
 }
 
 func isDriveLetter(b byte) bool {
@@ -182,7 +176,12 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		return nil
 	}
 
-	pkg := readImportFile(typecheck.Target, path)
+	pkg, _, err := readImportFile(path, typecheck.Target, nil)
+	if err != nil {
+		base.Errorf("%s", err)
+		return nil
+	}
+
 	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
 		myheight = pkg.Height + 1
 	}
@@ -203,125 +202,173 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
 		return "", err
 	}
 
-	return resolveImportPath(path)
+	return path, err
 }
 
-func readImportFile(target *ir.Package, path string) *types.Pkg {
-	importpkg := types.NewPkg(path, "")
-	if importpkg.Direct {
-		return importpkg // already fully loaded
+// readImportFile reads the import file for the given package path and
+// returns its types.Pkg representation. If packages is non-nil, the
+// types2.Package representation is also returned.
+func readImportFile(path string, target *ir.Package, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+	path, err = resolveImportPath(path)
+	if err != nil {
+		return
 	}
-	importpkg.Direct = true
-	target.Imports = append(target.Imports, importpkg)
 
 	if path == "unsafe" {
-		return importpkg // initialized with universe
+		pkg1, pkg2 = ir.Pkgs.Unsafe, types2.Unsafe
+
+		// TODO(mdempsky): Investigate if this actually matters. Why would
+		// the linker or runtime care whether a package imported unsafe?
+		if !pkg1.Direct {
+			pkg1.Direct = true
+			target.Imports = append(target.Imports, pkg1)
+		}
+
+		return
 	}
+
+	pkg1 = types.NewPkg(path, "")
+	if packages != nil {
+		pkg2 = packages[path]
+		assert(pkg1.Direct == (pkg2 != nil && pkg2.Complete()))
+	}
+
+	if pkg1.Direct {
+		return
+	}
+	pkg1.Direct = true
+	target.Imports = append(target.Imports, pkg1)
 
 	f, err := openPackage(path)
 	if err != nil {
-		base.Errorf("could not import %q: %v", path, err)
-		base.ErrorExit()
+		return
 	}
-	imp := bio.NewReader(f)
-	defer imp.Close()
-	file := f.Name()
+	defer f.Close()
+
+	r, end, err := findExportData(f)
+	if err != nil {
+		return
+	}
+
+	if base.Debug.Export != 0 {
+		fmt.Printf("importing %s (%s)\n", path, f.Name())
+	}
+
+	var c byte
+	switch c, err = r.ReadByte(); {
+	case err != nil:
+		return
+
+	case c != 'i':
+		// Indexed format is distinguished by an 'i' byte,
+		// whereas previous export formats started with 'c', 'd', or 'v'.
+		err = fmt.Errorf("unexpected package format byte: %v", c)
+		return
+	}
+
+	// Map string (and data) section into memory as a single large
+	// string. This reduces heap fragmentation and allows
+	// returning individual substrings very efficiently.
+	pos := r.Offset()
+	data, err := base.MapFile(r.File(), pos, end-pos)
+	if err != nil {
+		return
+	}
+
+	typecheck.ReadImports(pkg1, data)
+
+	if packages != nil {
+		pkg2, err = importer.ImportData(packages, data, path)
+		if err != nil {
+			return
+		}
+	}
+
+	err = addFingerprint(path, f, end)
+	return
+}
+
+// findExportData returns a *bio.Reader positioned at the start of the
+// binary export data section, and a file offset for where to stop
+// reading.
+func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
+	r = bio.NewReader(f)
 
 	// check object header
-	p, err := imp.ReadString('\n')
+	line, err := r.ReadString('\n')
 	if err != nil {
-		base.Errorf("import %s: reading input: %v", file, err)
-		base.ErrorExit()
+		return
 	}
 
-	if p == "!<arch>\n" { // package archive
+	if line == "!<arch>\n" { // package archive
 		// package export block should be first
-		sz := archive.ReadHeader(imp.Reader, "__.PKGDEF")
+		sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
 		if sz <= 0 {
-			base.Errorf("import %s: not a package file", file)
-			base.ErrorExit()
+			err = errors.New("not a package file")
+			return
 		}
-		p, err = imp.ReadString('\n')
+		end = r.Offset() + sz
+		line, err = r.ReadString('\n')
 		if err != nil {
-			base.Errorf("import %s: reading input: %v", file, err)
-			base.ErrorExit()
+			return
 		}
+	} else {
+		// Not an archive; provide end of file instead.
+		// TODO(mdempsky): I don't think this happens anymore.
+		var fi os.FileInfo
+		fi, err = f.Stat()
+		if err != nil {
+			return
+		}
+		end = fi.Size()
 	}
 
-	if !strings.HasPrefix(p, "go object ") {
-		base.Errorf("import %s: not a go object file: %s", file, p)
-		base.ErrorExit()
+	if !strings.HasPrefix(line, "go object ") {
+		err = fmt.Errorf("not a go object file: %s", line)
+		return
 	}
-	q := objabi.HeaderString()
-	if p != q {
-		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
-		base.ErrorExit()
+	if expect := objabi.HeaderString(); line != expect {
+		err = fmt.Errorf("object is [%s] expected [%s]", line, expect)
+		return
 	}
 
 	// process header lines
-	for {
-		p, err = imp.ReadString('\n')
+	for !strings.HasPrefix(line, "$$") {
+		line, err = r.ReadString('\n')
 		if err != nil {
-			base.Errorf("import %s: reading input: %v", file, err)
-			base.ErrorExit()
-		}
-		if p == "\n" {
-			break // header ends with blank line
+			return
 		}
 	}
 
 	// Expect $$B\n to signal binary import format.
-
-	// look for $$
-	var c byte
-	for {
-		c, err = imp.ReadByte()
-		if err != nil {
-			break
-		}
-		if c == '$' {
-			c, err = imp.ReadByte()
-			if c == '$' || err != nil {
-				break
-			}
-		}
+	if line != "$$B\n" {
+		err = errors.New("old export format no longer supported (recompile library)")
+		return
 	}
 
-	// get character after $$
-	if err == nil {
-		c, _ = imp.ReadByte()
-	}
+	return
+}
 
+// addFingerprint reads the linker fingerprint included at the end of
+// the exportdata.
+func addFingerprint(path string, f *os.File, end int64) error {
+	const eom = "\n$$\n"
 	var fingerprint goobj.FingerprintType
-	switch c {
-	case '\n':
-		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path)
-		return nil
 
-	case 'B':
-		if base.Debug.Export != 0 {
-			fmt.Printf("importing %s (%s)\n", path, file)
-		}
-		imp.ReadByte() // skip \n after $$B
-
-		c, err = imp.ReadByte()
-		if err != nil {
-			base.Errorf("import %s: reading input: %v", file, err)
-			base.ErrorExit()
-		}
-
-		// Indexed format is distinguished by an 'i' byte,
-		// whereas previous export formats started with 'c', 'd', or 'v'.
-		if c != 'i' {
-			base.Errorf("import %s: unexpected package format byte: %v", file, c)
-			base.ErrorExit()
-		}
-		fingerprint = typecheck.ReadImports(importpkg, imp)
-
-	default:
-		base.Errorf("no import in %q", path)
-		base.ErrorExit()
+	var buf [len(fingerprint) + len(eom)]byte
+	if _, err := f.ReadAt(buf[:], end-int64(len(buf))); err != nil {
+		return err
 	}
+
+	// Caller should have given us the end position of the export data,
+	// which should end with the "\n$$\n" marker. As a consistency check
+	// to make sure we're reading at the right offset, make sure we
+	// found the marker.
+	if s := string(buf[len(fingerprint):]); s != eom {
+		return fmt.Errorf("expected $$ marker, but found %q", s)
+	}
+
+	copy(fingerprint[:], buf[:])
 
 	// assume files move (get installed) so don't record the full path
 	if base.Flag.Cfg.PackageFile != nil {
@@ -329,10 +376,10 @@ func readImportFile(target *ir.Package, path string) *types.Pkg {
 		base.Ctxt.AddImport(path, fingerprint)
 	} else {
 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
+		file := f.Name()
 		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
 	}
-
-	return importpkg
+	return nil
 }
 
 // The linker uses the magic symbol prefixes "go." and "type."

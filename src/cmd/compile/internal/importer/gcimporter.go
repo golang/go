@@ -155,7 +155,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
 		if len(data) > 0 && data[0] == 'i' {
-			_, pkg, err = iImportData(packages, data[1:], id)
+			pkg, err = ImportData(packages, string(data[1:]), id)
 		} else {
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}
