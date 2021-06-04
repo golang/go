@@ -87,14 +87,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVD	$runtime·mainPC(SB), R0		// entry
-	MOVD	RSP, R7
-	MOVD.W	$0, -8(R7)
-	MOVD.W	R0, -8(R7)
-	MOVD.W	$0, -8(R7)
-	MOVD.W	$0, -8(R7)
-	MOVD	R7, RSP
+	SUB	$16, RSP
+	MOVD	R0, 8(RSP) // arg
+	MOVD	$0, 0(RSP) // dummy LR
 	BL	runtime·newproc(SB)
-	ADD	$32, RSP
+	ADD	$16, RSP
 
 	// start this M
 	BL	runtime·mstart(SB)

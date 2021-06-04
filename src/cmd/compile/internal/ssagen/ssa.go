@@ -4972,14 +4972,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		argStart := base.Ctxt.FixedFrameSize()
 		// Defer/go args.
 		if k != callNormal {
-			// Write argsize and closure (args to newproc/deferproc).
-			argsize := s.constInt32(types.Types[types.TUINT32], int32(stksize))
-			ACArgs = append(ACArgs, types.Types[types.TUINT32]) // not argExtra
-			callArgs = append(callArgs, argsize)
-			ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+			// Write closure (arg to newproc/deferproc).
+			ACArgs = append(ACArgs, types.Types[types.TUINTPTR]) // not argExtra
 			callArgs = append(callArgs, closure)
-			stksize += 2 * int64(types.PtrSize)
-			argStart += 2 * int64(types.PtrSize)
+			stksize += int64(types.PtrSize)
+			argStart += int64(types.PtrSize)
 		}
 
 		// Set receiver (for interface calls).

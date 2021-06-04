@@ -63,12 +63,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVV	$runtime·mainPC(SB), R1		// entry
-	ADDV	$-24, R29
-	MOVV	R1, 16(R29)
-	MOVV	R0, 8(R29)
+	ADDV	$-16, R29
+	MOVV	R1, 8(R29)
 	MOVV	R0, 0(R29)
 	JAL	runtime·newproc(SB)
-	ADDV	$24, R29
+	ADDV	$16, R29
 
 	// start this M
 	JAL	runtime·mstart(SB)

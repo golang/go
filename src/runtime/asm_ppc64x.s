@@ -94,9 +94,8 @@ nocgo:
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
-	MOVDU	R0, -8(R1)
 	BL	runtime·newproc(SB)
-	ADD	$(16+FIXED_FRAME), R1
+	ADD	$(8+FIXED_FRAME), R1
 
 	// start this M
 	BL	runtime·mstart(SB)

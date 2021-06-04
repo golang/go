@@ -224,19 +224,14 @@ func panicmemAddr(addr uintptr) {
 	panic(errorAddressString{msg: "invalid memory address or nil pointer dereference", addr: addr})
 }
 
-// Create a new deferred function fn with siz bytes of arguments.
+// Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
-func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
 	gp := getg()
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
-	}
-
-	if siz != 0 {
-		// TODO: Make deferproc just take a func().
-		throw("defer with non-empty frame")
 	}
 
 	// the arguments of fn are in a perilous state. The stack map

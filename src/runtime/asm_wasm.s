@@ -18,8 +18,7 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
 	CALLNORESUME runtime·args(SB)
 	CALLNORESUME runtime·osinit(SB)
 	CALLNORESUME runtime·schedinit(SB)
-	MOVD $0, 0(SP)
-	MOVD $runtime·mainPC(SB), 8(SP)
+	MOVD $runtime·mainPC(SB), 0(SP)
 	CALLNORESUME runtime·newproc(SB)
 	CALL runtime·mstart(SB) // WebAssembly stack will unwind when switching to another goroutine
 	UNDEF
