@@ -4696,7 +4696,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 	var args []*ssa.Value
 	var argNodes []*ir.Name
 
-	if buildcfg.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0 {
 		s.Fatalf("defer call with arguments or results: %v", n)
 	}
 
@@ -4951,7 +4951,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 	}
 
-	if buildcfg.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 

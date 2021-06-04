@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/cpu"
-	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -4259,7 +4258,7 @@ func newproc(siz int32, fn *funcval) {
 //
 //go:systemstack
 func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
-	if goexperiment.RegabiDefer && narg != 0 {
+	if true && narg != 0 {
 		// TODO: When we commit to GOEXPERIMENT=regabidefer,
 		// rewrite the comments for newproc and newproc1.
 		// newproc will no longer have a funny stack layout or
