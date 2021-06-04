@@ -214,9 +214,7 @@ ok:
 	// create a new goroutine to start program
 	MOVQ	$runtime·mainPC(SB), AX		// entry
 	PUSHQ	AX
-	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
-	POPQ	AX
 	POPQ	AX
 
 	// start this M

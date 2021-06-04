@@ -4217,7 +4217,7 @@ func malg(stacksize int32) *g {
 	return newg
 }
 
-// Create a new g running fn with siz bytes of arguments.
+// Create a new g running fn.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
 //
@@ -4232,12 +4232,11 @@ func malg(stacksize int32) *g {
 // be able to adjust them and stack splits won't be able to copy them.
 //
 //go:nosplit
-func newproc(siz int32, fn *funcval) {
-	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newg := newproc1(fn, argp, siz, gp, pc)
+		newg := newproc1(fn, gp, pc)
 
 		_p_ := getg().m.p.ptr()
 		runqput(_p_, newg, true)
@@ -4248,23 +4247,19 @@ func newproc(siz int32, fn *funcval) {
 	})
 }
 
-// Create a new g in state _Grunnable, starting at fn, with narg bytes
-// of arguments starting at argp. callerpc is the address of the go
-// statement that created this. The caller is responsible for adding
-// the new g to the scheduler.
+// Create a new g in state _Grunnable, starting at fn. callerpc is the
+// address of the go statement that created this. The caller is responsible
+// for adding the new g to the scheduler.
 //
 // This must run on the system stack because it's the continuation of
 // newproc, which cannot split the stack.
 //
 //go:systemstack
-func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
-	if narg != 0 {
-		// TODO: When we commit to GOEXPERIMENT=regabidefer,
-		// rewrite the comments for newproc and newproc1.
-		// newproc will no longer have a funny stack layout or
-		// need to be nosplit.
-		throw("go with non-empty frame")
-	}
+func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+	// TODO: When we commit to GOEXPERIMENT=regabidefer,
+	// rewrite the comments for newproc and newproc1.
+	// newproc will no longer have a funny stack layout or
+	// need to be nosplit.
 
 	_g_ := getg()
 
