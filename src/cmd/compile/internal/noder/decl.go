@@ -41,21 +41,15 @@ func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
 }
 
 func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
-	// TODO(mdempsky): Merge with gcimports so we don't have to import
-	// packages twice.
-
 	g.pragmaFlags(decl.Pragma, 0)
 
 	// Get the imported package's path, as resolved already by types2
 	// and gcimporter. This is the same path as would be computed by
 	// parseImportPath.
-	path := pkgNameOf(g.info, decl).Imported().Path()
-
-	ipkg := readImportFile(g.target, path)
-	if ipkg == ir.Pkgs.Unsafe {
+	switch pkgNameOf(g.info, decl).Imported().Path() {
+	case "unsafe":
 		p.importedUnsafe = true
-	}
-	if ipkg.Path == "embed" {
+	case "embed":
 		p.importedEmbed = true
 	}
 }

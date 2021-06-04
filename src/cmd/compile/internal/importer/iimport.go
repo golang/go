@@ -8,7 +8,6 @@
 package importer
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"encoding/binary"
@@ -18,10 +17,11 @@ import (
 	"io"
 	"math/big"
 	"sort"
+	"strings"
 )
 
 type intReader struct {
-	*bytes.Reader
+	*strings.Reader
 	path string
 }
 
@@ -82,7 +82,7 @@ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
-func iImportData(imports map[string]*types2.Package, data []byte, path string) (_ int, pkg *types2.Package, err error) {
+func ImportData(imports map[string]*types2.Package, data, path string) (pkg *types2.Package, err error) {
 	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	defer func() {
@@ -95,7 +95,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 		}
 	}()
 
-	r := &intReader{bytes.NewReader(data), path}
+	r := &intReader{strings.NewReader(data), path}
 
 	version = int64(r.uint64())
 	switch version {
@@ -122,7 +122,6 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 		version:       int(version),
 
 		stringData:   stringData,
-		stringCache:  make(map[uint64]string),
 		pkgCache:     make(map[uint64]*types2.Package),
 		posBaseCache: make(map[uint64]*syntax.PosBase),
 
@@ -196,8 +195,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
 
-	consumed, _ := r.Seek(0, io_SeekCurrent)
-	return int(consumed), localpkg, nil
+	return localpkg, nil
 }
 
 type iimporter struct {
@@ -205,12 +203,11 @@ type iimporter struct {
 	ipath         string
 	version       int
 
-	stringData   []byte
-	stringCache  map[uint64]string
+	stringData   string
 	pkgCache     map[uint64]*types2.Package
 	posBaseCache map[uint64]*syntax.PosBase
 
-	declData    []byte
+	declData    string
 	pkgIndex    map[*types2.Package]map[string]uint64
 	typCache    map[uint64]types2.Type
 	tparamIndex map[ident]types2.Type
@@ -233,24 +230,21 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
 	// Reader.Reset is not available in Go 1.4.
 	// Use bytes.NewReader for now.
 	// r.declReader.Reset(p.declData[off:])
-	r.declReader = *bytes.NewReader(p.declData[off:])
+	r.declReader = *strings.NewReader(p.declData[off:])
 
 	r.obj(name)
 }
 
 func (p *iimporter) stringAt(off uint64) string {
-	if s, ok := p.stringCache[off]; ok {
-		return s
-	}
+	var x [binary.MaxVarintLen64]byte
+	n := copy(x[:], p.stringData[off:])
 
-	slen, n := binary.Uvarint(p.stringData[off:])
+	slen, n := binary.Uvarint(x[:n])
 	if n <= 0 {
 		errorf("varint failed")
 	}
 	spos := off + uint64(n)
-	s := string(p.stringData[spos : spos+slen])
-	p.stringCache[off] = s
-	return s
+	return p.stringData[spos : spos+slen]
 }
 
 func (p *iimporter) pkgAt(off uint64) *types2.Package {
@@ -285,7 +279,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 	// Reader.Reset is not available in Go 1.4.
 	// Use bytes.NewReader for now.
 	// r.declReader.Reset(p.declData[off-predeclReserved:])
-	r.declReader = *bytes.NewReader(p.declData[off-predeclReserved:])
+	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
 	t := r.doType(base)
 
 	if base == nil || !isInterface(t) {
@@ -296,7 +290,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
 
 type importReader struct {
 	p           *iimporter
-	declReader  bytes.Reader
+	declReader  strings.Reader
 	currPkg     *types2.Package
 	prevPosBase *syntax.PosBase
 	prevLine    int64

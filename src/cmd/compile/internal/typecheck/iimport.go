@@ -12,7 +12,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"go/constant"
-	"io"
 	"math/big"
 	"os"
 	"strings"
@@ -20,8 +19,6 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/bio"
-	"cmd/internal/goobj"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 )
@@ -95,7 +92,7 @@ func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset
 }
 
 type intReader struct {
-	*bio.Reader
+	*strings.Reader
 	pkg *types.Pkg
 }
 
@@ -117,8 +114,8 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
-func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
-	ird := &intReader{in, pkg}
+func ReadImports(pkg *types.Pkg, data string) {
+	ird := &intReader{strings.NewReader(data), pkg}
 
 	version := ird.uint64()
 	switch version {
@@ -132,21 +129,15 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
 		base.ErrorExit()
 	}
 
-	sLen := ird.uint64()
-	dLen := ird.uint64()
+	sLen := int64(ird.uint64())
+	dLen := int64(ird.uint64())
 
-	// Map string (and data) section into memory as a single large
-	// string. This reduces heap fragmentation and allows
-	// returning individual substrings very efficiently.
-	data, err := mapFile(in.File(), in.Offset(), int64(sLen+dLen))
-	if err != nil {
-		base.Errorf("import %q: mapping input: %v", pkg.Path, err)
-		base.ErrorExit()
-	}
-	stringData := data[:sLen]
-	declData := data[sLen:]
-
-	in.MustSeek(int64(sLen+dLen), os.SEEK_CUR)
+	// TODO(mdempsky): Replace os.SEEK_CUR with io.SeekCurrent after
+	// #44505 is fixed.
+	whence, _ := ird.Seek(0, os.SEEK_CUR)
+	stringData := data[whence : whence+sLen]
+	declData := data[whence+sLen : whence+sLen+dLen]
+	ird.Seek(sLen+dLen, os.SEEK_CUR)
 
 	p := &iimporter{
 		exportVersion: version,
@@ -208,14 +199,6 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
 			}
 		}
 	}
-
-	// Fingerprint.
-	_, err = io.ReadFull(in, fingerprint[:])
-	if err != nil {
-		base.Errorf("import %s: error reading fingerprint", pkg.Path)
-		base.ErrorExit()
-	}
-	return fingerprint
 }
 
 type iimporter struct {

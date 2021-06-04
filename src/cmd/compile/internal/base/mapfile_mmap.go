@@ -5,7 +5,7 @@
 //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
 // +build darwin dragonfly freebsd linux netbsd openbsd
 
-package typecheck
+package base
 
 import (
 	"os"
@@ -19,7 +19,7 @@ import (
 
 // mapFile returns length bytes from the file starting at the
 // specified offset as a string.
-func mapFile(f *os.File, offset, length int64) (string, error) {
+func MapFile(f *os.File, offset, length int64) (string, error) {
 	// POSIX mmap: "The implementation may require that off is a
 	// multiple of the page size."
 	x := offset & int64(os.Getpagesize()-1)
