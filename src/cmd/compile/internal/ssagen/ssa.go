@@ -359,31 +359,8 @@ func (s *state) emitOpenDeferInfo() {
 		r := s.openDefers[i]
 		off = dvarint(x, off, r.n.X.Type().ArgWidth())
 		off = dvarint(x, off, -r.closureNode.FrameOffset())
-		numArgs := len(r.argNodes)
-		if r.rcvrNode != nil {
-			// If there's an interface receiver, treat/place it as the first
-			// arg. (If there is a method receiver, it's already included as
-			// first arg in r.argNodes.)
-			numArgs++
-		}
+		numArgs := 0
 		off = dvarint(x, off, int64(numArgs))
-		argAdjust := 0 // presence of receiver offsets the parameter count.
-		if r.rcvrNode != nil {
-			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
-			off = dvarint(x, off, s.config.PtrSize)
-			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
-			argAdjust++
-		}
-
-		// TODO(register args) assume abi0 for this?
-		ab := s.f.ABI0
-		pri := ab.ABIAnalyzeFuncType(r.n.X.Type().FuncType())
-		for j, arg := range r.argNodes {
-			f := getParam(r.n, j)
-			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
-			off = dvarint(x, off, f.Type.Size())
-			off = dvarint(x, off, okOffset(pri.InParam(j+argAdjust).FrameOffset(pri)))
-		}
 	}
 }
 
@@ -864,16 +841,6 @@ type openDeferInfo struct {
 	// function, method, or interface call, to store a closure that panic
 	// processing can use for this defer.
 	closureNode *ir.Name
-	// If defer call is interface call, the address of the argtmp where the
-	// receiver is stored
-	rcvr *ssa.Value
-	// The node representing the argtmp where the receiver is stored
-	rcvrNode *ir.Name
-	// The addresses of the argtmps where the evaluated arguments of the defer
-	// function call are stored.
-	argVals []*ssa.Value
-	// The nodes representing the argtmps where the args of the defer are stored
-	argNodes []*ir.Name
 }
 
 type state struct {
@@ -4686,17 +4653,14 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
 	return args
 }
 
-// openDeferRecord adds code to evaluate and store the args for an open-code defer
+// openDeferRecord adds code to evaluate and store the function for an open-code defer
 // call, and records info about the defer, so we can generate proper code on the
 // exit paths. n is the sub-node of the defer node that is the actual function
-// call. We will also record funcdata information on where the args are stored
+// call. We will also record funcdata information on where the function is stored
 // (as well as the deferBits variable), and this will enable us to run the proper
 // defer calls during panics.
 func (s *state) openDeferRecord(n *ir.CallExpr) {
-	var args []*ssa.Value
-	var argNodes []*ir.Name
-
-	if len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0 {
+	if len(n.Args) != 0 || n.Op() != ir.OCALLFUNC || n.X.Type().NumResults() != 0 {
 		s.Fatalf("defer call with arguments or results: %v", n)
 	}
 
@@ -4704,48 +4668,20 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 		n: n,
 	}
 	fn := n.X
-	if n.Op() == ir.OCALLFUNC {
-		// We must always store the function value in a stack slot for the
-		// runtime panic code to use. But in the defer exit code, we will
-		// call the function directly if it is a static function.
-		closureVal := s.expr(fn)
-		closure := s.openDeferSave(nil, fn.Type(), closureVal)
-		opendefer.closureNode = closure.Aux.(*ir.Name)
-		if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC) {
-			opendefer.closure = closure
-		}
-	} else if n.Op() == ir.OCALLMETH {
-		base.Fatalf("OCALLMETH missed by walkCall")
-	} else {
-		if fn.Op() != ir.ODOTINTER {
-			base.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
-		}
-		fn := fn.(*ir.SelectorExpr)
-		closure, rcvr := s.getClosureAndRcvr(fn)
-		opendefer.closure = s.openDeferSave(nil, closure.Type, closure)
-		// Important to get the receiver type correct, so it is recognized
-		// as a pointer for GC purposes.
-		opendefer.rcvr = s.openDeferSave(nil, fn.Type().Recv().Type, rcvr)
-		opendefer.closureNode = opendefer.closure.Aux.(*ir.Name)
-		opendefer.rcvrNode = opendefer.rcvr.Aux.(*ir.Name)
+	// We must always store the function value in a stack slot for the
+	// runtime panic code to use. But in the defer exit code, we will
+	// call the function directly if it is a static function.
+	closureVal := s.expr(fn)
+	closure := s.openDeferSave(nil, fn.Type(), closureVal)
+	opendefer.closureNode = closure.Aux.(*ir.Name)
+	if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC) {
+		opendefer.closure = closure
 	}
-	for _, argn := range n.Args {
-		var v *ssa.Value
-		if TypeOK(argn.Type()) {
-			v = s.openDeferSave(nil, argn.Type(), s.expr(argn))
-		} else {
-			v = s.openDeferSave(argn, argn.Type(), nil)
-		}
-		args = append(args, v)
-		argNodes = append(argNodes, v.Aux.(*ir.Name))
-	}
-	opendefer.argVals = args
-	opendefer.argNodes = argNodes
 	index := len(s.openDefers)
 	s.openDefers = append(s.openDefers, opendefer)
 
 	// Update deferBits only after evaluation and storage to stack of
-	// args/receiver/interface is successful.
+	// the function is successful.
 	bitvalue := s.constInt8(types.Types[types.TUINT8], 1<<uint(index))
 	newDeferBits := s.newValue2(ssa.OpOr8, types.Types[types.TUINT8], s.variable(deferBitsVar, types.Types[types.TUINT8]), bitvalue)
 	s.vars[deferBitsVar] = newDeferBits
@@ -4848,61 +4784,32 @@ func (s *state) openDeferExit() {
 		s.vars[deferBitsVar] = maskedval
 
 		// Generate code to call the function call of the defer, using the
-		// closure/receiver/args that were stored in argtmps at the point
-		// of the defer statement.
+		// closure that were stored in argtmps at the point of the defer
+		// statement.
 		fn := r.n.X
 		stksize := fn.Type().ArgWidth()
-		var ACArgs []*types.Type
-		var ACResults []*types.Type
 		var callArgs []*ssa.Value
-		if r.rcvr != nil {
-			// rcvr in case of OCALLINTER
-			v := s.load(r.rcvr.Type.Elem(), r.rcvr)
-			ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
-			callArgs = append(callArgs, v)
-		}
-		for j, argAddrVal := range r.argVals {
-			f := getParam(r.n, j)
-			ACArgs = append(ACArgs, f.Type)
-			var a *ssa.Value
-			if !TypeOK(f.Type) {
-				a = s.newValue2(ssa.OpDereference, f.Type, argAddrVal, s.mem())
-			} else {
-				a = s.load(f.Type, argAddrVal)
-			}
-			callArgs = append(callArgs, a)
-		}
 		var call *ssa.Value
 		if r.closure != nil {
 			v := s.load(r.closure.Type.Elem(), r.closure)
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
-			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, nil, nil))
 			call = s.newValue2A(ssa.OpClosureLECall, aux.LateExpansionResultType(), aux, codeptr, v)
 		} else {
-			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
+			aux := ssa.StaticAuxCall(fn.(*ir.Name).Linksym(), s.f.ABIDefault.ABIAnalyzeTypes(nil, nil, nil))
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		}
 		callArgs = append(callArgs, s.mem())
 		call.AddArgs(callArgs...)
 		call.AuxInt = stksize
-		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
+		s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, 0, call)
 		// Make sure that the stack slots with pointers are kept live
 		// through the call (which is a pre-emption point). Also, we will
 		// use the first call of the last defer exit to compute liveness
 		// for the deferreturn, so we want all stack slots to be live.
 		if r.closureNode != nil {
 			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.closureNode, s.mem(), false)
-		}
-		if r.rcvrNode != nil {
-			if r.rcvrNode.Type().HasPointers() {
-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, r.rcvrNode, s.mem(), false)
-			}
-		}
-		for _, argNode := range r.argNodes {
-			if argNode.Type().HasPointers() {
-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
-			}
 		}
 
 		s.endBlock()
@@ -5022,17 +4929,21 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	var call *ssa.Value
 	if k == callDeferStack {
 		// Make a defer struct d on the stack.
-		t := deferstruct(stksize)
+		if stksize != 0 {
+			s.Fatalf("deferprocStack with non-zero stack size %d: %v", stksize, n)
+		}
+
+		t := deferstruct()
 		d := typecheck.TempAt(n.Pos(), s.curfn, t)
 
 		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
 		addr := s.addr(d)
 
-		// Must match reflect.go:deferstruct and src/runtime/runtime2.go:_defer.
+		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
 		// 0: siz
 		s.store(types.Types[types.TUINT32],
 			s.newValue1I(ssa.OpOffPtr, types.Types[types.TUINT32].PtrTo(), t.FieldOff(0), addr),
-			s.constInt32(types.Types[types.TUINT32], int32(stksize)))
+			s.constInt32(types.Types[types.TUINT32], 0))
 		// 1: started, set in deferprocStack
 		// 2: heap, set in deferprocStack
 		// 3: openDefer
@@ -5048,39 +4959,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// 10: varp
 		// 11: fd
 
-		// Then, store all the arguments of the defer call.
-		ft := fn.Type()
-		off := t.FieldOff(12) // TODO register args: be sure this isn't a hardcoded param stack offset.
-		args := n.Args
-
-		// Set receiver (for interface calls). Always a pointer.
-		if rcvr != nil {
-			p := s.newValue1I(ssa.OpOffPtr, ft.Recv().Type.PtrTo(), off, addr)
-			s.store(types.Types[types.TUINTPTR], p, rcvr)
-		}
-		// Set receiver (for method calls).
-		if n.Op() == ir.OCALLMETH {
-			base.Fatalf("OCALLMETH missed by walkCall")
-		}
-		// Set other args.
-		for _, f := range ft.Params().Fields().Slice() {
-			s.storeArgWithBase(args[0], f.Type, addr, off+abi.FieldOffsetOf(f))
-			args = args[1:]
-		}
-
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
 		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, s.f.ABIDefault.ABIAnalyzeTypes(nil, ACArgs, ACResults))
 		callArgs = append(callArgs, addr, s.mem())
 		call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
 		call.AddArgs(callArgs...)
-		if stksize < int64(types.PtrSize) {
-			// We need room for both the call to deferprocStack and the call to
-			// the deferred function.
-			// TODO(register args) Revisit this if/when we pass args in registers.
-			stksize = int64(types.PtrSize)
-		}
-		call.AuxInt = stksize
+		call.AuxInt = int64(types.PtrSize) // deferprocStack takes a *_defer arg
 	} else {
 		// Store arguments to stack, including defer/go arguments and receiver for method calls.
 		// These are written in SP-offset order.
@@ -7689,9 +7574,8 @@ func max8(a, b int8) int8 {
 	return b
 }
 
-// deferstruct makes a runtime._defer structure, with additional space for
-// stksize bytes of args.
-func deferstruct(stksize int64) *types.Type {
+// deferstruct makes a runtime._defer structure.
+func deferstruct() *types.Type {
 	makefield := func(name string, typ *types.Type) *types.Field {
 		// Unlike the global makefield function, this one needs to set Pkg
 		// because these types might be compared (in SSA CSE sorting).
@@ -7699,11 +7583,8 @@ func deferstruct(stksize int64) *types.Type {
 		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
 		return types.NewField(src.NoXPos, sym, typ)
 	}
-	argtype := types.NewArray(types.Types[types.TUINT8], stksize)
-	argtype.Width = stksize
-	argtype.Align = 1
 	// These fields must match the ones in runtime/runtime2.go:_defer and
-	// cmd/compile/internal/gc/ssa.go:(*state).call.
+	// (*state).call above.
 	fields := []*types.Field{
 		makefield("siz", types.Types[types.TUINT32]),
 		makefield("started", types.Types[types.TBOOL]),
@@ -7720,7 +7601,6 @@ func deferstruct(stksize int64) *types.Type {
 		makefield("framepc", types.Types[types.TUINTPTR]),
 		makefield("varp", types.Types[types.TUINTPTR]),
 		makefield("fd", types.Types[types.TUINTPTR]),
-		makefield("args", argtype),
 	}
 
 	// build struct holding the above fields
