@@ -122,6 +122,9 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
+	for i, value := range clos.List {
+		clos.List[i] = ir.NewStructKeyExpr(base.Pos, typ.Field(i), value)
+	}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())

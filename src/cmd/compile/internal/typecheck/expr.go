@@ -327,9 +327,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = AssignConv(n1, f.Type, "field value")
-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
-				sk.Offset = f.Offset
-				ls[i] = sk
+				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
 			}
 			if len(ls) < t.NumFields() {
 				base.Errorf("too few values in %v", n)
@@ -339,77 +337,33 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 			// keyed list
 			ls := n.List
-			for i, l := range ls {
-				ir.SetPos(l)
+			for i, n := range ls {
+				ir.SetPos(n)
 
-				if l.Op() == ir.OKEY {
-					kv := l.(*ir.KeyExpr)
-					key := kv.Key
-
-					// Sym might have resolved to name in other top-level
-					// package, because of import dot. Redirect to correct sym
-					// before we do the lookup.
-					s := key.Sym()
-					if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
-						s = Lookup(s.Name)
-					}
-
-					// An OXDOT uses the Sym field to hold
-					// the field to the right of the dot,
-					// so s will be non-nil, but an OXDOT
-					// is never a valid struct literal key.
-					if s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank() {
-						base.Errorf("invalid field name %v in struct initializer", key)
-						continue
-					}
-
-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
-					ls[i] = l
-				}
-
-				if l.Op() != ir.OSTRUCTKEY {
-					if !errored {
-						base.Errorf("mixture of field:value and value initializers")
-						errored = true
-					}
-					ls[i] = Expr(ls[i])
-					continue
-				}
-				l := l.(*ir.StructKeyExpr)
-
-				f := Lookdot1(nil, l.Field, t, t.Fields(), 0)
-				if f == nil {
-					if ci := Lookdot1(nil, l.Field, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
-						if visible(ci.Sym) {
-							base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", l.Field, t, ci.Sym)
-						} else if nonexported(l.Field) && l.Field.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
-							base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", l.Field, t)
-						} else {
-							base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
+				sk, ok := n.(*ir.StructKeyExpr)
+				if !ok {
+					kv, ok := n.(*ir.KeyExpr)
+					if !ok {
+						if !errored {
+							base.Errorf("mixture of field:value and value initializers")
+							errored = true
 						}
+						ls[i] = Expr(n)
 						continue
 					}
-					var f *types.Field
-					p, _ := dotpath(l.Field, t, &f, true)
-					if p == nil || f.IsMethod() {
-						base.Errorf("unknown field '%v' in struct literal of type %v", l.Field, t)
+
+					sk = tcStructLitKey(t, kv)
+					if sk == nil {
 						continue
 					}
-					// dotpath returns the parent embedded types in reverse order.
-					var ep []string
-					for ei := len(p) - 1; ei >= 0; ei-- {
-						ep = append(ep, p[ei].field.Sym.Name)
-					}
-					ep = append(ep, l.Field.Name)
-					base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
-					continue
+
+					fielddup(sk.Sym().Name, hash)
 				}
-				fielddup(f.Sym.Name, hash)
-				l.Offset = f.Offset
 
 				// No pushtype allowed here. Tried and rejected.
-				l.Value = Expr(l.Value)
-				l.Value = AssignConv(l.Value, f.Type, "field value")
+				sk.Value = Expr(sk.Value)
+				sk.Value = AssignConv(sk.Value, sk.Field.Type, "field value")
+				ls[i] = sk
 			}
 		}
 
@@ -418,6 +372,60 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	}
 
 	return n
+}
+
+// tcStructLitKey typechecks an OKEY node that appeared within a
+// struct literal.
+func tcStructLitKey(typ *types.Type, kv *ir.KeyExpr) *ir.StructKeyExpr {
+	key := kv.Key
+
+	// Sym might have resolved to name in other top-level
+	// package, because of import dot. Redirect to correct sym
+	// before we do the lookup.
+	sym := key.Sym()
+	if id, ok := key.(*ir.Ident); ok && DotImportRefs[id] != nil {
+		sym = Lookup(sym.Name)
+	}
+
+	// An OXDOT uses the Sym field to hold
+	// the field to the right of the dot,
+	// so s will be non-nil, but an OXDOT
+	// is never a valid struct literal key.
+	if sym == nil || sym.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || sym.IsBlank() {
+		base.Errorf("invalid field name %v in struct initializer", key)
+		return nil
+	}
+
+	if f := Lookdot1(nil, sym, typ, typ.Fields(), 0); f != nil {
+		return ir.NewStructKeyExpr(kv.Pos(), f, kv.Value)
+	}
+
+	if ci := Lookdot1(nil, sym, typ, typ.Fields(), 2); ci != nil { // Case-insensitive lookup.
+		if visible(ci.Sym) {
+			base.Errorf("unknown field '%v' in struct literal of type %v (but does have %v)", sym, typ, ci.Sym)
+		} else if nonexported(sym) && sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
+			base.Errorf("cannot refer to unexported field '%v' in struct literal of type %v", sym, typ)
+		} else {
+			base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
+		}
+		return nil
+	}
+
+	var f *types.Field
+	p, _ := dotpath(sym, typ, &f, true)
+	if p == nil || f.IsMethod() {
+		base.Errorf("unknown field '%v' in struct literal of type %v", sym, typ)
+		return nil
+	}
+
+	// dotpath returns the parent embedded types in reverse order.
+	var ep []string
+	for ei := len(p) - 1; ei >= 0; ei-- {
+		ep = append(ep, p[ei].field.Sym.Name)
+	}
+	ep = append(ep, sym.Name)
+	base.Errorf("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), typ)
+	return nil
 }
 
 // tcConv typechecks an OCONV node.
