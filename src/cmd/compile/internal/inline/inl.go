@@ -225,62 +225,6 @@ func canDelayResults(fn *ir.Func) bool {
 	return true
 }
 
-// Inline_Flood marks n's inline body for export and recursively ensures
-// all called functions are marked too.
-func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
-	if n == nil {
-		return
-	}
-	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
-		base.Fatalf("Inline_Flood: unexpected %v, %v, %v", n, n.Op(), n.Class)
-	}
-	fn := n.Func
-	if fn == nil {
-		base.Fatalf("Inline_Flood: missing Func on %v", n)
-	}
-	if fn.Inl == nil {
-		return
-	}
-
-	if fn.ExportInline() {
-		return
-	}
-	fn.SetExportInline(true)
-
-	typecheck.ImportedBody(fn)
-
-	var doFlood func(n ir.Node)
-	doFlood = func(n ir.Node) {
-		switch n.Op() {
-		case ir.OMETHEXPR, ir.ODOTMETH:
-			Inline_Flood(ir.MethodExprName(n), exportsym)
-
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			switch n.Class {
-			case ir.PFUNC:
-				Inline_Flood(n, exportsym)
-				exportsym(n)
-			case ir.PEXTERN:
-				exportsym(n)
-			}
-
-		case ir.OCALLPART:
-			// Okay, because we don't yet inline indirect
-			// calls to method values.
-		case ir.OCLOSURE:
-			// VisitList doesn't visit closure bodies, so force a
-			// recursive call to VisitList on the body of the closure.
-			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
-		}
-	}
-
-	// Recursively identify all referenced functions for
-	// reexport. We want to include even non-called functions,
-	// because after inlining they might be callable.
-	ir.VisitList(ir.Nodes(fn.Inl.Body), doFlood)
-}
-
 // hairyVisitor visits a function body to determine its inlining
 // hairiness and whether or not it can be inlined.
 type hairyVisitor struct {

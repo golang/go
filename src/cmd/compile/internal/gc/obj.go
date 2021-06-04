@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
@@ -103,7 +104,7 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 
 func dumpCompilerObj(bout *bio.Writer) {
 	printObjHeader(bout)
-	dumpexport(bout)
+	noder.WriteExports(bout)
 }
 
 func dumpdata() {
