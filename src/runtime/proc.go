@@ -4258,7 +4258,7 @@ func newproc(siz int32, fn *funcval) {
 //
 //go:systemstack
 func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
-	if true && narg != 0 {
+	if narg != 0 {
 		// TODO: When we commit to GOEXPERIMENT=regabidefer,
 		// rewrite the comments for newproc and newproc1.
 		// newproc will no longer have a funny stack layout or
@@ -4273,16 +4273,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		throw("go of nil func value")
 	}
 	acquirem() // disable preemption because it can be holding p in a local var
-	siz := narg
-	siz = (siz + 7) &^ 7
-
-	// We could allocate a larger initial stack if necessary.
-	// Not worth it: this is almost always an error.
-	// 4*PtrSize: extra space added below
-	// PtrSize: caller's LR (arm) or return address (x86, in gostartcall).
-	if siz >= _StackMin-4*sys.PtrSize-sys.PtrSize {
-		throw("newproc: function arguments too large for new goroutine")
-	}
 
 	_p_ := _g_.m.p.ptr()
 	newg := gfget(_p_)
@@ -4299,8 +4289,8 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := 4*sys.PtrSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
-	totalSize += -totalSize & (sys.StackAlign - 1)               // align to StackAlign
+	totalSize := uintptr(4*sys.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
+	totalSize = alignUp(totalSize, sys.StackAlign)
 	sp := newg.stack.hi - totalSize
 	spArg := sp
 	if usesLR {
@@ -4308,24 +4298,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 		prepGoExitFrame(sp)
 		spArg += sys.MinFrameSize
-	}
-	if narg > 0 {
-		memmove(unsafe.Pointer(spArg), argp, uintptr(narg))
-		// This is a stack-to-stack copy. If write barriers
-		// are enabled and the source stack is grey (the
-		// destination is always black), then perform a
-		// barrier copy. We do this *after* the memmove
-		// because the destination stack may have garbage on
-		// it.
-		if writeBarrier.needed && !_g_.m.curg.gcscandone {
-			f := findfunc(fn.fn)
-			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stkmap.nbit > 0 {
-				// We're in the prologue, so it's always stack map index 0.
-				bv := stackmapdata(stkmap, 0)
-				bulkBarrierBitmap(spArg, spArg, uintptr(bv.n)*sys.PtrSize, 0, bv.bytedata)
-			}
-		}
 	}
 
 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))

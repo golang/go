@@ -42,7 +42,6 @@ func TestIntendedInlining(t *testing.T) {
 			"bucketMask",
 			"bucketShift",
 			"chanbuf",
-			"deferArgs",
 			"deferclass",
 			"evacuated",
 			"fastlog2",

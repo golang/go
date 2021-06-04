@@ -42,12 +42,9 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 				throw("unknown pc")
 			}
 			frame.fn = f
-			frame.argp = uintptr(deferArgs(d))
-			var ok bool
-			frame.arglen, frame.argmap, ok = getArgInfoFast(f, true)
-			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
-			}
+			frame.argp = 0
+			frame.arglen = 0
+			frame.argmap = nil
 		}
 		frame.continpc = frame.pc
 		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
