@@ -324,20 +324,18 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 // A StructKeyExpr is an Field: Value composite literal key.
 type StructKeyExpr struct {
 	miniExpr
-	Field  *types.Sym
-	Value  Node
-	Offset int64
+	Field *types.Field
+	Value Node
 }
 
-func NewStructKeyExpr(pos src.XPos, field *types.Sym, value Node) *StructKeyExpr {
+func NewStructKeyExpr(pos src.XPos, field *types.Field, value Node) *StructKeyExpr {
 	n := &StructKeyExpr{Field: field, Value: value}
 	n.pos = pos
 	n.op = OSTRUCTKEY
-	n.Offset = types.BADWIDTH
 	return n
 }
 
-func (n *StructKeyExpr) Sym() *types.Sym { return n.Field }
+func (n *StructKeyExpr) Sym() *types.Sym { return n.Field.Sym }
 
 // An InlinedCallExpr is an inlined function call.
 type InlinedCallExpr struct {

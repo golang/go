@@ -937,9 +937,7 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 				f := t.Field(i)
 				n1 = assignconvfn(n1, f.Type)
-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
-				sk.Offset = f.Offset
-				ls[i] = sk
+				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
 			}
 			assert(len(ls) >= t.NumFields())
 		} else {
@@ -948,33 +946,26 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			for i, l := range ls {
 				ir.SetPos(l)
 
-				if l.Op() == ir.OKEY {
-					kv := l.(*ir.KeyExpr)
-					key := kv.Key
+				kv := l.(*ir.KeyExpr)
+				key := kv.Key
 
-					// Sym might have resolved to name in other top-level
-					// package, because of import dot. Redirect to correct sym
-					// before we do the lookup.
-					s := key.Sym()
-					if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
-						s = typecheck.Lookup(s.Name)
-					}
-
-					// An OXDOT uses the Sym field to hold
-					// the field to the right of the dot,
-					// so s will be non-nil, but an OXDOT
-					// is never a valid struct literal key.
-					assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
-
-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
-					ls[i] = l
+				// Sym might have resolved to name in other top-level
+				// package, because of import dot. Redirect to correct sym
+				// before we do the lookup.
+				s := key.Sym()
+				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+					s = typecheck.Lookup(s.Name)
 				}
 
-				assert(l.Op() == ir.OSTRUCTKEY)
-				l := l.(*ir.StructKeyExpr)
+				// An OXDOT uses the Sym field to hold
+				// the field to the right of the dot,
+				// so s will be non-nil, but an OXDOT
+				// is never a valid struct literal key.
+				assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
 
-				f := typecheck.Lookdot1(nil, l.Field, t, t.Fields(), 0)
-				l.Offset = f.Offset
+				f := typecheck.Lookdot1(nil, s, t, t.Fields(), 0)
+				l := ir.NewStructKeyExpr(l.Pos(), f, kv.Value)
+				ls[i] = l
 
 				l.Value = assignconvfn(l.Value, f.Type)
 			}

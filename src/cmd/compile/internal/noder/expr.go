@@ -355,11 +355,13 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 	for i, elem := range lit.ElemList {
 		switch elem := elem.(type) {
 		case *syntax.KeyValueExpr:
+			var key ir.Node
 			if isStruct {
-				exprs[i] = ir.NewStructKeyExpr(g.pos(elem), g.name(elem.Key.(*syntax.Name)), g.expr(elem.Value))
+				key = ir.NewIdent(g.pos(elem.Key), g.name(elem.Key.(*syntax.Name)))
 			} else {
-				exprs[i] = ir.NewKeyExpr(g.pos(elem), g.expr(elem.Key), g.expr(elem.Value))
+				key = g.expr(elem.Key)
 			}
+			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
 		default:
 			exprs[i] = g.expr(elem)
 		}

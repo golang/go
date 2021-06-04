@@ -2062,11 +2062,8 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
 	for _, n := range list {
 		n := n.(*ir.StructKeyExpr)
 		w.pos(n.Pos())
-		w.selector(n.Field)
+		w.exoticField(n.Field)
 		w.expr(n.Value)
-		if go117ExportTypes {
-			w.uint64(uint64(n.Offset))
-		}
 	}
 }
 

@@ -1719,11 +1719,7 @@ func (r *importReader) op() ir.Op {
 func (r *importReader) fieldList() []ir.Node {
 	list := make([]ir.Node, r.uint64())
 	for i := range list {
-		x := ir.NewStructKeyExpr(r.pos(), r.selector(), r.expr())
-		if go117ExportTypes {
-			x.Offset = int64(r.uint64())
-		}
-		list[i] = x
+		list[i] = ir.NewStructKeyExpr(r.pos(), r.exoticField(), r.expr())
 	}
 	return list
 }
