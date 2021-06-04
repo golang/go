@@ -753,11 +753,6 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 		adjustpointer(adjinfo, unsafe.Pointer(&d.varp))
 		adjustpointer(adjinfo, unsafe.Pointer(&d.fd))
 	}
-
-	// Adjust defer argument blocks the same way we adjust active stack frames.
-	// Note: this code is after the loop above, so that if a defer record is
-	// stack allocated, we work on the copy in the new stack.
-	tracebackdefers(gp, adjustframe, noescape(unsafe.Pointer(adjinfo)))
 }
 
 func adjustpanics(gp *g, adjinfo *adjustinfo) {

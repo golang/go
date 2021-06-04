@@ -21,38 +21,6 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
-// Traceback over the deferred function calls.
-// Report them like calls that have been invoked but not started executing yet.
-func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
-	var frame stkframe
-	for d := gp._defer; d != nil; d = d.link {
-		fn := d.fn
-		if fn == nil {
-			// Defer of nil function. Args don't matter.
-			frame.pc = 0
-			frame.fn = funcInfo{}
-			frame.argp = 0
-			frame.arglen = 0
-			frame.argmap = nil
-		} else {
-			frame.pc = fn.fn
-			f := findfunc(frame.pc)
-			if !f.valid() {
-				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
-				throw("unknown pc")
-			}
-			frame.fn = f
-			frame.argp = 0
-			frame.arglen = 0
-			frame.argmap = nil
-		}
-		frame.continpc = frame.pc
-		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
-			return
-		}
-	}
-}
-
 const sizeofSkipFunction = 256
 
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
