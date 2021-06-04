@@ -20,7 +20,7 @@ import (
 func initFuzzFlags() {
 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
 	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
-	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a crash; default is to minimize for 60s")
+	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a crash")
 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
 }
