@@ -78,9 +78,6 @@ type Flags struct {
 	// reflect and runtime (which are disabled by default) so it
 	// can be used in targeted tests.
 	RegabiReflect bool
-	// RegabiDefer enables desugaring defer and go calls
-	// into argument-less closures.
-	RegabiDefer bool
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//

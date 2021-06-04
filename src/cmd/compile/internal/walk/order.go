@@ -7,7 +7,6 @@ package walk
 import (
 	"fmt"
 	"go/constant"
-	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
@@ -790,9 +789,7 @@ func (o *orderState) stmt(n ir.Node) {
 			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
 			o.stmtList(init)
 		}
-		if buildcfg.Experiment.RegabiDefer {
-			o.wrapGoDefer(n)
-		}
+		o.wrapGoDefer(n)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 

@@ -30,7 +30,6 @@ var experimentBaseline = goexperiment.Flags{
 	RegabiWrappers: regabiSupported,
 	RegabiG:        regabiSupported,
 	RegabiReflect:  regabiSupported,
-	RegabiDefer:    true,
 	RegabiArgs:     regabiSupported,
 }
 
@@ -70,7 +69,6 @@ func parseExperiments() goexperiment.Flags {
 			flags.RegabiWrappers = v
 			flags.RegabiG = v
 			flags.RegabiReflect = v
-			flags.RegabiDefer = v
 			flags.RegabiArgs = v
 		}
 
@@ -110,8 +108,8 @@ func parseExperiments() goexperiment.Flags {
 	if flags.RegabiG && !flags.RegabiWrappers {
 		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
 	}
-	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
-		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect) {
+		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect")
 	}
 	return flags
 }
