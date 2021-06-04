@@ -381,12 +381,13 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
-		if d.fn == nil {
+		fn := *(**funcval)(unsafe.Pointer(&d.fn))
+		dumpint(uint64(uintptr(unsafe.Pointer(fn))))
+		if fn == nil {
 			// d.fn can be nil for open-coded defers
 			dumpint(uint64(0))
 		} else {
-			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+			dumpint(uint64(uintptr(unsafe.Pointer(fn.fn))))
 		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
