@@ -449,7 +449,7 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
 // parameterUpdateMu protects the Offset field of function/method parameters (a subset of structure Fields)
 var parameterUpdateMu sync.Mutex
 
-// FieldOffsetOf returns a concurency-safe version of f.Offset
+// FieldOffsetOf returns a concurrency-safe version of f.Offset
 func FieldOffsetOf(f *types.Field) int64 {
 	parameterUpdateMu.Lock()
 	defer parameterUpdateMu.Unlock()
