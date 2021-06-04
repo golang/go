@@ -7,7 +7,8 @@
 package p
 
 func _(x int) {
-	_ = ~x    // ERROR "unexpected ~"
+	_ = ~x
+	_ = x~ // ERROR "unexpected ~ at end of statement"
 }
 
 func _(x int) {

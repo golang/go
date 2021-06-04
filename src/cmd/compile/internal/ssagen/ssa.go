@@ -2052,14 +2052,14 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ir.ONEG, types.TFLOAT32}: ssa.OpNeg32F,
 	opAndType{ir.ONEG, types.TFLOAT64}: ssa.OpNeg64F,
 
-	opAndType{ir.OBITNOT, types.TINT8}:   ssa.OpCom8,
-	opAndType{ir.OBITNOT, types.TUINT8}:  ssa.OpCom8,
-	opAndType{ir.OBITNOT, types.TINT16}:  ssa.OpCom16,
-	opAndType{ir.OBITNOT, types.TUINT16}: ssa.OpCom16,
-	opAndType{ir.OBITNOT, types.TINT32}:  ssa.OpCom32,
-	opAndType{ir.OBITNOT, types.TUINT32}: ssa.OpCom32,
-	opAndType{ir.OBITNOT, types.TINT64}:  ssa.OpCom64,
-	opAndType{ir.OBITNOT, types.TUINT64}: ssa.OpCom64,
+	opAndType{ir.OCOM, types.TINT8}:   ssa.OpCom8,
+	opAndType{ir.OCOM, types.TUINT8}:  ssa.OpCom8,
+	opAndType{ir.OCOM, types.TINT16}:  ssa.OpCom16,
+	opAndType{ir.OCOM, types.TUINT16}: ssa.OpCom16,
+	opAndType{ir.OCOM, types.TINT32}:  ssa.OpCom32,
+	opAndType{ir.OCOM, types.TUINT32}: ssa.OpCom32,
+	opAndType{ir.OCOM, types.TINT64}:  ssa.OpCom64,
+	opAndType{ir.OCOM, types.TUINT64}: ssa.OpCom64,
 
 	opAndType{ir.OIMAG, types.TCOMPLEX64}:  ssa.OpComplexImag,
 	opAndType{ir.OIMAG, types.TCOMPLEX128}: ssa.OpComplexImag,
@@ -2900,7 +2900,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.BinaryExpr)
 		a := s.expr(n.X)
 		b := s.expr(n.Y)
-		b = s.newValue1(s.ssaOp(ir.OBITNOT, b.Type), b.Type, b)
+		b = s.newValue1(s.ssaOp(ir.OCOM, b.Type), b.Type, b)
 		return s.newValue2(s.ssaOp(ir.OAND, n.Type()), a.Type, a, b)
 	case ir.OLSH, ir.ORSH:
 		n := n.(*ir.BinaryExpr)
@@ -2976,7 +2976,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op(), n.Type()), a.Type, a)
-	case ir.ONOT, ir.OBITNOT:
+	case ir.ONOT, ir.OCOM:
 		n := n.(*ir.UnaryExpr)
 		a := s.expr(n.X)
 		return s.newValue1(s.ssaOp(n.Op(), n.Type()), a.Type, a)

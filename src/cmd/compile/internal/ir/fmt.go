@@ -41,7 +41,6 @@ var OpNames = []string{
 	OCASE:        "case",
 	OCLOSE:       "close",
 	OCOMPLEX:     "complex",
-	OBITNOT:      "^",
 	OCONTINUE:    "continue",
 	OCOPY:        "copy",
 	ODELETE:      "delete",
@@ -64,6 +63,7 @@ var OpNames = []string{
 	OLT:          "<",
 	OMAKE:        "make",
 	ONEG:         "-",
+	OCOM:         "~",
 	OMOD:         "%",
 	OMUL:         "*",
 	ONEW:         "new",
@@ -241,7 +241,7 @@ var OpPrec = []int{
 	OMETHEXPR:      8,
 	OPLUS:          7,
 	ONOT:           7,
-	OBITNOT:        7,
+	OCOM:           7,
 	ONEG:           7,
 	OADDR:          7,
 	ODEREF:         7,
@@ -870,7 +870,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*MakeExpr)
 		fmt.Fprintf(s, "makeslicecopy(%v, %v, %v)", n.Type(), n.Len, n.Cap)
 
-	case OPLUS, ONEG, OBITNOT, ONOT, ORECV:
+	case OPLUS, ONEG, OCOM, ONOT, ORECV:
 		// Unary
 		n := n.(*UnaryExpr)
 		fmt.Fprintf(s, "%v", n.Op())

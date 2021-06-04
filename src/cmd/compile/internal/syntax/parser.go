@@ -753,7 +753,7 @@ func (p *parser) unaryExpr() Expr {
 	switch p.tok {
 	case _Operator, _Star:
 		switch p.op {
-		case Mul, Add, Sub, Not, Xor:
+		case Mul, Add, Sub, Not, Tilde, Xor:
 			x := new(Operation)
 			x.pos = p.pos()
 			x.Op = p.op

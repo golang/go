@@ -1760,7 +1760,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		}
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
+	case ir.OPLUS, ir.ONEG, ir.OCOM, ir.ONOT, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())

@@ -670,7 +670,7 @@ func (n *UnaryExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
+	case OCOM, ONEG, ONOT, OPLUS, ORECV,
 		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
 		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
@@ -920,7 +920,7 @@ func SameSafeExpr(l Node, r Node) bool {
 		r := r.(*StarExpr)
 		return SameSafeExpr(l.X, r.X)
 
-	case ONOT, OBITNOT, OPLUS, ONEG:
+	case ONOT, OCOM, OPLUS, ONEG:
 		l := l.(*UnaryExpr)
 		r := r.(*UnaryExpr)
 		return SameSafeExpr(l.X, r.X)

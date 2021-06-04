@@ -132,7 +132,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
 		n.SetType(t)
 		return n
 
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.OREAL, ir.OIMAG:
+	case ir.OPLUS, ir.ONEG, ir.OCOM, ir.ONOT, ir.OREAL, ir.OIMAG:
 		ot := operandType(n.Op(), t)
 		if ot == nil {
 			n = DefaultLit(n, nil)
@@ -360,10 +360,10 @@ func tostr(v constant.Value) constant.Value {
 }
 
 var tokenForOp = [...]token.Token{
-	ir.OPLUS:   token.ADD,
-	ir.ONEG:    token.SUB,
-	ir.ONOT:    token.NOT,
-	ir.OBITNOT: token.XOR,
+	ir.OPLUS: token.ADD,
+	ir.ONEG:  token.SUB,
+	ir.ONOT:  token.NOT,
+	ir.OCOM:  token.XOR,
 
 	ir.OADD:    token.ADD,
 	ir.OSUB:    token.SUB,
@@ -395,7 +395,7 @@ var tokenForOp = [...]token.Token{
 func EvalConst(n ir.Node) ir.Node {
 	// Pick off just the opcodes that can be constant evaluated.
 	switch n.Op() {
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+	case ir.OPLUS, ir.ONEG, ir.OCOM, ir.ONOT:
 		n := n.(*ir.UnaryExpr)
 		nl := n.X
 		if nl.Op() == ir.OLITERAL {
@@ -582,12 +582,12 @@ func square(x constant.Value) constant.Value {
 // For matching historical "constant OP overflow" error messages.
 // TODO(mdempsky): Replace with error messages like go/types uses.
 var overflowNames = [...]string{
-	ir.OADD:    "addition",
-	ir.OSUB:    "subtraction",
-	ir.OMUL:    "multiplication",
-	ir.OLSH:    "shift",
-	ir.OXOR:    "bitwise XOR",
-	ir.OBITNOT: "bitwise complement",
+	ir.OADD: "addition",
+	ir.OSUB: "subtraction",
+	ir.OMUL: "multiplication",
+	ir.OLSH: "shift",
+	ir.OXOR: "bitwise XOR",
+	ir.OCOM: "bitwise complement",
 }
 
 // OrigConst returns an OLITERAL with orig n and value v.

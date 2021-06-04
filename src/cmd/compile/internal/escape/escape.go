@@ -602,7 +602,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		}
 		e.flow(k, e.oldLoc(n))
 
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+	case ir.OPLUS, ir.ONEG, ir.OCOM, ir.ONOT:
 		n := n.(*ir.UnaryExpr)
 		e.discard(n.X)
 	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.ODIV, ir.OMOD, ir.OLSH, ir.ORSH, ir.OAND, ir.OANDNOT, ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
@@ -839,7 +839,7 @@ func (e *escape) unsafeValue(k hole, n ir.Node) {
 		} else {
 			e.discard(n.X)
 		}
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT:
+	case ir.OPLUS, ir.ONEG, ir.OCOM:
 		n := n.(*ir.UnaryExpr)
 		e.unsafeValue(k, n.X)
 	case ir.OADD, ir.OSUB, ir.OOR, ir.OXOR, ir.OMUL, ir.ODIV, ir.OMOD, ir.OAND, ir.OANDNOT:
@@ -1977,7 +1977,7 @@ func mayAffectMemory(n ir.Node) bool {
 		n := n.(*ir.ConvExpr)
 		return mayAffectMemory(n.X)
 
-	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OBITNOT, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+	case ir.OLEN, ir.OCAP, ir.ONOT, ir.OCOM, ir.OPLUS, ir.ONEG, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 		n := n.(*ir.UnaryExpr)
 		return mayAffectMemory(n.X)
 

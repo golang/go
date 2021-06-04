@@ -312,7 +312,7 @@ func InitUniverse() {
 	okfor[ir.ORSH] = okforand[:]
 
 	// unary
-	okfor[ir.OBITNOT] = okforand[:]
+	okfor[ir.OCOM] = okforand[:]
 	okfor[ir.ONEG] = okforarith[:]
 	okfor[ir.ONOT] = okforbool[:]
 	okfor[ir.OPLUS] = okforarith[:]

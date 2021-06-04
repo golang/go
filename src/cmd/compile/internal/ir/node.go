@@ -221,9 +221,9 @@ const (
 	OANDNOT      // X &^ Y
 	ONEW         // new(X); corresponds to calls to new in source code
 	ONOT         // !X
-	OBITNOT      // ^X
 	OPLUS        // +X
 	ONEG         // -X
+	OCOM		 // ~X
 	OOROR        // X || Y
 	OPANIC       // panic(X)
 	OPRINT       // print(List)

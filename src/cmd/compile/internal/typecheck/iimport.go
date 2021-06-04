@@ -1344,7 +1344,7 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
+	case ir.OPLUS, ir.ONEG, ir.OCOM, ir.ONOT, ir.ORECV:
 		n := ir.NewUnaryExpr(r.pos(), op, r.expr())
 		if go117ExportTypes {
 			n.SetType(r.typ())

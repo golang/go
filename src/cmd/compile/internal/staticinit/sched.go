@@ -562,7 +562,7 @@ func AnySideEffects(n ir.Node) bool {
 			ir.OANDNOT,
 			ir.ONEW,
 			ir.ONOT,
-			ir.OBITNOT,
+			ir.OCOM,
 			ir.OPLUS,
 			ir.ONEG,
 			ir.OOROR,

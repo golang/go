@@ -1369,10 +1369,11 @@ var unOps = [...]ir.Op{
 	syntax.Mul:  ir.ODEREF,
 	syntax.And:  ir.OADDR,
 
-	syntax.Not: ir.ONOT,
-	syntax.Xor: ir.OBITNOT,
-	syntax.Add: ir.OPLUS,
-	syntax.Sub: ir.ONEG,
+	syntax.Not:   ir.ONOT,
+	syntax.Tilde: ir.OCOM,
+	syntax.Xor:   ir.OCOM,
+	syntax.Add:   ir.OPLUS,
+	syntax.Sub:   ir.ONEG,
 }
 
 func (p *noder) unOp(op syntax.Operator) ir.Op {

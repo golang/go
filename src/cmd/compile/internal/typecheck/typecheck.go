@@ -671,7 +671,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n.SetType(t)
 		return n
 
-	case ir.OBITNOT, ir.ONEG, ir.ONOT, ir.OPLUS:
+	case ir.OCOM, ir.ONEG, ir.ONOT, ir.OPLUS:
 		n := n.(*ir.UnaryExpr)
 		return tcUnaryArith(n)
 
