@@ -4220,18 +4220,6 @@ func malg(stacksize int32) *g {
 // Create a new g running fn.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
-//
-// The stack layout of this call is unusual: it assumes that the
-// arguments to pass to fn are on the stack sequentially immediately
-// after &fn. Hence, they are logically part of newproc's argument
-// frame, even though they don't appear in its signature (and can't
-// because their types differ between call sites).
-//
-// This must be nosplit because this stack layout means there are
-// untyped arguments in newproc's argument frame. Stack copies won't
-// be able to adjust them and stack splits won't be able to copy them.
-//
-//go:nosplit
 func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
@@ -4250,17 +4238,7 @@ func newproc(fn *funcval) {
 // Create a new g in state _Grunnable, starting at fn. callerpc is the
 // address of the go statement that created this. The caller is responsible
 // for adding the new g to the scheduler.
-//
-// This must run on the system stack because it's the continuation of
-// newproc, which cannot split the stack.
-//
-//go:systemstack
 func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
-	// TODO: When we commit to GOEXPERIMENT=regabidefer,
-	// rewrite the comments for newproc and newproc1.
-	// newproc will no longer have a funny stack layout or
-	// need to be nosplit.
-
 	_g_ := getg()
 
 	if fn == nil {
