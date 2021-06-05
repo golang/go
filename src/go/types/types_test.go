@@ -9,3 +9,6 @@ package types
 func SetGoVersion(config *Config, goVersion string) {
 	config.goVersion = goVersion
 }
+
+// Debug is set if go/types is built with debug mode enabled.
+const Debug = debug

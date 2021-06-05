@@ -111,11 +111,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		// The key for the Inferred map is the CallExpr (if inferring
 		// types required the function arguments) or the IndexExpr below
 		// (if types could be inferred without the function arguments).
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
 			// This is the case where inferring types required the
 			// types of the function arguments.
-			targs := make([]ir.Node, len(inferred.Targs))
-			for i, targ := range inferred.Targs {
+			targs := make([]ir.Node, len(inferred.TArgs))
+			for i, targ := range inferred.TArgs {
 				targs[i] = ir.TypeNode(g.typ(targ))
 			}
 			if fun.Op() == ir.OFUNCINST {
@@ -137,12 +137,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.IndexExpr:
 		var targs []ir.Node
 
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
 			// This is the partial type inference case where the types
 			// can be inferred from other type arguments without using
 			// the types of the function arguments.
-			targs = make([]ir.Node, len(inferred.Targs))
-			for i, targ := range inferred.Targs {
+			targs = make([]ir.Node, len(inferred.TArgs))
+			for i, targ := range inferred.TArgs {
 				targs[i] = ir.TypeNode(g.typ(targ))
 			}
 		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
@@ -355,11 +355,13 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 	for i, elem := range lit.ElemList {
 		switch elem := elem.(type) {
 		case *syntax.KeyValueExpr:
+			var key ir.Node
 			if isStruct {
-				exprs[i] = ir.NewStructKeyExpr(g.pos(elem), g.name(elem.Key.(*syntax.Name)), g.expr(elem.Value))
+				key = ir.NewIdent(g.pos(elem.Key), g.name(elem.Key.(*syntax.Name)))
 			} else {
-				exprs[i] = ir.NewKeyExpr(g.pos(elem), g.expr(elem.Key), g.expr(elem.Value))
+				key = g.expr(elem.Key)
 			}
+			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
 		default:
 			exprs[i] = g.expr(elem)
 		}

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -279,10 +280,23 @@ func (t *Type) SetRParams(rparams []*Type) {
 	}
 }
 
-// IsInstantiated reports whether t is a fully instantiated generic type; i.e. an
+// IsBaseGeneric returns true if t is a generic type (not reinstantiated with
+// another type params or fully instantiated.
+func (t *Type) IsBaseGeneric() bool {
+	return len(t.RParams()) > 0 && strings.Index(t.Sym().Name, "[") < 0
+}
+
+// IsInstantiatedGeneric returns t if t ia generic type that has been
+// reinstantiated with new typeparams (i.e. is not fully instantiated).
+func (t *Type) IsInstantiatedGeneric() bool {
+	return len(t.RParams()) > 0 && strings.Index(t.Sym().Name, "[") >= 0 &&
+		t.HasTParam()
+}
+
+// IsFullyInstantiated reports whether t is a fully instantiated generic type; i.e. an
 // instantiated generic type where all type arguments are non-generic or fully
 // instantiated generic types.
-func (t *Type) IsInstantiated() bool {
+func (t *Type) IsFullyInstantiated() bool {
 	return len(t.RParams()) > 0 && !t.HasTParam()
 }
 

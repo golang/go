@@ -361,7 +361,7 @@ func (tv TypeAndValue) HasOk() bool {
 // Inferred reports the inferred type arguments and signature
 // for a parameterized function call that uses type inference.
 type Inferred struct {
-	Targs []Type
+	TArgs []Type
 	Sig   *Signature
 }
 

@@ -295,23 +295,42 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 }
 
-// TestManual is for manual testing of input files, provided as a list
-// of arguments after the test arguments (and a separating "--"). For
-// instance, to check the files foo.go and bar.go, use:
+// TestManual is for manual testing of a package - either provided
+// as a list of filenames belonging to the package, or a directory
+// name containing the package files - after the test arguments
+// (and a separating "--"). For instance, to test the package made
+// of the files foo.go and bar.go, use:
 //
 // 	go test -run Manual -- foo.go bar.go
 //
-// Provide the -verify flag to verify errors against ERROR comments in
-// the input files rather than having a list of errors reported.
-// The accepted Go language version can be controlled with the -lang flag.
+// If no source arguments are provided, the file testdata/manual.go2
+// is used instead.
+// Provide the -verify flag to verify errors against ERROR comments
+// in the input files rather than having a list of errors reported.
+// The accepted Go language version can be controlled with the -lang
+// flag.
 func TestManual(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	filenames := flag.Args()
 	if len(filenames) == 0 {
-		return
+		filenames = []string{filepath.FromSlash("testdata/manual.go2")}
 	}
-	testenv.MustHaveGoBuild(t)
+
+	info, err := os.Stat(filenames[0])
+	if err != nil {
+		t.Fatalf("TestManual: %v", err)
+	}
+
 	DefPredeclaredTestFuncs()
-	testPkg(t, filenames, true)
+	if info.IsDir() {
+		if len(filenames) > 1 {
+			t.Fatal("TestManual: must have only one directory argument")
+		}
+    testPkg(t, filenames[0], true)
+	} else {
+		testPkg(t, filenames, true)
+	}
 }
 
 func TestLongConstants(t *testing.T) {
@@ -336,14 +355,14 @@ func TestIssue46453(t *testing.T) {
 	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
 }
 
-func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
-func TestExamples(t *testing.T)  { testDir(t, "examples") }
-func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
 
-func testDir(t *testing.T, dir string) {
+func testDirFiles(t *testing.T, dir string, manual bool) {
 	testenv.MustHaveGoBuild(t)
+	dir = filepath.FromSlash(dir)
 
-	dir = filepath.Join("testdata", dir)
 	fis, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
@@ -353,24 +372,34 @@ func testDir(t *testing.T, dir string) {
 	for _, fi := range fis {
 		path := filepath.Join(dir, fi.Name())
 
-		// if fi is a directory, its files make up a single package
-		var filenames []string
+		// If fi is a directory, its files make up a single package.
 		if fi.IsDir() {
-			fis, err := os.ReadDir(path)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			for _, fi := range fis {
-				filenames = append(filenames, filepath.Join(path, fi.Name()))
-			}
+			testDir(t, path, manual)
 		} else {
-			filenames = []string{path}
+			t.Run(filepath.Base(path), func(t *testing.T) {
+				testPkg(t, []string{path}, manual)
+			})
 		}
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			testPkg(t, filenames, false)
-		})
 	}
+}
+
+func testDir(t *testing.T, dir string, manual bool) {
+	testenv.MustHaveGoBuild(t)
+
+	fis, err := os.ReadDir(dir)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var filenames []string
+	for _, fi := range fis {
+		filenames = append(filenames, filepath.Join(dir, fi.Name()))
+	}
+
+	t.Run(filepath.Base(dir), func(t *testing.T) {
+		testPkg(t, filenames, manual)
+	})
 }
 
 // TODO(rFindley) reconcile the different test setup in go/types with types2.
