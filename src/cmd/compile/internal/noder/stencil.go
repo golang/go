@@ -558,7 +558,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	oldt := nameNode.Type()
 	// We also transform a generic method type to the corresponding
 	// instantiated function type where the dictionary is the first parameter.
-	dictionarySym := types.LocalPkg.Lookup(".dict")
+	dictionarySym := newsym.Pkg.Lookup(".dict")
 	dictionaryType := types.Types[types.TUINTPTR]
 	dictionaryName := ir.NewNameAt(gf.Pos(), dictionarySym)
 	typed(dictionaryType, dictionaryName)
