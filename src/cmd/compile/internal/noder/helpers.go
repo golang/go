@@ -63,7 +63,7 @@ func FixValue(typ *types.Type, val constant.Value) constant.Value {
 	if !typ.IsUntyped() {
 		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
 	}
-	if typ.Kind() != types.TTYPEPARAM {
+	if !typ.IsTypeParam() {
 		ir.AssertValidTypeForConst(typ, val)
 	}
 	return val

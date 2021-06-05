@@ -415,7 +415,7 @@ func (p *importReader) value(typ *types.Type) constant.Value {
 	var kind constant.Kind
 	var valType *types.Type
 
-	if typ.Kind() == types.TTYPEPARAM {
+	if typ.IsTypeParam() {
 		// If a constant had a typeparam type, then we wrote out its
 		// actual constant kind as well.
 		kind = constant.Kind(p.int64())
