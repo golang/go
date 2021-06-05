@@ -48,17 +48,25 @@ var (
 	haltOnError  = flag.Bool("halt", false, "halt on error")
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
 	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
+	fset         = token.NewFileSet()
+
+	// Positioned errors are of the form filename:line:column: message .
+	posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
+
+	// goVersionRx matches a Go version string using '_', e.g. "go1_12".
+	goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
+
+	// ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
+	// rx is a regular expression that matches the expected error message.
+	// Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
+	// for error messages that are located immediately after rather than
+	// at a token's position.
+	errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 )
-
-var fset = token.NewFileSet()
-
-// Positioned errors are of the form filename:line:column: message .
-var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(.*)`)
 
 // splitError splits an error's error message into a position string
 // and the actual error message. If there's no position information,
 // pos is the empty string, and msg is the entire error message.
-//
 func splitError(err error) (pos, msg string) {
 	msg = err.Error()
 	if m := posMsgRx.FindStringSubmatch(msg); len(m) == 3 {
@@ -89,14 +97,6 @@ func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mod
 	}
 	return files, errlist
 }
-
-// ERROR comments must start with text `ERROR "rx"` or `ERROR rx` where
-// rx is a regular expression that matches the expected error message.
-// Space around "rx" or rx is ignored. Use the form `ERROR HERE "rx"`
-// for error messages that are located immediately after rather than
-// at a token's position.
-//
-var errRx = regexp.MustCompile(`^ *ERROR *(HERE)? *"?([^"]*)"?`)
 
 // errMap collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
@@ -188,9 +188,6 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
 	}
 }
 
-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
-
 // asGoVersion returns a regular Go language version string
 // if s is a Go version string using '_' rather than '.' to
 // separate the major and minor version numbers (e.g. "go1_12").
@@ -202,7 +199,7 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string, srcs [][]byte, manual bool) {
+func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -225,6 +222,7 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 	}
 
 	// if no Go version is given, consider the package name
+	goVersion := *goVersion
 	if goVersion == "" {
 		goVersion = asGoVersion(pkgName)
 	}
@@ -313,13 +311,13 @@ func TestManual(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	DefPredeclaredTestFuncs()
-	testPkg(t, filenames, *goVersion, true)
+	testPkg(t, filenames, true)
 }
 
 func TestLongConstants(t *testing.T) {
 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
-	checkFiles(t, nil, "", []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
 }
 
 // TestIndexRepresentability tests that constant index operands must
@@ -327,7 +325,7 @@ func TestLongConstants(t *testing.T) {
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
-	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false)
 }
 
 func TestIssue46453(t *testing.T) {
@@ -335,7 +333,7 @@ func TestIssue46453(t *testing.T) {
 		t.Skip("type params are enabled")
 	}
 	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
-	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
@@ -370,13 +368,13 @@ func testDir(t *testing.T, dir string) {
 			filenames = []string{path}
 		}
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			testPkg(t, filenames, "", false)
+			testPkg(t, filenames, false)
 		})
 	}
 }
 
 // TODO(rFindley) reconcile the different test setup in go/types with types2.
-func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
+func testPkg(t *testing.T, filenames []string, manual bool) {
 	srcs := make([][]byte, len(filenames))
 	for i, filename := range filenames {
 		src, err := os.ReadFile(filename)
@@ -385,5 +383,5 @@ func testPkg(t *testing.T, filenames []string, goVersion string, manual bool) {
 		}
 		srcs[i] = src
 	}
-	checkFiles(t, nil, goVersion, filenames, srcs, manual)
+	testFiles(t, nil, filenames, srcs, manual)
 }
