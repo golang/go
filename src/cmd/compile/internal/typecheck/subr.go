@@ -723,13 +723,23 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field,
 	return m, followptr
 }
 
+// implements reports whether t implements the interface iface. t can be
+// an interface, a type parameter, or a concrete type. If implements returns
+// false, it stores a method of iface that is not implemented in *m. If the
+// method name matches but the type is wrong, it additionally stores the type
+// of the method (on t) in *samename.
 func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool {
 	t0 := t
 	if t == nil {
 		return false
 	}
 
-	if t.IsInterface() {
+	if t.IsInterface() || t.IsTypeParam() {
+		if t.IsTypeParam() {
+			// A typeparam satisfies an interface if its type bound
+			// has all the methods of that interface.
+			t = t.Bound()
+		}
 		i := 0
 		tms := t.AllMethods().Slice()
 		for _, im := range iface.AllMethods().Slice() {
