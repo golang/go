@@ -437,7 +437,10 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 		return n
 	}
 
-	op, _ := typecheck.Assignop(n.Type(), t)
+	op, why := typecheck.Assignop(n.Type(), t)
+	if op == ir.OXXX {
+		base.Fatalf("found illegal assignment %+v -> %+v; %s", n.Type(), t, why)
+	}
 
 	r := ir.NewConvExpr(base.Pos, op, t, n)
 	r.SetTypecheck(1)
