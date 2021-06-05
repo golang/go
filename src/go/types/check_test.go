@@ -327,7 +327,7 @@ func TestManual(t *testing.T) {
 		if len(filenames) > 1 {
 			t.Fatal("TestManual: must have only one directory argument")
 		}
-		testPkg(t, filenames[0], true)
+		testDir(t, filenames[0], true)
 	} else {
 		testPkg(t, filenames, true)
 	}
