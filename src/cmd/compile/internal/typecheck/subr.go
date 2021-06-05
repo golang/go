@@ -984,7 +984,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		return t
 	}
 
-	if t.Kind() == types.TTYPEPARAM {
+	if t.IsTypeParam() {
 		for i, tp := range ts.Tparams {
 			if tp == t {
 				return ts.Targs[i]

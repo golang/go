@@ -1487,6 +1487,10 @@ func (t *Type) IsUnion() bool {
 	return t.kind == TUNION
 }
 
+func (t *Type) IsTypeParam() bool {
+	return t.kind == TTYPEPARAM
+}
+
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
 	return t.IsInterface() && t.AllMethods().Len() == 0

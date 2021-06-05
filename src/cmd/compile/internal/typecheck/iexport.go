@@ -522,7 +522,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		}
 
 	case ir.OTYPE:
-		if n.Type().Kind() == types.TTYPEPARAM && n.Type().Underlying() == n.Type() {
+		if n.Type().IsTypeParam() && n.Type().Underlying() == n.Type() {
 			// Even though it has local scope, a typeparam requires a
 			// declaration via its package and unique name, because it
 			// may be referenced within its type bound during its own
@@ -898,7 +898,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// The 't.Underlying() == t' check is to confirm this is a base typeparam
 	// type, rather than a defined type with typeparam underlying type, like:
 	// type orderedAbs[T any] T
-	if t.Kind() == types.TTYPEPARAM && t.Underlying() == t {
+	if t.IsTypeParam() && t.Underlying() == t {
 		assert(base.Flag.G > 0)
 		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
@@ -1042,7 +1042,7 @@ func (w *exportWriter) typeList(ts []*types.Type) {
 func (w *exportWriter) tparamList(fs []*types.Field) {
 	w.uint64(uint64(len(fs)))
 	for _, f := range fs {
-		if f.Type.Kind() != types.TTYPEPARAM {
+		if !f.Type.IsTypeParam() {
 			base.Fatalf("unexpected non-typeparam")
 		}
 		w.typ(f.Type)
@@ -1095,7 +1095,7 @@ func (w *exportWriter) value(typ *types.Type, v constant.Value) {
 	var kind constant.Kind
 	var valType *types.Type
 
-	if typ.Kind() == types.TTYPEPARAM {
+	if typ.IsTypeParam() {
 		// A constant will have a TYPEPARAM type if it appears in a place
 		// where it must match that typeparam type (e.g. in a binary
 		// operation with a variable of that typeparam type). If so, then
