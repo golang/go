@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -151,17 +152,27 @@ func validLineFoldingRange(fset *token.FileSet, open, close, start, end token.Po
 }
 
 // commentsFoldingRange returns the folding ranges for all comment blocks in file.
-// The folding range starts at the end of the first comment, and ends at the end of the
+// The folding range starts at the end of the first line of the comment block, and ends at the end of the
 // comment block and has kind protocol.Comment.
 func commentsFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
 	for _, commentGrp := range file.Comments {
-		// Don't fold single comments.
-		if len(commentGrp.List) <= 1 {
+		startGrp, endGrp := fset.Position(commentGrp.Pos()), fset.Position(commentGrp.End())
+		if startGrp.Line == endGrp.Line {
+			// Don't fold single line comments.
 			continue
+		}
+
+		firstComment := commentGrp.List[0]
+		startPos, endLinePos := firstComment.Pos(), firstComment.End()
+		startCmmnt, endCmmnt := fset.Position(startPos), fset.Position(endLinePos)
+		if startCmmnt.Line != endCmmnt.Line {
+			// If the first comment spans multiple lines, then we want to have the
+			// folding range start at the end of the first line.
+			endLinePos = token.Pos(int(startPos) + len(strings.Split(firstComment.Text, "\n")[0]))
 		}
 		comments = append(comments, &FoldingRangeInfo{
 			// Fold from the end of the first line comment to the end of the comment block.
-			MappedRange: NewMappedRange(fset, m, commentGrp.List[0].End(), commentGrp.End()),
+			MappedRange: NewMappedRange(fset, m, endLinePos, commentGrp.End()),
 			Kind:        protocol.Comment,
 		})
 	}

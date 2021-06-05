@@ -21,7 +21,11 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {<>}
+	/* This is a multiline<>
+
+	/* This is a multiline<>
 	_ = []int{<>}
 	_ = [2]string{<>}
 	_ = map[string]int{<>}
@@ -48,11 +52,20 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:<>
 	case false:<>
 	default:<>
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -102,6 +115,7 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {<>} else {<>}
@@ -110,6 +124,14 @@ func bar() string {
 	default:
 		fmt.Println(<>)
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -162,6 +184,7 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {
@@ -174,6 +197,14 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -221,35 +252,37 @@ is not indented`
 3:9-6:0
 10:22-11:32
 12:10-12:9
-12:20-66:0
-13:10-24:1
-14:12-19:3
-15:12-17:2
-16:16-16:21
-17:11-19:2
-18:16-18:22
-20:13-21:22
-21:15-21:21
-22:10-23:24
-23:15-23:23
-25:12-29:1
-30:16-32:1
-33:21-37:1
-38:17-42:1
-43:8-47:1
-48:15-48:23
-48:32-48:40
-49:10-60:1
-50:18-55:3
-51:11-53:2
-52:16-52:28
-53:11-55:2
-54:16-54:29
-56:11-57:18
-57:15-57:17
-58:10-59:24
-59:15-59:23
-61:32-62:30
+12:20-75:0
+14:10-25:1
+15:12-20:3
+16:12-18:2
+17:16-17:21
+18:11-20:2
+19:16-19:22
+21:13-22:22
+22:15-22:21
+23:10-24:24
+24:15-24:23
+26:24-28:11
+30:24-33:32
+34:12-38:1
+39:16-41:1
+42:21-46:1
+47:17-51:1
+52:8-56:1
+57:15-57:23
+57:32-57:40
+58:10-69:1
+59:18-64:3
+60:11-62:2
+61:16-61:28
+62:11-64:2
+63:16-63:29
+65:11-66:18
+66:15-66:17
+67:10-68:24
+68:15-68:23
+70:32-71:30
 
 -- foldingRange-comment-0 --
 package folding //@fold("package")
@@ -263,6 +296,7 @@ import _ "os"
 
 // bar is a function.<>
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {
@@ -275,6 +309,9 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline<>
+
+	/* This is a multiline<>
 	_ = []int{
 		1,
 		2,
@@ -327,6 +364,7 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {
@@ -339,6 +377,14 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -407,8 +453,12 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {<>
 	}
+	/* This is a multiline<>
+
+	/* This is a multiline<>
 	_ = []int{<>,
 	}
 	_ = [2]string{"d",
@@ -442,11 +492,20 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:<>
 	case false:<>
 	default:<>
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -496,6 +555,7 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {<>
@@ -506,6 +566,14 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
@@ -559,6 +627,7 @@ import _ "os"
 
 // bar is a function.<>
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {
@@ -571,6 +640,9 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline<>
+
+	/* This is a multiline<>
 	_ = []int{
 		1,
 		2,
@@ -624,6 +696,7 @@ import _ "os"
 // bar is a function.
 // With a multiline doc comment.
 func bar() string {
+	/* This is a single line comment */
 	switch {
 	case true:
 		if true {
@@ -636,6 +709,14 @@ func bar() string {
 	default:
 		fmt.Println("default")
 	}
+	/* This is a multiline
+	block
+	comment */
+
+	/* This is a multiline
+	block
+	comment */
+	// Followed by another comment.
 	_ = []int{
 		1,
 		2,
