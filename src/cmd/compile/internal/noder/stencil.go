@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"go/constant"
 )
@@ -496,10 +497,11 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 // Struct containing info needed for doing the substitution as we create the
 // instantiation of a generic function with specified type arguments.
 type subster struct {
-	g        *irgen
-	isMethod bool     // If a method is being instantiated
-	newf     *ir.Func // Func node for the new stenciled function
-	ts       typecheck.Tsubster
+	g          *irgen
+	isMethod   bool     // If a method is being instantiated
+	newf       *ir.Func // Func node for the new stenciled function
+	ts         typecheck.Tsubster
+	dictionary *ir.Name // Name of dictionary variable
 }
 
 // genericSubst returns a new function with name newsym. The function is an
@@ -573,6 +575,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	}
 	dictionaryArg := types.NewField(gf.Pos(), dictionarySym, dictionaryType)
 	dictionaryArg.Nname = dictionaryName
+	subst.dictionary = dictionaryName
 	var args []*types.Field
 	args = append(args, dictionaryArg)
 	args = append(args, oldt.Recvs().FieldSlice()...)
@@ -654,6 +657,38 @@ func (g *irgen) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.N
 		code = append(code, x)
 	}
 	return
+}
+
+// getDictionaryType returns a *runtime._type from the dictionary corresponding to the input type.
+// The input type must be a type parameter (TODO: or a local derived type).
+func (subst *subster) getDictionaryType(pos src.XPos, t *types.Type) ir.Node {
+	tparams := subst.ts.Tparams
+	var i = 0
+	for i = range tparams {
+		if t == tparams[i] {
+			break
+		}
+	}
+	if i == len(tparams) {
+		base.Fatalf(fmt.Sprintf("couldn't find type param %+v", t))
+	}
+
+	// Convert dictionary to *[N]uintptr
+	// All entries in the dictionary are pointers. They all point to static data, though, so we
+	// treat them as uintptrs so the GC doesn't need to keep track of them.
+	d := ir.NewConvExpr(pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], subst.dictionary)
+	d.SetTypecheck(1)
+	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(len(tparams))).PtrTo(), d)
+	d.SetTypecheck(1)
+
+	// Load entry i out of the dictionary.
+	deref := ir.NewStarExpr(pos, d)
+	typed(d.Type().Elem(), deref)
+	idx := ir.NewConstExpr(constant.MakeUint64(uint64(i)), subst.dictionary) // TODO: what to set orig to?
+	typed(types.Types[types.TUINTPTR], idx)
+	r := ir.NewIndexExpr(pos, deref, idx)
+	typed(types.Types[types.TUINT8].PtrTo(), r) // standard typing of a *runtime._type in the compiler is *byte
+	return r
 }
 
 // node is like DeepCopy(), but substitutes ONAME nodes based on subst.ts.vars, and
@@ -859,6 +894,34 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			ir.CurFunc = saveNewf
 
 			subst.g.target.Decls = append(subst.g.target.Decls, newfn)
+
+		case ir.OCONVIFACE:
+			x := x.(*ir.ConvExpr)
+			// TODO: handle converting from derived types. For now, just from naked
+			// type parameters.
+			if x.X.Type().IsTypeParam() {
+				// Load the actual runtime._type of the type parameter from the dictionary.
+				rt := subst.getDictionaryType(m.Pos(), x.X.Type())
+
+				// At this point, m is an interface type with a data word we want.
+				// But the type word represents a gcshape type, which we don't want.
+				// Replace with the instantiated type loaded from the dictionary.
+				m = ir.NewUnaryExpr(m.Pos(), ir.OIDATA, m)
+				typed(types.Types[types.TUNSAFEPTR], m)
+				m = ir.NewBinaryExpr(m.Pos(), ir.OEFACE, rt, m)
+				if !x.Type().IsEmptyInterface() {
+					// We just built an empty interface{}. Type it as such,
+					// then assert it to the required non-empty interface.
+					typed(types.NewInterface(types.LocalPkg, nil), m)
+					m = ir.NewTypeAssertExpr(m.Pos(), m, nil)
+				}
+				typed(x.Type(), m)
+				// TODO: we're throwing away the type word of the original version
+				// of m here (it would be OITAB(m)), which probably took some
+				// work to generate. Can we avoid generating it at all?
+				// (The linker will throw them away if not needed, so it would just
+				// save toolchain work, not binary size.)
+			}
 		}
 		return m
 	}
