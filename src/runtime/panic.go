@@ -226,7 +226,6 @@ func panicmemAddr(addr uintptr) {
 
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
-//go:nosplit
 func deferproc(fn func()) {
 	gp := getg()
 	if gp.m.curg != gp {
@@ -234,11 +233,6 @@ func deferproc(fn func()) {
 		throw("defer on system stack")
 	}
 
-	// the arguments of fn are in a perilous state. The stack map
-	// for deferproc does not describe them. So we can't let garbage
-	// collection or stack copying trigger until we've copied them out
-	// to somewhere safe. The memmove below does that.
-	// Until the copy completes, we can only call nosplit routines.
 	sp := getcallersp()
 	callerpc := getcallerpc()
 
