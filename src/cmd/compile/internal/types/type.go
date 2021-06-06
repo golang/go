@@ -387,7 +387,7 @@ type ChanArgs struct {
 	T *Type // reference to a chan type whose elements need a width check
 }
 
-// // FuncArgs contains Type fields specific to TFUNCARGS types.
+// FuncArgs contains Type fields specific to TFUNCARGS types.
 type FuncArgs struct {
 	T *Type // reference to a func type whose elements need a width check
 }
