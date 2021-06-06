@@ -1,0 +1,159 @@
+# This test illustrates a case where an upgrade–downgrade–upgrade cycle can
+# result in upgrades of otherwise-irrelevant dependencies.
+#
+# This case has no corresponding test in the mvs package, because it is an
+# artifact that results from the composition of *multiple* MVS operations.
+
+# The initial package import graph used in the test looks like:
+#
+# m ---- a
+# |      |
+# +----- b
+# |      |
+# +----- c
+# |
+# +----- d
+#
+# b version 2 adds its own import of package d.
+#
+# The module dependency graph initially looks like:
+#
+# m ---- a.1
+# |       |
+# +----- b.1
+# |       |
+# +----- c.1
+# |
+# +----- d.1
+#
+# b.2 ---- c.2
+#  |
+#  +------ d.2
+#  |
+#  +------ e.1
+#
+# If we upgrade module b to version 2, we will upgrade c and d and add a new
+# dependency on e. If b version 2 is disallowed because of any of those
+# dependencies, the other dependencies should not be upgraded as a side-effect.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.1.0 '
+stdout '^example.com/c v0.1.0 '
+stdout '^example.com/d v0.1.0 '
+! stdout '^example.com/e '
+
+# b is imported by a, so the -u flag would normally upgrade it to v0.2.0.
+# However, that would conflict with the explicit c@v0.1.0 constraint,
+# so b must remain at v0.1.0.
+#
+# If we're not careful, we might temporarily add b@v0.2.0 and pull in its
+# upgrades of module d and addition of module e, which are not relevant to
+# b@v0.1.0 and should not be added to the main module's dependencies.
+
+go get -u -d example.com/a@latest example.com/c@v0.1.0
+
+go list -m all
+stdout '^example.com/a v0.1.0 '
+stdout '^example.com/b v0.1.0 '
+stdout '^example.com/c v0.1.0 '
+stdout '^example.com/d v0.1.0 '
+! stdout '^example.com/e '
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+require (
+	example.com/a v0.1.0
+	example.com/b v0.1.0
+	example.com/c v0.1.0
+	example.com/d v0.1.0
+)
+
+replace (
+	example.com/a v0.1.0 => ./a1
+	example.com/b v0.1.0 => ./b1
+	example.com/b v0.2.0 => ./b2
+	example.com/c v0.1.0 => ./c
+	example.com/c v0.2.0 => ./c
+	example.com/d v0.1.0 => ./d
+	example.com/d v0.2.0 => ./d
+	example.com/e v0.1.0 => ./e
+)
+-- m.go --
+package m
+
+import (
+	_ "example.com/a"
+	_ "example.com/b"
+	_ "example.com/c"
+	_ "example.com/d"
+)
+
+-- a1/go.mod --
+module example.com/a
+
+go 1.16
+
+require example.com/b v0.1.0
+-- a1/a.go --
+package a
+
+import _ "example.com/b"
+
+-- b1/go.mod --
+module example.com/b
+
+go 1.16
+
+require example.com/c v0.1.0
+-- b1/b.go --
+package b
+
+import _ "example.com/c"
+
+-- b2/go.mod --
+module example.com/b
+
+go 1.16
+
+require (
+	example.com/c v0.2.0
+	example.com/d v0.2.0
+	example.com/e v0.1.0
+)
+-- b2/b.go --
+package b
+
+import (
+	"example.com/c"
+	"example.com/d"
+	"example.com/e"
+)
+
+-- c/go.mod --
+module example.com/c
+
+go 1.16
+-- c/c.go --
+package c
+
+-- d/go.mod --
+module example.com/d
+
+go 1.16
+-- d/d.go --
+package d
+
+-- e/go.mod --
+module example.com/e
+
+go 1.16
+-- e/e.go --
+package e

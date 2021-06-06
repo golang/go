@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix
 // +build aix
 
 package runtime
@@ -180,6 +181,11 @@ func unminit() {
 	unminitSignals()
 }
 
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
 // tstart is a function descriptor to _tstart defined in assembly.
 var tstart funcDescriptor
 
@@ -330,7 +336,7 @@ func nanotime1() int64 {
 	return tp.tv_sec*1000000000 + tp.tv_nsec
 }
 
-func walltime1() (sec int64, nsec int32) {
+func walltime() (sec int64, nsec int32) {
 	ts := &timespec{}
 	if clock_gettime(_CLOCK_REALTIME, ts) != 0 {
 		throw("syscall clock_gettime failed")

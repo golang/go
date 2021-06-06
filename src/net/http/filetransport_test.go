@@ -23,12 +23,10 @@ func checker(t *testing.T) func(string, error) {
 func TestFileTransport(t *testing.T) {
 	check := checker(t)
 
-	dname, err := os.MkdirTemp("", "")
-	check("TempDir", err)
+	dname := t.TempDir()
 	fname := filepath.Join(dname, "foo.txt")
-	err = os.WriteFile(fname, []byte("Bar"), 0644)
+	err := os.WriteFile(fname, []byte("Bar"), 0644)
 	check("WriteFile", err)
-	defer os.Remove(dname)
 	defer os.Remove(fname)
 
 	tr := &Transport{}

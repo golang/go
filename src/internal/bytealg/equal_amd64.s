@@ -6,7 +6,21 @@
 #include "textflag.h"
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$0-25
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT,$0-25
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = a    (want in SI)
+	// BX = b    (want in DI)
+	// CX = size (want in BX)
+	CMPQ	AX, BX
+	JNE	neq
+	MOVQ	$1, AX	// return 1
+	RET
+neq:
+	MOVQ	AX, SI
+	MOVQ	BX, DI
+	MOVQ	CX, BX
+	JMP	memeqbody<>(SB)
+#else
 	MOVQ	a+0(FP), SI
 	MOVQ	b+8(FP), DI
 	CMPQ	SI, DI
@@ -17,9 +31,24 @@ TEXT runtime·memequal(SB),NOSPLIT,$0-25
 eq:
 	MOVB	$1, ret+24(FP)
 	RET
+#endif
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = a       (want in SI)
+	// BX = b       (want in DI)
+	// 8(DX) = size (want in BX)
+	CMPQ	AX, BX
+	JNE	neq
+	MOVQ	$1, AX	// return 1
+	RET
+neq:
+	MOVQ	AX, SI
+	MOVQ	BX, DI
+	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
+	JMP	memeqbody<>(SB)
+#else
 	MOVQ	a+0(FP), SI
 	MOVQ	b+8(FP), DI
 	CMPQ	SI, DI
@@ -30,11 +59,18 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
 eq:
 	MOVB	$1, ret+16(FP)
 	RET
+#endif
 
-// a in SI
-// b in DI
-// count in BX
-// address of result byte in AX
+// Input:
+//   a in SI
+//   b in DI
+//   count in BX
+#ifndef GOEXPERIMENT_regabiargs
+//   address of result byte in AX
+#else
+// Output:
+//   result in AX
+#endif
 TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	CMPQ	BX, $8
 	JB	small
@@ -68,7 +104,11 @@ hugeloop:
 	SUBQ	$64, BX
 	CMPL	DX, $0xffff
 	JEQ	hugeloop
+#ifdef GOEXPERIMENT_regabiargs
+	XORQ	AX, AX	// return 0
+#else
 	MOVB	$0, (AX)
+#endif
 	RET
 
 	// 64 bytes at a time using ymm registers
@@ -89,7 +129,11 @@ hugeloop_avx2:
 	CMPL	DX, $0xffffffff
 	JEQ	hugeloop_avx2
 	VZEROUPPER
+#ifdef GOEXPERIMENT_regabiargs
+	XORQ	AX, AX	// return 0
+#else
 	MOVB	$0, (AX)
+#endif
 	RET
 
 bigloop_avx2:
@@ -106,7 +150,11 @@ bigloop:
 	SUBQ	$8, BX
 	CMPQ	CX, DX
 	JEQ	bigloop
+#ifdef GOEXPERIMENT_regabiargs
+	XORQ	AX, AX	// return 0
+#else
 	MOVB	$0, (AX)
+#endif
 	RET
 
 	// remaining 0-8 bytes
@@ -114,7 +162,11 @@ leftover:
 	MOVQ	-8(SI)(BX*1), CX
 	MOVQ	-8(DI)(BX*1), DX
 	CMPQ	CX, DX
+#ifdef GOEXPERIMENT_regabiargs
+	SETEQ	AX
+#else
 	SETEQ	(AX)
+#endif
 	RET
 
 small:
@@ -149,6 +201,10 @@ di_finish:
 	SUBQ	SI, DI
 	SHLQ	CX, DI
 equal:
+#ifdef GOEXPERIMENT_regabiargs
+	SETEQ	AX
+#else
 	SETEQ	(AX)
+#endif
 	RET
 

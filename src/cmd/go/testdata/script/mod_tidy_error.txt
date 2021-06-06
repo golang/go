@@ -4,12 +4,12 @@ env GO111MODULE=on
 # 'go mod tidy' and 'go mod vendor' should not hide loading errors.
 
 ! go mod tidy
-stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
+! stderr 'package nonexist is not in GOROOT'
 stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
 stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
 
 ! go mod vendor
-stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
+! stderr 'package nonexist is not in GOROOT'
 stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
 stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
 

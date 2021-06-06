@@ -8,6 +8,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +24,6 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
-	"cmd/go/internal/renameio"
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/trace"
 
@@ -37,10 +38,8 @@ var downloadCache par.Cache
 // local download cache and returns the name of the directory
 // corresponding to the root of the module's file tree.
 func Download(ctx context.Context, mod module.Version) (dir string, err error) {
-	if cfg.GOMODCACHE == "" {
-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
+	if err := checkCacheDir(); err != nil {
+		base.Fatalf("go: %v", err)
 	}
 
 	// The par.Cache here avoids duplicate work.
@@ -170,13 +169,16 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		if err != nil {
 			return cached{"", err}
 		}
+		ziphashfile := zipfile + "hash"
 
-		// Skip locking if the zipfile already exists.
+		// Return without locking if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
-			return cached{zipfile, nil}
+			if _, err := os.Stat(ziphashfile); err == nil {
+				return cached{zipfile, nil}
+			}
 		}
 
-		// The zip file does not exist. Acquire the lock and create it.
+		// The zip or ziphash file does not exist. Acquire the lock and create them.
 		if cfg.CmdName != "mod download" {
 			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
 		}
@@ -186,14 +188,6 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		}
 		defer unlock()
 
-		// Double-check that the zipfile was not created while we were waiting for
-		// the lock.
-		if _, err := os.Stat(zipfile); err == nil {
-			return cached{zipfile, nil}
-		}
-		if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
-			return cached{"", err}
-		}
 		if err := downloadZip(ctx, mod, zipfile); err != nil {
 			return cached{"", err}
 		}
@@ -206,15 +200,39 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
 	defer span.Done()
 
+	// Double-check that the zipfile was not created while we were waiting for
+	// the lock in DownloadZip.
+	ziphashfile := zipfile + "hash"
+	var zipExists, ziphashExists bool
+	if _, err := os.Stat(zipfile); err == nil {
+		zipExists = true
+	}
+	if _, err := os.Stat(ziphashfile); err == nil {
+		ziphashExists = true
+	}
+	if zipExists && ziphashExists {
+		return nil
+	}
+
+	// Create parent directories.
+	if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+		return err
+	}
+
 	// Clean up any remaining tempfiles from previous runs.
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.
-	for _, base := range []string{zipfile, zipfile + "hash"} {
-		if old, err := filepath.Glob(renameio.Pattern(base)); err == nil {
-			for _, path := range old {
-				os.Remove(path) // best effort
-			}
+	tmpPattern := filepath.Base(zipfile) + "*.tmp"
+	if old, err := filepath.Glob(filepath.Join(filepath.Dir(zipfile), tmpPattern)); err == nil {
+		for _, path := range old {
+			os.Remove(path) // best effort
 		}
+	}
+
+	// If the zip file exists, the ziphash file must have been deleted
+	// or lost after a file system crash. Re-hash the zip without downloading.
+	if zipExists {
+		return hashZip(mod, zipfile, ziphashfile)
 	}
 
 	// From here to the os.Rename call below is functionally almost equivalent to
@@ -222,7 +240,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := os.CreateTemp(filepath.Dir(zipfile), filepath.Base(renameio.Pattern(zipfile)))
+	f, err := os.CreateTemp(filepath.Dir(zipfile), tmpPattern)
 	if err != nil {
 		return err
 	}
@@ -278,26 +296,12 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 		}
 	}
 
-	// Sync the file before renaming it: otherwise, after a crash the reader may
-	// observe a 0-length file instead of the actual contents.
-	// See https://golang.org/issue/22397#issuecomment-380831736.
-	if err := f.Sync(); err != nil {
-		return err
-	}
 	if err := f.Close(); err != nil {
 		return err
 	}
 
 	// Hash the zip file and check the sum before renaming to the final location.
-	hash, err := dirhash.HashZip(f.Name(), dirhash.DefaultHash)
-	if err != nil {
-		return err
-	}
-	if err := checkModSum(mod, hash); err != nil {
-		return err
-	}
-
-	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
+	if err := hashZip(mod, f.Name(), ziphashfile); err != nil {
 		return err
 	}
 	if err := os.Rename(f.Name(), zipfile); err != nil {
@@ -305,6 +309,36 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	}
 
 	// TODO(bcmills): Should we make the .zip and .ziphash files read-only to discourage tampering?
+
+	return nil
+}
+
+// hashZip reads the zip file opened in f, then writes the hash to ziphashfile,
+// overwriting that file if it exists.
+//
+// If the hash does not match go.sum (or the sumdb if enabled), hashZip returns
+// an error and does not write ziphashfile.
+func hashZip(mod module.Version, zipfile, ziphashfile string) error {
+	hash, err := dirhash.HashZip(zipfile, dirhash.DefaultHash)
+	if err != nil {
+		return err
+	}
+	if err := checkModSum(mod, hash); err != nil {
+		return err
+	}
+	hf, err := lockedfile.Create(ziphashfile)
+	if err != nil {
+		return err
+	}
+	if err := hf.Truncate(int64(len(hash))); err != nil {
+		return err
+	}
+	if _, err := hf.WriteAt([]byte(hash), 0); err != nil {
+		return err
+	}
+	if err := hf.Close(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -452,25 +486,29 @@ func HaveSum(mod module.Version) bool {
 
 // checkMod checks the given module's checksum.
 func checkMod(mod module.Version) {
-	if cfg.GOMODCACHE == "" {
-		// Do not use current directory.
-		return
-	}
-
 	// Do the file I/O before acquiring the go.sum lock.
 	ziphash, err := CachePath(mod, "ziphash")
 	if err != nil {
 		base.Fatalf("verifying %v", module.VersionError(mod, err))
 	}
-	data, err := renameio.ReadFile(ziphash)
+	data, err := lockedfile.Read(ziphash)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
-			return
-		}
 		base.Fatalf("verifying %v", module.VersionError(mod, err))
 	}
-	h := strings.TrimSpace(string(data))
+	data = bytes.TrimSpace(data)
+	if !isValidSum(data) {
+		// Recreate ziphash file from zip file and use that to check the mod sum.
+		zip, err := CachePath(mod, "zip")
+		if err != nil {
+			base.Fatalf("verifying %v", module.VersionError(mod, err))
+		}
+		err = hashZip(mod, zip, ziphash)
+		if err != nil {
+			base.Fatalf("verifying %v", module.VersionError(mod, err))
+		}
+		return
+	}
+	h := string(data)
 	if !strings.HasPrefix(h, "h1:") {
 		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
 	}
@@ -615,11 +653,32 @@ func Sum(mod module.Version) string {
 	if err != nil {
 		return ""
 	}
-	data, err := renameio.ReadFile(ziphash)
+	data, err := lockedfile.Read(ziphash)
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(data))
+	data = bytes.TrimSpace(data)
+	if !isValidSum(data) {
+		return ""
+	}
+	return string(data)
+}
+
+// isValidSum returns true if data is the valid contents of a zip hash file.
+// Certain critical files are written to disk by first truncating
+// then writing the actual bytes, so that if the write fails
+// the corrupt file should contain at least one of the null
+// bytes written by the truncate operation.
+func isValidSum(data []byte) bool {
+	if bytes.IndexByte(data, '\000') >= 0 {
+		return false
+	}
+
+	if len(data) != len("h1:")+base64.StdEncoding.EncodedLen(sha256.Size) {
+		return false
+	}
+
+	return true
 }
 
 // WriteGoSum writes the go.sum file if it needs to be updated.

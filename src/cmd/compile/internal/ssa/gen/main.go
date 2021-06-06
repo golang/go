@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // The gen command generates Go code (in the parent directory) for all
@@ -30,21 +31,23 @@ import (
 // apart from type names, and avoid awkward func parameters like "arch arch".
 
 type arch struct {
-	name            string
-	pkg             string // obj package to import for this arch.
-	genfile         string // source file containing opcode code generation.
-	ops             []opData
-	blocks          []blockData
-	regnames        []string
-	gpregmask       regMask
-	fpregmask       regMask
-	fp32regmask     regMask
-	fp64regmask     regMask
-	specialregmask  regMask
-	framepointerreg int8
-	linkreg         int8
-	generic         bool
-	imports         []string
+	name               string
+	pkg                string // obj package to import for this arch.
+	genfile            string // source file containing opcode code generation.
+	ops                []opData
+	blocks             []blockData
+	regnames           []string
+	ParamIntRegNames   string
+	ParamFloatRegNames string
+	gpregmask          regMask
+	fpregmask          regMask
+	fp32regmask        regMask
+	fp64regmask        regMask
+	specialregmask     regMask
+	framepointerreg    int8
+	linkreg            int8
+	generic            bool
+	imports            []string
 }
 
 type opData struct {
@@ -63,7 +66,6 @@ type opData struct {
 	nilCheck          bool   // this op is a nil check on arg0
 	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
-	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
@@ -320,9 +322,6 @@ func genOp() {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}
-			if v.usesScratch {
-				fmt.Fprintln(w, "usesScratch: true,")
-			}
 			if v.hasSideEffects {
 				fmt.Fprintln(w, "hasSideEffects: true,")
 			}
@@ -404,12 +403,11 @@ func genOp() {
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
 
-	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
-
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
 	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
 	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
+	fmt.Fprintln(w, "func (o Op) ResultInArg0() bool { return opcodeTable[o].resultInArg0 }")
 
 	// generate registers
 	for _, a := range archs {
@@ -418,7 +416,9 @@ func genOp() {
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
 		var gcRegN int
+		num := map[string]int8{}
 		for i, r := range a.regnames {
+			num[r] = int8(i)
 			pkg := a.pkg[len("cmd/internal/obj/"):]
 			var objname string // name in cmd/internal/obj/$ARCH
 			switch r {
@@ -441,11 +441,38 @@ func genOp() {
 			}
 			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
 		}
+		parameterRegisterList := func(paramNamesString string) []int8 {
+			paramNamesString = strings.TrimSpace(paramNamesString)
+			if paramNamesString == "" {
+				return nil
+			}
+			paramNames := strings.Split(paramNamesString, " ")
+			var paramRegs []int8
+			for _, regName := range paramNames {
+				if regName == "" {
+					// forgive extra spaces
+					continue
+				}
+				if regNum, ok := num[regName]; ok {
+					paramRegs = append(paramRegs, regNum)
+					delete(num, regName)
+				} else {
+					log.Fatalf("parameter register %s for architecture %s not a register name (or repeated in parameter list)", regName, a.name)
+				}
+			}
+			return paramRegs
+		}
+
+		paramIntRegs := parameterRegisterList(a.ParamIntRegNames)
+		paramFloatRegs := parameterRegisterList(a.ParamFloatRegNames)
+
 		if gcRegN > 32 {
 			// Won't fit in a uint32 mask.
 			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
 		}
 		fmt.Fprintln(w, "}")
+		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
+		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
 		if a.fp32regmask != 0 {

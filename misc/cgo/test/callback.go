@@ -182,7 +182,7 @@ func testCallbackCallers(t *testing.T) {
 		"runtime.cgocallbackg1",
 		"runtime.cgocallbackg",
 		"runtime.cgocallback",
-		"runtime.asmcgocall",
+		"runtime.systemstack_switch",
 		"runtime.cgocall",
 		"test._Cfunc_callback",
 		"test.nestedCall.func1",

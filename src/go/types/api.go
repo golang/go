@@ -101,6 +101,13 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
+	// goVersion describes the accepted Go language version. The string
+	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+	// empty; an empty string indicates the latest language version.
+	// If the format is invalid, invoking the type checker will cause a
+	// panic.
+	goVersion string
+
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
 	IgnoreFuncBodies bool
@@ -153,95 +160,7 @@ func srcimporter_setUsesCgo(conf *Config) {
 	conf.go115UsesCgo = true
 }
 
-// Info holds result type information for a type-checked package.
-// Only the information for which a map is provided is collected.
-// If the package has type errors, the collected information may
-// be incomplete.
-type Info struct {
-	// Types maps expressions to their types, and for constant
-	// expressions, also their values. Invalid expressions are
-	// omitted.
-	//
-	// For (possibly parenthesized) identifiers denoting built-in
-	// functions, the recorded signatures are call-site specific:
-	// if the call result is not a constant, the recorded type is
-	// an argument-specific signature. Otherwise, the recorded type
-	// is invalid.
-	//
-	// The Types map does not record the type of every identifier,
-	// only those that appear where an arbitrary expression is
-	// permitted. For instance, the identifier f in a selector
-	// expression x.f is found only in the Selections map, the
-	// identifier z in a variable declaration 'var z int' is found
-	// only in the Defs map, and identifiers denoting packages in
-	// qualified identifiers are collected in the Uses map.
-	Types map[ast.Expr]TypeAndValue
-
-	// Defs maps identifiers to the objects they define (including
-	// package names, dots "." of dot-imports, and blank "_" identifiers).
-	// For identifiers that do not denote objects (e.g., the package name
-	// in package clauses, or symbolic variables t in t := x.(type) of
-	// type switch headers), the corresponding objects are nil.
-	//
-	// For an embedded field, Defs returns the field *Var it defines.
-	//
-	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
-	Defs map[*ast.Ident]Object
-
-	// Uses maps identifiers to the objects they denote.
-	//
-	// For an embedded field, Uses returns the *TypeName it denotes.
-	//
-	// Invariant: Uses[id].Pos() != id.Pos()
-	Uses map[*ast.Ident]Object
-
-	// Implicits maps nodes to their implicitly declared objects, if any.
-	// The following node and object types may appear:
-	//
-	//     node               declared object
-	//
-	//     *ast.ImportSpec    *PkgName for imports without renames
-	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
-	//
-	Implicits map[ast.Node]Object
-
-	// Selections maps selector expressions (excluding qualified identifiers)
-	// to their corresponding selections.
-	Selections map[*ast.SelectorExpr]*Selection
-
-	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
-	// associated with a specific node but with all files belonging to a package.
-	// Thus, the package scope can be found in the type-checked Package object.
-	// Scopes nest, with the Universe scope being the outermost scope, enclosing
-	// the package scope, which contains (one or more) files scopes, which enclose
-	// function scopes which in turn enclose statement and function literal scopes.
-	// Note that even though package-level functions are declared in the package
-	// scope, the function scopes are embedded in the file scope of the file
-	// containing the function declaration.
-	//
-	// The following node types may appear in Scopes:
-	//
-	//     *ast.File
-	//     *ast.FuncType
-	//     *ast.BlockStmt
-	//     *ast.IfStmt
-	//     *ast.SwitchStmt
-	//     *ast.TypeSwitchStmt
-	//     *ast.CaseClause
-	//     *ast.CommClause
-	//     *ast.ForStmt
-	//     *ast.RangeStmt
-	//
-	Scopes map[ast.Node]*Scope
-
-	// InitOrder is the list of package-level initializers in the order in which
-	// they must be executed. Initializers referring to variables related by an
-	// initialization dependency appear in topological order, the others appear
-	// in source order. Variables without an initialization expression do not
-	// appear in this list.
-	InitOrder []*Initializer
-}
+// The Info struct is found in api_notypeparams.go and api_typeparams.go.
 
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
@@ -333,6 +252,13 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
+// _Inferred reports the _Inferred type arguments and signature
+// for a parameterized function call that uses type inference.
+type _Inferred struct {
+	Targs []Type
+	Sig   *Signature
+}
+
 // An Initializer describes a package-level variable, or a list of variables in case
 // of a multi-valued initialization expression, and the corresponding initialization
 // expression.
@@ -386,7 +312,7 @@ func AssignableTo(V, T Type) bool {
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T) // check not needed for non-constant x
+	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.

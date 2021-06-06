@@ -111,7 +111,7 @@
 // 	-p n
 // 		the number of programs, such as build commands or
 // 		test binaries, that can be run in parallel.
-// 		The default is the number of CPUs available.
+// 		The default is GOMAXPROCS, normally the number of CPUs available.
 // 	-race
 // 		enable data race detection.
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
@@ -174,8 +174,8 @@
 // 		a build will run as if the disk file path exists with the contents
 // 		given by the backing file paths, or as if the disk file path does not
 // 		exist if its backing file path is empty. Support for the -overlay flag
-// 		has some limitations:importantly, cgo files included from outside the
-// 		include path must be  in the same directory as the Go package they are
+// 		has some limitations: importantly, cgo files included from outside the
+// 		include path must be in the same directory as the Go package they are
 // 		included from, and overlays will not appear when binaries and tests are
 // 		run through go run and go test respectively.
 // 	-pkgdir dir
@@ -198,6 +198,8 @@
 // 		a program to use to invoke toolchain programs like vet and asm.
 // 		For example, instead of running asm, the go command will run
 // 		'cmd args /path/to/asm <arguments for asm>'.
+// 		The TOOLEXEC_IMPORTPATH environment variable will be set,
+// 		matching 'go list -f {{.ImportPath}}' for the package being built.
 //
 // The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
 // space-separated list of arguments to pass to an underlying tool
@@ -291,7 +293,7 @@
 //
 // Usage:
 //
-// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
+// 	go doc [doc flags] [package|[package.]symbol[.methodOrField]]
 //
 // Doc prints the documentation comments associated with the item identified by its
 // arguments (a package, const, func, type, var, method, or struct field)
@@ -596,7 +598,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, downloads source code into the
@@ -641,14 +643,6 @@
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
 //
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP, and also bypassess
-// module sum validation using the checksum database. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// To permit the use of insecure schemes, use the GOINSECURE environment
-// variable instead. To bypass module sum validation, use GOPRIVATE or
-// GONOSUMDB. See 'go help environment' for details.
-//
 // The -d flag instructs get not to build or install packages. get will only
 // update go.mod and download source code needed to build packages.
 //
@@ -692,18 +686,22 @@
 // arguments must satisfy the following constraints:
 //
 // - Arguments must be package paths or package patterns (with "..." wildcards).
-//   They must not be standard packages (like fmt), meta-patterns (std, cmd,
-//   all), or relative or absolute file paths.
+// They must not be standard packages (like fmt), meta-patterns (std, cmd,
+// all), or relative or absolute file paths.
+//
 // - All arguments must have the same version suffix. Different queries are not
-//   allowed, even if they refer to the same version.
+// allowed, even if they refer to the same version.
+//
 // - All arguments must refer to packages in the same module at the same version.
+//
 // - No module is considered the "main" module. If the module containing
-//   packages named on the command line has a go.mod file, it must not contain
-//   directives (replace and exclude) that would cause it to be interpreted
-//   differently than if it were the main module. The module must not require
-//   a higher version of itself.
+// packages named on the command line has a go.mod file, it must not contain
+// directives (replace and exclude) that would cause it to be interpreted
+// differently than if it were the main module. The module must not require
+// a higher version of itself.
+//
 // - Package path arguments must refer to main packages. Pattern arguments
-//   will only match main packages.
+// will only match main packages.
 //
 // If the arguments don't have version suffixes, "go install" may run in
 // module-aware mode or GOPATH mode, depending on the GO111MODULE environment
@@ -787,8 +785,12 @@
 //         XTestGoFiles    []string   // _test.go files outside package
 //
 //         // Embedded files
-//         EmbedPatterns []string // //go:embed patterns
-//         EmbedFiles    []string // files and directories matched by EmbedPatterns
+//         EmbedPatterns      []string // //go:embed patterns
+//         EmbedFiles         []string // files matched by EmbedPatterns
+//         TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+//         TestEmbedFiles     []string // files matched by TestEmbedPatterns
+//         XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+//         XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
 //
 //         // Cgo directives
 //         CgoCFLAGS    []string // cgo: flags for C compiler
@@ -841,6 +843,7 @@
 //         UseAllFiles   bool     // use files regardless of +build lines, file names
 //         Compiler      string   // compiler to assume when computing target paths
 //         BuildTags     []string // build constraints to match in +build lines
+//         ToolTags      []string // toolchain-specific build constraints
 //         ReleaseTags   []string // releases the current release is compatible with
 //         InstallSuffix string   // suffix to use in the name of the install dir
 //     }
@@ -1134,17 +1137,22 @@
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
 // 	type Module struct {
-// 		Path string
+// 		Path    string
 // 		Version string
 // 	}
 //
 // 	type GoMod struct {
-// 		Module  Module
+// 		Module  ModPath
 // 		Go      string
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
 // 		Retract []Retract
+// 	}
+//
+// 	type ModPath struct {
+// 		Path       string
+// 		Deprecated string
 // 	}
 //
 // 	type Require struct {
@@ -1213,7 +1221,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-e] [-v]
+// 	go mod tidy [-e] [-v] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1226,6 +1234,20 @@
 //
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
+//
+// The -go flag causes tidy to update the 'go' directive in the go.mod
+// file to the given version, which may change which module dependencies
+// are retained as explicit requirements in the go.mod file.
+// (Go versions 1.17 and higher retain more requirements in order to
+// support lazy module loading.)
+//
+// The -compat flag preserves any additional checksums needed for the
+// 'go' command from the indicated major Go release to successfully load
+// the module graph, and causes tidy to error out if that version of the
+// 'go' command would load any imported package from a different module
+// version. By default, tidy acts as if the -compat flag were set to the
+// version prior to the one indicated by the 'go' directive in the go.mod
+// file.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
@@ -1310,9 +1332,20 @@
 // 	go run [build flags] [-exec xprog] package [arguments...]
 //
 // Run compiles and runs the named main Go package.
-// Typically the package is specified as a list of .go source files from a single directory,
-// but it may also be an import path, file system path, or pattern
+// Typically the package is specified as a list of .go source files from a single
+// directory, but it may also be an import path, file system path, or pattern
 // matching a single known package, as in 'go run .' or 'go run my/cmd'.
+//
+// If the package argument has a version suffix (like @latest or @v1.0.0),
+// "go run" builds the program in module-aware mode, ignoring the go.mod file in
+// the current directory or any parent directory, if there is one. This is useful
+// for running programs without affecting the dependencies of the main module.
+//
+// If the package argument doesn't have a version suffix, "go run" may run in
+// module-aware mode or GOPATH mode, depending on the GO111MODULE environment
+// variable and the presence of a go.mod file. See 'go help modules' for details.
+// If module-aware mode is enabled, "go run" runs in the context of the main
+// module.
 //
 // By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 // If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -1408,8 +1441,8 @@
 //
 // The rule for a match in the cache is that the run involves the same
 // test binary and the flags on the command line come entirely from a
-// restricted set of 'cacheable' test flags, defined as -cpu, -list,
-// -parallel, -run, -short, and -v. If a run of go test has any test
+// restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+// -list, -parallel, -run, -short, and -v. If a run of go test has any test
 // or non-test flags outside this set, the result is not cached. To
 // disable test caching, use any test flag or argument other than the
 // cacheable flags. The idiomatic way to disable test caching explicitly
@@ -1779,9 +1812,8 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
-// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
-// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
-// 		to achieve that.
+// 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
+// 		GONOSUMDB may be used to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1804,7 +1836,7 @@
 // 		The directory where the go command will write
 // 		temporary source files, packages, and binaries.
 // 	GOVCS
-// 	  Lists version control commands that may be used with matching servers.
+// 		Lists version control commands that may be used with matching servers.
 // 		See 'go help vcs'.
 //
 // Environment variables for use with cgo:
@@ -1953,7 +1985,7 @@
 // The go.mod file format is described in detail at
 // https://golang.org/ref/mod#go-mod-file.
 //
-// To create a new go.mod file, use 'go help init'. For details see
+// To create a new go.mod file, use 'go mod init'. For details see
 // 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
 //
 // To add missing module requirements or remove unneeded requirements,
@@ -2131,7 +2163,7 @@
 // This help text, accessible as 'go help gopath-get' even in module-aware mode,
 // describes 'go get' as it operates in legacy GOPATH mode.
 //
-// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
+// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
@@ -2146,13 +2178,6 @@
 //
 // The -fix flag instructs get to run the fix tool on the downloaded packages
 // before resolving dependencies or building the code.
-//
-// The -insecure flag permits fetching from repositories and resolving
-// custom domains using insecure schemes such as HTTP. Use with caution.
-// This flag is deprecated and will be removed in a future version of go.
-// The GOINSECURE environment variable should be used instead, since it
-// provides control over which packages may be retrieved using an insecure
-// scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.
@@ -2338,7 +2363,7 @@
 // will result in the following requests:
 //
 // 	https://example.org/pkg/foo?go-get=1 (preferred)
-// 	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+// 	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
 //
 // If that page contains the meta tag
 //
@@ -2405,6 +2430,17 @@
 // https://golang.org/doc/tutorial/create-module.
 //
 // For a detailed reference on modules, see https://golang.org/ref/mod.
+//
+// By default, the go command may download modules from https://proxy.golang.org.
+// It may authenticate modules using the checksum database at
+// https://sum.golang.org. Both services are operated by the Go team at Google.
+// The privacy policies for these services are available at
+// https://proxy.golang.org/privacy and https://sum.golang.org/privacy,
+// respectively.
+//
+// The go command's download behavior may be configured using GOPROXY, GOSUMDB,
+// GOPRIVATE, and other environment variables. See 'go help environment'
+// and https://golang.org/ref/mod#private-module-privacy for more information.
 //
 //
 // Module authentication using go.sum
@@ -2645,6 +2681,13 @@
 // 	    the Go tree can run a sanity check but not spend time running
 // 	    exhaustive tests.
 //
+// 	-shuffle off,on,N
+// 		Randomize the execution order of tests and benchmarks.
+// 		It is off by default. If -shuffle is set to on, then it will seed
+// 		the randomizer using the system clock. If -shuffle is set to an
+// 		integer N, then N will be used as the seed value. In both cases,
+// 		the seed will be reported for reproducibility.
+//
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.
 // 	    If d is 0, the timeout is disabled.
@@ -2864,20 +2907,23 @@
 // legal reasons). Therefore, clients can still access public code served from
 // Bazaar, Fossil, or Subversion repositories by default, because those downloads
 // use the Go module mirror, which takes on the security risk of running the
-// version control commands, using a custom sandbox.
+// version control commands using a custom sandbox.
 //
 // The GOVCS variable can be used to change the allowed version control systems
 // for specific packages (identified by a module or import path).
-// The GOVCS variable applies both when using modules and when using GOPATH.
-// When using modules, the patterns match against the module path.
-// When using GOPATH, the patterns match against the import path
-// corresponding to the root of the version control repository.
+// The GOVCS variable applies when building package in both module-aware mode
+// and GOPATH mode. When using modules, the patterns match against the module path.
+// When using GOPATH, the patterns match against the import path corresponding to
+// the root of the version control repository.
 //
 // The general form of the GOVCS setting is a comma-separated list of
 // pattern:vcslist rules. The pattern is a glob pattern that must match
 // one or more leading elements of the module or import path. The vcslist
 // is a pipe-separated list of allowed version control commands, or "all"
-// to allow use of any known command, or "off" to allow nothing.
+// to allow use of any known command, or "off" to disallow all commands.
+// Note that if a module matches a pattern with vcslist "off", it may still be
+// downloaded if the origin server uses the "mod" scheme, which instructs the
+// go command to download the module using the GOPROXY protocol.
 // The earliest matching pattern in the list applies, even if later patterns
 // might also match.
 //
@@ -2885,7 +2931,7 @@
 //
 // 	GOVCS=github.com:git,evil.com:off,*:git|hg
 //
-// With this setting, code with an module or import path beginning with
+// With this setting, code with a module or import path beginning with
 // github.com/ can only use git; paths on evil.com cannot use any version
 // control command, and all other paths (* matches everything) can use
 // only git or hg.

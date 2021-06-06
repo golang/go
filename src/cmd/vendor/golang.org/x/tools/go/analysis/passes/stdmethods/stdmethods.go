@@ -61,10 +61,12 @@ var Analyzer = &analysis.Analyzer{
 // we let it go. But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]struct{ args, results []string }{
+	"As": {[]string{"interface{}"}, []string{"bool"}}, // errors.As
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
 	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
+	"Is":            {[]string{"error"}, []string{"bool"}},                             // errors.Is
 	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
 	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
 	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
@@ -76,6 +78,7 @@ var canonicalMethods = map[string]struct{ args, results []string }{
 	"UnmarshalXML":  {[]string{"*xml.Decoder", "xml.StartElement"}, []string{"error"}}, // xml.Unmarshaler
 	"UnreadByte":    {[]string{}, []string{"error"}},
 	"UnreadRune":    {[]string{}, []string{"error"}},
+	"Unwrap":        {[]string{}, []string{"error"}},                      // errors.Unwrap
 	"WriteByte":     {[]string{"byte"}, []string{"error"}},                // jpeg.writer (matching bufio.Writer)
 	"WriteTo":       {[]string{"=io.Writer"}, []string{"int64", "error"}}, // io.WriterTo
 }
@@ -121,6 +124,14 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 	// comes up often enough to skip.
 	if id.Name == "WriteTo" && args.Len() > 1 {
 		return
+	}
+
+	// Special case: Is, As and Unwrap only apply when type
+	// implements error.
+	if id.Name == "Is" || id.Name == "As" || id.Name == "Unwrap" {
+		if recv := sign.Recv(); recv == nil || !implementsError(recv.Type()) {
+			return
+		}
 	}
 
 	// Do the =s (if any) all match?
@@ -184,4 +195,10 @@ func matchParamType(expect string, actual types.Type) bool {
 	expect = strings.TrimPrefix(expect, "=")
 	// Overkill but easy.
 	return typeString(actual) == expect
+}
+
+var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+func implementsError(actual types.Type) bool {
+	return types.Implements(actual, errorType)
 }

@@ -5,229 +5,157 @@
 package gc
 
 import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
-	"cmd/internal/src"
 	"fmt"
-)
-
-var (
-	Debug_export int // if set, print debugging information about export data
+	"go/constant"
 )
 
 func exportf(bout *bio.Writer, format string, args ...interface{}) {
 	fmt.Fprintf(bout, format, args...)
-	if Debug_export != 0 {
+	if base.Debug.Export != 0 {
 		fmt.Printf(format, args...)
 	}
 }
 
-var asmlist []*Node
-
-// exportsym marks n for export (or reexport).
-func exportsym(n *Node) {
-	if n.Sym.OnExportList() {
-		return
-	}
-	n.Sym.SetOnExportList(true)
-
-	if Debug.E != 0 {
-		fmt.Printf("export symbol %v\n", n.Sym)
-	}
-
-	exportlist = append(exportlist, n)
-}
-
-func initname(s string) bool {
-	return s == "init"
-}
-
-func autoexport(n *Node, ctxt Class) {
-	if n.Sym.Pkg != localpkg {
-		return
-	}
-	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
-		return
-	}
-	if n.Type != nil && n.Type.IsKind(TFUNC) && n.IsMethod() {
-		return
-	}
-
-	if types.IsExported(n.Sym.Name) || initname(n.Sym.Name) {
-		exportsym(n)
-	}
-	if asmhdr != "" && !n.Sym.Asm() {
-		n.Sym.SetAsm(true)
-		asmlist = append(asmlist, n)
-	}
-}
-
 func dumpexport(bout *bio.Writer) {
+	p := &exporter{marked: make(map[*types.Type]bool)}
+	for _, n := range typecheck.Target.Exports {
+		// Must catch it here rather than Export(), because the type can be
+		// not fully set (still TFORW) when Export() is called.
+		if n.Type() != nil && n.Type().HasTParam() {
+			base.Fatalf("Cannot (yet) export a generic type: %v", n)
+		}
+		p.markObject(n)
+	}
+
 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 	exportf(bout, "\n$$B\n") // indicate binary export format
 	off := bout.Offset()
-	iexport(bout.Writer)
+	typecheck.WriteExports(bout.Writer)
 	size := bout.Offset() - off
 	exportf(bout, "\n$$\n")
 
-	if Debug_export != 0 {
-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
-	}
-}
-
-func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
-	n := asNode(s.PkgDef())
-	if n == nil {
-		// iimport should have created a stub ONONAME
-		// declaration for all imported symbols. The exception
-		// is declarations for Runtimepkg, which are populated
-		// by loadsys instead.
-		if s.Pkg != Runtimepkg {
-			Fatalf("missing ONONAME for %v\n", s)
-		}
-
-		n = dclname(s)
-		s.SetPkgDef(asTypesNode(n))
-		s.Importdef = ipkg
-	}
-	if n.Op != ONONAME && n.Op != op {
-		redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
-	}
-	return n
-}
-
-// importtype returns the named type declared by symbol s.
-// If no such type has been declared yet, a forward declaration is returned.
-// ipkg is the package being imported
-func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
-	n := importsym(ipkg, s, OTYPE)
-	if n.Op != OTYPE {
-		t := types.New(TFORW)
-		t.Sym = s
-		t.Nod = asTypesNode(n)
-
-		n.Op = OTYPE
-		n.Pos = pos
-		n.Type = t
-		n.SetClass(PEXTERN)
-	}
-
-	t := n.Type
-	if t == nil {
-		Fatalf("importtype %v", s)
-	}
-	return t
-}
-
-// importobj declares symbol s as an imported object representable by op.
-// ipkg is the package being imported
-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
-	n := importsym(ipkg, s, op)
-	if n.Op != ONONAME {
-		if n.Op == op && (n.Class() != ctxt || !types.Identical(n.Type, t)) {
-			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
-		}
-		return nil
-	}
-
-	n.Op = op
-	n.Pos = pos
-	n.SetClass(ctxt)
-	if ctxt == PFUNC {
-		n.Sym.SetFunc(true)
-	}
-	n.Type = t
-	return n
-}
-
-// importconst declares symbol s as an imported constant with type t and value val.
-// ipkg is the package being imported
-func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val Val) {
-	n := importobj(ipkg, pos, s, OLITERAL, PEXTERN, t)
-	if n == nil { // TODO: Check that value matches.
-		return
-	}
-
-	n.SetVal(val)
-
-	if Debug.E != 0 {
-		fmt.Printf("import const %v %L = %v\n", s, t, val)
-	}
-}
-
-// importfunc declares symbol s as an imported function with type t.
-// ipkg is the package being imported
-func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ONAME, PFUNC, t)
-	if n == nil {
-		return
-	}
-
-	n.Func = new(Func)
-	t.SetNname(asTypesNode(n))
-
-	if Debug.E != 0 {
-		fmt.Printf("import func %v%S\n", s, t)
-	}
-}
-
-// importvar declares symbol s as an imported variable with type t.
-// ipkg is the package being imported
-func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, ONAME, PEXTERN, t)
-	if n == nil {
-		return
-	}
-
-	if Debug.E != 0 {
-		fmt.Printf("import var %v %L\n", s, t)
-	}
-}
-
-// importalias declares symbol s as an imported type alias with type t.
-// ipkg is the package being imported
-func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
-	n := importobj(ipkg, pos, s, OTYPE, PEXTERN, t)
-	if n == nil {
-		return
-	}
-
-	if Debug.E != 0 {
-		fmt.Printf("import type %v = %L\n", s, t)
+	if base.Debug.Export != 0 {
+		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, size)
 	}
 }
 
 func dumpasmhdr() {
-	b, err := bio.Create(asmhdr)
+	b, err := bio.Create(base.Flag.AsmHdr)
 	if err != nil {
-		Fatalf("%v", err)
+		base.Fatalf("%v", err)
 	}
-	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", localpkg.Name)
-	for _, n := range asmlist {
-		if n.Sym.IsBlank() {
+	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", types.LocalPkg.Name)
+	for _, n := range typecheck.Target.Asms {
+		if n.Sym().IsBlank() {
 			continue
 		}
-		switch n.Op {
-		case OLITERAL:
-			t := n.Val().Ctype()
-			if t == CTFLT || t == CTCPLX {
+		switch n.Op() {
+		case ir.OLITERAL:
+			t := n.Val().Kind()
+			if t == constant.Float || t == constant.Complex {
 				break
 			}
-			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
+			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym().Name, n.Val())
 
-		case OTYPE:
-			t := n.Type
+		case ir.OTYPE:
+			t := n.Type()
 			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
 				break
 			}
-			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym.Name, int(t.Width))
+			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Width))
 			for _, f := range t.Fields().Slice() {
 				if !f.Sym.IsBlank() {
-					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, f.Sym.Name, int(f.Offset))
+					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym().Name, f.Sym.Name, int(f.Offset))
 				}
 			}
 		}
 	}
 
 	b.Close()
+}
+
+type exporter struct {
+	marked map[*types.Type]bool // types already seen by markType
+}
+
+// markObject visits a reachable object.
+func (p *exporter) markObject(n ir.Node) {
+	if n.Op() == ir.ONAME {
+		n := n.(*ir.Name)
+		if n.Class == ir.PFUNC {
+			inline.Inline_Flood(n, typecheck.Export)
+		}
+	}
+
+	p.markType(n.Type())
+}
+
+// markType recursively visits types reachable from t to identify
+// functions whose inline bodies may be needed.
+func (p *exporter) markType(t *types.Type) {
+	if p.marked[t] {
+		return
+	}
+	p.marked[t] = true
+
+	// If this is a named type, mark all of its associated
+	// methods. Skip interface types because t.Methods contains
+	// only their unexpanded method set (i.e., exclusive of
+	// interface embeddings), and the switch statement below
+	// handles their full method set.
+	if t.Sym() != nil && t.Kind() != types.TINTER {
+		for _, m := range t.Methods().Slice() {
+			if types.IsExported(m.Sym.Name) {
+				p.markObject(ir.AsNode(m.Nname))
+			}
+		}
+	}
+
+	// Recursively mark any types that can be produced given a
+	// value of type t: dereferencing a pointer; indexing or
+	// iterating over an array, slice, or map; receiving from a
+	// channel; accessing a struct field or interface method; or
+	// calling a function.
+	//
+	// Notably, we don't mark function parameter types, because
+	// the user already needs some way to construct values of
+	// those types.
+	switch t.Kind() {
+	case types.TPTR, types.TARRAY, types.TSLICE:
+		p.markType(t.Elem())
+
+	case types.TCHAN:
+		if t.ChanDir().CanRecv() {
+			p.markType(t.Elem())
+		}
+
+	case types.TMAP:
+		p.markType(t.Key())
+		p.markType(t.Elem())
+
+	case types.TSTRUCT:
+		for _, f := range t.FieldSlice() {
+			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
+				p.markType(f.Type)
+			}
+		}
+
+	case types.TFUNC:
+		for _, f := range t.Results().FieldSlice() {
+			p.markType(f.Type)
+		}
+
+	case types.TINTER:
+		for _, f := range t.AllMethods().Slice() {
+			if types.IsExported(f.Sym.Name) {
+				p.markType(f.Type)
+			}
+		}
+	}
 }

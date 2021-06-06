@@ -12,6 +12,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -902,6 +903,28 @@ func TestExecError(t *testing.T) {
 	}
 }
 
+type CustomError struct{}
+
+func (*CustomError) Error() string { return "heyo !" }
+
+// Check that a custom error can be returned.
+func TestExecError_CustomError(t *testing.T) {
+	failingFunc := func() (string, error) {
+		return "", &CustomError{}
+	}
+	tmpl := Must(New("top").Funcs(FuncMap{
+		"err": failingFunc,
+	}).Parse("{{ err }}"))
+
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, nil)
+
+	var e *CustomError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected custom error; got %s", err)
+	}
+}
+
 func TestJSEscaping(t *testing.T) {
 	testCases := []struct {
 		in, exp string
@@ -1178,8 +1201,11 @@ var cmpTests = []cmpTest{
 	{"eq .Ptr .NilPtr", "false", true},
 	{"eq .NilPtr .NilPtr", "true", true},
 	{"eq .Iface1 .Iface1", "true", true},
-	{"eq .Iface1 .Iface2", "false", true},
-	{"eq .Iface2 .Iface2", "true", true},
+	{"eq .Iface1 .NilIface", "false", true},
+	{"eq .NilIface .NilIface", "true", true},
+	{"eq .NilIface .Iface1", "false", true},
+	{"eq .NilIface 0", "false", true},
+	{"eq 0 .NilIface", "false", true},
 	// Errors
 	{"eq `xy` 1", "", false},       // Different types.
 	{"eq 2 2.0", "", false},        // Different types.
@@ -1194,12 +1220,12 @@ var cmpTests = []cmpTest{
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Uthree, Ufour  uint
-		NegOne, Three  int
-		Ptr, NilPtr    *int
-		Map            map[int]int
-		V1, V2         V
-		Iface1, Iface2 fmt.Stringer
+		Uthree, Ufour    uint
+		NegOne, Three    int
+		Ptr, NilPtr      *int
+		Map              map[int]int
+		V1, V2           V
+		Iface1, NilIface fmt.Stringer
 	}{
 		Uthree: 3,
 		Ufour:  4,
@@ -1709,4 +1735,41 @@ func TestIssue43065(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "range over send-only channel") {
 		t.Errorf("%s", err)
 	}
+}
+
+// Issue 39807: data race in html/template & text/template
+func TestIssue39807(t *testing.T) {
+	var wg sync.WaitGroup
+
+	tplFoo, err := New("foo").Parse(`{{ template "bar" . }}`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tplBar, err := New("bar").Parse("bar")
+	if err != nil {
+		t.Error(err)
+	}
+
+	gofuncs := 10
+	numTemplates := 10
+
+	for i := 1; i <= gofuncs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numTemplates; j++ {
+				_, err := tplFoo.AddParseTree(tplBar.Name(), tplBar.Tree)
+				if err != nil {
+					t.Error(err)
+				}
+				err = tplFoo.Execute(io.Discard, nil)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 }

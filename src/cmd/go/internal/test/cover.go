@@ -26,8 +26,8 @@ func initCoverProfile() {
 	if testCoverProfile == "" || testC {
 		return
 	}
-	if !filepath.IsAbs(testCoverProfile) && testOutputDir != "" {
-		testCoverProfile = filepath.Join(testOutputDir, testCoverProfile)
+	if !filepath.IsAbs(testCoverProfile) {
+		testCoverProfile = filepath.Join(testOutputDir.getAbs(), testCoverProfile)
 	}
 
 	// No mutex - caller's responsibility to call with no racing goroutines.

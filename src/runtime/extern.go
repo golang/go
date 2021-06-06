@@ -110,8 +110,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	with a trivial allocator that obtains memory from the operating system and
 	never reclaims any memory.
 
-	scavenge: scavenge=1 enables debugging mode of heap scavenger.
-
 	scavtrace: setting scavtrace=1 causes the runtime to emit a single line to standard
 	error, roughly once per GC cycle, summarizing the amount of work done by the
 	scavenger as well as the total amount of memory returned to the operating system
@@ -229,6 +227,8 @@ func Callers(skip int, pc []uintptr) int {
 	return callers(skip, pc)
 }
 
+var defaultGOROOT string // set by cmd/link
+
 // GOROOT returns the root of the Go tree. It uses the
 // GOROOT environment variable, if set at process start,
 // or else the root used during the Go build.
@@ -237,14 +237,24 @@ func GOROOT() string {
 	if s != "" {
 		return s
 	}
-	return sys.DefaultGoroot
+	return defaultGOROOT
 }
+
+// buildVersion is the Go tree's version string at build time.
+//
+// If any GOEXPERIMENTs are set to non-default values, it will include
+// "X:<GOEXPERIMENT>".
+//
+// This is set by the linker.
+//
+// This is accessed by "go version <binary>".
+var buildVersion string
 
 // Version returns the Go tree's version string.
 // It is either the commit hash and date at the time of the build or,
 // when possible, a release tag like "go1.3".
 func Version() string {
-	return sys.TheVersion
+	return buildVersion
 }
 
 // GOOS is the running program's operating system target:

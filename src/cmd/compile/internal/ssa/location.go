@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -59,7 +60,7 @@ func (r *Register) GCNum() int16 {
 //                           { N: len, Type: int, Off: 0, SplitOf: parent, SplitOffset: 8}
 //                           parent = &{N: s, Type: string}
 type LocalSlot struct {
-	N    GCNode      // an ONAME *gc.Node representing a stack location.
+	N    *ir.Name    // an ONAME *ir.Name representing a stack location.
 	Type *types.Type // type of slot
 	Off  int64       // offset of slot in N
 
@@ -85,4 +86,24 @@ func (t LocPair) String() string {
 		n1 = t[1].String()
 	}
 	return fmt.Sprintf("<%s,%s>", n0, n1)
+}
+
+type LocResults []Location
+
+func (t LocResults) String() string {
+	s := "<"
+	a := ""
+	for _, r := range t {
+		a += s
+		s = ","
+		a += r.String()
+	}
+	a += ">"
+	return a
+}
+
+type Spill struct {
+	Type   *types.Type
+	Offset int64
+	Reg    int16
 }

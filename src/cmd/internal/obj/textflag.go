@@ -27,13 +27,14 @@ const (
 	// This data contains no pointers.
 	NOPTR = 16
 
-	// This is a wrapper function and should not count as disabling 'recover'.
+	// This is a wrapper function and should not count as
+	// disabling 'recover' or appear in tracebacks by default.
 	WRAPPER = 32
 
 	// This function uses its incoming context register.
 	NEEDCTXT = 64
 
-	// When passed to ggloblsym, causes Local to be set to true on the LSym it creates.
+	// When passed to objw.Global, causes Local to be set to true on the LSym it creates.
 	LOCAL = 128
 
 	// Allocate a word of thread local storage and store the offset from the
@@ -51,4 +52,7 @@ const (
 	// Function is the top of the call stack. Call stack unwinders should stop
 	// at this function.
 	TOPFRAME = 2048
+
+	// Function is an ABI wrapper.
+	ABIWRAPPER = 4096
 )

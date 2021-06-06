@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build gen
 // +build gen
 
 // This program generates Go code that applies rewrite rules to a Value.
@@ -194,7 +195,9 @@ func genRulesSuffix(arch arch, suff string) {
 		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
-	fn.add(sw)
+	if len(sw.List) > 0 { // skip if empty
+		fn.add(sw)
+	}
 	fn.add(stmtf("return false"))
 	genFile.add(fn)
 
@@ -215,10 +218,10 @@ func genRulesSuffix(arch arch, suff string) {
 			Suffix: fmt.Sprintf("_%s", op),
 			ArgLen: opByName(arch, op).argLength,
 		}
-		fn.add(declf("b", "v.Block"))
-		fn.add(declf("config", "b.Func.Config"))
-		fn.add(declf("fe", "b.Func.fe"))
-		fn.add(declf("typ", "&b.Func.Config.Types"))
+		fn.add(declReserved("b", "v.Block"))
+		fn.add(declReserved("config", "b.Func.Config"))
+		fn.add(declReserved("fe", "b.Func.fe"))
+		fn.add(declReserved("typ", "&b.Func.Config.Types"))
 		for _, rule := range rules {
 			if rr != nil && !rr.CanFail {
 				log.Fatalf("unconditional rule %s is followed by other rules", rr.Match)
@@ -247,8 +250,8 @@ func genRulesSuffix(arch arch, suff string) {
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
 	fn = &Func{Kind: "Block"}
-	fn.add(declf("config", "b.Func.Config"))
-	fn.add(declf("typ", "&b.Func.Config.Types"))
+	fn.add(declReserved("config", "b.Func.Config"))
+	fn.add(declReserved("typ", "&b.Func.Config.Types"))
 
 	sw = &Switch{Expr: exprf("b.Kind")}
 	ops = ops[:0]
@@ -264,7 +267,9 @@ func genRulesSuffix(arch arch, suff string) {
 		}
 		sw.add(swc)
 	}
-	fn.add(sw)
+	if len(sw.List) > 0 { // skip if empty
+		fn.add(sw)
+	}
 	fn.add(stmtf("return false"))
 	genFile.add(fn)
 
@@ -579,9 +584,10 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "\npackage ssa\n")
 		for _, path := range append([]string{
 			"fmt",
+			"internal/buildcfg",
 			"math",
 			"cmd/internal/obj",
-			"cmd/internal/objabi",
+			"cmd/compile/internal/base",
 			"cmd/compile/internal/types",
 		}, n.Arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
@@ -822,10 +828,34 @@ func stmtf(format string, a ...interface{}) Statement {
 	return file.Decls[0].(*ast.FuncDecl).Body.List[0]
 }
 
-// declf constructs a simple "name := value" declaration, using exprf for its
-// value.
-func declf(name, format string, a ...interface{}) *Declare {
+var reservedNames = map[string]bool{
+	"v":      true, // Values[i], etc
+	"b":      true, // v.Block
+	"config": true, // b.Func.Config
+	"fe":     true, // b.Func.fe
+	"typ":    true, // &b.Func.Config.Types
+}
+
+// declf constructs a simple "name := value" declaration,
+// using exprf for its value.
+//
+// name must not be one of reservedNames.
+// This helps prevent unintended shadowing and name clashes.
+// To declare a reserved name, use declReserved.
+func declf(loc, name, format string, a ...interface{}) *Declare {
+	if reservedNames[name] {
+		log.Fatalf("rule %s uses the reserved name %s", loc, name)
+	}
 	return &Declare{name, exprf(format, a...)}
+}
+
+// declReserved is like declf, but the name must be one of reservedNames.
+// Calls to declReserved should generally be static and top-level.
+func declReserved(name, value string) *Declare {
+	if !reservedNames[name] {
+		panic(fmt.Sprintf("declReserved call does not use a reserved name: %q", name))
+	}
+	return &Declare{name, exprf(value)}
 }
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
@@ -852,7 +882,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			if vname == "" {
 				vname = fmt.Sprintf("v_%v", i)
 			}
-			rr.add(declf(vname, cname))
+			rr.add(declf(rr.Loc, vname, cname))
 			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
 			if op != "" {
 				check := fmt.Sprintf("%s.Op == %s", cname, op)
@@ -867,7 +897,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			}
 			pos[i] = p
 		} else {
-			rr.add(declf(arg, cname))
+			rr.add(declf(rr.Loc, arg, cname))
 			pos[i] = arg + ".Pos"
 		}
 	}
@@ -887,7 +917,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			rr.add(breakf("%sTo%s(b.%s) != %s", unTitle(e.field), title(e.dclType), e.field, e.name))
 		} else {
-			rr.add(declf(e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
+			rr.add(declf(rr.Loc, e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
 		}
 	}
 	if rr.Cond != "" {
@@ -1037,11 +1067,11 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		} else {
 			switch e.field {
 			case "Aux":
-				rr.add(declf(e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
+				rr.add(declf(rr.Loc, e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "AuxInt":
-				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
+				rr.add(declf(rr.Loc, e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "Type":
-				rr.add(declf(e.name, "%s.%s", v, e.field))
+				rr.add(declf(rr.Loc, e.name, "%s.%s", v, e.field))
 			}
 		}
 	}
@@ -1071,7 +1101,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 				continue
 			}
 			if !rr.declared(a) && token.IsIdentifier(a) && !(commutative && len(args) == 2) {
-				rr.add(declf(a, "%s.Args[%d]", v, n))
+				rr.add(declf(rr.Loc, a, "%s.Args[%d]", v, n))
 				// delete the last argument so it is not reprocessed
 				args = args[:n]
 			} else {
@@ -1083,7 +1113,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 	if commutative && !pregenTop {
 		for i := 0; i <= 1; i++ {
 			vname := fmt.Sprintf("%s_%d", v, i)
-			rr.add(declf(vname, "%s.Args[%d]", v, i))
+			rr.add(declf(rr.Loc, vname, "%s.Args[%d]", v, i))
 		}
 	}
 	if commutative {
@@ -1110,7 +1140,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 				rr.add(breakf("%s != %s", arg, rhs))
 			} else {
 				if arg != rhs {
-					rr.add(declf(arg, "%s", rhs))
+					rr.add(declf(rr.Loc, arg, "%s", rhs))
 				}
 			}
 			continue
@@ -1125,7 +1155,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		}
 
 		if argname != rhs {
-			rr.add(declf(argname, "%s", rhs))
+			rr.add(declf(rr.Loc, argname, "%s", rhs))
 		}
 		bexpr := exprf("%s.Op != addLater", argname)
 		rr.add(&CondBreak{Cond: bexpr})
@@ -1202,7 +1232,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			v = resname
 		}
 		rr.Alloc++
-		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
+		rr.add(declf(rr.Loc, v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
 			// Rewrite original into a copy
 			rr.add(stmtf("v.copyOf(%s)", v))

@@ -8,7 +8,8 @@ package cgotest
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -64,7 +65,7 @@ import "C"
 func compareStatus(filter, expect string) error {
 	expected := filter + expect
 	pid := syscall.Getpid()
-	fs, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
+	fs, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
 	if err != nil {
 		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
 	}
@@ -72,7 +73,7 @@ func compareStatus(filter, expect string) error {
 	foundAThread := false
 	for _, f := range fs {
 		tf := fmt.Sprintf("/proc/%s/status", f.Name())
-		d, err := ioutil.ReadFile(tf)
+		d, err := os.ReadFile(tf)
 		if err != nil {
 			// There are a surprising number of ways this
 			// can error out on linux.  We've seen all of
@@ -105,11 +106,23 @@ func compareStatus(filter, expect string) error {
 				// "Pid:\t".
 			}
 			if strings.HasPrefix(line, filter) {
-				if line != expected {
-					return fmt.Errorf("%q got:%q want:%q (bad) [pid=%d file:'%s' %v]\n", tf, line, expected, pid, string(d), expectedProc)
+				if line == expected {
+					foundAThread = true
+					break
 				}
-				foundAThread = true
-				break
+				if filter == "Groups:" && strings.HasPrefix(line, "Groups:\t") {
+					// https://github.com/golang/go/issues/46145
+					// Containers don't reliably output this line in sorted order so manually sort and compare that.
+					a := strings.Split(line[8:], " ")
+					sort.Strings(a)
+					got := strings.Join(a, " ")
+					if got == expected[8:] {
+						foundAThread = true
+						break
+					}
+
+				}
+				return fmt.Errorf("%q got:%q want:%q (bad) [pid=%d file:'%s' %v]\n", tf, line, expected, pid, string(d), expectedProc)
 			}
 		}
 	}

@@ -9,12 +9,15 @@
 #include "libcgo_unix.h"
 
 static void* threadentry(void*);
+static void (*setg_gcc)(void*);
 
 void
-x_cgo_init(G *g)
+x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
 	pthread_attr_t attr;
 	size_t size;
+
+	setg_gcc = setg;
 
 	pthread_attr_init(&attr);
 	pthread_attr_getstacksize(&attr, &size);
@@ -57,10 +60,6 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	free(v);
 
-	// Move the g pointer into the slot reserved in thread local storage.
-	// Constant must match the one in cmd/link/internal/ld/sym.go.
-	asm volatile("movq %0, %%gs:0x30" :: "r"(ts.g));
-
-	crosscall_amd64(ts.fn);
+	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);
 	return nil;
 }

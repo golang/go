@@ -1,3 +1,4 @@
+//go:build cgo
 // +build cgo
 
 // Copyright 2019 The Go Authors. All rights reserved.
@@ -21,11 +22,7 @@ import (
 func TestDynSymShInfo(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
-	dir, err := ioutil.TempDir("", "go-build-issue33358")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	const prog = `
 package main
@@ -51,6 +48,7 @@ func main() {
 	if err != nil {
 		t.Fatalf("failed to open built file: %v", err)
 	}
+	defer fi.Close()
 
 	elfFile, err := elf.NewFile(fi)
 	if err != nil {
@@ -95,11 +93,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 
 	t.Parallel()
 
-	dir, err := ioutil.TempDir("", "no-dup-needed")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	wd, err := os.Getwd()
 	if err != nil {

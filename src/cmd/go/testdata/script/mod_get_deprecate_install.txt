@@ -1,0 +1,39 @@
+[short] skip
+
+env GO111MODULE=on
+
+# 'go get' outside a module with an executable prints a deprecation message.
+go get example.com/cmd/a
+stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
+stderr 'Use ''go install pkg@version'' instead.'
+
+cp go.mod.orig go.mod
+
+# 'go get' inside a module with a non-main package does not print a message.
+# This will stop building in the future, but it's the command we want to use.
+go get rsc.io/quote
+! stderr deprecated
+cp go.mod.orig go.mod
+
+# 'go get' inside a module with an executable prints a different
+# deprecation message.
+go get example.com/cmd/a
+stderr '^go get: installing executables with ''go get'' in module mode is deprecated.$'
+stderr 'To adjust and download dependencies of the current module, use ''go get -d'''
+cp go.mod.orig go.mod
+
+# 'go get' should not print a warning for a main package inside the main module.
+# The intent is most likely to update the dependencies of that package.
+# 'go install' would be used otherwise.
+go get m
+! stderr .
+cp go.mod.orig go.mod
+
+-- go.mod.orig --
+module m
+
+go 1.17
+-- main.go --
+package main
+
+func main() {}

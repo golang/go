@@ -794,23 +794,24 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	e.WriteByte('{')
 
 	// Extract and sort the keys.
-	keys := v.MapKeys()
-	sv := make([]reflectWithString, len(keys))
-	for i, v := range keys {
-		sv[i].v = v
+	sv := make([]reflectWithString, v.Len())
+	mi := v.MapRange()
+	for i := 0; mi.Next(); i++ {
+		sv[i].k = mi.Key()
+		sv[i].v = mi.Value()
 		if err := sv[i].resolve(); err != nil {
 			e.error(fmt.Errorf("json: encoding error for type %q: %q", v.Type().String(), err.Error()))
 		}
 	}
-	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
+	sort.Slice(sv, func(i, j int) bool { return sv[i].ks < sv[j].ks })
 
 	for i, kv := range sv {
 		if i > 0 {
 			e.WriteByte(',')
 		}
-		e.string(kv.s, opts.escapeHTML)
+		e.string(kv.ks, opts.escapeHTML)
 		e.WriteByte(':')
-		me.elemEnc(e, v.MapIndex(kv.v), opts)
+		me.elemEnc(e, kv.v, opts)
 	}
 	e.WriteByte('}')
 	e.ptrLevel--
@@ -997,29 +998,30 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 }
 
 type reflectWithString struct {
-	v reflect.Value
-	s string
+	k  reflect.Value
+	v  reflect.Value
+	ks string
 }
 
 func (w *reflectWithString) resolve() error {
-	if w.v.Kind() == reflect.String {
-		w.s = w.v.String()
+	if w.k.Kind() == reflect.String {
+		w.ks = w.k.String()
 		return nil
 	}
-	if tm, ok := w.v.Interface().(encoding.TextMarshaler); ok {
-		if w.v.Kind() == reflect.Ptr && w.v.IsNil() {
+	if tm, ok := w.k.Interface().(encoding.TextMarshaler); ok {
+		if w.k.Kind() == reflect.Ptr && w.k.IsNil() {
 			return nil
 		}
 		buf, err := tm.MarshalText()
-		w.s = string(buf)
+		w.ks = string(buf)
 		return err
 	}
-	switch w.v.Kind() {
+	switch w.k.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		w.s = strconv.FormatInt(w.v.Int(), 10)
+		w.ks = strconv.FormatInt(w.k.Int(), 10)
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		w.s = strconv.FormatUint(w.v.Uint(), 10)
+		w.ks = strconv.FormatUint(w.k.Uint(), 10)
 		return nil
 	}
 	panic("unexpected map key type")
@@ -1239,19 +1241,18 @@ func typeFields(t reflect.Type) structFields {
 			// Scan f.typ for fields to include.
 			for i := 0; i < f.typ.NumField(); i++ {
 				sf := f.typ.Field(i)
-				isUnexported := sf.PkgPath != ""
 				if sf.Anonymous {
 					t := sf.Type
 					if t.Kind() == reflect.Ptr {
 						t = t.Elem()
 					}
-					if isUnexported && t.Kind() != reflect.Struct {
+					if !sf.IsExported() && t.Kind() != reflect.Struct {
 						// Ignore embedded fields of unexported non-struct types.
 						continue
 					}
 					// Do not ignore embedded fields of unexported struct types
 					// since they may have exported fields.
-				} else if isUnexported {
+				} else if !sf.IsExported() {
 					// Ignore unexported non-embedded fields.
 					continue
 				}

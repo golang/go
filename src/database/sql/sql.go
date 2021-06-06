@@ -260,6 +260,60 @@ func (n NullInt32) Value() (driver.Value, error) {
 	return int64(n.Int32), nil
 }
 
+// NullInt16 represents an int16 that may be null.
+// NullInt16 implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullInt16 struct {
+	Int16 int16
+	Valid bool // Valid is true if Int16 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt16) Scan(value interface{}) error {
+	if value == nil {
+		n.Int16, n.Valid = 0, false
+		return nil
+	}
+	err := convertAssign(&n.Int16, value)
+	n.Valid = err == nil
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt16) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int16), nil
+}
+
+// NullByte represents a byte that may be null.
+// NullByte implements the Scanner interface so
+// it can be used as a scan destination, similar to NullString.
+type NullByte struct {
+	Byte  byte
+	Valid bool // Valid is true if Byte is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullByte) Scan(value interface{}) error {
+	if value == nil {
+		n.Byte, n.Valid = 0, false
+		return nil
+	}
+	err := convertAssign(&n.Byte, value)
+	n.Valid = err == nil
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (n NullByte) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Byte), nil
+}
+
 // NullFloat64 represents a float64 that may be null.
 // NullFloat64 implements the Scanner interface so
 // it can be used as a scan destination, similar to NullString.
@@ -813,6 +867,9 @@ func (db *DB) PingContext(ctx context.Context) error {
 
 // Ping verifies a connection to the database is still alive,
 // establishing a connection if necessary.
+//
+// Ping uses context.Background internally; to specify the context, use
+// PingContext.
 func (db *DB) Ping() error {
 	return db.PingContext(context.Background())
 }
@@ -850,6 +907,12 @@ func (db *DB) Close() error {
 		}
 	}
 	db.stop()
+	if c, ok := db.connector.(io.Closer); ok {
+		err1 := c.Close()
+		if err1 != nil {
+			err = err1
+		}
+	}
 	return err
 }
 
@@ -1475,6 +1538,9 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 // returned statement.
 // The caller must call the statement's Close method
 // when the statement is no longer needed.
+//
+// Prepare uses context.Background internally; to specify the context, use
+// PrepareContext.
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	return db.PrepareContext(context.Background(), query)
 }
@@ -1545,6 +1611,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 
 // Exec executes a query without returning any rows.
 // The args are for any placeholder parameters in the query.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (db *DB) Exec(query string, args ...interface{}) (Result, error) {
 	return db.ExecContext(context.Background(), query, args...)
 }
@@ -1615,6 +1684,9 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 
 // Query executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
 	return db.QueryContext(context.Background(), query, args...)
 }
@@ -1713,6 +1785,9 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 	return db.QueryRowContext(context.Background(), query, args...)
 }
@@ -1744,6 +1819,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 
 // Begin starts a transaction. The default isolation level is dependent on
 // the driver.
+//
+// Begin uses context.Background internally; to specify the context, use
+// BeginTx.
 func (db *DB) Begin() (*Tx, error) {
 	return db.BeginTx(context.Background(), nil)
 }
@@ -1771,7 +1849,7 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 		return nil, err
 	}
 
-	// Schedule the transaction to rollback when the context is cancelled.
+	// Schedule the transaction to rollback when the context is canceled.
 	// The cancel function in Tx will be called after done is set to true.
 	ctx, cancel := context.WithCancel(ctx)
 	tx = &Tx{
@@ -2249,6 +2327,9 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 // be used once the transaction has been committed or rolled back.
 //
 // To use an existing prepared statement on this transaction, see Tx.Stmt.
+//
+// Prepare uses context.Background internally; to specify the context, use
+// PrepareContext.
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	return tx.PrepareContext(context.Background(), query)
 }
@@ -2352,6 +2433,9 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 //
 // The returned statement operates within the transaction and will be closed
 // when the transaction has been committed or rolled back.
+//
+// Stmt uses context.Background internally; to specify the context, use
+// StmtContext.
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	return tx.StmtContext(context.Background(), stmt)
 }
@@ -2368,6 +2452,9 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 
 // Exec executes a query that doesn't return rows.
 // For example: an INSERT and UPDATE.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (tx *Tx) Exec(query string, args ...interface{}) (Result, error) {
 	return tx.ExecContext(context.Background(), query, args...)
 }
@@ -2383,6 +2470,9 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 }
 
 // Query executes a query that returns rows, typically a SELECT.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 	return tx.QueryContext(context.Background(), query, args...)
 }
@@ -2404,6 +2494,9 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (tx *Tx) QueryRow(query string, args ...interface{}) *Row {
 	return tx.QueryRowContext(context.Background(), query, args...)
 }
@@ -2510,6 +2603,9 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 
 // Exec executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
+//
+// Exec uses context.Background internally; to specify the context, use
+// ExecContext.
 func (s *Stmt) Exec(args ...interface{}) (Result, error) {
 	return s.ExecContext(context.Background(), args...)
 }
@@ -2681,6 +2777,9 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 
 // Query executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
+//
+// Query uses context.Background internally; to specify the context, use
+// QueryContext.
 func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
 	return s.QueryContext(context.Background(), args...)
 }
@@ -2720,6 +2819,9 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *Row {
 //
 //  var name string
 //  err := nameByUseridStmt.QueryRow(id).Scan(&name)
+//
+// QueryRow uses context.Background internally; to specify the context, use
+// QueryRowContext.
 func (s *Stmt) QueryRow(args ...interface{}) *Row {
 	return s.QueryRowContext(context.Background(), args...)
 }

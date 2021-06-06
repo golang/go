@@ -2,17 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !plan9
 // +build !plan9
 
 #include "go_asm.h"
 #include "textflag.h"
 
-// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
-TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+// ABIInternal for performance.
+TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = ptr
+	// BX = n
+	MOVQ	AX, DI	// DI = ptr
+#else
 	MOVQ	ptr+0(FP), DI
 	MOVQ	n+8(FP), BX
+#endif
 	XORQ	AX, AX
 
 	// MOVOU seems always faster than REP STOSQ.
@@ -29,7 +37,9 @@ tail:
 	JE	_8
 	CMPQ	BX, $16
 	JBE	_9through16
-	PXOR	X0, X0
+#ifndef GOEXPERIMENT_regabig
+	PXOR	X15, X15
+#endif
 	CMPQ	BX, $32
 	JBE	_17through32
 	CMPQ	BX, $64
@@ -43,22 +53,22 @@ tail:
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 
 loop:
-	MOVOU	X0, 0(DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, 64(DI)
-	MOVOU	X0, 80(DI)
-	MOVOU	X0, 96(DI)
-	MOVOU	X0, 112(DI)
-	MOVOU	X0, 128(DI)
-	MOVOU	X0, 144(DI)
-	MOVOU	X0, 160(DI)
-	MOVOU	X0, 176(DI)
-	MOVOU	X0, 192(DI)
-	MOVOU	X0, 208(DI)
-	MOVOU	X0, 224(DI)
-	MOVOU	X0, 240(DI)
+	MOVOU	X15, 0(DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, 64(DI)
+	MOVOU	X15, 80(DI)
+	MOVOU	X15, 96(DI)
+	MOVOU	X15, 112(DI)
+	MOVOU	X15, 128(DI)
+	MOVOU	X15, 144(DI)
+	MOVOU	X15, 160(DI)
+	MOVOU	X15, 176(DI)
+	MOVOU	X15, 192(DI)
+	MOVOU	X15, 208(DI)
+	MOVOU	X15, 224(DI)
+	MOVOU	X15, 240(DI)
 	SUBQ	$256, BX
 	ADDQ	$256, DI
 	CMPQ	BX, $256
@@ -139,40 +149,40 @@ _9through16:
 	MOVQ	AX, -8(DI)(BX*1)
 	RET
 _17through32:
-	MOVOU	X0, (DI)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _33through64:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _65through128:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, -64(DI)(BX*1)
-	MOVOU	X0, -48(DI)(BX*1)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, -64(DI)(BX*1)
+	MOVOU	X15, -48(DI)(BX*1)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET
 _129through256:
-	MOVOU	X0, (DI)
-	MOVOU	X0, 16(DI)
-	MOVOU	X0, 32(DI)
-	MOVOU	X0, 48(DI)
-	MOVOU	X0, 64(DI)
-	MOVOU	X0, 80(DI)
-	MOVOU	X0, 96(DI)
-	MOVOU	X0, 112(DI)
-	MOVOU	X0, -128(DI)(BX*1)
-	MOVOU	X0, -112(DI)(BX*1)
-	MOVOU	X0, -96(DI)(BX*1)
-	MOVOU	X0, -80(DI)(BX*1)
-	MOVOU	X0, -64(DI)(BX*1)
-	MOVOU	X0, -48(DI)(BX*1)
-	MOVOU	X0, -32(DI)(BX*1)
-	MOVOU	X0, -16(DI)(BX*1)
+	MOVOU	X15, (DI)
+	MOVOU	X15, 16(DI)
+	MOVOU	X15, 32(DI)
+	MOVOU	X15, 48(DI)
+	MOVOU	X15, 64(DI)
+	MOVOU	X15, 80(DI)
+	MOVOU	X15, 96(DI)
+	MOVOU	X15, 112(DI)
+	MOVOU	X15, -128(DI)(BX*1)
+	MOVOU	X15, -112(DI)(BX*1)
+	MOVOU	X15, -96(DI)(BX*1)
+	MOVOU	X15, -80(DI)(BX*1)
+	MOVOU	X15, -64(DI)(BX*1)
+	MOVOU	X15, -48(DI)(BX*1)
+	MOVOU	X15, -32(DI)(BX*1)
+	MOVOU	X15, -16(DI)(BX*1)
 	RET

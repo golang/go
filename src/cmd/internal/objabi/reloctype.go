@@ -50,11 +50,6 @@ const (
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
-	// R_WEAKADDROFF resolves just like R_ADDROFF but is a weak relocation.
-	// A weak relocation does not make the symbol it refers to reachable,
-	// and is only honored by the linker if the symbol is in some other way
-	// reachable.
-	R_WEAKADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -106,6 +101,9 @@ const (
 	// *rtype, and may be set to zero by the linker if it determines the method
 	// text is unreachable by the linked program.
 	R_METHODOFF
+	// R_KEEP tells the linker to keep the referred-to symbol in the final binary
+	// if the symbol containing the R_KEEP relocation is in the final binary.
+	R_KEEP
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
@@ -172,8 +170,8 @@ const (
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
 	// access. It resolves to the offset of the thread-local symbol from the
-	// thread pointer (R13) and inserts this value into the low 16 bits of an
-	// instruction word.
+	// thread pointer (R13) and is split against a pair of instructions to
+	// support a 32 bit displacement.
 	R_POWER_TLS_LE
 
 	// R_POWER_TLS_IE is used to implement the "initial exec" model for tls access. It
@@ -183,10 +181,12 @@ const (
 	// symbol from the thread pointer (R13)).
 	R_POWER_TLS_IE
 
-	// R_POWER_TLS marks an X-form instruction such as "MOVD 0(R13)(R31*1), g" as
-	// accessing a particular thread-local symbol. It does not affect code generation
-	// but is used by the system linker when relaxing "initial exec" model code to
-	// "local exec" model code.
+	// R_POWER_TLS marks an X-form instruction such as "ADD R3,R13,R4" as completing
+	// a sequence of GOT-relative relocations to compute a TLS address. This can be
+	// used by the system linker to to rewrite the GOT-relative TLS relocation into a
+	// simpler thread-pointer relative relocation. See table 3.26 and 3.28 in the
+	// ppc64 elfv2 1.4 ABI on this transformation.  Likewise, the second argument
+	// (usually called RB in X-form instructions) is assumed to be R13.
 	R_POWER_TLS
 
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
@@ -256,6 +256,15 @@ const (
 	// of a symbol. This isn't a real relocation, it can be placed in anywhere
 	// in a symbol and target any symbols.
 	R_XCOFFREF
+
+	// R_WEAK marks the relocation as a weak reference.
+	// A weak relocation does not make the symbol it refers to reachable,
+	// and is only honored by the linker if the symbol is in some other way
+	// reachable.
+	R_WEAK = -1 << 15
+
+	R_WEAKADDR    = R_WEAK | R_ADDR
+	R_WEAKADDROFF = R_WEAK | R_ADDROFF
 )
 
 // IsDirectCall reports whether r is a relocation for a direct call.

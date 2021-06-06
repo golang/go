@@ -3,6 +3,14 @@ go list -f '{{.EmbedPatterns}}'
 stdout '\[x\*t\*t\]'
 go list -f '{{.EmbedFiles}}'
 stdout '\[x.txt\]'
+go list -test -f '{{.TestEmbedPatterns}}'
+stdout '\[y\*t\*t\]'
+go list -test -f '{{.TestEmbedFiles}}'
+stdout '\[y.txt\]'
+go list -test -f '{{.XTestEmbedPatterns}}'
+stdout '\[z\*t\*t\]'
+go list -test -f '{{.XTestEmbedFiles}}'
+stdout '\[z.txt\]'
 
 # build embeds x.txt
 go build -x
@@ -38,6 +46,8 @@ stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddab
 cp x.txt t/.git
 ! go build -x
 stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
+go list -e -f '{{.Incomplete}}'
+stdout 'true'
 [symlink] symlink t/x.link -> ../x.txt
 [symlink] ! go build -x
 [symlink] stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
@@ -58,6 +68,22 @@ import "embed"
 //go:embed x*t*t
 var X embed.FS
 
+-- x_test.go --
+package p
+
+import "embed"
+
+//go:embed y*t*t
+var Y string
+
+-- x_x_test.go --
+package p_test
+
+import "embed"
+
+//go:embed z*t*t
+var Z string
+
 -- x.go2 --
 package p
 
@@ -69,6 +95,8 @@ var X embed.FS
 -- x.txt --
 hello
 
+-- y.txt --
+-- z.txt --
 -- x.txt2 --
 not hello
 
@@ -79,3 +107,4 @@ import _ "m"
 -- go.mod --
 module m
 
+go 1.16

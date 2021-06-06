@@ -76,6 +76,10 @@ nog:
 	MOVD	$0, R0  // crash (not reached)
 	MOVD	R0, (R8)
 
+TEXT ·netbsdMstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	·netbsdMstart0(SB)
+	RET // not reached
+
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	SVC	$SYS_sched_yield
 	RET
@@ -220,8 +224,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
 	SVC	$SYS___setitimer50
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	$CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	SVC	$SYS___clock_gettime50

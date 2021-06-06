@@ -170,12 +170,16 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
 	if len(z) == 0 {
 		return
 	}
+	if len(x) != len(z) {
+		// This is an invariant guaranteed by the caller.
+		panic("len(x) != len(z)")
+	}
 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
 	ŝ := _W - s
 	ŝ &= _W - 1 // ditto
 	c = x[0] << ŝ
-	for i := 0; i < len(z)-1; i++ {
-		z[i] = x[i]>>s | x[i+1]<<ŝ
+	for i := 1; i < len(z); i++ {
+		z[i-1] = x[i-1]>>s | x[i]<<ŝ
 	}
 	z[len(z)-1] = x[len(z)-1] >> s
 	return
@@ -261,20 +265,6 @@ func divWW(x1, x0, y, m Word) (q, r Word) {
 		r0 -= d
 	}
 	return Word(qq), Word(r0 >> s)
-}
-
-func divWVW(z []Word, xn Word, x []Word, y Word) (r Word) {
-	r = xn
-	if len(x) == 1 {
-		qq, rr := bits.Div(uint(r), uint(x[0]), uint(y))
-		z[0] = Word(qq)
-		return Word(rr)
-	}
-	rec := reciprocalWord(y)
-	for i := len(z) - 1; i >= 0; i-- {
-		z[i], r = divWW(r, x[i], y, rec)
-	}
-	return r
 }
 
 // reciprocalWord return the reciprocal of the divisor. rec = floor(( _B^2 - 1 ) / u - _B). u = d1 << nlz(d1).

@@ -671,3 +671,27 @@ func BenchmarkDivWVW(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkNonZeroShifts(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := rndV(n)
+		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
+			b.Run("shrVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shrVU(z, x, s)
+				}
+			})
+			b.Run("shlVU", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = shlVU(z, x, s)
+				}
+			})
+		})
+	}
+}

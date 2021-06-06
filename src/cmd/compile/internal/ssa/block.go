@@ -52,7 +52,7 @@ type Block struct {
 	Controls [2]*Value
 
 	// Auxiliary info for the block. Its value depends on the Kind.
-	Aux    interface{}
+	Aux    Aux
 	AuxInt int64
 
 	// The unordered set of Values that define the operation of this block.
@@ -356,6 +356,22 @@ func (b *Block) AuxIntString() string {
 	case "": // no aux int type
 		return ""
 	}
+}
+
+// likelyBranch reports whether block b is the likely branch of all of its predecessors.
+func (b *Block) likelyBranch() bool {
+	if len(b.Preds) == 0 {
+		return false
+	}
+	for _, e := range b.Preds {
+		p := e.b
+		if len(p.Succs) == 1 || len(p.Succs) == 2 && (p.Likely == BranchLikely && p.Succs[0].b == b ||
+			p.Likely == BranchUnlikely && p.Succs[1].b == b) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }

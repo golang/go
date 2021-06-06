@@ -33,6 +33,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"log"
 	"math"
 )
 
@@ -545,6 +546,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REGSP
 			}
 		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s\n", c.cursym.Name)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
+			}
+		}
 	}
 	if wasSplit {
 		c.stacksplitPost(pLast, pPre, pPreempt, autosize) // emit post part of split check
@@ -552,7 +568,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 }
 
 func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Prog) {
-	var q *obj.Prog
 
 	// MOVD	g_stackguard(g), R3
 	p = obj.Appendp(p, c.newprog)
@@ -573,97 +588,68 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 	// unnecessarily. See issue #35470.
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
-	q = nil
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
 
 		p = obj.Appendp(p, c.newprog)
-		//q1 = p
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_R3
 		p.Reg = REGSP
 		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
 
-	} else if framesize <= objabi.StackBig {
-		// large stack: SP-framesize < stackguard-StackSmall
-		//	ADD $-(framesize-StackSmall), SP, R4
-		//	CMPUBGE stackguard, R4, label-of-call-to-morestack
-		p = obj.Appendp(p, c.newprog)
+		return p, nil
+	}
 
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
+	// large stack: SP-framesize < stackguard-StackSmall
 
-		p = obj.Appendp(p, c.newprog)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.Reg = REG_R4
-		p.As = ACMPUBGE
-		p.To.Type = obj.TYPE_BRANCH
-
-	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
+	var q *obj.Prog
+	offset := int64(framesize) - objabi.StackSmall
+	if framesize > objabi.StackBig {
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
 		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	// stackguard is R3
-		//	CMP	R3, $StackPreempt
-		//	BEQ	label-of-call-to-morestack
-		//	ADD	$StackGuard, SP, R4
-		//	SUB	R3, R4
-		//	MOVD	$(framesize+(StackGuard-StackSmall)), TEMP
-		//	CMPUBGE	TEMP, R4, label-of-call-to-morestack
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = ACMP
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = objabi.StackPreempt
-
-		p = obj.Appendp(p, c.newprog)
-		q = p
-		p.As = ABEQ
-		p.To.Type = obj.TYPE_BRANCH
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
+		//	MOVD	$(framesize-StackSmall), R4
+		//	CMPUBLT	SP, R4, label-of-call-to-morestack
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
+		p.From.Offset = offset
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
+		p.To.Reg = REG_R4
 
 		p = obj.Appendp(p, c.newprog)
+		q = p
+		p.As = ACMPUBLT
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REGTMP
+		p.From.Reg = REGSP
 		p.Reg = REG_R4
-		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
 	}
+
+	// Check against the stack guard. We've ensured this won't underflow.
+	//	ADD $-(framesize-StackSmall), SP, R4
+	//	CMPUBGE stackguard, R4, label-of-call-to-morestack
+	p = obj.Appendp(p, c.newprog)
+	p.As = AADD
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = -offset
+	p.Reg = REGSP
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_R4
+
+	p = obj.Appendp(p, c.newprog)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = REG_R3
+	p.Reg = REG_R4
+	p.As = ACMPUBGE
+	p.To.Type = obj.TYPE_BRANCH
 
 	return p, q
 }

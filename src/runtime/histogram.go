@@ -26,7 +26,7 @@ const (
 	// The number of super-buckets (timeHistNumSuperBuckets), on the
 	// other hand, defines the range. To reserve room for sub-buckets,
 	// bit timeHistSubBucketBits is the first bit considered for
-	// super-buckets, so super-bucket indicies are adjusted accordingly.
+	// super-buckets, so super-bucket indices are adjusted accordingly.
 	//
 	// As an example, consider 45 super-buckets with 16 sub-buckets.
 	//
@@ -81,6 +81,10 @@ type timeHistogram struct {
 }
 
 // record adds the given duration to the distribution.
+//
+// Disallow preemptions and stack growths because this function
+// may run in sensitive locations.
+//go:nosplit
 func (h *timeHistogram) record(duration int64) {
 	if duration < 0 {
 		atomic.Xadd64(&h.underflow, 1)

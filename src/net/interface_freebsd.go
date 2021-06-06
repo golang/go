@@ -16,9 +16,9 @@ func interfaceMessages(ifindex int) ([]route.Message, error) {
 	if err != nil {
 		typ = route.RIBType(syscall.NET_RT_IFLIST)
 		rib, err = route.FetchRIB(syscall.AF_UNSPEC, typ, ifindex)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 	return route.ParseRIB(typ, rib)
 }

@@ -1,4 +1,4 @@
-// errorcheck -0 -m
+// errorcheck -0 -m -d=inlfuncswithclosures=1
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -58,7 +58,7 @@ func _() int { // ERROR "can inline _"
 var somethingWrong error
 
 // local closures can be inlined
-func l(x, y int) (int, int, error) {
+func l(x, y int) (int, int, error) { // ERROR "can inline l"
 	e := func(err error) (int, int, error) { // ERROR "can inline l.func1" "func literal does not escape" "leaking param: err to result"
 		return 0, 0, err
 	}
@@ -90,19 +90,19 @@ func n() int {
 // make sure assignment inside closure is detected
 func o() int {
 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
-	func(x int) {                  // ERROR "func literal does not escape"
+	func(x int) {                  // ERROR "can inline o.func2"
 		if x > 10 {
-			foo = func() int { return 2 } // ERROR "can inline o.func2" "func literal escapes"
+			foo = func() int { return 2 } // ERROR "func literal does not escape" "can inline o.func2"
 		}
-	}(11)
+	}(11) // ERROR "inlining call to o.func2"
 	return foo()
 }
 
-func p() int {
+func p() int { // ERROR "can inline p"
 	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
 }
 
-func q(x int) int {
+func q(x int) int { // ERROR "can inline q"
 	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
 	return foo()                       // ERROR "inlining call to q.func1"
 }
@@ -111,15 +111,15 @@ func r(z int) int {
 	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
 		return x + z
 	}
-	bar := func(x int) int { // ERROR "func literal does not escape"
-		return x + func(y int) int { // ERROR "can inline r.func2.1"
+	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
 			return 2*y + x*z
 		}(x) // ERROR "inlining call to r.func2.1"
 	}
-	return foo(42) + bar(42) // ERROR "inlining call to r.func1"
+	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
 }
 
-func s0(x int) int {
+func s0(x int) int { // ERROR "can inline s0"
 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
 		x = x + 1
 	}
@@ -127,7 +127,7 @@ func s0(x int) int {
 	return x
 }
 
-func s1(x int) int {
+func s1(x int) int { // ERROR "can inline s1"
 	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
 		return x
 	}
@@ -261,4 +261,32 @@ func gd2() int { // ERROR "can inline gd2"
 
 func gd3() func() { // ERROR "can inline gd3"
 	return ii
+}
+
+// Issue #42788 - ensure ODEREF OCONVNOP* OADDR is low cost.
+func EncodeQuad(d []uint32, x [6]float32) { // ERROR "can inline EncodeQuad" "d does not escape"
+	_ = d[:6]
+	d[0] = float32bits(x[0]) // ERROR "inlining call to float32bits"
+	d[1] = float32bits(x[1]) // ERROR "inlining call to float32bits"
+	d[2] = float32bits(x[2]) // ERROR "inlining call to float32bits"
+	d[3] = float32bits(x[3]) // ERROR "inlining call to float32bits"
+	d[4] = float32bits(x[4]) // ERROR "inlining call to float32bits"
+	d[5] = float32bits(x[5]) // ERROR "inlining call to float32bits"
+}
+
+// float32bits is a copy of math.Float32bits to ensure that
+// these tests pass with `-gcflags=-l`.
+func float32bits(f float32) uint32 { // ERROR "can inline float32bits"
+	return *(*uint32)(unsafe.Pointer(&f))
+}
+
+// Ensure OCONVNOP is zero cost.
+func Conv(v uint64) uint64 { // ERROR "can inline Conv"
+	return conv2(conv2(conv2(v))) // ERROR "inlining call to (conv1|conv2)"
+}
+func conv2(v uint64) uint64 { // ERROR "can inline conv2"
+	return conv1(conv1(conv1(conv1(v)))) // ERROR "inlining call to conv1"
+}
+func conv1(v uint64) uint64 { // ERROR "can inline conv1"
+	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
 }

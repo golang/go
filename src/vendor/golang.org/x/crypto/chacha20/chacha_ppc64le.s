@@ -19,7 +19,7 @@
 // The differences in this and the original implementation are
 // due to the calling conventions and initialization of constants.
 
-// +build !gccgo,!purego
+// +build gc,!purego
 
 #include "textflag.h"
 

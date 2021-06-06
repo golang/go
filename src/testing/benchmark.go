@@ -238,12 +238,15 @@ func (b *B) run1() bool {
 	}
 	// Only print the output if we know we are not going to proceed.
 	// Otherwise it is printed in processBench.
-	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
+	b.mu.RLock()
+	finished := b.finished
+	b.mu.RUnlock()
+	if atomic.LoadInt32(&b.hasSub) != 0 || finished {
 		tag := "BENCH"
 		if b.skipped {
 			tag = "SKIP"
 		}
-		if b.chatty != nil && (len(b.output) > 0 || b.finished) {
+		if b.chatty != nil && (len(b.output) > 0 || finished) {
 			b.trimOutput()
 			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
 		}

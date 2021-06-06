@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"path"
 	"reflect"
 	"sort"
@@ -23,7 +22,7 @@ import (
 // opening and checking that each file behaves correctly.
 // It also checks that the file system contains at least the expected files.
 // As a special case, if no expected files are listed, fsys must be empty.
-// Otherwise, fsys must only contain at least the listed files: it can also contain others.
+// Otherwise, fsys must contain at least the listed files; it can also contain others.
 // The contents of fsys must not change concurrently with TestFS.
 //
 // If TestFS finds any misbehaviors, it returns an error reporting all of them.
@@ -303,7 +302,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		for i, e := range elem {
 			var pattern []rune
 			for j, r := range e {
-				if r == '*' || r == '?' || r == '\\' || r == '[' {
+				if r == '*' || r == '?' || r == '\\' || r == '[' || r == '-' {
 					pattern = append(pattern, '\\', r)
 					continue
 				}
@@ -403,9 +402,10 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		return
 	}
 	fentry := formatEntry(entry)
-	finfo := formatInfoEntry(info)
-	if fentry != finfo {
-		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
+	fientry := formatInfoEntry(info)
+	// Note: mismatch here is OK for symlink, because Open dereferences symlink.
+	if fentry != fientry && entry.Type()&fs.ModeSymlink == 0 {
+		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, fientry)
 	}
 
 	einfo, err := entry.Info()
@@ -413,12 +413,22 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		t.errorf("%s: entry.Info: %v", path, err)
 		return
 	}
-	fentry = formatInfo(einfo)
-	finfo = formatInfo(info)
-	if fentry != finfo {
-		t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, fentry, finfo)
+	finfo := formatInfo(info)
+	if entry.Type()&fs.ModeSymlink != 0 {
+		// For symlink, just check that entry.Info matches entry on common fields.
+		// Open deferences symlink, so info itself may differ.
+		feentry := formatInfoEntry(einfo)
+		if fentry != feentry {
+			t.errorf("%s: mismatch\n\tentry = %s\n\tentry.Info() = %s\n", path, fentry, feentry)
+		}
+	} else {
+		feinfo := formatInfo(einfo)
+		if feinfo != finfo {
+			t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfile.Stat() = %s\n", path, feinfo, finfo)
+		}
 	}
 
+	// Stat should be the same as Open+Stat, even for symlinks.
 	info2, err := fs.Stat(t.fsys, path)
 	if err != nil {
 		t.errorf("%s: fs.Stat: %v", path, err)
@@ -503,7 +513,7 @@ func (t *fsTester) checkFile(file string) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		f.Close()
 		t.errorf("%s: Open+ReadAll: %v", file, err)
@@ -526,6 +536,18 @@ func (t *fsTester) checkFile(file string) {
 			return
 		}
 		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
+
+		// Modify the data and check it again. Modifying the
+		// returned byte slice should not affect the next call.
+		for i := range data2 {
+			data2[i]++
+		}
+		data2, err = fsys.ReadFile(file)
+		if err != nil {
+			t.errorf("%s: second call to fsys.ReadFile: %v", file, err)
+			return
+		}
+		t.checkFileRead(file, "Readall vs second fsys.ReadFile", data, data2)
 
 		t.checkBadPath(file, "ReadFile",
 			func(name string) error { _, err := fsys.ReadFile(name); return err })

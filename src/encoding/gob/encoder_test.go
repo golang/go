@@ -1127,3 +1127,28 @@ func TestBadData(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeErrorMultipleTypes(t *testing.T) {
+	type Test struct {
+		A string
+		B int
+	}
+	var b bytes.Buffer
+	NewEncoder(&b).Encode(Test{"one", 1})
+
+	var result, result2 Test
+	dec := NewDecoder(&b)
+	err := dec.Decode(&result)
+	if err != nil {
+		t.Errorf("decode: unexpected error %v", err)
+	}
+
+	b.Reset()
+	NewEncoder(&b).Encode(Test{"two", 2})
+	err = dec.Decode(&result2)
+	if err == nil {
+		t.Errorf("decode: expected duplicate type error, got nil")
+	} else if !strings.Contains(err.Error(), "duplicate type") {
+		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
+	}
+}

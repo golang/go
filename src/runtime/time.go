@@ -263,6 +263,9 @@ func addtimer(t *timer) {
 
 	when := t.when
 
+	// Disable preemption while using pp to avoid changing another P's heap.
+	mp := acquirem()
+
 	pp := getg().m.p.ptr()
 	lock(&pp.timersLock)
 	cleantimers(pp)
@@ -270,6 +273,8 @@ func addtimer(t *timer) {
 	unlock(&pp.timersLock)
 
 	wakeNetPoller(when)
+
+	releasem(mp)
 }
 
 // doaddtimer adds t to the current P's heap.
@@ -609,8 +614,14 @@ func moveTimers(pp *p, timers []*timer) {
 		for {
 			switch s := atomic.Load(&t.status); s {
 			case timerWaiting:
+				if !atomic.Cas(&t.status, s, timerMoving) {
+					continue
+				}
 				t.pp = 0
 				doaddtimer(pp, t)
+				if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+					badTimer()
+				}
 				break loop
 			case timerModifiedEarlier, timerModifiedLater:
 				if !atomic.Cas(&t.status, s, timerMoving) {

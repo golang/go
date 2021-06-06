@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/http/internal/ascii"
 	"net/url"
 	"os"
 	"reflect"
@@ -90,8 +91,9 @@ func TestReverseProxy(t *testing.T) {
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
-	getReq.Header.Set("Connection", "close")
-	getReq.Header.Set("Te", "trailers")
+	getReq.Header.Set("Connection", "close, TE")
+	getReq.Header.Add("Te", "foo")
+	getReq.Header.Add("Te", "bar, trailers")
 	getReq.Header.Set("Proxy-Connection", "should be deleted")
 	getReq.Header.Set("Upgrade", "foo")
 	getReq.Close = true
@@ -232,6 +234,64 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	}
 	if c := res.Header.Get(fakeConnectionToken); c != "" {
 		t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
+	}
+}
+
+func TestReverseProxyStripEmptyConnection(t *testing.T) {
+	// See Issue 46313.
+	const backendResponse = "I am the backend"
+
+	// someConnHeader is some arbitrary header to be declared as a hop-by-hop header
+	// in the Request's Connection header.
+	const someConnHeader = "X-Some-Conn-Header"
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c := r.Header.Values("Connection"); len(c) != 0 {
+			t.Errorf("handler got header %q = %v; want empty", "Connection", c)
+		}
+		if c := r.Header.Get(someConnHeader); c != "" {
+			t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
+		}
+		w.Header().Add("Connection", "")
+		w.Header().Add("Connection", someConnHeader)
+		w.Header().Set(someConnHeader, "should be deleted")
+		io.WriteString(w, backendResponse)
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyHandler.ServeHTTP(w, r)
+		if c := r.Header.Get(someConnHeader); c != "should be deleted" {
+			t.Errorf("handler modified header %q = %q; want %q", someConnHeader, c, "should be deleted")
+		}
+	}))
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Header.Add("Connection", "")
+	getReq.Header.Add("Connection", someConnHeader)
+	getReq.Header.Set(someConnHeader, "should be deleted")
+	res, err := frontend.Client().Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	if got, want := string(bodyBytes), backendResponse; got != want {
+		t.Errorf("got body %q; want %q", got, want)
+	}
+	if c := res.Header.Get("Connection"); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", "Connection", c)
+	}
+	if c := res.Header.Get(someConnHeader); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", someConnHeader, c)
 	}
 }
 
@@ -1183,7 +1243,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
 		t.Errorf("Header(XHeader) = %q; want %q", got, want)
 	}
 
-	if upgradeType(res.Header) != "websocket" {
+	if !ascii.EqualFold(upgradeType(res.Header), "websocket") {
 		t.Fatalf("not websocket upgrade; got %#v", res.Header)
 	}
 	rwc, ok := res.Body.(io.ReadWriteCloser)
@@ -1208,7 +1268,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	}
 }
 
-func TestReverseProxyWebSocketCancelation(t *testing.T) {
+func TestReverseProxyWebSocketCancellation(t *testing.T) {
 	n := 5
 	triggerCancelCh := make(chan bool, n)
 	nthResponse := func(i int) string {
@@ -1300,7 +1360,7 @@ func TestReverseProxyWebSocketCancelation(t *testing.T) {
 		t.Errorf("X-Header mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 
-	if g, w := upgradeType(res.Header), "websocket"; g != w {
+	if g, w := upgradeType(res.Header), "websocket"; !ascii.EqualFold(g, w) {
 		t.Fatalf("Upgrade header mismatch\n\tgot:  %q\n\twant: %q", g, w)
 	}
 

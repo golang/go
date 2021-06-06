@@ -10,6 +10,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
+	"encoding/binary"
 	"log"
 )
 
@@ -126,8 +127,8 @@ func decodetypeName(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs
 	}
 
 	data := ldr.Data(r)
-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
-	return string(data[3 : 3+namelen])
+	nameLen, nameLenLen := binary.Uvarint(data[1:])
+	return string(data[1+nameLenLen : 1+nameLenLen+int(nameLen)])
 }
 
 func decodetypeFuncInType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {
@@ -279,7 +280,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 	for _, shlib := range ctxt.Shlibs {
 		if shlib.Path == path {
 			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
-				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
+				if sect.Addr <= addr && addr < sect.Addr+sect.Size {
 					return sect
 				}
 			}

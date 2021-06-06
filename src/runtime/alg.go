@@ -178,28 +178,11 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		return h
 	case kindStruct:
 		s := (*structtype)(unsafe.Pointer(t))
-		memStart := uintptr(0)
-		memEnd := uintptr(0)
 		for _, f := range s.fields {
-			if memEnd > memStart && (f.name.isBlank() || f.offset() != memEnd || f.typ.tflag&tflagRegularMemory == 0) {
-				// flush any pending regular memory hashing
-				h = memhash(add(p, memStart), h, memEnd-memStart)
-				memStart = memEnd
-			}
 			if f.name.isBlank() {
 				continue
 			}
-			if f.typ.tflag&tflagRegularMemory == 0 {
-				h = typehash(f.typ, add(p, f.offset()), h)
-				continue
-			}
-			if memStart == memEnd {
-				memStart = f.offset()
-			}
-			memEnd = f.offset() + f.typ.size
-		}
-		if memEnd > memStart {
-			h = memhash(add(p, memStart), h, memEnd-memStart)
+			h = typehash(f.typ, add(p, f.offset()), h)
 		}
 		return h
 	default:

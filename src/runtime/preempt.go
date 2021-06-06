@@ -413,6 +413,8 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		//
 		// TODO: Are there cases that are safe but don't have a
 		// locals pointer map, like empty frame functions?
+		// It might be possible to preempt any assembly functions
+		// except the ones that have funcFlag_SPWRITE set in f.flag.
 		return false, 0
 	}
 	name := funcname(f)

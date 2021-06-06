@@ -330,9 +330,6 @@ func (w *writer) Sym(s *LSym) {
 	if s.ReflectMethod() {
 		flag |= goobj.SymFlagReflectMethod
 	}
-	if s.TopFrame() {
-		flag |= goobj.SymFlagTopFrame
-	}
 	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
 		flag |= goobj.SymFlagGoType
 	}
@@ -386,7 +383,7 @@ func (w *writer) Sym(s *LSym) {
 
 func (w *writer) Hash64(s *LSym) {
 	if !s.ContentAddressable() || len(s.R) != 0 {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := contentHash64(s)
 	w.Bytes(b[:])
@@ -394,7 +391,7 @@ func (w *writer) Hash64(s *LSym) {
 
 func (w *writer) Hash(s *LSym) {
 	if !s.ContentAddressable() {
-		panic("Hash of non-content-addresable symbol")
+		panic("Hash of non-content-addressable symbol")
 	}
 	b := w.contentHash(s)
 	w.Bytes(b[:])
@@ -501,7 +498,7 @@ func (w *writer) Reloc(r *Reloc) {
 	var o goobj.Reloc
 	o.SetOff(r.Off)
 	o.SetSiz(r.Siz)
-	o.SetType(uint8(r.Type))
+	o.SetType(uint16(r.Type))
 	o.SetAdd(r.Add)
 	o.SetSym(makeSymRef(r.Sym))
 	o.Write(w.Writer)
@@ -673,9 +670,10 @@ func genFuncInfoSyms(ctxt *Link) {
 			continue
 		}
 		o := goobj.FuncInfo{
-			Args:   uint32(fn.Args),
-			Locals: uint32(fn.Locals),
-			FuncID: objabi.FuncID(fn.FuncID),
+			Args:     uint32(fn.Args),
+			Locals:   uint32(fn.Locals),
+			FuncID:   fn.FuncID,
+			FuncFlag: fn.FuncFlag,
 		}
 		pc := &fn.Pcln
 		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
@@ -788,7 +786,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
-	if s.TopFrame() {
+	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)

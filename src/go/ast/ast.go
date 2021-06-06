@@ -193,11 +193,14 @@ func isDirective(c string) bool {
 // in a signature.
 // Field.Names is nil for unnamed parameters (parameter lists which only contain types)
 // and embedded struct fields. In the latter case, the field name is the type name.
+// Field.Names contains a single name "type" for elements of interface type lists.
+// Types belonging to the same type list share the same "type" identifier which also
+// records the position of that keyword.
 //
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil
-	Type    Expr          // field/method/parameter type
+	Names   []*Ident      // field/method/(type) parameter names, or type "type"; or nil
+	Type    Expr          // field/method/parameter type, type list type; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -206,14 +209,23 @@ func (f *Field) Pos() token.Pos {
 	if len(f.Names) > 0 {
 		return f.Names[0].Pos()
 	}
-	return f.Type.Pos()
+	if f.Type != nil {
+		return f.Type.Pos()
+	}
+	return token.NoPos
 }
 
 func (f *Field) End() token.Pos {
 	if f.Tag != nil {
 		return f.Tag.End()
 	}
-	return f.Type.End()
+	if f.Type != nil {
+		return f.Type.End()
+	}
+	if len(f.Names) > 0 {
+		return f.Names[len(f.Names)-1].End()
+	}
+	return token.NoPos
 }
 
 // A FieldList represents a list of Fields, enclosed by parentheses or braces.
@@ -290,12 +302,6 @@ type (
 	}
 
 	// A BasicLit node represents a literal of basic type.
-	//
-	// Note that for the CHAR and STRING kinds, the literal is stored
-	// with its quotes. For example, for a double-quoted STRING, the
-	// first and the last rune in the Value field will be ". The
-	// Unquote and UnquoteChar functions in the strconv package can be
-	// used to unquote STRING and CHAR values, respectively.
 	BasicLit struct {
 		ValuePos token.Pos   // literal position
 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
@@ -434,18 +440,11 @@ type (
 
 	// Pointer types are represented via StarExpr nodes.
 
-	// A FuncType node represents a function type.
-	FuncType struct {
-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
-		Params  *FieldList // (incoming) parameters; non-nil
-		Results *FieldList // (outgoing) results; or nil
-	}
-
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
-		Methods    *FieldList // list of methods
-		Incomplete bool       // true if (source) methods are missing in the Methods list
+		Methods    *FieldList // list of embedded interfaces, methods, or types
+		Incomplete bool       // true if (source) methods or types are missing in the Methods list
 	}
 
 	// A MapType node represents a map type.
@@ -893,15 +892,6 @@ type (
 		Values  []Expr        // initial values; or nil
 		Comment *CommentGroup // line comments; or nil
 	}
-
-	// A TypeSpec node represents a type declaration (TypeSpec production).
-	TypeSpec struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Name    *Ident        // type name
-		Assign  token.Pos     // position of '=', if any
-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
-		Comment *CommentGroup // line comments; or nil
-	}
 )
 
 // Pos and End implementations for spec nodes.
@@ -965,7 +955,7 @@ type (
 	GenDecl struct {
 		Doc    *CommentGroup // associated documentation; or nil
 		TokPos token.Pos     // position of Tok
-		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
+		Tok    token.Token   // IMPORT, CONST, TYPE, or VAR
 		Lparen token.Pos     // position of '(', if any
 		Specs  []Spec
 		Rparen token.Pos // position of ')', if any
@@ -976,8 +966,10 @@ type (
 		Doc  *CommentGroup // associated documentation; or nil
 		Recv *FieldList    // receiver (methods); or nil (functions)
 		Name *Ident        // function/method name
-		Type *FuncType     // function signature: parameters, results, and position of "func" keyword
+		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
+		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
+		//                they are only valid for declared functions
 	}
 )
 
