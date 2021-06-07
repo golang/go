@@ -193,13 +193,13 @@ func main() {
 	fmt.Printf("%s", buf.Bytes())
 
 	// Output:
-	// // This is the package comment.
+	// This is the package comment.
 	// package main
 	//
-	// // This comment is associated with the hello constant.
+	// This comment is associated with the hello constant.
 	// const hello = "Hello, World!" // line comment 1
 	//
-	// // This comment is associated with the main function.
+	// This comment is associated with the main function.
 	// func main() {
 	// 	fmt.Println(hello) // line comment 3
 	// }
