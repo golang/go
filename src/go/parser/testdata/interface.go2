@@ -25,7 +25,6 @@ type _ interface {
 	~int | ~string
 }
 
-
 type _ interface {
 	m()
 	~int
@@ -35,3 +34,47 @@ type _ interface {
 	type bool, int, float64
 }
 
+type _ interface {
+	int
+	[]byte
+	[10]int
+	struct{}
+	*int
+	func()
+	interface{}
+	map[string]int
+	chan T
+	chan<- T
+	<-chan T
+	T[int]
+}
+
+type _ interface {
+	int | string
+	[]byte | string
+	[10]int | string
+	struct{} | string
+	*int | string
+	func() | string
+	interface{} | string
+	map[string]int | string
+	chan T | string
+	chan<- T | string
+	<-chan T | string
+	T[int] | string
+}
+
+type _ interface {
+	~int | string
+	~[]byte | string
+	~[10]int | string
+	~struct{} | string
+	~*int | string
+	~func() | string
+	~interface{} | string
+	~map[string]int | string
+	~chan T | string
+	~chan<- T | string
+	~<-chan T | string
+	~T[int] | string
+}

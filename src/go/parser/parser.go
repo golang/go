@@ -1071,10 +1071,13 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
+
 	var list []*ast.Field
-	for p.tok == token.IDENT || p.parseTypeParams() && (p.tok == token.TYPE || p.tok == token.TILDE) {
-		switch p.tok {
-		case token.IDENT:
+
+parseElements:
+	for {
+		switch {
+		case p.tok == token.IDENT:
 			f := p.parseMethodSpec()
 			if f.Names == nil && p.parseTypeParams() {
 				f = p.embeddedElem(f)
@@ -1082,12 +1085,12 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 			p.expectSemi()
 			f.Comment = p.lineComment
 			list = append(list, f)
-		case token.TILDE:
+		case p.tok == token.TILDE && p.parseTypeParams():
 			f := p.embeddedElem(nil)
 			p.expectSemi()
 			f.Comment = p.lineComment
 			list = append(list, f)
-		case token.TYPE:
+		case p.tok == token.TYPE && p.parseTypeParams():
 			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
 
 			// all types in a type list share the same field name "type"
@@ -1099,8 +1102,22 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 				list = append(list, &ast.Field{Names: name, Type: typ})
 			}
 			p.expectSemi()
+		case p.parseTypeParams():
+			if t := p.tryIdentOrType(); t != nil {
+				f := new(ast.Field)
+				f.Type = t
+				f = p.embeddedElem(f)
+				p.expectSemi()
+				f.Comment = p.lineComment
+				list = append(list, f)
+			} else {
+				break parseElements
+			}
+		default:
+			break parseElements
 		}
 	}
+
 	// TODO(rfindley): the error produced here could be improved, since we could
 	// accept a identifier, 'type', or a '}' at this point.
 	rbrace := p.expect(token.RBRACE)

@@ -200,10 +200,12 @@ var invalids = []string{
 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
 	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
 
-	// TODO: this error should be positioned on the ':'
+	// TODO(rfindley): this error should be positioned on the ':'
 	`package p; var a = a[[]int:[ /* ERROR "expected expression" */ ]int];`,
-	// TODO: the compiler error is better here: "cannot parenthesize embedded type"
-	`package p; type I1 interface{}; type I2 interface{ (/* ERROR "expected '}', found '\('" */ I1) }`,
+
+	// TODO(rfindley): the compiler error is better here: "cannot parenthesize embedded type"
+	// TODO(rfindley): confirm that parenthesized types should now be accepted.
+	// `package p; type I1 interface{}; type I2 interface{ (/* ERROR "expected '}', found '\('" */ I1) }`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
