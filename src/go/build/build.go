@@ -459,9 +459,9 @@ type Package struct {
 	XTestImports   []string                    // import paths from XTestGoFiles
 	XTestImportPos map[string][]token.Position // line information for XTestImports
 
-	// //go:embed patterns found in Go source files
+	// go:embed patterns found in Go source files
 	// For example, if a source file says
-	//	//go:embed a* b.c
+	// go:embed a* b.c
 	// then the list will contain those two strings as separate entries.
 	// (See package embed for more details about //go:embed.)
 	EmbedPatterns        []string                    // patterns from GoFiles, CgoFiles
