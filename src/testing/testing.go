@@ -1463,8 +1463,9 @@ func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return e
 func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
 	return nil, errMain
 }
-func (f matchStringOnly) ResetCoverage()    {}
-func (f matchStringOnly) SnapshotCoverage() {}
+func (f matchStringOnly) CheckCorpus([]interface{}, []reflect.Type) error { return nil }
+func (f matchStringOnly) ResetCoverage()                                  {}
+func (f matchStringOnly) SnapshotCoverage()                               {}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1510,6 +1511,7 @@ type testDeps interface {
 	CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	RunFuzzWorker(func(corpusEntry) error) error
 	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
+	CheckCorpus([]interface{}, []reflect.Type) error
 	ResetCoverage()
 	SnapshotCoverage()
 }
