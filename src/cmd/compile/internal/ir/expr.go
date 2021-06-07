@@ -1036,6 +1036,12 @@ func ShouldCheckPtr(fn *Func, level int) bool {
 	return base.Debug.Checkptr >= level && fn.Pragma&NoCheckPtr == 0
 }
 
+// ShouldAsanCheckPtr reports whether pointer checking should be enabled for
+// function fn when -asan is enabled.
+func ShouldAsanCheckPtr(fn *Func) bool {
+	return base.Flag.ASan && fn.Pragma&NoCheckPtr == 0
+}
+
 // IsReflectHeaderDataField reports whether l is an expression p.Data
 // where p has type reflect.SliceHeader or reflect.StringHeader.
 func IsReflectHeaderDataField(l Node) bool {
