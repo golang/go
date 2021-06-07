@@ -124,6 +124,10 @@ func hostArchive(ctxt *Link, name string) {
 
 			libgcc := sym.Library{Pkg: "libgcc"}
 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+			if h.ld == nil {
+				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
+				continue
+			}
 			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
