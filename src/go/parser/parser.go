@@ -980,6 +980,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				list := []ast.Expr{x}
 				if p.atComma("type argument list", token.RBRACK) {
 					p.exprLev++
+					p.next()
 					for p.tok != token.RBRACK && p.tok != token.EOF {
 						list = append(list, p.parseType())
 						if !p.atComma("type argument list", token.RBRACK) {
@@ -1011,11 +1012,56 @@ func (p *parser) parseMethodSpec() *ast.Field {
 			typ = p.parseTypeInstance(typ)
 		}
 	}
-	p.expectSemi() // call before accessing p.linecomment
 
-	spec := &ast.Field{Doc: doc, Names: idents, Type: typ, Comment: p.lineComment}
+	// Comment is added at the callsite: the field below may joined with
+	// additional type specs using '|'.
+	// TODO(rfindley) this should be refactored.
+	// TODO(rfindley) add more tests for comment handling.
+	return &ast.Field{Doc: doc, Names: idents, Type: typ}
+}
 
-	return spec
+func (p *parser) embeddedElem(f *ast.Field) *ast.Field {
+	if p.trace {
+		defer un(trace(p, "EmbeddedElem"))
+	}
+	if f == nil {
+		f = new(ast.Field)
+		f.Type = p.embeddedTerm()
+	}
+	for p.tok == token.OR {
+		t := new(ast.BinaryExpr)
+		t.OpPos = p.pos
+		t.Op = token.OR
+		p.next()
+		t.X = f.Type
+		t.Y = p.embeddedTerm()
+		f.Type = t
+	}
+	return f
+}
+
+func (p *parser) embeddedTerm() ast.Expr {
+	if p.trace {
+		defer un(trace(p, "EmbeddedTerm"))
+	}
+	if p.tok == token.TILDE {
+		t := new(ast.UnaryExpr)
+		t.OpPos = p.pos
+		t.Op = token.TILDE
+		p.next()
+		t.X = p.parseType()
+		return t
+	}
+
+	t := p.tryIdentOrType()
+	if t == nil {
+		pos := p.pos
+		p.errorExpected(pos, "~ term or type")
+		p.advance(exprEnd)
+		return &ast.BadExpr{From: pos, To: p.pos}
+	}
+
+	return t
 }
 
 func (p *parser) parseInterfaceType() *ast.InterfaceType {
@@ -1026,10 +1072,24 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
 	var list []*ast.Field
-	for p.tok == token.IDENT || p.parseTypeParams() && p.tok == token.TYPE {
-		if p.tok == token.IDENT {
-			list = append(list, p.parseMethodSpec())
-		} else {
+	for p.tok == token.IDENT || p.parseTypeParams() && (p.tok == token.TYPE || p.tok == token.TILDE) {
+		switch p.tok {
+		case token.IDENT:
+			f := p.parseMethodSpec()
+			if f.Names == nil && p.parseTypeParams() {
+				f = p.embeddedElem(f)
+			}
+			p.expectSemi()
+			f.Comment = p.lineComment
+			list = append(list, f)
+		case token.TILDE:
+			f := p.embeddedElem(nil)
+			p.expectSemi()
+			f.Comment = p.lineComment
+			list = append(list, f)
+		case token.TYPE:
+			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
+
 			// all types in a type list share the same field name "type"
 			// (since type is a keyword, a Go program cannot have that field name)
 			name := []*ast.Ident{{NamePos: p.pos, Name: "type"}}

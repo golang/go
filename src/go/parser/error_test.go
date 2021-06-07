@@ -186,16 +186,18 @@ func TestErrors(t *testing.T) {
 	}
 	for _, d := range list {
 		name := d.Name()
-		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
-			mode := DeclarationErrors | AllErrors
-			if strings.HasSuffix(name, ".go2") {
-				if !typeparams.Enabled {
-					continue
+		t.Run(name, func(t *testing.T) {
+			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+				mode := DeclarationErrors | AllErrors
+				if strings.HasSuffix(name, ".go2") {
+					if !typeparams.Enabled {
+						return
+					}
+				} else {
+					mode |= typeparams.DisallowParsing
 				}
-			} else {
-				mode |= typeparams.DisallowParsing
+				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 			}
-			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
-		}
+		})
 	}
 }
