@@ -64,7 +64,7 @@ go list all
 -- go.mod --
 module m
 
-go 1.20
+go 1.15
 
 -- x.go --
 package x
@@ -79,7 +79,7 @@ require (
 -- go.mod.redundant --
 module m
 
-go 1.20
+go 1.15
 
 require (
 	rsc.io/quote v1.5.2
@@ -89,7 +89,7 @@ require (
 -- go.mod.indirect --
 module m
 
-go 1.20
+go 1.15
 
 require (
 	rsc.io/quote v1.5.2 // indirect
