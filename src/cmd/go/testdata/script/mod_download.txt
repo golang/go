@@ -107,13 +107,28 @@ stderr '^go mod download: skipping argument m that resolves to the main module\n
 ! go mod download m@latest
 stderr '^go mod download: m@latest: malformed module path "m": missing dot in first path element$'
 
-# download updates go.mod and populates go.sum
+# download without arguments updates go.mod and go.sum after loading the
+# build list, but does not save sums for downloaded zips.
 cd update
+cp go.mod.orig go.mod
 ! exists go.sum
 go mod download
+cmp go.mod.update go.mod
+cmp go.sum.update go.sum
+cp go.mod.orig go.mod
+rm go.sum
+
+# download with arguments (even "all") does update go.mod and go.sum.
+go mod download rsc.io/sampler
+cmp go.mod.update go.mod
 grep '^rsc.io/sampler v1.3.0 ' go.sum
-go list -m rsc.io/sampler
-stdout '^rsc.io/sampler v1.3.0$'
+cp go.mod.orig go.mod
+rm go.sum
+
+go mod download all
+cmp go.mod.update go.mod
+grep '^rsc.io/sampler v1.3.0 ' go.sum
+cd ..
 
 # allow go mod download without go.mod
 env GO111MODULE=auto
@@ -131,7 +146,7 @@ stderr 'get '$GOPROXY
 -- go.mod --
 module m
 
--- update/go.mod --
+-- update/go.mod.orig --
 module m
 
 go 1.16
@@ -140,3 +155,16 @@ require (
 	rsc.io/quote v1.5.2
 	rsc.io/sampler v1.2.1 // older version than in build list
 )
+-- update/go.mod.update --
+module m
+
+go 1.16
+
+require (
+	rsc.io/quote v1.5.2
+	rsc.io/sampler v1.3.0 // older version than in build list
+)
+-- update/go.sum.update --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
