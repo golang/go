@@ -2079,7 +2079,7 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		var esc leaks
 
 		// External functions are assumed unsafe, unless
-		// //go:noescape is given before the declaration.
+		// go:noescape is given before the declaration.
 		if fn.Pragma&ir.Noescape != 0 {
 			if base.Flag.LowerM != 0 && f.Sym != nil {
 				base.WarnfAt(f.Pos, "%v does not escape", name())
