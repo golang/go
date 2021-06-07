@@ -4940,24 +4940,20 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		addr := s.addr(d)
 
 		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
-		// 0: siz
-		s.store(types.Types[types.TUINT32],
-			s.newValue1I(ssa.OpOffPtr, types.Types[types.TUINT32].PtrTo(), t.FieldOff(0), addr),
-			s.constInt32(types.Types[types.TUINT32], 0))
-		// 1: started, set in deferprocStack
-		// 2: heap, set in deferprocStack
-		// 3: openDefer
-		// 4: sp, set in deferprocStack
-		// 5: pc, set in deferprocStack
-		// 6: fn
+		// 0: started, set in deferprocStack
+		// 1: heap, set in deferprocStack
+		// 2: openDefer
+		// 3: sp, set in deferprocStack
+		// 4: pc, set in deferprocStack
+		// 5: fn
 		s.store(closure.Type,
-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(6), addr),
+			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
 			closure)
-		// 7: panic, set in deferprocStack
-		// 8: link, set in deferprocStack
-		// 9: framepc
-		// 10: varp
-		// 11: fd
+		// 6: panic, set in deferprocStack
+		// 7: link, set in deferprocStack
+		// 8: fd
+		// 9: varp
+		// 10: framepc
 
 		// Call runtime.deferprocStack with pointer to _defer record.
 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
@@ -7583,7 +7579,6 @@ func deferstruct() *types.Type {
 	// These fields must match the ones in runtime/runtime2.go:_defer and
 	// (*state).call above.
 	fields := []*types.Field{
-		makefield("siz", types.Types[types.TUINT32]),
 		makefield("started", types.Types[types.TBOOL]),
 		makefield("heap", types.Types[types.TBOOL]),
 		makefield("openDefer", types.Types[types.TBOOL]),
@@ -7595,9 +7590,9 @@ func deferstruct() *types.Type {
 		makefield("fn", types.Types[types.TUINTPTR]),
 		makefield("_panic", types.Types[types.TUINTPTR]),
 		makefield("link", types.Types[types.TUINTPTR]),
-		makefield("framepc", types.Types[types.TUINTPTR]),
-		makefield("varp", types.Types[types.TUINTPTR]),
 		makefield("fd", types.Types[types.TUINTPTR]),
+		makefield("varp", types.Types[types.TUINTPTR]),
+		makefield("framepc", types.Types[types.TUINTPTR]),
 	}
 
 	// build struct holding the above fields
