@@ -2957,7 +2957,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 }
 
 // dynimport creates a Go source file named importGo containing
-// //go:cgo_import_dynamic directives for each symbol or library
+// go:cgo_import_dynamic directives for each symbol or library
 // dynamically imported by the object files outObj.
 func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe string, cflags, cgoLDFLAGS, outObj []string) error {
 	cfile := objdir + "_cgo_main.c"
