@@ -277,10 +277,6 @@ Do not send CLs removing the interior tags from such phrases.
   <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
-<p><!-- CL 249759 -->
-  TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
-</p>
-
 <h3 id="vet">Vet</h3>
 
 <p><!-- CL 299532 -->
@@ -289,6 +285,14 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   TODO: complete the Vet section
+</p>
+
+<h3 id="cover">Cover</h3>
+
+<p><!-- CL 249759 -->
+  The <code>cover</code> tool now uses an optimized parser
+  from <code>golang.org/x/tools/cover</code>, which may be noticeably faster
+  when parsing large coverage profiles.
 </p>
 
 <h2 id="compiler">Compiler</h2>
