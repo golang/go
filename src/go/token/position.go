@@ -340,7 +340,7 @@ func (f *File) position(p Pos, adjusted bool) (pos Position) {
 
 // PositionFor returns the Position value for the given file position p.
 // If adjusted is set, the position may be adjusted by position-altering
-// //line comments; otherwise those comments are ignored.
+// line comments; otherwise those comments are ignored.
 // p must be a Pos value in f or NoPos.
 //
 func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
@@ -506,7 +506,7 @@ func (s *FileSet) File(p Pos) (f *File) {
 
 // PositionFor converts a Pos p in the fileset into a Position value.
 // If adjusted is set, the position may be adjusted by position-altering
-// //line comments; otherwise those comments are ignored.
+// line comments; otherwise those comments are ignored.
 // p must be a Pos value in s or NoPos.
 //
 func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
