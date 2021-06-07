@@ -116,9 +116,9 @@ func (p *Package) writeDefs() {
 		// Otherwise types would look like:
 		//
 		// type _Ctype_struct_cb struct {
-		// //line :1
+		// line :1
 		//        on_test *[0]byte
-		// //line :1
+		// line :1
 		// }
 		//
 		// Which is not useful. Moreover we never override source info,
