@@ -341,7 +341,7 @@ func (_ R2[X, Y]) m2(X) Y
 // approach is, and one can always work around by assigning the variable to
 // an interface first.
 
-// // ReadByte1 corresponds to the ReadByte example in the draft design.
+// ReadByte1 corresponds to the ReadByte example in the draft design.
 // func ReadByte1[T io.Reader](r T) (byte, error) {
 // 	if br, ok := r.(io.ByteReader); ok {
 // 		return br.ReadByte()
@@ -351,7 +351,7 @@ func (_ R2[X, Y]) m2(X) Y
 // 	return b[0], err
 // }
 //
-// // ReadBytes2 is like ReadByte1 but uses a type switch instead.
+// ReadBytes2 is like ReadByte1 but uses a type switch instead.
 // func ReadByte2[T io.Reader](r T) (byte, error) {
 //         switch br := r.(type) {
 //         case io.ByteReader:
@@ -362,7 +362,7 @@ func (_ R2[X, Y]) m2(X) Y
 // 	return b[0], err
 // }
 //
-// // type assertions and type switches over generic types are strict
+// type assertions and type switches over generic types are strict
 // type I3 interface {
 //         m(int)
 // }
