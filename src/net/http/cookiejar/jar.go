@@ -449,13 +449,13 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// host cookie.
 		return host, true, nil
 	}
-
-	if isIP(host) {
+	//Allow domain cookie to be set on ip address to replicate browser behaviour !!!
+	/*if isIP(host) {
 		// According to RFC 6265 domain-matching includes not being
 		// an IP address.
 		// TODO: This might be relaxed as in common browsers.
 		return "", false, errNoHostname
-	}
+	}*/
 
 	// From here on: If the cookie is valid, it is a domain cookie (with
 	// the one exception of a public suffix below).
