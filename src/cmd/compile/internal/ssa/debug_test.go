@@ -77,7 +77,7 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // current bugs.
 //
 // The file being tested may contain comments of the form
-// //DBG-TAG=(v1,v2,v3)
+// DBG-TAG=(v1,v2,v3)
 // where DBG = {gdb,dlv} and TAG={dbg,opt}
 // each variable may optionally be followed by a / and one or more of S,A,N,O
 // to indicate normalization of Strings, (hex) addresses, and numbers.
