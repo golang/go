@@ -779,11 +779,10 @@ func removeZone(host string) string {
 	return host[:j] + host[i:]
 }
 
-// ParseHTTPVersion parses an HTTP version string.
+// ParseHTTPVersion parses an HTTP version string according to RFC 7230, section 2.6.
 // "HTTP/1.0" returns (1, 0, true). Note that strings without
 // a minor version, such as "HTTP/2", are not valid.
 func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
-	const Big = 1000000 // arbitrary upper bound
 	switch vers {
 	case "HTTP/1.1":
 		return 1, 1, true
@@ -793,19 +792,21 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if !strings.HasPrefix(vers, "HTTP/") {
 		return 0, 0, false
 	}
-	dot := strings.Index(vers, ".")
-	if dot < 0 {
+	if len(vers) != len("HTTP/X.Y") {
 		return 0, 0, false
 	}
-	major, err := strconv.Atoi(vers[5:dot])
-	if err != nil || major < 0 || major > Big {
+	if vers[6] != '.' {
 		return 0, 0, false
 	}
-	minor, err = strconv.Atoi(vers[dot+1:])
-	if err != nil || minor < 0 || minor > Big {
+	maj, err := strconv.ParseUint(vers[5:6], 10, 0)
+	if err != nil {
 		return 0, 0, false
 	}
-	return major, minor, true
+	min, err := strconv.ParseUint(vers[7:8], 10, 0)
+	if err != nil {
+		return 0, 0, false
+	}
+	return int(maj), int(min), true
 }
 
 func validMethod(method string) bool {
