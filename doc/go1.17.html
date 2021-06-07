@@ -137,8 +137,9 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
 </p>
 
-<p><!-- golang.org/issue/45094 --> To facilitate the upgrade to lazy loading,
-  the <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
+<p><!-- golang.org/issue/45094 -->
+  To facilitate the upgrade to lazy loading, the
+  <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
   a <code>-go</code> flag to set or change the <code>go</code> version in
   the <code>go.mod</code> file. To enable lazy loading for an existing module
   without changing the selected versions of its dependencies, run:
@@ -149,8 +150,32 @@ Do not send CLs removing the interior tags from such phrases.
 </pre>
 
 <p><!-- golang.org/issue/46141 -->
-  TODO: Describe the <code>-compat</code> flag
-  for <code>go</code> <code>mod</code> <code>tidy</code>.
+  By default, <code>go</code> <code>mod</code> <code>tidy</code> verifies that
+  the selected versions of dependencies relevant to the main module are the same
+  versions that would be used by the prior Go release (Go 1.16 for a module that
+  spsecifies <code>go</code> <code>1.17</code>), and preserves
+  the <code>go.sum</code> entries needed by that release even for dependencies
+  that are not normally needed by other commands.
+</p>
+
+<p>
+  The <code>-compat</code> flag allows that version to be overridden to support
+  older (or only newer) versions, up to the version specified by
+  the <code>go</code> directive in the <code>go.mod</code> file. To tidy
+  a <code>go</code> <code>1.17</code> module for Go 1.17 only, without saving
+  checksums for (or checking for consistency with) Go 1.16:
+</p>
+
+<pre>
+  go mod tidy -compat=1.17
+</pre>
+
+<p>
+  Note that even if the main module is tidied with <code>-compat=1.17</code>,
+  users who <code>require</code> the module from a
+  <code>go</code> <code>1.16</code> or earlier module will still be able to
+  use it, provided that the packages use only compatible language and library
+  features.
 </p>
 
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
