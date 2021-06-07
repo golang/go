@@ -258,7 +258,7 @@ func deferproc(fn func()) {
 }
 
 // deferprocStack queues a new deferred function with a defer record on the stack.
-// The defer record must have its siz and fn fields initialized.
+// The defer record must have its fn field initialized.
 // All other fields can contain junk.
 // The defer record must be immediately followed in memory by
 // the arguments of the defer.
@@ -271,10 +271,7 @@ func deferprocStack(d *_defer) {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
 	}
-	if d.siz != 0 {
-		throw("defer with non-empty frame")
-	}
-	// siz and fn are already set.
+	// fn is already set.
 	// The other fields are junk on entry to deferprocStack and
 	// are initialized here.
 	d.started = false
@@ -406,7 +403,6 @@ func newdefer(siz int32) *_defer {
 			d = (*_defer)(mallocgc(total, deferType, true))
 		})
 	}
-	d.siz = siz
 	d.heap = true
 	return d
 }
@@ -428,7 +424,7 @@ func freedefer(d *_defer) {
 	if !d.heap {
 		return
 	}
-	sc := deferclass(uintptr(d.siz))
+	sc := deferclass(0)
 	if sc >= uintptr(len(p{}.deferpool)) {
 		return
 	}
@@ -461,7 +457,6 @@ func freedefer(d *_defer) {
 
 	// These lines used to be simply `*d = _defer{}` but that
 	// started causing a nosplit stack overflow via typedmemmove.
-	d.siz = 0
 	d.started = false
 	d.openDefer = false
 	d.sp = 0
