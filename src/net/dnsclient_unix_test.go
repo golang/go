@@ -1898,61 +1898,62 @@ func TestCVE202133195(t *testing.T) {
 	// Change the default resolver to match our manipulated resolver
 	originalDefault := DefaultResolver
 	DefaultResolver = &r
-	defer func() {
-		DefaultResolver = originalDefault
-	}()
+	defer func() { DefaultResolver = originalDefault }()
+	// Redirect host file lookups.
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/hosts"
 
 	_, err := r.LookupCNAME(context.Background(), "golang.org")
 	if expected := "lookup golang.org: CNAME target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupCNAME returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("Resolver.LookupCNAME returned unexpected error, got %q, want %q", err, expected)
 	}
 	_, err = LookupCNAME("golang.org")
 	if expected := "lookup golang.org: CNAME target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupCNAME returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("LookupCNAME returned unexpected error, got %q, want %q", err, expected)
 	}
 
 	_, _, err = r.LookupSRV(context.Background(), "target", "tcp", "golang.org")
 	if expected := "lookup golang.org: SRV target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 	_, _, err = LookupSRV("target", "tcp", "golang.org")
 	if expected := "lookup golang.org: SRV target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 
 	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org")
 	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 	_, _, err = LookupSRV("hdr", "tcp", "golang.org")
 	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 
 	_, err = r.LookupMX(context.Background(), "golang.org")
 	if expected := "lookup golang.org: MX target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupMX returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("Resolver.LookupMX returned unexpected error, got %q, want %q", err, expected)
 	}
 	_, err = LookupMX("golang.org")
 	if expected := "lookup golang.org: MX target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupMX returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("LookupMX returned unexpected error, got %q, want %q", err, expected)
 	}
 
 	_, err = r.LookupNS(context.Background(), "golang.org")
 	if expected := "lookup golang.org: NS target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupNS returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("Resolver.LookupNS returned unexpected error, got %q, want %q", err, expected)
 	}
 	_, err = LookupNS("golang.org")
 	if expected := "lookup golang.org: NS target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupNS returned unexpected error, got %q, want %q", err.Error(), expected)
+		t.Errorf("LookupNS returned unexpected error, got %q, want %q", err, expected)
 	}
 
-	_, err = r.LookupAddr(context.Background(), "1.2.3.4")
-	if expected := "lookup 1.2.3.4: PTR target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("Resolver.LookupAddr returned unexpected error, got %q, want %q", err.Error(), expected)
+	_, err = r.LookupAddr(context.Background(), "192.0.2.42")
+	if expected := "lookup 192.0.2.42: PTR target is invalid"; err == nil || err.Error() != expected {
+		t.Errorf("Resolver.LookupAddr returned unexpected error, got %q, want %q", err, expected)
 	}
-	_, err = LookupAddr("1.2.3.4")
-	if expected := "lookup 1.2.3.4: PTR target is invalid"; err == nil || err.Error() != expected {
-		t.Errorf("LookupAddr returned unexpected error, got %q, want %q", err.Error(), expected)
+	_, err = LookupAddr("192.0.2.42")
+	if expected := "lookup 192.0.2.42: PTR target is invalid"; err == nil || err.Error() != expected {
+		t.Errorf("LookupAddr returned unexpected error, got %q, want %q", err, expected)
 	}
 }
