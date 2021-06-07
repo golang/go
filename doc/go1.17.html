@@ -25,12 +25,46 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="language">Changes to the language</h2>
 
-<p><!-- CL 216424 -->
-  TODO: <a href="https://golang.org/cl/216424">https://golang.org/cl/216424</a>: allow conversion from slice to array ptr
+<p>
+  Go 1.17 includes three small enhancements to the language.
 </p>
 
-<p><!-- CL 312212 -->
-  TODO: <a href="https://golang.org/cl/312212">https://golang.org/cl/312212</a>: add unsafe.Add and unsafe.Slice
+<ul>
+  <li><!-- CL 216424; issue 395 -->
+    <a href="/ref/spec#Conversions_from_slice_to_array_pointer">Conversions
+    from slice to array pointer</a>: An expression <code>s</code> of
+    type <code>[]T</code> may now be converted to array pointer type
+    <code>*[N]T</code>. If <code>a</code> is the result of such a
+    conversion, then corresponding indices that are in range refer to
+    the same underlying elements: <code>&amp;a[i] == &amp;s[i]</code>
+    for <code>0 &lt;= i &lt; N</code>. The conversion panics if
+    <code>len(s)</code> is less than <code>N</code>.
+  </li>
+
+  <li><!-- CL 312212; issue 40481 -->
+    <a href="/pkg/unsafe#Add"><code>unsafe.Add</code></a>:
+    <code>unsafe.Add(ptr, len)</code> adds <code>len</code>
+    to <code>ptr</code> and returns the updated pointer
+    <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+  </li>
+
+  <li><!-- CL 312212; issue 19367 -->
+    <a href="/pkg/unsafe#Slice"><code>unsafe.Slice</code></a>:
+    For expression <code>ptr</code> of type <code>*T</code>,
+    <code>unsafe.Slice(ptr, len)</code> returns a slice of
+    type <code>[]T</code> whose underlying array starts
+    at <code>ptr</code> and whose length and capacity
+    are <code>len</code>.
+  </li>
+</ul>
+
+<p>
+  These enhancements were added to simplify writing code that conforms
+  to <code>unsafe.Pointer</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a>, but the rules remain unchanged. In particular, existing
+  programs that correctly use <code>unsafe.Pointer</code> remain
+  valid, and new programs must still follow the rules when
+  using <code>unsafe.Add</code> or <code>unsafe.Slice</code>.
 </p>
 
 <h2 id="ports">Ports</h2>
