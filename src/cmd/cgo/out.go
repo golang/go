@@ -168,8 +168,18 @@ func (p *Package) writeDefs() {
 			if *gccgo {
 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 			} else {
-				fmt.Fprintf(fm, "extern char %s[];\n", n.C)
-				fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+				// Force a reference to all symbols so that
+				// the external linker will add DT_NEEDED
+				// entries as needed on ELF systems.
+				// Treat function variables differently
+				// to avoid type confict errors from LTO
+				// (Link Time Optimization).
+				if n.Kind == "fpvar" {
+					fmt.Fprintf(fm, "extern void %s();\n", n.C)
+				} else {
+					fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+					fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+				}
 				fmt.Fprintf(fgo2, "//go:linkname __cgo_%s %s\n", n.C, n.C)
 				fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", n.C)
 				fmt.Fprintf(fgo2, "var __cgo_%s byte\n", n.C)
@@ -1042,7 +1052,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// This unpacks the argument struct above and calls the Go function.
 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
 
-		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
 
 		if gccResult != "void" {
 			// Write results back to frame.

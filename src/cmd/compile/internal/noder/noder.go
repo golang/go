@@ -886,9 +886,6 @@ func (p *noder) typeExpr(typ syntax.Expr) ir.Ntype {
 	if n == nil {
 		return nil
 	}
-	if _, ok := n.(ir.Ntype); !ok {
-		ir.Dump("NOT NTYPE", n)
-	}
 	return n.(ir.Ntype)
 }
 
