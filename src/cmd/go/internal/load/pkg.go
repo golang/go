@@ -100,7 +100,7 @@ type PackagePublic struct {
 	SysoFiles         []string `json:",omitempty"` // .syso system object files added to package
 
 	// Embedded files
-	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+	EmbedPatterns []string `json:",omitempty"` // go:embed patterns
 	EmbedFiles    []string `json:",omitempty"` // files matched by EmbedPatterns
 
 	// Cgo directives
@@ -126,11 +126,11 @@ type PackagePublic struct {
 	// Otherwise file name security lists will not apply to any new additions.
 	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
 	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
-	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
+	TestEmbedPatterns  []string `json:",omitempty"` // go:embed patterns
 	TestEmbedFiles     []string `json:",omitempty"` // files matched by TestEmbedPatterns
 	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
 	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
-	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
+	XTestEmbedPatterns []string `json:",omitempty"` // go:embed patterns
 	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
 }
 
@@ -209,7 +209,7 @@ type PackageInternal struct {
 	GobinSubdir       bool                 // install target would be subdir of GOBIN
 	BuildInfo         string               // add this info to package main
 	TestmainGo        *[]byte              // content for _testmain.go
-	Embed             map[string][]string  // //go:embed comment mapping
+	Embed             map[string][]string  // go:embed comment mapping
 	OrigImportPath    string               // original import path before adding '_test' suffix
 
 	Asmflags   []string // -asmflags for this package
