@@ -3259,7 +3259,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	//     ptr, len, cap = growslice(s, newlen)
 	//     newlen = len + 3 // recalculate to avoid a spill
 	// }
-	// // with write barriers, if needed:
+	// with write barriers, if needed:
 	// *(ptr+len) = e1
 	// *(ptr+len+1) = e2
 	// *(ptr+len+2) = e3
@@ -3279,7 +3279,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// }
 	// newlen = len + 3 // recalculate to avoid a spill
 	// *a.len = newlen
-	// // with write barriers, if needed:
+	// with write barriers, if needed:
 	// *(ptr+len) = e1
 	// *(ptr+len+1) = e2
 	// *(ptr+len+2) = e3
