@@ -171,7 +171,7 @@ directive can skip over a directive like any other comment.
 // 	/*line filename:line:col*/
 //
 // In order to be recognized as a line directive, the comment must start with
-// //line or /*line followed by a space, and must contain at least one colon.
+// line or /*line followed by a space, and must contain at least one colon.
 // The //line form must start at the beginning of a line.
 // A line directive specifies the source position for the character immediately following
 // the comment as having come from the specified file, line and column:
