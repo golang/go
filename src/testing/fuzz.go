@@ -222,7 +222,7 @@ func (f *F) TempDir() string {
 
 // Add will add the arguments to the seed corpus for the fuzz target. This will
 // be a no-op if called after or within the Fuzz function. The args must match
-// those in the Fuzz function.
+// or be convertible to those in the Fuzz function.
 func (f *F) Add(args ...interface{}) {
 	var values []interface{}
 	for i := range args {
@@ -289,6 +289,15 @@ func (f *F) Fuzz(ff interface{}) {
 			panic(fmt.Sprintf("testing: unsupported type for fuzzing %v", t))
 		}
 		types = append(types, t)
+	}
+
+	// Check the corpus provided by f.Add
+	for _, c := range f.corpus {
+		if err := f.fuzzContext.checkCorpus(c.Values, types); err != nil {
+			// TODO: Is there a way to save which line number is associated
+			// with the f.Add call that failed?
+			f.Fatal(err)
+		}
 	}
 
 	// Load seed corpus
@@ -470,6 +479,7 @@ type fuzzContext struct {
 	coordinateFuzzing func(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
 	runFuzzWorker     func(func(corpusEntry) error) error
 	readCorpus        func(string, []reflect.Type) ([]corpusEntry, error)
+	checkCorpus       func(vals []interface{}, types []reflect.Type) error
 	resetCoverage     func()
 	snapshotCoverage  func()
 }
@@ -487,6 +497,7 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bo
 	fctx := &fuzzContext{
 		importPath:       deps.ImportPath,
 		readCorpus:       deps.ReadCorpus,
+		checkCorpus:      deps.CheckCorpus,
 		resetCoverage:    deps.ResetCoverage,
 		snapshotCoverage: deps.SnapshotCoverage,
 	}
@@ -543,6 +554,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 	fctx := &fuzzContext{
 		importPath:       deps.ImportPath,
 		readCorpus:       deps.ReadCorpus,
+		checkCorpus:      deps.CheckCorpus,
 		resetCoverage:    deps.ResetCoverage,
 		snapshotCoverage: deps.SnapshotCoverage,
 	}
