@@ -50,7 +50,7 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 			}
 
 			// otherwise it must be a comment containing a line or go: directive.
-			// //line directives must be at the start of the line (column colbase).
+			// line directives must be at the start of the line (column colbase).
 			// /*line*/ directives can be anywhere in the line.
 			text := commentText(msg)
 			if (col == colbase || msg[1] == '*') && strings.HasPrefix(text, "line ") {

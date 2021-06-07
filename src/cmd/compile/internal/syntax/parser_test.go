@@ -290,7 +290,7 @@ func TestLineDirectives(t *testing.T) {
 		{"//line foo :123:1000\n\n", valid, "foo ", 124, 1},
 		{"//line ::123:1234\n", valid, ":", 123, 1234},
 
-		// //line directives with omitted filenames lead to empty filenames
+		// line directives with omitted filenames lead to empty filenames
 		{"//line :10\n", valid, "", 10, 0},
 		{"//line :10:20\n", valid, filename, 10, 20},
 		{"//line bar:1\n//line :10\n", valid, "", 10, 0},
