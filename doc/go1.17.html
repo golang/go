@@ -224,12 +224,6 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete the Vet section
 </p>
 
-<h2 id="runtime">Runtime</h2>
-
-<p>
-  TODO: complete the Runtime section
-</p>
-
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- golang.org/issue/40724 -->
@@ -434,7 +428,7 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 271788 -->
-      TODO: <a href="https://golang.org/cl/271788">https://golang.org/cl/271788</a>: panic if flag name begins with - or contains =
+      Flag declarations now panic if an invalid name is specified.
     </p>
   </dd>
 </dl><!-- flag -->
@@ -651,15 +645,22 @@ Do not send CLs removing the interior tags from such phrases.
       DragonFly and all OpenBSD systems (it was already defined on
       some OpenBSD systems and all FreeBSD, NetBSD, and Linux systems).
     </p>
+
+    <p><!-- CL 315281 -->
+      The constants <code>SYS_WAIT6</code> and <code>WEXITED</code>
+      are now defined on NetBSD systems (<code>SYS_WAIT6</code> was
+      already defined on DragonFly and FreeBSD systems;
+      <code>WEXITED</code> was already defined on Darwin, DragonFly,
+      FreeBSD, Linux, and Solaris systems).
+    </p>
   </dd>
 </dl><!-- syscall -->
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 310033 -->
-      TODO: <a href="https://golang.org/cl/310033">https://golang.org/cl/310033</a>: add -shuffle=off|on|N to alter the execution order of tests and benchmarks
+      Added a new <a href="/cmd/go/#hdr-Testing_flags">testing flag</a> <code>-shuffle</code> which controls the execution order of tests and benchmarks.
     </p>
-
     <p><!-- CL 260577 -->
       The new
       <a href="/pkg/testing/#T.Setenv"><code>T.Setenv</code></a>
@@ -689,15 +690,26 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
 
     <p><!-- CL 264077 -->
-      TODO: <a href="https://golang.org/cl/264077">https://golang.org/cl/264077</a>: add Time.IsDST() to check if its Location is in Daylight Savings Time
+      The new <a href="/pkg/time/#Time.IsDST"><code>Time.IsDST</code></a> method can be used to check whether the time
+      is in Daylight Savings Time in its configured location.
     </p>
 
     <p><!-- CL 293349 -->
-      TODO: <a href="https://golang.org/cl/293349">https://golang.org/cl/293349</a>: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+      The new <a href="/pkg/time/#Time.UnixMilli"><code>Time.UnixMilli</code></a> and
+      <a href="/pkg/time/#Time.UnixMicro"><code>Time.UnixMicro</code></a> methods return the number of milliseconds and
+      microseconds elapsed since January 1, 1970 UTC respectively.<br>
+      The new <code>UnixMilli</code> and <code>UnixMicro</code> functions return local Time corresponding to given
+      Unix time.
     </p>
 
     <p><!-- CL 300996 -->
-      TODO: <a href="https://golang.org/cl/300996">https://golang.org/cl/300996</a>: support &#34;,&#34; as separator for fractional seconds
+      The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
+      The following time formats are now accepted:
+      <ul>
+        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
+        <li>Mon Jan _2 14:06:03,120007 2006</li>
+        <li>Mon Jan 2 14:06:03,120007 2006</li>
+      </ul>
     </p>
 
     <p><!-- CL 320252 -->
