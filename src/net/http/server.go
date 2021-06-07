@@ -2863,6 +2863,11 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 		handler = globalOptionsHandler{}
 	}
 	handler.ServeHTTP(rw, req)
+	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
+		// TODO(filippo): update this not to log if the special
+		// semicolon handler was called.
+		sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
+	}
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
