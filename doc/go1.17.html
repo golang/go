@@ -137,6 +137,14 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
 </p>
 
+<p><!-- golang.org/issue/45965 -->
+  Because the number of additional explicit requirements in the go.mod file may
+  be substantial, in a Go 1.17 module the newly-added requirements
+  on <em>indirect</em> dependencies are maintained in a
+  separate <code>require</code> block from the block containing direct
+  dependencies.
+</p>
+
 <p><!-- golang.org/issue/45094 -->
   To facilitate the upgrade to lazy loading, the
   <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports

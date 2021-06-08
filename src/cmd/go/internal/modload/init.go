@@ -999,9 +999,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			Indirect: !rs.direct[m.Path],
 		})
 	}
-	modFile.SetRequire(list)
 	if goVersion != "" {
 		modFile.AddGoStmt(goVersion)
+	}
+	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
+		modFile.SetRequire(list)
+	} else {
+		modFile.SetRequireSeparateIndirect(list)
 	}
 	modFile.Cleanup()
 
