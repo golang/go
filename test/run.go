@@ -86,7 +86,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -2203,6 +2203,19 @@ var g3Failures = setOf(
 	"fixedbugs/issue9691.go", // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
 
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+
+	"typeparam/mdempsky/1.go",
+	"typeparam/mdempsky/2.go",
+	"typeparam/mdempsky/3.go",
+	"typeparam/mdempsky/4.go",
+	"typeparam/mdempsky/5.go",
+	"typeparam/mdempsky/7.go",
+	"typeparam/mdempsky/8.go",
+	"typeparam/mdempsky/9.go",
+	"typeparam/mdempsky/11.go",
+	"typeparam/mdempsky/12.go",
+	"typeparam/mdempsky/13.go",
+	"typeparam/mdempsky/14.go",
 )
 
 var unifiedFailures = setOf(
