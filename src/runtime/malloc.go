@@ -420,8 +420,6 @@ func mallocinit() {
 		throw("bad TinySizeClass")
 	}
 
-	testdefersizes()
-
 	if heapArenaBitmapBytes&(heapArenaBitmapBytes-1) != 0 {
 		// heapBits expects modular arithmetic on bitmap
 		// addresses to work.
@@ -1088,15 +1086,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	var scanSize uintptr
 	if !noscan {
-		// If allocating a defer+arg block, now that we've picked a malloc size
-		// large enough to hold everything, cut the "asked for" size down to
-		// just the defer header, so that the GC bitmap will record the arg block
-		// as containing nothing at all (as if it were unused space at the end of
-		// a malloc block caused by size rounding).
-		// The defer arg areas are scanned as part of scanstack.
-		if typ == deferType {
-			dataSize = unsafe.Sizeof(_defer{})
-		}
 		heapBitsSetType(uintptr(x), size, dataSize, typ)
 		if dataSize > typ.size {
 			// Array allocation. If there are any
