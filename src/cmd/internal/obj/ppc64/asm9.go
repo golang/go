@@ -234,12 +234,14 @@ var optab = []Optab{
 	{as: AMOVD, a1: C_LACON, a6: C_REG, type_: 26, size: 8},
 	{as: AMOVD, a1: C_ADDR, a6: C_REG, type_: 75, size: 8},
 	{as: AMOVD, a1: C_SOREG, a6: C_REG, type_: 8, size: 4},
+	{as: AMOVD, a1: C_SOREG, a6: C_SPR, type_: 107, size: 8},
 	{as: AMOVD, a1: C_LOREG, a6: C_REG, type_: 36, size: 8},
 	{as: AMOVD, a1: C_TLS_LE, a6: C_REG, type_: 79, size: 8},
 	{as: AMOVD, a1: C_TLS_IE, a6: C_REG, type_: 80, size: 12},
 	{as: AMOVD, a1: C_SPR, a6: C_REG, type_: 66, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_ADDR, type_: 74, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
+	{as: AMOVD, a1: C_SPR, a6: C_SOREG, type_: 106, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_LOREG, type_: 35, size: 8},
 	{as: AMOVD, a1: C_REG, a6: C_SPR, type_: 66, size: 4},
 	{as: AMOVD, a1: C_REG, a6: C_REG, type_: 13, size: 4},
@@ -3751,6 +3753,30 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 105: /* PNOP */
 		o1 = 0x07000000
 		o2 = 0x00000000
+
+	case 106: /* MOVD spr, soreg */
+		v := int32(p.From.Reg)
+		o1 = OPVCC(31, 339, 0, 0) /* mfspr */
+		o1 = AOP_RRR(o1, uint32(REGTMP), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
+		so := c.regoff(&p.To)
+		o2 = AOP_IRR(c.opstore(AMOVD), uint32(REGTMP), uint32(p.To.Reg), uint32(so))
+		if so&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
+		if p.To.Reg == REGTMP {
+			log.Fatalf("SPR move to memory will clobber R31 %v", p)
+		}
+
+	case 107: /* MOVD soreg, spr */
+		v := int32(p.From.Reg)
+		so := c.regoff(&p.From)
+		o1 = AOP_IRR(c.opload(AMOVD), uint32(REGTMP), uint32(v), uint32(so))
+		o2 = OPVCC(31, 467, 0, 0) /* mtspr */
+		v = int32(p.To.Reg)
+		o2 = AOP_RRR(o2, uint32(REGTMP), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
+		if so&0x3 != 0 {
+			log.Fatalf("invalid offset for DS form load/store %v", p)
+		}
 	}
 
 	out[0] = o1

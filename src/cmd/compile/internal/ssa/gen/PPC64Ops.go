@@ -149,7 +149,6 @@ func init() {
 		gp2xer1xer  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, xer}, outputs: []regMask{gp, xer}, clobbers: xer}
 		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
-		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
@@ -224,8 +223,6 @@ func init() {
 		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int32"},     // arg0 extract bits identified by shift params"
 		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
 		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
-
-		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
 
 		// Operations which consume or generate the CA (xer)
 		{name: "ADDC", argLength: 2, reg: gp21xer, asm: "ADDC", commutative: true, typ: "(UInt64, UInt64)"},    // arg0 + arg1 -> out, CA

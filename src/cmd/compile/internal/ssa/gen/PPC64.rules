@@ -30,7 +30,6 @@
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
-(Add64carry ...) => (LoweredAdd64Carry ...)
 (Mul64 ...) => (MULLD ...)
 (Mul(32|16|8) ...) => (MULLW ...)
 (Mul64uhilo ...) => (LoweredMuluhilo ...)
@@ -102,6 +101,22 @@
 (Const(32|64)F ...) => (FMOV(S|D)const ...)
 (ConstNil) => (MOVDconst [0])
 (ConstBool [t]) => (MOVDconst [b2i(t)])
+
+// Carrying addition.
+(Select0 (Add64carry x y c)) =>            (Select0 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1]))))
+(Select1 (Add64carry x y c)) => (ADDZEzero (Select1 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1])))))
+// Fold initial carry bit if 0.
+(ADDE x y (Select1 <typ.UInt64> (ADDCconst (MOVDconst [0]) [-1]))) => (ADDC x y)
+// Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
+(Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
+
+// Borrowing subtraction.
+(Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
+(Select1 (Sub64borrow x y c)) => (NEG (SUBZEzero (Select1 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))))
+// Fold initial borrow bit if 0.
+(SUBE x y (Select1 <typ.UInt64> (SUBCconst (MOVDconst [0]) [0]))) => (SUBC x y)
+// Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Sub64borrow.
+(Select1 (SUBCconst n:(NEG (SUBZEzero x)) [0])) && n.Uses <= 2 => x
 
 // Constant folding
 (FABS (FMOVDconst [x])) => (FMOVDconst [math.Abs(x)])
