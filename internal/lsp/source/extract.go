@@ -33,20 +33,23 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	// TODO: stricter rules for selectorExpr.
 	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.SliceExpr,
 		*ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr:
-		lhsNames = append(lhsNames, generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
+		lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0)
+		lhsNames = append(lhsNames, lhsName)
 	case *ast.CallExpr:
 		tup, ok := info.TypeOf(expr).(*types.Tuple)
 		if !ok {
 			// If the call expression only has one return value, we can treat it the
 			// same as our standard extract variable case.
-			lhsNames = append(lhsNames,
-				generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0))
+			lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0)
+			lhsNames = append(lhsNames, lhsName)
 			break
 		}
+		idx := 0
 		for i := 0; i < tup.Len(); i++ {
 			// Generate a unique variable for each return value.
-			lhsNames = append(lhsNames,
-				generateAvailableIdentifier(expr.Pos(), file, path, info, "x", i))
+			var lhsName string
+			lhsName, idx = generateAvailableIdentifier(expr.Pos(), file, path, info, "x", idx)
+			lhsNames = append(lhsNames, lhsName)
 		}
 	default:
 		return nil, fmt.Errorf("cannot extract %T", expr)
@@ -133,15 +136,15 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 }
 
 // generateAvailableIdentifier adjusts the new function name until there are no collisons in scope.
-// Possible collisions include other function and variable names.
-func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) string {
+// Possible collisions include other function and variable names. Returns the next index to check for prefix.
+func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) (string, int) {
 	scopes := CollectScopes(info, path, pos)
 	name := prefix + fmt.Sprintf("%d", idx)
 	for file.Scope.Lookup(name) != nil || !isValidName(name, scopes) {
 		idx++
 		name = fmt.Sprintf("%v%d", prefix, idx)
 	}
-	return name
+	return name, idx + 1
 }
 
 // isValidName checks for variable collision in scope.
@@ -465,7 +468,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if canDefine {
 		sym = token.DEFINE
 	}
-	funName := generateAvailableIdentifier(rng.Start, file, path, info, "fn", 0)
+	funName, _ := generateAvailableIdentifier(rng.Start, file, path, info, "fn", 0)
 	extractedFunCall := generateFuncCall(hasNonNestedReturn, hasReturnValues, params,
 		append(returns, getNames(retVars)...), funName, sym)
 
@@ -996,7 +999,8 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 	var cond *ast.Ident
 	if !hasNonNestedReturns {
 		// Generate information for the added bool value.
-		cond = &ast.Ident{Name: generateAvailableIdentifier(pos, file, path, info, "cond", 0)}
+		name, _ := generateAvailableIdentifier(pos, file, path, info, "cond", 0)
+		cond = &ast.Ident{Name: name}
 		retVars = append(retVars, &returnVariable{
 			name:    cond,
 			decl:    &ast.Field{Type: ast.NewIdent("bool")},
@@ -1005,7 +1009,8 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 	}
 	// Generate information for the values in the return signature of the enclosing function.
 	if enclosing.Results != nil {
-		for i, field := range enclosing.Results.List {
+		idx := 0
+		for _, field := range enclosing.Results.List {
 			typ := info.TypeOf(field.Type)
 			if typ == nil {
 				return nil, nil, fmt.Errorf(
@@ -1015,9 +1020,11 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 			if expr == nil {
 				return nil, nil, fmt.Errorf("nil AST expression")
 			}
+			var name string
+			name, idx = generateAvailableIdentifier(pos, file,
+				path, info, "ret", idx)
 			retVars = append(retVars, &returnVariable{
-				name: ast.NewIdent(generateAvailableIdentifier(pos, file,
-					path, info, "ret", i)),
+				name: ast.NewIdent(name),
 				decl: &ast.Field{Type: expr},
 				zeroVal: analysisinternal.ZeroValue(
 					fset, file, pkg, typ),
