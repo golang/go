@@ -16,8 +16,8 @@ package extract
 import "strconv"
 
 func _() {
-	x1 := append([]int{}, 1)
-	x0 := x1 //@suggestedfix("append([]int{}, 1)", "refactor.extract")
+	x := append([]int{}, 1)
+	x0 := x //@suggestedfix("append([]int{}, 1)", "refactor.extract")
 	str := "1"
 	b, err := strconv.Atoi(str) //@suggestedfix("strconv.Atoi(str)", "refactor.extract")
 }
@@ -30,7 +30,7 @@ import "strconv"
 func _() {
 	x0 := append([]int{}, 1) //@suggestedfix("append([]int{}, 1)", "refactor.extract")
 	str := "1"
-	x1, x2 := strconv.Atoi(str)
-	b, err := x1, x2 //@suggestedfix("strconv.Atoi(str)", "refactor.extract")
+	x, x1 := strconv.Atoi(str)
+	b, err := x, x1 //@suggestedfix("strconv.Atoi(str)", "refactor.extract")
 }
 

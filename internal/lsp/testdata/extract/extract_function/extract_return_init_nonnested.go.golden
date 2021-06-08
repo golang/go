@@ -4,11 +4,11 @@ package extract
 func _() string {
 	x := 1
 	//@mark(exSt12, "if")
-	return fn0(x) //@mark(exEn12, "\"b\"")
+	return newFunction(x) //@mark(exEn12, "\"b\"")
 	//@extractfunc(exSt12, exEn12)
 }
 
-func fn0(x int) string {
+func newFunction(x int) string {
 	if x == 0 {
 		x = 3
 		return "a"

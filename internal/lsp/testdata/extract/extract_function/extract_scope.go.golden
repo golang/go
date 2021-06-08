@@ -3,10 +3,10 @@ package extract
 
 func _() {
 	fn0 := 1
-	fn2(fn0) //@extractfunc("a", "fn0")
+	newFunction(fn0) //@extractfunc("a", "fn0")
 }
 
-func fn2(fn0 int) {
+func newFunction(fn0 int) {
 	a := fn0
 }
 

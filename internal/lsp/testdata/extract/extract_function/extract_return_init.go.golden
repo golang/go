@@ -4,16 +4,16 @@ package extract
 func _() string {
 	x := 1
 	//@mark(exSt5, "if")
-	cond0, ret0 := fn0(x)
-	if cond0 {
-		return ret0
+	shouldReturn, returnValue := newFunction(x)
+	if shouldReturn {
+		return returnValue
 	} //@mark(exEn5, "}")
 	x = 2
 	return "b"
 	//@extractfunc(exSt5, exEn5)
 }
 
-func fn0(x int) (bool, string) {
+func newFunction(x int) (bool, string) {
 	if x == 0 {
 		x = 3
 		return true, "a"

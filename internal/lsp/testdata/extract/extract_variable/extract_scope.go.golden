@@ -9,8 +9,8 @@ func _() {
 		y := ast.CompositeLit{} //@suggestedfix("ast.CompositeLit{}", "refactor.extract")
 	}
 	if true {
-		x2 := !false
-		x1 := x2 //@suggestedfix("!false", "refactor.extract")
+		x := !false
+		x1 := x //@suggestedfix("!false", "refactor.extract")
 	}
 }
 
@@ -22,8 +22,8 @@ import "go/ast"
 func _() {
 	x0 := 0
 	if true {
-		x1 := ast.CompositeLit{}
-		y := x1 //@suggestedfix("ast.CompositeLit{}", "refactor.extract")
+		x := ast.CompositeLit{}
+		y := x //@suggestedfix("ast.CompositeLit{}", "refactor.extract")
 	}
 	if true {
 		x1 := !false //@suggestedfix("!false", "refactor.extract")

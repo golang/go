@@ -2,8 +2,8 @@
 package extract
 
 func _() {
-	x0 := 1
-	var _ = x0 + 2 //@suggestedfix("1", "refactor.extract")
+	x := 1
+	var _ = x + 2 //@suggestedfix("1", "refactor.extract")
 	var _ = 3 + 4 //@suggestedfix("3 + 4", "refactor.extract")
 }
 
@@ -12,7 +12,7 @@ package extract
 
 func _() {
 	var _ = 1 + 2 //@suggestedfix("1", "refactor.extract")
-	x0 := 3 + 4
-	var _ = x0 //@suggestedfix("3 + 4", "refactor.extract")
+	x := 3 + 4
+	var _ = x //@suggestedfix("3 + 4", "refactor.extract")
 }
 

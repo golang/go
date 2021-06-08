@@ -5,13 +5,13 @@ import "strconv"
 
 func _() {
 	i, err := strconv.Atoi("1")
-	u, err := fn0() //@extractfunc("u", ")")
+	u, err := newFunction() //@extractfunc("u", ")")
 	if i == u || err == nil {
 		return
 	}
 }
 
-func fn0() (int, error) {
+func newFunction() (int, error) {
 	u, err := strconv.Atoi("2")
 	return u, err
 }

@@ -7,15 +7,15 @@ func _() (int, string, error) {
 	x := 1
 	y := "hello"
 	//@mark(exSt3, "z")
-	z, cond0, ret0, ret1, ret2 := fn0(y, x)
-	if cond0 {
-		return ret0, ret1, ret2
+	z, shouldReturn, returnValue, returnValue1, returnValue2 := newFunction(y, x)
+	if shouldReturn {
+		return returnValue, returnValue1, returnValue2
 	} //@mark(exEn3, "}")
 	return x, z, nil
 	//@extractfunc(exSt3, exEn3)
 }
 
-func fn0(y string, x int) (string, bool, int, string, error) {
+func newFunction(y string, x int) (string, bool, int, string, error) {
 	z := "bye"
 	if y == z {
 		return "", true, x, y, fmt.Errorf("same")

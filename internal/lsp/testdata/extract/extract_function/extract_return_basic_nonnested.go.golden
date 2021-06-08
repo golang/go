@@ -3,11 +3,11 @@ package extract
 
 func _() bool {
 	//@mark(exSt13, "x")
-	return fn0() //@mark(exEn13, "false")
+	return newFunction() //@mark(exEn13, "false")
 	//@extractfunc(exSt13, exEn13)
 }
 
-func fn0() bool {
+func newFunction() bool {
 	x := 1
 	if x == 0 {
 		return true

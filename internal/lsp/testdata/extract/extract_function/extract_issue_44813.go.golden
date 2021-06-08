@@ -5,12 +5,12 @@ import "fmt"
 
 func main() {
 	//@mark(exSt9, "x")
-	x := fn0() //@mark(exEn9, "}")
+	x := newFunction() //@mark(exEn9, "}")
 	//@extractfunc(exSt9, exEn9)
 	fmt.Printf("%x\n", x)
 }
 
-func fn0() []rune {
+func newFunction() []rune {
 	x := []rune{}
 	s := "HELLO"
 	for _, c := range s {

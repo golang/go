@@ -7,11 +7,11 @@ func _() (int, string, error) {
 	x := 1
 	y := "hello"
 	//@mark(exSt10, "z")
-	return fn0(y, x) //@mark(exEn10, "nil")
+	return newFunction(y, x) //@mark(exEn10, "nil")
 	//@extractfunc(exSt10, exEn10)
 }
 
-func fn0(y string, x int) (int, string, error) {
+func newFunction(y string, x int) (int, string, error) {
 	z := "bye"
 	if y == z {
 		return x, y, fmt.Errorf("same")

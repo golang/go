@@ -5,12 +5,12 @@ func _() {
 	var b []int
 	var a int
 	//@mark(exSt7, "a")
-	b = fn0(a, b) //@mark(exEn7, ")")
+	b = newFunction(a, b) //@mark(exEn7, ")")
 	b[0] = 1
 	//@extractfunc(exSt7, exEn7)
 }
 
-func fn0(a int, b []int) []int {
+func newFunction(a int, b []int) []int {
 	a = 2
 	b = []int{}
 	b = append(b, a)

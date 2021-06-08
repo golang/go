@@ -139,7 +139,10 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 // Possible collisions include other function and variable names. Returns the next index to check for prefix.
 func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) (string, int) {
 	scopes := CollectScopes(info, path, pos)
-	name := prefix + fmt.Sprintf("%d", idx)
+	name := prefix
+	if idx != 0 {
+		name += fmt.Sprintf("%d", idx)
+	}
 	for file.Scope.Lookup(name) != nil || !isValidName(name, scopes) {
 		idx++
 		name = fmt.Sprintf("%v%d", prefix, idx)
@@ -468,7 +471,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if canDefine {
 		sym = token.DEFINE
 	}
-	funName, _ := generateAvailableIdentifier(rng.Start, file, path, info, "fn", 0)
+	funName, _ := generateAvailableIdentifier(rng.Start, file, path, info, "newFunction", 0)
 	extractedFunCall := generateFuncCall(hasNonNestedReturn, hasReturnValues, params,
 		append(returns, getNames(retVars)...), funName, sym)
 
@@ -999,7 +1002,7 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 	var cond *ast.Ident
 	if !hasNonNestedReturns {
 		// Generate information for the added bool value.
-		name, _ := generateAvailableIdentifier(pos, file, path, info, "cond", 0)
+		name, _ := generateAvailableIdentifier(pos, file, path, info, "shouldReturn", 0)
 		cond = &ast.Ident{Name: name}
 		retVars = append(retVars, &returnVariable{
 			name:    cond,
@@ -1022,7 +1025,7 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 			}
 			var name string
 			name, idx = generateAvailableIdentifier(pos, file,
-				path, info, "ret", idx)
+				path, info, "returnValue", idx)
 			retVars = append(retVars, &returnVariable{
 				name: ast.NewIdent(name),
 				decl: &ast.Field{Type: expr},

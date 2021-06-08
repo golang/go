@@ -3,11 +3,11 @@ package extract
 
 func _() {
 	//@mark(exSt1, "a")
-	fn0() //@mark(exEn1, "4")
+	newFunction() //@mark(exEn1, "4")
 	//@extractfunc(exSt1, exEn1)
 }
 
-func fn0() {
+func newFunction() {
 	a := 1
 	_ = 3 + 4
 }
