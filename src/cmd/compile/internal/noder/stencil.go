@@ -10,17 +10,30 @@ package noder
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
+	"strings"
 )
 
 func assert(p bool) {
 	if !p {
 		panic("assertion failed")
+	}
+}
+
+// Temporary - for outputting information on derived types, dictionaries, sub-dictionaries.
+// Turn off when running tests.
+var infoPrintMode = false
+
+func infoPrint(format string, a ...interface{}) {
+	if infoPrintMode {
+		fmt.Printf(format, a...)
 	}
 }
 
@@ -31,6 +44,7 @@ func assert(p bool) {
 // process.
 func (g *irgen) stencil() {
 	g.target.Stencils = make(map[*types.Sym]*ir.Func)
+	g.gfInfoMap = make(map[*types.Sym]*gfInfo)
 
 	// Instantiate the methods of instantiated generic types that we have seen so far.
 	g.instantiateMethods()
@@ -87,7 +101,14 @@ func (g *irgen) stencil() {
 				// instantiation.
 				call := n.(*ir.CallExpr)
 				inst := call.X.(*ir.InstExpr)
-				st := g.getInstantiationForNode(inst)
+				st, dict := g.getInstantiationForNode(inst)
+				if infoPrintMode && g.target.Stencils[decl.Sym()] == nil {
+					if inst.X.Op() == ir.OCALLPART {
+						fmt.Printf("Main dictionary in %v at generic method call: %v - %v\n", decl, inst.X, call)
+					} else {
+						fmt.Printf("Main dictionary in %v at generic function call: %v - %v\n", decl, inst.X, call)
+					}
+				}
 				// Replace the OFUNCINST with a direct reference to the
 				// new stenciled function
 				call.X = st.Nname
@@ -99,7 +120,6 @@ func (g *irgen) stencil() {
 					call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
 				}
 				// Add dictionary to argument list.
-				dict := reflectdata.GetDictionaryForInstantiation(inst)
 				call.Args.Prepend(dict)
 				// Transform the Call now, which changes OCALL
 				// to OCALLFUNC and does typecheckaste/assignconvfn.
@@ -125,10 +145,9 @@ func (g *irgen) stencil() {
 					}
 				}
 
-				st := g.getInstantiation(gf, targs, true)
+				st, dict := g.getInstantiation(gf, targs, true)
 				call.SetOp(ir.OCALL)
 				call.X = st.Nname
-				dict := reflectdata.GetDictionaryForMethod(gf, targs)
 				call.Args.Prepend(dict, meth.X)
 				// Transform the Call now, which changes OCALL
 				// to OCALLFUNC and does typecheckaste/assignconvfn.
@@ -212,13 +231,14 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// For functions, the target expects a dictionary as its first argument.
 		// For method values, the target expects a dictionary and the receiver
 		// as its first two arguments.
-		target = g.getInstantiation(gf, targs, rcvrValue != nil)
-
-		// The value to use for the dictionary argument.
-		if rcvrValue == nil {
-			dictValue = reflectdata.GetDictionaryForFunc(gf, targs)
-		} else {
-			dictValue = reflectdata.GetDictionaryForMethod(gf, targs)
+		// dictValue is the value to use for the dictionary argument.
+		target, dictValue = g.getInstantiation(gf, targs, rcvrValue != nil)
+		if infoPrintMode && (outer == nil || g.target.Stencils[outer.Sym()] == nil) {
+			if rcvrValue == nil {
+				fmt.Printf("Main dictionary in %v for function value %v\n", outer, inst.X)
+			} else {
+				fmt.Printf("Main dictionary in %v for method value %v\n", outer, inst.X)
+			}
 		}
 	} else { // ir.OMETHEXPR
 		// Method expression T.M where T is a generic type.
@@ -248,8 +268,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 				break
 			}
 		}
-		target = g.getInstantiation(gf, targs, true)
-		dictValue = reflectdata.GetDictionaryForMethod(gf, targs)
+		target, dictValue = g.getInstantiation(gf, targs, true)
+		if infoPrintMode && (outer == nil || g.target.Stencils[outer.Sym()] == nil) {
+			fmt.Printf("Main dictionary in %v for method expression %v\n", outer, x)
+		}
 	}
 
 	// Build a closure to implement a function instantiation.
@@ -444,7 +466,7 @@ func (g *irgen) instantiateMethods() {
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, _ := range typ.Methods().Slice() {
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
-			// Eagerly generate the instantiations that implement these methods.
+			// Eagerly generate the instantiations and dictionaries that implement these methods.
 			// We don't use the instantiations here, just generate them (and any
 			// further instantiations those generate, etc.).
 			// Note that we don't set the Func for any methods on instantiated
@@ -452,16 +474,16 @@ func (g *irgen) instantiateMethods() {
 			// Direct method calls go directly to the instantiations, implemented above.
 			// Indirect method calls use wrappers generated in reflectcall. Those wrappers
 			// will use these instantiations if they are needed (for interface tables or reflection).
-			_ = g.getInstantiation(baseNname, typ.RParams(), true)
+			_, _ = g.getInstantiation(baseNname, typ.RParams(), true)
 		}
 	}
 	g.instTypeList = nil
 
 }
 
-// getInstantiationForNode returns the function/method instantiation for a
-// InstExpr node inst.
-func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
+// getInstantiationForNode returns the function/method instantiation and
+// dictionary value for a InstExpr node inst.
+func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) (*ir.Func, ir.Node) {
 	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
 		return g.getInstantiation(meth.Selection.Nname.(*ir.Name), typecheck.TypesOf(inst.Targs), true)
 	} else {
@@ -469,10 +491,10 @@ func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
 	}
 }
 
-// getInstantiation gets the instantiantion of the function or method nameNode
+// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
 // with the type arguments targs. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) (*ir.Func, ir.Node) {
 	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
 		// If there is no body yet but Func.Inl exists, then we can can
 		// import the whole generic body.
@@ -497,7 +519,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 			ir.Dump(fmt.Sprintf("\nstenciled %v", st), st)
 		}
 	}
-	return st
+	return st, g.getDictionary(sym.Name, nameNode, targs)
 }
 
 // Struct containing info needed for doing the substitution as we create the
@@ -993,4 +1015,246 @@ func deref(t *types.Type) *types.Type {
 		return t.Elem()
 	}
 	return t
+}
+
+// getDictionary returns the dictionary for the named instantiated function, which
+// is instantiated from generic function or method gf, with the type arguments targs.
+func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.Node {
+	if len(targs) == 0 {
+		base.Fatalf("%s should have type arguments", name)
+	}
+
+	// The dictionary for this instantiation is named after the function
+	// and concrete types it is instantiated with.
+	// TODO: decouple this naming from the instantiation naming. The instantiation
+	// naming will be based on GC shapes, this naming must be fully stenciled.
+	if !strings.HasPrefix(name, ".inst.") {
+		base.Fatalf("%s should start in .inst.", name)
+	}
+
+	info := g.getGfInfo(gf)
+
+	name = ".dict." + name[6:]
+
+	// Get a symbol representing the dictionary.
+	sym := typecheck.Lookup(name)
+
+	// Initialize the dictionary, if we haven't yet already.
+	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+		infoPrint("Creating dictionary %v\n", name)
+		off := 0
+		// Emit an entry for each targ (concrete type or gcshape).
+		for _, t := range targs {
+			infoPrint(" * %v\n", t)
+			s := reflectdata.TypeLinksym(t)
+			off = objw.SymPtr(lsym, off, s, 0)
+		}
+		subst := typecheck.Tsubster{
+			Tparams: info.tparams,
+			Targs:   targs,
+		}
+		// Emit an entry for each derived type (after substituting targs)
+		for _, t := range info.derivedTypes {
+			ts := subst.Typ(t)
+			infoPrint(" - %v\n", ts)
+			s := reflectdata.TypeLinksym(ts)
+			off = objw.SymPtr(lsym, off, s, 0)
+		}
+		// Emit an entry for each subdictionary (after substituting targs)
+		// TODO: actually emit symbol for the subdictionary entry
+		for _, n := range info.subDictCalls {
+			if n.Op() == ir.OCALL {
+				call := n.(*ir.CallExpr)
+				if call.X.Op() == ir.OXDOT {
+					subtargs := deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()
+					s2targs := make([]*types.Type, len(subtargs))
+					for i, t := range subtargs {
+						s2targs[i] = subst.Typ(t)
+					}
+					sym := typecheck.MakeInstName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
+					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+				} else {
+					inst := n.(*ir.CallExpr).X.(*ir.InstExpr)
+					var nameNode *ir.Name
+					var meth *ir.SelectorExpr
+					var isMeth bool
+					if meth, isMeth = inst.X.(*ir.SelectorExpr); isMeth {
+						nameNode = meth.Selection.Nname.(*ir.Name)
+					} else {
+						nameNode = inst.X.(*ir.Name)
+					}
+					subtargs := typecheck.TypesOf(inst.Targs)
+					for i, t := range subtargs {
+						subtargs[i] = subst.Typ(t)
+					}
+					sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, isMeth)
+					// TODO: This can actually be a static
+					// main dictionary, if all of the subtargs
+					// are concrete types (!HasTParam)
+					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+				}
+			} else if n.Op() == ir.OFUNCINST {
+				inst := n.(*ir.InstExpr)
+				nameNode := inst.X.(*ir.Name)
+				subtargs := typecheck.TypesOf(inst.Targs)
+				for i, t := range subtargs {
+					subtargs[i] = subst.Typ(t)
+				}
+				sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, false)
+				// TODO: This can actually be a static
+				// main dictionary, if all of the subtargs
+				// are concrete types (!HasTParam)
+				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+			} else if n.Op() == ir.OXDOT {
+				selExpr := n.(*ir.SelectorExpr)
+				subtargs := selExpr.X.Type().RParams()
+				s2targs := make([]*types.Type, len(subtargs))
+				for i, t := range subtargs {
+					s2targs[i] = subst.Typ(t)
+				}
+				sym := typecheck.MakeInstName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
+				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+			}
+			// TODO: handle closure cases that need sub-dictionaries
+		}
+		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
+	}
+
+	// Make a node referencing the dictionary symbol.
+	n := typecheck.NewName(sym)
+	n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
+	n.SetTypecheck(1)
+	n.Class = ir.PEXTERN
+	sym.Def = n
+
+	// Return the address of the dictionary.
+	np := typecheck.NodAddr(n)
+	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
+	// with respect to GC. That saves on stack scanning work, write barriers, etc.
+	// We can get away with it because dictionaries are global variables.
+	// TODO: use a cast, or is typing directly ok?
+	np.SetType(types.Types[types.TUINTPTR])
+	np.SetTypecheck(1)
+	return np
+}
+
+// getGfInfo get information for a generic function - type params, derived generic
+// types, and subdictionaries.
+func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+	infop := g.gfInfoMap[gn.Sym()]
+	if infop != nil {
+		return infop
+	}
+
+	var info gfInfo
+	gf := gn.Func
+	recv := gf.Type().Recv()
+	if recv != nil {
+		info.tparams = deref(recv.Type).RParams()
+	} else {
+		info.tparams = make([]*types.Type, len(gn.Type().TParams().FieldSlice()))
+		for i, f := range gn.Type().TParams().FieldSlice() {
+			info.tparams[i] = f.Type
+		}
+	}
+	for _, n := range gf.Dcl {
+		addType(&info, n, n.Type())
+	}
+
+	if infoPrintMode {
+		fmt.Printf(">>> Info for %v\n", gn)
+		for _, t := range info.tparams {
+			fmt.Printf("  Typeparam %v\n", t)
+		}
+		for _, t := range info.derivedTypes {
+			fmt.Printf("  Derived type %v\n", t)
+		}
+	}
+
+	for _, stmt := range gf.Body {
+		ir.Visit(stmt, func(n ir.Node) {
+			if n.Op() == ir.OFUNCINST && !n.(*ir.InstExpr).Implicit() {
+				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
+				info.subDictCalls = append(info.subDictCalls, n)
+			} else if n.Op() == ir.OXDOT && !n.(*ir.SelectorExpr).Implicit() &&
+				!n.(*ir.SelectorExpr).X.Type().IsInterface() &&
+				len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
+				// Fix this - doesn't account for embedded fields, etc.
+				field := typecheck.Lookdot1(n.(*ir.SelectorExpr), n.(*ir.SelectorExpr).Sel, n.(*ir.SelectorExpr).X.Type(), n.(*ir.SelectorExpr).X.Type().Fields(), 0)
+				if field == nil {
+					if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
+						infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
+					} else {
+						infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
+					}
+					info.subDictCalls = append(info.subDictCalls, n)
+				}
+			}
+			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
+				infoPrint("  Subdictionary at generic function call: %v - %v\n", n.(*ir.CallExpr).X.(*ir.InstExpr).X, n)
+				n.(*ir.CallExpr).X.(*ir.InstExpr).SetImplicit(true)
+				info.subDictCalls = append(info.subDictCalls, n)
+			}
+			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
+				!n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type().IsInterface() &&
+				len(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
+				infoPrint("  Subdictionary at generic method call: %v\n", n)
+				n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
+				info.subDictCalls = append(info.subDictCalls, n)
+			}
+			if n.Op() == ir.OCLOSURE {
+				oldfn := n.(*ir.ClosureExpr).Func
+				needDict := false
+				if oldfn.Nname.Type().HasTParam() {
+					needDict = true
+					infoPrint("  Subdictionary for closure that has generic params: %v\n", oldfn)
+				} else {
+					for _, cv := range oldfn.ClosureVars {
+						if cv.Type().HasTParam() {
+							needDict = true
+							infoPrint("  Subdictionary for closure that has generic capture: %v\n", oldfn)
+							break
+						}
+					}
+				}
+				if needDict {
+					info.subDictCalls = append(info.subDictCalls, n)
+				}
+			}
+
+			addType(&info, n, n.Type())
+		})
+	}
+	g.gfInfoMap[gn.Sym()] = &info
+	return &info
+}
+
+// addType adds t to info.derivedTypes if it is parameterized type (which is not
+// just a simple type param) that is different from any existing type on
+// info.derivedTypes.
+func addType(info *gfInfo, n ir.Node, t *types.Type) {
+	if t == nil || !t.HasTParam() {
+		return
+	}
+	if t.IsTypeParam() && t.Underlying() == t {
+		return
+	}
+	if t.Kind() == types.TFUNC && n != nil &&
+		(n.Op() != ir.ONAME || n.Name().Class == ir.PFUNC) {
+		// For now, only record function types that are associate with a
+		// local/global variable (a name which is not a named global
+		// function).
+		return
+	}
+	if t.Kind() == types.TSTRUCT && t.IsFuncArgStruct() {
+		// Multiple return values are not a relevant new type (?).
+		return
+	}
+	// Ignore a derived type we've already added.
+	for _, et := range info.derivedTypes {
+		if types.Identical(t, et) {
+			return
+		}
+	}
+	info.derivedTypes = append(info.derivedTypes, t)
 }

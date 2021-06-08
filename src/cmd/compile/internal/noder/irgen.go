@@ -96,6 +96,15 @@ func check2(noders []*noder) {
 	}
 }
 
+// gfInfo is information gathered on a generic function.
+type gfInfo struct {
+	tparams      []*types.Type
+	derivedTypes []*types.Type
+	// Node in generic function that requires a subdictionary. Some of these
+	// are not function/method values (not strictly calls).
+	subDictCalls []ir.Node
+}
+
 type irgen struct {
 	target *ir.Package
 	self   *types2.Package
@@ -110,6 +119,10 @@ type irgen struct {
 	instTypeList []*types.Type
 
 	dnum int // for generating unique dictionary variables
+
+	// Map from generic function to information about its type params, derived
+	// types, and subdictionaries.
+	gfInfoMap map[*types.Sym]*gfInfo
 }
 
 func (g *irgen) generate(noders []*noder) {

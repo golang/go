@@ -10,12 +10,19 @@
 
 package main
 
+import (
+	"fmt"
+)
+
 func main() {
 	functions()
 	methodExpressions()
+	genMethodExpressions[int](7)
 	methodValues()
+	genMethodValues[int](7)
 	interfaceMethods()
 	globals()
+	recursive()
 }
 
 func g0[T any](x T) {
@@ -72,6 +79,20 @@ func methodExpressions() {
 	is77(f2(x))
 }
 
+func genMethodExpressions[T comparable](want T) {
+	x := s[T]{a: want}
+	f0 := s[T].g0
+	f0(x)
+	f1 := s[T].g1
+	if got := f1(x); got != want {
+		panic(fmt.Sprintf("f1(x) == %d, want %d", got, want))
+	}
+	f2 := s[T].g2
+	if got1, got2 := f2(x); got1 != want || got2 != want {
+		panic(fmt.Sprintf("f2(x) == %d, %d, want %d, %d", got1, got2, want, want))
+	}
+}
+
 func methodValues() {
 	x := s[int]{a:7}
 	f0 := x.g0
@@ -80,6 +101,20 @@ func methodValues() {
 	is7(f1())
 	f2 := x.g2
 	is77(f2())
+}
+
+func genMethodValues[T comparable](want T) {
+	x := s[T]{a: want}
+	f0 := x.g0
+	f0()
+	f1 := x.g1
+	if got := f1(); got != want {
+		panic(fmt.Sprintf("f1() == %d, want %d", got, want))
+	}
+	f2 := x.g2
+	if got1, got2 := f2(); got1 != want || got2 != want {
+		panic(fmt.Sprintf("f2() == %d, %d, want %d, %d", got1, got2, want, want))
+	}
 }
 
 var x interface{
@@ -123,4 +158,35 @@ func globals() {
 	ii0()
 	is7(ii1())
 	is77(ii2())
+}
+
+
+func recursive() {
+	if got, want := recur1[int](5), 110; got != want {
+		panic(fmt.Sprintf("recur1[int](5) = %d, want = %d", got, want))
+	}
+}
+
+type Integer interface {
+	int | int32 | int64
+}
+
+func recur1[T Integer](n T) T {
+	if n == 0 || n == 1 {
+		return T(1)
+	} else {
+		return n * recur2(n - 1)
+	}
+}
+
+func recur2[T Integer](n T) T {
+	list := make([]T, n)
+	for i, _ := range list {
+		list[i] = T(i+1)
+	}
+	var sum T
+	for _, elt := range list {
+		sum += elt
+	}
+	return sum + recur1(n-1)
 }
