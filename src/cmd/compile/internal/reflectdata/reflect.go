@@ -39,8 +39,11 @@ func CountPTabs() int {
 
 // runtime interface and reflection data structures
 var (
-	signatmu    sync.Mutex // protects signatset and signatslice
-	signatset   = make(map[*types.Type]struct{})
+	// protects signatset and signatslice
+	signatmu sync.Mutex
+	// Tracking which types need runtime type descriptor
+	signatset = make(map[*types.Type]struct{})
+	// Queue of types wait to be generated runtime type descriptor
 	signatslice []*types.Type
 
 	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
@@ -1248,7 +1251,6 @@ func WriteRuntimeTypes() {
 		// Transfer entries to a slice and sort, for reproducible builds.
 		for _, t := range signatslice {
 			signats = append(signats, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
-			delete(signatset, t)
 		}
 		signatslice = signatslice[:0]
 		sort.Sort(typesByString(signats))
