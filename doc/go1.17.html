@@ -67,6 +67,14 @@ Do not send CLs removing the interior tags from such phrases.
   using <code>unsafe.Add</code> or <code>unsafe.Slice</code>.
 </p>
 
+
+<p>
+  Note that the new conversion from slice to array pointer is the
+  first case in which a type conversion can panic at run time.
+  Analysis tools that assume type conversions can never panic
+  should be updated to consider this possibility.
+</p>
+
 <h2 id="ports">Ports</h2>
 
 <h3 id="darwin">Darwin</h3>
