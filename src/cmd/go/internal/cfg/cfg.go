@@ -47,8 +47,10 @@ var (
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
 
-	ModCacheRW bool   // -modcacherw flag
-	ModFile    string // -modfile flag
+	ModCacheRW       bool   // -modcacherw flag
+	ModFile          string // -modfile flag
+	WorkFile         string // -workfile flag
+	WorkFileExplicit bool   // whether -workfile was set explicitly
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
