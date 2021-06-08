@@ -35,6 +35,11 @@ const (
 	// module's go.mod file is expected to list explicit requirements on every
 	// module that provides any package transitively imported by that module.
 	lazyLoadingVersionV = "v1.17"
+
+	// separateIndirectVersionV is the Go version (plus leading "v") at which
+	// "// indirect" dependencies are added in a block separate from the direct
+	// ones. See https://golang.org/issue/45965.
+	separateIndirectVersionV = "v1.17"
 )
 
 const (
