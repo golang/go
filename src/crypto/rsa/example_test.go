@@ -13,7 +13,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -37,21 +36,17 @@ import (
 // a buffer that contains a random key. Thus, if the RSA result isn't
 // well-formed, the implementation uses a random key in constant time.
 func ExampleDecryptPKCS1v15SessionKey() {
-	// crypto/rand.Reader is a good source of entropy for blinding the RSA
-	// operation.
-	rng := rand.Reader
-
 	// The hybrid scheme should use at least a 16-byte symmetric key. Here
 	// we read the random key that will be used if the RSA decryption isn't
 	// well-formed.
 	key := make([]byte, 32)
-	if _, err := io.ReadFull(rng, key); err != nil {
+	if _, err := rand.Read(key); err != nil {
 		panic("RNG failure")
 	}
 
 	rsaCiphertext, _ := hex.DecodeString("aabbccddeeff")
 
-	if err := rsa.DecryptPKCS1v15SessionKey(rng, rsaPrivateKey, rsaCiphertext, key); err != nil {
+	if err := rsa.DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, rsaCiphertext, key); err != nil {
 		// Any errors that result will be “public” – meaning that they
 		// can be determined without any secret information. (For
 		// instance, if the length of key is impossible given the RSA
@@ -87,10 +82,6 @@ func ExampleDecryptPKCS1v15SessionKey() {
 }
 
 func ExampleSignPKCS1v15() {
-	// crypto/rand.Reader is a good source of entropy for blinding the RSA
-	// operation.
-	rng := rand.Reader
-
 	message := []byte("message to be signed")
 
 	// Only small messages can be signed directly; thus the hash of a
@@ -100,7 +91,7 @@ func ExampleSignPKCS1v15() {
 	// of writing (2016).
 	hashed := sha256.Sum256(message)
 
-	signature, err := rsa.SignPKCS1v15(rng, rsaPrivateKey, crypto.SHA256, hashed[:])
+	signature, err := rsa.SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA256, hashed[:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from signing: %s\n", err)
 		return
@@ -152,11 +143,7 @@ func ExampleDecryptOAEP() {
 	ciphertext, _ := hex.DecodeString("4d1ee10e8f286390258c51a5e80802844c3e6358ad6690b7285218a7c7ed7fc3a4c7b950fbd04d4b0239cc060dcc7065ca6f84c1756deb71ca5685cadbb82be025e16449b905c568a19c088a1abfad54bf7ecc67a7df39943ec511091a34c0f2348d04e058fcff4d55644de3cd1d580791d4524b92f3e91695582e6e340a1c50b6c6d78e80b4e42c5b4d45e479b492de42bbd39cc642ebb80226bb5200020d501b24a37bcc2ec7f34e596b4fd6b063de4858dbf5a4e3dd18e262eda0ec2d19dbd8e890d672b63d368768360b20c0b6b8592a438fa275e5fa7f60bef0dd39673fd3989cc54d2cb80c08fcd19dacbc265ee1c6014616b0e04ea0328c2a04e73460")
 	label := []byte("orders")
 
-	// crypto/rand.Reader is a good source of entropy for blinding the RSA
-	// operation.
-	rng := rand.Reader
-
-	plaintext, err := rsa.DecryptOAEP(sha256.New(), rng, test2048Key, ciphertext, label)
+	plaintext, err := rsa.DecryptOAEP(sha256.New(), nil, test2048Key, ciphertext, label)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from decryption: %s\n", err)
 		return

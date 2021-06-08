@@ -121,15 +121,8 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
 
 	dec, err := DecryptPKCS1v15(nil, priv, enc)
 	if err != nil {
-		t.Fatalf("DecryptPKCS1v15: %v", err)
-	}
-	if !bytes.Equal(dec, msg) {
-		t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
-	}
-
-	dec, err = DecryptPKCS1v15(rand.Reader, priv, enc)
-	if err != nil {
-		t.Fatalf("DecryptPKCS1v15: %v", err)
+		t.Errorf("DecryptPKCS1v15: %v", err)
+		return
 	}
 	if !bytes.Equal(dec, msg) {
 		t.Errorf("got:%x want:%x (%+v)", dec, msg, priv)
