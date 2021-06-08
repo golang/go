@@ -4672,7 +4672,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 	// runtime panic code to use. But in the defer exit code, we will
 	// call the function directly if it is a static function.
 	closureVal := s.expr(fn)
-	closure := s.openDeferSave(nil, fn.Type(), closureVal)
+	closure := s.openDeferSave(fn.Type(), closureVal)
 	opendefer.closureNode = closure.Aux.(*ir.Name)
 	if !(fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC) {
 		opendefer.closure = closure
@@ -4690,57 +4690,47 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
 
 // openDeferSave generates SSA nodes to store a value (with type t) for an
 // open-coded defer at an explicit autotmp location on the stack, so it can be
-// reloaded and used for the appropriate call on exit. If type t is SSAable, then
-// val must be non-nil (and n should be nil) and val is the value to be stored. If
-// type t is non-SSAable, then n must be non-nil (and val should be nil) and n is
-// evaluated (via s.addr() below) to get the value that is to be stored. The
-// function returns an SSA value representing a pointer to the autotmp location.
-func (s *state) openDeferSave(n ir.Node, t *types.Type, val *ssa.Value) *ssa.Value {
-	canSSA := TypeOK(t)
-	var pos src.XPos
-	if canSSA {
-		pos = val.Pos
-	} else {
-		pos = n.Pos()
+// reloaded and used for the appropriate call on exit. Type t must be a function type
+// (therefore SSAable). val is the value to be stored. The function returns an SSA
+// value representing a pointer to the autotmp location.
+func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
+	if !TypeOK(t) {
+		s.Fatalf("openDeferSave of non-SSA-able type %v val=%v", t, val)
 	}
-	argTemp := typecheck.TempAt(pos.WithNotStmt(), s.curfn, t)
-	argTemp.SetOpenDeferSlot(true)
-	var addrArgTemp *ssa.Value
-	// Use OpVarLive to make sure stack slots for the args, etc. are not
-	// removed by dead-store elimination
+	if !t.HasPointers() {
+		s.Fatalf("openDeferSave of pointerless type %v val=%v", t, val)
+	}
+	pos := val.Pos
+	temp := typecheck.TempAt(pos.WithNotStmt(), s.curfn, t)
+	temp.SetOpenDeferSlot(true)
+	var addrTemp *ssa.Value
+	// Use OpVarLive to make sure stack slot for the closure is not removed by
+	// dead-store elimination
 	if s.curBlock.ID != s.f.Entry.ID {
-		// Force the argtmp storing this defer function/receiver/arg to be
-		// declared in the entry block, so that it will be live for the
-		// defer exit code (which will actually access it only if the
-		// associated defer call has been activated).
-		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarDef, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
-		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarLive, types.TypeMem, argTemp, s.defvars[s.f.Entry.ID][memVar])
-		addrArgTemp = s.f.Entry.NewValue2A(src.NoXPos, ssa.OpLocalAddr, types.NewPtr(argTemp.Type()), argTemp, s.sp, s.defvars[s.f.Entry.ID][memVar])
+		// Force the tmp storing this defer function to be declared in the entry
+		// block, so that it will be live for the defer exit code (which will
+		// actually access it only if the associated defer call has been activated).
+		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarDef, types.TypeMem, temp, s.defvars[s.f.Entry.ID][memVar])
+		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarLive, types.TypeMem, temp, s.defvars[s.f.Entry.ID][memVar])
+		addrTemp = s.f.Entry.NewValue2A(src.NoXPos, ssa.OpLocalAddr, types.NewPtr(temp.Type()), temp, s.sp, s.defvars[s.f.Entry.ID][memVar])
 	} else {
 		// Special case if we're still in the entry block. We can't use
 		// the above code, since s.defvars[s.f.Entry.ID] isn't defined
 		// until we end the entry block with s.endBlock().
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, argTemp, s.mem(), false)
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argTemp, s.mem(), false)
-		addrArgTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(argTemp.Type()), argTemp, s.sp, s.mem(), false)
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, temp, s.mem(), false)
+		s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, temp, s.mem(), false)
+		addrTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(temp.Type()), temp, s.sp, s.mem(), false)
 	}
-	if t.HasPointers() {
-		// Since we may use this argTemp during exit depending on the
-		// deferBits, we must define it unconditionally on entry.
-		// Therefore, we must make sure it is zeroed out in the entry
-		// block if it contains pointers, else GC may wrongly follow an
-		// uninitialized pointer value.
-		argTemp.SetNeedzero(true)
-	}
-	if !canSSA {
-		a := s.addr(n)
-		s.move(t, addrArgTemp, a)
-		return addrArgTemp
-	}
+	// Since we may use this temp during exit depending on the
+	// deferBits, we must define it unconditionally on entry.
+	// Therefore, we must make sure it is zeroed out in the entry
+	// block if it contains pointers, else GC may wrongly follow an
+	// uninitialized pointer value.
+	temp.SetNeedzero(true)
 	// We are storing to the stack, hence we can avoid the full checks in
 	// storeType() (no write barrier) and do a simple store().
-	s.store(t, addrArgTemp, val)
-	return addrArgTemp
+	s.store(t, addrTemp, val)
+	return addrTemp
 }
 
 // openDeferExit generates SSA for processing all the open coded defers at exit.
