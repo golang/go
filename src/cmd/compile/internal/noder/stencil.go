@@ -838,7 +838,15 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OTYPE:
 				// Transform the conversion, now that we know the
 				// type argument.
-				m = transformConvCall(m.(*ir.CallExpr))
+				m = transformConvCall(call)
+				if m.Op() == ir.OCONVIFACE {
+					if srcType := x.(*ir.CallExpr).Args[0].Type(); srcType.IsTypeParam() { // TODO: or derived type
+						// Note: srcType uses x.Args[0], not m.X or call.Args[0], because
+						// we need the type before the type parameter -> type argument substitution.
+						c := m.(*ir.ConvExpr)
+						m = subst.convertUsingDictionary(c.Pos(), c.X, c.Type(), srcType)
+					}
+				}
 
 			case ir.OMETHVALUE:
 				// Redo the transformation of OXDOT, now that we
@@ -919,36 +927,57 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 		case ir.OCONVIFACE:
 			x := x.(*ir.ConvExpr)
-			// TODO: handle converting from derived types. For now, just from naked
-			// type parameters.
-			if x.X.Type().IsTypeParam() {
-				// Load the actual runtime._type of the type parameter from the dictionary.
-				rt := subst.getDictionaryType(m.Pos(), x.X.Type())
-
-				// At this point, m is an interface type with a data word we want.
-				// But the type word represents a gcshape type, which we don't want.
-				// Replace with the instantiated type loaded from the dictionary.
-				m = ir.NewUnaryExpr(m.Pos(), ir.OIDATA, m)
-				typed(types.Types[types.TUNSAFEPTR], m)
-				m = ir.NewBinaryExpr(m.Pos(), ir.OEFACE, rt, m)
-				if !x.Type().IsEmptyInterface() {
-					// We just built an empty interface{}. Type it as such,
-					// then assert it to the required non-empty interface.
-					typed(types.NewInterface(types.LocalPkg, nil), m)
-					m = ir.NewTypeAssertExpr(m.Pos(), m, nil)
-				}
-				typed(x.Type(), m)
-				// TODO: we're throwing away the type word of the original version
-				// of m here (it would be OITAB(m)), which probably took some
-				// work to generate. Can we avoid generating it at all?
-				// (The linker will throw them away if not needed, so it would just
-				// save toolchain work, not binary size.)
+			// Note: x's argument is still typed as a type parameter.
+			// m's argument now has an instantiated type.
+			if t := x.X.Type(); t.IsTypeParam() {
+				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t)
 			}
 		}
 		return m
 	}
 
 	return edit(n)
+}
+
+// convertUsingDictionary converts value v from generic type src to an interface type dst.
+func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, dst, src *types.Type) ir.Node {
+	// TODO: handle converting from derived types. For now, just from naked
+	// type parameters.
+	if !src.IsTypeParam() {
+		base.Fatalf("source must be a type parameter %+v", src)
+	}
+	if !dst.IsInterface() {
+		base.Fatalf("can only convert type parameters to interfaces %+v -> %+v", src, dst)
+	}
+	// Load the actual runtime._type of the type parameter from the dictionary.
+	rt := subst.getDictionaryType(pos, src)
+
+	// Convert value to an interface type, so the data field is what we want.
+	if !v.Type().IsInterface() {
+		v = ir.NewConvExpr(v.Pos(), ir.OCONVIFACE, nil, v)
+		typed(types.NewInterface(types.LocalPkg, nil), v)
+	}
+
+	// At this point, v is an interface type with a data word we want.
+	// But the type word represents a gcshape type, which we don't want.
+	// Replace with the instantiated type loaded from the dictionary.
+	data := ir.NewUnaryExpr(pos, ir.OIDATA, v)
+	typed(types.Types[types.TUNSAFEPTR], data)
+	var i ir.Node = ir.NewBinaryExpr(pos, ir.OEFACE, rt, data)
+	if !dst.IsEmptyInterface() {
+		// We just built an empty interface{}. Type it as such,
+		// then assert it to the required non-empty interface.
+		typed(types.NewInterface(types.LocalPkg, nil), i)
+		i = ir.NewTypeAssertExpr(pos, i, nil)
+	}
+	typed(dst, i)
+	// TODO: we're throwing away the type word of the original version
+	// of m here (it would be OITAB(m)), which probably took some
+	// work to generate. Can we avoid generating it at all?
+	// (The linker will throw them away if not needed, so it would just
+	// save toolchain work, not binary size.)
+	return i
+
 }
 
 func (subst *subster) namelist(l []*ir.Name) []*ir.Name {

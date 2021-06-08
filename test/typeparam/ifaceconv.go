@@ -38,8 +38,12 @@ func h[T C](x T) interface{foo() int} {
 	return i
 }
 func i[T C](x T) C {
-	var i C = x
+	var i C = x // conversion in assignment
 	return i
+}
+
+func j[T C](t T) C {
+	return C(t) // explicit conversion
 }
 
 func main() {
@@ -53,6 +57,9 @@ func main() {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 	if got, want := i[myInt](7).foo(), 8; got != want {
+		panic(fmt.Sprintf("got %d want %d", got, want))
+	}
+	if got, want := j[myInt](7).foo(), 8; got != want {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 }
