@@ -720,8 +720,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 					throw("missing deferreturn")
 				}
 
-				maxargsize, _ := readvarintUnsafe(fd)
-				d1 := newdefer(int32(maxargsize))
+				d1 := newdefer(0)
 				d1.openDefer = true
 				d1._panic = nil
 				// These are the pc/sp to set after we've
@@ -782,27 +781,15 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 	done := true
 	fd := d.fd
 
-	// Skip the maxargsize
-	_, fd = readvarintUnsafe(fd)
 	deferBitsOffset, fd := readvarintUnsafe(fd)
 	nDefers, fd := readvarintUnsafe(fd)
 	deferBits := *(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset)))
 
 	for i := int(nDefers) - 1; i >= 0; i-- {
 		// read the funcdata info for this defer
-		var argWidth, closureOffset, nArgs uint32
-		argWidth, fd = readvarintUnsafe(fd)
+		var closureOffset uint32
 		closureOffset, fd = readvarintUnsafe(fd)
-		nArgs, fd = readvarintUnsafe(fd)
-		if argWidth != 0 || nArgs != 0 {
-			throw("defer with non-empty frame")
-		}
 		if deferBits&(1<<i) == 0 {
-			for j := uint32(0); j < nArgs; j++ {
-				_, fd = readvarintUnsafe(fd)
-				_, fd = readvarintUnsafe(fd)
-				_, fd = readvarintUnsafe(fd)
-			}
 			continue
 		}
 		closure := *(*func())(unsafe.Pointer(d.varp - uintptr(closureOffset)))
