@@ -838,12 +838,9 @@ func Foo() bool {
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
-    <p><!-- CL 170079 -->
-      TODO: <a href="https://golang.org/cl/170079">https://golang.org/cl/170079</a>: implement Ryū-like algorithm for fixed precision ftoa
-    </p>
-
-    <p><!-- CL 170080 -->
-      TODO: <a href="https://golang.org/cl/170080">https://golang.org/cl/170080</a>: Implement Ryū algorithm for ftoa shortest mode
+    <p><!-- CL 170079, CL 170080 -->
+      The <code>strconv</code> package now uses Ulf Adams's Ryū algorithm for formatting floating-point numbers.
+      This algorithm improves performance on most inputs, and is more than 99% faster on worst-case inputs.
     </p>
 
     <p><!-- CL 314775 -->
