@@ -324,43 +324,21 @@ func dvarint(x *obj.LSym, off int, v int64) int {
 // for stack variables are specified as the number of bytes below varp (pointer to the
 // top of the local variables) for their starting address. The format is:
 //
-//  - Max total argument size among all the defers
 //  - Offset of the deferBits variable
 //  - Number of defers in the function
 //  - Information about each defer call, in reverse order of appearance in the function:
-//    - Total argument size of the call
 //    - Offset of the closure value to call
-//    - Number of arguments (including interface receiver or method receiver as first arg)
-//    - Information about each argument
-//      - Offset of the stored defer argument in this function's frame
-//      - Size of the argument
-//      - Offset of where argument should be placed in the args frame when making call
 func (s *state) emitOpenDeferInfo() {
 	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
 	s.curfn.LSym.Func().OpenCodedDeferInfo = x
 	off := 0
-
-	// Compute maxargsize (max size of arguments for all defers)
-	// first, so we can output it first to the funcdata
-	var maxargsize int64
-	for i := len(s.openDefers) - 1; i >= 0; i-- {
-		r := s.openDefers[i]
-		argsize := r.n.X.Type().ArgWidth() // TODO register args: but maybe use of abi0 will make this easy
-		if argsize > maxargsize {
-			maxargsize = argsize
-		}
-	}
-	off = dvarint(x, off, maxargsize)
 	off = dvarint(x, off, -s.deferBitsTemp.FrameOffset())
 	off = dvarint(x, off, int64(len(s.openDefers)))
 
 	// Write in reverse-order, for ease of running in that order at runtime
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
-		off = dvarint(x, off, r.n.X.Type().ArgWidth())
 		off = dvarint(x, off, -r.closureNode.FrameOffset())
-		numArgs := 0
-		off = dvarint(x, off, int64(numArgs))
 	}
 }
 
