@@ -236,7 +236,7 @@ func deferproc(fn func()) {
 	sp := getcallersp()
 	callerpc := getcallerpc()
 
-	d := newdefer(0)
+	d := newdefer()
 	if d._panic != nil {
 		throw("deferproc: d.panic != nil after newdefer")
 	}
@@ -302,106 +302,37 @@ func deferprocStack(d *_defer) {
 	// been set and must not be clobbered.
 }
 
-// Small malloc size classes >= 16 are the multiples of 16: 16, 32, 48, 64, 80, 96, 112, 128, 144, ...
-// Each P holds a pool for defers with small arg sizes.
-// Assign defer allocations to pools by rounding to 16, to match malloc size classes.
-
-const (
-	deferHeaderSize = unsafe.Sizeof(_defer{})
-	minDeferAlloc   = (deferHeaderSize + 15) &^ 15
-	minDeferArgs    = minDeferAlloc - deferHeaderSize
-)
-
-// defer size class for arg size sz
-//go:nosplit
-func deferclass(siz uintptr) uintptr {
-	if siz <= minDeferArgs {
-		return 0
-	}
-	return (siz - minDeferArgs + 15) / 16
-}
-
-// total size of memory block for defer with arg size sz
-func totaldefersize(siz uintptr) uintptr {
-	if siz <= minDeferArgs {
-		return minDeferAlloc
-	}
-	return deferHeaderSize + siz
-}
-
-// Ensure that defer arg sizes that map to the same defer size class
-// also map to the same malloc size class.
-func testdefersizes() {
-	var m [len(p{}.deferpool)]int32
-
-	for i := range m {
-		m[i] = -1
-	}
-	for i := uintptr(0); ; i++ {
-		defersc := deferclass(i)
-		if defersc >= uintptr(len(m)) {
-			break
-		}
-		siz := roundupsize(totaldefersize(i))
-		if m[defersc] < 0 {
-			m[defersc] = int32(siz)
-			continue
-		}
-		if m[defersc] != int32(siz) {
-			print("bad defer size class: i=", i, " siz=", siz, " defersc=", defersc, "\n")
-			throw("bad defer size class")
-		}
-	}
-}
-
-var deferType *_type // type of _defer struct
-
-func init() {
-	var x interface{}
-	x = (*_defer)(nil)
-	deferType = (*(**ptrtype)(unsafe.Pointer(&x))).elem
-}
+// Each P holds a pool for defers.
 
 // Allocate a Defer, usually using per-P pool.
 // Each defer must be released with freedefer.  The defer is not
 // added to any defer chain yet.
-//
-// This must not grow the stack because there may be a frame without
-// stack map information when this is called.
-//
-//go:nosplit
-func newdefer(siz int32) *_defer {
+func newdefer() *_defer {
 	var d *_defer
-	sc := deferclass(uintptr(siz))
 	gp := getg()
-	if sc < uintptr(len(p{}.deferpool)) {
-		pp := gp.m.p.ptr()
-		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
-			// Take the slow path on the system stack so
-			// we don't grow newdefer's stack.
-			systemstack(func() {
-				lock(&sched.deferlock)
-				for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
-					d := sched.deferpool[sc]
-					sched.deferpool[sc] = d.link
-					d.link = nil
-					pp.deferpool[sc] = append(pp.deferpool[sc], d)
-				}
-				unlock(&sched.deferlock)
-			})
-		}
-		if n := len(pp.deferpool[sc]); n > 0 {
-			d = pp.deferpool[sc][n-1]
-			pp.deferpool[sc][n-1] = nil
-			pp.deferpool[sc] = pp.deferpool[sc][:n-1]
-		}
+	pp := gp.m.p.ptr()
+	if len(pp.deferpool) == 0 && sched.deferpool != nil {
+		// Take the slow path on the system stack so
+		// we don't grow newdefer's stack.
+		systemstack(func() {
+			lock(&sched.deferlock)
+			for len(pp.deferpool) < cap(pp.deferpool)/2 && sched.deferpool != nil {
+				d := sched.deferpool
+				sched.deferpool = d.link
+				d.link = nil
+				pp.deferpool = append(pp.deferpool, d)
+			}
+			unlock(&sched.deferlock)
+		})
+	}
+	if n := len(pp.deferpool); n > 0 {
+		d = pp.deferpool[n-1]
+		pp.deferpool[n-1] = nil
+		pp.deferpool = pp.deferpool[:n-1]
 	}
 	if d == nil {
-		// Allocate new defer+args.
-		systemstack(func() {
-			total := roundupsize(totaldefersize(uintptr(siz)))
-			d = (*_defer)(mallocgc(total, deferType, true))
-		})
+		// Allocate new defer.
+		d = new(_defer)
 	}
 	d.heap = true
 	return d
@@ -424,23 +355,19 @@ func freedefer(d *_defer) {
 	if !d.heap {
 		return
 	}
-	sc := deferclass(0)
-	if sc >= uintptr(len(p{}.deferpool)) {
-		return
-	}
 	pp := getg().m.p.ptr()
-	if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+	if len(pp.deferpool) == cap(pp.deferpool) {
 		// Transfer half of local cache to the central cache.
 		//
 		// Take this slow path on the system stack so
 		// we don't grow freedefer's stack.
 		systemstack(func() {
 			var first, last *_defer
-			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
-				n := len(pp.deferpool[sc])
-				d := pp.deferpool[sc][n-1]
-				pp.deferpool[sc][n-1] = nil
-				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+			for len(pp.deferpool) > cap(pp.deferpool)/2 {
+				n := len(pp.deferpool)
+				d := pp.deferpool[n-1]
+				pp.deferpool[n-1] = nil
+				pp.deferpool = pp.deferpool[:n-1]
 				if first == nil {
 					first = d
 				} else {
@@ -449,8 +376,8 @@ func freedefer(d *_defer) {
 				last = d
 			}
 			lock(&sched.deferlock)
-			last.link = sched.deferpool[sc]
-			sched.deferpool[sc] = first
+			last.link = sched.deferpool
+			sched.deferpool = first
 			unlock(&sched.deferlock)
 		})
 	}
@@ -469,7 +396,7 @@ func freedefer(d *_defer) {
 	// both of which throw.
 	d.link = nil
 
-	pp.deferpool[sc] = append(pp.deferpool[sc], d)
+	pp.deferpool = append(pp.deferpool, d)
 }
 
 // Separate function so that it can split stack.
@@ -720,7 +647,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 					throw("missing deferreturn")
 				}
 
-				d1 := newdefer(0)
+				d1 := newdefer()
 				d1.openDefer = true
 				d1._panic = nil
 				// These are the pc/sp to set after we've

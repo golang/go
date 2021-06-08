@@ -613,8 +613,8 @@ type p struct {
 	pcache      pageCache
 	raceprocctx uintptr
 
-	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
-	deferpoolbuf [5][32]*_defer
+	deferpool    []*_defer // pool of available defer structs (see panic.go)
+	deferpoolbuf [32]*_defer
 
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
 	goidcache    uint64
@@ -801,9 +801,9 @@ type schedt struct {
 	sudoglock  mutex
 	sudogcache *sudog
 
-	// Central pool of available defer structs of different sizes.
+	// Central pool of available defer structs.
 	deferlock mutex
-	deferpool [5]*_defer
+	deferpool *_defer
 
 	// freem is the list of m's waiting to be freed when their
 	// m.exited is set. Linked through m.freelink.

@@ -1558,19 +1558,17 @@ func clearpools() {
 	sched.sudogcache = nil
 	unlock(&sched.sudoglock)
 
-	// Clear central defer pools.
+	// Clear central defer pool.
 	// Leave per-P pools alone, they have strictly bounded size.
 	lock(&sched.deferlock)
-	for i := range sched.deferpool {
-		// disconnect cached list before dropping it on the floor,
-		// so that a dangling ref to one entry does not pin all of them.
-		var d, dlink *_defer
-		for d = sched.deferpool[i]; d != nil; d = dlink {
-			dlink = d.link
-			d.link = nil
-		}
-		sched.deferpool[i] = nil
+	// disconnect cached list before dropping it on the floor,
+	// so that a dangling ref to one entry does not pin all of them.
+	var d, dlink *_defer
+	for d = sched.deferpool; d != nil; d = dlink {
+		dlink = d.link
+		d.link = nil
 	}
+	sched.deferpool = nil
 	unlock(&sched.deferlock)
 }
 
