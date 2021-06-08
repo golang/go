@@ -973,14 +973,18 @@ func lookupRepo(proxy, path string) (repo versionRepo, err error) {
 		repo = emptyRepo{path: path, err: err}
 	}
 
-	if index == nil {
-		return repo, err
-	}
-	if _, ok := index.highestReplaced[path]; !ok {
-		return repo, err
+	// TODO(#45713): Join all the highestReplaced fields into a single value.
+	for _, mm := range MainModules.Versions() {
+		index := MainModules.Index(mm)
+		if index == nil {
+			continue
+		}
+		if _, ok := index.highestReplaced[path]; ok {
+			return &replacementRepo{repo: repo}, nil
+		}
 	}
 
-	return &replacementRepo{repo: repo}, nil
+	return repo, err
 }
 
 // An emptyRepo is a versionRepo that contains no versions.
@@ -1019,11 +1023,13 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 	}
 
 	versions := repoVersions
-	if index != nil && len(index.replace) > 0 {
-		path := rr.ModulePath()
-		for m, _ := range index.replace {
-			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
-				versions = append(versions, m.Version)
+	for _, mm := range MainModules.Versions() {
+		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+			path := rr.ModulePath()
+			for m, _ := range index.replace {
+				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
+					versions = append(versions, m.Version)
+				}
 			}
 		}
 	}
@@ -1041,7 +1047,16 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 
 func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
 	info, err := rr.repo.Stat(rev)
-	if err == nil || index == nil || len(index.replace) == 0 {
+	if err == nil {
+		return info, err
+	}
+	var hasReplacements bool
+	for _, v := range MainModules.Versions() {
+		if index := MainModules.Index(v); index != nil && len(index.replace) > 0 {
+			hasReplacements = true
+		}
+	}
+	if !hasReplacements {
 		return info, err
 	}
 
@@ -1068,26 +1083,41 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
 
 func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
 	info, err := rr.repo.Latest()
+	path := rr.ModulePath()
 
-	if index != nil {
-		path := rr.ModulePath()
-		if v, ok := index.highestReplaced[path]; ok {
-			if v == "" {
-				// The only replacement is a wildcard that doesn't specify a version, so
-				// synthesize a pseudo-version with an appropriate major version and a
-				// timestamp below any real timestamp. That way, if the main module is
-				// used from within some other module, the user will be able to upgrade
-				// the requirement to any real version they choose.
-				if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
-					v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
-				} else {
-					v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
+	highestReplaced, found := "", false
+	for _, mm := range MainModules.Versions() {
+		if index := MainModules.Index(mm); index != nil {
+			if v, ok := index.highestReplaced[path]; ok {
+				if !found {
+					highestReplaced, found = v, true
+					continue
+				}
+				if semver.Compare(v, highestReplaced) > 0 {
+					highestReplaced = v
 				}
 			}
+		}
+	}
 
-			if err != nil || semver.Compare(v, info.Version) > 0 {
-				return rr.replacementStat(v)
+	if found {
+		v := highestReplaced
+
+		if v == "" {
+			// The only replacement is a wildcard that doesn't specify a version, so
+			// synthesize a pseudo-version with an appropriate major version and a
+			// timestamp below any real timestamp. That way, if the main module is
+			// used from within some other module, the user will be able to upgrade
+			// the requirement to any real version they choose.
+			if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
+				v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+			} else {
+				v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
 			}
+		}
+
+		if err != nil || semver.Compare(v, info.Version) > 0 {
+			return rr.replacementStat(v)
 		}
 	}
 

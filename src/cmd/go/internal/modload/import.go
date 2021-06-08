@@ -414,69 +414,71 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 func queryImport(ctx context.Context, path string, rs *Requirements) (module.Version, error) {
 	// To avoid spurious remote fetches, try the latest replacement for each
 	// module (golang.org/issue/26241).
-	if index != nil {
-		var mods []module.Version
-		for mp, mv := range index.highestReplaced {
-			if !maybeInModule(path, mp) {
-				continue
-			}
-			if mv == "" {
-				// The only replacement is a wildcard that doesn't specify a version, so
-				// synthesize a pseudo-version with an appropriate major version and a
-				// timestamp below any real timestamp. That way, if the main module is
-				// used from within some other module, the user will be able to upgrade
-				// the requirement to any real version they choose.
-				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
-					mv = module.ZeroPseudoVersion(pathMajor[1:])
-				} else {
-					mv = module.ZeroPseudoVersion("v0")
+	var mods []module.Version
+	for _, v := range MainModules.Versions() {
+		if index := MainModules.Index(v); index != nil {
+			for mp, mv := range index.highestReplaced {
+				if !maybeInModule(path, mp) {
+					continue
 				}
+				if mv == "" {
+					// The only replacement is a wildcard that doesn't specify a version, so
+					// synthesize a pseudo-version with an appropriate major version and a
+					// timestamp below any real timestamp. That way, if the main module is
+					// used from within some other module, the user will be able to upgrade
+					// the requirement to any real version they choose.
+					if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+						mv = module.ZeroPseudoVersion(pathMajor[1:])
+					} else {
+						mv = module.ZeroPseudoVersion("v0")
+					}
+				}
+				mg, err := rs.Graph(ctx)
+				if err != nil {
+					return module.Version{}, err
+				}
+				if cmpVersion(mg.Selected(mp), mv) >= 0 {
+					// We can't resolve the import by adding mp@mv to the module graph,
+					// because the selected version of mp is already at least mv.
+					continue
+				}
+				mods = append(mods, module.Version{Path: mp, Version: mv})
 			}
-			mg, err := rs.Graph(ctx)
-			if err != nil {
-				return module.Version{}, err
-			}
-			if cmpVersion(mg.Selected(mp), mv) >= 0 {
-				// We can't resolve the import by adding mp@mv to the module graph,
-				// because the selected version of mp is already at least mv.
-				continue
-			}
-			mods = append(mods, module.Version{Path: mp, Version: mv})
 		}
+	}
 
-		// Every module path in mods is a prefix of the import path.
-		// As in QueryPattern, prefer the longest prefix that satisfies the import.
-		sort.Slice(mods, func(i, j int) bool {
-			return len(mods[i].Path) > len(mods[j].Path)
-		})
-		for _, m := range mods {
-			needSum := true
-			root, isLocal, err := fetch(ctx, m, needSum)
-			if err != nil {
-				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
-					return module.Version{}, &ImportMissingSumError{importPath: path}
-				}
-				return module.Version{}, err
+	// Every module path in mods is a prefix of the import path.
+	// As in QueryPattern, prefer the longest prefix that satisfies the import.
+	sort.Slice(mods, func(i, j int) bool {
+		return len(mods[i].Path) > len(mods[j].Path)
+	})
+	for _, m := range mods {
+		needSum := true
+		root, isLocal, err := fetch(ctx, m, needSum)
+		if err != nil {
+			if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
+				return module.Version{}, &ImportMissingSumError{importPath: path}
 			}
-			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
-				return m, err
-			} else if ok {
-				if cfg.BuildMod == "readonly" {
-					return module.Version{}, &ImportMissingError{Path: path, replaced: m}
-				}
-				return m, nil
-			}
+			return module.Version{}, err
 		}
-		if len(mods) > 0 && module.CheckPath(path) != nil {
-			// The package path is not valid to fetch remotely,
-			// so it can only exist in a replaced module,
-			// and we know from the above loop that it is not.
-			return module.Version{}, &PackageNotInModuleError{
-				Mod:         mods[0],
-				Query:       "latest",
-				Pattern:     path,
-				Replacement: Replacement(mods[0]),
+		if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
+			return m, err
+		} else if ok {
+			if cfg.BuildMod == "readonly" {
+				return module.Version{}, &ImportMissingError{Path: path, replaced: m}
 			}
+			return m, nil
+		}
+	}
+	if len(mods) > 0 && module.CheckPath(path) != nil {
+		// The package path is not valid to fetch remotely,
+		// so it can only exist in a replaced module,
+		// and we know from the above loop that it is not.
+		return module.Version{}, &PackageNotInModuleError{
+			Mod:         mods[0],
+			Query:       "latest",
+			Pattern:     path,
+			Replacement: Replacement(mods[0]),
 		}
 	}
 
