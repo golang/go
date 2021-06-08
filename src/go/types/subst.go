@@ -311,15 +311,19 @@ func (subst *subster) typ(typ Type) Type {
 			return _NewSum(types)
 		}
 
+	case *Union:
+		terms, copied := subst.typeList(t.terms)
+		if copied {
+			// TODO(gri) Do we need to remove duplicates that may have
+			//           crept in after substitution? It may not matter.
+			return newUnion(terms, t.tilde)
+		}
+
 	case *Interface:
 		methods, mcopied := subst.funcList(t.methods)
-		types := t.types
-		if t.types != nil {
-			types = subst.typ(t.types)
-		}
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
-		if mcopied || types != t.types || ecopied {
-			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
+		if mcopied || ecopied {
+			iface := &Interface{methods: methods, embeddeds: embeddeds}
 			if subst.check == nil {
 				panic("internal error: cannot instantiate interfaces yet")
 			}

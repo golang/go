@@ -95,6 +95,9 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
+	{"interface{type int, float32, complex128}", "interface{~int|~float32|~complex128}"},
+	dup("interface{int|float32|complex128}"),
+	dup("interface{int|~float32|~complex128}"),
 
 	// TODO(rFindley) uncomment this once this AST is accepted, and add more test
 	// cases.

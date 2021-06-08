@@ -305,7 +305,6 @@ func (s *_Sum) is(pred func(Type) bool) bool {
 // An Interface represents an interface type.
 type Interface struct {
 	methods   []*Func // ordered list of explicitly declared methods
-	types     Type    // (possibly a Sum) type declared with a type list (TODO(gri) need better field name)
 	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)

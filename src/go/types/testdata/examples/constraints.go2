@@ -1,0 +1,25 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file shows some examples of generic constraint interfaces.
+
+package p
+
+type (
+	// Arbitrary types may be embedded like interfaces.
+	_ interface{int}
+	_ interface{~int}
+
+	// Types may be combined into a union.
+	_ interface{int|~string}
+
+	// Union terms must be unique independent of whether they are ~ or not.
+	_ interface{int|int /* ERROR duplicate term int */ }
+	_ interface{int|~ /* ERROR duplicate term int */ int }
+	_ interface{~int|~ /* ERROR duplicate term int */ int }
+
+	// For now we do not permit interfaces with ~ or in unions.
+	_ interface{~ /* ERROR cannot use interface */ interface{}}
+	_ interface{int|interface /* ERROR cannot use interface */ {}}
+)
