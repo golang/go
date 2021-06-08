@@ -700,6 +700,11 @@ func (n *UnaryExpr) SetOp(op Op) {
 	}
 }
 
+// Probably temporary: using Implicit() flag to mark generic function nodes that
+// are called to make getGfInfo analysis easier in one pre-order pass.
+func (n *InstExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
+func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+
 // An InstExpr is a generic function or type instantiation.
 type InstExpr struct {
 	miniExpr

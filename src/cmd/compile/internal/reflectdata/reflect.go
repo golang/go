@@ -1716,8 +1716,12 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		rcvr = rcvr.PtrTo()
 	}
 	generic := false
-	if !rcvr.IsInterface() && len(rcvr.RParams()) > 0 || rcvr.IsPtr() && len(rcvr.Elem().RParams()) > 0 { // TODO: right detection?
-		// TODO: check that we do the right thing when rcvr.IsInterface().
+	if !types.IsInterfaceMethod(method.Type) &&
+		(len(rcvr.RParams()) > 0 ||
+			rcvr.IsPtr() && len(rcvr.Elem().RParams()) > 0) { // TODO: right detection?
+		// Don't need dictionary if we are reaching a method (possibly via
+		// an embedded field) which is an interface method.
+		// TODO: check that we do the right thing when method is an interface method.
 		generic = true
 	}
 	if base.Debug.Unified != 0 {
@@ -1786,12 +1790,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	}
 
 	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
-	if generic && dot.X != nthis && dot.X.Type().IsInterface() {
-		// We followed some embedded fields, and the last type was
-		// actually an interface, so no need for a dictionary.
-		generic = false
-	}
-
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
 	// bad scenario is when a local call is made to the wrapper: the wrapper will
@@ -1815,6 +1813,14 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		var call *ir.CallExpr
+
+		if generic && dot.X != nthis {
+			// TODO: for now, we don't try to generate dictionary wrappers for
+			// any methods involving embedded fields, because we're not
+			// generating the needed dictionaries in instantiateMethods.
+			generic = false
+		}
+
 		if generic {
 			var args []ir.Node
 			var targs []*types.Type
@@ -1827,7 +1833,17 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
 				panic("multiple .inst.")
 			}
-			args = append(args, getDictionary(".inst."+ir.MethodSym(orig, method.Sym).Name, targs)) // TODO: remove .inst.
+			// Temporary fix: the wrapper for an auto-generated
+			// pointer/non-pointer receiver method should share the
+			// same dictionary as the corresponding original
+			// (user-written) method.
+			baseOrig := orig
+			if baseOrig.IsPtr() && !method.Type.Recv().Type.IsPtr() {
+				baseOrig = baseOrig.Elem()
+			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
+				baseOrig = types.NewPtr(baseOrig)
+			}
+			args = append(args, getDictionary(".inst."+ir.MethodSym(baseOrig, method.Sym).Name, targs)) // TODO: remove .inst.
 			if indirect {
 				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
 			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
@@ -1852,6 +1868,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			}
 			target := ir.AsNode(sym.Def)
 			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
+			// Fill-in the generic method node that was not filled in
+			// in instantiateMethod.
+			method.Nname = fn.Nname
 		} else {
 			call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
 			call.Args = ir.ParamNames(tfn.Type())
@@ -1924,23 +1943,6 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	r.Type = objabi.R_USEIFACEMETHOD
 }
 
-// getDictionaryForInstantiation returns the dictionary that should be used for invoking
-// the concrete instantiation described by inst.
-func GetDictionaryForInstantiation(inst *ir.InstExpr) ir.Node {
-	targs := typecheck.TypesOf(inst.Targs)
-	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
-		return GetDictionaryForMethod(meth.Selection.Nname.(*ir.Name), targs)
-	}
-	return GetDictionaryForFunc(inst.X.(*ir.Name), targs)
-}
-
-func GetDictionaryForFunc(fn *ir.Name, targs []*types.Type) ir.Node {
-	return getDictionary(typecheck.MakeInstName(fn.Sym(), targs, false).Name, targs)
-}
-func GetDictionaryForMethod(meth *ir.Name, targs []*types.Type) ir.Node {
-	return getDictionary(typecheck.MakeInstName(meth.Sym(), targs, true).Name, targs)
-}
-
 // getDictionary returns the dictionary for the given named generic function
 // or method, with the given type arguments.
 // TODO: pass a reference to the generic function instead? We might need
@@ -1964,14 +1966,7 @@ func getDictionary(name string, targs []*types.Type) ir.Node {
 
 	// Initialize the dictionary, if we haven't yet already.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		off := 0
-		// Emit an entry for each concrete type.
-		for _, t := range targs {
-			s := TypeLinksym(t)
-			off = objw.SymPtr(lsym, off, s, 0)
-		}
-		// TODO: subdictionaries
-		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
+		base.Fatalf("Dictionary should have alredy been generated: %v", sym)
 	}
 
 	// Make a node referencing the dictionary symbol.
