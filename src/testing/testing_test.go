@@ -58,6 +58,9 @@ func TestTempDir(t *testing.T) {
 	t.Run("test:subtest", testTempDir)
 	t.Run("test/..", testTempDir)
 	t.Run("../test", testTempDir)
+	t.Run("test[]", testTempDir)
+	t.Run("test*", testTempDir)
+	t.Run("äöüéè", testTempDir)
 }
 
 func testTempDir(t *testing.T) {
@@ -74,7 +77,7 @@ func testTempDir(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Errorf("directory %q stil exists: %v, isDir=%v", dir, fi, fi.IsDir())
+			t.Errorf("directory %q still exists: %v, isDir=%v", dir, fi, fi.IsDir())
 		default:
 			if !t.Failed() {
 				t.Fatal("never received dir channel")
@@ -107,6 +110,11 @@ func testTempDir(t *testing.T) {
 	}
 	if len(files) > 0 {
 		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
+	}
+
+	glob := filepath.Join(dir, "*.txt")
+	if _, err := filepath.Glob(glob); err != nil {
+		t.Error(err)
 	}
 }
 
