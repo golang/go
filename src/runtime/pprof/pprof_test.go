@@ -106,28 +106,6 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
-func TestCPUProfileThreadBias(t *testing.T) {
-	cpuHogA := func(dur time.Duration) {
-		cpuHogger(cpuHog1, &salt2, dur)
-	}
-
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-	prof := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, avoidFunctions(), func(dur time.Duration) {
-		//c := make(chan int)
-		//go func() {
-		//cpuHogger(cpuHog1, &salt1, dur)
-		//c <- 1
-		//}()
-		cpuHogA(dur)
-		//<-c
-	})
-	fmt.Printf("%#v\n", prof)
-}
-
-func cpuHogA(dur time.Duration) {
-	cpuHogger(cpuHog1, &salt2, dur)
-}
-
 // containsInlinedCall reports whether the function body for the function f is
 // known to contain an inlined function call within the first maxBytes bytes.
 func containsInlinedCall(f interface{}, maxBytes int) bool {
