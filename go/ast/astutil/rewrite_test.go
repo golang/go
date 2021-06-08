@@ -13,13 +13,16 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
-var rewriteTests = [...]struct {
+type rewriteTest struct {
 	name       string
 	orig, want string
 	pre, post  astutil.ApplyFunc
-}{
+}
+
+var rewriteTests = []rewriteTest{
 	{name: "nop", orig: "package p\n", want: "package p\n"},
 
 	{name: "replace",
@@ -188,6 +191,34 @@ var z int
 			return true
 		},
 	},
+}
+
+func init() {
+	if typeparams.Enabled {
+		rewriteTests = append(rewriteTests, rewriteTest{
+			name: "replace",
+			orig: `package p
+
+type T[P1, P2 any] int
+
+type R T[int, string]
+`,
+			want: `package p
+
+type T[P1, P2 any] int32
+
+type R T[int32, string]
+`,
+			post: func(c *astutil.Cursor) bool {
+				if ident, ok := c.Node().(*ast.Ident); ok {
+					if ident.Name == "int" {
+						c.Replace(ast.NewIdent("int32"))
+					}
+				}
+				return true
+			},
+		})
+	}
 }
 
 func valspec(name, typ string) *ast.ValueSpec {

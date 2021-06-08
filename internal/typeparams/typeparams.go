@@ -101,5 +101,5 @@ func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature) 
 		return nil, nil
 	}
 	inf := info.Inferred[e]
-	return inf.Targs, inf.Sig
+	return inf.TArgs, inf.Sig
 }
