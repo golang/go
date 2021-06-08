@@ -54,11 +54,13 @@ const (
 	go117LazyTODO = false
 )
 
-var modFile *modfile.File
-
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
 // in modFile are intepreted, or the latest Go version if modFile is nil.
 func modFileGoVersion() string {
+	_ = TODOWorkspaces("this is obviously wrong.")
+	// Yes we're picking arbitrarily, we'll have to pass through the version
+	// we care about
+	modFile := MainModules.ModFile(MainModules.Versions()[0])
 	if modFile == nil {
 		return LatestGoVersion()
 	}
@@ -89,9 +91,6 @@ type modFileIndex struct {
 	highestReplaced map[string]string // highest replaced version of each module path; empty string for wildcard-only replacements
 	exclude         map[module.Version]bool
 }
-
-// index is the index of the go.mod file as of when it was last read or written.
-var index *modFileIndex
 
 type requireMeta struct {
 	indirect bool
@@ -135,8 +134,10 @@ var ErrDisallowed = errors.New("disallowed module version")
 // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
 // excluded by the main module's go.mod file.
 func CheckExclusions(ctx context.Context, m module.Version) error {
-	if index != nil && index.exclude[m] {
-		return module.VersionError(m, errExcluded)
+	for _, mainModule := range MainModules.Versions() {
+		if index := MainModules.Index(mainModule); index != nil && index.exclude[m] {
+			return module.VersionError(m, errExcluded)
+		}
 	}
 	return nil
 }
@@ -304,19 +305,37 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
 	return summary.deprecated, nil
 }
 
+func replacement(mod module.Version, index *modFileIndex) (fromVersion string, to module.Version, ok bool) {
+	if r, ok := index.replace[mod]; ok {
+		return mod.Version, r, true
+	}
+	if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
+		return "", r, true
+	}
+	return "", module.Version{}, false
+}
+
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
 func Replacement(mod module.Version) module.Version {
-	if index != nil {
-		if r, ok := index.replace[mod]; ok {
-			return r
-		}
-		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
-			return r
+	_ = TODOWorkspaces("support replaces in the go.work file")
+	foundFrom, found, foundModRoot := "", module.Version{}, ""
+	for _, v := range MainModules.Versions() {
+		if index := MainModules.Index(v); index != nil {
+			if from, r, ok := replacement(mod, index); ok {
+				modRoot := MainModules.ModRoot(v)
+				if foundModRoot != "" && foundFrom != from && found != r {
+					_ = TODOWorkspaces("once the go.work file supports replaces, recommend them as a way to override conflicts")
+					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
+						mod, modFilePath(foundModRoot), modFilePath(modRoot))
+					return found
+				}
+				found, foundModRoot = r, modRoot
+			}
 		}
 	}
-	return module.Version{}
+	return found
 }
 
 // resolveReplacement returns the module actually used to load the source code
@@ -551,27 +570,29 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		}
 	}
 
-	if index != nil && len(index.exclude) > 0 {
-		// Drop any requirements on excluded versions.
-		// Don't modify the cached summary though, since we might need the raw
-		// summary separately.
-		haveExcludedReqs := false
-		for _, r := range summary.require {
-			if index.exclude[r] {
-				haveExcludedReqs = true
-				break
-			}
-		}
-		if haveExcludedReqs {
-			s := new(modFileSummary)
-			*s = *summary
-			s.require = make([]module.Version, 0, len(summary.require))
+	for _, mainModule := range MainModules.Versions() {
+		if index := MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
+			// Drop any requirements on excluded versions.
+			// Don't modify the cached summary though, since we might need the raw
+			// summary separately.
+			haveExcludedReqs := false
 			for _, r := range summary.require {
-				if !index.exclude[r] {
-					s.require = append(s.require, r)
+				if index.exclude[r] {
+					haveExcludedReqs = true
+					break
 				}
 			}
-			summary = s
+			if haveExcludedReqs {
+				s := new(modFileSummary)
+				*s = *summary
+				s.require = make([]module.Version, 0, len(summary.require))
+				for _, r := range summary.require {
+					if !index.exclude[r] {
+						s.require = append(s.require, r)
+					}
+				}
+				summary = s
+			}
 		}
 	}
 	return summary, nil
