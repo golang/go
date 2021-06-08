@@ -814,4 +814,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	BCL $16,CR0LT,0(PC)             // 42000001
 	BC $18,CR0LT,0(PC)              // 42400000
 
+	MOVD SPR(3), 4(R1)              // 7fe302a6fbe10004
+	MOVD XER, 4(R1)                 // 7fe102a6fbe10004
+	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
+	MOVD 4(R1), XER                 // ebe100047fe103a6
+
 	RET
