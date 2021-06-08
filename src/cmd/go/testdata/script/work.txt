@@ -1,0 +1,71 @@
+go run example.com/b
+stdout 'Hello from module A'
+
+# And try from a different directory
+cd c
+go run example.com/b
+stdout 'Hello from module A'
+cd $GOPATH/src
+
+go list all # all includes both modules
+stdout 'example.com/a'
+stdout 'example.com/b'
+
+# -mod can't be set in workspace mode, even to readonly
+! go list -mod=readonly all
+stderr '^go: -mod can''t be set explicitly'
+go list -mod=readonly -workfile=off all
+
+# Test that duplicates in the directory list return an error
+cp go.work go.work.backup
+cp go.work.dup go.work
+! go run example.com/b
+stderr 'reading go.work: path .* appears multiple times in workspace'
+cp go.work.backup go.work
+
+-- go.work.dup --
+go 1.17
+
+directory (
+  a
+  b
+  ../src/a
+)
+-- go.work --
+go 1.17
+
+directory (
+  ./a
+  ./b
+)
+
+-- a/go.mod --
+
+module example.com/a
+
+-- a/a.go --
+package a
+
+import "fmt"
+
+func HelloFromA() {
+  fmt.Println("Hello from module A")
+}
+
+-- b/go.mod --
+
+module example.com/b
+
+-- b/main.go --
+package main
+
+import "example.com/a"
+
+func main() {
+  a.HelloFromA()
+}
+
+-- c/README --
+Create this directory so we can cd to
+it and make sure paths are interpreted
+relative to the go.work, not the cwd.

@@ -167,6 +167,14 @@
 // 		directory, but it is not accessed. When -modfile is specified, an
 // 		alternate go.sum file is also used: its path is derived from the
 // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+//   -workfile file
+//     in module aware mode, use the given go.work file as a workspace file.
+// 		By default or when -workfile is "auto", the go command searches for a
+// 		file named go.work in the current directory and then containing directories
+// 		until one is found. If a valid go.work file is found, the modules
+// 		specified will collectively be used as the main modules. If -workfile
+// 		is "off", or a go.work file is not found in "auto" mode, workspace
+// 		mode is disabled.
 // 	-overlay file
 // 		read a JSON config file that provides an overlay for build operations.
 // 		The file is a JSON struct with a single field, named 'Replace', that

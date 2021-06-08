@@ -65,6 +65,7 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+	base.AddWorkfileFlag(&CmdRun.Flag)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -73,6 +74,8 @@ func printStderr(args ...interface{}) (int, error) {
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit

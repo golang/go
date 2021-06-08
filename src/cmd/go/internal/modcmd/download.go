@@ -66,6 +66,7 @@ func init() {
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	base.AddModCommonFlags(&cmdDownload.Flag)
+	base.AddWorkfileFlag(&cmdDownload.Flag)
 }
 
 type moduleJSON struct {
@@ -81,6 +82,8 @@ type moduleJSON struct {
 }
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
 	if !modload.HasModRoot() && len(args) == 0 {
