@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -240,7 +239,16 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						}
 					}
 					if printDebugInfo() {
-						log.Printf("DEBUG new crasher, id: %s, parent: %s, gen: %d, size: %d, exec time: %s\n", result.entry.Name, result.entry.Parent, result.entry.Generation, len(result.entry.Data), result.entryDuration)
+						fmt.Fprintf(
+							c.opts.Log,
+							"DEBUG new crasher, elapsed: %s, id: %s, parent: %s, gen: %d, size: %d, exec time: %s\n",
+							time.Since(c.startTime),
+							result.entry.Name,
+							result.entry.Parent,
+							result.entry.Generation,
+							len(result.entry.Data),
+							result.entryDuration,
+						)
 					}
 					stop(err)
 				}
@@ -263,12 +271,31 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						}
 					}
 					if printDebugInfo() {
-						log.Printf("DEBUG new interesting input, id: %s, parent: %s, gen: %d, new edges: %d, total edges: %d, size: %d, exec time: %s\n", result.entry.Name, result.entry.Parent, result.entry.Generation, newEdges, countEdges(c.coverageData), len(result.entry.Data), result.entryDuration)
+						fmt.Fprintf(
+							c.opts.Log,
+							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new edges: %d, total edges: %d, size: %d, exec time: %s\n",
+							time.Since(c.startTime),
+							result.entry.Name,
+							result.entry.Parent,
+							result.entry.Generation,
+							newEdges,
+							countEdges(c.coverageData),
+							len(result.entry.Data),
+							result.entryDuration,
+						)
 					}
 				} else if c.coverageOnlyRun() {
 					c.covOnlyInputs--
 					if printDebugInfo() {
-						log.Printf("DEBUG processed an initial input, id: %s, new edges: %d, size: %d, exec time: %s\n", result.entry.Parent, newEdges, len(result.entry.Data), result.entryDuration)
+						fmt.Fprintf(
+							c.opts.Log,
+							"DEBUG processed an initial input, elapsed: %s, id: %s, new edges: %d, size: %d, exec time: %s\n",
+							time.Since(c.startTime),
+							result.entry.Parent,
+							newEdges,
+							len(result.entry.Data),
+							result.entryDuration,
+						)
 					}
 					if c.covOnlyInputs == 0 {
 						// The coordinator has finished getting a baseline for
@@ -277,12 +304,24 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						// to 0).
 						c.interestingCount = 0
 						if printDebugInfo() {
-							log.Printf("DEBUG finished processing input corpus, entries: %d, initial coverage edges: %d\n", len(c.corpus.entries), countEdges(c.coverageData))
+							fmt.Fprintf(
+								c.opts.Log,
+								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage edges: %d\n",
+								time.Since(c.startTime),
+								len(c.corpus.entries),
+								countEdges(c.coverageData),
+							)
 						}
 					}
 				} else {
 					if printDebugInfo() {
-						log.Printf("DEBUG worker reported interesting input that doesn't expand coverage, id: %s, parent: %s\n", result.entry.Name, result.entry.Parent)
+						fmt.Fprintf(
+							c.opts.Log,
+							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s\n",
+							time.Since(c.startTime),
+							result.entry.Name,
+							result.entry.Parent,
+						)
 					}
 				}
 			}
