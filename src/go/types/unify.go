@@ -356,6 +356,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// This should not happen with the current internal use of sum types.
 		panic("type inference across sum types not implemented")
 
+	case *Union:
+		// This should not happen with the current internal use of union types.
+		panic("type inference across union types not implemented")
+
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from

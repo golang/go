@@ -150,6 +150,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
 	case *_Sum:
 		panic("Sizeof unimplemented for type sum")
+	case *Union:
+		panic("Sizeof unimplemented for type union")
 	case *Interface:
 		return s.WordSize * 2
 	}

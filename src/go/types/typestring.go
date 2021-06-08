@@ -159,11 +159,17 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		writeSignature(buf, t, qf, visited)
 
 	case *_Sum:
-		for i, t := range t.types {
+		writeTypeList(buf, t.types, qf, visited)
+
+	case *Union:
+		for i, e := range t.terms {
 			if i > 0 {
-				buf.WriteString(", ")
+				buf.WriteString("|")
 			}
-			writeType(buf, t, qf, visited)
+			if t.tilde[i] {
+				buf.WriteByte('~')
+			}
+			writeType(buf, e, qf, visited)
 		}
 
 	case *Interface:
@@ -206,14 +212,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				}
 				buf.WriteString(m.name)
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
-				empty = false
-			}
-			if !empty && t.types != nil {
-				buf.WriteString("; ")
-			}
-			if t.types != nil {
-				buf.WriteString("type ")
-				writeType(buf, t.types, qf, visited)
 				empty = false
 			}
 			if !empty && len(t.embeddeds) > 0 {
@@ -301,6 +299,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	default:
 		// For externally defined implementations of Type.
+		// Note: In this case cycles won't be caught.
 		buf.WriteString(t.String())
 	}
 }
