@@ -165,7 +165,7 @@ type _ struct {
 // are type parameters. As with ordinary type definitions, the
 // types underlying properties are "inherited" but the methods
 // are not.
-func _[T interface{ m(); type int }]() {
+func _[T interface{ m(); ~int }]() {
 	type L T
 	var x L
 
@@ -238,11 +238,11 @@ func _[A Adder[A], B Adder[B], C Adder[A]]() {
 // The type of variables (incl. parameters and return values) cannot
 // be an interface with type constraints or be/embed comparable.
 type I interface {
-	type int
+	~int
 }
 
 var (
-	_ interface /* ERROR contains type constraints */ {type int}
+	_ interface /* ERROR contains type constraints */ {~int}
 	_ I /* ERROR contains type constraints */
 )
 
@@ -273,7 +273,7 @@ func _() {
 // (If a type list contains just a single const type, we could
 // allow it, but such type lists don't make much sense in the
 // first place.)
-func _[T interface { type int, float64 }]() {
+func _[T interface {~int|~float64}]() {
 	// not valid
 	const _ = T /* ERROR not constant */ (0)
 	const _ T /* ERROR invalid constant type T */ = 1
