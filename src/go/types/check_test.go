@@ -330,6 +330,14 @@ func TestIndexRepresentability(t *testing.T) {
 	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)}, false)
 }
 
+func TestIssue46453(t *testing.T) {
+	if typeparams.Enabled {
+		t.Skip("type params are enabled")
+	}
+	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+	checkFiles(t, nil, "", []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
+}
+
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
 func TestExamples(t *testing.T)  { testDir(t, "examples") }
 func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
