@@ -2862,12 +2862,49 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 	if req.RequestURI == "*" && req.Method == "OPTIONS" {
 		handler = globalOptionsHandler{}
 	}
-	handler.ServeHTTP(rw, req)
+
 	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
-		// TODO(filippo): update this not to log if the special
-		// semicolon handler was called.
-		sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
+		var allowQuerySemicolonsInUse int32
+		req = req.WithContext(context.WithValue(req.Context(), silenceSemWarnContextKey, func() {
+			atomic.StoreInt32(&allowQuerySemicolonsInUse, 1)
+		}))
+		defer func() {
+			if atomic.LoadInt32(&allowQuerySemicolonsInUse) == 0 {
+				sh.srv.logf("http: URL query contains semicolon, which is no longer a supported separator; parts of the query may be stripped when parsed; see golang.org/issue/25192")
+			}
+		}()
 	}
+
+	handler.ServeHTTP(rw, req)
+}
+
+var silenceSemWarnContextKey = &contextKey{"silence-semicolons"}
+
+// AllowQuerySemicolons returns a handler that serves requests by converting any
+// unescaped semicolons in the URL query to ampersands, and invoking the handler h.
+//
+// This restores the pre-Go 1.17 behavior of splitting query parameters on both
+// semicolons and ampersands. (See golang.org/issue/25192). Note that this
+// behavior doesn't match that of many proxies, and the mismatch can lead to
+// security issues.
+//
+// AllowQuerySemicolons should be invoked before Request.ParseForm is called.
+func AllowQuerySemicolons(h Handler) Handler {
+	return HandlerFunc(func(w ResponseWriter, r *Request) {
+		if silenceSemicolonsWarning, ok := r.Context().Value(silenceSemWarnContextKey).(func()); ok {
+			silenceSemicolonsWarning()
+		}
+		if strings.Contains(r.URL.RawQuery, ";") {
+			r2 := new(Request)
+			*r2 = *r
+			r2.URL = new(url.URL)
+			*r2.URL = *r.URL
+			r2.URL.RawQuery = strings.ReplaceAll(r.URL.RawQuery, ";", "&")
+			h.ServeHTTP(w, r2)
+		} else {
+			h.ServeHTTP(w, r)
+		}
+	})
 }
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
