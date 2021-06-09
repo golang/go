@@ -23,3 +23,17 @@ type (
 	_ interface{~ /* ERROR cannot use interface */ interface{}}
 	_ interface{int|interface /* ERROR cannot use interface */ {}}
 )
+
+// Multiple embedded union elements are intersected. The order in which they
+// appear in the interface doesn't matter since intersection is a symmetric
+// operation.
+
+type myInt1 int
+type myInt2 int
+
+func _[T interface{ myInt1|myInt2; ~int }]() T { return T(0) }
+func _[T interface{ ~int; myInt1|myInt2 }]() T { return T(0) }
+
+// Here the intersections are empty - there's no type that's in the type set of T.
+func _[T interface{ myInt1|myInt2; int }]() T { return T(0 /* ERROR cannot convert */ ) }
+func _[T interface{ int; myInt1|myInt2 }]() T { return T(0 /* ERROR cannot convert */ ) }

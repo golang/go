@@ -78,7 +78,7 @@ func (s sanitizer) typ(typ Type) Type {
 	s[typ] = typ
 
 	switch t := typ.(type) {
-	case *Basic, *bottom, *top:
+	case *Basic, *top:
 		// nothing to do
 
 	case *Array:

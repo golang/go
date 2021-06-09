@@ -241,7 +241,7 @@ func _[T interface{ type func() }](f T) {
 
 type sliceOf[E any] interface{ type []E }
 
-func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
+func append[T interface{}, S sliceOf[T], T2 interface{ T }](s S, t ...T2) S
 
 var f           func()
 var cancelSlice []context.CancelFunc

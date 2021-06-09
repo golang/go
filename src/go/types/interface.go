@@ -111,16 +111,6 @@ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
 	return append(list, x)
 }
 
-// includes reports whether typ is in list.
-func includes(list []Type, typ Type) bool {
-	for _, e := range list {
-		if Identical(typ, e) {
-			return true
-		}
-	}
-	return false
-}
-
 func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	if ityp.allMethods != nil {
 		return

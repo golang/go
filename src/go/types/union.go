@@ -13,14 +13,18 @@ import (
 // API
 
 // A Union represents a union of terms.
-// A term is a type, possibly with a ~ (tilde) flag.
+// A term is a type with a ~ (tilde) flag.
 type Union struct {
 	types []Type // types are unique
 	tilde []bool // if tilde[i] is set, terms[i] is of the form ~T
 }
 
-func NewUnion(types []Type, tilde []bool) Type { return newUnion(types, tilde) }
+// NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
+// The lengths of both arguments must match. An empty union represents the set
+// of no types.
+func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
 
+func (u *Union) IsEmpty() bool           { return len(u.types) == 0 }
 func (u *Union) NumTerms() int           { return len(u.types) }
 func (u *Union) Term(i int) (Type, bool) { return u.types[i], u.tilde[i] }
 
@@ -30,10 +34,12 @@ func (u *Union) String() string   { return TypeString(u, nil) }
 // ----------------------------------------------------------------------------
 // Implementation
 
-func newUnion(types []Type, tilde []bool) Type {
+var emptyUnion = new(Union)
+
+func newUnion(types []Type, tilde []bool) *Union {
 	assert(len(types) == len(tilde))
-	if types == nil {
-		return nil
+	if len(types) == 0 {
+		return emptyUnion
 	}
 	t := new(Union)
 	t.types = types
@@ -43,7 +49,7 @@ func newUnion(types []Type, tilde []bool) Type {
 
 // is reports whether f returned true for all terms (type, tilde) of u.
 func (u *Union) is(f func(Type, bool) bool) bool {
-	if u == nil {
+	if u.IsEmpty() {
 		return false
 	}
 	for i, t := range u.types {
@@ -56,7 +62,7 @@ func (u *Union) is(f func(Type, bool) bool) bool {
 
 // is reports whether f returned true for the underlying types of all terms of u.
 func (u *Union) underIs(f func(Type) bool) bool {
-	if u == nil {
+	if u.IsEmpty() {
 		return false
 	}
 	for _, t := range u.types {
@@ -133,26 +139,24 @@ func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
 	return check.anyType(x), tilde
 }
 
-// intersect computes the intersection of the types x and y.
-// Note: An incomming nil type stands for the top type. A top
-// type result is returned as nil.
+// intersect computes the intersection of the types x and y,
+// A nil type stands for the set of all types; an empty union
+// stands for the set of no types.
 func intersect(x, y Type) (r Type) {
-	defer func() {
-		if r == theTop {
-			r = nil
-		}
-	}()
-
+	// If one of the types is nil (no restrictions)
+	// the result is the other type.
 	switch {
-	case x == theBottom || y == theBottom:
-		return theBottom
-	case x == nil || x == theTop:
+	case x == nil:
 		return y
-	case y == nil || x == theTop:
+	case y == nil:
 		return x
 	}
 
 	// Compute the terms which are in both x and y.
+	// TODO(gri) This is not correct as it may not always compute
+	//           the "largest" intersection. For instance, for
+	//           x = myInt|~int, y = ~int
+	//           we get the result myInt but we should get ~int.
 	xu, _ := x.(*Union)
 	yu, _ := y.(*Union)
 	switch {
@@ -161,23 +165,29 @@ func intersect(x, y Type) (r Type) {
 		// TODO(gri) fix asymptotic performance
 		var types []Type
 		var tilde []bool
-		for _, y := range yu.types {
-			if includes(xu.types, y) {
-				types = append(types, y)
-				tilde = append(tilde, true) // TODO(gri) fix this
+		for j, y := range yu.types {
+			yt := yu.tilde[j]
+			if r, rt := xu.intersect(y, yt); r != nil {
+				// Terms x[i] and y[j] match: Select the one that
+				// is not a ~t because that is the intersection
+				// type. If both are ~t, they are identical:
+				//  T ∩  T =  T
+				//  T ∩ ~t =  T
+				// ~t ∩  T =  T
+				// ~t ∩ ~t = ~t
+				types = append(types, r)
+				tilde = append(tilde, rt)
 			}
 		}
-		if types != nil {
-			return newUnion(types, tilde)
-		}
+		return newUnion(types, tilde)
 
 	case xu != nil:
-		if includes(xu.types, y) {
+		if r, _ := xu.intersect(y, false); r != nil {
 			return y
 		}
 
 	case yu != nil:
-		if includes(yu.types, x) {
+		if r, _ := yu.intersect(x, false); r != nil {
 			return x
 		}
 
@@ -187,5 +197,42 @@ func intersect(x, y Type) (r Type) {
 		}
 	}
 
-	return theBottom
+	return emptyUnion
+}
+
+// includes reports whether typ is in list.
+func includes(list []Type, typ Type) bool {
+	for _, e := range list {
+		if Identical(typ, e) {
+			return true
+		}
+	}
+	return false
+}
+
+// intersect computes the intersection of the union u and term (y, yt)
+// and returns the intersection term, if any. Otherwise the result is
+// (nil, false).
+func (u *Union) intersect(y Type, yt bool) (Type, bool) {
+	under_y := under(y)
+	for i, x := range u.types {
+		xt := u.tilde[i]
+		// determine which types xx, yy to compare
+		xx := x
+		if yt {
+			xx = under(x)
+		}
+		yy := y
+		if xt {
+			yy = under_y
+		}
+		if Identical(xx, yy) {
+			//  T ∩  T =  T
+			//  T ∩ ~t =  T
+			// ~t ∩  T =  T
+			// ~t ∩ ~t = ~t
+			return xx, xt && yt
+		}
+	}
+	return nil, false
 }
