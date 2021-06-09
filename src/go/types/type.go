@@ -383,7 +383,6 @@ func (t *Interface) Method(i int) *Func { t.Complete(); return t.allMethods[i] }
 // Empty reports whether t is the empty interface.
 func (t *Interface) Empty() bool {
 	t.Complete()
-	// A non-nil allTypes may still have length 0 but represents the bottom type.
 	return len(t.allMethods) == 0 && t.allTypes == nil
 }
 
@@ -438,11 +437,15 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
 //           "implements" predicate.
 func (t *Interface) isSatisfiedBy(typ Type) bool {
 	t.Complete()
-	if t.allTypes == nil {
-		return true
+	switch t := t.allTypes.(type) {
+	case nil:
+		return true // no type restrictions
+	case *Union:
+		r, _ := t.intersect(typ, false)
+		return r != nil
+	default:
+		return Identical(t, typ)
 	}
-	types := unpackType(t.allTypes)
-	return includes(types, typ) || includes(types, under(typ))
 }
 
 // Complete computes the interface's method set. It must be called by users of
@@ -647,13 +650,11 @@ func (t *_TypeParam) Bound() *Interface {
 	return iface
 }
 
-// optype returns a type's operational type. Except for
-// type parameters, the operational type is the same
-// as the underlying type (as returned by under). For
-// Type parameters, the operational type is determined
-// by the corresponding type bound's type list. The
-// result may be the bottom or top type, but it is never
-// the incoming type parameter.
+// optype returns a type's operational type. Except for type parameters,
+// the operational type is the same as the underlying type (as returned
+// by under). For Type parameters, the operational type is determined
+// by the corresponding type constraint. The result may be the top type,
+// but it is never the incoming type parameter.
 func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have
@@ -726,20 +727,11 @@ var expandf func(Type) Type
 
 func init() { expandf = expand }
 
-// bottom represents the bottom of the type lattice.
-// It is the underlying type of a type parameter that
-// cannot be satisfied by any type, usually because
-// the intersection of type constraints left nothing).
-type bottom struct{}
-
-// theBottom is the singleton bottom type.
-var theBottom = &bottom{}
-
 // top represents the top of the type lattice.
 // It is the underlying type of a type parameter that
 // can be satisfied by any type (ignoring methods),
-// usually because the type constraint has no type
-// list.
+// because its type constraint contains no restrictions
+// besides methods.
 type top struct{}
 
 // theTop is the singleton top type.
@@ -759,7 +751,6 @@ func (t *Chan) Underlying() Type       { return t }
 func (t *Named) Underlying() Type      { return t.underlying }
 func (t *_TypeParam) Underlying() Type { return t }
 func (t *instance) Underlying() Type   { return t }
-func (t *bottom) Underlying() Type     { return t }
 func (t *top) Underlying() Type        { return t }
 
 // Type-specific implementations of String.
@@ -776,7 +767,6 @@ func (t *Chan) String() string       { return TypeString(t, nil) }
 func (t *Named) String() string      { return TypeString(t, nil) }
 func (t *_TypeParam) String() string { return TypeString(t, nil) }
 func (t *instance) String() string   { return TypeString(t, nil) }
-func (t *bottom) String() string     { return TypeString(t, nil) }
 func (t *top) String() string        { return TypeString(t, nil) }
 
 // under returns the true expanded underlying type.

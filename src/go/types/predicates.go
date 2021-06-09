@@ -101,9 +101,9 @@ func comparable(T Type, seen map[Type]bool) bool {
 	seen[T] = true
 
 	// If T is a type parameter not constrained by any type
-	// list (i.e., it's underlying type is the top type),
+	// list (i.e., it's operational type is the top type),
 	// T is comparable if it has the == method. Otherwise,
-	// the underlying type "wins". For instance
+	// the operational type "wins". For instance
 	//
 	//     interface{ comparable; type []byte }
 	//
@@ -374,10 +374,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	// case *instance:
 	//	unreachable since types are expanded
 
-	case *bottom, *top:
-		// Either both types are theBottom, or both are theTop in which
-		// case the initial x == y check will have caught them. Otherwise
-		// they are not identical.
+	case *top:
+		// Either both types are theTop in which case the initial x == y check
+		// will have caught them. Otherwise they are not identical.
 
 	case nil:
 		// avoid a crash in case of nil type
