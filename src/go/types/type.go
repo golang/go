@@ -266,29 +266,17 @@ type Interface struct {
 	obj Object // type declaration defining this interface; or nil (for better error messages)
 }
 
-// unpack unpacks a type into a list of types.
-// TODO(gri) Try to eliminate the need for this function.
-func unpackType(typ Type) []Type {
-	if typ == nil {
-		return nil
-	}
-	if u := asUnion(typ); u != nil {
-		return u.types
-	}
-	return []Type{typ}
-}
-
-// is reports whether interface t represents types that all satisfy pred.
-func (t *Interface) is(pred func(Type) bool) bool {
-	if t.allTypes == nil {
+// is reports whether interface t represents types that all satisfy f.
+func (t *Interface) is(f func(Type, bool) bool) bool {
+	switch t := t.allTypes.(type) {
+	case nil, *top:
+		// TODO(gri) should settle on top or nil to represent this case
 		return false // we must have at least one type! (was bug)
+	case *Union:
+		return t.is(func(typ Type, tilde bool) bool { return f(typ, tilde) })
+	default:
+		return f(t, false)
 	}
-	for _, t := range unpackType(t.allTypes) {
-		if !pred(t) {
-			return false
-		}
-	}
-	return true
 }
 
 // emptyInterface represents the empty (completed) interface
@@ -821,11 +809,6 @@ func asTuple(t Type) *Tuple {
 
 func asSignature(t Type) *Signature {
 	op, _ := optype(t).(*Signature)
-	return op
-}
-
-func asUnion(t Type) *Union {
-	op, _ := optype(t).(*Union)
 	return op
 }
 

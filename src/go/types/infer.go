@@ -323,7 +323,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 					return true
 				}
 			}
-			return w.isParameterizedList(unpackType(t.allTypes))
+			return w.isParameterized(t.allTypes)
 		}
 
 		return t.iterate(func(t *Interface) bool {
@@ -472,11 +472,14 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 func (check *Checker) structuralType(constraint Type) Type {
 	if iface, _ := under(constraint).(*Interface); iface != nil {
 		check.completeInterface(token.NoPos, iface)
-		types := unpackType(iface.allTypes)
-		if len(types) == 1 {
-			return types[0]
+		if u, _ := iface.allTypes.(*Union); u != nil {
+			if u.NumTerms() == 1 {
+				// TODO(gri) do we need to respect tilde?
+				return u.types[0]
+			}
+			return nil
 		}
-		return nil
+		return iface.allTypes
 	}
-	return constraint
+	return nil
 }

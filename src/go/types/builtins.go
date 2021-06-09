@@ -768,14 +768,12 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
-		// TODO(gri) This needs to consider the ~ information if we
-		//           have a union type.
 		var rtypes []Type
-		var tilde []bool
-		if !tp.Bound().is(func(x Type) bool {
-			if r := f(x); r != nil {
+		var tildes []bool
+		if !tp.Bound().is(func(typ Type, tilde bool) bool {
+			if r := f(typ); r != nil {
 				rtypes = append(rtypes, r)
-				tilde = append(tilde, true)
+				tildes = append(tildes, tilde)
 				return true
 			}
 			return false
@@ -786,7 +784,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		tsum := newUnion(rtypes, tilde)
+		tsum := newUnion(rtypes, tildes)
 		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
 
 		return ptyp
