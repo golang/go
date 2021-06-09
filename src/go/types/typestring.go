@@ -158,11 +158,8 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		buf.WriteString("func")
 		writeSignature(buf, t, qf, visited)
 
-	case *_Sum:
-		writeTypeList(buf, t.types, qf, visited)
-
 	case *Union:
-		for i, e := range t.terms {
+		for i, e := range t.types {
 			if i > 0 {
 				buf.WriteString("|")
 			}

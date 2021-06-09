@@ -255,53 +255,6 @@ func (s *Signature) Results() *Tuple { return s.results }
 // Variadic reports whether the signature s is variadic.
 func (s *Signature) Variadic() bool { return s.variadic }
 
-// A _Sum represents a set of possible types.
-// Sums are currently used to represent type lists of interfaces
-// and thus the underlying types of type parameters; they are not
-// first class types of Go.
-type _Sum struct {
-	types []Type // types are unique
-}
-
-// _NewSum returns a new Sum type consisting of the provided
-// types if there are more than one. If there is exactly one
-// type, it returns that type. If the list of types is empty
-// the result is nil.
-func _NewSum(types []Type) Type {
-	if len(types) == 0 {
-		return nil
-	}
-
-	// What should happen if types contains a sum type?
-	// Do we flatten the types list? For now we check
-	// and panic. This should not be possible for the
-	// current use case of type lists.
-	// TODO(gri) Come up with the rules for sum types.
-	for _, t := range types {
-		if _, ok := t.(*_Sum); ok {
-			panic("sum type contains sum type - unimplemented")
-		}
-	}
-
-	if len(types) == 1 {
-		return types[0]
-	}
-	return &_Sum{types: types}
-}
-
-// is reports whether all types in t satisfy pred.
-func (s *_Sum) is(pred func(Type) bool) bool {
-	if s == nil {
-		return false
-	}
-	for _, t := range s.types {
-		if !pred(t) {
-			return false
-		}
-	}
-	return true
-}
-
 // An Interface represents an interface type.
 type Interface struct {
 	methods   []*Func // ordered list of explicitly declared methods
@@ -319,8 +272,8 @@ func unpackType(typ Type) []Type {
 	if typ == nil {
 		return nil
 	}
-	if sum := asSum(typ); sum != nil {
-		return sum.types
+	if u := asUnion(typ); u != nil {
+		return u.types
 	}
 	return []Type{typ}
 }
@@ -709,9 +662,16 @@ func optype(typ Type) Type {
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.
-		if u := t.Bound().allTypes; u != nil && u != typ {
-			// u != typ and u is a type parameter => under(u) != typ, so this is ok
-			return under(u)
+		if a := t.Bound().allTypes; a != nil && a != typ {
+			// If we have a union with a single entry, ignore
+			// any tilde because under(~t) == under(t).
+			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
+				a = u.types[0]
+			}
+			if a != typ {
+				// a != typ and a is a type parameter => under(a) != typ, so this is ok
+				return under(a)
+			}
 		}
 		return theTop
 	}
@@ -793,7 +753,6 @@ func (t *Struct) Underlying() Type     { return t }
 func (t *Pointer) Underlying() Type    { return t }
 func (t *Tuple) Underlying() Type      { return t }
 func (t *Signature) Underlying() Type  { return t }
-func (t *_Sum) Underlying() Type       { return t }
 func (t *Interface) Underlying() Type  { return t }
 func (t *Map) Underlying() Type        { return t }
 func (t *Chan) Underlying() Type       { return t }
@@ -811,7 +770,6 @@ func (t *Struct) String() string     { return TypeString(t, nil) }
 func (t *Pointer) String() string    { return TypeString(t, nil) }
 func (t *Tuple) String() string      { return TypeString(t, nil) }
 func (t *Signature) String() string  { return TypeString(t, nil) }
-func (t *_Sum) String() string       { return TypeString(t, nil) }
 func (t *Interface) String() string  { return TypeString(t, nil) }
 func (t *Map) String() string        { return TypeString(t, nil) }
 func (t *Chan) String() string       { return TypeString(t, nil) }
@@ -826,7 +784,7 @@ func (t *top) String() string        { return TypeString(t, nil) }
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	// TODO(gri) is this correct for *Sum?
+	// TODO(gri) is this correct for *Union?
 	if n := asNamed(t); n != nil {
 		return n.under()
 	}
@@ -876,8 +834,8 @@ func asSignature(t Type) *Signature {
 	return op
 }
 
-func asSum(t Type) *_Sum {
-	op, _ := optype(t).(*_Sum)
+func asUnion(t Type) *Union {
+	op, _ := optype(t).(*Union)
 	return op
 }
 

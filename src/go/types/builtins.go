@@ -179,9 +179,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				mode = value
 			}
 
-		case *_Sum:
-			if t.is(func(t Type) bool {
-				switch t := under(t).(type) {
+		case *Union:
+			if t.underIs(func(t Type) bool {
+				switch t := t.(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -469,8 +469,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				m = 2
 			case *Map, *Chan:
 				m = 1
-			case *_Sum:
-				return t.is(valid)
+			case *Union:
+				return t.underIs(valid)
 			default:
 				return false
 			}
@@ -768,10 +768,14 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
+		// TODO(gri) This needs to consider the ~ information if we
+		//           have a union type.
 		var rtypes []Type
+		var tilde []bool
 		if !tp.Bound().is(func(x Type) bool {
 			if r := f(x); r != nil {
 				rtypes = append(rtypes, r)
+				tilde = append(tilde, true)
 				return true
 			}
 			return false
@@ -782,7 +786,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		tsum := _NewSum(rtypes)
+		tsum := newUnion(rtypes, tilde)
 		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
 
 		return ptyp

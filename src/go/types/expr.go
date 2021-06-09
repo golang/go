@@ -661,8 +661,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		default:
 			return nil, nil, _InvalidUntypedConversion
 		}
-	case *_Sum:
-		ok := t.is(func(t Type) bool {
+	case *Union:
+		ok := t.underIs(func(t Type) bool {
 			target, _, _ := check.implicitTypeAndValue(x, t)
 			return target != nil
 		})

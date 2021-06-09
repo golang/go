@@ -352,10 +352,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 				u.nify(x.results, y.results, p)
 		}
 
-	case *_Sum:
-		// This should not happen with the current internal use of sum types.
-		panic("type inference across sum types not implemented")
-
 	case *Union:
 		// This should not happen with the current internal use of union types.
 		panic("type inference across union types not implemented")

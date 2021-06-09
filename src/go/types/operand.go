@@ -233,6 +233,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	V := x.typ
 
+	const debugAssignableTo = false
+	if debugAssignableTo && check != nil {
+		check.dump("V = %s", V)
+		check.dump("T = %s", T)
+	}
+
 	// x's type is identical to T
 	if check.identical(V, T) {
 		return true, 0
@@ -241,11 +247,20 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	Vu := optype(V)
 	Tu := optype(T)
 
+	if debugAssignableTo && check != nil {
+		check.dump("Vu = %s", Vu)
+		check.dump("Tu = %s", Tu)
+	}
+
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*_Sum); ok {
-			return t.is(func(t Type) bool {
+		if t, ok := Tu.(*Union); ok {
+			return t.is(func(t Type, tilde bool) bool {
 				// TODO(gri) this could probably be more efficient
+				if tilde {
+					// TODO(gri) We need to check assignability
+					//           for the underlying type of x.
+				}
 				ok, _ := x.assignableTo(check, t, reason)
 				return ok
 			}), _IncompatibleAssign

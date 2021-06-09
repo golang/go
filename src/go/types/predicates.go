@@ -32,8 +32,8 @@ func is(typ Type, what BasicInfo) bool {
 	switch t := optype(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
-	case *_Sum:
-		return t.is(func(typ Type) bool { return is(typ, what) })
+	case *Union:
+		return t.underIs(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
 }
@@ -128,11 +128,10 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return true
 	case *Array:
 		return comparable(t.elem, seen)
-	case *_Sum:
-		pred := func(t Type) bool {
+	case *Union:
+		return t.underIs(func(t Type) bool {
 			return comparable(t, seen)
-		}
-		return t.is(pred)
+		})
 	case *_TypeParam:
 		return t.Bound()._IsComparable()
 	}
@@ -146,8 +145,8 @@ func hasNil(typ Type) bool {
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
-	case *_Sum:
-		return t.is(hasNil)
+	case *Union:
+		return t.underIs(hasNil)
 	}
 	return false
 }
@@ -265,21 +264,20 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 				check.identical0(x.results, y.results, cmpTags, p)
 		}
 
-	case *_Sum:
-		// Two sum types are identical if they contain the same types.
-		// (Sum types always consist of at least two types. Also, the
-		// the set (list) of types in a sum type consists of unique
-		// types - each type appears exactly once. Thus, two sum types
+	case *Union:
+		// Two union types are identical if they contain the same terms.
+		// The set (list) of types in a union type consists of unique
+		// types - each type appears exactly once. Thus, two union types
 		// must contain the same number of types to have chance of
 		// being equal.
-		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
+		if y, ok := y.(*Union); ok && x.NumTerms() == y.NumTerms() {
 			// Every type in x.types must be in y.types.
 			// Quadratic algorithm, but probably good enough for now.
 			// TODO(gri) we need a fast quick type ID/hash for all types.
 		L:
-			for _, x := range x.types {
-				for _, y := range y.types {
-					if Identical(x, y) {
+			for i, xt := range x.types {
+				for j, yt := range y.types {
+					if Identical(xt, yt) && x.tilde[i] == y.tilde[j] {
 						continue L // x is in y.types
 					}
 				}
@@ -287,9 +285,6 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			}
 			return true
 		}
-
-	case *Union:
-		panic("identical0 not implemented for union types")
 
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with

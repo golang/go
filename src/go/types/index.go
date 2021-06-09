@@ -91,15 +91,15 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		x.expr = e
 		return
 
-	case *_Sum:
-		// A sum type can be indexed if all of the sum's types
+	case *Union:
+		// A union type can be indexed if all of the union's terms
 		// support indexing and have the same index and element
-		// type. Special rules apply for maps in the sum type.
+		// type. Special rules apply for maps in the union type.
 		var tkey, telem Type // key is for map types only
-		nmaps := 0           // number of map types in sum type
-		if typ.is(func(t Type) bool {
+		nmaps := 0           // number of map types in union type
+		if typ.underIs(func(t Type) bool {
 			var e Type
-			switch t := under(t).(type) {
+			switch t := t.(type) {
 			case *Basic:
 				if isString(t) {
 					e = universeByte
@@ -113,7 +113,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 			case *Slice:
 				e = t.elem
 			case *Map:
-				// If there are multiple maps in the sum type,
+				// If there are multiple maps in the union type,
 				// they must have identical key types.
 				// TODO(gri) We may be able to relax this rule
 				// but it becomes complicated very quickly.
@@ -148,7 +148,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 				// ok to continue even if indexing failed - map element type is known
 
 				// If there are only maps, we are done.
-				if nmaps == len(typ.types) {
+				if nmaps == typ.NumTerms() {
 					x.mode = mapindex
 					x.typ = telem
 					x.expr = e
@@ -246,7 +246,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		valid = true
 		// x.typ doesn't change
 
-	case *_Sum, *_TypeParam:
+	case *Union, *_TypeParam:
 		check.errorf(x, 0, "generic slice expressions not yet implemented")
 		x.mode = invalid
 		return
