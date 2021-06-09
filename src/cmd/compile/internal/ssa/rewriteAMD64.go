@@ -3,7 +3,6 @@
 
 package ssa
 
-import "internal/buildcfg"
 import "math"
 import "cmd/internal/obj"
 import "cmd/compile/internal/types"
@@ -29339,11 +29338,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
 func rewriteValueAMD64_OpGetG(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (GetG mem)
-	// cond: !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
+	// cond: v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal
 	// result: (LoweredGetG mem)
 	for {
 		mem := v_0
-		if !(!(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
+		if !(v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal) {
 			break
 		}
 		v.reset(OpAMD64LoweredGetG)

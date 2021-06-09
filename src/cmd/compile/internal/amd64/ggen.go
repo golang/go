@@ -57,7 +57,6 @@ func dzDI(b int64) int64 {
 func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
 	const (
 		r13 = 1 << iota // if R13 is already zeroed.
-		x15             // if X15 is already zeroed. Note: in new ABI, X15 is always zero.
 	)
 
 	if cnt == 0 {
@@ -85,11 +84,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 		}
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
-		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
-			*state |= x15
-		}
-
 		for i := int64(0); i < cnt/16; i++ {
 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
 		}
@@ -98,10 +92,6 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
-		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
-			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
-			*state |= x15
-		}
 		// Save DI to r12. With the amd64 Go register abi, DI can contain
 		// an incoming parameter, whereas R12 is always scratch.
 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_DI, 0, obj.TYPE_REG, x86.REG_R12, 0)

@@ -28,7 +28,6 @@ var regabiDeveloping = false
 // configuration and any variation from this is an experiment.
 var experimentBaseline = goexperiment.Flags{
 	RegabiWrappers: regabiSupported,
-	RegabiG:        regabiSupported,
 	RegabiReflect:  regabiSupported,
 	RegabiArgs:     regabiSupported,
 }
@@ -67,7 +66,6 @@ func parseExperiments() goexperiment.Flags {
 		// do the right thing.
 		names["regabi"] = func(v bool) {
 			flags.RegabiWrappers = v
-			flags.RegabiG = v
 			flags.RegabiReflect = v
 			flags.RegabiArgs = v
 		}
@@ -104,16 +102,12 @@ func parseExperiments() goexperiment.Flags {
 	// regabi is only supported on amd64 and arm64.
 	if GOARCH != "amd64" && GOARCH != "arm64" {
 		flags.RegabiWrappers = false
-		flags.RegabiG = false
 		flags.RegabiReflect = false
 		flags.RegabiArgs = false
 	}
 	// Check regabi dependencies.
-	if flags.RegabiG && !flags.RegabiWrappers {
-		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
-	}
-	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect) {
-		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect")
+	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiReflect) {
+		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
 	}
 	return flags
 }

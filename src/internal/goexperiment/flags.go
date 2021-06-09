@@ -68,11 +68,6 @@ type Flags struct {
 	// ABI0 and ABIInternal functions. Without this, the ABIs are
 	// assumed to be identical so cross-ABI calls are direct.
 	RegabiWrappers bool
-	// RegabiG enables dedicated G and zero registers in
-	// ABIInternal.
-	//
-	// Requires wrappers because it makes the ABIs incompatible.
-	RegabiG bool
 	// RegabiReflect enables the register-passing paths in
 	// reflection calls. This is also gated by intArgRegs in
 	// reflect and runtime (which are disabled by default) so it

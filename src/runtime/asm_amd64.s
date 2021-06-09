@@ -683,10 +683,6 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 // or else unwinding from systemstack_switch is incorrect.
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R14)
-	MOVQ	g(R14), R14
-#endif
 	MOVQ	$runtime·systemstack_switch(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
@@ -1284,10 +1280,8 @@ aes65to128:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
 #ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X8, AX	// return X8
 #else
@@ -1408,10 +1402,8 @@ aesloop:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
 #ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X8, AX	// return X8
 #else
@@ -1595,12 +1587,10 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // signals. It is quite painful to set X15 in the signal context,
 // so we do it here.
 TEXT ·sigpanic0(SB),NOSPLIT,$0-0
-#ifdef GOEXPERIMENT_regabig
 	get_tls(R14)
 	MOVQ	g(R14), R14
 #ifndef GOOS_plan9
 	XORPS	X15, X15
-#endif
 #endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
@@ -1619,13 +1609,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
-#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), R13
-#else
-	get_tls(R13)
-	MOVQ	g(R13), R13
-	MOVQ	g_m(R13), R13
-#endif
 	MOVQ	m_p(R13), R13
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
 	// Increment wbBuf.next position.

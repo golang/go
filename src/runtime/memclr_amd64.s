@@ -37,9 +37,6 @@ tail:
 	JE	_8
 	CMPQ	BX, $16
 	JBE	_9through16
-#ifndef GOEXPERIMENT_regabig
-	PXOR	X15, X15
-#endif
 	CMPQ	BX, $32
 	JBE	_17through32
 	CMPQ	BX, $64
