@@ -158,6 +158,8 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
+			printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
+			printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
 			GOROOT_BOOTSTRAP=$goroot
 		fi
 	fi

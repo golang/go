@@ -58,6 +58,8 @@ for(p in $path){
 		if(go_exe = `{path=$p whatis go}){
 			goroot = `{GOROOT='' $go_exe env GOROOT}
 			if(! ~ $goroot $GOROOT){
+				echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
+				echo 'WARNING: set '$goroot' as GOROOT_BOOTSTRAP' >[1=2]
 				GOROOT_BOOTSTRAP = $goroot
 			}
 		}
