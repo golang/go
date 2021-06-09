@@ -51,6 +51,8 @@ var tests = []GoodFileTest{
 	{"file_foo_" + otherArch + ".go", false},
 	{"file_" + thisOS + ".c", true},
 	{"file_" + otherOS + ".c", false},
+	{"file.name_" + thisOS + ".go", true},
+	{"file.name_" + otherOS + ".go", false},
 }
 
 func TestGoodOSArch(t *testing.T) {

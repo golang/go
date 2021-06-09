@@ -1944,7 +1944,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 // if GOOS=illumos, then files with GOOS=solaris are also matched.
 // if GOOS=ios, then files with GOOS=darwin are also matched.
 func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
-	if dot := strings.Index(name, "."); dot != -1 {
+	if dot := strings.LastIndex(name, "."); dot != -1 {
 		name = name[:dot]
 	}
 

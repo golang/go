@@ -396,6 +396,8 @@ var matchFileTests = []struct {
 	{ctxtP9, "foo.go", "", true},
 	{ctxtP9, "foo1.go", "// +build linux\n\npackage main\n", false},
 	{ctxtP9, "foo.badsuffix", "", false},
+	{ctxtP9, "file.name_plan9.go", "", true},
+	{ctxtP9, "file.name_linux.go", "", false},
 	{ctxtAndroid, "foo_linux.go", "", true},
 	{ctxtAndroid, "foo_android.go", "", true},
 	{ctxtAndroid, "foo_plan9.go", "", false},
@@ -404,24 +406,29 @@ var matchFileTests = []struct {
 	{ctxtAndroid, "plan9_test.go", "", true},
 	{ctxtAndroid, "arm.s", "", true},
 	{ctxtAndroid, "amd64.s", "", true},
+	{ctxtAndroid, "file.name_android.go", "", true},
+	{ctxtAndroid, "file.name_linux.go", "", true},
+	{ctxtAndroid, "file.name_plan9.go", "", false},
 }
 
 func TestMatchFile(t *testing.T) {
 	for _, tt := range matchFileTests {
-		ctxt := tt.ctxt
-		ctxt.OpenFile = func(path string) (r io.ReadCloser, err error) {
-			if path != "x+"+tt.name {
-				t.Fatalf("OpenFile asked for %q, expected %q", path, "x+"+tt.name)
+		t.Run("", func(t *testing.T) {
+			ctxt := tt.ctxt
+			ctxt.OpenFile = func(path string) (r io.ReadCloser, err error) {
+				if path != "x+"+tt.name {
+					t.Fatalf("OpenFile asked for %q, expected %q", path, "x+"+tt.name)
+				}
+				return &readNopCloser{strings.NewReader(tt.data)}, nil
 			}
-			return &readNopCloser{strings.NewReader(tt.data)}, nil
-		}
-		ctxt.JoinPath = func(elem ...string) string {
-			return strings.Join(elem, "+")
-		}
-		match, err := ctxt.MatchFile("x", tt.name)
-		if match != tt.match || err != nil {
-			t.Fatalf("MatchFile(%q) = %v, %v, want %v, nil", tt.name, match, err, tt.match)
-		}
+			ctxt.JoinPath = func(elem ...string) string {
+				return strings.Join(elem, "+")
+			}
+			match, err := ctxt.MatchFile("x", tt.name)
+			if match != tt.match || err != nil {
+				t.Fatalf("MatchFile(%q) = %v, %v, want %v, nil", tt.name, match, err, tt.match)
+			}
+		})
 	}
 }
 
