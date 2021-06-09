@@ -434,7 +434,17 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupo
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
-		return oldi, false
+		// Fix for issue #46656 -- given two dupok symbols with
+		// different sizes, favor symbol with larger size.
+		szdup := l.SymSize(oldi)
+		sz := int64(r.Sym(li).Siz())
+		if szdup >= sz {
+			return oldi, false
+		} else {
+			// new symbol overwrites old symbol.
+			l.objSyms[oldi] = objSym{r, li}
+			return oldi, true
+		}
 	}
 	oldr, oldli := l.toLocal(oldi)
 	oldsym := oldr.Sym(oldli)
