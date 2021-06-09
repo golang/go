@@ -31,12 +31,12 @@ type x7[A any] struct{ foo7 }
 func main7() { var _ foo7 = x7[int]{} }
 
 // crash 8
-type foo8[A any] interface { type A }
+type foo8[A any] interface { ~A }
 func bar8[A foo8[A]](a A) {}
 func main8() {}
 
 // crash 9
-type foo9[A any] interface { type foo9 /* ERROR cannot use interface */ [A] }
+type foo9[A any] interface { ~ /* ERROR cannot use interface */ foo9 [A] }
 func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
 
 // crash 12

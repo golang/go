@@ -13,7 +13,7 @@ type N[T any] struct{}
 var _ N /* ERROR "0 arguments but 1 type parameters" */ []
 
 type I interface {
-	type map[int]int, []int
+	~map[int]int | ~[]int
 }
 
 func _[T I](i, j int) {
