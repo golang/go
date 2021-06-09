@@ -34,7 +34,7 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 			URI:      spn.URI(),
 			Range:    rng,
 			Severity: protocol.SeverityError,
-			Source:   source.TypeError,
+			Source:   source.ListError,
 			Message:  msg,
 		}}, nil
 	}

@@ -1488,6 +1488,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	changedPkgNames := map[packageID]struct{}{}
+	anyImportDeleted := false
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
 		// directory.
@@ -1500,7 +1501,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Check if the file's package name or imports have changed,
 		// and if so, invalidate this file's packages' metadata.
-		shouldInvalidateMetadata, pkgNameChanged := s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
+		shouldInvalidateMetadata, pkgNameChanged, importDeleted := s.shouldInvalidateMetadata(ctx, result, originalFH, change.fileHandle)
+		anyImportDeleted = anyImportDeleted || importDeleted
 		invalidateMetadata := forceReloadMetadata || workspaceReload || shouldInvalidateMetadata
 
 		// Mark all of the package IDs containing the given file.
@@ -1539,6 +1541,27 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 		// Make sure to remove the changed file from the unloadable set.
 		delete(result.unloadableFiles, uri)
+	}
+
+	// Deleting an import can cause list errors due to import cycles to be
+	// resolved. The best we can do without parsing the list error message is to
+	// hope that list errors may have been resolved by a deleted import.
+	//
+	// We could do better by parsing the list error message. We already do this
+	// to assign a better range to the list error, but for such critical
+	// functionality as metadata, it's better to be conservative until it proves
+	// impractical.
+	//
+	// We could also do better by looking at which imports were deleted and
+	// trying to find cycles they are involved in. This fails when the file goes
+	// from an unparseable state to a parseable state, as we don't have a
+	// starting point to compare with.
+	if anyImportDeleted {
+		for id, metadata := range s.metadata {
+			if len(metadata.errors) > 0 {
+				directIDs[id] = true
+			}
+		}
 	}
 
 	// Invalidate reverse dependencies too.
@@ -1745,13 +1768,13 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 
 // shouldInvalidateMetadata reparses a file's package and import declarations to
 // determine if the file requires a metadata reload.
-func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *snapshot, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged bool) {
+func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *snapshot, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged, importDeleted bool) {
 	if originalFH == nil {
-		return true, false
+		return true, false, false
 	}
 	// If the file hasn't changed, there's no need to reload.
 	if originalFH.FileIdentity() == currentFH.FileIdentity() {
-		return false, false
+		return false, false, false
 	}
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the
@@ -1759,53 +1782,77 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	original, originalErr := newSnapshot.ParseGo(ctx, originalFH, source.ParseHeader)
 	current, currentErr := newSnapshot.ParseGo(ctx, currentFH, source.ParseHeader)
 	if originalErr != nil || currentErr != nil {
-		return (originalErr == nil) != (currentErr == nil), false
+		return (originalErr == nil) != (currentErr == nil), false, (currentErr != nil) // we don't know if an import was deleted
 	}
 	// Check if the package's metadata has changed. The cases handled are:
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
 	if original.File.Name.Name != current.File.Name.Name {
-		return true, true
+		invalidate = true
+		pkgNameChanged = true
 	}
-	importSet := make(map[string]struct{})
+	origImportSet := make(map[string]struct{})
 	for _, importSpec := range original.File.Imports {
-		importSet[importSpec.Path.Value] = struct{}{}
+		origImportSet[importSpec.Path.Value] = struct{}{}
+	}
+	curImportSet := make(map[string]struct{})
+	for _, importSpec := range current.File.Imports {
+		curImportSet[importSpec.Path.Value] = struct{}{}
 	}
 	// If any of the current imports were not in the original imports.
-	for _, importSpec := range current.File.Imports {
-		if _, ok := importSet[importSpec.Path.Value]; ok {
+	for path := range curImportSet {
+		if _, ok := origImportSet[path]; ok {
+			delete(origImportSet, path)
 			continue
 		}
 		// If the import path is obviously not valid, we can skip reloading
 		// metadata. For now, valid means properly quoted and without a
 		// terminal slash.
-		path, err := strconv.Unquote(importSpec.Path.Value)
-		if err != nil {
+		if isBadImportPath(path) {
 			continue
 		}
-		if path == "" {
-			continue
-		}
-		if path[len(path)-1] == '/' {
-			continue
-		}
-		return true, false
+		invalidate = true
 	}
 
-	// Re-evaluate build constraints and embed patterns. It would be preferable
-	// to only do this on save, but we don't have the prior versions accessible.
-	oldComments := extractMagicComments(original.File)
-	newComments := extractMagicComments(current.File)
+	for path := range origImportSet {
+		if !isBadImportPath(path) {
+			invalidate = true
+			importDeleted = true
+		}
+	}
+
+	if !invalidate {
+		invalidate = magicCommentsChanged(original.File, current.File)
+	}
+	return invalidate, pkgNameChanged, importDeleted
+}
+
+func magicCommentsChanged(original *ast.File, current *ast.File) bool {
+	oldComments := extractMagicComments(original)
+	newComments := extractMagicComments(current)
 	if len(oldComments) != len(newComments) {
-		return true, false
+		return true
 	}
 	for i := range oldComments {
 		if oldComments[i] != newComments[i] {
-			return true, false
+			return true
 		}
 	}
+	return false
+}
 
-	return false, false
+func isBadImportPath(path string) bool {
+	path, err := strconv.Unquote(path)
+	if err != nil {
+		return true
+	}
+	if path == "" {
+		return true
+	}
+	if path[len(path)-1] == '/' {
+		return true
+	}
+	return false
 }
 
 var buildConstraintOrEmbedRe = regexp.MustCompile(`^//(go:embed|go:build|\s*\+build).*`)

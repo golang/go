@@ -1616,6 +1616,42 @@ import _ "mod.com/triple/a"
 	})
 }
 
+// Tests golang/go#46667: deleting a problematic import path should resolve
+// import cycle errors.
+func TestResolveImportCycle(t *testing.T) {
+	const mod = `
+-- go.mod --
+module mod.test
+
+go 1.16
+-- a/a.go --
+package a
+
+import "mod.test/b"
+
+const A = b.A
+const B = 2
+-- b/b.go --
+package b
+
+import "mod.test/a"
+
+const A = 1
+const B = a.B
+	`
+	Run(t, mod, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.OpenFile("b/b.go")
+		env.Await(env.DiagnosticAtRegexp("a/a.go", `"mod.test/b"`))
+		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
+		env.SaveBuffer("b/b.go")
+		env.Await(
+			EmptyDiagnostics("a/a.go"),
+			EmptyDiagnostics("b/b.go"),
+		)
+	})
+}
+
 func TestBadImport(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
