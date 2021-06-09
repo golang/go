@@ -279,12 +279,41 @@ Do not send CLs removing the interior tags from such phrases.
   <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
+<h4 id="build-lines"><code>//go:build</code> lines</h4>
+
+<p>
+  The <code>go</code> command now understands <code>//go:build</code> lines
+  and prefers them over <code>// +build</code> lines. The new syntax uses
+  boolean expressions, just like Go, and should be less error-prone.
+  As of this release, the new syntax is fully supported, and all Go files
+  should be updated to have both forms with the same meaning. To aid in
+  migration, <a href="#gofmt"><code>gofmt</code></a> now automatically
+  synchronizes the two forms. For more details on the syntax and migration plan,
+  see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
+</p>
+
+<h3 id="gofmt"><code>gofmt</code></h3>
+  <code>gofmt</code> (and <code>go</code> <code>fmt</code>) now synchronizes
+  <code>//go:build</code> lines with <code>// +build</code> lines. If a file
+  only has <code>// +build</code> lines, they will be moved to the appropriate
+  location in the file, and matching <code>//go:build</code> lines will be
+  added. Otherwise, <code>// +build</code> lines will be overwritten based on
+  any existing <code>//go:build</code> lines. For more information, see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
+</h3>
+
 <h3 id="vet">Vet</h3>
 
-<h4 id="vet-buildtags">New warning within buildtags</h4>
+<h4 id="vet-buildtags">New warning for mismatched <code>//go:build</code> and <code>// +build</code> lines</h4>
 
 <p><!-- CL 240609 -->
-  TODO(rsc): Describe changes to buildtags <a href="https://golang.org/cl/240609">https://golang.org/cl/240609</a>
+  The <code>vet</code> tool now verifies that <code>//go:build</code> and
+  <code>// +build</code> lines are in the correct part of the file and
+  synchronized with each other. If they aren't,
+  <a href="#gofmt"><code>gofmt</code></a> can be used to fix them. For more
+  information, see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
 <h4 id="vet-sigchanyzer">New warning for calling <code>signal.Notify</code> on unbuffered channels</h4>
@@ -637,6 +666,22 @@ func Foo() bool {
     </p>
   </dd>
 </dl><!-- go/build -->
+
+<dl id="go/format"><dt><a href="/pkg/go/format/">go/format</a></dt>
+  <dd>
+    <p>
+      The <a href="/pkg/go/format/#Source"><code>Source</code></a> and
+      <a href="/pkg/go/format/#Node"><code>Node</code></a> functions now
+      synchronize <code>//go:build</code> lines with <code>// +build</code>
+      lines. If a file only has <code>// +build</code> lines, they will be
+      moved to the appropriate location in the file, and matching
+      <code>//go:build</code> lines will be added. Otherwise,
+      <code>// +build</code> lines will be overwritten based on any existing
+      <code>//go:build</code> lines. For more information, see
+      <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
+    </p>
+  </dd>
+</dl><!-- go/format -->
 
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
