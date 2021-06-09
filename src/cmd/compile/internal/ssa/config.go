@@ -196,7 +196,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = buildcfg.Experiment.RegabiG
+		c.hasGReg = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4

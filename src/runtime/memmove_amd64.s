@@ -254,10 +254,8 @@ move_129through256:
 	MOVOU	X13, -48(DI)(BX*1)
 	MOVOU	X14, -32(DI)(BX*1)
 	MOVOU	X15, -16(DI)(BX*1)
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
 	RET
 move_256through2048:
 	SUBQ	$256, BX
@@ -297,10 +295,8 @@ move_256through2048:
 	LEAQ	256(SI), SI
 	LEAQ	256(DI), DI
 	JGE	move_256through2048
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
 	JMP	tail
 
 avxUnaligned:

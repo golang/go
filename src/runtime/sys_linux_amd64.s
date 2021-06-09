@@ -215,13 +215,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
-#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
-#else
-	get_tls(CX)
-	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), BX // BX unchanged by C code.
-#endif
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
 	// Save the old values on stack and restore them on exit,
@@ -236,11 +230,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVQ	CX, m_vdsoPC(BX)
 	MOVQ	DX, m_vdsoSP(BX)
 
-#ifdef GOEXPERIMENT_regabig
 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
-#else
-	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
-#endif
 	JNE	noswitch
 
 	MOVQ	m_g0(BX), DX
