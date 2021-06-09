@@ -97,6 +97,10 @@ func parseExperiments() goexperiment.Flags {
 		}
 	}
 
+	// regabiwrappers is always enabled on amd64.
+	if GOARCH == "amd64" {
+		flags.RegabiWrappers = true
+	}
 	// regabi is only supported on amd64 and arm64.
 	if GOARCH != "amd64" && GOARCH != "arm64" {
 		flags.RegabiWrappers = false
