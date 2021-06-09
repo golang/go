@@ -911,12 +911,12 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *_Sum:
+	case *Union:
 		first := true
 		var key, val Type
 		var msg string
-		typ.is(func(t Type) bool {
-			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
+		typ.underIs(func(t Type) bool {
+			k, v, m := rangeKeyVal(t, wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m
 				return false

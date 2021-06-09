@@ -302,21 +302,13 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-	case *_Sum:
+	case *Union:
 		types, copied := subst.typeList(t.types)
 		if copied {
-			// Don't do it manually, with a Sum literal: the new
-			// types list may not be unique and NewSum may remove
-			// duplicates.
-			return _NewSum(types)
-		}
-
-	case *Union:
-		terms, copied := subst.typeList(t.terms)
-		if copied {
-			// TODO(gri) Do we need to remove duplicates that may have
-			//           crept in after substitution? It may not matter.
-			return newUnion(terms, t.tilde)
+			// TODO(gri) Remove duplicates that may have crept in after substitution
+			//           (unlikely but possible). This matters for the Identical
+			//           predicate on unions.
+			return newUnion(types, t.tilde)
 		}
 
 	case *Interface:

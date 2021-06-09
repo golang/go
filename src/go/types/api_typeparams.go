@@ -10,11 +10,8 @@ import (
 
 type (
 	Inferred  = _Inferred
-	Sum       = _Sum
 	TypeParam = _TypeParam
 )
-
-func NewSum(types []Type) Type { return _NewSum(types) }
 
 // NewTypeParam returns a new TypeParam.
 func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {

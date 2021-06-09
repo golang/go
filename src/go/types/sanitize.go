@@ -107,11 +107,8 @@ func (s sanitizer) typ(typ Type) Type {
 		s.tuple(t.params)
 		s.tuple(t.results)
 
-	case *_Sum:
-		s.typeList(t.types)
-
 	case *Union:
-		s.typeList(t.terms)
+		s.typeList(t.types)
 
 	case *Interface:
 		s.funcList(t.methods)

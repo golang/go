@@ -240,22 +240,26 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 			}
 			types = t.allTypes
 		case *Union:
-			types = NewSum(t.terms)
+			// TODO(gri) combine with default case once we have
+			//           converted all tests to new notation and we
+			//           can report an error when we don't have an
+			//           interface before go1.18.
+			types = typ
 		case *TypeParam:
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is a type parameter, not an interface", typ)
 				continue
 			}
-			types = t
+			types = typ
 		default:
-			if t == Typ[Invalid] {
+			if typ == Typ[Invalid] {
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
 				continue
 			}
-			types = t
+			types = typ
 		}
 		allTypes = intersect(allTypes, types)
 	}
@@ -274,44 +278,6 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 		ityp.allMethods = methods
 	}
 	ityp.allTypes = allTypes
-}
-
-// intersect computes the intersection of the types x and y.
-// Note: An incomming nil type stands for the top type. A top
-// type result is returned as nil.
-func intersect(x, y Type) (r Type) {
-	defer func() {
-		if r == theTop {
-			r = nil
-		}
-	}()
-
-	switch {
-	case x == theBottom || y == theBottom:
-		return theBottom
-	case x == nil || x == theTop:
-		return y
-	case y == nil || x == theTop:
-		return x
-	}
-
-	xtypes := unpackType(x)
-	ytypes := unpackType(y)
-	// Compute the list rtypes which includes only
-	// types that are in both xtypes and ytypes.
-	// Quadratic algorithm, but good enough for now.
-	// TODO(gri) fix this
-	var rtypes []Type
-	for _, x := range xtypes {
-		if includes(ytypes, x) {
-			rtypes = append(rtypes, x)
-		}
-	}
-
-	if rtypes == nil {
-		return theBottom
-	}
-	return _NewSum(rtypes)
 }
 
 func sortTypes(list []Type) {

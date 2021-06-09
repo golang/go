@@ -302,7 +302,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 			}
 		}
 
-	case *_Sum:
+	case *Union:
 		return w.isParameterizedList(t.types)
 
 	case *Signature:
@@ -314,9 +314,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		// use) type parameters, we don't care about those either.
 		// Thus, we only need to look at the input and result parameters.
 		return w.isParameterized(t.params) || w.isParameterized(t.results)
-
-	case *Union:
-		panic("unimplemented")
 
 	case *Interface:
 		if t.allMethods != nil {
