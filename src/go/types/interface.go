@@ -34,7 +34,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			continue // ignore
 		}
 
+		// TODO(rfindley) Remove type list handling once the parser doesn't accept type lists anymore.
 		if name.Name == "type" {
+			// Report an error for the first type list per interface
+			// if we don't allow type lists, but continue.
+			if !allowTypeLists && tlist == nil {
+				check.softErrorf(name, _Todo, "use generalized embedding syntax instead of a type list")
+			}
 			// For now, collect all type list entries as if it
 			// were a single union, where each union element is
 			// of the form ~T.
@@ -43,7 +49,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			op.Op = token.TILDE
 			op.X = f.Type
 			tlist = append(tlist, op)
-			if tname != nil && tname != name {
+			// Report an error if we have multiple type lists in an
+			// interface, but only if they are permitted in the first place.
+			if allowTypeLists && tname != nil && tname != name {
 				check.errorf(name, _Todo, "cannot have multiple type lists in an interface")
 			}
 			tname = name
