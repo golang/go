@@ -109,17 +109,18 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 			}
 
 			u := under(t)
-			if tilde[i] {
-				// TODO(rfindley) enable this check once we have converted tests
-				// if !Identical(u, t) {
-				// 	check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
-				// }
+			if tilde[i] && !Identical(u, t) {
+				check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t, u)
+				continue // don't report another error for t
 			}
 			if _, ok := u.(*Interface); ok {
+				// A single type with a ~ is a single-term union.
 				check.errorf(atPos(pos), _Todo, "cannot use interface %s with ~ or inside a union (implementation restriction)", t)
+				continue // don't report another error for t
 			}
 
 			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
+			// TODO(gri) We should also exclude myint|~int since myint is included in ~int.
 			if includes(types[:i], t) {
 				// TODO(rfindley) this currently doesn't print the ~ if present
 				check.softErrorf(atPos(pos), _Todo, "duplicate term %s in union element", t)
