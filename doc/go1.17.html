@@ -293,7 +293,9 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
-<h3 id="gofmt"><code>gofmt</code></h3>
+<h3 id="gofmt">Gofmt</h3>
+
+<p>
   <code>gofmt</code> (and <code>go</code> <code>fmt</code>) now synchronizes
   <code>//go:build</code> lines with <code>// +build</code> lines. If a file
   only has <code>// +build</code> lines, they will be moved to the appropriate
@@ -301,7 +303,7 @@ Do not send CLs removing the interior tags from such phrases.
   added. Otherwise, <code>// +build</code> lines will be overwritten based on
   any existing <code>//go:build</code> lines. For more information, see
   <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
-</h3>
+</p>
 
 <h3 id="vet">Vet</h3>
 
