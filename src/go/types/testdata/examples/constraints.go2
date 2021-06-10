@@ -36,6 +36,15 @@ type (
 	_ interface{int|interface /* ERROR cannot use interface */ {}}
 )
 
+type (
+	// Tilde is not permitted on defined types or interfaces.
+	foo int
+	bar interface{}
+	_ interface{foo}
+	_ interface{~ /* ERROR invalid use of ~ */ foo }
+	_ interface{~ /* ERROR invalid use of ~ */ bar }
+)
+
 // Multiple embedded union elements are intersected. The order in which they
 // appear in the interface doesn't matter since intersection is a symmetric
 // operation.
