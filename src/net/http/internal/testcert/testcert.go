@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package internal
+// Package testcert contains a test-only localhost certificate.
+package testcert
 
 import "strings"
 
@@ -25,7 +26,7 @@ h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
 fblo6RBxUQ==
 -----END CERTIFICATE-----`)
 
-// LocalhostKey is the private key for localhostCert.
+// LocalhostKey is the private key for LocalhostCert.
 var LocalhostKey = []byte(testingKey(`-----BEGIN RSA TESTING KEY-----
 MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
 SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB

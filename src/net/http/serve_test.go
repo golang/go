@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/http/internal"
+	"net/http/internal/testcert"
 	"net/url"
 	"os"
 	"os/exec"
@@ -1475,7 +1476,7 @@ func TestServeTLS(t *testing.T) {
 	defer afterTest(t)
 	defer SetTestHookServerServe(nil)
 
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1599,7 +1600,7 @@ func TestAutomaticHTTP2_Serve_WithTLSConfig(t *testing.T) {
 }
 
 func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1609,7 +1610,7 @@ func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
 }
 
 func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
