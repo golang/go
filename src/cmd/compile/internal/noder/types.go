@@ -327,7 +327,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 			methods[i].Nname = meth
 		}
 		ntyp.Methods().Set(methods)
-		if !ntyp.HasTParam() {
+		if !ntyp.HasTParam() && !ntyp.HasShape() {
 			// Generate all the methods for a new fully-instantiated type.
 			g.instTypeList = append(g.instTypeList, ntyp)
 		}

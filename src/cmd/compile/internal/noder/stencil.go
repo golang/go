@@ -128,6 +128,7 @@ func (g *irgen) stencil() {
 					// call.
 					call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
 				}
+
 				// Add dictionary to argument list.
 				call.Args.Prepend(dictValue)
 				// Transform the Call now, which changes OCALL
@@ -486,6 +487,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 func (g *irgen) instantiateMethods() {
 	for i := 0; i < len(g.instTypeList); i++ {
 		typ := g.instTypeList[i]
+		if typ.HasShape() {
+			// Shape types should not have any methods.
+			continue
+		}
 		// Mark runtime type as needed, since this ensures that the
 		// compiler puts out the needed DWARF symbols, when this
 		// instantiated type has a different package from the local
@@ -781,7 +786,12 @@ func checkFetchBody(nameNode *ir.Name) {
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
 	checkFetchBody(nameNode)
-	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
+
+	// Convert type arguments to their shape, so we can reduce the number
+	// of instantiations we have to generate.
+	shapes := typecheck.ShapifyList(targs)
+
+	sym := typecheck.MakeInstName(nameNode.Sym(), shapes, isMeth)
 	info := g.instInfoMap[sym]
 	if info == nil {
 		if false {
@@ -802,7 +812,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 			dictEntryMap: make(map[ir.Node]int),
 		}
 		// genericSubst fills in info.dictParam and info.dictEntryMap.
-		st := g.genericSubst(sym, nameNode, targs, isMeth, info)
+		st := g.genericSubst(sym, nameNode, shapes, targs, isMeth, info)
 		info.fun = st
 		g.instInfoMap[sym] = info
 		// This ensures that the linker drops duplicates of this instantiation.
@@ -824,6 +834,18 @@ type subster struct {
 	newf     *ir.Func // Func node for the new stenciled function
 	ts       typecheck.Tsubster
 	info     *instInfo // Place to put extra info in the instantiation
+
+	// Which type parameter the shape type came from.
+	shape2param map[*types.Type]*types.Type
+
+	// unshapeify maps from shape types to the concrete types they represent.
+	// TODO: remove when we no longer need it.
+	unshapify  typecheck.Tsubster
+	concretify typecheck.Tsubster
+
+	// TODO: some sort of map from <shape type, interface type> to index in the
+	// dictionary where a *runtime.itab for the corresponding <concrete type,
+	// interface type> pair resides.
 }
 
 // genericSubst returns a new function with name newsym. The function is an
@@ -832,7 +854,7 @@ type subster struct {
 // function type where the receiver becomes the first parameter. Otherwise the
 // instantiated method would still need to be transformed by later compiler
 // phases.  genericSubst fills in info.dictParam and info.dictEntryMap.
-func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs []*types.Type, isMethod bool, info *instInfo) *ir.Func {
 	var tparams []*types.Type
 	if isMethod {
 		// Get the type params from the method receiver (after skipping
@@ -845,6 +867,11 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 		tparams = make([]*types.Type, len(fields))
 		for i, f := range fields {
 			tparams[i] = f.Type
+		}
+	}
+	for i := range targs {
+		if targs[i].HasShape() {
+			base.Fatalf("generiSubst shape %s %+v %+v\n", newsym.Name, shapes[i], targs[i])
 		}
 	}
 	gf := nameNode.Func
@@ -860,6 +887,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	// depend on ir.CurFunc being set.
 	ir.CurFunc = newf
 
+	assert(len(tparams) == len(shapes))
 	assert(len(tparams) == len(targs))
 
 	subst := &subster{
@@ -869,9 +897,26 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 		info:     info,
 		ts: typecheck.Tsubster{
 			Tparams: tparams,
+			Targs:   shapes,
+			Vars:    make(map[*ir.Name]*ir.Name),
+		},
+		shape2param: map[*types.Type]*types.Type{},
+		unshapify: typecheck.Tsubster{
+			Tparams: shapes,
 			Targs:   targs,
 			Vars:    make(map[*ir.Name]*ir.Name),
 		},
+		concretify: typecheck.Tsubster{
+			Tparams: tparams,
+			Targs:   targs,
+			Vars:    make(map[*ir.Name]*ir.Name),
+		},
+	}
+	for i := range shapes {
+		if !shapes[i].IsShape() {
+			panic("must be a shape type")
+		}
+		subst.shape2param[shapes[i]] = tparams[i]
 	}
 
 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
@@ -919,14 +964,23 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
 	newf.Body = subst.list(gf.Body)
 
 	// Add code to check that the dictionary is correct.
-	newf.Body.Prepend(g.checkDictionary(dictionaryName, targs)...)
+	// TODO: must go away when we move to many->1 shape to concrete mapping.
+	newf.Body.Prepend(subst.checkDictionary(dictionaryName, targs)...)
 
 	ir.CurFunc = savef
 	// Add any new, fully instantiated types seen during the substitution to
 	// g.instTypeList.
 	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
+	g.instTypeList = append(g.instTypeList, subst.unshapify.InstTypeList...)
+	g.instTypeList = append(g.instTypeList, subst.concretify.InstTypeList...)
 
 	return newf
+}
+
+func (subst *subster) unshapifyTyp(t *types.Type) *types.Type {
+	res := subst.unshapify.Typ(t)
+	types.CheckSize(res)
+	return res
 }
 
 // localvar creates a new name node for the specified local variable and enters it
@@ -950,7 +1004,7 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 
 // checkDictionary returns code that does runtime consistency checks
 // between the dictionary and the types it should contain.
-func (g *irgen) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.Node) {
+func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.Node) {
 	if false {
 		return // checking turned off
 	}
@@ -965,6 +1019,13 @@ func (g *irgen) checkDictionary(name *ir.Name, targs []*types.Type) (code []ir.N
 
 	// Check that each type entry in the dictionary is correct.
 	for i, t := range targs {
+		if t.HasShape() {
+			// Check the concrete type, not the shape type.
+			// TODO: can this happen?
+			//t = subst.unshapify.Typ(t)
+			base.Fatalf("shape type in dictionary %s %+v\n", name.Sym().Name, t)
+			continue
+		}
 		want := reflectdata.TypePtr(t)
 		typed(types.Types[types.TUINTPTR], want)
 		deref := ir.NewStarExpr(pos, d)
@@ -1144,11 +1205,36 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// will be transformed to an ODOTMETH or ODOTINTER node if
 			// we find in the OCALL case below that the method value
 			// is actually called.
-			transformDot(m.(*ir.SelectorExpr), false)
+			mse := m.(*ir.SelectorExpr)
+			if src := mse.X.Type(); src.IsShape() {
+				// The only dot on a shape type value are methods.
+				if mse.X.Op() == ir.OTYPE {
+					// Method expression T.M
+					// Fall back from shape type to concrete type.
+					src = subst.unshapifyTyp(src)
+					mse.X = ir.TypeNode(src)
+				} else {
+					// Implement x.M as a conversion-to-bound-interface
+					//  1) convert x to the bound interface
+					//  2) call M on that interface
+					dst := subst.concretify.Typ(subst.shape2param[src].Bound())
+					// Mark that we use the methods of this concrete type.
+					// Otherwise the linker deadcode-eliminates them :(
+					reflectdata.MarkTypeUsedInInterface(subst.unshapifyTyp(src), subst.newf.Sym().Linksym())
+					ix := subst.findDictType(subst.shape2param[src])
+					assert(ix >= 0)
+					mse.X = subst.convertUsingDictionary(m.Pos(), mse.X, dst, subst.shape2param[src], ix)
+				}
+			}
+			transformDot(mse, false)
+			if mse.Op() == ir.OMETHEXPR && mse.X.Type().HasShape() {
+				mse.X = ir.TypeNodeAt(mse.X.Pos(), subst.unshapifyTyp(mse.X.Type()))
+			}
 			m.SetTypecheck(1)
 
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
+			convcheck := false
 			switch call.X.Op() {
 			case ir.OTYPE:
 				// Transform the conversion, now that we know the
@@ -1170,7 +1256,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				transformDot(call.X.(*ir.SelectorExpr), true)
+				call.X.SetType(subst.unshapifyTyp(call.X.Type()))
 				transformCall(call)
+				convcheck = true
 
 			case ir.ODOT, ir.ODOTPTR:
 				// An OXDOT for a generic receiver was resolved to
@@ -1178,6 +1266,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
 				transformCall(call)
+				convcheck = true
 
 			case ir.ONAME:
 				name := call.X.Name()
@@ -1190,15 +1279,24 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					default:
 						base.FatalfAt(call.Pos(), "Unexpected builtin op")
 					}
+					switch m.Op() {
+					case ir.OAPPEND:
+						// Append needs to pass a concrete type to the runtime.
+						// TODO: there's no way to record a dictionary-loaded type for walk to use here
+						m.SetType(subst.unshapifyTyp(m.Type()))
+					}
+
 				} else {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
 					// structural constraint) which is now resolved.
 					transformCall(call)
+					convcheck = true
 				}
 
 			case ir.OCLOSURE:
 				transformCall(call)
+				convcheck = true
 
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
@@ -1207,6 +1305,16 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 			default:
 				base.FatalfAt(call.Pos(), fmt.Sprintf("Unexpected op with CALL during stenciling: %v", call.X.Op()))
+			}
+			if convcheck {
+				for i, arg := range x.(*ir.CallExpr).Args {
+					if arg.Type().HasTParam() && arg.Op() != ir.OCONVIFACE &&
+						call.Args[i].Op() == ir.OCONVIFACE {
+						ix := subst.findDictType(arg.Type())
+						assert(ix >= 0)
+						call.Args[i] = subst.convertUsingDictionary(arg.Pos(), call.Args[i].(*ir.ConvExpr).X, call.Args[i].Type(), arg.Type(), ix)
+					}
+				}
 			}
 
 		case ir.OCLOSURE:
@@ -1281,6 +1389,29 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					m.Y = subst.convertUsingDictionary(m.Y.Pos(), m.Y, i, x.X.Type(), ix)
 				}
 			}
+
+		case ir.ONEW:
+			// New needs to pass a concrete type to the runtime.
+			// Or maybe it doesn't? We could use a shape type.
+			// TODO: need to modify m.X? I don't think any downstream passes use it.
+			m.SetType(subst.unshapifyTyp(m.Type()))
+
+		case ir.OPTRLIT:
+			m := m.(*ir.AddrExpr)
+			// Walk uses the type of the argument of ptrlit. Also could be a shape type?
+			m.X.SetType(subst.unshapifyTyp(m.X.Type()))
+
+		case ir.OMETHEXPR:
+			se := m.(*ir.SelectorExpr)
+			se.X = ir.TypeNodeAt(se.X.Pos(), subst.unshapifyTyp(se.X.Type()))
+		case ir.OFUNCINST:
+			inst := m.(*ir.InstExpr)
+			targs2 := make([]ir.Node, len(inst.Targs))
+			for i, n := range inst.Targs {
+				targs2[i] = ir.TypeNodeAt(n.Pos(), subst.unshapifyTyp(n.Type()))
+				// TODO: need an ir.Name node?
+			}
+			inst.Targs = targs2
 		}
 		return m
 	}
@@ -1412,6 +1543,13 @@ func deref(t *types.Type) *types.Type {
 func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
 	if len(targs) == 0 {
 		base.Fatalf("%s should have type arguments", gf.Sym().Name)
+	}
+
+	// Enforce that only concrete types can make it to here.
+	for _, t := range targs {
+		if t.IsShape() {
+			panic(fmt.Sprintf("shape %+v in dictionary for %s", t, gf.Sym().Name))
+		}
 	}
 
 	// Get a symbol representing the dictionary.

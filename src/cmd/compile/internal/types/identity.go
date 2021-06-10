@@ -29,6 +29,14 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 		return false
 	}
 	if t1.sym != nil || t2.sym != nil {
+		if t1.HasShape() || t2.HasShape() {
+			switch t1.kind {
+			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TUNSAFEPTR:
+				return true
+			}
+			// fall through to unnamed type comparison for complex types.
+			goto cont
+		}
 		// Special case: we keep byte/uint8 and rune/int32
 		// separate for error messages. Treat them as equal.
 		switch t1.kind {
@@ -40,6 +48,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 			return false
 		}
 	}
+cont:
 
 	// Any cyclic type must go through a named type, and if one is
 	// named, it is only identical to the other if they are the
