@@ -153,7 +153,7 @@ pkg time, const Layout = "01/02 03:04:05PM '06 -0700"
 pkg time, const Layout ideal-string
 pkg time, func UnixMicro(int64) Time
 pkg time, func UnixMilli(int64) Time
-pkg time, method (*Time) IsDST() bool
+pkg time, method (Time) IsDST() bool
 pkg time, method (Time) GoString() string
 pkg time, method (Time) UnixMicro() int64
 pkg time, method (Time) UnixMilli() int64
