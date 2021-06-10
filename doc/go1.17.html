@@ -292,6 +292,18 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
+<h4 id="go run"><code>go</code> <code>run</code></h4>
+
+<p><!-- golang.org/issue/42088 -->
+  <code>go</code> <code>run</code> now accepts arguments with version suffixes
+  (for example, <code>go</code> <code>run</code>
+  <code>example.com/cmd@v1.0.0</code>).  This causes <code>go</code>
+  <code>run</code> to build and run packages in module-aware mode, ignoring the
+  <code>go.mod</code> file in the current directory or any parent directory, if
+  there is one. This is useful for running executables without installing them or
+  without changing dependencies of the current module.
+</p>
+
 <h3 id="gofmt">Gofmt</h3>
 
 <p>
