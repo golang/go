@@ -171,7 +171,7 @@ type Frontend interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
 	c.useAvg = true
 	c.useHmul = true
@@ -320,6 +320,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.optimize = optimize
 	c.useSSE = true
 	c.UseFMA = true
+	c.SoftFloat = softfloat
+	if softfloat {
+		c.floatParamRegs = nil // no FP registers in softfloat mode
+	}
 
 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
