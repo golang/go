@@ -87,8 +87,7 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
 	types.NewPtrCacheEnabled = false
-	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0)
-	ssaConfig.SoftFloat = Arch.SoftFloat
+	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
 	ssaConfig.Race = base.Flag.Race
 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
 
@@ -3653,6 +3652,16 @@ func softfloatInit() {
 // TODO: do not emit sfcall if operation can be optimized to constant in later
 // opt phase
 func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
+	f2i := func(t *types.Type) *types.Type {
+		switch t.Kind() {
+		case types.TFLOAT32:
+			return types.Types[types.TUINT32]
+		case types.TFLOAT64:
+			return types.Types[types.TUINT64]
+		}
+		return t
+	}
+
 	if callDef, ok := softFloatOps[op]; ok {
 		switch op {
 		case ssa.OpLess32F,
@@ -3665,7 +3674,19 @@ func (s *state) sfcall(op ssa.Op, args ...*ssa.Value) (*ssa.Value, bool) {
 			args[1] = s.newValue1(s.ssaOp(ir.ONEG, types.Types[callDef.rtype]), args[1].Type, args[1])
 		}
 
-		result := s.rtcall(callDef.rtfn, true, []*types.Type{types.Types[callDef.rtype]}, args...)[0]
+		// runtime functions take uints for floats and returns uints.
+		// Convert to uints so we use the right calling convention.
+		for i, a := range args {
+			if a.Type.IsFloat() {
+				args[i] = s.newValue1(ssa.OpCopy, f2i(a.Type), a)
+			}
+		}
+
+		rt := types.Types[callDef.rtype]
+		result := s.rtcall(callDef.rtfn, true, []*types.Type{f2i(rt)}, args...)[0]
+		if rt.IsFloat() {
+			result = s.newValue1(ssa.OpCopy, rt, result)
+		}
 		if op == ssa.OpNeq32F || op == ssa.OpNeq64F {
 			result = s.newValue1(ssa.OpNot, result.Type, result)
 		}
