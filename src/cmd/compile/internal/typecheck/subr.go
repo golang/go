@@ -353,9 +353,10 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 		return ir.OCONVNOP, ""
 	}
 
-	// 2. src and dst have identical underlying types
-	// and either src or dst is not a named type or
-	// both are empty interface types.
+	// 2. src and dst have identical underlying types and
+	//   a. either src or dst is not a named type, or
+	//   b. both are empty interface types, or
+	//   c. at least one is a gcshape type.
 	// For assignable but different non-empty interface types,
 	// we want to recompute the itab. Recomputing the itab ensures
 	// that itabs are unique (thus an interface with a compile-time
@@ -372,12 +373,23 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 			// which need to have their itab updated.
 			return ir.OCONVNOP, ""
 		}
+		if src.IsShape() || dst.IsShape() {
+			// Conversion between a shape type and one of the types
+			// it represents also needs no conversion.
+			return ir.OCONVNOP, ""
+		}
 	}
 
 	// 3. dst is an interface type and src implements dst.
 	if dst.IsInterface() && src.Kind() != types.TNIL {
 		var missing, have *types.Field
 		var ptr int
+		if src.IsShape() {
+			// Shape types implement things they have already
+			// been typechecked to implement, even if they
+			// don't have the methods for them.
+			return ir.OCONVIFACE, ""
+		}
 		if implements(src, dst, &missing, &have, &ptr) {
 			return ir.OCONVIFACE, ""
 		}
@@ -898,8 +910,8 @@ func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string 
 	hasTParam := false
 	for _, targ := range targs {
 		if hasTParam {
-			assert(targ.HasTParam())
-		} else if targ.HasTParam() {
+			assert(targ.HasTParam() || targ.HasShape())
+		} else if targ.HasTParam() || targ.HasShape() {
 			hasTParam = true
 		}
 	}
@@ -1002,14 +1014,14 @@ type Tsubster struct {
 // result is t; otherwise the result is a new type. It deals with recursive types
 // by using TFORW types and finding partially or fully created types via sym.Def.
 func (ts *Tsubster) Typ(t *types.Type) *types.Type {
-	if !t.HasTParam() && t.Kind() != types.TFUNC {
+	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TFUNC {
 		// Note: function types need to be copied regardless, as the
 		// types of closures may contain declarations that need
 		// to be copied. See #45738.
 		return t
 	}
 
-	if t.IsTypeParam() {
+	if t.IsTypeParam() || t.IsShape() {
 		for i, tp := range ts.Tparams {
 			if tp == t {
 				return ts.Targs[i]
@@ -1038,6 +1050,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 
 	var newsym *types.Sym
 	var neededTargs []*types.Type
+	var targsChanged bool
 	var forw *types.Type
 
 	if t.Sym() != nil {
@@ -1046,6 +1059,9 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		neededTargs = make([]*types.Type, len(t.RParams()))
 		for i, rparam := range t.RParams() {
 			neededTargs[i] = ts.Typ(rparam)
+			if !types.Identical(neededTargs[i], rparam) {
+				targsChanged = true
+			}
 		}
 		// For a named (defined) type, we have to change the name of the
 		// type as well. We do this first, so we can look up if we've
@@ -1074,7 +1090,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 
 	switch t.Kind() {
 	case types.TTYPEPARAM:
-		if t.Sym() == newsym {
+		if t.Sym() == newsym && !targsChanged {
 			// The substitution did not change the type.
 			return t
 		}
@@ -1086,26 +1102,26 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 	case types.TARRAY:
 		elem := t.Elem()
 		newelem := ts.Typ(elem)
-		if newelem != elem {
+		if newelem != elem || targsChanged {
 			newt = types.NewArray(newelem, t.NumElem())
 		}
 
 	case types.TPTR:
 		elem := t.Elem()
 		newelem := ts.Typ(elem)
-		if newelem != elem {
+		if newelem != elem || targsChanged {
 			newt = types.NewPtr(newelem)
 		}
 
 	case types.TSLICE:
 		elem := t.Elem()
 		newelem := ts.Typ(elem)
-		if newelem != elem {
+		if newelem != elem || targsChanged {
 			newt = types.NewSlice(newelem)
 		}
 
 	case types.TSTRUCT:
-		newt = ts.tstruct(t, false)
+		newt = ts.tstruct(t, targsChanged)
 		if newt == t {
 			newt = nil
 		}
@@ -1114,7 +1130,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		newrecvs := ts.tstruct(t.Recvs(), false)
 		newparams := ts.tstruct(t.Params(), false)
 		newresults := ts.tstruct(t.Results(), false)
-		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() {
+		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() || targsChanged {
 			// If any types have changed, then the all the fields of
 			// of recv, params, and results must be copied, because they have
 			// offset fields that are dependent, and so must have an
@@ -1144,14 +1160,14 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 	case types.TMAP:
 		newkey := ts.Typ(t.Key())
 		newval := ts.Typ(t.Elem())
-		if newkey != t.Key() || newval != t.Elem() {
+		if newkey != t.Key() || newval != t.Elem() || targsChanged {
 			newt = types.NewMap(newkey, newval)
 		}
 
 	case types.TCHAN:
 		elem := t.Elem()
 		newelem := ts.Typ(elem)
-		if newelem != elem {
+		if newelem != elem || targsChanged {
 			newt = types.NewChan(newelem, t.ChanDir())
 			if !newt.HasTParam() {
 				// TODO(danscales): not sure why I have to do this
@@ -1167,7 +1183,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		}
 	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
-		types.TUINTPTR, types.TBOOL, types.TSTRING:
+		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
 		newt = t.Underlying()
 	}
 	if newt == nil {
@@ -1177,15 +1193,17 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		return t
 	}
 
-	if t.Sym() == nil {
-		// Not a named type, so there was no forwarding type and there are
-		// no methods to substitute.
+	if t.Sym() == nil && t.Kind() != types.TINTER {
+		// Not a named type or interface type, so there was no forwarding type
+		// and there are no methods to substitute.
 		assert(t.Methods().Len() == 0)
 		return newt
 	}
 
-	forw.SetUnderlying(newt)
-	newt = forw
+	if forw != nil {
+		forw.SetUnderlying(newt)
+		newt = forw
+	}
 
 	if t.Kind() != types.TINTER && t.Methods().Len() > 0 {
 		// Fill in the method info for the new type.
@@ -1207,7 +1225,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 			newfields[i].Nname = nname
 		}
 		newt.Methods().Set(newfields)
-		if !newt.HasTParam() {
+		if !newt.HasTParam() && !newt.HasShape() {
 			// Generate all the methods for a new fully-instantiated type.
 			ts.InstTypeList = append(ts.InstTypeList, newt)
 		}
@@ -1304,4 +1322,46 @@ func (ts *Tsubster) tinter(t *types.Type) *types.Type {
 // first bracket ("[").
 func genericTypeName(sym *types.Sym) string {
 	return sym.Name[0:strings.Index(sym.Name, "[")]
+}
+
+// Shapify takes a concrete type and returns a GCshape type that can
+// be used in place of the input type and still generate identical code.
+// TODO: this could take the generic function and base its decisions
+// on how that generic function uses this type argument. For instance,
+// if it doesn't use it as a function argument/return value, then
+// we don't need to distinguish int64 and float64 (because they only
+// differ in how they get passed as arguments). For now, we only
+// unify two different types if they are identical in every possible way.
+func Shapify(t *types.Type) *types.Type {
+	if t.IsShape() {
+		return t // TODO: is this right?
+	}
+	if s := Shaped[t]; s != nil {
+		return s //TODO: keep?
+	}
+
+	// For now, there is a 1-1 mapping between regular types and shape types.
+	sym := Lookup(fmt.Sprintf(".shape%d", snum))
+	snum++
+	name := ir.NewDeclNameAt(t.Pos(), ir.OTYPE, sym)
+	s := types.NewNamed(name)
+	s.SetUnderlying(t.Underlying())
+	s.SetIsShape(true)
+	name.SetType(s)
+	name.SetTypecheck(1)
+	// TODO: add methods to s that the bound has?
+	Shaped[t] = s
+	return s
+}
+
+var snum int
+
+var Shaped = map[*types.Type]*types.Type{}
+
+func ShapifyList(targs []*types.Type) []*types.Type {
+	r := make([]*types.Type, len(targs))
+	for i, t := range targs {
+		r[i] = Shapify(t)
+	}
+	return r
 }

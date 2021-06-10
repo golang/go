@@ -302,6 +302,9 @@ func MapIterType(t *types.Type) *types.Type {
 // methods returns the methods of the non-interface type t, sorted by name.
 // Generates stub functions as needed.
 func methods(t *types.Type) []*typeSig {
+	if t.HasShape() {
+		return nil
+	}
 	// method type
 	mt := types.ReceiverBaseType(t)
 
@@ -1215,6 +1218,7 @@ func NeedRuntimeType(t *types.Type) {
 	if t.HasTParam() {
 		// Generic types don't have a runtime type descriptor (but will
 		// have a dictionary)
+		// TODO: also shape type here?
 		return
 	}
 	if _, ok := signatset[t]; !ok {
@@ -1276,6 +1280,9 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
 	for _, m := range methods(typ) {
 		if m.name == sigs[0].Sym {
 			entries = append(entries, m.isym)
+			if m.isym == nil {
+				panic("NO ISYM")
+			}
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
 				break
@@ -1764,6 +1771,17 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		// an embedded field) which is an interface method.
 		// TODO: check that we do the right thing when method is an interface method.
 		generic = true
+
+		targs := rcvr.RParams()
+		if rcvr.IsPtr() {
+			targs = rcvr.Elem().RParams()
+		}
+		// TODO: why do shape-instantiated types exist?
+		for _, t := range targs {
+			if t.HasShape() {
+				base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
+			}
+		}
 	}
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
@@ -1881,9 +1899,13 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			}
 			args = append(args, ir.ParamNames(tfn.Type())...)
 
-			// TODO: Once we enter the gcshape world, we'll need a way to look up
-			// the stenciled implementation to use for this concrete type. Essentially,
-			// erase the concrete types and replace them with gc shape representatives.
+			// Target method uses shaped names.
+			targs2 := make([]*types.Type, len(targs))
+			for i, t := range targs {
+				targs2[i] = typecheck.Shaped[t]
+			}
+			targs = targs2
+
 			sym := typecheck.MakeInstName(ir.MethodSym(methodrcvr, method.Sym), targs, true)
 			if sym.Def == nil {
 				// Currently we make sure that we have all the instantiations
@@ -1974,6 +1996,11 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 	if len(targs) == 0 {
 		base.Fatalf("%s should have type arguments", gf.Name)
+	}
+	for _, t := range targs {
+		if t.HasShape() {
+			base.Fatalf("dictionary for %s should only use concrete types: %+v", gf.Name, t)
+		}
 	}
 
 	sym := typecheck.MakeDictName(gf, targs, true)

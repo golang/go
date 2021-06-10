@@ -210,6 +210,7 @@ const (
 	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
 	typeHasTParam // there is a typeparam somewhere in the type (generic function or type)
+	typeIsShape   // represents a set of closely related types, for generics
 )
 
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
@@ -218,12 +219,14 @@ func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
 func (t *Type) HasTParam() bool  { return t.flags&typeHasTParam != 0 }
+func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
 
 func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+func (t *Type) SetIsShape(b bool)    { t.flags.set(typeIsShape, b) }
 
 // Generic types should never have alg functions.
 func (t *Type) SetHasTParam(b bool) { t.flags.set(typeHasTParam, b); t.flags.set(typeNoalg, b) }
@@ -2147,3 +2150,46 @@ var (
 )
 
 var SimType [NTYPE]Kind
+
+// Reports whether t has a shape type anywere.
+func (t *Type) HasShape() bool {
+	return t.HasShape1(map[*Type]bool{})
+}
+func (t *Type) HasShape1(visited map[*Type]bool) bool {
+	if t.IsShape() {
+		return true
+	}
+	if visited[t] {
+		return false
+	}
+	visited[t] = true
+	if t.Sym() != nil {
+		for _, u := range t.RParams() {
+			if u.HasShape1(visited) {
+				return true
+			}
+		}
+	}
+	switch t.Kind() {
+	case TPTR, TARRAY, TSLICE, TCHAN:
+		return t.Elem().HasShape1(visited)
+	case TMAP:
+		return t.Elem().HasShape1(visited) || t.Key().HasShape1(visited)
+	case TSTRUCT:
+		for _, f := range t.FieldSlice() {
+			if f.Type.HasShape1(visited) {
+				return true
+			}
+		}
+	case TFUNC:
+		for _, a := range RecvsParamsResults {
+			for _, f := range a(t).FieldSlice() {
+				if f.Type.HasShape1(visited) {
+					return true
+				}
+			}
+		}
+		// TODO: TINTER - check methods?
+	}
+	return false
+}
