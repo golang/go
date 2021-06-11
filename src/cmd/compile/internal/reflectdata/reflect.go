@@ -1780,6 +1780,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		// TODO: check that we do the right thing when rcvr.IsInterface().
 		generic = true
 	}
+	if base.Debug.Unified != 0 {
+		// TODO(mdempsky): Support dictionaries for unified IR.
+		generic = false
+	}
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 	if newnam.Siggen() {
