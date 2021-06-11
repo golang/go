@@ -18,7 +18,6 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
-	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -647,7 +646,7 @@ func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIA
 		v := views[0]
 		snapshot, release := v.Snapshot(ctx)
 		defer release()
-		modFile, err := cache.BuildGoplsMod(ctx, snapshot.View().Folder(), snapshot)
+		modFile, err := snapshot.BuildGoplsMod(ctx)
 		if err != nil {
 			return errors.Errorf("getting workspace mod file: %w", err)
 		}

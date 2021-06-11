@@ -343,7 +343,7 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 		if err != nil {
 			return err
 		}
-		if strings.HasSuffix(filepath.Ext(path), "tmpl") && !pathExcludedByFilter(path, s.view.options) &&
+		if strings.HasSuffix(filepath.Ext(path), "tmpl") && !pathExcludedByFilter(path, dir, s.view.gomodcache, s.view.options) &&
 			!fi.IsDir() {
 			k := span.URIFromPath(path)
 			fh, err := s.GetVersionedFile(ctx, k)
@@ -371,7 +371,7 @@ func (v *View) contains(uri span.URI) bool {
 	}
 	// Filters are applied relative to the workspace folder.
 	if inFolder {
-		return !pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), v.Options())
+		return !pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), v.rootURI.Filename(), v.gomodcache, v.Options())
 	}
 	return true
 }
@@ -1017,24 +1017,25 @@ func (v *View) allFilesExcluded(pkg *packages.Package) bool {
 		if !strings.HasPrefix(f, folder) {
 			return false
 		}
-		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), opts) {
+		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), v.rootURI.Filename(), v.gomodcache, opts) {
 			return false
 		}
 	}
 	return true
 }
 
-func pathExcludedByFilterFunc(opts *source.Options) func(string) bool {
+func pathExcludedByFilterFunc(root, gomodcache string, opts *source.Options) func(string) bool {
 	return func(path string) bool {
-		return pathExcludedByFilter(path, opts)
+		return pathExcludedByFilter(path, root, gomodcache, opts)
 	}
 }
 
-func pathExcludedByFilter(path string, opts *source.Options) bool {
+func pathExcludedByFilter(path, root, gomodcache string, opts *source.Options) bool {
 	path = strings.TrimPrefix(filepath.ToSlash(path), "/")
+	gomodcache = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(gomodcache, root)), "/")
 
 	excluded := false
-	for _, filter := range opts.DirectoryFilters {
+	for _, filter := range append(opts.DirectoryFilters, "-"+gomodcache) {
 		op, prefix := filter[0], filter[1:]
 		// Non-empty prefixes have to be precise directory matches.
 		if prefix != "" {

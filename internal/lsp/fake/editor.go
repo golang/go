@@ -206,9 +206,11 @@ func (e *Editor) Client() *Client {
 func (e *Editor) overlayEnv() map[string]string {
 	env := make(map[string]string)
 	for k, v := range e.defaultEnv {
+		v = strings.ReplaceAll(v, "$SANDBOX_WORKDIR", e.sandbox.Workdir.RootURI().SpanURI().Filename())
 		env[k] = v
 	}
 	for k, v := range e.Config.Env {
+		v = strings.ReplaceAll(v, "$SANDBOX_WORKDIR", e.sandbox.Workdir.RootURI().SpanURI().Filename())
 		env[k] = v
 	}
 	return env

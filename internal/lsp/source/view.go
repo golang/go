@@ -160,6 +160,10 @@ type Snapshot interface {
 
 	// GetCriticalError returns any critical errors in the workspace.
 	GetCriticalError(ctx context.Context) *CriticalError
+
+	// BuildGoplsMod generates a go.mod file for all modules in the workspace.
+	// It bypasses any existing gopls.mod.
+	BuildGoplsMod(ctx context.Context) (*modfile.File, error)
 }
 
 // PackageFilter sets how a package is filtered out from a set of packages
