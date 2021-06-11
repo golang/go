@@ -499,10 +499,12 @@ L: // unpack receiver type
 	}
 
 	// unpack type parameters, if any
-	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
-		rtyp = ptyp.X
+	switch rtyp.(type) {
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(rtyp)
+		rtyp = ix.X
 		if unpackParams {
-			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
+			for _, arg := range ix.Indices {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:
@@ -510,7 +512,7 @@ L: // unpack receiver type
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.invalidAST(ptyp, "parameterized receiver contains nil parameters")
+					check.invalidAST(ix.Orig, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, _Todo, "receiver type parameter %s must be an identifier", arg)
 				}

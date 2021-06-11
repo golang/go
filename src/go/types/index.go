@@ -15,18 +15,18 @@ import (
 // If e is a valid function instantiation, indexExpr returns true.
 // In that case x represents the uninstantiated function value and
 // it is the caller's responsibility to instantiate the function.
-func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) {
-	check.exprOrType(x, e.X)
+func (check *Checker) indexExpr(x *operand, expr *typeparams.IndexExpr) (isFuncInst bool) {
+	check.exprOrType(x, expr.X)
 
 	switch x.mode {
 	case invalid:
-		check.use(typeparams.UnpackExpr(e.Index)...)
+		check.use(expr.Indices...)
 		return false
 
 	case typexpr:
 		// type instantiation
 		x.mode = invalid
-		x.typ = check.varType(e)
+		x.typ = check.varType(expr.Orig)
 		if x.typ != Typ[Invalid] {
 			x.mode = typexpr
 		}
@@ -77,7 +77,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		x.typ = typ.elem
 
 	case *Map:
-		index := check.singleIndex(e)
+		index := check.singleIndex(expr)
 		if index == nil {
 			x.mode = invalid
 			return
@@ -88,7 +88,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		// ok to continue even if indexing failed - map element type is known
 		x.mode = mapindex
 		x.typ = typ.elem
-		x.expr = e
+		x.expr = expr.Orig
 		return
 
 	case *Union:
@@ -137,7 +137,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 			// If there are maps, the index expression must be assignable
 			// to the map key type (as for simple map index expressions).
 			if nmaps > 0 {
-				index := check.singleIndex(e)
+				index := check.singleIndex(expr)
 				if index == nil {
 					x.mode = invalid
 					return
@@ -151,7 +151,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 				if nmaps == typ.NumTerms() {
 					x.mode = mapindex
 					x.typ = telem
-					x.expr = e
+					x.expr = expr.Orig
 					return
 				}
 
@@ -180,7 +180,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) 
 		return
 	}
 
-	index := check.singleIndex(e)
+	index := check.singleIndex(expr)
 	if index == nil {
 		x.mode = invalid
 		return
@@ -311,23 +311,16 @@ L:
 // singleIndex returns the (single) index from the index expression e.
 // If the index is missing, or if there are multiple indices, an error
 // is reported and the result is nil.
-func (check *Checker) singleIndex(e *ast.IndexExpr) ast.Expr {
-	index := e.Index
-	if index == nil {
-		check.invalidAST(e, "missing index for %s", e)
+func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
+	if len(expr.Indices) == 0 {
+		check.invalidAST(expr.Orig, "index expression %v with 0 indices", expr)
 		return nil
 	}
-
-	indexes := typeparams.UnpackExpr(index)
-	if len(indexes) == 0 {
-		check.invalidAST(index, "index expression %v with 0 indices", index)
-		return nil
-	}
-	if len(indexes) > 1 {
+	if len(expr.Indices) > 1 {
 		// TODO(rFindley) should this get a distinct error code?
-		check.invalidOp(indexes[1], _InvalidIndex, "more than one index")
+		check.invalidOp(expr.Indices[1], _InvalidIndex, "more than one index")
 	}
-	return indexes[0]
+	return expr.Indices[0]
 }
 
 // index checks an index expression for validity.

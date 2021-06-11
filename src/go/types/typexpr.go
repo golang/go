@@ -261,13 +261,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			check.errorf(&x, _NotAType, "%s is not a type", &x)
 		}
 
-	case *ast.IndexExpr:
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(e)
 		if typeparams.Enabled {
-			exprs := typeparams.UnpackExpr(e.Index)
-			return check.instantiatedType(e.X, exprs, def)
+			return check.instantiatedType(ix, def)
 		}
 		check.errorf(e0, _NotAType, "%s is not a type", e0)
-		check.use(e.X)
+		check.use(ix.X)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -403,8 +403,8 @@ func (check *Checker) typeOrNil(e ast.Expr) Type {
 	return Typ[Invalid]
 }
 
-func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named) Type {
-	b := check.genericType(x, true) // TODO(gri) what about cycles?
+func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) Type {
+	b := check.genericType(ix.X, true) // TODO(gri) what about cycles?
 	if b == Typ[Invalid] {
 		return b // error already reported
 	}
@@ -420,19 +420,19 @@ func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named)
 	def.setUnderlying(typ)
 
 	typ.check = check
-	typ.pos = x.Pos()
+	typ.pos = ix.X.Pos()
 	typ.base = base
 
 	// evaluate arguments (always)
-	typ.targs = check.typeList(targs)
+	typ.targs = check.typeList(ix.Indices)
 	if typ.targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
 	}
 
 	// determine argument positions (for error reporting)
-	typ.poslist = make([]token.Pos, len(targs))
-	for i, arg := range targs {
+	typ.poslist = make([]token.Pos, len(ix.Indices))
+	for i, arg := range ix.Indices {
 		typ.poslist[i] = arg.Pos()
 	}
 

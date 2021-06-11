@@ -16,23 +16,22 @@ import (
 
 // funcInst type-checks a function instantiation inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
-func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
-	xlist := typeparams.UnpackExpr(inst.Index)
-	targs := check.typeList(xlist)
+func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
+	targs := check.typeList(ix.Indices)
 	if targs == nil {
 		x.mode = invalid
-		x.expr = inst
+		x.expr = ix.Orig
 		return
 	}
-	assert(len(targs) == len(xlist))
+	assert(len(targs) == len(ix.Indices))
 
 	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
 	got, want := len(targs), len(sig.tparams)
 	if got > want {
-		check.errorf(xlist[got-1], _Todo, "got %d type arguments but want %d", got, want)
+		check.errorf(ix.Indices[got-1], _Todo, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
-		x.expr = inst
+		x.expr = ix.Orig
 		return
 	}
 
@@ -40,11 +39,11 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	inferred := false
 
 	if got < want {
-		targs = check.infer(inst, sig.tparams, targs, nil, nil, true)
+		targs = check.infer(ix.Orig, sig.tparams, targs, nil, nil, true)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
-			x.expr = inst
+			x.expr = ix.Orig
 			return
 		}
 		got = len(targs)
@@ -55,8 +54,8 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	// determine argument positions (for error reporting)
 	// TODO(rFindley) use a positioner here? instantiate would need to be
 	//                updated accordingly.
-	poslist := make([]token.Pos, len(xlist))
-	for i, x := range xlist {
+	poslist := make([]token.Pos, len(ix.Indices))
+	for i, x := range ix.Indices {
 		poslist[i] = x.Pos()
 	}
 
@@ -64,25 +63,27 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
-		check.recordInferred(inst, targs, res)
+		check.recordInferred(ix.Orig, targs, res)
 	}
 	x.typ = res
 	x.mode = value
-	x.expr = inst
+	x.expr = ix.Orig
 }
 
 func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
-	var inst *ast.IndexExpr
-	if iexpr, _ := call.Fun.(*ast.IndexExpr); iexpr != nil {
-		if check.indexExpr(x, iexpr) {
+	ix := typeparams.UnpackIndexExpr(call.Fun)
+	if ix != nil {
+		if check.indexExpr(x, ix) {
 			// Delay function instantiation to argument checking,
 			// where we combine type and value arguments for type
 			// inference.
 			assert(x.mode == value)
-			inst = iexpr
+		} else {
+			ix = nil
 		}
-		x.expr = iexpr
+		x.expr = call.Fun
 		check.record(x)
+
 	} else {
 		check.exprOrType(x, call.Fun)
 	}
@@ -149,21 +150,20 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// evaluate type arguments, if any
 	var targs []Type
-	if inst != nil {
-		xlist := typeparams.UnpackExpr(inst.Index)
-		targs = check.typeList(xlist)
+	if ix != nil {
+		targs = check.typeList(ix.Indices)
 		if targs == nil {
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
 			return statement
 		}
-		assert(len(targs) == len(xlist))
+		assert(len(targs) == len(ix.Indices))
 
 		// check number of type arguments (got) vs number of type parameters (want)
 		got, want := len(targs), len(sig.tparams)
 		if got > want {
-			check.errorf(xlist[want], _Todo, "got %d type arguments but want %d", got, want)
+			check.errorf(ix.Indices[want], _Todo, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
