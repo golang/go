@@ -1,0 +1,13 @@
+-- testCases-rename --
+package issue42134
+
+func _() {
+	/*
+	testCases contains test cases
+	*/
+	testCases := []struct { //@rename("tests", "testCases")
+		in, out string
+	}{}
+	_ = testCases
+}
+

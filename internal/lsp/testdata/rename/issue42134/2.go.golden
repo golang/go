@@ -1,0 +1,14 @@
+-- res-rename --
+package issue42134
+
+import "fmt"
+
+func _() {
+	// res is a min number.
+	// Second line.
+	res := min(1, 2)
+	fmt.Println(res) //@rename("minNumber", "res")
+}
+
+func min(a, b int) int { return a }
+

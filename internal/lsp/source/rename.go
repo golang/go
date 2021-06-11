@@ -289,6 +289,38 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 				return decl.Doc
 			}
 		case *ast.Ident:
+		case *ast.AssignStmt:
+			// *ast.AssignStmt doesn't have an associated comment group.
+			// So, we try to find a comment just before the identifier.
+
+			// Try to find a comment group only for short variable declarations (:=).
+			if decl.Tok != token.DEFINE {
+				return nil
+			}
+
+			var file *ast.File
+			for _, f := range pkg.GetSyntax() {
+				if f.Pos() <= id.Pos() && id.Pos() <= f.End() {
+					file = f
+					break
+				}
+			}
+			if file == nil {
+				return nil
+			}
+
+			identLine := r.fset.Position(id.Pos()).Line
+			for _, comment := range file.Comments {
+				if comment.Pos() > id.Pos() {
+					// Comment is after the identifier.
+					continue
+				}
+
+				lastCommentLine := r.fset.Position(comment.End()).Line
+				if lastCommentLine+1 == identLine {
+					return comment
+				}
+			}
 		default:
 			return nil
 		}

@@ -1,0 +1,10 @@
+-- b-rename --
+package issue42134
+
+func _() {
+	// a is equal to 5. Comment must stay the same
+
+	b := 5
+	_ = b //@rename("a", "b")
+}
+

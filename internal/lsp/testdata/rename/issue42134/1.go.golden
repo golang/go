@@ -1,0 +1,10 @@
+-- bar-rename --
+package issue42134
+
+func _() {
+	// bar computes things.
+	bar := func() {}
+
+	bar() //@rename("foo", "bar")
+}
+
