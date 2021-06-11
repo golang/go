@@ -1633,6 +1633,7 @@ const (
 	OpARM64LoweredPanicBoundsB
 	OpARM64LoweredPanicBoundsC
 	OpARM64PRFM
+	OpARM64DMB
 
 	OpMIPSADD
 	OpMIPSADDconst
@@ -2949,6 +2950,7 @@ const (
 	OpAtomicAnd32Variant
 	OpAtomicOr8Variant
 	OpAtomicOr32Variant
+	OpPubBarrier
 	OpClobber
 	OpClobberReg
 	OpPrefetchCache
@@ -21790,6 +21792,14 @@ var opcodeTable = [...]opInfo{
 			},
 		},
 	},
+	{
+		name:           "DMB",
+		auxType:        auxInt64,
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            arm64.ADMB,
+		reg:            regInfo{},
+	},
 
 	{
 		name:        "ADD",
@@ -36736,6 +36746,12 @@ var opcodeTable = [...]opInfo{
 	{
 		name:           "AtomicOr32Variant",
 		argLen:         3,
+		hasSideEffects: true,
+		generic:        true,
+	},
+	{
+		name:           "PubBarrier",
+		argLen:         1,
 		hasSideEffects: true,
 		generic:        true,
 	},
