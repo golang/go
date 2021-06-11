@@ -324,7 +324,21 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			verb = 'v'
 		}
 
-		sconv2(b, t.Sym(), verb, mode)
+		// In unified IR, function-scope defined types will have a ·N
+		// suffix embedded directly in their Name. Trim this off for
+		// non-fmtTypeID modes.
+		sym := t.Sym()
+		if mode != fmtTypeID {
+			i := len(sym.Name)
+			for i > 0 && sym.Name[i-1] >= '0' && sym.Name[i-1] <= '9' {
+				i--
+			}
+			const dot = "·"
+			if i >= len(dot) && sym.Name[i-len(dot):i] == dot {
+				sym = &Sym{Pkg: sym.Pkg, Name: sym.Name[:i-len(dot)]}
+			}
+		}
+		sconv2(b, sym, verb, mode)
 
 		// TODO(mdempsky): Investigate including Vargen in fmtTypeIDName
 		// output too. It seems like it should, but that mode is currently
