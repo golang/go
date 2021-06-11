@@ -20,7 +20,7 @@ import (
 
 // checkFiles configures and runs the types2 checker on the given
 // parsed source files and then returns the result.
-func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Package, *types2.Info) {
+func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
@@ -34,6 +34,9 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
 	}
 
 	// typechecking
+	importer := gcimports{
+		packages: make(map[string]*types2.Package),
+	}
 	conf := types2.Config{
 		GoVersion:             base.Flag.Lang,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
@@ -43,7 +46,7 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
 			terr := err.(types2.Error)
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
 		},
-		Importer: importer,
+		Importer: &importer,
 		Sizes:    &gcSizes{},
 	}
 	info := &types2.Info{
@@ -57,7 +60,10 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
 		// expand as needed
 	}
 
-	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+	pkg := types2.NewPackage(base.Ctxt.Pkgpath, "")
+	importer.check = types2.NewChecker(&conf, pkg, info)
+	err := importer.check.Files(files)
+
 	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
@@ -69,11 +75,7 @@ func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Pack
 // check2 type checks a Go package using types2, and then generates IR
 // using the results.
 func check2(noders []*noder) {
-	importer := &gcimports{
-		packages: make(map[string]*types2.Package),
-	}
-
-	m, pkg, info := checkFiles(noders, importer)
+	m, pkg, info := checkFiles(noders)
 
 	if base.Flag.G < 2 {
 		os.Exit(0)
