@@ -1800,8 +1800,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	}
 
 	// Only generate I.M wrappers for I in I's own package
-	// but keep doing it for error.Error (was issue #29304).
-	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
+	// but keep doing it for error.Error (was issue #29304)
+	// and methods of instantiated interfaces.
+	if rcvr.IsInterface() && rcvr != types.ErrorType &&
+		rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg &&
+		!rcvr.IsFullyInstantiated() {
 		return lsym
 	}
 
