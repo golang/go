@@ -3856,6 +3856,13 @@ func InitTables() {
 		},
 		all...)
 
+	addF("runtime", "publicationBarrier",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+			return nil
+		},
+		sys.ARM64)
+
 	/******** runtime/internal/sys ********/
 	addF("runtime/internal/sys", "Ctz32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

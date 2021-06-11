@@ -920,6 +920,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpPrefetchCache(v)
 	case OpPrefetchCacheStreamed:
 		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
+	case OpPubBarrier:
+		return rewriteValueARM64_OpPubBarrier(v)
 	case OpRotateLeft16:
 		return rewriteValueARM64_OpRotateLeft16(v)
 	case OpRotateLeft32:
@@ -25610,6 +25612,18 @@ func rewriteValueARM64_OpPrefetchCacheStreamed(v *Value) bool {
 		v.reset(OpARM64PRFM)
 		v.AuxInt = int64ToAuxInt(1)
 		v.AddArg2(addr, mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpPubBarrier(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (PubBarrier mem)
+	// result: (DMB [0xe] mem)
+	for {
+		mem := v_0
+		v.reset(OpARM64DMB)
+		v.AuxInt = int64ToAuxInt(0xe)
+		v.AddArg(mem)
 		return true
 	}
 }
