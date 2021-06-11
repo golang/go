@@ -110,25 +110,35 @@ func LoadPackage(filenames []string) {
 	//   We also defer type alias declarations until phase 2
 	//   to avoid cycles like #18640.
 	//   TODO(gri) Remove this again once we have a fix for #25838.
-
-	// Don't use range--typecheck can add closures to Target.Decls.
-	base.Timer.Start("fe", "typecheck", "top1")
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
-			typecheck.Target.Decls[i] = typecheck.Stmt(n)
-		}
-	}
-
+	//
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to Target.Decls.
-	base.Timer.Start("fe", "typecheck", "top2")
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
-			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+	for phase, name := range []string{"top1", "top2"} {
+		base.Timer.Start("fe", "typecheck", name)
+		for i := 0; i < len(typecheck.Target.Decls); i++ {
+			n := typecheck.Target.Decls[i]
+			op := n.Op()
+
+			// Closure function declarations are typechecked as part of the
+			// closure expression.
+			if fn, ok := n.(*ir.Func); ok && fn.OClosure != nil {
+				continue
+			}
+
+			// We don't actually add ir.ODCL nodes to Target.Decls. Make sure of that.
+			if op == ir.ODCL {
+				base.FatalfAt(n.Pos(), "unexpected top declaration: %v", op)
+			}
+
+			// Identify declarations that should be deferred to the second
+			// iteration.
+			late := op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias()
+
+			if late == (phase == 1) {
+				typecheck.Target.Decls[i] = typecheck.Stmt(n)
+			}
 		}
 	}
 
@@ -137,16 +147,15 @@ func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "typecheck", "func")
 	var fcount int64
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if n.Op() == ir.ODCLFUNC {
+		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nbefore typecheck %v", n)
-				ir.Dump(s, n)
+				s := fmt.Sprintf("\nbefore typecheck %v", fn)
+				ir.Dump(s, fn)
 			}
-			typecheck.FuncBody(n.(*ir.Func))
+			typecheck.FuncBody(fn)
 			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nafter typecheck %v", n)
-				ir.Dump(s, n)
+				s := fmt.Sprintf("\nafter typecheck %v", fn)
+				ir.Dump(s, fn)
 			}
 			fcount++
 		}
@@ -1794,24 +1803,14 @@ func fakeRecv() *ir.Field {
 }
 
 func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
-	xtype := p.typeExpr(expr.Type)
-
-	fn := ir.NewFunc(p.pos(expr))
-	fn.SetIsHiddenClosure(ir.CurFunc != nil)
-
-	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by tcClosure
-	fn.Nname.Func = fn
-	fn.Nname.Ntype = xtype
-	fn.Nname.Defn = fn
-
-	clo := ir.NewClosureExpr(p.pos(expr), fn)
-	fn.OClosure = clo
+	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc)
+	fn.Nname.Ntype = p.typeExpr(expr.Type)
 
 	p.funcBody(fn, expr.Body)
 
 	ir.FinishCaptureNames(base.Pos, ir.CurFunc, fn)
 
-	return clo
+	return fn.OClosure
 }
 
 // A function named init is a special case.

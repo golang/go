@@ -1143,8 +1143,6 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 // closure does the necessary substitions for a ClosureExpr n and returns the new
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
-	m := ir.Copy(n)
-
 	// Prior to the subst edit, set a flag in the inlsubst to
 	// indicated that we don't want to update the source positions in
 	// the new closure. If we do this, it will appear that the closure
@@ -1152,29 +1150,21 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// issue #46234 for more details.
 	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
 	subst.noPosUpdate = true
-	ir.EditChildren(m, subst.edit)
 
 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
 
-	// The following is similar to funcLit
+	outerfunc := subst.newclofn
+	if outerfunc == nil {
+		outerfunc = ir.CurFunc
+	}
+
 	oldfn := n.Func
-	newfn := ir.NewFunc(oldfn.Pos())
-	// These three lines are not strictly necessary, but just to be clear
-	// that new function needs to redo typechecking and inlinability.
-	newfn.SetTypecheck(0)
-	newfn.SetInlinabilityChecked(false)
-	newfn.Inl = nil
-	newfn.SetIsHiddenClosure(true)
-	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
-	newfn.Nname.Func = newfn
+	newfn := ir.NewClosureFunc(oldfn.Pos(), outerfunc)
+
 	// Ntype can be nil for -G=3 mode.
 	if oldfn.Nname.Ntype != nil {
 		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
 	}
-	newfn.Nname.Defn = newfn
-
-	m.(*ir.ClosureExpr).Func = newfn
-	newfn.OClosure = m.(*ir.ClosureExpr)
 
 	if subst.newclofn != nil {
 		//fmt.Printf("Inlining a closure with a nested closure\n")
@@ -1224,13 +1214,13 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 
 	// Actually create the named function for the closure, now that
 	// the closure is inlined in a specific function.
-	m.SetTypecheck(0)
+	newclo := newfn.OClosure
+	newclo.SetInit(subst.list(n.Init()))
 	if oldfn.ClosureCalled() {
-		typecheck.Callee(m)
+		return typecheck.Callee(newclo)
 	} else {
-		typecheck.Expr(m)
+		return typecheck.Expr(newclo)
 	}
-	return m
 }
 
 // node recursively copies a node from the saved pristine body of the

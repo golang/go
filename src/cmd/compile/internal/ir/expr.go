@@ -195,6 +195,7 @@ type ClosureExpr struct {
 	IsGoWrap bool // whether this is wrapper closure of a go statement
 }
 
+// Deprecated: Use NewClosureFunc instead.
 func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 	n := &ClosureExpr{Func: fn}
 	n.op = OCLOSURE

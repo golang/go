@@ -1704,14 +1704,10 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	}
 
 	// Create a new no-argument function that we'll hand off to defer.
-	var noFuncArgs []*ir.Field
-	noargst := ir.NewFuncType(base.Pos, nil, noFuncArgs, nil)
-	wrapGoDefer_prgen++
 	outerfn := ir.CurFunc
-	wrapname := fmt.Sprintf("%v·dwrap·%d", outerfn, wrapGoDefer_prgen)
-	sym := types.LocalPkg.Lookup(wrapname)
-	fn := typecheck.DeclFunc(sym, noargst)
-	fn.SetIsHiddenClosure(true)
+
+	fn := ir.NewClosureFunc(base.Pos, outerfn)
+	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
 	fn.SetWrapper(true)
 
 	// helper for capturing reference to a var declared in an outer scope.
@@ -1741,7 +1737,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	if methSelectorExpr != nil {
 		methSelectorExpr.X = capName(callX.Pos(), fn, methSelectorExpr.X.(*ir.Name))
 	}
-	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
 
 	// This flags a builtin as opposed to a regular call.
 	irregular := (call.Op() != ir.OCALLFUNC &&
@@ -1755,23 +1750,12 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	}
 	newcall := mkNewCall(call.Pos(), op, callX, newCallArgs)
 
-	// Type-check the result.
-	if !irregular {
-		typecheck.Call(newcall.(*ir.CallExpr))
-	} else {
-		typecheck.Stmt(newcall)
-	}
-
 	// Finalize body, register function on the main decls list.
 	fn.Body = []ir.Node{newcall}
-	typecheck.FinishFuncBody()
-	typecheck.Func(fn)
-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
 
 	// Create closure expr
-	clo := ir.NewClosureExpr(n.Pos(), fn)
-	fn.OClosure = clo
-	clo.SetType(fn.Type())
+	clo := typecheck.Expr(fn.OClosure).(*ir.ClosureExpr)
 
 	// Set escape properties for closure.
 	if n.Op() == ir.OGO {
@@ -1788,7 +1772,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	}
 
 	// Create new top level call to closure over argless function.
-	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, []ir.Node{})
+	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
 	typecheck.Call(topcall)
 
 	// Tag the call to insure that directClosureCall doesn't undo our work.

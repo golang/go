@@ -1283,12 +1283,7 @@ func (r *importReader) node() ir.Node {
 
 		// All the remaining code below is similar to (*noder).funcLit(), but
 		// with Dcls and ClosureVars lists already set up
-		fn := ir.NewFunc(pos)
-		fn.SetIsHiddenClosure(true)
-		fn.Nname = ir.NewNameAt(pos, ir.BlankNode.Sym())
-		fn.Nname.Func = fn
-		fn.Nname.Ntype = ir.TypeNode(typ)
-		fn.Nname.Defn = fn
+		fn := ir.NewClosureFunc(pos, r.curfn)
 		fn.Nname.SetType(typ)
 
 		cvars := make([]*ir.Name, r.int64())
@@ -1321,18 +1316,10 @@ func (r *importReader) node() ir.Node {
 
 		ir.FinishCaptureNames(pos, r.curfn, fn)
 
-		clo := ir.NewClosureExpr(pos, fn)
-		fn.OClosure = clo
+		clo := fn.OClosure
 		if go117ExportTypes {
 			clo.SetType(typ)
 		}
-		if r.curfn.Type().HasTParam() {
-			// Generic functions aren't inlined, so give the closure a
-			// function name now, which is then available for use
-			// (after appending the type args) for each stenciling.
-			fn.Nname.SetSym(ClosureName(r.curfn))
-		}
-
 		return clo
 
 	case ir.OSTRUCTLIT:

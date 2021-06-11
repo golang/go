@@ -280,8 +280,8 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	//   }
 
 	// Make a new internal function.
-	fn := ir.NewFunc(pos)
-	fn.SetIsHiddenClosure(true)
+	fn := ir.NewClosureFunc(pos, outer)
+	ir.NameClosure(fn.OClosure, outer)
 
 	// This is the dictionary we want to use.
 	// It may be a constant, or it may be a dictionary acquired from the outer function's dictionary.
@@ -346,13 +346,8 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 
 	// Build an internal function with the right signature.
 	closureType := types.NewSignature(x.Type().Pkg(), nil, nil, formalParams, formalResults)
-	sym := typecheck.ClosureName(outer)
-	sym.SetFunc(true)
-	fn.Nname = ir.NewNameAt(pos, sym)
-	fn.Nname.Class = ir.PFUNC
-	fn.Nname.Func = fn
-	fn.Nname.Defn = fn
 	typed(closureType, fn.Nname)
+	typed(x.Type(), fn.OClosure)
 	fn.SetTypecheck(1)
 
 	// Build body of closure. This involves just calling the wrapped function directly
@@ -401,15 +396,12 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	typecheck.Stmt(innerCall)
 	ir.CurFunc = nil
 	fn.Body = []ir.Node{innerCall}
-	if outer == nil {
-		g.target.Decls = append(g.target.Decls, fn)
-	}
 
 	// We're all done with the captured dictionary (and receiver, for method values).
 	ir.FinishCaptureNames(pos, outer, fn)
 
 	// Make a closure referencing our new internal function.
-	c := ir.NewClosureExpr(pos, fn)
+	c := ir.UseClosure(fn.OClosure, g.target)
 	var init []ir.Node
 	if outer != nil {
 		init = append(init, dictAssign)
@@ -417,9 +409,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	if rcvrValue != nil {
 		init = append(init, rcvrAssign)
 	}
-	c.SetInit(init)
-	typed(x.Type(), c)
-	return c
+	return ir.InitExpr(init, c)
 }
 
 // instantiateMethods instantiates all the methods of all fully-instantiated
@@ -859,24 +849,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 
 		case ir.OCLOSURE:
+			// We're going to create a new closure from scratch, so clear m
+			// to avoid using the ir.Copy by accident until we reassign it.
+			m = nil
+
 			x := x.(*ir.ClosureExpr)
 			// Need to duplicate x.Func.Nname, x.Func.Dcl, x.Func.ClosureVars, and
 			// x.Func.Body.
 			oldfn := x.Func
-			newfn := ir.NewFunc(oldfn.Pos())
-			if oldfn.ClosureCalled() {
-				newfn.SetClosureCalled(true)
-			}
-			newfn.SetIsHiddenClosure(true)
-			m.(*ir.ClosureExpr).Func = newfn
-			// Closure name can already have brackets, if it derives
-			// from a generic method
-			newsym := typecheck.MakeInstName(oldfn.Nname.Sym(), subst.ts.Targs, subst.isMethod)
-			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), newsym)
-			newfn.Nname.Func = newfn
-			newfn.Nname.Defn = newfn
-			ir.MarkFunc(newfn.Nname)
-			newfn.OClosure = m.(*ir.ClosureExpr)
+			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf)
+			ir.NameClosure(newfn.OClosure, subst.newf)
+
+			newfn.SetClosureCalled(oldfn.ClosureCalled())
 
 			saveNewf := subst.newf
 			ir.CurFunc = newfn
@@ -885,7 +869,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
 
 			typed(subst.ts.Typ(oldfn.Nname.Type()), newfn.Nname)
-			typed(newfn.Nname.Type(), m)
+			typed(newfn.Nname.Type(), newfn.OClosure)
 			newfn.SetTypecheck(1)
 
 			// Make sure type of closure function is set before doing body.
@@ -893,7 +877,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			subst.newf = saveNewf
 			ir.CurFunc = saveNewf
 
-			subst.g.target.Decls = append(subst.g.target.Decls, newfn)
+			m = ir.UseClosure(newfn.OClosure, subst.g.target)
+			m.(*ir.ClosureExpr).SetInit(subst.list(x.Init()))
 
 		case ir.OCONVIFACE:
 			x := x.(*ir.ConvExpr)
