@@ -806,7 +806,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type param is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+		ptyp := check.NewTypeParam(tpar, tp.index, &emptyInterface) // assigns type to tpar as a side-effect
 		tsum := newUnion(rtypes, tildes)
 		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
 
