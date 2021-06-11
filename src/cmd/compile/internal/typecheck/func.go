@@ -199,35 +199,6 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 	return fn.Sym().Pkg
 }
 
-// ClosureName generates a new unique name for a closure within
-// outerfunc.
-func ClosureName(outerfunc *ir.Func) *types.Sym {
-	outer := "glob."
-	prefix := "func"
-	gen := &globClosgen
-
-	if outerfunc != nil {
-		if outerfunc.OClosure != nil {
-			prefix = ""
-		}
-
-		outer = ir.FuncName(outerfunc)
-
-		// There may be multiple functions named "_". In those
-		// cases, we can't use their individual Closgens as it
-		// would lead to name clashes.
-		if !ir.IsBlank(outerfunc.Nname) {
-			gen = &outerfunc.Closgen
-		}
-	}
-
-	*gen++
-	return Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
-}
-
-// globClosgen is like Func.Closgen, but for the global scope.
-var globClosgen int32
-
 // MethodValueWrapper returns the DCLFUNC node representing the
 // wrapper function (*-fm) needed for the given method value. If the
 // wrapper function hasn't already been created yet, it's created and
@@ -312,8 +283,20 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a
 // separate pass from type-checking.
-func tcClosure(clo *ir.ClosureExpr, top int) {
+func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 	fn := clo.Func
+
+	// We used to allow IR builders to typecheck the underlying Func
+	// themselves, but that led to too much variety and inconsistency
+	// around who's responsible for naming the function, typechecking
+	// it, or adding it to Target.Decls.
+	//
+	// It's now all or nothing. Callers are still allowed to do these
+	// themselves, but then they assume responsibility for all of them.
+	if fn.Typecheck() == 1 {
+		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
+	}
+
 	// Set current associated iota value, so iota can be used inside
 	// function in ConstSpec, see issue #22344
 	if x := getIotaValue(); x >= 0 {
@@ -322,30 +305,14 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 
 	fn.SetClosureCalled(top&ctxCallee != 0)
 
-	// Do not typecheck fn twice, otherwise, we will end up pushing
-	// fn to Target.Decls multiple times, causing InitLSym called twice.
-	// See #30709
-	if fn.Typecheck() == 1 {
-		clo.SetType(fn.Type())
-		return
-	}
-
-	// Don't give a name and add to Target.Decls if we are typechecking an inlined
-	// body in ImportedBody(), since we only want to create the named function
-	// when the closure is actually inlined (and then we force a typecheck
-	// explicitly in (*inlsubst).node()).
-	if !inTypeCheckInl {
-		fn.Nname.SetSym(ClosureName(ir.CurFunc))
-		ir.MarkFunc(fn.Nname)
-	}
+	ir.NameClosure(clo, ir.CurFunc)
 	Func(fn)
-	clo.SetType(fn.Type())
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
 	// ready to type check code yet; we'll check it later, because the
 	// underlying closure function we create is added to Target.Decls.
-	if ir.CurFunc != nil && clo.Type() != nil {
+	if ir.CurFunc != nil {
 		oldfn := ir.CurFunc
 		ir.CurFunc = fn
 		Stmts(fn.Body)
@@ -371,14 +338,17 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 	fn.ClosureVars = fn.ClosureVars[:out]
 
-	if base.Flag.W > 1 {
-		s := fmt.Sprintf("New closure func: %s", ir.FuncName(fn))
-		ir.Dump(s, fn)
+	clo.SetType(fn.Type())
+
+	target := Target
+	if inTypeCheckInl {
+		// We're typechecking an imported function, so it's not actually
+		// part of Target. Skip adding it to Target.Decls so we don't
+		// compile it again.
+		target = nil
 	}
-	if !inTypeCheckInl {
-		// Add function to Target.Decls once only when we give it a name
-		Target.Decls = append(Target.Decls, fn)
-	}
+
+	return ir.UseClosure(clo, target)
 }
 
 // type check function definition

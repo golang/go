@@ -373,19 +373,13 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 }
 
 func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
-	fn := ir.NewFunc(g.pos(expr))
-	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+	fn := ir.NewClosureFunc(g.pos(expr), ir.CurFunc)
+	ir.NameClosure(fn.OClosure, ir.CurFunc)
 
-	fn.Nname = ir.NewNameAt(g.pos(expr), typecheck.ClosureName(ir.CurFunc))
-	ir.MarkFunc(fn.Nname)
 	typ := g.typ(typ2)
-	fn.Nname.Func = fn
-	fn.Nname.Defn = fn
 	typed(typ, fn.Nname)
-	fn.SetTypecheck(1)
-
-	fn.OClosure = ir.NewClosureExpr(g.pos(expr), fn)
 	typed(typ, fn.OClosure)
+	fn.SetTypecheck(1)
 
 	g.funcBody(fn, nil, expr.Type, expr.Body)
 
@@ -399,9 +393,7 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 		cv.SetWalkdef(1)
 	}
 
-	g.target.Decls = append(g.target.Decls, fn)
-
-	return fn.OClosure
+	return ir.UseClosure(fn.OClosure, g.target)
 }
 
 func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {

@@ -787,11 +787,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		tcClosure(n, top)
-		if n.Type() == nil {
-			return n
-		}
-		return n
+		return tcClosure(n, top)
 
 	case ir.OITAB:
 		n := n.(*ir.UnaryExpr)
