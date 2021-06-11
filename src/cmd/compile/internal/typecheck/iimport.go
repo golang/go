@@ -993,7 +993,13 @@ func (r *importReader) symIdx(s *types.Sym) {
 
 func (r *importReader) typeExt(t *types.Type) {
 	t.SetNotInHeap(r.bool())
-	i, pi := r.int64(), r.int64()
+	SetBaseTypeIndex(t, r.int64(), r.int64())
+}
+
+func SetBaseTypeIndex(t *types.Type, i, pi int64) {
+	if t.Obj() == nil {
+		base.Fatalf("SetBaseTypeIndex on non-defined type %v", t)
+	}
 	if i != -1 && pi != -1 {
 		typeSymIdx[t] = [2]int64{i, pi}
 	}
@@ -1001,6 +1007,7 @@ func (r *importReader) typeExt(t *types.Type) {
 
 // Map imported type T to the index of type descriptor symbols of T and *T,
 // so we can use index to reference the symbol.
+// TODO(mdempsky): Store this information directly in the Type's Name.
 var typeSymIdx = make(map[*types.Type][2]int64)
 
 func BaseTypeIndex(t *types.Type) int64 {
