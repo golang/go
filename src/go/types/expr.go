@@ -1331,9 +1331,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.SelectorExpr:
 		check.selector(x, e)
 
-	case *ast.IndexExpr:
-		if check.indexExpr(x, e) {
-			check.funcInst(x, e)
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(e)
+		if check.indexExpr(x, ix) {
+			check.funcInst(x, ix)
 		}
 		if x.mode == invalid {
 			goto Error
@@ -1423,12 +1424,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		// types, which are comparatively rare.
 
 	default:
-		if typeparams.IsListExpr(e) {
-			// catch-all for unexpected expression lists
-			check.errorf(e, _Todo, "unexpected list of expressions")
-		} else {
-			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
-		}
+		panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
 	}
 
 	// everything went well

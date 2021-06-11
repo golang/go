@@ -871,17 +871,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)
 		p.print(x.Lbrack, token.LBRACK)
-		// Note: we're a bit defensive here to handle the case of a ListExpr of
-		// length 1.
-		if list := typeparams.UnpackExpr(x.Index); len(list) > 0 {
-			if len(list) > 1 {
-				p.exprList(x.Lbrack, list, depth+1, commaTerm, x.Rbrack, false)
-			} else {
-				p.expr0(list[0], depth+1)
-			}
-		} else {
-			p.expr0(x.Index, depth+1)
-		}
+		p.expr0(x.Index, depth+1)
+		p.print(x.Rbrack, token.RBRACK)
+
+	case *ast.MultiIndexExpr:
+		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
+		// one level of depth
+		p.expr1(x.X, token.HighestPrec, 1)
+		p.print(x.Lbrack, token.LBRACK)
+		p.exprList(x.Lbrack, x.Indices, depth+1, commaTerm, x.Rbrack, false)
 		p.print(x.Rbrack, token.RBRACK)
 
 	case *ast.SliceExpr:

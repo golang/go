@@ -600,7 +600,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
 	}
 
 	// x[P], x[P1, P2], ...
-	return nil, &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
+	return nil, typeparams.PackIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseFieldDecl() *ast.Field {
@@ -991,7 +991,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 					p.exprLev--
 				}
 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
-				typ = &ast.IndexExpr{X: ident, Lbrack: lbrack, Index: typeparams.PackExpr(list), Rbrack: rbrack}
+				typ = typeparams.PackIndexExpr(ident, lbrack, list, rbrack)
 			}
 		case p.tok == token.LPAREN:
 			// ordinary method
@@ -1178,7 +1178,6 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 	}
 
 	opening := p.expect(token.LBRACK)
-
 	p.exprLev++
 	var list []ast.Expr
 	for p.tok != token.RBRACK && p.tok != token.EOF {
@@ -1192,7 +1191,17 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
 
 	closing := p.expectClosing(token.RBRACK, "type argument list")
 
-	return &ast.IndexExpr{X: typ, Lbrack: opening, Index: typeparams.PackExpr(list), Rbrack: closing}
+	if len(list) == 0 {
+		p.errorExpected(closing, "type argument list")
+		return &ast.IndexExpr{
+			X:      typ,
+			Lbrack: opening,
+			Index:  &ast.BadExpr{From: opening + 1, To: closing},
+			Rbrack: closing,
+		}
+	}
+
+	return typeparams.PackIndexExpr(typ, opening, list, closing)
 }
 
 func (p *parser) tryIdentOrType() ast.Expr {
@@ -1455,7 +1464,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 	}
 
 	// instance expression
-	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
+	return typeparams.PackIndexExpr(x, lbrack, args, rbrack)
 }
 
 func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
@@ -1557,6 +1566,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 		panic("unreachable")
 	case *ast.SelectorExpr:
 	case *ast.IndexExpr:
+	case *ast.MultiIndexExpr:
 	case *ast.SliceExpr:
 	case *ast.TypeAssertExpr:
 		// If t.Type == nil we have a type assertion of the form
@@ -1646,7 +1656,7 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
 					return
 				}
 				// x is possibly a composite literal type
-			case *ast.IndexExpr:
+			case *ast.IndexExpr, *ast.MultiIndexExpr:
 				if p.exprLev < 0 {
 					return
 				}

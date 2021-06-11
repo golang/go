@@ -116,6 +116,12 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
+	case *MultiIndexExpr:
+		Walk(v, n.X)
+		for _, index := range n.Indices {
+			Walk(v, index)
+		}
+
 	case *SliceExpr:
 		Walk(v, n.X)
 		if n.Low != nil {
@@ -137,11 +143,6 @@ func Walk(v Visitor, node Node) {
 	case *CallExpr:
 		Walk(v, n.Fun)
 		walkExprList(v, n.Args)
-
-	case *ListExpr:
-		for _, elem := range n.ElemList {
-			Walk(v, elem)
-		}
 
 	case *StarExpr:
 		Walk(v, n.X)

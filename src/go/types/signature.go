@@ -244,24 +244,21 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			new.X = X
 			return &new
 		}
-	case *ast.IndexExpr:
-		elems := typeparams.UnpackExpr(n.Index)
-		var newElems []ast.Expr
-		for i, elem := range elems {
-			new := isubst(elem, smap)
-			if new != elem {
-				if newElems == nil {
-					newElems = make([]ast.Expr, len(elems))
-					copy(newElems, elems)
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(x)
+		var newIndexes []ast.Expr
+		for i, index := range ix.Indices {
+			new := isubst(index, smap)
+			if new != index {
+				if newIndexes == nil {
+					newIndexes = make([]ast.Expr, len(ix.Indices))
+					copy(newIndexes, ix.Indices)
 				}
-				newElems[i] = new
+				newIndexes[i] = new
 			}
 		}
-		if newElems != nil {
-			index := typeparams.PackExpr(newElems)
-			new := *n
-			new.Index = index
-			return &new
+		if newIndexes != nil {
+			return typeparams.PackIndexExpr(ix.X, ix.Lbrack, newIndexes, ix.Rbrack)
 		}
 	case *ast.ParenExpr:
 		return isubst(n.X, smap) // no need to keep parentheses
