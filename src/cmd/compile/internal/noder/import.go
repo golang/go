@@ -31,8 +31,8 @@ import (
 	"cmd/internal/src"
 )
 
-// Temporary import helper to get type2-based type-checking going.
 type gcimports struct {
+	check    *types2.Checker
 	packages map[string]*types2.Package
 }
 
@@ -45,7 +45,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 		panic("mode must be 0")
 	}
 
-	_, pkg, err := readImportFile(path, typecheck.Target, m.packages)
+	_, pkg, err := readImportFile(path, typecheck.Target, m.check, m.packages)
 	return pkg, err
 }
 
@@ -176,7 +176,7 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		return nil
 	}
 
-	pkg, _, err := readImportFile(path, typecheck.Target, nil)
+	pkg, _, err := readImportFile(path, typecheck.Target, nil, nil)
 	if err != nil {
 		base.Errorf("%s", err)
 		return nil
@@ -208,7 +208,7 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
 // readImportFile reads the import file for the given package path and
 // returns its types.Pkg representation. If packages is non-nil, the
 // types2.Package representation is also returned.
-func readImportFile(path string, target *ir.Package, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+func readImportFile(path string, target *ir.Package, check *types2.Checker, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
 	path, err = resolveImportPath(path)
 	if err != nil {
 		return
