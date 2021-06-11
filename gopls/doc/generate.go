@@ -370,7 +370,6 @@ func valueDoc(name, value, doc string) string {
 }
 
 func loadCommands(pkg *packages.Package) ([]*source.CommandJSON, error) {
-
 	var commands []*source.CommandJSON
 
 	_, cmds, err := commandmeta.Load()
@@ -553,8 +552,6 @@ func rewriteAPI(_ []byte, api *source.APIJSON) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-var parBreakRE = regexp.MustCompile("\n{2,}")
-
 type optionsGroup struct {
 	title   string
 	final   string
@@ -583,10 +580,8 @@ func rewriteSettings(doc []byte, api *source.APIJSON) ([]byte, error) {
 			writeTitle(section, h.final, level)
 			for _, opt := range h.options {
 				header := strMultiply("#", level+1)
-				fmt.Fprintf(section, "%s **%v** *%v*\n\n", header, opt.Name, opt.Type)
-				writeStatus(section, opt.Status)
-				enumValues := collectEnums(opt)
-				fmt.Fprintf(section, "%v%v\nDefault: `%v`.\n\n", opt.Doc, enumValues, opt.Default)
+				section.Write([]byte(fmt.Sprintf("%s ", header)))
+				opt.Write(section)
 			}
 		}
 		var err error
@@ -657,38 +652,6 @@ func collectGroups(opts []*source.OptionJSON) []optionsGroup {
 	return groups
 }
 
-func collectEnums(opt *source.OptionJSON) string {
-	var b strings.Builder
-	write := func(name, doc string, index, len int) {
-		if doc != "" {
-			unbroken := parBreakRE.ReplaceAllString(doc, "\\\n")
-			fmt.Fprintf(&b, "* %s", unbroken)
-		} else {
-			fmt.Fprintf(&b, "* `%s`", name)
-		}
-		if index < len-1 {
-			fmt.Fprint(&b, "\n")
-		}
-	}
-	if len(opt.EnumValues) > 0 && opt.Type == "enum" {
-		b.WriteString("\nMust be one of:\n\n")
-		for i, val := range opt.EnumValues {
-			write(val.Value, val.Doc, i, len(opt.EnumValues))
-		}
-	} else if len(opt.EnumKeys.Keys) > 0 && shouldShowEnumKeysInSettings(opt.Name) {
-		b.WriteString("\nCan contain any of:\n\n")
-		for i, val := range opt.EnumKeys.Keys {
-			write(val.Name, val.Doc, i, len(opt.EnumKeys.Keys))
-		}
-	}
-	return b.String()
-}
-
-func shouldShowEnumKeysInSettings(name string) bool {
-	// Both of these fields have too many possible options to print.
-	return !hardcodedEnumKeys(name)
-}
-
 func hardcodedEnumKeys(name string) bool {
 	return name == "analyses" || name == "codelenses"
 }
@@ -710,20 +673,6 @@ func writeTitle(w io.Writer, title string, level int) {
 	fmt.Fprintf(w, "%s %s\n\n", strMultiply("#", level), capitalize(title))
 }
 
-func writeStatus(section io.Writer, status string) {
-	switch status {
-	case "":
-	case "advanced":
-		fmt.Fprint(section, "**This is an advanced setting and should not be configured by most `gopls` users.**\n\n")
-	case "debug":
-		fmt.Fprint(section, "**This setting is for debugging purposes only.**\n\n")
-	case "experimental":
-		fmt.Fprint(section, "**This setting is experimental and may be deleted.**\n\n")
-	default:
-		fmt.Fprintf(section, "**Status: %s.**\n\n", status)
-	}
-}
-
 func capitalize(s string) string {
 	return string(unicode.ToUpper(rune(s[0]))) + s[1:]
 }
@@ -739,13 +688,7 @@ func strMultiply(str string, count int) string {
 func rewriteCommands(doc []byte, api *source.APIJSON) ([]byte, error) {
 	section := bytes.NewBuffer(nil)
 	for _, command := range api.Commands {
-		fmt.Fprintf(section, "### **%v**\nIdentifier: `%v`\n\n%v\n\n", command.Title, command.Command, command.Doc)
-		if command.ArgDoc != "" {
-			fmt.Fprintf(section, "Args:\n\n```\n%s\n```\n\n", command.ArgDoc)
-		}
-		if command.ResultDoc != "" {
-			fmt.Fprintf(section, "Result:\n\n```\n%s\n```\n\n", command.ResultDoc)
-		}
+		command.Write(section)
 	}
 	return replaceSection(doc, "Commands", section.Bytes())
 }
