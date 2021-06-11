@@ -218,10 +218,11 @@ Args:
 }
 ```
 
-### **Start the gopls debug server if it isn't running, and**
+### **Start the gopls debug server**
 Identifier: `gopls.start_debugging`
 
-return the debug address.
+Start the gopls debug server if it isn't running, and return the debug
+address.
 
 Args:
 

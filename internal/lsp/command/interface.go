@@ -132,8 +132,10 @@ type Interface interface {
 	// Query the server for information about active workspaces.
 	WorkspaceMetadata(context.Context) (WorkspaceMetadataResult, error)
 
-	// StartDebugging: Start the gopls debug server if it isn't running, and
-	// return the debug address.
+	// StartDebugging: Start the gopls debug server
+	//
+	// Start the gopls debug server if it isn't running, and return the debug
+	// address.
 	StartDebugging(context.Context, DebuggingArgs) (DebuggingResult, error)
 }
 
