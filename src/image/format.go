@@ -45,11 +45,9 @@ func RegisterFormat(name, magic string, decode func(io.Reader) (Image, error), d
 func ListFormats() []string {
 	formats, _ := atomicFormats.Load().([]format)
 	var list []string
-
 	for _, f := range formats {
 		list = append(list, f.name)
 	}
-
 	return list
 }
 
