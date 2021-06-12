@@ -343,11 +343,13 @@ func closureName(outerfn *Func) *types.Sym {
 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
 }
 
-// NewClosureFunc creates a new Func to represent a function literal
-// within outerfn.
-func NewClosureFunc(pos src.XPos, outerfn *Func) *Func {
+// NewClosureFunc creates a new Func to represent a function literal.
+// If hidden is true, then the closure is marked hidden (i.e., as a
+// function literal contained within another function, rather than a
+// package-scope variable initialization expression).
+func NewClosureFunc(pos src.XPos, hidden bool) *Func {
 	fn := NewFunc(pos)
-	fn.SetIsHiddenClosure(outerfn != nil)
+	fn.SetIsHiddenClosure(hidden)
 
 	fn.Nname = NewNameAt(pos, BlankNode.Sym())
 	fn.Nname.Func = fn
@@ -361,7 +363,12 @@ func NewClosureFunc(pos src.XPos, outerfn *Func) *Func {
 // NameClosure generates a unique for the given function literal,
 // which must have appeared within outerfn.
 func NameClosure(clo *ClosureExpr, outerfn *Func) {
-	name := clo.Func.Nname
+	fn := clo.Func
+	if fn.IsHiddenClosure() != (outerfn != nil) {
+		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
+	}
+
+	name := fn.Nname
 	if !IsBlank(name) {
 		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
 	}

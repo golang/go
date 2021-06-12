@@ -1704,9 +1704,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	}
 
 	// Create a new no-argument function that we'll hand off to defer.
-	outerfn := ir.CurFunc
-
-	fn := ir.NewClosureFunc(base.Pos, outerfn)
+	fn := ir.NewClosureFunc(base.Pos, true)
 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
 	fn.SetWrapper(true)
 
@@ -1752,7 +1750,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 
 	// Finalize body, register function on the main decls list.
 	fn.Body = []ir.Node{newcall}
-	ir.FinishCaptureNames(n.Pos(), outerfn, fn)
+	ir.FinishCaptureNames(n.Pos(), ir.CurFunc, fn)
 
 	// Create closure expr
 	clo := typecheck.Expr(fn.OClosure).(*ir.ClosureExpr)

@@ -1283,7 +1283,7 @@ func (r *importReader) node() ir.Node {
 
 		// All the remaining code below is similar to (*noder).funcLit(), but
 		// with Dcls and ClosureVars lists already set up
-		fn := ir.NewClosureFunc(pos, r.curfn)
+		fn := ir.NewClosureFunc(pos, true)
 		fn.Nname.SetType(typ)
 
 		cvars := make([]*ir.Name, r.int64())

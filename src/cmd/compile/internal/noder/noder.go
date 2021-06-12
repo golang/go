@@ -1803,7 +1803,7 @@ func fakeRecv() *ir.Field {
 }
 
 func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
-	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc)
+	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc != nil)
 	fn.Nname.Ntype = p.typeExpr(expr.Type)
 
 	p.funcBody(fn, expr.Body)

@@ -373,7 +373,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 }
 
 func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
-	fn := ir.NewClosureFunc(g.pos(expr), ir.CurFunc)
+	fn := ir.NewClosureFunc(g.pos(expr), ir.CurFunc != nil)
 	ir.NameClosure(fn.OClosure, ir.CurFunc)
 
 	typ := g.typ(typ2)
