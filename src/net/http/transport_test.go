@@ -4920,6 +4920,70 @@ func TestTransportMaxIdleConns(t *testing.T) {
 	}
 }
 
+func TestTransportMaxConnLifespan_h1(t *testing.T) { testTransportMaxConnLifespan(t, h1Mode) }
+func TestTransportMaxConnLifespan_h2(t *testing.T) { testTransportMaxConnLifespan(t, h2Mode) }
+func testTransportMaxConnLifespan(t *testing.T, h2 bool) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+
+	const timeout = 1 * time.Second
+
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// No body for convenience.
+	}))
+	defer cst.close()
+	tr := cst.tr
+	tr.MaxConnLifespan = timeout
+	tr.IdleConnTimeout = timeout * 3
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	idleConns := func() []string {
+		if h2 {
+			return tr.IdleConnStrsForTesting_h2()
+		} else {
+			return tr.IdleConnStrsForTesting()
+		}
+	}
+
+	var conn string
+	doReq := func(n int) {
+		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			PutIdleConn: func(err error) {
+				if err != nil {
+					t.Errorf("failed to keep idle conn: %v", err)
+				}
+			},
+		}))
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		conns := idleConns()
+		if len(conns) != 1 {
+			t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
+		}
+		if conn == "" {
+			conn = conns[0]
+		}
+		if conn != conns[0] {
+			t.Fatalf("req %v: cached connection changed; expected the same one throughout the test", n)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		doReq(i)
+		time.Sleep(timeout / 4)
+	}
+	time.Sleep(timeout / 2)
+	if got := idleConns(); len(got) != 0 {
+		t.Errorf("idle conns = %q; want none", got)
+	}
+}
+
 func TestTransportIdleConnTimeout_h1(t *testing.T) { testTransportIdleConnTimeout(t, h1Mode) }
 func TestTransportIdleConnTimeout_h2(t *testing.T) { testTransportIdleConnTimeout(t, h2Mode) }
 func testTransportIdleConnTimeout(t *testing.T, h2 bool) {
@@ -5912,6 +5976,7 @@ func TestTransportClone(t *testing.T) {
 		TLSHandshakeTimeout:    time.Second,
 		DisableKeepAlives:      true,
 		DisableCompression:     true,
+		MaxConnLifespan:        time.Second,
 		MaxIdleConns:           1,
 		MaxIdleConnsPerHost:    1,
 		MaxConnsPerHost:        1,

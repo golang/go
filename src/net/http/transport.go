@@ -189,6 +189,10 @@ type Transport struct {
 	// uncompressed.
 	DisableCompression bool
 
+	// MaxConnLifespan controls how long a connection is allowed
+	// to be reused before it must be closed. Zero means no limit.
+	MaxConnLifespan time.Duration
+
 	// MaxIdleConns controls the maximum number of idle (keep-alive)
 	// connections across all hosts. Zero means no limit.
 	MaxIdleConns int
@@ -316,6 +320,7 @@ func (t *Transport) Clone() *Transport {
 		TLSHandshakeTimeout:    t.TLSHandshakeTimeout,
 		DisableKeepAlives:      t.DisableKeepAlives,
 		DisableCompression:     t.DisableCompression,
+		MaxConnLifespan:        t.MaxConnLifespan,
 		MaxIdleConns:           t.MaxIdleConns,
 		MaxIdleConnsPerHost:    t.MaxIdleConnsPerHost,
 		MaxConnsPerHost:        t.MaxConnsPerHost,
@@ -987,14 +992,22 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		t.removeIdleConnLocked(oldest)
 	}
 
+	ttl, hasTtl := pconn.timeToLive()
+
 	// Set idle timer, but only for HTTP/1 (pconn.alt == nil).
 	// The HTTP/2 implementation manages the idle timer itself
 	// (see idleConnTimeout in h2_bundle.go).
-	if t.IdleConnTimeout > 0 && pconn.alt == nil {
+	if (hasTtl || t.IdleConnTimeout > 0) && pconn.alt == nil {
+
+		timeout := t.IdleConnTimeout
+		if hasTtl && (timeout <= 0 || ttl < timeout) {
+			timeout = ttl
+		}
+
 		if pconn.idleTimer != nil {
-			pconn.idleTimer.Reset(t.IdleConnTimeout)
+			pconn.idleTimer.Reset(timeout)
 		} else {
-			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+			pconn.idleTimer = time.AfterFunc(timeout, pconn.closeConnIfStillIdle)
 		}
 	}
 	pconn.idleAt = time.Now()
@@ -1024,9 +1037,10 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 	// If IdleConnTimeout is set, calculate the oldest
 	// persistConn.idleAt time we're willing to use a cached idle
 	// conn.
+	now := time.Now()
 	var oldTime time.Time
 	if t.IdleConnTimeout > 0 {
-		oldTime = time.Now().Add(-t.IdleConnTimeout)
+		oldTime = now.Add(-t.IdleConnTimeout)
 	}
 
 	// Look for most recently-used idle connection.
@@ -1039,7 +1053,8 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 			// See whether this connection has been idle too long, considering
 			// only the wall time (the Round(0)), in case this is a laptop or VM
 			// coming out of suspend with previously cached idle connections.
-			tooOld := !oldTime.IsZero() && pconn.idleAt.Round(0).Before(oldTime)
+			tooOld := (!oldTime.IsZero() && pconn.idleAt.Round(0).Before(oldTime)) || (!pconn.reuseDeadline.IsZero() && pconn.reuseDeadline.Round(0).Before(now))
+
 			if tooOld {
 				// Async cleanup. Launch in its own goroutine (as if a
 				// time.AfterFunc called it); it acquires idleMu, which we're
@@ -1620,6 +1635,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 	}
 
+	var reuseDeadline time.Time
+	if t.MaxConnLifespan > 0 {
+		reuseDeadline = time.Now().Add(t.MaxConnLifespan)
+	}
+
 	// Proxy setup.
 	switch {
 	case cm.proxyURL == nil:
@@ -1740,10 +1760,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()
 			}
-			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt, reuseDeadline: reuseDeadline}, nil
 		}
 	}
 
+	pconn.reuseDeadline = reuseDeadline
 	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
 	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
 
@@ -1895,6 +1916,8 @@ type persistConn struct {
 
 	writeLoopDone chan struct{} // closed when write loop ends
 
+	reuseDeadline time.Time // time when this connection can no longer be reused
+
 	// Both guarded by Transport.idleMu:
 	idleAt    time.Time   // time it last become idle
 	idleTimer *time.Timer // holding an AfterFunc to close it
@@ -1909,6 +1932,30 @@ type persistConn struct {
 	// headers on each outbound request before it's written. (the
 	// original Request given to RoundTrip is not modified)
 	mutateHeaderFunc func(Header)
+}
+
+// timeToLive checks if a persistent connection has been initialized
+// from a transport with MaxConnLifespan > 0 and returns the time
+// remaining for this connection to be reusable. The second response
+// would be true in this case.
+//
+// If the connection has a zero-value reuseDeadline set then
+// it returns (0, false)
+//
+// The returned duration will never be less than zero and the connection's
+// idle time is NOT taken into account.
+func (pc *persistConn) timeToLive() (time.Duration, bool) {
+
+	if pc.reuseDeadline.IsZero() {
+		return 0, false
+	}
+
+	ttl := time.Until(pc.reuseDeadline)
+	if ttl < 0 {
+		return 0, true
+	}
+
+	return ttl, true
 }
 
 func (pc *persistConn) maxHeaderResponseSize() int64 {

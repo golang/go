@@ -6999,6 +6999,7 @@ type http2ClientConn struct {
 	pendingRequests int                       // requests blocked and waiting to be sent because len(streams) == maxConcurrentStreams
 	pings           map[[8]byte]chan struct{} // in flight ping data to notification channel
 	br              *bufio.Reader
+	reuseDeadline   time.Time
 	lastActive      time.Time
 	lastIdle        time.Time // time last idle
 	// Settings from peer: (also guarded by wmu)
@@ -7388,9 +7389,20 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		pings:                 make(map[[8]byte]chan struct{}),
 		reqHeaderMu:           make(chan struct{}, 1),
 	}
-	if d := t.idleConnTimeout(); d != 0 {
-		cc.idleTimeout = d
-		cc.idleTimer = time.AfterFunc(d, cc.onIdleTimeout)
+
+	if t.t1 != nil && t.t1.MaxConnLifespan > 0 {
+		cc.reuseDeadline = time.Now().Add(t.t1.MaxConnLifespan)
+	}
+
+	cc.idleTimeout = t.idleConnTimeout()
+	ttl, hasTtl := cc.timeToLive()
+
+	if hasTtl || cc.idleTimeout > 0 {
+		timeout := cc.idleTimeout
+		if hasTtl && (timeout <= 0 || ttl < timeout) {
+			timeout = ttl
+		}
+		cc.idleTimer = time.AfterFunc(timeout, cc.onIdleTimeout)
 	}
 	if http2VerboseLogs {
 		t.vlogf("http2: Transport creating client conn %p to %v", cc, c.RemoteAddr())
@@ -7447,6 +7459,30 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 
 	go cc.readLoop()
 	return cc, nil
+}
+
+// timeToLive checks if a http2ClientConn has been initialized
+// from a transport with MaxConnLifespan > 0 and returns the time
+// remaining for this connection to be reusable. The second response
+// would be true in this case.
+//
+// If the connection has a zero-value reuseDeadline set then
+// it returns (0, false)
+//
+// The returned duration will never be less than zero and the connection's
+// idle time is NOT taken into account.
+func (cc *http2ClientConn) timeToLive() (time.Duration, bool) {
+
+	if cc.reuseDeadline.IsZero() {
+		return 0, false
+	}
+
+	ttl := time.Until(cc.reuseDeadline)
+	if ttl < 0 {
+		return 0, true
+	}
+
+	return ttl, true
 }
 
 func (cc *http2ClientConn) healthCheck() {
@@ -8709,7 +8745,11 @@ func (cc *http2ClientConn) forgetStreamID(id uint32) {
 	}
 	cc.lastActive = time.Now()
 	if len(cc.streams) == 0 && cc.idleTimer != nil {
-		cc.idleTimer.Reset(cc.idleTimeout)
+		timeout := cc.idleTimeout
+		if ttl, ok := cc.timeToLive(); ok && (timeout <= 0 || ttl < timeout) {
+			timeout = ttl
+		}
+		cc.idleTimer.Reset(timeout)
 		cc.lastIdle = time.Now()
 	}
 	// Wake up writeRequestBody via clientStream.awaitFlowControl and
