@@ -450,7 +450,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 type constState struct {
 	group  *syntax.Group
 	typ    ir.Ntype
-	values []ir.Node
+	values syntax.Expr
 	iota   int64
 }
 
@@ -468,16 +468,15 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 	names := p.declNames(ir.OLITERAL, decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
-	var values []ir.Node
 	if decl.Values != nil {
-		values = p.exprList(decl.Values)
-		cs.typ, cs.values = typ, values
+		cs.typ, cs.values = typ, decl.Values
 	} else {
 		if typ != nil {
 			base.Errorf("const declaration cannot have type without expression")
 		}
-		typ, values = cs.typ, cs.values
+		typ = cs.typ
 	}
+	values := p.exprList(cs.values)
 
 	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
@@ -485,10 +484,16 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 			base.Errorf("missing value in const declaration")
 			break
 		}
+
 		v := values[i]
 		if decl.Values == nil {
-			v = ir.DeepCopy(n.Pos(), v)
+			ir.Visit(v, func(v ir.Node) {
+				if ir.HasUniquePos(v) {
+					v.SetPos(n.Pos())
+				}
+			})
 		}
+
 		typecheck.Declare(n, typecheck.DeclContext)
 
 		n.Ntype = typ
