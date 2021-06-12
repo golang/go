@@ -1153,13 +1153,8 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 
 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
 
-	outerfunc := subst.newclofn
-	if outerfunc == nil {
-		outerfunc = ir.CurFunc
-	}
-
 	oldfn := n.Func
-	newfn := ir.NewClosureFunc(oldfn.Pos(), outerfunc)
+	newfn := ir.NewClosureFunc(oldfn.Pos(), true)
 
 	// Ntype can be nil for -G=3 mode.
 	if oldfn.Nname.Ntype != nil {

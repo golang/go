@@ -280,7 +280,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	//   }
 
 	// Make a new internal function.
-	fn := ir.NewClosureFunc(pos, outer)
+	fn := ir.NewClosureFunc(pos, outer != nil)
 	ir.NameClosure(fn.OClosure, outer)
 
 	// This is the dictionary we want to use.
@@ -857,7 +857,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// Need to duplicate x.Func.Nname, x.Func.Dcl, x.Func.ClosureVars, and
 			// x.Func.Body.
 			oldfn := x.Func
-			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf)
+			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf != nil)
 			ir.NameClosure(newfn.OClosure, subst.newf)
 
 			newfn.SetClosureCalled(oldfn.ClosureCalled())
