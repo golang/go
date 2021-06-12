@@ -550,3 +550,65 @@ func ValidRune(r rune) bool {
 	}
 	return false
 }
+
+// RuneIndexInString is like strings.Index but it inputs strings in all languages.
+// RuneIndexInString returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+func RuneIndexInString(s, substr string) int {
+	p := 0
+	i := 0
+	s_len := len(s)
+	substr_len := len(substr)
+	for i < s_len {
+		if s[i] == substr[0] {
+			if s[i+1] == substr[1] {
+				if s[i+2] == substr[2] {
+					if s[i:i+substr_len] == substr {
+						return p
+					}
+				}
+			}
+		}
+		if s[i] > 127 {
+			i += 2
+		}
+		i++
+		p++
+	}
+	return -1
+}
+
+// RuneLastIndexInString is like strings.LastIndex but it inputs strings in all languages.
+// RuneLastIndexInString returns the index of the last instance of substr in s, or -1 if substr is not present in s.
+func RuneLastIndexInString(s, substr string) int {
+	s_len := len(s)
+	substr_len := len(substr)
+	p := len([]rune(s)) - len([]rune(substr))
+	i := s_len - 1
+	for i > 0 {
+		if s[i] == substr[substr_len-1] {
+			if s[i-1] == substr[substr_len-2] {
+				if s[i-2] == substr[substr_len-3] {
+					if s[i-substr_len+1:i+1] == substr {
+						return p
+					}
+				}
+			}
+		}
+		if s[i] > 127 {
+			i -= 2
+		}
+		i--
+		p--
+	}
+	return -1
+}
+
+// Get the substring by the start index and string length.
+func SubStr(s string, index, _len int) string {
+	return string([]rune(s)[index : index+_len])
+}
+
+// Get the substring by start index and end index.
+func SubString(s string, start, end int) string {
+	return string([]rune(s)[start:end])
+}
