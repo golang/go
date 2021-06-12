@@ -44,13 +44,10 @@ func RegisterFormat(name, magic string, decode func(io.Reader) (Image, error), d
 // ListFormats returns a list of registered format names.
 func ListFormats() []string {
 	formats, _ := atomicFormats.Load().([]format)
-	if len(formats) == 0 {
-		return nil
-	}
+	var list []string
 
-	list := make([]string, len(formats))
-	for i, f := range formats {
-		list[i] = f.name
+	for _, f := range formats {
+		list = append(list, f.name)
 	}
 
 	return list
