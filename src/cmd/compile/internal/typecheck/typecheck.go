@@ -989,6 +989,16 @@ func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 		n.Args = list
 	case *ir.ReturnStmt:
 		n.Results = list
+	case *ir.AssignListStmt:
+		if n.Op() != ir.OAS2FUNC {
+			base.Fatalf("rewriteMultiValueCall: invalid op %v", n.Op())
+		}
+		as.SetOp(ir.OAS2FUNC)
+		n.SetOp(ir.OAS2)
+		n.Rhs = make([]ir.Node, len(list))
+		for i, tmp := range list {
+			n.Rhs[i] = AssignConv(tmp, n.Lhs[i].Type(), "assignment")
+		}
 	}
 }
 
