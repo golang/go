@@ -59,7 +59,7 @@ Do not send CLs removing the interior tags from such phrases.
 </ul>
 
 <p>
-  These enhancements were added to simplify writing code that conforms
+  The package unsafe enhancements were added to simplify writing code that conforms
   to <code>unsafe.Pointer</code>'s <a href="/pkg/unsafe/#Pointer">safety
   rules</a>, but the rules remain unchanged. In particular, existing
   programs that correctly use <code>unsafe.Pointer</code> remain
@@ -735,7 +735,7 @@ func Foo() bool {
       These components were always interpreted as decimal, but some operating systems treat them as octal.
       This mismatch could hypothetically lead to security issues if a Go application was used to validate IP addresses
       which were then used in their original form with non-Go applications which interpreted components as octal. Generally,
-      it is advisable to always re-encoded values after validation, which avoids this class of parser misalignment issues.
+      it is advisable to always re-encode values after validation, which avoids this class of parser misalignment issues.
     </p>
   </dd>
 </dl><!-- net -->
@@ -786,7 +786,7 @@ func Foo() bool {
   <dd>
     <p><!-- CL 268020 -->
       The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
-      has been optimized to no longer make a copy of the input string.
+      has been optimized to not make a copy of the input string.
     </p>
   </dd>
 </dl><!-- os -->
@@ -811,6 +811,14 @@ func Foo() bool {
     <p><!-- CL 284136 -->
       The <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a> function now panics when
       called with a negative length.
+    </p>
+
+    <p><!-- CL 301652 -->
+      Checking the <a href="/pkg/reflect/#Type"><code>Type.ConvertibleTo</code></a> method
+      is no longer sufficient to guarantee that a call to
+      <a href="/pkg/reflect/#Value.Convert"><code>Value.Convert</code></a> will not panic.
+      It may panic when converting `[]T` to `*[N]T` if the slice's length is less than N.
+      See the language changes section above.
     </p>
   </dd>
 </dl><!-- reflect -->
@@ -838,7 +846,7 @@ func Foo() bool {
   <dd>
     <p><!-- CL 170079, CL 170080 -->
       The <code>strconv</code> package now uses Ulf Adams's Ryū algorithm for formatting floating-point numbers.
-      This algorithm improves performance on most inputs, and is more than 99% faster on worst-case inputs.
+      This algorithm improves performance on most inputs and is more than 99% faster on worst-case inputs.
     </p>
 
     <p><!-- CL 314775 -->
