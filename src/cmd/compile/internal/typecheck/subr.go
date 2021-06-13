@@ -1220,6 +1220,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 			// names of embedded types (which should keep the name of
 			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+			newfields[i].Embedded = f.Embedded
 			if f.Nname != nil && ts.Vars != nil {
 				v := ts.Vars[f.Nname.(*ir.Name)]
 				if v != nil {
