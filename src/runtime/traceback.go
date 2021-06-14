@@ -21,8 +21,6 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
-const sizeofSkipFunction = 256
-
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
@@ -30,9 +28,7 @@ const sizeofSkipFunction = 256
 //
 // The skip argument is only valid with pcbuf != nil and counts the number
 // of logical frames to skip rather than physical frames (with inlining, a
-// PC in pcbuf can represent multiple calls). If a PC is partially skipped
-// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
-// N indicates the number of logical frames to skip in pcbuf[0].
+// PC in pcbuf can represent multiple calls).
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")

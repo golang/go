@@ -440,7 +440,8 @@ var depsRules = `
 	# HTTP, King of Dependencies.
 
 	FMT
-	< golang.org/x/net/http2/hpack, net/http/internal, net/http/internal/ascii;
+	< golang.org/x/net/http2/hpack
+	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
 
 	FMT, NET, container/list, encoding/binary, log
 	< golang.org/x/text/transform
@@ -459,6 +460,7 @@ var depsRules = `
 	golang.org/x/net/http2/hpack,
 	net/http/internal,
 	net/http/internal/ascii,
+	net/http/internal/testcert,
 	net/http/httptrace,
 	mime/multipart,
 	log

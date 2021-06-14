@@ -1472,8 +1472,8 @@ func (a typesByString) Less(i, j int) bool {
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Kind() == types.TINTER && a[i].t.Methods().Len() > 0 {
-		return a[i].t.Methods().Index(0).Pos.Before(a[j].t.Methods().Index(0).Pos)
+	if a[i].t.Kind() == types.TINTER && a[i].t.AllMethods().Len() > 0 {
+		return a[i].t.AllMethods().Index(0).Pos.Before(a[j].t.AllMethods().Index(0).Pos)
 	}
 	return false
 }

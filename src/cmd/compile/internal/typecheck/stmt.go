@@ -204,8 +204,20 @@ assignOK:
 		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
+		mismatched := false
+		failed := false
 		for i := range lhs {
-			assignType(i, rtyp.Field(i).Type)
+			result := rtyp.Field(i).Type
+			assignType(i, result)
+
+			if lhs[i].Type() == nil || result == nil {
+				failed = true
+			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
+				mismatched = true
+			}
+		}
+		if mismatched && !failed {
+			rewriteMultiValueCall(stmt, r)
 		}
 		return
 	}

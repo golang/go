@@ -941,16 +941,18 @@ func typecheckargs(n ir.InitNode) {
 		return
 	}
 
-	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-
 	// Save n as n.Orig for fmt.go.
 	if ir.Orig(n) == n {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Rhs.Append(list...)
+	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+	rewriteMultiValueCall(n, list[0])
+}
 
+// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+// so the backend wouldn't need to worry about tuple-valued expressions.
+func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
@@ -960,25 +962,40 @@ func typecheckargs(n ir.InitNode) {
 	if static {
 		ir.CurFunc = InitTodoFunc
 	}
-	list = nil
-	for _, f := range t.FieldSlice() {
-		t := Temp(f.Type)
-		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
-		as.Lhs.Append(t)
-		list = append(list, t)
+
+	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
+	results := call.Type().FieldSlice()
+	list := make([]ir.Node, len(results))
+	for i, result := range results {
+		tmp := Temp(result.Type)
+		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, tmp))
+		as.Lhs.Append(tmp)
+		list[i] = tmp
 	}
 	if static {
 		ir.CurFunc = nil
 	}
 
+	n.PtrInit().Append(Stmt(as))
+
 	switch n := n.(type) {
+	default:
+		base.Fatalf("rewriteMultiValueCall %+v", n.Op())
 	case *ir.CallExpr:
 		n.Args = list
 	case *ir.ReturnStmt:
 		n.Results = list
+	case *ir.AssignListStmt:
+		if n.Op() != ir.OAS2FUNC {
+			base.Fatalf("rewriteMultiValueCall: invalid op %v", n.Op())
+		}
+		as.SetOp(ir.OAS2FUNC)
+		n.SetOp(ir.OAS2)
+		n.Rhs = make([]ir.Node, len(list))
+		for i, tmp := range list {
+			n.Rhs[i] = AssignConv(tmp, n.Lhs[i].Type(), "assignment")
+		}
 	}
-
-	n.PtrInit().Append(Stmt(as))
 }
 
 func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
