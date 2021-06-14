@@ -226,7 +226,7 @@ func panicmemAddr(addr uintptr) {
 
 // Create a new deferred function fn, which has no arguments and results.
 // The compiler turns a defer statement into a call to this.
-func deferproc(fn func()) {
+func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
 	gp := getg()
 	if gp.m.curg != gp {
 		// go code on the system stack can't defer
@@ -300,6 +300,16 @@ func deferprocStack(d *_defer) {
 	return0()
 	// No code can go here - the C return register has
 	// been set and must not be clobbered.
+}
+
+// deferFunc returns d's deferred function. This is temporary while we
+// support both modes of GOEXPERIMENT=regabidefer. Once we commit to
+// that experiment, we should change the type of d.fn.
+//go:nosplit
+func deferFunc(d *_defer) func() {
+	var fn func()
+	*(**funcval)(unsafe.Pointer(&fn)) = d.fn
+	return fn
 }
 
 // Each P holds a pool for defers.
@@ -461,9 +471,7 @@ func deferreturn() {
 	// called with a callback on an LR architecture and jmpdefer is on the
 	// stack, because the stack trace can be incorrect in that case - see
 	// issue #8153).
-	if fn == nil {
-		fn()
-	}
+	_ = fn.fn
 	jmpdefer(fn, argp)
 }
 
@@ -527,7 +535,7 @@ func Goexit() {
 		} else {
 			// Save the pc/sp in deferCallSave(), so we can "recover" back to this
 			// loop if necessary.
-			deferCallSave(&p, d.fn)
+			deferCallSave(&p, deferFunc(d))
 		}
 		if p.aborted {
 			// We had a recursive panic in the defer d we started, and
@@ -719,12 +727,12 @@ func runOpenDeferFrame(gp *g, d *_defer) bool {
 		if deferBits&(1<<i) == 0 {
 			continue
 		}
-		closure := *(*func())(unsafe.Pointer(d.varp - uintptr(closureOffset)))
+		closure := *(**funcval)(unsafe.Pointer(d.varp - uintptr(closureOffset)))
 		d.fn = closure
 		deferBits = deferBits &^ (1 << i)
 		*(*uint8)(unsafe.Pointer(d.varp - uintptr(deferBitsOffset))) = deferBits
 		p := d._panic
-		deferCallSave(p, d.fn)
+		deferCallSave(p, deferFunc(d))
 		if p != nil && p.aborted {
 			break
 		}
@@ -845,7 +853,8 @@ func gopanic(e interface{}) {
 			}
 		} else {
 			p.argp = unsafe.Pointer(getargp())
-			d.fn()
+			fn := deferFunc(d)
+			fn()
 		}
 		p.argp = nil
 
