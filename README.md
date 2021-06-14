@@ -37,6 +37,6 @@ To contribute, please read the contribution guidelines at https://golang.org/doc
 Note that the Go project uses the issue tracker for bug reports and
 proposals only. See https://golang.org/wiki/Questions for a list of
 places to ask questions about the Go language.
-
+ 
 [rf]: https://reneefrench.blogspot.com/
 [cc3-by]: https://creativecommons.org/licenses/by/3.0/
