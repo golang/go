@@ -1034,6 +1034,7 @@
 // 	edit        edit go.mod from tools or scripts
 // 	graph       print module requirement graph
 // 	init        initialize new module in current directory
+// 	initwork    initialize workspace file
 // 	tidy        add missing and remove unused modules
 // 	vendor      make vendored copy of dependencies
 // 	verify      verify dependencies have expected content
@@ -1227,6 +1228,23 @@
 // import module requirements from it.
 //
 // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+//
+//
+// Initialize workspace file
+//
+// Usage:
+//
+// 	go mod initwork [moddirs]
+//
+// go mod initwork initializes and writes a new go.work file in the current
+// directory, in effect creating a new workspace at the current directory.
+//
+// go mod initwork optionally accepts paths to the workspace modules as arguments.
+// If the argument is omitted, an empty workspace with no modules will be created.
+//
+// See the workspaces design proposal at
+// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+// more information.
 //
 //
 // Add missing and remove unused modules
