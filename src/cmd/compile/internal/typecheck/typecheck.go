@@ -24,7 +24,6 @@ var inimport bool // set during import
 var TypecheckAllowed bool
 
 var (
-	NeedITab        = func(t, itype *types.Type) {}
 	NeedRuntimeType = func(*types.Type) {}
 )
 

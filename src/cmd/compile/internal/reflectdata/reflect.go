@@ -28,23 +28,13 @@ import (
 	"cmd/internal/src"
 )
 
-type itabEntry struct {
-	t, itype *types.Type
-	lsym     *obj.LSym // symbol of the itab itself
-
-	// symbols of each method in
-	// the itab, sorted by byte offset;
-	// filled in by CompileITabs
-	entries []*obj.LSym
-}
-
 type ptabEntry struct {
 	s *types.Sym
 	t *types.Type
 }
 
-func CountTabs() (numPTabs, numITabs int) {
-	return len(ptabs), len(itabs)
+func CountPTabs() int {
+	return len(ptabs)
 }
 
 // runtime interface and reflection data structures
@@ -56,7 +46,6 @@ var (
 	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
 	gcsymset = make(map[*types.Type]struct{})
 
-	itabs []itabEntry
 	ptabs []*ir.Name
 )
 
@@ -841,16 +830,16 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
 
-func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
-	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
-		base.Fatalf("ITabAddr(%v, %v)", t, itype)
-	}
-	s, existed := ir.Pkgs.Itab.LookupOK(t.ShortString() + "," + itype.ShortString())
+// ITabAddr returns an expression representing a pointer to the itab
+// for concrete type typ implementing interface iface.
+func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.ShortString() + "," + iface.ShortString())
+	lsym := s.Linksym()
+
 	if !existed {
-		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+		writeITab(lsym, typ, iface)
 	}
 
-	lsym := s.Linksym()
 	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
@@ -1223,83 +1212,6 @@ func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
 }
 
-// for each itabEntry, gather the methods on
-// the concrete type that implement the interface
-func CompileITabs() {
-	for i := range itabs {
-		tab := &itabs[i]
-		methods := genfun(tab.t, tab.itype)
-		if len(methods) == 0 {
-			continue
-		}
-		tab.entries = methods
-	}
-}
-
-// for the given concrete type and interface
-// type, return the (sorted) set of methods
-// on the concrete type that implement the interface
-func genfun(t, it *types.Type) []*obj.LSym {
-	if t == nil || it == nil {
-		return nil
-	}
-	sigs := imethods(it)
-	methods := methods(t)
-	out := make([]*obj.LSym, 0, len(sigs))
-	// TODO(mdempsky): Short circuit before calling methods(t)?
-	// See discussion on CL 105039.
-	if len(sigs) == 0 {
-		return nil
-	}
-
-	// both sigs and methods are sorted by name,
-	// so we can find the intersect in a single pass
-	for _, m := range methods {
-		if m.name == sigs[0].name {
-			out = append(out, m.isym)
-			sigs = sigs[1:]
-			if len(sigs) == 0 {
-				break
-			}
-		}
-	}
-
-	if len(sigs) != 0 {
-		base.Fatalf("incomplete itab")
-	}
-
-	return out
-}
-
-// ITabSym uses the information gathered in
-// CompileITabs to de-virtualize interface methods.
-// Since this is called by the SSA backend, it shouldn't
-// generate additional Nodes, Syms, etc.
-func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
-	var syms []*obj.LSym
-	if it == nil {
-		return nil
-	}
-
-	for i := range itabs {
-		e := &itabs[i]
-		if e.lsym == it {
-			syms = e.entries
-			break
-		}
-	}
-	if syms == nil {
-		return nil
-	}
-
-	// keep this arithmetic in sync with *itab layout
-	methodnum := int((offset - 2*int64(types.PtrSize) - 8) / int64(types.PtrSize))
-	if methodnum >= len(syms) {
-		return nil
-	}
-	return syms[methodnum]
-}
-
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
 	if t.HasTParam() {
@@ -1346,29 +1258,57 @@ func WriteRuntimeTypes() {
 	}
 }
 
-func WriteTabs() {
-	// process itabs
-	for _, i := range itabs {
-		// dump empty itab symbol into i.sym
-		// type itab struct {
-		//   inter  *interfacetype
-		//   _type  *_type
-		//   hash   uint32
-		//   _      [4]byte
-		//   fun    [1]uintptr // variable sized
-		// }
-		o := objw.SymPtr(i.lsym, 0, writeType(i.itype), 0)
-		o = objw.SymPtr(i.lsym, o, writeType(i.t), 0)
-		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
-		o += 4                                          // skip unused field
-		for _, fn := range genfun(i.t, i.itype) {
-			o = objw.SymPtrWeak(i.lsym, o, fn, 0) // method pointer for each method
-		}
-		// Nothing writes static itabs, so they are read only.
-		objw.Global(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
-		i.lsym.Set(obj.AttrContentAddressable, true)
+// writeITab writes the itab for concrete type typ implementing
+// interface iface.
+func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
+	// TODO(mdempsky): Fix methodWrapper, geneq, and genhash (and maybe
+	// others) to stop clobbering these.
+	oldpos, oldfn := base.Pos, ir.CurFunc
+	defer func() { base.Pos, ir.CurFunc = oldpos, oldfn }()
+
+	if typ == nil || (typ.IsPtr() && typ.Elem() == nil) || typ.IsUntyped() || iface == nil || !iface.IsInterface() || iface.IsEmptyInterface() {
+		base.Fatalf("writeITab(%v, %v)", typ, iface)
 	}
 
+	sigs := iface.AllMethods().Slice()
+	entries := make([]*obj.LSym, 0, len(sigs))
+
+	// both sigs and methods are sorted by name,
+	// so we can find the intersection in a single pass
+	for _, m := range methods(typ) {
+		if m.name == sigs[0].Sym {
+			entries = append(entries, m.isym)
+			sigs = sigs[1:]
+			if len(sigs) == 0 {
+				break
+			}
+		}
+	}
+	if len(sigs) != 0 {
+		base.Fatalf("incomplete itab")
+	}
+
+	// dump empty itab symbol into i.sym
+	// type itab struct {
+	//   inter  *interfacetype
+	//   _type  *_type
+	//   hash   uint32
+	//   _      [4]byte
+	//   fun    [1]uintptr // variable sized
+	// }
+	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
+	o = objw.SymPtr(lsym, o, writeType(typ), 0)
+	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
+	o += 4                                        // skip unused field
+	for _, fn := range entries {
+		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+	}
+	// Nothing writes static itabs, so they are read only.
+	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+	lsym.Set(obj.AttrContentAddressable, true)
+}
+
+func WriteTabs() {
 	// process ptabs
 	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
@@ -1926,26 +1866,22 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	// TODO(mdempsky): Make this unconditional. The exporter now
-	// includes all of the inline bodies we need, and the "importedType"
-	// logic above now correctly suppresses compiling out-of-package
-	// types that we might not have inline bodies for. The only problem
-	// now is that the extra inlining can now introduce further new
-	// itabs, and gc.dumpdata's ad hoc compile loop doesn't handle this.
-	//
-	// CL 327871 will address this by writing itabs and generating
-	// wrappers as part of the loop, so we won't have to worry about
-	// "itabs changed after compile functions loop" errors anymore.
-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
+	if AfterGlobalEscapeAnalysis {
 		inline.InlineCalls(fn)
+		escape.Batch([]*ir.Func{fn}, false)
 	}
-	escape.Batch([]*ir.Func{fn}, false)
 
 	ir.CurFunc = nil
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
 	return lsym
 }
+
+// AfterGlobalEscapeAnalysis tracks whether package gc has already
+// performed the main, global escape analysis pass. If so,
+// methodWrapper takes responsibility for escape analyzing any
+// generated wrappers.
+var AfterGlobalEscapeAnalysis bool
 
 var ZeroSize int64
 
