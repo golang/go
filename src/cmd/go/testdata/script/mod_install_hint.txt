@@ -1,0 +1,5 @@
+# Module is replaced but not required. No hint appears as no module is suggested.
+go mod init m
+go mod edit -replace=github.com/notrequired@v0.5.0=github.com/doesnotexist@v0.5.0
+! go install github.com/notrequired
+! stderr 'to add it:'

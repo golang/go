@@ -11,7 +11,6 @@ import (
 	"crypto/hmac"
 	"crypto/rsa"
 	"errors"
-	"fmt"
 	"hash"
 	"io"
 	"sync/atomic"
@@ -551,15 +550,13 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 
 	encryptedExtensions := new(encryptedExtensionsMsg)
 
-	if len(c.config.NextProtos) > 0 && len(hs.clientHello.alpnProtocols) > 0 {
-		selectedProto := mutualProtocol(hs.clientHello.alpnProtocols, c.config.NextProtos)
-		if selectedProto == "" {
-			c.sendAlert(alertNoApplicationProtocol)
-			return fmt.Errorf("tls: client requested unsupported application protocols (%s)", hs.clientHello.alpnProtocols)
-		}
-		encryptedExtensions.alpnProtocol = selectedProto
-		c.clientProtocol = selectedProto
+	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols)
+	if err != nil {
+		c.sendAlert(alertNoApplicationProtocol)
+		return err
 	}
+	encryptedExtensions.alpnProtocol = selectedProto
+	c.clientProtocol = selectedProto
 
 	hs.transcript.Write(encryptedExtensions.marshal())
 	if _, err := c.writeRecord(recordTypeHandshake, encryptedExtensions.marshal()); err != nil {

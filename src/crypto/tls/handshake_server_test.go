@@ -949,6 +949,27 @@ func TestHandshakeServerALPNNotConfigured(t *testing.T) {
 	runServerTestTLS13(t, test)
 }
 
+func TestHandshakeServerALPNFallback(t *testing.T) {
+	config := testConfig.Clone()
+	config.NextProtos = []string{"proto1", "h2", "proto2"}
+
+	test := &serverTest{
+		name: "ALPN-Fallback",
+		// Note that this needs OpenSSL 1.0.2 because that is the first
+		// version that supports the -alpn flag.
+		command: []string{"openssl", "s_client", "-alpn", "proto3,http/1.1,proto4", "-cipher", "ECDHE-RSA-CHACHA20-POLY1305", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256"},
+		config:  config,
+		validate: func(state ConnectionState) error {
+			if state.NegotiatedProtocol != "" {
+				return fmt.Errorf("Got protocol %q, wanted nothing", state.NegotiatedProtocol)
+			}
+			return nil
+		},
+	}
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+}
+
 // TestHandshakeServerSNI involves a client sending an SNI extension of
 // "snitest.com", which happens to match the CN of testSNICertificate. The test
 // verifies that the server correctly selects that certificate.

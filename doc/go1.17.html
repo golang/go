@@ -25,12 +25,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="language">Changes to the language</h2>
 
-<p><!-- CL 216424 -->
-  TODO: <a href="https://golang.org/cl/216424">https://golang.org/cl/216424</a>: allow conversion from slice to array ptr
+<p>
+  Go 1.17 includes three small enhancements to the language.
 </p>
 
-<p><!-- CL 312212 -->
-  TODO: <a href="https://golang.org/cl/312212">https://golang.org/cl/312212</a>: add unsafe.Add and unsafe.Slice
+<ul>
+  <li><!-- CL 216424; issue 395 -->
+    <a href="/ref/spec#Conversions_from_slice_to_array_pointer">Conversions
+    from slice to array pointer</a>: An expression <code>s</code> of
+    type <code>[]T</code> may now be converted to array pointer type
+    <code>*[N]T</code>. If <code>a</code> is the result of such a
+    conversion, then corresponding indices that are in range refer to
+    the same underlying elements: <code>&amp;a[i] == &amp;s[i]</code>
+    for <code>0 &lt;= i &lt; N</code>. The conversion panics if
+    <code>len(s)</code> is less than <code>N</code>.
+  </li>
+
+  <li><!-- CL 312212; issue 40481 -->
+    <a href="/pkg/unsafe#Add"><code>unsafe.Add</code></a>:
+    <code>unsafe.Add(ptr, len)</code> adds <code>len</code>
+    to <code>ptr</code> and returns the updated pointer
+    <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+  </li>
+
+  <li><!-- CL 312212; issue 19367 -->
+    <a href="/pkg/unsafe#Slice"><code>unsafe.Slice</code></a>:
+    For expression <code>ptr</code> of type <code>*T</code>,
+    <code>unsafe.Slice(ptr, len)</code> returns a slice of
+    type <code>[]T</code> whose underlying array starts
+    at <code>ptr</code> and whose length and capacity
+    are <code>len</code>.
+  </li>
+</ul>
+
+<p>
+  These enhancements were added to simplify writing code that conforms
+  to <code>unsafe.Pointer</code>'s <a href="/pkg/unsafe/#Pointer">safety
+  rules</a>, but the rules remain unchanged. In particular, existing
+  programs that correctly use <code>unsafe.Pointer</code> remain
+  valid, and new programs must still follow the rules when
+  using <code>unsafe.Add</code> or <code>unsafe.Slice</code>.
+</p>
+
+
+<p>
+  Note that the new conversion from slice to array pointer is the
+  first case in which a type conversion can panic at run time.
+  Analysis tools that assume type conversions can never panic
+  should be updated to consider this possibility.
 </p>
 
 <h2 id="ports">Ports</h2>
@@ -61,11 +103,12 @@ Do not send CLs removing the interior tags from such phrases.
   In Go 1.16, on the 64-bit x86 and 64-bit ARM architectures on
   OpenBSD (the <code>openbsd/amd64</code> and <code>openbsd/arm64</code>
   ports) system calls are made through <code>libc</code>, instead
-  of directly using the machine instructions. In Go 1.17, this is
-  also done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
+  of directly using machine instructions. In Go 1.17, this is also
+  done on the 32-bit x86 and 32-bit ARM architectures on OpenBSD
   (the <code>openbsd/386</code> and <code>openbsd/arm</code> ports).
-  This ensures forward-compatibility with future versions of
-  OpenBSD.
+  This ensures compatibility with OpenBSD 6.9 onwards, which require
+  system calls to be made through <code>libc</code> for non-static
+  Go binaries.
 </p>
 
 <h3 id="arm64">ARM64</h3>
@@ -76,15 +119,7 @@ Do not send CLs removing the interior tags from such phrases.
   stack frame pointers only on Linux, macOS, and iOS.
 </p>
 
-<p>
-  TODO: complete the Ports section
-</p>
-
 <h2 id="tools">Tools</h2>
-
-<p>
-  TODO: complete the Tools section
-</p>
 
 <h3 id="go-command">Go command</h3>
 
@@ -103,8 +138,17 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
 </p>
 
-<p><!-- golang.org/issue/45094 --> To facilitate the upgrade to lazy loading,
-  the <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
+<p><!-- golang.org/issue/45965 -->
+  Because the number of additional explicit requirements in the go.mod file may
+  be substantial, in a Go 1.17 module the newly-added requirements
+  on <em>indirect</em> dependencies are maintained in a
+  separate <code>require</code> block from the block containing direct
+  dependencies.
+</p>
+
+<p><!-- golang.org/issue/45094 -->
+  To facilitate the upgrade to lazy loading, the
+  <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
   a <code>-go</code> flag to set or change the <code>go</code> version in
   the <code>go.mod</code> file. To enable lazy loading for an existing module
   without changing the selected versions of its dependencies, run:
@@ -115,8 +159,32 @@ Do not send CLs removing the interior tags from such phrases.
 </pre>
 
 <p><!-- golang.org/issue/46141 -->
-  TODO: Describe the <code>-compat</code> flag
-  for <code>go</code> <code>mod</code> <code>tidy</code>.
+  By default, <code>go</code> <code>mod</code> <code>tidy</code> verifies that
+  the selected versions of dependencies relevant to the main module are the same
+  versions that would be used by the prior Go release (Go 1.16 for a module that
+  spsecifies <code>go</code> <code>1.17</code>), and preserves
+  the <code>go.sum</code> entries needed by that release even for dependencies
+  that are not normally needed by other commands.
+</p>
+
+<p>
+  The <code>-compat</code> flag allows that version to be overridden to support
+  older (or only newer) versions, up to the version specified by
+  the <code>go</code> directive in the <code>go.mod</code> file. To tidy
+  a <code>go</code> <code>1.17</code> module for Go 1.17 only, without saving
+  checksums for (or checking for consistency with) Go 1.16:
+</p>
+
+<pre>
+  go mod tidy -compat=1.17
+</pre>
+
+<p>
+  Note that even if the main module is tidied with <code>-compat=1.17</code>,
+  users who <code>require</code> the module from a
+  <code>go</code> <code>1.16</code> or earlier module will still be able to
+  use it, provided that the packages use only compatible language and library
+  features.
 </p>
 
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
@@ -210,18 +278,94 @@ Do not send CLs removing the interior tags from such phrases.
   <code>mod</code> <code>download</code> <code>all</code>.
 </p>
 
-<p><!-- CL 249759 -->
-  TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
+<h4 id="build-lines"><code>//go:build</code> lines</h4>
+
+<p>
+  The <code>go</code> command now understands <code>//go:build</code> lines
+  and prefers them over <code>// +build</code> lines. The new syntax uses
+  boolean expressions, just like Go, and should be less error-prone.
+  As of this release, the new syntax is fully supported, and all Go files
+  should be updated to have both forms with the same meaning. To aid in
+  migration, <a href="#gofmt"><code>gofmt</code></a> now automatically
+  synchronizes the two forms. For more details on the syntax and migration plan,
+  see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
+</p>
+
+<h3 id="gofmt">Gofmt</h3>
+
+<p>
+  <code>gofmt</code> (and <code>go</code> <code>fmt</code>) now synchronizes
+  <code>//go:build</code> lines with <code>// +build</code> lines. If a file
+  only has <code>// +build</code> lines, they will be moved to the appropriate
+  location in the file, and matching <code>//go:build</code> lines will be
+  added. Otherwise, <code>// +build</code> lines will be overwritten based on
+  any existing <code>//go:build</code> lines. For more information, see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
 <h3 id="vet">Vet</h3>
 
-<p><!-- CL 299532 -->
-  TODO: <a href="https://golang.org/cl/299532">https://golang.org/cl/299532</a>: cmd/vet: bring in sigchanyzer to report unbuffered channels to signal.Notify
+<h4 id="vet-buildtags">New warning for mismatched <code>//go:build</code> and <code>// +build</code> lines</h4>
+
+<p><!-- CL 240609 -->
+  The <code>vet</code> tool now verifies that <code>//go:build</code> and
+  <code>// +build</code> lines are in the correct part of the file and
+  synchronized with each other. If they aren't,
+  <a href="#gofmt"><code>gofmt</code></a> can be used to fix them. For more
+  information, see
+  <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
+<h4 id="vet-sigchanyzer">New warning for calling <code>signal.Notify</code> on unbuffered channels</h4>
+
+<p><!-- CL 299532 -->
+  The vet tool now warns about calls to <a href="/pkg/os/signal/#Notify">signal.Notify</a>
+  with incoming signals being sent to an unbuffered channel. Using an unbuffered channel
+  risks missing signals sent on them as <code>signal.Notify</code> does not block when
+  sending to a channel. For example:
+</p>
+
+<pre>
+c := make(chan os.Signal)
+// signals are sent on c before the channel is read from.
+// This signal may be dropped as c is unbuffered.
+signal.Notify(c, os.Interrupt)
+</pre>
+
 <p>
-  TODO: complete the Vet section
+  Users of <code>signal.Notify</code> should use channels with sufficient buffer space to keep up with the
+  expected signal rate.
+</p>
+
+<h4 id="vet-error-stdmethods">New warnings for Is, As and Unwrap methods</h4>
+
+<p><!-- CL 321389 -->
+  The vet tool now warns about methods named <code>As</code>, <code>Is</code> or <code>Unwrap</code>
+  on types implementing the <code>error</code> interface that have a different signature than the
+  one expected by the <code>errors</code> package. The <code>errors.{As,Is,Unwrap}</code> functions
+  expect such methods to implement either <code>Is(error)</code> <code>bool</code>,
+  <code>As(interface{})</code> <code>bool</code>, or <code>Unwrap()</code> <code>error</code>
+  respectively. The functions <code>errors.{As,Is,Unwrap}</code> will ignore methods with the same
+  names but a different signature. For example:
+</p>
+
+<pre>
+type MyError struct { hint string }
+func (m MyError) Error() string { ... } // MyError implements error.
+func (MyError) Is(target interface{}) bool { ... } // target is interface{} instead of error.
+func Foo() bool {
+	x, y := MyError{"A"}, MyError{"B"}
+	return errors.Is(x, y) // returns false as x != y and MyError does not have an `Is(error) bool` function.
+}
+</pre>
+
+<h3 id="cover">Cover</h3>
+
+<p><!-- CL 249759 -->
+  The <code>cover</code> tool now uses an optimized parser
+  from <code>golang.org/x/tools/cover</code>, which may be noticeably faster
+  when parsing large coverage profiles.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -274,34 +418,6 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <h2 id="library">Core library</h2>
-
-<p>
-  TODO: complete the Core library section
-</p>
-
-<h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
-
-<p><!-- CL 295370 -->
-  <a href="/pkg/crypto/tls#Conn.HandshakeContext">(*Conn).HandshakeContext</a> was added to
-  allow the user to control cancellation of an in-progress TLS Handshake.
-  The context provided is propagated into the
-  <a href="/pkg/crypto/tls#ClientHelloInfo">ClientHelloInfo</a>
-  and <a href="/pkg/crypto/tls#CertificateRequestInfo">CertificateRequestInfo</a>
-  structs and accessible through the new
-  <a href="/pkg/crypto/tls#ClientHelloInfo.Context">(*ClientHelloInfo).Context</a>
-  and
-  <a href="/pkg/crypto/tls#CertificateRequestInfo.Context">
-      (*CertificateRequestInfo).Context
-  </a> methods respectively. Canceling the context after the handshake has finished
-  has no effect.
-</p>
-
-<p><!-- CL 289209 -->
-  When <a href="/pkg/crypto/tls#Config">Config.NextProtos</a> is set, servers now
-  enforce that there is an overlap between the configured protocols and the protocols
-  advertised by the client, if any. If there is no overlap the connection is closed
-  with the <code>no_application_protocol</code> alert, as required by RFC 7301.
-</p>
 
 <h3 id="runtime/cgo"><a href="/pkg/runtime/cgo">Cgo</a></h3>
 
@@ -365,13 +481,117 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- compress/lzw -->
 
-<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+<dl id="crypto/ed25519"><dt><a href="/pkg/crypto/ed25519/">crypto/ed25519</a></dt>
   <dd>
-    <p><!-- CL 302230 -->
-      TODO: <a href="https://golang.org/cl/302230">https://golang.org/cl/302230</a>: fix salt length calculation with PSSSaltLengthAuto
+    <p><!-- CL 276272 -->
+      The <code>crypto/ed25519</code> package has been rewritten, and all
+      operations are now approximately twice as fast on amd64 and arm64.
+      The observable behavior has not otherwise changed.
     </p>
   </dd>
-</dl><!-- crypto/rsa -->
+</dl><!-- crypto/ed25519 -->
+
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 233939 -->
+      <a href="/pkg/crypto/elliptic#CurveParams"><code>CurveParams</code></a>
+      methods now automatically invoke faster and safer dedicated
+      implementations for known curves (P-224, P-256, and P-521) when
+      available. Note that this is a best-effort approach and applications
+      should avoid using the generic, not constant-time <code>CurveParams</code>
+      methods and instead use dedicated
+      <a href="/pkg/crypto/elliptic#Curve"><code>Curve</code></a> implementations
+      such as <a href="/pkg/crypto/elliptic#P256"><code>P256</code></a>.
+    </p>
+
+    <p><!-- CL 315271, CL 315274 -->
+      The <a href="/pkg/crypto/elliptic#P521"><code>P521</code></a> curve
+      implementation has been rewritten using code generated by the
+      <a href="https://github.com/mit-plv/fiat-crypto">fiat-crypto project</a>,
+      which is based on a formally-verified model of the arithmetic
+      operations. It is now constant-time and three times faster on amd64 and
+      arm64. The observable behavior has not otherwise changed.
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
+<dl id="crypto/rand"><dt><a href="/pkg/crypto/rand/">crypto/rand</a></dt>
+  <dd>
+    <p><!-- CL 302489, CL 299134, CL 269999 -->
+      The <code>crypto/rand</code> package now uses the <code>getentropy</code>
+      syscall on macOS and the <code>getrandom</code> syscall on Solaris,
+      Illumos, and DragonFlyBSD.
+    </p>
+  </dd>
+</dl><!-- crypto/rand -->
+
+<dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
+  <dd>
+    <p><!-- CL 295370 -->
+      The new <a href="/pkg/crypto/tls#Conn.HandshakeContext"><code>Conn.HandshakeContext</code></a>
+      method allows the user to control cancellation of an in-progress TLS
+      handshake. The provided context is accessible from various callbacks through the new
+      <a href="/pkg/crypto/tls#ClientHelloInfo.Context"><code>ClientHelloInfo.Context</code></a> and
+      <a href="/pkg/crypto/tls#CertificateRequestInfo.Context"><code>CertificateRequestInfo.Context</code></a>
+      methods. Canceling the context after the handshake has finished has no effect.
+    </p>
+
+    <p><!-- CL 289209 -->
+      When <a href="/pkg/crypto/tls#Config.NextProtos"><code>Config.NextProtos</code></a>
+      is set, servers now enforce that there is an overlap between the
+      configured protocols and the protocols advertised by the client, if any.
+      If there is no overlap the connection is closed with the
+      <code>no_application_protocol</code> alert, as required by RFC 7301.
+    </p>
+
+    <p><!-- CL 314609 -->
+      Cipher suite ordering is now handled entirely by the
+      <code>crypto/tls</code> package. Currently, cipher suites are sorted based
+      on their security, performance, and hardware support taking into account
+      both the local and peer's hardware. The order of the
+      <a href="/pkg/crypto/tls#Config.CipherSuites"><code>Config.CipherSuites</code></a>
+      field is now ignored, as well as the
+      <a href="/pkg/crypto/tls#Config.PreferServerCipherSuites"><code>Config.PreferServerCipherSuites</code></a>
+      field. Note that <code>Config.CipherSuites</code> still allows
+      applications to choose what TLS 1.0–1.2 cipher suites to enable.
+    </p>
+
+    <p>
+      The 3DES cipher suites have been moved to
+      <a href="/pkg/crypto/tls#InsecureCipherSuites"><code>InsecureCipherSuites</code></a>
+      due to <a href="https://sweet32.info/">fundamental block size-related
+      weakness</a>. They are still enabled by default but only as a last resort,
+      thanks to the cipher suite ordering change above.
+    </p>
+  </dd>
+</dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 224157 -->
+      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      now returns an error if the provided private key doesn't match the
+      parent's public key, if any. The resulting certificate would have failed
+      to verify.
+    </p>
+
+    <p><!-- CL 315209 -->
+      The temporary <code>GODEBUG=x509ignoreCN=0</code> flag has been removed.
+    </p>
+
+    <p><!-- CL 274234 -->
+      <a href="/pkg/crypto/x509/#ParseCertificate"><code>ParseCertificate</code></a>
+      has been rewritten, and now consumes ~70% fewer resources. The observable
+      behavior has not otherwise changed, except for error messages.
+    </p>
+
+    <p><!-- CL 321190 -->
+      On BSD systems, <code>/etc/ssl/certs</code> is now searched for trusted
+      roots. This adds support for the new system trusted certificate store in
+      FreeBSD 12.2+.
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
 
 <dl id="database/sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
   <dd>
@@ -444,6 +664,22 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- go/build -->
 
+<dl id="go/format"><dt><a href="/pkg/go/format/">go/format</a></dt>
+  <dd>
+    <p>
+      The <a href="/pkg/go/format/#Source"><code>Source</code></a> and
+      <a href="/pkg/go/format/#Node"><code>Node</code></a> functions now
+      synchronize <code>//go:build</code> lines with <code>// +build</code>
+      lines. If a file only has <code>// +build</code> lines, they will be
+      moved to the appropriate location in the file, and matching
+      <code>//go:build</code> lines will be added. Otherwise,
+      <code>// +build</code> lines will be overwritten based on any existing
+      <code>//go:build</code> lines. For more information, see
+      <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
+    </p>
+  </dd>
+</dl><!-- go/format -->
+
 <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
   <dd>
     <p><!-- CL 293649 -->
@@ -490,6 +726,16 @@ Do not send CLs removing the interior tags from such phrases.
       <a href="/pkg/net/#ParseError"><code>ParseError</code></a> error type now implement
       the <a href="/pkg/net/#Error"><code>net.Error</code></a> interface.
     </p>
+
+    <p><!-- CL325829 -->
+      The <a href="/pkg/net/#ParseIP"><code>ParseIP</code></a> and <a href="/pkg/net/#ParseCIDR"><code>ParseCIDR</code></a>
+      functions now reject IPv4 addresses which contain decimal components with leading zeros.
+
+      These components were always interpreted as decimal, but some operating systems treat them as octal.
+      This mismatch could hypothetically lead to security issues if a Go application was used to validate IP addresses
+      which were then used in their original form with non-Go applications which interpreted components as octal. Generally,
+      it is advisable to always re-encoded values after validation, which avoids this class of parser misalignment issues.
+    </p>
   </dd>
 </dl><!-- net -->
 
@@ -518,9 +764,9 @@ Do not send CLs removing the interior tags from such phrases.
 <dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 308950 -->
-      <a href="/pkg/net/http/httptest/#ResponseRecorder.WriteHeader"><code>ResponseRecorder.WriteHeader></code></a>
+      <a href="/pkg/net/http/httptest/#ResponseRecorder.WriteHeader"><code>ResponseRecorder.WriteHeader</code></a>
       now panics when the provided code is not a valid three-digit HTTP status code.
-      This matches the behavior of <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter></code></a>
+      This matches the behavior of <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a>
       implementations in the <a href="/pkg/net/http/"><code>net/http</code></a> package.
     </p>
   </dd>
@@ -578,14 +824,20 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- runtime/metrics -->
 
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 299991 -->
+      Block profiles are no longer biased to favor infrequent long events over
+      frequent short events.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
-    <p><!-- CL 170079 -->
-      TODO: <a href="https://golang.org/cl/170079">https://golang.org/cl/170079</a>: implement Ryū-like algorithm for fixed precision ftoa
-    </p>
-
-    <p><!-- CL 170080 -->
-      TODO: <a href="https://golang.org/cl/170080">https://golang.org/cl/170080</a>: Implement Ryū algorithm for ftoa shortest mode
+    <p><!-- CL 170079, CL 170080 -->
+      The <code>strconv</code> package now uses Ulf Adams's Ryū algorithm for formatting floating-point numbers.
+      This algorithm improves performance on most inputs, and is more than 99% faster on worst-case inputs.
     </p>
 
     <p><!-- CL 314775 -->

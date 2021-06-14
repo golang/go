@@ -2079,6 +2079,7 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue46725.go":  true, // fix applied to typecheck needs to be ported to irgen/transform
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers

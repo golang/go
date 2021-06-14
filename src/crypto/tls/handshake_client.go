@@ -711,17 +711,11 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		}
 	}
 
-	if hs.serverHello.alpnProtocol != "" {
-		if len(hs.hello.alpnProtocols) == 0 {
-			c.sendAlert(alertUnsupportedExtension)
-			return false, errors.New("tls: server advertised unrequested ALPN extension")
-		}
-		if mutualProtocol([]string{hs.serverHello.alpnProtocol}, hs.hello.alpnProtocols) == "" {
-			c.sendAlert(alertUnsupportedExtension)
-			return false, errors.New("tls: server selected unadvertised ALPN protocol")
-		}
-		c.clientProtocol = hs.serverHello.alpnProtocol
+	if err := checkALPN(hs.hello.alpnProtocols, hs.serverHello.alpnProtocol); err != nil {
+		c.sendAlert(alertUnsupportedExtension)
+		return false, err
 	}
+	c.clientProtocol = hs.serverHello.alpnProtocol
 
 	c.scts = hs.serverHello.scts
 
@@ -751,6 +745,23 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	}
 
 	return true, nil
+}
+
+// checkALPN ensure that the server's choice of ALPN protocol is compatible with
+// the protocols that we advertised in the Client Hello.
+func checkALPN(clientProtos []string, serverProto string) error {
+	if serverProto == "" {
+		return nil
+	}
+	if len(clientProtos) == 0 {
+		return errors.New("tls: server advertised unrequested ALPN extension")
+	}
+	for _, proto := range clientProtos {
+		if proto == serverProto {
+			return nil
+		}
+	}
+	return errors.New("tls: server selected unadvertised ALPN protocol")
 }
 
 func (hs *clientHandshakeState) readFinished(out []byte) error {
@@ -977,19 +988,6 @@ func clientSessionCacheKey(serverAddr net.Addr, config *Config) string {
 		return config.ServerName
 	}
 	return serverAddr.String()
-}
-
-// mutualProtocol finds the mutual ALPN protocol given list of possible
-// protocols and a list of the preference order.
-func mutualProtocol(protos, preferenceProtos []string) string {
-	for _, s := range preferenceProtos {
-		for _, c := range protos {
-			if s == c {
-				return s
-			}
-		}
-	}
-	return ""
 }
 
 // hostnameInSNI converts name into an appropriate hostname for SNI.

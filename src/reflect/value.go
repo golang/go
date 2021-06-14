@@ -952,25 +952,47 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 			continue
 		}
 
-		// There are three cases to handle in translating each
+		// There are four cases to handle in translating each
 		// argument:
 		// 1. Stack -> stack translation.
-		// 2. Registers -> stack translation.
-		// 3. Registers -> registers translation.
-		// The fourth cases can't happen, because a method value
-		// call uses strictly fewer registers than a method call.
+		// 2. Stack -> registers translation.
+		// 3. Registers -> stack translation.
+		// 4. Registers -> registers translation.
+		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
+		// architectures. This is OK for now, but this needs to be fixed
+		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
 		// fewer arguments. Simply copy between the two.
 		if vStep := valueSteps[0]; vStep.kind == abiStepStack {
 			mStep := methodSteps[0]
-			if mStep.kind != abiStepStack || vStep.size != mStep.size {
-				panic("method ABI and value ABI do not align")
+			// Handle stack -> stack translation.
+			if mStep.kind == abiStepStack {
+				if vStep.size != mStep.size {
+					panic("method ABI and value ABI do not align")
+				}
+				typedmemmove(t,
+					add(methodFrame, mStep.stkOff, "precomputed stack offset"),
+					add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+				continue
 			}
-			typedmemmove(t,
-				add(methodFrame, mStep.stkOff, "precomputed stack offset"),
-				add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+			// Handle stack -> register translation.
+			for _, mStep := range methodSteps {
+				from := add(valueFrame, vStep.stkOff+mStep.offset, "precomputed stack offset")
+				switch mStep.kind {
+				case abiStepPointer:
+					// Do the pointer copy directly so we get a write barrier.
+					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
+					fallthrough // We need to make sure this ends up in Ints, too.
+				case abiStepIntReg:
+					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+				case abiStepFloatReg:
+					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+				default:
+					panic("unexpected method step")
+				}
+			}
 			continue
 		}
 		// Handle register -> stack translation.

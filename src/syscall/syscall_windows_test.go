@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -79,6 +80,9 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
 func TestStdioAreInheritable(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveExecPath(t, "gcc")
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+		t.Skip("Powershell is not native on ARM; see golang.org/issues/46701")
+	}
 
 	tmpdir := t.TempDir()
 
