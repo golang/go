@@ -767,6 +767,24 @@ func CreateModFile(ctx context.Context, modPath string) {
 	}
 }
 
+// CreateWorkFile initializes a new workspace by creating a go.work file.
+func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
+	_ = TODOWorkspaces("Report an error if the file already exists.")
+
+	goV := LatestGoVersion() // Use current Go version by default
+	workF := new(modfile.WorkFile)
+	workF.Syntax = new(modfile.FileSyntax)
+	workF.AddGoStmt(goV)
+
+	for _, dir := range modDirs {
+		_ = TODOWorkspaces("Add the module path of the module.")
+		workF.AddDirectory(dir, "")
+	}
+
+	data := modfile.Format(workF.Syntax)
+	lockedfile.Write(workFile, bytes.NewReader(data), 0644)
+}
+
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
 //
 // It resolves commit hashes and branch names to versions,
