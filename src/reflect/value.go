@@ -3067,7 +3067,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
 	h := (*unsafeheader.Slice)(v.ptr)
 	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
 	}
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
