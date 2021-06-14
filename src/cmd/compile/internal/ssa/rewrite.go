@@ -745,27 +745,21 @@ func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
 
-// de-virtualize an InterCall
-// 'sym' is the symbol for the itab
-func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
-	f := v.Block.Func
-	n, ok := sym.(*obj.LSym)
-	if !ok {
+// loadLSymOffset simulates reading a word at an offset into a
+// read-only symbol's runtime memory. If it would read a pointer to
+// another symbol, that symbol is returned. Otherwise, it returns nil.
+func loadLSymOffset(lsym *obj.LSym, offset int64) *obj.LSym {
+	if lsym.Type != objabi.SRODATA {
 		return nil
 	}
-	lsym := f.fe.DerefItab(n, offset)
-	if f.pass.debug > 0 {
-		if lsym != nil {
-			f.Warnl(v.Pos, "de-virtualizing call")
-		} else {
-			f.Warnl(v.Pos, "couldn't de-virtualize call")
+
+	for _, r := range lsym.R {
+		if int64(r.Off) == offset && r.Type&^objabi.R_WEAK == objabi.R_ADDR && r.Add == 0 {
+			return r.Sym
 		}
 	}
-	if lsym == nil {
-		return nil
-	}
-	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.abiInfo)
+
+	return nil
 }
 
 // de-virtualize an InterLECall
@@ -776,17 +770,13 @@ func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
 		return nil
 	}
 
-	f := v.Block.Func
-	lsym := f.fe.DerefItab(n, offset)
-	if f.pass.debug > 0 {
+	lsym := loadLSymOffset(n, offset)
+	if f := v.Block.Func; f.pass.debug > 0 {
 		if lsym != nil {
 			f.Warnl(v.Pos, "de-virtualizing call")
 		} else {
 			f.Warnl(v.Pos, "couldn't de-virtualize call")
 		}
-	}
-	if lsym == nil {
-		return nil
 	}
 	return lsym
 }

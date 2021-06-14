@@ -117,7 +117,7 @@ func dumpdata() {
 	addsignats(typecheck.Target.Externs)
 	reflectdata.WriteRuntimeTypes()
 	reflectdata.WriteTabs()
-	numPTabs, numITabs := reflectdata.CountTabs()
+	numPTabs := reflectdata.CountPTabs()
 	reflectdata.WriteImportStrings()
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
@@ -158,12 +158,9 @@ func dumpdata() {
 	if numExports != len(typecheck.Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
-	newNumPTabs, newNumITabs := reflectdata.CountTabs()
+	newNumPTabs := reflectdata.CountPTabs()
 	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
-	}
-	if newNumITabs != numITabs {
-		base.Fatalf("itabs changed after compile functions loop")
 	}
 }
 

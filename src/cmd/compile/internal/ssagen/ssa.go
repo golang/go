@@ -7401,10 +7401,6 @@ func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
 }
 
-func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
-	return reflectdata.ITabSym(it, offset)
-}
-
 // SplitSlot returns a slot representing the data of parent starting at offset.
 func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
 	node := parent.N

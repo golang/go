@@ -379,14 +379,6 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 		var missing, have *types.Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
-			// Call NeedITab/ITabAddr so that (src, dst)
-			// gets added to itabs early, which allows
-			// us to de-virtualize calls through this
-			// type/interface pair later. See CompileITabs in reflect.go
-			if types.IsDirectIface(src) && !dst.IsEmptyInterface() {
-				NeedITab(src, dst)
-			}
-
 			return ir.OCONVIFACE, ""
 		}
 

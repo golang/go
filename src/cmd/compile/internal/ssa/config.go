@@ -149,12 +149,6 @@ type Frontend interface {
 	// for the parts of that compound type.
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
-	// DerefItab dereferences an itab function
-	// entry, given the symbol of the itab and
-	// the byte offset of the function pointer.
-	// It may return nil.
-	DerefItab(sym *obj.LSym, offset int64) *obj.LSym
-
 	// Line returns a string describing the given position.
 	Line(src.XPos) string
 

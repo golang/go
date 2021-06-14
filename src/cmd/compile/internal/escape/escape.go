@@ -673,7 +673,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		n := n.(*ir.BinaryExpr)
 		// Note: n.X is not needed because it can never point to memory that might escape.
 		e.expr(k, n.Y)
-	case ir.OIDATA:
+	case ir.OIDATA, ir.OSPTR:
 		n := n.(*ir.UnaryExpr)
 		e.expr(k, n.X)
 	case ir.OSLICE2ARRPTR:
