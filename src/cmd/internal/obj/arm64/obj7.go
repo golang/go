@@ -51,6 +51,12 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
+// noZRreplace is the set of instructions for which $0 in the To operand
+// should NOT be replaced with REGZERO.
+var noZRreplace = map[obj.As]bool{
+	APRFM: true,
+}
+
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	// MOV	g_stackguard(g), RT1
 	p = obj.Appendp(p, c.newprog)
@@ -226,7 +232,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
 	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 {
+	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGZERO
 	}

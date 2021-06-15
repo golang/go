@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -1104,11 +1105,6 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			gcw.balance()
 		}
 
-		// This might be a good place to add prefetch code...
-		// if(wbuf.nobj > 4) {
-		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
-		//  }
-		//
 		b := gcw.tryGetFast()
 		if b == 0 {
 			b = gcw.tryGet()
@@ -1135,6 +1131,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			// No heap or root jobs.
 			break
 		}
+
 		scanobject(b, gcw)
 
 		// Flush background scan work credit.
@@ -1199,6 +1196,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 //
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
+	// Prefetch object before we scan it.
+	//
+	// This will overlap fetching the beginning of the object with initial
+	// setup before we start scanning the object.
+	sys.Prefetch(b)
+
 	// Find the bits for b and the size of the object at b.
 	//
 	// b is either the beginning of an object, in which case this
@@ -1437,12 +1440,12 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 		}
 	}
 
-	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but
-	// seems like a nice optimization that can be added back in.
-	// There needs to be time between the PREFETCH and the use.
-	// Previously we put the obj in an 8 element buffer that is drained at a rate
-	// to give the PREFETCH time to do its work.
-	// Use of PREFETCHNTA might be more appropriate than PREFETCH
+	// We're adding obj to P's local workbuf, so it's likely
+	// this object will be processed soon by the same P.
+	// Even if the workbuf gets flushed, there will likely still be
+	// some benefit on platforms with inclusive shared caches.
+	sys.Prefetch(obj)
+	// Queue the obj for scanning.
 	if !gcw.putFast(obj) {
 		gcw.put(obj)
 	}

@@ -175,6 +175,7 @@ func init() {
 		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
 		fpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
+		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
 	)
 	ops := []opData{
 		// binary ops
@@ -729,6 +730,10 @@ func init() {
 		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+
+		// Prefetch instruction
+		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
+		{name: "PRFM", argLength: 2, aux: "Int64", reg: prefreg, asm: "PRFM", hasSideEffects: true},
 	}
 
 	blocks := []blockData{

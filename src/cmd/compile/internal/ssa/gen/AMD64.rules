@@ -2199,3 +2199,7 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(call)
 	=> (Move [sz] dst src mem)
+
+// Prefetch instructions
+(PrefetchCache ...)   => (PrefetchT0 ...)
+(PrefetchCacheStreamed ...) => (PrefetchNTA ...)
