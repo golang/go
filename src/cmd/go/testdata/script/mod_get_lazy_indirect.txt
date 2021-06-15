@@ -9,23 +9,27 @@
 stderr '^m.go:3:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc.io/quote$'
 
 
-# Unfortunately, the suggested 'go get' command leaves us with another problem.
+# When we run the suggested 'go get' command, the new dependency can be used
+# immediately, even though 'go get' marks it as 'indirect'.
 #
-# TODO(#45979): After 'go get', the 'go list' command from above should succeed.
+# TODO(#45979): Should we swap this default state, so that new dependencies
+# are added as direct unless otherwise noted?
 
 go get rsc.io/quote
+grep 'rsc.io/quote v\d+\.\d+\.\d+ // indirect$' go.mod
+! grep 'rsc.io/quote v\d+\.\d+\.\d+$' go.mod
 
-! go list -deps .
-stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
-[!short] ! go build .
-stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
-
-
-# After running the suggested 'go mod tidy' command, the build
-# should succeed.
-go mod tidy
 go list -deps .
+! stderr .
 [!short] go build .
+[!short] ! stderr .
+
+
+# 'go get .' (or 'go mod tidy') removes the indirect mark.
+
+go get .
+grep 'rsc.io/quote v\d+\.\d+\.\d+$' go.mod
+! grep 'rsc.io/quote v\d+\.\d+\.\d+ // indirect$' go.mod
 
 
 -- go.mod --
