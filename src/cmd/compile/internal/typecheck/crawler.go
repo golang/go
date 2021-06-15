@@ -15,20 +15,30 @@ import (
 // callable by importers are marked with ExportInline so that
 // iexport.go knows to re-export their inline body.
 func crawlExports(exports []*ir.Name) {
-	p := crawler{marked: make(map[*types.Type]bool)}
+	p := crawler{
+		marked:   make(map[*types.Type]bool),
+		embedded: make(map[*types.Type]bool),
+	}
 	for _, n := range exports {
 		p.markObject(n)
 	}
 }
 
 type crawler struct {
-	marked map[*types.Type]bool // types already seen by markType
+	marked   map[*types.Type]bool // types already seen by markType
+	embedded map[*types.Type]bool // types already seen by markEmbed
 }
 
 // markObject visits a reachable object.
 func (p *crawler) markObject(n *ir.Name) {
 	if n.Op() == ir.ONAME && n.Class == ir.PFUNC {
 		p.markInlBody(n)
+	}
+
+	// If a declared type name is reachable, users can embed it in their
+	// own types, which makes even its unexported methods reachable.
+	if n.Op() == ir.OTYPE {
+		p.markEmbed(n.Type())
 	}
 
 	p.markType(n.Type())
@@ -46,7 +56,7 @@ func (p *crawler) markType(t *types.Type) {
 	}
 	p.marked[t] = true
 
-	// If this is a named type, mark all of its associated
+	// If this is a defined type, mark all of its associated
 	// methods. Skip interface types because t.Methods contains
 	// only their unexpanded method set (i.e., exclusive of
 	// interface embeddings), and the switch statement below
@@ -104,6 +114,48 @@ func (p *crawler) markType(t *types.Type) {
 
 	case types.TTYPEPARAM:
 		// No other type that needs to be followed.
+	}
+}
+
+// markEmbed is similar to markType, but handles finding methods that
+// need to be re-exported because t can be embedded in user code
+// (possibly transitively).
+func (p *crawler) markEmbed(t *types.Type) {
+	if t.IsPtr() {
+		// Defined pointer type; not allowed to embed anyway.
+		if t.Sym() != nil {
+			return
+		}
+		t = t.Elem()
+	}
+
+	if t.IsInstantiatedGeneric() {
+		// Re-instantiated types don't add anything new, so don't follow them.
+		return
+	}
+
+	if p.embedded[t] {
+		return
+	}
+	p.embedded[t] = true
+
+	// If t is a defined type, then re-export all of its methods. Unlike
+	// in markType, we include even unexported methods here, because we
+	// still need to generate wrappers for them, even if the user can't
+	// refer to them directly.
+	if t.Sym() != nil && t.Kind() != types.TINTER {
+		for _, m := range t.Methods().Slice() {
+			p.markObject(m.Nname.(*ir.Name))
+		}
+	}
+
+	// If t is a struct, recursively visit its embedded fields.
+	if t.IsStruct() {
+		for _, f := range t.FieldSlice() {
+			if f.Embedded != 0 {
+				p.markEmbed(f.Type)
+			}
+		}
 	}
 }
 

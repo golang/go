@@ -1795,20 +1795,24 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		return lsym
 	}
 
-	// Only generate (*T).M wrappers for T.M in T's own package, except for
-	// instantiated methods.
-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg &&
-		!rcvr.Elem().IsFullyInstantiated() {
-		return lsym
+	// imported reports whether typ is a defined type that was declared
+	// in an imported package, and therefore must have been compiled in
+	// that package.
+	importedType := func(typ *types.Type) bool {
+		return typ.Sym() != nil && typ.Sym().Pkg != types.LocalPkg &&
+
+			// Exception: need wrapper for error.Error (#29304).
+			// TODO(mdempsky): Put this in package runtime, like we do for
+			// the type descriptors for predeclared types.
+			typ != types.ErrorType &&
+
+			// Exception: parameterized types may have been instantiated
+			// with new type arguments, so we don't assume they've been
+			// compiled before.
+			!typ.IsFullyInstantiated()
 	}
 
-	// Only generate I.M wrappers for I in I's own package
-	// but keep doing it for error.Error (was issue #29304)
-	// and methods of instantiated interfaces.
-	if rcvr.IsInterface() && rcvr != types.ErrorType &&
-		rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg &&
-		!rcvr.IsFullyInstantiated() {
+	if importedType(rcvr) || rcvr.IsPtr() && importedType(rcvr.Elem()) {
 		return lsym
 	}
 
@@ -1922,9 +1926,16 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	// Inline calls within (*T).M wrappers. This is safe because we only
-	// generate those wrappers within the same compilation unit as (T).M.
-	// TODO(mdempsky): Investigate why we can't enable this more generally.
+	// TODO(mdempsky): Make this unconditional. The exporter now
+	// includes all of the inline bodies we need, and the "importedType"
+	// logic above now correctly suppresses compiling out-of-package
+	// types that we might not have inline bodies for. The only problem
+	// now is that the extra inlining can now introduce further new
+	// itabs, and gc.dumpdata's ad hoc compile loop doesn't handle this.
+	//
+	// CL 327871 will address this by writing itabs and generating
+	// wrappers as part of the loop, so we won't have to worry about
+	// "itabs changed after compile functions loop" errors anymore.
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
 		inline.InlineCalls(fn)
 	}
