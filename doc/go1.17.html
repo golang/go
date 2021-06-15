@@ -441,6 +441,67 @@ func Foo() bool {
   <a href="/pkg/runtime/cgo#Handle">runtime/cgo.Handle</a> for more information.
 </p>
 
+<h3 id="semicolons">URL query parsing</h3>
+<!-- CL 325697, CL 326309 -->
+
+<p>
+  The <code>net/url</code> and <code>net/http</code> packages used to accept
+  <code>";"</code> (semicolon) as a setting separator in URL queries, in
+  addition to <code>"&"</code> (ampersand). Now, settings with non-percent-encoded
+  semicolons are rejected and <code>net/http</code> servers will log a warning to
+  <a href="/pkg/net/http#Server.ErrorLog"><code>Server.ErrorLog</code></a>
+  when encountering one in a request URL.
+</p>
+
+<p>
+  For example, before Go 1.17 the <a href="/pkg/net/url#URL.Query"><code>Query</code></a>
+  method of the URL <code>example?a=1;b=2&c=3</code> would have returned
+  <code>map[a:[1] b:[2] c:[3]]</code>, while now it returns <code>map[c:[3]]</code>.
+</p>
+
+<p>
+  When encountering such a query string,
+  <a href="/pkg/net/url#URL.Query"><code>URL.Query</code></a>
+  and
+  <a href="/pkg/net/http#Request.FormValue"><code>Request.FormValue</code></a>
+  ignore any settings that contain a semicolon,
+  <a href="/pkg/net/url#ParseQuery"><code>ParseQuery</code></a>
+  returns the remaining settings and an error, and
+  <a href="/pkg/net/http#Request.ParseForm"><code>Request.ParseForm</code></a>
+  and
+  <a href="/pkg/net/http#Request.ParseMultipartForm"><code>Request.ParseMultipartForm</code></a>
+  return an error but still set <code>Request</code> fields based on the
+  remaining settings.
+</p>
+
+<p>
+  <code>net/http</code> users can restore the original behavior by using the new
+  <a href="/pkg/net/http#AllowQuerySemicolons"><code>AllowQuerySemicolons</code></a>
+  handler wrapper. This will also suppress the <code>ErrorLog</code> warning.
+  Note that accepting semicolons as query separators can lead to security issues
+  if different systems interpret cache keys differently.
+  See <a href="https://golang.org/issue/25192">issue 25192</a> for more information.
+</p>
+
+<h3 id="ALPN">TLS strict ALPN</h3>
+<!-- CL 289209, CL 325432 -->
+
+<p>
+  When <a href="/pkg/crypto/tls#Config.NextProtos"><code>Config.NextProtos</code></a>
+  is set, servers now enforce that there is an overlap between the configured
+  protocols and the ALPN protocols advertised by the client, if any. If there is
+  no mutually supported protocol, the connection is closed with the
+  <code>no_application_protocol</code> alert, as required by RFC 7301. This
+  helps mitigate <a href="https://alpaca-attack.com/">the ALPACA cross-protocol attack</a>.
+</p>
+
+<p>
+  As an exception, when the value <code>"h2"</code> is included in the server's
+  <code>Config.NextProtos</code>, HTTP/1.1 clients will be allowed to connect as
+  if they didn't support ALPN.
+  See <a href="https://golang.org/issue/46310">issue 46310</a> for more information.
+</p>
+
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <p>
@@ -549,14 +610,6 @@ func Foo() bool {
       methods. Canceling the context after the handshake has finished has no effect.
     </p>
 
-    <p><!-- CL 289209 -->
-      When <a href="/pkg/crypto/tls#Config.NextProtos"><code>Config.NextProtos</code></a>
-      is set, servers now enforce that there is an overlap between the
-      configured protocols and the protocols advertised by the client, if any.
-      If there is no overlap the connection is closed with the
-      <code>no_application_protocol</code> alert, as required by RFC 7301.
-    </p>
-
     <p><!-- CL 314609 -->
       Cipher suite ordering is now handled entirely by the
       <code>crypto/tls</code> package. Currently, cipher suites are sorted based
@@ -658,6 +711,22 @@ func Foo() bool {
   </dd>
 </dl><!-- encoding/csv -->
 
+<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
+  <dd>
+    <p><!-- CL 277893 -->
+      When a comment appears within a
+      <a href="/pkg/encoding/xml/#Directive"><code>Directive</code></a>, it is now replaced
+      with a single space instead of being completely elided.
+    </p>
+
+    <p>
+      Invalid element or attribute names with leading, trailing, or multiple
+      colons are now stored unmodified into the
+      <a href="/pkg/encoding/xml/#Name"><code>Name.Local</code></a> field.
+    </p>
+  </dd>
+</dl><!-- encoding/xml -->
+
 <dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
   <dd>
     <p><!-- CL 271788 -->
@@ -744,6 +813,20 @@ func Foo() bool {
   </dd>
 </dl><!-- mime -->
 
+<dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
+  <dd>
+    <p><!-- CL 313809 -->
+      <a href="/pkg/mime/multipart/#Part.FileName"><code>Part.FileName</code></a>
+      now applies
+      <a href="/pkg/path/filepath/#Base"><code>filepath.Base</code></a> to the
+      return value. This mitigates potential path traversal vulnerabilities in
+      applications that accept multipart messages, such as <code>net/http</code>
+      servers that call
+      <a href="/pkg/net/http/#Request.FormFile"><code>Request.FormFile</code></a>.
+    </p>
+  </dd>
+</dl><!-- mime/multipart -->
+
 <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
   <dd>
     <p><!-- CL 272668 -->
@@ -763,7 +846,7 @@ func Foo() bool {
       the <a href="/pkg/net/#Error"><code>net.Error</code></a> interface.
     </p>
 
-    <p><!-- CL325829 -->
+    <p><!-- CL 325829 -->
       The <a href="/pkg/net/#ParseIP"><code>ParseIP</code></a> and <a href="/pkg/net/#ParseCIDR"><code>ParseCIDR</code></a>
       functions now reject IPv4 addresses which contain decimal components with leading zeros.
 
@@ -793,6 +876,29 @@ func Foo() bool {
     <p><!-- CL 308952 -->
       The <a href="/pkg/net/http/#ReadRequest"><code>ReadRequest</code></a> function
       now returns an error when the request has multiple Host headers.
+    </p>
+
+    <p><!-- CL 313950 -->
+      When producing a redirect to the cleaned version of a URL,
+      <a href="/pkg/net/http/#ServeMux"><code>ServeMux</code></a> now always
+      uses relative URLs in the <code>Location</code> header. Previously it
+      would echo the full URL of the request, which could lead to unintended
+      redirects if the client could be made to send an absolute request URL.
+    </p>
+
+    <p><!-- CL 308009, CL 313489 -->
+      When interpreting certain HTTP headers handled by <code>net/http</code>,
+      non-ASCII characters are now ignored or rejected.
+    </p>
+
+    <p><!-- CL 325697 -->
+      If
+      <a href="/pkg/net/http/#Request.ParseForm"><code>Request.ParseForm</code></a>
+      returns an error when called by
+      <a href="/pkg/net/http/#Request.ParseMultipartForm"><code>Request.ParseMultipartForm</code></a>,
+      the latter now continues populating
+      <a href="/pkg/net/http/#Request.MultipartForm"><code>Request.MultipartForm</code></a>
+      before returning it.
     </p>
   </dd>
 </dl><!-- net/http -->
