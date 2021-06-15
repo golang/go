@@ -1003,7 +1003,8 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale != 0 && p.arch.Family == sys.ARM64 {
+			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
 				p.errorf("arm64 doesn't support scaled register format")
 			} else {
 				a.Scale = int16(scale)

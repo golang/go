@@ -547,6 +547,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 // shifted or extended register offset.
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // 656866f8
+	MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // 446866f8
 	MOVWU	(R19)(R20<<2), R20              // 747a74b8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
@@ -579,6 +580,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 	MOVB	R8, (R3)(R9.UXTW)               // 68482938
 	MOVB	R10, (R5)(R8)                   // aa682838
+	MOVB	R10, (R5)(R8*1)                 // aa682838
 	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
 	MOVH	R5, (R1)(R2<<1)                 // 25782278
 	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
