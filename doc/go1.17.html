@@ -629,6 +629,15 @@ func Foo() bool {
       weakness</a>. They are still enabled by default but only as a last resort,
       thanks to the cipher suite ordering change above.
     </p>
+
+    <p><!-- golang.org/issue/45428 -->
+      Beginning in the next release, Go 1.18, the
+      <a href="/pkg/crypto/tls/#Config.MinVersion"><code>Config.MinVersion</code></a>
+      for <code>crypto/tls</code> clients will default to TLS 1.2, disabling TLS 1.0
+      and TLS 1.1 by default. Applications will be able to override the change by
+      explicitly setting <code>Config.MinVersion</code>.
+      This will not affect <code>crypto/tls</code> servers.
+    </p>
   </dd>
 </dl><!-- crypto/tls -->
 
@@ -655,6 +664,14 @@ func Foo() bool {
       On BSD systems, <code>/etc/ssl/certs</code> is now searched for trusted
       roots. This adds support for the new system trusted certificate store in
       FreeBSD 12.2+.
+    </p>
+
+    <p><!-- golang.org/issue/41682 -->
+      Beginning in the next release, Go 1.18, <code>crypto/x509</code> will
+      reject certificates signed with the SHA-1 hash function. This doesn't
+      apply to self-signed root certificates. Practical attacks against SHA-1
+      <a href="https://shattered.io/">have been demonstrated in 2017</a> and publicly
+      trusted Certificate Authorities have not issued SHA-1 certificates since 2015.
     </p>
   </dd>
 </dl><!-- crypto/x509 -->
