@@ -78,6 +78,7 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
 
 func TestStdioAreInheritable(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
 
 	tmpdir := t.TempDir()
