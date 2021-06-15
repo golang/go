@@ -66,7 +66,9 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		for fname, f := range fsys {
 			i := strings.Index(fname, "/")
 			if i < 0 {
-				list = append(list, mapFileInfo{fname, f})
+				if fname != "." {
+					list = append(list, mapFileInfo{fname, f})
+				}
 			} else {
 				need[fname[:i]] = true
 			}
