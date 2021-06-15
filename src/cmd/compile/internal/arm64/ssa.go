@@ -1095,6 +1095,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = condBits[v.Op]
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpARM64PRFM:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredGetClosurePtr:
 		// Closure pointer is R26 (arm64.REGCTXT).
 		ssagen.CheckLoweredGetClosurePtr(v)

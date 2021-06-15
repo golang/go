@@ -951,6 +951,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpPopCount8:
 		return rewriteValueAMD64_OpPopCount8(v)
+	case OpPrefetchCache:
+		v.Op = OpAMD64PrefetchT0
+		return true
+	case OpPrefetchCacheStreamed:
+		v.Op = OpAMD64PrefetchNTA
+		return true
 	case OpRotateLeft16:
 		v.Op = OpAMD64ROLW
 		return true

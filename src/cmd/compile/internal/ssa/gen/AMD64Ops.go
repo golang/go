@@ -169,6 +169,8 @@ func init() {
 
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
+
+		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
 
 	var AMD64ops = []opData{
@@ -900,6 +902,11 @@ func init() {
 		{name: "ANDLlock", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"}, // *(arg0+auxint+aux) &= arg1
 		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
 		{name: "ORLlock", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},   // *(arg0+auxint+aux) |= arg1
+
+		// Prefetch instructions
+		// Do prefetch arg0 address. arg0=addr, arg1=memory. Instruction variant selects locality hint
+		{name: "PrefetchT0", argLength: 2, reg: prefreg, asm: "PREFETCHT0", hasSideEffects: true},
+		{name: "PrefetchNTA", argLength: 2, reg: prefreg, asm: "PREFETCHNTA", hasSideEffects: true},
 	}
 
 	var AMD64blocks = []blockData{
