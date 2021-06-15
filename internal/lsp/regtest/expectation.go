@@ -525,7 +525,7 @@ func EmptyDiagnostics(name string) Expectation {
 	}
 	return SimpleExpectation{
 		check:       check,
-		description: "empty diagnostics",
+		description: fmt.Sprintf("empty diagnostics for %q", name),
 	}
 }
 
