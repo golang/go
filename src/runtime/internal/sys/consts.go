@@ -80,8 +80,6 @@ const (
 	GoarchWasm        = goarch.GoarchWasm
 )
 
-const GOOS = goos.GOOS
-
 const (
 	GoosAix       = goos.GoosAix
 	GoosAndroid   = goos.GoosAndroid
