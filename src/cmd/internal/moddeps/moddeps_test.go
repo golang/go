@@ -68,7 +68,7 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
+			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
 			cmd.Env = append(os.Environ(), "GO111MODULE=on")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
