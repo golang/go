@@ -156,7 +156,7 @@ func (r *gitRepo) loadLocalTags() {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
 	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, err := Run(r.dir, "git", "tag", "-l")
+	out, err := Run(r.dir, "git", "tag")
 	if err != nil {
 		return
 	}
