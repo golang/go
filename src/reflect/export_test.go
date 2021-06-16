@@ -23,8 +23,6 @@ func IsRO(v Value) bool {
 
 var CallGC = &callGC
 
-const PtrSize = goarch.PtrSize
-
 // FuncLayout calls funcLayout and returns a subset of the results for testing.
 //
 // Bitmaps like stack, gc, inReg, and outReg are expanded such that each bit
