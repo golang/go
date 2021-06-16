@@ -393,12 +393,16 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	if v.knownFile(c.URI) {
 		return true
 	}
-	// The gopls.mod may not be "known" because we first access it through the
-	// session. As a result, treat changes to the view's gopls.mod file as
-	// always relevant, even if they are only on-disk changes.
-	// TODO(rstambler): Make sure the gopls.mod is always known to the view.
-	if c.URI == goplsModURI(v.rootURI) {
-		return true
+	// The go.work/gopls.mod may not be "known" because we first access it
+	// through the session. As a result, treat changes to the view's go.work or
+	// gopls.mod file as always relevant, even if they are only on-disk
+	// changes.
+	// TODO(rstambler): Make sure the go.work/gopls.mod files are always known
+	// to the view.
+	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
+		if c.URI == uriForSource(v.rootURI, src) {
+			return true
+		}
 	}
 	// If the file is not known to the view, and the change is only on-disk,
 	// we should not invalidate the snapshot. This is necessary because Emacs
@@ -775,7 +779,7 @@ func go111moduleForVersion(go111module string, goversion int) go111module {
 func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
 	patterns := []string{"go.mod"}
 	if experimental {
-		patterns = []string{"gopls.mod", "go.mod"}
+		patterns = []string{"go.work", "gopls.mod", "go.mod"}
 	}
 	for _, basename := range patterns {
 		dir, err := findRootPattern(ctx, folder, basename, fs)

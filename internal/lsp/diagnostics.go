@@ -379,7 +379,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 		for _, d := range err.DiagList {
 			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d})
 		}
-		errMsg = strings.Replace(err.MainError.Error(), "\n", " ", -1)
+		errMsg = strings.ReplaceAll(err.MainError.Error(), "\n", " ")
 	}
 
 	if s.criticalErrorStatus == nil {

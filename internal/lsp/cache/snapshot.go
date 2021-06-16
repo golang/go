@@ -1528,9 +1528,25 @@ func checkSnapshotLocked(ctx context.Context, s *snapshot) {
 	}
 }
 
+// unappliedChanges is a file source that handles an uncloned snapshot.
+type unappliedChanges struct {
+	originalSnapshot *snapshot
+	changes          map[span.URI]*fileChange
+}
+
+func (ac *unappliedChanges) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+	if c, ok := ac.changes[uri]; ok {
+		return c.fileHandle, nil
+	}
+	return ac.originalSnapshot.GetFile(ctx, uri)
+}
+
 func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, bool) {
 	var vendorChanged bool
-	newWorkspace, workspaceChanged, workspaceReload := s.workspace.invalidate(ctx, changes)
+	newWorkspace, workspaceChanged, workspaceReload := s.workspace.invalidate(ctx, changes, &unappliedChanges{
+		originalSnapshot: s,
+		changes:          changes,
+	})
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

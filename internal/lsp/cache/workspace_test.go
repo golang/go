@@ -296,7 +296,7 @@ replace gopls.test => ../../gopls.test2`, false},
 						t.Fatal(err)
 					}
 				}
-				got, gotChanged, gotReload := w.invalidate(ctx, changes)
+				got, gotChanged, gotReload := w.invalidate(ctx, changes, fs)
 				if gotChanged != test.wantChanged {
 					t.Errorf("w.invalidate(): got changed %t, want %t", gotChanged, test.wantChanged)
 				}

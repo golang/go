@@ -88,7 +88,7 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 	// Packages in the workspace can contribute diagnostics to go.mod files.
 	wspkgs, err := snapshot.WorkspacePackages(ctx)
 	if err != nil && !source.IsNonFatalGoModError(err) {
-		event.Error(ctx, "diagnosing go.mod", err)
+		event.Error(ctx, fmt.Sprintf("workspace packages: diagnosing %s", pm.URI), err)
 	}
 	if err == nil {
 		for _, pkg := range wspkgs {
@@ -102,7 +102,7 @@ func DiagnosticsForMod(ctx context.Context, snapshot source.Snapshot, fh source.
 
 	tidied, err := snapshot.ModTidy(ctx, pm)
 	if err != nil && !source.IsNonFatalGoModError(err) {
-		event.Error(ctx, "diagnosing go.mod", err)
+		event.Error(ctx, fmt.Sprintf("tidy: diagnosing %s", pm.URI), err)
 	}
 	if err == nil {
 		for _, d := range tidied.Diagnostics {

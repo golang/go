@@ -611,6 +611,132 @@ replace a.com => %s/moda/a
 	})
 }
 
+func TestUseGoWork(t *testing.T) {
+	// This test validates certain functionality related to using a go.work
+	// file to specify workspace modules.
+	testenv.NeedsGo1Point(t, 14)
+	const multiModule = `
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+}
+-- modb/go.mod --
+module b.com
+
+require example.com v1.2.3
+-- modb/go.sum --
+example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+-- go.work --
+go 1.17
+
+directory (
+	./moda/a
+)
+`
+	WithOptions(
+		ProxyFiles(workspaceModuleProxy),
+		Modes(Experimental),
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
+		// Initially, the gopls.mod should cause only the a.com module to be
+		// loaded. Validate this by jumping to a definition in b.com and ensuring
+		// that we go to the module cache.
+		env.OpenFile("moda/a/a.go")
+		env.Await(env.DoneWithOpen())
+
+		// To verify which modules are loaded, we'll jump to the definition of
+		// b.Hello.
+		checkHelloLocation := func(want string) error {
+			location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+			if !strings.HasSuffix(location, want) {
+				return fmt.Errorf("expected %s, got %v", want, location)
+			}
+			return nil
+		}
+
+		// Initially this should be in the module cache, as b.com is not replaced.
+		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
+
+		// Now, modify the gopls.mod file on disk to activate the b.com module in
+		// the workspace.
+		env.WriteWorkspaceFile("go.work", `
+go 1.17
+
+directory (
+	./moda/a
+	./modb
+)
+`)
+		env.Await(env.DoneWithChangeWatchedFiles())
+		// Check that go.mod diagnostics picked up the newly active mod file.
+		// The local version of modb has an extra dependency we need to download.
+		env.OpenFile("modb/go.mod")
+		env.Await(env.DoneWithOpen())
+
+		var d protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				env.DiagnosticAtRegexpWithMessage("modb/go.mod", `require example.com v1.2.3`, "has not been downloaded"),
+				ReadDiagnostics("modb/go.mod", &d),
+			),
+		)
+		env.ApplyQuickFixes("modb/go.mod", d.Diagnostics)
+		env.Await(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+		// Jumping to definition should now go to b.com in the workspace.
+		if err := checkHelloLocation("modb/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
+
+		// Now, let's modify the gopls.mod *overlay* (not on disk), and verify that
+		// this change is only picked up once it is saved.
+		env.OpenFile("go.work")
+		env.Await(env.DoneWithOpen())
+		env.SetBufferContent("go.work", `go 1.17
+
+directory (
+	./moda/a
+)`)
+
+		// Editing the gopls.mod removes modb from the workspace modules, and so
+		// should clear outstanding diagnostics...
+		env.Await(OnceMet(
+			env.DoneWithChange(),
+			EmptyDiagnostics("modb/go.mod"),
+		))
+		// ...but does not yet cause a workspace reload, so we should still jump to modb.
+		if err := checkHelloLocation("modb/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
+		// Saving should reload the workspace.
+		env.SaveBufferWithoutActions("go.work")
+		if err := checkHelloLocation("b.com@v1.2.3/b/b.go"); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestNonWorkspaceFileCreation(t *testing.T) {
 	testenv.NeedsGo1Point(t, 13)
 
