@@ -266,6 +266,7 @@ finish:
 	MOVD    32(R1), R6
 	MOVD    R6, m_vdsoPC(R21)
 
+return:
 	MOVD    R3, sec+0(FP)
 	MOVW    R5, nsec+8(FP)
 	RET
@@ -276,7 +277,7 @@ fallback:
 	SYSCALL $SYS_clock_gettime
 	MOVD	32(R1), R3
 	MOVD	40(R1), R5
-	JMP	finish
+	JMP	return
 
 TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVD	$1, R3		// CLOCK_MONOTONIC
