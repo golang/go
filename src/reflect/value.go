@@ -957,9 +957,6 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 		// 2. Stack -> registers translation.
 		// 3. Registers -> stack translation.
 		// 4. Registers -> registers translation.
-		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
-		// architectures. This is OK for now, but this needs to be fixed
-		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
@@ -985,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
 				case abiStepFloatReg:
-					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
 				default:
 					panic("unexpected method step")
 				}
@@ -1003,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
+					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
 				case abiStepFloatReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
+					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
 				default:
 					panic("unexpected value step")
 				}
