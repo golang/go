@@ -102,6 +102,7 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"runtime/internal/sys"
@@ -151,7 +152,7 @@ const (
 	//   windows/32       | 4KB        | 3
 	//   windows/64       | 8KB        | 2
 	//   plan9            | 4KB        | 3
-	_NumStackOrders = 4 - goarch.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
+	_NumStackOrders = 4 - goarch.PtrSize/4*goos.IsWindows - 1*goos.IsPlan9
 
 	// heapAddrBits is the number of bits in a heap address. On
 	// amd64, addresses are sign-extended beyond heapAddrBits. On
@@ -208,7 +209,7 @@ const (
 	// arenaBaseOffset to offset into the top 4 GiB.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosIos*sys.GoarchArm64
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-goos.IsIos*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*goos.IsIos*sys.GoarchArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -249,7 +250,7 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm + (2+20)*sys.GoosIos*sys.GoarchArm64
+	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-sys.GoarchWasm)*(1-goos.IsIos*sys.GoarchArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm + (2+20)*goos.IsIos*sys.GoarchArm64
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (goarch.PtrSize * 8 / 2)
@@ -269,7 +270,7 @@ const (
 	// We use the L1 map on 64-bit Windows because the arena size
 	// is small, but the address space is still 48 bits, and
 	// there's a high cost to having a large L2.
-	arenaL1Bits = 6 * (_64bit * sys.GoosWindows)
+	arenaL1Bits = 6 * (_64bit * goos.IsWindows)
 
 	// arenaL2Bits is the number of bits of the arena number
 	// covered by the second level arena index.
@@ -304,7 +305,7 @@ const (
 	//
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
-	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*sys.GoosAix
+	arenaBaseOffset = 0xffff800000000000*sys.GoarchAmd64 + 0x0a00000000000000*goos.IsAix
 	// A typed version of this constant that will make it into DWARF (for viewcore).
 	arenaBaseOffsetUintptr = uintptr(arenaBaseOffset)
 

@@ -56,6 +56,7 @@
 package runtime
 
 import (
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -90,7 +91,7 @@ const (
 	//
 	// This ratio is used as part of multiplicative factor to help the scavenger account
 	// for the additional costs of using scavenged memory in its pacing.
-	scavengeCostRatio = 0.7 * (sys.GoosDarwin + sys.GoosIos)
+	scavengeCostRatio = 0.7 * (goos.IsDarwin + goos.IsIos)
 
 	// scavengeReservationShards determines the amount of memory the scavenger
 	// should reserve for scavenging at a time. Specifically, the amount of
