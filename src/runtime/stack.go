@@ -662,7 +662,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 	// Adjust saved base pointer if there is one.
 	// TODO what about arm64 frame pointer adjustment?
-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
+	if goarch.ArchFamily == goarch.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -1013,7 +1013,7 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
+	if goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.I386 || goarch.ArchFamily == goarch.WASM {
 		// The call to morestack cost a word.
 		sp -= goarch.PtrSize
 	}
@@ -1256,8 +1256,8 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	// Local variables.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	switch sys.ArchFamily {
-	case sys.ARM64:
+	switch goarch.ArchFamily {
+	case goarch.ARM64:
 		minsize = sys.StackAlign
 	default:
 		minsize = sys.MinFrameSize
