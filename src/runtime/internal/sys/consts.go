@@ -24,10 +24,6 @@ const (
 	WASM    = goarch.WASM
 )
 
-// PtrSize is the size of a pointer in bytes - unsafe.Sizeof(uintptr(0)) but as an ideal constant.
-// It is also the size of the machine's native word size (that is, 4 on 32-bit systems, 8 on 64-bit).
-const PtrSize = goarch.PtrSize
-
 // ArchFamily is the architecture family (AMD64, ARM, ...)
 const ArchFamily ArchFamilyType = goarch.ArchFamily
 
