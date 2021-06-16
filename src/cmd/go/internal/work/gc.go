@@ -29,6 +29,18 @@ import (
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
 const trimPathGoRootFinal = "go"
 
+var runtimePackages = map[string]struct{}{
+	"internal/abi":            struct{}{},
+	"internal/bytealg":        struct{}{},
+	"internal/cpu":            struct{}{},
+	"internal/goarch":         struct{}{},
+	"internal/goos":           struct{}{},
+	"runtime":                 struct{}{},
+	"runtime/internal/atomic": struct{}{},
+	"runtime/internal/math":   struct{}{},
+	"runtime/internal/sys":    struct{}{},
+}
+
 // The Go toolchain.
 
 type gcToolchain struct{}
@@ -88,11 +100,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
 	}
-	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
-	// The runtime package imports a couple of general internal packages.
-	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg" || p.ImportPath == "internal/abi") {
-		compilingRuntime = true
-	}
+	_, compilingRuntime := runtimePackages[p.ImportPath]
+	compilingRuntime = compilingRuntime && p.Standard
 	if compilingRuntime {
 		// runtime compiles with a special gc flag to check for
 		// memory allocations that are invalid in the runtime package,
