@@ -5,6 +5,7 @@
 package reflectlite
 
 import (
+	"internal/goarch"
 	"internal/unsafeheader"
 	"unsafe"
 )
@@ -36,7 +37,7 @@ func Swapper(slice interface{}) func(i, j int) {
 
 	// Some common & small cases, without using memmove:
 	if hasPtr {
-		if size == ptrSize {
+		if size == goarch.PtrSize {
 			ps := *(*[]unsafe.Pointer)(v.ptr)
 			return func(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 		}

@@ -5,6 +5,7 @@
 package reflectlite
 
 import (
+	"internal/goarch"
 	"internal/unsafeheader"
 	"runtime"
 	"unsafe"
@@ -90,7 +91,7 @@ func (f flag) ro() flag {
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.size != ptrSize || !v.typ.pointers() {
+	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
