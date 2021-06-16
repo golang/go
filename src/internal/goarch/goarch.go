@@ -6,7 +6,7 @@
 package goarch
 
 // The next line makes 'go generate' write the zgoarch*.go files with
-// per-arch information, including constants named Goarch$GOARCH for every
+// per-arch information, including constants named $GOARCH for every
 // GOARCH. The constant is 1 on the current system, 0 otherwise; multiplying
 // by them is useful for defining GOARCH-specific constants.
 //go:generate go run gengoarch.go
@@ -34,7 +34,7 @@ const PtrSize = 4 << (^uintptr(0) >> 63)
 const ArchFamily ArchFamilyType = _ArchFamily
 
 // BigEndian reports whether the architecture is big-endian.
-const BigEndian = GoarchArmbe|GoarchArm64be|GoarchMips|GoarchMips64|GoarchPpc|GoarchPpc64|GoarchS390|GoarchS390x|GoarchSparc|GoarchSparc64 == 1
+const BigEndian = IsArmbe|IsArm64be|IsMips|IsMips64|IsPpc|IsPpc64|IsS390|IsS390x|IsSparc|IsSparc64 == 1
 
 // DefaultPhysPageSize is the default physical page size.
 const DefaultPhysPageSize = _DefaultPhysPageSize
