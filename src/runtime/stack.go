@@ -9,6 +9,7 @@ import (
 	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -67,7 +68,7 @@ const (
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
 	// and iOS because they do not use a separate stack.
-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosIos*sys.GoarchArm64*1024
+	_StackSystem = sys.GoosWindows*512*goarch.PtrSize + sys.GoosPlan9*512 + sys.GoosIos*sys.GoarchArm64*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -125,7 +126,7 @@ const (
 )
 
 const (
-	uintptrMask = 1<<(8*sys.PtrSize) - 1
+	uintptrMask = 1<<(8*goarch.PtrSize) - 1
 
 	// The values below can be stored to g.stackguard0 to force
 	// the next stack check to fail.
@@ -599,14 +600,14 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 	for i := uintptr(0); i < num; i += 8 {
 		if stackDebug >= 4 {
 			for j := uintptr(0); j < 8; j++ {
-				print("        ", add(scanp, (i+j)*sys.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*sys.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
+				print("        ", add(scanp, (i+j)*goarch.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*goarch.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
 			}
 		}
 		b := *(addb(bv.bytedata, i/8))
 		for b != 0 {
 			j := uintptr(sys.Ctz8(b))
 			b &= b - 1
-			pp := (*uintptr)(add(scanp, (i+j)*sys.PtrSize))
+			pp := (*uintptr)(add(scanp, (i+j)*goarch.PtrSize))
 		retry:
 			p := *pp
 			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
@@ -655,13 +656,13 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 
 	// Adjust local variables if stack frame has been allocated.
 	if locals.n > 0 {
-		size := uintptr(locals.n) * sys.PtrSize
+		size := uintptr(locals.n) * goarch.PtrSize
 		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
 	}
 
 	// Adjust saved base pointer if there is one.
 	// TODO what about arm64 frame pointer adjustment?
-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.PtrSize {
+	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*goarch.PtrSize {
 		if stackDebug >= 3 {
 			print("      saved bp\n")
 		}
@@ -710,8 +711,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 				s = materializeGCProg(ptrdata, gcdata)
 				gcdata = (*byte)(unsafe.Pointer(s.startAddr))
 			}
-			for i := uintptr(0); i < ptrdata; i += sys.PtrSize {
-				if *addb(gcdata, i/(8*sys.PtrSize))>>(i/sys.PtrSize&7)&1 != 0 {
+			for i := uintptr(0); i < ptrdata; i += goarch.PtrSize {
+				if *addb(gcdata, i/(8*goarch.PtrSize))>>(i/goarch.PtrSize&7)&1 != 0 {
 					adjustpointer(adjinfo, unsafe.Pointer(p+i))
 				}
 			}
@@ -1014,7 +1015,7 @@ func newstack() {
 	sp := gp.sched.sp
 	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
 		// The call to morestack cost a word.
-		sp -= sys.PtrSize
+		sp -= goarch.PtrSize
 	}
 	if stackDebug >= 1 || sp < gp.stack.lo {
 		print("runtime: newstack sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
@@ -1291,7 +1292,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 			// In this case, arglen specifies how much of the args section is actually live.
 			// (It could be either all the args + results, or just the args.)
 			args = *frame.argmap
-			n := int32(frame.arglen / sys.PtrSize)
+			n := int32(frame.arglen / goarch.PtrSize)
 			if n < args.n {
 				args.n = n // Don't use more of the arguments than arglen.
 			}
@@ -1323,7 +1324,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		p := funcdata(f, _FUNCDATA_StackObjects)
 		if p != nil {
 			n := *(*uintptr)(p)
-			p = add(p, sys.PtrSize)
+			p = add(p, goarch.PtrSize)
 			*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
 			// Note: the noescape above is needed to keep
 			// getStackMap from "leaking param content:

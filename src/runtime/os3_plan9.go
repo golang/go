@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -93,7 +93,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 			if usesLR {
 				c.setlr(pc)
 			} else {
-				sp -= sys.PtrSize
+				sp -= goarch.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = pc
 				c.setsp(sp)
 			}

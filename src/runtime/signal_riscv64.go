@@ -9,7 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -64,7 +64,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// functions are correctly handled. This smashes
 	// the stack frame but we're not going back there
 	// anyway.
-	sp := c.sp() - sys.PtrSize
+	sp := c.sp() - goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
 
@@ -85,7 +85,7 @@ func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// push the call. The function being pushed is responsible
 	// for restoring the LR and setting the SP back.
 	// This extra slot is known to gentraceback.
-	sp := c.sp() - sys.PtrSize
+	sp := c.sp() - goarch.PtrSize
 	c.set_sp(sp)
 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.ra()
 	// Set up PC and LR to pretend the function being signaled

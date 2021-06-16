@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -301,7 +301,7 @@ search:
 			}
 			// Only clear key if there are pointers in it.
 			if t.key.ptrdata != 0 {
-				if sys.PtrSize == 8 {
+				if goarch.PtrSize == 8 {
 					*(*unsafe.Pointer)(k) = nil
 				} else {
 					// There are three ways to squeeze at one ore more 32 bit pointers into 64 bits.
@@ -431,7 +431,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
 
 				// Copy key.
 				if t.key.ptrdata != 0 && writeBarrier.enabled {
-					if sys.PtrSize == 8 {
+					if goarch.PtrSize == 8 {
 						// Write with a write barrier.
 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
 					} else {

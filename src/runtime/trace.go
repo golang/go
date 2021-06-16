@@ -15,6 +15,7 @@ package runtime
 import (
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -829,7 +830,7 @@ Search:
 
 // newStack allocates a new stack of size n.
 func (tab *traceStackTable) newStack(n int) *traceStack {
-	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
+	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*goarch.PtrSize))
 }
 
 // allFrames returns all of the Frames corresponding to pcs.
@@ -929,7 +930,7 @@ type traceAlloc struct {
 //go:notinheap
 type traceAllocBlock struct {
 	next traceAllocBlockPtr
-	data [64<<10 - sys.PtrSize]byte
+	data [64<<10 - goarch.PtrSize]byte
 }
 
 // TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
@@ -940,7 +941,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = alignUp(n, sys.PtrSize)
+	n = alignUp(n, goarch.PtrSize)
 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
 		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")

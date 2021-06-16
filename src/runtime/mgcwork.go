@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -322,7 +322,7 @@ type workbufhdr struct {
 type workbuf struct {
 	workbufhdr
 	// account for the above fields
-	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / sys.PtrSize]uintptr
+	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / goarch.PtrSize]uintptr
 }
 
 // workbuf factory routines. These funcs are used to manage the

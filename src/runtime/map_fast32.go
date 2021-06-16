@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -302,7 +302,7 @@ search:
 			// Only clear key if there are pointers in it.
 			// This can only happen if pointers are 32 bit
 			// wide as 64 bit pointers do not fit into a 32 bit key.
-			if sys.PtrSize == 4 && t.key.ptrdata != 0 {
+			if goarch.PtrSize == 4 && t.key.ptrdata != 0 {
 				// The key must be a pointer as we checked pointers are
 				// 32 bits wide and the key is 32 bits wide also.
 				*(*unsafe.Pointer)(k) = nil
@@ -428,7 +428,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 
 				// Copy key.
-				if sys.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
+				if goarch.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
 					// Write with a write barrier.
 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
 				} else {

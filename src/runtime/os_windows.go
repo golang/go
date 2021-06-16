@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -1393,7 +1393,7 @@ func preemptM(mp *m) {
 			case "386", "amd64":
 				// Make it look like the thread called targetPC.
 				sp := c.sp()
-				sp -= sys.PtrSize
+				sp -= goarch.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = newpc
 				c.set_sp(sp)
 				c.set_ip(targetPC)

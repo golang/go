@@ -9,7 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -53,7 +53,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// Make it look like we called target at resumePC.
 	sp := uintptr(c.esp())
-	sp -= sys.PtrSize
+	sp -= goarch.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
 	c.set_esp(uint32(sp))
 	c.set_eip(uint32(targetPC))
