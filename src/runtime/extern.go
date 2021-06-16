@@ -186,7 +186,10 @@ of the run-time system.
 */
 package runtime
 
-import "runtime/internal/sys"
+import (
+	"internal/goarch"
+	"runtime/internal/sys"
+)
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
@@ -264,4 +267,4 @@ const GOOS string = sys.GOOS
 
 // GOARCH is the running program's architecture target:
 // one of 386, amd64, arm, s390x, and so on.
-const GOARCH string = sys.GOARCH
+const GOARCH string = goarch.GOARCH

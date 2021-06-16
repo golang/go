@@ -12,7 +12,6 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
 	"internal/goarch"
 	"unsafe"
 )
@@ -532,7 +531,7 @@ func dumpparams() {
 	}
 	dumpint(uint64(arenaStart))
 	dumpint(uint64(arenaEnd))
-	dumpstr(sys.GOARCH)
+	dumpstr(goarch.GOARCH)
 	dumpstr(buildVersion)
 	dumpint(uint64(ncpu))
 }
