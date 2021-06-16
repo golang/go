@@ -789,18 +789,25 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
-func (r *reader) addBody(fn *ir.Func) {
-	r.sync(syncAddBody)
+// Keep in sync with writer.implicitTypes
+// Also see comment there for why r.implicits and r.explicits should
+// never both be non-empty.
+func (r *reader) implicitTypes() []*types.Type {
+	r.sync(syncImplicitTypes)
 
-	// See commont in writer.addBody for why r.implicits and r.explicits
-	// should never both be non-empty.
 	implicits := r.implicits
 	if len(implicits) == 0 {
 		implicits = r.explicits
 	} else {
 		assert(len(r.explicits) == 0)
 	}
+	return implicits
+}
 
+func (r *reader) addBody(fn *ir.Func) {
+	r.sync(syncAddBody)
+
+	implicits := r.implicitTypes()
 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
 	bodyReader[fn] = pri
 
