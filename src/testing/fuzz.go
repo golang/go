@@ -354,9 +354,13 @@ func (f *F) Fuzz(ff interface{}) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
+			// Before reseting the current coverage, defer the snapshot so that we
+			// make sure it is called right before the tRunner function exits,
+			// regardless of whether it was executed cleanly, panicked, or if the
+			// fuzzFn called t.Fatal.
+			defer f.fuzzContext.snapshotCoverage()
 			f.fuzzContext.resetCoverage()
 			fn.Call(args)
-			f.fuzzContext.snapshotCoverage()
 		})
 		<-t.signal
 		f.inFuzzFn = false
