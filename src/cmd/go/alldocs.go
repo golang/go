@@ -1032,6 +1032,7 @@
 //
 // 	download    download modules to local cache
 // 	edit        edit go.mod from tools or scripts
+// 	editwork    edit go.work from tools or scripts
 // 	graph       print module requirement graph
 // 	init        initialize new module in current directory
 // 	initwork    initialize workspace file
@@ -1189,6 +1190,77 @@
 // use 'go list -m -json all'.
 //
 // See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+//
+//
+// Edit go.work from tools or scripts
+//
+// Usage:
+//
+// 	go mod editwork [editing flags] [go.work]
+//
+// Editwork provides a command-line interface for editing go.work,
+// for use primarily by tools or scripts. It only reads go.work;
+// it does not look up information about the modules involved.
+// If no file is specified, editwork looks for a go.work file in the current
+// directory and its parent directories
+//
+// The editing flags specify a sequence of editing operations.
+//
+// The -fmt flag reformats the go.work file without making other changes.
+// This reformatting is also implied by any other modifications that use or
+// rewrite the go.mod file. The only time this flag is needed is if no other
+// flags are specified, as in 'go mod editwork -fmt'.
+//
+// The -directory=path and -dropdirectory=path flags
+// add and drop a directory from the go.work files set of module directories.
+//
+// The -replace=old[@v]=new[@v] flag adds a replacement of the given
+// module path and version pair. If the @v in old@v is omitted, a
+// replacement without a version on the left side is added, which applies
+// to all versions of the old module path. If the @v in new@v is omitted,
+// the new path should be a local module root directory, not a module
+// path. Note that -replace overrides any redundant replacements for old[@v],
+// so omitting @v will drop existing replacements for specific versions.
+//
+// The -dropreplace=old[@v] flag drops a replacement of the given
+// module path and version pair. If the @v is omitted, a replacement without
+// a version on the left side is dropped.
+//
+// The -directory, -dropdirectory, -replace, and -dropreplace,
+// editing flags may be repeated, and the changes are applied in the order given.
+//
+// The -go=version flag sets the expected Go language version.
+//
+// The -print flag prints the final go.work in its text format instead of
+// writing it back to go.mod.
+//
+// The -json flag prints the final go.work file in JSON format instead of
+// writing it back to go.mod. The JSON output corresponds to these Go types:
+//
+// 	type Module struct {
+// 		Path    string
+// 		Version string
+// 	}
+//
+// 	type GoWork struct {
+// 		Go        string
+// 		Directory []Directory
+// 		Replace   []Replace
+// 	}
+//
+// 	type Directory struct {
+// 		Path       string
+// 		ModulePath string
+// 	}
+//
+// 	type Replace struct {
+// 		Old Module
+// 		New Module
+// 	}
+//
+// See the workspaces design proposal at
+// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+// more information.
 //
 //
 // Print module requirement graph
