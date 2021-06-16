@@ -4,7 +4,10 @@
 
 package abi
 
-import "unsafe"
+import (
+	"internal/goarch"
+	"unsafe"
+)
 
 // RegArgs is a struct that has space for each argument
 // and return value register on the current architecture.
@@ -31,6 +34,46 @@ type RegArgs struct {
 	// a reflectcall. The i'th bit indicates whether the i'th
 	// register contains or will contain a valid Go pointer.
 	ReturnIsPtr IntArgRegBitmap
+}
+
+// IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
+// offset for an argument of size argSize.
+//
+// argSize must be non-zero, fit in a register, and a power-of-two.
+//
+// This method is a helper for dealing with the endianness of different CPU
+// architectures, since sub-word-sized arguments in big endian architectures
+// need to be "aligned" to the upper edge of the register to be interpreted
+// by the CPU correctly.
+func (r *RegArgs) IntRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
+	if argSize > goarch.PtrSize || argSize == 0 || argSize&(argSize-1) != 0 {
+		panic("invalid argSize")
+	}
+	offset := uintptr(0)
+	if goarch.BigEndian {
+		offset = goarch.PtrSize - argSize
+	}
+	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Ints[reg])) + offset)
+}
+
+// FloatRegArgAddr returns a pointer inside of r.Floats[reg] that is appropriately
+// offset for an argument of size argSize.
+//
+// argSize must be non-zero, fit in a register, and a power-of-two.
+//
+// This method is a helper for dealing with the endianness of different CPU
+// architectures, since sub-word-sized arguments in big endian architectures
+// need to be "aligned" to the upper edge of the register to be interpreted
+// by the CPU correctly.
+func (r *RegArgs) FloatRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
+	if argSize > EffectiveFloatRegSize || argSize == 0 || argSize&(argSize-1) != 0 {
+		panic("invalid argSize")
+	}
+	offset := uintptr(0)
+	if goarch.BigEndian {
+		offset = EffectiveFloatRegSize - argSize
+	}
+	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Floats[reg])) + offset)
 }
 
 // IntArgRegBitmap is a bitmap large enough to hold one bit per

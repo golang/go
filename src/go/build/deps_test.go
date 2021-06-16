@@ -77,8 +77,8 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on unsafe.
-	unsafe
+	# These packages depend only on internal/goarch and unsafe.
+	internal/goarch, unsafe
 	< internal/abi;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
