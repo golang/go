@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
-
 // Value is the reflection interface to a Go value.
 //
 // Not all methods apply to all kinds of values. Restrictions,
