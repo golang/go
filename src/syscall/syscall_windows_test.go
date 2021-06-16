@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -79,10 +78,8 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
 
 func TestStdioAreInheritable(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveExecPath(t, "gcc")
-	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-		t.Skip("Powershell is not native on ARM; see golang.org/issues/46701")
-	}
 
 	tmpdir := t.TempDir()
 
@@ -114,18 +111,28 @@ func main() {}
 		t.Fatalf("failed to build go library: %s\n%s", err, out)
 	}
 
-	// run powershell script
-	psscript := fmt.Sprintf(`
-hostname;
-$signature = " [DllImport("%q")] public static extern void HelloWorld(); ";
-Add-Type -MemberDefinition $signature -Name World -Namespace Hello;
-[Hello.World]::HelloWorld();
-hostname;
-`, dll)
-	psscript = strings.ReplaceAll(psscript, "\n", "")
-	out, err = exec.Command("powershell", "-Command", psscript).CombinedOutput()
+	// build c exe
+	const exetext = `
+#include <stdlib.h>
+#include <windows.h>
+int main(int argc, char *argv[])
+{
+	system("hostname");
+	((void(*)(void))GetProcAddress(LoadLibraryA(%q), "HelloWorld"))();
+	system("hostname");
+	return 0;
+}
+`
+	exe := filepath.Join(tmpdir, "helloworld.exe")
+	cmd = exec.Command("gcc", "-o", exe, "-xc", "-")
+	cmd.Stdin = strings.NewReader(fmt.Sprintf(exetext, dll))
+	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
 	if err != nil {
-		t.Fatalf("Powershell command failed: %v: %v", err, string(out))
+		t.Fatalf("failed to build c executable: %s\n%s", err, out)
+	}
+	out, err = exec.Command(exe).CombinedOutput()
+	if err != nil {
+		t.Fatalf("c program execution failed: %v: %v", err, string(out))
 	}
 
 	hostname, err := os.Hostname()
@@ -137,6 +144,6 @@ hostname;
 	have = strings.ReplaceAll(have, "\r", "")
 	want := fmt.Sprintf("%sHello World%s", hostname, hostname)
 	if have != want {
-		t.Fatalf("Powershell command output is wrong: got %q, want %q", have, want)
+		t.Fatalf("c program output is wrong: got %q, want %q", have, want)
 	}
 }

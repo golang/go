@@ -4371,7 +4371,7 @@ func TestConvertPanic(t *testing.T) {
 	if !v.Type().ConvertibleTo(pt) {
 		t.Errorf("[]byte should be convertible to *[8]byte")
 	}
-	shouldPanic("reflect: cannot convert slice with length 4 to array pointer with length 8", func() {
+	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
 		_ = v.Convert(pt)
 	})
 }

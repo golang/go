@@ -516,8 +516,8 @@ var (
 	allglock mutex
 	allgs    []*g
 
-	// allglen and allgptr are atomic variables that contain len(allg) and
-	// &allg[0] respectively. Proper ordering depends on totally-ordered
+	// allglen and allgptr are atomic variables that contain len(allgs) and
+	// &allgs[0] respectively. Proper ordering depends on totally-ordered
 	// loads and stores. Writes are protected by allglock.
 	//
 	// allgptr is updated before allglen. Readers should read allglen

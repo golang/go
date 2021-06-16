@@ -59,7 +59,7 @@ Do not send CLs removing the interior tags from such phrases.
 </ul>
 
 <p>
-  These enhancements were added to simplify writing code that conforms
+  The package unsafe enhancements were added to simplify writing code that conforms
   to <code>unsafe.Pointer</code>'s <a href="/pkg/unsafe/#Pointer">safety
   rules</a>, but the rules remain unchanged. In particular, existing
   programs that correctly use <code>unsafe.Pointer</code> remain
@@ -292,6 +292,18 @@ Do not send CLs removing the interior tags from such phrases.
   <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a>.
 </p>
 
+<h4 id="go run"><code>go</code> <code>run</code></h4>
+
+<p><!-- golang.org/issue/42088 -->
+  <code>go</code> <code>run</code> now accepts arguments with version suffixes
+  (for example, <code>go</code> <code>run</code>
+  <code>example.com/cmd@v1.0.0</code>).  This causes <code>go</code>
+  <code>run</code> to build and run packages in module-aware mode, ignoring the
+  <code>go.mod</code> file in the current directory or any parent directory, if
+  there is one. This is useful for running executables without installing them or
+  without changing dependencies of the current module.
+</p>
+
 <h3 id="gofmt">Gofmt</h3>
 
 <p>
@@ -406,7 +418,8 @@ func Foo() bool {
   by commas. Aggregate-typed (struct, array, string, slice, interface, and complex)
   arguments are delimited by curly braces. A caveat is that the value of an
   argument that only lives in a register and is not stored to memory may be
-  inaccurate. Results (which were usually inaccurate) are no longer printed.
+  inaccurate. Function return values (which were usually inaccurate) are no longer
+  printed.
 </p>
 
 <p><!-- CL 283112, golang.org/issue/28727 -->
@@ -734,7 +747,7 @@ func Foo() bool {
       These components were always interpreted as decimal, but some operating systems treat them as octal.
       This mismatch could hypothetically lead to security issues if a Go application was used to validate IP addresses
       which were then used in their original form with non-Go applications which interpreted components as octal. Generally,
-      it is advisable to always re-encoded values after validation, which avoids this class of parser misalignment issues.
+      it is advisable to always re-encode values after validation, which avoids this class of parser misalignment issues.
     </p>
   </dd>
 </dl><!-- net -->
@@ -785,7 +798,7 @@ func Foo() bool {
   <dd>
     <p><!-- CL 268020 -->
       The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
-      has been optimized to no longer make a copy of the input string.
+      has been optimized to not make a copy of the input string.
     </p>
   </dd>
 </dl><!-- os -->
@@ -810,6 +823,14 @@ func Foo() bool {
     <p><!-- CL 284136 -->
       The <a href="/pkg/reflect/#ArrayOf"><code>ArrayOf</code></a> function now panics when
       called with a negative length.
+    </p>
+
+    <p><!-- CL 301652 -->
+      Checking the <a href="/pkg/reflect/#Type"><code>Type.ConvertibleTo</code></a> method
+      is no longer sufficient to guarantee that a call to
+      <a href="/pkg/reflect/#Value.Convert"><code>Value.Convert</code></a> will not panic.
+      It may panic when converting `[]T` to `*[N]T` if the slice's length is less than N.
+      See the language changes section above.
     </p>
   </dd>
 </dl><!-- reflect -->
@@ -837,7 +858,7 @@ func Foo() bool {
   <dd>
     <p><!-- CL 170079, CL 170080 -->
       The <code>strconv</code> package now uses Ulf Adams's Ryū algorithm for formatting floating-point numbers.
-      This algorithm improves performance on most inputs, and is more than 99% faster on worst-case inputs.
+      This algorithm improves performance on most inputs and is more than 99% faster on worst-case inputs.
     </p>
 
     <p><!-- CL 314775 -->
