@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -54,7 +54,7 @@ func tlsinit(tlsg *uintptr, tlsbase *[_PTHREAD_KEYS_MAX]uintptr) {
 
 	for i, x := range tlsbase {
 		if x == magic {
-			*tlsg = uintptr(i * sys.PtrSize)
+			*tlsg = uintptr(i * goarch.PtrSize)
 			g0_pthread_setspecific(k, 0)
 			return
 		}

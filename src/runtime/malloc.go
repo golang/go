@@ -104,6 +104,7 @@ import (
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -150,7 +151,7 @@ const (
 	//   windows/32       | 4KB        | 3
 	//   windows/64       | 8KB        | 2
 	//   plan9            | 4KB        | 3
-	_NumStackOrders = 4 - sys.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
+	_NumStackOrders = 4 - goarch.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
 
 	// heapAddrBits is the number of bits in a heap address. On
 	// amd64, addresses are sign-extended beyond heapAddrBits. On
@@ -251,7 +252,7 @@ const (
 	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)*(1-sys.GoosIos*sys.GoarchArm64)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm + (2+20)*sys.GoosIos*sys.GoarchArm64
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
-	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
+	heapArenaBitmapBytes = heapArenaBytes / (goarch.PtrSize * 8 / 2)
 
 	pagesPerArena = heapArenaBytes / pageSize
 
@@ -483,7 +484,7 @@ func mallocinit() {
 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
 
 	// Create initial arena growth hints.
-	if sys.PtrSize == 8 {
+	if goarch.PtrSize == 8 {
 		// On a 64-bit machine, we pick the following hints
 		// because:
 		//
@@ -730,7 +731,7 @@ mapped:
 		l2 := h.arenas[ri.l1()]
 		if l2 == nil {
 			// Allocate an L2 arena map.
-			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
+			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), goarch.PtrSize, nil))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
@@ -741,9 +742,9 @@ mapped:
 			throw("arena already initialized")
 		}
 		var r *heapArena
-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
 		if r == nil {
-			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), sys.PtrSize, &memstats.gcMiscSys))
+			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
 			if r == nil {
 				throw("out of memory allocating heap arena metadata")
 			}
@@ -751,16 +752,16 @@ mapped:
 
 		// Add the arena to the arenas list.
 		if len(h.allArenas) == cap(h.allArenas) {
-			size := 2 * uintptr(cap(h.allArenas)) * sys.PtrSize
+			size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
 			if size == 0 {
 				size = physPageSize
 			}
-			newArray := (*notInHeap)(persistentalloc(size, sys.PtrSize, &memstats.gcMiscSys))
+			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
 			if newArray == nil {
 				throw("out of memory allocating allArenas")
 			}
 			oldSlice := h.allArenas
-			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / sys.PtrSize)}
+			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
 			copy(h.allArenas, oldSlice)
 			// Do not free the old backing array because
 			// there may be concurrent readers. Since we
@@ -1015,7 +1016,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			// Align tiny pointer for required (conservative) alignment.
 			if size&7 == 0 {
 				off = alignUp(off, 8)
-			} else if sys.PtrSize == 4 && size == 12 {
+			} else if goarch.PtrSize == 4 && size == 12 {
 				// Conservatively align 12-byte objects to 8 bytes on 32-bit
 				// systems so that objects whose first field is a 64-bit
 				// value is aligned to 8 bytes and does not cause a fault on
@@ -1410,7 +1411,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 				break
 			}
 		}
-		persistent.off = alignUp(sys.PtrSize, align)
+		persistent.off = alignUp(goarch.PtrSize, align)
 	}
 	p := persistent.base.add(persistent.off)
 	persistent.off += size

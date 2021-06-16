@@ -9,6 +9,7 @@ import (
 	"internal/cpu"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -151,7 +152,7 @@ func main() {
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
-	if sys.PtrSize == 8 {
+	if goarch.PtrSize == 8 {
 		maxstacksize = 1000000000
 	} else {
 		maxstacksize = 250000000
@@ -555,7 +556,7 @@ func atomicAllG() (**g, uintptr) {
 
 // atomicAllGIndex returns ptr[i] with the allgptr returned from atomicAllG.
 func atomicAllGIndex(ptr **g, i uintptr) *g {
-	return *(**g)(add(unsafe.Pointer(ptr), i*sys.PtrSize))
+	return *(**g)(add(unsafe.Pointer(ptr), i*goarch.PtrSize))
 }
 
 // forEachG calls fn on every G from allgs.
@@ -2012,7 +2013,7 @@ func oneNewExtraM() {
 	gp := malg(4096)
 	gp.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum
 	gp.sched.sp = gp.stack.hi
-	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
+	gp.sched.sp -= 4 * goarch.PtrSize // extra space in case of reads slightly beyond frame
 	gp.sched.lr = 0
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
@@ -4262,7 +4263,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := uintptr(4*sys.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
+	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
 	totalSize = alignUp(totalSize, sys.StackAlign)
 	sp := newg.stack.hi - totalSize
 	spArg := sp
@@ -6390,7 +6391,7 @@ func doInit(t *initTask) {
 		t.state = 1 // initialization in progress
 
 		for i := uintptr(0); i < t.ndeps; i++ {
-			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
+			p := add(unsafe.Pointer(t), (3+i)*goarch.PtrSize)
 			t2 := *(**initTask)(p)
 			doInit(t2)
 		}
@@ -6411,9 +6412,9 @@ func doInit(t *initTask) {
 			before = inittrace
 		}
 
-		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
+		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*goarch.PtrSize)
 		for i := uintptr(0); i < t.nfns; i++ {
-			p := add(firstFunc, i*sys.PtrSize)
+			p := add(firstFunc, i*goarch.PtrSize)
 			f := *(*func())(unsafe.Pointer(&p))
 			f()
 		}

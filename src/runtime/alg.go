@@ -7,12 +7,13 @@ package runtime
 import (
 	"internal/cpu"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
 const (
-	c0 = uintptr((8-sys.PtrSize)/4*2860486313 + (sys.PtrSize-4)/4*33054211828000289)
-	c1 = uintptr((8-sys.PtrSize)/4*3267000013 + (sys.PtrSize-4)/4*23344194077549503)
+	c0 = uintptr((8-goarch.PtrSize)/4*2860486313 + (goarch.PtrSize-4)/4*33054211828000289)
+	c1 = uintptr((8-goarch.PtrSize)/4*3267000013 + (goarch.PtrSize-4)/4*23344194077549503)
 )
 
 func memhash0(p unsafe.Pointer, h uintptr) uintptr {
@@ -300,7 +301,7 @@ func ifaceHash(i interface {
 	return interhash(noescape(unsafe.Pointer(&i)), seed)
 }
 
-const hashRandomBytes = sys.PtrSize / 4 * 64
+const hashRandomBytes = goarch.PtrSize / 4 * 64
 
 // used in asm_{386,amd64,arm64}.s to seed the hash function
 var aeskeysched [hashRandomBytes]byte
@@ -321,7 +322,7 @@ func alginit() {
 		initAlgAES()
 		return
 	}
-	getRandomData((*[len(hashkey) * sys.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
+	getRandomData((*[len(hashkey) * goarch.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
 	hashkey[0] |= 1 // make sure these numbers are odd
 	hashkey[1] |= 1
 	hashkey[2] |= 1

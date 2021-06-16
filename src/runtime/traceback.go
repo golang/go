@@ -8,6 +8,7 @@ import (
 	"internal/bytealg"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -91,7 +92,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.lr = 0
 		} else {
 			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
-			frame.sp += sys.PtrSize
+			frame.sp += goarch.PtrSize
 		}
 	}
 
@@ -172,7 +173,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
-				frame.fp += sys.PtrSize
+				frame.fp += goarch.PtrSize
 			}
 		}
 		var flr funcInfo
@@ -213,7 +214,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			} else {
 				if frame.lr == 0 {
-					lrPtr = frame.fp - sys.PtrSize
+					lrPtr = frame.fp - goarch.PtrSize
 					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
 				}
 			}
@@ -244,7 +245,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.varp = frame.fp
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.varp -= sys.PtrSize
+			frame.varp -= goarch.PtrSize
 		}
 
 		// For architectures with frame pointers, if there's
@@ -265,7 +266,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// And it happens to end up mimicking the x86 layout.
 		// Other architectures may make different decisions.
 		if frame.varp > frame.sp && framepointer_enabled {
-			frame.varp -= sys.PtrSize
+			frame.varp -= goarch.PtrSize
 		}
 
 		// Derive size of arguments.
@@ -665,16 +666,16 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// Figure out whether the return values are valid.
 				// Reflect will update this value after it copies
 				// in the return values.
-				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*sys.PtrSize))
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
 			}
 			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := mv.stack
-			arglen = uintptr(bv.n * sys.PtrSize)
+			arglen = uintptr(bv.n * goarch.PtrSize)
 			if !retValid {
-				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
+				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
 			}
 			argmap = bv
 		}
@@ -1010,8 +1011,8 @@ func tracebackothers(me *g) {
 // for debugging purposes. If the address bad is included in the
 // hexdumped range, it will mark it as well.
 func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
-	const expand = 32 * sys.PtrSize
-	const maxExpand = 256 * sys.PtrSize
+	const expand = 32 * goarch.PtrSize
+	const maxExpand = 256 * goarch.PtrSize
 	// Start around frame.sp.
 	lo, hi := frame.sp, frame.sp
 	// Expand to include frame.fp.

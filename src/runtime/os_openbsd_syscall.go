@@ -9,7 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -29,7 +29,7 @@ func newosproc(mp *m) {
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
 		tf_tid:   nil, // minit will record tid
-		tf_stack: uintptr(stk) - sys.PtrSize,
+		tf_stack: uintptr(stk) - goarch.PtrSize,
 	}
 
 	var oset sigset

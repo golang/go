@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"runtime/internal/math"
 	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -195,15 +196,15 @@ func growslice(et *_type, old slice, cap int) slice {
 		capmem = roundupsize(uintptr(newcap))
 		overflow = uintptr(newcap) > maxAlloc
 		newcap = int(capmem)
-	case et.size == sys.PtrSize:
-		lenmem = uintptr(old.len) * sys.PtrSize
-		newlenmem = uintptr(cap) * sys.PtrSize
-		capmem = roundupsize(uintptr(newcap) * sys.PtrSize)
-		overflow = uintptr(newcap) > maxAlloc/sys.PtrSize
-		newcap = int(capmem / sys.PtrSize)
+	case et.size == goarch.PtrSize:
+		lenmem = uintptr(old.len) * goarch.PtrSize
+		newlenmem = uintptr(cap) * goarch.PtrSize
+		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
+		newcap = int(capmem / goarch.PtrSize)
 	case isPowerOfTwo(et.size):
 		var shift uintptr
-		if sys.PtrSize == 8 {
+		if goarch.PtrSize == 8 {
 			// Mask shift for better code generation.
 			shift = uintptr(sys.Ctz64(uint64(et.size))) & 63
 		} else {
