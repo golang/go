@@ -1903,6 +1903,12 @@
 // 	GCCGOTOOLDIR
 // 		If set, where to find gccgo tools, such as cgo.
 // 		The default is based on how gccgo was configured.
+// 	GOEXPERIMENT
+// 		Comma-separated list of toolchain experiments to enable or disable.
+// 		The list of available experiments may change arbitrarily over time.
+// 		See src/internal/goexperiment/flags.go for currently valid values.
+// 		Warning: This variable is provided for the development and testing
+// 		of the Go toolchain itself. Use beyond that purpose is unsupported.
 // 	GOROOT_FINAL
 // 		The root of the installed Go tree, when it is
 // 		installed in a location other than where it is built.
