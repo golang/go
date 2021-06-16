@@ -188,7 +188,7 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/sys"
+	"internal/goos"
 )
 
 // Caller reports file and line number information about function invocations on
@@ -263,7 +263,7 @@ func Version() string {
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
 // To view possible combinations of GOOS and GOARCH, run "go tool dist list".
-const GOOS string = sys.GOOS
+const GOOS string = goos.GOOS
 
 // GOARCH is the running program's architecture target:
 // one of 386, amd64, arm, s390x, and so on.
