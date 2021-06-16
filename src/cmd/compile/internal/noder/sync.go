@@ -151,4 +151,5 @@ const (
 	syncLocalIdent
 	syncTypeParamNames
 	syncTypeParamBounds
+	syncImplicitTypes
 )

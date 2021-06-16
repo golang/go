@@ -665,7 +665,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
 
 // @@@ Function bodies
 
-func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
+func (w *writer) implicitTypes() map[*types2.TypeParam]int {
+	w.sync(syncImplicitTypes)
+
 	// TODO(mdempsky): Theoretically, I think at this point we want to
 	// extend the implicit type parameters list with any new explicit
 	// type parameters.
@@ -684,9 +686,14 @@ func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsI
 	} else {
 		assert(len(w.explicitIdx) == 0)
 	}
+	return implicitIdx
+}
 
+func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
 	w.sync(syncAddBody)
-	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicitIdx, localsIdx))
+
+	implicits := w.implicitTypes()
+	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicits, localsIdx))
 }
 
 func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int, localsIdx map[types2.Object]int) int {
