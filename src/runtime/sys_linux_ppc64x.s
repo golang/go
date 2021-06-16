@@ -231,7 +231,7 @@ noswitch:
 	// We won't get a nested signal.
 	MOVBZ   runtime·iscgo(SB), R22
 	CMP     R22, $0
-	BNE    nosaveg
+	BNE 	nosaveg
 	MOVD    m_gsignal(R21), R22          // g.m.gsignal
 	CMP     R22, $0
 	BEQ     nosaveg
@@ -245,7 +245,7 @@ noswitch:
 
 	MOVD    $0, (R22)  // clear g slot, R22 is unchanged by C code
 
-	BL       finish
+	JMP 	finish
 
 nosaveg:
 	BL      (CTR)                   // Call from VDSO
