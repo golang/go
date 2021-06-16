@@ -1057,7 +1057,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
-			"windows-amd64", "windows-386":
+			"windows-amd64", "windows-386", "windows-arm64":
 			return true
 		}
 		return false

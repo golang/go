@@ -1568,7 +1568,7 @@
 //
 // A build constraint, also known as a build tag, is a line comment that begins
 //
-// 	// +build
+// 	//go:build
 //
 // that lists the conditions under which a file should be included in the package.
 // Constraints may appear in any kind of source file (not just Go), but
@@ -1576,30 +1576,20 @@
 // only by blank lines and other line comments. These rules mean that in Go
 // files a build constraint must appear before the package clause.
 //
-// To distinguish build constraints from package documentation, a series of
-// build constraints must be followed by a blank line.
+// To distinguish build constraints from package documentation,
+// a build constraint should be followed by a blank line.
 //
-// A build constraint is evaluated as the OR of space-separated options.
-// Each option evaluates as the AND of its comma-separated terms.
-// Each term consists of letters, digits, underscores, and dots.
-// A term may be negated with a preceding !.
-// For example, the build constraint:
+// A build constraint is evaluated as an expression containing options
+// combined by ||, &&, and ! operators and parentheses. Operators have
+// the same meaning as in Go.
 //
-// 	// +build linux,386 darwin,!cgo
+// For example, the following build constraint constrains a file to
+// build when the "linux" and "386" constraints are satisfied, or when
+// "darwin" is satisfied and "cgo" is not:
 //
-// corresponds to the boolean formula:
+// 	//go:build (linux && 386) || (darwin && !cgo)
 //
-// 	(linux AND 386) OR (darwin AND (NOT cgo))
-//
-// A file may have multiple build constraints. The overall constraint is the AND
-// of the individual constraints. That is, the build constraints:
-//
-// 	// +build linux darwin
-// 	// +build amd64
-//
-// corresponds to the boolean formula:
-//
-// 	(linux OR darwin) AND amd64
+// It is an error for a file to have more than one //go:build line.
 //
 // During a particular build, the following words are satisfied:
 //
@@ -1637,23 +1627,27 @@
 //
 // To keep a file from being considered for the build:
 //
-// 	// +build ignore
+// 	//go:build ignore
 //
 // (any other unsatisfied word will work as well, but "ignore" is conventional.)
 //
 // To build a file only when using cgo, and only on Linux and OS X:
 //
-// 	// +build linux,cgo darwin,cgo
+// 	//go:build cgo && (linux || darwin)
 //
 // Such a file is usually paired with another file implementing the
 // default functionality for other systems, which in this case would
 // carry the constraint:
 //
-// 	// +build !linux,!darwin !cgo
+// 	//go:build !(cgo && (linux || darwin))
 //
 // Naming a file dns_windows.go will cause it to be included only when
 // building the package for Windows; similarly, math_386.s will be included
 // only when building the package for 32-bit x86.
+//
+// Go versions 1.16 and earlier used a different syntax for build constraints,
+// with a "// +build" prefix. The gofmt command will add an equivalent //go:build
+// constraint when encountering the older syntax.
 //
 //
 // Build modes
