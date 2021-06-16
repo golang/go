@@ -54,8 +54,6 @@ const MinFrameSize = goarch.MinFrameSize
 // The stack must be at least word aligned, but some architectures require more.
 const StackAlign = goarch.StackAlign
 
-const GOARCH = goarch.GOARCH
-
 const (
 	Goarch386         = goarch.Goarch386
 	GoarchAmd64       = goarch.GoarchAmd64
