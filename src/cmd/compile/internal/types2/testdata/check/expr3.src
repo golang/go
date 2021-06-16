@@ -104,7 +104,7 @@ func indexes() {
 	var ok mybool
 	_, ok = m["bar"]
 	_ = ok
-	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "cannot convert"
+	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "mismatched types int and untyped string"
 
 	var t string
 	_ = t[- /* ERROR "negative" */ 1]

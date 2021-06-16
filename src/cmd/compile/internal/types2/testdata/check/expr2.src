@@ -10,7 +10,7 @@ func _bool() {
 	const t = true == true
 	const f = true == false
 	_ = t /* ERROR "cannot compare" */ < f
-	_ = 0 /* ERROR "cannot convert" */ == t
+	_ = 0 /* ERROR "mismatched types untyped int and untyped bool" */ == t
 	var b bool
 	var x, y float32
 	b = x < y
