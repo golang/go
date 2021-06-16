@@ -73,6 +73,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOCACHE", Value: cache.DefaultDir()},
 		{Name: "GOENV", Value: envFile},
 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+		{Name: "GOEXPERIMENT", Value: buildcfg.GOEXPERIMENT()},
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
@@ -360,6 +361,13 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
 	goarch, okGOARCH := get("GOARCH", cfg.Goarch, build.Default.GOARCH)
 	if okGOOS || okGOARCH {
 		if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+			return err
+		}
+	}
+
+	goexperiment, okGOEXPERIMENT := get("GOEXPERIMENT", buildcfg.GOEXPERIMENT(), "")
+	if okGOEXPERIMENT {
+		if _, _, err := buildcfg.ParseGOEXPERIMENT(goos, goarch, goexperiment); err != nil {
 			return err
 		}
 	}

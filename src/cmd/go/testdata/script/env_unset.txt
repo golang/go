@@ -4,6 +4,12 @@
 env GOENV=badenv
 env GOOS=
 env GOARCH=
+env GOEXPERIMENT=
+
+! go env
+stderr '^go(\.exe)?: unknown GOEXPERIMENT badexp$'
+
+go env -u GOEXPERIMENT
 
 ! go env
 stderr '^cmd/go: unsupported GOOS/GOARCH pair bados/badarch$'
@@ -21,3 +27,4 @@ go env
 -- badenv --
 GOOS=bados
 GOARCH=badarch
+GOEXPERIMENT=badexp
