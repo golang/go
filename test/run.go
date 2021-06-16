@@ -2089,7 +2089,6 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue46749.go":  true, // types2 reports can not convert error instead of type mismatched
 	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
 
 	// tests that rely on -m diagnostics, which currently differ with -G=3
