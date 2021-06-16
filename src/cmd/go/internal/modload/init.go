@@ -249,6 +249,12 @@ func InitWorkfile() {
 	}
 }
 
+// WorkFilePath returns the path of the go.work file, or "" if not in
+// workspace mode. WorkFilePath must be called after InitWorkfile.
+func WorkFilePath() string {
+	return workFilePath
+}
+
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
 // configures the cfg, codehost, load, modfetch, and search packages for use
