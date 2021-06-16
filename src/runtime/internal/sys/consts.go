@@ -9,24 +9,6 @@ import (
 	"internal/goos"
 )
 
-type ArchFamilyType = goarch.ArchFamilyType
-
-const (
-	AMD64   = goarch.AMD64
-	ARM     = goarch.ARM
-	ARM64   = goarch.ARM64
-	I386    = goarch.I386
-	MIPS    = goarch.MIPS
-	MIPS64  = goarch.MIPS64
-	PPC64   = goarch.PPC64
-	RISCV64 = goarch.RISCV64
-	S390X   = goarch.S390X
-	WASM    = goarch.WASM
-)
-
-// ArchFamily is the architecture family (AMD64, ARM, ...)
-const ArchFamily ArchFamilyType = goarch.ArchFamily
-
 // AIX requires a larger stack for syscalls.
 const StackGuardMultiplier = StackGuardMultiplierDefault*(1-goos.GoosAix) + 2*goos.GoosAix
 
