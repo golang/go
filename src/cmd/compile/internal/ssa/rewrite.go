@@ -415,6 +415,11 @@ func isSameCall(sym interface{}, name string) bool {
 	return fn != nil && fn.String() == name
 }
 
+// canLoadUnaligned reports if the achitecture supports unaligned load operations
+func canLoadUnaligned(c *Config) bool {
+	return c.ctxt.Arch.Alignment == 1
+}
+
 // nlz returns the number of leading zeros.
 func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
 func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
