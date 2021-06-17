@@ -49,18 +49,18 @@ func assignments1() {
 	b = true
 
 	i += 1
-	i += "foo" /* ERROR "cannot convert.*int" */
+	i /* ERROR "mismatched types int and untyped string" */+= "foo"
 
 	f -= 1
 	f /= 0
 	f = float32(0)/0 /* ERROR "division by zero" */
-	f -= "foo" /* ERROR "cannot convert.*float64" */
+	f /* ERROR "mismatched types float64 and untyped string" */-= "foo"
 
 	c *= 1
 	c /= 0
 
 	s += "bar"
-	s += 1 /* ERROR "cannot convert.*string" */
+	s /* ERROR "mismatched types string and untyped int" */+= 1
 
 	var u64 uint64
 	u64 += 1<<u64
@@ -937,13 +937,13 @@ func issue6766b() {
 // errors reported).
 func issue10148() {
 	for y /* ERROR declared but not used */ := range "" {
-		_ = "" /* ERROR cannot convert */ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 	for range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR cannot convert */ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 	for y := range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR cannot convert */ + 1
+		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
 	}
 }
 
