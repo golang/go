@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"math/big"
 	"os"
+	"runtime"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -131,17 +132,82 @@ func (r *decoder) checkErr(err error) {
 	}
 }
 
-func (r *decoder) sync(m syncMarker) {
-	if debug {
-		pos, err0 := r.data.Seek(0, os.SEEK_CUR)
-		x, err := r.data.ReadByte()
-		r.checkErr(err)
-		if x != byte(m) {
-			// TODO(mdempsky): Revisit this error message, and make it more
-			// useful (e.g., include r.p.pkgPath).
-			base.Fatalf("data sync error: found %v at %v (%v) in (%v:%v), but expected %v", syncMarker(x), pos, err0, r.k, r.idx, m)
-		}
+func (r *decoder) rawUvarint() uint64 {
+	x, err := binary.ReadUvarint(&r.data)
+	r.checkErr(err)
+	return x
+}
+
+func (r *decoder) rawVarint() int64 {
+	ux := r.rawUvarint()
+
+	// Zig-zag decode.
+	x := int64(ux >> 1)
+	if ux&1 != 0 {
+		x = ^x
 	}
+	return x
+}
+
+func (r *decoder) rawReloc(k reloc, idx int) int {
+	e := r.relocs[idx]
+	assert(e.kind == k)
+	return e.idx
+}
+
+func (r *decoder) sync(mWant syncMarker) {
+	if !enableSync {
+		return
+	}
+
+	pos, _ := r.data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
+	mHave := syncMarker(r.rawUvarint())
+	writerPCs := make([]int, r.rawUvarint())
+	for i := range writerPCs {
+		writerPCs[i] = int(r.rawUvarint())
+	}
+
+	if mHave == mWant {
+		return
+	}
+
+	// There's some tension here between printing:
+	//
+	// (1) full file paths that tools can recognize (e.g., so emacs
+	//     hyperlinks the "file:line" text for easy navigation), or
+	//
+	// (2) short file paths that are easier for humans to read (e.g., by
+	//     omitting redundant or irrelevant details, so it's easier to
+	//     focus on the useful bits that remain).
+	//
+	// The current formatting favors the former, as it seems more
+	// helpful in practice. But perhaps the formatting could be improved
+	// to better address both concerns. For example, use relative file
+	// paths if they would be shorter, or rewrite file paths to contain
+	// "$GOROOT" (like objabi.AbsFile does) if tools can be taught how
+	// to reliably expand that again.
+
+	fmt.Printf("export data desync: package %q, section %v, index %v, offset %v\n", r.common.pkgPath, r.k, r.idx, pos)
+
+	fmt.Printf("\nfound %v, written at:\n", mHave)
+	if len(writerPCs) == 0 {
+		fmt.Printf("\t[stack trace unavailable; recompile package %q with -d=syncframes]\n", r.common.pkgPath)
+	}
+	for _, pc := range writerPCs {
+		fmt.Printf("\t%s\n", r.common.stringIdx(r.rawReloc(relocString, pc)))
+	}
+
+	fmt.Printf("\nexpected %v, reading at:\n", mWant)
+	var readerPCs [32]uintptr // TODO(mdempsky): Dynamically size?
+	n := runtime.Callers(2, readerPCs[:])
+	for _, pc := range fmtFrames(readerPCs[:n]...) {
+		fmt.Printf("\t%s\n", pc)
+	}
+
+	// We already printed a stack trace for the reader, so now we can
+	// simply exit. Printing a second one with panic or base.Fatalf
+	// would just be noise.
+	os.Exit(1)
 }
 
 func (r *decoder) bool() bool {
@@ -154,16 +220,12 @@ func (r *decoder) bool() bool {
 
 func (r *decoder) int64() int64 {
 	r.sync(syncInt64)
-	x, err := binary.ReadVarint(&r.data)
-	r.checkErr(err)
-	return x
+	return r.rawVarint()
 }
 
 func (r *decoder) uint64() uint64 {
 	r.sync(syncUint64)
-	x, err := binary.ReadUvarint(&r.data)
-	r.checkErr(err)
-	return x
+	return r.rawUvarint()
 }
 
 func (r *decoder) len() int   { x := r.uint64(); v := int(x); assert(uint64(v) == x); return v }
@@ -177,11 +239,7 @@ func (r *decoder) code(mark syncMarker) int {
 
 func (r *decoder) reloc(k reloc) int {
 	r.sync(syncUseReloc)
-	idx := r.len()
-
-	e := r.relocs[idx]
-	assert(e.kind == k)
-	return e.idx
+	return r.rawReloc(k, r.len())
 }
 
 func (r *decoder) string() string {

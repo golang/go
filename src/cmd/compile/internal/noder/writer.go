@@ -733,7 +733,7 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
 func (w *writer) addLocal(obj types2.Object) {
 	w.sync(syncAddLocal)
 	idx := len(w.localsIdx)
-	if debug {
+	if enableSync {
 		w.int(idx)
 	}
 	w.localsIdx[obj] = idx

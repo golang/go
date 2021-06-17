@@ -13,6 +13,7 @@ import (
 	"go/constant"
 	"io"
 	"math/big"
+	"runtime"
 
 	"cmd/compile/internal/base"
 )
@@ -93,6 +94,8 @@ type encoder struct {
 	relocs []relocEnt
 	data   bytes.Buffer
 
+	encodingRelocHeader bool
+
 	k   reloc
 	idx int
 }
@@ -107,6 +110,10 @@ func (w *encoder) flush() int {
 	// TODO(mdempsky): Consider writing these out separately so they're
 	// easier to strip, along with function bodies, so that we can prune
 	// down to just the data that's relevant to go/types.
+	if w.encodingRelocHeader {
+		base.Fatalf("encodingRelocHeader already true; recursive flush?")
+	}
+	w.encodingRelocHeader = true
 	w.sync(syncRelocs)
 	w.len(len(w.relocs))
 	for _, rent := range w.relocs {
@@ -128,10 +135,58 @@ func (w *encoder) checkErr(err error) {
 	}
 }
 
+func (w *encoder) rawUvarint(x uint64) {
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], x)
+	_, err := w.data.Write(buf[:n])
+	w.checkErr(err)
+}
+
+func (w *encoder) rawVarint(x int64) {
+	// Zig-zag encode.
+	ux := uint64(x) << 1
+	if x < 0 {
+		ux = ^ux
+	}
+
+	w.rawUvarint(ux)
+}
+
+func (w *encoder) rawReloc(r reloc, idx int) int {
+	// TODO(mdempsky): Use map for lookup.
+	for i, rent := range w.relocs {
+		if rent.kind == r && rent.idx == idx {
+			return i
+		}
+	}
+
+	i := len(w.relocs)
+	w.relocs = append(w.relocs, relocEnt{r, idx})
+	return i
+}
+
 func (w *encoder) sync(m syncMarker) {
-	if debug {
-		err := w.data.WriteByte(byte(m))
-		w.checkErr(err)
+	if !enableSync {
+		return
+	}
+
+	// Writing out stack frame string references requires working
+	// relocations, but writing out the relocations themselves involves
+	// sync markers. To prevent infinite recursion, we simply trim the
+	// stack frame for sync markers within the relocation header.
+	var frames []string
+	if !w.encodingRelocHeader && base.Debug.SyncFrames > 0 {
+		pcs := make([]uintptr, base.Debug.SyncFrames)
+		n := runtime.Callers(2, pcs)
+		frames = fmtFrames(pcs[:n]...)
+	}
+
+	// TODO(mdempsky): Save space by writing out stack frames as a
+	// linked list so we can share common stack frames.
+	w.rawUvarint(uint64(m))
+	w.rawUvarint(uint64(len(frames)))
+	for _, frame := range frames {
+		w.rawUvarint(uint64(w.rawReloc(relocString, w.p.stringIdx(frame))))
 	}
 }
 
@@ -148,18 +203,12 @@ func (w *encoder) bool(b bool) bool {
 
 func (w *encoder) int64(x int64) {
 	w.sync(syncInt64)
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutVarint(buf[:], x)
-	_, err := w.data.Write(buf[:n])
-	w.checkErr(err)
+	w.rawVarint(x)
 }
 
 func (w *encoder) uint64(x uint64) {
 	w.sync(syncUint64)
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], x)
-	_, err := w.data.Write(buf[:n])
-	w.checkErr(err)
+	w.rawUvarint(x)
 }
 
 func (w *encoder) len(x int)   { assert(x >= 0); w.uint64(uint64(x)) }
@@ -168,17 +217,7 @@ func (w *encoder) uint(x uint) { w.uint64(uint64(x)) }
 
 func (w *encoder) reloc(r reloc, idx int) {
 	w.sync(syncUseReloc)
-
-	// TODO(mdempsky): Use map for lookup.
-	for i, rent := range w.relocs {
-		if rent.kind == r && rent.idx == idx {
-			w.len(i)
-			return
-		}
-	}
-
-	w.len(len(w.relocs))
-	w.relocs = append(w.relocs, relocEnt{r, idx})
+	w.len(w.rawReloc(r, idx))
 }
 
 func (w *encoder) code(c code) {
