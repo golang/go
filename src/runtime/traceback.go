@@ -569,7 +569,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		// mask out irrelavant bits
 		if sz < 8 {
 			shift := 64 - sz*8
-			if sys.BigEndian {
+			if goarch.BigEndian {
 				x = x >> shift
 			} else {
 				x = x << shift >> shift

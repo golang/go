@@ -215,7 +215,7 @@ var Write = write
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
 
-var BigEndian = sys.BigEndian
+var BigEndian = goarch.BigEndian
 
 // For benchmarking.
 

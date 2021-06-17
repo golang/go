@@ -7,7 +7,6 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -338,7 +337,7 @@ func initAlgAES() {
 // Note: These routines perform the read with a native endianness.
 func readUnaligned32(p unsafe.Pointer) uint32 {
 	q := (*[4]byte)(p)
-	if sys.BigEndian {
+	if goarch.BigEndian {
 		return uint32(q[3]) | uint32(q[2])<<8 | uint32(q[1])<<16 | uint32(q[0])<<24
 	}
 	return uint32(q[0]) | uint32(q[1])<<8 | uint32(q[2])<<16 | uint32(q[3])<<24
@@ -346,7 +345,7 @@ func readUnaligned32(p unsafe.Pointer) uint32 {
 
 func readUnaligned64(p unsafe.Pointer) uint64 {
 	q := (*[8]byte)(p)
-	if sys.BigEndian {
+	if goarch.BigEndian {
 		return uint64(q[7]) | uint64(q[6])<<8 | uint64(q[5])<<16 | uint64(q[4])<<24 |
 			uint64(q[3])<<32 | uint64(q[2])<<40 | uint64(q[1])<<48 | uint64(q[0])<<56
 	}

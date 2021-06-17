@@ -8,7 +8,6 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -336,7 +335,7 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 func convT16(val uint16) (x unsafe.Pointer) {
 	if val < uint16(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
-		if sys.BigEndian {
+		if goarch.BigEndian {
 			x = add(x, 6)
 		}
 	} else {
@@ -349,7 +348,7 @@ func convT16(val uint16) (x unsafe.Pointer) {
 func convT32(val uint32) (x unsafe.Pointer) {
 	if val < uint32(len(staticuint64s)) {
 		x = unsafe.Pointer(&staticuint64s[val])
-		if sys.BigEndian {
+		if goarch.BigEndian {
 			x = add(x, 4)
 		}
 	} else {
