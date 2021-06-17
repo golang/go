@@ -313,7 +313,37 @@ noswitch:
 	RLDICR	$0, R1, $59, R1		// Align for C code
 	MOVD	R12, CTR
 	MOVD	R1, R4
-	BL	(CTR)			// Call from VDSO
+
+	// Store g on gsignal's stack, so if we receive a signal
+	// during VDSO code we can find the g.
+	// If we don't have a signal stack, we won't receive signal,
+	// so don't bother saving g.
+	// When using cgo, we already saved g on TLS, also don't save
+	// g here.
+	// Also don't save g if we are already on the signal stack.
+	// We won't get a nested signal.
+	MOVBZ	runtime·iscgo(SB), R22
+	CMP	R22, $0
+	BNE	nosaveg
+	MOVD	m_gsignal(R21), R22	// g.m.gsignal
+	CMP	R22, $0
+	BEQ	nosaveg
+
+	CMP	g, R22
+	BEQ	nosaveg
+	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
+	MOVD	g, (R22)
+
+	BL	(CTR)	// Call from VDSO
+
+	MOVD	$0, (R22)	// clear g slot, R22 is unchanged by C code
+
+	JMP	finish
+
+nosaveg:
+	BL	(CTR)	// Call from VDSO
+
+finish:
 	MOVD	$0, R0			// Restore R0
 	MOVD	0(R1), R3		// sec
 	MOVD	8(R1), R5		// nsec
@@ -329,7 +359,7 @@ noswitch:
 	MOVD	32(R1), R6
 	MOVD	R6, m_vdsoPC(R21)
 
-finish:
+return:
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVD	$1000000000, R4
@@ -344,7 +374,7 @@ fallback:
 	SYSCALL $SYS_clock_gettime
 	MOVD	32(R1), R3
 	MOVD	40(R1), R5
-	JMP	finish
+	JMP	return
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R3
