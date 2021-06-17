@@ -13,6 +13,14 @@ import (
 	"time"
 )
 
+type mutatorRand interface {
+	uint32() uint32
+	intn(int) int
+	uint32n(uint32) uint32
+	exp2() int
+	bool() bool
+}
+
 // The functions in pcg implement a 32 bit PRNG with a 64 bit period: pcg xsh rr
 // 64 32. See https://www.pcg-random.org/ for more information. This
 // implementation is geared specifically towards the needs of fuzzing: Simple
