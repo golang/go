@@ -161,6 +161,16 @@ func writePkgStub(noders []*noder) string {
 
 // freePackage ensures the given package is garbage collected.
 func freePackage(pkg *types2.Package) {
+	// The GC test below relies on a precise GC that runs finalizers as
+	// soon as objects are unreachable. Our implementation provides
+	// this, but other/older implementations may not (e.g., Go 1.4 does
+	// not because of #22350). To avoid imposing unnecessary
+	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
+	// during bootstrapping.
+	if base.CompilerBootstrap {
+		return
+	}
+
 	// Set a finalizer on pkg so we can detect if/when it's collected.
 	done := make(chan struct{})
 	runtime.SetFinalizer(pkg, func(*types2.Package) { close(done) })
