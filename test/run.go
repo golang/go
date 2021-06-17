@@ -58,8 +58,9 @@ func defaultAllCodeGen() bool {
 }
 
 var (
-	goos, goarch string
-	cgoEnabled   bool
+	goos, goarch   string
+	cgoEnabled     bool
+	unifiedEnabled bool
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -95,10 +96,27 @@ func main() {
 
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
-	cgoEnv, err := exec.Command(goTool(), "env", "CGO_ENABLED").Output()
-	if err == nil {
-		cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
+
+	cgoCmd := exec.Command(goTool(), "env", "CGO_ENABLED")
+	cgoEnv, err := cgoCmd.Output()
+	if err != nil {
+		log.Fatalf("running %v: %v", cgoCmd, err)
 	}
+	cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
+
+	// TODO(mdempsky): Change this to just "go env GOEXPERIMENT" after
+	// CL 328751 is merged back to dev.typeparams. In the mean time, we
+	// infer whether the "unified" experiment is defult enabled by
+	// inspecting the output from `go tool compile -V`.
+	compileCmd := exec.Command(goTool(), "tool", "compile", "-V")
+	compileOutput, err := compileCmd.Output()
+	if err != nil {
+		log.Fatalf("running %v: %v", compileCmd, err)
+	}
+	// TODO(mdempsky): This will give false negatives if the unified
+	// experiment is enabled by default, but presumably at that point we
+	// won't need to disable tests for it anymore anyway.
+	unifiedEnabled = strings.Contains(string(compileOutput), "unified")
 
 	findExecCmd()
 
@@ -289,6 +307,10 @@ type test struct {
 	tempDir string
 	err     error
 }
+
+// usesTypes2 reports whether the compiler uses types2 for this test
+// configuration (irrespective of flags specified by the test itself).
+func (t *test) usesTypes2() bool { return unifiedEnabled || t.glevel != 0 }
 
 func startTests(dir, gofile string, glevels []int) []*test {
 	tests := make([]*test, len(glevels))
@@ -519,8 +541,8 @@ func (t *test) run() {
 		close(t.donec)
 	}()
 
-	if t.glevel > 0 && !*force {
-		// Files excluded from generics testing.
+	if t.usesTypes2() && !*force {
+		// Files excluded from types2 testing.
 		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
 		if excludedFiles[filename] {
 			if *verbose {
@@ -666,19 +688,25 @@ func (t *test) run() {
 	// at the specified -G level. If so, it may update flags as
 	// necessary to test with -G.
 	validForGLevel := func(tool Tool) bool {
-		if t.glevel == 0 {
-			// default -G level; always valid
+		if !t.usesTypes2() {
+			// tests should always pass when run w/o types2 (i.e., using the
+			// legacy typechecker).
 			return true
 		}
 
+		hasGFlag := false
 		for _, flag := range flags {
 			if strings.Contains(flag, "-G") {
-				// test provides explicit -G flag already
-				if *verbose {
-					fmt.Printf("excl\t%s\n", t.goFileName())
-				}
-				return false
+				hasGFlag = true
 			}
+		}
+
+		if hasGFlag && t.glevel != 0 {
+			// test provides explicit -G flag already; don't run again
+			if *verbose {
+				fmt.Printf("excl\t%s\n", t.goFileName())
+			}
+			return false
 		}
 
 		switch tool {
@@ -686,7 +714,9 @@ func (t *test) run() {
 			// ok; handled in goGcflags
 
 		case Compile:
-			flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
+			if !hasGFlag {
+				flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
+			}
 
 		default:
 			// we don't know how to add -G for this test yet
@@ -2026,6 +2056,9 @@ func overlayDir(dstRoot, srcRoot string) error {
 
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
+//
+// TODO(mdempsky): Split exclude list to disambiguate whether the
+// failure is within types2, -G=3, or unified.
 var excludedFiles = map[string]bool{
 	"directive.go":    true, // misplaced compiler directive checks
 	"float_lit3.go":   true, // types2 reports extra errors
@@ -2079,10 +2112,11 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
 	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
 	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue46725.go":  true, // fix applied to typecheck needs to be ported to irgen/transform
+	"fixedbugs/issue42284.go":  true, // unified formats important constant expression differently in diagnostics
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
+	"fixedbugs/issue46725.go":  true, // fix applied to typecheck needs to be ported to irgen/transform
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
