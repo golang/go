@@ -20,7 +20,7 @@ import (
 // -cmp when compared against the legacy frontend behavior, but can be
 // removed after that's no longer a concern.
 
-// quirksMode controls whether behavior specific to satsifying
+// quirksMode controls whether behavior specific to satisfying
 // toolstash -cmp is used.
 func quirksMode() bool {
 	// Currently, unified IR doesn't try to be compatible with
