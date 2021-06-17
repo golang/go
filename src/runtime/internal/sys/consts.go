@@ -30,9 +30,6 @@ const ArchFamily ArchFamilyType = goarch.ArchFamily
 // AIX requires a larger stack for syscalls.
 const StackGuardMultiplier = StackGuardMultiplierDefault*(1-goos.GoosAix) + 2*goos.GoosAix
 
-// BigEndian reports whether the architecture is big-endian.
-const BigEndian = goarch.BigEndian
-
 // DefaultPhysPageSize is the default physical page size.
 const DefaultPhysPageSize = goarch.DefaultPhysPageSize
 
