@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/bytealg"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -96,7 +96,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
 	}
 	if n == 1 {
 		p := unsafe.Pointer(&staticuint64s[*ptr])
-		if sys.BigEndian {
+		if goarch.BigEndian {
 			p = add(p, 7)
 		}
 		stringStructOf(&str).str = p
