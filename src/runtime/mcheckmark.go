@@ -13,8 +13,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
