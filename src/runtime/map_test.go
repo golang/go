@@ -6,11 +6,11 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goarch"
 	"math"
 	"reflect"
 	"runtime"
 	"sort"
-	"internal/goarch"
 	"strconv"
 	"strings"
 	"sync"

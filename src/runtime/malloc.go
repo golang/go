@@ -101,10 +101,10 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/math"
 	"runtime/internal/sys"
-	"internal/goarch"
 	"unsafe"
 )
 

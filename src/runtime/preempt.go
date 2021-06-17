@@ -54,8 +54,8 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 

@@ -6,8 +6,8 @@ package runtime
 
 import (
 	"internal/bytealg"
-	"runtime/internal/atomic"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
