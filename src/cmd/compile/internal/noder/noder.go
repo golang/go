@@ -77,7 +77,7 @@ func LoadPackage(filenames []string) {
 	base.Timer.AddEvent(int64(lines), "lines")
 
 	if base.Debug.Unified != 0 {
-		useUnifiedIR(noders)
+		unified(noders)
 		return
 	}
 

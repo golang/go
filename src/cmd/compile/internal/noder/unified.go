@@ -28,9 +28,48 @@ import (
 // later.
 var localPkgReader *pkgReader
 
-// useUnifiedIR reports whether the unified IR frontend should be
-// used; and if so, uses it to construct the local package's IR.
-func useUnifiedIR(noders []*noder) {
+// unified construct the local package's IR from syntax's AST.
+//
+// The pipeline contains 2 steps:
+//
+// (1) Generate package export data "stub".
+//
+// (2) Generate package IR from package export data.
+//
+// The package data "stub" at step (1) contains everything from the local package,
+// but nothing that have been imported. When we're actually writing out export data
+// to the output files (see writeNewExport function), we run the "linker", which does
+// a few things:
+//
+// + Updates compiler extensions data (e.g., inlining cost, escape analysis results).
+//
+// + Handles re-exporting any transitive dependencies.
+//
+// + Prunes out any unnecessary details (e.g., non-inlineable functions, because any
+//   downstream importers only care about inlinable functions).
+//
+// The source files are typechecked twice, once before writing export data
+// using types2 checker, once after read export data using gc/typecheck.
+// This duplication of work will go away once we always use types2 checker,
+// we can remove the gc/typecheck pass. The reason it is still here:
+//
+// + It reduces engineering costs in maintaining a fork of typecheck
+//   (e.g., no need to backport fixes like CL 327651).
+//
+// + It makes it easier to pass toolstash -cmp.
+//
+// + Historically, we would always re-run the typechecker after import, even though
+//   we know the imported data is valid. It's not ideal, but also not causing any
+//   problem either.
+//
+// + There's still transformation that being done during gc/typecheck, like rewriting
+//   multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
+//
+// Using syntax+types2 tree, which already has a complete representation of generics,
+// the unified IR has the full typed AST for doing introspection during step (1).
+// In other words, we have all necessary information to build the generic IR form
+// (see writer.captureVars for an example).
+func unified(noders []*noder) {
 	inline.NewInline = InlineCall
 
 	if !quirksMode() {
@@ -111,8 +150,9 @@ func useUnifiedIR(noders []*noder) {
 	base.ExitIfErrors() // just in case
 }
 
-// writePkgStub type checks the given parsed source files and then
-// returns
+// writePkgStub type checks the given parsed source files,
+// writes an export data package stub representing them,
+// and returns the result.
 func writePkgStub(noders []*noder) string {
 	m, pkg, info := checkFiles(noders)
 
