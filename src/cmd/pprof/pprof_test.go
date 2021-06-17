@@ -54,6 +54,22 @@ func buildPprof() error {
 	return nil
 }
 
+// See also runtime/pprof.cpuProfilingBroken.
+func mustHaveCPUProfiling(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("skipping on %s, unimplemented", runtime.GOOS)
+	case "aix":
+		t.Skipf("skipping on %s, issue 45170", runtime.GOOS)
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+		t.Skipf("skipping on %s, issue 13841", runtime.GOOS)
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			t.Skipf("skipping on %s/%s, issue 13841", runtime.GOOS, runtime.GOARCH)
+		}
+	}
+}
+
 func mustHaveDisasm(t *testing.T) {
 	switch runtime.GOARCH {
 	case "mips", "mipsle", "mips64", "mips64le":
@@ -77,6 +93,7 @@ func mustHaveDisasm(t *testing.T) {
 //
 // This is a regression test for issue 46636.
 func TestDisasm(t *testing.T) {
+	mustHaveCPUProfiling(t)
 	mustHaveDisasm(t)
 	testenv.MustHaveGoBuild(t)
 
