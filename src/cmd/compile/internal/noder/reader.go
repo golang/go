@@ -910,7 +910,7 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
 
 	r.sync(syncAddLocal)
-	if debug {
+	if enableSync {
 		want := r.int()
 		if have := len(r.locals); have != want {
 			base.FatalfAt(name.Pos(), "locals table has desynced")
