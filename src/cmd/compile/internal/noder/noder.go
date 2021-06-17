@@ -40,7 +40,7 @@ func LoadPackage(filenames []string) {
 	noders := make([]*noder, len(filenames))
 	for i, filename := range filenames {
 		p := noder{
-			err:         make(chan syntax.Error),
+			err:         make(chan syntax.Error, 10),
 			trackScopes: base.Flag.Dwarf,
 		}
 		noders[i] = &p
