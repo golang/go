@@ -216,10 +216,10 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVD	(g_sched+gobuf_sp)(R7), R1	// Set SP to g0 stack
 
 noswitch:
-	SUB     $16, R1                 // Space for results
-	RLDICR  $0, R1, $59, R1         // Align for C code
-	MOVD    R12, CTR
-	MOVD    R1, R4
+	SUB	$16, R1                 // Space for results
+	RLDICR	$0, R1, $59, R1         // Align for C code
+	MOVD	R12, CTR
+	MOVD	R1, R4
 
 	// Store g on gsignal's stack, so if we receive a signal
 	// during VDSO code we can find the g.
@@ -229,46 +229,46 @@ noswitch:
 	// g here.
 	// Also don't save g if we are already on the signal stack.
 	// We won't get a nested signal.
-	MOVBZ   runtime·iscgo(SB), R22
-	CMP     R22, $0
-	BNE 	nosaveg
-	MOVD    m_gsignal(R21), R22          // g.m.gsignal
-	CMP     R22, $0
-	BEQ     nosaveg
+	MOVBZ	runtime·iscgo(SB), R22
+	CMP	R22, $0
+	BNE	nosaveg
+	MOVD	m_gsignal(R21), R22	// g.m.gsignal
+	CMP	R22, $0
+	BEQ	nosaveg
 
-	CMP     g, R22
-	BEQ     nosaveg
-	MOVD    (g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
-	MOVD    g, (R22)
+	CMP	g, R22
+	BEQ	nosaveg
+	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
+	MOVD	g, (R22)
 
-	BL      (CTR)                   // Call from VDSO
+	BL	(CTR)	// Call from VDSO
 
-	MOVD    $0, (R22)  // clear g slot, R22 is unchanged by C code
+	MOVD	$0, (R22)	// clear g slot, R22 is unchanged by C code
 
-	JMP 	finish
+	JMP	finish
 
 nosaveg:
-	BL      (CTR)                   // Call from VDSO
+	BL	(CTR)	// Call from VDSO
 
 finish:
-	MOVD    $0, R0                  // Restore R0
-	MOVD    0(R1), R3               // sec
-	MOVD    8(R1), R5               // nsec
-	MOVD    R15, R1                 // Restore SP
+	MOVD	$0, R0		// Restore R0
+	MOVD	0(R1), R3	// sec
+	MOVD	8(R1), R5	// nsec
+	MOVD	R15, R1		// Restore SP
 
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
 	// If we are not in a signal handler, we'll restore vdsoSP to 0,
 	// and no one will care about vdsoPC. If we are in a signal handler,
 	// we cannot receive another signal.
-	MOVD    40(R1), R6
-	MOVD    R6, m_vdsoSP(R21)
-	MOVD    32(R1), R6
-	MOVD    R6, m_vdsoPC(R21)
+	MOVD	40(R1), R6
+	MOVD	R6, m_vdsoSP(R21)
+	MOVD	32(R1), R6
+	MOVD	R6, m_vdsoPC(R21)
 
 return:
-	MOVD    R3, sec+0(FP)
-	MOVW    R5, nsec+8(FP)
+	MOVD	R3, sec+0(FP)
+	MOVW	R5, nsec+8(FP)
 	RET
 
 	// Syscall fallback
