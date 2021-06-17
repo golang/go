@@ -527,8 +527,13 @@ func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error 
 
 	c.Client.diagnosticsDone = make(chan struct{})
 	_, err := c.Server.NonstandardRequest(ctx, "gopls/diagnoseFiles", map[string]interface{}{"files": untypedFiles})
+	if err != nil {
+		close(c.Client.diagnosticsDone)
+		return err
+	}
+
 	<-c.Client.diagnosticsDone
-	return err
+	return nil
 }
 
 func (c *connection) terminate(ctx context.Context) {
