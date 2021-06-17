@@ -732,7 +732,7 @@ func (s *snapshot) missingPkgError(ctx context.Context, pkgPath string) error {
 
 		b.WriteString(fmt.Sprintf("cannot find package %q in any of \n\t%s (from $GOROOT)", pkgPath, gorootSrcPkg))
 
-		for _, gopath := range strings.Split(s.view.gopath, ":") {
+		for _, gopath := range filepath.SplitList(s.view.gopath) {
 			gopathSrcPkg := filepath.FromSlash(filepath.Join(gopath, "src", pkgPath))
 			b.WriteString(fmt.Sprintf("\n\t%s (from $GOPATH)", gopathSrcPkg))
 		}
