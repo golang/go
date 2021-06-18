@@ -76,8 +76,10 @@ func (g *irgen) stencil() {
 				// generic F, not immediately called
 				closureRequired = true
 			}
-			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
-				// T.M, T a type which is generic, not immediately called
+			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
+				// T.M, T a type which is generic, not immediately
+				// called. Not necessary if the method selected is
+				// actually for an embedded interface field.
 				closureRequired = true
 			}
 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
@@ -156,7 +158,8 @@ func (g *irgen) stencil() {
 					// TODO: only set outer!=nil if this instantiation uses
 					// a type parameter from outer. See comment in buildClosure.
 					return g.buildClosure(outer, x)
-				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0: // TODO: test for ptr-to-method case
+				case x.Op() == ir.OMETHEXPR && len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0 &&
+					!types.IsInterfaceMethod(x.(*ir.SelectorExpr).Selection.Type): // TODO: test for ptr-to-method case
 					return g.buildClosure(outer, x)
 				}
 				return x
@@ -230,9 +233,14 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 				}
 			}
 		}
-		t := se.X.Type()
-		baseSym := t.OrigSym
-		baseType := baseSym.Def.(*ir.Name).Type()
+
+		// se.X.Type() is the top-level type of the method expression. To
+		// correctly handle method expressions involving embedded fields,
+		// look up the generic method below using the type of the receiver
+		// of se.Selection, since that will be the type that actually has
+		// the method.
+		recv := deref(se.Selection.Type.Recv().Type)
+		baseType := recv.OrigSym.Def.Type()
 		var gf *ir.Name
 		for _, m := range baseType.Methods().Slice() {
 			if se.Sel == m.Sym {
@@ -382,7 +390,15 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	}
 	// Then all the other arguments (including receiver for method expressions).
 	for i := 0; i < typ.NumParams(); i++ {
-		args = append(args, formalParams[i].Nname.(*ir.Name))
+		if x.Op() == ir.OMETHEXPR && i == 0 {
+			// If we are doing a method expression, we need to
+			// explicitly traverse any embedded fields in the receiver
+			// argument in order to call the method instantiation.
+			dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, formalParams[0].Nname.(*ir.Name), x.(*ir.SelectorExpr).Sel))
+			args = append(args, dot.X)
+		} else {
+			args = append(args, formalParams[i].Nname.(*ir.Name))
+		}
 	}
 
 	// Build call itself.

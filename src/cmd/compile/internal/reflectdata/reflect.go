@@ -1786,6 +1786,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	}
 
 	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
+	if generic && dot.X != nthis && dot.X.Type().IsInterface() {
+		// We followed some embedded fields, and the last type was
+		// actually an interface, so no need for a dictionary.
+		generic = false
+	}
 
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
@@ -1824,9 +1829,13 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			}
 			args = append(args, getDictionary(".inst."+ir.MethodSym(orig, method.Sym).Name, targs)) // TODO: remove .inst.
 			if indirect {
-				args = append(args, ir.NewStarExpr(base.Pos, nthis))
+				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
+			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
+				// Case where method call is via a non-pointer
+				// embedded field with a pointer method.
+				args = append(args, typecheck.NodAddrAt(base.Pos, dot.X))
 			} else {
-				args = append(args, nthis)
+				args = append(args, dot.X)
 			}
 			args = append(args, ir.ParamNames(tfn.Type())...)
 
