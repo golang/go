@@ -214,6 +214,16 @@ Do not send CLs removing the interior tags from such phrases.
   <code>environment</code> for details.
 </p>
 
+<p><!-- golang.org/issue/43684 -->
+  <code>go</code> <code>get</code> prints a deprecation warning when installing
+  commands outside the main module (without the <code>-d</code> flag).
+  <code>go</code> <code>install</code> <code>cmd@version</code> should be used
+  instead to install a command at a specific version, using a suffix like
+  <code>@latest</code> or <code>@v1.2.3</code>. In Go 1.18, the <code>-d</code>
+  flag will always be enabled, and <code>go</code> <code>get</code> will only
+  be used to change dependencies in <code>go.mod</code>.
+</p>
+
 <h4 id="missing-go-directive"><code>go.mod</code> files missing <code>go</code> directives</h4>
 
 <p><!-- golang.org/issue/44976 -->
