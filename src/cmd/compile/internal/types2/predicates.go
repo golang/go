@@ -287,16 +287,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			// If identical0 is called (indirectly) via an external API entry point
-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
-			// that case, interfaces are expected to be complete and lazy completion
-			// here is not needed.
-			if check != nil {
-				check.completeInterface(nopos, x)
-				check.completeInterface(nopos, y)
-			}
-			a := x.allMethods
-			b := y.allMethods
+			a := x.typeSet().methods
+			b := y.typeSet().methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
