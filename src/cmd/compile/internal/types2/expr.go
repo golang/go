@@ -735,7 +735,6 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		// Update operand types to the default type rather than the target
 		// (interface) type: values must have concrete dynamic types.
 		// Untyped nil was handled upfront.
-		check.completeInterface(nopos, t)
 		if !t.Empty() {
 			return nil, nil, _InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
 		}

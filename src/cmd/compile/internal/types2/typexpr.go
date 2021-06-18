@@ -141,12 +141,12 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
-			check.completeInterface(pos, t) // TODO(gri) is this the correct position?
-			if t.allTypes != nil {
-				check.softErrorf(pos, "interface contains type constraints (%s)", t.allTypes)
+			tset := newTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+			if tset.types != nil {
+				check.softErrorf(pos, "interface contains type constraints (%s)", tset.types)
 				return
 			}
-			if t.IsComparable() {
+			if tset.IsComparable() {
 				check.softErrorf(pos, "interface is (or embeds) comparable")
 			}
 		}
