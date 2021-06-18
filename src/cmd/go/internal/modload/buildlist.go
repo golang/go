@@ -403,11 +403,33 @@ func (mg *ModuleGraph) allRootsSelected() bool {
 // LoadModGraph loads and returns the graph of module dependencies of the main module,
 // without loading any packages.
 //
+// If the goVersion string is non-empty, the returned graph is the graph
+// as interpreted by the given Go version (instead of the version indicated
+// in the go.mod file).
+//
 // Modules are loaded automatically (and lazily) in LoadPackages:
 // LoadModGraph need only be called if LoadPackages is not,
 // typically in commands that care about modules but no particular package.
-func LoadModGraph(ctx context.Context) *ModuleGraph {
-	rs, mg, err := expandGraph(ctx, LoadModFile(ctx))
+func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
+	rs := LoadModFile(ctx)
+
+	if goVersion != "" {
+		depth := modDepthFromGoVersion(goVersion)
+		if depth == eager && rs.depth != eager {
+			// Use newRequirements instead of convertDepth because convertDepth
+			// also updates roots; here, we want to report the unmodified roots
+			// even though they may seem inconsistent.
+			rs = newRequirements(eager, rs.rootModules, rs.direct)
+		}
+
+		mg, err := rs.Graph(ctx)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		return mg
+	}
+
+	rs, mg, err := expandGraph(ctx, rs)
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
