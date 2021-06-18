@@ -68,8 +68,15 @@ func CallersFrames(callers []uintptr) *Frames {
 	return f
 }
 
-// Next returns frame information for the next caller.
-// If more is false, there are no more callers (the Frame value is valid).
+// Next returns a Frame representing the next call frame in the slice
+// of PC values. If it has already returned all call frames, Next
+// returns a zero Frame.
+//
+// The more result indicates whether the next call to Next will return
+// a valid Frame. It does not necessarily indicate whether this call
+// returned one.
+//
+// See the Frames example for idiomatic usage.
 func (ci *Frames) Next() (frame Frame, more bool) {
 	for len(ci.frames) < 2 {
 		// Find the next frame.
