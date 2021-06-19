@@ -295,9 +295,46 @@ func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.
 	typ := r.doTyp()
 	assert(typ != nil)
 
+	// For recursive type declarations involving interfaces and aliases,
+	// above r.doTyp() call may have already set pr.typs[idx], so just
+	// double check and return the type.
+	//
+	// Example:
+	//
+	//     type F = func(I)
+	//
+	//     type I interface {
+	//         m(F)
+	//     }
+	//
+	// The writer writes data types in following index order:
+	//
+	//     0: func(I)
+	//     1: I
+	//     2: interface{m(func(I))}
+	//
+	// The reader resolves it in following index order:
+	//
+	//     0 -> 1 -> 2 -> 0 -> 1
+	//
+	// and can divide in logically 2 steps:
+	//
+	//  - 0 -> 1     : first time the reader reach type I,
+	//                 it creates new named type with symbol I.
+	//
+	//  - 2 -> 0 -> 1: the reader ends up reaching symbol I again,
+	//                 now the symbol I was setup in above step, so
+	//                 the reader just return the named type.
+	//
+	// Now, the functions called return, the pr.typs looks like below:
+	//
+	//  - 0 -> 1 -> 2 -> 0 : [<T> I <T>]
+	//  - 0 -> 1 -> 2      : [func(I) I <T>]
+	//  - 0 -> 1           : [func(I) I interface { "".m(func("".I)) }]
+	//
+	// The idx 1, corresponding with type I was resolved successfully
+	// after r.doTyp() call.
 	if typ := pr.typs[idx]; typ != nil {
-		// This happens in fixedbugs/issue27232.go.
-		// TODO(mdempsky): Explain why/how this happens.
 		return typ
 	}
 
