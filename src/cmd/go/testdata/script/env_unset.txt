@@ -1,0 +1,23 @@
+# Test that we can unset variables, even if initially invalid,
+# as long as resulting config is valid.
+
+env GOENV=badenv
+env GOOS=
+env GOARCH=
+
+! go env
+stderr '^cmd/go: unsupported GOOS/GOARCH pair bados/badarch$'
+
+! go env -u GOOS
+stderr '^go env -u: unsupported GOOS/GOARCH pair \w+/badarch$'
+
+! go env -u GOARCH
+stderr '^go env -u: unsupported GOOS/GOARCH pair bados/\w+$'
+
+go env -u GOOS GOARCH
+
+go env
+
+-- badenv --
+GOOS=bados
+GOARCH=badarch
