@@ -75,9 +75,9 @@ func InitRuntime() {
 		typ := typs[d.typ]
 		switch d.tag {
 		case funcTag:
-			importfunc(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
+			importfunc(src.NoXPos, sym, typ)
 		case varTag:
-			importvar(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
+			importvar(src.NoXPos, sym, typ)
 		default:
 			base.Fatalf("unhandled declaration tag %v", d.tag)
 		}
