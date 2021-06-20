@@ -22,6 +22,7 @@ const (
 	RISCV64
 	S390X
 	Wasm
+	Loong64
 )
 
 // Arch represents an individual architecture.
@@ -189,6 +190,16 @@ var ArchWasm = &Arch{
 	Alignment: 1,
 }
 
+var ArchLoong64 = &Arch{
+	Name:      "loong64",
+	Family:    Loong64,
+	ByteOrder: binary.LittleEndian,
+	PtrSize:   8,
+	RegSize:   8,
+	MinLC:     4,
+	Alignment: 8, // Unaligned accesses are not guaranteed to be fast
+}
+
 var Archs = [...]*Arch{
 	Arch386,
 	ArchAMD64,
@@ -203,4 +214,5 @@ var Archs = [...]*Arch{
 	ArchRISCV64,
 	ArchS390X,
 	ArchWasm,
+	ArchLoong64,
 }
