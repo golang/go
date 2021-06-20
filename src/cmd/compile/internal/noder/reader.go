@@ -543,7 +543,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 			return pri.pr.objIdx(pri.idx, pri.implicits, r.explicits)
 		}
 		if haveLegacyImports {
-			assert(len(r.implicits)+len(r.explicits) == 0)
+			assert(!r.hasTypeParams())
 			return typecheck.Resolve(ir.NewIdent(src.NoXPos, origSym))
 		}
 		base.Fatalf("unresolved stub: %v", origSym)
@@ -608,7 +608,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 }
 
 func (r *reader) mangle(sym *types.Sym) *types.Sym {
-	if len(r.implicits)+len(r.explicits) == 0 {
+	if !r.hasTypeParams() {
 		return sym
 	}
 
@@ -722,6 +722,10 @@ func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
 	return
 }
 
+func (r *reader) hasTypeParams() bool {
+	return len(r.implicits)+len(r.explicits) != 0
+}
+
 // @@@ Compiler extensions
 
 func (r *reader) funcExt(name *ir.Name) {
@@ -739,7 +743,7 @@ func (r *reader) funcExt(name *ir.Name) {
 
 	// TODO(mdempsky): Remember why I wrote this code. I think it has to
 	// do with how ir.VisitFuncsBottomUp works?
-	if name.Sym().Pkg == types.LocalPkg || len(r.implicits)+len(r.explicits) != 0 {
+	if name.Sym().Pkg == types.LocalPkg || r.hasTypeParams() {
 		name.Defn = fn
 	}
 
@@ -774,7 +778,7 @@ func (r *reader) typeExt(name *ir.Name) {
 
 	typ := name.Type()
 
-	if len(r.implicits)+len(r.explicits) != 0 {
+	if r.hasTypeParams() {
 		// Set "RParams" (really type arguments here, not parameters) so
 		// this type is treated as "fully instantiated". This ensures the
 		// type descriptor is written out as DUPOK and method wrappers are
