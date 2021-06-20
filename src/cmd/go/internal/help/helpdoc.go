@@ -598,6 +598,9 @@ Architecture-specific environment variables:
 	GOMIPS64
 		For GOARCH=mips64{,le}, whether to use floating point instructions.
 		Valid values are hardfloat (default), softfloat.
+	GOPPC64
+		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
+		Valid values are power8 (default), power9.
 	GOWASM
 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 		Valid values are satconv, signext.
