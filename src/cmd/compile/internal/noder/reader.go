@@ -741,8 +741,13 @@ func (r *reader) funcExt(name *ir.Name) {
 		fn.SetPos(name.Pos())
 	}
 
-	// TODO(mdempsky): Remember why I wrote this code. I think it has to
-	// do with how ir.VisitFuncsBottomUp works?
+	// Normally, we only compile local functions, which saves redundant compilation work.
+	// n.Defn is not nil for local functions, and is nil for imported function. But for
+	// generic functions, we might have an instantiation that no other package has seen before.
+	// So we need to be conservative and compile it again.
+	//
+	// That's why name.Defn is set here, so ir.VisitFuncsBottomUp can analyze function.
+	// TODO(mdempsky,cuonglm): find a cleaner way to handle this.
 	if name.Sym().Pkg == types.LocalPkg || r.hasTypeParams() {
 		name.Defn = fn
 	}
