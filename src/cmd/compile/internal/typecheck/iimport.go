@@ -294,13 +294,13 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 	case 'A':
 		typ := r.typ()
 
-		return importalias(r.p.ipkg, pos, sym, typ)
+		return importalias(pos, sym, typ)
 
 	case 'C':
 		typ := r.typ()
 		val := r.value(typ)
 
-		n := importconst(r.p.ipkg, pos, sym, typ, val)
+		n := importconst(pos, sym, typ, val)
 		r.constExt(n)
 		return n
 
@@ -311,7 +311,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		}
 		typ := r.signature(nil, tparams)
 
-		n := importfunc(r.p.ipkg, pos, sym, typ)
+		n := importfunc(pos, sym, typ)
 		r.funcExt(n)
 		return n
 
@@ -323,7 +323,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
-		n := importtype(r.p.ipkg, pos, sym)
+		n := importtype(pos, sym)
 		t := n.Type()
 		if rparams != nil {
 			t.SetRParams(rparams)
@@ -401,7 +401,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 	case 'V':
 		typ := r.typ()
 
-		n := importvar(r.p.ipkg, pos, sym, typ)
+		n := importvar(pos, sym, typ)
 		r.varExt(n)
 		return n
 
