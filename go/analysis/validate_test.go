@@ -11,33 +11,43 @@ import (
 
 func TestValidate(t *testing.T) {
 	var (
+		run = func(p *Pass) (interface{}, error) {
+			return nil, nil
+		}
 		dependsOnSelf = &Analyzer{
 			Name: "dependsOnSelf",
 			Doc:  "this analyzer depends on itself",
+			Run:  run,
 		}
 		inCycleA = &Analyzer{
 			Name: "inCycleA",
 			Doc:  "this analyzer depends on inCycleB",
+			Run:  run,
 		}
 		inCycleB = &Analyzer{
 			Name: "inCycleB",
 			Doc:  "this analyzer depends on inCycleA and notInCycleA",
+			Run:  run,
 		}
 		pointsToCycle = &Analyzer{
 			Name: "pointsToCycle",
 			Doc:  "this analyzer depends on inCycleA",
+			Run:  run,
 		}
 		notInCycleA = &Analyzer{
 			Name: "notInCycleA",
 			Doc:  "this analyzer depends on notInCycleB and notInCycleC",
+			Run:  run,
 		}
 		notInCycleB = &Analyzer{
 			Name: "notInCycleB",
 			Doc:  "this analyzer depends on notInCycleC",
+			Run:  run,
 		}
 		notInCycleC = &Analyzer{
 			Name: "notInCycleC",
 			Doc:  "this analyzer has no dependencies",
+			Run:  run,
 		}
 	)
 
@@ -114,5 +124,29 @@ func TestCycleInRequiresGraphErrorMessage(t *testing.T) {
 	wantSubstring := "cycle detected"
 	if !strings.Contains(errMsg, wantSubstring) {
 		t.Errorf("error string %s does not contain expected substring %q", errMsg, wantSubstring)
+	}
+}
+
+func TestValidateEmptyDoc(t *testing.T) {
+	withoutDoc := &Analyzer{
+		Name: "withoutDoc",
+		Run: func(p *Pass) (interface{}, error) {
+			return nil, nil
+		},
+	}
+	err := Validate([]*Analyzer{withoutDoc})
+	if err == nil || !strings.Contains(err.Error(), "is undocumented") {
+		t.Errorf("got unexpected error while validating analyzers withoutDoc: %v", err)
+	}
+}
+
+func TestValidateNoRun(t *testing.T) {
+	withoutRun := &Analyzer{
+		Name: "withoutRun",
+		Doc:  "this analyzer has no Run",
+	}
+	err := Validate([]*Analyzer{withoutRun})
+	if err == nil || !strings.Contains(err.Error(), "has nil Run") {
+		t.Errorf("got unexpected error while validating analyzers withoutRun: %v", err)
 	}
 }
