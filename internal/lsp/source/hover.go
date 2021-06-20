@@ -117,6 +117,16 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 			}
 			h.Signature = prefix + h.Signature
 		}
+
+		// Check if the variable is an integer whose value we can present in a more
+		// user-friendly way, i.e. `var hex = 0xe34e` becomes `var hex = 58190`
+		if spec, ok := x.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
+			if lit, ok := spec.Values[0].(*ast.BasicLit); ok && len(spec.Names) > 0 {
+				val := constant.MakeFromLiteral(types.ExprString(lit), lit.Kind, 0)
+				h.Signature = fmt.Sprintf("var %s = %s", spec.Names[0], val)
+			}
+		}
+
 	case types.Object:
 		// If the variable is implicitly declared in a type switch, we need to
 		// manually generate its object string.
@@ -454,6 +464,15 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 		if comment == nil {
 			comment = spec.Comment
 		}
+
+		// We need the AST nodes for variable declarations of basic literals with
+		// associated values so that we can augment their hover with more information.
+		if _, ok := obj.(*types.Var); ok && spec.Type == nil && len(spec.Values) > 0 {
+			if _, ok := spec.Values[0].(*ast.BasicLit); ok {
+				return &HoverInformation{source: spec, comment: comment}
+			}
+		}
+
 		return &HoverInformation{source: obj, comment: comment}
 	}
 
