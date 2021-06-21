@@ -2841,7 +2841,6 @@ func TestTxStmtDeadlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tx, err := db.BeginTx(ctx, nil)
-	cancel()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2850,6 +2849,7 @@ func TestTxStmtDeadlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cancel()
 	// Run number of stmt queries to reproduce deadlock from context cancel
 	for i := 0; i < 1e3; i++ {
 		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
