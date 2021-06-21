@@ -2838,9 +2838,10 @@ func TestTxStmtDeadlock(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tx, err := db.BeginTx(ctx, nil)
+	cancel()
 	if err != nil {
 		t.Fatal(err)
 	}

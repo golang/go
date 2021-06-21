@@ -171,6 +171,11 @@ type PackageOpts struct {
 	// if the flag is set to "readonly" (the default) or "vendor".
 	ResolveMissingImports bool
 
+	// AssumeRootsImported indicates that the transitive dependencies of the root
+	// packages should be treated as if those roots will be imported by the main
+	// module.
+	AssumeRootsImported bool
+
 	// AllowPackage, if non-nil, is called after identifying the module providing
 	// each package. If AllowPackage returns a non-nil error, that error is set
 	// for the package, and the imports and test of that package will not be
@@ -875,6 +880,11 @@ const (
 	// are also roots (and must be marked pkgIsRoot).
 	pkgIsRoot
 
+	// pkgFromRoot indicates that the package is in the transitive closure of
+	// imports starting at the roots. (Note that every package marked as pkgIsRoot
+	// is also trivially marked pkgFromRoot.)
+	pkgFromRoot
+
 	// pkgImportsLoaded indicates that the imports and testImports fields of a
 	// loadPkg have been populated.
 	pkgImportsLoaded
@@ -1068,7 +1078,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		// iteration so we don't need to also update it here. (That would waste time
 		// computing a "direct" map that we'll have to recompute later anyway.)
 		direct := ld.requirements.direct
-		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd)
+		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd, ld.AssumeRootsImported)
 		if err != nil {
 			// If an error was found in a newly added module, report the package
 			// import stack instead of the module requirement stack. Packages
@@ -1274,7 +1284,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		addRoots = tidy.rootModules
 	}
 
-	rs, err = updateRoots(ctx, direct, rs, ld.pkgs, addRoots)
+	rs, err = updateRoots(ctx, direct, rs, ld.pkgs, addRoots, ld.AssumeRootsImported)
 	if err != nil {
 		// We don't actually know what even the root requirements are supposed to be,
 		// so we can't proceed with loading. Return the error to the caller
@@ -1433,6 +1443,9 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
 		// This package matches a root pattern by virtue of being in "all".
 		flags |= pkgIsRoot
 	}
+	if flags.has(pkgIsRoot) {
+		flags |= pkgFromRoot
+	}
 
 	old := pkg.flags.update(flags)
 	new := old | flags
@@ -1485,6 +1498,12 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
 		// imports, or both. Now is the time to propagate pkgInAll to the imports.
 		for _, dep := range pkg.imports {
 			ld.applyPkgFlags(ctx, dep, pkgInAll)
+		}
+	}
+
+	if new.has(pkgFromRoot) && !old.has(pkgFromRoot|pkgImportsLoaded) {
+		for _, dep := range pkg.imports {
+			ld.applyPkgFlags(ctx, dep, pkgFromRoot)
 		}
 	}
 }
@@ -1549,7 +1568,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 	}
 	module.Sort(toAdd)
 
-	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd)
+	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
 	if err != nil {
 		// We are missing some root dependency, and for some reason we can't load
 		// enough of the module dependency graph to add the missing root. Package

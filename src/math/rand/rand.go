@@ -12,9 +12,6 @@
 // The default Source is safe for concurrent use by multiple goroutines, but
 // Sources created by NewSource are not.
 //
-// Mathematical interval notation such as [0, n) is used throughout the
-// documentation for this package.
-//
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
 // crypto/rand package.
@@ -106,7 +103,7 @@ func (r *Rand) Int() int {
 	return int(u << 1 >> 1) // clear sign bit if int == int32
 }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 func (r *Rand) Int63n(n int64) int64 {
 	if n <= 0 {
@@ -123,7 +120,7 @@ func (r *Rand) Int63n(n int64) int64 {
 	return v % n
 }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 func (r *Rand) Int31n(n int32) int32 {
 	if n <= 0 {
@@ -140,7 +137,7 @@ func (r *Rand) Int31n(n int32) int32 {
 	return v % n
 }
 
-// int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
 // n must be > 0, but int31n does not check this; the caller must ensure it.
 // int31n exists because Int31n is inefficient, but Go 1 compatibility
 // requires that the stream of values produced by math/rand remain unchanged.
@@ -164,7 +161,7 @@ func (r *Rand) int31n(n int32) int32 {
 	return int32(prod >> 32)
 }
 
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
 // It panics if n <= 0.
 func (r *Rand) Intn(n int) int {
 	if n <= 0 {
@@ -176,7 +173,7 @@ func (r *Rand) Intn(n int) int {
 	return int(r.Int63n(int64(n)))
 }
 
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+// Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float64() float64 {
 	// A clearer, simpler implementation would be:
 	//	return float64(r.Int63n(1<<53)) / (1<<53)
@@ -202,7 +199,7 @@ again:
 	return f
 }
 
-// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+// Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0).
 func (r *Rand) Float32() float32 {
 	// Same rationale as in Float64: we want to preserve the Go 1 value
 	// stream except we want to fix it not to return 1.0
@@ -215,7 +212,8 @@ again:
 	return f
 }
 
-// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
+// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
+// in the half-open interval [0,n).
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n)
 	// In the following loop, the iteration when i=0 always swaps m[0] with m[0].
@@ -323,31 +321,31 @@ func Int31() int32 { return globalRand.Int31() }
 // Int returns a non-negative pseudo-random int from the default Source.
 func Int() int { return globalRand.Int() }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n)
+// Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func Int63n(n int64) int64 { return globalRand.Int63n(n) }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n)
+// Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func Int31n(n int32) int32 { return globalRand.Int31n(n) }
 
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n)
+// Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
 func Intn(n int) int { return globalRand.Intn(n) }
 
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0)
+// Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.
 func Float64() float64 { return globalRand.Float64() }
 
-// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0)
+// Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.
 func Float32() float32 { return globalRand.Float32() }
 
-// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n)
-// from the default Source.
+// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
+// in the half-open interval [0,n) from the default Source.
 func Perm(n int) []int { return globalRand.Perm(n) }
 
 // Shuffle pseudo-randomizes the order of elements using the default Source.

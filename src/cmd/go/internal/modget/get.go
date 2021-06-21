@@ -1153,6 +1153,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		Tags:                     imports.AnyTags(),
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                *getT,
+		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
 	}
 
