@@ -224,8 +224,9 @@ var cPrefix string
 
 var fset = token.NewFileSet()
 
-var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+var dynimport = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
 var dynout = flag.String("dynout", "", "write -dynimport output to this file")
+var dynobjout = flag.String("dynobjout", "", "write -dynimport output in object format to this file")
 var dynpackage = flag.String("dynpackage", "main", "set Go package for -dynimport output")
 var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in -dynimport mode")
 
@@ -254,7 +255,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	if *dynobj != "" {
+	if *dynimport != "" {
 		// cgo -dynimport is essentially a separate helper command
 		// built into the cgo binary. It scans a gcc-produced executable
 		// and dumps information about the imported symbols and the
@@ -263,7 +264,41 @@ func main() {
 		// instead of needing to make the linkers duplicate all the
 		// specialized knowledge gcc has about where to look for imported
 		// symbols and which ones to use.
-		dynimport(*dynobj)
+		info, err := dynimportRead(*dynimport)
+		if err != nil {
+			fatalf("%s", err)
+		}
+
+		if *dynout == "" && *dynobjout == "" {
+			if err := info.writeSourceFile(os.Stdout, *dynpackage); err != nil {
+				fatalf("%s", err)
+			}
+
+			return
+		}
+
+		if *dynout != "" {
+			f, err := os.Create(*dynout)
+			if err != nil {
+				fatalf("%s", err)
+			}
+			if err := info.writeSourceFile(f, *dynpackage); err != nil {
+				fatalf("%s", err)
+			}
+			f.Close()
+		}
+
+		if *dynobjout != "" {
+			f, err := os.Create(*dynobjout)
+			if err != nil {
+				fatalf("%s", err)
+			}
+			if err := info.writeObjectFile(f); err != nil {
+				fatalf("%s", err)
+			}
+			f.Close()
+		}
+
 		return
 	}
 

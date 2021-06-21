@@ -6,10 +6,12 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/objabi"
 	"cmd/internal/pkgpath"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -319,17 +321,17 @@ func elfImportedSymbols(f *elf.File) []elf.ImportedSymbol {
 	return imports
 }
 
-func dynimport(obj string) {
-	stdout := os.Stdout
-	if *dynout != "" {
-		f, err := os.Create(*dynout)
-		if err != nil {
-			fatalf("%s", err)
-		}
-		stdout = f
-	}
+type dynimportInfo struct {
+	Linker string
+	Syms   []dynimportSym
+}
 
-	fmt.Fprintf(stdout, "package %s\n", *dynpackage)
+type dynimportSym struct {
+	Local, Remote, Library string
+}
+
+func dynimportRead(obj string) (*dynimportInfo, error) {
+	var info dynimportInfo
 
 	if f, err := elf.Open(obj); err == nil {
 		if *dynlinker {
@@ -337,7 +339,7 @@ func dynimport(obj string) {
 			if sec := f.Section(".interp"); sec != nil {
 				if data, err := sec.Data(); err == nil && len(data) > 1 {
 					// skip trailing \0 in data
-					fmt.Fprintf(stdout, "//go:cgo_dynamic_linker %q\n", string(data[:len(data)-1]))
+					info.Linker = string(data[:len(data)-1])
 				}
 			}
 		}
@@ -347,15 +349,14 @@ func dynimport(obj string) {
 			if s.Version != "" {
 				targ += "#" + s.Version
 			}
-			checkImportSymName(s.Name)
-			checkImportSymName(targ)
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
+			if err := checkImportSymNames(s.Name, targ); err != nil {
+				return nil, err
+			}
+			info.addSym(s.Name, targ, s.Library)
 		}
-		lib, _ := f.ImportedLibraries()
-		for _, l := range lib {
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
-		}
-		return
+		libs, _ := f.ImportedLibraries()
+		info.addLibs(libs)
+		return &info, nil
 	}
 
 	if f, err := macho.Open(obj); err == nil {
@@ -364,14 +365,14 @@ func dynimport(obj string) {
 			if len(s) > 0 && s[0] == '_' {
 				s = s[1:]
 			}
-			checkImportSymName(s)
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
+			if err := checkImportSymNames(s); err != nil {
+				return nil, err
+			}
+			info.addSym(s, s, "")
 		}
-		lib, _ := f.ImportedLibraries()
-		for _, l := range lib {
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
-		}
-		return
+		libs, _ := f.ImportedLibraries()
+		info.addLibs(libs)
+		return &info, nil
 	}
 
 	if f, err := pe.Open(obj); err == nil {
@@ -379,17 +380,18 @@ func dynimport(obj string) {
 		for _, s := range sym {
 			ss := strings.Split(s, ":")
 			name := strings.Split(ss[0], "@")[0]
-			checkImportSymName(name)
-			checkImportSymName(ss[0])
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
+			if err := checkImportSymNames(name, ss[0]); err != nil {
+				return nil, err
+			}
+			info.addSym(name, ss[0], strings.ToLower(ss[1]))
 		}
-		return
+		return &info, nil
 	}
 
 	if f, err := xcoff.Open(obj); err == nil {
 		sym, err := f.ImportedSymbols()
 		if err != nil {
-			fatalf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
+			return nil, fmt.Errorf("cannot load imported symbols from XCOFF file %s: %v", obj, err)
 		}
 		for _, s := range sym {
 			if s.Name == "runtime_rt0_go" || s.Name == "_rt0_ppc64_aix_lib" {
@@ -398,37 +400,98 @@ func dynimport(obj string) {
 				// Go symbols.
 				continue
 			}
-			checkImportSymName(s.Name)
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, s.Name, s.Library)
+			if err := checkImportSymNames(s.Name); err != nil {
+				return nil, err
+			}
+			info.addSym(s.Name, s.Name, s.Library)
 		}
-		lib, err := f.ImportedLibraries()
+		libs, err := f.ImportedLibraries()
 		if err != nil {
-			fatalf("cannot load imported libraries from XCOFF file %s: %v", obj, err)
+			return nil, fmt.Errorf("cannot load imported libraries from XCOFF file %s: %v", obj, err)
 		}
-		for _, l := range lib {
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
-		}
-		return
+		info.addLibs(libs)
+		return &info, nil
 	}
 
-	fatalf("cannot parse %s as ELF, Mach-O, PE or XCOFF", obj)
+	return nil, fmt.Errorf("cannot parse %s as ELF, Mach-O, PE or XCOFF", obj)
 }
 
-// checkImportSymName checks a symbol name we are going to emit as part
-// of a //go:cgo_import_dynamic pragma. These names come from object
-// files, so they may be corrupt. We are going to emit them unquoted,
-// so while they don't need to be valid symbol names (and in some cases,
-// involving symbol versions, they won't be) they must contain only
-// graphic characters and must not contain Go comments.
-func checkImportSymName(s string) {
-	for _, c := range s {
-		if !unicode.IsGraphic(c) || unicode.IsSpace(c) {
-			fatalf("dynamic symbol %q contains unsupported character", s)
+// checkImportSymNames checks symbol names we are going to emit as part of the
+// cgo pragma object. These names come from object files, so they may be
+// corrupt. They must contain only graphic characters and must not contain Go
+// comments.
+func checkImportSymNames(names ...string) error {
+	for _, s := range names {
+		for _, c := range s {
+			if !unicode.IsGraphic(c) || unicode.IsSpace(c) {
+				return fmt.Errorf("dynamic symbol %q contains unsupported character", s)
+			}
+		}
+		if strings.Index(s, "//") >= 0 || strings.Index(s, "/*") >= 0 {
+			return fmt.Errorf("dynamic symbol %q contains Go comment", s)
 		}
 	}
-	if strings.Index(s, "//") >= 0 || strings.Index(s, "/*") >= 0 {
-		fatalf("dynamic symbol %q contains Go comment")
+	return nil
+}
+
+func (info *dynimportInfo) addSym(local, remote, library string) {
+	info.Syms = append(info.Syms, dynimportSym{local, remote, library})
+}
+
+func (info *dynimportInfo) addLibs(libraries []string) {
+	for _, library := range libraries {
+		info.addSym("_", "_", library)
 	}
+}
+
+// writeSourceFile writes the dynimportInfo as a Go file using go:cgo pragmas.
+// This method exists mostly for backwards compatibility.
+func (info *dynimportInfo) writeSourceFile(out io.Writer, pkgName string) error {
+	_, err := fmt.Fprintf(out, "package %s\n", pkgName)
+	if err != nil {
+		return err
+	}
+	if info.Linker != "" {
+		_, err := fmt.Fprintf(out, "//go:cgo_dynamic_linker %q\n", info.Linker)
+		if err != nil {
+			return err
+		}
+	}
+	for _, sym := range info.Syms {
+		_, err := fmt.Fprintf(out, "//go:cgo_import_dynamic %s %s %q\n", sym.Local, sym.Remote, sym.Library)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (info *dynimportInfo) writeObjectFile(out io.Writer) error {
+	pragmas := make([][]string, 0, 1+len(info.Syms))
+	if info.Linker != "" {
+		pragmas = append(pragmas, []string{"cgo_dynamic_linker", info.Linker})
+	}
+	for _, sym := range info.Syms {
+		pragmas = append(pragmas, []string{"cgo_import_dynamic", sym.Local, sym.Remote, sym.Library})
+	}
+
+	// write empty export section (first 2 pair of $); must be before cgo
+	// section
+	_, err := fmt.Fprintf(out, "%s\n$$\n$$\n$$  // cgo\n", objabi.HeaderString())
+	if err != nil {
+		return err
+	}
+
+	if err := json.NewEncoder(out).Encode(pragmas); err != nil {
+		return fmt.Errorf("serializing dynimportWriteObjectFile pragmas: %v", err)
+	}
+
+	_, err = io.WriteString(out, "\n$$\n!\n")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Construct a gcc struct matching the gc argument frame.

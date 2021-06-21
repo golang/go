@@ -2067,6 +2067,9 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 // Does not read symbol data.
 // Returns the fingerprint of the object.
 func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj.FingerprintType {
+	if length == 0 {
+		return goobj.FingerprintType{}
+	}
 	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
 	if err != nil {
 		log.Fatal("cannot read object file:", err)

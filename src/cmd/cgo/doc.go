@@ -476,6 +476,8 @@ The following options are available when running cgo directly:
 		Write dynamic linker as part of -dynimport output.
 	-dynout file
 		Write -dynimport output to file.
+	-dynobjout string
+		Write -dynimport output in partial object format to file.
 	-dynpackage package
 		Set Go package for -dynimport output.
 	-exportheader file
