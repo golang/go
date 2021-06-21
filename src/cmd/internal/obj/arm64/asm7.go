@@ -417,7 +417,7 @@ var optab = []Optab{
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_RSP, 4, 4, REGFROM, 0, 0},
-	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, 0, 0},
+	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, NOTUSETMP, 0},
 
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
@@ -3306,8 +3306,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if int(o.size) == 8 {
-			o1 = c.oaddi(p, op, v&0xfff000, r, REGTMP)
-			o2 = c.oaddi(p, op, v&0x000fff, REGTMP, rt)
+			// NOTE: this case does not use REGTMP. If it ever does,
+			// remove the NOTUSETMP flag in optab.
+			o1 = c.oaddi(p, op, v&0xfff000, r, rt)
+			o2 = c.oaddi(p, op, v&0x000fff, rt, rt)
 			break
 		}
 
