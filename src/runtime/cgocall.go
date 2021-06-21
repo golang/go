@@ -110,6 +110,8 @@ func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
 	return as.retval
 }
 
+var ncgocall uint64 // number of cgo calls in total
+
 // Call from Go to C.
 //
 // This must be nosplit because it's used for syscalls on some
@@ -130,8 +132,8 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
 
+	atomic.Xadd64(&ncgocall, 1)
 	mp := getg().m
-	mp.ncgocall++
 	mp.ncgo++
 
 	// Reset traceback.

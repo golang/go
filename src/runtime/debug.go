@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"unsafe"
+	_ "unsafe"
 )
 
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
@@ -45,11 +45,7 @@ func NumCPU() int {
 
 // NumCgoCall returns the number of cgo calls made by the current process.
 func NumCgoCall() int64 {
-	var n int64
-	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
-		n += int64(mp.ncgocall)
-	}
-	return n
+	return int64(atomic.Load64(&ncgocall))
 }
 
 // NumGoroutine returns the number of goroutines that currently exist.
