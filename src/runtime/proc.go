@@ -1507,7 +1507,6 @@ func mexit(osStack bool) {
 	}
 	throw("m not found in allm")
 found:
-	ncgocall += m.ncgocall
 	if !osStack {
 		// Delay reaping m until it's done with the stack.
 		//
@@ -1522,6 +1521,8 @@ found:
 		sched.freem = m
 	}
 	unlock(&sched.lock)
+
+	atomic.Xadd64(&ncgocall, int64(m.ncgocall))
 
 	// Release the P.
 	handoffp(releasep())
