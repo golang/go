@@ -261,6 +261,27 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 	return p
 }
 
+func cpuProfilingBroken() bool {
+	switch runtime.GOOS {
+	case "plan9":
+		// Profiling unimplemented.
+		return true
+	case "aix":
+		// See https://golang.org/issue/45170.
+		return true
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+		// See https://golang.org/issue/13841.
+		return true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			// See https://golang.org/issue/13841.
+			return true
+		}
+	}
+
+	return false
+}
+
 // testCPUProfile runs f under the CPU profiler, checking for some conditions specified by need,
 // as interpreted by matches, and returns the parsed profile.
 func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
@@ -276,16 +297,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		t.Skip("skipping on plan9")
 	}
 
-	broken := false
-	switch runtime.GOOS {
-	// See https://golang.org/issue/45170 for AIX.
-	case "ios", "dragonfly", "netbsd", "illumos", "solaris", "aix":
-		broken = true
-	case "openbsd":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			broken = true
-		}
-	}
+	broken := cpuProfilingBroken()
 
 	maxDuration := 5 * time.Second
 	if testing.Short() && broken {
@@ -612,7 +624,7 @@ func growstack1() {
 
 //go:noinline
 func growstack(n int) {
-	var buf [8 << 16]byte
+	var buf [8 << 18]byte
 	use(buf)
 	if n > 0 {
 		growstack(n - 1)
@@ -620,7 +632,7 @@ func growstack(n int) {
 }
 
 //go:noinline
-func use(x [8 << 16]byte) {}
+func use(x [8 << 18]byte) {}
 
 func TestBlockProfile(t *testing.T) {
 	type TestCase struct {

@@ -28,6 +28,38 @@ pkg encoding/csv, method (*Reader) FieldPos(int) (int, int)
 pkg go/build, type Context struct, ToolTags []string
 pkg go/parser, const SkipObjectResolution = 64
 pkg go/parser, const SkipObjectResolution Mode
+pkg image, method (*Alpha) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Alpha) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Alpha16) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Alpha16) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*CMYK) RGBA64At(int, int) color.RGBA64
+pkg image, method (*CMYK) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Gray) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Gray) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Gray16) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Gray16) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NRGBA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*NRGBA) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NRGBA64) RGBA64At(int, int) color.RGBA64
+pkg image, method (*NRGBA64) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*NYCbCrA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Paletted) RGBA64At(int, int) color.RGBA64
+pkg image, method (*Paletted) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*RGBA) RGBA64At(int, int) color.RGBA64
+pkg image, method (*RGBA) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*YCbCr) RGBA64At(int, int) color.RGBA64
+pkg image, type RGBA64Image interface { At, Bounds, ColorModel, RGBA64At }
+pkg image, type RGBA64Image interface, At(int, int) color.Color
+pkg image, type RGBA64Image interface, Bounds() Rectangle
+pkg image, type RGBA64Image interface, ColorModel() color.Model
+pkg image, type RGBA64Image interface, RGBA64At(int, int) color.RGBA64
+pkg image/draw, type RGBA64Image interface { At, Bounds, ColorModel, RGBA64At, Set, SetRGBA64 }
+pkg image/draw, type RGBA64Image interface, At(int, int) color.Color
+pkg image/draw, type RGBA64Image interface, Bounds() image.Rectangle
+pkg image/draw, type RGBA64Image interface, ColorModel() color.Model
+pkg image/draw, type RGBA64Image interface, RGBA64At(int, int) color.RGBA64
+pkg image/draw, type RGBA64Image interface, Set(int, int, color.Color)
+pkg image/draw, type RGBA64Image interface, SetRGBA64(int, int, color.RGBA64)
 pkg io/fs, func FileInfoToDirEntry(FileInfo) DirEntry
 pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368
 pkg math, const MaxInt = 9223372036854775807
@@ -153,7 +185,7 @@ pkg time, const Layout = "01/02 03:04:05PM '06 -0700"
 pkg time, const Layout ideal-string
 pkg time, func UnixMicro(int64) Time
 pkg time, func UnixMilli(int64) Time
-pkg time, method (*Time) IsDST() bool
 pkg time, method (Time) GoString() string
+pkg time, method (Time) IsDST() bool
 pkg time, method (Time) UnixMicro() int64
 pkg time, method (Time) UnixMilli() int64
