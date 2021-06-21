@@ -623,7 +623,7 @@ func growstack1() {
 
 //go:noinline
 func growstack(n int) {
-	var buf [8 << 16]byte
+	var buf [8 << 18]byte
 	use(buf)
 	if n > 0 {
 		growstack(n - 1)
@@ -631,7 +631,7 @@ func growstack(n int) {
 }
 
 //go:noinline
-func use(x [8 << 16]byte) {}
+func use(x [8 << 18]byte) {}
 
 func TestBlockProfile(t *testing.T) {
 	type TestCase struct {
