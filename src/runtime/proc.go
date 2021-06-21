@@ -1507,6 +1507,7 @@ func mexit(osStack bool) {
 	}
 	throw("m not found in allm")
 found:
+	ncgocall += m.ncgocall
 	if !osStack {
 		// Delay reaping m until it's done with the stack.
 		//
