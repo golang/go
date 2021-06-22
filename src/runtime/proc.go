@@ -1522,6 +1522,8 @@ found:
 	}
 	unlock(&sched.lock)
 
+	atomic.Xadd64(&ncgocall, int64(m.ncgocall))
+
 	// Release the P.
 	handoffp(releasep())
 	// After this point we must not have write barriers.
