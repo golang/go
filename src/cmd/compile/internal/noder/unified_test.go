@@ -59,7 +59,7 @@ func TestUnifiedCompare(t *testing.T) {
 			}
 
 			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0")
-			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0")
+			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
 
 			if len(pkgs1) != len(pkgs2) {
 				t.Fatalf("length mismatch: %v != %v", len(pkgs1), len(pkgs2))

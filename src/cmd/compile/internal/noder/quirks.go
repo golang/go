@@ -23,10 +23,7 @@ import (
 // quirksMode controls whether behavior specific to satisfying
 // toolstash -cmp is used.
 func quirksMode() bool {
-	// Currently, unified IR doesn't try to be compatible with
-	// -d=inlfuncswithclosures=1, so we overload this as a flag for
-	// enabling quirks mode.
-	return base.Debug.InlFuncsWithClosures == 0
+	return base.Debug.UnifiedQuirks != 0
 }
 
 // posBasesOf returns all of the position bases in the source files,
