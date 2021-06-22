@@ -43,7 +43,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	default:
 		base.Fatalf("unexpected expr: %s %v", n.Op().String(), n)
 
-	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OTYPE, ir.OMETHEXPR, ir.OLINKSYMOFFSET:
+	case ir.OLITERAL, ir.ONIL, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OTYPE, ir.OMETHEXPR, ir.OLINKSYMOFFSET:
 		// nop
 
 	case ir.ONAME:
@@ -138,7 +138,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		n := n.(*ir.UnaryExpr)
 		e.discard(n.X)
 
-	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER, ir.OUNSAFEADD, ir.OUNSAFESLICE:
 		e.call([]hole{k}, n)
 
 	case ir.ONEW:
@@ -157,9 +157,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		n := n.(*ir.MakeExpr)
 		e.spill(k, n)
 		e.discard(n.Len)
-
-	case ir.ORECOVER:
-		// nop
 
 	case ir.OCALLPART:
 		// Flow the receiver argument to both the closure and

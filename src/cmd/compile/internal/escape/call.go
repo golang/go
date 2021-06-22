@@ -123,11 +123,14 @@ func (e *escape) callCommon(ks []hole, call ir.Node, where *ir.GoDeferStmt) {
 		call := call.(*ir.BinaryExpr)
 		argument(e.discardHole(), &call.X)
 		argument(e.discardHole(), &call.Y)
+
 	case ir.ODELETE, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
 		call := call.(*ir.CallExpr)
+		fixRecoverCall(call)
 		for i := range call.Args {
 			argument(e.discardHole(), &call.Args[i])
 		}
+
 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)

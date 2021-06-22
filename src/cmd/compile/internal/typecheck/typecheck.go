@@ -776,6 +776,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
+	case ir.ORECOVERFP:
+		n := n.(*ir.CallExpr)
+		return tcRecoverFP(n)
+
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeAdd(n)
@@ -806,6 +810,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		n.X = Expr(n.X)
+		n.SetType(types.Types[types.TUINTPTR])
+		return n
+
+	case ir.OGETCALLERPC, ir.OGETCALLERSP:
+		n := n.(*ir.CallExpr)
+		if len(n.Args) != 0 {
+			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)
+		}
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
