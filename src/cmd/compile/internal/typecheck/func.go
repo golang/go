@@ -967,6 +967,21 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 	return n
 }
 
+// tcRecoverFP typechecks an ORECOVERFP node.
+func tcRecoverFP(n *ir.CallExpr) ir.Node {
+	if len(n.Args) != 1 {
+		base.FatalfAt(n.Pos(), "wrong number of arguments: %v", n)
+	}
+
+	n.Args[0] = Expr(n.Args[0])
+	if !n.Args[0].Type().IsPtrShaped() {
+		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.Args[0])
+	}
+
+	n.SetType(types.Types[types.TINTER])
+	return n
+}
+
 // tcUnsafeAdd typechecks an OUNSAFEADD node.
 func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 	if !types.AllowsGoVersion(curpkg(), 1, 17) {

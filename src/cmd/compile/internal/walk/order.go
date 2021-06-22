@@ -777,10 +777,10 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
-	case ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+	case ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
-		o.exprList(n.Args)
+		o.call(n)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
@@ -790,13 +790,6 @@ func (o *orderState) stmt(n ir.Node) {
 		t := o.markTemp()
 		o.init(n.Call)
 		o.call(n.Call)
-		if n.Call.Op() == ir.ORECOVER {
-			// Special handling of "defer recover()". We need to evaluate the FP
-			// argument before wrapping.
-			var init ir.Nodes
-			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
-			o.stmtList(init)
-		}
 		o.wrapGoDefer(n)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
@@ -1270,7 +1263,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.OMAKESLICECOPY,
 		ir.ONEW,
 		ir.OREAL,
-		ir.ORECOVER,
+		ir.ORECOVERFP,
 		ir.OSTR2BYTES,
 		ir.OSTR2BYTESTMP,
 		ir.OSTR2RUNES:
