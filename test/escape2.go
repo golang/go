@@ -667,13 +667,13 @@ func foo76e() {
 func foo76f() {
 	for {
 		// TODO: This one really only escapes its scope, but we don't distinguish yet.
-		defer myprint(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+		defer myprint(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
 	}
 }
 
 func foo76g() {
 	for {
-		defer myprint1(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+		defer myprint1(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
 	}
 }
 
@@ -1148,16 +1148,16 @@ L100:
 
 func foo121() {
 	for i := 0; i < 10; i++ {
-		defer myprint(nil, i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
-		go myprint(nil, i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
+		defer myprint(nil, i) // ERROR "... argument does not escape$" "i escapes to heap$"
+		go myprint(nil, i)    // ERROR "... argument does not escape$" "i escapes to heap$"
 	}
 }
 
 // same as foo121 but check across import
 func foo121b() {
 	for i := 0; i < 10; i++ {
-		defer fmt.Printf("%d", i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
-		go fmt.Printf("%d", i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
+		defer fmt.Printf("%d", i) // ERROR "... argument does not escape$" "i escapes to heap$"
+		go fmt.Printf("%d", i)    // ERROR "... argument does not escape$" "i escapes to heap$"
 	}
 }
 

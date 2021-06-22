@@ -282,6 +282,11 @@ func (b *batch) finish(fns []*ir.Func) {
 
 		// Update n.Esc based on escape analysis results.
 
+		// Omit escape diagnostics for go/defer wrappers, at least for now.
+		// Historically, we haven't printed them, and test cases don't expect them.
+		// TODO(mdempsky): Update tests to expect this.
+		goDeferWrapper := n.Op() == ir.OCLOSURE && n.(*ir.ClosureExpr).Func.Wrapper()
+
 		if loc.escapes {
 			if n.Op() == ir.ONAME {
 				if base.Flag.CompilingRuntime {
@@ -291,7 +296,7 @@ func (b *batch) finish(fns []*ir.Func) {
 					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
 				}
 			} else {
-				if base.Flag.LowerM != 0 {
+				if base.Flag.LowerM != 0 && !goDeferWrapper {
 					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
 				}
 				if logopt.Enabled() {
@@ -301,7 +306,7 @@ func (b *batch) finish(fns []*ir.Func) {
 			}
 			n.SetEsc(ir.EscHeap)
 		} else {
-			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
+			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME && !goDeferWrapper {
 				base.WarnfAt(n.Pos(), "%v does not escape", n)
 			}
 			n.SetEsc(ir.EscNone)
