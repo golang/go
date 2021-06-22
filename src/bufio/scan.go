@@ -95,7 +95,7 @@ func NewScanner(r io.Reader) *Scanner {
 
 // Err returns the first non-EOF error that was encountered by the Scanner.
 func (s *Scanner) Err() error {
-	if s.err == io.EOF {
+	if errors.Is(s.err, io.EOF) {
 		return nil
 	}
 	return s.err
@@ -146,7 +146,7 @@ func (s *Scanner) Scan() bool {
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
-				if err == ErrFinalToken {
+				if errors.Is(err, ErrFinalToken) {
 					s.token = token
 					s.done = true
 					return true
@@ -251,7 +251,7 @@ func (s *Scanner) advance(n int) bool {
 
 // setErr records the first error encountered.
 func (s *Scanner) setErr(err error) {
-	if s.err == nil || s.err == io.EOF {
+	if s.err == nil || errors.Is(s.err, io.EOF) {
 		s.err = err
 	}
 }

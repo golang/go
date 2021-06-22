@@ -47,7 +47,7 @@ func readBytes(buf *Reader) string {
 	nb := 0
 	for {
 		c, err := buf.ReadByte()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err == nil {
@@ -966,7 +966,7 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 			return
 		}
 		if err != e.err {
-			t.Errorf("%q call %d, err == %v, want %v", input, i, err, e.err)
+			t.Errorf("%q call %d, got err %v, want %v", input, i, err, e.err)
 			return
 		}
 	}

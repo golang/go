@@ -211,7 +211,7 @@ func findPkgs(profiles []*cover.Profile) (map[string]*Pkg, error) {
 	for {
 		var pkg Pkg
 		err := dec.Decode(&pkg)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

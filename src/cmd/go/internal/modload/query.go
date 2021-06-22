@@ -129,7 +129,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 	// Parse query to detect parse errors (and possibly handle query)
 	// before any network I/O.
 	qm, err := newQueryMatcher(path, query, current, allowed)
-	if (err == nil && qm.canStat) || err == errRevQuery {
+	if (err == nil && qm.canStat) || errors.Is(err, errRevQuery) {
 		// Direct lookup of a commit identifier or complete (non-prefix) semantic
 		// version.
 

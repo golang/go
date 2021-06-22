@@ -146,7 +146,7 @@ var errExcluded = &excludedError{}
 type excludedError struct{}
 
 func (e *excludedError) Error() string     { return "excluded by go.mod" }
-func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
+func (e *excludedError) Is(err error) bool { return errors.Is(err, ErrDisallowed) }
 
 // CheckRetractions returns an error if module m has been retracted by
 // its author.
@@ -225,7 +225,7 @@ func (e *ModuleRetractedError) Error() string {
 }
 
 func (e *ModuleRetractedError) Is(err error) bool {
-	return err == ErrDisallowed
+	return errors.Is(err, ErrDisallowed)
 }
 
 type retractionLoadingError struct {

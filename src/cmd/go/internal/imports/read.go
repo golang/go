@@ -252,7 +252,7 @@ func ReadImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte
 
 	// If we stopped for a syntax error, consume the whole file so that
 	// we are sure we don't change the errors that go/parser returns.
-	if r.err == errSyntax && !reportSyntaxError {
+	if errors.Is(r.err, errSyntax) && !reportSyntaxError {
 		r.err = nil
 		for r.err == nil && !r.eof {
 			r.readByte()

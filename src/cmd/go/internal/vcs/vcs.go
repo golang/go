@@ -799,7 +799,7 @@ const (
 // version control system, and code repository to use.
 func RepoRootForImportPath(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
 	rr, err := repoRootFromVCSPaths(importPath, security, vcsPaths)
-	if err == errUnknownSite {
+	if errors.Is(err, errUnknownSite) {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
 			err = importErrorf(importPath, "unrecognized import path %q: %v", importPath, err)

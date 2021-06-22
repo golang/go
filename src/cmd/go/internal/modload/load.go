@@ -268,7 +268,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				for _, dir := range m.Dirs {
 					pkg, err := resolveLocalPackage(ctx, dir, rs)
 					if err != nil {
-						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+						if !m.IsLiteral() && (errors.Is(err, errPkgIsBuiltin) || errors.Is(err, errPkgIsGorootSrc)) {
 							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
 						}
 
