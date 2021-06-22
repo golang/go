@@ -587,16 +587,15 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		if sig.params != nil {
 			params = sig.params.vars
 		}
-		// Be consistent about named/unnamed parameters.
-		needName := true
-		for _, param := range params {
-			if param.Name() == "" {
-				needName = false
-				break
-			}
-		}
+		// Be consistent about named/unnamed parameters. This is not needed
+		// for type-checking, but the newly constructed signature may appear
+		// in an error message and then have mixed named/unnamed parameters.
+		// (An alternative would be to not print parameter names in errors,
+		// but it's useful to see them; this is cheap and method expressions
+		// are rare.)
 		name := ""
-		if needName {
+		if len(params) > 0 && params[0].name != "" {
+			// name needed
 			name = sig.recv.name
 			if name == "" {
 				name = "_"
