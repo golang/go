@@ -237,6 +237,7 @@ const (
 	OSLICE3ARR   // X[Low : High : Max] (X is pointer to array)
 	OSLICEHEADER // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
 	ORECOVER     // recover()
+	ORECOVERFP   // recover(Args) w/ explicit FP argument
 	ORECV        // <-X
 	ORUNESTR     // Type(X) (Type is string, X is rune)
 	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
@@ -318,8 +319,10 @@ const (
 	OLINKSYMOFFSET // offset within a name
 
 	// arch-specific opcodes
-	OTAILCALL // tail call to another function
-	OGETG     // runtime.getg() (read g pointer)
+	OTAILCALL    // tail call to another function
+	OGETG        // runtime.getg() (read g pointer)
+	OGETCALLERPC // runtime.getcallerpc() (continuation PC in caller frame)
+	OGETCALLERSP // runtime.getcallersp() (stack pointer in caller frame)
 
 	OEND
 )
