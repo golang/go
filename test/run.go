@@ -1756,6 +1756,7 @@ var (
 		"ppc64le": {"GOPPC64", "power8", "power9"},
 		"s390x":   {},
 		"wasm":    {},
+		"riscv64": {},
 	}
 )
 
