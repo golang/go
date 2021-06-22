@@ -9,7 +9,6 @@ import (
 	"go/constant"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/escape"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticinit"
@@ -554,37 +553,46 @@ func (o *orderState) call(nn ir.Node) {
 	n.X = o.expr(n.X, nil)
 	o.exprList(n.Args)
 
-	if n.Op() == ir.OCALLINTER {
+	// Pick out the function callee, if statically known.
+	// TODO(mdempsky): De-duplicate with similar code in escape analysis.
+	var callee *ir.Func
+	switch n.Op() {
+	case ir.OCALLFUNC:
+		if fn, ok := n.X.(*ir.Name); ok && fn.Op() == ir.ONAME && fn.Class == ir.PFUNC {
+			callee = fn.Func
+		}
+	case ir.OCALLMETH:
+		callee = ir.MethodExprName(n.X).Func
+	}
+
+	if callee == nil || callee.Pragma&ir.UintptrKeepAlive == 0 {
 		return
 	}
-	keepAlive := func(arg ir.Node) {
+
+	keepAlive := func(args []ir.Node) {
 		// If the argument is really a pointer being converted to uintptr,
 		// arrange for the pointer to be kept alive until the call returns,
 		// by copying it into a temp and marking that temp
 		// still alive when we pop the temp stack.
-		if arg.Op() == ir.OCONVNOP {
-			arg := arg.(*ir.ConvExpr)
-			if arg.X.Type().IsUnsafePtr() {
-				x := o.copyExpr(arg.X)
-				arg.X = x
-				x.SetAddrtaken(true) // ensure SSA keeps the x variable
-				n.KeepAlive = append(n.KeepAlive, x)
+		for _, arg := range args {
+			if arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() {
+				arg := arg.(*ir.ConvExpr)
+				if arg.X.Type().IsUnsafePtr() {
+					x := o.copyExpr(arg.X)
+					arg.X = x
+					x.SetAddrtaken(true) // ensure SSA keeps the x variable
+					n.KeepAlive = append(n.KeepAlive, x)
+				}
 			}
 		}
 	}
 
-	// Check for "unsafe-uintptr" tag provided by escape analysis.
-	for i, param := range n.X.Type().Params().FieldSlice() {
-		if param.Note == escape.UnsafeUintptrNote || param.Note == escape.UintptrEscapesNote {
-			if arg := n.Args[i]; arg.Op() == ir.OSLICELIT {
-				arg := arg.(*ir.CompLitExpr)
-				for _, elt := range arg.List {
-					keepAlive(elt)
-				}
-			} else {
-				keepAlive(arg)
-			}
-		}
+	last := len(n.Args) - 1
+	if n.IsDDD && n.Args[last].Op() == ir.OSLICELIT {
+		keepAlive(n.Args[:last])
+		keepAlive(n.Args[last].(*ir.CompLitExpr).List)
+	} else {
+		keepAlive(n.Args)
 	}
 }
 

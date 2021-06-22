@@ -1132,7 +1132,7 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 
 	// Call to previously tagged function.
 
-	if param.Note == UintptrEscapesNote {
+	if fn.Func != nil && fn.Func.Pragma&ir.UintptrEscapes != 0 && (param.Type.IsUintptr() || param.IsDDD() && param.Type.Elem().IsUintptr()) {
 		k := e.heapHole()
 		k.uintptrEscapesHack = true
 		return k
@@ -2048,15 +2048,6 @@ func HeapAllocReason(n ir.Node) string {
 	return ""
 }
 
-// This special tag is applied to uintptr variables
-// that we believe may hold unsafe.Pointers for
-// calls into assembly functions.
-const UnsafeUintptrNote = "unsafe-uintptr"
-
-// This special tag is applied to uintptr parameters of functions
-// marked go:uintptrescapes.
-const UintptrEscapesNote = "uintptr-escapes"
-
 func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	name := func() string {
 		if f.Sym != nil {
@@ -2072,11 +2063,13 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		// This really doesn't have much to do with escape analysis per se,
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
+		fn.Pragma |= ir.UintptrKeepAlive
+
 		if f.Type.IsUintptr() {
 			if base.Flag.LowerM != 0 {
 				base.WarnfAt(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
-			return UnsafeUintptrNote
+			return ""
 		}
 
 		if !f.Type.HasPointers() { // don't bother tagging for scalars
@@ -2102,18 +2095,20 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	}
 
 	if fn.Pragma&ir.UintptrEscapes != 0 {
+		fn.Pragma |= ir.UintptrKeepAlive
+
 		if f.Type.IsUintptr() {
 			if base.Flag.LowerM != 0 {
 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())
 			}
-			return UintptrEscapesNote
+			return ""
 		}
 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
 			// final argument is ...uintptr.
 			if base.Flag.LowerM != 0 {
 				base.WarnfAt(f.Pos, "marking %v as escaping ...uintptr", name())
 			}
-			return UintptrEscapesNote
+			return ""
 		}
 	}
 
