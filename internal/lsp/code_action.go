@@ -289,8 +289,8 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 	}
 	puri := protocol.URIFromSpanURI(uri)
 	var commands []protocol.Command
-	if _, ok, _ := source.CanExtractFunction(snapshot.FileSet(), srng, pgf.Src, pgf.File); ok {
-		cmd, err := command.NewApplyFixCommand("Extract to function", command.ApplyFixArgs{
+	if _, ok, methodOk, _ := source.CanExtractFunction(snapshot.FileSet(), srng, pgf.Src, pgf.File); ok {
+		cmd, err := command.NewApplyFixCommand("Extract function", command.ApplyFixArgs{
 			URI:   puri,
 			Fix:   source.ExtractFunction,
 			Range: rng,
@@ -299,6 +299,17 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 			return nil, err
 		}
 		commands = append(commands, cmd)
+		if methodOk {
+			cmd, err := command.NewApplyFixCommand("Extract method", command.ApplyFixArgs{
+				URI:   puri,
+				Fix:   source.ExtractMethod,
+				Range: rng,
+			})
+			if err != nil {
+				return nil, err
+			}
+			commands = append(commands, cmd)
+		}
 	}
 	if _, _, ok, _ := source.CanExtractVariable(srng, pgf.File); ok {
 		cmd, err := command.NewApplyFixCommand("Extract variable", command.ApplyFixArgs{

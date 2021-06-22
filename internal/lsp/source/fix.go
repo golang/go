@@ -32,6 +32,7 @@ const (
 	UndeclaredName  = "undeclared_name"
 	ExtractVariable = "extract_variable"
 	ExtractFunction = "extract_function"
+	ExtractMethod   = "extract_method"
 )
 
 // suggestedFixes maps a suggested fix command id to its handler.
@@ -40,6 +41,7 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 	UndeclaredName:  undeclaredname.SuggestedFix,
 	ExtractVariable: extractVariable,
 	ExtractFunction: extractFunction,
+	ExtractMethod:   extractMethod,
 }
 
 func SuggestedFixFromCommand(cmd protocol.Command, kind protocol.CodeActionKind) SuggestedFix {

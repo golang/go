@@ -139,11 +139,17 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 // Possible collisions include other function and variable names. Returns the next index to check for prefix.
 func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) (string, int) {
 	scopes := CollectScopes(info, path, pos)
+	return generateIdentifier(idx, prefix, func(name string) bool {
+		return file.Scope.Lookup(name) != nil || !isValidName(name, scopes)
+	})
+}
+
+func generateIdentifier(idx int, prefix string, hasCollision func(string) bool) (string, int) {
 	name := prefix
 	if idx != 0 {
 		name += fmt.Sprintf("%d", idx)
 	}
-	for file.Scope.Lookup(name) != nil || !isValidName(name, scopes) {
+	for hasCollision(name) {
 		idx++
 		name = fmt.Sprintf("%v%d", prefix, idx)
 	}
@@ -177,28 +183,42 @@ type returnVariable struct {
 	zeroVal ast.Expr
 }
 
+// extractMethod refactors the selected block of code into a new method.
+func extractMethod(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+	return extractFunctionMethod(fset, rng, src, file, pkg, info, true)
+}
+
 // extractFunction refactors the selected block of code into a new function.
+func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+	return extractFunctionMethod(fset, rng, src, file, pkg, info, false)
+}
+
+// extractFunctionMethod refactors the selected block of code into a new function/method.
 // It also replaces the selected block of code with a call to the extracted
 // function. First, we manually adjust the selection range. We remove trailing
 // and leading whitespace characters to ensure the range is precisely bounded
 // by AST nodes. Next, we determine the variables that will be the parameters
-// and return values of the extracted function. Lastly, we construct the call
-// of the function and insert this call as well as the extracted function into
+// and return values of the extracted function/method. Lastly, we construct the call
+// of the function/method and insert this call as well as the extracted function/method into
 // their proper locations.
-func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	p, ok, err := CanExtractFunction(fset, rng, src, file)
-	if !ok {
-		return nil, fmt.Errorf("extractFunction: cannot extract %s: %v",
+func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info, isMethod bool) (*analysis.SuggestedFix, error) {
+	errorPrefix := "extractFunction"
+	if isMethod {
+		errorPrefix = "extractMethod"
+	}
+	p, ok, methodOk, err := CanExtractFunction(fset, rng, src, file)
+	if (!ok && !isMethod) || (!methodOk && isMethod) {
+		return nil, fmt.Errorf("%s: cannot extract %s: %v", errorPrefix,
 			fset.Position(rng.Start), err)
 	}
 	tok, path, rng, outer, start := p.tok, p.path, p.rng, p.outer, p.start
 	fileScope := info.Scopes[file]
 	if fileScope == nil {
-		return nil, fmt.Errorf("extractFunction: file scope is empty")
+		return nil, fmt.Errorf("%s: file scope is empty", errorPrefix)
 	}
 	pkgScope := fileScope.Parent()
 	if pkgScope == nil {
-		return nil, fmt.Errorf("extractFunction: package scope is empty")
+		return nil, fmt.Errorf("%s: package scope is empty", errorPrefix)
 	}
 
 	// A return statement is non-nested if its parent node is equal to the parent node
@@ -233,6 +253,25 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	variables, err := collectFreeVars(info, file, fileScope, pkgScope, rng, path[0])
 	if err != nil {
 		return nil, err
+	}
+
+	var (
+		receiverUsed bool
+		receiver     *ast.Field
+		receiverName string
+		receiverObj  types.Object
+	)
+	if isMethod {
+		if outer == nil || outer.Recv == nil || len(outer.Recv.List) == 0 {
+			return nil, fmt.Errorf("%s: cannot extract need method receiver", errorPrefix)
+		}
+		receiver = outer.Recv.List[0]
+		if len(receiver.Names) == 0 || receiver.Names[0] == nil {
+			return nil, fmt.Errorf("%s: cannot extract need method receiver name", errorPrefix)
+		}
+		recvName := receiver.Names[0]
+		receiverName = recvName.Name
+		receiverObj = info.ObjectOf(recvName)
 	}
 
 	var (
@@ -308,6 +347,11 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 		// extracted function. (1) it must be free (isFree), and (2) its first
 		// use within the selection cannot be its own definition (isDefined).
 		if v.free && !v.defined {
+			// Skip the selector for a method.
+			if isMethod && v.obj == receiverObj {
+				receiverUsed = true
+				continue
+			}
 			params = append(params, identifier)
 			paramTypes = append(paramTypes, &ast.Field{
 				Names: []*ast.Ident{identifier},
@@ -471,9 +515,17 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if canDefine {
 		sym = token.DEFINE
 	}
-	funName, _ := generateAvailableIdentifier(rng.Start, file, path, info, "newFunction", 0)
+	var name, funName string
+	if isMethod {
+		name = "newMethod"
+		// TODO(suzmue): generate a name that does not conflict for "newMethod".
+		funName = name
+	} else {
+		name = "newFunction"
+		funName, _ = generateAvailableIdentifier(rng.Start, file, path, info, name, 0)
+	}
 	extractedFunCall := generateFuncCall(hasNonNestedReturn, hasReturnValues, params,
-		append(returns, getNames(retVars)...), funName, sym)
+		append(returns, getNames(retVars)...), funName, sym, receiverName)
 
 	// Build the extracted function.
 	newFunc := &ast.FuncDecl{
@@ -483,6 +535,18 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 			Results: &ast.FieldList{List: append(returnTypes, getDecls(retVars)...)},
 		},
 		Body: extractedBlock,
+	}
+	if isMethod {
+		var names []*ast.Ident
+		if receiverUsed {
+			names = append(names, ast.NewIdent(receiverName))
+		}
+		newFunc.Recv = &ast.FieldList{
+			List: []*ast.Field{{
+				Names: names,
+				Type:  receiver.Type,
+			}},
+		}
 	}
 
 	// Create variable declarations for any identifiers that need to be initialized prior to
@@ -844,24 +908,24 @@ type fnExtractParams struct {
 
 // CanExtractFunction reports whether the code in the given range can be
 // extracted to a function.
-func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, error) {
+func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, bool, error) {
 	if rng.Start == rng.End {
-		return nil, false, fmt.Errorf("start and end are equal")
+		return nil, false, false, fmt.Errorf("start and end are equal")
 	}
 	tok := fset.File(file.Pos())
 	if tok == nil {
-		return nil, false, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
+		return nil, false, false, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
 	rng = adjustRangeForWhitespace(rng, tok, src)
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
-		return nil, false, fmt.Errorf("no path enclosing interval")
+		return nil, false, false, fmt.Errorf("no path enclosing interval")
 	}
 	// Node that encloses the selection must be a statement.
 	// TODO: Support function extraction for an expression.
 	_, ok := path[0].(ast.Stmt)
 	if !ok {
-		return nil, false, fmt.Errorf("node is not a statement")
+		return nil, false, false, fmt.Errorf("node is not a statement")
 	}
 
 	// Find the function declaration that encloses the selection.
@@ -873,7 +937,7 @@ func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 		}
 	}
 	if outer == nil {
-		return nil, false, fmt.Errorf("no enclosing function")
+		return nil, false, false, fmt.Errorf("no enclosing function")
 	}
 
 	// Find the nodes at the start and end of the selection.
@@ -893,7 +957,7 @@ func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 		return n.Pos() <= rng.End
 	})
 	if start == nil || end == nil {
-		return nil, false, fmt.Errorf("range does not map to AST nodes")
+		return nil, false, false, fmt.Errorf("range does not map to AST nodes")
 	}
 	return &fnExtractParams{
 		tok:   tok,
@@ -901,7 +965,7 @@ func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 		rng:   rng,
 		outer: outer,
 		start: start,
-	}, true, nil
+	}, true, outer.Recv != nil, nil
 }
 
 // objUsed checks if the object is used within the range. It returns the first
@@ -1089,13 +1153,22 @@ func adjustReturnStatements(returnTypes []*ast.Field, seenVars map[types.Object]
 
 // generateFuncCall constructs a call expression for the extracted function, described by the
 // given parameters and return variables.
-func generateFuncCall(hasNonNestedReturn, hasReturnVals bool, params, returns []ast.Expr, name string, token token.Token) ast.Node {
+func generateFuncCall(hasNonNestedReturn, hasReturnVals bool, params, returns []ast.Expr, name string, token token.Token, selector string) ast.Node {
 	var replace ast.Node
-	if hasReturnVals {
-		callExpr := &ast.CallExpr{
-			Fun:  ast.NewIdent(name),
+	callExpr := &ast.CallExpr{
+		Fun:  ast.NewIdent(name),
+		Args: params,
+	}
+	if selector != "" {
+		callExpr = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent(selector),
+				Sel: ast.NewIdent(name),
+			},
 			Args: params,
 		}
+	}
+	if hasReturnVals {
 		if hasNonNestedReturn {
 			// Create a return statement that returns the result of the function call.
 			replace = &ast.ReturnStmt{
@@ -1111,10 +1184,7 @@ func generateFuncCall(hasNonNestedReturn, hasReturnVals bool, params, returns []
 			}
 		}
 	} else {
-		replace = &ast.CallExpr{
-			Fun:  ast.NewIdent(name),
-			Args: params,
-		}
+		replace = callExpr
 	}
 	return replace
 }

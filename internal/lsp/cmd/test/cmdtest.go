@@ -100,6 +100,10 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	//TODO: function extraction not supported on command line
 }
 
+func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) {
+	//TODO: function extraction not supported on command line
+}
+
 func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string) {
 	//TODO: import addition not supported on command line
 }

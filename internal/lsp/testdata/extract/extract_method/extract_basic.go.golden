@@ -1,0 +1,728 @@
+-- functionextraction_extract_basic_13_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := newFunction(a) //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(a *A) int {
+	sum := a.x + a.y
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_basic_14_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return newFunction(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(sum int) int {
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_basic_18_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return newFunction(a) //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func newFunction(a A) bool {
+	return a.x < a.y
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_basic_22_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := newFunction(a) //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(a A) int {
+	sum := a.x + a.y
+	return sum
+}
+
+-- functionextraction_extract_basic_23_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return newFunction(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(sum int) int {
+	return sum
+}
+
+-- functionextraction_extract_basic_9_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return newFunction(a) //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func newFunction(a *A) bool {
+	return a.x < a.y
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_method_13_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := newFunction(a) //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(a *A) int {
+	sum := a.x + a.y
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_method_14_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return newFunction(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(sum int) int {
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_method_18_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return newFunction(a) //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func newFunction(a A) bool {
+	return a.x < a.y
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- functionextraction_extract_method_22_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := newFunction(a) //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(a A) int {
+	sum := a.x + a.y
+	return sum
+}
+
+-- functionextraction_extract_method_23_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return newFunction(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func newFunction(sum int) int {
+	return sum
+}
+
+-- functionextraction_extract_method_9_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return newFunction(a) //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func newFunction(a *A) bool {
+	return a.x < a.y
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_basic_13_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.newMethod() //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a *A) newMethod() int {
+	sum := a.x + a.y
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_basic_14_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return a.newMethod(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (*A) newMethod(sum int) int {
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_basic_18_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.newMethod() //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) newMethod() bool {
+	return a.x < a.y
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_basic_22_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.newMethod() //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) newMethod() int {
+	sum := a.x + a.y
+	return sum
+}
+
+-- methodextraction_extract_basic_23_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return a.newMethod(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (A) newMethod(sum int) int {
+	return sum
+}
+
+-- methodextraction_extract_basic_9_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.newMethod() //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) newMethod() bool {
+	return a.x < a.y
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_method_13_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.newMethod() //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a *A) newMethod() int {
+	sum := a.x + a.y
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_method_14_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return a.newMethod(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (*A) newMethod(sum int) int {
+	return sum
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_method_18_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.newMethod() //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) newMethod() bool {
+	return a.x < a.y
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+-- methodextraction_extract_method_22_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.newMethod() //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) newMethod() int {
+	sum := a.x + a.y
+	return sum
+}
+
+-- methodextraction_extract_method_23_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return a.newMethod(sum)       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (A) newMethod(sum int) int {
+	return sum
+}
+
+-- methodextraction_extract_method_9_2 --
+package extract
+
+type A struct {
+	x int
+	y int
+}
+
+func (a *A) XLessThanYP() bool {
+	return a.newMethod() //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a *A) newMethod() bool {
+	return a.x < a.y
+}
+
+func (a *A) AddP() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
+func (a A) XLessThanY() bool {
+	return a.x < a.y //@extractmethod("return", "a.y"),extractfunc("return", "a.y")
+}
+
+func (a A) Add() int {
+	sum := a.x + a.y //@extractmethod("sum", "a.y"),extractfunc("sum", "a.y")
+	return sum       //@extractmethod("return", "sum"),extractfunc("return", "sum")
+}
+
