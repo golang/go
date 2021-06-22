@@ -129,10 +129,6 @@ type hole struct {
 	// the expression, independent of whether the address will actually
 	// be stored into a variable.
 	addrtaken bool
-
-	// uintptrEscapesHack indicates this context is evaluating an
-	// argument for a //go:uintptrescapes function.
-	uintptrEscapesHack bool
 }
 
 type note struct {

@@ -30,12 +30,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		base.Pos = lno
 	}()
 
-	uintptrEscapesHack := k.uintptrEscapesHack
-	k.uintptrEscapesHack = false
-
-	if uintptrEscapesHack && n.Op() == ir.OCONVNOP && n.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
-		// nop
-	} else if k.derefs >= 0 && !n.Type().HasPointers() {
+	if k.derefs >= 0 && !n.Type().HasPointers() {
 		k.dst = &e.blankLoc
 	}
 
@@ -198,7 +193,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
 		k = e.spill(k, n)
-		k.uintptrEscapesHack = uintptrEscapesHack // for ...uintptr parameters
 
 		for _, elt := range n.List {
 			if elt.Op() == ir.OKEY {

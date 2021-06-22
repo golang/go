@@ -278,6 +278,17 @@ func PkgFuncName(f *Func) string {
 
 var CurFunc *Func
 
+// WithFunc invokes do with CurFunc and base.Pos set to curfn and
+// curfn.Pos(), respectively, and then restores their previous values
+// before returning.
+func WithFunc(curfn *Func, do func()) {
+	oldfn, oldpos := CurFunc, base.Pos
+	defer func() { CurFunc, base.Pos = oldfn, oldpos }()
+
+	CurFunc, base.Pos = curfn, curfn.Pos()
+	do()
+}
+
 func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
 }
