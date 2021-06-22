@@ -207,12 +207,15 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
 		t.Fatal("no source files")
 	}
 
+	if strings.HasSuffix(filenames[0], ".go2") && !typeparams.Enabled {
+		t.Skip("type params are not enabled")
+	}
+	if strings.HasSuffix(filenames[0], ".go1") && typeparams.Enabled {
+		t.Skip("type params are enabled")
+	}
+
 	mode := parser.AllErrors
-	if strings.HasSuffix(filenames[0], ".go2") {
-		if !typeparams.Enabled {
-			t.Skip("type params are not enabled")
-		}
-	} else {
+	if !strings.HasSuffix(filenames[0], ".go2") {
 		mode |= typeparams.DisallowParsing
 	}
 
