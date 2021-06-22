@@ -1794,6 +1794,7 @@ func isCommonNetReadError(err error) bool {
 func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
+	var inFlightResponse *response
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
 			const size = 64 << 10
@@ -1801,7 +1802,14 @@ func (c *conn) serve(ctx context.Context) {
 			buf = buf[:runtime.Stack(buf, false)]
 			c.server.logf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
 		}
+		if inFlightResponse != nil {
+			inFlightResponse.cancelCtx()
+		}
 		if !c.hijacked() {
+			if inFlightResponse != nil {
+				inFlightResponse.conn.r.abortPendingRead()
+				inFlightResponse.reqBody.Close()
+			}
 			c.close()
 			c.setState(c.rwc, StateClosed, runHooks)
 		}
@@ -1926,7 +1934,9 @@ func (c *conn) serve(ctx context.Context) {
 		// in parallel even if their responses need to be serialized.
 		// But we're not going to implement HTTP pipelining because it
 		// was never deployed in the wild and the answer is HTTP/2.
+		inFlightResponse = w
 		serverHandler{c.server}.ServeHTTP(w, w.req)
+		inFlightResponse = nil
 		w.cancelCtx()
 		if c.hijacked() {
 			return
