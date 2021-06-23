@@ -1564,11 +1564,10 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// TODO: maybe not wrap if the called function has no arguments and
 	// only in-register results?
 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
-		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
+		if callX.Op() == ir.OCLOSURE {
 			clo := callX.(*ir.ClosureExpr)
 			clo.Func.SetClosureCalled(false)
 			clo.IsGoWrap = true
-			c.PreserveClosure = true
 		}
 		return
 	}
@@ -1770,9 +1769,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// Create new top level call to closure over argless function.
 	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
 	typecheck.Call(topcall)
-
-	// Tag the call to insure that directClosureCall doesn't undo our work.
-	topcall.PreserveClosure = true
 
 	fn.SetClosureCalled(false)
 
