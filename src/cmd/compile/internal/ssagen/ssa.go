@@ -535,7 +535,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	}
 
 	// Populate closure variables.
-	if !fn.ClosureCalled() {
+	if fn.Needctxt() {
 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
 		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
 		for _, n := range fn.ClosureVars {
