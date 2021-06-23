@@ -157,13 +157,12 @@ const (
 type CallExpr struct {
 	miniExpr
 	origNode
-	X               Node
-	Args            Nodes
-	KeepAlive       []*Name // vars to be kept alive until call returns
-	IsDDD           bool
-	Use             CallUse
-	NoInline        bool
-	PreserveClosure bool // disable directClosureCall for this call
+	X         Node
+	Args      Nodes
+	KeepAlive []*Name // vars to be kept alive until call returns
+	IsDDD     bool
+	Use       CallUse
+	NoInline  bool
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {

@@ -204,7 +204,9 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
 	}
 
 	var init ir.Nodes
-	n.Call = walkExpr(n.Call, &init)
+
+	call := n.Call.(*ir.CallExpr)
+	call.X = walkExpr(call.X, &init)
 
 	if len(init) > 0 {
 		init.Append(n)
