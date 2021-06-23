@@ -189,7 +189,7 @@
 	When printing a struct, fmt cannot and therefore does not invoke
 	formatting methods such as Error or String on unexported fields.
 
-	Explicit argument indexes:
+	Explicit argument indexes
 
 	In Printf, Sprintf, and Fprintf, the default behavior is for each
 	formatting verb to format successive arguments passed in the call.
@@ -211,7 +211,7 @@
 		fmt.Sprintf("%d %d %#[1]x %#x", 16, 17)
 	will yield "16 17 0x10 0x11".
 
-	Format errors:
+	Format errors
 
 	If an invalid argument is given for a verb, such as providing
 	a string to %d, the generated string will contain a

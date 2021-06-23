@@ -233,8 +233,8 @@ func (f *file) Name() string {
 }
 
 func (f *file) ObjAddr(addr uint64) (uint64, error) {
-	// No support for shared libraries.
-	return 0, nil
+	// No support for shared libraries, so translation is a no-op.
+	return addr, nil
 }
 
 func (f *file) BuildID() string {

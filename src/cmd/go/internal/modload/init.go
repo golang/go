@@ -661,7 +661,7 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
 	for _, n := range mPathCount {
 		if n > 1 {
 			var err error
-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil)
+			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 			if err != nil {
 				base.Fatalf("go: %v", err)
 			}
@@ -999,9 +999,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			Indirect: !rs.direct[m.Path],
 		})
 	}
-	modFile.SetRequire(list)
 	if goVersion != "" {
 		modFile.AddGoStmt(goVersion)
+	}
+	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
+		modFile.SetRequire(list)
+	} else {
+		modFile.SetRequireSeparateIndirect(list)
 	}
 	modFile.Cleanup()
 
@@ -1122,12 +1126,11 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 		}
 	}
 
-	if rs.depth == lazy && rs.graph.Load() == nil {
-		// The main module is lazy and we haven't needed to load the module graph so
-		// far. Don't incur the cost of loading it now — since we haven't loaded the
-		// graph, we probably don't have any checksums to contribute to the distant
-		// parts of the graph anyway. Instead, just request sums for the roots that
-		// we know about.
+	if rs.graph.Load() == nil {
+		// The module graph was not loaded, possibly because the main module is lazy
+		// or possibly because we haven't needed to load the graph yet.
+		// Save sums for the root modules (or their replacements), but don't
+		// incur the cost of loading the graph just to find and retain the sums.
 		for _, m := range rs.rootModules {
 			r := resolveReplacement(m)
 			keep[modkey(r)] = true

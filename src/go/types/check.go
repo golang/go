@@ -179,9 +179,9 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		info = new(Info)
 	}
 
-	version, err := parseGoVersion(conf.GoVersion)
+	version, err := parseGoVersion(conf.goVersion)
 	if err != nil {
-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.goVersion, err))
 	}
 
 	return &Checker{

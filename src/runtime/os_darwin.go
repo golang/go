@@ -118,10 +118,15 @@ func sigNoteWakeup(*note) {
 
 // sigNoteSleep waits for a note created by sigNoteSetup to be woken.
 func sigNoteSleep(*note) {
-	entersyscallblock()
-	var b byte
-	read(sigNoteRead, unsafe.Pointer(&b), 1)
-	exitsyscall()
+	for {
+		var b byte
+		entersyscallblock()
+		n := read(sigNoteRead, unsafe.Pointer(&b), 1)
+		exitsyscall()
+		if n != -_EINTR {
+			return
+		}
+	}
 }
 
 // BSD interface for threading.

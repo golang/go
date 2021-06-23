@@ -383,7 +383,7 @@ func (check *Checker) collectObjects() {
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
-				if !d.decl.IsMethod() {
+				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
 						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")

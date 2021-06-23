@@ -6,7 +6,7 @@ package main
 
 /*
 typedef void callback(char*);
-extern void goBigStack1(char*);
+extern void CallGoBigStack1(char*);
 extern void bigStack(callback*);
 */
 import "C"
@@ -18,7 +18,7 @@ func init() {
 func BigStack() {
 	// Create a large thread stack and call back into Go to test
 	// if Go correctly determines the stack bounds.
-	C.bigStack((*C.callback)(C.goBigStack1))
+	C.bigStack((*C.callback)(C.CallGoBigStack1))
 }
 
 //export goBigStack1

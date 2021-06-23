@@ -396,17 +396,11 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 	}
 	hs.transcript.Write(encryptedExtensions.marshal())
 
-	if encryptedExtensions.alpnProtocol != "" {
-		if len(hs.hello.alpnProtocols) == 0 {
-			c.sendAlert(alertUnsupportedExtension)
-			return errors.New("tls: server advertised unrequested ALPN extension")
-		}
-		if mutualProtocol([]string{encryptedExtensions.alpnProtocol}, hs.hello.alpnProtocols) == "" {
-			c.sendAlert(alertUnsupportedExtension)
-			return errors.New("tls: server selected unadvertised ALPN protocol")
-		}
-		c.clientProtocol = encryptedExtensions.alpnProtocol
+	if err := checkALPN(hs.hello.alpnProtocols, encryptedExtensions.alpnProtocol); err != nil {
+		c.sendAlert(alertUnsupportedExtension)
+		return err
 	}
+	c.clientProtocol = encryptedExtensions.alpnProtocol
 
 	return nil
 }

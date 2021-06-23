@@ -722,14 +722,29 @@ func (t *tester) registerTests() {
 				},
 			})
 			if t.hasCxx() {
-				t.tests = append(t.tests, distTest{
-					name:    "swig_callback",
-					heading: "../misc/swig/callback",
-					fn: func(dt *distTest) error {
-						t.addCmd(dt, "misc/swig/callback", t.goTest())
-						return nil
+				t.tests = append(t.tests,
+					distTest{
+						name:    "swig_callback",
+						heading: "../misc/swig/callback",
+						fn: func(dt *distTest) error {
+							t.addCmd(dt, "misc/swig/callback", t.goTest())
+							return nil
+						},
 					},
-				})
+					distTest{
+						name:    "swig_callback_lto",
+						heading: "../misc/swig/callback",
+						fn: func(dt *distTest) error {
+							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
+							cmd.Env = append(os.Environ(),
+								"CGO_CFLAGS=-flto -Wno-lto-type-mismatch",
+								"CGO_CXXFLAGS=-flto -Wno-lto-type-mismatch",
+								"CGO_LDFLAGS=-flto -Wno-lto-type-mismatch",
+							)
+							return nil
+						},
+					},
+				)
 			}
 		}
 	}
@@ -1042,7 +1057,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
-			"windows-amd64", "windows-386":
+			"windows-amd64", "windows-386", "windows-arm64":
 			return true
 		}
 		return false

@@ -45,6 +45,17 @@ type Image interface {
 	At(x, y int) color.Color
 }
 
+// RGBA64Image is an Image whose pixels can be converted directly to a
+// color.RGBA64.
+type RGBA64Image interface {
+	// RGBA64At returns the RGBA64 color of the pixel at (x, y). It is
+	// equivalent to calling At(x, y).RGBA() and converting the resulting
+	// 32-bit return values to a color.RGBA64, but it can avoid allocations
+	// from converting concrete color types to the color.Color interface type.
+	RGBA64At(x, y int) color.RGBA64
+	Image
+}
+
 // PalettedImage is an image whose colors may come from a limited palette.
 // If m is a PalettedImage and m.ColorModel() returns a color.Palette p,
 // then m.At(x, y) should be equivalent to p[m.ColorIndexAt(x, y)]. If m's
@@ -90,6 +101,24 @@ func (p *RGBA) At(x, y int) color.Color {
 	return p.RGBAAt(x, y)
 }
 
+func (p *RGBA) RGBA64At(x, y int) color.RGBA64 {
+	if !(Point{x, y}.In(p.Rect)) {
+		return color.RGBA64{}
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	r := uint16(s[0])
+	g := uint16(s[1])
+	b := uint16(s[2])
+	a := uint16(s[3])
+	return color.RGBA64{
+		(r << 8) | r,
+		(g << 8) | g,
+		(b << 8) | b,
+		(a << 8) | a,
+	}
+}
+
 func (p *RGBA) RGBAAt(x, y int) color.RGBA {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.RGBA{}
@@ -116,6 +145,18 @@ func (p *RGBA) Set(x, y int, c color.Color) {
 	s[1] = c1.G
 	s[2] = c1.B
 	s[3] = c1.A
+}
+
+func (p *RGBA) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(c.R >> 8)
+	s[1] = uint8(c.G >> 8)
+	s[2] = uint8(c.B >> 8)
+	s[3] = uint8(c.A >> 8)
 }
 
 func (p *RGBA) SetRGBA(x, y int, c color.RGBA) {
@@ -311,6 +352,11 @@ func (p *NRGBA) At(x, y int) color.Color {
 	return p.NRGBAAt(x, y)
 }
 
+func (p *NRGBA) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.NRGBAAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
+}
+
 func (p *NRGBA) NRGBAAt(x, y int) color.NRGBA {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA{}
@@ -337,6 +383,24 @@ func (p *NRGBA) Set(x, y int, c color.Color) {
 	s[1] = c1.G
 	s[2] = c1.B
 	s[3] = c1.A
+}
+
+func (p *NRGBA) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	r, g, b, a := uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
+	if (a != 0) && (a != 0xffff) {
+		r = (r * 0xffff) / a
+		g = (g * 0xffff) / a
+		b = (b * 0xffff) / a
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(r >> 8)
+	s[1] = uint8(g >> 8)
+	s[2] = uint8(b >> 8)
+	s[3] = uint8(a >> 8)
 }
 
 func (p *NRGBA) SetNRGBA(x, y int, c color.NRGBA) {
@@ -415,6 +479,11 @@ func (p *NRGBA64) At(x, y int) color.Color {
 	return p.NRGBA64At(x, y)
 }
 
+func (p *NRGBA64) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.NRGBA64At(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
+}
+
 func (p *NRGBA64) NRGBA64At(x, y int) color.NRGBA64 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.NRGBA64{}
@@ -450,6 +519,28 @@ func (p *NRGBA64) Set(x, y int, c color.Color) {
 	s[5] = uint8(c1.B)
 	s[6] = uint8(c1.A >> 8)
 	s[7] = uint8(c1.A)
+}
+
+func (p *NRGBA64) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	r, g, b, a := uint32(c.R), uint32(c.G), uint32(c.B), uint32(c.A)
+	if (a != 0) && (a != 0xffff) {
+		r = (r * 0xffff) / a
+		g = (g * 0xffff) / a
+		b = (b * 0xffff) / a
+	}
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+8 : i+8] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = uint8(r >> 8)
+	s[1] = uint8(r)
+	s[2] = uint8(g >> 8)
+	s[3] = uint8(g)
+	s[4] = uint8(b >> 8)
+	s[5] = uint8(b)
+	s[6] = uint8(a >> 8)
+	s[7] = uint8(a)
 }
 
 func (p *NRGBA64) SetNRGBA64(x, y int, c color.NRGBA64) {
@@ -532,6 +623,12 @@ func (p *Alpha) At(x, y int) color.Color {
 	return p.AlphaAt(x, y)
 }
 
+func (p *Alpha) RGBA64At(x, y int) color.RGBA64 {
+	a := uint16(p.AlphaAt(x, y).A)
+	a |= a << 8
+	return color.RGBA64{a, a, a, a}
+}
+
 func (p *Alpha) AlphaAt(x, y int) color.Alpha {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha{}
@@ -552,6 +649,14 @@ func (p *Alpha) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	p.Pix[i] = color.AlphaModel.Convert(c).(color.Alpha).A
+}
+
+func (p *Alpha) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	p.Pix[i] = uint8(c.A >> 8)
 }
 
 func (p *Alpha) SetAlpha(x, y int, c color.Alpha) {
@@ -626,6 +731,11 @@ func (p *Alpha16) At(x, y int) color.Color {
 	return p.Alpha16At(x, y)
 }
 
+func (p *Alpha16) RGBA64At(x, y int) color.RGBA64 {
+	a := p.Alpha16At(x, y).A
+	return color.RGBA64{a, a, a, a}
+}
+
 func (p *Alpha16) Alpha16At(x, y int) color.Alpha16 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Alpha16{}
@@ -648,6 +758,15 @@ func (p *Alpha16) Set(x, y int, c color.Color) {
 	c1 := color.Alpha16Model.Convert(c).(color.Alpha16)
 	p.Pix[i+0] = uint8(c1.A >> 8)
 	p.Pix[i+1] = uint8(c1.A)
+}
+
+func (p *Alpha16) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	p.Pix[i+0] = uint8(c.A >> 8)
+	p.Pix[i+1] = uint8(c.A)
 }
 
 func (p *Alpha16) SetAlpha16(x, y int, c color.Alpha16) {
@@ -723,6 +842,12 @@ func (p *Gray) At(x, y int) color.Color {
 	return p.GrayAt(x, y)
 }
 
+func (p *Gray) RGBA64At(x, y int) color.RGBA64 {
+	gray := uint16(p.GrayAt(x, y).Y)
+	gray |= gray << 8
+	return color.RGBA64{gray, gray, gray, 0xffff}
+}
+
 func (p *Gray) GrayAt(x, y int) color.Gray {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray{}
@@ -743,6 +868,16 @@ func (p *Gray) Set(x, y int, c color.Color) {
 	}
 	i := p.PixOffset(x, y)
 	p.Pix[i] = color.GrayModel.Convert(c).(color.Gray).Y
+}
+
+func (p *Gray) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	// This formula is the same as in color.grayModel.
+	gray := (19595*uint32(c.R) + 38470*uint32(c.G) + 7471*uint32(c.B) + 1<<15) >> 24
+	i := p.PixOffset(x, y)
+	p.Pix[i] = uint8(gray)
 }
 
 func (p *Gray) SetGray(x, y int, c color.Gray) {
@@ -804,6 +939,11 @@ func (p *Gray16) At(x, y int) color.Color {
 	return p.Gray16At(x, y)
 }
 
+func (p *Gray16) RGBA64At(x, y int) color.RGBA64 {
+	gray := p.Gray16At(x, y).Y
+	return color.RGBA64{gray, gray, gray, 0xffff}
+}
+
 func (p *Gray16) Gray16At(x, y int) color.Gray16 {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.Gray16{}
@@ -826,6 +966,17 @@ func (p *Gray16) Set(x, y int, c color.Color) {
 	c1 := color.Gray16Model.Convert(c).(color.Gray16)
 	p.Pix[i+0] = uint8(c1.Y >> 8)
 	p.Pix[i+1] = uint8(c1.Y)
+}
+
+func (p *Gray16) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	// This formula is the same as in color.gray16Model.
+	gray := (19595*uint32(c.R) + 38470*uint32(c.G) + 7471*uint32(c.B) + 1<<15) >> 16
+	i := p.PixOffset(x, y)
+	p.Pix[i+0] = uint8(gray >> 8)
+	p.Pix[i+1] = uint8(gray)
 }
 
 func (p *Gray16) SetGray16(x, y int, c color.Gray16) {
@@ -888,6 +1039,11 @@ func (p *CMYK) At(x, y int) color.Color {
 	return p.CMYKAt(x, y)
 }
 
+func (p *CMYK) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.CMYKAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
+}
+
 func (p *CMYK) CMYKAt(x, y int) color.CMYK {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.CMYK{}
@@ -914,6 +1070,19 @@ func (p *CMYK) Set(x, y int, c color.Color) {
 	s[1] = c1.M
 	s[2] = c1.Y
 	s[3] = c1.K
+}
+
+func (p *CMYK) SetRGBA64(x, y int, c color.RGBA64) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	cc, mm, yy, kk := color.RGBToCMYK(uint8(c.R>>8), uint8(c.G>>8), uint8(c.B>>8))
+	i := p.PixOffset(x, y)
+	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
+	s[0] = cc
+	s[1] = mm
+	s[2] = yy
+	s[3] = kk
 }
 
 func (p *CMYK) SetCMYK(x, y int, c color.CMYK) {
@@ -988,6 +1157,26 @@ func (p *Paletted) At(x, y int) color.Color {
 	return p.Palette[p.Pix[i]]
 }
 
+func (p *Paletted) RGBA64At(x, y int) color.RGBA64 {
+	if len(p.Palette) == 0 {
+		return color.RGBA64{}
+	}
+	c := color.Color(nil)
+	if !(Point{x, y}.In(p.Rect)) {
+		c = p.Palette[0]
+	} else {
+		i := p.PixOffset(x, y)
+		c = p.Palette[p.Pix[i]]
+	}
+	r, g, b, a := c.RGBA()
+	return color.RGBA64{
+		uint16(r),
+		uint16(g),
+		uint16(b),
+		uint16(a),
+	}
+}
+
 // PixOffset returns the index of the first element of Pix that corresponds to
 // the pixel at (x, y).
 func (p *Paletted) PixOffset(x, y int) int {
@@ -995,6 +1184,14 @@ func (p *Paletted) PixOffset(x, y int) int {
 }
 
 func (p *Paletted) Set(x, y int, c color.Color) {
+	if !(Point{x, y}.In(p.Rect)) {
+		return
+	}
+	i := p.PixOffset(x, y)
+	p.Pix[i] = uint8(p.Palette.Index(c))
+}
+
+func (p *Paletted) SetRGBA64(x, y int, c color.RGBA64) {
 	if !(Point{x, y}.In(p.Rect)) {
 		return
 	}

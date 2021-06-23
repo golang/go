@@ -73,10 +73,9 @@ module example.com/m
 
 go $goversion
 
-require (
-	example.com/dep v0.1.0
-	example.com/testdep v0.1.0 // indirect
-)
+require example.com/dep v0.1.0
+
+require example.com/testdep v0.1.0 // indirect
 
 replace (
 	example.com/dep v0.1.0 => ./dep
