@@ -18,6 +18,7 @@ const (
 )
 
 func init() {
+	userImplemented = false
 	groupImplemented = false
 }
 
