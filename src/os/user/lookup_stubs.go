@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	groupImplemented = false
+	groupListImplemented = false
 }
 
 func current() (*User, error) {
