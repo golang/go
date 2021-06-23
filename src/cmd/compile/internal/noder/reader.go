@@ -345,7 +345,7 @@ func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.
 	// TODO(mdempsky): If we're clever, we should be able to still cache
 	// types by tracking which type parameters are used. However, in my
 	// attempts so far, I haven't yet succeeded in being clever enough.
-	if len(implicits)+len(explicits) == 0 {
+	if !r.hasTypeParams() {
 		pr.typs[idx] = typ
 	}
 
