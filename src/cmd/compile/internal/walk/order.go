@@ -1566,7 +1566,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
 		if callX.Op() == ir.OCLOSURE {
 			clo := callX.(*ir.ClosureExpr)
-			clo.Func.SetClosureCalled(false)
 			clo.IsGoWrap = true
 		}
 		return
@@ -1691,12 +1690,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 			// Deal with "defer returnsafunc()(x, y)" (for
 			// example) by copying the callee expression.
 			fnExpr = mkArgCopy(callX)
-			if callX.Op() == ir.OCLOSURE {
-				// For "defer func(...)", in addition to copying the
-				// closure into a temp, mark it as no longer directly
-				// called.
-				callX.(*ir.ClosureExpr).Func.SetClosureCalled(false)
-			}
 		}
 	}
 
@@ -1769,8 +1762,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
 	// Create new top level call to closure over argless function.
 	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
 	typecheck.Call(topcall)
-
-	fn.SetClosureCalled(false)
 
 	// Finally, point the defer statement at the newly generated call.
 	n.Call = topcall
