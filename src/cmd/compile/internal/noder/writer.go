@@ -1264,90 +1264,114 @@ type posObj struct {
 }
 
 // captureVars returns the free variables used by the given function
-// literal.
+// literal. The closureVars result is the list of free variables
+// captured by expr, and localsIdx is a map from free variable to
+// index. See varCaptor's identically named fields for more details.
 func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, localsIdx map[types2.Object]int) {
 	scope, ok := w.p.info.Scopes[expr.Type]
 	assert(ok)
-
-	localsIdx = make(map[types2.Object]int)
 
 	// TODO(mdempsky): This code needs to be cleaned up (e.g., to avoid
 	// traversing nested function literals multiple times). This will be
 	// easier after we drop quirks mode.
 
-	var rbracePos syntax.Pos
+	v := varCaptor{
+		w:         w,
+		scope:     scope,
+		localsIdx: make(map[types2.Object]int),
+	}
 
-	var visitor func(n syntax.Node) bool
-	visitor = func(n syntax.Node) bool {
+	syntax.Walk(expr, &v)
 
-		// Constant expressions don't count towards capturing.
-		if n, ok := n.(syntax.Expr); ok {
-			if tv, ok := w.p.info.Types[n]; ok && tv.Value != nil {
-				return true
-			}
+	return v.closureVars, v.localsIdx
+}
+
+// varCaptor implements syntax.Visitor for enumerating free variables
+// used by a function literal.
+type varCaptor struct {
+	w     *writer
+	scope *types2.Scope
+
+	// closureVars lists free variables along with the position where
+	// they first appeared, in order of appearance.
+	closureVars []posObj
+
+	// localsIdx is a map from free variables to their index within
+	// closureVars.
+	localsIdx map[types2.Object]int
+}
+
+func (v *varCaptor) capture(n *syntax.Name) {
+	obj, ok := v.w.p.info.Uses[n].(*types2.Var)
+	if !ok || obj.IsField() {
+		return // not a variable
+	}
+
+	if obj.Parent() == obj.Pkg().Scope() {
+		return // global variable
+	}
+
+	if _, ok := v.localsIdx[obj]; ok {
+		return // already captured
+	}
+
+	for parent := obj.Parent(); parent != obj.Pkg().Scope(); parent = parent.Parent() {
+		if parent == v.scope {
+			return // object declared within our scope
 		}
+	}
 
+	idx := len(v.closureVars)
+	v.closureVars = append(v.closureVars, posObj{n.Pos(), obj})
+	v.localsIdx[obj] = idx
+}
+
+func (v *varCaptor) Visit(n syntax.Node) syntax.Visitor {
+	// Constant expressions don't count towards capturing.
+	if n, ok := n.(syntax.Expr); ok {
+		if tv, ok := v.w.p.info.Types[n]; ok && tv.Value != nil {
+			return nil
+		}
+	}
+
+	if n, ok := n.(*syntax.Name); ok {
+		v.capture(n)
+	}
+
+	if quirksMode() {
 		switch n := n.(type) {
-		case *syntax.Name:
-			if obj, ok := w.p.info.Uses[n].(*types2.Var); ok && !obj.IsField() && obj.Pkg() == w.p.curpkg && obj.Parent() != obj.Pkg().Scope() {
-				// Found a local variable. See if it chains up to scope.
-				parent := obj.Parent()
-				for {
-					if parent == scope {
-						break
-					}
-					if parent == obj.Pkg().Scope() {
-						if _, present := localsIdx[obj]; !present {
-							pos := rbracePos
-							if pos == (syntax.Pos{}) {
-								pos = n.Pos()
-							}
-
-							idx := len(closureVars)
-							closureVars = append(closureVars, posObj{pos, obj})
-							localsIdx[obj] = idx
-						}
-						break
-					}
-					parent = parent.Parent()
-				}
-			}
-
 		case *syntax.FuncLit:
 			// Quirk: typecheck uses the rbrace position position of the
 			// function literal as the position of the intermediary capture.
-			if quirksMode() && rbracePos == (syntax.Pos{}) {
-				rbracePos = n.Body.Rbrace
-				syntax.Crawl(n.Body, visitor)
-				rbracePos = syntax.Pos{}
-				return true
+			end := len(v.closureVars)
+			syntax.Walk(n.Type, v) // unnecessary to walk, but consistent with non-quirks mode
+			syntax.Walk(n.Body, v)
+			for i := end; i < len(v.closureVars); i++ {
+				v.closureVars[i].pos = n.Body.Rbrace
 			}
+			return nil
 
 		case *syntax.AssignStmt:
 			// Quirk: typecheck visits (and thus captures) the RHS of
-			// assignment statements before the LHS.
-			if quirksMode() && (n.Op == 0 || n.Op == syntax.Def) {
-				syntax.Crawl(n.Rhs, visitor)
-				syntax.Crawl(n.Lhs, visitor)
-				return true
+			// assignment statements (but not op= statements) before the LHS.
+			if n.Op == 0 || n.Op == syntax.Def {
+				syntax.Walk(n.Rhs, v)
+				syntax.Walk(n.Lhs, v)
+				return nil
 			}
+
 		case *syntax.RangeClause:
-			// Quirk: Similarly, it visits the expression to be iterated
-			// over before the iteration variables.
-			if quirksMode() {
-				syntax.Crawl(n.X, visitor)
-				if n.Lhs != nil {
-					syntax.Crawl(n.Lhs, visitor)
-				}
-				return true
+			// Quirk: Similarly, typecheck visits the expression to be
+			// iterated over before the iteration variables.
+			syntax.Walk(n.X, v)
+			if n.Lhs != nil {
+				syntax.Walk(n.Lhs, v)
 			}
+			return nil
 		}
-
-		return false
 	}
-	syntax.Crawl(expr.Body, visitor)
 
-	return
+	return v
 }
 
 func (w *writer) exprList(expr syntax.Expr) {
