@@ -491,13 +491,14 @@ type fuzzContext struct {
 // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
 // only run the f.Fuzz function for each seed corpus without using the fuzzing
 // engine to generate or mutate inputs.
-func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline time.Time) (ran, ok bool) {
 	ok = true
 	if len(fuzzTargets) == 0 || *isFuzzWorker {
 		return ran, ok
 	}
 	m := newMatcher(deps.MatchString, *match, "-test.run")
 	tctx := newTestContext(*parallel, m)
+	tctx.deadline = deadline
 	fctx := &fuzzContext{
 		importPath:       deps.ImportPath,
 		readCorpus:       deps.ReadCorpus,
