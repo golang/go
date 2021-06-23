@@ -62,4 +62,12 @@ this increases your chances of a build failure).
 $ GO111MODULE=on gotip get -tags=typeparams golang.org/x/tools/gopls@master golang.org/x/tools@master
 ```
 
+This will build a version of gopls that understands generic code. To actually
+run the generic code you develop, you must also tell the compiler to speak
+generics using the `-G=3` compiler flag. For example
+
+```
+$ gotip run -gcflags=-G=3 .
+```
+
 [Go project]: https://go.googlesource.com/go
