@@ -180,8 +180,7 @@ func _() {
 }
 
 func fbad24305() {
-	// BAD u should not be heap allocated
-	var u U // ERROR "moved to heap: u"
+	var u U
 	(*U).M(&u)
 	(*U).N(&u)
 }
