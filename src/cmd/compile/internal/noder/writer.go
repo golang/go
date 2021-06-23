@@ -1386,89 +1386,111 @@ type typeDeclGen struct {
 	gen int
 }
 
+type fileImports struct {
+	importedEmbed, importedUnsafe bool
+}
+
+type declCollector struct {
+	pw         *pkgWriter
+	typegen    *int
+	file       *fileImports
+	withinFunc bool
+}
+
+func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+	pw := c.pw
+
+	switch n := n.(type) {
+	case *syntax.File:
+		pw.checkPragmas(n.Pragma, ir.GoBuildPragma, false)
+
+	case *syntax.ImportDecl:
+		pw.checkPragmas(n.Pragma, 0, false)
+
+		switch pkgNameOf(pw.info, n).Imported().Path() {
+		case "embed":
+			c.file.importedEmbed = true
+		case "unsafe":
+			c.file.importedUnsafe = true
+		}
+
+	case *syntax.ConstDecl:
+		pw.checkPragmas(n.Pragma, 0, false)
+
+	case *syntax.FuncDecl:
+		pw.checkPragmas(n.Pragma, funcPragmas, false)
+
+		obj := pw.info.Defs[n.Name].(*types2.Func)
+		pw.funDecls[obj] = n
+
+	case *syntax.TypeDecl:
+		obj := pw.info.Defs[n.Name].(*types2.TypeName)
+		d := typeDeclGen{TypeDecl: n}
+
+		if n.Alias {
+			pw.checkPragmas(n.Pragma, 0, false)
+		} else {
+			pw.checkPragmas(n.Pragma, typePragmas, false)
+
+			// Assign a unique ID to function-scoped defined types.
+			if !isGlobal(obj) {
+				*c.typegen++
+				d.gen = *c.typegen
+			}
+		}
+
+		pw.typDecls[obj] = d
+
+	case *syntax.VarDecl:
+		pw.checkPragmas(n.Pragma, 0, true)
+
+		if p, ok := n.Pragma.(*pragmas); ok && len(p.Embeds) > 0 {
+			if err := checkEmbed(n, c.file.importedEmbed, c.withinFunc); err != nil {
+				pw.errorf(p.Embeds[0].Pos, "%s", err)
+			}
+		}
+
+		// Workaround for #46208. For variable declarations that
+		// declare multiple variables and have an explicit type
+		// expression, the type expression is evaluated multiple
+		// times. This affects toolstash -cmp, because iexport is
+		// sensitive to *types.Type pointer identity.
+		if quirksMode() && n.Type != nil {
+			tv, ok := pw.info.Types[n.Type]
+			assert(ok)
+			assert(tv.IsType())
+			for _, name := range n.NameList {
+				obj := pw.info.Defs[name].(*types2.Var)
+				pw.dups.add(obj.Type(), tv.Type)
+			}
+		}
+
+	case *syntax.BlockStmt:
+		if !c.withinFunc {
+			copy := *c
+			copy.withinFunc = true
+			return &copy
+		}
+	}
+
+	return c
+}
+
 func (pw *pkgWriter) collectDecls(noders []*noder) {
 	var typegen int
-
 	for _, p := range noders {
-		var importedEmbed, importedUnsafe bool
+		var file fileImports
 
-		syntax.Crawl(p.file, func(n syntax.Node) bool {
-			switch n := n.(type) {
-			case *syntax.File:
-				pw.checkPragmas(n.Pragma, ir.GoBuildPragma, false)
-
-			case *syntax.ImportDecl:
-				pw.checkPragmas(n.Pragma, 0, false)
-
-				switch pkgNameOf(pw.info, n).Imported().Path() {
-				case "embed":
-					importedEmbed = true
-				case "unsafe":
-					importedUnsafe = true
-				}
-
-			case *syntax.ConstDecl:
-				pw.checkPragmas(n.Pragma, 0, false)
-
-			case *syntax.FuncDecl:
-				pw.checkPragmas(n.Pragma, funcPragmas, false)
-
-				obj := pw.info.Defs[n.Name].(*types2.Func)
-				pw.funDecls[obj] = n
-
-			case *syntax.TypeDecl:
-				obj := pw.info.Defs[n.Name].(*types2.TypeName)
-				d := typeDeclGen{TypeDecl: n}
-
-				if n.Alias {
-					pw.checkPragmas(n.Pragma, 0, false)
-				} else {
-					pw.checkPragmas(n.Pragma, typePragmas, false)
-
-					// Assign a unique ID to function-scoped defined types.
-					if !isGlobal(obj) {
-						typegen++
-						d.gen = typegen
-					}
-				}
-
-				pw.typDecls[obj] = d
-
-			case *syntax.VarDecl:
-				pw.checkPragmas(n.Pragma, 0, true)
-
-				if p, ok := n.Pragma.(*pragmas); ok && len(p.Embeds) > 0 {
-					obj := pw.info.Defs[n.NameList[0]].(*types2.Var)
-					// TODO(mdempsky): isGlobal(obj) gives false positive errors
-					// for //go:embed directives on package-scope blank
-					// variables.
-					if err := checkEmbed(n, importedEmbed, !isGlobal(obj)); err != nil {
-						pw.errorf(p.Embeds[0].Pos, "%s", err)
-					}
-				}
-
-				// Workaround for #46208. For variable declarations that
-				// declare multiple variables and have an explicit type
-				// expression, the type expression is evaluated multiple
-				// times. This affects toolstash -cmp, because iexport is
-				// sensitive to *types.Type pointer identity.
-				if quirksMode() && n.Type != nil {
-					tv, ok := pw.info.Types[n.Type]
-					assert(ok)
-					assert(tv.IsType())
-					for _, name := range n.NameList {
-						obj := pw.info.Defs[name].(*types2.Var)
-						pw.dups.add(obj.Type(), tv.Type)
-					}
-				}
-			}
-			return false
+		syntax.Walk(p.file, &declCollector{
+			pw:      pw,
+			typegen: &typegen,
+			file:    &file,
 		})
 
 		pw.cgoPragmas = append(pw.cgoPragmas, p.pragcgobuf...)
 
 		for _, l := range p.linknames {
-			if !importedUnsafe {
+			if !file.importedUnsafe {
 				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
 				continue
 			}
