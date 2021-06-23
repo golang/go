@@ -163,7 +163,7 @@ func (e *escape) stmt(n ir.Node) {
 		n := n.(*ir.AssignListStmt)
 		e.stmts(n.Rhs[0].Init())
 		ks := e.addrs(n.Lhs)
-		e.call(ks, n.Rhs[0], nil)
+		e.call(ks, n.Rhs[0])
 		e.reassigned(ks, n)
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -174,11 +174,10 @@ func (e *escape) stmt(n ir.Node) {
 		}
 		e.assignList(dsts, n.Results, "return", n)
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
-		e.call(nil, n, nil)
+		e.call(nil, n)
 	case ir.OGO, ir.ODEFER:
 		n := n.(*ir.GoDeferStmt)
-		e.stmts(n.Call.Init())
-		e.call(nil, n.Call, n)
+		e.goDeferStmt(n)
 
 	case ir.OTAILCALL:
 		// TODO(mdempsky): Treat like a normal call? esc.go used to just ignore it.
