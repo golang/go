@@ -1956,8 +1956,9 @@ func (r *reader) inlReturn(ret *ir.ReturnStmt) *ir.BlockStmt {
 // expandInline reads in an extra copy of IR to populate
 // fn.Inl.{Dcl,Body}.
 func expandInline(fn *ir.Func, pri pkgReaderIndex) {
-	// TODO(mdempsky): Remove this function. It's currently needed for
-	// dwarfgen for some reason, but we should be able to provide it
+	// TODO(mdempsky): Remove this function. It's currently needed by
+	// dwarfgen/dwarf.go:preInliningDcls, which requires fn.Inl.Dcl to
+	// create abstract function DIEs. But we should be able to provide it
 	// with the same information some other way.
 
 	fndcls := len(fn.Dcl)
