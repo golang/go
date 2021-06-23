@@ -178,11 +178,9 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		n.X = cheapExpr(n.X, init)
 		n.X = walkExpr(n.X, nil)
 
-		tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
-
-		c := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
-		c.SetTypecheck(1)
-		init.Append(c)
+		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X)
+		check := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
+		init.Append(typecheck.Stmt(check))
 	}
 
 	typ := typecheck.PartialCallType(n)

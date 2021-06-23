@@ -876,6 +876,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.TailCallStmt)
 		return n
 
+	case ir.OCHECKNIL:
+		n := n.(*ir.UnaryExpr)
+		return tcCheckNil(n)
+
 	case ir.OSELECT:
 		tcSelect(n.(*ir.SelectStmt))
 		return n
