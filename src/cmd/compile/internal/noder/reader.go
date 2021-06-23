@@ -1558,20 +1558,13 @@ func (r *reader) funcLit() ir.Node {
 		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
 	}
 
-	fn.ClosureVars = make([]*ir.Name, r.len())
-	for i := range fn.ClosureVars {
+	fn.ClosureVars = make([]*ir.Name, 0, r.len())
+	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
 		pos := r.pos()
 		outer := r.useLocal()
 
-		cv := ir.NewNameAt(pos, outer.Sym())
+		cv := ir.NewClosureVar(pos, fn, outer)
 		r.setType(cv, outer.Type())
-		cv.Curfn = fn
-		cv.Class = ir.PAUTOHEAP
-		cv.SetIsClosureVar(true)
-		cv.Defn = outer.Canonical()
-		cv.Outer = outer
-
-		fn.ClosureVars[i] = cv
 	}
 
 	r.addBody(fn)
