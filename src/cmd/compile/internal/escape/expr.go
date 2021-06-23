@@ -139,7 +139,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		e.discard(n.X)
 
 	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
-		e.call([]hole{k}, n, nil)
+		e.call([]hole{k}, n)
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
