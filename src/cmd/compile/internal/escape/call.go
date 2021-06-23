@@ -56,11 +56,15 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			switch v := ir.StaticValue(call.X); {
-			case v.Op() == ir.ONAME && v.(*ir.Name).Class == ir.PFUNC:
-				fn = v.(*ir.Name)
-			case v.Op() == ir.OCLOSURE:
+			switch v := ir.StaticValue(call.X); v.Op() {
+			case ir.ONAME:
+				if v := v.(*ir.Name); v.Class == ir.PFUNC {
+					fn = v
+				}
+			case ir.OCLOSURE:
 				fn = v.(*ir.ClosureExpr).Func.Nname
+			case ir.OMETHEXPR:
+				fn = ir.MethodExprName(v)
 			}
 		case ir.OCALLMETH:
 			fn = ir.MethodExprName(call.X)
@@ -77,19 +81,30 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			}
 		}
 
-		if r := fntype.Recv(); r != nil {
-			dot := call.X.(*ir.SelectorExpr)
-			argumentFunc(fn, e.tagHole(ks, fn, r), &dot.X)
-		} else {
+		var recvp *ir.Node
+		if call.Op() == ir.OCALLFUNC {
 			// Evaluate callee function expression.
 			//
-			// Note: We use argument and not argumentFunc, because call.X
-			// here may be an argument to runtime.{new,defer}proc, but it's
-			// not an argument to fn itself.
+			// Note: We use argument and not argumentFunc, because while
+			// call.X here may be an argument to runtime.{new,defer}proc,
+			// it's not an argument to fn itself.
 			argument(e.discardHole(), &call.X)
+		} else {
+			recvp = &call.X.(*ir.SelectorExpr).X
 		}
 
 		args := call.Args
+		if recv := fntype.Recv(); recv != nil {
+			if recvp == nil {
+				// Function call using method expression. Recevier argument is
+				// at the front of the regular arguments list.
+				recvp = &args[0]
+				args = args[1:]
+			}
+
+			argumentFunc(fn, e.tagHole(ks, fn, recv), recvp)
+		}
+
 		for i, param := range fntype.Params().FieldSlice() {
 			argumentFunc(fn, e.tagHole(ks, fn, param), &args[i])
 		}
