@@ -313,7 +313,7 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 // removeChild removes a context from its parent.
 func removeChild(parent Context, child canceler) {
 	p, ok := parentCancelCtx(parent)
-	if !ok {
+	if !ok || p.children == nil {
 		return
 	}
 	p.mu.Lock()
@@ -484,6 +484,9 @@ func (c *timerCtx) cancel(removeFromParent bool, err error) {
 	if removeFromParent {
 		// Remove this timerCtx from its parent cancelCtx's children.
 		removeChild(c.cancelCtx.Context, c)
+	}
+	if c.timer == nil {
+		return
 	}
 	c.mu.Lock()
 	if c.timer != nil {
