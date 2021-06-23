@@ -237,6 +237,15 @@ func plural(n int) string {
 	return "s"
 }
 
+// tcCheckNil typechecks an OCHECKNIL node.
+func tcCheckNil(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	if !n.X.Type().IsPtrShaped() {
+		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.X)
+	}
+	return n
+}
+
 // tcFor typechecks an OFOR node.
 func tcFor(n *ir.ForStmt) ir.Node {
 	Stmts(n.Init())

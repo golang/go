@@ -677,9 +677,8 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 
 	ptr := walkExpr(n.X, init)
 
-	c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
-	c.SetTypecheck(1)
-	init.Append(c)
+	check := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
+	init.Append(typecheck.Stmt(check))
 
 	// TODO(mdempsky): checkptr instrumentation. Maybe merge into length
 	// check above, along with nil check? Need to be careful about

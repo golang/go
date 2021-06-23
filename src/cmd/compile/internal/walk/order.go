@@ -762,7 +762,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
 
-	case ir.OCLOSE, ir.ORECV:
+	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
 		t := o.markTemp()
 		n.X = o.expr(n.X, nil)
@@ -834,16 +834,6 @@ func (o *orderState) stmt(n ir.Node) {
 		orderBlock(&n.Body, o.free)
 		orderBlock(&n.Else, o.free)
 		o.out = append(o.out, n)
-
-	case ir.OPANIC:
-		n := n.(*ir.UnaryExpr)
-		t := o.markTemp()
-		n.X = o.expr(n.X, nil)
-		if !n.X.Type().IsEmptyInterface() {
-			base.FatalfAt(n.Pos(), "bad argument to panic: %L", n.X)
-		}
-		o.out = append(o.out, n)
-		o.cleanTemp(t)
 
 	case ir.ORANGE:
 		// n.Right is the expression being ranged over.
