@@ -293,6 +293,18 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 	}
 
 	visit := func(pos src.XPos, argp *ir.Node) {
+		// Optimize a few common constant expressions. By leaving these
+		// untouched in the call expression, we let the wrapper handle
+		// evaluating them, rather than taking up closure context space.
+		switch arg := *argp; arg.Op() {
+		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR:
+			return
+		case ir.ONAME:
+			if arg.(*ir.Name).Class == ir.PFUNC {
+				return
+			}
+		}
+
 		if unsafeUintptr(*argp) {
 			return
 		}
