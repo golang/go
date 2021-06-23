@@ -36,7 +36,7 @@ func posBasesOf(noders []*noder) []*syntax.PosBase {
 	var bases []*syntax.PosBase
 
 	for _, p := range noders {
-		syntax.Walk(p.file, func(n syntax.Node) bool {
+		syntax.Crawl(p.file, func(n syntax.Node) bool {
 			if b := n.Pos().Base(); !seen[b] {
 				bases = append(bases, b)
 				seen[b] = true
@@ -74,7 +74,7 @@ func importedObjsOf(curpkg *types2.Package, info *types2.Info, noders []*noder) 
 	}
 
 	for _, p := range noders {
-		syntax.Walk(p.file, func(n syntax.Node) bool {
+		syntax.Crawl(p.file, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.ConstDecl:
 				assoc(n, n.NameList...)
@@ -167,7 +167,7 @@ func importedObjsOf(curpkg *types2.Package, info *types2.Info, noders []*noder) 
 		if n == nil {
 			return
 		}
-		syntax.Walk(n, func(n syntax.Node) bool {
+		syntax.Crawl(n, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.Name:
 				checkdef(n)
@@ -237,7 +237,7 @@ func importedObjsOf(curpkg *types2.Package, info *types2.Info, noders []*noder) 
 			}
 
 			if phase >= 5 {
-				syntax.Walk(p.file, func(n syntax.Node) bool {
+				syntax.Crawl(p.file, func(n syntax.Node) bool {
 					if name, ok := n.(*syntax.Name); ok {
 						if obj, ok := info.Uses[name]; ok {
 							resolveObj(name.Pos(), obj)
