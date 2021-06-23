@@ -1318,7 +1318,7 @@ func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, locals
 			// function literal as the position of the intermediary capture.
 			if quirksMode() && rbracePos == (syntax.Pos{}) {
 				rbracePos = n.Body.Rbrace
-				syntax.Walk(n.Body, visitor)
+				syntax.Crawl(n.Body, visitor)
 				rbracePos = syntax.Pos{}
 				return true
 			}
@@ -1327,17 +1327,17 @@ func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, locals
 			// Quirk: typecheck visits (and thus captures) the RHS of
 			// assignment statements before the LHS.
 			if quirksMode() && (n.Op == 0 || n.Op == syntax.Def) {
-				syntax.Walk(n.Rhs, visitor)
-				syntax.Walk(n.Lhs, visitor)
+				syntax.Crawl(n.Rhs, visitor)
+				syntax.Crawl(n.Lhs, visitor)
 				return true
 			}
 		case *syntax.RangeClause:
 			// Quirk: Similarly, it visits the expression to be iterated
 			// over before the iteration variables.
 			if quirksMode() {
-				syntax.Walk(n.X, visitor)
+				syntax.Crawl(n.X, visitor)
 				if n.Lhs != nil {
-					syntax.Walk(n.Lhs, visitor)
+					syntax.Crawl(n.Lhs, visitor)
 				}
 				return true
 			}
@@ -1345,7 +1345,7 @@ func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, locals
 
 		return false
 	}
-	syntax.Walk(expr.Body, visitor)
+	syntax.Crawl(expr.Body, visitor)
 
 	return
 }
@@ -1392,7 +1392,7 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 	for _, p := range noders {
 		var importedEmbed, importedUnsafe bool
 
-		syntax.Walk(p.file, func(n syntax.Node) bool {
+		syntax.Crawl(p.file, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.File:
 				pw.checkPragmas(n.Pragma, ir.GoBuildPragma, false)

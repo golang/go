@@ -321,7 +321,7 @@ func TestIssue25627(t *testing.T) {
 			}
 		}
 
-		syntax.Walk(f, func(n syntax.Node) bool {
+		syntax.Crawl(f, func(n syntax.Node) bool {
 			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
 				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
 					want := strings.Count(src, ";") + 1
