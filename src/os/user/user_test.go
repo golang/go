@@ -56,10 +56,6 @@ func compare(t *testing.T, want, got *User) {
 func TestLookup(t *testing.T) {
 	checkUser(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
-	}
-
 	want, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v", err)
@@ -76,10 +72,6 @@ func TestLookup(t *testing.T) {
 
 func TestLookupId(t *testing.T) {
 	checkUser(t)
-
-	if runtime.GOOS == "plan9" {
-		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
-	}
 
 	want, err := Current()
 	if err != nil {
