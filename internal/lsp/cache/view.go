@@ -611,12 +611,19 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	if len(scopes) > 0 {
 		err = s.load(ctx, firstAttempt, append(scopes, packagePath("builtin"))...)
 	}
-	if ctx.Err() != nil {
+	// If the context is canceled on the first attempt, loading has failed
+	// because the go command has timed out--that should be a critical error.
+	if !firstAttempt && ctx.Err() != nil {
 		return
 	}
 
 	var criticalErr *source.CriticalError
-	if err != nil {
+	if ctx.Err() != nil {
+		event.Error(ctx, fmt.Sprintf("initial workspace load: %v", err), err)
+		criticalErr = &source.CriticalError{
+			MainError: err,
+		}
+	} else if err != nil {
 		event.Error(ctx, "initial workspace load failed", err)
 		extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
 		criticalErr = &source.CriticalError{

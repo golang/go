@@ -140,7 +140,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	// Set a last resort deadline on packages.Load since it calls the go
 	// command, which may hang indefinitely if it has a bug. golang/go#42132
 	// and golang/go#42255 have more context.
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
 	cfg := s.config(ctx, inv)
