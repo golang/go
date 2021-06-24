@@ -927,29 +927,27 @@ func writeType(t *types.Type) *obj.LSym {
 	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
 		tbase = t.Elem()
 	}
+	if tbase.Kind() == types.TFORW {
+		base.Fatalf("unresolved defined type: %v", tbase)
+	}
+
 	dupok := 0
-	if tbase.Sym() == nil {
+	if tbase.Sym() == nil { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
 		dupok = obj.DUPOK
 	}
 
-	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
-		// Named types from other files are defined only by those files.
-		// However, as an exception, we can write out instantiated types
-		// in the local package, even if they may be marked as part of
-		// another package (the package of their base generic type).
-		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg &&
-			!tbase.IsFullyInstantiated() {
-			if i := typecheck.BaseTypeIndex(t); i >= 0 {
-				lsym.Pkg = tbase.Sym().Pkg.Prefix
-				lsym.SymIdx = int32(i)
-				lsym.Set(obj.AttrIndexed, true)
-			}
-			return lsym
+	if !NeedEmit(tbase) {
+		if i := typecheck.BaseTypeIndex(t); i >= 0 {
+			lsym.Pkg = tbase.Sym().Pkg.Prefix
+			lsym.SymIdx = int32(i)
+			lsym.Set(obj.AttrIndexed, true)
 		}
-		// TODO(mdempsky): Investigate whether this can happen.
-		if tbase.Kind() == types.TFORW {
-			return lsym
-		}
+
+		// TODO(mdempsky): Investigate whether this still happens.
+		// If we know we don't need to emit code for a type,
+		// we should have a link-symbol index for it.
+		// See also TODO in NeedEmit.
+		return lsym
 	}
 
 	ot := 0
@@ -1678,6 +1676,44 @@ func CollectPTabs() {
 	}
 }
 
+// NeedEmit reports whether typ is a type that we need to emit code
+// for (e.g., runtime type descriptors, method wrappers).
+func NeedEmit(typ *types.Type) bool {
+	// TODO(mdempsky): Export data should keep track of which anonymous
+	// and instantiated types were emitted, so at least downstream
+	// packages can skip re-emitting them.
+	//
+	// Perhaps we can just generalize the linker-symbol indexing to
+	// track the index of arbitrary types, not just defined types, and
+	// use its presence to detect this. The same idea would work for
+	// instantiated generic functions too.
+
+	switch sym := typ.Sym(); {
+	case sym == nil:
+		// Anonymous type; possibly never seen before or ever again.
+		// Need to emit to be safe (however, see TODO above).
+		return true
+
+	case sym.Pkg == types.LocalPkg:
+		// Local defined type; our responsibility.
+		return true
+
+	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == ir.Pkgs.Unsafe):
+		// Package runtime is responsible for including code for builtin
+		// types (predeclared and package unsafe).
+		return true
+
+	case typ.IsFullyInstantiated():
+		// Instantiated type; possibly instantiated with unique type arguments.
+		// Need to emit to be safe (however, see TODO above).
+		return true
+
+	default:
+		// Should have been emitted by an imported package.
+		return false
+	}
+}
+
 // Generate a wrapper function to convert from
 // a receiver of type T to a receiver of type U.
 // That is,
@@ -1739,24 +1775,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		return lsym
 	}
 
-	// imported reports whether typ is a defined type that was declared
-	// in an imported package, and therefore must have been compiled in
-	// that package.
-	importedType := func(typ *types.Type) bool {
-		return typ.Sym() != nil && typ.Sym().Pkg != types.LocalPkg &&
-
-			// Exception: need wrapper for error.Error (#29304).
-			// TODO(mdempsky): Put this in package runtime, like we do for
-			// the type descriptors for predeclared types.
-			typ != types.ErrorType &&
-
-			// Exception: parameterized types may have been instantiated
-			// with new type arguments, so we don't assume they've been
-			// compiled before.
-			!typ.IsFullyInstantiated()
-	}
-
-	if importedType(rcvr) || rcvr.IsPtr() && importedType(rcvr.Elem()) {
+	if !NeedEmit(rcvr) || rcvr.IsPtr() && !NeedEmit(rcvr.Elem()) {
 		return lsym
 	}
 
