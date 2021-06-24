@@ -577,42 +577,64 @@ func TestIssue44515(t *testing.T) {
 }
 
 func TestIssue43124(t *testing.T) {
-	// TODO(rFindley) enhance the testdata tests to be able to express this type
-	//                of setup.
+	// TODO(rFindley) move this to testdata by enhancing support for importing.
 
 	// All involved packages have the same name (template). Error messages should
 	// disambiguate between text/template and html/template by printing the full
 	// path.
 	const (
 		asrc = `package a; import "text/template"; func F(template.Template) {}; func G(int) {}`
-		bsrc = `package b; import ("a"; "html/template"); func _() { a.F(template.Template{}) }`
-		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
+		bsrc = `
+package b
+
+import (
+	"a"
+	"html/template"
+)
+
+func _() {
+	// Packages should be fully qualified when there is ambiguity within the
+	// error string itself.
+	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
+}
+`
+		csrc = `
+package c
+
+import (
+	"a"
+	"fmt"
+	"html/template"
+)
+
+// Issue #46905: make sure template is not the first package qualified.
+var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
+
+// Packages should be fully qualified when there is ambiguity in reachable
+// packages. In this case both a (and for that matter html/template) import
+// text/template.
+func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
+`
+
+		tsrc = `
+package template
+
+import "text/template"
+
+type T int
+
+// Verify that the current package name also causes disambiguation.
+var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+`
 	)
 
 	a, err := pkgFor("a", asrc, nil)
 	if err != nil {
 		t.Fatalf("package a failed to typecheck: %v", err)
 	}
-	conf := Config{Importer: importHelper{pkg: a, fallback: importer.Default()}}
+	imp := importHelper{pkg: a, fallback: importer.Default()}
 
-	// Packages should be fully qualified when there is ambiguity within the
-	// error string itself.
-	bast := mustParse(t, bsrc)
-	_, err = conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
-	if err == nil {
-		t.Fatal("package b had no errors")
-	}
-	if !strings.Contains(err.Error(), "text/template") || !strings.Contains(err.Error(), "html/template") {
-		t.Errorf("type checking error for b does not disambiguate package template: %q", err)
-	}
-
-	// ...and also when there is any ambiguity in reachable packages.
-	cast := mustParse(t, csrc)
-	_, err = conf.Check(cast.Name.Name, fset, []*ast.File{cast}, nil)
-	if err == nil {
-		t.Fatal("package c had no errors")
-	}
-	if !strings.Contains(err.Error(), "html/template") {
-		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
-	}
+	checkFiles(t, nil, "", []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+	checkFiles(t, nil, "", []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+	checkFiles(t, nil, "", []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
 }
