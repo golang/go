@@ -312,11 +312,11 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, pkg source.P
 		commands = append(commands, cmd)
 	}
 	var actions []protocol.CodeAction
-	for _, cmd := range commands {
+	for i := range commands {
 		actions = append(actions, protocol.CodeAction{
-			Title:   cmd.Title,
+			Title:   commands[i].Title,
 			Kind:    protocol.RefactorExtract,
-			Command: &cmd,
+			Command: &commands[i],
 		})
 	}
 	return actions, nil
