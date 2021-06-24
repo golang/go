@@ -13,6 +13,12 @@ package user
 
 import "fmt"
 
+// Not implemented on illumos, see golang.org/issue/14709.
+
+func init() {
+	groupListImplemented = false
+}
+
 func listGroups(u *User) ([]string, error) {
 	return nil, fmt.Errorf("user: list groups for %s: not supported on illumos", u.Username)
 }
