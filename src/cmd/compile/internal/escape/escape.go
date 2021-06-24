@@ -365,6 +365,11 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		return fmt.Sprintf("arg#%d", narg)
 	}
 
+	// Only report diagnostics for user code;
+	// not for wrappers generated around them.
+	// TODO(mdempsky): Generalize this.
+	diagnose := base.Flag.LowerM != 0 && !(fn.Wrapper() || fn.Dupok())
+
 	if len(fn.Body) == 0 {
 		// Assume that uintptr arguments must be held live across the call.
 		// This is most important for syscall.Syscall.
@@ -375,7 +380,7 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		fn.Pragma |= ir.UintptrKeepAlive
 
 		if f.Type.IsUintptr() {
-			if base.Flag.LowerM != 0 {
+			if diagnose {
 				base.WarnfAt(f.Pos, "assuming %v is unsafe uintptr", name())
 			}
 			return ""
@@ -390,11 +395,11 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		// External functions are assumed unsafe, unless
 		// //go:noescape is given before the declaration.
 		if fn.Pragma&ir.Noescape != 0 {
-			if base.Flag.LowerM != 0 && f.Sym != nil {
+			if diagnose && f.Sym != nil {
 				base.WarnfAt(f.Pos, "%v does not escape", name())
 			}
 		} else {
-			if base.Flag.LowerM != 0 && f.Sym != nil {
+			if diagnose && f.Sym != nil {
 				base.WarnfAt(f.Pos, "leaking param: %v", name())
 			}
 			esc.AddHeap(0)
@@ -407,14 +412,14 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 		fn.Pragma |= ir.UintptrKeepAlive
 
 		if f.Type.IsUintptr() {
-			if base.Flag.LowerM != 0 {
+			if diagnose {
 				base.WarnfAt(f.Pos, "marking %v as escaping uintptr", name())
 			}
 			return ""
 		}
 		if f.IsDDD() && f.Type.Elem().IsUintptr() {
 			// final argument is ...uintptr.
-			if base.Flag.LowerM != 0 {
+			if diagnose {
 				base.WarnfAt(f.Pos, "marking %v as escaping ...uintptr", name())
 			}
 			return ""
@@ -436,7 +441,7 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 	esc := loc.paramEsc
 	esc.Optimize()
 
-	if base.Flag.LowerM != 0 && !loc.escapes {
+	if diagnose && !loc.escapes {
 		if esc.Empty() {
 			base.WarnfAt(f.Pos, "%v does not escape", name())
 		}
