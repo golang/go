@@ -87,7 +87,12 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			}
 			query = append(query, fmt.Sprintf("file=%s", uri.Filename()))
 		case moduleLoadScope:
-			query = append(query, fmt.Sprintf("%s/...", scope))
+			switch scope {
+			case "std", "cmd":
+				query = append(query, string(scope))
+			default:
+				query = append(query, fmt.Sprintf("%s/...", scope))
+			}
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
 			// build system, don't load subdirectories.
