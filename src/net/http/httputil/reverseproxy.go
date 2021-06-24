@@ -7,9 +7,11 @@
 package httputil
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -91,6 +93,10 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+
+	// if SmallBodyMaxLength > 0, optimize network when send small
+	// body(body length <= SmallBodyMaxLength).
+	SmallBodyMaxLength int64
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -284,6 +290,25 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if !omit {
 			outreq.Header.Set("X-Forwarded-For", clientIP)
 		}
+	}
+
+	// without the following code, The write IO operate is twice (write header and body).
+	// It is found that : becase of tcp nagle and delay ack, it will cause double PPS
+	// when in the too much small package environment, resulting the QPS reduce half, and
+	// double client response times.
+	if outreq.Body != nil && outreq.Body != http.NoBody && outreq.ContentLength > 0 && outreq.ContentLength <= p.SmallBodyMaxLength {
+		datas := make([]byte, outreq.ContentLength)
+		reader := io.LimitReader(outreq.Body, outreq.ContentLength)
+		for i := int64(0); i < outreq.ContentLength; {
+			nr, er := reader.Read(datas[i:])
+			if er != nil && er != io.EOF {
+				p.logf("proxy read request body error: %v", er)
+				return
+			}
+			i += int64(nr)
+		}
+		buf := bytes.NewBuffer(datas)
+		outreq.Body = ioutil.NopCloser(buf)
 	}
 
 	res, err := transport.RoundTrip(outreq)
