@@ -8,16 +8,11 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 )
-
-func init() {
-	groupListImplemented = false
-}
 
 func current() (*User, error) {
 	uid := currentUID()
@@ -62,13 +57,6 @@ func current() (*User, error) {
 		missing += "$HOME"
 	}
 	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
-}
-
-func listGroups(*User) ([]string, error) {
-	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
-		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
-	}
-	return nil, errors.New("user: GroupIds requires cgo")
 }
 
 func currentUID() string {
