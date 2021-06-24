@@ -683,7 +683,7 @@ type T struct{}
 
 func (*T) Foo(ptr *int) {}
 
-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+type R struct{ *T }
 
 // issue 18860: output arguments must be live all the time if there is a defer.
 // In particular, at printint r must be live.
