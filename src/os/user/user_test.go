@@ -5,7 +5,6 @@
 package user
 
 import (
-	"runtime"
 	"testing"
 )
 
@@ -128,12 +127,6 @@ func checkGroupList(t *testing.T) {
 
 func TestGroupIds(t *testing.T) {
 	checkGroupList(t)
-	if runtime.GOOS == "aix" {
-		t.Skip("skipping GroupIds, see golang.org/issue/30563")
-	}
-	if runtime.GOOS == "illumos" {
-		t.Skip("skipping GroupIds, see golang.org/issue/14709")
-	}
 	user, err := Current()
 	if err != nil {
 		t.Fatalf("Current(): %v", err)
