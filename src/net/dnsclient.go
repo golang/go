@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/bytealg"
 	"internal/itoa"
 	"sort"
 
@@ -136,18 +137,11 @@ func isDomainName(s string) bool {
 // It's hard to tell so we settle on the heuristic that names without dots
 // (like "localhost" or "myhost") do not get trailing dots, but any other
 // names do.
-func absDomainName(b []byte) string {
-	hasDots := false
-	for _, x := range b {
-		if x == '.' {
-			hasDots = true
-			break
-		}
+func absDomainName(s string) string {
+	if bytealg.IndexByteString(s, '.') != -1 && s[len(s)-1] != '.' {
+		s += "."
 	}
-	if hasDots && b[len(b)-1] != '.' {
-		b = append(b, '.')
-	}
-	return string(b)
+	return s
 }
 
 // An SRV represents a single DNS SRV record.
