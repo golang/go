@@ -42,12 +42,35 @@ var (
 	linkshared     = flag.Bool("linkshared", false, "")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
-	generics       = flag.String("G", "0,3", "a comma-separated list of -G compiler flags to test with")
 	force          = flag.Bool("f", false, "run expected-failure generics tests rather than skipping them")
+	generics       = flag.String("G", defaultGLevels, "a comma-separated list of -G compiler flags to test with")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
+
+var unifiedEnabled, defaultGLevels = func() (bool, string) {
+	// TODO(mdempsky): Change this to just "go env GOEXPERIMENT" after
+	// CL 328751 is merged back to dev.typeparams. In the mean time, we
+	// infer whether the "unified" experiment is default enabled by
+	// inspecting the output from `go tool compile -V`.
+	output := runOutput(goTool(), "tool", "compile", "-V")
+
+	// TODO(mdempsky): This will give false negatives if the unified
+	// experiment is enabled by default, but presumably at that point we
+	// won't need to disable tests for it anymore anyway.
+	enabled := strings.Contains(output, "unified")
+
+	// Normal test runs should test with both -G=0 and -G=3 for types2
+	// coverage. But the unified experiment always uses types2, so
+	// testing with -G=3 is redundant.
+	glevels := "0,3"
+	if enabled {
+		glevels = "0"
+	}
+
+	return enabled, glevels
+}()
 
 // defaultAllCodeGen returns the default value of the -all_codegen
 // flag. By default, we prefer to be fast (returning false), except on
@@ -58,9 +81,8 @@ func defaultAllCodeGen() bool {
 }
 
 var (
-	goos, goarch   string
-	cgoEnabled     bool
-	unifiedEnabled bool
+	goos, goarch string
+	cgoEnabled   bool
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -97,26 +119,8 @@ func main() {
 	goos = getenv("GOOS", runtime.GOOS)
 	goarch = getenv("GOARCH", runtime.GOARCH)
 
-	cgoCmd := exec.Command(goTool(), "env", "CGO_ENABLED")
-	cgoEnv, err := cgoCmd.Output()
-	if err != nil {
-		log.Fatalf("running %v: %v", cgoCmd, err)
-	}
-	cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(cgoEnv)))
-
-	// TODO(mdempsky): Change this to just "go env GOEXPERIMENT" after
-	// CL 328751 is merged back to dev.typeparams. In the mean time, we
-	// infer whether the "unified" experiment is defult enabled by
-	// inspecting the output from `go tool compile -V`.
-	compileCmd := exec.Command(goTool(), "tool", "compile", "-V")
-	compileOutput, err := compileCmd.Output()
-	if err != nil {
-		log.Fatalf("running %v: %v", compileCmd, err)
-	}
-	// TODO(mdempsky): This will give false negatives if the unified
-	// experiment is enabled by default, but presumably at that point we
-	// won't need to disable tests for it anymore anyway.
-	unifiedEnabled = strings.Contains(string(compileOutput), "unified")
+	cgoEnv := runOutput(goTool(), "env", "CGO_ENABLED")
+	cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(cgoEnv))
 
 	findExecCmd()
 
@@ -201,6 +205,17 @@ func main() {
 	if failed {
 		os.Exit(1)
 	}
+}
+
+// runOutput runs the specified command and returns its output as a
+// string. If the command fails, runOutput logs the error and exits.
+func runOutput(name string, args ...string) string {
+	cmd := exec.Command(name, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		log.Fatalf("running %v: %v", cmd, err)
+	}
+	return string(output)
 }
 
 // goTool reports the path of the go tool to use to run the tests.
