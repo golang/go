@@ -279,18 +279,6 @@ func regAbiForFuncType(ft *types.Func) bool {
 	return np > 0 && strings.Contains(ft.Params.FieldType(np-1).String(), magicLastTypeName)
 }
 
-// getParam returns the Field of ith param of node n (which is a
-// function/method/interface call), where the receiver of a method call is
-// considered as the 0th parameter. This does not include the receiver of an
-// interface call.
-func getParam(n *ir.CallExpr, i int) *types.Field {
-	t := n.X.Type()
-	if n.Op() == ir.OCALLMETH {
-		base.Fatalf("OCALLMETH missed by walkCall")
-	}
-	return t.Params().Field(i)
-}
-
 // dvarint writes a varint v to the funcdata in symbol x and returns the new offset
 func dvarint(x *obj.LSym, off int, v int64) int {
 	if v < 0 || v > 1e9 {
@@ -3127,9 +3115,13 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		}
 		fallthrough
 
-	case ir.OCALLINTER, ir.OCALLMETH:
+	case ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		return s.callResult(n, callNormal)
+
+	case ir.OCALLMETH:
+		base.Fatalf("OCALLMETH missed by walkCall")
+		panic("unreachable")
 
 	case ir.OGETG:
 		n := n.(*ir.CallExpr)
