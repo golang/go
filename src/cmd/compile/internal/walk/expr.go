@@ -931,42 +931,8 @@ func bounded(n ir.Node, max int64) bool {
 	return false
 }
 
-// usemethod checks interface method calls for uses of reflect.Type.Method.
+// usemethod checks calls for uses of reflect.Type.{Method,MethodByName}.
 func usemethod(n *ir.CallExpr) {
-	t := n.X.Type()
-
-	// Looking for either of:
-	//	Method(int) reflect.Method
-	//	MethodByName(string) (reflect.Method, bool)
-	//
-	// TODO(crawshaw): improve precision of match by working out
-	//                 how to check the method name.
-	if n := t.NumParams(); n != 1 {
-		return
-	}
-	if n := t.NumResults(); n != 1 && n != 2 {
-		return
-	}
-	p0 := t.Params().Field(0)
-	res0 := t.Results().Field(0)
-	var res1 *types.Field
-	if t.NumResults() == 2 {
-		res1 = t.Results().Field(1)
-	}
-
-	if res1 == nil {
-		if p0.Type.Kind() != types.TINT {
-			return
-		}
-	} else {
-		if !p0.Type.IsString() {
-			return
-		}
-		if !res1.Type.IsBoolean() {
-			return
-		}
-	}
-
 	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
 	// Those functions may be alive via the itab, which should not cause all methods
 	// alive. We only want to mark their callers.
@@ -977,10 +943,37 @@ func usemethod(n *ir.CallExpr) {
 		}
 	}
 
-	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
+	dot, ok := n.X.(*ir.SelectorExpr)
+	if !ok {
+		return
+	}
+
+	// Looking for either direct method calls and interface method calls of:
+	//	reflect.Type.Method       - func(int) reflect.Method
+	//	reflect.Type.MethodByName - func(string) (reflect.Method, bool)
+	var pKind types.Kind
+
+	switch dot.Sel.Name {
+	case "Method":
+		pKind = types.TINT
+	case "MethodByName":
+		pKind = types.TSTRING
+	default:
+		return
+	}
+
+	t := dot.Selection.Type
+	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
+		return
+	}
+	if t.NumResults() == 2 && t.Results().Field(1).Type.Kind() != types.TBOOL {
+		return
+	}
+
+	// Note: Don't rely on Field.Type.String() since its formatting depends on multiple factors
 	//       (including global variables such as numImports - was issue #19028).
 	// Also need to check for reflect package itself (see Issue #38515).
-	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
