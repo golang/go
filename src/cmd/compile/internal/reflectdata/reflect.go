@@ -1760,16 +1760,18 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		// TODO: check that we do the right thing when method is an interface method.
 		generic = true
 	}
-	if base.Debug.Unified != 0 {
-		// TODO(mdempsky): Support dictionaries for unified IR.
-		generic = false
-	}
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 	if newnam.Siggen() {
 		return lsym
 	}
 	newnam.SetSiggen(true)
+
+	// Except in quirks mode, unified IR creates its own wrappers.
+	// Complain loudly if it missed any.
+	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
+		base.FatalfAt(method.Pos, "missing wrapper for %+v (%+v, %v) / %+v / %+v", rcvr, orig, types.IsDirectIface(orig), method.Sym, newnam)
+	}
 
 	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
 		return lsym

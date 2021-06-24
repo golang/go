@@ -74,6 +74,8 @@ func unified(noders []*noder) {
 
 	if !quirksMode() {
 		writeNewExportFunc = writeNewExport
+	} else if base.Flag.G != 0 {
+		base.Errorf("cannot use -G and -d=quirksmode together")
 	}
 
 	newReadImportFunc = func(data string, pkg1 *types.Pkg, check *types2.Checker, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
@@ -125,6 +127,11 @@ func unified(noders []*noder) {
 		}
 	}
 	todoBodies = nil
+
+	if !quirksMode() {
+		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
+		r.wrapTypes(target)
+	}
 
 	// Don't use range--typecheck can add closures to Target.Decls.
 	for i := 0; i < len(target.Decls); i++ {
