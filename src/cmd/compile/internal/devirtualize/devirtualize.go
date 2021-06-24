@@ -50,7 +50,6 @@ func Call(call *ir.CallExpr) {
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "devirtualizing %v to %v", sel, typ)
 		}
-		call.SetOp(ir.OCALLMETH)
 		call.X = x
 	case ir.ODOTINTER:
 		// Promoted method from embedded interface-typed field (#42279).

@@ -15,7 +15,7 @@ import (
 	"go/token"
 )
 
-// package all the arguments that match a ... T parameter into a []T.
+// MakeDotArgs package all the arguments that match a ... T parameter into a []T.
 func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 	var n ir.Node
 	if len(args) == 0 {
@@ -55,6 +55,25 @@ func FixVariadicCall(call *ir.CallExpr) {
 
 	call.Args = append(args[:vi], slice)
 	call.IsDDD = true
+}
+
+// FixMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
+func FixMethodCall(call *ir.CallExpr) {
+	if call.X.Op() != ir.ODOTMETH {
+		return
+	}
+
+	dot := call.X.(*ir.SelectorExpr)
+
+	fn := Expr(ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym))
+
+	args := make([]ir.Node, 1+len(call.Args))
+	args[0] = dot.X
+	copy(args[1:], call.Args)
+
+	call.SetOp(ir.OCALLFUNC)
+	call.X = fn
+	call.Args = args
 }
 
 // ClosureType returns the struct type used to hold all the information

@@ -489,7 +489,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 // walkCall walks an OCALLFUNC, OCALLINTER, or OCALLMETH node.
 func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	if n.Op() == ir.OCALLINTER || n.Op() == ir.OCALLMETH {
+	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
 		// We expect both interface call reflect.Type.Method and concrete
 		// call reflect.(*rtype).Method.
 		usemethod(n)
@@ -549,20 +549,8 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 	n.SetWalked(true)
 
-	// If this is a method call t.M(...),
-	// rewrite into a function call T.M(t, ...).
-	// TODO(mdempsky): Do this right after type checking.
 	if n.Op() == ir.OCALLMETH {
-		withRecv := make([]ir.Node, len(n.Args)+1)
-		dot := n.X.(*ir.SelectorExpr)
-		withRecv[0] = dot.X
-		copy(withRecv[1:], n.Args)
-		n.Args = withRecv
-
-		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
-
-		n.SetOp(ir.OCALLFUNC)
-		n.X = typecheck.Expr(dot)
+		typecheck.FixMethodCall(n)
 	}
 
 	args := n.Args
