@@ -45,6 +45,18 @@ var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+	// The Transport has a documented contract that states that if the DialContext or
+	// DialTLSContext functions are set, they will be used to set up the connections.
+	// If they aren't set then the documented contract is to use Dial or DialTLS, even
+	// though they are deprecated. Therefore, if any of these are set, we should obey
+	// the contract and dial using the regular round-trip instead. Otherwise we will
+	// end up calling the browser Fetch API unexpectedly.
+	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil {
+		useFakeNetwork = true
+	}
+
+	// If the browser Fetch API is unavailable, or the above conditions are met, then
+	// we will lean on fake networking to set up the connection.
 	if useFakeNetwork {
 		return t.roundTrip(req)
 	}
