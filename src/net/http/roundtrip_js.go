@@ -42,7 +42,7 @@ const jsFetchRedirect = "js.fetch:redirect"
 
 // jsFetchMissing will be true if the Fetch API is not present in
 // the browser globals.
-var jsFetchMissing = !js.Global().Get("fetch").IsUndefined()
+var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
