@@ -109,8 +109,10 @@ generally available).
 
 ## Debugging
 
-The easiest way to debug your change is to run can run a single `gopls` test
-with a debugger.
+The easiest way to debug your change is to run a single `gopls` test with a
+debugger.
+
+See also [Troubleshooting](troubleshooting.md#troubleshooting).
 
 <!--TODO(rstambler): Add more details about the debug server and viewing
 telemetry.-->
