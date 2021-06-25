@@ -1281,7 +1281,7 @@ func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, locals
 		localsIdx: make(map[types2.Object]int),
 	}
 
-	syntax.Walk(expr, &v)
+	syntax.Walk(expr.Body, &v)
 
 	return v.closureVars, v.localsIdx
 }
