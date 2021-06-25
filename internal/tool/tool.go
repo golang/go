@@ -88,6 +88,7 @@ func Main(ctx context.Context, app Application, args []string) {
 		fmt.Fprintf(s.Output(), "\n\nUsage: %v [flags] %v\n", app.Name(), app.Usage())
 		app.DetailedHelp(s)
 	}
+	addFlags(s, reflect.StructField{}, reflect.ValueOf(app))
 	if err := Run(ctx, app, args); err != nil {
 		fmt.Fprintf(s.Output(), "%s: %v\n", app.Name(), err)
 		if _, printHelp := err.(commandLineError); printHelp {
