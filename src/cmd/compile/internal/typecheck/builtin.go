@@ -138,6 +138,7 @@ var runtimeDecls = [...]struct {
 	{"growslice", funcTag, 116},
 	{"unsafeslice", funcTag, 117},
 	{"unsafeslice64", funcTag, 118},
+	{"unsafeslicecheckptr", funcTag, 118},
 	{"memmove", funcTag, 119},
 	{"memclrNoHeapPointers", funcTag, 120},
 	{"memclrHasPointers", funcTag, 120},
@@ -341,8 +342,8 @@ func runtimeTypes() []*types.Type {
 	typs[114] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
 	typs[115] = types.NewSlice(typs[2])
 	typs[116] = newSig(params(typs[1], typs[115], typs[15]), params(typs[115]))
-	typs[117] = newSig(params(typs[1], typs[15]), nil)
-	typs[118] = newSig(params(typs[1], typs[22]), nil)
+	typs[117] = newSig(params(typs[1], typs[7], typs[15]), nil)
+	typs[118] = newSig(params(typs[1], typs[7], typs[22]), nil)
 	typs[119] = newSig(params(typs[3], typs[3], typs[5]), nil)
 	typs[120] = newSig(params(typs[7], typs[5]), nil)
 	typs[121] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
