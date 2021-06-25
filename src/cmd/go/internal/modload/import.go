@@ -428,6 +428,15 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 					mv = module.ZeroPseudoVersion("v0")
 				}
 			}
+			mg, err := rs.Graph(ctx)
+			if err != nil {
+				return module.Version{}, err
+			}
+			if cmpVersion(mg.Selected(mp), mv) >= 0 {
+				// We can't resolve the import by adding mp@mv to the module graph,
+				// because the selected version of mp is already at least mv.
+				continue
+			}
 			mods = append(mods, module.Version{Path: mp, Version: mv})
 		}
 

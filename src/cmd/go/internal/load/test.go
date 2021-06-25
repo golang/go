@@ -116,7 +116,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
 			ptestErr = &PackageError{
-				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
+				ImportStack:   importCycleStack(p1, p.ImportPath),
 				Err:           errors.New("import cycle not allowed in test"),
 				IsImportCycle: true,
 			}
@@ -375,22 +375,44 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	return pmain, ptest, pxtest
 }
 
-func testImportStack(top string, p *Package, target string) []string {
-	stk := []string{top, p.ImportPath}
-Search:
-	for p.ImportPath != target {
-		for _, p1 := range p.Internal.Imports {
-			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
-				stk = append(stk, p1.ImportPath)
-				p = p1
-				continue Search
+// importCycleStack returns an import stack from p to the package whose import
+// path is target.
+func importCycleStack(p *Package, target string) []string {
+	// importerOf maps each import path to its importer nearest to p.
+	importerOf := map[string]string{p.ImportPath: ""}
+
+	// q is a breadth-first queue of packages to search for target.
+	// Every package added to q has a corresponding entry in pathTo.
+	//
+	// We search breadth-first for two reasons:
+	//
+	// 	1. We want to report the shortest cycle.
+	//
+	// 	2. If p contains multiple cycles, the first cycle we encounter might not
+	// 	   contain target. To ensure termination, we have to break all cycles
+	// 	   other than the first.
+	q := []*Package{p}
+
+	for len(q) > 0 {
+		p := q[0]
+		q = q[1:]
+		if path := p.ImportPath; path == target {
+			var stk []string
+			for path != "" {
+				stk = append(stk, path)
+				path = importerOf[path]
+			}
+			return stk
+		}
+		for _, dep := range p.Internal.Imports {
+			if _, ok := importerOf[dep.ImportPath]; !ok {
+				importerOf[dep.ImportPath] = p.ImportPath
+				q = append(q, dep)
 			}
 		}
-		// Can't happen, but in case it does...
-		stk = append(stk, "<lost path to cycle>")
-		break
 	}
-	return stk
+
+	panic("lost path to cycle")
 }
 
 // recompileForTest copies and replaces certain packages in pmain's dependency

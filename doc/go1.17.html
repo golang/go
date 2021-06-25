@@ -187,6 +187,13 @@ Do not send CLs removing the interior tags from such phrases.
   features.
 </p>
 
+<p><!-- golang.org/issue/46366 -->
+  The <code>go</code> <code>mod</code> <code>graph</code> subcommand also
+  supports the <code>-go</code> flag, which causes it to report the graph as
+  seen by the indicated Go version, showing dependencies that may otherwise be
+  pruned out by lazy loading.
+</p>
+
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
 
 <p><!-- golang.org/issue/40357 -->
