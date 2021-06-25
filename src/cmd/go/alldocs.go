@@ -1186,12 +1186,16 @@
 //
 // Usage:
 //
-// 	go mod graph
+// 	go mod graph [-go=version]
 //
 // Graph prints the module requirement graph (with replacements applied)
 // in text form. Each line in the output has two space-separated fields: a module
 // and one of its requirements. Each module is identified as a string of the form
 // path@version, except for the main module, which has no @version suffix.
+//
+// The -go flag causes graph to report the module graph as loaded by by the
+// given Go version, instead of the version indicated by the 'go' directive
+// in the go.mod file.
 //
 // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
@@ -1887,6 +1891,9 @@
 // 	GOMIPS64
 // 		For GOARCH=mips64{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
+// 	GOPPC64
+// 		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
+// 		Valid values are power8 (default), power9.
 // 	GOWASM
 // 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 // 		Valid values are satconv, signext.

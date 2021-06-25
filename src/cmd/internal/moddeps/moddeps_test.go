@@ -5,6 +5,7 @@
 package moddeps_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"internal/testenv"
@@ -68,7 +69,7 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
+			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
 			cmd.Env = append(os.Environ(), "GO111MODULE=on")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
@@ -123,10 +124,38 @@ func TestAllDependencies(t *testing.T) {
 		t.Skip("skipping because a diff command with support for --recursive and --unified flags is unavailable")
 	}
 
+	// We're going to check the standard modules for tidiness, so we need a usable
+	// GOMODCACHE. If the default directory doesn't exist, use a temporary
+	// directory instead. (That can occur, for example, when running under
+	// run.bash with GO_TEST_SHORT=0: run.bash sets GOPATH=/nonexist-gopath, and
+	// GO_TEST_SHORT=0 causes it to run this portion of the test.)
+	var modcacheEnv []string
+	{
+		out, err := exec.Command(goBin, "env", "GOMODCACHE").Output()
+		if err != nil {
+			t.Fatalf("%s env GOMODCACHE: %v", goBin, err)
+		}
+		modcacheOk := false
+		if gomodcache := string(bytes.TrimSpace(out)); gomodcache != "" {
+			if _, err := os.Stat(gomodcache); err == nil {
+				modcacheOk = true
+			}
+		}
+		if !modcacheOk {
+			modcacheEnv = []string{
+				"GOMODCACHE=" + t.TempDir(),
+				"GOFLAGS=" + os.Getenv("GOFLAGS") + " -modcacherw", // Allow t.TempDir() to clean up subdirectories.
+			}
+		}
+	}
+
 	// Build the bundle binary at the golang.org/x/tools
 	// module version specified in GOROOT/src/cmd/go.mod.
 	bundleDir := t.TempDir()
-	r := runner{Dir: filepath.Join(runtime.GOROOT(), "src/cmd")}
+	r := runner{
+		Dir: filepath.Join(runtime.GOROOT(), "src/cmd"),
+		Env: append(os.Environ(), modcacheEnv...),
+	}
 	r.run(t, goBin, "build", "-mod=readonly", "-o", bundleDir, "golang.org/x/tools/cmd/bundle")
 
 	var gorootCopyDir string
@@ -160,7 +189,7 @@ func TestAllDependencies(t *testing.T) {
 			}
 			r := runner{
 				Dir: filepath.Join(gorootCopyDir, rel),
-				Env: append(os.Environ(),
+				Env: append(append(os.Environ(), modcacheEnv...),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
 					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.

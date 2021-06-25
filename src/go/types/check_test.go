@@ -202,17 +202,20 @@ func asGoVersion(s string) string {
 	return ""
 }
 
-func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool) {
+func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
 
+	if strings.HasSuffix(filenames[0], ".go2") && !typeparams.Enabled {
+		t.Skip("type params are not enabled")
+	}
+	if strings.HasSuffix(filenames[0], ".go1") && typeparams.Enabled {
+		t.Skip("type params are enabled")
+	}
+
 	mode := parser.AllErrors
-	if strings.HasSuffix(filenames[0], ".go2") {
-		if !typeparams.Enabled {
-			t.Skip("type params are not enabled")
-		}
-	} else {
+	if !strings.HasSuffix(filenames[0], ".go2") {
 		mode |= typeparams.DisallowParsing
 	}
 
@@ -250,7 +253,10 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		}
 	}
 
-	conf.Importer = importer.Default()
+	conf.Importer = imp
+	if imp == nil {
+		conf.Importer = importer.Default()
+	}
 	conf.Error = func(err error) {
 		if *haltOnError {
 			defer panic(err)
@@ -339,7 +345,7 @@ func TestManual(t *testing.T) {
 func TestLongConstants(t *testing.T) {
 	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
-	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 // TestIndexRepresentability tests that constant index operands must
@@ -347,7 +353,7 @@ func TestLongConstants(t *testing.T) {
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
-	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 func TestIssue46453(t *testing.T) {
@@ -355,7 +361,7 @@ func TestIssue46453(t *testing.T) {
 		t.Skip("type params are enabled")
 	}
 	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
-	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false)
+	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
@@ -415,5 +421,5 @@ func testPkg(t *testing.T, filenames []string, manual bool) {
 		}
 		srcs[i] = src
 	}
-	testFiles(t, nil, filenames, srcs, manual)
+	testFiles(t, nil, filenames, srcs, manual, nil)
 }
