@@ -1388,7 +1388,7 @@ func WriteBasicTypes() {
 
 type typeAndStr struct {
 	t       *types.Type
-	short   string
+	short   string // "short" here means NameString
 	regular string
 }
 
@@ -1401,8 +1401,13 @@ func (a typesByString) Less(i, j int) bool {
 	}
 	// When the only difference between the types is whether
 	// they refer to byte or uint8, such as **byte vs **uint8,
-	// the types' ShortStrings can be identical.
+	// the types' NameStrings can be identical.
 	// To preserve deterministic sort ordering, sort these by String().
+	//
+	// TODO(mdempsky): This all seems suspect. Using LinkString would
+	// avoid naming collisions, and there shouldn't be a reason to care
+	// about "byte" vs "uint8": they share the same runtime type
+	// descriptor anyway.
 	if a[i].regular != a[j].regular {
 		return a[i].regular < a[j].regular
 	}
