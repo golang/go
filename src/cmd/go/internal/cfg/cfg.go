@@ -77,6 +77,14 @@ func defaultContext() build.Context {
 	ctxt.GOOS = envOr("GOOS", ctxt.GOOS)
 	ctxt.GOARCH = envOr("GOARCH", ctxt.GOARCH)
 
+	// The experiments flags are based on GOARCH, so they may
+	// need to change.  TODO: This should be cleaned up.
+	buildcfg.UpdateExperiments(ctxt.GOARCH)
+	ctxt.ToolTags = nil
+	for _, exp := range buildcfg.EnabledExperiments() {
+		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
+	}
+
 	// The go/build rule for whether cgo is enabled is:
 	//	1. If $CGO_ENABLED is set, respect it.
 	//	2. Otherwise, if this is a cross-compile, disable cgo.
