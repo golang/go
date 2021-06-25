@@ -631,7 +631,7 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
 			}
 			// TODO(mdempsky): We need the linker to replace "" in the symbol
 			// names here.
-			buf.WriteString(targ.ShortString())
+			buf.WriteString(targ.LinkString())
 		}
 	}
 	buf.WriteByte(']')
@@ -2041,7 +2041,7 @@ func (r *reader) wrapTypes(target *ir.Package) {
 	seen := make(map[string]*types.Type)
 	for _, typ := range needWrapperTypes {
 		if typ.Sym() == nil {
-			key := typ.ShortString()
+			key := typ.LinkString()
 			if prev := seen[key]; prev != nil {
 				if !types.Identical(typ, prev) {
 					base.Fatalf("collision: types %v and %v have short string %q", typ, prev, key)

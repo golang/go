@@ -678,7 +678,7 @@ func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	// LongString does not uniquely identify types, so we need to
 	// disambiguate collisions with types.Identical.
 	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.LongString()
+	ls := typ.NameString()
 	prevs := s.m[ls]
 	for _, prev := range prevs {
 		if types.Identical(typ, prev.typ) {
