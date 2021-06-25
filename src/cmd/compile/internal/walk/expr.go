@@ -958,9 +958,8 @@ func usemethod(n *ir.CallExpr) {
 		return
 	}
 
-	// Note: Don't rely on Field.Type.String() since its formatting depends on multiple factors
-	//       (including global variables such as numImports - was issue #19028).
-	// Also need to check for reflect package itself (see Issue #38515).
+	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
+	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
 	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
