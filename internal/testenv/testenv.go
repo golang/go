@@ -251,16 +251,17 @@ func ExitIfSmallMachine() {
 	case "linux-arm-scaleway":
 		// "linux-arm" was renamed to "linux-arm-scaleway" in CL 303230.
 		fmt.Fprintln(os.Stderr, "skipping test: linux-arm-scaleway builder lacks sufficient memory (https://golang.org/issue/32834)")
-		os.Exit(0)
 	case "plan9-arm":
 		fmt.Fprintln(os.Stderr, "skipping test: plan9-arm builder lacks sufficient memory (https://golang.org/issue/38772)")
-		os.Exit(0)
 	case "netbsd-arm-bsiegert", "netbsd-arm64-bsiegert":
 		// As of 2021-06-02, these builders are running with GO_TEST_TIMEOUT_SCALE=10,
 		// and there is only one of each. We shouldn't waste those scarce resources
 		// running very slow tests.
 		fmt.Fprintf(os.Stderr, "skipping test: %s builder is very slow\n", b)
+	default:
+		return
 	}
+	os.Exit(0)
 }
 
 // Go1Point returns the x in Go 1.x.
