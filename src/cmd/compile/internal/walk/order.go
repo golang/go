@@ -506,15 +506,18 @@ func (o *orderState) init(n ir.Node) {
 }
 
 // call orders the call expression n.
-// n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
+// n.Op is OCALLFUNC/OCALLINTER or a builtin like OCOPY.
 func (o *orderState) call(nn ir.Node) {
 	if len(nn.Init()) > 0 {
 		// Caller should have already called o.init(nn).
 		base.Fatalf("%v with unexpected ninit", nn.Op())
 	}
+	if nn.Op() == ir.OCALLMETH {
+		base.FatalfAt(nn.Pos(), "OCALLMETH missed by typecheck")
+	}
 
 	// Builtin functions.
-	if nn.Op() != ir.OCALLFUNC && nn.Op() != ir.OCALLMETH && nn.Op() != ir.OCALLINTER {
+	if nn.Op() != ir.OCALLFUNC && nn.Op() != ir.OCALLINTER {
 		switch n := nn.(type) {
 		default:
 			base.Fatalf("unexpected call: %+v", n)
@@ -707,7 +710,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 
 	// Special: handle call arguments.
-	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
@@ -1147,7 +1150,10 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 	case ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
-		if n.Type().IsKind(types.TUNSAFEPTR) && n.X.Type().IsKind(types.TUINTPTR) && (n.X.Op() == ir.OCALLFUNC || n.X.Op() == ir.OCALLINTER || n.X.Op() == ir.OCALLMETH) {
+		if n.X.Op() == ir.OCALLMETH {
+			base.FatalfAt(n.X.Pos(), "OCALLMETH missed by typecheck")
+		}
+		if n.Type().IsKind(types.TUNSAFEPTR) && n.X.Type().IsKind(types.TUINTPTR) && (n.X.Op() == ir.OCALLFUNC || n.X.Op() == ir.OCALLINTER) {
 			call := n.X.(*ir.CallExpr)
 			// When reordering unsafe.Pointer(f()) into a separate
 			// statement, the conversion and function call must stay
@@ -1200,9 +1206,12 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		o.out = append(o.out, nif)
 		return r
 
+	case ir.OCALLMETH:
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+		panic("unreachable")
+
 	case ir.OCALLFUNC,
 		ir.OCALLINTER,
-		ir.OCALLMETH,
 		ir.OCAP,
 		ir.OCOMPLEX,
 		ir.OCOPY,
