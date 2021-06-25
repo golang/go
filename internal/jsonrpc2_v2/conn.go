@@ -50,7 +50,7 @@ type Connection struct {
 	writerBox   chan Writer
 	outgoingBox chan map[ID]chan<- *Response
 	incomingBox chan map[ID]*incoming
-	async       async
+	async       *async
 }
 
 type AsyncCall struct {
@@ -87,6 +87,7 @@ func newConnection(ctx context.Context, rwc io.ReadWriteCloser, binder Binder) (
 		writerBox:   make(chan Writer, 1),
 		outgoingBox: make(chan map[ID]chan<- *Response, 1),
 		incomingBox: make(chan map[ID]*incoming, 1),
+		async:       newAsync(),
 	}
 
 	options, err := binder.Bind(ctx, c)
@@ -104,7 +105,6 @@ func newConnection(ctx context.Context, rwc io.ReadWriteCloser, binder Binder) (
 	}
 	c.outgoingBox <- make(map[ID]chan<- *Response)
 	c.incomingBox <- make(map[ID]*incoming)
-	c.async.init()
 	// the goroutines started here will continue until the underlying stream is closed
 	reader := options.Framer.Reader(rwc)
 	readToQueue := make(chan *incoming)

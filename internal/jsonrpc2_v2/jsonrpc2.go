@@ -64,10 +64,12 @@ type async struct {
 	errBox chan error
 }
 
-func (a *async) init() {
+func newAsync() *async {
+	var a async
 	a.ready = make(chan struct{})
 	a.errBox = make(chan error, 1)
 	a.errBox <- nil
+	return &a
 }
 
 func (a *async) done() {

@@ -42,7 +42,7 @@ type Dialer interface {
 type Server struct {
 	listener Listener
 	binder   Binder
-	async    async
+	async    *async
 }
 
 // Dial uses the dialer to make a new connection, wraps the returned
@@ -68,8 +68,8 @@ func Serve(ctx context.Context, listener Listener, binder Binder) (*Server, erro
 	server := &Server{
 		listener: listener,
 		binder:   binder,
+		async:    newAsync(),
 	}
-	server.async.init()
 	go server.run(ctx)
 	return server, nil
 }
