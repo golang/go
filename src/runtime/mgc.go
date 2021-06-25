@@ -879,7 +879,7 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema(true)
+			now := startTheWorldWithSema(trace.enabled)
 			work.pauseNS += now - work.pauseStart
 			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
@@ -1087,7 +1087,7 @@ func gcMarkTermination() {
 		throw("failed to set sweep barrier")
 	}
 
-	systemstack(func() { startTheWorldWithSema(true) })
+	systemstack(func() { startTheWorldWithSema(trace.enabled) })
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
