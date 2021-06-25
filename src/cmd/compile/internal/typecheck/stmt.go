@@ -662,29 +662,18 @@ func tcSwitchType(n *ir.SwitchStmt) {
 }
 
 type typeSet struct {
-	m map[string][]typeSetEntry
-}
-
-type typeSetEntry struct {
-	pos src.XPos
-	typ *types.Type
+	m map[string]src.XPos
 }
 
 func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	if s.m == nil {
-		s.m = make(map[string][]typeSetEntry)
+		s.m = make(map[string]src.XPos)
 	}
 
-	// LongString does not uniquely identify types, so we need to
-	// disambiguate collisions with types.Identical.
-	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.NameString()
-	prevs := s.m[ls]
-	for _, prev := range prevs {
-		if types.Identical(typ, prev.typ) {
-			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
-			return
-		}
+	ls := typ.LinkString()
+	if prev, ok := s.m[ls]; ok {
+		base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev))
+		return
 	}
-	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
+	s.m[ls] = pos
 }

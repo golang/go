@@ -51,7 +51,7 @@ import (
 type orderState struct {
 	out  []ir.Node             // list of generated statements
 	temp []*ir.Name            // stack of temporary variables
-	free map[string][]*ir.Name // free list of unused temporaries, by type.LongString().
+	free map[string][]*ir.Name // free list of unused temporaries, by type.LinkString().
 	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
 }
 
@@ -76,20 +76,14 @@ func (o *orderState) append(stmt ir.Node) {
 // If clear is true, newTemp emits code to zero the temporary.
 func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
 	var v *ir.Name
-	// Note: LongString is close to the type equality we want,
-	// but not exactly. We still need to double-check with types.Identical.
-	key := t.NameString()
-	a := o.free[key]
-	for i, n := range a {
-		if types.Identical(t, n.Type()) {
-			v = a[i]
-			a[i] = a[len(a)-1]
-			a = a[:len(a)-1]
-			o.free[key] = a
-			break
+	key := t.LinkString()
+	if a := o.free[key]; len(a) > 0 {
+		v = a[len(a)-1]
+		if !types.Identical(t, v.Type()) {
+			base.Fatalf("expected %L to have type %v", v, t)
 		}
-	}
-	if v == nil {
+		o.free[key] = a[:len(a)-1]
+	} else {
 		v = typecheck.Temp(t)
 	}
 	if clear {
@@ -370,7 +364,7 @@ func (o *orderState) markTemp() ordermarker {
 // which must have been returned by markTemp.
 func (o *orderState) popTemp(mark ordermarker) {
 	for _, n := range o.temp[mark:] {
-		key := n.Type().NameString()
+		key := n.Type().LinkString()
 		o.free[key] = append(o.free[key], n)
 	}
 	o.temp = o.temp[:mark]
