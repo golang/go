@@ -79,7 +79,7 @@ func defaultContext() build.Context {
 
 	// The experiments flags are based on GOARCH, so they may
 	// need to change.  TODO: This should be cleaned up.
-	buildcfg.UpdateExperiments(ctxt.GOARCH)
+	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT))
 	ctxt.ToolTags = nil
 	for _, exp := range buildcfg.EnabledExperiments() {
 		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
