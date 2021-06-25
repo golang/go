@@ -112,19 +112,37 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 	return makeslice(et, len, cap)
 }
 
-func unsafeslice(et *_type, len int) {
+func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+	if len == 0 {
+		return
+	}
+
+	if ptr == nil {
+		panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+	}
+
 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
 	if overflow || mem > maxAlloc || len < 0 {
 		panicunsafeslicelen()
 	}
 }
 
-func unsafeslice64(et *_type, len64 int64) {
+func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
 	len := int(len64)
 	if int64(len) != len64 {
 		panicunsafeslicelen()
 	}
-	unsafeslice(et, len)
+	unsafeslice(et, ptr, len)
+}
+
+func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+	unsafeslice64(et, ptr, len64)
+
+	// Check that underlying array doesn't straddle multiple heap objects.
+	// unsafeslice64 has already checked for overflow.
+	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
+		throw("checkptr: unsafe.Slice result straddles multiple allocations")
+	}
 }
 
 func panicunsafeslicelen() {
