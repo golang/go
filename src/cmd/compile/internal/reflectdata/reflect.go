@@ -717,7 +717,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	}
 
 	exported := false
-	p := t.LongString()
+	p := t.NameString()
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
 	// Use the string "*T"[1:] for "T", so that the two
@@ -781,11 +781,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 // TrackSym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
-	return base.PkgLinksym("go.track", t.ShortString()+"."+f.Sym.Name, obj.ABI0)
+	return base.PkgLinksym("go.track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
 }
 
 func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
-	p := prefix + "." + t.ShortString()
+	p := prefix + "." + t.LinkString()
 	s := types.TypeSymLookup(p)
 
 	// This function is for looking up type-related generated functions
@@ -833,7 +833,7 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 // ITabAddr returns an expression representing a pointer to the itab
 // for concrete type typ implementing interface iface.
 func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
-	s, existed := ir.Pkgs.Itab.LookupOK(typ.ShortString() + "," + iface.ShortString())
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
 
 	if !existed {

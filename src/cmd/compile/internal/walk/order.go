@@ -78,7 +78,7 @@ func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
 	var v *ir.Name
 	// Note: LongString is close to the type equality we want,
 	// but not exactly. We still need to double-check with types.Identical.
-	key := t.LongString()
+	key := t.NameString()
 	a := o.free[key]
 	for i, n := range a {
 		if types.Identical(t, n.Type()) {
@@ -370,7 +370,7 @@ func (o *orderState) markTemp() ordermarker {
 // which must have been returned by markTemp.
 func (o *orderState) popTemp(mark ordermarker) {
 	for _, n := range o.temp[mark:] {
-		key := n.Type().LongString()
+		key := n.Type().NameString()
 		o.free[key] = append(o.free[key], n)
 	}
 	o.temp = o.temp[:mark]

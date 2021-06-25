@@ -2129,7 +2129,7 @@ func TypeSymLookup(name string) *Sym {
 }
 
 func TypeSymName(t *Type) string {
-	name := t.ShortString()
+	name := t.LinkString()
 	// Use a separate symbol name for Noalg types for #17752.
 	if TypeHasNoAlg(t) {
 		name = "noalg." + name
