@@ -54,6 +54,26 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// testAllOrModules tests f against all packagestest exporters in long mode,
+// but only against the Modules exporter in short mode.
+func testAllOrModules(t *testing.T, f func(*testing.T, packagestest.Exporter)) {
+	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
+		t.Helper()
+
+		switch exporter.Name() {
+		case "Modules":
+		case "GOPATH":
+			if testing.Short() {
+				t.Skipf("skipping GOPATH test in short mode")
+			}
+		default:
+			t.Fatalf("unexpected exporter %q", exporter.Name())
+		}
+
+		f(t, exporter)
+	})
+}
+
 // TODO(adonovan): more test cases to write:
 //
 // - When the tests fail, make them print a 'cd & load' command
@@ -93,7 +113,7 @@ func TestLoadZeroConfig(t *testing.T) {
 	}
 }
 
-func TestLoadImportsGraph(t *testing.T) { packagestest.TestAll(t, testLoadImportsGraph) }
+func TestLoadImportsGraph(t *testing.T) { testAllOrModules(t, testLoadImportsGraph) }
 func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -267,7 +287,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestLoadImportsTestVariants(t *testing.T) { packagestest.TestAll(t, testLoadImportsTestVariants) }
+func TestLoadImportsTestVariants(t *testing.T) { testAllOrModules(t, testLoadImportsTestVariants) }
 func testLoadImportsTestVariants(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -395,7 +415,7 @@ func imports(p *packages.Package) []string {
 	return keys
 }
 
-func TestConfigDir(t *testing.T) { packagestest.TestAll(t, testConfigDir) }
+func TestConfigDir(t *testing.T) { testAllOrModules(t, testConfigDir) }
 func testConfigDir(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -458,7 +478,7 @@ func testConfigDir(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestConfigFlags(t *testing.T) { packagestest.TestAll(t, testConfigFlags) }
+func TestConfigFlags(t *testing.T) { testAllOrModules(t, testConfigFlags) }
 func testConfigFlags(t *testing.T, exporter packagestest.Exporter) {
 	// Test satisfying +build line tags, with -tags flag.
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -519,7 +539,7 @@ package b`,
 	}
 }
 
-func TestLoadTypes(t *testing.T) { packagestest.TestAll(t, testLoadTypes) }
+func TestLoadTypes(t *testing.T) { testAllOrModules(t, testLoadTypes) }
 func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 	// In LoadTypes and LoadSyntax modes, the compiler will
 	// fail to generate an export data file for c, because it has
@@ -577,7 +597,7 @@ func testLoadTypes(t *testing.T, exporter packagestest.Exporter) {
 
 // TestLoadTypesBits is equivalent to TestLoadTypes except that it only requests
 // the types using the NeedTypes bit.
-func TestLoadTypesBits(t *testing.T) { packagestest.TestAll(t, testLoadTypesBits) }
+func TestLoadTypesBits(t *testing.T) { testAllOrModules(t, testLoadTypesBits) }
 func testLoadTypesBits(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -653,7 +673,7 @@ func testLoadTypesBits(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestLoadSyntaxOK(t *testing.T) { packagestest.TestAll(t, testLoadSyntaxOK) }
+func TestLoadSyntaxOK(t *testing.T) { testAllOrModules(t, testLoadSyntaxOK) }
 func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -743,7 +763,7 @@ func testLoadSyntaxOK(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestLoadDiamondTypes(t *testing.T) { packagestest.TestAll(t, testLoadDiamondTypes) }
+func TestLoadDiamondTypes(t *testing.T) { testAllOrModules(t, testLoadDiamondTypes) }
 func testLoadDiamondTypes(t *testing.T, exporter packagestest.Exporter) {
 	// We make a diamond dependency and check the type d.D is the same through both paths
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -783,7 +803,7 @@ func testLoadDiamondTypes(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestLoadSyntaxError(t *testing.T) { packagestest.TestAll(t, testLoadSyntaxError) }
+func TestLoadSyntaxError(t *testing.T) { testAllOrModules(t, testLoadSyntaxError) }
 func testLoadSyntaxError(t *testing.T, exporter packagestest.Exporter) {
 	// A type error in a lower-level package (e) prevents go list
 	// from producing export data for all packages that depend on it
@@ -859,7 +879,7 @@ func testLoadSyntaxError(t *testing.T, exporter packagestest.Exporter) {
 
 // This function tests use of the ParseFile hook to modify
 // the AST after parsing.
-func TestParseFileModifyAST(t *testing.T) { packagestest.TestAll(t, testParseFileModifyAST) }
+func TestParseFileModifyAST(t *testing.T) { testAllOrModules(t, testParseFileModifyAST) }
 func testParseFileModifyAST(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -939,7 +959,7 @@ const A = 1
 }
 
 func TestLoadAllSyntaxImportErrors(t *testing.T) {
-	packagestest.TestAll(t, testLoadAllSyntaxImportErrors)
+	testAllOrModules(t, testLoadAllSyntaxImportErrors)
 }
 func testLoadAllSyntaxImportErrors(t *testing.T, exporter packagestest.Exporter) {
 	// TODO(matloob): Remove this once go list -e -compiled is fixed.
@@ -1024,7 +1044,7 @@ import (
 	}
 }
 
-func TestAbsoluteFilenames(t *testing.T) { packagestest.TestAll(t, testAbsoluteFilenames) }
+func TestAbsoluteFilenames(t *testing.T) { testAllOrModules(t, testAbsoluteFilenames) }
 func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1103,7 +1123,7 @@ func testAbsoluteFilenames(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestContains(t *testing.T) { packagestest.TestAll(t, testContains) }
+func TestContains(t *testing.T) { testAllOrModules(t, testContains) }
 func testContains(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1135,7 +1155,7 @@ func testContains(t *testing.T, exporter packagestest.Exporter) {
 // application determines the Sizes function used by the type checker.
 // This behavior is a stop-gap until we make the build system's query
 // tool report the correct sizes function for the actual configuration.
-func TestSizes(t *testing.T) { packagestest.TestAll(t, testSizes) }
+func TestSizes(t *testing.T) { testAllOrModules(t, testSizes) }
 func testSizes(t *testing.T, exporter packagestest.Exporter) {
 	// Only run this test on operating systems that have both an amd64 and 386 port.
 	switch runtime.GOOS {
@@ -1172,7 +1192,7 @@ func testSizes(t *testing.T, exporter packagestest.Exporter) {
 // TestContainsFallbackSticks ensures that when there are both contains and non-contains queries
 // the decision whether to fallback to the pre-1.11 go list sticks across both sets of calls to
 // go list.
-func TestContainsFallbackSticks(t *testing.T) { packagestest.TestAll(t, testContainsFallbackSticks) }
+func TestContainsFallbackSticks(t *testing.T) { testAllOrModules(t, testContainsFallbackSticks) }
 func testContainsFallbackSticks(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1205,7 +1225,7 @@ func testContainsFallbackSticks(t *testing.T, exporter packagestest.Exporter) {
 
 // Test that Load with no patterns is equivalent to loading "." via the golist
 // driver.
-func TestNoPatterns(t *testing.T) { packagestest.TestAll(t, testNoPatterns) }
+func TestNoPatterns(t *testing.T) { testAllOrModules(t, testNoPatterns) }
 func testNoPatterns(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1227,7 +1247,7 @@ func testNoPatterns(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestJSON(t *testing.T) { packagestest.TestAll(t, testJSON) }
+func TestJSON(t *testing.T) { testAllOrModules(t, testJSON) }
 func testJSON(t *testing.T, exporter packagestest.Exporter) {
 	//TODO: add in some errors
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1393,7 +1413,7 @@ func TestRejectInvalidQueries(t *testing.T) {
 	}
 }
 
-func TestPatternPassthrough(t *testing.T) { packagestest.TestAll(t, testPatternPassthrough) }
+func TestPatternPassthrough(t *testing.T) { testAllOrModules(t, testPatternPassthrough) }
 func testPatternPassthrough(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1417,7 +1437,7 @@ func testPatternPassthrough(t *testing.T, exporter packagestest.Exporter) {
 
 }
 
-func TestConfigDefaultEnv(t *testing.T) { packagestest.TestAll(t, testConfigDefaultEnv) }
+func TestConfigDefaultEnv(t *testing.T) { testAllOrModules(t, testConfigDefaultEnv) }
 func testConfigDefaultEnv(t *testing.T, exporter packagestest.Exporter) {
 	const driverJSON = `{
   "Roots": ["gopackagesdriver"],
@@ -1525,7 +1545,7 @@ EOF
 // list. This would then cause a nil pointer crash.
 // This bug was triggered by the simple package layout below, and thus this
 // test will make sure the bug remains fixed.
-func TestBasicXTest(t *testing.T) { packagestest.TestAll(t, testBasicXTest) }
+func TestBasicXTest(t *testing.T) { testAllOrModules(t, testBasicXTest) }
 func testBasicXTest(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1543,7 +1563,7 @@ func testBasicXTest(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestErrorMissingFile(t *testing.T) { packagestest.TestAll(t, testErrorMissingFile) }
+func TestErrorMissingFile(t *testing.T) { testAllOrModules(t, testErrorMissingFile) }
 func testErrorMissingFile(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1570,7 +1590,7 @@ func testErrorMissingFile(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestReturnErrorWhenUsingNonGoFiles(t *testing.T) {
-	packagestest.TestAll(t, testReturnErrorWhenUsingNonGoFiles)
+	testAllOrModules(t, testReturnErrorWhenUsingNonGoFiles)
 }
 func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1598,7 +1618,7 @@ func testReturnErrorWhenUsingNonGoFiles(t *testing.T, exporter packagestest.Expo
 }
 
 func TestReturnErrorWhenUsingGoFilesInMultipleDirectories(t *testing.T) {
-	packagestest.TestAll(t, testReturnErrorWhenUsingGoFilesInMultipleDirectories)
+	testAllOrModules(t, testReturnErrorWhenUsingGoFilesInMultipleDirectories)
 }
 func testReturnErrorWhenUsingGoFilesInMultipleDirectories(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1630,7 +1650,7 @@ func testReturnErrorWhenUsingGoFilesInMultipleDirectories(t *testing.T, exporter
 }
 
 func TestReturnErrorForUnexpectedDirectoryLayout(t *testing.T) {
-	packagestest.TestAll(t, testReturnErrorForUnexpectedDirectoryLayout)
+	testAllOrModules(t, testReturnErrorForUnexpectedDirectoryLayout)
 }
 func testReturnErrorForUnexpectedDirectoryLayout(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1660,7 +1680,7 @@ func testReturnErrorForUnexpectedDirectoryLayout(t *testing.T, exporter packages
 	}
 }
 
-func TestMissingDependency(t *testing.T) { packagestest.TestAll(t, testMissingDependency) }
+func TestMissingDependency(t *testing.T) { testAllOrModules(t, testMissingDependency) }
 func testMissingDependency(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1682,7 +1702,7 @@ func testMissingDependency(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestAdHocContains(t *testing.T) { packagestest.TestAll(t, testAdHocContains) }
+func TestAdHocContains(t *testing.T) { testAllOrModules(t, testAdHocContains) }
 func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name: "golang.org/fake",
@@ -1724,7 +1744,7 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestCgoNoCcompiler(t *testing.T) { packagestest.TestAll(t, testCgoNoCcompiler) }
+func TestCgoNoCcompiler(t *testing.T) { testAllOrModules(t, testCgoNoCcompiler) }
 func testCgoNoCcompiler(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsTool(t, "cgo")
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1758,7 +1778,7 @@ const A = http.MethodGet
 	}
 }
 
-func TestCgoMissingFile(t *testing.T) { packagestest.TestAll(t, testCgoMissingFile) }
+func TestCgoMissingFile(t *testing.T) { testAllOrModules(t, testCgoMissingFile) }
 func testCgoMissingFile(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsTool(t, "cgo")
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -1844,7 +1864,7 @@ func TestLoadImportsC(t *testing.T) {
 }
 
 func TestCgoNoSyntax(t *testing.T) {
-	packagestest.TestAll(t, testCgoNoSyntax)
+	testAllOrModules(t, testCgoNoSyntax)
 }
 func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsTool(t, "cgo")
@@ -1885,7 +1905,7 @@ func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestCgoBadPkgConfig(t *testing.T) {
-	packagestest.TestAll(t, testCgoBadPkgConfig)
+	testAllOrModules(t, testCgoBadPkgConfig)
 }
 func testCgoBadPkgConfig(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsTool(t, "cgo")
@@ -1957,7 +1977,7 @@ func main() {
 	return tmpdir
 }
 
-func TestIssue32814(t *testing.T) { packagestest.TestAll(t, testIssue32814) }
+func TestIssue32814(t *testing.T) { testAllOrModules(t, testIssue32814) }
 func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
 		Name:  "golang.org/fake",
@@ -1985,7 +2005,7 @@ func testIssue32814(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestLoadTypesInfoWithoutNeedDeps(t *testing.T) {
-	packagestest.TestAll(t, testLoadTypesInfoWithoutNeedDeps)
+	testAllOrModules(t, testLoadTypesInfoWithoutNeedDeps)
 }
 func testLoadTypesInfoWithoutNeedDeps(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2012,7 +2032,7 @@ func testLoadTypesInfoWithoutNeedDeps(t *testing.T, exporter packagestest.Export
 }
 
 func TestLoadWithNeedDeps(t *testing.T) {
-	packagestest.TestAll(t, testLoadWithNeedDeps)
+	testAllOrModules(t, testLoadWithNeedDeps)
 }
 func testLoadWithNeedDeps(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2056,7 +2076,7 @@ func testLoadWithNeedDeps(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestImpliedLoadMode(t *testing.T) {
-	packagestest.TestAll(t, testImpliedLoadMode)
+	testAllOrModules(t, testImpliedLoadMode)
 }
 func testImpliedLoadMode(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2094,7 +2114,7 @@ func testImpliedLoadMode(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestIssue35331(t *testing.T) {
-	packagestest.TestAll(t, testIssue35331)
+	testAllOrModules(t, testIssue35331)
 }
 func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2124,7 +2144,7 @@ func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestMultiplePackageVersionsIssue36188(t *testing.T) {
-	packagestest.TestAll(t, testMultiplePackageVersionsIssue36188)
+	testAllOrModules(t, testMultiplePackageVersionsIssue36188)
 }
 
 func testMultiplePackageVersionsIssue36188(t *testing.T, exporter packagestest.Exporter) {
@@ -2233,7 +2253,7 @@ func TestLoadModeStrings(t *testing.T) {
 }
 
 func TestCycleImportStack(t *testing.T) {
-	packagestest.TestAll(t, testCycleImportStack)
+	testAllOrModules(t, testCycleImportStack)
 }
 func testCycleImportStack(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2263,7 +2283,7 @@ func testCycleImportStack(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestForTestField(t *testing.T) {
-	packagestest.TestAll(t, testForTestField)
+	testAllOrModules(t, testForTestField)
 }
 func testForTestField(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2309,7 +2329,7 @@ func testForTestField(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestIssue37529(t *testing.T) {
-	packagestest.TestAll(t, testIssue37529)
+	testAllOrModules(t, testIssue37529)
 }
 func testIssue37529(t *testing.T, exporter packagestest.Exporter) {
 	// Tests #37529. When automatic vendoring is triggered, and we try to determine
@@ -2349,7 +2369,7 @@ func testIssue37529(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestIssue37098(t *testing.T) { packagestest.TestAll(t, testIssue37098) }
+func TestIssue37098(t *testing.T) { testAllOrModules(t, testIssue37098) }
 func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
 	// packages.Load should only return Go sources in
 	// (*Package).CompiledGoFiles.  This tests #37098, where using SWIG to
@@ -2413,7 +2433,7 @@ func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
 }
 
 // TestInvalidFilesInXTest checks the fix for golang/go#37971 in Go 1.15.
-func TestInvalidFilesInXTest(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInXTest) }
+func TestInvalidFilesInXTest(t *testing.T) { testAllOrModules(t, testInvalidFilesInXTest) }
 func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsGo1Point(t, 15)
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
@@ -2440,7 +2460,7 @@ func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestTypecheckCgo(t *testing.T) { packagestest.TestAll(t, testTypecheckCgo) }
+func TestTypecheckCgo(t *testing.T) { testAllOrModules(t, testTypecheckCgo) }
 func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsGo1Point(t, 15)
 	testenv.NeedsTool(t, "cgo")
@@ -2483,7 +2503,7 @@ func testTypecheckCgo(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestModule(t *testing.T) {
-	packagestest.TestAll(t, testModule)
+	testAllOrModules(t, testModule)
 }
 func testModule(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{{
@@ -2523,7 +2543,7 @@ func testModule(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestExternal_NotHandled(t *testing.T) {
-	packagestest.TestAll(t, testExternal_NotHandled)
+	testAllOrModules(t, testExternal_NotHandled)
 }
 func testExternal_NotHandled(t *testing.T, exporter packagestest.Exporter) {
 	testenv.NeedsGoBuild(t)
@@ -2609,7 +2629,7 @@ func main() {
 }
 
 func TestInvalidPackageName(t *testing.T) {
-	packagestest.TestAll(t, testInvalidPackageName)
+	testAllOrModules(t, testInvalidPackageName)
 }
 
 func testInvalidPackageName(t *testing.T, exporter packagestest.Exporter) {
