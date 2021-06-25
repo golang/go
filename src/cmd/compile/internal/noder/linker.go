@@ -209,8 +209,6 @@ func (l *linker) relocFuncExt(w *encoder, name *ir.Name) {
 
 		pri, ok := bodyReader[name.Func]
 		assert(ok)
-		w.sync(syncAddBody)
-		w.sync(syncImplicitTypes)
 		w.reloc(relocBody, l.relocIdx(pri.pr, relocBody, pri.idx))
 	}
 

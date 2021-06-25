@@ -105,8 +105,9 @@ type reader struct {
 	// separately so that it doesn't take up space in every reader
 	// instance.
 
-	curfn  *ir.Func
-	locals []*ir.Name
+	curfn       *ir.Func
+	locals      []*ir.Name
+	closureVars []*ir.Name
 
 	funarghack bool
 
@@ -775,10 +776,10 @@ func (r *reader) funcExt(name *ir.Name) {
 				Cost:            int32(r.len()),
 				CanDelayResults: r.bool(),
 			}
-			r.addBody(name.Func)
+			r.addBody(name.Func, r.explicits)
 		}
 	} else {
-		r.addBody(name.Func)
+		r.addBody(name.Func, r.explicits)
 	}
 	r.sync(syncEOF)
 }
@@ -840,25 +841,7 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
-// Keep in sync with writer.implicitTypes
-// Also see comment there for why r.implicits and r.explicits should
-// never both be non-empty.
-func (r *reader) implicitTypes() []*types.Type {
-	r.sync(syncImplicitTypes)
-
-	implicits := r.implicits
-	if len(implicits) == 0 {
-		implicits = r.explicits
-	} else {
-		assert(len(r.explicits) == 0)
-	}
-	return implicits
-}
-
-func (r *reader) addBody(fn *ir.Func) {
-	r.sync(syncAddBody)
-
-	implicits := r.implicitTypes()
+func (r *reader) addBody(fn *ir.Func, implicits []*types.Type) {
 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
 	bodyReader[fn] = pri
 
@@ -877,7 +860,7 @@ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
 
 func (r *reader) funcBody(fn *ir.Func) {
 	r.curfn = fn
-	r.locals = fn.ClosureVars
+	r.closureVars = fn.ClosureVars
 
 	// TODO(mdempsky): Get rid of uses of typecheck.NodAddrAt so we
 	// don't have to set ir.CurFunc.
@@ -1004,7 +987,10 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 
 func (r *reader) useLocal() *ir.Name {
 	r.sync(syncUseObjLocal)
-	return r.locals[r.len()]
+	if r.bool() {
+		return r.locals[r.len()]
+	}
+	return r.closureVars[r.len()]
 }
 
 func (r *reader) openScope() {
@@ -1088,8 +1074,11 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 	case stmtAssign:
 		pos := r.pos()
-		names, lhs := r.assignList()
+
+		// TODO(mdempsky): After quirks mode is gone, swap these
+		// statements so we visit LHS before RHS again.
 		rhs := r.exprList()
+		names, lhs := r.assignList()
 
 		if len(rhs) == 0 {
 			for _, name := range names {
@@ -1225,8 +1214,12 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 
 	if r.bool() {
 		pos := r.pos()
-		names, lhs := r.assignList()
+
+		// TODO(mdempsky): After quirks mode is gone, swap these
+		// statements so we read LHS before X again.
 		x := r.expr()
+		names, lhs := r.assignList()
+
 		body := r.blockStmt()
 		r.closeAnotherScope()
 
@@ -1572,7 +1565,7 @@ func (r *reader) funcLit() ir.Node {
 		r.setType(cv, outer.Type())
 	}
 
-	r.addBody(fn)
+	r.addBody(fn, r.implicits)
 
 	return fn.OClosure
 }
@@ -1777,8 +1770,9 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	r.inlTreeIndex = inlIndex
 	r.inlPosBases = make(map[*src.PosBase]*src.PosBase)
 
-	for _, cv := range r.inlFunc.ClosureVars {
-		r.locals = append(r.locals, cv.Outer)
+	r.closureVars = make([]*ir.Name, len(r.inlFunc.ClosureVars))
+	for i, cv := range r.inlFunc.ClosureVars {
+		r.closureVars[i] = cv.Outer
 	}
 
 	r.funcargs(fn)

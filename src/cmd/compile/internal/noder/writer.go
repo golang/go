@@ -97,7 +97,10 @@ type writer struct {
 	explicitIdx map[*types2.TypeParam]int
 
 	// variables declared within this function
-	localsIdx map[types2.Object]int
+	localsIdx map[*types2.Var]int
+
+	closureVars    []posObj
+	closureVarsIdx map[*types2.Var]int
 }
 
 func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
@@ -626,11 +629,15 @@ func (w *writer) funcExt(obj *types2.Func) {
 		}
 	}
 
+	sig, block := obj.Type().(*types2.Signature), decl.Body
+	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.explicitIdx)
+	assert(len(closureVars) == 0)
+
 	w.sync(syncFuncExt)
 	w.pragmaFlag(pragma)
 	w.linkname(obj)
 	w.bool(false) // stub extension
-	w.addBody(obj.Type().(*types2.Signature), decl.Body, make(map[types2.Object]int))
+	w.reloc(relocBody, body)
 	w.sync(syncEOF)
 }
 
@@ -665,41 +672,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
 
 // @@@ Function bodies
 
-func (w *writer) implicitTypes() map[*types2.TypeParam]int {
-	w.sync(syncImplicitTypes)
-
-	// TODO(mdempsky): Theoretically, I think at this point we want to
-	// extend the implicit type parameters list with any new explicit
-	// type parameters.
-	//
-	// However, I believe that's moot: declared functions and methods
-	// have explicit type parameters, but are always declared at package
-	// scope (which has no implicit type parameters); and function
-	// literals can appear within a type-parameterized function (i.e.,
-	// implicit type parameters), but cannot have explicit type
-	// parameters of their own.
-	//
-	// So I think it's safe to just use whichever is non-empty.
-	implicitIdx := w.implicitIdx
-	if len(implicitIdx) == 0 {
-		implicitIdx = w.explicitIdx
-	} else {
-		assert(len(w.explicitIdx) == 0)
-	}
-	return implicitIdx
-}
-
-func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
-	w.sync(syncAddBody)
-
-	implicits := w.implicitTypes()
-	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicits, localsIdx))
-}
-
-func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int, localsIdx map[types2.Object]int) int {
+func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int) (idx int, closureVars []posObj) {
 	w := pw.newWriter(relocBody, syncFuncBody)
 	w.implicitIdx = implicitIdx
-	w.localsIdx = localsIdx
 
 	w.funcargs(sig)
 	if w.bool(block != nil) {
@@ -707,7 +682,7 @@ func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *
 		w.pos(block.Rbrace)
 	}
 
-	return w.flush()
+	return w.flush(), w.closureVars
 }
 
 func (w *writer) funcargs(sig *types2.Signature) {
@@ -730,19 +705,35 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
 	}
 }
 
-func (w *writer) addLocal(obj types2.Object) {
+func (w *writer) addLocal(obj *types2.Var) {
 	w.sync(syncAddLocal)
 	idx := len(w.localsIdx)
 	if enableSync {
 		w.int(idx)
 	}
+	if w.localsIdx == nil {
+		w.localsIdx = make(map[*types2.Var]int)
+	}
 	w.localsIdx[obj] = idx
 }
 
-func (w *writer) useLocal(obj types2.Object) {
+func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
 	w.sync(syncUseObjLocal)
-	idx, ok := w.localsIdx[obj]
-	assert(ok)
+
+	if idx, ok := w.localsIdx[obj]; w.bool(ok) {
+		w.len(idx)
+		return
+	}
+
+	idx, ok := w.closureVarsIdx[obj]
+	if !ok {
+		if w.closureVarsIdx == nil {
+			w.closureVarsIdx = make(map[*types2.Var]int)
+		}
+		idx = len(w.closureVars)
+		w.closureVars = append(w.closureVars, posObj{pos, obj})
+		w.closureVarsIdx[obj] = idx
+	}
 	w.len(idx)
 }
 
@@ -806,8 +797,8 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		default:
 			w.code(stmtAssign)
 			w.pos(stmt)
-			w.assignList(stmt.Lhs)
 			w.exprList(stmt.Rhs)
+			w.assignList(stmt.Lhs)
 		}
 
 	case *syntax.BlockStmt:
@@ -877,6 +868,8 @@ func (w *writer) assignList(expr syntax.Expr) {
 	for _, expr := range exprs {
 		if name, ok := expr.(*syntax.Name); ok && name.Value != "_" {
 			if obj, ok := w.p.info.Defs[name]; ok {
+				obj := obj.(*types2.Var)
+
 				w.bool(true)
 				w.pos(obj)
 				w.localIdent(obj)
@@ -923,16 +916,16 @@ func (w *writer) declStmt(decl syntax.Decl) {
 			for i, name := range decl.NameList {
 				w.code(stmtAssign)
 				w.pos(decl)
-				w.assignList(name)
 				w.exprList(values[i])
+				w.assignList(name)
 			}
 			break
 		}
 
 		w.code(stmtAssign)
 		w.pos(decl)
-		w.assignList(namesAsExpr(decl.NameList))
 		w.exprList(decl.Values)
+		w.assignList(namesAsExpr(decl.NameList))
 	}
 }
 
@@ -949,8 +942,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 
 	if rang, ok := stmt.Init.(*syntax.RangeClause); w.bool(ok) {
 		w.pos(rang)
-		w.assignList(rang.Lhs)
 		w.expr(rang.X)
+		w.assignList(rang.Lhs)
 	} else {
 		w.pos(stmt)
 		w.stmt(stmt.Init)
@@ -1092,15 +1085,17 @@ func (w *writer) expr(expr syntax.Expr) {
 	}
 
 	if obj != nil {
-		if _, ok := w.localsIdx[obj]; ok {
-			assert(len(targs) == 0)
-			w.code(exprLocal)
-			w.useLocal(obj)
+		if isGlobal(obj) {
+			w.code(exprName)
+			w.obj(obj, targs)
 			return
 		}
 
-		w.code(exprName)
-		w.obj(obj, targs)
+		obj := obj.(*types2.Var)
+		assert(len(targs) == 0)
+
+		w.code(exprLocal)
+		w.useLocal(expr.Pos(), obj)
 		return
 	}
 
@@ -1248,130 +1243,24 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
 	w.pos(expr.Type) // for QuirksMode
 	w.signature(sig)
 
-	closureVars, localsIdx := w.captureVars(expr)
+	block := expr.Body
+	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.implicitIdx)
+
 	w.len(len(closureVars))
-	for _, closureVar := range closureVars {
-		w.pos(closureVar.pos)
-		w.useLocal(closureVar.obj)
+	for _, cv := range closureVars {
+		w.pos(cv.pos)
+		if quirksMode() {
+			cv.pos = expr.Body.Rbrace
+		}
+		w.useLocal(cv.pos, cv.obj)
 	}
 
-	w.addBody(sig, expr.Body, localsIdx)
+	w.reloc(relocBody, body)
 }
 
 type posObj struct {
 	pos syntax.Pos
-	obj types2.Object
-}
-
-// captureVars returns the free variables used by the given function
-// literal. The closureVars result is the list of free variables
-// captured by expr, and localsIdx is a map from free variable to
-// index. See varCaptor's identically named fields for more details.
-func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, localsIdx map[types2.Object]int) {
-	scope, ok := w.p.info.Scopes[expr.Type]
-	assert(ok)
-
-	// TODO(mdempsky): This code needs to be cleaned up (e.g., to avoid
-	// traversing nested function literals multiple times). This will be
-	// easier after we drop quirks mode.
-
-	v := varCaptor{
-		w:         w,
-		scope:     scope,
-		localsIdx: make(map[types2.Object]int),
-	}
-
-	syntax.Walk(expr.Body, &v)
-
-	return v.closureVars, v.localsIdx
-}
-
-// varCaptor implements syntax.Visitor for enumerating free variables
-// used by a function literal.
-type varCaptor struct {
-	w     *writer
-	scope *types2.Scope
-
-	// closureVars lists free variables along with the position where
-	// they first appeared, in order of appearance.
-	closureVars []posObj
-
-	// localsIdx is a map from free variables to their index within
-	// closureVars.
-	localsIdx map[types2.Object]int
-}
-
-func (v *varCaptor) capture(n *syntax.Name) {
-	obj, ok := v.w.p.info.Uses[n].(*types2.Var)
-	if !ok || obj.IsField() {
-		return // not a variable
-	}
-
-	if obj.Parent() == obj.Pkg().Scope() {
-		return // global variable
-	}
-
-	if _, ok := v.localsIdx[obj]; ok {
-		return // already captured
-	}
-
-	for parent := obj.Parent(); parent != obj.Pkg().Scope(); parent = parent.Parent() {
-		if parent == v.scope {
-			return // object declared within our scope
-		}
-	}
-
-	idx := len(v.closureVars)
-	v.closureVars = append(v.closureVars, posObj{n.Pos(), obj})
-	v.localsIdx[obj] = idx
-}
-
-func (v *varCaptor) Visit(n syntax.Node) syntax.Visitor {
-	// Constant expressions don't count towards capturing.
-	if n, ok := n.(syntax.Expr); ok {
-		if tv, ok := v.w.p.info.Types[n]; ok && tv.Value != nil {
-			return nil
-		}
-	}
-
-	if n, ok := n.(*syntax.Name); ok {
-		v.capture(n)
-	}
-
-	if quirksMode() {
-		switch n := n.(type) {
-		case *syntax.FuncLit:
-			// Quirk: typecheck uses the rbrace position position of the
-			// function literal as the position of the intermediary capture.
-			end := len(v.closureVars)
-			syntax.Walk(n.Type, v) // unnecessary to walk, but consistent with non-quirks mode
-			syntax.Walk(n.Body, v)
-			for i := end; i < len(v.closureVars); i++ {
-				v.closureVars[i].pos = n.Body.Rbrace
-			}
-			return nil
-
-		case *syntax.AssignStmt:
-			// Quirk: typecheck visits (and thus captures) the RHS of
-			// assignment statements (but not op= statements) before the LHS.
-			if n.Op == 0 || n.Op == syntax.Def {
-				syntax.Walk(n.Rhs, v)
-				syntax.Walk(n.Lhs, v)
-				return nil
-			}
-
-		case *syntax.RangeClause:
-			// Quirk: Similarly, typecheck visits the expression to be
-			// iterated over before the iteration variables.
-			syntax.Walk(n.X, v)
-			if n.Lhs != nil {
-				syntax.Walk(n.Lhs, v)
-			}
-			return nil
-		}
-	}
-
-	return v
+	obj *types2.Var
 }
 
 func (w *writer) exprList(expr syntax.Expr) {
