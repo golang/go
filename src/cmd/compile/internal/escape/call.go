@@ -68,7 +68,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 				fn = ir.MethodExprName(v)
 			}
 		case ir.OCALLMETH:
-			fn = ir.MethodExprName(call.X)
+			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 		}
 
 		fntype := call.X.Type()

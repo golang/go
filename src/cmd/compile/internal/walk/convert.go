@@ -462,7 +462,9 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// TODO(mdempsky): Make stricter. We only need to exempt
 	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.
 	switch n.X.Op() {
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+	case ir.OCALLMETH:
+		base.FatalfAt(n.X.Pos(), "OCALLMETH missed by typecheck")
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		return n
 	}
 

@@ -273,6 +273,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 				}
 			}
 		}
+		if n.X.Op() == ir.OMETHEXPR {
+			if meth := ir.MethodExprName(n.X); meth != nil {
+				fn := meth.Func
+				if fn != nil && types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
+					// Special case: explicitly allow
+					// mid-stack inlining of
+					// runtime.heapBits.next even though
+					// it calls slow-path
+					// runtime.heapBits.nextArena.
+					break
+				}
+			}
+		}
 
 		if ir.IsIntrinsicCall(n) {
 			// Treat like any other node.
@@ -287,28 +300,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// Call cost for non-leaf inlining.
 		v.budget -= v.extraCallCost
 
-	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLMETH:
-		n := n.(*ir.CallExpr)
-		t := n.X.Type()
-		if t == nil {
-			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
-		}
-		fn := ir.MethodExprName(n.X).Func
-		if types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
-			// Special case: explicitly allow
-			// mid-stack inlining of
-			// runtime.heapBits.next even though
-			// it calls slow-path
-			// runtime.heapBits.nextArena.
-			break
-		}
-		if fn.Inl != nil {
-			v.budget -= fn.Inl.Cost
-			break
-		}
-		// Call cost for non-leaf inlining.
-		v.budget -= v.extraCallCost
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 
 	// Things that are too hairy, irrespective of the budget
 	case ir.OCALL, ir.OCALLINTER:
@@ -575,7 +568,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	case ir.ODEFER, ir.OGO:
 		n := n.(*ir.GoDeferStmt)
 		switch call := n.Call; call.Op() {
-		case ir.OCALLFUNC, ir.OCALLMETH:
+		case ir.OCALLMETH:
+			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
+		case ir.OCALLFUNC:
 			call := call.(*ir.CallExpr)
 			call.NoInline = true
 		}
@@ -585,11 +580,18 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	case ir.OCLOSURE:
 		return n
 	case ir.OCALLMETH:
-		// Prevent inlining some reflect.Value methods when using checkptr,
-		// even when package reflect was compiled without it (#35073).
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if s := ir.MethodExprName(n.X).Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
-			return n
+		if n.X.Op() == ir.OMETHEXPR {
+			// Prevent inlining some reflect.Value methods when using checkptr,
+			// even when package reflect was compiled without it (#35073).
+			if meth := ir.MethodExprName(n.X); meth != nil {
+				s := meth.Sym()
+				if base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+					return n
+				}
+			}
 		}
 	}
 
@@ -611,7 +613,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	// transmogrify this node itself unless inhibited by the
 	// switch at the top of this function.
 	switch n.Op() {
-	case ir.OCALLFUNC, ir.OCALLMETH:
+	case ir.OCALLMETH:
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
 		if n.NoInline {
 			return n
@@ -631,19 +635,8 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
-
 	case ir.OCALLMETH:
-		call = n.(*ir.CallExpr)
-		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to meth %v\n", ir.Line(n), call.X.(*ir.SelectorExpr).Sel)
-		}
-
-		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
-		if call.X.Type() == nil {
-			base.Fatalf("no function type for [%p] %+v\n", call.X, call.X)
-		}
-
-		n = mkinlcall(call, ir.MethodExprName(call.X).Func, maxCost, inlMap, edit)
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	}
 
 	base.Pos = lno
@@ -723,7 +716,7 @@ var SSADumpInline = func(*ir.Func) {}
 // instead.
 var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr { return nil }
 
-// If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
+// If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
 // The returned node's Ninit has the parameter assignments, the Nbody is the
 // inlined function body, and (List, Rlist) contain the (input, output)
@@ -906,11 +899,7 @@ func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	as.Def = true
 	if call.Op() == ir.OCALLMETH {
-		sel := call.X.(*ir.SelectorExpr)
-		if sel.X == nil {
-			base.Fatalf("method call without receiver: %+v", call)
-		}
-		as.Rhs.Append(sel.X)
+		base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 	}
 	as.Rhs.Append(call.Args...)
 

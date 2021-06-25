@@ -516,6 +516,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n
 	}

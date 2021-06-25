@@ -1807,8 +1807,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	var args ir.Nodes
 	if call.Op() == ir.OCALLMETH {
-		assert(call.X.Op() == ir.ODOTMETH)
-		args.Append(call.X.(*ir.SelectorExpr).X)
+		base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 	}
 	args.Append(call.Args...)
 
