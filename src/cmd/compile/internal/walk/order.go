@@ -1275,7 +1275,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		}
 		return n
 
-	case ir.OCALLPART:
+	case ir.OMETHVALUE:
 		n := n.(*ir.SelectorExpr)
 		n.X = o.expr(n.X, nil)
 		if n.Transient() {

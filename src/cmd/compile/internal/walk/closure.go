@@ -156,7 +156,7 @@ func closureArgs(clo *ir.ClosureExpr) []ir.Node {
 	return args
 }
 
-func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//

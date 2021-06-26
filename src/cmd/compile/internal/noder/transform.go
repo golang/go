@@ -564,7 +564,7 @@ func transformAsOp(n *ir.AssignOpStmt) {
 }
 
 // transformDot transforms an OXDOT (or ODOT) or ODOT, ODOTPTR, ODOTMETH,
-// ODOTINTER, or OCALLPART, as appropriate. It adds in extra nodes as needed to
+// ODOTINTER, or OMETHVALUE, as appropriate. It adds in extra nodes as needed to
 // access embedded fields. Corresponds to typecheck.tcDot.
 func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 	assert(n.Type() != nil && n.Typecheck() == 1)
@@ -588,7 +588,7 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 	assert(f != nil)
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
-		n.SetOp(ir.OCALLPART)
+		n.SetOp(ir.OMETHVALUE)
 		if len(n.X.Type().RParams()) > 0 || n.X.Type().IsPtr() && len(n.X.Type().Elem().RParams()) > 0 {
 			// TODO: MethodValueWrapper needed for generics?
 			// Or did we successfully desugar all that at stencil time?

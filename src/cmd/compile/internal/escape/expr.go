@@ -153,7 +153,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		e.spill(k, n)
 		e.discard(n.Len)
 
-	case ir.OCALLPART:
+	case ir.OMETHVALUE:
 		// Flow the receiver argument to both the closure and
 		// to the receiver parameter.
 

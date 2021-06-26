@@ -519,7 +519,7 @@ type SelectorExpr struct {
 	Sel *types.Sym
 	// The actual selected field - may not be filled in until typechecking.
 	Selection *types.Field
-	Prealloc  *Name // preallocated storage for OCALLPART, if any
+	Prealloc  *Name // preallocated storage for OMETHVALUE, if any
 }
 
 func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
@@ -533,7 +533,7 @@ func (n *SelectorExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OCALLPART, OMETHEXPR:
+	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OMETHVALUE, OMETHEXPR:
 		n.op = op
 	}
 }
@@ -1098,7 +1098,7 @@ func MethodExprName(n Node) *Name {
 // MethodExprFunc is like MethodExprName, but returns the types.Field instead.
 func MethodExprFunc(n Node) *types.Field {
 	switch n.Op() {
-	case ODOTMETH, OMETHEXPR, OCALLPART:
+	case ODOTMETH, OMETHEXPR, OMETHVALUE:
 		return n.(*SelectorExpr).Selection
 	}
 	base.Fatalf("unexpected node: %v (%v)", n, n.Op())

@@ -541,7 +541,7 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	}
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
-		n.SetOp(ir.OCALLPART)
+		n.SetOp(ir.OMETHVALUE)
 		n.SetType(MethodValueWrapper(n).Type())
 	}
 	return n

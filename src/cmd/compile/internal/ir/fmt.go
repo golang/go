@@ -237,7 +237,7 @@ var OpPrec = []int{
 	ODOTTYPE:       8,
 	ODOT:           8,
 	OXDOT:          8,
-	OCALLPART:      8,
+	OMETHVALUE:     8,
 	OMETHEXPR:      8,
 	OPLUS:          7,
 	ONOT:           7,
@@ -757,7 +757,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*StructKeyExpr)
 		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
 
-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OCALLPART, OMETHEXPR:
+	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OMETHVALUE, OMETHEXPR:
 		n := n.(*SelectorExpr)
 		exprFmt(n.X, s, nprec)
 		if n.Sel == nil {

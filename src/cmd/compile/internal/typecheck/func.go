@@ -126,7 +126,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 }
 
 // PartialCallType returns the struct type used to hold all the information
-// needed in the closure for n (n must be a OCALLPART node).
+// needed in the closure for n (n must be a OMETHVALUE node).
 // The address of a variable of the returned type can be cast to a func.
 func PartialCallType(n *ir.SelectorExpr) *types.Type {
 	t := types.NewStruct(types.NoPkg, []*types.Field{
@@ -225,7 +225,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 //
 // TODO(mdempsky): Move into walk. This isn't part of type checking.
 func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
-	if dot.Op() != ir.OCALLPART {
+	if dot.Op() != ir.OMETHVALUE {
 		base.Fatalf("MethodValueWrapper: unexpected %v (%v)", dot, dot.Op())
 	}
 

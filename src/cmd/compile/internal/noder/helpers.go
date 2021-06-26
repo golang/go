@@ -166,7 +166,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	case *ir.ClosureExpr:
 		fun.Func.SetClosureCalled(true)
 	case *ir.SelectorExpr:
-		if fun.Op() == ir.OCALLPART {
+		if fun.Op() == ir.OMETHVALUE {
 			op := ir.ODOTMETH
 			if fun.X.Type().IsInterface() {
 				op = ir.ODOTINTER
@@ -251,7 +251,7 @@ func DotMethod(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
 
 	// Method value.
 	typ := typecheck.NewMethodType(method.Type, nil)
-	return dot(pos, typ, ir.OCALLPART, x, method)
+	return dot(pos, typ, ir.OMETHVALUE, x, method)
 }
 
 // MethodExpr returns a OMETHEXPR node with the indicated index into the methods
