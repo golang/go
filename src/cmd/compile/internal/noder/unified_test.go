@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	flagPkgs     = flag.String("pkgs", "std", "list of packages to compare")
+	flagPkgs     = flag.String("pkgs", "std", "list of packages to compare (ignored in -short mode)")
 	flagAll      = flag.Bool("all", false, "enable testing of all GOOS/GOARCH targets")
 	flagParallel = flag.Bool("parallel", false, "test GOOS/GOARCH targets in parallel")
 )
@@ -37,10 +37,6 @@ var (
 // command's -run flag for subtest matching is recommended for less
 // powerful machines.
 func TestUnifiedCompare(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode")
-	}
-
 	targets, err := exec.Command("go", "tool", "dist", "list").Output()
 	if err != nil {
 		t.Fatal(err)
@@ -112,11 +108,17 @@ type pkg struct {
 
 func loadPackages(t *testing.T, goos, goarch, gcflags string) []pkg {
 	args := []string{"list", "-e", "-export", "-json", "-gcflags=all=" + gcflags, "--"}
-	args = append(args, strings.Fields(*flagPkgs)...)
+	if testing.Short() {
+		t.Log("short testing mode; only testing package runtime")
+		args = append(args, "runtime")
+	} else {
+		args = append(args, strings.Fields(*flagPkgs)...)
+	}
 
 	cmd := exec.Command("go", args...)
 	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch)
 	cmd.Stderr = os.Stderr
+	t.Logf("running %v", cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
