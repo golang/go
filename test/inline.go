@@ -1,4 +1,4 @@
-// errorcheck -0 -m -d=inlfuncswithclosures=1
+// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -169,6 +169,7 @@ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
 
 func _() { // ERROR "can inline _"
 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+	// ERRORAUTO "inlining call to T.meth"
 }
 
 func small1() { // ERROR "can inline small1"
@@ -232,12 +233,13 @@ Loop:
 // Issue #18493 - make sure we can do inlining of functions with a method value
 type T1 struct{}
 
-func (a T1) meth(val int) int { // ERROR "can inline T1.meth" "inlining call to T1.meth"
+func (a T1) meth(val int) int { // ERROR "can inline T1.meth"
 	return val + 5
 }
 
 func getMeth(t1 T1) func(int) int { // ERROR "can inline getMeth"
 	return t1.meth // ERROR "t1.meth escapes to heap"
+	// ERRORAUTO "inlining call to T1.meth"
 }
 
 func ii() { // ERROR "can inline ii"
