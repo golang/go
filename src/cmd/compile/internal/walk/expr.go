@@ -489,7 +489,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 
 // walkCall walks an OCALLFUNC, OCALLINTER, or OCALLMETH node.
 func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
+	if n.Op() == ir.OCALLINTER || n.Op() == ir.OCALLMETH || n.X.Op() == ir.OMETHEXPR {
 		// We expect both interface call reflect.Type.Method and concrete
 		// call reflect.(*rtype).Method.
 		usemethod(n)
