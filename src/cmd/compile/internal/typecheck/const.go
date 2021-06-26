@@ -901,7 +901,7 @@ func evalunsafe(n ir.Node) int64 {
 		switch tsel.Op() {
 		case ir.ODOT, ir.ODOTPTR:
 			break
-		case ir.OCALLPART:
+		case ir.OMETHVALUE:
 			base.Errorf("invalid expression %v: argument is a method value", n)
 			return 0
 		default:

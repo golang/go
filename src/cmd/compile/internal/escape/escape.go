@@ -315,7 +315,7 @@ func (b *batch) finish(fns []*ir.Func) {
 				case ir.OCLOSURE:
 					n := n.(*ir.ClosureExpr)
 					n.SetTransient(true)
-				case ir.OCALLPART:
+				case ir.OMETHVALUE:
 					n := n.(*ir.SelectorExpr)
 					n.SetTransient(true)
 				case ir.OSLICELIT:

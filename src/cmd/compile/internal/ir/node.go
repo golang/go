@@ -159,7 +159,6 @@ const (
 	OCALLFUNC  // X(Args) (function call f(args))
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
-	OCALLPART  // X.Sel (method expression x.Method, not called)
 	OCAP       // cap(X)
 	OCLOSE     // close(X)
 	OCLOSURE   // func Type { Func.Closure.Body } (func literal)
@@ -250,7 +249,8 @@ const (
 	OSIZEOF      // unsafe.Sizeof(X)
 	OUNSAFEADD   // unsafe.Add(X, Y)
 	OUNSAFESLICE // unsafe.Slice(X, Y)
-	OMETHEXPR    // method expression
+	OMETHEXPR    // X(Args) (method expression T.Method(args), first argument is the method receiver)
+	OMETHVALUE   // X.Sel   (method expression t.Method, not called)
 
 	// statements
 	OBLOCK // { List } (block of code)

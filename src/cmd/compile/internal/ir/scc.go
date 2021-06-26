@@ -90,7 +90,7 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 			if n := n.(*Name); n.Class == PFUNC {
 				do(n.Defn)
 			}
-		case ODOTMETH, OCALLPART, OMETHEXPR:
+		case ODOTMETH, OMETHVALUE, OMETHEXPR:
 			if fn := MethodExprName(n); fn != nil {
 				do(fn.Defn)
 			}

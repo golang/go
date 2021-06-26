@@ -193,7 +193,7 @@ func HeapAllocReason(n ir.Node) string {
 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OMETHVALUE && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 

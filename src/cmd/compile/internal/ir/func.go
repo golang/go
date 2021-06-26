@@ -40,14 +40,14 @@ import (
 // constructs a fresh node.
 //
 // A method value (t.M) is represented by ODOTMETH/ODOTINTER
-// when it is called directly and by OCALLPART otherwise.
+// when it is called directly and by OMETHVALUE otherwise.
 // These are like method expressions, except that for ODOTMETH/ODOTINTER,
 // the method name is stored in Sym instead of Right.
-// Each OCALLPART ends up being implemented as a new
+// Each OMETHVALUE ends up being implemented as a new
 // function, a bit like a closure, with its own ODCLFUNC.
-// The OCALLPART uses n.Func to record the linkage to
+// The OMETHVALUE uses n.Func to record the linkage to
 // the generated ODCLFUNC, but there is no
-// pointer from the Func back to the OCALLPART.
+// pointer from the Func back to the OMETHVALUE.
 type Func struct {
 	miniNode
 	Body Nodes

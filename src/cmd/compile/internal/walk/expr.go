@@ -308,8 +308,8 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCLOSURE:
 		return walkClosure(n.(*ir.ClosureExpr), init)
 
-	case ir.OCALLPART:
-		return walkCallPart(n.(*ir.SelectorExpr), init)
+	case ir.OMETHVALUE:
+		return walkMethodValue(n.(*ir.SelectorExpr), init)
 	}
 
 	// No return! Each case must return (or panic),

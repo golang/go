@@ -1775,7 +1775,7 @@ func (w *exportWriter) expr(n ir.Node) {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		n := n.(*ir.SelectorExpr)
 		if go117ExportTypes {
 			// For go117ExportTypes, we usually see all ops except
@@ -1792,7 +1792,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
 				w.exoticField(n.Selection)
 			}
-			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OCALLPART. It will
+			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will
 			// be reconstructed during import.  n.Selection is computed during
 			// transformDot() for OXDOT.
 		}

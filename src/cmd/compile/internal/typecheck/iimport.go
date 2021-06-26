@@ -1357,7 +1357,7 @@ func (r *importReader) node() ir.Node {
 	// case OSTRUCTKEY:
 	//	unreachable - handled in case OSTRUCTLIT by elemList
 
-	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		// For !go117ExportTypes,  we should only see OXDOT.
 		// For go117ExportTypes, we usually see all the other ops, but can see
 		// OXDOT for generic functions.
@@ -1373,12 +1373,12 @@ func (r *importReader) node() ir.Node {
 			switch op {
 			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
 				n.Selection = r.exoticField()
-			case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+			case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 				// These require a Lookup to link to the correct declaration.
 				rcvrType := expr.Type()
 				typ := n.Type()
 				n.Selection = Lookdot(n, rcvrType, 1)
-				if op == ir.OCALLPART || op == ir.OMETHEXPR {
+				if op == ir.OMETHVALUE || op == ir.OMETHEXPR {
 					// Lookdot clobbers the opcode and type, undo that.
 					n.SetOp(op)
 					n.SetType(typ)

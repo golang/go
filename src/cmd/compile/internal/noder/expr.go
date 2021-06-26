@@ -196,7 +196,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	}
 }
 
-// selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
+// selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually
 // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
 // than in typecheck.go.
 func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
@@ -273,7 +273,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 				// the base generic type. The instantiated type may not
 				// have method bodies filled in, if it was imported.
 				method := recvType.Methods().Index(last).Nname.(*ir.Name)
-				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, typecheck.Lookup(expr.Sel.Value))
+				n = ir.NewSelectorExpr(pos, ir.OMETHVALUE, x, typecheck.Lookup(expr.Sel.Value))
 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
 				n.(*ir.SelectorExpr).Selection.Nname = method
 				typed(method.Type(), n)

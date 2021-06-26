@@ -416,7 +416,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
 		v.budget++
 
-	case ir.OCALLPART, ir.OSLICELIT:
+	case ir.OMETHVALUE, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
 
 	case ir.OMETHEXPR:

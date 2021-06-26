@@ -103,7 +103,7 @@ func (g *irgen) stencil() {
 				inst := call.X.(*ir.InstExpr)
 				st, dict := g.getInstantiationForNode(inst)
 				if infoPrintMode && g.target.Stencils[decl.Sym()] == nil {
-					if inst.X.Op() == ir.OCALLPART {
+					if inst.X.Op() == ir.OMETHVALUE {
 						fmt.Printf("Main dictionary in %v at generic method call: %v - %v\n", decl, inst.X, call)
 					} else {
 						fmt.Printf("Main dictionary in %v at generic function call: %v - %v\n", decl, inst.X, call)
@@ -112,7 +112,7 @@ func (g *irgen) stencil() {
 				// Replace the OFUNCINST with a direct reference to the
 				// new stenciled function
 				call.X = st.Nname
-				if inst.X.Op() == ir.OCALLPART {
+				if inst.X.Op() == ir.OMETHVALUE {
 					// When we create an instantiation of a method
 					// call, we make it a function. So, move the
 					// receiver to be the first arg of the function
@@ -218,7 +218,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		if inst.X.Op() == ir.ONAME {
 			// Instantiating a generic function call.
 			gf = inst.X.(*ir.Name)
-		} else if inst.X.Op() == ir.OCALLPART {
+		} else if inst.X.Op() == ir.OMETHVALUE {
 			// Instantiating a method value x.M.
 			se := inst.X.(*ir.SelectorExpr)
 			rcvrValue = se.X
@@ -826,7 +826,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// instantiated receiver type. We need to do this now,
 			// since the access/selection to the method for the real
 			// type is very different from the selection for the type
-			// param. m will be transformed to an OCALLPART node. It
+			// param. m will be transformed to an OMETHVALUE node. It
 			// will be transformed to an ODOTMETH or ODOTINTER node if
 			// we find in the OCALL case below that the method value
 			// is actually called.
@@ -841,7 +841,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// type argument.
 				m = transformConvCall(m.(*ir.CallExpr))
 
-			case ir.OCALLPART:
+			case ir.OMETHVALUE:
 				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called. Then
 				// transform the call.

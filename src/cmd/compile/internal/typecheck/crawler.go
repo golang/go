@@ -201,7 +201,7 @@ func (p *crawler) markInlBody(n *ir.Name) {
 			p.checkGenericType(n.Type())
 		case ir.OTYPE:
 			p.checkGenericType(n.Type())
-		case ir.OCALLPART:
+		case ir.OMETHVALUE:
 			// Okay, because we don't yet inline indirect
 			// calls to method values.
 		case ir.OCLOSURE:
