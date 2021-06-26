@@ -3119,10 +3119,6 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		n := n.(*ir.CallExpr)
 		return s.callResult(n, callNormal)
 
-	case ir.OCALLMETH:
-		base.Fatalf("OCALLMETH missed by walkCall")
-		panic("unreachable")
-
 	case ir.OGETG:
 		n := n.(*ir.CallExpr)
 		return s.newValue1(ssa.OpGetG, n.Type(), s.mem())
@@ -4860,8 +4856,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 			// not the point of defer statement.
 			s.maybeNilCheckClosure(closure, k)
 		}
-	case ir.OCALLMETH:
-		base.Fatalf("OCALLMETH missed by walkCall")
 	case ir.OCALLINTER:
 		if fn.Op() != ir.ODOTINTER {
 			s.Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op())
@@ -4951,9 +4945,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// Write args.
 		t := n.X.Type()
 		args := n.Args
-		if n.Op() == ir.OCALLMETH {
-			base.Fatalf("OCALLMETH missed by walkCall")
-		}
 
 		for _, p := range params.InParams() { // includes receiver for interface calls
 			ACArgs = append(ACArgs, p.Type)
