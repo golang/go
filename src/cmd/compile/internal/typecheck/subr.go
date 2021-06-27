@@ -888,19 +888,10 @@ func TypesOf(x []ir.Node) []*types.Type {
 	return r
 }
 
-// MakeInstName makes the unique name for a stenciled generic function or method,
-// based on the name of the function fnsym and the targs. It replaces any
-// existing bracket type list in the name. makeInstName asserts that fnsym has
-// brackets in its name if and only if hasBrackets is true.
-//
-// Names of declared generic functions have no brackets originally, so hasBrackets
-// should be false. Names of generic methods already have brackets, since the new
-// type parameter is specified in the generic type of the receiver (e.g. func
-// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
-//
-// The standard naming is something like: 'genFn[int,bool]' for functions and
-// '(*genType[int,bool]).methodName' for methods
-func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+// makeGenericName returns the name of the generic function instantiated
+// with the given types.
+// name is the name of the generic function or method.
+func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string {
 	b := bytes.NewBufferString("")
 
 	// Determine if the type args are concrete types or new typeparams.
@@ -922,7 +913,6 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
 		b.WriteString(".inst.")
 	}
 
-	name := fnsym.Name
 	i := strings.Index(name, "[")
 	assert(hasBrackets == (i >= 0))
 	if i >= 0 {
@@ -952,7 +942,38 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
 	if strings.HasPrefix(b.String(), ".inst..inst.") {
 		panic(fmt.Sprintf("multiple .inst. prefix in %s", b.String()))
 	}
-	return fnsym.Pkg.Lookup(b.String())
+	return b.String()
+}
+
+// MakeInstName makes the unique name for a stenciled generic function or method,
+// based on the name of the function fnsym and the targs. It replaces any
+// existing bracket type list in the name. makeInstName asserts that fnsym has
+// brackets in its name if and only if hasBrackets is true.
+//
+// Names of declared generic functions have no brackets originally, so hasBrackets
+// should be false. Names of generic methods already have brackets, since the new
+// type parameter is specified in the generic type of the receiver (e.g. func
+// (func (v *value[T]).set(...) { ... } has the original name (*value[T]).set.
+//
+// The standard naming is something like: 'genFn[int,bool]' for functions and
+// '(*genType[int,bool]).methodName' for methods
+func MakeInstName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+	return gf.Pkg.Lookup(makeGenericName(gf.Name, targs, hasBrackets))
+}
+
+func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+	for _, targ := range targs {
+		if targ.HasTParam() {
+			fmt.Printf("FUNCTION %s\n", gf.Name)
+			for _, targ := range targs {
+				fmt.Printf("  PARAM %+v\n", targ)
+			}
+			panic("dictionary should always have concrete type args")
+		}
+	}
+	name := makeGenericName(gf.Name, targs, hasBrackets)
+	name = ".dict." + name[6:]
+	return gf.Pkg.Lookup(name)
 }
 
 func assert(p bool) {

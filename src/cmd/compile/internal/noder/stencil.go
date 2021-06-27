@@ -18,7 +18,6 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
-	"strings"
 )
 
 func assert(p bool) {
@@ -519,7 +518,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 			ir.Dump(fmt.Sprintf("\nstenciled %v", st), st)
 		}
 	}
-	return st, g.getDictionary(sym.Name, nameNode, targs)
+	return st, g.getDictionaryValue(nameNode, targs, isMeth)
 }
 
 // Struct containing info needed for doing the substitution as we create the
@@ -1017,31 +1016,21 @@ func deref(t *types.Type) *types.Type {
 	return t
 }
 
-// getDictionary returns the dictionary for the named instantiated function, which
-// is instantiated from generic function or method gf, with the type arguments targs.
-func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.Node {
+// getDictionarySym returns the dictionary for the named generic function gf, which
+// is instantiated with the type arguments targs.
+func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
 	if len(targs) == 0 {
-		base.Fatalf("%s should have type arguments", name)
-	}
-
-	// The dictionary for this instantiation is named after the function
-	// and concrete types it is instantiated with.
-	// TODO: decouple this naming from the instantiation naming. The instantiation
-	// naming will be based on GC shapes, this naming must be fully stenciled.
-	if !strings.HasPrefix(name, ".inst.") {
-		base.Fatalf("%s should start in .inst.", name)
+		base.Fatalf("%s should have type arguments", gf.Sym().Name)
 	}
 
 	info := g.getGfInfo(gf)
 
-	name = ".dict." + name[6:]
-
 	// Get a symbol representing the dictionary.
-	sym := typecheck.Lookup(name)
+	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
 
 	// Initialize the dictionary, if we haven't yet already.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		infoPrint("Creating dictionary %v\n", name)
+		infoPrint("Creating dictionary %v\n", sym.Name)
 		off := 0
 		// Emit an entry for each targ (concrete type or gcshape).
 		for _, t := range targs {
@@ -1061,8 +1050,8 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
 			off = objw.SymPtr(lsym, off, s, 0)
 		}
 		// Emit an entry for each subdictionary (after substituting targs)
-		// TODO: actually emit symbol for the subdictionary entry
 		for _, n := range info.subDictCalls {
+			var sym *types.Sym
 			if n.Op() == ir.OCALL {
 				call := n.(*ir.CallExpr)
 				if call.X.Op() == ir.OXDOT {
@@ -1071,8 +1060,7 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
 					for i, t := range subtargs {
 						s2targs[i] = subst.Typ(t)
 					}
-					sym := typecheck.MakeInstName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
-					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+					sym = typecheck.MakeDictName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
 				} else {
 					inst := n.(*ir.CallExpr).X.(*ir.InstExpr)
 					var nameNode *ir.Name
@@ -1087,11 +1075,10 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
 					for i, t := range subtargs {
 						subtargs[i] = subst.Typ(t)
 					}
-					sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, isMeth)
+					sym = g.getDictionarySym(nameNode, subtargs, isMeth)
 					// TODO: This can actually be a static
 					// main dictionary, if all of the subtargs
 					// are concrete types (!HasTParam)
-					infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
 				}
 			} else if n.Op() == ir.OFUNCINST {
 				inst := n.(*ir.InstExpr)
@@ -1100,11 +1087,10 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
 				for i, t := range subtargs {
 					subtargs[i] = subst.Typ(t)
 				}
-				sym := typecheck.MakeInstName(nameNode.Sym(), subtargs, false)
+				sym = g.getDictionarySym(nameNode, subtargs, false)
 				// TODO: This can actually be a static
 				// main dictionary, if all of the subtargs
 				// are concrete types (!HasTParam)
-				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
 			} else if n.Op() == ir.OXDOT {
 				selExpr := n.(*ir.SelectorExpr)
 				subtargs := selExpr.X.Type().RParams()
@@ -1112,13 +1098,26 @@ func (g *irgen) getDictionary(name string, gf *ir.Name, targs []*types.Type) ir.
 				for i, t := range subtargs {
 					s2targs[i] = subst.Typ(t)
 				}
-				sym := typecheck.MakeInstName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
-				infoPrint(" - Subdict .dict.%v\n", sym.Name[6:])
+				sym = typecheck.MakeDictName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
 			}
-			// TODO: handle closure cases that need sub-dictionaries
+			// TODO: handle closure cases that need sub-dictionaries, get rid of conditional
+			if sym != nil {
+				// TODO: uncomment once we're sure all the
+				// subdictionaries are created correctly.
+				// Methods above aren't yet generating dictionaries recursively yet.
+				//off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+				infoPrint(" - Subdict %v\n", sym.Name)
+			}
 		}
 		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
+
+		// Add any new, fully instantiated types seen during the substitution to g.instTypeList.
+		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	}
+	return sym
+}
+func (g *irgen) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
+	sym := g.getDictionarySym(gf, targs, isMeth)
 
 	// Make a node referencing the dictionary symbol.
 	n := typecheck.NewName(sym)
