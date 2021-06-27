@@ -594,7 +594,7 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 			// Or did we successfully desugar all that at stencil time?
 			return n
 		}
-		n.SetType(typecheck.MethodValueWrapper(n).Type())
+		n.SetType(typecheck.NewMethodType(n.Type(), nil))
 	}
 	return n
 }
