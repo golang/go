@@ -1869,7 +1869,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
 				baseOrig = types.NewPtr(baseOrig)
 			}
-			args = append(args, getDictionary(".inst."+ir.MethodSym(baseOrig, method.Sym).Name, targs)) // TODO: remove .inst.
+			args = append(args, getDictionary(ir.MethodSym(baseOrig, method.Sym), targs))
 			if indirect {
 				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
 			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
@@ -1971,28 +1971,16 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 
 // getDictionary returns the dictionary for the given named generic function
 // or method, with the given type arguments.
-// TODO: pass a reference to the generic function instead? We might need
-// that to look up protodictionaries.
-func getDictionary(name string, targs []*types.Type) ir.Node {
+func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 	if len(targs) == 0 {
-		base.Fatalf("%s should have type arguments", name)
+		base.Fatalf("%s should have type arguments", gf.Name)
 	}
 
-	// The dictionary for this instantiation is named after the function
-	// and concrete types it is instantiated with.
-	// TODO: decouple this naming from the instantiation naming. The instantiation
-	// naming will be based on GC shapes, this naming must be fully stenciled.
-	if !strings.HasPrefix(name, ".inst.") {
-		base.Fatalf("%s should start in .inst.", name)
-	}
-	name = ".dict." + name[6:]
-
-	// Get a symbol representing the dictionary.
-	sym := typecheck.Lookup(name)
+	sym := typecheck.MakeDictName(gf, targs, true)
 
 	// Initialize the dictionary, if we haven't yet already.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		base.Fatalf("Dictionary should have alredy been generated: %v", sym)
+		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
 	}
 
 	// Make a node referencing the dictionary symbol.
