@@ -79,6 +79,8 @@ type operation struct {
 	buf    syscall.WSABuf
 	msg    windows.WSAMsg
 	sa     syscall.Sockaddr
+	sa4    syscall.SockaddrInet4
+	sa6    syscall.SockaddrInet6
 	rsa    *syscall.RawSockaddrAny
 	rsan   int32
 	handle syscall.Handle
@@ -595,7 +597,30 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 
 // ReadFrom wraps the recvfrom network call for IPv4.
 func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
-	n, sa, err := fd.ReadFrom(buf)
+	if len(buf) == 0 {
+		return 0, nil
+	}
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	o := &fd.rop
+	o.InitBuf(buf)
+	n, err := execIO(o, func(o *operation) error {
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err != nil {
+		return n, err
+	}
+	sa, _ := o.rsa.Sockaddr()
 	if sa != nil {
 		*sa4 = *(sa.(*syscall.SockaddrInet4))
 	}
@@ -604,7 +629,30 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
 
 // ReadFrom wraps the recvfrom network call for IPv6.
 func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
-	n, sa, err := fd.ReadFrom(buf)
+	if len(buf) == 0 {
+		return 0, nil
+	}
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	o := &fd.rop
+	o.InitBuf(buf)
+	n, err := execIO(o, func(o *operation) error {
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err != nil {
+		return n, err
+	}
+	sa, _ := o.rsa.Sockaddr()
 	if sa != nil {
 		*sa6 = *(sa.(*syscall.SockaddrInet6))
 	}
@@ -810,8 +858,42 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 }
 
 // WriteTo wraps the sendto network call for IPv4.
-func (fd *FD) WriteToInet4(buf []byte, sa syscall.SockaddrInet4) (int, error) {
-	return fd.WriteTo(buf, &sa)
+func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		o.sa4 = sa4
+		n, err := execIO(o, func(o *operation) error {
+			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+		})
+		return n, err
+	}
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		o := &fd.wop
+		o.InitBuf(b)
+		o.sa4 = sa4
+		n, err := execIO(o, func(o *operation) error {
+			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+		})
+		ntotal += int(n)
+		if err != nil {
+			return ntotal, err
+		}
+		buf = buf[n:]
+	}
+	return ntotal, nil
 }
 
 // WriteTo wraps the sendto network call for IPv6.
