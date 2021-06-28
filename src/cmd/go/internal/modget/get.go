@@ -506,7 +506,8 @@ type versionReason struct {
 func newResolver(ctx context.Context, queries []*query) *resolver {
 	// LoadModGraph also sets modload.Target, which is needed by various resolver
 	// methods.
-	mg := modload.LoadModGraph(ctx)
+	const defaultGoVersion = ""
+	mg := modload.LoadModGraph(ctx, defaultGoVersion)
 
 	buildList := mg.BuildList()
 	initialVersion := make(map[string]string, len(buildList))
@@ -1153,6 +1154,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
 		Tags:                     imports.AnyTags(),
 		VendorModulesInGOROOTSrc: true,
 		LoadTests:                *getT,
+		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
 	}
 
@@ -1802,7 +1804,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 		return false
 	}
 
-	r.buildList = modload.LoadModGraph(ctx).BuildList()
+	const defaultGoVersion = ""
+	r.buildList = modload.LoadModGraph(ctx, defaultGoVersion).BuildList()
 	r.buildListVersion = make(map[string]string, len(r.buildList))
 	for _, m := range r.buildList {
 		r.buildListVersion[m.Path] = m.Version

@@ -65,7 +65,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 
 // bool ·Cas64(uint64 *val, uint64 old, uint64 new)
 // Atomically:
-//	if(*val == *old){
+//	if(*val == old){
 //		*val = new;
 //		return 1;
 //	} else {

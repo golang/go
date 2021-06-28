@@ -66,6 +66,10 @@ var readGoInfoTests = []readTest{
 		`,
 		"",
 	},
+	{
+		"\ufeff𝔻" + `package p; import "x";ℙvar x = 1`,
+		"",
+	},
 }
 
 var readCommentsTests = []readTest{
@@ -82,7 +86,24 @@ var readCommentsTests = []readTest{
 		"",
 	},
 	{
+		"\ufeff𝔻" + `ℙpackage p; import . "x"`,
+		"",
+	},
+	{
 		`// foo
+
+		/* bar */
+
+		/* quux */ // baz
+
+		/*/ zot */
+
+		// asdf
+		ℙHello, world`,
+		"",
+	},
+	{
+		"\ufeff𝔻" + `// foo
 
 		/* bar */
 
@@ -106,6 +127,11 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 		} else {
 			in = tt.in[:j] + tt.in[j+len("ℙ"):]
 			testOut = tt.in[:j]
+		}
+		d := strings.Index(tt.in, "𝔻")
+		if d >= 0 {
+			in = in[:d] + in[d+len("𝔻"):]
+			testOut = testOut[d+len("𝔻"):]
 		}
 		r := strings.NewReader(in)
 		buf, err := read(r)
@@ -265,6 +291,12 @@ var readEmbedTests = []struct {
 		 test:3:16:z`,
 	},
 	{
+		"\ufeffpackage p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
+		`test:3:12:x
+		 test:3:14:y
+		 test:3:16:z`,
+	},
+	{
 		"package p\nimport \"embed\"\nvar s = \"/*\"\n//go:embed x\nvar files embed.FS",
 		`test:4:12:x`,
 	},
@@ -290,6 +322,10 @@ var readEmbedTests = []struct {
 	},
 	{
 		"package p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
+		"",
+	},
+	{
+		"\ufeffpackage p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
 		"",
 	},
 }

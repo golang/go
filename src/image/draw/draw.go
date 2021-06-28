@@ -23,6 +23,16 @@ type Image interface {
 	Set(x, y int, c color.Color)
 }
 
+// RGBA64Image extends both the Image and image.RGBA64Image interfaces with a
+// SetRGBA64 method to change a single pixel. SetRGBA64 is equivalent to
+// calling Set, but it can avoid allocations from converting concrete color
+// types to the color.Color interface type.
+type RGBA64Image interface {
+	image.RGBA64Image
+	Set(x, y int, c color.Color)
+	SetRGBA64(x, y int, c color.RGBA64)
+}
+
 // Quantizer produces a palette for an image.
 type Quantizer interface {
 	// Quantize appends up to cap(p) - len(p) colors to p and returns the

@@ -1340,7 +1340,7 @@ func UnixMicro(usec int64) Time {
 }
 
 // IsDST reports whether the time in the configured location is in Daylight Savings Time.
-func (t *Time) IsDST() bool {
+func (t Time) IsDST() bool {
 	_, _, _, _, isDST := t.loc.lookup(t.Unix())
 	return isDST
 }

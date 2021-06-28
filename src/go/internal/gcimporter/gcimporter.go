@@ -145,17 +145,14 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
 		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
 
 	case "$$B\n":
-		var data []byte
-		data, err = io.ReadAll(buf)
-		if err != nil {
-			break
-		}
+		var exportFormat byte
+		exportFormat, err = buf.ReadByte()
 
 		// The indexed export format starts with an 'i'; the older
 		// binary export format starts with a 'c', 'd', or 'v'
 		// (from "version"). Select appropriate importer.
-		if len(data) > 0 && data[0] == 'i' {
-			_, pkg, err = iImportData(fset, packages, data[1:], id)
+		if err == nil && exportFormat == 'i' {
+			pkg, err = iImportData(fset, packages, buf, id)
 		} else {
 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
 		}

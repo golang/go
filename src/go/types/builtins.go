@@ -588,6 +588,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeAdd, "unsafe.Add requires go1.17 or later")
+			return
+		}
+
 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
 		if x.mode == invalid {
 			return
@@ -684,6 +689,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
+		if !check.allowVersion(check.pkg, 1, 17) {
+			check.errorf(call.Fun, _InvalidUnsafeSlice, "unsafe.Slice requires go1.17 or later")
+			return
+		}
+
 		typ := asPointer(x.typ)
 		if typ == nil {
 			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)

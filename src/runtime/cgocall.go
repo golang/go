@@ -110,6 +110,8 @@ func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
 	return as.retval
 }
 
+var ncgocall uint64 // number of cgo calls in total for dead m
+
 // Call from Go to C.
 //
 // This must be nosplit because it's used for syscalls on some

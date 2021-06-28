@@ -25,6 +25,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/http/internal"
+	"net/http/internal/testcert"
 	"net/url"
 	"os"
 	"os/exec"
@@ -1475,7 +1476,7 @@ func TestServeTLS(t *testing.T) {
 	defer afterTest(t)
 	defer SetTestHookServerServe(nil)
 
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1599,7 +1600,7 @@ func TestAutomaticHTTP2_Serve_WithTLSConfig(t *testing.T) {
 }
 
 func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1609,7 +1610,7 @@ func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
 }
 
 func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -6522,5 +6523,89 @@ func TestMuxRedirectRelative(t *testing.T) {
 	}
 	if got, want := resp.Code, StatusMovedPermanently; got != want {
 		t.Errorf("Expected response code %d; got %d", want, got)
+	}
+}
+
+// TestQuerySemicolon tests the behavior of semicolons in queries. See Issue 25192.
+func TestQuerySemicolon(t *testing.T) {
+	t.Cleanup(func() { afterTest(t) })
+
+	tests := []struct {
+		query           string
+		xNoSemicolons   string
+		xWithSemicolons string
+		warning         bool
+	}{
+		{"?a=1;x=bad&x=good", "good", "bad", true},
+		{"?a=1;b=bad&x=good", "good", "good", true},
+		{"?a=1%3Bx=bad&x=good%3B", "good;", "good;", false},
+		{"?a=1;x=good;x=bad", "", "good", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query+"/allow=false", func(t *testing.T) {
+			allowSemicolons := false
+			testQuerySemicolon(t, tt.query, tt.xNoSemicolons, allowSemicolons, tt.warning)
+		})
+		t.Run(tt.query+"/allow=true", func(t *testing.T) {
+			allowSemicolons, expectWarning := true, false
+			testQuerySemicolon(t, tt.query, tt.xWithSemicolons, allowSemicolons, expectWarning)
+		})
+	}
+}
+
+func testQuerySemicolon(t *testing.T, query string, wantX string, allowSemicolons, expectWarning bool) {
+	setParallel(t)
+
+	writeBackX := func(w ResponseWriter, r *Request) {
+		x := r.URL.Query().Get("x")
+		if expectWarning {
+			if err := r.ParseForm(); err == nil || !strings.Contains(err.Error(), "semicolon") {
+				t.Errorf("expected error mentioning semicolons from ParseForm, got %v", err)
+			}
+		} else {
+			if err := r.ParseForm(); err != nil {
+				t.Errorf("expected no error from ParseForm, got %v", err)
+			}
+		}
+		if got := r.FormValue("x"); x != got {
+			t.Errorf("got %q from FormValue, want %q", got, x)
+		}
+		fmt.Fprintf(w, "%s", x)
+	}
+
+	h := Handler(HandlerFunc(writeBackX))
+	if allowSemicolons {
+		h = AllowQuerySemicolons(h)
+	}
+
+	ts := httptest.NewUnstartedServer(h)
+	logBuf := &bytes.Buffer{}
+	ts.Config.ErrorLog = log.New(logBuf, "", 0)
+	ts.Start()
+	defer ts.Close()
+
+	req, _ := NewRequest("GET", ts.URL+query, nil)
+	res, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slurp, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if got, want := res.StatusCode, 200; got != want {
+		t.Errorf("Status = %d; want = %d", got, want)
+	}
+	if got, want := string(slurp), wantX; got != want {
+		t.Errorf("Body = %q; want = %q", got, want)
+	}
+
+	if expectWarning {
+		if !strings.Contains(logBuf.String(), "semicolon") {
+			t.Errorf("got %q from ErrorLog, expected a mention of semicolons", logBuf.String())
+		}
+	} else {
+		if strings.Contains(logBuf.String(), "semicolon") {
+			t.Errorf("got %q from ErrorLog, expected no mention of semicolons", logBuf.String())
+		}
 	}
 }

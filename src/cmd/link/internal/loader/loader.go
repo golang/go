@@ -699,12 +699,18 @@ func (l *Loader) checkdup(name string, r *oReader, li uint32, dup Sym) {
 	p := r.Data(li)
 	rdup, ldup := l.toLocal(dup)
 	pdup := rdup.Data(ldup)
-	if bytes.Equal(p, pdup) {
-		return
-	}
 	reason := "same length but different contents"
 	if len(p) != len(pdup) {
 		reason = fmt.Sprintf("new length %d != old length %d", len(p), len(pdup))
+	} else if bytes.Equal(p, pdup) {
+		// For BSS symbols, we need to check size as well, see issue 46653.
+		szdup := l.SymSize(dup)
+		sz := int64(r.Sym(li).Siz())
+		if szdup == sz {
+			return
+		}
+		reason = fmt.Sprintf("different sizes: new size %d != old size %d",
+			sz, szdup)
 	}
 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
 

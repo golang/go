@@ -139,8 +139,9 @@ go 1.17
 require (
 	a v0.1.0
 	b v0.1.0
-	c v0.1.0 // indirect
 )
+
+require c v0.1.0 // indirect
 
 replace (
 	a v0.1.0 => ./a1

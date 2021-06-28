@@ -3174,7 +3174,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
 		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
-		return s.newValue1(ssa.OpSlicePtrUnchecked, types.Types[types.TINT], v)
+		return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), v)
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)

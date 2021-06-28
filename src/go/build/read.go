@@ -6,6 +6,7 @@ package build
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -28,9 +29,19 @@ type importReader struct {
 	pos  token.Position
 }
 
+var bom = []byte{0xef, 0xbb, 0xbf}
+
 func newImportReader(name string, r io.Reader) *importReader {
+	b := bufio.NewReader(r)
+	// Remove leading UTF-8 BOM.
+	// Per https://golang.org/ref/spec#Source_code_representation:
+	// a compiler may ignore a UTF-8-encoded byte order mark (U+FEFF)
+	// if it is the first Unicode code point in the source text.
+	if leadingBytes, err := b.Peek(3); err == nil && bytes.Equal(leadingBytes, bom) {
+		b.Discard(3)
+	}
 	return &importReader{
-		b: bufio.NewReader(r),
+		b: b,
 		pos: token.Position{
 			Filename: name,
 			Line:     1,

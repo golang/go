@@ -30,7 +30,7 @@ import (
 	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
-	"net/http/internal"
+	"net/http/internal/testcert"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -4299,7 +4299,7 @@ func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
 
 // Issue 13839
 func TestNoCrashReturningTransportAltConn(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
