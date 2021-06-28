@@ -367,6 +367,7 @@ func Init() {
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
+		modfetch.GoSumFile = workFilePath + ".sum"
 		// TODO(matloob) should workRoot just be workFile?
 	} else if modRoots == nil {
 		// We're in module mode, but not inside a module.
@@ -1009,6 +1010,10 @@ func setDefaultBuildMod() {
 	cfg.BuildMod = "readonly"
 }
 
+func mustHaveCompleteRequirements() bool {
+	return cfg.BuildMod != "mod" && !inWorkspaceMode()
+}
+
 // convertLegacyConfig imports module requirements from a legacy vendoring
 // configuration file, if one is present.
 func convertLegacyConfig(modFile *modfile.File, modPath string) (from string, err error) {
@@ -1306,10 +1311,17 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		return
 	}
 
+	if inWorkspaceMode() {
+		// go.mod files aren't updated in workspace mode, but we still want to
+		// update the go.work.sum file.
+		if err := modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		return
+	}
+
 	if MainModules.Len() != 1 || MainModules.ModRoot(MainModules.Versions()[0]) == "" {
-		_ = TODOWorkspaces("also check that workspace mode is off")
 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
-		_ = TODOWorkspaces("also check that workspace mode is off")
 		return
 	}
 	mainModule := MainModules.Versions()[0]
@@ -1346,7 +1358,9 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums))
+			if err := modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
+				base.Fatalf("go: %v", err)
+			}
 		}
 		return
 	}
@@ -1368,7 +1382,9 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		// Update go.sum after releasing the side lock and refreshing the index.
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
-			modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums))
+			if err := modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
+				base.Fatalf("go: %v", err)
+			}
 		}
 	}()
 

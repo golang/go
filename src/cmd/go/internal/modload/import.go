@@ -32,6 +32,8 @@ type ImportMissingError struct {
 	Module   module.Version
 	QueryErr error
 
+	ImportingModule module.Version
+
 	// isStd indicates whether we would expect to find the package in the standard
 	// library. This is normally true for all dotless import paths, but replace
 	// directives can cause us to treat the replaced paths as also being in
@@ -673,7 +675,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 		mod = r
 	}
 
-	if HasModRoot() && cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && needSum && !modfetch.HaveSum(mod) {
 		return "", false, module.VersionError(mod, &sumMissingError{})
 	}
 
