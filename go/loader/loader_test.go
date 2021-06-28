@@ -834,3 +834,11 @@ func loadIO(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCgoCwdIssue46877(t *testing.T) {
+	var conf loader.Config
+	conf.Import("golang.org/x/tools/go/loader/testdata/issue46877")
+	if _, err := conf.Load(); err != nil {
+		t.Errorf("Load failed: %v", err)
+	}
+}
