@@ -32,7 +32,7 @@ type ImportMissingError struct {
 	Module   module.Version
 	QueryErr error
 
-	ImportingModule module.Version
+	ImportingMainModule module.Version
 
 	// isStd indicates whether we would expect to find the package in the standard
 	// library. This is normally true for all dotless import paths, but replace
@@ -72,6 +72,9 @@ func (e *ImportMissingError) Error() string {
 		message := fmt.Sprintf("no required module provides package %s", e.Path)
 		if e.QueryErr != nil {
 			return fmt.Sprintf("%s: %v", message, e.QueryErr)
+		}
+		if e.ImportingMainModule.Path != "" && e.ImportingMainModule != MainModules.ModContainingCWD() {
+			return fmt.Sprintf("%s; to add it:\n\tcd %s\n\tgo get %s", message, MainModules.ModRoot(e.ImportingMainModule), e.Path)
 		}
 		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
 	}
