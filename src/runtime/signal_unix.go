@@ -280,6 +280,8 @@ func setProcessCPUProfiler(hz int32) {
 		it.it_value = it.it_interval
 		setitimer(_ITIMER_PROF, &it, nil)
 	} else {
+		setitimer(_ITIMER_PROF, &itimerval{}, nil)
+
 		// If the Go signal handler should be disabled by default,
 		// switch back to the signal handler that was installed
 		// when we enabled profiling. We don't try to handle the case
@@ -303,8 +305,6 @@ func setProcessCPUProfiler(hz int32) {
 				setsig(_SIGPROF, h)
 			}
 		}
-
-		setitimer(_ITIMER_PROF, &itimerval{}, nil)
 	}
 }
 
@@ -382,7 +382,7 @@ func preemptM(mp *m) {
 //go:nosplit
 func sigFetchG(c *sigctxt) *g {
 	switch GOARCH {
-	case "arm", "arm64":
+	case "arm", "arm64", "ppc64", "ppc64le":
 		if !iscgo && inVDSOPage(c.sigpc()) {
 			// When using cgo, we save the g on TLS and load it from there
 			// in sigtramp. Just use that.

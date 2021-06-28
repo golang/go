@@ -751,8 +751,11 @@ type ParseError struct {
 
 // These are borrowed from unicode/utf8 and strconv and replicate behavior in
 // that package, since we can't take a dependency on either.
-const runeSelf = 0x80
-const lowerhex = "0123456789abcdef"
+const (
+	lowerhex  = "0123456789abcdef"
+	runeSelf  = 0x80
+	runeError = '\uFFFD'
+)
 
 func quote(s string) string {
 	buf := make([]byte, 1, len(s)+2) // slice will be at least len(s) + quotes
@@ -765,7 +768,16 @@ func quote(s string) string {
 			// reproduce strconv.Quote's behavior with full fidelity but
 			// given how rarely we expect to hit these edge cases, speed and
 			// conciseness are better.
-			for j := 0; j < len(string(c)) && j < len(s); j++ {
+			var width int
+			if c == runeError {
+				width = 1
+				if i+2 < len(s) && s[i:i+3] == string(runeError) {
+					width = 3
+				}
+			} else {
+				width = len(string(c))
+			}
+			for j := 0; j < width; j++ {
 				buf = append(buf, `\x`...)
 				buf = append(buf, lowerhex[s[i+j]>>4])
 				buf = append(buf, lowerhex[s[i+j]&0xF])

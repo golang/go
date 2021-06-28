@@ -529,8 +529,8 @@ var (
 	allglock mutex
 	allgs    []*g
 
-	// allglen and allgptr are atomic variables that contain len(allg) and
-	// &allg[0] respectively. Proper ordering depends on totally-ordered
+	// allglen and allgptr are atomic variables that contain len(allgs) and
+	// &allgs[0] respectively. Proper ordering depends on totally-ordered
 	// loads and stores. Writes are protected by allglock.
 	//
 	// allgptr is updated before allglen. Readers should read allglen
@@ -1521,6 +1521,8 @@ found:
 		sched.freem = m
 	}
 	unlock(&sched.lock)
+
+	atomic.Xadd64(&ncgocall, int64(m.ncgocall))
 
 	// Release the P.
 	handoffp(releasep())
@@ -4083,8 +4085,16 @@ func exitsyscall0(gp *g) {
 	if schedEnabled(gp) {
 		_p_ = pidleget()
 	}
+	var locked bool
 	if _p_ == nil {
 		globrunqput(gp)
+
+		// Below, we stoplockedm if gp is locked. globrunqput releases
+		// ownership of gp, so we must check if gp is locked prior to
+		// committing the release by unlocking sched.lock, otherwise we
+		// could race with another M transitioning gp from unlocked to
+		// locked.
+		locked = gp.lockedm != 0
 	} else if atomic.Load(&sched.sysmonwait) != 0 {
 		atomic.Store(&sched.sysmonwait, 0)
 		notewakeup(&sched.sysmonnote)
@@ -4094,7 +4104,7 @@ func exitsyscall0(gp *g) {
 		acquirep(_p_)
 		execute(gp, false) // Never returns.
 	}
-	if gp.lockedm != 0 {
+	if locked {
 		// Wait until another thread schedules gp and so m again.
 		//
 		// N.B. lockedm must be this M, as this g was running on this M

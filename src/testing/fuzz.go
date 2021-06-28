@@ -173,6 +173,11 @@ func (f *F) Helper() {
 	}
 }
 
+// Setenv is not supported since fuzzing runs in parallel.
+func (f *F) Setenv(key, value string) {
+	panic("testing: f.Setenv is not supported")
+}
+
 // Skip is equivalent to Log followed by SkipNow.
 func (f *F) Skip(args ...interface{}) {
 	if f.inFuzzFn {

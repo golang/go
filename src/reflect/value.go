@@ -952,25 +952,47 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 			continue
 		}
 
-		// There are three cases to handle in translating each
+		// There are four cases to handle in translating each
 		// argument:
 		// 1. Stack -> stack translation.
-		// 2. Registers -> stack translation.
-		// 3. Registers -> registers translation.
-		// The fourth cases can't happen, because a method value
-		// call uses strictly fewer registers than a method call.
+		// 2. Stack -> registers translation.
+		// 3. Registers -> stack translation.
+		// 4. Registers -> registers translation.
+		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
+		// architectures. This is OK for now, but this needs to be fixed
+		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
 		// fewer arguments. Simply copy between the two.
 		if vStep := valueSteps[0]; vStep.kind == abiStepStack {
 			mStep := methodSteps[0]
-			if mStep.kind != abiStepStack || vStep.size != mStep.size {
-				panic("method ABI and value ABI do not align")
+			// Handle stack -> stack translation.
+			if mStep.kind == abiStepStack {
+				if vStep.size != mStep.size {
+					panic("method ABI and value ABI do not align")
+				}
+				typedmemmove(t,
+					add(methodFrame, mStep.stkOff, "precomputed stack offset"),
+					add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+				continue
 			}
-			typedmemmove(t,
-				add(methodFrame, mStep.stkOff, "precomputed stack offset"),
-				add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+			// Handle stack -> register translation.
+			for _, mStep := range methodSteps {
+				from := add(valueFrame, vStep.stkOff+mStep.offset, "precomputed stack offset")
+				switch mStep.kind {
+				case abiStepPointer:
+					// Do the pointer copy directly so we get a write barrier.
+					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
+					fallthrough // We need to make sure this ends up in Ints, too.
+				case abiStepIntReg:
+					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+				case abiStepFloatReg:
+					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+				default:
+					panic("unexpected method step")
+				}
+			}
 			continue
 		}
 		// Handle register -> stack translation.
@@ -1359,10 +1381,16 @@ func valueInterface(v Value, safe bool) interface{} {
 	return packEface(v)
 }
 
-// InterfaceData returns the interface v's value as a uintptr pair.
+// InterfaceData returns a pair of unspecified uintptr values.
 // It panics if v's Kind is not Interface.
+//
+// In earlier versions of Go, this function returned the interface's
+// value as a uintptr pair. As of Go 1.4, the implementation of
+// interface values precludes any defined use of InterfaceData.
+//
+// Deprecated: The memory representation of interface values is not
+// compatible with InterfaceData.
 func (v Value) InterfaceData() [2]uintptr {
-	// TODO: deprecate this
 	v.mustBe(Interface)
 	// We treat this as a read operation, so we allow
 	// it even for unexported data, because the caller
@@ -3045,7 +3073,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
 	h := (*unsafeheader.Slice)(v.ptr)
 	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
 	}
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }

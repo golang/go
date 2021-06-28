@@ -88,11 +88,11 @@ pkg syscall (windows-386), type SysProcAttr struct, AdditionalInheritedHandles [
 pkg syscall (windows-386), type SysProcAttr struct, ParentProcess Handle
 pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles []Handle
 pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
-pkg testing, method (*B) Setenv(string, string)
 pkg testing, func Fuzz(func(*F)) FuzzResult
 pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalFuzzTarget, []InternalExample) *M
 pkg testing, func RunFuzzTargets(func(string, string) (bool, error), []InternalFuzzTarget) bool
 pkg testing, func RunFuzzing(func(string, string) (bool, error), []InternalFuzzTarget) bool
+pkg testing, method (*B) Setenv(string, string)
 pkg testing, method (*F) Add(...interface{})
 pkg testing, method (*F) Cleanup(func())
 pkg testing, method (*F) Error(...interface{})
@@ -107,6 +107,7 @@ pkg testing, method (*F) Helper()
 pkg testing, method (*F) Log(...interface{})
 pkg testing, method (*F) Logf(string, ...interface{})
 pkg testing, method (*F) Name() string
+pkg testing, method (*F) Setenv(string, string)
 pkg testing, method (*F) Skip(...interface{})
 pkg testing, method (*F) SkipNow()
 pkg testing, method (*F) Skipf(string, ...interface{})
@@ -130,4 +131,3 @@ pkg time, func UnixMilli(int64) Time
 pkg time, method (*Time) IsDST() bool
 pkg time, method (Time) UnixMicro() int64
 pkg time, method (Time) UnixMilli() int64
->>>>>>> origin/master

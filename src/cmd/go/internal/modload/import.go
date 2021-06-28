@@ -178,11 +178,13 @@ func (e *ImportMissingSumError) Error() string {
 		// Importing package is unknown, or the missing package was named on the
 		// command line. Recommend 'go mod download' for the modules that could
 		// provide the package, since that shouldn't change go.mod.
-		args := make([]string, len(e.mods))
-		for i, mod := range e.mods {
-			args[i] = mod.Path
+		if len(e.mods) > 0 {
+			args := make([]string, len(e.mods))
+			for i, mod := range e.mods {
+				args[i] = mod.Path
+			}
+			hint = fmt.Sprintf("; to add:\n\tgo mod download %s", strings.Join(args, " "))
 		}
-		hint = fmt.Sprintf("; to add:\n\tgo mod download %s", strings.Join(args, " "))
 	} else {
 		// Importing package is known (common case). Recommend 'go get' on the
 		// current version of the importing package.
@@ -425,6 +427,15 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 				} else {
 					mv = module.ZeroPseudoVersion("v0")
 				}
+			}
+			mg, err := rs.Graph(ctx)
+			if err != nil {
+				return module.Version{}, err
+			}
+			if cmpVersion(mg.Selected(mp), mv) >= 0 {
+				// We can't resolve the import by adding mp@mv to the module graph,
+				// because the selected version of mp is already at least mv.
+				continue
 			}
 			mods = append(mods, module.Version{Path: mp, Version: mv})
 		}

@@ -33,6 +33,9 @@ var parseUint64Tests = []parseUint64Test{
 	{"_12345", 0, ErrSyntax},
 	{"1__2345", 0, ErrSyntax},
 	{"12345_", 0, ErrSyntax},
+	{"-0", 0, ErrSyntax},
+	{"-1", 0, ErrSyntax},
+	{"+1", 0, ErrSyntax},
 }
 
 type parseUint64BaseTest struct {
@@ -140,8 +143,10 @@ var parseInt64Tests = []parseInt64Test{
 	{"", 0, ErrSyntax},
 	{"0", 0, nil},
 	{"-0", 0, nil},
+	{"+0", 0, nil},
 	{"1", 1, nil},
 	{"-1", -1, nil},
+	{"+1", 1, nil},
 	{"12345", 12345, nil},
 	{"-12345", -12345, nil},
 	{"012345", 12345, nil},
@@ -236,6 +241,11 @@ var parseInt64BaseTests = []parseInt64BaseTest{
 	{"0__12345", 0, 0, ErrSyntax},
 	{"01234__5", 0, 0, ErrSyntax},
 	{"012345_", 0, 0, ErrSyntax},
+
+	{"+0xf", 0, 0xf, nil},
+	{"-0xf", 0, -0xf, nil},
+	{"0x+f", 0, 0, ErrSyntax},
+	{"0x-f", 0, 0, ErrSyntax},
 }
 
 type parseUint32Test struct {

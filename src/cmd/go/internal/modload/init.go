@@ -661,7 +661,7 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
 	for _, n := range mPathCount {
 		if n > 1 {
 			var err error
-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil)
+			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
 			if err != nil {
 				base.Fatalf("go: %v", err)
 			}
@@ -999,9 +999,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			Indirect: !rs.direct[m.Path],
 		})
 	}
-	modFile.SetRequire(list)
 	if goVersion != "" {
 		modFile.AddGoStmt(goVersion)
+	}
+	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
+		modFile.SetRequire(list)
+	} else {
+		modFile.SetRequireSeparateIndirect(list)
 	}
 	modFile.Cleanup()
 

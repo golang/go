@@ -148,10 +148,9 @@ module example.com/lazy
 
 go 1.17
 
-require (
-	example.com/a v0.1.0
-	example.com/b v0.1.0 // indirect
-)
+require example.com/a v0.1.0
+
+require example.com/b v0.1.0 // indirect
 
 replace (
 	example.com/a v0.1.0 => ./a
