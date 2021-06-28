@@ -102,7 +102,10 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	}
 	writeActionGraph()
 
-	b.readySema = make(chan bool, len(all))
+	var (
+		readyN int
+		ready  actionQueue
+	)
 
 	// Initialize per-action execution state.
 	for _, a := range all {
@@ -111,13 +114,12 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		}
 		a.pending = len(a.Deps)
 		if a.pending == 0 {
-			b.ready.push(a)
-			b.readySema <- true
+			ready.push(a)
+			readyN++
 		}
 	}
 
-	// Handle runs a single action and takes care of triggering
-	// any actions that are runnable as a result.
+	// Handle runs a single action.
 	handle := func(ctx context.Context, a *Action) {
 		if a.json != nil {
 			a.json.TimeStart = time.Now()
@@ -141,11 +143,6 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			a.json.TimeDone = time.Now()
 		}
 
-		// The actions run in parallel but all the updates to the
-		// shared work state are serialized through b.exec.
-		b.exec.Lock()
-		defer b.exec.Unlock()
-
 		if err != nil {
 			if err == errPrintedOutput {
 				base.SetExitStatus(2)
@@ -154,23 +151,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			}
 			a.Failed = true
 		}
-
-		for _, a0 := range a.triggers {
-			if a.Failed {
-				a0.Failed = true
-			}
-			if a0.pending--; a0.pending == 0 {
-				b.ready.push(a0)
-				b.readySema <- true
-			}
-		}
-
-		if a == root {
-			close(b.readySema)
-		}
 	}
-
-	var wg sync.WaitGroup
 
 	// Kick off goroutines according to parallelism.
 	// If we are using the -n flag (just printing commands)
@@ -180,23 +161,17 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	if cfg.BuildN {
 		par = 1
 	}
+	jobs := make(chan *Action, par)
+	done := make(chan *Action, par)
+	workerN := par
 	for i := 0; i < par; i++ {
-		wg.Add(1)
 		go func() {
 			ctx := trace.StartGoroutine(ctx)
-			defer wg.Done()
-			for {
+			for a := range jobs {
+				handle(ctx, a)
+
 				select {
-				case _, ok := <-b.readySema:
-					if !ok {
-						return
-					}
-					// Receiving a value from b.readySema entitles
-					// us to take from the ready queue.
-					b.exec.Lock()
-					a := b.ready.pop()
-					b.exec.Unlock()
-					handle(ctx, a)
+				case done <- a:
 				case <-base.Interrupted:
 					base.SetExitStatus(1)
 					return
@@ -204,8 +179,33 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 			}
 		}()
 	}
+	defer close(jobs)
 
-	wg.Wait()
+	// Dispatch actions to waiting goroutines.
+	for i := 0; i < len(all); i++ {
+		for readyN > 0 && workerN > 0 {
+			jobs <- ready.pop()
+			readyN--
+			workerN--
+		}
+
+		select {
+		case a := <-done:
+			workerN++
+			for _, a0 := range a.triggers {
+				if a.Failed {
+					a0.Failed = true
+				}
+				if a0.pending--; a0.pending == 0 {
+					ready.push(a0)
+					readyN++
+				}
+			}
+		case <-base.Interrupted:
+			base.SetExitStatus(1)
+			return
+		}
+	}
 
 	// Write action graph again, this time with timing information.
 	writeActionGraph()

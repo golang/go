@@ -50,9 +50,7 @@ type Builder struct {
 	output    sync.Mutex
 	scriptDir string // current directory in printed script
 
-	exec      sync.Mutex
-	readySema chan bool
-	ready     actionQueue
+	exec sync.Mutex
 
 	id           sync.Mutex
 	toolIDCache  map[string]string // tool name -> tool ID
