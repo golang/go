@@ -1921,12 +1921,12 @@ func TestCVE202133195(t *testing.T) {
 		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 
-	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org")
-	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
+	_, _, err = r.LookupSRV(context.Background(), "hdr", "tcp", "golang.org.")
+	if expected := "lookup golang.org.: SRV header name is invalid"; err == nil || err.Error() != expected {
 		t.Errorf("Resolver.LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
-	_, _, err = LookupSRV("hdr", "tcp", "golang.org")
-	if expected := "lookup golang.org: SRV header name is invalid"; err == nil || err.Error() != expected {
+	_, _, err = LookupSRV("hdr", "tcp", "golang.org.")
+	if expected := "lookup golang.org.: SRV header name is invalid"; err == nil || err.Error() != expected {
 		t.Errorf("LookupSRV returned unexpected error, got %q, want %q", err, expected)
 	}
 
