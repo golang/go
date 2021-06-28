@@ -256,7 +256,7 @@ L:
 			// look for duplicate types for a given value
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
-				if check.identical(v.typ, vt.typ) {
+				if Identical(v.typ, vt.typ) {
 					var err error_
 					err.errorf(&v, "duplicate case %s in expression switch", &v)
 					err.errorf(vt.pos, "previous case")
@@ -282,7 +282,7 @@ L:
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, other := range seen {
-			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
+			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
