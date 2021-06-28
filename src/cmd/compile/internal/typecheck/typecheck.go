@@ -962,12 +962,12 @@ func typecheckargs(n ir.InitNode) {
 	}
 
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-	rewriteMultiValueCall(n, list[0])
+	RewriteMultiValueCall(n, list[0])
 }
 
-// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+// RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
-func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the

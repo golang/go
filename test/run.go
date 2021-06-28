@@ -2131,7 +2131,6 @@ var excludedFiles = map[string]bool{
 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue46725.go":  true, // fix applied to typecheck needs to be ported to irgen/transform
 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
