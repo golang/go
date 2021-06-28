@@ -1,13 +1,20 @@
 go mod initwork ./a ./b
 cmp go.work go.work.want
 
+! go run  example.com/b
+stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote'
+cd a
+go get rsc.io/quote
+go env GOMOD # go env GOMOD reports the module in a single module context
+stdout $GOPATH(\\|/)src(\\|/)a(\\|/)go.mod
+cd ..
 go run example.com/b
-stdout 'Hello from module A'
+stdout 'Hello, world.'
 
 # And try from a different directory
 cd c
-go run example.com/b
-stdout 'Hello from module A'
+go run  example.com/b
+stdout 'Hello, world.'
 cd $GOPATH/src
 
 go list all # all includes both modules
@@ -26,6 +33,9 @@ cp go.work.dup go.work
 stderr 'reading go.work: path .* appears multiple times in workspace'
 cp go.work.backup go.work
 
+cp go.work.d go.work
+go run example.com/d
+
 -- go.work.dup --
 go 1.17
 
@@ -41,6 +51,14 @@ directory (
 	./a
 	./b
 )
+-- go.work.d --
+go 1.17
+
+directory (
+	a
+	b
+	d
+)
 -- a/go.mod --
 
 module example.com/a
@@ -49,9 +67,10 @@ module example.com/a
 package a
 
 import "fmt"
+import "rsc.io/quote"
 
 func HelloFromA() {
-  fmt.Println("Hello from module A")
+  fmt.Println(quote.Hello())
 }
 
 -- b/go.mod --
@@ -66,8 +85,27 @@ import "example.com/a"
 func main() {
   a.HelloFromA()
 }
+-- b/lib/hello.go --
+package lib
+
+import "example.com/a"
+
+func Hello() {
+	a.HelloFromA()
+}
 
 -- c/README --
 Create this directory so we can cd to
 it and make sure paths are interpreted
 relative to the go.work, not the cwd.
+-- d/go.mod --
+module example.com/d
+
+-- d/main.go --
+package main
+
+import "example.com/b/lib"
+
+func main() {
+	lib.Hello()
+}

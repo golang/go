@@ -403,7 +403,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			// loaded.requirements, but here we may have also loaded (and want to
 			// preserve checksums for) additional entities from compatRS, which are
 			// only needed for compatibility with ld.TidyCompatibleVersion.
-			modfetch.WriteGoSum(keep)
+			if err := modfetch.WriteGoSum(keep, mustHaveCompleteRequirements()); err != nil {
+				base.Fatalf("go: %v", err)
+			}
 		}
 	}
 
