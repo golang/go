@@ -22,14 +22,14 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-type fakeClient struct {
+type FakeClient struct {
 	protocol.Client
 
-	logs chan string
+	Logs chan string
 }
 
-func (c fakeClient) LogMessage(ctx context.Context, params *protocol.LogMessageParams) error {
-	c.logs <- params.Message
+func (c FakeClient) LogMessage(ctx context.Context, params *protocol.LogMessageParams) error {
+	c.Logs <- params.Message
 	return nil
 }
 
@@ -43,9 +43,9 @@ func (fakeServer) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-type pingServer struct{ fakeServer }
+type PingServer struct{ fakeServer }
 
-func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+func (s PingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	event.Log(ctx, "ping")
 	return nil
 }
@@ -54,8 +54,8 @@ func TestClientLogging(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	server := pingServer{}
-	client := fakeClient{logs: make(chan string, 10)}
+	server := PingServer{}
+	client := FakeClient{Logs: make(chan string, 10)}
 
 	ctx = debug.WithInstance(ctx, "", "")
 	ss := NewStreamServer(cache.New(nil), false)
@@ -70,7 +70,7 @@ func TestClientLogging(t *testing.T) {
 	}
 
 	select {
-	case got := <-client.logs:
+	case got := <-client.Logs:
 		want := "ping"
 		matched, err := regexp.MatchString(want, got)
 		if err != nil {
@@ -84,20 +84,20 @@ func TestClientLogging(t *testing.T) {
 	}
 }
 
-// waitableServer instruments LSP request so that we can control their timing.
+// WaitableServer instruments LSP request so that we can control their timing.
 // The requests chosen are arbitrary: we simply needed one that blocks, and
 // another that doesn't.
-type waitableServer struct {
+type WaitableServer struct {
 	fakeServer
 
-	started   chan struct{}
-	completed chan error
+	Started   chan struct{}
+	Completed chan error
 }
 
-func (s waitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (_ *protocol.Hover, err error) {
-	s.started <- struct{}{}
+func (s WaitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (_ *protocol.Hover, err error) {
+	s.Started <- struct{}{}
 	defer func() {
-		s.completed <- err
+		s.Completed <- err
 	}()
 	select {
 	case <-ctx.Done():
@@ -107,7 +107,7 @@ func (s waitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (_ *
 	return &protocol.Hover{}, nil
 }
 
-func (s waitableServer) Resolve(_ context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+func (s WaitableServer) Resolve(_ context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
 	return item, nil
 }
 
@@ -136,9 +136,9 @@ func setupForwarding(ctx context.Context, t *testing.T, s protocol.Server) (dire
 
 func TestRequestCancellation(t *testing.T) {
 	ctx := context.Background()
-	server := waitableServer{
-		started:   make(chan struct{}),
-		completed: make(chan error),
+	server := WaitableServer{
+		Started:   make(chan struct{}),
+		Completed: make(chan error),
 	}
 	tsDirect, tsForwarded, cleanup := setupForwarding(ctx, t, server)
 	defer cleanup()
@@ -167,12 +167,12 @@ func TestRequestCancellation(t *testing.T) {
 				result <- err
 			}()
 			// Wait for the Hover request to start.
-			<-server.started
+			<-server.Started
 			cancel()
 			if err := <-result; err == nil {
 				t.Error("nil error for cancelled Hover(), want non-nil")
 			}
-			if err := <-server.completed; err == nil || !strings.Contains(err.Error(), "cancelled hover") {
+			if err := <-server.Completed; err == nil || !strings.Contains(err.Error(), "cancelled hover") {
 				t.Errorf("Hover(): unexpected server-side error %v", err)
 			}
 		})
