@@ -329,8 +329,20 @@ assignOK:
 		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
+		mismatched := false
+		failed := false
 		for i := range lhs {
-			checkLHS(i, rtyp.Field(i).Type)
+			result := rtyp.Field(i).Type
+			checkLHS(i, result)
+
+			if lhs[i].Type() == nil || result == nil {
+				failed = true
+			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
+				mismatched = true
+			}
+		}
+		if mismatched && !failed {
+			typecheck.RewriteMultiValueCall(stmt, r)
 		}
 		return
 	}

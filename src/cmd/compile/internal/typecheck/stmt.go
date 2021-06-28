@@ -217,7 +217,7 @@ assignOK:
 			}
 		}
 		if mismatched && !failed {
-			rewriteMultiValueCall(stmt, r)
+			RewriteMultiValueCall(stmt, r)
 		}
 		return
 	}
