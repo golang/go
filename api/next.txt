@@ -102,3 +102,7 @@ pkg syscall (openbsd-amd64-cgo), func RecvfromInet4(int, []uint8, int, *Sockaddr
 pkg syscall (openbsd-amd64-cgo), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
 pkg syscall (openbsd-amd64-cgo), func SendtoInet4(int, []uint8, int, SockaddrInet4) error
 pkg syscall (openbsd-amd64-cgo), func SendtoInet6(int, []uint8, int, SockaddrInet6) error
+pkg syscall (windows-386), func WSASendtoInet4(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet4, *Overlapped, *uint8) error
+pkg syscall (windows-386), func WSASendtoInet6(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet6, *Overlapped, *uint8) error
+pkg syscall (windows-amd64), func WSASendtoInet4(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet4, *Overlapped, *uint8) error
+pkg syscall (windows-amd64), func WSASendtoInet6(Handle, *WSABuf, uint32, *uint32, uint32, SockaddrInet6, *Overlapped, *uint8) error
