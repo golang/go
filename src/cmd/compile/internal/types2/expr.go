@@ -1000,7 +1000,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		return
 	}
 
-	if !check.identical(x.typ, y.typ) {
+	if !Identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
@@ -1329,7 +1329,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 					xkey := keyVal(x.val)
 					if asInterface(utyp.key) != nil {
 						for _, vtyp := range visited[xkey] {
-							if check.identical(vtyp, x.typ) {
+							if Identical(vtyp, x.typ) {
 								duplicate = true
 								break
 							}
@@ -1550,7 +1550,7 @@ func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface,
 	}
 	var msg string
 	if wrongType != nil {
-		if check.identical(method.typ, wrongType.typ) {
+		if Identical(method.typ, wrongType.typ) {
 			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
 		} else {
 			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)

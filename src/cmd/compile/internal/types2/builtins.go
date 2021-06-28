@@ -281,7 +281,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		// both argument types must be identical
-		if !check.identical(x.typ, y.typ) {
+		if !Identical(x.typ, y.typ) {
 			check.errorf(x, invalidOp+"%v (mismatched types %s and %s)", call, x.typ, y.typ)
 			return
 		}
@@ -346,7 +346,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if !check.identical(dst, src) {
+		if !Identical(dst, src) {
 			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			return
 		}
@@ -635,7 +635,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Value
-		obj, index, indirect := check.lookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
 			check.errorf(x, invalidArg+"%s has no single field %s", base, sel)
