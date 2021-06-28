@@ -310,7 +310,7 @@ func TestABIUtilsInterfaces(t *testing.T) {
 	pei := types.NewPtr(ei)         // *interface{}
 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
 		[]*types.Type{types.UntypedString})
-	field := types.NewField(src.NoXPos, nil, fldt)
+	field := types.NewField(src.NoXPos, typecheck.Lookup("f"), fldt)
 	nei := types.NewInterface(types.LocalPkg, []*types.Field{field})
 	i16 := types.Types[types.TINT16]
 	tb := types.Types[types.TBOOL]
@@ -322,12 +322,12 @@ func TestABIUtilsInterfaces(t *testing.T) {
         IN 0: R{ I0 I1 I2 } spilloffset: 0 typ: struct { int16; int16; bool }
         IN 1: R{ I3 I4 } spilloffset: 8 typ: interface {}
         IN 2: R{ I5 I6 } spilloffset: 24 typ: interface {}
-        IN 3: R{ I7 I8 } spilloffset: 40 typ: interface { () untyped string }
+        IN 3: R{ I7 I8 } spilloffset: 40 typ: interface { .f() untyped string }
         IN 4: R{ } offset: 0 typ: *interface {}
-        IN 5: R{ } offset: 8 typ: interface { () untyped string }
+        IN 5: R{ } offset: 8 typ: interface { .f() untyped string }
         IN 6: R{ } offset: 24 typ: int16
         OUT 0: R{ I0 I1 } spilloffset: -1 typ: interface {}
-        OUT 1: R{ I2 I3 } spilloffset: -1 typ: interface { () untyped string }
+        OUT 1: R{ I2 I3 } spilloffset: -1 typ: interface { .f() untyped string }
         OUT 2: R{ I4 } spilloffset: -1 typ: *interface {}
         offsetToSpillArea: 32 spillAreaSize: 56
 `)
