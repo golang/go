@@ -56,6 +56,10 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 	DebugTrace       string // -debug-trace flag
+
+	// GoPathError is set when GOPATH is not set. it contains an
+	// explanation why GOPATH is unset.
+	GoPathError string
 )
 
 func defaultContext() build.Context {
@@ -73,7 +77,7 @@ func defaultContext() build.Context {
 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 	}
 
-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
+	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
 
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
@@ -401,4 +405,25 @@ func gopathDir(rel string) string {
 		return ""
 	}
 	return filepath.Join(list[0], rel)
+}
+
+func gopath(ctxt build.Context) string {
+	if len(ctxt.GOPATH) > 0 {
+		return ctxt.GOPATH
+	}
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		def := filepath.Join(home, "go")
+		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
+			GoPathError = "cannot set GOROOT as GOPATH"
+		}
+		return ""
+	}
+	GoPathError = fmt.Sprintf("%s is not set", env)
+	return ""
 }
