@@ -89,6 +89,8 @@ type MainModuleSet struct {
 
 	modFiles map[module.Version]*modfile.File
 
+	modContainingCWD module.Version
+
 	indexMu sync.Mutex
 	indices map[module.Version]*modFileIndex
 }
@@ -182,6 +184,13 @@ func (mms *MainModuleSet) Len() int {
 		return 0
 	}
 	return len(mms.versions)
+}
+
+// ModContainingCWD returns the main module containing the working directory,
+// or module.Version{} if none of the main modules contain the working
+// directory.
+func (mms *MainModuleSet) ModContainingCWD() module.Version {
+	return mms.modContainingCWD
 }
 
 var MainModules *MainModuleSet
@@ -315,8 +324,7 @@ func Init() {
 	} else if inWorkspaceMode() {
 		// We're in workspace mode.
 	} else {
-		modRoots = findModuleRoots(base.Cwd())
-		if modRoots == nil {
+		if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
 			if cfg.ModFile != "" {
 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
 			}
@@ -328,17 +336,18 @@ func Init() {
 				// Stay in GOPATH mode.
 				return
 			}
-		} else if search.InDir(modRoots[0], os.TempDir()) == "." {
+		} else if search.InDir(modRoot, os.TempDir()) == "." {
 			// If you create /tmp/go.mod for experimenting,
 			// then any tests that create work directories under /tmp
 			// will find it and get modules when they're not expecting them.
 			// It's a bit of a peculiar thing to disallow but quite mysterious
 			// when it happens. See golang.org/issue/26708.
-			modRoots = nil
 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
 			if !mustUseModules {
 				return
 			}
+		} else {
+			modRoots = []string{modRoot}
 		}
 	}
 	if cfg.ModFile != "" && !strings.HasSuffix(cfg.ModFile, ".mod") {
@@ -424,12 +433,11 @@ func WillBeEnabled() bool {
 		return false
 	}
 
-	if modRoots := findModuleRoots(base.Cwd()); modRoots == nil {
+	if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
 		// GO111MODULE is 'auto', and we can't find a module root.
 		// Stay in GOPATH mode.
 		return false
-	} else if search.InDir(modRoots[0], os.TempDir()) == "." {
-		_ = TODOWorkspaces("modRoots[0] is not right here")
+	} else if search.InDir(modRoot, os.TempDir()) == "." {
 		// If you create /tmp/go.mod for experimenting,
 		// then any tests that create work directories under /tmp
 		// will find it and get modules when they're not expecting them.
@@ -856,6 +864,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
 		}
 	}
+	modRootContainingCWD := findModuleRoot(base.Cwd())
 	mainModules := &MainModuleSet{
 		versions:    ms[:len(ms):len(ms)],
 		inGorootSrc: map[module.Version]bool{},
@@ -869,6 +878,10 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 		mainModules.modRoot[m] = rootDirs[i]
 		mainModules.modFiles[m] = modFiles[i]
 		mainModules.indices[m] = indices[i]
+
+		if mainModules.modRoot[m] == modRootContainingCWD {
+			mainModules.modContainingCWD = m
+		}
 
 		if rel := search.InDir(rootDirs[i], cfg.GOROOTsrc); rel != "" {
 			mainModules.inGorootSrc[m] = true
@@ -1108,7 +1121,7 @@ var altConfigs = []string{
 	".git/config",
 }
 
-func findModuleRoots(dir string) (roots []string) {
+func findModuleRoot(dir string) (roots string) {
 	if dir == "" {
 		panic("dir not set")
 	}
@@ -1117,7 +1130,7 @@ func findModuleRoots(dir string) (roots []string) {
 	// Look for enclosing go.mod.
 	for {
 		if fi, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
-			return []string{dir}
+			return dir
 		}
 		d := filepath.Dir(dir)
 		if d == dir {
@@ -1125,7 +1138,7 @@ func findModuleRoots(dir string) (roots []string) {
 		}
 		dir = d
 	}
-	return nil
+	return ""
 }
 
 func findWorkspaceFile(dir string) (root string) {

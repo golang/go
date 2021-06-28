@@ -1364,6 +1364,15 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
 			var err error
 			mod, err = queryImport(ctx, pkg.path, ld.requirements)
 			if err != nil {
+				var ime *ImportMissingError
+				if errors.As(err, &ime) {
+					for curstack := pkg.stack; curstack != nil; curstack = curstack.stack {
+						if MainModules.Contains(curstack.mod.Path) {
+							ime.ImportingMainModule = curstack.mod
+							break
+						}
+					}
+				}
 				// pkg.err was already non-nil, so we can reasonably attribute the error
 				// for pkg to either the original error or the one returned by
 				// queryImport. The existing error indicates only that we couldn't find
