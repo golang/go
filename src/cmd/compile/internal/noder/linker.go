@@ -134,11 +134,15 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 	}
 
 	w := l.pw.newEncoderRaw(relocObj)
-	bside := l.pw.newEncoderRaw(relocObjExt)
-	assert(bside.idx == w.idx)
+	wext := l.pw.newEncoderRaw(relocObjExt)
+	wdict := l.pw.newEncoderRaw(relocObjDict)
+
 	l.decls[sym] = w.idx
+	assert(wext.idx == w.idx)
+	assert(wdict.idx == w.idx)
 
 	l.relocCommon(pr, &w, relocObj, idx)
+	l.relocCommon(pr, &wdict, relocObjDict, idx)
 
 	var obj *ir.Name
 	if path == "" {
@@ -153,18 +157,18 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 	}
 
 	if obj != nil {
-		bside.sync(syncObject1)
+		wext.sync(syncObject1)
 		switch tag {
 		case objFunc:
-			l.relocFuncExt(&bside, obj)
+			l.relocFuncExt(&wext, obj)
 		case objType:
-			l.relocTypeExt(&bside, obj)
+			l.relocTypeExt(&wext, obj)
 		case objVar:
-			l.relocVarExt(&bside, obj)
+			l.relocVarExt(&wext, obj)
 		}
-		bside.flush()
+		wext.flush()
 	} else {
-		l.relocCommon(pr, &bside, relocObjExt, idx)
+		l.relocCommon(pr, &wext, relocObjExt, idx)
 	}
 
 	return w.idx
@@ -286,7 +290,17 @@ func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj, []int) {
 	bounds := make([]int, r.len())
 	for i := range bounds {
 		r.sync(syncType)
-		bounds[i] = r.reloc(relocType)
+		if r.bool() {
+			r.len()
+		} else {
+			r.reloc(relocType)
+		}
+
+		// TODO(mdempsky): This result now needs to include the 'derived'
+		// bool too, but none of the callers currently depend on it
+		// anyway. Either fix it to be meaningful, or just get rid of it
+		// altogether.
+		bounds[i] = -1
 	}
 
 	tag := codeObj(r.code(syncCodeObj))
