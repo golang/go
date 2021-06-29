@@ -89,7 +89,7 @@ func (n *Node) String() string {
 // A Edge represents an edge in the call graph.
 //
 // Site is nil for edges originating in synthetic or intrinsic
-// functions, e.g. reflect.Call or the root of the call graph.
+// functions, e.g. reflect.Value.Call or the root of the call graph.
 type Edge struct {
 	Caller *Node
 	Site   ssa.CallInstruction
