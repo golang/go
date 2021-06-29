@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -71,9 +72,9 @@ func ExampleFileMode() {
 	}
 }
 
-func ExampleIsNotExist() {
+func ExampleErrNotExist() {
 	filename := "a-nonexistent-file"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
+	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
 		fmt.Println("file does not exist")
 	}
 	// Output:
