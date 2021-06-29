@@ -811,8 +811,8 @@ func Foo() bool {
     <p><!-- CL 311129 -->
       The concrete image types (<code>RGBA</code>, <code>Gray16</code> and so on)
       now implement a new <a href="/pkg/image/#RGBA64Image"><code>RGBA64Image</code></a>
-      interface. Those concrete types, other than the chroma-subsampling
-      related <code>YCbCr</code> and <code>NYCbCrA</code>, also now implement
+      interface. The concrete types that previously implemented
+      <a href="/pkg/image/draw/#Image"><code>draw.Image</code></a> now also implement
       <a href="/pkg/image/draw/#RGBA64Image"><code>draw.RGBA64Image</code></a>, a
       new interface in the <code>image/draw</code> package.
     </p>
