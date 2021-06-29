@@ -213,7 +213,9 @@ func TestRGBA64Image(t *testing.T) {
 		NewPaletted(r, palette.Plan9),
 		NewRGBA(r),
 		NewRGBA64(r),
+		NewUniform(color.RGBA64{}),
 		NewYCbCr(r, YCbCrSubsampleRatio444),
+		r,
 	}
 	for _, tc := range testCases {
 		switch tc := tc.(type) {
@@ -226,6 +228,9 @@ func TestRGBA64Image(t *testing.T) {
 		// means that setting one pixel can modify neighboring pixels. They
 		// don't have Set or SetRGBA64 methods because that side effect could
 		// be surprising. Here, we just memset the channel buffers instead.
+		//
+		// The Uniform and Rectangle types are also special-cased, as they
+		// don't have a Set or SetRGBA64 method.
 		case interface {
 			SetRGBA64(x, y int, c color.RGBA64)
 		}:
@@ -237,10 +242,17 @@ func TestRGBA64Image(t *testing.T) {
 			memset(tc.YCbCr.Cr, 0x99)
 			memset(tc.A, 0xAA)
 
+		case *Uniform:
+			tc.C = color.RGBA64{0x7FFF, 0x3FFF, 0x0000, 0x7FFF}
+
 		case *YCbCr:
 			memset(tc.Y, 0x77)
 			memset(tc.Cb, 0x88)
 			memset(tc.Cr, 0x99)
+
+		case Rectangle:
+			// No-op. Rectangle pixels' colors are immutable. They're always
+			// color.Opaque.
 
 		default:
 			t.Errorf("could not initialize pixels for %T", tc)
