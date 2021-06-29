@@ -48,10 +48,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 				// blank identifiers were found => use rewritten receiver type
 				recvTyp = isubst(recvPar.Type, smap)
 			}
-			// TODO(gri) rework declareTypeParams
-			sig.rparams = nil
-			for _, rparam := range rparams {
-				sig.rparams = check.declareTypeParam(sig.rparams, rparam)
+			sig.rparams = make([]*TypeName, len(rparams))
+			for i, rparam := range rparams {
+				sig.rparams[i] = check.declareTypeParam(i, rparam)
 			}
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds

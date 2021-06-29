@@ -674,75 +674,52 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 }
 
-func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeName) {
-	// Type parameter lists should not be empty. The parser will
-	// complain but we still may get an incorrect AST: ignore it.
-	if len(list) == 0 {
-		return
-	}
+func (check *Checker) collectTypeParams(list []*syntax.Field) []*TypeName {
+	tparams := make([]*TypeName, len(list))
 
-	// Declare type parameters up-front, with empty interface as type bound.
+	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
-	// list (so we can have mutually recursive parameterized interfaces).
-	for _, f := range list {
-		tparams = check.declareTypeParam(tparams, f.Name)
+	// list (so we can have mutually recursive parameterized type bounds).
+	for i, f := range list {
+		tparams[i] = check.declareTypeParam(i, f.Name)
 	}
 
 	var bound Type
-	for i, j := 0, 0; i < len(list); i = j {
-		f := list[i]
-
-		// determine the range of type parameters list[i:j] with identical type bound
-		// (declared as in (type a, b, c B))
-		j = i + 1
-		for j < len(list) && list[j].Type == f.Type {
-			j++
+	for i, f := range list {
+		// Optimization: Re-use the previous type bound if it hasn't changed.
+		// This also preserves the grouped output of type parameter lists
+		// when printing type strings.
+		if i == 0 || f.Type != list[i-1].Type {
+			bound = check.boundType(f.Type)
 		}
-
-		// this should never be the case, but be careful
-		if f.Type == nil {
-			continue
-		}
-
-		// The predeclared identifier "any" is visible only as a constraint
-		// in a type parameter list. Look for it before general constraint
-		// resolution.
-		if tident, _ := unparen(f.Type).(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
-			bound = universeAny
-		} else {
-			bound = check.typ(f.Type)
-		}
-
-		// type bound must be an interface
-		// TODO(gri) We should delay the interface check because
-		//           we may not have a complete interface yet:
-		//           type C(type T C) interface {}
-		//           (issue #39724).
-		if _, ok := under(bound).(*Interface); ok {
-			// set the type bounds
-			for i < j {
-				tparams[i].typ.(*TypeParam).bound = bound
-				i++
-			}
-		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type, "%s is not an interface", bound)
-		}
-	}
-
-	return
-}
-
-func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
-	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
-	tparams = append(tparams, tpar)
-
-	if check.conf.Trace {
-		check.trace(name.Pos(), "type param = %v", tparams[len(tparams)-1])
+		tparams[i].typ.(*TypeParam).bound = bound
 	}
 
 	return tparams
+}
+
+func (check *Checker) declareTypeParam(index int, name *syntax.Name) *TypeName {
+	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	check.NewTypeParam(tpar, index, nil)                    // assigns type to tpar as a side-effect
+	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+	return tpar
+}
+
+// boundType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must be an interface, including the predeclared type "any".
+func (check *Checker) boundType(e syntax.Expr) Type {
+	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == nil {
+		return universeAny
+	}
+
+	bound := check.typ(e)
+	check.later(func() {
+		if _, ok := under(bound).(*Interface); !ok && bound != Typ[Invalid] {
+			check.errorf(e, "%s is not an interface", bound)
+		}
+	})
+	return bound
 }
 
 func (check *Checker) collectMethods(obj *TypeName) {
