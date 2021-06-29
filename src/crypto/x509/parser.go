@@ -734,10 +734,12 @@ func processExtensions(out *Certificate) error {
 				if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
 					return errors.New("x509: invalid authority key identifier")
 				}
-				if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
-					return errors.New("x509: invalid authority key identifier")
+				if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
+					if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
+						return errors.New("x509: invalid authority key identifier")
+					}
+					out.AuthorityKeyId = akid
 				}
-				out.AuthorityKeyId = akid
 			case 37:
 				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
 				if err != nil {
