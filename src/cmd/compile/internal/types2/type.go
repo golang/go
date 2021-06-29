@@ -626,7 +626,11 @@ func (t *TypeParam) SetId(id uint64) {
 }
 
 func (t *TypeParam) Bound() *Interface {
-	iface := asInterface(t.bound)
+	// we may not have an interface (error reported elsewhere)
+	iface, _ := under(t.bound).(*Interface)
+	if iface == nil {
+		return &emptyInterface
+	}
 	// use the type bound position if we have one
 	pos := nopos
 	if n, _ := t.bound.(*Named); n != nil {
