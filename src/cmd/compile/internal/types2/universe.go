@@ -20,11 +20,12 @@ var Universe *Scope
 var Unsafe *Package
 
 var (
-	universeIota  *Const
-	universeByte  *Basic // uint8 alias, but has name "byte"
-	universeRune  *Basic // int32 alias, but has name "rune"
-	universeAny   *Interface
-	universeError *Named
+	universeIota       *Const
+	universeByte       *Basic // uint8 alias, but has name "byte"
+	universeRune       *Basic // int32 alias, but has name "rune"
+	universeAny        *Interface
+	universeError      *Named
+	universeComparable Object
 )
 
 // Typ contains the predeclared *Basic types indexed by their
@@ -77,20 +78,29 @@ func defPredeclaredTypes() {
 		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
-	// any
-	// (Predeclared and entered into universe scope so we do all the
-	// usual checks; but removed again from scope later since it's
-	// only visible as constraint in a type parameter list.)
+	// type any = interface{}
+	// Entered into universe scope so we do all the usual checks;
+	// but removed again from scope later since it's only visible
+	// as constraint in a type parameter list.
 	def(NewTypeName(nopos, nil, "any", &emptyInterface))
 
-	// Error has a nil package in its qualified name since it is in no package
+	// type error interface{ Error() string }
 	{
 		res := NewVar(nopos, nil, "", Typ[String])
-		sig := &Signature{results: NewTuple(res)}
+		sig := NewSignature(nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
 		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
 		sig.recv = NewVar(nopos, nil, "", typ)
 		def(NewTypeName(nopos, nil, "error", typ))
+	}
+
+	// type comparable interface{ ==() }
+	{
+		sig := NewSignature(nil, nil, nil, false)
+		eql := NewFunc(nopos, nil, "==", sig)
+		typ := &Named{underlying: NewInterfaceType([]*Func{eql}, nil)}
+		sig.recv = NewVar(nopos, nil, "", typ)
+		def(NewTypeName(nopos, nil, "comparable", typ))
 	}
 }
 
@@ -200,33 +210,6 @@ func DefPredeclaredTestFuncs() {
 	def(newBuiltin(_Trace))
 }
 
-func defPredeclaredComparable() {
-	// The "comparable" interface can be imagined as defined like
-	//
-	// type comparable interface {
-	//         == () untyped bool
-	//         != () untyped bool
-	// }
-	//
-	// == and != cannot be user-declared but we can declare
-	// a magic method == and check for its presence when needed.
-
-	// Define interface { == () }. We don't care about the signature
-	// for == so leave it empty except for the receiver, which is
-	// set up later to match the usual interface method assumptions.
-	sig := new(Signature)
-	eql := NewFunc(nopos, nil, "==", sig)
-	iface := NewInterfaceType([]*Func{eql}, nil)
-
-	// set up the defined type for the interface
-	obj := NewTypeName(nopos, nil, "comparable", nil)
-	named := NewNamed(obj, iface, nil)
-	obj.color_ = black
-	sig.recv = NewVar(nopos, nil, "", named) // complete == signature
-
-	def(obj)
-}
-
 func init() {
 	Universe = NewScope(nil, nopos, nopos, "universe")
 	Unsafe = NewPackage("unsafe", "unsafe")
@@ -236,13 +219,13 @@ func init() {
 	defPredeclaredConsts()
 	defPredeclaredNil()
 	defPredeclaredFuncs()
-	defPredeclaredComparable()
 
 	universeIota = Universe.Lookup("iota").(*Const)
 	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
 	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
 	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
 	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
+	universeComparable = Universe.Lookup("comparable")
 
 	// "any" is only visible as constraint in a type parameter list
 	delete(Universe.elems, "any")
