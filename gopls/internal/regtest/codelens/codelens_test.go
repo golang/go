@@ -166,11 +166,16 @@ require golang.org/x/hello v1.3.3
 				if vendoring {
 					env.RunGoCommand("mod", "vendor")
 				}
+				env.Await(env.DoneWithChangeWatchedFiles())
 				env.OpenFile("go.mod")
 				env.ExecuteCodeLensCommand("go.mod", command.CheckUpgrades)
 				d := &protocol.PublishDiagnosticsParams{}
-				env.Await(OnceMet(env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
-					ReadDiagnostics("go.mod", d)))
+				env.Await(
+					OnceMet(
+						env.DiagnosticAtRegexpWithMessage("go.mod", `require`, "can be upgraded"),
+						ReadDiagnostics("go.mod", d),
+					),
+				)
 				env.ApplyQuickFixes("go.mod", d.Diagnostics)
 				env.Await(env.DoneWithChangeWatchedFiles())
 				if got := env.Editor.BufferText("go.mod"); got != wantGoMod {

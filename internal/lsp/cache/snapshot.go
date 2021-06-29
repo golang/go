@@ -1114,19 +1114,22 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 // noValidMetadataForID reports whether there is no valid metadata for the
 // given ID.
 func (s *snapshot) noValidMetadataForID(id packageID) bool {
-	m := s.getMetadata(id)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.noValidMetadataForIDLocked(id)
+}
+
+func (s *snapshot) noValidMetadataForIDLocked(id packageID) bool {
+	m := s.metadata[id]
 	return m == nil || !m.valid
 }
 
-// updateIDForURIs adds the given ID to the set of known IDs for the given URI.
+// updateIDForURIsLocked adds the given ID to the set of known IDs for the given URI.
 // Any existing invalid IDs are removed from the set of known IDs. IDs that are
 // not "command-line-arguments" are preferred, so if a new ID comes in for a
 // URI that previously only had "command-line-arguments", the new ID will
 // replace the "command-line-arguments" ID.
-func (s *snapshot) updateIDForURIs(id packageID, uris map[span.URI]struct{}) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *snapshot) updateIDForURIsLocked(id packageID, uris map[span.URI]struct{}) {
 	for uri := range uris {
 		// Collect the new set of IDs, preserving any valid existing IDs.
 		newIDs := []packageID{id}

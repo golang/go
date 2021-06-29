@@ -194,7 +194,9 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			continue
 		}
 		// Set the metadata for this package.
-		m, err := s.setMetadata(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
+		s.mu.Lock()
+		m, err := s.setMetadataLocked(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
+		s.mu.Unlock()
 		if err != nil {
 			return err
 		}
@@ -388,10 +390,10 @@ func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generati
 	return span.URIFromPath(v.(*workspaceDirData).dir), nil
 }
 
-// setMetadata extracts metadata from pkg and records it in s. It
+// setMetadataLocked extracts metadata from pkg and records it in s. It
 // recurses through pkg.Imports to ensure that metadata exists for all
 // dependencies.
-func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
+func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
 	id := packageID(pkg.ID)
 	if _, ok := seen[id]; ok {
 		return nil, errors.Errorf("import cycle detected: %q", id)
@@ -429,7 +431,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 		m.goFiles = append(m.goFiles, uri)
 		uris[uri] = struct{}{}
 	}
-	s.updateIDForURIs(id, uris)
+	s.updateIDForURIsLocked(id, uris)
 
 	// TODO(rstambler): is this still necessary?
 	copied := map[packageID]struct{}{
@@ -452,16 +454,14 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 			m.missingDeps[importPkgPath] = struct{}{}
 			continue
 		}
-		if s.noValidMetadataForID(importID) {
-			if _, err := s.setMetadata(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
+		if s.noValidMetadataForIDLocked(importID) {
+			if _, err := s.setMetadataLocked(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
 				event.Error(ctx, "error in dependency", err)
 			}
 		}
 	}
 
 	// Add the metadata to the cache.
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	// If we've already set the metadata for this snapshot, reuse it.
 	if original, ok := s.metadata[m.id]; ok && original.valid {
@@ -472,6 +472,11 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 		s.metadata[m.id] = &knownMetadata{
 			metadata: m,
 			valid:    true,
+		}
+		// Invalidate any packages we may have associated with this metadata.
+		for _, mode := range []source.ParseMode{source.ParseHeader, source.ParseExported, source.ParseFull} {
+			key := packageKey{mode, m.id}
+			delete(s.packages, key)
 		}
 	}
 
