@@ -57,7 +57,21 @@ type reader2 struct {
 
 	p *pkgReader2
 
-	tparams []*types2.TypeName
+	dict *reader2Dict
+}
+
+type reader2Dict struct {
+	bounds []reader2TypeBound
+
+	tparams []*types2.TypeParam
+
+	derivedReloc []int
+	derived      []types2.Type
+}
+
+type reader2TypeBound struct {
+	derived  bool
+	boundIdx int
 }
 
 func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
@@ -163,28 +177,37 @@ func (r *reader2) doPkg() *types2.Package {
 
 func (r *reader2) typ() types2.Type {
 	r.sync(syncType)
-	return r.p.typIdx(r.reloc(relocType), r.tparams)
+	if r.bool() {
+		return r.p.typIdx(r.len(), r.dict)
+	}
+	return r.p.typIdx(r.reloc(relocType), nil)
 }
 
-func (pr *pkgReader2) typIdx(idx int, tparams []*types2.TypeName) types2.Type {
-	if typ := pr.typs[idx]; typ != nil {
+func (pr *pkgReader2) typIdx(idx int, dict *reader2Dict) types2.Type {
+	var where *types2.Type
+	if dict != nil {
+		where = &dict.derived[idx]
+		idx = dict.derivedReloc[idx]
+	} else {
+		where = &pr.typs[idx]
+	}
+
+	if typ := *where; typ != nil {
 		return typ
 	}
 
 	r := pr.newReader(relocType, idx, syncTypeIdx)
-	r.tparams = tparams
+	r.dict = dict
+
 	typ := r.doTyp()
 	assert(typ != nil)
 
-	if pr.typs[idx] != nil {
-		// See comment in pkgReader.typIdx.
-		return pr.typs[idx]
+	// See comment in pkgReader.typIdx explaining how this happens.
+	if prev := *where; prev != nil {
+		return prev
 	}
 
-	if len(tparams) == 0 {
-		pr.typs[idx] = typ
-	}
-
+	*where = typ
 	return typ
 }
 
@@ -206,8 +229,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		return name.Type()
 
 	case typeTypeParam:
-		idx := r.len()
-		return r.tparams[idx].Type().(*types2.TypeParam)
+		return r.dict.tparams[r.len()]
 
 	case typeArray:
 		len := int64(r.uint64())
@@ -330,15 +352,26 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
 
 func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 	r := pr.newReader(relocObj, idx, syncObject1)
+	r.dict = &reader2Dict{}
+
 	objPkg, objName := r.qualifiedIdent()
 	assert(objName != "")
 
-	bounds := r.typeParamBounds()
+	r.typeParamBounds()
 	tag := codeObj(r.code(syncCodeObj))
 
 	if tag == objStub {
 		assert(objPkg == nil)
 		return objPkg, objName
+	}
+
+	{
+		rdict := r.p.newReader(relocObjDict, idx, syncObject1)
+		r.dict.derivedReloc = make([]int, rdict.len())
+		r.dict.derived = make([]types2.Type, len(r.dict.derivedReloc))
+		for i := range r.dict.derived {
+			r.dict.derivedReloc[i] = rdict.reloc(relocType)
+		}
 	}
 
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
@@ -358,21 +391,16 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 
 		case objFunc:
 			pos := r.pos()
-			r.typeParamNames(bounds)
+			tparams := r.typeParamNames()
 			sig := r.signature(nil)
-			if len(r.tparams) != 0 {
-				sig.SetTParams(r.tparams)
-			}
+			sig.SetTParams(tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case objType:
 			pos := r.pos()
 
 			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeName, underlying types2.Type, methods []*types2.Func) {
-				r.typeParamNames(bounds)
-				if len(r.tparams) != 0 {
-					tparams = r.tparams
-				}
+				tparams = r.typeParamNames()
 
 				// TODO(mdempsky): Rewrite receiver types to underlying is an
 				// Interface? The go/types importer does this (I think because
@@ -382,7 +410,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 
 				methods = make([]*types2.Func, r.len())
 				for i := range methods {
-					methods[i] = r.method(bounds)
+					methods[i] = r.method()
 				}
 
 				return
@@ -403,51 +431,73 @@ func (r *reader2) value() (types2.Type, constant.Value) {
 	return r.typ(), r.rawValue()
 }
 
-func (r *reader2) typeParamBounds() []int {
+func (r *reader2) typeParamBounds() {
 	r.sync(syncTypeParamBounds)
 
-	// exported types never have implicit type parameters
-	// TODO(mdempsky): Hide this from public importer.
-	assert(r.len() == 0)
-
-	bounds := make([]int, r.len())
-	for i := range bounds {
-		r.sync(syncType)
-		bounds[i] = r.reloc(relocType)
+	if implicits := r.len(); implicits != 0 {
+		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
 	}
-	return bounds
+
+	r.dict.bounds = make([]reader2TypeBound, r.len())
+	for i := range r.dict.bounds {
+		b := &r.dict.bounds[i]
+		r.sync(syncType)
+		b.derived = r.bool()
+		if b.derived {
+			b.boundIdx = r.len()
+		} else {
+			b.boundIdx = r.reloc(relocType)
+		}
+	}
 }
 
-func (r *reader2) typeParamNames(bounds []int) {
+func (r *reader2) typeParamNames() []*types2.TypeName {
 	r.sync(syncTypeParamNames)
 
-	r.tparams = make([]*types2.TypeName, len(bounds))
+	// Note: This code assumes it only processes objects without
+	// implement type parameters. This is currently fine, because
+	// reader2 is only used to read in exported declarations, which are
+	// always package scoped.
 
-	for i := range r.tparams {
+	if len(r.dict.bounds) == 0 {
+		return nil
+	}
+
+	// Careful: Type parameter lists may have cycles. To allow for this,
+	// we construct the type parameter list in two passes: first we
+	// create all the TypeNames and TypeParams, then we construct and
+	// set the bound type.
+
+	names := make([]*types2.TypeName, len(r.dict.bounds))
+	r.dict.tparams = make([]*types2.TypeParam, len(r.dict.bounds))
+	for i := range r.dict.bounds {
 		pos := r.pos()
 		pkg, name := r.localIdent()
 
-		obj := types2.NewTypeName(pos, pkg, name, nil)
-		r.p.check.NewTypeParam(obj, i, nil)
-		r.tparams[i] = obj
+		names[i] = types2.NewTypeName(pos, pkg, name, nil)
+		r.dict.tparams[i] = r.p.check.NewTypeParam(names[i], i, nil)
 	}
 
-	for i, tparam := range r.tparams {
-		bound := r.p.typIdx(bounds[i], r.tparams)
-		tparam.Type().(*types2.TypeParam).SetBound(bound)
+	for i, bound := range r.dict.bounds {
+		var dict *reader2Dict
+		if bound.derived {
+			dict = r.dict
+		}
+		boundType := r.p.typIdx(bound.boundIdx, dict)
+		r.dict.tparams[i].SetBound(boundType)
 	}
+
+	return names
 }
 
-func (r *reader2) method(bounds []int) *types2.Func {
+func (r *reader2) method() *types2.Func {
 	r.sync(syncMethod)
 	pos := r.pos()
 	pkg, name := r.selector()
 
-	r.typeParamNames(bounds)
+	rparams := r.typeParamNames()
 	sig := r.signature(r.param())
-	if len(r.tparams) != 0 {
-		sig.SetRParams(r.tparams)
-	}
+	sig.SetRParams(rparams)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
 	return types2.NewFunc(pos, pkg, name, sig)

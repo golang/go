@@ -34,6 +34,7 @@ const (
 	relocType
 	relocObj
 	relocObjExt
+	relocObjDict
 	relocBody
 
 	numRelocs = iota

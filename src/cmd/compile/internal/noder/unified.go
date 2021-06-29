@@ -122,7 +122,7 @@ func unified(noders []*noder) {
 
 		// Instantiated generic function: add to Decls for typechecking
 		// and compilation.
-		if len(pri.implicits) != 0 && fn.OClosure == nil {
+		if pri.dict != nil && len(pri.dict.targs) != 0 && fn.OClosure == nil {
 			target.Decls = append(target.Decls, fn)
 		}
 	}

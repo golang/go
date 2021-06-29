@@ -54,14 +54,14 @@ func newPkgReader(pr pkgDecoder) *pkgReader {
 }
 
 type pkgReaderIndex struct {
-	pr        *pkgReader
-	idx       int
-	implicits []*types.Type
+	pr   *pkgReader
+	idx  int
+	dict *readerDict
 }
 
 func (pri pkgReaderIndex) asReader(k reloc, marker syncMarker) *reader {
 	r := pri.pr.newReader(k, pri.idx, marker)
-	r.implicits = pri.implicits
+	r.dict = pri.dict
 	return r
 }
 
@@ -77,28 +77,9 @@ type reader struct {
 
 	p *pkgReader
 
-	// Implicit and explicit type arguments in use for reading the
-	// current object. For example:
-	//
-	//	func F[T any]() {
-	//		type X[U any] struct { t T; u U }
-	//		var _ X[string]
-	//	}
-	//
-	//	var _ = F[int]
-	//
-	// While instantiating F[int], we need to in turn instantiate
-	// X[string]. [int] and [string] are explicit type arguments for F
-	// and X, respectively; but [int] is also the implicit type
-	// arguments for X.
-	//
-	// (As an analogy to function literals, explicits are the function
-	// literal's formal parameters, while implicits are variables
-	// captured by the function literal.)
-	implicits []*types.Type
-	explicits []*types.Type
-
 	ext *reader
+
+	dict *readerDict
 
 	// TODO(mdempsky): The state below is all specific to reading
 	// function bodies. It probably makes sense to split it out
@@ -133,6 +114,35 @@ type reader struct {
 	retlabel *types.Sym
 
 	inlvars, retvars ir.Nodes
+}
+
+type readerDict struct {
+	// targs holds the implicit and explicit type arguments in use for
+	// reading the current object. For example:
+	//
+	//	func F[T any]() {
+	//		type X[U any] struct { t T; u U }
+	//		var _ X[string]
+	//	}
+	//
+	//	var _ = F[int]
+	//
+	// While instantiating F[int], we need to in turn instantiate
+	// X[string]. [int] and [string] are explicit type arguments for F
+	// and X, respectively; but [int] is also the implicit type
+	// arguments for X.
+	//
+	// (As an analogy to function literals, explicits are the function
+	// literal's formal parameters, while implicits are variables
+	// captured by the function literal.)
+	targs []*types.Type
+
+	// implicits counts how many of types within targs are implicit type
+	// arguments; the rest are explicit.
+	implicits int
+
+	derivedReloc []int         // reloc index of the derived type's descriptor
+	derived      []*types.Type // slice of previously computed derived types
 }
 
 func (r *reader) setType(n ir.Node, typ *types.Type) {
@@ -283,17 +293,28 @@ func (r *reader) doPkg() *types.Pkg {
 
 func (r *reader) typ() *types.Type {
 	r.sync(syncType)
-	return r.p.typIdx(r.reloc(relocType), r.implicits, r.explicits)
+	if r.bool() {
+		return r.p.typIdx(r.len(), r.dict)
+	}
+	return r.p.typIdx(r.reloc(relocType), nil)
 }
 
-func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.Type {
-	if typ := pr.typs[idx]; typ != nil {
+func (pr *pkgReader) typIdx(idx int, dict *readerDict) *types.Type {
+	var where **types.Type
+	if dict != nil {
+		where = &dict.derived[idx]
+		idx = dict.derivedReloc[idx]
+	} else {
+		where = &pr.typs[idx]
+	}
+
+	if typ := *where; typ != nil {
 		return typ
 	}
 
 	r := pr.newReader(relocType, idx, syncTypeIdx)
-	r.implicits = implicits
-	r.explicits = explicits
+	r.dict = dict
+
 	typ := r.doTyp()
 	assert(typ != nil)
 
@@ -336,20 +357,12 @@ func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.
 	//
 	// The idx 1, corresponding with type I was resolved successfully
 	// after r.doTyp() call.
-	if typ := pr.typs[idx]; typ != nil {
-		return typ
+
+	if prev := *where; prev != nil {
+		return prev
 	}
 
-	// If we have type parameters, the type might refer to them, and it
-	// wouldn't be safe to reuse those in other contexts. So we
-	// conservatively avoid caching them in that case.
-	//
-	// TODO(mdempsky): If we're clever, we should be able to still cache
-	// types by tracking which type parameters are used. However, in my
-	// attempts so far, I haven't yet succeeded in being clever enough.
-	if !r.hasTypeParams() {
-		pr.typs[idx] = typ
-	}
+	*where = typ
 
 	if !typ.IsUntyped() {
 		types.CheckSize(typ)
@@ -372,11 +385,7 @@ func (r *reader) doTyp() *types.Type {
 		return obj.Type()
 
 	case typeTypeParam:
-		idx := r.len()
-		if idx < len(r.implicits) {
-			return r.implicits[idx]
-		}
-		return r.explicits[idx-len(r.implicits)]
+		return r.dict.targs[r.len()]
 
 	case typeArray:
 		len := int64(r.uint64())
@@ -490,7 +499,12 @@ func (r *reader) obj() ir.Node {
 		explicits[i] = r.typ()
 	}
 
-	return r.p.objIdx(idx, r.implicits, explicits)
+	var implicits []*types.Type
+	if r.dict != nil {
+		implicits = r.dict.targs
+	}
+
+	return r.p.objIdx(idx, implicits, explicits)
 }
 
 func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node {
@@ -499,14 +513,11 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	_, sym := r.qualifiedIdent()
 
-	// Middle dot indicates local defined type; see writer.sym.
-	// TODO(mdempsky): Come up with a better way to handle this.
-	if strings.Contains(sym.Name, "·") {
-		r.implicits = implicits
-		r.ext.implicits = implicits
-	}
-	r.explicits = explicits
-	r.ext.explicits = explicits
+	dict := &readerDict{}
+	r.dict = dict
+	r.ext.dict = dict
+
+	r.typeParamBounds(sym, implicits, explicits)
 
 	origSym := sym
 
@@ -515,8 +526,16 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		return sym.Def.(ir.Node)
 	}
 
-	r.typeParamBounds(origSym)
 	tag := codeObj(r.code(syncCodeObj))
+
+	{
+		rdict := pr.newReader(relocObjDict, idx, syncObject1)
+		r.dict.derivedReloc = make([]int, rdict.len())
+		r.dict.derived = make([]*types.Type, len(r.dict.derivedReloc))
+		for i := range r.dict.derived {
+			r.dict.derivedReloc[i] = rdict.reloc(relocType)
+		}
+	}
 
 	do := func(op ir.Op, hasTParams bool) *ir.Name {
 		pos := r.pos()
@@ -542,7 +561,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case objStub:
 		if pri, ok := objReader[origSym]; ok {
-			return pri.pr.objIdx(pri.idx, pri.implicits, r.explicits)
+			return pri.pr.objIdx(pri.idx, nil, explicits)
 		}
 		if haveLegacyImports {
 			assert(!r.hasTypeParams())
@@ -621,46 +640,50 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
 	var buf bytes.Buffer
 	buf.WriteString(sym.Name)
 	buf.WriteByte('[')
-	for i, targs := range [2][]*types.Type{r.implicits, r.explicits} {
-		if i > 0 && len(r.implicits) != 0 && len(r.explicits) != 0 {
-			buf.WriteByte(';')
-		}
-		for j, targ := range targs {
-			if j > 0 {
+	for i, targ := range r.dict.targs {
+		if i > 0 {
+			if i == r.dict.implicits {
+				buf.WriteByte(';')
+			} else {
 				buf.WriteByte(',')
 			}
-			// TODO(mdempsky): We need the linker to replace "" in the symbol
-			// names here.
-			buf.WriteString(targ.LinkString())
 		}
+		buf.WriteString(targ.LinkString())
 	}
 	buf.WriteByte(']')
 	return sym.Pkg.Lookup(buf.String())
 }
 
-func (r *reader) typeParamBounds(sym *types.Sym) {
+func (r *reader) typeParamBounds(sym *types.Sym, implicits, explicits []*types.Type) {
 	r.sync(syncTypeParamBounds)
 
 	nimplicits := r.len()
 	nexplicits := r.len()
 
-	if len(r.implicits) != nimplicits || len(r.explicits) != nexplicits {
-		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(r.implicits), len(r.explicits))
+	if nimplicits > len(implicits) || nexplicits != len(explicits) {
+		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
 	}
+
+	r.dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
+	r.dict.implicits = nimplicits
 
 	// For stenciling, we can just skip over the type parameters.
 
-	for range r.explicits {
+	for range r.dict.targs[r.dict.implicits:] {
 		// Skip past bounds without actually evaluating them.
 		r.sync(syncType)
-		r.reloc(relocType)
+		if r.bool() {
+			r.len()
+		} else {
+			r.reloc(relocType)
+		}
 	}
 }
 
 func (r *reader) typeParamNames() {
 	r.sync(syncTypeParamNames)
 
-	for range r.explicits {
+	for range r.dict.targs[r.dict.implicits:] {
 		r.pos()
 		r.localIdent()
 	}
@@ -729,7 +752,7 @@ func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
 }
 
 func (r *reader) hasTypeParams() bool {
-	return len(r.implicits)+len(r.explicits) != 0
+	return r.dict != nil && len(r.dict.targs) != 0
 }
 
 // @@@ Compiler extensions
@@ -776,10 +799,10 @@ func (r *reader) funcExt(name *ir.Name) {
 				Cost:            int32(r.len()),
 				CanDelayResults: r.bool(),
 			}
-			r.addBody(name.Func, r.explicits)
+			r.addBody(name.Func)
 		}
 	} else {
-		r.addBody(name.Func, r.explicits)
+		r.addBody(name.Func)
 	}
 	r.sync(syncEOF)
 }
@@ -795,8 +818,7 @@ func (r *reader) typeExt(name *ir.Name) {
 		// type descriptor is written out as DUPOK and method wrappers are
 		// generated even for imported types.
 		var targs []*types.Type
-		targs = append(targs, r.implicits...)
-		targs = append(targs, r.explicits...)
+		targs = append(targs, r.dict.targs...)
 		typ.SetRParams(targs)
 	}
 
@@ -841,8 +863,8 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
-func (r *reader) addBody(fn *ir.Func, implicits []*types.Type) {
-	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
+func (r *reader) addBody(fn *ir.Func) {
+	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
 	bodyReader[fn] = pri
 
 	if r.curfn == nil {
@@ -1565,7 +1587,7 @@ func (r *reader) funcLit() ir.Node {
 		r.setType(cv, outer.Type())
 	}
 
-	r.addBody(fn, r.implicits)
+	r.addBody(fn)
 
 	return fn.OClosure
 }
