@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/jsonrpc2"
 	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/lsp"
@@ -514,27 +513,6 @@ func addGoEnvToInitializeRequest(ctx context.Context, r jsonrpc2.Request) (jsonr
 		return nil, fmt.Errorf("%T is not a *jsonrpc2.Call", r)
 	}
 	return jsonrpc2.NewCall(call.ID(), "initialize", params)
-}
-
-func getGoEnv(ctx context.Context, env map[string]interface{}) (map[string]string, error) {
-	var runEnv []string
-	for k, v := range env {
-		runEnv = append(runEnv, fmt.Sprintf("%s=%s", k, v))
-	}
-	runner := gocommand.Runner{}
-	output, err := runner.Run(ctx, gocommand.Invocation{
-		Verb: "env",
-		Args: []string{"-json"},
-		Env:  runEnv,
-	})
-	if err != nil {
-		return nil, err
-	}
-	envmap := make(map[string]string)
-	if err := json.Unmarshal(output.Bytes(), &envmap); err != nil {
-		return nil, err
-	}
-	return envmap, nil
 }
 
 func (f *Forwarder) replyWithDebugAddress(outerCtx context.Context, r jsonrpc2.Replier, args command.DebuggingArgs) jsonrpc2.Replier {
