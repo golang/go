@@ -781,7 +781,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
 		if goos == "linux" && goarch != "ppc64le" {
-			// because syscall.SysProcAttri struct used in misc/cgo/testsanitizers is only built on linux.
+			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
 			// Some inconsistent failures happen on ppc64le so disable for now.
 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
 		}
