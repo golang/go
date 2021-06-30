@@ -168,7 +168,7 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 // emitConv emits to f code to convert Value val to exactly type typ,
 // and returns the converted value.  Implicit conversions are required
 // by language assignability rules in assignments, parameter passing,
-// etc.  Conversions cannot fail dynamically.
+// etc.
 //
 func emitConv(f *Function, val Value, typ types.Type) Value {
 	t_src := val.Type()
@@ -228,6 +228,16 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		// e.g. string -> []byte/[]rune.
 	}
 
+	// Conversion from slice to array pointer?
+	if slice, ok := ut_src.(*types.Slice); ok {
+		if ptr, ok := ut_dst.(*types.Pointer); ok {
+			if arr, ok := ptr.Elem().(*types.Array); ok && types.Identical(slice.Elem(), arr.Elem()) {
+				c := &Convert{X: val}
+				c.setType(ut_dst)
+				return f.emit(c)
+			}
+		}
+	}
 	// A representation-changing conversion?
 	// At least one of {ut_src,ut_dst} must be *Basic.
 	// (The other may be []byte or []rune.)

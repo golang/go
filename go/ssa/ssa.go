@@ -615,9 +615,8 @@ type ChangeType struct {
 //    - between pointers and unsafe.Pointer.
 //    - between unsafe.Pointer and uintptr.
 //    - from (Unicode) integer to (UTF-8) string.
+//    - from slice to array pointer.
 // A conversion may imply a type name change also.
-//
-// This operation cannot fail dynamically.
 //
 // Conversions of untyped string/number/bool constants to a specific
 // representation are eliminated during SSA construction.
