@@ -500,7 +500,9 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 		if mx == nil {
 			continue
 		}
-		if !isDomainName(mx.Host) {
+		// Bypass the hostname validity check for targets which contain only a dot,
+		// as this is used to represent a 'Null' MX record.
+		if mx.Host != "." && !isDomainName(mx.Host) {
 			return nil, &DNSError{Err: "MX target is invalid", Name: name}
 		}
 	}
