@@ -206,6 +206,30 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		// only be fully transformed once it has an instantiated type.
 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
 		typed(g.typ(typ), n)
+
+		// Fill in n.Selection for a generic method reference, even though we
+		// won't use it directly, since it is useful for analysis.
+		// Specifically do not fill in for fields or interfaces methods, so
+		// n.Selection being non-nil means a method reference, rather than an
+		// interface reference or reference to a field with a function value.
+		obj2 := g.info.Selections[expr].Obj()
+		sig := types2.AsSignature(obj2.Type())
+		if sig == nil || sig.Recv() == nil {
+			return n
+		}
+		// recvType is the type of the last embedded field. Because of the
+		// way methods are imported, g.obj(obj2) doesn't work across
+		// packages, so we have to lookup the method via the receiver type.
+		recvType := deref2(sig.Recv().Type())
+		if types2.AsInterface(recvType.Underlying()) != nil {
+			return n
+		}
+
+		index := g.info.Selections[expr].Index()
+		last := index[len(index)-1]
+		recvObj := types2.AsNamed(recvType).Obj()
+		recv := g.pkg(recvObj.Pkg()).Lookup(recvObj.Name()).Def
+		n.Selection = recv.Type().Methods().Index(last)
 		return n
 	}
 
@@ -308,10 +332,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 
 // getTargs gets the targs associated with the receiver of a selected method
 func getTargs(selinfo *types2.Selection) []types2.Type {
-	r := selinfo.Recv()
-	if p := types2.AsPointer(r); p != nil {
-		r = p.Elem()
-	}
+	r := deref2(selinfo.Recv())
 	n := types2.AsNamed(r)
 	if n == nil {
 		base.Fatalf("Incorrect type for selinfo %v", selinfo)

@@ -1282,14 +1282,15 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			if n.Op() == ir.OCALL {
 				call := n.(*ir.CallExpr)
 				if call.X.Op() == ir.OXDOT {
-					subtargs := deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()
+					subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
 					s2targs := make([]*types.Type, len(subtargs))
 					for i, t := range subtargs {
 						s2targs[i] = subst.Typ(t)
 					}
-					sym = typecheck.MakeDictName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
+					nameNode := call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
+					sym = g.getDictionarySym(nameNode, s2targs, true)
 				} else {
-					inst := n.(*ir.CallExpr).X.(*ir.InstExpr)
+					inst := call.X.(*ir.InstExpr)
 					var nameNode *ir.Name
 					var meth *ir.SelectorExpr
 					var isMeth bool
@@ -1325,14 +1326,12 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 				for i, t := range subtargs {
 					s2targs[i] = subst.Typ(t)
 				}
-				sym = typecheck.MakeDictName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
+				nameNode := selExpr.Selection.Nname.(*ir.Name)
+				sym = g.getDictionarySym(nameNode, s2targs, true)
 			}
 			// TODO: handle closure cases that need sub-dictionaries, get rid of conditional
 			if sym != nil {
-				// TODO: uncomment once we're sure all the
-				// subdictionaries are created correctly.
-				// Methods above aren't yet generating dictionaries recursively yet.
-				//off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+				off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
 				infoPrint(" - Subdict %v\n", sym.Name)
 			}
 		}
@@ -1403,18 +1402,14 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
 				info.subDictCalls = append(info.subDictCalls, n)
 			} else if n.Op() == ir.OXDOT && !n.(*ir.SelectorExpr).Implicit() &&
-				!n.(*ir.SelectorExpr).X.Type().IsInterface() &&
+				n.(*ir.SelectorExpr).Selection != nil &&
 				len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
-				// Fix this - doesn't account for embedded fields, etc.
-				field := typecheck.Lookdot1(n.(*ir.SelectorExpr), n.(*ir.SelectorExpr).Sel, n.(*ir.SelectorExpr).X.Type(), n.(*ir.SelectorExpr).X.Type().Fields(), 0)
-				if field == nil {
-					if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
-						infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
-					} else {
-						infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
-					}
-					info.subDictCalls = append(info.subDictCalls, n)
+				if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
+					infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
+				} else {
+					infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
 				}
+				info.subDictCalls = append(info.subDictCalls, n)
 			}
 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
 				infoPrint("  Subdictionary at generic function call: %v - %v\n", n.(*ir.CallExpr).X.(*ir.InstExpr).X, n)
@@ -1422,7 +1417,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
-				!n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type().IsInterface() &&
+				n.(*ir.CallExpr).X.(*ir.SelectorExpr).Selection != nil &&
 				len(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
 				infoPrint("  Subdictionary at generic method call: %v\n", n)
 				n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)

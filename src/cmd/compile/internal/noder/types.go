@@ -278,11 +278,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 		methods := make([]*types.Field, typ.NumMethods())
 		for i := range methods {
 			m := typ.Method(i)
-			recvType := types2.AsSignature(m.Type()).Recv().Type()
-			ptr := types2.AsPointer(recvType)
-			if ptr != nil {
-				recvType = ptr.Elem()
-			}
+			recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
 			var meth *ir.Name
 			if m.Pkg() != g.self {
 				// Imported methods cannot be loaded by name (what
@@ -470,4 +466,12 @@ var dirs = [...]types.ChanDir{
 	types2.SendRecv: types.Cboth,
 	types2.SendOnly: types.Csend,
 	types2.RecvOnly: types.Crecv,
+}
+
+// deref2 does a single deref of types2 type t, if it is a pointer type.
+func deref2(t types2.Type) types2.Type {
+	if ptr := types2.AsPointer(t); ptr != nil {
+		t = ptr.Elem()
+	}
+	return t
 }
