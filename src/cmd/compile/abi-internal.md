@@ -233,7 +233,7 @@ stack frame is laid out in the following sequence:
     r1.x    uintptr
     r1.y    [2]uintptr
     a1Spill uint8
-    a2Spill uint8
+    a3Spill uint8
     _       [6]uint8  // alignment padding
 
 In the stack frame, only the `a2` field is initialized on entry; the
