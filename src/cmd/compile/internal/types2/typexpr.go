@@ -141,7 +141,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
-			tset := newTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+			tset := computeTypeSet(check, pos, t) // TODO(gri) is this the correct position?
 			if tset.types != nil {
 				check.softErrorf(pos, "interface contains type constraints (%s)", tset.types)
 				return
