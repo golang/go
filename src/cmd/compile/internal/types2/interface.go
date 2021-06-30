@@ -114,7 +114,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	// Compute type set with a non-nil *Checker as soon as possible
 	// to report any errors. Subsequent uses of type sets should be
 	// using this computed type set and won't need to pass in a *Checker.
-	check.later(func() { newTypeSet(check, iface.Pos(), ityp) })
+	check.later(func() { computeTypeSet(check, iface.Pos(), ityp) })
 }
 
 func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
