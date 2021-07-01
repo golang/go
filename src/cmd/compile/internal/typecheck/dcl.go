@@ -6,7 +6,7 @@ package typecheck
 
 import (
 	"fmt"
-	"strconv"
+	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -430,15 +430,30 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	return n
 }
 
+var (
+	autotmpnamesmu sync.Mutex
+	autotmpnames   []string
+)
+
 // autotmpname returns the name for an autotmp variable numbered n.
 func autotmpname(n int) string {
-	// Give each tmp a different name so that they can be registerized.
-	// Add a preceding . to avoid clashing with legal names.
-	const prefix = ".autotmp_"
-	// Start with a buffer big enough to hold a large n.
-	b := []byte(prefix + "      ")[:len(prefix)]
-	b = strconv.AppendInt(b, int64(n), 10)
-	return types.InternString(b)
+	autotmpnamesmu.Lock()
+	defer autotmpnamesmu.Unlock()
+
+	// Grow autotmpnames, if needed.
+	if n >= len(autotmpnames) {
+		autotmpnames = append(autotmpnames, make([]string, n+1-len(autotmpnames))...)
+		autotmpnames = autotmpnames[:cap(autotmpnames)]
+	}
+
+	s := autotmpnames[n]
+	if s == "" {
+		// Give each tmp a different name so that they can be registerized.
+		// Add a preceding . to avoid clashing with legal names.
+		s = fmt.Sprintf(".autotmp_%d", n)
+		autotmpnames[n] = s
+	}
+	return s
 }
 
 // f is method type, with receiver.
