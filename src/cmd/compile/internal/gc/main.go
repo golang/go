@@ -32,6 +32,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sort"
 )
 
 func hidePanic() {
@@ -200,6 +201,20 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Build init task.
 	if initTask := pkginit.Task(); initTask != nil {
 		typecheck.Export(initTask)
+	}
+
+	// Stability quirk: sort top-level declarations, so we're not
+	// sensitive to the order that functions are added. In particular,
+	// the order that noder+typecheck add function closures is very
+	// subtle, and not important to reproduce.
+	//
+	// Note: This needs to happen after pkginit.Task, otherwise it risks
+	// changing the order in which top-level variables are initialized.
+	if base.Debug.UnifiedQuirks != 0 {
+		s := typecheck.Target.Decls
+		sort.SliceStable(s, func(i, j int) bool {
+			return s[i].Pos().Before(s[j].Pos())
+		})
 	}
 
 	// Eliminate some obviously dead code.

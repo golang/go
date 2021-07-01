@@ -54,7 +54,7 @@ func TestUnifiedCompare(t *testing.T) {
 				t.Parallel()
 			}
 
-			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0")
+			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
 			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
 
 			if len(pkgs1) != len(pkgs2) {

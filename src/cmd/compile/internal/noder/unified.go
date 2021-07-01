@@ -138,23 +138,6 @@ func unified(noders []*noder) {
 	}
 	todoBodies = nil
 
-	// Don't use range--typecheck can add closures to Target.Decls.
-	for i := 0; i < len(target.Decls); i++ {
-		if fn, ok := target.Decls[i].(*ir.Func); ok {
-			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nbefore typecheck %v", fn)
-				ir.Dump(s, fn)
-			}
-			ir.WithFunc(fn, func() {
-				typecheck.Stmts(fn.Body)
-			})
-			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nafter typecheck %v", fn)
-				ir.Dump(s, fn)
-			}
-		}
-	}
-
 	if !quirksMode() {
 		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
 		r.wrapTypes(target)
