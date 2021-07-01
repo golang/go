@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -30,8 +31,11 @@ import (
 func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
 
+	// -G=3 and unified expect generics syntax, but -G=0 does not.
+	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
+
 	mode := syntax.CheckBranches
-	if base.Flag.G != 0 {
+	if supportsGenerics && types.AllowsGoVersion(types.LocalPkg, 1, 18) {
 		mode |= syntax.AllowGenerics
 	}
 
