@@ -109,6 +109,16 @@ func unified(noders []*noder) {
 	r.ext = r
 	r.pkgInit(types.LocalPkg, target)
 
+	// Type-check any top-level assignments. We ignore non-assignments
+	// here because other declarations are typechecked as they're
+	// constructed.
+	for i, ndecls := 0, len(target.Decls); i < ndecls; i++ {
+		switch n := target.Decls[i]; n.Op() {
+		case ir.OAS, ir.OAS2:
+			target.Decls[i] = typecheck.Stmt(n)
+		}
+	}
+
 	// Don't use range--bodyIdx can add closures to todoBodies.
 	for len(todoBodies) > 0 {
 		// The order we expand bodies doesn't matter, so pop from the end
@@ -122,21 +132,11 @@ func unified(noders []*noder) {
 
 		// Instantiated generic function: add to Decls for typechecking
 		// and compilation.
-		if pri.dict != nil && len(pri.dict.targs) != 0 && fn.OClosure == nil {
+		if fn.OClosure == nil && len(pri.dict.targs) != 0 {
 			target.Decls = append(target.Decls, fn)
 		}
 	}
 	todoBodies = nil
-
-	if !quirksMode() {
-		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
-		r.wrapTypes(target)
-	}
-
-	// Don't use range--typecheck can add closures to Target.Decls.
-	for i := 0; i < len(target.Decls); i++ {
-		target.Decls[i] = typecheck.Stmt(target.Decls[i])
-	}
 
 	// Don't use range--typecheck can add closures to Target.Decls.
 	for i := 0; i < len(target.Decls); i++ {
@@ -145,11 +145,32 @@ func unified(noders []*noder) {
 				s := fmt.Sprintf("\nbefore typecheck %v", fn)
 				ir.Dump(s, fn)
 			}
-			ir.CurFunc = fn
-			typecheck.Stmts(fn.Body)
+			ir.WithFunc(fn, func() {
+				typecheck.Stmts(fn.Body)
+			})
 			if base.Flag.W > 1 {
 				s := fmt.Sprintf("\nafter typecheck %v", fn)
 				ir.Dump(s, fn)
+			}
+		}
+	}
+
+	if !quirksMode() {
+		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
+		r.wrapTypes(target)
+	}
+
+	// Check that nothing snuck past typechecking.
+	for _, n := range target.Decls {
+		if n.Typecheck() == 0 {
+			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+		}
+
+		// For functions, check that at least their first statement (if
+		// any) was typechecked too.
+		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
+			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
+				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
 			}
 		}
 	}
