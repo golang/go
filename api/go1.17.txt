@@ -47,7 +47,9 @@ pkg image, method (*Paletted) RGBA64At(int, int) color.RGBA64
 pkg image, method (*Paletted) SetRGBA64(int, int, color.RGBA64)
 pkg image, method (*RGBA) RGBA64At(int, int) color.RGBA64
 pkg image, method (*RGBA) SetRGBA64(int, int, color.RGBA64)
+pkg image, method (*Uniform) RGBA64At(int, int) color.RGBA64
 pkg image, method (*YCbCr) RGBA64At(int, int) color.RGBA64
+pkg image, method (Rectangle) RGBA64At(int, int) color.RGBA64
 pkg image, type RGBA64Image interface { At, Bounds, ColorModel, RGBA64At }
 pkg image, type RGBA64Image interface, At(int, int) color.Color
 pkg image, type RGBA64Image interface, Bounds() Rectangle

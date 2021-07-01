@@ -16,9 +16,28 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
-	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
+	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
+	if checkptrStraddles(p, n*elem.size) {
 		throw("checkptr: converted pointer straddles multiple allocations")
 	}
+}
+
+// checkptrStraddles reports whether the first size-bytes of memory
+// addressed by ptr is known to straddle more than one Go allocation.
+func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
+	if size <= 1 {
+		return false
+	}
+
+	end := add(ptr, size-1)
+	if uintptr(end) < uintptr(ptr) {
+		return true
+	}
+
+	// TODO(mdempsky): Detect when [ptr, end] contains Go allocations,
+	// but neither ptr nor end point into one themselves.
+
+	return checkptrBase(ptr) != checkptrBase(end)
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {

@@ -221,8 +221,11 @@ func Add(ptr Pointer, len IntegerType) Pointer
 //
 //	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
 //
+// As a special case, if ptr is nil and len is zero, Slice returns nil.
+//
 // The len argument must be of integer type or an untyped constant.
 // A constant len argument must be non-negative and representable by a value of type int;
 // if it is an untyped constant it is given type int.
-// If ptr is nil or len is negative at run time, a run-time panic occurs.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
