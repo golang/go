@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 // testAllOrModules tests f against all packagestest exporters in long mode,
 // but only against the Modules exporter in short mode.
 func testAllOrModules(t *testing.T, f func(*testing.T, packagestest.Exporter)) {
+	t.Parallel()
 	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
 		t.Helper()
 
@@ -70,6 +71,7 @@ func testAllOrModules(t *testing.T, f func(*testing.T, packagestest.Exporter)) {
 			t.Fatalf("unexpected exporter %q", exporter.Name())
 		}
 
+		t.Parallel()
 		f(t, exporter)
 	})
 }
@@ -95,6 +97,7 @@ func testAllOrModules(t *testing.T, f func(*testing.T, packagestest.Exporter)) {
 // The zero-value of Config has LoadFiles mode.
 func TestLoadZeroConfig(t *testing.T) {
 	testenv.NeedsGoPackages(t)
+	t.Parallel()
 
 	initial, err := packages.Load(nil, "hash")
 	if err != nil {
@@ -328,6 +331,8 @@ func testLoadImportsTestVariants(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestLoadAbsolutePath(t *testing.T) {
+	t.Parallel()
+
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/gopatha",
 		Files: map[string]interface{}{
@@ -356,6 +361,8 @@ func TestLoadAbsolutePath(t *testing.T) {
 }
 
 func TestVendorImports(t *testing.T) {
+	t.Parallel()
+
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
@@ -911,6 +918,8 @@ func testParseFileModifyAST(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestAdHocPackagesBadImport(t *testing.T) {
+	t.Parallel()
+
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
 	tmp, err := ioutil.TempDir("", "a")
@@ -1399,6 +1408,8 @@ func testJSON(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func TestRejectInvalidQueries(t *testing.T) {
+	t.Parallel()
+
 	queries := []string{"key=", "key=value"}
 	cfg := &packages.Config{
 		Mode: packages.LoadImports,
@@ -1437,7 +1448,11 @@ func testPatternPassthrough(t *testing.T, exporter packagestest.Exporter) {
 
 }
 
-func TestConfigDefaultEnv(t *testing.T) { testAllOrModules(t, testConfigDefaultEnv) }
+func TestConfigDefaultEnv(t *testing.T) {
+	// packagestest.TestAll instead of testAllOrModulesParallel because this test
+	// can't be parallelized (it modifies the environment).
+	packagestest.TestAll(t, testConfigDefaultEnv)
+}
 func testConfigDefaultEnv(t *testing.T, exporter packagestest.Exporter) {
 	const driverJSON = `{
   "Roots": ["gopackagesdriver"],
@@ -1829,6 +1844,7 @@ func TestLoadImportsC(t *testing.T) {
 		// See https://golang.org/issue/27100.
 		t.Skip(`skipping on plan9; for some reason "net [syscall.test]" is not loaded`)
 	}
+	t.Parallel()
 	testenv.NeedsGoPackages(t)
 
 	cfg := &packages.Config{
@@ -1887,7 +1903,10 @@ func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 		packages.NeedName | packages.NeedImports,
 	}
 	for _, mode := range modes {
+		mode := mode
 		t.Run(fmt.Sprint(mode), func(t *testing.T) {
+			t.Parallel()
+
 			exported.Config.Mode = mode
 			pkgs, err := packages.Load(exported.Config, "golang.org/fake/c")
 			if err != nil {
@@ -2658,6 +2677,8 @@ func main() {
 }
 
 func TestEmptyEnvironment(t *testing.T) {
+	t.Parallel()
+
 	cfg := &packages.Config{
 		Env: []string{"FOO=BAR"},
 	}

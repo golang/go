@@ -21,7 +21,7 @@ import (
 func TestStdlibMetadata(t *testing.T) {
 	// TODO(adonovan): see if we can get away without this hack.
 	// if runtime.GOOS == "android" {
-	// 	t.Skipf("incomplete std lib on %s", runtime.GOOS)
+	//      t.Skipf("incomplete std lib on %s", runtime.GOOS)
 	// }
 
 	testenv.NeedsGoPackages(t)

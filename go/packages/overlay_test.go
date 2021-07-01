@@ -496,6 +496,7 @@ func testOverlayNewPackageAndTest(t *testing.T, exporter packagestest.Exporter) 
 }
 
 func TestAdHocOverlays(t *testing.T) {
+	t.Parallel()
 	testenv.NeedsTool(t, "go")
 
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
@@ -551,6 +552,7 @@ const A = 1
 // TestOverlayModFileChanges tests the behavior resulting from having files
 // from multiple modules in overlays.
 func TestOverlayModFileChanges(t *testing.T) {
+	t.Parallel()
 	testenv.NeedsTool(t, "go")
 
 	// Create two unrelated modules in a temporary directory.
@@ -620,6 +622,8 @@ func main() {}
 }
 
 func TestOverlayGOPATHVendoring(t *testing.T) {
+	t.Parallel()
+
 	exported := packagestest.Export(t, packagestest.GOPATH, []packagestest.Module{{
 		Name: "golang.org/fake",
 		Files: map[string]interface{}{
@@ -1042,6 +1046,8 @@ func Hi() {
 // This does not use go/packagestest because it needs to write a replace
 // directive with an absolute path in one of the module's go.mod files.
 func TestOverlaysInReplace(t *testing.T) {
+	t.Parallel()
+
 	// Create module b.com in a temporary directory. Do not add any Go files
 	// on disk.
 	tmpPkgs, err := ioutil.TempDir("", "modules")
