@@ -886,27 +886,25 @@ func (r *reader) funcBody(fn *ir.Func) {
 	r.curfn = fn
 	r.closureVars = fn.ClosureVars
 
-	// TODO(mdempsky): Get rid of uses of typecheck.NodAddrAt so we
-	// don't have to set ir.CurFunc.
-	outerCurFunc := ir.CurFunc
-	ir.CurFunc = fn
+	ir.WithFunc(fn, func() {
+		r.funcargs(fn)
 
-	r.funcargs(fn)
+		if !r.bool() {
+			return
+		}
 
-	if r.bool() {
 		body := r.stmts()
 		if body == nil {
 			pos := src.NoXPos
 			if quirksMode() {
 				pos = funcParamsEndPos(fn)
 			}
-			body = []ir.Node{ir.NewBlockStmt(pos, nil)}
+			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(pos, nil))}
 		}
 		fn.Body = body
 		fn.Endlineno = r.pos()
-	}
+	})
 
-	ir.CurFunc = outerCurFunc
 	r.marker.WriteTo(fn)
 }
 
@@ -1045,7 +1043,42 @@ func (r *reader) closeAnotherScope() {
 		scopeVars := r.scopeVars[len(r.scopeVars)-1]
 		r.scopeVars = r.scopeVars[:len(r.scopeVars)-1]
 
-		if scopeVars == len(r.curfn.Dcl) {
+		// Quirkish: noder decides which scopes to keep before
+		// typechecking, whereas incremental typechecking during IR
+		// construction can result in new autotemps being allocated. To
+		// produce identical output, we ignore autotemps here for the
+		// purpose of deciding whether to retract the scope.
+		//
+		// This is important for net/http/fcgi, because it contains:
+		//
+		//	var body io.ReadCloser
+		//	if len(content) > 0 {
+		//		body, req.pw = io.Pipe()
+		//	} else { … }
+		//
+		// Notably, io.Pipe is inlinable, and inlining it introduces a ~R0
+		// variable at the call site.
+		//
+		// Noder does not preserve the scope where the io.Pipe() call
+		// resides, because it doesn't contain any declared variables in
+		// source. So the ~R0 variable ends up being assigned to the
+		// enclosing scope instead.
+		//
+		// However, typechecking this assignment also introduces
+		// autotemps, because io.Pipe's results need conversion before
+		// they can be assigned to their respective destination variables.
+		//
+		// TODO(mdempsky): We should probably just keep all scopes, and
+		// let dwarfgen take care of pruning them instead.
+		retract := true
+		for _, n := range r.curfn.Dcl[scopeVars:] {
+			if !n.AutoTemp() {
+				retract = false
+				break
+			}
+		}
+
+		if retract {
 			// no variables were declared in this scope, so we can retract it.
 			r.marker.Unpush()
 		} else {
@@ -1068,6 +1101,7 @@ func (r *reader) stmt() ir.Node {
 }
 
 func (r *reader) stmts() []ir.Node {
+	assert(ir.CurFunc == r.curfn)
 	var res ir.Nodes
 
 	r.sync(syncStmts)
@@ -1079,7 +1113,7 @@ func (r *reader) stmts() []ir.Node {
 		}
 
 		if n := r.stmt1(tag, &res); n != nil {
-			res.Append(n)
+			res.Append(typecheck.Stmt(n))
 		}
 	}
 }
@@ -1108,7 +1142,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 			for _, name := range names {
 				as := ir.NewAssignStmt(pos, name, nil)
 				as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, name))
-				out.Append(as)
+				out.Append(typecheck.Stmt(as))
 			}
 			return nil
 		}
@@ -1488,6 +1522,9 @@ func (r *reader) expr() ir.Node {
 
 	case exprCall:
 		fun := r.expr()
+		if clo, ok := fun.(*ir.ClosureExpr); ok {
+			clo.Func.SetClosureCalled(true)
+		}
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.bool()
@@ -1574,11 +1611,15 @@ func (r *reader) funcLit() ir.Node {
 	}
 
 	fn := ir.NewClosureFunc(opos, r.curfn != nil)
+	clo := fn.OClosure
+	ir.NameClosure(clo, r.curfn)
 
 	r.setType(fn.Nname, xtype2)
 	if quirksMode() {
 		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
 	}
+	typecheck.Func(fn)
+	r.setType(clo, fn.Type())
 
 	fn.ClosureVars = make([]*ir.Name, 0, r.len())
 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
@@ -1591,7 +1632,8 @@ func (r *reader) funcLit() ir.Node {
 
 	r.addBody(fn)
 
-	return fn.OClosure
+	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
+	return ir.UseClosure(clo, typecheck.Target)
 }
 
 func (r *reader) exprList() []ir.Node {
@@ -1788,7 +1830,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	r.setType(tmpfn.Nname, fn.Type())
 	r.curfn = tmpfn
 
-	r.inlCaller = ir.CurFunc
+	r.inlCaller = callerfn
 	r.inlCall = call
 	r.inlFunc = fn
 	r.inlTreeIndex = inlIndex
@@ -1872,17 +1914,13 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 
 	nparams := len(r.curfn.Dcl)
 
-	oldcurfn := ir.CurFunc
-	ir.CurFunc = r.curfn
+	ir.WithFunc(r.curfn, func() {
+		r.curfn.Body = r.stmts()
+		r.curfn.Endlineno = r.pos()
 
-	r.curfn.Body = r.stmts()
-	r.curfn.Endlineno = r.pos()
+		deadcode.Func(r.curfn)
 
-	typecheck.Stmts(r.curfn.Body)
-	deadcode.Func(r.curfn)
-
-	// Replace any "return" statements within the function body.
-	{
+		// Replace any "return" statements within the function body.
 		var edit func(ir.Node) ir.Node
 		edit = func(n ir.Node) ir.Node {
 			if ret, ok := n.(*ir.ReturnStmt); ok {
@@ -1892,9 +1930,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 			return n
 		}
 		edit(r.curfn)
-	}
-
-	ir.CurFunc = oldcurfn
+	})
 
 	body := ir.Nodes(r.curfn.Body)
 
@@ -1998,15 +2034,11 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 		r.funarghack = true
 
 		r.funcBody(tmpfn)
+
+		ir.WithFunc(tmpfn, func() {
+			deadcode.Func(tmpfn)
+		})
 	}
-
-	oldcurfn := ir.CurFunc
-	ir.CurFunc = tmpfn
-
-	typecheck.Stmts(tmpfn.Body)
-	deadcode.Func(tmpfn)
-
-	ir.CurFunc = oldcurfn
 
 	used := usedLocals(tmpfn.Body)
 

@@ -450,7 +450,16 @@ func autotmpname(n int) string {
 	if s == "" {
 		// Give each tmp a different name so that they can be registerized.
 		// Add a preceding . to avoid clashing with legal names.
-		s = fmt.Sprintf(".autotmp_%d", n)
+		prefix := ".autotmp_%d"
+
+		// In quirks mode, pad out the number to stabilize variable
+		// sorting. This ensures autotmps 8 and 9 sort the same way even
+		// if they get renumbered to 9 and 10, respectively.
+		if base.Debug.UnifiedQuirks != 0 {
+			prefix = ".autotmp_%06d"
+		}
+
+		s = fmt.Sprintf(prefix, n)
 		autotmpnames[n] = s
 	}
 	return s
