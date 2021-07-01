@@ -489,7 +489,7 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
 	}
 	if n.Esc() == ir.EscNone {
-		if t.Size() >= ir.MaxImplicitStackVarSize {
+		if t.Size() > ir.MaxImplicitStackVarSize {
 			base.Fatalf("large ONEW with EscNone: %v", n)
 		}
 		return stackTempAddr(init, t)
