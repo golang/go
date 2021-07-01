@@ -1266,7 +1266,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 // its corresponding 'abstract' DIE (containing location-independent
 // attributes such as name, type, etc). Inlined subroutine DIEs can
 // have other inlined subroutine DIEs as children.
-func putInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
+func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 	ic := s.InlCalls.Calls[callIdx]
 	callee := ic.AbsFunSym
 
@@ -1277,7 +1277,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	if logDwarf {
-		ctxt.Logf("putInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
+		ctxt.Logf("putInlinedFunc(callee=%v,abbrev=%d)\n", callee, abbrev)
 	}
 
 	// Abstract origin.
@@ -1312,8 +1312,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 
 	// Children of this inline.
 	for _, sib := range inlChildren(callIdx, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := putInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
@@ -1354,8 +1353,7 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := putInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
@@ -1402,8 +1400,7 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
-		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := putInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, sib)
 		if err != nil {
 			return err
 		}
