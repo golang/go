@@ -437,7 +437,7 @@ type Global struct {
 // A Builtin represents a specific use of a built-in function, e.g. len.
 //
 // Builtins are immutable values.  Builtins do not have addresses.
-// Builtins can only appear in CallCommon.Func.
+// Builtins can only appear in CallCommon.Value.
 //
 // Name() indicates the function: one of the built-in functions from the
 // Go spec (excluding "make" and "new") or one of these ssa-defined
