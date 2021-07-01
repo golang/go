@@ -149,9 +149,11 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 		var ok bool
 		obj, ok = sym.Def.(*ir.Name)
 
-		// Generic types and functions won't have definitions.
+		// Generic types and functions and declared constraint types won't
+		// have definitions.
 		// For now, just generically copy their extension data.
-		if !ok && base.Flag.G == 0 {
+		// TODO(mdempsky): Restore assertion.
+		if !ok && false {
 			base.Fatalf("missing definition for %v", sym)
 		}
 	}
