@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Cgo; see gmp.go for an overview.
+// Cgo; see doc.go for an overview.
 
 // TODO(rsc):
 //	Emit correct line number annotations.

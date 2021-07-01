@@ -1471,15 +1471,22 @@ toomany:
 }
 
 func errorDetails(nl ir.Nodes, tstruct *types.Type, isddd bool) string {
-	// If we don't know any type at a call site, let's suppress any return
-	// message signatures. See Issue https://golang.org/issues/19012.
+	// Suppress any return message signatures if:
+	//
+	// (1) We don't know any type at a call site (see #19012).
+	// (2) Any node has an unknown type.
+	// (3) Invalid type for variadic parameter (see #46957).
 	if tstruct == nil {
-		return ""
+		return "" // case 1
 	}
-	// If any node has an unknown type, suppress it as well
+
+	if isddd && !nl[len(nl)-1].Type().IsSlice() {
+		return "" // case 3
+	}
+
 	for _, n := range nl {
 		if n.Type() == nil {
-			return ""
+			return "" // case 2
 		}
 	}
 	return fmt.Sprintf("\n\thave %s\n\twant %v", fmtSignature(nl, isddd), tstruct)

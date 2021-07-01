@@ -89,7 +89,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R1<<33, R2
 	CMP	R22.SXTX, RSP                    // ffe336eb
 	CMP	$0x22220000, RSP                 // CMP $572653568, RSP   // 5b44a4d2ff633beb
-	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff633b6b
+	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff433b6b
 	CCMN	MI, ZR, R1, $4	                 // e44341ba
 	// MADD Rn,Rm,Ra,Rd
 	MADD	R1, R2, R3, R4                   // 6408019b
@@ -377,6 +377,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x1000100010001000, RSP      // MOVD	$1152939097061330944, RSP   // ff8304b2
 	MOVW	$0x10001000, RSP              // MOVW	$268439552, RSP             // ff830432
 	ADDW	$0x10001000, R1               // ADDW	$268439552, R1              // fb83043221001b0b
+	ADDW	$0x22220000, RSP, R3          // ADDW	$572653568, RSP, R3         // 5b44a452e3433b0b
 
 // move a large constant to a Vd.
 	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
