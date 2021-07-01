@@ -217,11 +217,13 @@ func Alignof(x ArbitraryType) uintptr
 func Add(ptr Pointer, len IntegerType) Pointer
 
 // The function Slice returns a slice whose underlying array starts at ptr
-// and whose length and capacity are len:
+// and whose length and capacity are len.
+// Slice(ptr, len) is equivalent to
 //
 //	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
 //
-// As a special case, if ptr is nil and len is zero, Slice returns nil.
+// except that, as a special case, if ptr is nil and len is zero,
+// Slice returns nil.
 //
 // The len argument must be of integer type or an untyped constant.
 // A constant len argument must be non-negative and representable by a value of type int;
