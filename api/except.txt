@@ -505,3 +505,5 @@ pkg unicode, const Version = "6.3.0"
 pkg unicode, const Version = "7.0.0"
 pkg unicode, const Version = "8.0.0"
 pkg unicode, const Version = "9.0.0"
+pkg net/url, func JoinPath(string, ...string) (string, error)
+pkg net/url, method (*URL) JoinPath(...string) *URL
