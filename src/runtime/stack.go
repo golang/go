@@ -1064,7 +1064,9 @@ func newstack() {
 	// recheck the bounds on return.)
 	if f := findfunc(gp.sched.pc); f.valid() {
 		max := uintptr(funcMaxSPDelta(f))
-		for newsize-gp.sched.sp < max+_StackGuard {
+		needed := max + _StackGuard
+		used := gp.stack.hi - gp.sched.sp
+		for newsize-used < needed {
 			newsize *= 2
 		}
 	}
