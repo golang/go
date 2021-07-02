@@ -394,10 +394,21 @@ func TestParseMediaType(t *testing.T) {
 		// Empty string used to be mishandled.
 		{`foo; bar=""`, "foo", m("bar", "")},
 
-		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
+		// Microsoft browsers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
 		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
+
+		// issue #46323 (https://github.com/golang/go/issues/46323)
+		{
+			// example from rfc2231-p.3 (https://datatracker.ietf.org/doc/html/rfc2231)
+			`message/external-body; access-type=URL;
+		URL*0="ftp://";
+		URL*1="cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar";`, // <-- trailing semicolon
+			`message/external-body`,
+			m("access-type", "URL", "url", "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"),
+		},
 	}
+
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
 		if err != nil {
@@ -522,41 +533,5 @@ func TestFormatMediaType(t *testing.T) {
 				t.Errorf("%d. ParseMediaType(%q) params[%s] = %q; want %q", i, got, k, params[k], v)
 			}
 		}
-	}
-}
-
-// https://github.com/golang/go/issues/46323
-func TestGHIssue46323(t *testing.T) {
-
-	// example from rfc2231-p.3 (https://datatracker.ietf.org/doc/html/rfc2231)
-	const (
-		ct               = `message/external-body`
-		issueContentType = ct + `; access-type=URL;
-         URL*0="ftp://";
-         URL*1="cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar";`  // <-- !!!
-	)
-
-	mediatype, params, err := ParseMediaType(issueContentType)
-
-	if err != nil {
-		t.Errorf("Issue46323 test: ParseMediaType unexpected error %v", err)
-		return
-	}
-
-	if ct != mediatype {
-		t.Errorf("Issue46323 test: ParseMediaType unexpected parsed mediatype: want %s, got %s", ct, mediatype)
-		return
-	}
-
-	val, ok := params["url"]
-
-	if !ok {
-		t.Error("Issue46323 test: issue has been detected")
-		return
-	}
-
-	if want := "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"; val != want {
-		t.Errorf("Issue46323 test: unexpected parsed value of tested arg: want %q, got %q", want, val)
-		return
 	}
 }
