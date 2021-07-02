@@ -111,11 +111,6 @@ type gfInfo struct {
 type instInfo struct {
 	fun       *ir.Func // The instantiated function (with body)
 	dictParam *ir.Name // The node inside fun that refers to the dictionary param
-	// Addr of static dictionary associated with this instantiation. This is the
-	// dictionary you should pass if all the type args are concreate. Soon to be
-	// removed, when creating static dictionary and instantiated function are
-	// separated.
-	dictAddr ir.Node
 
 	gf     *ir.Name // The associated generic function
 	gfInfo *gfInfo

@@ -105,21 +105,15 @@ func (g *irgen) stencil() {
 				// instantiation.
 				call := n.(*ir.CallExpr)
 				inst := call.X.(*ir.InstExpr)
-				st, dict := g.getInstantiationForNode(inst)
-				dictkind := "Main dictionary"
-				if declInfo != nil {
-					// Get the dictionary arg via sub-dictionary reference
-					entry, ok := declInfo.dictEntryMap[n]
-					// If the entry is not found, it must be that
-					// this node was did not have any type args
-					// that depend on type params, so we need a
-					// main dictionary, not a sub-dictionary.
-					if ok {
-						dict = getDictionaryEntry(n.Pos(), declInfo.dictParam, entry, declInfo.dictLen)
+				nameNode, isMeth := g.getInstNameNode(inst)
+				targs := typecheck.TypesOf(inst.Targs)
+				st := g.getInstantiation(nameNode, targs, isMeth)
+				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, nameNode, targs, isMeth)
+				if infoPrintMode {
+					dictkind := "Main dictionary"
+					if usingSubdict {
 						dictkind = "Sub-dictionary"
 					}
-				}
-				if infoPrintMode {
 					if inst.X.Op() == ir.OMETHVALUE {
 						fmt.Printf("%s in %v at generic method call: %v - %v\n", dictkind, decl, inst.X, call)
 					} else {
@@ -137,7 +131,7 @@ func (g *irgen) stencil() {
 					call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
 				}
 				// Add dictionary to argument list.
-				call.Args.Prepend(dict)
+				call.Args.Prepend(dictValue)
 				// Transform the Call now, which changes OCALL
 				// to OCALLFUNC and does typecheckaste/assignconvfn.
 				transformCall(call)
@@ -162,21 +156,18 @@ func (g *irgen) stencil() {
 					}
 				}
 
-				st, dict := g.getInstantiation(gf, targs, true)
-				entry, ok := declInfo.dictEntryMap[n]
-				// TODO: Not creating sub-dictionary entry for
+				st := g.getInstantiation(gf, targs, true)
+				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
+				_ = usingSubdict
+				// TODO: We should do assert(usingSubdict) here, but
+				// not creating sub-dictionary entry for
 				// absDifference in absdiff.go yet. Unusual case,
 				// where there are different generic method
 				// implementations of Abs in absDifference.
-				if ok {
-					if infoPrintMode {
-						fmt.Printf("Sub-dictionary in %v at generic method call: %v\n", decl, call)
-					}
-					dict = getDictionaryEntry(n.Pos(), declInfo.dictParam, entry, declInfo.dictLen)
-				}
+
 				call.SetOp(ir.OCALL)
 				call.X = st.Nname
-				call.Args.Prepend(dict, meth.X)
+				call.Args.Prepend(dictValue, meth.X)
 				// Transform the Call now, which changes OCALL
 				// to OCALLFUNC and does typecheckaste/assignconvfn.
 				transformCall(call)
@@ -263,17 +254,13 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// For method values, the target expects a dictionary and the receiver
 		// as its first two arguments.
 		// dictValue is the value to use for the dictionary argument.
-		target, dictValue = g.getInstantiation(gf, targs, rcvrValue != nil)
-		dictkind := "Main dictionary"
-		if outerInfo != nil {
-			entry, ok := outerInfo.dictEntryMap[x]
-			if ok {
-				dictValue = getDictionaryEntry(x.Pos(), outerInfo.dictParam, entry, outerInfo.dictLen)
-				dictkind = "Sub-dictionary"
-				usingSubdict = true
-			}
-		}
+		target = g.getInstantiation(gf, targs, rcvrValue != nil)
+		dictValue, usingSubdict = g.getDictOrSubdict(outerInfo, x, gf, targs, rcvrValue != nil)
 		if infoPrintMode {
+			dictkind := "Main dictionary"
+			if usingSubdict {
+				dictkind = "Sub-dictionary"
+			}
 			if rcvrValue == nil {
 				fmt.Printf("%s in %v for generic function value %v\n", dictkind, outer, inst.X)
 			} else {
@@ -308,17 +295,13 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 				break
 			}
 		}
-		target, dictValue = g.getInstantiation(gf, targs, true)
-		dictkind := "Main dictionary"
-		if outerInfo != nil {
-			entry, ok := outerInfo.dictEntryMap[x]
-			if ok {
-				dictValue = getDictionaryEntry(x.Pos(), outerInfo.dictParam, entry, outerInfo.dictLen)
-				dictkind = "Sub-dictionary"
-				usingSubdict = true
-			}
-		}
+		target = g.getInstantiation(gf, targs, true)
+		dictValue, usingSubdict = g.getDictOrSubdict(outerInfo, x, gf, targs, true)
 		if infoPrintMode {
+			dictkind := "Main dictionary"
+			if usingSubdict {
+				dictkind = "Sub-dictionary"
+			}
 			fmt.Printf("%s in %v for method expression %v\n", dictkind, outer, x)
 		}
 	}
@@ -497,8 +480,8 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	return ir.InitExpr(init, c)
 }
 
-// instantiateMethods instantiates all the methods of all fully-instantiated
-// generic types that have been added to g.instTypeList.
+// instantiateMethods instantiates all the methods (and associated dictionaries) of
+// all fully-instantiated generic types that have been added to g.instTypeList.
 func (g *irgen) instantiateMethods() {
 	for i := 0; i < len(g.instTypeList); i++ {
 		typ := g.instTypeList[i]
@@ -521,21 +504,46 @@ func (g *irgen) instantiateMethods() {
 			// Direct method calls go directly to the instantiations, implemented above.
 			// Indirect method calls use wrappers generated in reflectcall. Those wrappers
 			// will use these instantiations if they are needed (for interface tables or reflection).
-			_, _ = g.getInstantiation(baseNname, typ.RParams(), true)
+			_ = g.getInstantiation(baseNname, typ.RParams(), true)
+			_ = g.getDictionarySym(baseNname, typ.RParams(), true)
 		}
 	}
 	g.instTypeList = nil
 
 }
 
-// getInstantiationForNode returns the function/method instantiation and
-// dictionary value for a InstExpr node inst.
-func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) (*ir.Func, ir.Node) {
+// getInstNameNode returns the name node for the method or function being instantiated, and a bool which is true if a method is being instantiated.
+func (g *irgen) getInstNameNode(inst *ir.InstExpr) (*ir.Name, bool) {
 	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
-		return g.getInstantiation(meth.Selection.Nname.(*ir.Name), typecheck.TypesOf(inst.Targs), true)
+		return meth.Selection.Nname.(*ir.Name), true
 	} else {
-		return g.getInstantiation(inst.X.(*ir.Name), typecheck.TypesOf(inst.Targs), false)
+		return inst.X.(*ir.Name), false
 	}
+}
+
+// getDictOrSubdict returns, for a method/function call or reference (node n) in an
+// instantiation (described by instInfo), a node which is accessing a sub-dictionary
+// or main/static dictionary, as needed, and also returns a boolean indicating if a
+// sub-dictionary was accessed. nameNode is the particular function or method being
+// called/referenced, and targs are the type arguments.
+func (g *irgen) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.Name, targs []*types.Type, isMeth bool) (ir.Node, bool) {
+	var dict ir.Node
+	usingSubdict := false
+	if declInfo != nil {
+		// Get the dictionary arg via sub-dictionary reference
+		entry, ok := declInfo.dictEntryMap[n]
+		// If the entry is not found, it may be that this node did not have
+		// any type args that depend on type params, so we need a main
+		// dictionary, not a sub-dictionary.
+		if ok {
+			dict = getDictionaryEntry(n.Pos(), declInfo.dictParam, entry, declInfo.dictLen)
+			usingSubdict = true
+		}
+	}
+	if !usingSubdict {
+		dict = g.getDictionaryValue(nameNode, targs, isMeth)
+	}
+	return dict, usingSubdict
 }
 
 func addGcType(fl []*types.Field, t *types.Type) []*types.Field {
@@ -730,7 +738,7 @@ func gcshapeType(t *types.Type) (*types.Type, string) {
 // getInstantiation gets the instantiantion and dictionary of the function or method nameNode
 // with the type arguments targs. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) (*ir.Func, ir.Node) {
+func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
 	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
 		// If there is no body yet but Func.Inl exists, then we can can
 		// import the whole generic body.
@@ -763,7 +771,6 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 		// genericSubst fills in info.dictParam and info.dictEntryMap.
 		st := g.genericSubst(sym, nameNode, targs, isMeth, info)
 		info.fun = st
-		info.dictAddr = g.getDictionaryValue(nameNode, targs, isMeth)
 		g.instInfoMap[sym] = info
 		// This ensures that the linker drops duplicates of this instantiation.
 		// All just works!
@@ -773,7 +780,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 			ir.Dump(fmt.Sprintf("\nstenciled %v", st), st)
 		}
 	}
-	return info.fun, info.dictAddr
+	return info.fun
 }
 
 // Struct containing info needed for doing the substitution as we create the
@@ -1352,13 +1359,13 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 		base.Fatalf("%s should have type arguments", gf.Sym().Name)
 	}
 
-	info := g.getGfInfo(gf)
-
 	// Get a symbol representing the dictionary.
 	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
 
 	// Initialize the dictionary, if we haven't yet already.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+		info := g.getGfInfo(gf)
+
 		infoPrint("=== Creating dictionary %v\n", sym.Name)
 		off := 0
 		// Emit an entry for each targ (concrete type or gcshape).
