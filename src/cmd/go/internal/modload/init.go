@@ -71,7 +71,7 @@ type Root int
 const (
 	// AutoRoot is the default for most commands. modload.Init will look for
 	// a go.mod file in the current directory or any parent. If none is found,
-	// modules may be disabled (GO111MODULE=on) or commands may run in a
+	// modules may be disabled (GO111MODULE=auto) or commands may run in a
 	// limited module mode.
 	AutoRoot Root = iota
 
