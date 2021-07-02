@@ -4,7 +4,7 @@
 
 package b
 
-import "./a"
+import "issue30862.dir/a"
 
 type EmbedImported struct {
 	a.NoitfStruct

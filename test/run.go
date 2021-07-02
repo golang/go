@@ -2180,12 +2180,14 @@ var types2Failures32Bit = setOf(
 var g3Failures = setOf(
 	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
 
+	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
+
+	"typeparam/cons.go",   // causes an unreachable method
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
 	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
 	"typeparam/mdempsky/13.go", // problem with interface as as a type arg.
-
-	"typeparam/cons.go", // causes an unreachable method
+	"typeparam/mdempsky/15.go", // ICE in (*irgen).buildClosure
 )
 
 var unifiedFailures = setOf(
