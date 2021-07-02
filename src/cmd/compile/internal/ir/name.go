@@ -358,7 +358,7 @@ func (n *Name) Byval() bool {
 	return n.Canonical().flags&nameByval != 0
 }
 
-// NewClosureVar creates a new closure variable for fn to refer to
+// NewClosureVar returns a new closure variable for fn to refer to
 // outer variable n.
 func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
 	c := NewNameAt(pos, n.Sym())
@@ -368,9 +368,31 @@ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
 	c.Defn = n.Canonical()
 	c.Outer = n
 
+	c.SetType(n.Type())
+	c.SetTypecheck(n.Typecheck())
+
 	fn.ClosureVars = append(fn.ClosureVars, c)
 
 	return c
+}
+
+// NewHiddenParam returns a new hidden parameter for fn with the given
+// name and type.
+func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Name {
+	if fn.OClosure != nil {
+		base.FatalfAt(fn.Pos(), "cannot add hidden parameters to closures")
+	}
+
+	fn.SetNeedctxt(true)
+
+	// Create a fake parameter, disassociated from any real function, to
+	// pretend to capture.
+	fake := NewNameAt(pos, sym)
+	fake.Class = PPARAM
+	fake.SetType(typ)
+	fake.SetByval(true)
+
+	return NewClosureVar(pos, fn, fake)
 }
 
 // CaptureName returns a Name suitable for referring to n from within function

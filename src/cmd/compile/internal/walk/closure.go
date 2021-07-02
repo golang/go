@@ -238,17 +238,10 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 
 	fn := typecheck.DeclFunc(sym, tfn)
 	fn.SetDupok(true)
-	fn.SetNeedctxt(true)
 	fn.SetWrapper(true)
 
 	// Declare and initialize variable holding receiver.
-	ptr := ir.NewNameAt(base.Pos, typecheck.Lookup(".this"))
-	ptr.Class = ir.PAUTOHEAP
-	ptr.SetType(rcvrtype)
-	ptr.Curfn = fn
-	ptr.SetIsClosureVar(true)
-	ptr.SetByval(true)
-	fn.ClosureVars = append(fn.ClosureVars, ptr)
+	ptr := ir.NewHiddenParam(base.Pos, fn, typecheck.Lookup(".this"), rcvrtype)
 
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
 	call.Args = ir.ParamNames(tfn.Type())
