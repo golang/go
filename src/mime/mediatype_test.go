@@ -524,3 +524,39 @@ func TestFormatMediaType(t *testing.T) {
 		}
 	}
 }
+
+// https://github.com/golang/go/issues/46323
+func TestGHIssue46323(t *testing.T) {
+
+	// example from rfc2231-p.3 (https://datatracker.ietf.org/doc/html/rfc2231)
+	const (
+		ct               = `message/external-body`
+		issueContentType = ct + `; access-type=URL;
+         URL*0="ftp://";
+         URL*1="cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar";`  // <-- !!!
+	)
+
+	mediatype, params, err := ParseMediaType(issueContentType)
+
+	if err != nil {
+		t.Errorf("Issue46323 test: ParseMediaType unexpected error %v", err)
+		return
+	}
+
+	if ct != mediatype {
+		t.Errorf("Issue46323 test: ParseMediaType unexpected parsed mediatype: want %s, got %s", ct, mediatype)
+		return
+	}
+
+	val, ok := params["url"]
+
+	if !ok {
+		t.Error("Issue46323 test: issue has been detected")
+		return
+	}
+
+	if want := "ftp://cs.utk.edu/pub/moore/bulk-mailer/bulk-mailer.tar"; val != want {
+		t.Errorf("Issue46323 test: unexpected parsed value of tested arg: want %q, got %q", want, val)
+		return
+	}
+}
