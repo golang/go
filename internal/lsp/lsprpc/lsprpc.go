@@ -21,7 +21,6 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
-	jsonrpc2_v2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/command"
@@ -30,10 +29,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	errors "golang.org/x/xerrors"
 )
-
-// AutoNetwork is the pseudo network type used to signal that gopls should use
-// automatic discovery to resolve a remote address.
-const AutoNetwork = "auto"
 
 // Unique identifiers for client/server.
 var serverIndex int64
@@ -113,13 +108,7 @@ func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) erro
 // be instrumented with telemetry, and want to be able to in some cases hijack
 // the jsonrpc2 connection with the daemon.
 type Forwarder struct {
-	network, addr string
-
-	// goplsPath is the path to the current executing gopls binary.
-	goplsPath string
-
-	// configuration for the auto-started gopls remote.
-	remoteConfig remoteConfig
+	dialer *AutoDialer
 
 	mu sync.Mutex
 	// Hold on to the server connection so that we can redo the handshake if any
@@ -128,68 +117,19 @@ type Forwarder struct {
 	serverID   string
 }
 
-type remoteConfig struct {
-	debug         string
-	listenTimeout time.Duration
-	logfile       string
-}
-
-// A RemoteOption configures the behavior of the auto-started remote.
-type RemoteOption interface {
-	set(*remoteConfig)
-}
-
-// RemoteDebugAddress configures the address used by the auto-started Gopls daemon
-// for serving debug information.
-type RemoteDebugAddress string
-
-func (d RemoteDebugAddress) set(cfg *remoteConfig) {
-	cfg.debug = string(d)
-}
-
-// RemoteListenTimeout configures the amount of time the auto-started gopls
-// daemon will wait with no client connections before shutting down.
-type RemoteListenTimeout time.Duration
-
-func (d RemoteListenTimeout) set(cfg *remoteConfig) {
-	cfg.listenTimeout = time.Duration(d)
-}
-
-// RemoteLogfile configures the logfile location for the auto-started gopls
-// daemon.
-type RemoteLogfile string
-
-func (l RemoteLogfile) set(cfg *remoteConfig) {
-	cfg.logfile = string(l)
-}
-
-func defaultRemoteConfig() remoteConfig {
-	return remoteConfig{
-		listenTimeout: 1 * time.Minute,
-	}
-}
-
 // NewForwarder creates a new Forwarder, ready to forward connections to the
-// remote server specified by network and addr.
-func NewForwarder(network, addr string, opts ...RemoteOption) *Forwarder {
-	gp, err := os.Executable()
+// remote server specified by rawAddr. If provided and rawAddr indicates an
+// 'automatic' address (starting with 'auto;'), argFunc may be used to start a
+// remote server for the auto-discovered address.
+func NewForwarder(rawAddr string, argFunc func(network, address string) []string) (*Forwarder, error) {
+	dialer, err := NewAutoDialer(rawAddr, argFunc)
 	if err != nil {
-		log.Printf("error getting gopls path for forwarder: %v", err)
-		gp = ""
+		return nil, err
 	}
-
-	rcfg := defaultRemoteConfig()
-	for _, opt := range opts {
-		opt.set(&rcfg)
-	}
-
 	fwd := &Forwarder{
-		network:      network,
-		addr:         addr,
-		goplsPath:    gp,
-		remoteConfig: rcfg,
+		dialer: dialer,
 	}
-	return fwd
+	return fwd, nil
 }
 
 // QueryServerState queries the server state of the current server.
@@ -247,7 +187,7 @@ func ExecuteCommand(ctx context.Context, addr string, id string, request, result
 func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) error {
 	client := protocol.ClientDispatcher(clientConn)
 
-	netConn, err := f.connectToRemote(ctx)
+	netConn, err := f.dialer.dialNet(ctx)
 	if err != nil {
 		return errors.Errorf("forwarder: connecting to remote: %w", err)
 	}
@@ -293,19 +233,19 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 	return err
 }
 
-func (f *Forwarder) Binder() *ForwardBinder {
-	network, address := realNetworkAddress(f.network, f.addr, f.goplsPath)
-	dialer := jsonrpc2_v2.NetDialer(network, address, net.Dialer{
-		Timeout: 5 * time.Second,
-	})
-	return NewForwardBinder(dialer)
-}
-
+// TODO(rfindley): remove this handshaking in favor of middleware.
 func (f *Forwarder) handshake(ctx context.Context) {
+	// This call to os.Execuable is redundant, and will be eliminated by the
+	// transition to the V2 API.
+	goplsPath, err := os.Executable()
+	if err != nil {
+		event.Error(ctx, "getting executable for handshake", err)
+		goplsPath = ""
+	}
 	var (
 		hreq = handshakeRequest{
 			ServerID:  f.serverID,
-			GoplsPath: f.goplsPath,
+			GoplsPath: goplsPath,
 		}
 		hresp handshakeResponse
 	)
@@ -318,8 +258,8 @@ func (f *Forwarder) handshake(ctx context.Context) {
 		// here.  Handshakes have become functional in nature.
 		event.Error(ctx, "forwarder: gopls handshake failed", err)
 	}
-	if hresp.GoplsPath != f.goplsPath {
-		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
+	if hresp.GoplsPath != goplsPath {
+		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", goplsPath, hresp.GoplsPath))
 	}
 	event.Log(ctx, "New server",
 		tag.NewServer.Of(f.serverID),
@@ -330,108 +270,12 @@ func (f *Forwarder) handshake(ctx context.Context) {
 	)
 }
 
-func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
-	return connectToRemote(ctx, f.network, f.addr, f.goplsPath, f.remoteConfig)
-}
-
-func ConnectToRemote(ctx context.Context, addr string, opts ...RemoteOption) (net.Conn, error) {
-	rcfg := defaultRemoteConfig()
-	for _, opt := range opts {
-		opt.set(&rcfg)
-	}
-	// This is not strictly necessary, as it won't be used if not connecting to
-	// the 'auto' remote.
-	goplsPath, err := os.Executable()
+func ConnectToRemote(ctx context.Context, addr string) (net.Conn, error) {
+	dialer, err := NewAutoDialer(addr, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to resolve gopls path: %v", err)
+		return nil, err
 	}
-	network, address := ParseAddr(addr)
-	return connectToRemote(ctx, network, address, goplsPath, rcfg)
-}
-
-func realNetworkAddress(inNetwork, inAddr, goplsPath string) (network, address string) {
-	if inNetwork != AutoNetwork {
-		return inNetwork, inAddr
-	}
-	// The "auto" network is a fake network used for service discovery. It
-	// resolves a known address based on gopls binary path.
-	return autoNetworkAddress(goplsPath, inAddr)
-}
-
-func connectToRemote(ctx context.Context, inNetwork, inAddr, goplsPath string, rcfg remoteConfig) (net.Conn, error) {
-	var (
-		netConn          net.Conn
-		err              error
-		network, address = realNetworkAddress(inNetwork, inAddr, goplsPath)
-	)
-	// Attempt to verify that we own the remote. This is imperfect, but if we can
-	// determine that the remote is owned by a different user, we should fail.
-	ok, err := verifyRemoteOwnership(network, address)
-	if err != nil {
-		// If the ownership check itself failed, we fail open but log an error to
-		// the user.
-		event.Error(ctx, "unable to check daemon socket owner, failing open", err)
-	} else if !ok {
-		// We successfully checked that the socket is not owned by us, we fail
-		// closed.
-		return nil, fmt.Errorf("socket %q is owned by a different user", address)
-	}
-	const dialTimeout = 1 * time.Second
-	// Try dialing our remote once, in case it is already running.
-	netConn, err = net.DialTimeout(network, address, dialTimeout)
-	if err == nil {
-		return netConn, nil
-	}
-	// If our remote is on the 'auto' network, start it if it doesn't exist.
-	if inNetwork == AutoNetwork {
-		if goplsPath == "" {
-			return nil, fmt.Errorf("cannot auto-start remote: gopls path is unknown")
-		}
-		if network == "unix" {
-			// Sometimes the socketfile isn't properly cleaned up when gopls shuts
-			// down. Since we have already tried and failed to dial this address, it
-			// should *usually* be safe to remove the socket before binding to the
-			// address.
-			// TODO(rfindley): there is probably a race here if multiple gopls
-			// instances are simultaneously starting up.
-			if _, err := os.Stat(address); err == nil {
-				if err := os.Remove(address); err != nil {
-					return nil, errors.Errorf("removing remote socket file: %w", err)
-				}
-			}
-		}
-		args := []string{"serve",
-			"-listen", fmt.Sprintf(`%s;%s`, network, address),
-			"-listen.timeout", rcfg.listenTimeout.String(),
-		}
-		if rcfg.logfile != "" {
-			args = append(args, "-logfile", rcfg.logfile)
-		}
-		if rcfg.debug != "" {
-			args = append(args, "-debug", rcfg.debug)
-		}
-		if err := startRemote(goplsPath, args...); err != nil {
-			return nil, errors.Errorf("startRemote(%q, %v): %w", goplsPath, args, err)
-		}
-	}
-
-	const retries = 5
-	// It can take some time for the newly started server to bind to our address,
-	// so we retry for a bit.
-	for retry := 0; retry < retries; retry++ {
-		startDial := time.Now()
-		netConn, err = net.DialTimeout(network, address, dialTimeout)
-		if err == nil {
-			return netConn, nil
-		}
-		event.Log(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
-		// In case our failure was a fast-failure, ensure we wait at least
-		// f.dialTimeout before trying again.
-		if retry != retries-1 {
-			time.Sleep(dialTimeout - time.Since(startDial))
-		}
-	}
-	return nil, errors.Errorf("dialing remote: %w", err)
+	return dialer.dialNet(ctx)
 }
 
 // handler intercepts messages to the daemon to enrich them with local

@@ -56,6 +56,22 @@ gopls server flags are:
 	f.PrintDefaults()
 }
 
+func (s *Serve) remoteArgs(network, address string) []string {
+	args := []string{"serve",
+		"-listen", fmt.Sprintf(`%s;%s`, network, address),
+	}
+	if s.RemoteDebug != "" {
+		args = append(args, "-debug", s.RemoteDebug)
+	}
+	if s.RemoteListenTimeout != 0 {
+		args = append(args, "-listen.timeout", s.RemoteListenTimeout.String())
+	}
+	if s.RemoteLogfile != "" {
+		args = append(args, "-logfile", s.RemoteLogfile)
+	}
+	return args
+}
+
 // Run configures a server based on the flags, and then runs it.
 // It blocks until the server shuts down.
 func (s *Serve) Run(ctx context.Context, args ...string) error {
@@ -77,12 +93,11 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {
-		network, addr := lsprpc.ParseAddr(s.app.Remote)
-		ss = lsprpc.NewForwarder(network, addr,
-			lsprpc.RemoteDebugAddress(s.RemoteDebug),
-			lsprpc.RemoteListenTimeout(s.RemoteListenTimeout),
-			lsprpc.RemoteLogfile(s.RemoteLogfile),
-		)
+		var err error
+		ss, err = lsprpc.NewForwarder(s.app.Remote, s.remoteArgs)
+		if err != nil {
+			return errors.Errorf("creating forwarder: %w", err)
+		}
 	} else {
 		ss = lsprpc.NewStreamServer(cache.New(s.app.options), isDaemon)
 	}

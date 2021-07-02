@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	startRemote           = startRemoteDefault
+	daemonize             = func(*exec.Cmd) {}
 	autoNetworkAddress    = autoNetworkAddressDefault
 	verifyRemoteOwnership = verifyRemoteOwnershipDefault
 )
 
-func startRemoteDefault(goplsPath string, args ...string) error {
-	cmd := exec.Command(goplsPath, args...)
+func runRemote(cmd *exec.Cmd) error {
+	daemonize(cmd)
 	if err := cmd.Start(); err != nil {
 		return errors.Errorf("starting remote gopls: %w", err)
 	}

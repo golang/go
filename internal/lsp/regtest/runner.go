@@ -415,7 +415,7 @@ func experimentalServer(_ context.Context, t *testing.T, optsHook func(*source.O
 
 func (r *Runner) forwardedServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	ts := r.getTestServer(optsHook)
-	return lsprpc.NewForwarder("tcp", ts.Addr)
+	return newForwarder("tcp", ts.Addr)
 }
 
 // getTestServer gets the shared test server instance to connect to, or creates
@@ -436,7 +436,16 @@ func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T, optsHo
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
 	socket := r.getRemoteSocket(t)
-	return lsprpc.NewForwarder("unix", socket)
+	return newForwarder("unix", socket)
+}
+
+func newForwarder(network, address string) *lsprpc.Forwarder {
+	server, err := lsprpc.NewForwarder(network+";"+address, nil)
+	if err != nil {
+		// This should never happen, as we are passing an explicit address.
+		panic(fmt.Sprintf("internal error: unable to create forwarder: %v", err))
+	}
+	return server
 }
 
 // runTestAsGoplsEnvvar triggers TestMain to run gopls instead of running

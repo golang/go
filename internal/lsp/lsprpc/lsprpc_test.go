@@ -126,7 +126,10 @@ func setupForwarding(ctx context.Context, t *testing.T, s protocol.Server) (dire
 	tsDirect := servertest.NewTCPServer(serveCtx, ss, nil)
 
 	forwarderCtx := debug.WithInstance(ctx, "", "")
-	forwarder := NewForwarder("tcp", tsDirect.Addr)
+	forwarder, err := NewForwarder("tcp;"+tsDirect.Addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder, nil)
 	return tsDirect, tsForwarded, func() {
 		checkClose(t, tsDirect.Close)
@@ -218,7 +221,10 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	ss := NewStreamServer(cache, false)
 	tsBackend := servertest.NewTCPServer(serverCtx, ss, nil)
 
-	forwarder := NewForwarder("tcp", tsBackend.Addr)
+	forwarder, err := NewForwarder("tcp;"+tsBackend.Addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder, nil)
 
 	conn1 := tsForwarder.Connect(clientCtx)

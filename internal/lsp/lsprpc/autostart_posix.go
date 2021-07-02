@@ -11,7 +11,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	exec "golang.org/x/sys/execabs"
 	"log"
 	"os"
 	"os/user"
@@ -19,24 +18,21 @@ import (
 	"strconv"
 	"syscall"
 
+	exec "golang.org/x/sys/execabs"
+
 	"golang.org/x/xerrors"
 )
 
 func init() {
-	startRemote = startRemotePosix
+	daemonize = daemonizePosix
 	autoNetworkAddress = autoNetworkAddressPosix
 	verifyRemoteOwnership = verifyRemoteOwnershipPosix
 }
 
-func startRemotePosix(goplsPath string, args ...string) error {
-	cmd := exec.Command(goplsPath, args...)
+func daemonizePosix(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true,
 	}
-	if err := cmd.Start(); err != nil {
-		return xerrors.Errorf("starting remote gopls: %w", err)
-	}
-	return nil
 }
 
 // autoNetworkAddress resolves an id on the 'auto' pseduo-network to a
