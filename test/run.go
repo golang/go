@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -49,17 +50,36 @@ var (
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
 
-var unifiedEnabled, defaultGLevels = func() (bool, string) {
-	// TODO(mdempsky): Change this to just "go env GOEXPERIMENT" after
-	// CL 328751 is merged back to dev.typeparams. In the mean time, we
-	// infer whether the "unified" experiment is default enabled by
-	// inspecting the output from `go tool compile -V`.
-	output := runOutput(goTool(), "tool", "compile", "-V")
+type envVars struct {
+	GOOS         string
+	GOARCH       string
+	GOEXPERIMENT string
+	CGO_ENABLED  string
+}
 
+var env = func() (res envVars) {
+	cmd := exec.Command("go", "env", "-json")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal("StdoutPipe:", err)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Fatal("Start:", err)
+	}
+	if err := json.NewDecoder(stdout).Decode(&res); err != nil {
+		log.Fatal("Decode:", err)
+	}
+	if err := cmd.Wait(); err != nil {
+		log.Fatal("Wait:", err)
+	}
+	return
+}()
+
+var unifiedEnabled, defaultGLevels = func() (bool, string) {
 	// TODO(mdempsky): This will give false negatives if the unified
 	// experiment is enabled by default, but presumably at that point we
 	// won't need to disable tests for it anymore anyway.
-	enabled := strings.Contains(output, "unified")
+	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
 
 	// Normal test runs should test with both -G=0 and -G=3 for types2
 	// coverage. But the unified experiment always uses types2, so
@@ -81,8 +101,9 @@ func defaultAllCodeGen() bool {
 }
 
 var (
-	goos, goarch string
-	cgoEnabled   bool
+	goos          = env.GOOS
+	goarch        = env.GOARCH
+	cgoEnabled, _ = strconv.ParseBool(env.CGO_ENABLED)
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
@@ -115,12 +136,6 @@ func main() {
 		}
 		glevels = append(glevels, glevel)
 	}
-
-	goos = getenv("GOOS", runtime.GOOS)
-	goarch = getenv("GOARCH", runtime.GOARCH)
-
-	cgoEnv := runOutput(goTool(), "env", "CGO_ENABLED")
-	cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(cgoEnv))
 
 	findExecCmd()
 
@@ -212,17 +227,6 @@ func main() {
 	if failed {
 		os.Exit(1)
 	}
-}
-
-// runOutput runs the specified command and returns its output as a
-// string. If the command fails, runOutput logs the error and exits.
-func runOutput(name string, args ...string) string {
-	cmd := exec.Command(name, args...)
-	output, err := cmd.Output()
-	if err != nil {
-		log.Fatalf("running %v: %v", cmd, err)
-	}
-	return string(output)
 }
 
 // goTool reports the path of the go tool to use to run the tests.
@@ -672,6 +676,8 @@ func (t *test) run() {
 		return
 	}
 
+	goexp := env.GOEXPERIMENT
+
 	// collect flags
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
@@ -698,7 +704,11 @@ func (t *test) run() {
 			}
 		case "-goexperiment": // set GOEXPERIMENT environment
 			args = args[1:]
-			runenv = append(runenv, "GOEXPERIMENT="+args[0])
+			if goexp != "" {
+				goexp += ","
+			}
+			goexp += args[0]
+			runenv = append(runenv, "GOEXPERIMENT="+goexp)
 
 		default:
 			flags = append(flags, args[0])
@@ -1258,7 +1268,7 @@ func (t *test) run() {
 		runInDir = ""
 		var out []byte
 		var err error
-		if len(flags)+len(args) == 0 && t.goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
+		if len(flags)+len(args) == 0 && t.goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS && goexp == env.GOEXPERIMENT {
 			// If we're not using special go command flags,
 			// skip all the go command machinery.
 			// This avoids any time the go command would
