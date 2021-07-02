@@ -607,35 +607,40 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	} else {
 		scopes = append(scopes, viewLoadScope("LOAD_VIEW"))
 	}
-	var err error
+
+	// If we're loading anything, ensure we also load builtin.
+	// TODO(rstambler): explain the rationale for this.
 	if len(scopes) > 0 {
-		err = s.load(ctx, firstAttempt, append(scopes, packagePath("builtin"))...)
+		scopes = append(scopes, packagePath("builtin"))
 	}
+	err := s.load(ctx, firstAttempt, scopes...)
+
 	// If the context is canceled on the first attempt, loading has failed
 	// because the go command has timed out--that should be a critical error.
-	if !firstAttempt && ctx.Err() != nil {
+	if err != nil && !firstAttempt && ctx.Err() != nil {
 		return
 	}
 
 	var criticalErr *source.CriticalError
-	if ctx.Err() != nil {
+	switch {
+	case err != nil && ctx.Err() != nil:
 		event.Error(ctx, fmt.Sprintf("initial workspace load: %v", err), err)
 		criticalErr = &source.CriticalError{
 			MainError: err,
 		}
-	} else if err != nil {
+	case err != nil:
 		event.Error(ctx, "initial workspace load failed", err)
 		extractedDiags, _ := s.extractGoCommandErrors(ctx, err.Error())
 		criticalErr = &source.CriticalError{
 			MainError: err,
 			DiagList:  append(modDiagnostics, extractedDiags...),
 		}
-	} else if len(modDiagnostics) == 1 {
+	case len(modDiagnostics) == 1:
 		criticalErr = &source.CriticalError{
 			MainError: fmt.Errorf(modDiagnostics[0].Message),
 			DiagList:  modDiagnostics,
 		}
-	} else if len(modDiagnostics) > 1 {
+	case len(modDiagnostics) > 1:
 		criticalErr = &source.CriticalError{
 			MainError: fmt.Errorf("error loading module names"),
 			DiagList:  modDiagnostics,
