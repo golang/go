@@ -343,9 +343,7 @@ func (e *escape) wrapExpr(pos src.XPos, exprp *ir.Node, init *ir.Nodes, call ir.
 
 		e.oldLoc(tmp).captured = true
 
-		cv := ir.NewClosureVar(pos, wrapper, tmp)
-		cv.SetType(tmp.Type())
-		tmp = typecheck.Expr(cv).(*ir.Name)
+		tmp = ir.NewClosureVar(pos, wrapper, tmp)
 	}
 
 	*exprp = tmp

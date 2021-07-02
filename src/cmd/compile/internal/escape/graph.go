@@ -222,7 +222,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	}
 
 	if n != nil && n.Op() == ir.ONAME {
-		n = n.(*ir.Name).Canonical()
+		if canon := n.(*ir.Name).Canonical(); n != canon {
+			base.Fatalf("newLoc on non-canonical %v (canonical is %v)", n, canon)
+		}
 	}
 	loc := &location{
 		n:         n,
@@ -234,7 +236,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
 	if n != nil {
 		if n.Op() == ir.ONAME {
 			n := n.(*ir.Name)
-			if n.Curfn != e.curfn {
+			if n.Class == ir.PPARAM && n.Curfn == nil {
+				// ok; hidden parameter
+			} else if n.Curfn != e.curfn {
 				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
 			}
 

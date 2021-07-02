@@ -1289,13 +1289,8 @@ func (r *importReader) node() ir.Node {
 		cvars := make([]*ir.Name, r.int64())
 		for i := range cvars {
 			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
-			if go117ExportTypes {
-				if cvars[i].Type() != nil || cvars[i].Defn == nil {
-					base.Fatalf("bad import of closure variable")
-				}
-				// Closure variable should have Defn set, which is its captured
-				// variable, and it gets the same type as the captured variable.
-				cvars[i].SetType(cvars[i].Defn.Type())
+			if go117ExportTypes && cvars[i].Defn == nil {
+				base.Fatalf("bad import of closure variable")
 			}
 		}
 		fn.ClosureVars = cvars

@@ -183,8 +183,14 @@ func (b *batch) initFunc(fn *ir.Func) {
 
 	// Allocate locations for local variables.
 	for _, n := range fn.Dcl {
-		if n.Op() == ir.ONAME {
-			e.newLoc(n, false)
+		e.newLoc(n, false)
+	}
+
+	// Also for hidden parameters (e.g., the ".this" parameter to a
+	// method value wrapper).
+	if fn.OClosure == nil {
+		for _, n := range fn.ClosureVars {
+			e.newLoc(n.Canonical(), false)
 		}
 	}
 
