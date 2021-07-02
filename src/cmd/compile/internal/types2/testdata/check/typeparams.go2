@@ -119,7 +119,7 @@ func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[
 // slicing
 // TODO(gri) implement this
 
-func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
+func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
 
 // len/cap built-ins
 
