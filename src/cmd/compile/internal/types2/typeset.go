@@ -75,6 +75,21 @@ func (s *TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
+// underIs reports whether f returned true for the underlying types of the
+// enumerable types in the type set s. If the type set comprises all types
+// f is called once with the top type; if the type set is empty, the result
+// is false.
+func (s *TypeSet) underIs(f func(Type) bool) bool {
+	switch t := s.types.(type) {
+	case nil:
+		return f(theTop)
+	default:
+		return f(t)
+	case *Union:
+		return t.underIs(f)
+	}
+}
+
 // topTypeSet may be used as type set for the empty interface.
 var topTypeSet TypeSet
 
