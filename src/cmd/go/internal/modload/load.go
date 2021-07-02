@@ -767,28 +767,6 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 	return ".", module.Version{}
 }
 
-// ImportMap returns the actual package import path
-// for an import path found in source code.
-// If the given import path does not appear in the source code
-// for the packages that have been loaded, ImportMap returns the empty string.
-func ImportMap(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if !ok {
-		return ""
-	}
-	return pkg.path
-}
-
-// PackageDir returns the directory containing the source code
-// for the package named by the import path.
-func PackageDir(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if !ok {
-		return ""
-	}
-	return pkg.dir
-}
-
 // PackageModule returns the module providing the package named by the import path.
 func PackageModule(path string) module.Version {
 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
