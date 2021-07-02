@@ -42,7 +42,7 @@ var (
 	linkshared     = flag.Bool("linkshared", false, "")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
-	force          = flag.Bool("f", false, "run expected-failure generics tests rather than skipping them")
+	force          = flag.Bool("f", false, "ignore expected-failure test lists")
 	generics       = flag.String("G", defaultGLevels, "a comma-separated list of -G compiler flags to test with")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
@@ -175,8 +175,15 @@ func main() {
 			status = "FAIL"
 		}
 		if test.err != nil {
-			status = "FAIL"
 			errStr = test.err.Error()
+			if test.expectFail {
+				errStr += " (expected)"
+			} else {
+				status = "FAIL"
+			}
+		} else if test.expectFail {
+			status = "FAIL"
+			errStr = "unexpected success"
 		}
 		if status == "FAIL" {
 			failed = true
@@ -321,11 +328,45 @@ type test struct {
 
 	tempDir string
 	err     error
+
+	// expectFail indicates whether the (overall) test recipe is
+	// expected to fail under the current test configuration (e.g., -G=3
+	// or GOEXPERIMENT=unified).
+	expectFail bool
 }
 
-// usesTypes2 reports whether the compiler uses types2 for this test
-// configuration (irrespective of flags specified by the test itself).
-func (t *test) usesTypes2() bool { return unifiedEnabled || t.glevel != 0 }
+// initExpectFail initializes t.expectFail based on the build+test
+// configuration. It should only be called for tests known to use
+// types2.
+func (t *test) initExpectFail() {
+	if *force {
+		return
+	}
+
+	failureSets := []map[string]bool{types2Failures}
+
+	// Note: gccgo supports more 32-bit architectures than this, but
+	// hopefully the 32-bit failures are fixed before this matters.
+	switch goarch {
+	case "386", "arm", "mips", "mipsle":
+		failureSets = append(failureSets, types2Failures32Bit)
+	}
+
+	if unifiedEnabled {
+		failureSets = append(failureSets, unifiedFailures)
+	} else {
+		failureSets = append(failureSets, g3Failures)
+	}
+
+	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+
+	for _, set := range failureSets {
+		if set[filename] {
+			t.expectFail = true
+			return
+		}
+	}
+}
 
 func startTests(dir, gofile string, glevels []int) []*test {
 	tests := make([]*test, len(glevels))
@@ -556,17 +597,6 @@ func (t *test) run() {
 		close(t.donec)
 	}()
 
-	if t.usesTypes2() && !*force {
-		// Files excluded from types2 testing.
-		filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
-		if excludedFiles[filename] {
-			if *verbose {
-				fmt.Printf("excl\t%s\n", filename)
-			}
-			return
-		}
-	}
-
 	srcBytes, err := ioutil.ReadFile(t.goFileName())
 	if err != nil {
 		t.err = err
@@ -703,12 +733,6 @@ func (t *test) run() {
 	// at the specified -G level. If so, it may update flags as
 	// necessary to test with -G.
 	validForGLevel := func(tool Tool) bool {
-		if !t.usesTypes2() {
-			// tests should always pass when run w/o types2 (i.e., using the
-			// legacy typechecker).
-			return true
-		}
-
 		hasGFlag := false
 		for _, flag := range flags {
 			if strings.Contains(flag, "-G") {
@@ -723,6 +747,14 @@ func (t *test) run() {
 			}
 			return false
 		}
+
+		if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
+			// tests should always pass when run w/o types2 (i.e., using the
+			// legacy typechecker).
+			return true
+		}
+
+		t.initExpectFail()
 
 		switch tool {
 		case Build, Run:
@@ -2071,103 +2103,123 @@ func overlayDir(dstRoot, srcRoot string) error {
 
 // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
 // Temporary scaffolding until we pass all the tests at which point this map can be removed.
-//
-// TODO(mdempsky): Split exclude list to disambiguate whether the
-// failure is within types2, -G=3, or unified.
-var excludedFiles = map[string]bool{
-	"directive.go":    true, // misplaced compiler directive checks
-	"float_lit3.go":   true, // types2 reports extra errors
-	"import1.go":      true, // types2 reports extra errors
-	"import6.go":      true, // issue #43109
-	"initializerr.go": true, // types2 reports extra errors
-	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
-	"notinheap.go":    true, // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
-	"printbig.go":     true, // large untyped int passed to print (32-bit)
-	"shift1.go":       true, // issue #42989
-	"typecheck.go":    true, // invalid function is not causing errors when called
-	"writebarrier.go": true, // correct diagnostics, but different lines (probably irgen's fault)
+var types2Failures = setOf(
+	"directive.go",    // misplaced compiler directive checks
+	"float_lit3.go",   // types2 reports extra errors
+	"import1.go",      // types2 reports extra errors
+	"import6.go",      // issue #43109
+	"initializerr.go", // types2 reports extra errors
+	"linkname2.go",    // error reported by noder (not running for types2 errorcheck test)
+	"notinheap.go",    // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+	"shift1.go",       // issue #42989
+	"typecheck.go",    // invalid function is not causing errors when called
 
-	"interface/private.go": true, // types2 phrases errors differently (doesn't use non-spec "private" term)
+	"interface/private.go", // types2 phrases errors differently (doesn't use non-spec "private" term)
 
-	"fixedbugs/bug114.go":    true, // large untyped int passed to println (32-bit)
-	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
-	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
-	"fixedbugs/bug228.go":    true, // types2 doesn't run when there are syntax errors
-	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
-	"fixedbugs/bug255.go":    true, // types2 reports extra errors
-	"fixedbugs/bug374.go":    true, // types2 reports extra errors
-	"fixedbugs/bug385_32.go": true, // types2 doesn't produce missing error "type .* too large" (32-bit specific)
-	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
-	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
+	"fixedbugs/bug195.go", // types2 reports slightly different (but correct) bugs
+	"fixedbugs/bug228.go", // types2 doesn't run when there are syntax errors
+	"fixedbugs/bug231.go", // types2 bug? (same error reported twice)
+	"fixedbugs/bug255.go", // types2 reports extra errors
+	"fixedbugs/bug374.go", // types2 reports extra errors
+	"fixedbugs/bug388.go", // types2 not run due to syntax errors
+	"fixedbugs/bug412.go", // types2 produces a follow-on error
 
-	"fixedbugs/issue10700.go":  true, // types2 reports ok hint, but does not match regexp
-	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
-	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
-	"fixedbugs/issue14520.go":  true, // missing import path error by types2
-	"fixedbugs/issue16133.go":  true, // types2 doesn't use package path for qualified identifiers when package name is ambiguous
-	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
-	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue17270.go":  true, // ICE in irgen
-	"fixedbugs/issue17645.go":  true, // multiple errors on same line
-	"fixedbugs/issue18331.go":  true, // missing error about misuse of //go:noescape (irgen needs code from noder)
-	"fixedbugs/issue18419.go":  true, // types2 reports
-	"fixedbugs/issue19012.go":  true, // multiple errors on same line
-	"fixedbugs/issue20174.go":  true, // ICE due to width not calculated (probably irgen's fault)
-	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
-	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
-	"fixedbugs/issue20250.go":  true, // correct diagnostics, but different lines (probably irgen's fault)
-	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue23305.go":  true, // large untyped int passed to println (32-bit)
-	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
-	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
-	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
-	"fixedbugs/issue31053.go":  true, // types2 reports "unknown field" instead of "cannot refer to unexported field"
-	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
-	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
-	"fixedbugs/issue42284.go":  true, // unified formats important constant expression differently in diagnostics
-	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
-	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
-	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
-	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
-	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
-	"fixedbugs/issue9691.go":   true, // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+	"fixedbugs/issue10700.go",  // types2 reports ok hint, but does not match regexp
+	"fixedbugs/issue11590.go",  // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
+	"fixedbugs/issue11614.go",  // types2 reports an extra error
+	"fixedbugs/issue14520.go",  // missing import path error by types2
+	"fixedbugs/issue16133.go",  // types2 doesn't use package path for qualified identifiers when package name is ambiguous
+	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
+	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue17645.go",  // multiple errors on same line
+	"fixedbugs/issue18331.go",  // missing error about misuse of //go:noescape (irgen needs code from noder)
+	"fixedbugs/issue18419.go",  // types2 reports
+	"fixedbugs/issue19012.go",  // multiple errors on same line
+	"fixedbugs/issue20233.go",  // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue20245.go",  // types2 reports two instead of one error (pref: compiler)
+	"fixedbugs/issue21979.go",  // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue23732.go",  // types2 reports different (but ok) line numbers
+	"fixedbugs/issue25958.go",  // types2 doesn't report a follow-on error (pref: types2)
+	"fixedbugs/issue28079b.go", // types2 reports follow-on errors
+	"fixedbugs/issue28268.go",  // types2 reports follow-on errors
+	"fixedbugs/issue31053.go",  // types2 reports "unknown field" instead of "cannot refer to unexported field"
+	"fixedbugs/issue33460.go",  // types2 reports alternative positions in separate error
+	"fixedbugs/issue42058a.go", // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue42058b.go", // types2 doesn't report "channel element type too large"
+	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
+	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
+	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
+	"fixedbugs/issue5609.go",   // types2 needs a better error message
+	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525d.go",  // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525e.go",  // types2 reports init cycle error on different line - ok otherwise
+	"fixedbugs/issue7525.go",   // types2 reports init cycle error on different line - ok otherwise
+)
 
-	// tests that rely on -m diagnostics, which currently differ with -G=3
-	//
-	// TODO(mdempsky): Triage, though most of the issues seem to fall into:
+var types2Failures32Bit = setOf(
+	"printbig.go",             // large untyped int passed to print (32-bit)
+	"fixedbugs/bug114.go",     // large untyped int passed to println (32-bit)
+	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
+	"fixedbugs/bug385_32.go",  // types2 doesn't produce missing error "type .* too large" (32-bit specific)
+)
+
+var g3Failures = setOf(
+	// TODO: Triage tests without explicit failure explanations. From a
+	// cursory inspection, they mostly fall into:
 	// - Anonymous result parameters given different names (e.g., ~r0 vs ~r1)
 	// - Some escape analysis diagnostics being printed without position information
 	// - Some expressions printed differently (e.g., "int(100)" instead
 	//   of "100" or "&composite literal" instead of "&[4]int{...}").
-	"closure3.go":             true,
-	"escape2.go":              true,
-	"escape2n.go":             true,
-	"escape4.go":              true,
-	"escape_calls.go":         true,
-	"escape_field.go":         true,
-	"escape_iface.go":         true,
-	"escape_indir.go":         true,
-	"escape_level.go":         true,
-	"escape_map.go":           true,
-	"escape_param.go":         true,
-	"escape_slice.go":         true,
-	"escape_struct_param1.go": true,
-	"escape_struct_param2.go": true,
-	"fixedbugs/issue12006.go": true,
-	"fixedbugs/issue13799.go": true,
-	"fixedbugs/issue21709.go": true,
-	"fixedbugs/issue31573.go": true,
-	"fixedbugs/issue37837.go": true,
-	"fixedbugs/issue39292.go": true,
-	"fixedbugs/issue7921.go":  true,
-	"inline.go":               true,
+
+	"closure3.go", // prints "s escapes to heap" without line number
+	"escape2.go",
+	"escape2n.go",
+	"escape4.go", // prints "1 escapes to heap" without line number
+	"escape_calls.go",
+	"escape_field.go",
+	"escape_iface.go",
+	"escape_indir.go",
+	"escape_level.go",
+	"escape_map.go",
+	"escape_param.go",
+	"escape_slice.go",
+	"escape_struct_param1.go",
+	"escape_struct_param2.go",
+	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+
+	"fixedbugs/issue12006.go",
+	"fixedbugs/issue13799.go",
+	"fixedbugs/issue17270.go", // ICE in irgen
+	"fixedbugs/issue20174.go", // ICE due to width not calculated (probably irgen's fault)
+	"fixedbugs/issue20250.go", // correct diagnostics, but different lines (probably irgen's fault)
+	"fixedbugs/issue21709.go",
+	"fixedbugs/issue31573.go",
+	"fixedbugs/issue37837.go",
+	"fixedbugs/issue39292.go",
+	"fixedbugs/issue7921.go", // prints "composite literal does not escape" but test expects "[]byte{...} does not escape"
+	"fixedbugs/issue9691.go", // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+
+	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+)
+
+var unifiedFailures = setOf(
+	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+
+	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+)
+
+func setOf(keys ...string) map[string]bool {
+	m := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		m[key] = true
+	}
+	return m
 }
 
 // splitQuoted splits the string s around each instance of one or more consecutive
