@@ -164,7 +164,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		for i, e := range t.types {
 			if i > 0 {
-				buf.WriteString("|")
+				buf.WriteByte('|')
 			}
 			if t.tilde[i] {
 				buf.WriteByte('~')
