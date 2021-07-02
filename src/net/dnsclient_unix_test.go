@@ -1957,3 +1957,43 @@ func TestCVE202133195(t *testing.T) {
 		t.Errorf("LookupAddr returned unexpected error, got %q, want %q", err, expected)
 	}
 }
+
+func TestNullMX(t *testing.T) {
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeMX,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.MXResource{
+							MX: dnsmessage.MustNewName("."),
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	rrset, err := r.LookupMX(context.Background(), "golang.org")
+	if err != nil {
+		t.Fatalf("LookupMX: %v", err)
+	}
+	if want := []*MX{&MX{Host: "."}}; !reflect.DeepEqual(rrset, want) {
+		records := []string{}
+		for _, rr := range rrset {
+			records = append(records, fmt.Sprintf("%v", rr))
+		}
+		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
+	}
+}
