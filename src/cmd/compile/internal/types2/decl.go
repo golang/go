@@ -626,8 +626,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		alias = false
 	}
 
+	// alias declaration
 	if alias {
-		// type alias declaration
 		if !check.allowVersion(check.pkg, 1, 9) {
 			if check.conf.CompilerErrorMessages {
 				check.error(tdecl, "type aliases only supported as of -lang=go1.9")
@@ -638,40 +638,44 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.anyType(tdecl.Type)
-
-	} else {
-		// defined type declaration
-
-		named := check.newNamed(obj, nil, nil, nil, nil)
-		def.setUnderlying(named)
-
-		if tdecl.TParamList != nil {
-			check.openScope(tdecl, "type parameters")
-			defer check.closeScope()
-			named.tparams = check.collectTypeParams(tdecl.TParamList)
-		}
-
-		// determine underlying type of named
-		named.fromRHS = check.definedType(tdecl.Type, named)
-
-		// The underlying type of named may be itself a named type that is
-		// incomplete:
-		//
-		//	type (
-		//		A B
-		//		B *C
-		//		C A
-		//	)
-		//
-		// The type of C is the (named) type of A which is incomplete,
-		// and which has as its underlying type the named type B.
-		// Determine the (final, unnamed) underlying type by resolving
-		// any forward chain.
-		// TODO(gri) Investigate if we can just use named.fromRHS here
-		//           and rely on lazy computation of the underlying type.
-		named.underlying = under(named)
+		return
 	}
 
+	// type definition or generic type declaration
+	named := check.newNamed(obj, nil, nil, nil, nil)
+	def.setUnderlying(named)
+
+	if tdecl.TParamList != nil {
+		check.openScope(tdecl, "type parameters")
+		defer check.closeScope()
+		named.tparams = check.collectTypeParams(tdecl.TParamList)
+	}
+
+	// determine underlying type of named
+	named.fromRHS = check.definedType(tdecl.Type, named)
+
+	// The underlying type of named may be itself a named type that is
+	// incomplete:
+	//
+	//	type (
+	//		A B
+	//		B *C
+	//		C A
+	//	)
+	//
+	// The type of C is the (named) type of A which is incomplete,
+	// and which has as its underlying type the named type B.
+	// Determine the (final, unnamed) underlying type by resolving
+	// any forward chain.
+	// TODO(gri) Investigate if we can just use named.fromRHS here
+	//           and rely on lazy computation of the underlying type.
+	named.underlying = under(named)
+
+	// If the RHS is a type parameter, it must be from this type declaration.
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams, tpar) < 0 {
+		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
+		named.underlying = Typ[Invalid]
+	}
 }
 
 func (check *Checker) collectTypeParams(list []*syntax.Field) []*TypeName {
