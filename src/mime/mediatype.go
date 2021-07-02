@@ -167,7 +167,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 			if strings.TrimSpace(rest) == ";" {
 				// Ignore trailing semicolons.
 				// Not an error.
-				return
+				break
 			}
 			// Parse error.
 			return mediatype, nil, ErrInvalidMediaParameter
