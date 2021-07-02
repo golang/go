@@ -750,13 +750,12 @@ func (r *reader) method() *types.Field {
 	name.Func = ir.NewFunc(r.pos())
 	name.Func.Nname = name
 
-	// TODO(mdempsky): Make sure we're handling //go:nointerface
-	// correctly. I don't think this is exercised within the Go repo.
-
 	r.ext.funcExt(name)
 
 	meth := types.NewField(name.Func.Pos(), sym, typ)
 	meth.Nname = name
+	meth.SetNointerface(name.Func.Pragma&ir.Nointerface != 0)
+
 	return meth
 }
 
