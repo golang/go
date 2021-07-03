@@ -142,17 +142,6 @@ func (n *BinaryExpr) SetOp(op Op) {
 	}
 }
 
-// A CallUse records how the result of the call is used:
-type CallUse byte
-
-const (
-	_ CallUse = iota
-
-	CallUseExpr // single expression result is used
-	CallUseList // list of results are used
-	CallUseStmt // results not used - call is a statement
-)
-
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
@@ -161,7 +150,6 @@ type CallExpr struct {
 	Args      Nodes
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
-	Use       CallUse
 	NoInline  bool
 }
 

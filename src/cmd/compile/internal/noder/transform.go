@@ -326,7 +326,6 @@ assignOK:
 		stmt := stmt.(*ir.AssignListStmt)
 		stmt.SetOp(ir.OAS2FUNC)
 		r := rhs[0].(*ir.CallExpr)
-		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
 		mismatched := false
