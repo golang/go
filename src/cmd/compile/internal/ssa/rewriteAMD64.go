@@ -3,6 +3,7 @@
 
 package ssa
 
+import "internal/buildcfg"
 import "math"
 import "cmd/internal/obj"
 import "cmd/compile/internal/types"
@@ -53,6 +54,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64ANDLload(v)
 	case OpAMD64ANDLmodify:
 		return rewriteValueAMD64_OpAMD64ANDLmodify(v)
+	case OpAMD64ANDNL:
+		return rewriteValueAMD64_OpAMD64ANDNL(v)
+	case OpAMD64ANDNQ:
+		return rewriteValueAMD64_OpAMD64ANDNQ(v)
 	case OpAMD64ANDQ:
 		return rewriteValueAMD64_OpAMD64ANDQ(v)
 	case OpAMD64ANDQconst:
@@ -2759,6 +2764,55 @@ func rewriteValueAMD64_OpAMD64ANDL(v *Value) bool {
 		}
 		break
 	}
+	// match: (ANDL x (NOTL y))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (ANDNL x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64NOTL {
+				continue
+			}
+			y := v_1.Args[0]
+			if !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64ANDNL)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (ANDL x (NEGL x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSIL x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64NEGL || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSIL)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (ANDL x (ADDLconst [-1] x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSRL x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64ADDLconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSRL)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ANDLconst(v *Value) bool {
@@ -3037,6 +3091,48 @@ func rewriteValueAMD64_OpAMD64ANDLmodify(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpAMD64ANDNL(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ANDNL x (SHLL (MOVLconst [1]) y))
+	// result: (BTRL x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64SHLL {
+			break
+		}
+		y := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64MOVLconst || auxIntToInt32(v_1_0.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpAMD64BTRL)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64ANDNQ(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ANDNQ x (SHLQ (MOVQconst [1]) y))
+	// result: (BTRQ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64SHLQ {
+			break
+		}
+		y := v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64MOVQconst || auxIntToInt64(v_1_0.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpAMD64BTRQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3134,6 +3230,55 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
 			v.AuxInt = int32ToAuxInt(off)
 			v.Aux = symToAux(sym)
 			v.AddArg3(x, ptr, mem)
+			return true
+		}
+		break
+	}
+	// match: (ANDQ x (NOTQ y))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (ANDNQ x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64NOTQ {
+				continue
+			}
+			y := v_1.Args[0]
+			if !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64ANDNQ)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	// match: (ANDQ x (NEGQ x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSIQ x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64NEGQ || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSIQ)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
+	// match: (ANDQ x (ADDQconst [-1] x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSRQ x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64ADDQconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSRQ)
+			v.AddArg(x)
 			return true
 		}
 		break
@@ -26474,6 +26619,21 @@ func rewriteValueAMD64_OpAMD64XORL(v *Value) bool {
 		}
 		break
 	}
+	// match: (XORL x (ADDLconst [-1] x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSMSKL x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64ADDLconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSMSKL)
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORLconst(v *Value) bool {
@@ -26946,6 +27106,21 @@ func rewriteValueAMD64_OpAMD64XORQ(v *Value) bool {
 			v.AuxInt = int32ToAuxInt(off)
 			v.Aux = symToAux(sym)
 			v.AddArg3(x, ptr, mem)
+			return true
+		}
+		break
+	}
+	// match: (XORQ x (ADDQconst [-1] x))
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (BLSMSKQ x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64ADDQconst || auxIntToInt32(v_1.AuxInt) != -1 || x != v_1.Args[0] || !(buildcfg.GOAMD64 >= 3) {
+				continue
+			}
+			v.reset(OpAMD64BLSMSKQ)
+			v.AddArg(x)
 			return true
 		}
 		break

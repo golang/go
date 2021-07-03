@@ -639,6 +639,7 @@
 
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
+(ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
 (ANDQconst [c] x) && isUint64PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRQconst [int8(log32(^c))] x)
 (ANDLconst [c] x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
@@ -2204,3 +2205,9 @@
 // Prefetch instructions
 (PrefetchCache ...)   => (PrefetchT0 ...)
 (PrefetchCacheStreamed ...) => (PrefetchNTA ...)
+
+// CPUID feature: BMI1.
+(AND(Q|L) x (NOT(Q|L) y))           && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
+(AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
+(XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
+(AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
