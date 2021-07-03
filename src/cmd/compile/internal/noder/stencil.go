@@ -158,12 +158,9 @@ func (g *irgen) stencil() {
 
 				st := g.getInstantiation(gf, targs, true)
 				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
-				_ = usingSubdict
-				// TODO: We should do assert(usingSubdict) here, but
-				// not creating sub-dictionary entry for
-				// absDifference in absdiff.go yet. Unusual case,
-				// where there are different generic method
-				// implementations of Abs in absDifference.
+				// We have to be using a subdictionary, since this is
+				// a generic method call.
+				assert(usingSubdict)
 
 				call.SetOp(ir.OCALL)
 				call.X = st.Nname
@@ -741,10 +738,9 @@ func gcshapeType(t *types.Type) (*types.Type, string) {
 	return gcshape, buf.String()
 }
 
-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
-// with the type arguments targs. If the instantiated function is not already
-// cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+// checkFetchBody checks if a generic body can be fetched, but hasn't been loaded
+// yet. If so, it imports the body.
+func checkFetchBody(nameNode *ir.Name) {
 	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
 		// If there is no body yet but Func.Inl exists, then we can can
 		// import the whole generic body.
@@ -754,6 +750,13 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 		nameNode.Func.Body = nameNode.Func.Inl.Body
 		nameNode.Func.Dcl = nameNode.Func.Inl.Dcl
 	}
+}
+
+// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+// with the type arguments targs. If the instantiated function is not already
+// cached, then it calls genericSubst to create the new instantiation.
+func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+	checkFetchBody(nameNode)
 	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
 	info := g.instInfoMap[sym]
 	if info == nil {
@@ -1405,13 +1408,41 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			case ir.OCALL:
 				call := n.(*ir.CallExpr)
 				if call.X.Op() == ir.OXDOT {
-					subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
-					s2targs := make([]*types.Type, len(subtargs))
-					for i, t := range subtargs {
-						s2targs[i] = subst.Typ(t)
+					var nameNode *ir.Name
+					se := call.X.(*ir.SelectorExpr)
+					if types.IsInterfaceMethod(se.Selection.Type) {
+						// This is a method call enabled by a type bound.
+						tmpse := ir.NewSelectorExpr(base.Pos, ir.OXDOT, se.X, se.Sel)
+						tmpse = typecheck.AddImplicitDots(tmpse)
+						tparam := tmpse.X.Type()
+						assert(tparam.IsTypeParam())
+						recvType := targs[tparam.Index()]
+						if len(recvType.RParams()) == 0 {
+							// No sub-dictionary entry is
+							// actually needed, since the
+							// typeparam is not an
+							// instantiated type that
+							// will have generic methods.
+							break
+						}
+						// This is a method call for an
+						// instantiated type, so we need a
+						// sub-dictionary.
+						targs := recvType.RParams()
+						genRecvType := recvType.OrigSym.Def.Type()
+						nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
+						sym = g.getDictionarySym(nameNode, targs, true)
+					} else {
+						// This is the case of a normal
+						// method call on a generic type.
+						nameNode = call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
+						subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
+						s2targs := make([]*types.Type, len(subtargs))
+						for i, t := range subtargs {
+							s2targs[i] = subst.Typ(t)
+						}
+						sym = g.getDictionarySym(nameNode, s2targs, true)
 					}
-					nameNode := call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
-					sym = g.getDictionarySym(nameNode, s2targs, true)
 				} else {
 					inst := call.X.(*ir.InstExpr)
 					var nameNode *ir.Name
@@ -1452,8 +1483,14 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 				assert(false)
 			}
 
-			off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
-			infoPrint(" - Subdict %v\n", sym.Name)
+			if sym == nil {
+				// Unused sub-dictionary entry, just emit 0.
+				off = objw.Uintptr(lsym, off, 0)
+				infoPrint(" - Unused subdict entry\n")
+			} else {
+				off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+				infoPrint(" - Subdict %v\n", sym.Name)
+			}
 		}
 		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
 		infoPrint("=== Done dictionary\n")
@@ -1512,6 +1549,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 		return infop
 	}
 
+	checkFetchBody(gn)
 	var info gfInfo
 	gf := gn.Func
 	recv := gf.Type().Recv()
@@ -1574,6 +1612,13 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 				infoPrint("  Subdictionary at generic method call: %v\n", n)
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
+		}
+		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
+			n.(*ir.CallExpr).X.(*ir.SelectorExpr).Selection != nil &&
+			deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).IsTypeParam() {
+			n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
+			infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
+			info.subDictCalls = append(info.subDictCalls, n)
 		}
 		if n.Op() == ir.OCLOSURE {
 			// Visit the closure body and add all relevant entries to the

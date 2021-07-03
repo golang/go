@@ -1789,7 +1789,11 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.exoticSelector(n.Sel)
 		if go117ExportTypes {
 			w.exoticType(n.Type())
-			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
+			if n.Op() == ir.OXDOT {
+				// n.Selection for method references will be
+				// reconstructed during import.
+				w.bool(n.Selection != nil)
+			} else if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
 				w.exoticField(n.Selection)
 			}
 			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OMETHVALUE. It will

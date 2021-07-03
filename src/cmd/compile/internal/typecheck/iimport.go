@@ -1376,6 +1376,28 @@ func (r *importReader) node() ir.Node {
 		if go117ExportTypes {
 			n.SetType(r.exoticType())
 			switch op {
+			case ir.OXDOT:
+				hasSelection := r.bool()
+				// We reconstruct n.Selection for method calls on
+				// generic types and method calls due to type param
+				// bounds.  Otherwise, n.Selection is nil.
+				if hasSelection {
+					n1 := ir.NewSelectorExpr(pos, op, expr, sel)
+					AddImplicitDots(n1)
+					var m *types.Field
+					if n1.X.Type().IsTypeParam() {
+						genType := n1.X.Type().Bound()
+						m = Lookdot1(n1, sel, genType, genType.AllMethods(), 1)
+					} else {
+						genType := types.ReceiverBaseType(n1.X.Type())
+						if genType.IsInstantiatedGeneric() {
+							genType = genType.OrigSym.Def.Type()
+						}
+						m = Lookdot1(n1, sel, genType, genType.Methods(), 1)
+					}
+					assert(m != nil)
+					n.Selection = m
+				}
 			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
 				n.Selection = r.exoticField()
 			case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
