@@ -1,0 +1,31 @@
+# Regression test for golang.org/issue/46867:
+# 'go mod vendor' on Windows attempted to open and copy
+# files from directories outside of the module.
+
+cd subdir
+go mod vendor
+! exists vendor/example.net/NOTICE
+exists vendor/example.net/m/NOTICE
+
+-- subdir/go.mod --
+module golang.org/issue46867
+
+go 1.17
+
+replace example.net/m v0.1.0 => ./m
+
+require example.net/m v0.1.0
+-- subdir/issue.go --
+package issue
+
+import _ "example.net/m/n"
+-- subdir/m/go.mod --
+module example.net/m
+
+go 1.17
+-- subdir/m/n/n.go --
+package n
+-- subdir/m/NOTICE --
+This notice is in module m and SHOULD be vendored.
+-- subdir/NOTICE --
+This notice is outside of module m and SHOULD NOT be vendored.

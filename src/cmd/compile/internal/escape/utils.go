@@ -186,14 +186,14 @@ func HeapAllocReason(n ir.Node) string {
 		return "too large for stack"
 	}
 
-	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
+	if (n.Op() == ir.ONEW || n.Op() == ir.OPTRLIT) && n.Type().Elem().Width > ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
-	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
-	if n.Op() == ir.OMETHVALUE && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
+	if n.Op() == ir.OMETHVALUE && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() > ir.MaxImplicitStackVarSize {
 		return "too large for stack"
 	}
 
@@ -206,7 +206,7 @@ func HeapAllocReason(n ir.Node) string {
 		if !ir.IsSmallIntConst(r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) >= ir.MaxImplicitStackVarSize/t.Elem().Width {
+		if t := n.Type(); t.Elem().Width != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Width {
 			return "too large for stack"
 		}
 	}
