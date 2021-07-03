@@ -263,6 +263,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = lo
 		p.SetFrom3Reg(hi)
 
+	case ssa.OpAMD64BLSIQ, ssa.OpAMD64BLSIL,
+		ssa.OpAMD64BLSMSKQ, ssa.OpAMD64BLSMSKL,
+		ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64ANDNQ, ssa.OpAMD64ANDNL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.SetFrom3Reg(v.Args[1].Reg())
+
 	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
 		// Arg[0] (the dividend) is in AX.
 		// Arg[1] (the divisor) can be in any other register.
