@@ -655,9 +655,20 @@ func (o *orderState) stmt(n ir.Node) {
 		n := n.(*ir.AssignListStmt)
 		t := o.markTemp()
 		o.exprList(n.Lhs)
-		o.init(n.Rhs[0])
-		o.call(n.Rhs[0])
-		o.as2func(n)
+		call := n.Rhs[0]
+		o.init(call)
+		if ic, ok := call.(*ir.InlinedCallExpr); ok {
+			o.stmtList(ic.Body)
+
+			n.SetOp(ir.OAS2)
+			n.Rhs = ic.ReturnVars
+
+			o.exprList(n.Rhs)
+			o.out = append(o.out, n)
+		} else {
+			o.call(call)
+			o.as2func(n)
+		}
 		o.cleanTemp(t)
 
 	// Special: use temporary variables to hold result,
@@ -716,6 +727,17 @@ func (o *orderState) stmt(n ir.Node) {
 		o.call(n)
 		o.out = append(o.out, n)
 		o.cleanTemp(t)
+
+	case ir.OINLCALL:
+		n := n.(*ir.InlinedCallExpr)
+		o.stmtList(n.Body)
+
+		// discard results; double-check for no side effects
+		for _, result := range n.ReturnVars {
+			if staticinit.AnySideEffects(result) {
+				base.FatalfAt(result.Pos(), "inlined call result has side effects: %v", result)
+			}
+		}
 
 	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
 		n := n.(*ir.UnaryExpr)
@@ -1240,6 +1262,11 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 			return o.copyExpr(n)
 		}
 		return n
+
+	case ir.OINLCALL:
+		n := n.(*ir.InlinedCallExpr)
+		o.stmtList(n.Body)
+		return n.SingleResult()
 
 	case ir.OAPPEND:
 		// Check for append(x, make([]T, y)...) .

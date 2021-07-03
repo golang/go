@@ -110,6 +110,17 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			argumentFunc(fn, e.tagHole(ks, fn, param), &args[i])
 		}
 
+	case ir.OINLCALL:
+		call := call.(*ir.InlinedCallExpr)
+		e.stmts(call.Body)
+		for i, result := range call.ReturnVars {
+			k := e.discardHole()
+			if ks != nil {
+				k = ks[i]
+			}
+			e.expr(k, result)
+		}
+
 	case ir.OAPPEND:
 		call := call.(*ir.CallExpr)
 		args := call.Args

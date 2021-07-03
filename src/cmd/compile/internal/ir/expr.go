@@ -345,7 +345,7 @@ func (n *StructKeyExpr) Sym() *types.Sym { return n.Field.Sym }
 type InlinedCallExpr struct {
 	miniExpr
 	Body       Nodes
-	ReturnVars Nodes
+	ReturnVars Nodes // must be side-effect free
 }
 
 func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
@@ -355,6 +355,13 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 	n.Body = body
 	n.ReturnVars = retvars
 	return n
+}
+
+func (n *InlinedCallExpr) SingleResult() Node {
+	if have := len(n.ReturnVars); have != 1 {
+		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
+	}
+	return n.ReturnVars[0]
 }
 
 // A LogicalExpr is a expression X Op Y where Op is && or ||.
@@ -797,6 +804,11 @@ func StaticValue(n Node) Node {
 	for {
 		if n.Op() == OCONVNOP {
 			n = n.(*ConvExpr).X
+			continue
+		}
+
+		if n.Op() == OINLCALL {
+			n = n.(*InlinedCallExpr).SingleResult()
 			continue
 		}
 

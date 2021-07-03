@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/dwarfgen"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
@@ -1848,23 +1849,10 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	init := ir.TakeInit(call)
 
 	// For normal function calls, the function callee expression
-	// may contain side effects (e.g., added by addinit during
-	// inlconv2expr or inlconv2list). Make sure to preserve these,
+	// may contain side effects. Make sure to preserve these,
 	// if necessary (#42703).
 	if call.Op() == ir.OCALLFUNC {
-		callee := call.X
-		for callee.Op() == ir.OCONVNOP {
-			conv := callee.(*ir.ConvExpr)
-			init.Append(ir.TakeInit(conv)...)
-			callee = conv.X
-		}
-
-		switch callee.Op() {
-		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
-			// ok
-		default:
-			base.Fatalf("unexpected callee expression: %v", callee)
-		}
+		inline.CalleeEffects(&init, call.X)
 	}
 
 	var args ir.Nodes
