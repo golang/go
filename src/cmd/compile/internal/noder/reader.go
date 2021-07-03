@@ -1526,9 +1526,7 @@ func (r *reader) expr() ir.Node {
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.bool()
-		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
-		n.IsDDD = dots
-		return n
+		return typecheck.Call(pos, fun, args, dots)
 
 	case exprTypeSwitchGuard:
 		pos := r.pos()
@@ -2281,8 +2279,8 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 
 	fn.SetWrapper(true) // TODO(mdempsky): Leave unset for tail calls?
 
-	call := ir.NewCallExpr(pos, ir.OCALL, ir.NewSelectorExpr(pos, ir.OXDOT, recv, method.Sym), args)
-	call.IsDDD = method.Type.IsVariadic()
+	dot := ir.NewSelectorExpr(pos, ir.OXDOT, recv, method.Sym)
+	call := typecheck.Call(pos, dot, args, method.Type.IsVariadic()).(*ir.CallExpr)
 
 	if method.Type.NumResults() == 0 {
 		fn.Body.Append(call)

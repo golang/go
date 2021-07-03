@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // Function collecting autotmps generated during typechecking,
@@ -34,18 +35,10 @@ func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
 func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
 func Stmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
 
-func Call(call *ir.CallExpr) {
-	t := call.X.Type()
-	if t == nil {
-		panic("misuse of Call")
-	}
-	ctx := ctxStmt
-	if t.NumResults() > 0 {
-		ctx = ctxExpr | ctxMultiOK
-	}
-	if typecheck(call, ctx) != call {
-		panic("bad typecheck")
-	}
+func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
+	call := ir.NewCallExpr(pos, ir.OCALL, callee, args)
+	call.IsDDD = dots
+	return typecheck(call, ctxStmt|ctxExpr)
 }
 
 func Callee(n ir.Node) ir.Node {
