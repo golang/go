@@ -1465,7 +1465,6 @@ func (r *importReader) node() ir.Node {
 		n.IsDDD = r.bool()
 		if go117ExportTypes {
 			n.SetType(r.exoticType())
-			n.Use = ir.CallUse(r.uint64())
 		}
 		return n
 

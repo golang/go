@@ -317,10 +317,6 @@ func tcFunc(n *ir.Func) {
 
 // tcCall typechecks an OCALL node.
 func tcCall(n *ir.CallExpr, top int) ir.Node {
-	n.Use = ir.CallUseExpr
-	if top == ctxStmt {
-		n.Use = ir.CallUseStmt
-	}
 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
 	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
 	if n.X.Diag() {

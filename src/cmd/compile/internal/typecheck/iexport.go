@@ -1922,7 +1922,6 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.bool(n.IsDDD)
 		if go117ExportTypes {
 			w.exoticType(n.Type())
-			w.uint64(uint64(n.Use))
 		}
 
 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
