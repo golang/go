@@ -113,8 +113,7 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, va, false).(*ir.CallExpr)
 	call.SetType(t)
 	return walkExpr(call, init).(*ir.CallExpr)
 }
