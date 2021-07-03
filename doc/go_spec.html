@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jun 28, 2021",
+	"Subtitle": "Version of Jul 1, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -6782,7 +6782,8 @@ The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</cod
 
 <p>
 The function <code>Slice</code> returns a slice whose underlying array starts at <code>ptr</code>
-and whose length and capacity are <code>len</code>:
+and whose length and capacity are <code>len</code>.
+<code>Slice(ptr, len)</code> is equivalent to
 </p>
 
 <pre>
@@ -6790,7 +6791,8 @@ and whose length and capacity are <code>len</code>:
 </pre>
 
 <p>
-As a special case, if <code>ptr</code> is <code>nil</code> and <code>len</code> is zero,
+except that, as a special case, if <code>ptr</code>
+is <code>nil</code> and <code>len</code> is zero,
 <code>Slice</code> returns <code>nil</code>.
 </p>
 
