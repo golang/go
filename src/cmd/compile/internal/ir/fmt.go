@@ -859,6 +859,15 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		}
 		fmt.Fprintf(s, "(%.v)", n.Args)
 
+	case OINLCALL:
+		n := n.(*InlinedCallExpr)
+		// TODO(mdempsky): Print Init and/or Body?
+		if len(n.ReturnVars) == 1 {
+			fmt.Fprintf(s, "%v", n.ReturnVars[0])
+			return
+		}
+		fmt.Fprintf(s, "(.%v)", n.ReturnVars)
+
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		n := n.(*MakeExpr)
 		if n.Cap != nil {

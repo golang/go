@@ -515,37 +515,6 @@ func InlineCalls(fn *ir.Func) {
 	ir.CurFunc = savefn
 }
 
-// Turn an OINLCALL into a statement.
-func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
-	n := ir.NewBlockStmt(inlcall.Pos(), nil)
-	n.List = inlcall.Init()
-	n.List.Append(inlcall.Body.Take()...)
-	return n
-}
-
-// Turn an OINLCALL into a single valued expression.
-// The result of inlconv2expr MUST be assigned back to n, e.g.
-// 	n.Left = inlconv2expr(n.Left)
-func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
-	r := n.ReturnVars[0]
-	return ir.InitExpr(append(n.Init(), n.Body...), r)
-}
-
-// Turn the rlist (with the return values) of the OINLCALL in
-// n into an expression list lumping the ninit and body
-// containing the inlined statements on the first list element so
-// order will be preserved. Used in return, oas2func and call
-// statements.
-func inlconv2list(n *ir.InlinedCallExpr) []ir.Node {
-	if n.Op() != ir.OINLCALL || len(n.ReturnVars) == 0 {
-		base.Fatalf("inlconv2list %+v\n", n)
-	}
-
-	s := n.ReturnVars
-	s[0] = ir.InitExpr(append(n.Init(), n.Body...), s[0])
-	return s
-}
-
 // inlnode recurses over the tree to find inlineable calls, which will
 // be turned into OINLCALLs by mkinlcall. When the recursion comes
 // back up will examine left, right, list, rlist, ninit, ntest, nincr,
@@ -599,33 +568,18 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	ir.EditChildren(n, edit)
 
-	if as := n; as.Op() == ir.OAS2FUNC {
-		as := as.(*ir.AssignListStmt)
-		if as.Rhs[0].Op() == ir.OINLCALL {
-			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
-			as.SetOp(ir.OAS2)
-			as.SetTypecheck(0)
-			n = typecheck.Stmt(as)
-		}
-	}
-
 	// with all the branches out of the way, it is now time to
 	// transmogrify this node itself unless inhibited by the
 	// switch at the top of this function.
 	switch n.Op() {
 	case ir.OCALLMETH:
 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
-	case ir.OCALLFUNC:
-		n := n.(*ir.CallExpr)
-		if n.NoInline {
-			return n
-		}
-	}
 
-	var call *ir.CallExpr
-	switch n.Op() {
 	case ir.OCALLFUNC:
-		call = n.(*ir.CallExpr)
+		call := n.(*ir.CallExpr)
+		if call.NoInline {
+			break
+		}
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.X)
 		}
@@ -635,26 +589,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
-	case ir.OCALLMETH:
-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	}
 
 	base.Pos = lno
-
-	if n.Op() == ir.OINLCALL {
-		ic := n.(*ir.InlinedCallExpr)
-		switch call.Use {
-		default:
-			ir.Dump("call", call)
-			base.Fatalf("call missing use")
-		case ir.CallUseExpr:
-			n = inlconv2expr(ic)
-		case ir.CallUseStmt:
-			n = inlconv2stmt(ic)
-		case ir.CallUseList:
-			// leave for caller to convert
-		}
-	}
 
 	return n
 }
@@ -811,6 +748,30 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	return res
 }
 
+// CalleeEffects appends any side effects from evaluating callee to init.
+func CalleeEffects(init *ir.Nodes, callee ir.Node) {
+	for {
+		switch callee.Op() {
+		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
+			return // done
+
+		case ir.OCONVNOP:
+			conv := callee.(*ir.ConvExpr)
+			init.Append(ir.TakeInit(conv)...)
+			callee = conv.X
+
+		case ir.OINLCALL:
+			ic := callee.(*ir.InlinedCallExpr)
+			init.Append(ir.TakeInit(ic)...)
+			init.Append(ic.Body.Take()...)
+			callee = ic.SingleResult()
+
+		default:
+			base.FatalfAt(callee.Pos(), "unexpected callee expression: %v", callee)
+		}
+	}
+}
+
 // oldInline creates an InlinedCallExpr to replace the given call
 // expression. fn is the callee function to be inlined. inlIndex is
 // the inlining tree position index, for use with src.NewInliningBase
@@ -825,19 +786,10 @@ func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr
 	ninit := call.Init()
 
 	// For normal function calls, the function callee expression
-	// may contain side effects (e.g., added by addinit during
-	// inlconv2expr or inlconv2list). Make sure to preserve these,
+	// may contain side effects. Make sure to preserve these,
 	// if necessary (#42703).
 	if call.Op() == ir.OCALLFUNC {
-		callee := call.X
-		for callee.Op() == ir.OCONVNOP {
-			conv := callee.(*ir.ConvExpr)
-			ninit.Append(ir.TakeInit(conv)...)
-			callee = conv.X
-		}
-		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
-			base.Fatalf("unexpected callee expression: %v", callee)
-		}
+		CalleeEffects(&ninit, call.X)
 	}
 
 	// Make temp names to use instead of the originals.
@@ -979,6 +931,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 
 	n := typecheck.NewName(var_.Sym())
 	n.SetType(var_.Type())
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.SetAutoTemp(var_.AutoTemp())
@@ -993,6 +946,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one

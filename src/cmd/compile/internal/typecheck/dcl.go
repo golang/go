@@ -418,6 +418,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
