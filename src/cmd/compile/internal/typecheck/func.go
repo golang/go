@@ -242,8 +242,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 		fn.Iota = x
 	}
 
-	fn.SetClosureCalled(top&ctxCallee != 0)
-
 	ir.NameClosure(clo, ir.CurFunc)
 	Func(fn)
 
