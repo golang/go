@@ -470,9 +470,6 @@ func inlcopy(n ir.Node) ir.Node {
 			// x.Func.Body for iexport and local inlining.
 			oldfn := x.Func
 			newfn := ir.NewFunc(oldfn.Pos())
-			if oldfn.ClosureCalled() {
-				newfn.SetClosureCalled(true)
-			}
 			m.(*ir.ClosureExpr).Func = newfn
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
 			// XXX OK to share fn.Type() ??
@@ -1154,11 +1151,7 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// the closure is inlined in a specific function.
 	newclo := newfn.OClosure
 	newclo.SetInit(subst.list(n.Init()))
-	if oldfn.ClosureCalled() {
-		return typecheck.Callee(newclo)
-	} else {
-		return typecheck.Expr(newclo)
-	}
+	return typecheck.Expr(newclo)
 }
 
 // node recursively copies a node from the saved pristine body of the

@@ -160,8 +160,6 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 
 	// Add information, now that we know that fun is actually being called.
 	switch fun := fun.(type) {
-	case *ir.ClosureExpr:
-		fun.Func.SetClosureCalled(true)
 	case *ir.SelectorExpr:
 		if fun.Op() == ir.OMETHVALUE {
 			op := ir.ODOTMETH

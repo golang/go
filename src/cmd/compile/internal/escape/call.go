@@ -57,6 +57,13 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
+			// If we have a direct call to a closure (not just one we were
+			// able to statically resolve with ir.StaticValue), mark it as
+			// such so batch.outlives can optimize the flow results.
+			if call.X.Op() == ir.OCLOSURE {
+				call.X.(*ir.ClosureExpr).Func.SetClosureCalled(true)
+			}
+
 			switch v := ir.StaticValue(call.X); v.Op() {
 			case ir.ONAME:
 				if v := v.(*ir.Name); v.Class == ir.PFUNC {

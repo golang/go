@@ -202,7 +202,7 @@ const (
 	funcExportInline             // include inline body in export data
 	funcInstrumentBody           // add race/msan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
-	funcClosureCalled            // closure is only immediately called
+	funcClosureCalled            // closure is only immediately called; used by escape analysis
 )
 
 type SymAndPos struct {

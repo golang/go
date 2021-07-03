@@ -1523,9 +1523,6 @@ func (r *reader) expr() ir.Node {
 
 	case exprCall:
 		fun := r.expr()
-		if clo, ok := fun.(*ir.ClosureExpr); ok {
-			clo.Func.SetClosureCalled(true)
-		}
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.bool()

@@ -1193,8 +1193,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			newfn := ir.NewClosureFunc(oldfn.Pos(), subst.newf != nil)
 			ir.NameClosure(newfn.OClosure, subst.newf)
 
-			newfn.SetClosureCalled(oldfn.ClosureCalled())
-
 			saveNewf := subst.newf
 			ir.CurFunc = newfn
 			subst.newf = newfn
