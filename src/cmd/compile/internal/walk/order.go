@@ -1306,7 +1306,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		n := n.(*ir.SelectorExpr)
 		n.X = o.expr(n.X, nil)
 		if n.Transient() {
-			t := typecheck.PartialCallType(n)
+			t := typecheck.MethodValueType(n)
 			n.Prealloc = o.newTemp(t, false)
 		}
 		return n

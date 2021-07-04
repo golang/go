@@ -175,7 +175,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		init.Append(typecheck.Stmt(check))
 	}
 
-	typ := typecheck.PartialCallType(n)
+	typ := typecheck.MethodValueType(n)
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(n.Esc())
