@@ -479,11 +479,12 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 		// The package path is not valid to fetch remotely,
 		// so it can only exist in a replaced module,
 		// and we know from the above loop that it is not.
+		replacement, _ := Replacement(mods[0])
 		return module.Version{}, &PackageNotInModuleError{
 			Mod:         mods[0],
 			Query:       "latest",
 			Pattern:     path,
-			Replacement: Replacement(mods[0]),
+			Replacement: replacement,
 		}
 	}
 
@@ -652,7 +653,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
 		return modRoot, true, nil
 	}
-	if r := Replacement(mod); r.Path != "" {
+	if r, _ := Replacement(mod); r.Path != "" {
 		if r.Version == "" {
 			dir = r.Path
 			if !filepath.IsAbs(dir) {

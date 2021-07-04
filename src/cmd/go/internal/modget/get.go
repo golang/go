@@ -1615,7 +1615,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 		i := i
 		m := r.buildList[i]
 		mActual := m
-		if mRepl := modload.Replacement(m); mRepl.Path != "" {
+		if mRepl, _ := modload.Replacement(m); mRepl.Path != "" {
 			mActual = mRepl
 		}
 		old := module.Version{Path: m.Path, Version: r.initialVersion[m.Path]}
@@ -1623,7 +1623,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
 			continue
 		}
 		oldActual := old
-		if oldRepl := modload.Replacement(old); oldRepl.Path != "" {
+		if oldRepl, _ := modload.Replacement(old); oldRepl.Path != "" {
 			oldActual = oldRepl
 		}
 		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
