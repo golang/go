@@ -56,13 +56,15 @@
 	/*⇒1,variable,[definition]*/w /*⇒2,operator,[]*/:= /*⇒1,variable,[]*/b[/*⇒1,number,[]*/4:]
 	/*⇒1,variable,[definition]*/j /*⇒2,operator,[]*/:= /*⇒3,function,[defaultLibrary]*/len(/*⇒1,variable,[]*/x)
 	/*⇒1,variable,[]*/j/*⇒2,operator,[]*/--
+	/*⇒1,variable,[definition]*/q /*⇒2,operator,[]*/:= []/*⇒9,keyword,[]*/interface{}{/*⇒1,variable,[]*/j, /*⇒3,number,[]*/23i, /*⇒1,operator,[]*/&/*⇒1,variable,[]*/y}
+	/*⇒1,function,[]*/g(/*⇒1,variable,[]*/q/*⇒3,operator,[]*/...)
 	/*⇒6,keyword,[]*/return /*⇒4,variable,[readonly]*/true
 }
 
 /*⇒4,keyword,[]*/func /*⇒1,function,[definition]*/g(/*⇒2,parameter,[definition]*/vv /*⇒3,operator,[]*/.../*⇒9,keyword,[]*/interface{}) {
 	/*⇒2,variable,[definition]*/ff /*⇒2,operator,[]*/:= /*⇒4,keyword,[]*/func() {}
 	/*⇒5,keyword,[]*/defer /*⇒2,variable,[]*/ff()
-	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,variable,[definition]*/RuneCount(/*⇒2,string,[]*/"")
+	/*⇒2,keyword,[]*/go /*⇒3,namespace,[]*/utf./*⇒9,function,[]*/RuneCount(/*⇒2,string,[]*/"")
 	/*⇒2,keyword,[]*/go /*⇒4,namespace,[]*/utf8./*⇒9,function,[]*/RuneCount(/*⇒2,variable,[]*/vv.(/*⇒6,variable,[definition]*/string))
 	/*⇒2,keyword,[]*/if /*⇒4,variable,[readonly]*/true {
 	} /*⇒4,keyword,[]*/else {
@@ -75,6 +77,7 @@
 	/*⇒2,keyword,[]*/if /*⇒1,operator,[]*/!/*⇒2,variable,[]*/ok {
 		/*⇒6,keyword,[]*/switch /*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒2,variable,[]*/vv[/*⇒1,number,[]*/0].(/*⇒4,keyword,[]*/type) {
 		}
+		/*⇒4,keyword,[]*/goto Never
 	}
 }
 

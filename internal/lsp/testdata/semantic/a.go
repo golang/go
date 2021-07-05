@@ -55,6 +55,8 @@ func (a *A) f() bool {
 	w := b[4:]
 	j := len(x)
 	j--
+	q := []interface{}{j, 23i, &y}
+	g(q...)
 	return true
 }
 
@@ -74,5 +76,6 @@ Never:
 	if !ok {
 		switch x := vv[0].(type) {
 		}
+		goto Never
 	}
 }
