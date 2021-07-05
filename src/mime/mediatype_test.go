@@ -42,7 +42,7 @@ func TestConsumeValue(t *testing.T) {
 		{`"My \" value"end`, "My \" value", "end"},
 		{`"\" rest`, "", `"\" rest`},
 		{`"C:\dev\go\robots.txt"`, `C:\dev\go\robots.txt`, ""},
-		{`"C:\新建文件件\中文第二次测试.mp4"`, `C:\新建文件件\中文第二次测试.mp4`, ""},
+		{`"C:\新建文件夹\中文第二次测试.mp4"`, `C:\新建文件夹\中文第二次测试.mp4`, ""},
 	}
 	for _, test := range tests {
 		value, rest := consumeValue(test[0])
@@ -396,7 +396,7 @@ func TestParseMediaType(t *testing.T) {
 
 		// Microsoft browsers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
-		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
+		{`form-data; name="file"; filename="C:\新建文件夹\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件夹\中文第二次测试.mp4`)},
 
 		// issue #46323 (https://github.com/golang/go/issues/46323)
 		{
