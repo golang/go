@@ -1132,10 +1132,13 @@ func Foo() bool {
 
     <p><!-- CL 293349 -->
       The new <a href="/pkg/time/#Time.UnixMilli"><code>Time.UnixMilli</code></a> and
-      <a href="/pkg/time/#Time.UnixMicro"><code>Time.UnixMicro</code></a> methods return the number of milliseconds and
-      microseconds elapsed since January 1, 1970 UTC respectively.<br>
-      The new <code>UnixMilli</code> and <code>UnixMicro</code> functions return local Time corresponding to given
-      Unix time.
+      <a href="/pkg/time/#Time.UnixMicro"><code>Time.UnixMicro</code></a>
+      methods return the number of milliseconds and microseconds elapsed since
+      January 1, 1970 UTC respectively.
+      <br />
+      The new <a href="/pkg/time/#UnixMilli"><code>UnixMilli</code></a> and
+      <a href="/pkg/time/#UnixMicro"><code>UnixMicro</code></a> functions
+      return the local <code>Time</code> corresponding to the given Unix time.
     </p>
 
     <p><!-- CL 300996 -->
