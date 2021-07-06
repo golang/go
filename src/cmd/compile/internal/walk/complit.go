@@ -440,8 +440,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
 		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
 
-		tk.SetNoalg(true)
-		te.SetNoalg(true)
+		// TODO(#47904): mark tk and te NoAlg here once the
+		// compiler/linker can handle NoAlg types correctly.
 
 		types.CalcSize(tk)
 		types.CalcSize(te)
