@@ -101,6 +101,8 @@ var predeclared = []types2.Type{
 
 	// error
 	types2.Universe.Lookup("error").Type(),
+	// comparable
+	types2.Universe.Lookup("comparable").Type(),
 
 	// untyped types
 	types2.Typ[types2.UntypedBool],

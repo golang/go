@@ -2210,7 +2210,6 @@ var g3Failures = setOf(
 	"typeparam/mdempsky/4.go",
 	"typeparam/mdempsky/5.go",
 	"typeparam/mdempsky/7.go",
-	"typeparam/mdempsky/8.go",
 	"typeparam/mdempsky/9.go",
 	"typeparam/mdempsky/11.go",
 	"typeparam/mdempsky/12.go",

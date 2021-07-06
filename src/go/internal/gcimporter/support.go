@@ -104,6 +104,8 @@ var predeclared = []types.Type{
 
 	// error
 	types.Universe.Lookup("error").Type(),
+	// comparable
+	types.Universe.Lookup("comparable").Type(),
 
 	// untyped types
 	types.Typ[types.UntypedBool],

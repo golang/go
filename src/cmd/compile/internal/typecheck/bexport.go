@@ -78,6 +78,8 @@ func predeclared() []*types.Type {
 
 			// error
 			types.ErrorType,
+			// comparable
+			types.ComparableType,
 
 			// untyped types
 			types.UntypedBool,

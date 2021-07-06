@@ -189,14 +189,6 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 
 			// With Go 1.18, an embedded element can be any type, not
 			// just an interface.
-			if t := types2.AsInterface(e); t != nil {
-				if t.IsComparable() {
-					// Ignore predefined type 'comparable', since it
-					// doesn't resolve and it doesn't have any
-					// relevant methods.
-					continue
-				}
-			}
 			embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
 			j++
 		}
