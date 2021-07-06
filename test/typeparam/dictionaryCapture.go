@@ -73,19 +73,31 @@ func methodExpressions() {
 	x := s[int]{a:7}
 	f0 := s[int].g0
 	f0(x)
+	f0p := (*s[int]).g0
+	f0p(&x)
 	f1 := s[int].g1
 	is7(f1(x))
+	f1p := (*s[int]).g1
+	is7(f1p(&x))
 	f2 := s[int].g2
 	is77(f2(x))
+	f2p := (*s[int]).g2
+	is77(f2p(&x))
 }
 
 func genMethodExpressions[T comparable](want T) {
 	x := s[T]{a: want}
 	f0 := s[T].g0
 	f0(x)
+	f0p := (*s[T]).g0
+	f0p(&x)
 	f1 := s[T].g1
 	if got := f1(x); got != want {
 		panic(fmt.Sprintf("f1(x) == %d, want %d", got, want))
+	}
+	f1p := (*s[T]).g1
+	if got := f1p(&x); got != want {
+		panic(fmt.Sprintf("f1p(&x) == %d, want %d", got, want))
 	}
 	f2 := s[T].g2
 	if got1, got2 := f2(x); got1 != want || got2 != want {

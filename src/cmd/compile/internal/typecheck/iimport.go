@@ -1497,7 +1497,7 @@ func (r *importReader) node() ir.Node {
 		return ir.NewLinksymOffsetExpr(pos, Lookup(name).Linksym(), int64(off), typ)
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
+	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV, ir.OIDATA:
 		n := ir.NewUnaryExpr(r.pos(), op, r.expr())
 		if go117ExportTypes {
 			n.SetType(r.typ())
@@ -1521,7 +1521,7 @@ func (r *importReader) node() ir.Node {
 
 	// binary expressions
 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
-		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR:
+		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR, ir.OEFACE:
 		n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
 		if go117ExportTypes {
 			n.SetType(r.typ())
