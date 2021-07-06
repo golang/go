@@ -13,6 +13,8 @@ func init() {
 	register("CheckPtrArithmetic2", CheckPtrArithmetic2)
 	register("CheckPtrSize", CheckPtrSize)
 	register("CheckPtrSmall", CheckPtrSmall)
+	register("CheckPtrSliceOK", CheckPtrSliceOK)
+	register("CheckPtrSliceFail", CheckPtrSliceFail)
 }
 
 func CheckPtrAlignmentNoPtr() {
@@ -48,4 +50,15 @@ func CheckPtrSize() {
 
 func CheckPtrSmall() {
 	sink2 = unsafe.Pointer(uintptr(1))
+}
+
+func CheckPtrSliceOK() {
+	p := new([4]int64)
+	sink2 = unsafe.Slice(&p[1], 3)
+}
+
+func CheckPtrSliceFail() {
+	p := new(int64)
+	sink2 = p
+	sink2 = unsafe.Slice(p, 100)
 }

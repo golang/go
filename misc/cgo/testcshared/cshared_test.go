@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -125,7 +124,7 @@ func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testcshared, along with a go.mod file
 	// declaring the same path.
 
-	GOPATH, err := ioutil.TempDir("", "cshared_test")
+	GOPATH, err := os.MkdirTemp("", "cshared_test")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -140,7 +139,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	os.Setenv("PWD", modRoot)
-	if err := ioutil.WriteFile("go.mod", []byte("module testcshared\n"), 0666); err != nil {
+	if err := os.WriteFile("go.mod", []byte("module testcshared\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 
@@ -260,7 +259,7 @@ func createHeaders() error {
 	// The 'cgo' command generates a number of additional artifacts,
 	// but we're only interested in the header.
 	// Shunt the rest of the outputs to a temporary directory.
-	objDir, err := ioutil.TempDir("", "testcshared_obj")
+	objDir, err := os.MkdirTemp("", "testcshared_obj")
 	if err != nil {
 		return err
 	}
@@ -293,10 +292,59 @@ func createHeaders() error {
 		"-installsuffix", "testcshared",
 		"-o", libgoname,
 		filepath.Join(".", "libgo", "libgo.go")}
+	if GOOS == "windows" && strings.HasSuffix(args[6], ".a") {
+		args[6] = strings.TrimSuffix(args[6], ".a") + ".dll"
+	}
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+	}
+	if GOOS == "windows" {
+		// We can't simply pass -Wl,--out-implib, because this relies on having imports from multiple packages,
+		// which results in the linkers output implib getting overwritten at each step. So instead build the
+		// import library the traditional way, using a def file.
+		err = os.WriteFile("libgo.def",
+			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n\t_cgo_dummy_export\n"),
+			0644)
+		if err != nil {
+			return fmt.Errorf("unable to write def file: %v", err)
+		}
+		out, err = exec.Command(cc[0], append(cc[1:], "-print-prog-name=dlltool")...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
+		}
+		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+
+		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
+		dlltoolContents, err := os.ReadFile(args[0])
+		if err != nil {
+			return fmt.Errorf("unable to read dlltool: %v\n", err)
+		}
+		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+			base, name := filepath.Split(args[0])
+			args[0] = filepath.Join(base, "llvm-dlltool")
+			var machine string
+			switch strings.SplitN(name, "-", 2)[0] {
+			case "i686":
+				machine = "i386"
+			case "x86_64":
+				machine = "i386:x86-64"
+			case "armv7":
+				machine = "arm"
+			case "aarch64":
+				machine = "arm64"
+			}
+			if len(machine) > 0 {
+				args = append(args, "-m", machine)
+			}
+		}
+
+		out, err = exec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("unable to run dlltool to create import library: %v\n%s\n", err, out)
+		}
 	}
 
 	if runtime.GOOS != GOOS && GOOS == "android" {
@@ -381,7 +429,7 @@ func main() {
 
 	srcfile := filepath.Join(tmpdir, "test.go")
 	objfile := filepath.Join(tmpdir, "test.dll")
-	if err := ioutil.WriteFile(srcfile, []byte(prog), 0666); err != nil {
+	if err := os.WriteFile(srcfile, []byte(prog), 0666); err != nil {
 		t.Fatal(err)
 	}
 	argv := []string{"build", "-buildmode=c-shared"}
@@ -401,7 +449,7 @@ func main() {
 	defer f.Close()
 	section := f.Section(".edata")
 	if section == nil {
-		t.Fatalf(".edata section is not present")
+		t.Skip(".edata section is not present")
 	}
 
 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
@@ -643,7 +691,7 @@ func TestPIE(t *testing.T) {
 
 // Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "cshared")
+	tmpdir, err := os.MkdirTemp("", "cshared")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,14 +767,14 @@ func TestCachedInstall(t *testing.T) {
 // copyFile copies src to dst.
 func copyFile(t *testing.T, dst, src string) {
 	t.Helper()
-	data, err := ioutil.ReadFile(src)
+	data, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(dst, data, 0666); err != nil {
+	if err := os.WriteFile(dst, data, 0666); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -743,14 +791,19 @@ func TestGo2C2Go(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "cshared-TestGo2C2Go")
+	tmpdir, err := os.MkdirTemp("", "cshared-TestGo2C2Go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
-	run(t, nil, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
+	var env []string
+	if GOOS == "windows" && strings.HasSuffix(lib, ".a") {
+		env = append(env, "CGO_LDFLAGS=-Wl,--out-implib,"+lib, "CGO_LDFLAGS_ALLOW=.*")
+		lib = strings.TrimSuffix(lib, ".a") + ".dll"
+	}
+	run(t, env, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
 
 	cgoCflags := os.Getenv("CGO_CFLAGS")
 	if cgoCflags != "" {

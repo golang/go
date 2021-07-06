@@ -60,7 +60,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)
-			if (f.PkgPath != "" && !f.Anonymous) || f.Tag.Get("xml") == "-" {
+			if (!f.IsExported() && !f.Anonymous) || f.Tag.Get("xml") == "-" {
 				continue // Private field
 			}
 

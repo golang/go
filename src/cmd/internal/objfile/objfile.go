@@ -6,6 +6,7 @@
 package objfile
 
 import (
+	"cmd/internal/archive"
 	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
@@ -73,6 +74,8 @@ func Open(name string) (*File, error) {
 	}
 	if f, err := openGoFile(r); err == nil {
 		return f, nil
+	} else if _, ok := err.(archive.ErrGoObjOtherVersion); ok {
+		return nil, fmt.Errorf("open %s: %v", name, err)
 	}
 	for _, try := range openers {
 		if raw, err := try(r); err == nil {

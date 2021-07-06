@@ -237,7 +237,10 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 				}
 			}
 
-			ast.Inspect(d.Body, inspectFunc)
+			// Functions might not have a body. See #42706.
+			if d.Body != nil {
+				ast.Inspect(d.Body, inspectFunc)
+			}
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {

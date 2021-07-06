@@ -106,6 +106,12 @@ var (
 	errNotObject        = errors.New("unrecognized object file format")
 )
 
+type ErrGoObjOtherVersion struct{ magic []byte }
+
+func (e ErrGoObjOtherVersion) Error() string {
+	return fmt.Sprintf("go object of a different version: %q", e.magic)
+}
+
 // An objReader is an object file reader.
 type objReader struct {
 	a      *Archive
@@ -118,9 +124,9 @@ type objReader struct {
 
 func (r *objReader) init(f *os.File) {
 	r.a = &Archive{f, nil}
-	r.offset, _ = f.Seek(0, io.SeekCurrent)
-	r.limit, _ = f.Seek(0, io.SeekEnd)
-	f.Seek(r.offset, io.SeekStart)
+	r.offset, _ = f.Seek(0, os.SEEK_CUR)
+	r.limit, _ = f.Seek(0, os.SEEK_END)
+	f.Seek(r.offset, os.SEEK_SET)
 	r.b = bio.NewReader(f)
 }
 
@@ -221,7 +227,7 @@ func (r *objReader) skip(n int64) {
 		r.readFull(r.tmp[:n])
 	} else {
 		// Seek, giving up buffered data.
-		r.b.MustSeek(r.offset+n, io.SeekStart)
+		r.b.MustSeek(r.offset+n, os.SEEK_SET)
 		r.offset += n
 	}
 }
@@ -389,7 +395,7 @@ func (r *objReader) parseArchive(verbose bool) error {
 // The object file consists of a textual header ending in "\n!\n"
 // and then the part we want to parse begins.
 // The format of that part is defined in a comment at the top
-// of src/liblink/objfile.c.
+// of cmd/internal/goobj/objfile.go.
 func (r *objReader) parseObject(o *GoObj, size int64) error {
 	h := make([]byte, 0, 256)
 	var c1, c2, c3 byte
@@ -418,6 +424,9 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 		return err
 	}
 	if !bytes.Equal(p, []byte(goobj.Magic)) {
+		if bytes.HasPrefix(p, []byte("\x00go1")) && bytes.HasSuffix(p, []byte("ld")) {
+			return r.error(ErrGoObjOtherVersion{p[1:]}) // strip the \x00 byte
+		}
 		return r.error(errCorruptObject)
 	}
 	r.skip(o.Size)
@@ -426,7 +435,7 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
 
 // AddEntry adds an entry to the end of a, with the content from r.
 func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
-	off, err := a.f.Seek(0, io.SeekEnd)
+	off, err := a.f.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -463,4 +472,25 @@ func exactly16Bytes(s string) string {
 	const sixteenSpaces = "                "
 	s += sixteenSpaces[:16-len(s)]
 	return s
+}
+
+// architecture-independent object file output
+const HeaderSize = 60
+
+func ReadHeader(b *bufio.Reader, name string) int {
+	var buf [HeaderSize]byte
+	if _, err := io.ReadFull(b, buf[:]); err != nil {
+		return -1
+	}
+	aname := strings.Trim(string(buf[0:16]), " ")
+	if !strings.HasPrefix(aname, name) {
+		return -1
+	}
+	asize := strings.Trim(string(buf[48:58]), " ")
+	i, _ := strconv.Atoi(asize)
+	return i
+}
+
+func FormatHeader(arhdr []byte, name string, size int64) {
+	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
 }

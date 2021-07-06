@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !amd64 && !s390x && !arm64 && !ppc64le
 // +build !amd64,!s390x,!arm64,!ppc64le
 
 package elliptic
 
-var (
-	p256 p256Curve
-)
+var p256 p256Curve
 
 func initP256Arch() {
 	// Use pure Go implementation.

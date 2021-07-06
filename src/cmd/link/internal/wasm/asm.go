@@ -10,6 +10,7 @@ import (
 	"cmd/link/internal/ld"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"internal/buildcfg"
 	"io"
 	"regexp"
 )
@@ -506,15 +507,15 @@ func writeProducerSec(ctxt *ld.Link) {
 
 	writeUleb128(ctxt.Out, 2) // number of fields
 
-	writeName(ctxt.Out, "language")     // field name
-	writeUleb128(ctxt.Out, 1)           // number of values
-	writeName(ctxt.Out, "Go")           // value: name
-	writeName(ctxt.Out, objabi.Version) // value: version
+	writeName(ctxt.Out, "language")       // field name
+	writeUleb128(ctxt.Out, 1)             // number of values
+	writeName(ctxt.Out, "Go")             // value: name
+	writeName(ctxt.Out, buildcfg.Version) // value: version
 
 	writeName(ctxt.Out, "processed-by")   // field name
 	writeUleb128(ctxt.Out, 1)             // number of values
 	writeName(ctxt.Out, "Go cmd/compile") // value: name
-	writeName(ctxt.Out, objabi.Version)   // value: version
+	writeName(ctxt.Out, buildcfg.Version) // value: version
 
 	writeSecSize(ctxt, sizeOffset)
 }

@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	exec "internal/execabs"
 	"internal/lazyregexp"
 	"internal/singleflight"
 	"io/fs"
 	"log"
 	urlpkg "net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -729,7 +729,7 @@ func checkGOVCS(vcs *Cmd, root string) error {
 		if private {
 			what = "private"
 		}
-		return fmt.Errorf("GOVCS disallows using %s for %s %s", vcs.Cmd, what, root)
+		return fmt.Errorf("GOVCS disallows using %s for %s %s; see 'go help vcs'", vcs.Cmd, what, root)
 	}
 
 	return nil
@@ -1176,7 +1176,7 @@ func expand(match map[string]string, s string) string {
 // and import paths referring to a fully-qualified importPath
 // containing a VCS type (foo.com/repo.git/dir)
 var vcsPaths = []*vcsPath{
-	// Github
+	// GitHub
 	{
 		pathPrefix: "github.com",
 		regexp:     lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),

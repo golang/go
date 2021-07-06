@@ -212,7 +212,7 @@ func TestNilcheckPhi(t *testing.T) {
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
 			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("baddr", OpLocalAddr, c.config.Types.Bool, 0, "b", "sp", "mem"),
+			Valu("baddr", OpLocalAddr, c.config.Types.Bool, 0, StringToAux("b"), "sp", "mem"),
 			Valu("bool1", OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
 			If("bool1", "b1", "b2")),
 		Bloc("b1",

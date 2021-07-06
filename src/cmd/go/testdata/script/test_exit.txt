@@ -54,6 +54,23 @@ go test -list=. ./main_zero
 stdout 'skipping all tests'
 ! stdout TestNotListed
 
+# Running the test directly still fails, if we pass the flag.
+go test -c -o ./zero.exe ./zero
+! exec ./zero.exe -test.paniconexit0
+
+# Using -json doesn't affect the exit status.
+! go test -json ./zero
+! stdout '"Output":"ok'
+! stdout 'exit status'
+stdout 'panic'
+stdout '"Output":"FAIL'
+
+# Running the test via test2json also fails.
+! go tool test2json ./zero.exe -test.v -test.paniconexit0
+! stdout '"Output":"ok'
+! stdout 'exit status'
+stdout 'panic'
+
 -- go.mod --
 module m
 

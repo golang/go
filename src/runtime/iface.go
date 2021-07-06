@@ -447,23 +447,18 @@ func convI2I(inter *interfacetype, i iface) (r iface) {
 	return
 }
 
-func assertI2I(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
+func assertI2I(inter *interfacetype, tab *itab) *itab {
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
 	if tab.inter == inter {
-		r.tab = tab
-		r.data = i.data
-		return
+		return tab
 	}
-	r.tab = getitab(inter, tab._type, false)
-	r.data = i.data
-	return
+	return getitab(inter, tab._type, false)
 }
 
-func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
+func assertI2I2(inter *interfacetype, i iface) (r iface) {
 	tab := i.tab
 	if tab == nil {
 		return
@@ -476,22 +471,18 @@ func assertI2I2(inter *interfacetype, i iface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = i.data
-	b = true
 	return
 }
 
-func assertE2I(inter *interfacetype, e eface) (r iface) {
-	t := e._type
+func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
 		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
 	}
-	r.tab = getitab(inter, t, false)
-	r.data = e.data
-	return
+	return getitab(inter, t, false)
 }
 
-func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
+func assertE2I2(inter *interfacetype, e eface) (r iface) {
 	t := e._type
 	if t == nil {
 		return
@@ -502,18 +493,17 @@ func assertE2I2(inter *interfacetype, e eface) (r iface, b bool) {
 	}
 	r.tab = tab
 	r.data = e.data
-	b = true
 	return
 }
 
 //go:linkname reflect_ifaceE2I reflect.ifaceE2I
 func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	*dst = assertE2I(inter, e)
+	*dst = iface{assertE2I(inter, e._type), e.data}
 }
 
 //go:linkname reflectlite_ifaceE2I internal/reflectlite.ifaceE2I
 func reflectlite_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
-	*dst = assertE2I(inter, e)
+	*dst = iface{assertE2I(inter, e._type), e.data}
 }
 
 func iterate_itabs(fn func(*itab)) {
@@ -562,4 +552,11 @@ var staticuint64s = [...]uint64{
 	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
+}
+
+// The linker redirects a reference of a method that it determined
+// unreachable to a reference to this function, so it will throw if
+// ever called.
+func unreachableMethod() {
+	throw("unreachable method called. linker bug?")
 }

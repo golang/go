@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
-	"cmd/go/internal/modfetch"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -21,7 +20,7 @@ import (
 
 // ConvertLegacyConfig converts legacy config to modfile.
 // The file argument is slash-delimited.
-func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
+func ConvertLegacyConfig(f *modfile.File, file string, data []byte, queryPackage func(path, rev string) (module.Version, error)) error {
 	i := strings.LastIndex(file, "/")
 	j := -2
 	if i >= 0 {
@@ -62,15 +61,13 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 		sem <- token{}
 		go func(i int, m module.Version) {
 			defer func() { <-sem }()
-			repo, info, err := modfetch.ImportRepoRev(m.Path, m.Version)
+			version, err := queryPackage(m.Path, m.Version)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "go: converting %s: stat %s@%s: %v\n", base.ShortPath(file), m.Path, m.Version, err)
 				return
 			}
 
-			path := repo.ModulePath()
-			versions[i].Path = path
-			versions[i].Version = info.Version
+			versions[i] = version
 		}(i, m)
 	}
 	// Fill semaphore channel to wait for all tasks to finish.

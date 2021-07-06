@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -20,9 +21,7 @@ var parseIPTests = []struct {
 }{
 	{"127.0.1.2", IPv4(127, 0, 1, 2)},
 	{"127.0.0.1", IPv4(127, 0, 0, 1)},
-	{"127.001.002.003", IPv4(127, 1, 2, 3)},
 	{"::ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
-	{"::ffff:127.001.002.003", IPv4(127, 1, 2, 3)},
 	{"::ffff:7f01:0203", IPv4(127, 1, 2, 3)},
 	{"0:0:0:0:0000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
 	{"0:0:0:0:000000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
@@ -42,6 +41,11 @@ var parseIPTests = []struct {
 	{"fe80::1%911", nil},
 	{"", nil},
 	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
+	{"127.001.002.003", nil},
+	{"::ffff:127.001.002.003", nil},
+	{"123.000.000.000", nil},
+	{"1.2..4", nil},
+	{"0123.0.0.1", nil},
 }
 
 func TestParseIP(t *testing.T) {
@@ -357,6 +361,7 @@ var parseCIDRTests = []struct {
 	{"0.0.-2.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.-2.0/32"}},
 	{"0.0.0.-3/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.-3/32"}},
 	{"0.0.0.0/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.0/-0"}},
+	{"127.000.000.001/32", nil, nil, &ParseError{Type: "CIDR address", Text: "127.000.000.001/32"}},
 	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
 }
 
@@ -690,6 +695,28 @@ var ipAddrScopeTests = []struct {
 	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 	{IP.IsGlobalUnicast, nil, false},
+	{IP.IsPrivate, nil, false},
+	{IP.IsPrivate, IPv4(1, 1, 1, 1), false},
+	{IP.IsPrivate, IPv4(9, 255, 255, 255), false},
+	{IP.IsPrivate, IPv4(10, 0, 0, 0), true},
+	{IP.IsPrivate, IPv4(10, 255, 255, 255), true},
+	{IP.IsPrivate, IPv4(11, 0, 0, 0), false},
+	{IP.IsPrivate, IPv4(172, 15, 255, 255), false},
+	{IP.IsPrivate, IPv4(172, 16, 0, 0), true},
+	{IP.IsPrivate, IPv4(172, 16, 255, 255), true},
+	{IP.IsPrivate, IPv4(172, 23, 18, 255), true},
+	{IP.IsPrivate, IPv4(172, 31, 255, 255), true},
+	{IP.IsPrivate, IPv4(172, 31, 0, 0), true},
+	{IP.IsPrivate, IPv4(172, 32, 0, 0), false},
+	{IP.IsPrivate, IPv4(192, 167, 255, 255), false},
+	{IP.IsPrivate, IPv4(192, 168, 0, 0), true},
+	{IP.IsPrivate, IPv4(192, 168, 255, 255), true},
+	{IP.IsPrivate, IPv4(192, 169, 0, 0), false},
+	{IP.IsPrivate, IP{0xfb, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
+	{IP.IsPrivate, IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsPrivate, IP{0xfc, 0xff, 0x12, 0, 0, 0, 0, 0x44, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+	{IP.IsPrivate, IP{0xfd, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true},
+	{IP.IsPrivate, IP{0xfe, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 }
 
 func name(f interface{}) string {

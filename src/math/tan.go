@@ -79,7 +79,12 @@ var _tanQ = [...]float64{
 //	Tan(±0) = ±0
 //	Tan(±Inf) = NaN
 //	Tan(NaN) = NaN
-func Tan(x float64) float64
+func Tan(x float64) float64 {
+	if haveArchTan {
+		return archTan(x)
+	}
+	return tan(x)
+}
 
 func tan(x float64) float64 {
 	const (

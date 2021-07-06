@@ -36,13 +36,13 @@ func main() {
 	}
 
 	// Issue 2827.
-	switch _ := r.(type) { // ERROR "invalid variable name _|no new variables"
+	switch _ := r.(type) { // ERROR "invalid variable name _|no new variables?"
 	}
 }
 
 func noninterface() {
 	var i int
-	switch i.(type) { // ERROR "cannot type switch on non-interface value"
+	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
 	case string:
 	case int:
 	}
@@ -51,6 +51,6 @@ func noninterface() {
 		name string
 	}
 	var s S
-	switch s.(type) { // ERROR "cannot type switch on non-interface value"
+	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
 	}
 }

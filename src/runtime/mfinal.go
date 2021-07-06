@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -162,6 +163,7 @@ func runfinq() {
 	var (
 		frame    unsafe.Pointer
 		framecap uintptr
+		argRegs  int
 	)
 
 	for {
@@ -175,6 +177,7 @@ func runfinq() {
 			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
 			continue
 		}
+		argRegs = intArgRegs
 		unlock(&finlock)
 		if raceenabled {
 			racefingo()
@@ -183,7 +186,22 @@ func runfinq() {
 			for i := fb.cnt; i > 0; i-- {
 				f := &fb.fin[i-1]
 
-				framesz := unsafe.Sizeof((interface{})(nil)) + f.nret
+				var regs abi.RegArgs
+				var framesz uintptr
+				if argRegs > 0 {
+					// The args can always be passed in registers if they're
+					// available, because platforms we support always have no
+					// argument registers available, or more than 2.
+					//
+					// But unfortunately because we can have an arbitrary
+					// amount of returns and it would be complex to try and
+					// figure out how many of those can get passed in registers,
+					// just conservatively assume none of them do.
+					framesz = f.nret
+				} else {
+					// Need to pass arguments on the stack too.
+					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
+				}
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -196,30 +214,35 @@ func runfinq() {
 				if f.fint == nil {
 					throw("missing type in runfinq")
 				}
-				// frame is effectively uninitialized
-				// memory. That means we have to clear
-				// it before writing to it to avoid
-				// confusing the write barrier.
-				*(*[2]uintptr)(frame) = [2]uintptr{}
+				r := frame
+				if argRegs > 0 {
+					r = unsafe.Pointer(&regs.Ints)
+				} else {
+					// frame is effectively uninitialized
+					// memory. That means we have to clear
+					// it before writing to it to avoid
+					// confusing the write barrier.
+					*(*[2]uintptr)(frame) = [2]uintptr{}
+				}
 				switch f.fint.kind & kindMask {
 				case kindPtr:
 					// direct use of pointer
-					*(*unsafe.Pointer)(frame) = f.arg
+					*(*unsafe.Pointer)(r) = f.arg
 				case kindInterface:
 					ityp := (*interfacetype)(unsafe.Pointer(f.fint))
 					// set up with empty interface
-					(*eface)(frame)._type = &f.ot.typ
-					(*eface)(frame).data = f.arg
+					(*eface)(r)._type = &f.ot.typ
+					(*eface)(r).data = f.arg
 					if len(ityp.mhdr) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
-						*(*iface)(frame) = assertE2I(ityp, *(*eface)(frame))
+						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
 					}
 				default:
 					throw("bad kind in runfinq")
 				}
 				fingRunning = true
-				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
+				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
 				fingRunning = false
 
 				// Drop finalizer queue heap references
@@ -398,7 +421,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if _, ok := assertE2I2(ityp, *efaceOf(&obj)); ok {
+		if iface := assertE2I2(ityp, *efaceOf(&obj)); iface.tab != nil {
 			goto okarg
 		}
 	}

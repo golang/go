@@ -125,7 +125,6 @@ ok:
 	MOVD	ZR, err+24(FP)	// errno
 	RET
 
-
 // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 	MOVD	a1+8(FP), R0

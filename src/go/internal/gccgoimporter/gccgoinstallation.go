@@ -7,8 +7,8 @@ package gccgoimporter
 import (
 	"bufio"
 	"go/types"
+	exec "internal/execabs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )

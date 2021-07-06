@@ -232,7 +232,7 @@ func Bloc(name string, entries ...interface{}) bloc {
 }
 
 // Valu defines a value in a block.
-func Valu(name string, op Op, t *types.Type, auxint int64, aux interface{}, args ...string) valu {
+func Valu(name string, op Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
 	return valu{name, op, t, auxint, aux, args}
 }
 
@@ -277,7 +277,7 @@ type valu struct {
 	op     Op
 	t      *types.Type
 	auxint int64
-	aux    interface{}
+	aux    Aux
 	args   []string
 }
 
@@ -402,12 +402,12 @@ func TestEquiv(t *testing.T) {
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 14),
+					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, 26),
+					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
 					Exit("mem"))),
 		},
 		// value args different

@@ -4,6 +4,13 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from assembly only; declared for go vet.
 func load_g()
 func save_g()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)
+
+func emptyfunc()

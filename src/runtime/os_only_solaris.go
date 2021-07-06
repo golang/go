@@ -4,6 +4,7 @@
 
 // Solaris code that doesn't also apply to illumos.
 
+//go:build !illumos
 // +build !illumos
 
 package runtime

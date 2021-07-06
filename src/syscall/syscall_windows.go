@@ -8,6 +8,7 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
 	"internal/unsafeheader"
@@ -132,7 +133,7 @@ func (e Errno) Error() string {
 	if err != nil {
 		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
-			return "winapi error #" + itoa(int(e))
+			return "winapi error #" + itoa.Itoa(int(e))
 		}
 	}
 	// trim terminating \r and \n
@@ -173,6 +174,9 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
 // The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
 func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
@@ -180,6 +184,9 @@ func NewCallback(fn interface{}) uintptr {
 // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
 // The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
 func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
@@ -191,6 +198,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
+//sys	rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) = ntdll.RtlGetNtVersionNumbers
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
@@ -213,9 +221,9 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetEndOfFile(handle Handle) (err error)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
-//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error)
-//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
-//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error)
+//sys	createIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error) = CreateIoCompletionPort
+//sys	getQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error) = GetQueuedCompletionStatus
+//sys	postQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error) = PostQueuedCompletionStatus
 //sys	CancelIo(s Handle) (err error)
 //sys	CancelIoEx(s Handle, o *Overlapped) (err error)
 //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
@@ -234,7 +242,6 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (err error) = advapi32.CryptAcquireContextW
 //sys	CryptReleaseContext(provhandle Handle, flags uint32) (err error) = advapi32.CryptReleaseContext
 //sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) = advapi32.CryptGenRandom
-//sys	RtlGenRandom(buf *uint8, bytes uint32) (err error) = advapi32.SystemFunction036
 //sys	GetEnvironmentStrings() (envs *uint16, err error) [failretval==nil] = kernel32.GetEnvironmentStringsW
 //sys	FreeEnvironmentStrings(envs *uint16) (err error) = kernel32.FreeEnvironmentStringsW
 //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, err error) = kernel32.GetEnvironmentVariableW
@@ -285,6 +292,9 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
 //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
 //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
+//sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
+//sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
+//sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
 
 // syscall interface implementation for other packages
 
@@ -415,19 +425,22 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
-	switch runtime.GOARCH {
-	default:
-		panic("unsupported architecture")
-	case "amd64":
+	if unsafe.Sizeof(uintptr(0)) == 8 {
 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
-	case "386":
-		// distToMove is a LARGE_INTEGER:
-		// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
-	case "arm":
-		// distToMove must be 8-byte aligned per ARM calling convention
-		// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
+	} else {
+		// Different 32-bit systems disgaree about whether distToMove starts 8-byte aligned.
+		switch runtime.GOARCH {
+		default:
+			panic("unsupported 32-bit architecture")
+		case "386":
+			// distToMove is a LARGE_INTEGER:
+			// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
+			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+		case "arm":
+			// distToMove must be 8-byte aligned per ARM calling convention
+			// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
+			_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
+		}
 	}
 	if e1 != 0 {
 		return errnoErr(e1)
@@ -466,7 +479,6 @@ var (
 
 func getStdHandle(h int) (fd Handle) {
 	r, _ := GetStdHandle(h)
-	CloseOnExec(r)
 	return r
 }
 
@@ -1147,7 +1159,7 @@ func (s Signal) String() string {
 			return str
 		}
 	}
-	return "signal " + itoa(int(s))
+	return "signal " + itoa.Itoa(int(s))
 }
 
 func LoadCreateSymbolicLink() error {
@@ -1209,4 +1221,53 @@ func Readlink(path string, buf []byte) (n int, err error) {
 	n = copy(buf, []byte(s))
 
 	return n, nil
+}
+
+// Deprecated: CreateIoCompletionPort has the wrong function signature. Use x/sys/windows.CreateIoCompletionPort.
+func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (Handle, error) {
+	return createIoCompletionPort(filehandle, cphandle, uintptr(key), threadcnt)
+}
+
+// Deprecated: GetQueuedCompletionStatus has the wrong function signature. Use x/sys/windows.GetQueuedCompletionStatus.
+func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) error {
+	var ukey uintptr
+	var pukey *uintptr
+	if key != nil {
+		ukey = uintptr(*key)
+		pukey = &ukey
+	}
+	err := getQueuedCompletionStatus(cphandle, qty, pukey, overlapped, timeout)
+	if key != nil {
+		*key = uint32(ukey)
+		if uintptr(*key) != ukey && err == nil {
+			err = errorspkg.New("GetQueuedCompletionStatus returned key overflow")
+		}
+	}
+	return err
+}
+
+// Deprecated: PostQueuedCompletionStatus has the wrong function signature. Use x/sys/windows.PostQueuedCompletionStatus.
+func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) error {
+	return postQueuedCompletionStatus(cphandle, qty, uintptr(key), overlapped)
+}
+
+// newProcThreadAttributeList allocates new PROC_THREAD_ATTRIBUTE_LIST, with
+// the requested maximum number of attributes, which must be cleaned up by
+// deleteProcThreadAttributeList.
+func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LIST, error) {
+	var size uintptr
+	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
+	if err != ERROR_INSUFFICIENT_BUFFER {
+		if err == nil {
+			return nil, errorspkg.New("unable to query buffer size from InitializeProcThreadAttributeList")
+		}
+		return nil, err
+	}
+	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
+	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
+	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
+	if err != nil {
+		return nil, err
+	}
+	return al, nil
 }

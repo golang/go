@@ -219,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	AX, ret+12(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $8-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $8-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 
@@ -412,6 +412,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
@@ -421,11 +422,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
 	// modify them.
 
-	MOVL	sig+0(FP), BX
+	MOVL	(28+4)(SP), BX
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	(28+8)(SP), BX
 	MOVL	BX, 4(SP)
-	MOVL	ctx+8(FP), BX
+	MOVL	(28+12)(SP), BX
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 

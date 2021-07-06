@@ -186,8 +186,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SYSCALL
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R4	// arg 1 - clock_id
 	MOVV	$8(R29), R5		// arg 2 - tp
 	MOVV	$87, R2			// sys_clock_gettime

@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"log"
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -984,6 +985,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REGSP
 			}
 		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 && p.As != ACMPU {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1065,80 +1081,65 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Reg = REG_R3
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGSP
-	} else if framesize <= objabi.StackBig {
-		// large stack: SP-framesize < stackguard-StackSmall
-		//	ADD $-(framesize-StackSmall), SP, R4
-		//	CMP stackguard, R4
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ACMPU
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
 	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	// stackguard is R3
-		//	CMP	R3, $StackPreempt
-		//	BEQ	label-of-call-to-morestack
-		//	ADD	$StackGuard, SP, R4
-		//	SUB	R3, R4
-		//	MOVD	$(framesize+(StackGuard-StackSmall)), R31
-		//	CMPU	R31, R4
+		// large stack: SP-framesize < stackguard-StackSmall
+		offset := int64(framesize) - objabi.StackSmall
+		if framesize > objabi.StackBig {
+			// Such a large stack we need to protect against underflow.
+			// The runtime guarantees SP > objabi.StackBig, but
+			// framesize is large enough that SP-framesize may
+			// underflow, causing a direct comparison with the
+			// stack guard to incorrectly succeed. We explicitly
+			// guard against underflow.
+			//
+			//	CMPU	SP, $(framesize-StackSmall)
+			//	BLT	label-of-call-to-morestack
+			if offset <= 0xffff {
+				p = obj.Appendp(p, c.newprog)
+				p.As = ACMPU
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_CONST
+				p.To.Offset = offset
+			} else {
+				// Constant is too big for CMPU.
+				p = obj.Appendp(p, c.newprog)
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = offset
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_R4
+
+				p = obj.Appendp(p, c.newprog)
+				p.As = ACMPU
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_R4
+			}
+
+			p = obj.Appendp(p, c.newprog)
+			q = p
+			p.As = ABLT
+			p.To.Type = obj.TYPE_BRANCH
+		}
+
+		// Check against the stack guard. We've ensured this won't underflow.
+		//	ADD  $-(framesize-StackSmall), SP, R4
+		//	CMPU stackguard, R4
 		p = obj.Appendp(p, c.newprog)
 
-		p.As = ACMP
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = objabi.StackPreempt
-
-		p = obj.Appendp(p, c.newprog)
-		q = p
-		p.As = ABEQ
-		p.To.Type = obj.TYPE_BRANCH
-
-		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
+		p.From.Offset = -offset
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R4
 
 		p = obj.Appendp(p, c.newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
-
-		p = obj.Appendp(p, c.newprog)
 		p.As = ACMPU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REGTMP
+		p.From.Reg = REG_R3
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_R4
 	}

@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
 # can't in readonly mode, since its go.mod may alter the build list.
 go mod edit -replace rsc.io/quote=./quote
 ! go list rsc.io/quote
-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote'' to add it$'
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote$'
 go get -d rsc.io/quote
 cmp go.mod go.mod.latest
 go list rsc.io/quote
@@ -18,7 +18,7 @@ cp go.mod.orig go.mod
 # Same test with a specific version.
 go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
 ! go list rsc.io/quote
-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.0.0-doesnotexist'' to add it$'
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote@v1.0.0-doesnotexist$'
 go get -d rsc.io/quote@v1.0.0-doesnotexist
 cmp go.mod go.mod.specific
 go list rsc.io/quote
@@ -28,7 +28,7 @@ cp go.mod.orig go.mod
 go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
 go mod edit -replace rsc.io/quote@v1.1.0-doesnotexist=./quote
 ! go list rsc.io/quote
-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.1.0-doesnotexist'' to add it$'
+stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote@v1.1.0-doesnotexist$'
 
 -- go.mod --
 module m

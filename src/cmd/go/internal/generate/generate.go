@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	exec "internal/execabs"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -52,15 +52,6 @@ that can be run locally. It must either be in the shell path
 (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
 command alias, described below.
 
-To convey to humans and machine tools that code is generated,
-generated source should have a line that matches the following
-regular expression (in Go syntax):
-
-	^// Code generated .* DO NOT EDIT\.$
-
-The line may appear anywhere in the file, but is typically
-placed near the beginning so it is easy to find.
-
 Note that go generate does not parse the file, so lines that look
 like directives in comments or multiline strings will be treated
 as directives.
@@ -71,6 +62,15 @@ arguments when it is run.
 
 Quoted strings use Go syntax and are evaluated before execution; a
 quoted string appears as a single argument to the generator.
+
+To convey to humans and machine tools that code is generated,
+generated source should have a line that matches the following
+regular expression (in Go syntax):
+
+	^// Code generated .* DO NOT EDIT\.$
+
+This line must appear before the first non-comment, non-blank
+text in the file.
 
 Go generate sets several variables when it runs the generator:
 
@@ -161,8 +161,6 @@ func init() {
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
-	load.IgnoreImports = true
-
 	if generateRunFlag != "" {
 		var err error
 		generateRunRE, err = regexp.Compile(generateRunFlag)
@@ -175,7 +173,8 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Even if the arguments are .go files, this loop suffices.
 	printed := false
-	for _, pkg := range load.PackagesAndErrors(ctx, args) {
+	pkgOpts := load.PackageOpts{IgnoreImports: true}
+	for _, pkg := range load.PackagesAndErrors(ctx, pkgOpts, args) {
 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not generating in packages in dependency modules\n")
@@ -334,6 +333,7 @@ func (g *Generator) setEnv() {
 		"GOPACKAGE=" + g.pkg,
 		"DOLLAR=" + "$",
 	}
+	g.env = base.AppendPWD(g.env, g.dir)
 }
 
 // split breaks the line into words, evaluating quoted

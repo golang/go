@@ -9,13 +9,15 @@ package dwarf
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"errors"
 	"fmt"
-	"os/exec"
+	"internal/buildcfg"
+	exec "internal/execabs"
 	"sort"
 	"strconv"
 	"strings"
+
+	"cmd/internal/objabi"
 )
 
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
@@ -318,8 +320,6 @@ const (
 )
 
 // Index into the abbrevs table below.
-// Keep in sync with ispubname() and ispubtype() in ld/dwarf.go.
-// ispubtype considers >= NULLTYPE public
 const (
 	DW_ABRV_NULL = iota
 	DW_ABRV_COMPUNIT
@@ -383,7 +383,7 @@ func expandPseudoForm(form uint8) uint8 {
 		return form
 	}
 	expandedForm := DW_FORM_udata
-	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
+	if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" {
 		expandedForm = DW_FORM_data4
 	}
 	return uint8(expandedForm)
@@ -1043,6 +1043,15 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
 }
 
+// PutGlobal writes a DIE for a global variable.
+func PutGlobal(ctxt Context, info, typ, gvar Sym, name string) {
+	Uleb128put(ctxt, info, DW_ABRV_VARIABLE)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_block1, DW_CLS_ADDRESS, 0, gvar)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
+	putattr(ctxt, info, DW_ABRV_VARIABLE, DW_FORM_flag, DW_CLS_FLAG, 1, nil)
+}
+
 // PutBasedRanges writes a range table to sym. All addresses in ranges are
 // relative to some base address, which must be arranged by the caller
 // (e.g., with a DW_AT_low_pc attribute, or in a BASE-prefixed range).
@@ -1257,7 +1266,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 // its corresponding 'abstract' DIE (containing location-independent
 // attributes such as name, type, etc). Inlined subroutine DIEs can
 // have other inlined subroutine DIEs as children.
-func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
+func putInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
 	ic := s.InlCalls.Calls[callIdx]
 	callee := ic.AbsFunSym
 
@@ -1268,7 +1277,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	if logDwarf {
-		ctxt.Logf("PutInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
+		ctxt.Logf("putInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
 	}
 
 	// Abstract origin.
@@ -1304,7 +1313,7 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error 
 	// Children of this inline.
 	for _, sib := range inlChildren(callIdx, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1346,7 +1355,7 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1394,7 +1403,7 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 	// Inlined subroutines.
 	for _, sib := range inlChildren(-1, &s.InlCalls) {
 		absfn := s.InlCalls.Calls[sib].AbsFunSym
-		err := PutInlinedFunc(ctxt, s, absfn, sib)
+		err := putInlinedFunc(ctxt, s, absfn, sib)
 		if err != nil {
 			return err
 		}
@@ -1599,14 +1608,6 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 
 	// Var has no children => no terminator
 }
-
-// VarsByOffset attaches the methods of sort.Interface to []*Var,
-// sorting in increasing StackOffset.
-type VarsByOffset []*Var
-
-func (s VarsByOffset) Len() int           { return len(s) }
-func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
-func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // byChildIndex implements sort.Interface for []*dwarf.Var by child index.
 type byChildIndex []*Var

@@ -5,12 +5,9 @@
 package sys
 
 const (
-	ArchFamily          = I386
-	BigEndian           = false
-	DefaultPhysPageSize = 4096
-	PCQuantum           = 1
-	Int64Align          = 4
-	MinFrameSize        = 0
+	_ArchFamily          = I386
+	_DefaultPhysPageSize = 4096
+	_PCQuantum           = 1
+	_MinFrameSize        = 0
+	_StackAlign          = PtrSize
 )
-
-type Uintreg uint32

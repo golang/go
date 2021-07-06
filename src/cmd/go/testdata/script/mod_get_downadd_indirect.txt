@@ -1,0 +1,81 @@
+# This test illustrates a case where downgrading one module may upgrade another.
+# Compare to the downcross2 test case in cmd/go/internal/mvs/mvs_test.go.
+
+# The initial package import graph used in this test looks like:
+#
+# a ---- b ---- d
+#
+# The module dependency graph originally looks like:
+#
+# a ---- b.2 ---- d.2
+#
+# b.1 ---- c.1
+#
+# If we downgrade module d to version 1, we must downgrade b as well.
+# If that downgrade selects b version 1, we will add a new dependency on module c.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod.orig go.mod
+
+go get -d example.com/d@v0.1.0
+go list -m all
+stdout '^example.com/b v0.1.0 '
+stdout '^example.com/c v0.1.0 '
+stdout '^example.com/d v0.1.0 '
+
+-- go.mod --
+module example.com/a
+
+go 1.15
+
+require example.com/b v0.2.0
+
+replace (
+	example.com/b v0.1.0 => ./b1
+	example.com/b v0.2.0 => ./b2
+	example.com/c v0.1.0 => ./c
+	example.com/d v0.1.0 => ./d
+	example.com/d v0.2.0 => ./d
+)
+-- a.go --
+package a
+
+import _ "example.com/b"
+
+-- b1/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/c v0.1.0
+-- b1/b.go --
+package b
+
+import _ "example.com/c"
+
+-- b2/go.mod --
+module example.com/b
+
+go 1.15
+
+require example.com/d v0.2.0
+-- b2/b.go --
+package b
+
+import _ "example.com/d"
+
+-- c/go.mod --
+module example.com/c
+
+go 1.15
+
+-- c/c.go --
+package c
+
+-- d/go.mod --
+module example.com/d
+
+go 1.15
+-- d/d.go --
+package d

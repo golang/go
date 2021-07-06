@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -62,12 +63,6 @@ type mstats struct {
 
 	// Statistics about the garbage collector.
 
-	// next_gc is the goal heap_live for when next GC ends.
-	// Set to ^uint64(0) if disabled.
-	//
-	// Read and written atomically, unless the world is stopped.
-	next_gc uint64
-
 	// Protected by mheap or stopping the world during GC.
 	last_gc_unix    uint64 // last gc (in unix time)
 	pause_total_ns  uint64
@@ -92,68 +87,7 @@ type mstats struct {
 	_ [1 - _NumSizeClasses%2]uint32
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
-	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
-	last_next_gc     uint64 // next_gc for the previous GC
 	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
-
-	// triggerRatio is the heap growth ratio that triggers marking.
-	//
-	// E.g., if this is 0.6, then GC should start when the live
-	// heap has reached 1.6 times the heap size marked by the
-	// previous cycle. This should be ≤ GOGC/100 so the trigger
-	// heap size is less than the goal heap size. This is set
-	// during mark termination for the next cycle's trigger.
-	triggerRatio float64
-
-	// gc_trigger is the heap size that triggers marking.
-	//
-	// When heap_live ≥ gc_trigger, the mark phase will start.
-	// This is also the heap size by which proportional sweeping
-	// must be complete.
-	//
-	// This is computed from triggerRatio during mark termination
-	// for the next cycle's trigger.
-	gc_trigger uint64
-
-	// heap_live is the number of bytes considered live by the GC.
-	// That is: retained by the most recent GC plus allocated
-	// since then. heap_live <= alloc, since alloc includes unmarked
-	// objects that have not yet been swept (and hence goes up as we
-	// allocate and down as we sweep) while heap_live excludes these
-	// objects (and hence only goes up between GCs).
-	//
-	// This is updated atomically without locking. To reduce
-	// contention, this is updated only when obtaining a span from
-	// an mcentral and at this point it counts all of the
-	// unallocated slots in that span (which will be allocated
-	// before that mcache obtains another span from that
-	// mcentral). Hence, it slightly overestimates the "true" live
-	// heap size. It's better to overestimate than to
-	// underestimate because 1) this triggers the GC earlier than
-	// necessary rather than potentially too late and 2) this
-	// leads to a conservative GC rate rather than a GC rate that
-	// is potentially too low.
-	//
-	// Reads should likewise be atomic (or during STW).
-	//
-	// Whenever this is updated, call traceHeapAlloc() and
-	// gcController.revise().
-	heap_live uint64
-
-	// heap_scan is the number of bytes of "scannable" heap. This
-	// is the live heap (as counted by heap_live), but omitting
-	// no-scan objects and no-scan tails of objects.
-	//
-	// Whenever this is updated, call gcController.revise().
-	//
-	// Read and written atomically or with the world stopped.
-	heap_scan uint64
-
-	// heap_marked is the number of bytes marked by the previous
-	// GC. After mark termination, heap_live == heap_marked, but
-	// unlike heap_live, heap_marked does not change until the
-	// next mark termination.
-	heap_marked uint64
 
 	// heapStats is a set of statistics
 	heapStats consistentHeapStats
@@ -443,10 +377,6 @@ type MemStats struct {
 }
 
 func init() {
-	if offset := unsafe.Offsetof(memstats.heap_live); offset%8 != 0 {
-		println(offset)
-		throw("memstats.heap_live not aligned to 8 bytes")
-	}
 	if offset := unsafe.Offsetof(memstats.heapStats); offset%8 != 0 {
 		println(offset)
 		throw("memstats.heapStats not aligned to 8 bytes")
@@ -523,7 +453,7 @@ func readmemstats_m(stats *MemStats) {
 	// at a more granular level in the runtime.
 	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
 	stats.OtherSys = memstats.other_sys.load()
-	stats.NextGC = memstats.next_gc
+	stats.NextGC = gcController.heapGoal
 	stats.LastGC = memstats.last_gc_unix
 	stats.PauseTotalNs = memstats.pause_total_ns
 	stats.PauseNs = memstats.pause_ns
@@ -656,8 +586,8 @@ func updatememstats() {
 	}
 
 	// Account for tiny allocations.
-	memstats.nfree += memstats.tinyallocs
-	memstats.nmalloc += memstats.tinyallocs
+	memstats.nfree += uint64(consStats.tinyAllocCount)
+	memstats.nmalloc += uint64(consStats.tinyAllocCount)
 
 	// Calculate derived stats.
 	memstats.total_alloc = totalAlloc
@@ -773,6 +703,7 @@ type heapStatsDelta struct {
 	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
 
 	// Allocator stats.
+	tinyAllocCount  uintptr                  // number of tiny allocations
 	largeAlloc      uintptr                  // bytes allocated for large objects
 	largeAllocCount uintptr                  // number of large object allocations
 	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
@@ -782,7 +713,7 @@ type heapStatsDelta struct {
 
 	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
 	// Only necessary on 32-bit platforms.
-	// _ [(sys.PtrSize / 4) % 2]uint32
+	_ [(sys.PtrSize / 4) % 2]uint32
 }
 
 // merge adds in the deltas from b into a.
@@ -794,6 +725,7 @@ func (a *heapStatsDelta) merge(b *heapStatsDelta) {
 	a.inWorkBufs += b.inWorkBufs
 	a.inPtrScalarBits += b.inPtrScalarBits
 
+	a.tinyAllocCount += b.tinyAllocCount
 	a.largeAlloc += b.largeAlloc
 	a.largeAllocCount += b.largeAllocCount
 	for i := range b.smallAllocCount {

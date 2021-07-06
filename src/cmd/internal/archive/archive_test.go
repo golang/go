@@ -173,7 +173,7 @@ func TestParseGoobj(t *testing.T) {
 			continue
 		}
 		if e.Type != EntryGoObj {
-			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
+			t.Errorf("wrong type of object: want EntryGoObj, got %v", e.Type)
 		}
 		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
 			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
@@ -204,7 +204,7 @@ func TestParseArchive(t *testing.T) {
 			continue
 		}
 		if e.Type != EntryGoObj {
-			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
+			t.Errorf("wrong type of object: want EntryGoObj, got %v", e.Type)
 		}
 		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
 			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)

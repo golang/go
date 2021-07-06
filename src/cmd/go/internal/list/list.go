@@ -89,6 +89,14 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         TestGoFiles     []string   // _test.go files in package
         XTestGoFiles    []string   // _test.go files outside package
 
+        // Embedded files
+        EmbedPatterns      []string // //go:embed patterns
+        EmbedFiles         []string // files matched by EmbedPatterns
+        TestEmbedPatterns  []string // //go:embed patterns in TestGoFiles
+        TestEmbedFiles     []string // files matched by TestEmbedPatterns
+        XTestEmbedPatterns []string // //go:embed patterns in XTestGoFiles
+        XTestEmbedFiles    []string // files matched by XTestEmbedPatterns
+
         // Cgo directives
         CgoCFLAGS    []string // cgo: flags for C compiler
         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
@@ -140,6 +148,7 @@ The template function "context" returns the build context, defined as:
         UseAllFiles   bool     // use files regardless of +build lines, file names
         Compiler      string   // compiler to assume when computing target paths
         BuildTags     []string // build constraints to match in +build lines
+        ToolTags      []string // toolchain-specific build constraints
         ReleaseTags   []string // releases the current release is compatible with
         InstallSuffix string   // suffix to use in the name of the install dir
     }
@@ -300,7 +309,7 @@ For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
-For more about modules, see 'go help modules'.
+For more about modules, see https://golang.org/ref/mod.
 	`,
 }
 
@@ -327,7 +336,10 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
-	load.ModResolveTests = *listTest
+	if *listFmt != "" && *listJson == true {
+		base.Fatalf("go list -f cannot be used with -json")
+	}
+
 	work.BuildInit()
 	out := newTrackingWriter(os.Stdout)
 	defer out.w.Flush()
@@ -336,7 +348,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		if *listM {
 			*listFmt = "{{.String}}"
 			if *listVersions {
-				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}`
+				*listFmt = `{{.Path}}{{range .Versions}} {{.}}{{end}}{{if .Deprecated}} (deprecated){{end}}`
 			}
 		} else {
 			*listFmt = "{{.ImportPath}}"
@@ -415,7 +427,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go list -m: not using modules")
 		}
 
-		modload.LoadModFile(ctx) // Parses go.mod and sets cfg.BuildMod.
+		modload.LoadModFile(ctx) // Sets cfg.BuildMod as a side-effect.
 		if cfg.BuildMod == "vendor" {
 			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
 
@@ -439,12 +451,28 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods := modload.ListModules(ctx, args, *listU, *listVersions, *listRetracted)
+		var mode modload.ListMode
+		if *listU {
+			mode |= modload.ListU | modload.ListRetracted | modload.ListDeprecated
+		}
+		if *listRetracted {
+			mode |= modload.ListRetracted
+		}
+		if *listVersions {
+			mode |= modload.ListVersions
+			if *listRetracted {
+				mode |= modload.ListRetractedVersions
+			}
+		}
+		mods, err := modload.ListModules(ctx, args, mode)
 		if !*listE {
 			for _, m := range mods {
 				if m.Error != nil {
 					base.Errorf("go list -m: %v", m.Error.Err)
 				}
+			}
+			if err != nil {
+				base.Errorf("go list -m: %v", err)
 			}
 			base.ExitIfErrors()
 		}
@@ -470,8 +498,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go list -test cannot be used with -find")
 	}
 
-	load.IgnoreImports = *listFind
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgOpts := load.PackageOpts{
+		IgnoreImports:   *listFind,
+		ModResolveTests: *listTest,
+	}
+	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {
 		w := 0
 		for _, pkg := range pkgs {
@@ -508,9 +539,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				var pmain, ptest, pxtest *load.Package
 				var err error
 				if *listE {
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, p, nil)
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, pkgOpts, p, nil)
 				} else {
-					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, p, nil)
+					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
 						base.Errorf("can't load test package: %s", err)
 					}
@@ -577,8 +608,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// Show vendor-expanded paths in listing
 		p.TestImports = p.Resolve(p.TestImports)
 		p.XTestImports = p.Resolve(p.XTestImports)
-		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
-		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
 		p.DepOnly = !cmdline[p]
 
 		if *listCompiled {
@@ -599,7 +628,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		old := make(map[string]string)
 		for _, p := range all {
 			if p.ForTest != "" {
-				new := p.ImportPath + " [" + p.ForTest + ".test]"
+				new := p.Desc()
 				old[new] = p.ImportPath
 				p.ImportPath = new
 			}
@@ -673,9 +702,14 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		if len(args) > 0 {
-			listU := false
-			listVersions := false
-			rmods := modload.ListModules(ctx, args, listU, listVersions, *listRetracted)
+			var mode modload.ListMode
+			if *listRetracted {
+				mode |= modload.ListRetracted
+			}
+			rmods, err := modload.ListModules(ctx, args, mode)
+			if err != nil && !*listE {
+				base.Errorf("go list -retracted: %v", err)
+			}
 			for i, arg := range args {
 				rmod := rmods[i]
 				for _, mod := range argToMods[arg] {
@@ -690,8 +724,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Record non-identity import mappings in p.ImportMap.
 	for _, p := range pkgs {
-		for i, srcPath := range p.Internal.RawImports {
-			path := p.Imports[i]
+		nRaw := len(p.Internal.RawImports)
+		for i, path := range p.Imports {
+			var srcPath string
+			if i < nRaw {
+				srcPath = p.Internal.RawImports[i]
+			} else {
+				// This path is not within the raw imports, so it must be an import
+				// found only within CompiledGoFiles. Those paths are found in
+				// CompiledImports.
+				srcPath = p.Internal.CompiledImports[i-nRaw]
+			}
+
 			if path != srcPath {
 				if p.ImportMap == nil {
 					p.ImportMap = make(map[string]string)

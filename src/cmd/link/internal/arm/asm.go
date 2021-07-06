@@ -111,7 +111,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			return false
 		}
 
-		// Handle relocations found in ELF object files.
+	// Handle relocations found in ELF object files.
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PLT32):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_CALLARM)
@@ -237,6 +237,21 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			su.SetRelocSym(rIdx, 0)
 			return true
 		}
+
+	case objabi.R_GOTPCREL:
+		if target.IsExternal() {
+			// External linker will do this relocation.
+			return true
+		}
+		if targType != sym.SDYNIMPORT {
+			ldr.Errorf(s, "R_GOTPCREL target is not SDYNIMPORT symbol: %v", ldr.SymName(targ))
+		}
+		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_ARM_GLOB_DAT))
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.R_PCREL)
+		su.SetRelocSym(rIdx, syms.GOT)
+		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
+		return true
 	}
 
 	return false
@@ -369,11 +384,23 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
 	switch r.Type() {
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
+		// Host object relocations that will be turned into a PLT call.
+		// The PLT may be too far. Insert a trampoline for them.
+		fallthrough
 	case objabi.R_CALLARM:
-		// r.Add is the instruction
-		// low 24-bit encodes the target address
-		t := (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
-		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		var t int64
+		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+		// laid out. Conservatively use a trampoline. This should be rare, as we lay out packages
+		// in dependency order.
+		if ldr.SymValue(rs) != 0 {
+			// r.Add is the instruction
+			// low 24-bit encodes the target address
+			t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+		}
+		if t > 0x7fffff || t < -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.
@@ -409,7 +436,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				// trampoline does not exist, create one
 				trampb := ldr.MakeSymbolUpdater(tramp)
 				ctxt.AddTramp(trampb)
-				if ctxt.DynlinkingGo() {
+				if ctxt.DynlinkingGo() || ldr.SymType(rs) == sym.SDYNIMPORT {
 					if immrot(uint32(offset)) == 0 {
 						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)
 					}
@@ -437,15 +464,15 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 	t := ldr.SymValue(target) + offset
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16) // MOVW (R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe12fff10 | 12)              // JMP  (R12)
 	o3 := uint32(t)                            // WORD $target
 	arch.ByteOrder.PutUint32(P, o1)
 	arch.ByteOrder.PutUint32(P[4:], o2)
 	arch.ByteOrder.PutUint32(P[8:], o3)
 	tramp.SetData(P)
 
-	if linkmode == ld.LinkExternal {
+	if linkmode == ld.LinkExternal || ldr.SymValue(target) == 0 {
 		r, _ := tramp.AddRel(objabi.R_ADDR)
 		r.SetOff(8)
 		r.SetSiz(4)
@@ -458,9 +485,9 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
 	tramp.SetSize(16) // 4 instructions
 	P := make([]byte, tramp.Size())
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
-	o3 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16 | 4)  // MOVW 4(R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe0800000 | 12<<12 | 15<<16 | 12) // ADD R15, R12, R12
+	o3 := uint32(0xe12fff10 | 12)                   // JMP  (R12)
 	o4 := uint32(0)                                 // WORD $(target-pc) // filled in with relocation
 	arch.ByteOrder.PutUint32(P, o1)
 	arch.ByteOrder.PutUint32(P[4:], o2)
@@ -478,10 +505,10 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 // generate a trampoline to target+offset in dynlink mode (using GOT)
 func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
 	tramp.SetSize(20)                               // 5 instructions
-	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
-	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
-	o3 := uint32(0xe5900000 | 11<<12 | 11<<16)      // MOVW (R11), R11
-	o4 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
+	o1 := uint32(0xe5900000 | 12<<12 | 15<<16 | 8)  // MOVW 8(R15), R12 // R15 is actual pc + 8
+	o2 := uint32(0xe0800000 | 12<<12 | 15<<16 | 12) // ADD R15, R12, R12
+	o3 := uint32(0xe5900000 | 12<<12 | 12<<16)      // MOVW (R12), R12
+	o4 := uint32(0xe12fff10 | 12)                   // JMP  (R12)
 	o5 := uint32(0)                                 // WORD $target@GOT // filled in with relocation
 	o6 := uint32(0)
 	if offset != 0 {
@@ -489,8 +516,8 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 		tramp.SetSize(24) // 6 instructions
 		o6 = o5
 		o5 = o4
-		o4 = 0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset)) // ADD $offset, R11, R11
-		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)             // MOVW 12(R15), R11
+		o4 = 0xe2800000 | 12<<12 | 12<<16 | immrot(uint32(offset)) // ADD $offset, R12, R12
+		o1 = uint32(0xe5900000 | 12<<12 | 15<<16 | 12)             // MOVW 12(R15), R12
 	}
 	P := make([]byte, tramp.Size())
 	arch.ByteOrder.PutUint32(P, o1)
@@ -559,7 +586,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	return val, 0, false
 }
 
-func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64) int64 {
+func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant, loader.Sym, int64, []byte) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }

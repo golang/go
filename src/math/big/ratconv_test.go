@@ -589,3 +589,28 @@ func TestIssue31184(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue45910(t *testing.T) {
+	var x Rat
+	for _, test := range []struct {
+		input string
+		want  bool
+	}{
+		{"1e-1000001", false},
+		{"1e-1000000", true},
+		{"1e+1000000", true},
+		{"1e+1000001", false},
+
+		{"0p1000000000000", true},
+		{"1p-10000001", false},
+		{"1p-10000000", true},
+		{"1p+10000000", true},
+		{"1p+10000001", false},
+		{"1.770p02041010010011001001", false}, // test case from issue
+	} {
+		_, got := x.SetString(test.input)
+		if got != test.want {
+			t.Errorf("SetString(%s) got ok = %v; want %v", test.input, got, test.want)
+		}
+	}
+}

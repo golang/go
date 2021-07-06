@@ -6,7 +6,6 @@ package testgodefs
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +33,7 @@ func TestGoDefs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gopath, err := ioutil.TempDir("", "testgodefs-gopath")
+	gopath, err := os.MkdirTemp("", "testgodefs-gopath")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,20 +57,20 @@ func TestGoDefs(t *testing.T) {
 			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(dir, fp+"_defs.go"), out, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, fp+"_defs.go"), out, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	main, err := ioutil.ReadFile(filepath.Join("testdata", "main.go"))
+	main, err := os.ReadFile(filepath.Join("testdata", "main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), main, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), main, 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module testgodefs\ngo 1.14\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module testgodefs\ngo 1.14\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

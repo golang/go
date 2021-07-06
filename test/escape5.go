@@ -269,3 +269,14 @@ func f28369(n int) int {
 
 	return 1 + f28369(n-1)
 }
+
+// Issue 44614: parameters that flow to a heap-allocated result
+// parameter must be recorded as a heap-flow rather than a
+// result-flow.
+
+// N.B., must match "leaking param: p",
+// but *not* "leaking param: p to result r level=0".
+func f(p *int) (r *int) { // ERROR "leaking param: p$" "moved to heap: r"
+	sink4 = &r
+	return p
+}

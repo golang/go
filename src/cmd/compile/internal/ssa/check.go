@@ -166,7 +166,7 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
 			case auxString:
-				if _, ok := v.Aux.(string); !ok {
+				if _, ok := v.Aux.(stringAux); !ok {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
@@ -182,6 +182,12 @@ func checkFunc(f *Func) {
 					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
 				}
 				canHaveAux = true
+			case auxNameOffsetInt8:
+				if _, ok := v.Aux.(*AuxNameOffset); !ok {
+					f.Fatalf("value %v has Aux type %T, want *AuxNameOffset", v, v.Aux)
+				}
+				canHaveAux = true
+				canHaveAuxInt = true
 			case auxSym, auxTyp:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:

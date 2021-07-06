@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (mips || mipsle)
 // +build linux
 // +build mips mipsle
 
@@ -218,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVW	R2, ret+12(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	MOVW	$0, R4	// CLOCK_REALTIME
 	MOVW	$4(R29), R5
 	MOVW	$SYS_clock_gettime, R2

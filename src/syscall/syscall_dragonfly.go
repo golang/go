@@ -100,6 +100,19 @@ func Pipe(p []int) (err error) {
 	return
 }
 
+//sysnb	pipe2(p *[2]_C_int, flags int) (r int, w int, err error)
+
+func Pipe2(p []int, flags int) (err error) {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	// pipe2 on dragonfly takes an fds array as an argument, but still
+	// returns the file descriptors.
+	p[0], p[1], err = pipe2(&pp, flags)
+	return err
+}
+
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
 func Pread(fd int, p []byte, offset int64) (n int, err error) {
 	return extpread(fd, p, 0, offset)

@@ -21,6 +21,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
@@ -176,7 +177,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			return nil, err
 		}
 
-		if (query == "upgrade" || query == "patch") && modfetch.IsPseudoVersion(current) && !rev.Time.IsZero() {
+		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
 			// Don't allow "upgrade" or "patch" to move from a pseudo-version
 			// to a chronologically older version or pseudo-version.
 			//
@@ -195,7 +196,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 			// newer but v1.1.0 is still an “upgrade”; or v1.0.2 might be a revert of
 			// an unsuccessful fix in v1.0.1, in which case the v1.0.2 commit may be
 			// older than the v1.0.1 commit despite the tag itself being newer.)
-			currentTime, err := modfetch.PseudoVersionTime(current)
+			currentTime, err := module.PseudoVersionTime(current)
 			if err == nil && rev.Time.Before(currentTime) {
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
 					return nil, err
@@ -324,18 +325,18 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 		if current == "" || current == "none" {
 			qm.mayUseLatest = true
 		} else {
-			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
+			qm.mayUseLatest = module.IsPseudoVersion(current)
 			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
 		}
 
 	case query == "patch":
-		if current == "none" {
+		if current == "" || current == "none" {
 			return nil, &NoPatchBaseError{path}
 		}
 		if current == "" {
 			qm.mayUseLatest = true
 		} else {
-			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
+			qm.mayUseLatest = module.IsPseudoVersion(current)
 			qm.prefix = semver.MajorMinor(current) + "."
 			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
 		}
@@ -694,7 +695,9 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 
 // modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
 // exist as a module, excluding targetPrefix but otherwise including path
-// itself, sorted by descending length.
+// itself, sorted by descending length. Prefixes that are not valid module paths
+// but are valid package paths (like "m" or "example.com/.gen") are included,
+// since they might be replaced.
 func modulePrefixesExcludingTarget(path string) []string {
 	prefixes := make([]string, 0, strings.Count(path, "/")+1)
 
@@ -746,6 +749,7 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		noPackage   *PackageNotInModuleError
 		noVersion   *NoMatchingVersionError
 		noPatchBase *NoPatchBaseError
+		invalidPath *module.InvalidPathError // see comment in case below
 		notExistErr error
 	)
 	for _, r := range results {
@@ -765,6 +769,17 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 		case *NoPatchBaseError:
 			if noPatchBase == nil {
 				noPatchBase = rErr
+			}
+		case *module.InvalidPathError:
+			// The prefix was not a valid module path, and there was no replacement.
+			// Prefixes like this may appear in candidateModules, since we handle
+			// replaced modules that weren't required in the repo lookup process
+			// (see lookupRepo).
+			//
+			// A shorter prefix may be a valid module path and may contain a valid
+			// import path, so this is a low-priority error.
+			if invalidPath == nil {
+				invalidPath = rErr
 			}
 		default:
 			if errors.Is(rErr, fs.ErrNotExist) {
@@ -799,6 +814,8 @@ func queryPrefixModules(ctx context.Context, candidateModules []string, queryMod
 			err = noVersion
 		case noPatchBase != nil:
 			err = noPatchBase
+		case invalidPath != nil:
+			err = invalidPath
 		case notExistErr != nil:
 			err = notExistErr
 		default:
@@ -992,7 +1009,7 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 	if index != nil && len(index.replace) > 0 {
 		path := rr.ModulePath()
 		for m, _ := range index.replace {
-			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !modfetch.IsPseudoVersion(m.Version) {
+			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
 				versions = append(versions, m.Version)
 			}
 		}
@@ -1005,13 +1022,8 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
 	sort.Slice(versions, func(i, j int) bool {
 		return semver.Compare(versions[i], versions[j]) < 0
 	})
-	uniq := versions[:1]
-	for _, v := range versions {
-		if v != uniq[len(uniq)-1] {
-			uniq = append(uniq, v)
-		}
-	}
-	return uniq, nil
+	str.Uniq(&versions)
+	return versions, nil
 }
 
 func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
@@ -1054,9 +1066,9 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
 				// used from within some other module, the user will be able to upgrade
 				// the requirement to any real version they choose.
 				if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
-					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+					v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
 				} else {
-					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+					v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
 				}
 			}
 
@@ -1071,9 +1083,9 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
 
 func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) {
 	rev := &modfetch.RevInfo{Version: v}
-	if modfetch.IsPseudoVersion(v) {
-		rev.Time, _ = modfetch.PseudoVersionTime(v)
-		rev.Short, _ = modfetch.PseudoVersionRev(v)
+	if module.IsPseudoVersion(v) {
+		rev.Time, _ = module.PseudoVersionTime(v)
+		rev.Short, _ = module.PseudoVersionRev(v)
 	}
 	return rev, nil
 }

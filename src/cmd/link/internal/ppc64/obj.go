@@ -34,21 +34,22 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"internal/buildcfg"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchPPC64
-	if objabi.GOARCH == "ppc64le" {
+	if buildcfg.GOARCH == "ppc64le" {
 		arch = sys.ArchPPC64LE
 	}
 
 	theArch := ld.Arch{
-		Funcalign:       funcAlign,
-		Maxalign:        maxAlign,
-		Minalign:        minAlign,
-		Dwarfregsp:      dwarfRegSP,
-		Dwarfreglr:      dwarfRegLR,
-		WriteTextBlocks: true,
+		Funcalign:  funcAlign,
+		Maxalign:   maxAlign,
+		Minalign:   minAlign,
+		Dwarfregsp: dwarfRegSP,
+		Dwarfreglr: dwarfRegLR,
+		TrampLimit: 0x1c00000,
 
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,

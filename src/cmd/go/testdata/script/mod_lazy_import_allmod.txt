@@ -53,8 +53,8 @@ stdout '^c v0.1.0 '
 
 cp m.go.orig m.go
 cp go.mod.orig go.mod
-go mod edit -go=1.16
-go mod edit -go=1.16 go.mod.new
+go mod edit -go=1.17
+go mod edit -go=1.17 go.mod.new
 
 cp go.mod go.mod.orig
 go mod tidy
@@ -63,14 +63,15 @@ cmp go.mod.orig go.mod
 go list -m all
 stdout '^a v0.1.0 '
 stdout '^b v0.1.0 '
-stdout '^c v0.1.0 '  # TODO(#36460): This should be pruned out.
+! stdout '^c '
 
-# After adding a new import of b/y,
-# the import of c from b/y should again resolve to the version required by b.
+# After adding a new direct import of b/y,
+# the existing verison of b should be promoted to a root,
+# bringing the version of c required by b into the build list.
 
 cp m.go.new m.go
 go mod tidy
-cmp go.mod.new go.mod
+cmp go.mod.lazy go.mod
 
 go list -m all
 stdout '^a v0.1.0 '
@@ -130,10 +131,28 @@ replace (
 	c v0.1.0 => ./c1
 	c v0.2.0 => ./c2
 )
+-- go.mod.lazy --
+module m
+
+go 1.17
+
+require (
+	a v0.1.0
+	b v0.1.0
+)
+
+require c v0.1.0 // indirect
+
+replace (
+	a v0.1.0 => ./a1
+	b v0.1.0 => ./b1
+	c v0.1.0 => ./c1
+	c v0.2.0 => ./c2
+)
 -- a1/go.mod --
 module a
 
-go 1.16
+go 1.17
 
 require b v0.1.0
 -- a1/a.go --
@@ -145,7 +164,7 @@ import _ "b/x"
 -- b1/go.mod --
 module b
 
-go 1.16
+go 1.17
 
 require c v0.1.0
 -- b1/x/x.go --
@@ -161,7 +180,7 @@ func CVersion() string {
 -- c1/go.mod --
 module c
 
-go 1.16
+go 1.17
 -- c1/c.go --
 package c
 

@@ -1,15 +1,6 @@
 pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
 pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
 pkg crypto/x509, method (SystemRootsError) Unwrap() error
-pkg crypto/x509, type CertificateRequest struct, BasicConstraintsValid bool
-pkg crypto/x509, type CertificateRequest struct, ExtKeyUsage []ExtKeyUsage
-pkg crypto/x509, type CertificateRequest struct, IsCA bool
-pkg crypto/x509, type CertificateRequest struct, KeyUsage KeyUsage
-pkg crypto/x509, type CertificateRequest struct, MaxPathLen int
-pkg crypto/x509, type CertificateRequest struct, MaxPathLenZero bool
-pkg crypto/x509, type CertificateRequest struct, PolicyIdentifiers []asn1.ObjectIdentifier
-pkg crypto/x509, type CertificateRequest struct, SubjectKeyId []uint8
-pkg crypto/x509, type CertificateRequest struct, UnknownExtKeyUsage []asn1.ObjectIdentifier
 pkg debug/elf, const DT_ADDRRNGHI = 1879047935
 pkg debug/elf, const DT_ADDRRNGHI DynTag
 pkg debug/elf, const DT_ADDRRNGLO = 1879047680
@@ -235,9 +226,41 @@ pkg embed, type FS struct
 pkg flag, func Func(string, string, func(string) error)
 pkg flag, method (*FlagSet) Func(string, string, func(string) error)
 pkg go/build, type Package struct, EmbedPatterns []string
+pkg go/build, type Package struct, EmbedPatternPos map[string][]token.Position
 pkg go/build, type Package struct, IgnoredOtherFiles []string
 pkg go/build, type Package struct, TestEmbedPatterns []string
+pkg go/build, type Package struct, TestEmbedPatternPos map[string][]token.Position
 pkg go/build, type Package struct, XTestEmbedPatterns []string
+pkg go/build, type Package struct, XTestEmbedPatternPos map[string][]token.Position
+pkg go/build/constraint, func IsGoBuild(string) bool
+pkg go/build/constraint, func IsPlusBuild(string) bool
+pkg go/build/constraint, func Parse(string) (Expr, error)
+pkg go/build/constraint, func PlusBuildLines(Expr) ([]string, error)
+pkg go/build/constraint, method (*AndExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*AndExpr) String() string
+pkg go/build/constraint, method (*NotExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*NotExpr) String() string
+pkg go/build/constraint, method (*OrExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*OrExpr) String() string
+pkg go/build/constraint, method (*SyntaxError) Error() string
+pkg go/build/constraint, method (*TagExpr) Eval(func(string) bool) bool
+pkg go/build/constraint, method (*TagExpr) String() string
+pkg go/build/constraint, type AndExpr struct
+pkg go/build/constraint, type AndExpr struct, X Expr
+pkg go/build/constraint, type AndExpr struct, Y Expr
+pkg go/build/constraint, type Expr interface, Eval(func(string) bool) bool
+pkg go/build/constraint, type Expr interface, String() string
+pkg go/build/constraint, type Expr interface, unexported methods
+pkg go/build/constraint, type NotExpr struct
+pkg go/build/constraint, type NotExpr struct, X Expr
+pkg go/build/constraint, type OrExpr struct
+pkg go/build/constraint, type OrExpr struct, X Expr
+pkg go/build/constraint, type OrExpr struct, Y Expr
+pkg go/build/constraint, type SyntaxError struct
+pkg go/build/constraint, type SyntaxError struct, Err string
+pkg go/build/constraint, type SyntaxError struct, Offset int
+pkg go/build/constraint, type TagExpr struct
+pkg go/build/constraint, type TagExpr struct, Tag string
 pkg html/template, func ParseFS(fs.FS, ...string) (*Template, error)
 pkg html/template, method (*Template) ParseFS(fs.FS, ...string) (*Template, error)
 pkg io, func NopCloser(Reader) ReadCloser
@@ -404,7 +427,6 @@ pkg runtime/metrics, type Description struct, Cumulative bool
 pkg runtime/metrics, type Description struct, Description string
 pkg runtime/metrics, type Description struct, Kind ValueKind
 pkg runtime/metrics, type Description struct, Name string
-pkg runtime/metrics, type Description struct, StopTheWorld bool
 pkg runtime/metrics, type Float64Histogram struct
 pkg runtime/metrics, type Float64Histogram struct, Buckets []float64
 pkg runtime/metrics, type Float64Histogram struct, Counts []uint64
@@ -437,10 +459,8 @@ pkg syscall (linux-arm-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, u
 pkg syscall (linux-arm-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
 pkg syscall (linux-arm-cgo), func Setegid(int) error
 pkg syscall (linux-arm-cgo), func Seteuid(int) error
-pkg syscall (windows-386), func RtlGenRandom(*uint8, uint32) error
 pkg syscall (windows-386), method (*DLLError) Unwrap() error
 pkg syscall (windows-386), type SysProcAttr struct, NoInheritHandles bool
-pkg syscall (windows-amd64), func RtlGenRandom(*uint8, uint32) error
 pkg syscall (windows-amd64), method (*DLLError) Unwrap() error
 pkg syscall (windows-amd64), type SysProcAttr struct, NoInheritHandles bool
 pkg testing/fstest, func TestFS(fs.FS, ...string) error

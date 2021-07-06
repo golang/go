@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestCaller(t *testing.T) {
@@ -163,5 +164,89 @@ func TestNilName(t *testing.T) {
 	}()
 	if got := (*runtime.Func)(nil).Name(); got != "" {
 		t.Errorf("Name() = %q, want %q", got, "")
+	}
+}
+
+var dummy int
+
+func inlined() {
+	// Side effect to prevent elimination of this entire function.
+	dummy = 42
+}
+
+// A function with an InlTree. Returns a PC within the function body.
+//
+// No inline to ensure this complete function appears in output.
+//
+//go:noinline
+func tracebackFunc(t *testing.T) uintptr {
+	// This body must be more complex than a single call to inlined to get
+	// an inline tree.
+	inlined()
+	inlined()
+
+	// Acquire a PC in this function.
+	pc, _, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("Caller(0) got ok false, want true")
+	}
+
+	return pc
+}
+
+// Test that CallersFrames handles PCs in the alignment region between
+// functions (int 3 on amd64) without crashing.
+//
+// Go will never generate a stack trace containing such an address, as it is
+// not a valid call site. However, the cgo traceback function passed to
+// runtime.SetCgoTraceback may not be completely accurate and may incorrect
+// provide PCs in Go code or the alignement region between functions.
+//
+// Go obviously doesn't easily expose the problematic PCs to running programs,
+// so this test is a bit fragile. Some details:
+//
+// * tracebackFunc is our target function. We want to get a PC in the
+//   alignment region following this function. This function also has other
+//   functions inlined into it to ensure it has an InlTree (this was the source
+//   of the bug in issue 44971).
+//
+// * We acquire a PC in tracebackFunc, walking forwards until FuncForPC says
+//   we're in a new function. The last PC of the function according to FuncForPC
+//   should be in the alignment region (assuming the function isn't already
+//   perfectly aligned).
+//
+// This is a regression test for issue 44971.
+func TestFunctionAlignmentTraceback(t *testing.T) {
+	pc := tracebackFunc(t)
+
+	// Double-check we got the right PC.
+	f := runtime.FuncForPC(pc)
+	if !strings.HasSuffix(f.Name(), "tracebackFunc") {
+		t.Fatalf("Caller(0) = %+v, want tracebackFunc", f)
+	}
+
+	// Iterate forward until we find a different function. Back up one
+	// instruction is (hopefully) an alignment instruction.
+	for runtime.FuncForPC(pc) == f {
+		pc++
+	}
+	pc--
+
+	// Is this an alignment region filler instruction? We only check this
+	// on amd64 for simplicity. If this function has no filler, then we may
+	// get a false negative, but will never get a false positive.
+	if runtime.GOARCH == "amd64" {
+		code := *(*uint8)(unsafe.Pointer(pc))
+		if code != 0xcc { // INT $3
+			t.Errorf("PC %v code got %#x want 0xcc", pc, code)
+		}
+	}
+
+	// Finally ensure that Frames.Next doesn't crash when processing this
+	// PC.
+	frames := runtime.CallersFrames([]uintptr{pc})
+	frame, _ := frames.Next()
+	if frame.Func != f {
+		t.Errorf("frames.Next() got %+v want %+v", frame.Func, f)
 	}
 }

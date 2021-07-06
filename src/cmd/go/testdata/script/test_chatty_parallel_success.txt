@@ -13,7 +13,7 @@ stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"comma
 stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
 
 -- chatty_parallel_test.go --
-package chatty_paralell_test
+package chatty_parallel_test
 
 import (
 	"testing"
@@ -21,7 +21,7 @@ import (
 	"flag"
 )
 
-// This test ensures the the order of CONT lines in parallel chatty tests.
+// This test ensures the order of CONT lines in parallel chatty tests.
 func TestChattyParallel(t *testing.T) {
 	t.Parallel()
 

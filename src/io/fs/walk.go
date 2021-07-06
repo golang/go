@@ -15,17 +15,12 @@ import (
 var SkipDir = errors.New("skip this directory")
 
 // WalkDirFunc is the type of the function called by WalkDir to visit
-// each each file or directory.
+// each file or directory.
 //
-// The path argument contains the argument to Walk as a prefix.
-// That is, if Walk is called with root argument "dir" and finds a file
+// The path argument contains the argument to WalkDir as a prefix.
+// That is, if WalkDir is called with root argument "dir" and finds a file
 // named "a" in that directory, the walk function will be called with
 // argument "dir/a".
-//
-// The directory and file are joined with Join, which may clean the
-// directory name: if Walk is called with the root argument "x/../dir"
-// and finds a file named "a" in that directory, the walk function will
-// be called with argument "dir/a", not "x/../dir/a".
 //
 // The d argument is the fs.DirEntry for the named path.
 //
@@ -42,9 +37,9 @@ var SkipDir = errors.New("skip this directory")
 //
 // WalkDir calls the function with a non-nil err argument in two cases.
 //
-// First, if the initial os.Lstat on the root directory fails, WalkDir
+// First, if the initial fs.Stat on the root directory fails, WalkDir
 // calls the function with path set to root, d set to nil, and err set to
-// the error from os.Lstat.
+// the error from fs.Stat.
 //
 // Second, if a directory's ReadDir method fails, WalkDir calls the
 // function with path set to the directory's path, d set to an

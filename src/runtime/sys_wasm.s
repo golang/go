@@ -185,7 +185,7 @@ TEXT ·nanotime1(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·walltime1(SB), NOSPLIT, $0
+TEXT ·walltime(SB), NOSPLIT, $0
 	CallImport
 	RET
 

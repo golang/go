@@ -5,6 +5,7 @@
 // Disabled for s390x because it uses assembly routines that are not
 // accurate for huge arguments.
 
+//go:build !s390x
 // +build !s390x
 
 package math_test

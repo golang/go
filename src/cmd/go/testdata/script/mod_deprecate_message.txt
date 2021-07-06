@@ -1,0 +1,73 @@
+# When there is a short single-line message, 'go get' should print it all.
+go get -d short
+stderr '^go: module short is deprecated: short$'
+go list -m -u -f '{{.Deprecated}}' short
+stdout '^short$'
+
+# When there is a multi-line message, 'go get' should print the first line.
+go get -d multiline
+stderr '^go: module multiline is deprecated: first line$'
+! stderr 'second line'
+go list -m -u -f '{{.Deprecated}}' multiline
+stdout '^first line\nsecond line.$'
+
+# When there is a long message, 'go get' should print a placeholder.
+go get -d long
+stderr '^go: module long is deprecated: \(message omitted: too long\)$'
+go list -m -u -f '{{.Deprecated}}' long
+stdout '^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$'
+
+# When a message contains unprintable chracters, 'go get' should say that
+# without printing the message.
+go get -d unprintable
+stderr '^go: module unprintable is deprecated: \(message omitted: contains non-printable characters\)$'
+go list -m -u -f '{{.Deprecated}}' unprintable
+stdout '^message contains ASCII BEL\x07$'
+
+-- go.mod --
+module use
+
+go 1.16
+
+require (
+	short v0.0.0
+	multiline v0.0.0
+	long v0.0.0
+	unprintable v0.0.0
+)
+
+replace (
+	short v0.0.0 => ./short
+	multiline v0.0.0 => ./multiline
+	long v0.0.0 => ./long
+	unprintable v0.0.0 => ./unprintable
+)
+-- short/go.mod --
+// Deprecated: short
+module short
+
+go 1.16
+-- short/short.go --
+package short
+-- multiline/go.mod --
+// Deprecated: first line
+// second line.
+module multiline
+
+go 1.16
+-- multiline/multiline.go --
+package multiline
+-- long/go.mod --
+// Deprecated: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+module long
+
+go 1.16
+-- long/long.go --
+package long
+-- unprintable/go.mod --
+// Deprecated: message contains ASCII BEL
+module unprintable
+
+go 1.16
+-- unprintable/unprintable.go --
+package unprintable

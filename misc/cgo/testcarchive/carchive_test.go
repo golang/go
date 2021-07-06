@@ -10,7 +10,6 @@ import (
 	"debug/elf"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -53,7 +52,7 @@ func testMain(m *testing.M) int {
 	// We need a writable GOPATH in which to run the tests.
 	// Construct one in a temporary directory.
 	var err error
-	GOPATH, err = ioutil.TempDir("", "carchive_test")
+	GOPATH, err = os.MkdirTemp("", "carchive_test")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -74,7 +73,7 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 	os.Setenv("PWD", modRoot)
-	if err := ioutil.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
+	if err := os.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
 		log.Panic(err)
 	}
 
@@ -118,11 +117,6 @@ func testMain(m *testing.M) int {
 		cc = append(cc, s[start:])
 	}
 
-	if GOOS == "darwin" || GOOS == "ios" {
-		// For Darwin/ARM.
-		// TODO: do we still need this?
-		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
-	}
 	if GOOS == "aix" {
 		// -Wl,-bnoobjreorder is mandatory to keep the same layout
 		// in .text section.
@@ -181,7 +175,7 @@ func genHeader(t *testing.T, header, dir string) {
 	// The 'cgo' command generates a number of additional artifacts,
 	// but we're only interested in the header.
 	// Shunt the rest of the outputs to a temporary directory.
-	objDir, err := ioutil.TempDir(GOPATH, "_obj")
+	objDir, err := os.MkdirTemp(GOPATH, "_obj")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +251,7 @@ var badLineRegexp = regexp.MustCompile(`(?m)^#line [0-9]+ "/.*$`)
 // the user and make the files change based on details of the location
 // of GOPATH.
 func checkLineComments(t *testing.T, hdrname string) {
-	hdr, err := ioutil.ReadFile(hdrname)
+	hdr, err := os.ReadFile(hdrname)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			t.Error(err)
@@ -623,7 +617,7 @@ func TestExtar(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := strings.Replace(testar, "PWD", dir, 1)
-	if err := ioutil.WriteFile("testar", []byte(s), 0777); err != nil {
+	if err := os.WriteFile("testar", []byte(s), 0777); err != nil {
 		t.Fatal(err)
 	}
 
@@ -781,7 +775,7 @@ func TestSIGPROF(t *testing.T) {
 // tool with -buildmode=c-archive, it passes -shared to the compiler,
 // so we override that. The go tool doesn't work this way, but Bazel
 // will likely do it in the future. And it ought to work. This test
-// was added because at one time it did not work on PPC GNU/Linux.
+// was added because at one time it did not work on PPC Linux.
 func TestCompileWithoutShared(t *testing.T) {
 	// For simplicity, reuse the signal forwarding test.
 	checkSignalForwardingTest(t)

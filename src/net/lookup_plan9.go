@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"internal/bytealg"
+	"internal/itoa"
 	"io"
 	"os"
 )
@@ -84,7 +85,7 @@ func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest str
 	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
-	lines, err := queryCS(ctx, net, ips, itoa(port))
+	lines, err := queryCS(ctx, net, ips, itoa.Itoa(port))
 	if err != nil {
 		return
 	}
@@ -308,7 +309,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
-			txt = append(txt, absDomainName([]byte(line[i+1:])))
+			txt = append(txt, line[i+1:])
 		}
 	}
 	return

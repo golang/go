@@ -75,7 +75,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		var sign [4]byte
 		r.ReadAt(sign[:], signoff)
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
-			return nil, fmt.Errorf("Invalid PE COFF file signature of %v.", sign)
+			return nil, fmt.Errorf("invalid PE file signature: % x", sign)
 		}
 		base = signoff + 4
 	} else {
@@ -86,9 +86,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 	switch f.FileHeader.Machine {
-	case IMAGE_FILE_MACHINE_UNKNOWN, IMAGE_FILE_MACHINE_ARMNT, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386:
+	case IMAGE_FILE_MACHINE_AMD64,
+		IMAGE_FILE_MACHINE_ARM64,
+		IMAGE_FILE_MACHINE_ARMNT,
+		IMAGE_FILE_MACHINE_I386,
+		IMAGE_FILE_MACHINE_UNKNOWN:
+		// ok
 	default:
-		return nil, fmt.Errorf("Unrecognised COFF file header machine value of 0x%x.", f.FileHeader.Machine)
+		return nil, fmt.Errorf("unrecognized PE machine: %#x", f.FileHeader.Machine)
 	}
 
 	var err error
@@ -112,7 +117,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	// Seek past file header.
 	_, err = sr.Seek(base+int64(binary.Size(f.FileHeader)), seekStart)
 	if err != nil {
-		return nil, fmt.Errorf("failure to seek past the file header: %v", err)
+		return nil, err
 	}
 
 	// Read optional header.
@@ -309,7 +314,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		return nil, nil
 	}
 
-	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
+	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64 || f.Machine == IMAGE_FILE_MACHINE_ARM64
 
 	// grab the number of data directory entries
 	var dd_length uint32

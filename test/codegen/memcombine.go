@@ -306,16 +306,16 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
 
 // Check load combining across function calls.
 
-func fcall_byte(a, b byte) (byte, byte) {
-	return fcall_byte(fcall_byte(a, b)) // amd64:`MOVW`
+func fcall_byte(a [2]byte) [2]byte {
+	return fcall_byte(fcall_byte(a)) // amd64:`MOVW`
 }
 
-func fcall_uint16(a, b uint16) (uint16, uint16) {
-	return fcall_uint16(fcall_uint16(a, b)) // amd64:`MOVL`
+func fcall_uint16(a [2]uint16) [2]uint16 {
+	return fcall_uint16(fcall_uint16(a)) // amd64:`MOVL`
 }
 
-func fcall_uint32(a, b uint32) (uint32, uint32) {
-	return fcall_uint32(fcall_uint32(a, b)) // amd64:`MOVQ`
+func fcall_uint32(a [2]uint32) [2]uint32 {
+	return fcall_uint32(fcall_uint32(a)) // amd64:`MOVQ`
 }
 
 // We want to merge load+op in the first function, but not in the
@@ -365,6 +365,15 @@ func store_le64_idx(b []byte, idx int) {
 	// ppc64le:`MOVD\s`,-`MOV[BHW]\s`
 	// s390x:`MOVDBR\s.*\(.*\)\(.*\*1\)$`
 	binary.LittleEndian.PutUint64(b[idx:], sink64)
+}
+
+func store_le64_load(b []byte, x *[8]byte) {
+	_ = b[8]
+	// amd64:-`MOV[BWL]`
+	// arm64:-`MOV[BWH]`
+	// ppc64le:-`MOV[BWH]`
+	// s390x:-`MOVB`,-`MOV[WH]BR`
+	binary.LittleEndian.PutUint64(b, binary.LittleEndian.Uint64(x[:]))
 }
 
 func store_le32(b []byte) {

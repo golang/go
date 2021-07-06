@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build race
 // +build race
 
 #include "go_asm.h"
@@ -160,21 +161,13 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp(fp uintptr)
-// Called from instrumented code.
-// Like racefuncenter but doesn't passes an arg, uses the caller pc
-// from the first slot on the stack
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
-	MOVD	0(RSP), R9
-	JMP	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVD	callpc+0(FP), R9
 	JMP	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R9 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	load_g

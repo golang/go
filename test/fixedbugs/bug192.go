@@ -8,4 +8,6 @@ package main
 
 import "fmt"	// GCCGO_ERROR "previous"
 
-var fmt int	// ERROR "redecl|redefinition"
+var _ = fmt.Println // avoid imported and not used error
+
+var fmt int	// ERROR "redecl|redefinition|fmt already declared"

@@ -1,0 +1,92 @@
+cp go.mod.orig go.mod
+
+# If we list a package in an implicit dependency imported from the main module,
+# we should get an error because the dependency should have an explicit
+# requirement.
+go list -m indirect-with-pkg
+stdout '^indirect-with-pkg v1.0.0 => ./indirect-with-pkg$'
+! go list ./use-indirect
+stderr '^package m/use-indirect imports indirect-with-pkg from implicitly required module; to add missing requirements, run:\n\tgo get indirect-with-pkg@v1.0.0$'
+
+# We can promote the implicit requirement by getting the importing package.
+# NOTE: the hint recommends getting the imported package (tested below) since
+# it's more obvious and doesn't require -d. However, that adds an '// indirect'
+# comment on the requirement.
+go get -d m/use-indirect
+cmp go.mod go.mod.use
+cp go.mod.orig go.mod
+
+# We can also promote implicit requirements using 'go get' on them, or their
+# packages. This gives us "// indirect" requirements, since 'go get' doesn't
+# know they're needed by the main module. See #43131 for the rationale.
+# The hint above recommends this because it's more obvious usage and doesn't
+# require the -d flag.
+go get -d indirect-with-pkg indirect-without-pkg
+cmp go.mod go.mod.indirect
+
+-- go.mod.orig --
+module m
+
+go 1.16
+
+require direct v1.0.0
+
+replace (
+	direct v1.0.0 => ./direct
+	indirect-with-pkg v1.0.0 => ./indirect-with-pkg
+	indirect-without-pkg v1.0.0 => ./indirect-without-pkg
+)
+-- go.mod.use --
+module m
+
+go 1.16
+
+require (
+	direct v1.0.0
+	indirect-with-pkg v1.0.0
+)
+
+replace (
+	direct v1.0.0 => ./direct
+	indirect-with-pkg v1.0.0 => ./indirect-with-pkg
+	indirect-without-pkg v1.0.0 => ./indirect-without-pkg
+)
+-- go.mod.indirect --
+module m
+
+go 1.16
+
+require (
+	direct v1.0.0
+	indirect-with-pkg v1.0.0 // indirect
+	indirect-without-pkg v1.0.0 // indirect
+)
+
+replace (
+	direct v1.0.0 => ./direct
+	indirect-with-pkg v1.0.0 => ./indirect-with-pkg
+	indirect-without-pkg v1.0.0 => ./indirect-without-pkg
+)
+-- use-indirect/use-indirect.go --
+package use
+
+import _ "indirect-with-pkg"
+-- direct/go.mod --
+module direct
+
+go 1.16
+
+require (
+	indirect-with-pkg v1.0.0
+	indirect-without-pkg v1.0.0
+)
+-- indirect-with-pkg/go.mod --
+module indirect-with-pkg
+
+go 1.16
+-- indirect-with-pkg/p.go --
+package p
+-- indirect-without-pkg/go.mod --
+module indirect-without-pkg
+
+go 1.16

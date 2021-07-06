@@ -163,8 +163,8 @@ const (
 	C_SFCON
 	C_LFCON
 
-	C_RACON
-	C_LACON
+	C_RACON /* <=0xff rotated constant offset from auto */
+	C_LACON /* Large Auto CONstant, i.e. large offset from SP */
 
 	C_SBRA
 	C_LBRA

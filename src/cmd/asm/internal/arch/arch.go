@@ -109,6 +109,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	register["SB"] = RSB
 	register["FP"] = RFP
 	register["PC"] = RPC
+	if linkArch == &x86.Linkamd64 {
+		// Alias g to R14
+		register["g"] = x86.REGG
+	}
 	// Register prefix not used on this architecture.
 
 	instructions := make(map[string]obj.As)

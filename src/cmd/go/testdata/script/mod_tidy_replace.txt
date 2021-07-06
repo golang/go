@@ -136,3 +136,10 @@ require (
 )
 
 replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
+-- multiple-paths/use.go --
+package quoter
+
+import (
+	_ "not-rsc.io/quote/v3"
+	_ "rsc.io/quote/v3"
+)

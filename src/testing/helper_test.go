@@ -71,6 +71,38 @@ func TestTBHelperParallel(t *T) {
 	}
 }
 
+func TestTBHelperLineNumer(t *T) {
+	var buf bytes.Buffer
+	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+	t1 := &T{
+		common: common{
+			signal: make(chan bool),
+			w:      &buf,
+		},
+		context: ctx,
+	}
+	t1.Run("Test", func(t *T) {
+		helperA := func(t *T) {
+			t.Helper()
+			t.Run("subtest", func(t *T) {
+				t.Helper()
+				t.Fatal("fatal error message")
+			})
+		}
+		helperA(t)
+	})
+
+	want := "helper_test.go:92: fatal error message"
+	got := ""
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) > 0 {
+		got = strings.TrimSpace(lines[len(lines)-1])
+	}
+	if got != want {
+		t.Errorf("got output:\n\n%v\nwant:\n\n%v", got, want)
+	}
+}
+
 type noopWriter int
 
 func (nw *noopWriter) Write(b []byte) (int, error) { return len(b), nil }

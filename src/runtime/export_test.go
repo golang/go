@@ -46,6 +46,14 @@ var NetpollGenericInit = netpollGenericInit
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
 
+var LockPartialOrder = lockPartialOrder
+
+type LockRank lockRank
+
+func (l LockRank) String() string {
+	return lockRank(l).String()
+}
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
@@ -139,28 +147,40 @@ func RunSchedLocalQueueStealTest() {
 	}
 }
 
+// Temporary to enable register ABI bringup.
+// TODO(register args): convert back to local variables in RunSchedLocalQueueEmptyTest that
+// get passed to the "go" stmts there.
+var RunSchedLocalQueueEmptyState struct {
+	done  chan bool
+	ready *uint32
+	p     *p
+}
+
 func RunSchedLocalQueueEmptyTest(iters int) {
 	// Test that runq is not spuriously reported as empty.
 	// Runq emptiness affects scheduling decisions and spurious emptiness
 	// can lead to underutilization (both runnable Gs and idle Ps coexist
 	// for arbitrary long time).
 	done := make(chan bool, 1)
+	RunSchedLocalQueueEmptyState.done = done
 	p := new(p)
+	RunSchedLocalQueueEmptyState.p = p
 	gs := make([]g, 2)
 	ready := new(uint32)
+	RunSchedLocalQueueEmptyState.ready = ready
 	for i := 0; i < iters; i++ {
 		*ready = 0
 		next0 := (i & 1) == 0
 		next1 := (i & 2) == 0
 		runqput(p, &gs[0], next0)
 		go func() {
-			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+			for atomic.Xadd(RunSchedLocalQueueEmptyState.ready, 1); atomic.Load(RunSchedLocalQueueEmptyState.ready) != 2; {
 			}
-			if runqempty(p) {
-				println("next:", next0, next1)
+			if runqempty(RunSchedLocalQueueEmptyState.p) {
+				//println("next:", next0, next1)
 				throw("queue is empty")
 			}
-			done <- true
+			RunSchedLocalQueueEmptyState.done <- true
 		}()
 		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
 		}
@@ -199,8 +219,6 @@ func GostringW(w []uint16) (s string) {
 	})
 	return
 }
-
-type Uintreg sys.Uintreg
 
 var Open = open
 var Close = closefd
@@ -375,7 +393,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
 			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
 		}
-		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
+		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
 		slow.Mallocs += slow.Frees
 
 		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
@@ -397,9 +415,6 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			pg := sys.OnesCount64(p.pcache.scav)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
-
-		// Unused space in the current arena also counts as released space.
-		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
 
 		getg().m.mallocing--
 	})
@@ -1133,31 +1148,6 @@ func SemNwait(addr *uint32) uint32 {
 	return atomic.Load(&root.nwait)
 }
 
-// MapHashCheck computes the hash of the key k for the map m, twice.
-// Method 1 uses the built-in hasher for the map.
-// Method 2 uses the typehash function (the one used by reflect).
-// Returns the two hash values, which should always be equal.
-func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
-	// Unpack m.
-	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
-	mh := (*hmap)(efaceOf(&m).data)
-
-	// Unpack k.
-	kt := efaceOf(&k)._type
-	var p unsafe.Pointer
-	if isDirectIface(kt) {
-		q := efaceOf(&k).data
-		p = unsafe.Pointer(&q)
-	} else {
-		p = efaceOf(&k).data
-	}
-
-	// Compute the hash functions.
-	x := mt.hasher(noescape(p), uintptr(mh.hash0))
-	y := typehash(kt, noescape(p), uintptr(mh.hash0))
-	return x, y
-}
-
 // mspan wrapper for testing.
 //go:notinheap
 type MSpan mspan
@@ -1201,12 +1191,12 @@ type TimeHistogram timeHistogram
 
 // Counts returns the counts for the given bucket, subBucket indices.
 // Returns true if the bucket was valid, otherwise returns the counts
-// for the overflow bucket and false.
+// for the underflow bucket and false.
 func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 	t := (*timeHistogram)(th)
 	i := bucket*TimeHistNumSubBuckets + subBucket
 	if i >= uint(len(t.counts)) {
-		return t.overflow, false
+		return t.underflow, false
 	}
 	return t.counts[i], true
 }
@@ -1214,3 +1204,43 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
 }
+
+func SetIntArgRegs(a int) int {
+	lock(&finlock)
+	old := intArgRegs
+	if a >= 0 {
+		intArgRegs = a
+	}
+	unlock(&finlock)
+	return old
+}
+
+func FinalizerGAsleep() bool {
+	lock(&finlock)
+	result := fingwait
+	unlock(&finlock)
+	return result
+}
+
+// For GCTestMoveStackOnNextCall, it's important not to introduce an
+// extra layer of call, since then there's a return before the "real"
+// next call.
+var GCTestMoveStackOnNextCall = gcTestMoveStackOnNextCall
+
+// For GCTestIsReachable, it's important that we do this as a call so
+// escape analysis can see through it.
+func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+	return gcTestIsReachable(ptrs...)
+}
+
+// For GCTestPointerClass, it's important that we do this as a call so
+// escape analysis can see through it.
+//
+// This is nosplit because gcTestPointerClass is.
+//
+//go:nosplit
+func GCTestPointerClass(p unsafe.Pointer) string {
+	return gcTestPointerClass(p)
+}
+
+const Raceenabled = raceenabled

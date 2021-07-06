@@ -33,7 +33,12 @@ func TestErrIsExist(t *testing.T) {
 	}
 }
 
-func testErrNotExist(name string) string {
+func testErrNotExist(t *testing.T, name string) string {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	f, err := os.Open(name)
 	if err == nil {
 		f.Close()
@@ -45,7 +50,10 @@ func testErrNotExist(name string) string {
 
 	err = os.Chdir(name)
 	if err == nil {
-		return "Chdir should have failed"
+		if err := os.Chdir(originalWD); err != nil {
+			t.Fatalf("Chdir should have failed, failed to restore original working directory: %v", err)
+		}
+		return "Chdir should have failed, restored original working directory"
 	}
 	if s := checkErrorPredicate("os.IsNotExist", os.IsNotExist, err, fs.ErrNotExist); s != "" {
 		return s
@@ -54,21 +62,15 @@ func testErrNotExist(name string) string {
 }
 
 func TestErrIsNotExist(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "_Go_ErrIsNotExist")
-	if err != nil {
-		t.Fatalf("create ErrIsNotExist tempdir: %s", err)
-		return
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	name := filepath.Join(tmpDir, "NotExists")
-	if s := testErrNotExist(name); s != "" {
+	if s := testErrNotExist(t, name); s != "" {
 		t.Fatal(s)
 		return
 	}
 
 	name = filepath.Join(name, "NotExists2")
-	if s := testErrNotExist(name); s != "" {
+	if s := testErrNotExist(t, name); s != "" {
 		t.Fatal(s)
 		return
 	}

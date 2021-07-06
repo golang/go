@@ -212,7 +212,7 @@ func caller7() {
 
 // **in -> heap
 func param8(i **int) { // ERROR "i does not escape$"
-	sink = **i // ERROR "\* \(\*i\) escapes to heap"
+	sink = **i // ERROR "\*\(\*i\) escapes to heap"
 }
 
 func caller8() {
@@ -402,7 +402,7 @@ func caller13h() {
 	var p *int
 	v := &Val{&p} // ERROR "&Val{...} does not escape$"
 	v.param13(&i)
-	sink = **v.p // ERROR "\* \(\*v\.p\) escapes to heap"
+	sink = **v.p // ERROR "\*\(\*v\.p\) escapes to heap"
 }
 
 type Node struct {

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
 // +build aix dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
@@ -9,15 +10,16 @@ package os
 import (
 	"io"
 	"runtime"
+	"sync"
 	"syscall"
 	"unsafe"
 )
 
 // Auxiliary information if the File describes a directory
 type dirInfo struct {
-	buf  []byte // buffer for directory I/O
-	nbuf int    // length of buf; return value from Getdirentries
-	bufp int    // location of next record in buf.
+	buf  *[]byte // buffer for directory I/O
+	nbuf int     // length of buf; return value from Getdirentries
+	bufp int     // location of next record in buf.
 }
 
 const (
@@ -25,14 +27,26 @@ const (
 	blockSize = 8192
 )
 
-func (d *dirInfo) close() {}
+var dirBufPool = sync.Pool{
+	New: func() interface{} {
+		// The buffer must be at least a block long.
+		buf := make([]byte, blockSize)
+		return &buf
+	},
+}
+
+func (d *dirInfo) close() {
+	if d.buf != nil {
+		dirBufPool.Put(d.buf)
+		d.buf = nil
+	}
+}
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {
 		f.dirinfo = new(dirInfo)
-		// The buffer must be at least a block long.
-		f.dirinfo.buf = make([]byte, blockSize)
+		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
 	}
 	d := f.dirinfo
 
@@ -54,7 +68,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if d.bufp >= d.nbuf {
 			d.bufp = 0
 			var errno error
-			d.nbuf, errno = f.pfd.ReadDirent(d.buf)
+			d.nbuf, errno = f.pfd.ReadDirent(*d.buf)
 			runtime.KeepAlive(f)
 			if errno != nil {
 				return names, dirents, infos, &PathError{Op: "readdirent", Path: f.name, Err: errno}
@@ -65,7 +79,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		}
 
 		// Drain the buffer
-		buf := d.buf[d.bufp:d.nbuf]
+		buf := (*d.buf)[d.bufp:d.nbuf]
 		reclen, ok := direntReclen(buf)
 		if !ok || reclen > uint64(len(buf)) {
 			break

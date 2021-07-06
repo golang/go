@@ -76,7 +76,7 @@ func TestEvalArith(t *testing.T) {
 		`false == false`,
 		`12345678 + 87654321 == 99999999`,
 		`10 * 20 == 200`,
-		`(1<<1000)*2 >> 100 == 2<<900`,
+		`(1<<500)*2 >> 100 == 2<<400`,
 		`"foo" + "bar" == "foobar"`,
 		`"abc" <= "bcd"`,
 		`len([10]struct{}{}) == 2*5`,
@@ -155,9 +155,9 @@ func TestEvalPos(t *testing.T) {
 		import "io"
 		type R = io.Reader
 		func _() {
-			/* interface{R}.Read => , func(interface{io.Reader}, p []byte) (n int, err error) */
+			/* interface{R}.Read => , func(_ interface{io.Reader}, p []byte) (n int, err error) */
 			_ = func() {
-				/* interface{io.Writer}.Write => , func(interface{io.Writer}, p []byte) (n int, err error) */
+				/* interface{io.Writer}.Write => , func(_ interface{io.Writer}, p []byte) (n int, err error) */
 				type io interface {} // must not shadow io in line above
 			}
 			type R interface {} // must not shadow R in first line of this function body

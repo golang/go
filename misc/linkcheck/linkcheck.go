@@ -11,7 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -144,7 +144,7 @@ func doCrawl(url string) error {
 	if res.StatusCode != 200 {
 		return errors.New(res.Status)
 	}
-	slurp, err := ioutil.ReadAll(res.Body)
+	slurp, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatalf("Error reading %s body: %v", url, err)

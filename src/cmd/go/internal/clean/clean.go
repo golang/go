@@ -117,7 +117,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cleanPkg {
-		for _, pkg := range load.PackagesAndErrors(ctx, args) {
+		for _, pkg := range load.PackagesAndErrors(ctx, load.PackageOpts{}, args) {
 			clean(pkg)
 		}
 	}

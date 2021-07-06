@@ -14,10 +14,10 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	exec "internal/execabs"
 	"internal/xcoff"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -168,8 +168,18 @@ func (p *Package) writeDefs() {
 			if *gccgo {
 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
 			} else {
-				fmt.Fprintf(fm, "extern char %s[];\n", n.C)
-				fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+				// Force a reference to all symbols so that
+				// the external linker will add DT_NEEDED
+				// entries as needed on ELF systems.
+				// Treat function variables differently
+				// to avoid type confict errors from LTO
+				// (Link Time Optimization).
+				if n.Kind == "fpvar" {
+					fmt.Fprintf(fm, "extern void %s();\n", n.C)
+				} else {
+					fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+					fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+				}
 				fmt.Fprintf(fgo2, "//go:linkname __cgo_%s %s\n", n.C, n.C)
 				fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", n.C)
 				fmt.Fprintf(fgo2, "var __cgo_%s byte\n", n.C)
@@ -953,9 +963,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		// Build the wrapper function compiled by gcc.
 		gccExport := ""
 		if goos == "windows" {
-			gccExport = "__declspec(dllexport)"
+			gccExport = "__declspec(dllexport) "
 		}
-		s := fmt.Sprintf("%s %s %s(", gccExport, gccResult, exp.ExpName)
+		s := fmt.Sprintf("%s%s %s(", gccExport, gccResult, exp.ExpName)
 		if fn.Recv != nil {
 			s += p.cgoType(fn.Recv.List[0].Type).C.String()
 			s += " recv"
@@ -1021,14 +1031,28 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgcc, "}\n")
 
+		// In internal linking mode, the Go linker sees both
+		// the C wrapper written above and the Go wrapper it
+		// references. Hence, export the C wrapper (e.g., for
+		// if we're building a shared object). The Go linker
+		// will resolve the C wrapper's reference to the Go
+		// wrapper without a separate export.
+		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
+		// cgo_export_static refers to a symbol by its linker
+		// name, so set the linker name of the Go wrapper.
+		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
+		// In external linking mode, the Go linker sees the Go
+		// wrapper, but not the C wrapper. For this case,
+		// export the Go wrapper so the host linker can
+		// resolve the reference from the C wrapper to the Go
+		// wrapper.
+		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
+
 		// Build the wrapper function compiled by cmd/compile.
 		// This unpacks the argument struct above and calls the Go function.
-		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
-		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
-		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
 
-		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
 
 		if gccResult != "void" {
 			// Write results back to frame.
@@ -1717,8 +1741,12 @@ typedef struct __go_open_array {
 struct __go_string __go_byte_array_to_string(const void* p, intgo len);
 struct __go_open_array __go_string_to_byte_array (struct __go_string str);
 
+extern void runtime_throw(const char *);
+
 const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
 	char *p = malloc(s.__length+1);
+	if(p == NULL)
+		runtime_throw("runtime: C malloc failed");
 	memmove(p, s.__data, s.__length);
 	p[s.__length] = 0;
 	return p;
@@ -1726,6 +1754,8 @@ const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
 
 void *_cgoPREFIX_Cfunc_CBytes(struct __go_open_array b) {
 	char *p = malloc(b.__count);
+	if(p == NULL)
+		runtime_throw("runtime: C malloc failed");
 	memmove(p, b.__values, b.__count);
 	return p;
 }
@@ -1744,14 +1774,13 @@ Slice _cgoPREFIX_Cfunc_GoBytes(char *p, int32_t n) {
 	return __go_string_to_byte_array(s);
 }
 
-extern void runtime_throw(const char *);
 void *_cgoPREFIX_Cfunc__CMalloc(size_t n) {
-        void *p = malloc(n);
-        if(p == NULL && n == 0)
-                p = malloc(1);
-        if(p == NULL)
-                runtime_throw("runtime: C malloc failed");
-        return p;
+	void *p = malloc(n);
+	if(p == NULL && n == 0)
+		p = malloc(1);
+	if(p == NULL)
+		runtime_throw("runtime: C malloc failed");
+	return p;
 }
 
 struct __go_type_descriptor;

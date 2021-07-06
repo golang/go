@@ -59,6 +59,7 @@ func Test28896(t *testing.T)                 { test28896(t) }
 func Test30065(t *testing.T)                 { test30065(t) }
 func Test32579(t *testing.T)                 { test32579(t) }
 func Test31891(t *testing.T)                 { test31891(t) }
+func Test45451(t *testing.T)                 { test45451(t) }
 func TestAlign(t *testing.T)                 { testAlign(t) }
 func TestAtol(t *testing.T)                  { testAtol(t) }
 func TestBlocking(t *testing.T)              { testBlocking(t) }
@@ -80,6 +81,7 @@ func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
 func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
 func TestErrno(t *testing.T)                 { testErrno(t) }
 func TestFpVar(t *testing.T)                 { testFpVar(t) }
+func TestHandle(t *testing.T)                { testHandle(t) }
 func TestHelpers(t *testing.T)               { testHelpers(t) }
 func TestLibgcc(t *testing.T)                { testLibgcc(t) }
 func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }

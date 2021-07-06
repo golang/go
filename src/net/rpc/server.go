@@ -283,7 +283,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		mtype := method.Type
 		mname := method.Name
 		// Method must be exported.
-		if method.PkgPath != "" {
+		if !method.IsExported() {
 			continue
 		}
 		// Method needs three ins: receiver, *args, *reply.

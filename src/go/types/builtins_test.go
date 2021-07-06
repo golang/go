@@ -87,6 +87,9 @@ var builtinCalls = []struct {
 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
 
+	// issue #45667
+	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 
@@ -104,6 +107,10 @@ var builtinCalls = []struct {
 	{"recover", `recover()`, `func() interface{}`},
 	{"recover", `_ = recover()`, `func() interface{}`},
 
+	{"Add", `var p unsafe.Pointer; _ = unsafe.Add(p, -1.0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
+	{"Add", `var p unsafe.Pointer; var n uintptr; _ = unsafe.Add(p, n)`, `func(unsafe.Pointer, uintptr) unsafe.Pointer`},
+	{"Add", `_ = unsafe.Add(nil, 0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
+
 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
 
@@ -112,6 +119,9 @@ var builtinCalls = []struct {
 
 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+
+	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
+	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
 
 	{"assert", `assert(true)`, `invalid type`},                                    // constant
 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant

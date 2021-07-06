@@ -34,9 +34,10 @@ stderr 'Run ''go help mod'' for usage.'
 # Earlier versions of Go printed the same as 'go -h' here.
 # Also make sure we print the short help line.
 ! go vet -h
-stderr 'usage: go vet'
-stderr 'Run ''go help vet'' for details'
-stderr 'Run ''go tool vet -help'' for the vet tool''s flags'
+stderr 'usage: go vet .*'
+stderr 'Run ''go help vet'' for details.'
+stderr 'Run ''go tool vet help'' for a full list of flags and analyzers.'
+stderr 'Run ''go tool vet -help'' for an overview.'
 
 # Earlier versions of Go printed a large document here, instead of these two
 # lines.

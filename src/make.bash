@@ -130,12 +130,12 @@ if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
 	export CGO_ENABLED=0
 fi
 
-# On Alpine Linux, use the musl dynamic linker/loader
-if [ -f "/etc/alpine-release" ]; then
-	if type readelf >/dev/null 2>&1; then
-		echo "int main() { return 0; }" | ${CC:-gcc} -o ./test-alpine-ldso -x c -
-		export GO_LDSO=$(readelf -l ./test-alpine-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/')
-		rm -f ./test-alpine-ldso
+# Test which linker/loader our system is using
+if type readelf >/dev/null 2>&1; then
+	if echo "int main() { return 0; }" | ${CC:-cc} -o ./test-musl-ldso -x c - >/dev/null 2>&1; then
+		LDSO=$(readelf -l ./test-musl-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/') >/dev/null 2>&1
+		[ -z "$LDSO" ] || export GO_LDSO="$LDSO"
+		rm -f ./test-musl-ldso
 	fi
 fi
 

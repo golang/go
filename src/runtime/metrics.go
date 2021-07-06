@@ -41,10 +41,28 @@ func initMetrics() {
 	if metricsInit {
 		return
 	}
-	sizeClassBuckets = make([]float64, _NumSizeClasses)
-	for i := range sizeClassBuckets {
-		sizeClassBuckets[i] = float64(class_to_size[i])
+
+	sizeClassBuckets = make([]float64, _NumSizeClasses, _NumSizeClasses+1)
+	// Skip size class 0 which is a stand-in for large objects, but large
+	// objects are tracked separately (and they actually get placed in
+	// the last bucket, not the first).
+	sizeClassBuckets[0] = 1 // The smallest allocation is 1 byte in size.
+	for i := 1; i < _NumSizeClasses; i++ {
+		// Size classes have an inclusive upper-bound
+		// and exclusive lower bound (e.g. 48-byte size class is
+		// (32, 48]) whereas we want and inclusive lower-bound
+		// and exclusive upper-bound (e.g. 48-byte size class is
+		// [33, 49). We can achieve this by shifting all bucket
+		// boundaries up by 1.
+		//
+		// Also, a float64 can precisely represent integers with
+		// value up to 2^53 and size classes are relatively small
+		// (nowhere near 2^48 even) so this will give us exact
+		// boundaries.
+		sizeClassBuckets[i] = float64(class_to_size[i] + 1)
 	}
+	sizeClassBuckets = append(sizeClassBuckets, float64Inf())
+
 	timeHistBuckets = timeHistogramMetricsBuckets()
 	metrics = map[string]metricData{
 		"/gc/cycles/automatic:gc-cycles": {
@@ -68,24 +86,56 @@ func initMetrics() {
 				out.scalar = in.sysStats.gcCyclesDone
 			},
 		},
-		"/gc/heap/allocs-by-size:objects": {
+		"/gc/heap/allocs-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
-				for i := range hist.buckets {
-					hist.counts[i] = uint64(in.heapStats.smallAllocCount[i])
+				// Cut off the first index which is ostensibly for size class 0,
+				// but large objects are tracked separately so it's actually unused.
+				for i, count := range in.heapStats.smallAllocCount[1:] {
+					hist.counts[i] = uint64(count)
 				}
 			},
 		},
-		"/gc/heap/frees-by-size:objects": {
+		"/gc/heap/allocs:bytes": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalAllocated
+			},
+		},
+		"/gc/heap/allocs:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalAllocs
+			},
+		},
+		"/gc/heap/frees-by-size:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(sizeClassBuckets)
 				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
-				for i := range hist.buckets {
-					hist.counts[i] = uint64(in.heapStats.smallFreeCount[i])
+				// Cut off the first index which is ostensibly for size class 0,
+				// but large objects are tracked separately so it's actually unused.
+				for i, count := range in.heapStats.smallFreeCount[1:] {
+					hist.counts[i] = uint64(count)
 				}
+			},
+		},
+		"/gc/heap/frees:bytes": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalFreed
+			},
+		},
+		"/gc/heap/frees:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.heapStats.totalFrees
 			},
 		},
 		"/gc/heap/goal:bytes": {
@@ -102,12 +152,22 @@ func initMetrics() {
 				out.scalar = in.heapStats.numObjects
 			},
 		},
+		"/gc/heap/tiny/allocs:objects": {
+			deps: makeStatDepSet(heapStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.heapStats.tinyAllocCount)
+			},
+		},
 		"/gc/pauses:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				hist := out.float64HistOrInit(timeHistBuckets)
-				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
-				for i := range hist.buckets {
-					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
+				// The bottom-most bucket, containing negative values, is tracked
+				// as a separately as underflow, so fill that in manually and then
+				// iterate over the rest.
+				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
+				for i := range memstats.gcPauseDist.counts {
+					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
 				}
 			},
 		},
@@ -220,6 +280,15 @@ func initMetrics() {
 				out.scalar = uint64(gcount())
 			},
 		},
+		"/sched/latencies:seconds": {
+			compute: func(_ *statAggregate, out *metricValue) {
+				hist := out.float64HistOrInit(timeHistBuckets)
+				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
+				for i := range sched.timeToRun.counts {
+					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
+				}
+			},
+		},
 	}
 	metricsInit = true
 }
@@ -296,6 +365,22 @@ type heapStatsAggregate struct {
 
 	// numObjects is the number of live objects in the heap.
 	numObjects uint64
+
+	// totalAllocated is the total bytes of heap objects allocated
+	// over the lifetime of the program.
+	totalAllocated uint64
+
+	// totalFreed is the total bytes of heap objects freed
+	// over the lifetime of the program.
+	totalFreed uint64
+
+	// totalAllocs is the number of heap objects allocated over
+	// the lifetime of the program.
+	totalAllocs uint64
+
+	// totalFrees is the number of heap objects freed over
+	// the lifetime of the program.
+	totalFrees uint64
 }
 
 // compute populates the heapStatsAggregate with values from the runtime.
@@ -303,13 +388,20 @@ func (a *heapStatsAggregate) compute() {
 	memstats.heapStats.read(&a.heapStatsDelta)
 
 	// Calculate derived stats.
-	a.inObjects = uint64(a.largeAlloc - a.largeFree)
-	a.numObjects = uint64(a.largeAllocCount - a.largeFreeCount)
+	a.totalAllocs = uint64(a.largeAllocCount)
+	a.totalFrees = uint64(a.largeFreeCount)
+	a.totalAllocated = uint64(a.largeAlloc)
+	a.totalFreed = uint64(a.largeFree)
 	for i := range a.smallAllocCount {
-		n := uint64(a.smallAllocCount[i] - a.smallFreeCount[i])
-		a.inObjects += n * uint64(class_to_size[i])
-		a.numObjects += n
+		na := uint64(a.smallAllocCount[i])
+		nf := uint64(a.smallFreeCount[i])
+		a.totalAllocs += na
+		a.totalFrees += nf
+		a.totalAllocated += na * uint64(class_to_size[i])
+		a.totalFreed += nf * uint64(class_to_size[i])
 	}
+	a.inObjects = a.totalAllocated - a.totalFreed
+	a.numObjects = a.totalAllocs - a.totalFrees
 }
 
 // sysStatsAggregate represents system memory stats obtained
@@ -339,7 +431,7 @@ func (a *sysStatsAggregate) compute() {
 	a.buckHashSys = memstats.buckhash_sys.load()
 	a.gcMiscSys = memstats.gcMiscSys.load()
 	a.otherSys = memstats.other_sys.load()
-	a.heapGoal = atomic.Load64(&memstats.next_gc)
+	a.heapGoal = atomic.Load64(&gcController.heapGoal)
 	a.gcCyclesDone = uint64(memstats.numgc)
 	a.gcCyclesForced = uint64(memstats.numforcedgc)
 
@@ -426,8 +518,8 @@ func (v *metricValue) float64HistOrInit(buckets []float64) *metricFloat64Histogr
 		v.pointer = unsafe.Pointer(hist)
 	}
 	hist.buckets = buckets
-	if len(hist.counts) != len(hist.buckets)+1 {
-		hist.counts = make([]uint64, len(buckets)+1)
+	if len(hist.counts) != len(hist.buckets)-1 {
+		hist.counts = make([]uint64, len(buckets)-1)
 	}
 	return hist
 }
@@ -456,7 +548,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
 
 	// Acquire the metricsSema but with handoff. This operation
 	// is expensive enough that queueing up goroutines and handing
-	// off between them will be noticably better-behaved.
+	// off between them will be noticeably better-behaved.
 	semacquire1(&metricsSema, true, 0, 0)
 
 	// Ensure the map is initialized.

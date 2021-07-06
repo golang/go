@@ -10,20 +10,34 @@ go mod tidy
 grep '^example.com/ambiguous/a v1.0.0 h1:' go.sum
 grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
 
+# 'go mod download' should also add sums.
+cp go.sum.buildlist-only go.sum
+go mod download example.com/ambiguous/a
+grep '^example.com/ambiguous/a v1.0.0 h1:' go.sum
+! grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
+go mod download example.com/ambiguous/a/b
+grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
+
 # If two modules could provide a package, and we're missing a sum for one,
 # we should see a missing sum error, even if we have a sum for a module that
 # provides the package.
 cp go.sum.a-only go.sum
 ! go list example.com/ambiguous/a/b
-stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module$'
+stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; to add:\n\tgo mod download example.com/ambiguous/a/b$'
 ! go list -deps .
-stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; try ''go mod tidy'' to add it$'
+stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b \(imported by m\) is provided by exactly one module; to add:\n\tgo get m$'
 
 cp go.sum.b-only go.sum
 ! go list example.com/ambiguous/a/b
-stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b$'
+stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b; to add:\n\tgo mod download example.com/ambiguous/a$'
 ! go list -deps .
-stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; try ''go mod tidy'' to add it$'
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b \(imported by m\); to add:\n\tgo get m$'
+
+cp go.sum.buildlist-only go.sum
+! go list example.com/ambiguous/a/b
+stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b; to add:\n\tgo mod download example.com/ambiguous/a example.com/ambiguous/a/b$'
+! go list -deps .
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b \(imported by m\); to add:\n\tgo get m$'
 
 -- go.mod --
 module m

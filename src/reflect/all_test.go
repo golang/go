@@ -15,6 +15,8 @@ import (
 	"math/rand"
 	"os"
 	. "reflect"
+	"reflect/internal/example1"
+	"reflect/internal/example2"
 	"runtime"
 	"sort"
 	"strconv"
@@ -1942,6 +1944,22 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+type myint int64
+
+func (i *myint) inc() {
+	*i = *i + 1
+}
+
+func BenchmarkCallMethod(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+
+	v := ValueOf(z.inc)
+	for i := 0; i < b.N; i++ {
+		v.Call(nil)
+	}
+}
+
 func BenchmarkCallArgCopy(b *testing.B) {
 	byteArray := func(n int) Value {
 		return Zero(ArrayOf(n, TypeOf(byte(0))))
@@ -2900,6 +2918,7 @@ func TestFieldPkgPath(t *testing.T) {
 		index    []int
 		pkgPath  string
 		embedded bool
+		exported bool
 	}
 
 	checkPkgPath := func(name string, s []pkgpathTest) {
@@ -2911,25 +2930,61 @@ func TestFieldPkgPath(t *testing.T) {
 			if got, want := f.Anonymous, test.embedded; got != want {
 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
 			}
+			if got, want := f.IsExported(), test.exported; got != want {
+				t.Errorf("%s: Field(%d).IsExported = %v, want %v", name, test.index, got, want)
+			}
 		}
 	}
 
 	checkPkgPath("testStruct", []pkgpathTest{
-		{[]int{0}, "", false},             // Exported
-		{[]int{1}, "reflect_test", false}, // unexported
-		{[]int{2}, "", true},              // OtherPkgFields
-		{[]int{2, 0}, "", false},          // OtherExported
-		{[]int{2, 1}, "reflect", false},   // otherUnexported
-		{[]int{3}, "reflect_test", true},  // int
-		{[]int{4}, "reflect_test", true},  // *x
+		{[]int{0}, "", false, true},              // Exported
+		{[]int{1}, "reflect_test", false, false}, // unexported
+		{[]int{2}, "", true, true},               // OtherPkgFields
+		{[]int{2, 0}, "", false, true},           // OtherExported
+		{[]int{2, 1}, "reflect", false, false},   // otherUnexported
+		{[]int{3}, "reflect_test", true, false},  // int
+		{[]int{4}, "reflect_test", true, false},  // *x
 	})
 
 	type localOtherPkgFields OtherPkgFields
 	typ = TypeOf(localOtherPkgFields{})
 	checkPkgPath("localOtherPkgFields", []pkgpathTest{
-		{[]int{0}, "", false},        // OtherExported
-		{[]int{1}, "reflect", false}, // otherUnexported
+		{[]int{0}, "", false, true},         // OtherExported
+		{[]int{1}, "reflect", false, false}, // otherUnexported
 	})
+}
+
+func TestMethodPkgPath(t *testing.T) {
+	type I interface {
+		x()
+		X()
+	}
+	typ := TypeOf((*interface {
+		I
+		y()
+		Y()
+	})(nil)).Elem()
+
+	tests := []struct {
+		name     string
+		pkgPath  string
+		exported bool
+	}{
+		{"X", "", true},
+		{"Y", "", true},
+		{"x", "reflect_test", false},
+		{"y", "reflect_test", false},
+	}
+
+	for _, test := range tests {
+		m, _ := typ.MethodByName(test.name)
+		if got, want := m.PkgPath, test.pkgPath; got != want {
+			t.Errorf("MethodByName(%q).PkgPath = %q, want %q", test.name, got, want)
+		}
+		if got, want := m.IsExported(), test.exported; got != want {
+			t.Errorf("MethodByName(%q).IsExported = %v, want %v", test.name, got, want)
+		}
+	}
 }
 
 func TestVariadicType(t *testing.T) {
@@ -3755,8 +3810,22 @@ type Empty struct{}
 type MyStruct struct {
 	x int `some:"tag"`
 }
+type MyStruct1 struct {
+	x struct {
+		int `some:"bar"`
+	}
+}
+type MyStruct2 struct {
+	x struct {
+		int `some:"foo"`
+	}
+}
 type MyString string
 type MyBytes []byte
+type MyBytesArrayPtr0 *[0]byte
+type MyBytesArrayPtr *[4]byte
+type MyBytesArray0 [0]byte
+type MyBytesArray [4]byte
 type MyRunes []int32
 type MyFunc func()
 type MyByte byte
@@ -4063,6 +4132,30 @@ var convertTests = []struct {
 	{V(MyString("runes♝")), V(MyRunes("runes♝"))},
 	{V(MyRunes("runes♕")), V(MyString("runes♕"))},
 
+	// slice to array pointer
+	{V([]byte(nil)), V((*[0]byte)(nil))},
+	{V([]byte{}), V(new([0]byte))},
+	{V([]byte{7}), V(&[1]byte{7})},
+	{V(MyBytes([]byte(nil))), V((*[0]byte)(nil))},
+	{V(MyBytes([]byte{})), V(new([0]byte))},
+	{V(MyBytes([]byte{9})), V(&[1]byte{9})},
+	{V([]byte(nil)), V(MyBytesArrayPtr0(nil))},
+	{V([]byte{}), V(MyBytesArrayPtr0(new([0]byte)))},
+	{V([]byte{1, 2, 3, 4}), V(MyBytesArrayPtr(&[4]byte{1, 2, 3, 4}))},
+	{V(MyBytes([]byte{})), V(MyBytesArrayPtr0(new([0]byte)))},
+	{V(MyBytes([]byte{5, 6, 7, 8})), V(MyBytesArrayPtr(&[4]byte{5, 6, 7, 8}))},
+
+	{V([]byte(nil)), V((*MyBytesArray0)(nil))},
+	{V([]byte{}), V((*MyBytesArray0)(new([0]byte)))},
+	{V([]byte{1, 2, 3, 4}), V(&MyBytesArray{1, 2, 3, 4})},
+	{V(MyBytes([]byte(nil))), V((*MyBytesArray0)(nil))},
+	{V(MyBytes([]byte{})), V((*MyBytesArray0)(new([0]byte)))},
+	{V(MyBytes([]byte{5, 6, 7, 8})), V(&MyBytesArray{5, 6, 7, 8})},
+	{V(new([0]byte)), V(new(MyBytesArray0))},
+	{V(new(MyBytesArray0)), V(new([0]byte))},
+	{V(MyBytesArrayPtr0(nil)), V((*[0]byte)(nil))},
+	{V((*[0]byte)(nil)), V(MyBytesArrayPtr0(nil))},
+
 	// named types and equal underlying types
 	{V(new(int)), V(new(integer))},
 	{V(new(integer)), V(new(int))},
@@ -4104,6 +4197,9 @@ var convertTests = []struct {
 	{V(struct {
 		x int `some:"bar"`
 	}{}), V(MyStruct{})},
+
+	{V(MyStruct1{}), V(MyStruct2{})},
+	{V(MyStruct2{}), V(MyStruct1{})},
 
 	// can convert *byte and *MyByte
 	{V((*byte)(nil)), V((*MyByte)(nil))},
@@ -4220,6 +4316,9 @@ func TestConvert(t *testing.T) {
 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
 			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) = %T(%[3]v), want %T(%[4]v)", tt.in.Interface(), t2, out2, tt.out.Interface())
 		}
+		if got, want := vout2.Kind(), vout2.Type().Kind(); got != want {
+			t.Errorf("ValueOf(%T(%[1]v)).Convert(%s) has internal kind %v want %v", tt.in.Interface(), t1, got, want)
+		}
 
 		// vout3 represents a new value of the out type, set to vout2.  This makes
 		// sure the converted value vout2 is really usable as a regular value.
@@ -4262,6 +4361,19 @@ func TestConvert(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestConvertPanic(t *testing.T) {
+	s := make([]byte, 4)
+	p := new([8]byte)
+	v := ValueOf(s)
+	pt := TypeOf(p)
+	if !v.Type().ConvertibleTo(pt) {
+		t.Errorf("[]byte should be convertible to *[8]byte")
+	}
+	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
+		_ = v.Convert(pt)
+	})
 }
 
 var gFloat32 float32
@@ -4597,6 +4709,14 @@ func TestArrayOfDirectIface(t *testing.T) {
 			t.Errorf("got p2=%v. want=not-%v", p2, nil)
 		}
 	}
+}
+
+// Ensure passing in negative lengths panics.
+// See https://golang.org/issue/43603
+func TestArrayOfPanicOnNegativeLength(t *testing.T) {
+	shouldPanic("reflect: negative length passed to ArrayOf", func() {
+		ArrayOf(-1, TypeOf(byte(0)))
+	})
 }
 
 func TestSliceOf(t *testing.T) {
@@ -6335,144 +6455,135 @@ func clobber() {
 	runtime.GC()
 }
 
-type funcLayoutTest struct {
-	rcvr, t                  Type
-	size, argsize, retOffset uintptr
-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
-	gc                       []byte
-}
-
-var funcLayoutTests []funcLayoutTest
-
-func init() {
-	var argAlign uintptr = PtrSize
-	roundup := func(x uintptr, a uintptr) uintptr {
-		return (x + a - 1) / a * a
+func TestFuncLayout(t *testing.T) {
+	align := func(x uintptr) uintptr {
+		return (x + PtrSize - 1) &^ (PtrSize - 1)
 	}
-
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func(a, b string) string { return "" }).Type(),
-			6 * PtrSize,
-			4 * PtrSize,
-			4 * PtrSize,
-			[]byte{1, 0, 1, 0, 1},
-			[]byte{1, 0, 1, 0, 1},
-		})
-
 	var r []byte
 	if PtrSize == 4 {
 		r = []byte{0, 0, 0, 1}
 	} else {
 		r = []byte{0, 0, 1}
 	}
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
-			roundup(roundup(3*4, PtrSize)+PtrSize+2, argAlign),
-			roundup(3*4, PtrSize) + PtrSize + 2,
-			roundup(roundup(3*4, PtrSize)+PtrSize+2, argAlign),
-			r,
-			r,
-		})
-
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
-			4 * PtrSize,
-			4 * PtrSize,
-			4 * PtrSize,
-			[]byte{1, 0, 1, 1},
-			[]byte{1, 0, 1, 1},
-		})
 
 	type S struct {
 		a, b uintptr
 		c, d *byte
 	}
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func(a S) {}).Type(),
-			4 * PtrSize,
-			4 * PtrSize,
-			4 * PtrSize,
-			[]byte{0, 0, 1, 1},
-			[]byte{0, 0, 1, 1},
-		})
 
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			ValueOf((*byte)(nil)).Type(),
-			ValueOf(func(a uintptr, b *int) {}).Type(),
-			roundup(3*PtrSize, argAlign),
-			3 * PtrSize,
-			roundup(3*PtrSize, argAlign),
-			[]byte{1, 0, 1},
-			[]byte{1, 0, 1},
-		})
-
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func(a uintptr) {}).Type(),
-			roundup(PtrSize, argAlign),
-			PtrSize,
-			roundup(PtrSize, argAlign),
-			[]byte{},
-			[]byte{},
-		})
-
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			nil,
-			ValueOf(func() uintptr { return 0 }).Type(),
-			PtrSize,
-			0,
-			0,
-			[]byte{},
-			[]byte{},
-		})
-
-	funcLayoutTests = append(funcLayoutTests,
-		funcLayoutTest{
-			ValueOf(uintptr(0)).Type(),
-			ValueOf(func(a uintptr) {}).Type(),
-			2 * PtrSize,
-			2 * PtrSize,
-			2 * PtrSize,
-			[]byte{1},
-			[]byte{1},
+	type test struct {
+		rcvr, typ                  Type
+		size, argsize, retOffset   uintptr
+		stack, gc, inRegs, outRegs []byte // pointer bitmap: 1 is pointer, 0 is scalar
+		intRegs, floatRegs         int
+		floatRegSize               uintptr
+	}
+	tests := []test{
+		{
+			typ:       ValueOf(func(a, b string) string { return "" }).Type(),
+			size:      6 * PtrSize,
+			argsize:   4 * PtrSize,
+			retOffset: 4 * PtrSize,
+			stack:     []byte{1, 0, 1, 0, 1},
+			gc:        []byte{1, 0, 1, 0, 1},
+		},
+		{
+			typ:       ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
+			size:      align(align(3*4) + PtrSize + 2),
+			argsize:   align(3*4) + PtrSize + 2,
+			retOffset: align(align(3*4) + PtrSize + 2),
+			stack:     r,
+			gc:        r,
+		},
+		{
+			typ:       ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
+			size:      4 * PtrSize,
+			argsize:   4 * PtrSize,
+			retOffset: 4 * PtrSize,
+			stack:     []byte{1, 0, 1, 1},
+			gc:        []byte{1, 0, 1, 1},
+		},
+		{
+			typ:       ValueOf(func(a S) {}).Type(),
+			size:      4 * PtrSize,
+			argsize:   4 * PtrSize,
+			retOffset: 4 * PtrSize,
+			stack:     []byte{0, 0, 1, 1},
+			gc:        []byte{0, 0, 1, 1},
+		},
+		{
+			rcvr:      ValueOf((*byte)(nil)).Type(),
+			typ:       ValueOf(func(a uintptr, b *int) {}).Type(),
+			size:      3 * PtrSize,
+			argsize:   3 * PtrSize,
+			retOffset: 3 * PtrSize,
+			stack:     []byte{1, 0, 1},
+			gc:        []byte{1, 0, 1},
+		},
+		{
+			typ:       ValueOf(func(a uintptr) {}).Type(),
+			size:      PtrSize,
+			argsize:   PtrSize,
+			retOffset: PtrSize,
+			stack:     []byte{},
+			gc:        []byte{},
+		},
+		{
+			typ:       ValueOf(func() uintptr { return 0 }).Type(),
+			size:      PtrSize,
+			argsize:   0,
+			retOffset: 0,
+			stack:     []byte{},
+			gc:        []byte{},
+		},
+		{
+			rcvr:      ValueOf(uintptr(0)).Type(),
+			typ:       ValueOf(func(a uintptr) {}).Type(),
+			size:      2 * PtrSize,
+			argsize:   2 * PtrSize,
+			retOffset: 2 * PtrSize,
+			stack:     []byte{1},
+			gc:        []byte{1},
 			// Note: this one is tricky, as the receiver is not a pointer. But we
 			// pass the receiver by reference to the autogenerated pointer-receiver
 			// version of the function.
-		})
-}
+		},
+		// TODO(mknyszek): Add tests for non-zero register count.
+	}
+	for _, lt := range tests {
+		name := lt.typ.String()
+		if lt.rcvr != nil {
+			name = lt.rcvr.String() + "." + name
+		}
+		t.Run(name, func(t *testing.T) {
+			defer SetArgRegs(SetArgRegs(lt.intRegs, lt.floatRegs, lt.floatRegSize))
 
-func TestFuncLayout(t *testing.T) {
-	for _, lt := range funcLayoutTests {
-		typ, argsize, retOffset, stack, gc, ptrs := FuncLayout(lt.t, lt.rcvr)
-		if typ.Size() != lt.size {
-			t.Errorf("funcLayout(%v, %v).size=%d, want %d", lt.t, lt.rcvr, typ.Size(), lt.size)
-		}
-		if argsize != lt.argsize {
-			t.Errorf("funcLayout(%v, %v).argsize=%d, want %d", lt.t, lt.rcvr, argsize, lt.argsize)
-		}
-		if retOffset != lt.retOffset {
-			t.Errorf("funcLayout(%v, %v).retOffset=%d, want %d", lt.t, lt.rcvr, retOffset, lt.retOffset)
-		}
-		if !bytes.Equal(stack, lt.stack) {
-			t.Errorf("funcLayout(%v, %v).stack=%v, want %v", lt.t, lt.rcvr, stack, lt.stack)
-		}
-		if !bytes.Equal(gc, lt.gc) {
-			t.Errorf("funcLayout(%v, %v).gc=%v, want %v", lt.t, lt.rcvr, gc, lt.gc)
-		}
-		if ptrs && len(stack) == 0 || !ptrs && len(stack) > 0 {
-			t.Errorf("funcLayout(%v, %v) pointers flag=%v, want %v", lt.t, lt.rcvr, ptrs, !ptrs)
-		}
+			typ, argsize, retOffset, stack, gc, inRegs, outRegs, ptrs := FuncLayout(lt.typ, lt.rcvr)
+			if typ.Size() != lt.size {
+				t.Errorf("funcLayout(%v, %v).size=%d, want %d", lt.typ, lt.rcvr, typ.Size(), lt.size)
+			}
+			if argsize != lt.argsize {
+				t.Errorf("funcLayout(%v, %v).argsize=%d, want %d", lt.typ, lt.rcvr, argsize, lt.argsize)
+			}
+			if retOffset != lt.retOffset {
+				t.Errorf("funcLayout(%v, %v).retOffset=%d, want %d", lt.typ, lt.rcvr, retOffset, lt.retOffset)
+			}
+			if !bytes.Equal(stack, lt.stack) {
+				t.Errorf("funcLayout(%v, %v).stack=%v, want %v", lt.typ, lt.rcvr, stack, lt.stack)
+			}
+			if !bytes.Equal(gc, lt.gc) {
+				t.Errorf("funcLayout(%v, %v).gc=%v, want %v", lt.typ, lt.rcvr, gc, lt.gc)
+			}
+			if !bytes.Equal(inRegs, lt.inRegs) {
+				t.Errorf("funcLayout(%v, %v).inRegs=%v, want %v", lt.typ, lt.rcvr, inRegs, lt.inRegs)
+			}
+			if !bytes.Equal(outRegs, lt.outRegs) {
+				t.Errorf("funcLayout(%v, %v).outRegs=%v, want %v", lt.typ, lt.rcvr, outRegs, lt.outRegs)
+			}
+			if ptrs && len(stack) == 0 || !ptrs && len(stack) > 0 {
+				t.Errorf("funcLayout(%v, %v) pointers flag=%v, want %v", lt.typ, lt.rcvr, ptrs, !ptrs)
+			}
+		})
 	}
 }
 
@@ -6831,19 +6942,6 @@ func TestExported(t *testing.T) {
 	}
 }
 
-type embed struct {
-	EmbedWithUnexpMeth
-}
-
-func TestNameBytesAreAligned(t *testing.T) {
-	typ := TypeOf(embed{})
-	b := FirstMethodNameBytes(typ)
-	v := uintptr(unsafe.Pointer(b))
-	if v%unsafe.Alignof((*byte)(nil)) != 0 {
-		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
-	}
-}
-
 func TestTypeStrings(t *testing.T) {
 	type stringTest struct {
 		typ  Type
@@ -7168,176 +7266,6 @@ func TestMapIterDelete1(t *testing.T) {
 	}
 }
 
-func TestStructTagLookup(t *testing.T) {
-	var tests = []struct {
-		tag           StructTag
-		key           string
-		expectedValue string
-		expectedOK    bool
-	}{
-		{
-			tag:           `json:"json_value_1"`,
-			key:           "json",
-			expectedValue: "json_value_1",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_value_2" xml:"xml_value_2"`,
-			key:           "json",
-			expectedValue: "json_value_2",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_value_3" xml:"xml_value_3"`,
-			key:           "xml",
-			expectedValue: "xml_value_3",
-			expectedOK:    true,
-		},
-		{
-			tag:           `bson json:"shared_value_4"`,
-			key:           "json",
-			expectedValue: "shared_value_4",
-			expectedOK:    true,
-		},
-		{
-			tag:           `bson json:"shared_value_5"`,
-			key:           "bson",
-			expectedValue: "shared_value_5",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_1,omitempty" other:"value_1"`,
-			key:           "xml",
-			expectedValue: "field_1,omitempty",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_2,omitempty" other:"value_2"`,
-			key:           "form",
-			expectedValue: "field_2,omitempty",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json bson xml form:"field_3,omitempty" other:"value_3"`,
-			key:           "other",
-			expectedValue: "value_3",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json    bson    xml    form:"field_4" other:"value_4"`,
-			key:           "json",
-			expectedValue: "field_4",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json    bson    xml    form:"field_5" other:"value_5"`,
-			key:           "non_existing",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json "json_6"`,
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json:"json_7" bson "bson_7"`,
-			key:           "json",
-			expectedValue: "json_7",
-			expectedOK:    true,
-		},
-		{
-			tag:           `json:"json_8" xml "xml_8"`,
-			key:           "xml",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json    bson    xml    form "form_9" other:"value_9"`,
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json bson xml form "form_10" other:"value_10"`,
-			key:           "other",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `json bson xml form:"form_11" other "value_11"`,
-			key:           "json",
-			expectedValue: "form_11",
-			expectedOK:    true,
-		},
-		{
-			tag:           `tag1`,
-			key:           "tag1",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `tag2 :"hello_2"`,
-			key:           "tag2",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           `tag3: "hello_3"`,
-			key:           "tag3",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x7fbson: \"hello_4\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x7fbson: \"hello_5\"",
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json bson:\x7f\"hello_6\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json bson:\x7f\"hello_7\"",
-			key:           "bson",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "json\x09bson:\"hello_8\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-		{
-			tag:           "a\x7fb json:\"val\"",
-			key:           "json",
-			expectedValue: "",
-			expectedOK:    false,
-		},
-	}
-
-	for _, test := range tests {
-		v, ok := test.tag.Lookup(test.key)
-		if v != test.expectedValue {
-			t.Errorf("struct tag lookup failed, got %s, want %s", v, test.expectedValue)
-		}
-		if ok != test.expectedOK {
-			t.Errorf("struct tag lookup failed, got %t, want %t", ok, test.expectedOK)
-		}
-	}
-}
-
 // iterateToString returns the set of elements
 // returned by an iterator in readable form.
 func iterateToString(it *MapIter) string {
@@ -7348,4 +7276,14 @@ func iterateToString(it *MapIter) string {
 	}
 	sort.Strings(got)
 	return "[" + strings.Join(got, ", ") + "]"
+}
+
+func TestConvertibleTo(t *testing.T) {
+	t1 := ValueOf(example1.MyStruct{}).Type()
+	t2 := ValueOf(example2.MyStruct{}).Type()
+
+	// Shouldn't raise stack overflow
+	if t1.ConvertibleTo(t2) {
+		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
+	}
 }

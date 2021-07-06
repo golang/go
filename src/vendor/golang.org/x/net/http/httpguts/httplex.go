@@ -137,11 +137,13 @@ func trimOWS(x string) string {
 // contains token amongst its comma-separated tokens, ASCII
 // case-insensitively.
 func headerValueContainsToken(v string, token string) bool {
-	v = trimOWS(v)
-	if comma := strings.IndexByte(v, ','); comma != -1 {
-		return tokenEqual(trimOWS(v[:comma]), token) || headerValueContainsToken(v[comma+1:], token)
+	for comma := strings.IndexByte(v, ','); comma != -1; comma = strings.IndexByte(v, ',') {
+		if tokenEqual(trimOWS(v[:comma]), token) {
+			return true
+		}
+		v = v[comma+1:]
 	}
-	return tokenEqual(v, token)
+	return tokenEqual(trimOWS(v), token)
 }
 
 // lowerASCII returns the ASCII lowercase version of b.

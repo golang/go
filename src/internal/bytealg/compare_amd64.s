@@ -5,20 +5,41 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Compare(SB),NOSPLIT,$0-56
+TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = a_base (want in SI)
+	// BX = a_len  (want in BX)
+	// CX = a_cap  (unused)
+	// DI = b_base (want in DI)
+	// SI = b_len  (want in DX)
+	// R8 = b_cap  (unused)
+	MOVQ	SI, DX
+	MOVQ	AX, SI
+#else
 	MOVQ	a_base+0(FP), SI
 	MOVQ	a_len+8(FP), BX
 	MOVQ	b_base+24(FP), DI
 	MOVQ	b_len+32(FP), DX
 	LEAQ	ret+48(FP), R9
+#endif
 	JMP	cmpbody<>(SB)
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT,$0-40
+#ifdef GOEXPERIMENT_regabiargs
+	// AX = a_base (want in SI)
+	// BX = a_len  (want in BX)
+	// CX = b_base (want in DI)
+	// DI = b_len  (want in DX)
+	MOVQ	AX, SI
+	MOVQ	DI, DX
+	MOVQ	CX, DI
+#else
 	MOVQ	a_base+0(FP), SI
 	MOVQ	a_len+8(FP), BX
 	MOVQ	b_base+16(FP), DI
 	MOVQ	b_len+24(FP), DX
 	LEAQ	ret+32(FP), R9
+#endif
 	JMP	cmpbody<>(SB)
 
 // input:
@@ -26,7 +47,12 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
 //   DI = b
 //   BX = alen
 //   DX = blen
+#ifndef GOEXPERIMENT_regabiargs
 //   R9 = address of output word (stores -1/0/1 here)
+#else
+// output:
+//   AX = output (-1/0/1)
+#endif
 TEXT cmpbody<>(SB),NOSPLIT,$0-0
 	CMPQ	SI, DI
 	JEQ	allsame
@@ -74,7 +100,9 @@ diff16:
 	CMPB	CX, (DI)(BX*1)
 	SETHI	AX
 	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	AX, (R9)
+#endif
 	RET
 
 	// 0 through 16 bytes left, alen>=8, blen>=8
@@ -100,7 +128,9 @@ diff8:
 	SHRQ	CX, AX	// move a's bit to bottom
 	ANDQ	$1, AX	// mask bit
 	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	AX, (R9)
+#endif
 	RET
 
 	// 0-7 bytes in common
@@ -139,7 +169,9 @@ di_finish:
 	SHRQ	CX, SI	// move a's bit to bottom
 	ANDQ	$1, SI	// mask bit
 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	AX, (R9)
+#endif
 	RET
 
 allsame:
@@ -149,7 +181,9 @@ allsame:
 	SETGT	AX	// 1 if alen > blen
 	SETEQ	CX	// 1 if alen == blen
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+#ifndef GOEXPERIMENT_regabiargs
 	MOVQ	AX, (R9)
+#endif
 	RET
 
 	// this works for >= 64 bytes of data.

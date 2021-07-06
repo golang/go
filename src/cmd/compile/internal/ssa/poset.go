@@ -12,7 +12,7 @@ import (
 // If true, check poset integrity after every mutation
 var debugPoset = false
 
-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
 
 // bitset is a bit array for dense indexes.
 type bitset []uint
@@ -136,13 +136,13 @@ type posetNode struct {
 // Most internal data structures are pre-allocated and flat, so for instance adding a
 // new relation does not cause any allocation. For performance reasons,
 // each node has only up to two outgoing edges (like a binary tree), so intermediate
-// "dummy" nodes are required to represent more than two relations. For instance,
+// "extra" nodes are required to represent more than two relations. For instance,
 // to record that A<I, A<J, A<K (with no known relation between I,J,K), we create the
 // following DAG:
 //
 //         A
 //        / \
-//       I  dummy
+//       I  extra
 //           /  \
 //          J    K
 //
@@ -223,7 +223,7 @@ func (po *poset) addchild(i1, i2 uint32, strict bool) {
 		po.setchr(i1, e2)
 		po.upush(undoSetChr, i1, 0)
 	} else {
-		// If n1 already has two children, add an intermediate dummy
+		// If n1 already has two children, add an intermediate extra
 		// node to record the relation correctly (without relating
 		// n2 to other existing nodes). Use a non-deterministic value
 		// to decide whether to append on the left or the right, to avoid
@@ -231,27 +231,27 @@ func (po *poset) addchild(i1, i2 uint32, strict bool) {
 		//
 		//      n1
 		//     /  \
-		//   i1l  dummy
+		//   i1l  extra
 		//        /   \
 		//      i1r   n2
 		//
-		dummy := po.newnode(nil)
+		extra := po.newnode(nil)
 		if (i1^i2)&1 != 0 { // non-deterministic
-			po.setchl(dummy, i1r)
-			po.setchr(dummy, e2)
-			po.setchr(i1, newedge(dummy, false))
+			po.setchl(extra, i1r)
+			po.setchr(extra, e2)
+			po.setchr(i1, newedge(extra, false))
 			po.upush(undoSetChr, i1, i1r)
 		} else {
-			po.setchl(dummy, i1l)
-			po.setchr(dummy, e2)
-			po.setchl(i1, newedge(dummy, false))
+			po.setchl(extra, i1l)
+			po.setchr(extra, e2)
+			po.setchl(i1, newedge(extra, false))
 			po.upush(undoSetChl, i1, i1l)
 		}
 	}
 }
 
 // newnode allocates a new node bound to SSA value n.
-// If n is nil, this is a dummy node (= only used internally).
+// If n is nil, this is an extra node (= only used internally).
 func (po *poset) newnode(n *Value) uint32 {
 	i := po.lastidx + 1
 	po.lastidx++
@@ -380,9 +380,9 @@ func (po *poset) newconst(n *Value) {
 
 	case higherptr != 0:
 		// Higher bound only. To record n < higher, we need
-		// a dummy root:
+		// an extra root:
 		//
-		//        dummy
+		//        extra
 		//        /   \
 		//      root   \
 		//       /      n
@@ -395,11 +395,11 @@ func (po *poset) newconst(n *Value) {
 		if r2 != po.roots[0] { // all constants should be in root #0
 			panic("constant not in root #0")
 		}
-		dummy := po.newnode(nil)
-		po.changeroot(r2, dummy)
-		po.upush(undoChangeRoot, dummy, newedge(r2, false))
-		po.addchild(dummy, r2, false)
-		po.addchild(dummy, i, false)
+		extra := po.newnode(nil)
+		po.changeroot(r2, extra)
+		po.upush(undoChangeRoot, extra, newedge(r2, false))
+		po.addchild(extra, r2, false)
+		po.addchild(extra, i, false)
 		po.addchild(i, i2, true)
 	}
 
@@ -612,7 +612,7 @@ func (po *poset) findroot(i uint32) uint32 {
 	panic("findroot didn't find any root")
 }
 
-// mergeroot merges two DAGs into one DAG by creating a new dummy root
+// mergeroot merges two DAGs into one DAG by creating a new extra root
 func (po *poset) mergeroot(r1, r2 uint32) uint32 {
 	// Root #0 is special as it contains all constants. Since mergeroot
 	// discards r2 as root and keeps r1, make sure that r2 is not root #0,
@@ -1004,7 +1004,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 	case !f1 && f2:
 		// n1 is not in any DAG but n2 is. If n2 is a root, we can put
 		// n1 in its place as a root; otherwise, we need to create a new
-		// dummy root to record the relation.
+		// extra root to record the relation.
 		i1 = po.newnode(n1)
 
 		if po.isroot(i2) {
@@ -1020,17 +1020,17 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
 
 		// Re-parent as follows:
 		//
-		//                  dummy
+		//                  extra
 		//     r            /   \
 		//      \   ===>   r    i1
 		//      i2          \   /
 		//                    i2
 		//
-		dummy := po.newnode(nil)
-		po.changeroot(r, dummy)
-		po.upush(undoChangeRoot, dummy, newedge(r, false))
-		po.addchild(dummy, r, false)
-		po.addchild(dummy, i1, false)
+		extra := po.newnode(nil)
+		po.changeroot(r, extra)
+		po.upush(undoChangeRoot, extra, newedge(r, false))
+		po.addchild(extra, r, false)
+		po.addchild(extra, i1, false)
 		po.addchild(i1, i2, strict)
 
 	case f1 && f2:

@@ -631,7 +631,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 	// channel. See issue 40641 for more details on the problem.
 	//
 	// The way we try to induce this failure is to set up two
-	// goroutines: a sender and a reciever that communicate across
+	// goroutines: a sender and a receiver that communicate across
 	// a channel. We try to set up a situation where the sender
 	// grows its stack temporarily then *fully* blocks on a channel
 	// often. Meanwhile a GC is triggered so that we try to get a
@@ -671,7 +671,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 		go send(c, done)
 		// Wait a little bit before triggering
 		// the GC to make sure the sender and
-		// reciever have gotten into their groove.
+		// receiver have gotten into their groove.
 		time.Sleep(50 * time.Microsecond)
 		runtime.GC()
 		<-done
@@ -707,8 +707,6 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	<-e    // A tells us it's done
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
-
-var selectSink interface{}
 
 func TestSelectStackAdjust(t *testing.T) {
 	// Test that channel receive slots that contain local stack
@@ -766,20 +764,8 @@ func TestSelectStackAdjust(t *testing.T) {
 	<-ready2
 	time.Sleep(10 * time.Millisecond)
 
-	// Force concurrent GC a few times.
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	for i := 0; i < 100; i++ {
-		selectSink = new([1 << 20]byte)
-		runtime.ReadMemStats(&after)
-		if after.NumGC-before.NumGC >= 2 {
-			goto done
-		}
-		runtime.Gosched()
-	}
-	t.Fatal("failed to trigger concurrent GC")
-done:
-	selectSink = nil
+	// Force concurrent GC to shrink the stacks.
+	runtime.GC()
 
 	// Wake selects.
 	close(d)

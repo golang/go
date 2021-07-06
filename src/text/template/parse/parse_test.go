@@ -379,6 +379,22 @@ func TestParseWithComments(t *testing.T) {
 	}
 }
 
+func TestSkipFuncCheck(t *testing.T) {
+	oldTextFormat := textFormat
+	textFormat = "%q"
+	defer func() { textFormat = oldTextFormat }()
+	tr := New("skip func check")
+	tr.Mode = SkipFuncCheck
+	tmpl, err := tr.Parse("{{fn 1 2}}", "", "", make(map[string]*Tree))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := "{{fn 1 2}}"
+	if result := tmpl.Root.String(); result != expected {
+		t.Errorf("got\n\t%v\nexpected\n\t%v", result, expected)
+	}
+}
+
 type isEmptyTest struct {
 	name  string
 	input string

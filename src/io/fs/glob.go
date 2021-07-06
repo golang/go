@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,6 @@ package fs
 
 import (
 	"path"
-	"runtime"
 )
 
 // A GlobFS is a file system with a Glob method.
@@ -22,7 +21,7 @@ type GlobFS interface {
 // Glob returns the names of all files matching pattern or nil
 // if there is no matching file. The syntax of patterns is the same
 // as in path.Match. The pattern may describe hierarchical names such as
-// /usr/*/bin/ed (assuming the Separator is '/').
+// usr/*/bin/ed.
 //
 // Glob ignores file system errors such as I/O errors reading directories.
 // The only possible returned error is path.ErrBadPattern, reporting that
@@ -111,8 +110,8 @@ func glob(fs FS, dir, pattern string, matches []string) (m []string, e error) {
 // recognized by path.Match.
 func hasMeta(path string) bool {
 	for i := 0; i < len(path); i++ {
-		c := path[i]
-		if c == '*' || c == '?' || c == '[' || runtime.GOOS == "windows" && c == '\\' {
+		switch path[i] {
+		case '*', '?', '[', '\\':
 			return true
 		}
 	}

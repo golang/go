@@ -398,7 +398,7 @@ func getempty() *workbuf {
 }
 
 // putempty puts a workbuf onto the work.empty list.
-// Upon entry this go routine owns b. The lfstack.push relinquishes ownership.
+// Upon entry this goroutine owns b. The lfstack.push relinquishes ownership.
 //go:nowritebarrier
 func putempty(b *workbuf) {
 	b.checkempty()

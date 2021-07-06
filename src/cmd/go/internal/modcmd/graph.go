@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"context"
 	"os"
-	"sort"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modload"
@@ -19,18 +18,29 @@ import (
 )
 
 var cmdGraph = &base.Command{
-	UsageLine: "go mod graph",
+	UsageLine: "go mod graph [-go=version]",
 	Short:     "print module requirement graph",
 	Long: `
 Graph prints the module requirement graph (with replacements applied)
 in text form. Each line in the output has two space-separated fields: a module
 and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
+
+The -go flag causes graph to report the module graph as loaded by by the
+given Go version, instead of the version indicated by the 'go' directive
+in the go.mod file.
+
+See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }
 
+var (
+	graphGo goVersionFlag
+)
+
 func init() {
+	cmdGraph.Flag.Var(&graphGo, "go", "")
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
@@ -40,43 +50,26 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
-	modload.LoadAllModules(ctx)
-
-	reqs := modload.MinReqs()
-	format := func(m module.Version) string {
-		if m.Version == "" {
-			return m.Path
-		}
-		return m.Path + "@" + m.Version
-	}
-
-	var out []string
-	var deps int // index in out where deps start
-	seen := map[module.Version]bool{modload.Target: true}
-	queue := []module.Version{modload.Target}
-	for len(queue) > 0 {
-		var m module.Version
-		m, queue = queue[0], queue[1:]
-		list, _ := reqs.Required(m)
-		for _, r := range list {
-			if !seen[r] {
-				queue = append(queue, r)
-				seen[r] = true
-			}
-			out = append(out, format(m)+" "+format(r)+"\n")
-		}
-		if m == modload.Target {
-			deps = len(out)
-		}
-	}
-
-	sort.Slice(out[deps:], func(i, j int) bool {
-		return out[deps+i][0] < out[deps+j][0]
-	})
+	mg := modload.LoadModGraph(ctx, graphGo.String())
 
 	w := bufio.NewWriter(os.Stdout)
-	for _, line := range out {
-		w.WriteString(line)
+	defer w.Flush()
+
+	format := func(m module.Version) {
+		w.WriteString(m.Path)
+		if m.Version != "" {
+			w.WriteString("@")
+			w.WriteString(m.Version)
+		}
 	}
-	w.Flush()
+
+	mg.WalkBreadthFirst(func(m module.Version) {
+		reqs, _ := mg.RequiredBy(m)
+		for _, r := range reqs {
+			format(m)
+			w.WriteByte(' ')
+			format(r)
+			w.WriteByte('\n')
+		}
+	})
 }

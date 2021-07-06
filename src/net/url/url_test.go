@@ -1295,10 +1295,10 @@ func TestResolveReference(t *testing.T) {
 }
 
 func TestQueryValues(t *testing.T) {
-	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2")
+	u, _ := Parse("http://x.com?foo=bar&bar=1&bar=2&baz")
 	v := u.Query()
-	if len(v) != 2 {
-		t.Errorf("got %d keys in Query values, want 2", len(v))
+	if len(v) != 3 {
+		t.Errorf("got %d keys in Query values, want 3", len(v))
 	}
 	if g, e := v.Get("foo"), "bar"; g != e {
 		t.Errorf("Get(foo) = %q, want %q", g, e)
@@ -1313,6 +1313,18 @@ func TestQueryValues(t *testing.T) {
 	if g, e := v.Get("baz"), ""; g != e {
 		t.Errorf("Get(baz) = %q, want %q", g, e)
 	}
+	if h, e := v.Has("foo"), true; h != e {
+		t.Errorf("Has(foo) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("bar"), true; h != e {
+		t.Errorf("Has(bar) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("baz"), true; h != e {
+		t.Errorf("Has(baz) = %t, want %t", h, e)
+	}
+	if h, e := v.Has("noexist"), false; h != e {
+		t.Errorf("Has(noexist) = %t, want %t", h, e)
+	}
 	v.Del("bar")
 	if g, e := v.Get("bar"), ""; g != e {
 		t.Errorf("second Get(bar) = %q, want %q", g, e)
@@ -1322,57 +1334,125 @@ func TestQueryValues(t *testing.T) {
 type parseTest struct {
 	query string
 	out   Values
+	ok    bool
 }
 
 var parseTests = []parseTest{
 	{
+		query: "a=1",
+		out:   Values{"a": []string{"1"}},
+		ok:    true,
+	},
+	{
 		query: "a=1&b=2",
 		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+		ok:    true,
 	},
 	{
 		query: "a=1&a=2&a=banana",
 		out:   Values{"a": []string{"1", "2", "banana"}},
+		ok:    true,
 	},
 	{
 		query: "ascii=%3Ckey%3A+0x90%3E",
 		out:   Values{"ascii": []string{"<key: 0x90>"}},
+		ok:    true,
+	}, {
+		query: "a=1;b=2",
+		out:   Values{},
+		ok:    false,
+	}, {
+		query: "a;b=1",
+		out:   Values{},
+		ok:    false,
+	}, {
+		query: "a=%3B", // hex encoding for semicolon
+		out:   Values{"a": []string{";"}},
+		ok:    true,
 	},
 	{
-		query: "a=1;b=2",
-		out:   Values{"a": []string{"1"}, "b": []string{"2"}},
+		query: "a%3Bb=1",
+		out:   Values{"a;b": []string{"1"}},
+		ok:    true,
 	},
 	{
 		query: "a=1&a=2;a=banana",
-		out:   Values{"a": []string{"1", "2", "banana"}},
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: "a;b&c=1",
+		out:   Values{"c": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;a=3&c=4",
+		out:   Values{"a": []string{"1"}, "c": []string{"4"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;c=3",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: ";",
+		out:   Values{},
+		ok:    false,
+	},
+	{
+		query: "a=1;",
+		out:   Values{},
+		ok:    false,
+	},
+	{
+		query: "a=1&;",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
+	},
+	{
+		query: ";a=1&b=2",
+		out:   Values{"b": []string{"2"}},
+		ok:    false,
+	},
+	{
+		query: "a=1&b=2;",
+		out:   Values{"a": []string{"1"}},
+		ok:    false,
 	},
 }
 
 func TestParseQuery(t *testing.T) {
-	for i, test := range parseTests {
-		form, err := ParseQuery(test.query)
-		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
-			continue
-		}
-		if len(form) != len(test.out) {
-			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out))
-		}
-		for k, evs := range test.out {
-			vs, ok := form[k]
-			if !ok {
-				t.Errorf("test %d: Missing key %q", i, k)
-				continue
+	for _, test := range parseTests {
+		t.Run(test.query, func(t *testing.T) {
+			form, err := ParseQuery(test.query)
+			if test.ok != (err == nil) {
+				want := "<error>"
+				if test.ok {
+					want = "<nil>"
+				}
+				t.Errorf("Unexpected error: %v, want %v", err, want)
 			}
-			if len(vs) != len(evs) {
-				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs))
-				continue
+			if len(form) != len(test.out) {
+				t.Errorf("len(form) = %d, want %d", len(form), len(test.out))
 			}
-			for j, ev := range evs {
-				if v := vs[j]; v != ev {
-					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev)
+			for k, evs := range test.out {
+				vs, ok := form[k]
+				if !ok {
+					t.Errorf("Missing key %q", k)
+					continue
+				}
+				if len(vs) != len(evs) {
+					t.Errorf("len(form[%q]) = %d, want %d", k, len(vs), len(evs))
+					continue
+				}
+				for j, ev := range evs {
+					if v := vs[j]; v != ev {
+						t.Errorf("form[%q][%d] = %q, want %q", k, j, v, ev)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 

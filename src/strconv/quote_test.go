@@ -6,6 +6,7 @@ package strconv_test
 
 import (
 	. "strconv"
+	"strings"
 	"testing"
 	"unicode"
 )
@@ -297,6 +298,7 @@ var misquoted = []string{
 	`"\z"`,
 	"`",
 	"`xxx",
+	"``x\r",
 	"`\"",
 	`"\'"`,
 	`'\"'`,
@@ -307,22 +309,13 @@ var misquoted = []string{
 
 func TestUnquote(t *testing.T) {
 	for _, tt := range unquotetests {
-		if out, err := Unquote(tt.in); err != nil || out != tt.out {
-			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
-		}
+		testUnquote(t, tt.in, tt.out, nil)
 	}
-
-	// run the quote tests too, backward
 	for _, tt := range quotetests {
-		if in, err := Unquote(tt.out); in != tt.in {
-			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in)
-		}
+		testUnquote(t, tt.out, tt.in, nil)
 	}
-
 	for _, s := range misquoted {
-		if out, err := Unquote(s); out != "" || err != ErrSyntax {
-			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", ErrSyntax)
-		}
+		testUnquote(t, s, "", ErrSyntax)
 	}
 }
 
@@ -333,26 +326,44 @@ func TestUnquoteInvalidUTF8(t *testing.T) {
 
 		// one of:
 		want    string
-		wantErr string
+		wantErr error
 	}{
 		{in: `"foo"`, want: "foo"},
-		{in: `"foo`, wantErr: "invalid syntax"},
+		{in: `"foo`, wantErr: ErrSyntax},
 		{in: `"` + "\xc0" + `"`, want: "\xef\xbf\xbd"},
 		{in: `"a` + "\xc0" + `"`, want: "a\xef\xbf\xbd"},
 		{in: `"\t` + "\xc0" + `"`, want: "\t\xef\xbf\xbd"},
 	}
-	for i, tt := range tests {
-		got, err := Unquote(tt.in)
-		var gotErr string
-		if err != nil {
-			gotErr = err.Error()
-		}
-		if gotErr != tt.wantErr {
-			t.Errorf("%d. Unquote(%q) = err %v; want %q", i, tt.in, err, tt.wantErr)
-		}
-		if tt.wantErr == "" && err == nil && got != tt.want {
-			t.Errorf("%d. Unquote(%q) = %02x; want %02x", i, tt.in, []byte(got), []byte(tt.want))
-		}
+	for _, tt := range tests {
+		testUnquote(t, tt.in, tt.want, tt.wantErr)
+	}
+}
+
+func testUnquote(t *testing.T, in, want string, wantErr error) {
+	// Test Unquote.
+	got, gotErr := Unquote(in)
+	if got != want || gotErr != wantErr {
+		t.Errorf("Unquote(%q) = (%q, %v), want (%q, %v)", in, got, gotErr, want, wantErr)
+	}
+
+	// Test QuotedPrefix.
+	// Adding an arbitrary suffix should not change the result of QuotedPrefix
+	// assume that the suffix doesn't accidentally terminate a truncated input.
+	if gotErr == nil {
+		want = in
+	}
+	suffix := "\n\r\\\"`'" // special characters for quoted strings
+	if len(in) > 0 {
+		suffix = strings.ReplaceAll(suffix, in[:1], "")
+	}
+	in += suffix
+	got, gotErr = QuotedPrefix(in)
+	if gotErr == nil && wantErr != nil {
+		_, wantErr = Unquote(got) // original input had trailing junk, reparse with only valid prefix
+		want = got
+	}
+	if got != want || gotErr != wantErr {
+		t.Errorf("QuotedPrefix(%q) = (%q, %v), want (%q, %v)", in, got, gotErr, want, wantErr)
 	}
 }
 

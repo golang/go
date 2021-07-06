@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"io/fs"
 	"os"
 	. "os"
 	osexec "os/exec"
@@ -616,11 +617,7 @@ func TestReaddirNValues(t *testing.T) {
 	if testing.Short() {
 		t.Skip("test.short; skipping")
 	}
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 	for i := 1; i <= 105; i++ {
 		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
 		if err != nil {
@@ -715,11 +712,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		// testing it wouldn't work.
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer RemoveAll(dir)
+	dir := t.TempDir()
 	touch(t, filepath.Join(dir, "good1"))
 	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
 	touch(t, filepath.Join(dir, "good2"))
@@ -1948,22 +1941,16 @@ func TestAppend(t *testing.T) {
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	// Create new temporary directory and arrange to clean it up.
-	path, err := os.MkdirTemp("", "_TestStatDirWithSlash_")
-	if err != nil {
-		t.Fatalf("TempDir: %s", err)
-	}
-	defer RemoveAll(path)
+	path := t.TempDir()
 
 	// Stat of path should succeed.
-	_, err = Stat(path)
-	if err != nil {
+	if _, err := Stat(path); err != nil {
 		t.Fatalf("stat %s failed: %s", path, err)
 	}
 
 	// Stat of path+"/" should succeed too.
 	path += "/"
-	_, err = Stat(path)
-	if err != nil {
+	if _, err := Stat(path); err != nil {
 		t.Fatalf("stat %s failed: %s", path, err)
 	}
 }
@@ -2090,12 +2077,7 @@ func TestLargeWriteToConsole(t *testing.T) {
 func TestStatDirModeExec(t *testing.T) {
 	const mode = 0111
 
-	path, err := os.MkdirTemp("", "go-build")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
-	}
-	defer RemoveAll(path)
-
+	path := t.TempDir()
 	if err := Chmod(path, 0777); err != nil {
 		t.Fatalf("Chmod %q 0777: %v", path, err)
 	}
@@ -2159,12 +2141,7 @@ func TestStatStdin(t *testing.T) {
 func TestStatRelativeSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestStatRelativeSymlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	target := filepath.Join(tmpdir, "target")
 	f, err := Create(target)
 	if err != nil {
@@ -2298,6 +2275,7 @@ func TestLongPath(t *testing.T) {
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	testenv.MustHaveExec(t)
+	t.Parallel()
 
 	// Re-exec the test binary itself to emulate "sleep 1".
 	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
@@ -2305,14 +2283,15 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
 	if err != nil {
 		t.Fatalf("Failed to start test process: %v", err)
 	}
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		processKiller(cmd.Process)
+
+	defer func() {
+		if err := cmd.Wait(); err == nil {
+			t.Errorf("Test process succeeded, but expected to fail")
+		}
 	}()
-	err = cmd.Wait()
-	if err == nil {
-		t.Errorf("Test process succeeded, but expected to fail")
-	}
+
+	time.Sleep(100 * time.Millisecond)
+	processKiller(cmd.Process)
 }
 
 // TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we
@@ -2687,7 +2666,67 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 }
 
 func TestDirFS(t *testing.T) {
-	if err := fstest.TestFS(DirFS("./signal"), "signal.go", "internal/pty/pty.go"); err != nil {
+	// On Windows, we force the MFT to update by reading the actual metadata from GetFileInformationByHandle and then
+	// explicitly setting that. Otherwise it might get out of sync with FindFirstFile. See golang.org/issues/42637.
+	if runtime.GOOS == "windows" {
+		if err := filepath.WalkDir("./testdata/dirfs", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := d.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stat, err := Stat(path) // This uses GetFileInformationByHandle internally.
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stat.ModTime() == info.ModTime() {
+				return nil
+			}
+			if err := Chtimes(path, stat.ModTime(), stat.ModTime()); err != nil {
+				t.Log(err) // We only log, not die, in case the test directory is not writable.
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that Open does not accept backslash as separator.
+	d := DirFS(".")
+	_, err := d.Open(`testdata\dirfs`)
+	if err == nil {
+		t.Fatalf(`Open testdata\dirfs succeeded`)
+	}
+}
+
+func TestDirFSPathsValid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping on Windows")
+	}
+
+	d := t.TempDir()
+	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys := os.DirFS(d)
+	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
+		if fs.ValidPath(e.Name()) {
+			t.Logf("%q ok", e.Name())
+		} else {
+			t.Errorf("%q INVALID", e.Name())
+		}
+		return nil
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2708,5 +2747,23 @@ func TestReadFileProc(t *testing.T) {
 	}
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		t.Fatalf("read %s: not newline-terminated: %q", name, data)
+	}
+}
+
+func TestWriteStringAlloc(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("js allocates a lot during File.WriteString")
+	}
+	d := t.TempDir()
+	f, err := Create(filepath.Join(d, "whiteboard.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	allocs := testing.AllocsPerRun(100, func() {
+		f.WriteString("I will not allocate when passed a string longer than 32 bytes.\n")
+	})
+	if allocs != 0 {
+		t.Errorf("expected 0 allocs for File.WriteString, got %v", allocs)
 	}
 }

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package net
@@ -13,13 +14,13 @@ import (
 	"syscall"
 )
 
-// Probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
+// probe probes IPv4, IPv6 and IPv4-mapped IPv6 communication
 // capabilities which are controlled by the IPV6_V6ONLY socket option
 // and kernel configuration.
 //
 // Should we try to use the IPv4 socket interface if we're only
 // dealing with IPv4 sockets? As long as the host system understands
-// IPv4-mapped IPv6, it's okay to pass IPv4-mapeed IPv6 addresses to
+// IPv4-mapped IPv6, it's okay to pass IPv4-mapped IPv6 addresses to
 // the IPv6 interface. That simplifies our code and is most
 // general. Unfortunately, we need to run on kernels built without
 // IPv6 support too. So probe the kernel to figure it out.

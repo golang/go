@@ -1,0 +1,11 @@
+env GO111MODULE=on
+
+# Go should reject relative paths in GOMODCACHE environment.
+
+env GOMODCACHE="~/test"
+! go get example.com/tools/cmd/hello
+stderr 'must be absolute path'
+
+env GOMODCACHE="./test"
+! go get example.com/tools/cmd/hello
+stderr 'must be absolute path'

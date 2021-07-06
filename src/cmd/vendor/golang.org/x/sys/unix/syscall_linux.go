@@ -70,88 +70,7 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
 
 // ioctl itself should not be exposed directly, but additional get/set
 // functions for specific types are permissible.
-
-// IoctlRetInt performs an ioctl operation specified by req on a device
-// associated with opened file descriptor fd, and returns a non-negative
-// integer that is returned by the ioctl syscall.
-func IoctlRetInt(fd int, req uint) (int, error) {
-	ret, _, err := Syscall(SYS_IOCTL, uintptr(fd), uintptr(req), 0)
-	if err != 0 {
-		return 0, err
-	}
-	return int(ret), nil
-}
-
-func IoctlSetRTCTime(fd int, value *RTCTime) error {
-	err := ioctl(fd, RTC_SET_TIME, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
-}
-
-func IoctlSetRTCWkAlrm(fd int, value *RTCWkAlrm) error {
-	err := ioctl(fd, RTC_WKALM_SET, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
-}
-
-func IoctlGetUint32(fd int, req uint) (uint32, error) {
-	var value uint32
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
-	return value, err
-}
-
-func IoctlGetRTCTime(fd int) (*RTCTime, error) {
-	var value RTCTime
-	err := ioctl(fd, RTC_RD_TIME, uintptr(unsafe.Pointer(&value)))
-	return &value, err
-}
-
-// IoctlGetWatchdogInfo fetches information about a watchdog device from the
-// Linux watchdog API. For more information, see:
-// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
-func IoctlGetWatchdogInfo(fd int) (*WatchdogInfo, error) {
-	var value WatchdogInfo
-	err := ioctl(fd, WDIOC_GETSUPPORT, uintptr(unsafe.Pointer(&value)))
-	return &value, err
-}
-
-func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) {
-	var value RTCWkAlrm
-	err := ioctl(fd, RTC_WKALM_RD, uintptr(unsafe.Pointer(&value)))
-	return &value, err
-}
-
-// IoctlFileCloneRange performs an FICLONERANGE ioctl operation to clone the
-// range of data conveyed in value to the file associated with the file
-// descriptor destFd. See the ioctl_ficlonerange(2) man page for details.
-func IoctlFileCloneRange(destFd int, value *FileCloneRange) error {
-	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
-}
-
-// IoctlFileClone performs an FICLONE ioctl operation to clone the entire file
-// associated with the file description srcFd to the file associated with the
-// file descriptor destFd. See the ioctl_ficlone(2) man page for details.
-func IoctlFileClone(destFd, srcFd int) error {
-	return ioctl(destFd, FICLONE, uintptr(srcFd))
-}
-
-// IoctlFileDedupeRange performs an FIDEDUPERANGE ioctl operation to share the
-// range of data conveyed in value with the file associated with the file
-// descriptor destFd. See the ioctl_fideduperange(2) man page for details.
-func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error {
-	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
-}
-
-// IoctlWatchdogKeepalive issues a keepalive ioctl to a watchdog device. For
-// more information, see:
-// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
-func IoctlWatchdogKeepalive(fd int) error {
-	return ioctl(fd, WDIOC_KEEPALIVE, 0)
-}
+// These are defined in ioctl.go and ioctl_linux.go.
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
 
@@ -778,16 +697,19 @@ type SockaddrVM struct {
 	// CID and Port specify a context ID and port address for a VM socket.
 	// Guests have a unique CID, and hosts may have a well-known CID of:
 	//  - VMADDR_CID_HYPERVISOR: refers to the hypervisor process.
+	//  - VMADDR_CID_LOCAL: refers to local communication (loopback).
 	//  - VMADDR_CID_HOST: refers to other processes on the host.
-	CID  uint32
-	Port uint32
-	raw  RawSockaddrVM
+	CID   uint32
+	Port  uint32
+	Flags uint8
+	raw   RawSockaddrVM
 }
 
 func (sa *SockaddrVM) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Family = AF_VSOCK
 	sa.raw.Port = sa.Port
 	sa.raw.Cid = sa.CID
+	sa.raw.Flags = sa.Flags
 
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrVM, nil
 }
@@ -1092,8 +1014,9 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 	case AF_VSOCK:
 		pp := (*RawSockaddrVM)(unsafe.Pointer(rsa))
 		sa := &SockaddrVM{
-			CID:  pp.Cid,
-			Port: pp.Port,
+			CID:   pp.Cid,
+			Port:  pp.Port,
+			Flags: pp.Flags,
 		}
 		return sa, nil
 	case AF_BLUETOOTH:
@@ -1228,7 +1151,11 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	nfd, err = accept(fd, &rsa, &len)
+	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
+	nfd, err = accept4(fd, &rsa, &len, 0)
+	if err == ENOSYS {
+		nfd, err = accept(fd, &rsa, &len)
+	}
 	if err != nil {
 		return
 	}
@@ -1482,8 +1409,8 @@ func KeyctlRestrictKeyring(ringid int, keyType string, restriction string) error
 	return keyctlRestrictKeyringByType(KEYCTL_RESTRICT_KEYRING, ringid, keyType, restriction)
 }
 
-//sys keyctlRestrictKeyringByType(cmd int, arg2 int, keyType string, restriction string) (err error) = SYS_KEYCTL
-//sys keyctlRestrictKeyring(cmd int, arg2 int) (err error) = SYS_KEYCTL
+//sys	keyctlRestrictKeyringByType(cmd int, arg2 int, keyType string, restriction string) (err error) = SYS_KEYCTL
+//sys	keyctlRestrictKeyring(cmd int, arg2 int) (err error) = SYS_KEYCTL
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
 	var msg Msghdr
@@ -1798,6 +1725,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
 //sys	Close(fd int) (err error)
+//sys	CloseRange(first uint, last uint, flags uint) (err error)
 //sys	CopyFileRange(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
 //sys	DeleteModule(name string, flags int) (err error)
 //sys	Dup(oldfd int) (fd int, err error)
@@ -1860,8 +1788,8 @@ func Getpgrp() (pid int) {
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
-//sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
-//sys   Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
+//sysnb	prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
+//sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)
@@ -1934,9 +1862,9 @@ func Signalfd(fd int, sigmask *Sigset_t, flags int) (newfd int, err error) {
 //sys	Syncfs(fd int) (err error)
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
 //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
-//sysnb TimerfdCreate(clockid int, flags int) (fd int, err error)
-//sysnb TimerfdGettime(fd int, currValue *ItimerSpec) (err error)
-//sysnb TimerfdSettime(fd int, flags int, newValue *ItimerSpec, oldValue *ItimerSpec) (err error)
+//sysnb	TimerfdCreate(clockid int, flags int) (fd int, err error)
+//sysnb	TimerfdGettime(fd int, currValue *ItimerSpec) (err error)
+//sysnb	TimerfdSettime(fd int, flags int, newValue *ItimerSpec, oldValue *ItimerSpec) (err error)
 //sysnb	Tgkill(tgid int, tid int, sig syscall.Signal) (err error)
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sysnb	Umask(mask int) (oldmask int)
@@ -2196,8 +2124,8 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	return EACCES
 }
 
-//sys nameToHandleAt(dirFD int, pathname string, fh *fileHandle, mountID *_C_int, flags int) (err error) = SYS_NAME_TO_HANDLE_AT
-//sys openByHandleAt(mountFD int, fh *fileHandle, flags int) (fd int, err error) = SYS_OPEN_BY_HANDLE_AT
+//sys	nameToHandleAt(dirFD int, pathname string, fh *fileHandle, mountID *_C_int, flags int) (err error) = SYS_NAME_TO_HANDLE_AT
+//sys	openByHandleAt(mountFD int, fh *fileHandle, flags int) (fd int, err error) = SYS_OPEN_BY_HANDLE_AT
 
 // fileHandle is the argument to nameToHandleAt and openByHandleAt. We
 // originally tried to generate it via unix/linux/types.go with "type

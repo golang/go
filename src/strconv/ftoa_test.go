@@ -40,6 +40,7 @@ var ftoatests = []ftoaTest{
 	{200000, 'x', -1, "0x1.86ap+17"},
 	{200000, 'X', -1, "0X1.86AP+17"},
 	{2000000, 'g', -1, "2e+06"},
+	{1e10, 'g', -1, "1e+10"},
 
 	// g conversion and zero suppression
 	{400, 'g', 2, "4e+02"},
@@ -76,6 +77,15 @@ var ftoatests = []ftoaTest{
 	{1.2345e6, 'e', 5, "1.23450e+06"},
 	{1.2345e6, 'f', 5, "1234500.00000"},
 	{1.2345e6, 'g', 5, "1.2345e+06"},
+
+	// Round to even
+	{1.2345e6, 'e', 3, "1.234e+06"},
+	{1.2355e6, 'e', 3, "1.236e+06"},
+	{1.2345, 'f', 3, "1.234"},
+	{1.2355, 'f', 3, "1.236"},
+	{1234567890123456.5, 'e', 15, "1.234567890123456e+15"},
+	{1234567890123457.5, 'e', 15, "1.234567890123458e+15"},
+	{108678236358137.625, 'g', -1, "1.0867823635813762e+14"},
 
 	{1e23, 'e', 17, "9.99999999999999916e+22"},
 	{1e23, 'f', 17, "99999999999999991611392.00000000000000000"},
@@ -183,6 +193,25 @@ func TestFtoa(t *testing.T) {
 	}
 }
 
+func TestFtoaPowersOfTwo(t *testing.T) {
+	for exp := -2048; exp <= 2048; exp++ {
+		f := math.Ldexp(1, exp)
+		if !math.IsInf(f, 0) {
+			s := FormatFloat(f, 'e', -1, 64)
+			if x, _ := ParseFloat(s, 64); x != f {
+				t.Errorf("failed roundtrip %v => %s => %v", f, s, x)
+			}
+		}
+		f32 := float32(f)
+		if !math.IsInf(float64(f32), 0) {
+			s := FormatFloat(float64(f32), 'e', -1, 32)
+			if x, _ := ParseFloat(s, 32); float32(x) != f32 {
+				t.Errorf("failed roundtrip %v => %s => %v", f32, s, float32(x))
+			}
+		}
+	}
+}
+
 func TestFtoaRandom(t *testing.T) {
 	N := int(1e4)
 	if testing.Short() {
@@ -232,6 +261,7 @@ var ftoaBenches = []struct {
 	{"Float", 339.7784, 'g', -1, 64},
 	{"Exp", -5.09e75, 'g', -1, 64},
 	{"NegExp", -5.11e-95, 'g', -1, 64},
+	{"LongExp", 1.234567890123456e-78, 'g', -1, 64},
 
 	{"Big", 123456789123456789123456789, 'g', -1, 64},
 	{"BinaryExp", -1, 'b', -1, 64},
@@ -241,14 +271,30 @@ var ftoaBenches = []struct {
 	{"32Point", 339.7784, 'g', -1, 32},
 	{"32Exp", -5.09e25, 'g', -1, 32},
 	{"32NegExp", -5.11e-25, 'g', -1, 32},
+	{"32Shortest", 1.234567e-8, 'g', -1, 32},
+	{"32Fixed8Hard", math.Ldexp(15961084, -125), 'e', 8, 32},
+	{"32Fixed9Hard", math.Ldexp(14855922, -83), 'e', 9, 32},
 
 	{"64Fixed1", 123456, 'e', 3, 64},
 	{"64Fixed2", 123.456, 'e', 3, 64},
 	{"64Fixed3", 1.23456e+78, 'e', 3, 64},
 	{"64Fixed4", 1.23456e-78, 'e', 3, 64},
+	{"64Fixed12", 1.23456e-78, 'e', 12, 64},
+	{"64Fixed16", 1.23456e-78, 'e', 16, 64},
+	// From testdata/testfp.txt
+	{"64Fixed12Hard", math.Ldexp(6965949469487146, -249), 'e', 12, 64},
+	{"64Fixed17Hard", math.Ldexp(8887055249355788, 665), 'e', 17, 64},
+	{"64Fixed18Hard", math.Ldexp(6994187472632449, 690), 'e', 18, 64},
 
 	// Trigger slow path (see issue #15672).
-	{"Slowpath64", 622666234635.3213e-320, 'e', -1, 64},
+	// The shortest is: 8.034137530808823e+43
+	{"Slowpath64", 8.03413753080882349e+43, 'e', -1, 64},
+	// This denormal is pathological because the lower/upper
+	// halfways to neighboring floats are:
+	// 622666234635.321003e-320 ~= 622666234635.321e-320
+	// 622666234635.321497e-320 ~= 622666234635.3215e-320
+	// making it hard to find the 3rd digit
+	{"SlowpathDenormal64", 622666234635.3213e-320, 'e', -1, 64},
 }
 
 func BenchmarkFormatFloat(b *testing.B) {

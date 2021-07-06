@@ -125,7 +125,7 @@ func ExampleReadFile() {
 
 func ExampleWriteFile() {
 	message := []byte("Hello, Gophers!")
-	err := ioutil.WriteFile("testdata/hello", message, 0644)
+	err := ioutil.WriteFile("hello", message, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}

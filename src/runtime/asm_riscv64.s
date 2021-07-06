@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // func rt0_go()
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// X2 = stack; A0 = argc; A1 = argv
 	ADD	$-24, X2
 	MOV	A0, 8(X2)	// argc
@@ -70,6 +70,10 @@ nocgo:
 	WORD $0 // crash if reached
 	RET
 
+TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+	CALL	runtime·mstart0(SB)
+	RET // not reached
+
 // void setg_gcc(G*); set g called from gcc with g in A0
 TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	MOV	A0, g
@@ -114,21 +118,12 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 switch:
 	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
-	MOV	$runtime·systemstack_switch(SB), T2
-	ADD	$8, T2	// get past prologue
-	MOV	T2, (g_sched+gobuf_pc)(g)
-	MOV	X2, (g_sched+gobuf_sp)(g)
-	MOV	ZERO, (g_sched+gobuf_lr)(g)
-	MOV	g, (g_sched+gobuf_g)(g)
+	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOV	T1, g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), T0
-	// make it look like mstart called systemstack on g0, to stop traceback
-	ADD	$-8, T0
-	MOV	$runtime·mstart(SB), T1
-	MOV	T1, 0(T0)
 	MOV	T0, X2
 
 	// call target function
@@ -233,12 +228,16 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 // restore state from Gobuf; longjmp
 
 // func gogo(buf *gobuf)
-TEXT runtime·gogo(SB), NOSPLIT, $16-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	buf+0(FP), T0
-	MOV	gobuf_g(T0), g	// make sure g is not nil
+	MOV	gobuf_g(T0), T1
+	MOV	0(T1), ZERO // make sure g != nil
+	JMP	gogo<>(SB)
+
+TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+	MOV	T1, g
 	CALL	runtime·save_g(SB)
 
-	MOV	(g), ZERO // make sure g is not nil
 	MOV	gobuf_sp(T0), X2
 	MOV	gobuf_lr(T0), RA
 	MOV	gobuf_ret(T0), A0
@@ -279,7 +278,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	RA, (g_sched+gobuf_pc)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
-	MOV	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
 	MOV	g, T0
@@ -297,31 +295,22 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	JALR	RA, T1
 	JMP	runtime·badmcall2(SB)
 
-// func gosave(buf *gobuf)
-// save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
-	MOV	buf+0(FP), T1
-	MOV	X2, gobuf_sp(T1)
-	MOV	RA, gobuf_pc(T1)
-	MOV	g, gobuf_g(T1)
-	MOV	ZERO, gobuf_lr(T1)
-	MOV	ZERO, gobuf_ret(T1)
-	// Assert ctxt is zero. See func save.
-	MOV	gobuf_ctxt(T1), T1
-	BEQ	T1, ZERO, 2(PC)
-	CALL	runtime·badctxt(SB)
-	RET
-
-// Save state of caller into g->sched. Smashes X31.
-TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
-	MOV	X1, (g_sched+gobuf_pc)(g)
+// Save state of caller into g->sched,
+// but using fake PC from systemstack_switch.
+// Must only be called from functions with no locals ($0)
+// or else unwinding from systemstack_switch is incorrect.
+// Smashes X31.
+TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+	MOV	$runtime·systemstack_switch(SB), X31
+	ADD	$8, X31	// get past prologue
+	MOV	X31, (g_sched+gobuf_pc)(g)
 	MOV	X2, (g_sched+gobuf_sp)(g)
 	MOV	ZERO, (g_sched+gobuf_lr)(g)
 	MOV	ZERO, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOV	(g_sched+gobuf_ctxt)(g), X31
 	BEQ	ZERO, X31, 2(PC)
-	CALL	runtime·badctxt(SB)
+	CALL	runtime·abort(SB)
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -342,7 +331,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOV	m_g0(X6), X7
 	BEQ	X7, g, g0
 
-	CALL	gosave<>(SB)
+	CALL	gosave_systemstack_switch<>(SB)
 	MOV	X7, g
 	CALL	runtime·save_g(SB)
 	MOV	(g_sched+gobuf_sp)(g), X2
@@ -374,7 +363,7 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 // reflectcall: call a function with the given argument list
-// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
+// func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 // we don't have variable-sized frames, so we use a small number
 // of constant-sized-frame functions to encode a few bits of size in the pc.
 // Caution: ugly multiline assembly macros in your future!
@@ -386,13 +375,13 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	JALR	ZERO, T2
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
-// func call(argtype *rtype, fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+// func call(stackArgsType *rtype, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	JMP	·reflectcall(SB)
 
-// func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
-TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
-	MOVWU argsize+24(FP), T0
+// func call(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-48
+	MOVWU	frameSize+32(FP), T0
 	DISPATCH(runtime·call16, 16)
 	DISPATCH(runtime·call32, 32)
 	DISPATCH(runtime·call64, 64)
@@ -424,11 +413,11 @@ TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	JALR	ZERO, T2
 
 #define CALLFN(NAME,MAXSIZE)			\
-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	NO_LOCAL_POINTERS;			\
 	/* copy arguments to stack */		\
-	MOV	arg+16(FP), A1;			\
-	MOVWU	argsize+24(FP), A2;		\
+	MOV	stackArgs+16(FP), A1;			\
+	MOVWU	stackArgsSize+24(FP), A2;		\
 	MOV	X2, A3;				\
 	ADD	$8, A3;				\
 	ADD	A3, A2;				\
@@ -444,10 +433,10 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	JALR	RA, A4;				\
 	/* copy return values back */		\
-	MOV	argtype+0(FP), A5;		\
-	MOV	arg+16(FP), A1;			\
-	MOVWU	n+24(FP), A2;			\
-	MOVWU	retoffset+28(FP), A4;		\
+	MOV	stackArgsType+0(FP), A5;		\
+	MOV	stackArgs+16(FP), A1;			\
+	MOVWU	stackArgsSize+24(FP), A2;			\
+	MOVWU	stackRetOffset+28(FP), A4;		\
 	ADD	$8, X2, A3;			\
 	ADD	A4, A3; 			\
 	ADD	A4, A1;				\
@@ -459,11 +448,12 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 // separate function so it can allocate stack space for the arguments
 // to reflectcallmove. It does not follow the Go ABI; it expects its
 // arguments in registers.
-TEXT callRet<>(SB), NOSPLIT, $32-0
+TEXT callRet<>(SB), NOSPLIT, $40-0
 	MOV	A5, 8(X2)
 	MOV	A1, 16(X2)
 	MOV	A3, 24(X2)
 	MOV	A2, 32(X2)
+	MOV	ZERO, 40(X2)
 	CALL	runtime·reflectcallmove(SB)
 	RET
 
@@ -816,6 +806,10 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	MOV	T0, x+0(FP)
 	MOV	T1, y+8(FP)
 	JMP	runtime·goPanicSlice3CU(SB)
+TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
+	MOV	T2, x+0(FP)
+	MOV	T3, y+8(FP)
+	JMP	runtime·goPanicSliceConvert(SB)
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8

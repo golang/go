@@ -4,7 +4,7 @@ env GO111MODULE=on
 # When a sum is needed to load the build list, we get an error for the
 # specific module. The .mod file is not downloaded, and go.sum is not written.
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
+stderr '^go list -m: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 ! exists go.sum
 
@@ -12,7 +12,7 @@ stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rs
 # we should see the same error.
 cp go.sum.h2only go.sum
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
+stderr '^go list -m: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 cmp go.sum go.sum.h2only
 rm go.sum
@@ -21,7 +21,7 @@ rm go.sum
 cp go.mod go.mod.orig
 go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
 ! go list -m all
-stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
+stderr '^go list -m: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod
 ! exists go.sum
 cp go.mod.orig go.mod
@@ -35,19 +35,19 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
 # When a sum is needed to load a .mod file for a package outside the build list,
 # we get a generic missing import error.
 ! go list example.com/doesnotexist
-stderr '^no required module provides package example.com/doesnotexist; try ''go get -d example.com/doesnotexist'' to add it$'
+stderr '^no required module provides package example.com/doesnotexist; to add it:\n\tgo get example.com/doesnotexist$'
 
 # When a sum is needed to load a .zip file, we get a more specific error.
 # The .zip file is not downloaded.
 ! go list rsc.io/quote
-stderr '^missing go.sum entry for module providing package rsc.io/quote$'
+stderr '^missing go.sum entry for module providing package rsc.io/quote; to add:\n\tgo mod download rsc.io/quote$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
 # The error is attached to the package from the missing module. We can load
 # a package that imports it without that error.
 go list -e -deps -f '{{.ImportPath}}{{with .Error}} {{.Err}}{{end}}' .
 stdout '^m$'
-stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote; try ''go mod tidy'' to add it$'
+stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote \(imported by m\); to add:\n\tgo get m$'
 ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
 
 # go.sum should not have been written.
