@@ -1957,7 +1957,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.typ(n.Type())
 
 	// unary expressions
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
+	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())
@@ -1993,7 +1993,7 @@ func (w *exportWriter) expr(n ir.Node) {
 
 	// binary expressions
 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
-		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR:
+		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR, ir.OEFACE:
 		n := n.(*ir.BinaryExpr)
 		w.op(n.Op())
 		w.pos(n.Pos())

@@ -2215,7 +2215,6 @@ var g3Failures = setOf(
 	"typeparam/mdempsky/11.go",
 	"typeparam/mdempsky/12.go",
 	"typeparam/mdempsky/13.go",
-	"typeparam/mdempsky/14.go",
 )
 
 var unifiedFailures = setOf(

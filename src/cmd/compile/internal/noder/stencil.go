@@ -94,7 +94,7 @@ func (g *irgen) stencil() {
 				// generic F, not immediately called
 				closureRequired = true
 			}
-			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
+			if n.Op() == ir.OMETHEXPR && len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
 				// T.M, T a type which is generic, not immediately
 				// called. Not necessary if the method selected is
 				// actually for an embedded interface field.
@@ -229,6 +229,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		outerInfo = g.instInfoMap[outer.Sym()]
 	}
 	usingSubdict := false
+	valueMethod := false
 	if x.Op() == ir.OFUNCINST {
 		inst := x.(*ir.InstExpr)
 
@@ -269,16 +270,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		}
 	} else { // ir.OMETHEXPR
 		// Method expression T.M where T is a generic type.
-		// TODO: Is (*T).M right?
 		se := x.(*ir.SelectorExpr)
-		targs := se.X.Type().RParams()
+		targs := deref(se.X.Type()).RParams()
 		if len(targs) == 0 {
-			if se.X.Type().IsPtr() {
-				targs = se.X.Type().Elem().RParams()
-				if len(targs) == 0 {
-					panic("bad")
-				}
-			}
+			panic("bad")
 		}
 
 		// se.X.Type() is the top-level type of the method expression. To
@@ -294,6 +289,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 				gf = m.Nname.(*ir.Name)
 				break
 			}
+		}
+		if !gf.Type().Recv().Type.IsPtr() {
+			// Remember if value method, so we can detect (*T).M case.
+			valueMethod = true
 		}
 		target = g.getInstantiation(gf, targs, true)
 		dictValue, usingSubdict = g.getDictOrSubdict(outerInfo, x, gf, targs, true)
@@ -446,8 +445,15 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 			// If we are doing a method expression, we need to
 			// explicitly traverse any embedded fields in the receiver
 			// argument in order to call the method instantiation.
-			dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, formalParams[0].Nname.(*ir.Name), x.(*ir.SelectorExpr).Sel))
-			args = append(args, dot.X)
+			arg0 := formalParams[0].Nname.(ir.Node)
+			arg0 = typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, arg0, x.(*ir.SelectorExpr).Sel)).X
+			if valueMethod && arg0.Type().IsPtr() {
+				// For handling the (*T).M case: if we have a pointer
+				// receiver after following all the embedded fields,
+				// but it's a value method, add a star operator.
+				arg0 = ir.NewStarExpr(arg0.Pos(), arg0)
+			}
+			args = append(args, arg0)
 		} else {
 			args = append(args, formalParams[i].Nname.(*ir.Name))
 		}
@@ -1342,7 +1348,7 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
 	return newfields
 }
 
-// defer does a single defer of type t, if it is a pointer type.
+// deref does a single deref of type t, if it is a pointer type.
 func deref(t *types.Type) *types.Type {
 	if t.IsPtr() {
 		return t.Elem()
