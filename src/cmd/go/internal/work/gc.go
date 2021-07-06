@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"log"
 	"os"
@@ -63,15 +64,33 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 
 	pkgpath := pkgPath(a)
 	gcargs := []string{"-p", pkgpath}
-	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
-		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
+	if p.Module != nil {
+		v := p.Module.GoVersion
+		if v == "" {
+			// We started adding a 'go' directive to the go.mod file unconditionally
+			// as of Go 1.12, so any module that still lacks such a directive must
+			// either have been authored before then, or have a hand-edited go.mod
+			// file that hasn't been updated by cmd/go since that edit.
+			//
+			// Unfortunately, through at least Go 1.16 we didn't add versions to
+			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
+			//
+			// Fortunately, there were no breaking changes to the language between Go
+			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
+			// any spurious errors — we will only mask errors, and not particularly
+			// important ones at that.
+			v = "1.16"
+		}
+		if allowedVersion(v) {
+			gcargs = append(gcargs, "-lang=go"+v)
+		}
 	}
 	if p.Standard {
 		gcargs = append(gcargs, "-std")
 	}
 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
 	// The runtime package imports a couple of general internal packages.
-	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg") {
+	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg" || p.ImportPath == "internal/abi") {
 		compilingRuntime = true
 	}
 	if compilingRuntime {
@@ -129,7 +148,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
+	if p.Internal.LocalPrefix != "" {
+		// Workaround #43883.
+		args = append(args, "-D", p.Internal.LocalPrefix)
+	}
 	if importcfg != nil {
 		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
 			return "", nil, err
@@ -174,7 +197,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		args = append(args, f)
 	}
 
-	output, err = b.runOut(a, base.Cwd, nil, args...)
+	output, err = b.runOut(a, base.Cwd(), nil, args...)
 	return ofile, output, err
 }
 
@@ -209,7 +232,7 @@ CheckFlags:
 	}
 
 	// TODO: Test and delete these conditions.
-	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 {
+	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
@@ -235,16 +258,19 @@ CheckFlags:
 	//   - it has no successor packages to compile (usually package main)
 	//   - all paths through the build graph pass through it
 	//   - critical path scheduling says it is high priority
-	// and in such a case, set c to runtime.NumCPU.
+	// and in such a case, set c to runtime.GOMAXPROCS(0).
+	// By default this is the same as runtime.NumCPU.
 	// We do this now when p==1.
+	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
+	// on a low-memory builder, or if a deterministic build order is required.
+	c := runtime.GOMAXPROCS(0)
 	if cfg.BuildP == 1 {
-		// No process parallelism. Max out c.
-		return runtime.NumCPU()
+		// No process parallelism, do not cap compiler parallelism.
+		return c
 	}
-	// Some process parallelism. Set c to min(4, numcpu).
-	c := 4
-	if ncpu := runtime.NumCPU(); ncpu < c {
-		c = ncpu
+	// Some process parallelism. Set c to min(4, maxprocs).
+	if c > 4 {
+		c = 4
 	}
 	return c
 }
@@ -265,10 +291,11 @@ func (a *Action) trimpath() string {
 
 	rewriteDir := a.Package.Dir
 	if cfg.BuildTrimpath {
+		importPath := a.Package.Internal.OrigImportPath
 		if m := a.Package.Module; m != nil && m.Version != "" {
-			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
+			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(importPath, m.Path)
 		} else {
-			rewriteDir = a.Package.ImportPath
+			rewriteDir = importPath
 		}
 		rewrite += a.Package.Dir + "=>" + rewriteDir + ";"
 	}
@@ -336,18 +363,6 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	}
 	if objabi.IsRuntimePackagePath(pkgpath) {
 		args = append(args, "-compiling-runtime")
-		if objabi.Regabi_enabled != 0 {
-			// In order to make it easier to port runtime assembly
-			// to the register ABI, we introduce a macro
-			// indicating the experiment is enabled.
-			//
-			// Note: a similar change also appears in
-			// cmd/dist/build.go.
-			//
-			// TODO(austin): Remove this once we commit to the
-			// register ABI (#40724).
-			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
-		}
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

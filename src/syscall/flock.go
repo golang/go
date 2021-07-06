@@ -1,3 +1,4 @@
+//go:build linux || freebsd || openbsd || netbsd || dragonfly
 // +build linux freebsd openbsd netbsd dragonfly
 
 // Copyright 2014 The Go Authors. All rights reserved.

@@ -26,7 +26,7 @@ func Fdump(w io.Writer, n Node) (err error) {
 
 	defer func() {
 		if e := recover(); e != nil {
-			err = e.(localError).err // re-panics if it's not a localError
+			err = e.(writeError).err // re-panics if it's not a writeError
 		}
 	}()
 
@@ -82,16 +82,16 @@ func (p *dumper) Write(data []byte) (n int, err error) {
 	return
 }
 
-// localError wraps locally caught errors so we can distinguish
+// writeError wraps locally caught write errors so we can distinguish
 // them from genuine panics which we don't want to return as errors.
-type localError struct {
+type writeError struct {
 	err error
 }
 
 // printf is a convenience wrapper that takes care of print errors.
 func (p *dumper) printf(format string, args ...interface{}) {
 	if _, err := fmt.Fprintf(p, format, args...); err != nil {
-		panic(localError{err})
+		panic(writeError{err})
 	}
 }
 

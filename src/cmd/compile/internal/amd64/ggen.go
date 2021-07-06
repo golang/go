@@ -5,22 +5,25 @@
 package amd64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
-	"cmd/internal/objabi"
+	"internal/buildcfg"
 )
 
 // no floating point in note handlers on Plan 9
-var isPlan9 = objabi.GOOS == "plan9"
+var isPlan9 = buildcfg.GOOS == "plan9"
 
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
 const (
 	dzBlocks    = 16 // number of MOV/ADD blocks
 	dzBlockLen  = 4  // number of clears per block
-	dzBlockSize = 19 // size of instructions in a single block
-	dzMovSize   = 4  // size of single MOV instruction w/ offset
+	dzBlockSize = 23 // size of instructions in a single block
+	dzMovSize   = 5  // size of single MOV instruction w/ offset
 	dzLeaqSize  = 4  // size of single LEAQ instruction
 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
 
@@ -51,77 +54,101 @@ func dzDI(b int64) int64 {
 	return -dzClearStep * (dzBlockLen - tailSteps)
 }
 
-func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
+func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
 	const (
-		ax = 1 << iota
-		x0
+		r13 = 1 << iota // if R13 is already zeroed.
+		x15             // if X15 is already zeroed. Note: in new ABI, X15 is always zero.
 	)
 
 	if cnt == 0 {
 		return p
 	}
 
-	if cnt%int64(gc.Widthreg) != 0 {
+	if cnt%int64(types.RegSize) != 0 {
 		// should only happen with nacl
-		if cnt%int64(gc.Widthptr) != 0 {
-			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+		if cnt%int64(types.PtrSize) != 0 {
+			base.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 		}
-		if *state&ax == 0 {
-			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
-			*state |= ax
+		if *state&r13 == 0 {
+			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_R13, 0)
+			*state |= r13
 		}
-		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
-		off += int64(gc.Widthptr)
-		cnt -= int64(gc.Widthptr)
+		p = pp.Append(p, x86.AMOVL, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
+		off += int64(types.PtrSize)
+		cnt -= int64(types.PtrSize)
 	}
 
 	if cnt == 8 {
-		if *state&ax == 0 {
-			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
-			*state |= ax
+		if *state&r13 == 0 {
+			p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_R13, 0)
+			*state |= r13
 		}
-		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
-	} else if !isPlan9 && cnt <= int64(8*gc.Widthreg) {
-		if *state&x0 == 0 {
-			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
-			*state |= x0
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
+	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
+		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+			*state |= x15
 		}
 
 		for i := int64(0); i < cnt/16; i++ {
-			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
 		}
 
 		if cnt%16 != 0 {
-			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
 		}
-	} else if !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
-		if *state&x0 == 0 {
-			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
-			*state |= x0
+	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
+		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+			*state |= x15
 		}
-		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
-		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
-		p.To.Sym = gc.Duffzero
-
+		// Save DI to r12. With the amd64 Go register abi, DI can contain
+		// an incoming parameter, whereas R12 is always scratch.
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_DI, 0, obj.TYPE_REG, x86.REG_R12, 0)
+		// Emit duffzero call
+		p = pp.Append(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
+		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
+		p.To.Sym = ir.Syms.Duffzero
 		if cnt%16 != 0 {
-			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
 		}
+		// Restore DI from r12
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R12, 0, obj.TYPE_REG, x86.REG_DI, 0)
+
 	} else {
-		if *state&ax == 0 {
-			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
-			*state |= ax
-		}
+		// When the register ABI is in effect, at this point in the
+		// prolog we may have live values in all of RAX,RDI,RCX. Save
+		// them off to registers before the REPSTOSQ below, then
+		// restore. Note that R12 and R13 are always available as
+		// scratch regs; here we also use R15 (this is safe to do
+		// since there won't be any globals accessed in the prolog).
+		// See rewriteToUseGot() in obj6.go for more on r15 use.
 
-		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
-		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
-		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
-		p = pp.Appendpp(p, x86.ASTOSQ, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		// Save rax/rdi/rcx
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_DI, 0, obj.TYPE_REG, x86.REG_R12, 0)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_REG, x86.REG_R13, 0)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_CX, 0, obj.TYPE_REG, x86.REG_R15, 0)
+
+		// Set up the REPSTOSQ and kick it off.
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(types.RegSize), obj.TYPE_REG, x86.REG_CX, 0)
+		p = pp.Append(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+		p = pp.Append(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+		p = pp.Append(p, x86.ASTOSQ, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+
+		// Restore rax/rdi/rcx
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R12, 0, obj.TYPE_REG, x86.REG_DI, 0)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_REG, x86.REG_AX, 0)
+		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R15, 0, obj.TYPE_REG, x86.REG_CX, 0)
+
+		// Record the fact that r13 is no longer zero.
+		*state &= ^uint32(r13)
 	}
 
 	return p
 }
 
-func ginsnop(pp *gc.Progs) *obj.Prog {
+func ginsnop(pp *objw.Progs) *obj.Prog {
 	// This is a hardware nop (1-byte 0x90) instruction,
 	// even though we describe it as an explicit XCHGL here.
 	// Particularly, this does not zero the high 32 bits

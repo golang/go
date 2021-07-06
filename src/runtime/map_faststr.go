@@ -255,6 +255,9 @@ bucketloop:
 			// already have a mapping for key. Update it.
 			inserti = i
 			insertb = b
+			// Overwrite existing key, so it can be garbage collected.
+			// The size is already guaranteed to be set correctly.
+			k.str = key.str
 			goto done
 		}
 		ovf := b.overflow(t)

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,amd64 linux,arm64
+// +build linux,amd64 linux,arm64 linux,ppc64le
 
 #include <errno.h>
 #include <stddef.h>
@@ -23,7 +23,7 @@ typedef struct {
 } go_sigaction_t;
 
 // SA_RESTORER is part of the kernel interface.
-// This is GNU/Linux i386/amd64 specific.
+// This is Linux i386/amd64 specific.
 #ifndef SA_RESTORER
 #define SA_RESTORER 0x4000000
 #endif

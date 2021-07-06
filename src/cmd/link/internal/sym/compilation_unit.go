@@ -20,7 +20,6 @@ type LoaderSym int
 //
 // These are used for both DWARF and pclntab generation.
 type CompilationUnit struct {
-	Pkg       string        // The package name, eg ("fmt", or "runtime")
 	Lib       *Library      // Our library
 	PclnIndex int           // Index of this CU in pclntab
 	PCs       []dwarf.Range // PC ranges, relative to Textp[0]
@@ -29,6 +28,7 @@ type CompilationUnit struct {
 
 	Consts    LoaderSym   // Package constants DIEs
 	FuncDIEs  []LoaderSym // Function DIE subtrees
+	VarDIEs   []LoaderSym // Global variable DIEs
 	AbsFnDIEs []LoaderSym // Abstract function DIE subtrees
 	RangeSyms []LoaderSym // Symbols for debug_range
 	Textp     []LoaderSym // Text symbols in this CU

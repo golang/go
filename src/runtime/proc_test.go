@@ -692,6 +692,55 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 	}
 }
 
+// warmupScheduler ensures the scheduler has at least targetThreadCount threads
+// in its thread pool.
+func warmupScheduler(targetThreadCount int) {
+	var wg sync.WaitGroup
+	var count int32
+	for i := 0; i < targetThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			atomic.AddInt32(&count, 1)
+			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
+				// spin until all threads started
+			}
+
+			// spin a bit more to ensure they are all running on separate CPUs.
+			doWork(time.Millisecond)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func doWork(dur time.Duration) {
+	start := time.Now()
+	for time.Since(start) < dur {
+	}
+}
+
+// BenchmarkCreateGoroutinesSingle creates many goroutines, all from a single
+// producer (the main benchmark goroutine).
+//
+// Compared to BenchmarkCreateGoroutines, this causes different behavior in the
+// scheduler because Ms are much more likely to need to steal work from the
+// main P rather than having work in the local run queue.
+func BenchmarkCreateGoroutinesSingle(b *testing.B) {
+	// Since we are interested in stealing behavior, warm the scheduler to
+	// get all the Ps running first.
+	warmupScheduler(runtime.GOMAXPROCS(0))
+	b.ResetTimer()
+
+	var wg sync.WaitGroup
+	wg.Add(b.N)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
 func BenchmarkClosureCall(b *testing.B) {
 	sum := 0
 	off1 := 1

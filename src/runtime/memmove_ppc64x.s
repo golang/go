@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "textflag.h"
@@ -157,7 +158,7 @@ backwardlargeloop:
 
 backward32setup:
 	MOVD	QWORDS, CTR			// set up loop ctr
-	MOVD	$16, IDX16			// 32 bytes at at time
+	MOVD	$16, IDX16			// 32 bytes at a time
 
 backward32loop:
 	SUB	$32, TGT

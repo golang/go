@@ -1,0 +1,27 @@
+package sort
+
+type orderedSlice[Elem comparable] []Elem
+
+func (s orderedSlice[Elem]) Len() int           { return len(s) }
+func (s orderedSlice[Elem]) Less(i, j int) bool { return s[i] < s[j] }
+func (s orderedSlice[Elem]) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// OrderedSlice sorts the slice s in ascending order.
+// The elements of s must be ordered using the < operator.
+func OrderedSlice[Elem comparable](s []Elem) {
+	sort.Sort(orderedSlice[Elem](s))
+}
+
+type sliceFn[Elem any] struct {
+	s []Elem
+	f func(Elem, Elem) bool
+}
+
+func (s sliceFn[Elem]) Len() int           { return len(s.s) }
+func (s sliceFn[Elem]) Less(i, j int) bool { return s.f(s.s[i], s.s[j]) }
+func (s sliceFn[Elem]) Swap(i, j int)      { s.s[i], s.s[j] = s.s[j], s.s[i] }
+
+// SliceFn sorts the slice s according to the function f.
+func SliceFn[Elem any](s []Elem, f func(Elem, Elem) bool) {
+	Sort(sliceFn[Elem]{s, f})
+}

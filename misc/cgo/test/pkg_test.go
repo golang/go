@@ -5,7 +5,6 @@
 package cgotest
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,14 +29,14 @@ func TestCrossPackageTests(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		t.Skip("Can't exec cmd/go subprocess on Android.")
-	case "darwin", "ios":
+	case "ios":
 		switch runtime.GOARCH {
 		case "arm64":
 			t.Skip("Can't exec cmd/go subprocess on iOS.")
 		}
 	}
 
-	GOPATH, err := ioutil.TempDir("", "cgotest")
+	GOPATH, err := os.MkdirTemp("", "cgotest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +46,7 @@ func TestCrossPackageTests(t *testing.T) {
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 

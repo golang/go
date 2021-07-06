@@ -58,6 +58,7 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
 }
 
 var builtinTypesLower = map[string]string{
+	".avif": "image/avif",
 	".css":  "text/css; charset=utf-8",
 	".gif":  "image/gif",
 	".htm":  "text/html; charset=utf-8",
@@ -95,9 +96,11 @@ func initMime() {
 // Extensions are looked up first case-sensitively, then case-insensitively.
 //
 // The built-in table is small but on unix it is augmented by the local
-// system's mime.types file(s) if available under one or more of these
-// names:
+// system's MIME-info database or mime.types file(s) if available under one or
+// more of these names:
 //
+//   /usr/local/share/mime/globs2
+//   /usr/share/mime/globs2
 //   /etc/mime.types
 //   /etc/apache2/mime.types
 //   /etc/apache/mime.types

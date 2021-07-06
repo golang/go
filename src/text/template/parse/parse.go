@@ -39,6 +39,7 @@ type Mode uint
 
 const (
 	ParseComments Mode = 1 << iota // parse comments and add them to AST
+	SkipFuncCheck                  // do not check that functions are defined
 )
 
 // Copy returns a copy of the Tree. Any parsing state is discarded.
@@ -689,7 +690,8 @@ func (t *Tree) operand() Node {
 func (t *Tree) term() Node {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemIdentifier:
-		if !t.hasFunction(token.val) {
+		checkFunc := t.Mode&SkipFuncCheck == 0
+		if checkFunc && !t.hasFunction(token.val) {
 			t.errorf("function %q not defined", token.val)
 		}
 		return NewIdentifier(token.val).SetTree(t).SetPos(token.pos)

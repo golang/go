@@ -35,8 +35,8 @@ func main() {
 	_ = f.Exported
 	_ = f.exported    // ERROR "f.exported undefined .type f1.Foo has no field or method exported, but does have Exported."
 	_ = f.Unexported  // ERROR "f.Unexported undefined .type f1.Foo has no field or method Unexported."
-	_ = f.unexported  // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
-	f.unexported = 10 // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
-	f.unexported()    // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
+	_ = f.unexported  // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
+	f.unexported = 10 // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
+	f.unexported()    // ERROR "f.unexported undefined .cannot refer to unexported field or method unexported."
 	_ = f.hook        // ERROR "f.hook undefined .cannot refer to unexported field or method hook."
 }

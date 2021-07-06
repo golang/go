@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build s390x
 // +build s390x
 
 package ecdsa
@@ -12,6 +13,9 @@ import (
 )
 
 func TestNoAsm(t *testing.T) {
+	testingDisableKDSA = true
+	defer func() { testingDisableKDSA = false }()
+
 	curves := [...]elliptic.Curve{
 		elliptic.P256(),
 		elliptic.P384(),
@@ -19,15 +23,11 @@ func TestNoAsm(t *testing.T) {
 	}
 
 	for _, curve := range curves {
-		// override the name of the curve to stop the assembly path being taken
-		params := *curve.Params()
-		name := params.Name
-		params.Name = name + "_GENERIC_OVERRIDE"
-
-		testKeyGeneration(t, &params, name)
-		testSignAndVerify(t, &params, name)
-		testNonceSafety(t, &params, name)
-		testINDCCA(t, &params, name)
-		testNegativeInputs(t, &params, name)
+		name := curve.Params().Name
+		t.Run(name, func(t *testing.T) { testKeyGeneration(t, curve) })
+		t.Run(name, func(t *testing.T) { testSignAndVerify(t, curve) })
+		t.Run(name, func(t *testing.T) { testNonceSafety(t, curve) })
+		t.Run(name, func(t *testing.T) { testINDCCA(t, curve) })
+		t.Run(name, func(t *testing.T) { testNegativeInputs(t, curve) })
 	}
 }

@@ -41,7 +41,7 @@ func bufferNoEscape3(xs []string) string { // ERROR "xs does not escape$"
 
 func bufferNoEscape4() []byte {
 	var b bytes.Buffer
-	b.Grow(64) // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
+	b.Grow(64) // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m\]$" "inlining call to bytes.\(\*Buffer\).Grow$" "string\(.*\) escapes to heap"
 	useBuffer(&b)
 	return b.Bytes() // ERROR "inlining call to bytes.\(\*Buffer\).Bytes$"
 }

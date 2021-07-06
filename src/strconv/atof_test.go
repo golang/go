@@ -342,6 +342,9 @@ var atoftests = []atofTest{
 	{"0x12.345p-_12", "0", ErrSyntax},
 	{"0x12.345p+1__2", "0", ErrSyntax},
 	{"0x12.345p+12_", "0", ErrSyntax},
+
+	{"1e100x", "0", ErrSyntax},
+	{"1e1000x", "0", ErrSyntax},
 }
 
 var atof32tests = []atofTest{

@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"internal/buildcfg"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -519,6 +520,90 @@ func elfwriteinterp(out *OutBuf) int {
 	return int(sh.Size)
 }
 
+// member of .gnu.attributes of MIPS for fpAbi
+const (
+	// No floating point is present in the module (default)
+	MIPS_FPABI_NONE = 0
+	// FP code in the module uses the FP32 ABI for a 32-bit ABI
+	MIPS_FPABI_ANY = 1
+	// FP code in the module only uses single precision ABI
+	MIPS_FPABI_SINGLE = 2
+	// FP code in the module uses soft-float ABI
+	MIPS_FPABI_SOFT = 3
+	// FP code in the module assumes an FPU with FR=1 and has 12
+	// callee-saved doubles. Historic, no longer supported.
+	MIPS_FPABI_HIST = 4
+	// FP code in the module uses the FPXX  ABI
+	MIPS_FPABI_FPXX = 5
+	// FP code in the module uses the FP64  ABI
+	MIPS_FPABI_FP64 = 6
+	// FP code in the module uses the FP64A ABI
+	MIPS_FPABI_FP64A = 7
+)
+
+func elfMipsAbiFlags(sh *ElfShdr, startva uint64, resoff uint64) int {
+	n := 24
+	sh.Addr = startva + resoff - uint64(n)
+	sh.Off = resoff - uint64(n)
+	sh.Size = uint64(n)
+	sh.Type = uint32(elf.SHT_MIPS_ABIFLAGS)
+	sh.Flags = uint64(elf.SHF_ALLOC)
+
+	return n
+}
+
+//typedef struct
+//{
+//  /* Version of flags structure.  */
+//  uint16_t version;
+//  /* The level of the ISA: 1-5, 32, 64.  */
+//  uint8_t isa_level;
+//  /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
+//  uint8_t isa_rev;
+//  /* The size of general purpose registers.  */
+//  uint8_t gpr_size;
+//  /* The size of co-processor 1 registers.  */
+//  uint8_t cpr1_size;
+//  /* The size of co-processor 2 registers.  */
+//  uint8_t cpr2_size;
+//  /* The floating-point ABI.  */
+//  uint8_t fp_abi;
+//  /* Processor-specific extension.  */
+//  uint32_t isa_ext;
+//  /* Mask of ASEs used.  */
+//  uint32_t ases;
+//  /* Mask of general flags.  */
+//  uint32_t flags1;
+//  uint32_t flags2;
+//} Elf_Internal_ABIFlags_v0;
+func elfWriteMipsAbiFlags(ctxt *Link) int {
+	sh := elfshname(".MIPS.abiflags")
+	ctxt.Out.SeekSet(int64(sh.Off))
+	ctxt.Out.Write16(0) // version
+	ctxt.Out.Write8(32) // isaLevel
+	ctxt.Out.Write8(1)  // isaRev
+	ctxt.Out.Write8(1)  // gprSize
+	ctxt.Out.Write8(1)  // cpr1Size
+	ctxt.Out.Write8(0)  // cpr2Size
+	if buildcfg.GOMIPS == "softfloat" {
+		ctxt.Out.Write8(MIPS_FPABI_SOFT) // fpAbi
+	} else {
+		// Go cannot make sure non odd-number-fpr is used (ie, in load a double from memory).
+		// So, we mark the object is MIPS I style paired float/double register scheme,
+		// aka MIPS_FPABI_ANY. If we mark the object as FPXX, the kernel may use FR=1 mode,
+		// then we meet some problem.
+		// Note: MIPS_FPABI_ANY is bad naming: in fact it is MIPS I style FPR usage.
+		//       It is not for 'ANY'.
+		// TODO: switch to FPXX after be sure that no odd-number-fpr is used.
+		ctxt.Out.Write8(MIPS_FPABI_ANY) // fpAbi
+	}
+	ctxt.Out.Write32(0) // isaExt
+	ctxt.Out.Write32(0) // ases
+	ctxt.Out.Write32(0) // flags1
+	ctxt.Out.Write32(0) // flags2
+	return int(sh.Size)
+}
+
 func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
 	n := 3*4 + uint64(sz) + resoff%4
 
@@ -865,6 +950,11 @@ func elfdynhash(ctxt *Link) {
 	}
 
 	s = ldr.CreateSymForUpdate(".dynamic", 0)
+	if ctxt.BuildMode == BuildModePIE {
+		// https://github.com/bminor/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/elf/elf.h#L986
+		const DTFLAGS_1_PIE = 0x08000000
+		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(DTFLAGS_1_PIE))
+	}
 	elfverneed = nfile
 	if elfverneed != 0 {
 		elfWriteDynEntSym(ctxt, s, elf.DT_VERNEED, gnuVersionR.Sym())
@@ -1086,7 +1176,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 		}
 	}
 
-	eaddr := int32(sect.Vaddr + sect.Length)
+	eaddr := sect.Vaddr + sect.Length
 	for _, s := range syms {
 		if !ldr.AttrReachable(s) {
 			continue
@@ -1204,6 +1294,10 @@ func (ctxt *Link) doelf() {
 	shstrtab.Addstring(".noptrbss")
 	shstrtab.Addstring("__libfuzzer_extra_counters")
 	shstrtab.Addstring(".go.buildinfo")
+	if ctxt.IsMIPS() {
+		shstrtab.Addstring(".MIPS.abiflags")
+		shstrtab.Addstring(".gnu.attributes")
+	}
 
 	// generate .tbss section for dynamic internal linker or external
 	// linking, so that various binutils could correctly calculate
@@ -1254,6 +1348,10 @@ func (ctxt *Link) doelf() {
 			shstrtab.Addstring(elfRelType + ".data.rel.ro")
 		}
 		shstrtab.Addstring(elfRelType + ".go.buildinfo")
+		if ctxt.IsMIPS() {
+			shstrtab.Addstring(elfRelType + ".MIPS.abiflags")
+			shstrtab.Addstring(elfRelType + ".gnu.attributes")
+		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		shstrtab.Addstring(".note.GNU-stack")
@@ -1445,6 +1543,35 @@ func (ctxt *Link) doelf() {
 	if ctxt.LinkMode == LinkExternal && *flagBuildid != "" {
 		addgonote(ctxt, ".note.go.buildid", ELF_NOTE_GOBUILDID_TAG, []byte(*flagBuildid))
 	}
+
+	//type mipsGnuAttributes struct {
+	//	version uint8   // 'A'
+	//	length  uint32  // 15 including itself
+	//	gnu     [4]byte // "gnu\0"
+	//	tag     uint8   // 1:file, 2: section, 3: symbol, 1 here
+	//	taglen  uint32  // tag length, including tag, 7 here
+	//	tagfp   uint8   // 4
+	//	fpAbi  uint8    // see .MIPS.abiflags
+	//}
+	if ctxt.IsMIPS() {
+		gnuattributes := ldr.CreateSymForUpdate(".gnu.attributes", 0)
+		gnuattributes.SetType(sym.SELFROSECT)
+		gnuattributes.SetReachable(true)
+		gnuattributes.AddUint8('A')               // version 'A'
+		gnuattributes.AddUint32(ctxt.Arch, 15)    // length 15 including itself
+		gnuattributes.AddBytes([]byte("gnu\x00")) // "gnu\0"
+		gnuattributes.AddUint8(1)                 // 1:file, 2: section, 3: symbol, 1 here
+		gnuattributes.AddUint32(ctxt.Arch, 7)     // tag length, including tag, 7 here
+		gnuattributes.AddUint8(4)                 // 4 for FP, 8 for MSA
+		if buildcfg.GOMIPS == "softfloat" {
+			gnuattributes.AddUint8(MIPS_FPABI_SOFT)
+		} else {
+			// Note: MIPS_FPABI_ANY is bad naming: in fact it is MIPS I style FPR usage.
+			//       It is not for 'ANY'.
+			// TODO: switch to FPXX after be sure that no odd-number-fpr is used.
+			gnuattributes.AddUint8(MIPS_FPABI_ANY)
+		}
+	}
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
@@ -1622,14 +1749,14 @@ func asmbElf(ctxt *Link) {
 		sh.Flags = uint64(elf.SHF_ALLOC)
 		sh.Addralign = 1
 
-		if interpreter == "" && objabi.GO_LDSO != "" {
-			interpreter = objabi.GO_LDSO
+		if interpreter == "" && buildcfg.GO_LDSO != "" {
+			interpreter = buildcfg.GO_LDSO
 		}
 
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				if objabi.GOOS == "android" {
+				if buildcfg.GOOS == "android" {
 					interpreter = thearch.Androiddynld
 					if interpreter == "" {
 						Exitf("ELF interpreter not set")
@@ -1910,6 +2037,25 @@ elfobj:
 	shsym(sh, ldr, ldr.Lookup(".shstrtab", 0))
 	eh.Shstrndx = uint16(sh.shnum)
 
+	if ctxt.IsMIPS() {
+		sh = elfshname(".MIPS.abiflags")
+		sh.Type = uint32(elf.SHT_MIPS_ABIFLAGS)
+		sh.Flags = uint64(elf.SHF_ALLOC)
+		sh.Addralign = 8
+		resoff -= int64(elfMipsAbiFlags(sh, uint64(startva), uint64(resoff)))
+
+		ph := newElfPhdr()
+		ph.Type = elf.PT_MIPS_ABIFLAGS
+		ph.Flags = elf.PF_R
+		phsh(ph, sh)
+
+		sh = elfshname(".gnu.attributes")
+		sh.Type = uint32(elf.SHT_GNU_ATTRIBUTES)
+		sh.Addralign = 1
+		ldr := ctxt.loader
+		shsym(sh, ldr, ldr.Lookup(".gnu.attributes", 0))
+	}
+
 	// put these sections early in the list
 	if !*FlagS {
 		elfshname(".symtab")
@@ -2029,6 +2175,10 @@ elfobj:
 	if !*FlagD {
 		a += int64(elfwriteinterp(ctxt.Out))
 	}
+	if ctxt.IsMIPS() {
+		a += int64(elfWriteMipsAbiFlags(ctxt))
+	}
+
 	if ctxt.LinkMode != LinkExternal {
 		if ctxt.HeadType == objabi.Hnetbsd {
 			a += int64(elfwritenetbsdsig(ctxt.Out))
@@ -2049,6 +2199,12 @@ elfobj:
 
 	if a > elfreserve {
 		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
+	}
+
+	// Verify the amount of space allocated for the elf header is sufficient.  The file offsets are
+	// already computed in layout, so we could spill into another section.
+	if a > int64(HEADR) {
+		Errorf(nil, "HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
 	}
 }
 

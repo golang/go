@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || linux
 // +build darwin linux
 
 package ld
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -15,14 +15,10 @@ import (
 )
 
 func TestFallocate(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestFallocate")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	filename := filepath.Join(dir, "a.out")
 	out := NewOutBuf(nil)
-	err = out.Open(filename)
+	err := out.Open(filename)
 	if err != nil {
 		t.Fatalf("Open file failed: %v", err)
 	}
@@ -57,8 +53,12 @@ func TestFallocate(t *testing.T) {
 		if got := stat.Size(); got != sz {
 			t.Errorf("unexpected file size: got %d, want %d", got, sz)
 		}
-		if got, want := stat.Sys().(*syscall.Stat_t).Blocks, (sz+511)/512; got != want {
-			t.Errorf("unexpected disk usage: got %d blocks, want %d", got, want)
+		// The number of blocks must be enough for the requested size.
+		// We used to require an exact match, but it appears that
+		// some file systems allocate a few extra blocks in some cases.
+		// See issue #41127.
+		if got, want := stat.Sys().(*syscall.Stat_t).Blocks, (sz+511)/512; got < want {
+			t.Errorf("unexpected disk usage: got %d blocks, want at least %d", got, want)
 		}
 		out.munmap()
 	}

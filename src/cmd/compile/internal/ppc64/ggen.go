@@ -5,44 +5,47 @@
 package ppc64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
+	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 )
 
-func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
 	if cnt == 0 {
 		return p
 	}
-	if cnt < int64(4*gc.Widthptr) {
-		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, gc.Ctxt.FixedFrameSize()+off+i)
+	if cnt < int64(4*types.PtrSize) {
+		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+			p = pp.Append(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, base.Ctxt.FixedFrameSize()+off+i)
 		}
-	} else if cnt <= int64(128*gc.Widthptr) {
-		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+	} else if cnt <= int64(128*types.PtrSize) {
+		p = pp.Append(p, ppc64.AADD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
 		p.Reg = ppc64.REGSP
-		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = gc.Duffzero
-		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+		p.To.Sym = ir.Syms.Duffzero
+		p.To.Offset = 4 * (128 - cnt/int64(types.PtrSize))
 	} else {
-		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
-		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+		p = pp.Append(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+		p = pp.Append(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
 		p.Reg = ppc64.REGSP
-		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
-		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+		p = pp.Append(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+		p = pp.Append(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
 		p.Reg = ppc64.REGRT1
-		p = pp.Appendpp(p, ppc64.AMOVDU, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGRT1, int64(gc.Widthptr))
+		p = pp.Append(p, ppc64.AMOVDU, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGRT1, int64(types.PtrSize))
 		p1 := p
-		p = pp.Appendpp(p, ppc64.ACMP, obj.TYPE_REG, ppc64.REGRT1, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
-		p = pp.Appendpp(p, ppc64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
-		gc.Patch(p, p1)
+		p = pp.Append(p, ppc64.ACMP, obj.TYPE_REG, ppc64.REGRT1, 0, obj.TYPE_REG, ppc64.REGRT2, 0)
+		p = pp.Append(p, ppc64.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p.To.SetTarget(p1)
 	}
 
 	return p
 }
 
-func ginsnop(pp *gc.Progs) *obj.Prog {
+func ginsnop(pp *objw.Progs) *obj.Prog {
 	p := pp.Prog(ppc64.AOR)
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = ppc64.REG_R0
@@ -51,7 +54,7 @@ func ginsnop(pp *gc.Progs) *obj.Prog {
 	return p
 }
 
-func ginsnopdefer(pp *gc.Progs) *obj.Prog {
+func ginsnopdefer(pp *objw.Progs) *obj.Prog {
 	// On PPC64 two nops are required in the defer case.
 	//
 	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
@@ -66,7 +69,7 @@ func ginsnopdefer(pp *gc.Progs) *obj.Prog {
 	// on ppc64 in both shared and non-shared modes.
 
 	ginsnop(pp)
-	if gc.Ctxt.Flag_shared {
+	if base.Ctxt.Flag_shared {
 		p := pp.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Offset = 24

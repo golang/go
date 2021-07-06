@@ -27,13 +27,9 @@ func wasmTruncU()
 func wasmExit(code int32)
 
 // adjust Gobuf as it if executed a call to fn with context ctxt
-// and then did an immediate gosave.
+// and then stopped before the first instruction in fn.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if sys.RegSize > sys.PtrSize {
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = 0
-	}
 	sp -= sys.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp

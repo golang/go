@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -90,7 +89,7 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
-	workDir, err := ioutil.TempDir("", "shared_test")
+	workDir, err := os.MkdirTemp("", "shared_test")
 	if err != nil {
 		return 0, err
 	}
@@ -177,7 +176,7 @@ func cloneTestdataModule(gopath string) (string, error) {
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		return "", err
 	}
-	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
 		return "", err
 	}
 	return modRoot, nil
@@ -318,7 +317,7 @@ func TestShlibnameFiles(t *testing.T) {
 	}
 	for _, pkg := range pkgs {
 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
-		contentsb, err := ioutil.ReadFile(shlibnamefile)
+		contentsb, err := os.ReadFile(shlibnamefile)
 		if err != nil {
 			t.Errorf("error reading shlibnamefile for %s: %v", pkg, err)
 			continue
@@ -791,7 +790,7 @@ func resetFileStamps() {
 // It also sets the time of the file, so that we can see if it is rewritten.
 func touch(t *testing.T, path string) (cleanup func()) {
 	t.Helper()
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -837,14 +836,14 @@ func touch(t *testing.T, path string) (cleanup func()) {
 	// user-writable.
 	perm := fi.Mode().Perm() | 0200
 
-	if err := ioutil.WriteFile(path, data, perm); err != nil {
+	if err := os.WriteFile(path, data, perm); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		if err := ioutil.WriteFile(path, old, perm); err != nil {
+		if err := os.WriteFile(path, old, perm); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1062,4 +1061,12 @@ func TestGCData(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
 	goCmd(t, "build", "-linkshared", "./gcdata/main")
 	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+}
+
+// Test that we don't decode type symbols from shared libraries (which has no data,
+// causing panic). See issue 44031.
+func TestIssue44031(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
+	goCmd(t, "run", "-linkshared", "./issue44031/main")
 }

@@ -52,6 +52,7 @@ var (
 	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
 	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
 	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
+	procSystemFunction036            = modadvapi32.NewProc("SystemFunction036")
 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetACP                       = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
@@ -134,6 +135,18 @@ func RevertToSelf() (err error) {
 
 func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func RtlGenRandom(buf []byte) (err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r1, _, e1 := syscall.Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}

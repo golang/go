@@ -1,0 +1,29 @@
+# Test that the corect default GOEXPERIMENT is used when cross
+# building with GOENV (#46815).
+
+# Unset variables set by the TestScript harness. Users typically won't
+# explicitly configure these, and #46815 doesn't repro if they are.
+env GOOS=
+env GOARCH=
+env GOEXPERIMENT=
+
+env GOENV=windows-amd64
+go build internal/abi
+
+env GOENV=ios-arm64
+go build internal/abi
+
+env GOENV=linux-mips
+go build internal/abi
+
+-- windows-amd64 --
+GOOS=windows
+GOARCH=amd64
+
+-- ios-arm64 --
+GOOS=ios
+GOARCH=arm64
+
+-- linux-mips --
+GOOS=linux
+GOARCH=mips

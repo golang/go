@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build dragonfly || freebsd || netbsd || openbsd
 // +build dragonfly freebsd netbsd openbsd
 
 package x509
@@ -17,6 +18,7 @@ var certFiles = []string{
 // Possible directories with certificate files; stop after successfully
 // reading at least one file from a directory.
 var certDirectories = []string{
+	"/etc/ssl/certs",         // FreeBSD 12.2+
 	"/usr/local/share/certs", // FreeBSD
 	"/etc/openssl/certs",     // NetBSD
 }

@@ -10,9 +10,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -184,7 +184,8 @@ func exitWithUsage() {
 	if vetTool != "" {
 		cmd = vetTool
 	}
-	fmt.Fprintf(os.Stderr, "Run '%s -help' for the vet tool's flags.\n", cmd)
+	fmt.Fprintf(os.Stderr, "Run '%s help' for a full list of flags and analyzers.\n", cmd)
+	fmt.Fprintf(os.Stderr, "Run '%s -help' for an overview.\n", cmd)
 
 	base.SetExitStatus(2)
 	base.Exit()

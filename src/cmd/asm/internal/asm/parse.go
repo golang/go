@@ -305,7 +305,7 @@ func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
 // references and writes symabis information to w.
 //
 // The symabis format is documented at
-// cmd/compile/internal/gc.readSymABIs.
+// cmd/compile/internal/ssagen.ReadSymABIs.
 func (p *Parser) symDefRef(w io.Writer, word string, operands [][]lex.Token) {
 	switch word {
 	case "TEXT":
@@ -689,7 +689,11 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 		p.errorf("unexpected %s in register shift", tok.String())
 	}
 	if p.arch.Family == sys.ARM64 {
-		return int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count))
+		off, err := arch.ARM64RegisterShift(r1, op, count)
+		if err != nil {
+			p.errorf(err.Error())
+		}
+		return off
 	} else {
 		return int64((r1 & 15) | op<<5 | count)
 	}
@@ -999,15 +1003,18 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale == 0 && p.arch.Family == sys.ARM64 {
-				// scale is 1 by default for ARM64
-				a.Scale = 1
+			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
+				p.errorf("arm64 doesn't support scaled register format")
 			} else {
 				a.Scale = int16(scale)
 			}
 		}
 		p.get(')')
 	} else if scale != 0 {
+		if p.arch.Family == sys.ARM64 {
+			p.errorf("arm64 doesn't support scaled register format")
+		}
 		// First (R) was missing, all we have is (R*scale).
 		a.Reg = 0
 		a.Index = r1

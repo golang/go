@@ -13,11 +13,22 @@ import (
 	"errors"
 )
 
-// ErrNetClosing is returned when a network descriptor is used after
-// it has been closed. Keep this string consistent because of issue
-// #4373: since historically programs have not been able to detect
+// errNetClosing is the type of the variable ErrNetClosing.
+// This is used to implement the net.Error interface.
+type errNetClosing struct{}
+
+// Error returns the error message for ErrNetClosing.
+// Keep this string consistent because of issue #4373:
+// since historically programs have not been able to detect
 // this error, they look for the string.
-var ErrNetClosing = errors.New("use of closed network connection")
+func (e errNetClosing) Error() string { return "use of closed network connection" }
+
+func (e errNetClosing) Timeout() bool   { return false }
+func (e errNetClosing) Temporary() bool { return false }
+
+// ErrNetClosing is returned when a network descriptor is used after
+// it has been closed.
+var ErrNetClosing = errNetClosing{}
 
 // ErrFileClosing is returned when a file descriptor is used after it
 // has been closed.

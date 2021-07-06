@@ -185,30 +185,22 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
 func TestDirAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestDirAndSymlinkStats")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")
-	err = os.Mkdir(dir, 0777)
-	if err != nil {
+	if err := os.Mkdir(dir, 0777); err != nil {
 		t.Fatal(err)
 	}
 	testDirStats(t, dir)
 
 	dirlink := filepath.Join(tmpdir, "link")
-	err = os.Symlink(dir, dirlink)
-	if err != nil {
+	if err := os.Symlink(dir, dirlink); err != nil {
 		t.Fatal(err)
 	}
 	testSymlinkStats(t, dirlink, true)
 	testSymlinkSameFile(t, dir, dirlink)
 
 	linklink := filepath.Join(tmpdir, "linklink")
-	err = os.Symlink(dirlink, linklink)
-	if err != nil {
+	if err := os.Symlink(dirlink, linklink); err != nil {
 		t.Fatal(err)
 	}
 	testSymlinkStats(t, linklink, true)
@@ -218,30 +210,22 @@ func TestDirAndSymlinkStats(t *testing.T) {
 func TestFileAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestFileAndSymlinkStats")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	file := filepath.Join(tmpdir, "file")
-	err = os.WriteFile(file, []byte(""), 0644)
-	if err != nil {
+	if err := os.WriteFile(file, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
 	testFileStats(t, file)
 
 	filelink := filepath.Join(tmpdir, "link")
-	err = os.Symlink(file, filelink)
-	if err != nil {
+	if err := os.Symlink(file, filelink); err != nil {
 		t.Fatal(err)
 	}
 	testSymlinkStats(t, filelink, false)
 	testSymlinkSameFile(t, file, filelink)
 
 	linklink := filepath.Join(tmpdir, "linklink")
-	err = os.Symlink(filelink, linklink)
-	if err != nil {
+	if err := os.Symlink(filelink, linklink); err != nil {
 		t.Fatal(err)
 	}
 	testSymlinkStats(t, linklink, false)
@@ -252,20 +236,13 @@ func TestFileAndSymlinkStats(t *testing.T) {
 func TestSymlinkWithTrailingSlash(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
-	tmpdir, err := os.MkdirTemp("", "TestSymlinkWithTrailingSlash")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
+	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")
-	err = os.Mkdir(dir, 0777)
-	if err != nil {
+	if err := os.Mkdir(dir, 0777); err != nil {
 		t.Fatal(err)
 	}
 	dirlink := filepath.Join(tmpdir, "link")
-	err = os.Symlink(dir, dirlink)
-	if err != nil {
+	if err := os.Symlink(dir, dirlink); err != nil {
 		t.Fatal(err)
 	}
 	dirlinkWithSlash := dirlink + string(os.PathSeparator)

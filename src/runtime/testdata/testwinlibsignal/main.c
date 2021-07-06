@@ -19,13 +19,13 @@ int main(void)
 {
     waitForCtrlBreakEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!waitForCtrlBreakEvent) {
-        fprintf(stderr, "ERROR: Could not create event");
+        fprintf(stderr, "ERROR: Could not create event\n");
         return 1;
     }
 
     if (!SetConsoleCtrlHandler(CtrlHandler, TRUE))
     {
-        fprintf(stderr, "ERROR: Could not set control handler");
+        fprintf(stderr, "ERROR: Could not set control handler\n");
         return 1;
     }
 
@@ -34,7 +34,14 @@ int main(void)
     // This way the library handler gets called first.
     HMODULE dummyDll = LoadLibrary("dummy.dll");
     if (!dummyDll) {
-        fprintf(stderr, "ERROR: Could not load dummy.dll");
+        fprintf(stderr, "ERROR: Could not load dummy.dll\n");
+        return 1;
+    }
+
+    // Call the Dummy function so that Go initialization completes, since
+    // all cgo entry points call out to _cgo_wait_runtime_init_done.
+    if (((int(*)(void))GetProcAddress(dummyDll, "Dummy"))() != 42) {
+        fprintf(stderr, "ERROR: Dummy function did not return 42\n");
         return 1;
     }
 
@@ -42,7 +49,7 @@ int main(void)
     fflush(stdout);
 
     if (WaitForSingleObject(waitForCtrlBreakEvent, 5000) != WAIT_OBJECT_0) {
-        fprintf(stderr, "FAILURE: No signal received");
+        fprintf(stderr, "FAILURE: No signal received\n");
         return 1;
     }
 

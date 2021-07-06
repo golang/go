@@ -19,9 +19,10 @@ type CUFileIndex uint32
 //
 // TODO: make each pcdata a separate symbol?
 type FuncInfo struct {
-	Args   uint32
-	Locals uint32
-	FuncID objabi.FuncID
+	Args     uint32
+	Locals   uint32
+	FuncID   objabi.FuncID
+	FuncFlag objabi.FuncFlag
 
 	Pcsp        SymRef
 	Pcfile      SymRef
@@ -35,6 +36,9 @@ type FuncInfo struct {
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
+	writeUint8 := func(x uint8) {
+		w.WriteByte(x)
+	}
 	var b [4]byte
 	writeUint32 := func(x uint32) {
 		binary.LittleEndian.PutUint32(b[:], x)
@@ -47,8 +51,10 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 
 	writeUint32(a.Args)
 	writeUint32(a.Locals)
-	writeUint32(uint32(a.FuncID))
-
+	writeUint8(uint8(a.FuncID))
+	writeUint8(uint8(a.FuncFlag))
+	writeUint8(0) // pad to uint32 boundary
+	writeUint8(0)
 	writeSymRef(a.Pcsp)
 	writeSymRef(a.Pcfile)
 	writeSymRef(a.Pcline)
@@ -69,46 +75,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	writeUint32(uint32(len(a.InlTree)))
 	for i := range a.InlTree {
 		a.InlTree[i].Write(w)
-	}
-}
-
-func (a *FuncInfo) Read(b []byte) {
-	readUint32 := func() uint32 {
-		x := binary.LittleEndian.Uint32(b)
-		b = b[4:]
-		return x
-	}
-	readSymIdx := func() SymRef {
-		return SymRef{readUint32(), readUint32()}
-	}
-
-	a.Args = readUint32()
-	a.Locals = readUint32()
-	a.FuncID = objabi.FuncID(readUint32())
-
-	a.Pcsp = readSymIdx()
-	a.Pcfile = readSymIdx()
-	a.Pcline = readSymIdx()
-	a.Pcinline = readSymIdx()
-	a.Pcdata = make([]SymRef, readUint32())
-	for i := range a.Pcdata {
-		a.Pcdata[i] = readSymIdx()
-	}
-
-	funcdataofflen := readUint32()
-	a.Funcdataoff = make([]uint32, funcdataofflen)
-	for i := range a.Funcdataoff {
-		a.Funcdataoff[i] = readUint32()
-	}
-	filelen := readUint32()
-	a.File = make([]CUFileIndex, filelen)
-	for i := range a.File {
-		a.File[i] = CUFileIndex(readUint32())
-	}
-	inltreelen := readUint32()
-	a.InlTree = make([]InlTreeNode, inltreelen)
-	for i := range a.InlTree {
-		b = a.InlTree[i].Read(b)
 	}
 }
 
@@ -159,7 +125,9 @@ func (*FuncInfo) ReadArgs(b []byte) uint32 { return binary.LittleEndian.Uint32(b
 
 func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
 
-func (*FuncInfo) ReadFuncID(b []byte) uint32 { return binary.LittleEndian.Uint32(b[8:]) }
+func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8]) }
+
+func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
 
 func (*FuncInfo) ReadPcsp(b []byte) SymRef {
 	return SymRef{binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])}

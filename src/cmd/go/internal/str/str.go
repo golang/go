@@ -96,6 +96,20 @@ func Contains(x []string, s string) bool {
 	return false
 }
 
+// Uniq removes consecutive duplicate strings from ss.
+func Uniq(ss *[]string) {
+	if len(*ss) <= 1 {
+		return
+	}
+	uniq := (*ss)[:1]
+	for _, s := range *ss {
+		if s != uniq[len(uniq)-1] {
+			uniq = append(uniq, s)
+		}
+	}
+	*ss = uniq
+}
+
 func isSpaceByte(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }

@@ -32,7 +32,9 @@ func AddInst(Inst) *Inst {
 
 func main() {
 	print("call addinst\n")
-	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface"
+	var x Inst = AddInst(new(Start)) // ERROR "pointer to interface|incompatible type"
+	_ = x
 	print("return from  addinst\n")
 	var y *Inst = new(Start)  // ERROR "pointer to interface|incompatible type"
+	_ = y
 }

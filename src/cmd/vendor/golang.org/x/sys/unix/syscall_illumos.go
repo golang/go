@@ -1,14 +1,19 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // illumos system calls not present on Solaris.
 
+//go:build amd64 && illumos
 // +build amd64,illumos
 
 package unix
 
-import "unsafe"
+import (
+	"fmt"
+	"runtime"
+	"unsafe"
+)
 
 func bytes2iovec(bs [][]byte) []Iovec {
 	iovecs := make([]Iovec, len(bs))
@@ -76,15 +81,98 @@ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
 	return
 }
 
-//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+//sys	putmsg(fd int, clptr *strbuf, dataptr *strbuf, flags int) (err error)
 
-func Pipe2(p []int, flags int) error {
-	if len(p) != 2 {
-		return EINVAL
+func Putmsg(fd int, cl []byte, data []byte, flags int) (err error) {
+	var clp, datap *strbuf
+	if len(cl) > 0 {
+		clp = &strbuf{
+			Len: int32(len(cl)),
+			Buf: (*int8)(unsafe.Pointer(&cl[0])),
+		}
 	}
-	var pp [2]_C_int
-	err := pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
+	if len(data) > 0 {
+		datap = &strbuf{
+			Len: int32(len(data)),
+			Buf: (*int8)(unsafe.Pointer(&data[0])),
+		}
+	}
+	return putmsg(fd, clp, datap, flags)
+}
+
+//sys	getmsg(fd int, clptr *strbuf, dataptr *strbuf, flags *int) (err error)
+
+func Getmsg(fd int, cl []byte, data []byte) (retCl []byte, retData []byte, flags int, err error) {
+	var clp, datap *strbuf
+	if len(cl) > 0 {
+		clp = &strbuf{
+			Maxlen: int32(len(cl)),
+			Buf:    (*int8)(unsafe.Pointer(&cl[0])),
+		}
+	}
+	if len(data) > 0 {
+		datap = &strbuf{
+			Maxlen: int32(len(data)),
+			Buf:    (*int8)(unsafe.Pointer(&data[0])),
+		}
+	}
+
+	if err = getmsg(fd, clp, datap, &flags); err != nil {
+		return nil, nil, 0, err
+	}
+
+	if len(cl) > 0 {
+		retCl = cl[:clp.Len]
+	}
+	if len(data) > 0 {
+		retData = data[:datap.Len]
+	}
+	return retCl, retData, flags, nil
+}
+
+func IoctlSetIntRetInt(fd int, req uint, arg int) (int, error) {
+	return ioctlRet(fd, req, uintptr(arg))
+}
+
+func IoctlSetString(fd int, req uint, val string) error {
+	bs := make([]byte, len(val)+1)
+	copy(bs[:len(bs)-1], val)
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&bs[0])))
+	runtime.KeepAlive(&bs[0])
 	return err
+}
+
+// Lifreq Helpers
+
+func (l *Lifreq) SetName(name string) error {
+	if len(name) >= len(l.Name) {
+		return fmt.Errorf("name cannot be more than %d characters", len(l.Name)-1)
+	}
+	for i := range name {
+		l.Name[i] = int8(name[i])
+	}
+	return nil
+}
+
+func (l *Lifreq) SetLifruInt(d int) {
+	*(*int)(unsafe.Pointer(&l.Lifru[0])) = d
+}
+
+func (l *Lifreq) GetLifruInt() int {
+	return *(*int)(unsafe.Pointer(&l.Lifru[0]))
+}
+
+func IoctlLifreq(fd int, req uint, l *Lifreq) error {
+	return ioctl(fd, req, uintptr(unsafe.Pointer(l)))
+}
+
+// Strioctl Helpers
+
+func (s *Strioctl) SetInt(i int) {
+	s.Len = int32(unsafe.Sizeof(i))
+	s.Dp = (*int8)(unsafe.Pointer(&i))
+}
+
+func IoctlSetStrioctlRetInt(fd int, req uint, s *Strioctl) (int, error) {
+	return ioctlRet(fd, req, uintptr(unsafe.Pointer(s)))
 }

@@ -5,7 +5,6 @@
 package syscall_test
 
 import (
-	"fmt"
 	"internal/testenv"
 	"os"
 	"runtime"
@@ -31,22 +30,6 @@ func TestEnv(t *testing.T) {
 	testSetGetenv(t, "TESTENV", "AVALUE")
 	// make sure TESTENV gets set to "", not deleted
 	testSetGetenv(t, "TESTENV", "")
-}
-
-func TestItoa(t *testing.T) {
-	// Make most negative integer: 0x8000...
-	i := 1
-	for i<<1 != 0 {
-		i <<= 1
-	}
-	if i >= 0 {
-		t.Fatal("bad math")
-	}
-	s := syscall.Itoa(i)
-	f := fmt.Sprint(i)
-	if s != f {
-		t.Fatalf("itoa(%d) = %s, want %s", i, s, f)
-	}
 }
 
 // Check that permuting child process fds doesn't interfere with

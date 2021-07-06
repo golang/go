@@ -1,0 +1,329 @@
+# This test demonstrates a simple case in which 'go mod tidy' may resolve a
+# missing package, only to remove that package when resolving its dependencies.
+#
+# If we naively iterate 'go mod tidy' until the dependency graph converges, this
+# scenario may fail to converge.
+
+# The import graph used in this test looks like:
+#
+# m --- w
+# |
+# + --- x
+# |
+# + --- y
+# |
+# + --- z
+#
+# The module dependency graph of m initially contains w.1 (and, by extension,
+# y.2-pre and z.2-pre). This is an arbitrary point in the cycle of possible
+# configurations.
+#
+# w.1 requires y.2-pre and z.2-pre
+# x.1 requires z.2-pre and w.2-pre
+# y.1 requires w.2-pre and x.2-pre
+# z.1 requires x.2-pre and y.2-pre
+#
+# At each point, exactly one missing package can be resolved by adding a
+# dependency on the .1 release of the module that provides that package.
+# However, adding that dependency causes the module providing another package to
+# roll over from its .1 release to its .2-pre release, which removes the
+# package. Once the package is removed, 'go mod tidy -e' no longer sees the
+# module as relevant to the main module, and will happily remove the existing
+# dependency on it.
+#
+# The cycle is of length 4 so that at every step only one package can be
+# resolved. This is important because it prevents the iteration from ever
+# reaching a state in which every package is simultaneously over-upgraded — such
+# a state is stable and does not exhibit failure to converge.
+
+cp go.mod go.mod.orig
+
+# 'go mod tidy' without -e should fail without modifying go.mod,
+# because it cannot resolve x, y, and z simultaneously.
+! go mod tidy
+
+cmp go.mod go.mod.orig
+
+stderr '^go: finding module for package example\.net/w$'
+stderr '^go: finding module for package example\.net/x$'
+stderr -count=2 '^go: finding module for package example\.net/y$'
+stderr -count=2 '^go: finding module for package example\.net/z$'
+stderr '^go: found example\.net/x in example\.net/x v0.1.0$'
+
+	# TODO: These error messages should be clearer — it doesn't indicate why v0.2.0-pre is required.
+stderr '^example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+
+# 'go mod tidy -e' should preserve all of the upgrades to modules that could
+# provide the missing packages but don't. That would at least explain why they
+# are missing, and why no individual module can be upgraded in order to satisfy
+# a missing import.
+#
+# TODO(bcmills): Today, it doesn't preserve those upgrades, and instead advances
+# the state by one through the cycle of semi-tidy states.
+
+go mod tidy -e
+
+cmp go.mod go.mod.tidye1
+
+stderr '^go: finding module for package example\.net/w$'
+stderr '^go: finding module for package example\.net/x$'
+stderr -count=2 '^go: finding module for package example\.net/y$'
+stderr -count=2 '^go: finding module for package example\.net/z$'
+stderr '^go: found example\.net/x in example\.net/x v0.1.0$'
+
+stderr '^example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+stderr '^example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+
+go mod tidy -e
+cmp go.mod go.mod.tidye2
+
+go mod tidy -e
+cmp go.mod go.mod.tidye3
+
+go mod tidy -e
+cmp go.mod go.mod.orig
+
+
+# If we upgrade away all of the packages simultaneously, the resulting tidy
+# state converges at "no dependencies", because simultaneously adding all of the
+# packages simultaneously over-upgrades all of the dependencies, and 'go mod
+# tidy' treats "no package can be added" as a terminal state.
+
+go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
+go mod tidy -e
+cmp go.mod go.mod.postget
+go mod tidy -e
+cmp go.mod go.mod.postget
+
+
+# The 'tidy' logic for a lazy main module requires more iterations to converge,
+# because it is willing to drop dependencies on non-root modules that do not
+# otherwise provide imported packages.
+#
+# On the first iteration, it adds x.1 as a root, which upgrades z and w,
+# dropping w.1's requirement on y. w.1 was initially a root, so the upgraded
+# w.2-pre is retained as a root.
+#
+# On the second iteration, it adds y.1 as a root, which upgrades w and x,
+# dropping x.1's requirement on z. x.1 was added as a root in the previous step,
+# so the upgraded x.2-pre is retained as a root.
+#
+# On the third iteration, it adds z.1 as a root, which upgrades x and y.
+# x and y were already roots (from the previous steps), so their upgraded versions
+# are retained (not dropped) and the iteration stops.
+#
+# At that point, we have z.1 as a root providing package z,
+# and w, x, and y have all been upgraded to no longer provide any packages.
+# So only z is retained as a new root.
+#
+# (From the above, we can see that in a lazy module we still cycle through the
+# same possible root states, but in a different order from the eager case.)
+#
+# TODO(bcmills): if we retained the upgrades on w, x, and y (since they are
+# lexical prefixes for unresolved packages w, x, and y, respectively), then 'go
+# mod tidy -e' itself would become stable and no longer cycle through states.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.17 go.mod
+cp go.mod go.mod.117
+go mod edit -go=1.17 go.mod.tidye1
+go mod edit -go=1.17 go.mod.tidye2
+go mod edit -go=1.17 go.mod.tidye3
+go mod edit -go=1.17 go.mod.postget
+
+go list -m all
+
+go mod tidy -e
+cmp go.mod go.mod.tidye3
+
+go mod tidy -e
+cmp go.mod go.mod.tidye2
+
+go mod tidy -e
+cmp go.mod go.mod.tidye1
+
+go mod tidy -e
+cmp go.mod go.mod.117
+
+
+# As in the eager case, for the lazy module the fully-upgraded dependency graph
+# becomes empty, and the empty graph is stable.
+
+go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
+go mod tidy -e
+cmp go.mod go.mod.postget
+go mod tidy -e
+cmp go.mod go.mod.postget
+
+
+-- m.go --
+package m
+
+import (
+	_ "example.net/w"
+	_ "example.net/x"
+	_ "example.net/y"
+	_ "example.net/z"
+)
+
+-- go.mod --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/w v0.1.0 => ./w1
+	example.net/w v0.2.0-pre => ./w2-pre
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0-pre => ./y2-pre
+	example.net/z v0.1.0 => ./z1
+	example.net/z v0.2.0-pre => ./z2-pre
+)
+
+require example.net/w v0.1.0
+-- go.mod.tidye1 --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/w v0.1.0 => ./w1
+	example.net/w v0.2.0-pre => ./w2-pre
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0-pre => ./y2-pre
+	example.net/z v0.1.0 => ./z1
+	example.net/z v0.2.0-pre => ./z2-pre
+)
+
+require example.net/x v0.1.0
+-- go.mod.tidye2 --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/w v0.1.0 => ./w1
+	example.net/w v0.2.0-pre => ./w2-pre
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0-pre => ./y2-pre
+	example.net/z v0.1.0 => ./z1
+	example.net/z v0.2.0-pre => ./z2-pre
+)
+
+require example.net/y v0.1.0
+-- go.mod.tidye3 --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/w v0.1.0 => ./w1
+	example.net/w v0.2.0-pre => ./w2-pre
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0-pre => ./y2-pre
+	example.net/z v0.1.0 => ./z1
+	example.net/z v0.2.0-pre => ./z2-pre
+)
+
+require example.net/z v0.1.0
+-- go.mod.postget --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/w v0.1.0 => ./w1
+	example.net/w v0.2.0-pre => ./w2-pre
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0-pre => ./y2-pre
+	example.net/z v0.1.0 => ./z1
+	example.net/z v0.2.0-pre => ./z2-pre
+)
+-- w1/go.mod --
+module example.net/w
+
+go 1.16
+
+require (
+	example.net/y v0.2.0-pre
+	example.net/z v0.2.0-pre
+)
+-- w1/w.go --
+package w
+-- w2-pre/go.mod --
+module example.net/w
+
+go 1.16
+-- w2-pre/README.txt --
+Package w has been removed.
+
+-- x1/go.mod --
+module example.net/x
+
+go 1.16
+
+require (
+	example.net/z v0.2.0-pre
+	example.net/w v0.2.0-pre
+)
+-- x1/x.go --
+package x
+-- x2-pre/go.mod --
+module example.net/x
+
+go 1.16
+-- x2-pre/README.txt --
+Package x has been removed.
+
+-- y1/go.mod --
+module example.net/y
+
+go 1.16
+
+require (
+	example.net/w v0.2.0-pre
+	example.net/x v0.2.0-pre
+)
+-- y1/y.go --
+package y
+
+-- y2-pre/go.mod --
+module example.net/y
+
+go 1.16
+-- y2-pre/README.txt --
+Package y has been removed.
+
+-- z1/go.mod --
+module example.net/z
+
+go 1.16
+
+require (
+	example.net/x v0.2.0-pre
+	example.net/y v0.2.0-pre
+)
+-- z1/z.go --
+package z
+
+-- z2-pre/go.mod --
+module example.net/z
+
+go 1.16
+-- z2-pre/README.txt --
+Package z has been removed.

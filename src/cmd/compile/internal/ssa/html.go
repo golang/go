@@ -9,9 +9,9 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"html"
+	exec "internal/execabs"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -1064,7 +1064,7 @@ func (f *Func) HTML(phase string, dot *dotWriter) string {
 	p := htmlFuncPrinter{w: buf}
 	fprintFunc(p, f)
 
-	// fprintFunc(&buf, f) // TODO: HTML, not text, <br /> for line breaks, etc.
+	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
 	fmt.Fprint(buf, "</code>")
 	return buf.String()
 }

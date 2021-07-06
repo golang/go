@@ -6,7 +6,6 @@ package errorstest
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,7 +54,7 @@ func TestBadSymbol(t *testing.T) {
 
 	makeFile := func(mdir, base, source string) string {
 		ret := filepath.Join(mdir, base)
-		if err := ioutil.WriteFile(ret, []byte(source), 0644); err != nil {
+		if err := os.WriteFile(ret, []byte(source), 0644); err != nil {
 			t.Fatal(err)
 		}
 		return ret
@@ -100,7 +99,7 @@ func TestBadSymbol(t *testing.T) {
 	// _cgo_import.go.
 
 	rewrite := func(from, to string) {
-		obj, err := ioutil.ReadFile(from)
+		obj, err := os.ReadFile(from)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +114,7 @@ func TestBadSymbol(t *testing.T) {
 
 		obj = bytes.ReplaceAll(obj, []byte(magicInput), []byte(magicReplace))
 
-		if err := ioutil.WriteFile(to, obj, 0644); err != nil {
+		if err := os.WriteFile(to, obj, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build mips64 || mips64le
 // +build mips64 mips64le
 
 #include "go_asm.h"
 #include "textflag.h"
+
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16

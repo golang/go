@@ -5,9 +5,9 @@
 package build
 
 import (
+	"fmt"
 	"go/token"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -66,6 +66,10 @@ var readGoInfoTests = []readTest{
 		`,
 		"",
 	},
+	{
+		"\ufeff𝔻" + `package p; import "x";ℙvar x = 1`,
+		"",
+	},
 }
 
 var readCommentsTests = []readTest{
@@ -82,7 +86,24 @@ var readCommentsTests = []readTest{
 		"",
 	},
 	{
+		"\ufeff𝔻" + `ℙpackage p; import . "x"`,
+		"",
+	},
+	{
 		`// foo
+
+		/* bar */
+
+		/* quux */ // baz
+
+		/*/ zot */
+
+		// asdf
+		ℙHello, world`,
+		"",
+	},
+	{
+		"\ufeff𝔻" + `// foo
 
 		/* bar */
 
@@ -106,6 +127,11 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
 		} else {
 			in = tt.in[:j] + tt.in[j+len("ℙ"):]
 			testOut = tt.in[:j]
+		}
+		d := strings.Index(tt.in, "𝔻")
+		if d >= 0 {
+			in = in[:d] + in[d+len("𝔻"):]
+			testOut = testOut[d+len("𝔻"):]
 		}
 		r := strings.NewReader(in)
 		buf, err := read(r)
@@ -228,55 +254,104 @@ func TestReadFailuresIgnored(t *testing.T) {
 }
 
 var readEmbedTests = []struct {
-	in  string
-	out []string
+	in, out string
 }{
 	{
 		"package p\n",
-		nil,
+		"",
 	},
 	{
 		"package p\nimport \"embed\"\nvar i int\n//go:embed x y z\nvar files embed.FS",
-		[]string{"x", "y", "z"},
+		`test:4:12:x
+		 test:4:14:y
+		 test:4:16:z`,
 	},
 	{
 		"package p\nimport \"embed\"\nvar i int\n//go:embed x \"\\x79\" `z`\nvar files embed.FS",
-		[]string{"x", "y", "z"},
+		`test:4:12:x
+		 test:4:14:y
+		 test:4:21:z`,
 	},
 	{
 		"package p\nimport \"embed\"\nvar i int\n//go:embed x y\n//go:embed z\nvar files embed.FS",
-		[]string{"x", "y", "z"},
+		`test:4:12:x
+		 test:4:14:y
+		 test:5:12:z`,
 	},
 	{
 		"package p\nimport \"embed\"\nvar i int\n\t //go:embed x y\n\t //go:embed z\n\t var files embed.FS",
-		[]string{"x", "y", "z"},
+		`test:4:14:x
+		 test:4:16:y
+		 test:5:14:z`,
 	},
 	{
 		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
-		[]string{"x", "y", "z"},
+		`test:3:12:x
+		 test:3:14:y
+		 test:3:16:z`,
+	},
+	{
+		"\ufeffpackage p\nimport \"embed\"\n//go:embed x y z\nvar files embed.FS",
+		`test:3:12:x
+		 test:3:14:y
+		 test:3:16:z`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = \"/*\"\n//go:embed x\nvar files embed.FS",
+		`test:4:12:x`,
+	},
+	{
+		`package p
+		 import "embed"
+		 var s = "\"\\\\"
+		 //go:embed x
+		 var files embed.FS`,
+		`test:4:15:x`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = `/*`\n//go:embed x\nvar files embed.FS",
+		`test:4:12:x`,
+	},
+	{
+		"package p\nimport \"embed\"\nvar s = z/ *y\n//go:embed pointer\nvar pointer embed.FS",
+		"test:4:12:pointer",
 	},
 	{
 		"package p\n//go:embed x y z\n", // no import, no scan
-		nil,
+		"",
 	},
 	{
 		"package p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
-		nil,
+		"",
+	},
+	{
+		"\ufeffpackage p\n//go:embed x y z\nvar files embed.FS", // no import, no scan
+		"",
 	},
 }
 
 func TestReadEmbed(t *testing.T) {
 	fset := token.NewFileSet()
 	for i, tt := range readEmbedTests {
-		var info fileInfo
-		info.fset = fset
+		info := fileInfo{
+			name: "test",
+			fset: fset,
+		}
 		err := readGoInfo(strings.NewReader(tt.in), &info)
 		if err != nil {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
-		if !reflect.DeepEqual(info.embeds, tt.out) {
-			t.Errorf("#%d: embeds=%v, want %v", i, info.embeds, tt.out)
+		b := &strings.Builder{}
+		sep := ""
+		for _, emb := range info.embeds {
+			fmt.Fprintf(b, "%s%v:%s", sep, emb.pos, emb.pattern)
+			sep = "\n"
+		}
+		got := b.String()
+		want := strings.Join(strings.Fields(tt.out), "\n")
+		if got != want {
+			t.Errorf("#%d: embeds:\n%s\nwant:\n%s", i, got, want)
 		}
 	}
 }

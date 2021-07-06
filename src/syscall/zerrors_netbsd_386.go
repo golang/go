@@ -4,6 +4,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m32 _const.go
 
+//go:build 386 && netbsd
 // +build 386,netbsd
 
 package syscall
@@ -1426,6 +1427,7 @@ const (
 	WALTSIG                           = 0x4
 	WCLONE                            = 0x4
 	WCOREFLAG                         = 0x80
+	WEXITED                           = 0x20
 	WNOHANG                           = 0x1
 	WNOWAIT                           = 0x10000
 	WNOZOMBIE                         = 0x20000

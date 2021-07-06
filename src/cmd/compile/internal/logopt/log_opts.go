@@ -6,10 +6,10 @@ package logopt
 
 import (
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"encoding/json"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"log"
 	"net/url"
@@ -408,7 +408,7 @@ func uprootedPath(filename string) string {
 	if !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
-	return objabi.GOROOT + filename[len("$GOROOT"):]
+	return buildcfg.GOROOT + filename[len("$GOROOT"):]
 }
 
 // FlushLoggedOpts flushes all the accumulated optimization log entries.
@@ -448,7 +448,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 				currentFile = p0f
 				w = writerForLSP(subdirpath, currentFile)
 				encoder = json.NewEncoder(w)
-				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: objabi.GOOS, Goarch: objabi.GOARCH, GcVersion: objabi.Version, File: currentFile})
+				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: buildcfg.GOOS, Goarch: buildcfg.GOARCH, GcVersion: buildcfg.Version, File: currentFile})
 			}
 
 			// The first "target" is the most important one.

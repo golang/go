@@ -154,14 +154,13 @@ var MIPS64X struct {
 // For ppc64/ppc64le, it is safe to check only for ISA level starting on ISA v3.00,
 // since there are no optional categories. There are some exceptions that also
 // require kernel support to work (DARN, SCV), so there are feature bits for
-// those as well. The minimum processor requirement is POWER8 (ISA 2.07).
-// The struct is padded to avoid false sharing.
+// those as well. The struct is padded to avoid false sharing.
 var PPC64 struct {
 	_        CacheLinePad
 	HasDARN  bool // Hardware random number generator (requires kernel enablement)
 	HasSCV   bool // Syscall vectored (requires kernel enablement)
 	IsPOWER8 bool // ISA v2.07 (POWER8)
-	IsPOWER9 bool // ISA v3.00 (POWER9)
+	IsPOWER9 bool // ISA v3.00 (POWER9), implies IsPOWER8
 	_        CacheLinePad
 }
 

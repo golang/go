@@ -278,7 +278,7 @@ func (f *File) Pos(offset int) Pos {
 //
 func (f *File) Offset(p Pos) int {
 	if int(p) < f.base || int(p) > f.base+f.size {
-		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
+		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d])", p, f.base, f.base+f.size))
 	}
 	return int(p) - f.base
 }
@@ -346,7 +346,7 @@ func (f *File) position(p Pos, adjusted bool) (pos Position) {
 func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if int(p) < f.base || int(p) > f.base+f.size {
-			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
+			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d])", p, f.base, f.base+f.size))
 		}
 		pos = f.position(p, adjusted)
 	}
@@ -540,7 +540,7 @@ func searchInts(a []int, x int) int {
 	// TODO(gri): Remove this when compilers have caught up.
 	i, j := 0, len(a)
 	for i < j {
-		h := i + (j-i)/2 // avoid overflow when computing h
+		h := i + (j-i)>>1 // avoid overflow when computing h
 		// i ≤ h < j
 		if a[h] <= x {
 			i = h + 1

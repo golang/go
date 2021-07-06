@@ -240,12 +240,12 @@ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
 func checkShiftAndMask32(v []uint32) {
 	i := 0
 
-	// ppc64le: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
-	// ppc64: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]24, R[0-9]+, [$]12, [$]19, R[0-9]+"
+	// ppc64: "RLWNM\t[$]24, R[0-9]+, [$]12, [$]19, R[0-9]+"
 	v[i] = (v[i] & 0xFF00000) >> 8
 	i++
-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	v[i] = (v[i] & 0xFF00) >> 6
 	i++
 	// ppc64le: "MOVW\tR0"
@@ -256,12 +256,12 @@ func checkShiftAndMask32(v []uint32) {
 	// ppc64: "MOVW\tR0"
 	v[i] = (v[i] & 0xF000000) >> 28
 	i++
-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]24, [$]31, R[0-9]+"
+	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]24, [$]31, R[0-9]+"
 	v[i] = (v[i] >> 6) & 0xFF
 	i++
-	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
-	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
+	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]12, [$]19, R[0-9]+"
+	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]12, [$]19, R[0-9]+"
 	v[i] = (v[i] >> 6) & 0xFF000
 	i++
 	// ppc64le: "MOVW\tR0"
@@ -275,16 +275,29 @@ func checkShiftAndMask32(v []uint32) {
 }
 
 func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
+	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	//ppc64: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
+	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	//ppc64: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>24)]
-	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
-	//ppc64: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
+	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	//ppc64: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
-	//ppc64le: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
-	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
+	//ppc64le: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
+	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
 	b[2] = b[v>>25]
+}
+
+// 128 bit shifts
+
+func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
+	s := bits & 63
+	ŝ := (64 - bits) & 63
+	// check that the shift operation has two commas (three operands)
+	// amd64:"SHRQ.*,.*,"
+	shr := x>>s | y<<ŝ
+	// amd64:"SHLQ.*,.*,"
+	shl := x<<s | y>>ŝ
+	return shr, shl
 }

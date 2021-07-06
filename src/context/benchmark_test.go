@@ -138,3 +138,17 @@ func BenchmarkCheckCanceled(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkContextCancelDone(b *testing.B) {
+	ctx, cancel := WithCancel(Background())
+	defer cancel()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			select {
+			case <-ctx.Done():
+			default:
+			}
+		}
+	})
+}

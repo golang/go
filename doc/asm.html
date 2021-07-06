@@ -464,6 +464,57 @@ Function is the top of the call stack. Traceback should stop at this function.
 </li>
 </ul>
 
+<h3 id="data-offsets">Interacting with Go types and constants</h3>
+
+<p>
+If a package has any .s files, then <code>go build</code> will direct
+the compiler to emit a special header called <code>go_asm.h</code>,
+which the .s files can then <code>#include</code>.
+The file contains symbolic <code>#define</code> constants for the
+offsets of Go struct fields, the sizes of Go struct types, and most
+Go <code>const</code> declarations defined in the current package.
+Go assembly should avoid making assumptions about the layout of Go
+types and instead use these constants.
+This improves the readability of assembly code, and keeps it robust to
+changes in data layout either in the Go type definitions or in the
+layout rules used by the Go compiler.
+</p>
+
+<p>
+Constants are of the form <code>const_<i>name</i></code>.
+For example, given the Go declaration <code>const bufSize =
+1024</code>, assembly code can refer to the value of this constant
+as <code>const_bufSize</code>.
+</p>
+
+<p>
+Field offsets are of the form <code><i>type</i>_<i>field</i></code>.
+Struct sizes are of the form <code><i>type</i>__size</code>.
+For example, consider the following Go definition:
+</p>
+
+<pre>
+type reader struct {
+	buf [bufSize]byte
+	r   int
+}
+</pre>
+
+<p>
+Assembly can refer to the size of this struct
+as <code>reader__size</code> and the offsets of the two fields
+as <code>reader_buf</code> and <code>reader_r</code>.
+Hence, if register <code>R1</code> contains a pointer to
+a <code>reader</code>, assembly can reference the <code>r</code> field
+as <code>reader_r(R1)</code>.
+</p>
+
+<p>
+If any of these <code>#define</code> names are ambiguous (for example,
+a struct with a <code>_size</code> field), <code>#include
+"go_asm.h"</code> will fail with a "redefinition of macro" error.
+</p>
+
 <h3 id="runtime">Runtime Coordination</h3>
 
 <p>
@@ -615,21 +666,15 @@ Here follow some descriptions of key Go-specific details for the supported archi
 <p>
 The runtime pointer to the <code>g</code> structure is maintained
 through the value of an otherwise unused (as far as Go is concerned) register in the MMU.
-An OS-dependent macro <code>get_tls</code> is defined for the assembler if the source is
-in the <code>runtime</code> package and includes a special header, <code>go_tls.h</code>:
+In the runtime package, assembly code can include <code>go_tls.h</code>, which defines
+an OS- and architecture-dependent macro <code>get_tls</code> for accessing this register.
+The <code>get_tls</code> macro takes one argument, which is the register to load the
+<code>g</code> pointer into.
 </p>
 
-<pre>
-#include "go_tls.h"
-</pre>
-
 <p>
-Within the runtime, the <code>get_tls</code> macro loads its argument register
-with a pointer to the <code>g</code> pointer, and the <code>g</code> struct
-contains the <code>m</code> pointer.
-There's another special header containing the offsets for each
-element of <code>g</code>, called <code>go_asm.h</code>.
-The sequence to load <code>g</code> and <code>m</code> using <code>CX</code> looks like this:
+For example, the sequence to load <code>g</code> and <code>m</code>
+using <code>CX</code> looks like this:
 </p>
 
 <pre>
@@ -642,8 +687,7 @@ MOVL	g_m(AX), BX   // Move g.m into BX.
 </pre>
 
 <p>
-Note: The code above works only in the <code>runtime</code> package, while <code>go_tls.h</code> also
-applies to <a href="#arm">arm</a>, <a href="#amd64">amd64</a> and amd64p32, and <code>go_asm.h</code> applies to all architectures.
+The <code>get_tls</code> macro is also defined on <a href="#amd64">amd64</a>.
 </p>
 
 <p>

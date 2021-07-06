@@ -103,7 +103,16 @@ func (p *cpuProfile) add(gp *g, stk []uintptr) {
 		// because otherwise its write barrier behavior may not
 		// be correct. See the long comment there before
 		// changing the argument here.
-		cpuprof.log.write(&gp.labels, nanotime(), hdr[:], stk)
+		//
+		// Note: it can happen on Windows, where we are calling
+		// p.add with a gp that is not the current g, that gp is nil,
+		// meaning we interrupted a system thread with no g.
+		// Avoid faulting in that case.
+		var tagPtr *unsafe.Pointer
+		if gp != nil {
+			tagPtr = &gp.labels
+		}
+		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
 	}
 
 	atomic.Store(&prof.signalLock, 0)

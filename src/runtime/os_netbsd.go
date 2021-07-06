@@ -67,6 +67,11 @@ func lwp_self() int32
 
 func osyield()
 
+//go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
 func kqueue() int32
 
 //go:noescape
@@ -223,7 +228,11 @@ func newosproc(mp *m) {
 	}
 }
 
-// netbsdMStart is the function call that starts executing a newly
+// mstart is the entry-point for new Ms.
+// It is written in assembly, uses ABI0, is marked TOPFRAME, and calls netbsdMstart0.
+func netbsdMstart()
+
+// netbsdMStart0 is the function call that starts executing a newly
 // created thread. On NetBSD, a new thread inherits the signal stack
 // of the creating thread. That confuses minit, so we remove that
 // signal stack here before calling the regular mstart. It's a bit
@@ -231,10 +240,10 @@ func newosproc(mp *m) {
 // it's a simple change that keeps NetBSD working like other OS's.
 // At this point all signals are blocked, so there is no race.
 //go:nosplit
-func netbsdMstart() {
+func netbsdMstart0() {
 	st := stackt{ss_flags: _SS_DISABLE}
 	sigaltstack(&st, nil)
-	mstart()
+	mstart0()
 }
 
 func osinit() {
@@ -288,6 +297,11 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func sigtramp()

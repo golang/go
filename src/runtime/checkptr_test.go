@@ -30,6 +30,8 @@ func TestCheckPtr(t *testing.T) {
 		{"CheckPtrArithmetic2", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
 		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
 		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
+		{"CheckPtrSliceOK", ""},
+		{"CheckPtrSliceFail", "fatal error: checkptr: unsafe.Slice result straddles multiple allocations\n"},
 	}
 
 	for _, tc := range testCases {

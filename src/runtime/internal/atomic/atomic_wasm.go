@@ -9,18 +9,28 @@
 //go:linkname Load
 //go:linkname Loadp
 //go:linkname Load64
+//go:linkname Loadint32
+//go:linkname Loadint64
 //go:linkname Loaduintptr
 //go:linkname Xadd
+//go:linkname Xaddint32
+//go:linkname Xaddint64
 //go:linkname Xadd64
 //go:linkname Xadduintptr
 //go:linkname Xchg
 //go:linkname Xchg64
+//go:linkname Xchgint32
+//go:linkname Xchgint64
 //go:linkname Xchguintptr
 //go:linkname Cas
 //go:linkname Cas64
+//go:linkname Casint32
+//go:linkname Casint64
 //go:linkname Casuintptr
 //go:linkname Store
 //go:linkname Store64
+//go:linkname Storeint32
+//go:linkname Storeint64
 //go:linkname Storeuintptr
 
 package atomic
@@ -104,6 +114,22 @@ func Xchg(ptr *uint32, new uint32) uint32 {
 //go:nosplit
 //go:noinline
 func Xchg64(ptr *uint64, new uint64) uint64 {
+	old := *ptr
+	*ptr = new
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Xchgint32(ptr *int32, new int32) int32 {
+	old := *ptr
+	*ptr = new
+	return old
+}
+
+//go:nosplit
+//go:noinline
+func Xchgint64(ptr *int64, new int64) int64 {
 	old := *ptr
 	*ptr = new
 	return old
@@ -197,6 +223,26 @@ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
 
 //go:nosplit
 //go:noinline
+func Casint32(ptr *int32, old, new int32) bool {
+	if *ptr == old {
+		*ptr = new
+		return true
+	}
+	return false
+}
+
+//go:nosplit
+//go:noinline
+func Casint64(ptr *int64, old, new int64) bool {
+	if *ptr == old {
+		*ptr = new
+		return true
+	}
+	return false
+}
+
+//go:nosplit
+//go:noinline
 func Cas(ptr *uint32, old, new uint32) bool {
 	if *ptr == old {
 		*ptr = new
@@ -237,6 +283,18 @@ func CasRel(ptr *uint32, old, new uint32) bool {
 
 //go:nosplit
 //go:noinline
+func Storeint32(ptr *int32, new int32) {
+	*ptr = new
+}
+
+//go:nosplit
+//go:noinline
+func Storeint64(ptr *int64, new int64) {
+	*ptr = new
+}
+
+//go:nosplit
+//go:noinline
 func Storeuintptr(ptr *uintptr, new uintptr) {
 	*ptr = new
 }
@@ -255,8 +313,22 @@ func Loaduint(ptr *uint) uint {
 
 //go:nosplit
 //go:noinline
+func Loadint32(ptr *int32) int32 {
+	return *ptr
+}
+
+//go:nosplit
+//go:noinline
 func Loadint64(ptr *int64) int64 {
 	return *ptr
+}
+
+//go:nosplit
+//go:noinline
+func Xaddint32(ptr *int32, delta int32) int32 {
+	new := *ptr + delta
+	*ptr = new
+	return new
 }
 
 //go:nosplit

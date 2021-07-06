@@ -17,6 +17,8 @@ const (
 	offsetX86HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
 
 	offsetS390xHasVX = unsafe.Offsetof(cpu.S390X.HasVX)
+
+	offsetPPC64HasPOWER9 = unsafe.Offsetof(cpu.PPC64.IsPOWER9)
 )
 
 // MaxLen is the maximum length of the string to be searched for (argument b) in Index.

@@ -395,6 +395,9 @@ func (p *pageAlloc) grow(base, size uintptr) {
 			// Store it atomically to avoid races with readers which
 			// don't acquire the heap lock.
 			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
+			if r == nil {
+				throw("pageAlloc: out of memory")
+			}
 			atomic.StorepNoWB(unsafe.Pointer(&p.chunks[c.l1()]), r)
 		}
 		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)

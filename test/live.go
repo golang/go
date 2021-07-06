@@ -1,8 +1,10 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build !ppc64,!ppc64le
+// +build !ppc64,!ppc64le,!goexperiment.regabi,!goexperiment.regabidefer
 
 // ppc64 needs a better tighten pass to make f18 pass
 // rescheduling checks need to be turned off because there are some live variables across the inserted check call
+//
+// For register ABI, liveness info changes slightly. See live_regabi.go.
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -718,5 +720,5 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	}
 	ret := T{}
 	ret.s[0] = f()
-	return ret // ERROR "stack object .autotmp_5 T"
+	return ret // ERROR "stack object .autotmp_[0-9]+ T"
 }

@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 )
@@ -50,7 +51,7 @@ type pclntab struct {
 }
 
 // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
-// It is the caller's responsibilty to save they symbol in state.
+// It is the caller's responsibility to save they symbol in state.
 func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f generatorFunc) loader.Sym {
 	size = Rnd(size, int64(ctxt.Arch.PtrSize))
 	state.size += size
@@ -360,7 +361,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
 	// then not loading extra filenames), and just use the hash value of the
 	// symbol name to do this cataloging.
 	//
-	// TOOD: Store filenames as symbols. (Note this would be easiest if you
+	// TODO: Store filenames as symbols. (Note this would be easiest if you
 	// also move strings to ALWAYS using the larger content addressable hash
 	// function, and use that hash value for uniqueness testing.)
 	cuEntries := make([]goobj.CUFileIndex, len(compUnits))
@@ -589,6 +590,7 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
 	if !useSymValue {
 		// Generate relocations for funcdata when externally linking.
 		state.writeFuncData(ctxt, sb, funcs, inlSyms, startLocations, setAddr, setUintNOP)
+		sb.SortRelocs()
 	}
 }
 
@@ -796,7 +798,14 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		}
 		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
 
-		off += 2 // pad
+		// flag uint8
+		var flag objabi.FuncFlag
+		if fi.Valid() {
+			flag = fi.FuncFlag()
+		}
+		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(flag)))
+
+		off += 1 // pad
 
 		// nfuncdata must be the final entry.
 		funcdata, funcdataoff = funcData(fi, 0, funcdata, funcdataoff)
@@ -872,7 +881,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
 }
 
 func gorootFinal() string {
-	root := objabi.GOROOT
+	root := buildcfg.GOROOT
 	if final := os.Getenv("GOROOT_FINAL"); final != "" {
 		root = final
 	}

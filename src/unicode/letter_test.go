@@ -563,3 +563,82 @@ func TestSpecialCaseNoMapping(t *testing.T) {
 		t.Errorf("got %q; want %q", got, want)
 	}
 }
+
+func TestNegativeRune(t *testing.T) {
+	// Issue 43254
+	// These tests cover negative rune handling by testing values which,
+	// when cast to uint8 or uint16, look like a particular valid rune.
+	// This package has Latin-1-specific optimizations, so we test all of
+	// Latin-1 and representative non-Latin-1 values in the character
+	// categories covered by IsGraphic, etc.
+	nonLatin1 := []uint32{
+		// Lu: LATIN CAPITAL LETTER A WITH MACRON
+		0x0100,
+		// Ll: LATIN SMALL LETTER A WITH MACRON
+		0x0101,
+		// Lt: LATIN CAPITAL LETTER D WITH SMALL LETTER Z WITH CARON
+		0x01C5,
+		// M: COMBINING GRAVE ACCENT
+		0x0300,
+		// Nd: ARABIC-INDIC DIGIT ZERO
+		0x0660,
+		// P: GREEK QUESTION MARK
+		0x037E,
+		// S: MODIFIER LETTER LEFT ARROWHEAD
+		0x02C2,
+		// Z: OGHAM SPACE MARK
+		0x1680,
+	}
+	for i := 0; i < MaxLatin1+len(nonLatin1); i++ {
+		base := uint32(i)
+		if i >= MaxLatin1 {
+			base = nonLatin1[i-MaxLatin1]
+		}
+
+		// Note r is negative, but uint8(r) == uint8(base) and
+		// uint16(r) == uint16(base).
+		r := rune(base - 1<<31)
+		if Is(Letter, r) {
+			t.Errorf("Is(Letter, 0x%x - 1<<31) = true, want false", base)
+		}
+		if IsControl(r) {
+			t.Errorf("IsControl(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsDigit(r) {
+			t.Errorf("IsDigit(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsGraphic(r) {
+			t.Errorf("IsGraphic(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsLetter(r) {
+			t.Errorf("IsLetter(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsLower(r) {
+			t.Errorf("IsLower(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsMark(r) {
+			t.Errorf("IsMark(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsNumber(r) {
+			t.Errorf("IsNumber(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsPrint(r) {
+			t.Errorf("IsPrint(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsPunct(r) {
+			t.Errorf("IsPunct(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsSpace(r) {
+			t.Errorf("IsSpace(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsSymbol(r) {
+			t.Errorf("IsSymbol(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsTitle(r) {
+			t.Errorf("IsTitle(0x%x - 1<<31) = true, want false", base)
+		}
+		if IsUpper(r) {
+			t.Errorf("IsUpper(0x%x - 1<<31) = true, want false", base)
+		}
+	}
+}

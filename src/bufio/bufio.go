@@ -670,7 +670,8 @@ func (b *Writer) WriteByte(c byte) error {
 // WriteRune writes a single Unicode code point, returning
 // the number of bytes written and any error.
 func (b *Writer) WriteRune(r rune) (size int, err error) {
-	if r < utf8.RuneSelf {
+	// Compare as uint32 to correctly handle negative runes.
+	if uint32(r) < utf8.RuneSelf {
 		err = b.WriteByte(byte(r))
 		if err != nil {
 			return 0, err

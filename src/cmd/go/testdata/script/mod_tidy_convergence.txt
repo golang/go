@@ -1,0 +1,202 @@
+# This test demonstrates a simple case in which 'go mod tidy' may resolve a
+# missing package, only to remove that package when resolving its dependencies.
+#
+# If we naively iterate 'go mod tidy' until the dependency graph converges, this
+# scenario may fail to converge.
+
+# The import graph used in this test looks like:
+#
+# m --- x
+#       |
+#       x_test --- y
+#
+# The module dependency graph of m is initially empty.
+# Modules x and y look like:
+#
+# x.1 (provides package x that imports y, but does not depend on module y)
+#
+# x.2-pre (no dependencies, but does not provide package x)
+#
+# y.1 (no dependencies, but provides package y)
+#
+# y.2 --- x.2-pre (provides package y)
+#
+#
+# When we resolve the missing import of y in x_test, we add y@latest — which is
+# y.2, not y.1 — as a new dependency. That upgrades to x to x.2-pre, which
+# removes package x (and also the need for module y). We can then safely remove
+# the dependency on module y, because nothing imports package y any more!
+#
+# We might be tempted to remove the dependency on module x for the same reason:
+# it no longer provides any imported package. However, that would cause 'go mod
+# tidy -e' to become unstable: with x.2-pre out of the way, we could once again
+# resolve the missing import of package x by re-adding x.1.
+
+cp go.mod go.mod.orig
+
+# 'go mod tidy' without -e should fail without modifying go.mod,
+# because it cannot resolve x and y simultaneously.
+! go mod tidy
+
+cmp go.mod go.mod.orig
+
+stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+stderr '^go: finding module for package example\.net/x$'
+
+	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
+stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+
+# 'go mod tidy -e' should follow upgrades to try to resolve the modules that it
+# can, and then stop. When we resolve example.net/y, we upgrade to example.net/x
+# to v0.2.0-pre. At that version, package x no longer exists and no longer
+# imports package y, so the import of x should be left unsatisfied and the
+# existing dependency on example.net/x removed.
+#
+# TODO(bcmills): It would be ever better if we could keep the original
+# dependency on example.net/x v0.1.0, but I don't see a way to do that without
+# making the algorithm way too complicated. (We would have to detect that the
+# new dependency on example.net/y interferes with the package that caused us to
+# to add that dependency in the first place, and back out that part of the change
+# without also backing out any other needed changes.)
+
+go mod tidy -e
+cmp go.mod go.mod.tidye
+stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+
+	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
+stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+
+# Since we attempt to resolve the dependencies of package x whenever we add x itself,
+# this end state is stable.
+
+go mod tidy -e
+cmp go.mod go.mod.tidye
+
+
+# An explicit 'go get' with the correct versions should allow 'go mod tidy' to
+# succeed and remain stable. y.1 does not upgrade x, and can therefore be used
+# with it.
+
+go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+go mod tidy
+cmp go.mod go.mod.postget
+
+
+# The 'tidy' logic for a lazy main module is somewhat different from that for an
+# eager main module, but the overall behavior is the same.
+
+cp go.mod.orig go.mod
+go mod edit -go=1.17 go.mod
+go mod edit -go=1.17 go.mod.tidye
+
+go mod tidy -e
+cmp go.mod go.mod.tidye
+stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+
+go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
+go mod tidy
+cmp go.mod go.mod.postget-117
+
+
+-- go.mod --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0 => ./y2
+)
+
+require (
+	example.net/x v0.1.0
+)
+-- go.mod.tidye --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0 => ./y2
+)
+-- go.mod.postget --
+module example.net/m
+
+go 1.16
+
+replace (
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0 => ./y2
+)
+
+require (
+	example.net/x v0.1.0
+	example.net/y v0.1.0 // indirect
+)
+-- go.mod.postget-117 --
+module example.net/m
+
+go 1.17
+
+replace (
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0 => ./y2
+)
+
+require example.net/x v0.1.0
+
+require example.net/y v0.1.0 // indirect
+-- m.go --
+package m
+
+import _ "example.net/x"
+
+-- x1/go.mod --
+module example.net/x
+
+go 1.16
+-- x1/x.go --
+package x
+-- x1/x_test.go --
+package x
+
+import _ "example.net/y"
+
+-- x2-pre/go.mod --
+module example.net/x
+
+go 1.16
+-- x2-pre/README.txt --
+There is no package x here. Use example.com/x/subpkg instead.
+-- x2-pre/subpkg/subpkg.go --
+package subpkg  // import "example.net/x/subpkg"
+
+-- y1/go.mod --
+module example.net/y
+
+go 1.16
+-- y1/y.go --
+package y
+
+-- y2/go.mod --
+module example.net/y
+
+go 1.16
+
+require example.net/x v0.2.0-pre
+-- y2/y.go --
+package y
+
+import _ "example.net/x/subpkg"

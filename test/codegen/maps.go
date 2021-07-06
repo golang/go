@@ -16,12 +16,12 @@ package codegen
 // Direct use of constants in fast map access calls (Issue #19015).
 
 func AccessInt1(m map[int]int) int {
-	// amd64:"MOVQ\t[$]5"
+	// amd64:"MOV[LQ]\t[$]5"
 	return m[5]
 }
 
 func AccessInt2(m map[int]int) bool {
-	// amd64:"MOVQ\t[$]5"
+	// amd64:"MOV[LQ]\t[$]5"
 	_, ok := m[5]
 	return ok
 }

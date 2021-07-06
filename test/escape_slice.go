@@ -101,6 +101,10 @@ func slice11() {
 	_ = s
 }
 
+func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r1 level=0$"
+	return (*[1]int)(x)
+}
+
 func envForDir(dir string) []string { // ERROR "dir does not escape"
 	env := os.Environ()
 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"

@@ -7,6 +7,13 @@ set to the clang wrapper that invokes clang for iOS. For example, this command r
 
 	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC_FOR_TARGET=$(pwd)/../misc/ios/clangwrap.sh ./all.bash
 
+If CC_FOR_TARGET is not set when the toolchain is built (make.bash or all.bash), CC
+can be set on the command line. For example,
+
+	GOOS=ios GOARCH=amd64 CGO_ENABLED=1 CC=$(go env GOROOT)/misc/ios/clangwrap.sh go build
+
+Setting CC is not necessary if the toolchain is built with CC_FOR_TARGET set.
+
 To use the go tool to run individual programs and tests, put $GOROOT/bin into PATH to ensure
 the go_ios_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests:
 

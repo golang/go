@@ -144,11 +144,9 @@ func instinit(ctxt *obj.Link) {
 	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
-	// jmpdefer is defined in assembly as ABI0, but what we're
-	// looking for is the *call* to jmpdefer from the Go function
-	// deferreturn, so we're looking for the ABIInternal version
-	// of jmpdefer that's called by Go.
-	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABIInternal)
+	// jmpdefer is defined in assembly as ABI0. The compiler will
+	// generate a direct ABI0 call from Go, so look for that.
+	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABI0)
 }
 
 func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {

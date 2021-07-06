@@ -155,7 +155,7 @@ func (m *Match) MatchPackages() {
 			}
 
 			if !fi.IsDir() {
-				if fi.Mode()&fs.ModeSymlink != 0 && want {
+				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.pattern, "...") {
 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
 						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
 					}
@@ -445,7 +445,7 @@ func ImportPathsQuiet(patterns []string) []*Match {
 			for i, dir := range m.Dirs {
 				absDir := dir
 				if !filepath.IsAbs(dir) {
-					absDir = filepath.Join(base.Cwd, dir)
+					absDir = filepath.Join(base.Cwd(), dir)
 				}
 				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
 					m.Pkgs[i] = bp.ImportPath
@@ -571,7 +571,6 @@ func IsRelativePath(pattern string) bool {
 // If so, InDir returns an equivalent path relative to dir.
 // If not, InDir returns an empty string.
 // InDir makes some effort to succeed even in the presence of symbolic links.
-// TODO(rsc): Replace internal/test.inDir with a call to this function for Go 1.12.
 func InDir(path, dir string) string {
 	if rel := inDirLex(path, dir); rel != "" {
 		return rel

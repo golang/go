@@ -1,0 +1,55 @@
+# Check that if a proxy does not have a version of a module that could be
+# an upgrade, 'go list -m -u' still succeeds.
+# We use a local file proxy, since our test proxy doesn't have the behavior
+# we want to test, and we don't want it to be too clever.
+# Verifies #45305, where proxy.golang.org serves an empty /@v/list (200)
+# but has no /@latest (410) because the go.mod at the tip of the default
+# branch has a different major version suffix.
+env testproxy=$GOPROXY
+env GOPROXY=file:///$WORK/proxy
+env GOSUMDB=off
+
+# If the proxy does not return a list of versions (404/410)
+# or a latest version (404/410), we should see no error.
+go list -m example.com/noversion
+stdout '^example.com/noversion v0.0.0$'
+go list -m -u example.com/noversion
+stdout '^example.com/noversion v0.0.0$'
+
+# If the proxy returns an empty list of versions (200, not 404/410)
+# but does not have a latest version (404/410), we should see no error.
+go list -m example.com/nolatest
+stdout '^example.com/nolatest v0.0.0$'
+go list -m -u example.com/nolatest
+stdout '^example.com/nolatest v0.0.0$'
+
+# If proxy returns an invalid response, we should see an error.
+env GOPROXY=$testproxy/invalid
+! go list -m -u example.com/nolatest
+stderr '^go list -m: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
+
+-- go.mod --
+module m
+
+go 1.17
+
+require (
+	example.com/nolatest v0.0.0
+	example.com/noversion v0.0.0
+)
+-- go.sum --
+example.com/nolatest v0.0.0/go.mod h1:HnLrCt6SJga5tCtJ7IzG9dOOCniY3G5C0VT7jfMdS0M=
+example.com/noversion v0.0.0/go.mod h1:2RUfWiCYsygSXPM2Igxx0FD3Kq33OnVdxm34eDDhXbQ=
+-- $WORK/proxy/example.com/nolatest/@v/list --
+-- $WORK/proxy/example.com/nolatest/@v/v0.0.0.info --
+{"Version":"v0.0.0"}
+-- $WORK/proxy/example.com/nolatest/@v/v0.0.0.mod --
+module example.com/nolatest
+
+go 1.17
+-- $WORK/proxy/example.com/noversion/@v/v0.0.0.info --
+{"Version":"v0.0.0"}
+-- $WORK/proxy/example.com/noversion/@v/v0.0.0.mod --
+module example.com/noversion
+
+go 1.17

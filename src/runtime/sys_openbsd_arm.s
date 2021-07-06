@@ -10,7 +10,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-#define CLOCK_REALTIME	$0
+#define	CLOCK_REALTIME	$0
 #define	CLOCK_MONOTONIC	$3
 
 // With OpenBSD 6.7 onwards, an armv7 syscall returns two instructions
@@ -25,238 +25,40 @@
 	NOOP;		\
 	NOOP
 
-// Exit the entire program (like C exit)
-TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
-	MOVW	code+0(FP), R0	// arg 1 - status
-	MOVW	$1, R12			// sys_exit
-	INVOKE_SYSCALL
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	RET
+// mstart_stub is the first function executed on a new thread started by pthread_create.
+// It just does some low-level setup and then calls mstart.
+// Note: called with the C calling convention.
+TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+	// R0 points to the m.
+	// We are already on m's g0 stack.
 
-// func exitThread(wait *uint32)
-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
-	MOVW	wait+0(FP), R0		// arg 1 - notdead
-	MOVW	$302, R12		// sys___threxit
-	INVOKE_SYSCALL
-	MOVW.CS	$1, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	JMP	0(PC)
+	// Save callee-save registers.
+	MOVM.DB.W [R4-R11], (R13)
 
-TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0
-	MOVW	name+0(FP), R0		// arg 1 - path
-	MOVW	mode+4(FP), R1		// arg 2 - mode
-	MOVW	perm+8(FP), R2		// arg 3 - perm
-	MOVW	$5, R12			// sys_open
-	INVOKE_SYSCALL
-	MOVW.CS	$-1, R0
-	MOVW	R0, ret+12(FP)
-	RET
+	MOVW	m_g0(R0), g
+	BL	runtime·save_g(SB)
 
-TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$6, R12			// sys_close
-	INVOKE_SYSCALL
-	MOVW.CS	$-1, R0
-	MOVW	R0, ret+4(FP)
-	RET
+	BL	runtime·mstart(SB)
 
-TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	p+4(FP), R1		// arg 2 - buf
-	MOVW	n+8(FP), R2		// arg 3 - nbyte
-	MOVW	$3, R12			// sys_read
-	INVOKE_SYSCALL
-	RSB.CS	$0, R0		// caller expects negative errno
-	MOVW	R0, ret+12(FP)
-	RET
+	// Restore callee-save registers.
+	MOVM.IA.W (R13), [R4-R11]
 
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVW	$r+0(FP), R0
-	MOVW	$263, R12
-	INVOKE_SYSCALL
-	MOVW	R0, errno+8(FP)
-	RET
-
-// func pipe2(flags int32) (r, w int32, errno int32)
-TEXT runtime·pipe2(SB),NOSPLIT,$0-16
-	MOVW	$r+4(FP), R0
-	MOVW	flags+0(FP), R1
-	MOVW	$101, R12
-	INVOKE_SYSCALL
-	MOVW	R0, errno+12(FP)
-	RET
-
-TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	p+4(FP), R1		// arg 2 - buf
-	MOVW	n+8(FP), R2		// arg 3 - nbyte
-	MOVW	$4, R12			// sys_write
-	INVOKE_SYSCALL
-	RSB.CS	$0, R0		// caller expects negative errno
-	MOVW	R0, ret+12(FP)
-	RET
-
-TEXT runtime·usleep(SB),NOSPLIT,$16
-	MOVW	usec+0(FP), R0
-	CALL	runtime·usplitR0(SB)
-	MOVW	R0, 4(R13)		// tv_sec - l32
+	// Go is all done with this OS thread.
+	// Tell pthread everything is ok (we never join with this thread, so
+	// the value here doesn't really matter).
 	MOVW	$0, R0
-	MOVW	R0, 8(R13)		// tv_sec - h32
-	MOVW	$1000, R2
-	MUL	R1, R2
-	MOVW	R2, 12(R13)		// tv_nsec
-
-	MOVW	$4(R13), R0		// arg 1 - rqtp
-	MOVW	$0, R1			// arg 2 - rmtp
-	MOVW	$91, R12		// sys_nanosleep
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·getthrid(SB),NOSPLIT,$0-4
-	MOVW	$299, R12		// sys_getthrid
-	INVOKE_SYSCALL
-	MOVW	R0, ret+0(FP)
-	RET
-
-TEXT runtime·thrkill(SB),NOSPLIT,$0-8
-	MOVW	tid+0(FP), R0		// arg 1 - tid
-	MOVW	sig+4(FP), R1		// arg 2 - signum
-	MOVW	$0, R2			// arg 3 - tcb
-	MOVW	$119, R12		// sys_thrkill
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·raiseproc(SB),NOSPLIT,$12
-	MOVW	$20, R12		// sys_getpid
-	INVOKE_SYSCALL
-					// arg 1 - pid, already in R0
-	MOVW	sig+0(FP), R1		// arg 2 - signum
-	MOVW	$122, R12		// sys_kill
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·mmap(SB),NOSPLIT,$16
-	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	n+4(FP), R1		// arg 2 - len
-	MOVW	prot+8(FP), R2		// arg 3 - prot
-	MOVW	flags+12(FP), R3	// arg 4 - flags
-	MOVW	fd+16(FP), R4		// arg 5 - fd (on stack)
-	MOVW	R4, 4(R13)
-	MOVW	$0, R5			// arg 6 - pad (on stack)
-	MOVW	R5, 8(R13)
-	MOVW	off+20(FP), R6		// arg 7 - offset (on stack)
-	MOVW	R6, 12(R13)		// lower 32 bits (from Go runtime)
-	MOVW	$0, R7
-	MOVW	R7, 16(R13)		// high 32 bits
-	ADD	$4, R13
-	MOVW	$197, R12		// sys_mmap
-	INVOKE_SYSCALL
-	SUB	$4, R13
-	MOVW	$0, R1
-	MOVW.CS	R0, R1			// if error, move to R1
-	MOVW.CS $0, R0
-	MOVW	R0, p+24(FP)
-	MOVW	R1, err+28(FP)
-	RET
-
-TEXT runtime·munmap(SB),NOSPLIT,$0
-	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	n+4(FP), R1		// arg 2 - len
-	MOVW	$73, R12		// sys_munmap
-	INVOKE_SYSCALL
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	RET
-
-TEXT runtime·madvise(SB),NOSPLIT,$0
-	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	n+4(FP), R1		// arg 2 - len
-	MOVW	flags+8(FP), R2		// arg 2 - flags
-	MOVW	$75, R12		// sys_madvise
-	INVOKE_SYSCALL
-	MOVW.CS	$-1, R0
-	MOVW	R0, ret+12(FP)
-	RET
-
-TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	mode+0(FP), R0		// arg 1 - mode
-	MOVW	new+4(FP), R1		// arg 2 - new value
-	MOVW	old+8(FP), R2		// arg 3 - old value
-	MOVW	$69, R12		// sys_setitimer
-	INVOKE_SYSCALL
-	RET
-
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB), NOSPLIT, $32
-	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
-	MOVW	$8(R13), R1		// arg 2 - tp
-	MOVW	$87, R12		// sys_clock_gettime
-	INVOKE_SYSCALL
-
-	MOVW	8(R13), R0		// sec - l32
-	MOVW	12(R13), R1		// sec - h32
-	MOVW	16(R13), R2		// nsec
-
-	MOVW	R0, sec_lo+0(FP)
-	MOVW	R1, sec_hi+4(FP)
-	MOVW	R2, nsec+8(FP)
-
-	RET
-
-// int64 nanotime1(void) so really
-// void nanotime1(int64 *nsec)
-TEXT runtime·nanotime1(SB),NOSPLIT,$32
-	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
-	MOVW	$8(R13), R1		// arg 2 - tp
-	MOVW	$87, R12		// sys_clock_gettime
-	INVOKE_SYSCALL
-
-	MOVW	8(R13), R0		// sec - l32
-	MOVW	12(R13), R4		// sec - h32
-	MOVW	16(R13), R2		// nsec
-
-	MOVW	$1000000000, R3
-	MULLU	R0, R3, (R1, R0)
-	MUL	R3, R4
-	ADD.S	R2, R0
-	ADC	R4, R1
-
-	MOVW	R0, ret_lo+0(FP)
-	MOVW	R1, ret_hi+4(FP)
-	RET
-
-TEXT runtime·sigaction(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0		// arg 1 - signum
-	MOVW	new+4(FP), R1		// arg 2 - new sigaction
-	MOVW	old+8(FP), R2		// arg 3 - old sigaction
-	MOVW	$46, R12		// sys_sigaction
-	INVOKE_SYSCALL
-	MOVW.CS	$3, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	RET
-
-TEXT runtime·obsdsigprocmask(SB),NOSPLIT,$0
-	MOVW	how+0(FP), R0		// arg 1 - mode
-	MOVW	new+4(FP), R1		// arg 2 - new
-	MOVW	$48, R12		// sys_sigprocmask
-	INVOKE_SYSCALL
-	MOVW.CS	$3, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	MOVW	R0, ret+8(FP)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	sig+4(FP), R0
 	MOVW	info+8(FP), R1
 	MOVW	ctx+12(FP), R2
-	MOVW	fn+0(FP), R11
-	MOVW	R13, R4
+	MOVW	fn+0(FP), R3
+	MOVW	R13, R9
 	SUB	$24, R13
 	BIC	$0x7, R13 // alignment for ELF ABI
-	BL	(R11)
-	MOVW	R4, R13
+	BL	(R3)
+	MOVW	R9, R13
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
@@ -267,9 +69,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// If called from an external code context, g will not be set.
 	// Save R0, since runtime·load_g will clobber it.
 	MOVW	R0, 4(R13)		// signum
-	MOVB	runtime·iscgo(SB), R0
-	CMP	$0, R0
-	BL.NE	runtime·load_g(SB)
+	BL	runtime·load_g(SB)
 
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
@@ -281,155 +81,726 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 
 	RET
 
-// int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·tfork(SB),NOSPLIT,$0
-
-	// Copy mp, gp and fn off parent stack for use by child.
-	MOVW	mm+8(FP), R4
-	MOVW	gg+12(FP), R5
-	MOVW	fn+16(FP), R6
-
-	MOVW	param+0(FP), R0		// arg 1 - param
-	MOVW	psize+4(FP), R1		// arg 2 - psize
-	MOVW	$8, R12			// sys___tfork
-	INVOKE_SYSCALL
-
-	// Return if syscall failed.
-	B.CC	4(PC)
-	RSB	$0, R0
-	MOVW	R0, ret+20(FP)
-	RET
-
-	// In parent, return.
-	CMP	$0, R0
-	BEQ	3(PC)
-	MOVW	R0, ret+20(FP)
-	RET
-
-	// Initialise m, g.
-	MOVW	R5, g
-	MOVW	R4, g_m(g)
-
-	// Paranoia; check that stack splitting code works.
-	BL	runtime·emptyfunc(SB)
-
-	// Call fn.
-	BL	(R6)
-
-	// fn should never return.
-	MOVW	$2, R8			// crash if reached
-	MOVW	R8, (R8)
-	RET
-
-TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVW	new+0(FP), R0		// arg 1 - new sigaltstack
-	MOVW	old+4(FP), R1		// arg 2 - old sigaltstack
-	MOVW	$288, R12		// sys_sigaltstack
-	INVOKE_SYSCALL
-	MOVW.CS	$0, R8			// crash on syscall failure
-	MOVW.CS	R8, (R8)
-	RET
-
-TEXT runtime·osyield(SB),NOSPLIT,$0
-	MOVW	$298, R12		// sys_sched_yield
-	INVOKE_SYSCALL
-	RET
-
-TEXT runtime·thrsleep(SB),NOSPLIT,$4
-	MOVW	ident+0(FP), R0		// arg 1 - ident
-	MOVW	clock_id+4(FP), R1	// arg 2 - clock_id
-	MOVW	tsp+8(FP), R2		// arg 3 - tsp
-	MOVW	lock+12(FP), R3		// arg 4 - lock
-	MOVW	abort+16(FP), R4	// arg 5 - abort (on stack)
-	MOVW	R4, 4(R13)
-	ADD	$4, R13
-	MOVW	$94, R12		// sys___thrsleep
-	INVOKE_SYSCALL
-	SUB	$4, R13
-	MOVW	R0, ret+20(FP)
-	RET
-
-TEXT runtime·thrwakeup(SB),NOSPLIT,$0
-	MOVW	ident+0(FP), R0		// arg 1 - ident
-	MOVW	n+4(FP), R1		// arg 2 - n
-	MOVW	$301, R12		// sys___thrwakeup
-	INVOKE_SYSCALL
-	MOVW	R0, ret+8(FP)
-	RET
-
-TEXT runtime·sysctl(SB),NOSPLIT,$8
-	MOVW	mib+0(FP), R0		// arg 1 - mib
-	MOVW	miblen+4(FP), R1	// arg 2 - miblen
-	MOVW	out+8(FP), R2		// arg 3 - out
-	MOVW	size+12(FP), R3		// arg 4 - size
-	MOVW	dst+16(FP), R4		// arg 5 - dest (on stack)
-	MOVW	R4, 4(R13)
-	MOVW	ndst+20(FP), R5		// arg 6 - newlen (on stack)
-	MOVW	R5, 8(R13)
-	ADD	$4, R13
-	MOVW	$202, R12		// sys___sysctl
-	INVOKE_SYSCALL
-	SUB	$4, R13
-	MOVW.CC	$0, R0
-	RSB.CS	$0, R0
-	MOVW	R0, ret+24(FP)
-	RET
-
-// int32 runtime·kqueue(void);
-TEXT runtime·kqueue(SB),NOSPLIT,$0
-	MOVW	$269, R12		// sys_kqueue
-	INVOKE_SYSCALL
-	RSB.CS	$0, R0
-	MOVW	R0, ret+0(FP)
-	RET
-
-// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
-TEXT runtime·kevent(SB),NOSPLIT,$8
-	MOVW	kq+0(FP), R0		// arg 1 - kq
-	MOVW	ch+4(FP), R1		// arg 2 - changelist
-	MOVW	nch+8(FP), R2		// arg 3 - nchanges
-	MOVW	ev+12(FP), R3		// arg 4 - eventlist
-	MOVW	nev+16(FP), R4		// arg 5 - nevents (on stack)
-	MOVW	R4, 4(R13)
-	MOVW	ts+20(FP), R5		// arg 6 - timeout (on stack)
-	MOVW	R5, 8(R13)
-	ADD	$4, R13
-	MOVW	$72, R12		// sys_kevent
-	INVOKE_SYSCALL
-	RSB.CS	$0, R0
-	SUB	$4, R13
-	MOVW	R0, ret+24(FP)
-	RET
-
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$2, R1			// arg 2 - cmd (F_SETFD)
-	MOVW	$1, R2			// arg 3 - arg (FD_CLOEXEC)
-	MOVW	$92, R12		// sys_fcntl
-	INVOKE_SYSCALL
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$3, R1	// F_GETFL
-	MOVW	$0, R2
-	MOVW	$92, R12
-	INVOKE_SYSCALL
-	ORR	$0x4, R0, R2	// O_NONBLOCK
-	MOVW	fd+0(FP), R0	// fd
-	MOVW	$4, R1	// F_SETFL
-	MOVW	$92, R12
-	INVOKE_SYSCALL
-	RET
-
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
+// TODO(jsing): OpenBSD only supports GOARM=7 machines... this
+// should not be needed, however the linker still allows GOARM=5
+// on this platform.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVM.WP	[R1, R2, R3, R12], (R13)
 	MOVW	$330, R12		// sys___get_tcb
 	INVOKE_SYSCALL
 	MOVM.IAW (R13), [R1, R2, R3, R12]
+	RET
+
+// These trampolines help convert from Go calling convention to C calling convention.
+// They should be called with asmcgocall - note that while asmcgocall does
+// stack alignment, creation of a frame undoes it again.
+// A pointer to the arguments is passed in R0.
+// A single int32 result is returned in R0.
+// (For more results, make an args/results structure.)
+TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 attr
+	CALL	libc_pthread_attr_init(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_destroy_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 attr
+	CALL	libc_pthread_attr_destroy(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 size
+	MOVW	0(R0), R0		// arg 1 attr
+	CALL	libc_pthread_attr_getstacksize(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 state
+	MOVW	0(R0), R0		// arg 1 attr
+	CALL	libc_pthread_attr_setdetachstate(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$16, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R1		// arg 2 attr
+	MOVW	4(R0), R2		// arg 3 start
+	MOVW	8(R0), R3		// arg 4 arg
+	MOVW	R13, R0			// arg 1 &threadid (discarded)
+	CALL	libc_pthread_create(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·thrkill_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - signal
+	MOVW	$0, R2			// arg 3 - tcb
+	MOVW	0(R0), R0		// arg 1 - tid
+	CALL	libc_thrkill(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$16, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - clock_id
+	MOVW	8(R0), R2		// arg 3 - abstime
+	MOVW	12(R0), R3		// arg 4 - lock
+	MOVW	16(R0), R4		// arg 5 - abort (on stack)
+	MOVW	R4, 0(R13)
+	MOVW	0(R0), R0		// arg 1 - id
+	CALL	libc_thrsleep(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - count
+	MOVW	0(R0), R0		// arg 1 - id
+	CALL	libc_thrwakeup(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 exit status
+	BL	libc_exit(SB)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·getthrid_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	MOVW	R0, R8
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_getthrid(SB)
+	MOVW	R0, 0(R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	R0, R4
+	BL	libc_getpid(SB)		// arg 1 pid
+	MOVW	R4, R1			// arg 2 signal
+	BL	libc_kill(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_sched_yield(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$16, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	R0, R8
+	MOVW	4(R0), R1		// arg 2 len
+	MOVW	8(R0), R2		// arg 3 prot
+	MOVW	12(R0), R3		// arg 4 flags
+	MOVW	16(R0), R4		// arg 5 fid (on stack)
+	MOVW	R4, 0(R13)
+	MOVW	$0, R5			// pad (on stack)
+	MOVW	R5, 4(R13)
+	MOVW	20(R0), R6		// arg 6 offset (on stack)
+	MOVW	R6, 8(R13)		// low 32 bits
+	MOVW    $0, R7
+	MOVW	R7, 12(R13)		// high 32 bits
+	MOVW	0(R0), R0		// arg 1 addr
+	BL	libc_mmap(SB)
+	MOVW	$0, R1
+	CMP	$-1, R0
+	BNE	ok
+	BL	libc_errno(SB)
+	MOVW	(R0), R1		// errno
+	MOVW	$0, R0
+ok:
+	MOVW	R0, 24(R8)
+	MOVW	R1, 28(R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 len
+	MOVW	0(R0), R0		// arg 1 addr
+	BL	libc_munmap(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 len
+	MOVW	8(R0), R2		// arg 3 advice
+	MOVW	0(R0), R0		// arg 1 addr
+	BL	libc_madvise(SB)
+	// ignore failure - maybe pages are locked
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - flags
+	MOVW	8(R0), R2		// arg 3 - mode (vararg, on stack)
+	MOVW	R2, 0(R13)
+	MOVW	0(R0), R0		// arg 1 - path
+	MOVW	R13, R4
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_open(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 - fd
+	BL	libc_close(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 - buf
+	MOVW	8(R0), R2		// arg 3 - count
+	MOVW	0(R0), R0		// arg 1 - fd
+	BL	libc_read(SB)
+	CMP	$-1, R0
+	BNE	noerr
+	BL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	RSB.CS	$0, R0			// caller expects negative errno
+noerr:
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 buf
+	MOVW	8(R0), R2		// arg 3 count
+	MOVW	0(R0), R0		// arg 1 fd
+	BL	libc_write(SB)
+	CMP	$-1, R0
+	BNE	noerr
+	BL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	RSB.CS	$0, R0			// caller expects negative errno
+noerr:
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·pipe2_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 flags
+	MOVW	0(R0), R0		// arg 1 filedes
+	BL	libc_pipe2(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	BL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	RSB.CS	$0, R0			// caller expects negative errno
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 new
+	MOVW	8(R0), R2		// arg 3 old
+	MOVW	0(R0), R0		// arg 1 which
+	BL	libc_setitimer(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	0(R0), R0		// arg 1 usec
+	BL	libc_usleep(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 miblen
+	MOVW	8(R0), R2		// arg 3 out
+	MOVW	12(R0), R3		// arg 4 size
+	MOVW	16(R0), R4		// arg 5 dst (on stack)
+	MOVW	R4, 0(R13)
+	MOVW	20(R0), R5		// arg 6 ndst (on stack)
+	MOVW	R5, 4(R13)
+	MOVW	0(R0), R0		// arg 1 mib
+	BL	libc_sysctl(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_kqueue(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 keventt
+	MOVW	8(R0), R2		// arg 3 nch
+	MOVW	12(R0), R3		// arg 4 ev
+	MOVW	16(R0), R4		// arg 5 nev (on stack)
+	MOVW	R4, 0(R13)
+	MOVW	20(R0), R5		// arg 6 ts (on stack)
+	MOVW	R5, 4(R13)
+	MOVW	0(R0), R0		// arg 1 kq
+	BL	libc_kevent(SB)
+	CMP	$-1, R0
+	BNE	ok
+	BL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	RSB.CS	$0, R0			// caller expects negative errno
+ok:
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 tp
+	MOVW	0(R0), R0		// arg 1 clock_id
+	BL	libc_clock_gettime(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 cmd
+	MOVW	8(R0), R2		// arg 3 arg (vararg, on stack)
+	MOVW	R2, 0(R13)
+	MOVW	0(R0), R0		// arg 1 fd
+	BL	libc_fcntl(SB)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 new
+	MOVW	8(R0), R2		// arg 3 old
+	MOVW	0(R0), R0		// arg 1 sig
+	BL	libc_sigaction(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 new
+	MOVW	8(R0), R2		// arg 3 old
+	MOVW	0(R0), R0		// arg 1 how
+	BL	libc_pthread_sigmask(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+	MOVW	4(R0), R1		// arg 2 old
+	MOVW	0(R0), R0		// arg 1 new
+	BL	libc_sigaltstack(SB)
+	CMP	$-1, R0
+	BNE	3(PC)
+	MOVW	$0, R8			// crash on failure
+	MOVW	R8, (R8)
+	MOVW	R9, R13
+	RET
+
+// syscall calls a function in libc on behalf of the syscall package.
+// syscall takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
+TEXT runtime·syscall(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+
+	BL	(R7)
+
+	MOVW	R0, (4*4)(R8) // r1
+	MOVW	R1, (5*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (6*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscallX calls a function in libc on behalf of the syscall package.
+// syscallX takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscallX must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscallX is like syscall but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscallX(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+
+	BL	(R7)
+
+	MOVW	R0, (4*4)(R8) // r1
+	MOVW	R1, (5*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (6*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall6 calls a function in libc on behalf of the syscall package.
+// syscall6 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall6 expects a 32-bit result and tests for 32-bit -1
+// to decide there was an error.
+TEXT runtime·syscall6(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (7*4)(R8) // r1
+	MOVW	R1, (8*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (9*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall6X calls a function in libc on behalf of the syscall package.
+// syscall6X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall6X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall6X is like syscall6 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscall6X(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$8, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (7*4)(R8) // r1
+	MOVW	R1, (8*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (9*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall10 calls a function in libc on behalf of the syscall package.
+// syscall10 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	a10   uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall10 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall10(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$24, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+	MOVW	(7*4)(R8), R6 // a7
+	MOVW	R6, 8(R13)
+	MOVW	(8*4)(R8), R4 // a8
+	MOVW	R4, 12(R13)
+	MOVW	(9*4)(R8), R5 // a9
+	MOVW	R5, 16(R13)
+	MOVW	(10*4)(R8), R6 // a10
+	MOVW	R6, 20(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (11*4)(R8) // r1
+	MOVW	R1, (12*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (13*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
+	RET
+
+// syscall10X calls a function in libc on behalf of the syscall package.
+// syscall10X takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	a10   uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall10X must be called on the g0 stack with the
+// C calling convention (use libcCall).
+//
+// syscall10X is like syscall10 but expects a 64-bit result
+// and tests for 64-bit -1 to decide there was an error.
+TEXT runtime·syscall10X(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	SUB	$24, R13
+	BIC     $0x7, R13		// align for ELF ABI
+
+	MOVW	R0, R8
+
+	MOVW	(0*4)(R8), R7 // fn
+	MOVW	(1*4)(R8), R0 // a1
+	MOVW	(2*4)(R8), R1 // a2
+	MOVW	(3*4)(R8), R2 // a3
+	MOVW	(4*4)(R8), R3 // a4
+	MOVW	(5*4)(R8), R4 // a5
+	MOVW	R4, 0(R13)
+	MOVW	(6*4)(R8), R5 // a6
+	MOVW	R5, 4(R13)
+	MOVW	(7*4)(R8), R6 // a7
+	MOVW	R6, 8(R13)
+	MOVW	(8*4)(R8), R4 // a8
+	MOVW	R4, 12(R13)
+	MOVW	(9*4)(R8), R5 // a9
+	MOVW	R5, 16(R13)
+	MOVW	(10*4)(R8), R6 // a10
+	MOVW	R6, 20(R13)
+
+	BL	(R7)
+
+	MOVW	R0, (11*4)(R8) // r1
+	MOVW	R1, (12*4)(R8) // r2
+
+	// Standard libc functions return -1 on error and set errno.
+	CMP	$-1, R0
+	BNE	ok
+	CMP	$-1, R1
+	BNE	ok
+
+	// Get error code from libc.
+	BL	libc_errno(SB)
+	MOVW	(R0), R1
+	MOVW	R1, (13*4)(R8) // err
+
+ok:
+	MOVW	$0, R0		// no error (it's ignored anyway)
+	MOVW	R9, R13
 	RET

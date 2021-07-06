@@ -103,7 +103,9 @@ func ExampleReadFull() {
 }
 
 func ExampleWriteString() {
-	io.WriteString(os.Stdout, "Hello World")
+	if _, err := io.WriteString(os.Stdout, "Hello World"); err != nil {
+		log.Fatal(err)
+	}
 
 	// Output: Hello World
 }

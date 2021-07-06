@@ -231,7 +231,7 @@ func (p *parser) next0() {
 	// Because of one-token look-ahead, print the previous token
 	// when tracing as it provides a more readable output. The
 	// very first token (!p.pos.IsValid()) is not initialized
-	// (it is token.ILLEGAL), so don't print it .
+	// (it is token.ILLEGAL), so don't print it.
 	if p.trace && p.pos.IsValid() {
 		s := p.tok.String()
 		switch {

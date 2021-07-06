@@ -85,16 +85,22 @@ The -json flag prints the final go.mod file in JSON format instead of
 writing it back to go.mod. The JSON output corresponds to these Go types:
 
 	type Module struct {
-		Path string
+		Path    string
 		Version string
 	}
 
 	type GoMod struct {
-		Module  Module
+		Module  ModPath
 		Go      string
 		Require []Require
 		Exclude []Module
 		Replace []Replace
+		Retract []Retract
+	}
+
+	type ModPath struct {
+		Path       string
+		Deprecated string
 	}
 
 	type Require struct {
@@ -121,9 +127,7 @@ Note that this only describes the go.mod file itself, not other modules
 referred to indirectly. For the full set of modules available to a build,
 use 'go list -m -json all'.
 
-For example, a tool can obtain the go.mod as a data structure by
-parsing the output of 'go mod edit -json' and can then make changes
-by invoking 'go mod edit' with -require, -exclude, and so on.
+See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 
@@ -192,7 +196,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editGo != "" {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
 		}
 	}
 
@@ -451,12 +455,17 @@ func flagDropRetract(arg string) {
 
 // fileJSON is the -json output data structure.
 type fileJSON struct {
-	Module  module.Version
+	Module  editModuleJSON
 	Go      string `json:",omitempty"`
 	Require []requireJSON
 	Exclude []module.Version
 	Replace []replaceJSON
 	Retract []retractJSON
+}
+
+type editModuleJSON struct {
+	Path       string
+	Deprecated string `json:",omitempty"`
 }
 
 type requireJSON struct {
@@ -480,7 +489,10 @@ type retractJSON struct {
 func editPrintJSON(modFile *modfile.File) {
 	var f fileJSON
 	if modFile.Module != nil {
-		f.Module = modFile.Module.Mod
+		f.Module = editModuleJSON{
+			Path:       modFile.Module.Mod.Path,
+			Deprecated: modFile.Module.Deprecated,
+		}
 	}
 	if modFile.Go != nil {
 		f.Go = modFile.Go.Version

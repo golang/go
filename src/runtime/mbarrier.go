@@ -14,6 +14,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -223,11 +224,18 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // stack map of reflectcall is wrong.
 //
 //go:nosplit
-func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
+func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
 	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
 	}
 	memmove(dst, src, size)
+
+	// Move pointers returned in registers to a place where the GC can see them.
+	for i := range regs.Ints {
+		if regs.ReturnIsPtr.Get(i) {
+			regs.Ptrs[i] = unsafe.Pointer(regs.Ints[i])
+		}
+	}
 }
 
 //go:nosplit

@@ -1013,7 +1013,7 @@ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
 }
 
 // ReadMsg wraps the WSARecvMsg network call.
-func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, error) {
+func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, 0, 0, nil, err
 	}
@@ -1028,6 +1028,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 	o.rsa = new(syscall.RawSockaddrAny)
 	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
+	o.msg.Flags = uint32(flags)
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
 	})

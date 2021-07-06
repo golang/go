@@ -40,15 +40,15 @@ func main() {
 	C.foop = x // ERROR HERE
 
 	// issue 13129: used to output error about C.unsignedshort with CC=clang
-	var x C.ushort
-	x = int(0) // ERROR HERE: C\.ushort
+	var x1 C.ushort
+	x1 = int(0) // ERROR HERE: C\.ushort
 
 	// issue 13423
 	_ = C.fopen() // ERROR HERE
 
 	// issue 13467
-	var x rune = '✈'
-	var _ rune = C.transform(x) // ERROR HERE: C\.int
+	var x2 rune = '✈'
+	var _ rune = C.transform(x2) // ERROR HERE: C\.int
 
 	// issue 13635: used to output error about C.unsignedchar.
 	// This test tests all such types.
@@ -91,10 +91,10 @@ func main() {
 
 	// issue 26745
 	_ = func(i int) int {
-		return C.i + 1 // ERROR HERE: :13
+		return C.i + 1 // ERROR HERE: 14
 	}
 	_ = func(i int) {
-		C.fi(i) // ERROR HERE: :6
+		C.fi(i) // ERROR HERE: 7
 	}
 
 	C.fi = C.fi // ERROR HERE

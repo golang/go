@@ -1776,3 +1776,56 @@ func TestRecursiveExecute(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// recursiveInvoker is for TestRecursiveExecuteViaMethod.
+type recursiveInvoker struct {
+	t    *testing.T
+	tmpl *Template
+}
+
+func (r *recursiveInvoker) Recur() (string, error) {
+	var sb strings.Builder
+	if err := r.tmpl.ExecuteTemplate(&sb, "subroutine", nil); err != nil {
+		r.t.Fatal(err)
+	}
+	return sb.String(), nil
+}
+
+func TestRecursiveExecuteViaMethod(t *testing.T) {
+	tmpl := New("")
+	top, err := tmpl.New("x.html").Parse(`{{.Recur}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tmpl.New("subroutine").Parse(`<a href="/x?p={{"'a<b'"}}">`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &recursiveInvoker{
+		t:    t,
+		tmpl: tmpl,
+	}
+	if err := top.Execute(io.Discard, r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Issue 43295.
+func TestTemplateFuncsAfterClone(t *testing.T) {
+	s := `{{ f . }}`
+	want := "test"
+	orig := New("orig").Funcs(map[string]interface{}{
+		"f": func(in string) string {
+			return in
+		},
+	}).New("child")
+
+	overviewTmpl := Must(Must(orig.Clone()).Parse(s))
+	var out strings.Builder
+	if err := overviewTmpl.Execute(&out, want); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != want {
+		t.Fatalf("got %q; want %q", got, want)
+	}
+}

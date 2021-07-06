@@ -36,65 +36,8 @@ URLs of a specified form. The requests have no query parameters, so even
 a site serving from a fixed file system (including a file:/// URL)
 can be a module proxy.
 
-The GET requests sent to a Go module proxy are:
-
-GET $GOPROXY/<module>/@v/list returns a list of known versions of the given
-module, one per line.
-
-GET $GOPROXY/<module>/@v/<version>.info returns JSON-formatted metadata
-about that version of the given module.
-
-GET $GOPROXY/<module>/@v/<version>.mod returns the go.mod file
-for that version of the given module.
-
-GET $GOPROXY/<module>/@v/<version>.zip returns the zip archive
-for that version of the given module.
-
-GET $GOPROXY/<module>/@latest returns JSON-formatted metadata about the
-latest known version of the given module in the same format as
-<module>/@v/<version>.info. The latest version should be the version of
-the module the go command may use if <module>/@v/list is empty or no
-listed version is suitable. <module>/@latest is optional and may not
-be implemented by a module proxy.
-
-When resolving the latest version of a module, the go command will request
-<module>/@v/list, then, if no suitable versions are found, <module>/@latest.
-The go command prefers, in order: the semantically highest release version,
-the semantically highest pre-release version, and the chronologically
-most recent pseudo-version. In Go 1.12 and earlier, the go command considered
-pseudo-versions in <module>/@v/list to be pre-release versions, but this is
-no longer true since Go 1.13.
-
-To avoid problems when serving from case-sensitive file systems,
-the <module> and <version> elements are case-encoded, replacing every
-uppercase letter with an exclamation mark followed by the corresponding
-lower-case letter: github.com/Azure encodes as github.com/!azure.
-
-The JSON-formatted metadata about a given module corresponds to
-this Go data structure, which may be expanded in the future:
-
-    type Info struct {
-        Version string    // version string
-        Time    time.Time // commit time
-    }
-
-The zip archive for a specific version of a given module is a
-standard zip file that contains the file tree corresponding
-to the module's source code and related files. The archive uses
-slash-separated paths, and every file path in the archive must
-begin with <module>@<version>/, where the module and version are
-substituted directly, not case-encoded. The root of the module
-file tree corresponds to the <module>@<version>/ prefix in the
-archive.
-
-Even when downloading directly from version control systems,
-the go command synthesizes explicit info, mod, and zip files
-and stores them in its local cache, $GOPATH/pkg/mod/cache/download,
-the same as if it had downloaded them directly from a proxy.
-The cache layout is the same as the proxy URL space, so
-serving $GOPATH/pkg/mod/cache/download at (or copying it to)
-https://example.com/proxy would let other users access those
-cached module versions with GOPROXY=https://example.com/proxy.
+For details on the GOPROXY protocol, see
+https://golang.org/ref/mod#goproxy-protocol.
 `,
 }
 
@@ -285,7 +228,7 @@ func (p *proxyRepo) versionError(version string, err error) error {
 			Path: p.path,
 			Err: &module.InvalidVersionError{
 				Version: version,
-				Pseudo:  IsPseudoVersion(version),
+				Pseudo:  module.IsPseudoVersion(version),
 				Err:     err,
 			},
 		}
@@ -333,11 +276,11 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
 	var list []string
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Fields(line)
-		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !IsPseudoVersion(f[0]) {
+		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !module.IsPseudoVersion(f[0]) {
 			list = append(list, f[0])
 		}
 	}
-	SortVersions(list)
+	semver.Sort(list)
 	return list, nil
 }
 
@@ -364,8 +307,8 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 			)
 			if len(f) >= 2 {
 				ft, _ = time.Parse(time.RFC3339, f[1])
-			} else if IsPseudoVersion(f[0]) {
-				ft, _ = PseudoVersionTime(f[0])
+			} else if module.IsPseudoVersion(f[0]) {
+				ft, _ = module.PseudoVersionTime(f[0])
 				ftIsFromPseudo = true
 			} else {
 				// Repo.Latest promises that this method is only called where there are

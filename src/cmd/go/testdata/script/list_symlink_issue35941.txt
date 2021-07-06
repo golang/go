@@ -1,0 +1,18 @@
+[!symlink] skip
+env GO111MODULE=off
+
+# Issue 35941: suppress symlink warnings when running 'go list all'.
+symlink goproj/css -> $GOPATH/src/css
+
+go list all
+! stderr 'warning: ignoring symlink'
+
+# Show symlink warnings when patterns contain '...'.
+go list goproj/...
+stderr 'warning: ignoring symlink'
+
+-- goproj/a.go --
+package a
+
+-- css/index.css --
+body {}

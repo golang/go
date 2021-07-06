@@ -6,10 +6,10 @@ package ssa
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
+	"internal/buildcfg"
 	"log"
 	"math/rand"
 	"os"
@@ -297,6 +297,11 @@ enables time reporting for all phases
     -d=ssa/prove/debug=2
 sets debugging level to 2 in the prove pass
 
+Be aware that when "/debug=X" is applied to a pass, some passes
+will emit debug output for all functions, and other passes will
+only emit debug output for functions that match the current
+GOSSAFUNC value.
+
 Multiple flags can be passed at once, by separating them with
 commas. For example:
 
@@ -431,7 +436,6 @@ var passes = [...]pass{
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
-	{name: "decompose args", fn: decomposeArgs, required: !go116lateCallExpansion, disabled: go116lateCallExpansion}, // handled by late call lowering
 	{name: "decompose user", fn: decomposeUser, required: true},
 	{name: "pre-opt deadcode", fn: deadcode},
 	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
@@ -455,7 +459,7 @@ var passes = [...]pass{
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
-		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
+		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again

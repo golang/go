@@ -29,7 +29,7 @@ cmp stdout multiline
 
 # 'go get' should omit long messages.
 go get -d example.com/retract/rationale@v1.0.0-long
-stderr '^go: warning: example.com/retract/rationale@v1.0.0-long: retracted by module author: \(rationale omitted: too long\)'
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-long: retracted by module author: \(message omitted: too long\)'
 
 # 'go list' should show the full message.
 go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
@@ -38,7 +38,7 @@ stdout '^\[lo{500}ng\]$'
 
 # 'go get' should omit messages with unprintable characters.
 go get -d example.com/retract/rationale@v1.0.0-unprintable
-stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable: retracted by module author: \(rationale omitted: contains non-printable characters\)'
+stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable: retracted by module author: \(message omitted: contains non-printable characters\)'
 
 # 'go list' should show the full message.
 go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale

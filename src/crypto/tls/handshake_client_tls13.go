@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rsa"
@@ -17,6 +18,7 @@ import (
 
 type clientHandshakeStateTLS13 struct {
 	c           *Conn
+	ctx         context.Context
 	serverHello *serverHelloMsg
 	hello       *clientHelloMsg
 	ecdheParams ecdheParameters
@@ -394,17 +396,11 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 	}
 	hs.transcript.Write(encryptedExtensions.marshal())
 
-	if encryptedExtensions.alpnProtocol != "" {
-		if len(hs.hello.alpnProtocols) == 0 {
-			c.sendAlert(alertUnsupportedExtension)
-			return errors.New("tls: server advertised unrequested ALPN extension")
-		}
-		if mutualProtocol([]string{encryptedExtensions.alpnProtocol}, hs.hello.alpnProtocols) == "" {
-			c.sendAlert(alertUnsupportedExtension)
-			return errors.New("tls: server selected unadvertised ALPN protocol")
-		}
-		c.clientProtocol = encryptedExtensions.alpnProtocol
+	if err := checkALPN(hs.hello.alpnProtocols, encryptedExtensions.alpnProtocol); err != nil {
+		c.sendAlert(alertUnsupportedExtension)
+		return err
 	}
+	c.clientProtocol = encryptedExtensions.alpnProtocol
 
 	return nil
 }
@@ -555,6 +551,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		AcceptableCAs:    hs.certReq.certificateAuthorities,
 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
 		Version:          c.vers,
+		ctx:              hs.ctx,
 	})
 	if err != nil {
 		return err

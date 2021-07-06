@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,amd64 freebsd,amd64 linux,arm64
+//go:build (linux && amd64) || (freebsd && amd64) || (linux && arm64) || (linux && ppc64le)
+// +build linux,amd64 freebsd,amd64 linux,arm64 linux,ppc64le
 
 package cgo
 
@@ -10,8 +11,8 @@ package cgo
 import _ "unsafe"
 
 // When using cgo, call the C library for sigaction, so that we call into
-// any sanitizer interceptors. This supports using the memory
-// sanitizer with Go programs. The memory sanitizer only applies to
+// any sanitizer interceptors. This supports using the sanitizers
+// with Go programs. The thread and memory sanitizers only apply to
 // C/C++ code; this permits that code to see the Go runtime's existing signal
 // handlers when registering new signal handlers for the process.
 

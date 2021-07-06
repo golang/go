@@ -179,10 +179,7 @@ func errRecover(errp *error) {
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
-	var tmpl *Template
-	if t.common != nil {
-		tmpl = t.tmpl[name]
-	}
+	tmpl := t.Lookup(name)
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
 	}
@@ -230,6 +227,8 @@ func (t *Template) DefinedTemplates() string {
 		return ""
 	}
 	var b strings.Builder
+	t.muTmpl.RLock()
+	defer t.muTmpl.RUnlock()
 	for name, tmpl := range t.tmpl {
 		if tmpl.Tree == nil || tmpl.Root == nil {
 			continue
@@ -401,7 +400,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	s.at(t)
-	tmpl := s.tmpl.tmpl[t.Name]
+	tmpl := s.tmpl.Lookup(t.Name)
 	if tmpl == nil {
 		s.errorf("template %q not defined", t.Name)
 	}
@@ -615,7 +614,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath != "" { // field is unexported
+			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
 			// If it's a function, we must call it.
@@ -727,7 +726,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	// error to the caller.
 	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %v", name, err)
+		s.errorf("error calling %s: %w", name, err)
 	}
 	if v.Type() == reflectValueType {
 		v = v.Interface().(reflect.Value)

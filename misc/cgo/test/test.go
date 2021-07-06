@@ -899,6 +899,10 @@ static uint16_t issue31093F(uint16_t v) { return v; }
 // issue 32579
 typedef struct S32579 { unsigned char data[1]; } S32579;
 
+// issue 37033, cgo.Handle
+extern void GoFunc37033(uintptr_t handle);
+void cFunc37033(uintptr_t handle) { GoFunc37033(handle); }
+
 // issue 38649
 // Test that #define'd type aliases work.
 #define netbsd_gid unsigned int
@@ -908,6 +912,9 @@ typedef struct S32579 { unsigned char data[1]; } S32579;
 enum Enum40494 { X_40494 };
 union Union40494 { int x; };
 void issue40494(enum Enum40494 e, union Union40494* up) {}
+
+// Issue 45451, bad handling of go:notinheap types.
+typedef struct issue45451Undefined issue45451;
 */
 import "C"
 
@@ -920,6 +927,7 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"runtime/cgo"
 	"sync"
 	"syscall"
 	"testing"
@@ -2230,6 +2238,23 @@ func test32579(t *testing.T) {
 	}
 }
 
+// issue 37033, check if cgo.Handle works properly
+
+func testHandle(t *testing.T) {
+	ch := make(chan int)
+
+	for i := 0; i < 42; i++ {
+		h := cgo.NewHandle(ch)
+		go func() {
+			C.cFunc37033(C.uintptr_t(h))
+		}()
+		if v := <-ch; issue37033 != v {
+			t.Fatalf("unexpected receiving value: got %d, want %d", v, issue37033)
+		}
+		h.Delete()
+	}
+}
+
 // issue 38649
 
 var issue38649 C.netbsd_gid = 42
@@ -2243,4 +2268,20 @@ var issue39877 *C.void = nil
 
 func Issue40494() {
 	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
+}
+
+// Issue 45451.
+func test45451(t *testing.T) {
+	var u *C.issue45451
+	typ := reflect.ValueOf(u).Type().Elem()
+
+	// The type is undefined in C so allocating it should panic.
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic")
+		}
+	}()
+
+	_ = reflect.New(typ)
+	t.Errorf("reflect.New(%v) should have panicked", typ)
 }

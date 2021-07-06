@@ -10,6 +10,10 @@ import (
 	"unsafe"
 )
 
+// NTStatus corresponds with NTSTATUS, error values returned by ntdll.dll and
+// other native functions.
+type NTStatus uint32
+
 const (
 	// Invented values to support what package os expects.
 	O_RDONLY   = 0x00000
@@ -216,6 +220,18 @@ const (
 )
 
 const (
+	// attributes for ProcThreadAttributeList
+	PROC_THREAD_ATTRIBUTE_PARENT_PROCESS    = 0x00020000
+	PROC_THREAD_ATTRIBUTE_HANDLE_LIST       = 0x00020002
+	PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY    = 0x00030003
+	PROC_THREAD_ATTRIBUTE_PREFERRED_NODE    = 0x00020004
+	PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR   = 0x00030005
+	PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
+	PROC_THREAD_ATTRIBUTE_UMS_THREAD        = 0x00030006
+	PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL  = 0x0002000b
+)
+
+const (
 	// flags for CreateToolhelp32Snapshot
 	TH32CS_SNAPHEAPLIST = 0x01
 	TH32CS_SNAPPROCESS  = 0x02
@@ -227,7 +243,7 @@ const (
 )
 
 const (
-	// filters for ReadDirectoryChangesW
+	// filters for ReadDirectoryChangesW and FindFirstChangeNotificationW
 	FILE_NOTIFY_CHANGE_FILE_NAME   = 0x001
 	FILE_NOTIFY_CHANGE_DIR_NAME    = 0x002
 	FILE_NOTIFY_CHANGE_ATTRIBUTES  = 0x004
@@ -249,24 +265,27 @@ const (
 
 const (
 	// wincrypt.h
-	PROV_RSA_FULL                    = 1
-	PROV_RSA_SIG                     = 2
-	PROV_DSS                         = 3
-	PROV_FORTEZZA                    = 4
-	PROV_MS_EXCHANGE                 = 5
-	PROV_SSL                         = 6
-	PROV_RSA_SCHANNEL                = 12
-	PROV_DSS_DH                      = 13
-	PROV_EC_ECDSA_SIG                = 14
-	PROV_EC_ECNRA_SIG                = 15
-	PROV_EC_ECDSA_FULL               = 16
-	PROV_EC_ECNRA_FULL               = 17
-	PROV_DH_SCHANNEL                 = 18
-	PROV_SPYRUS_LYNKS                = 20
-	PROV_RNG                         = 21
-	PROV_INTEL_SEC                   = 22
-	PROV_REPLACE_OWF                 = 23
-	PROV_RSA_AES                     = 24
+	/* certenrolld_begin -- PROV_RSA_*/
+	PROV_RSA_FULL      = 1
+	PROV_RSA_SIG       = 2
+	PROV_DSS           = 3
+	PROV_FORTEZZA      = 4
+	PROV_MS_EXCHANGE   = 5
+	PROV_SSL           = 6
+	PROV_RSA_SCHANNEL  = 12
+	PROV_DSS_DH        = 13
+	PROV_EC_ECDSA_SIG  = 14
+	PROV_EC_ECNRA_SIG  = 15
+	PROV_EC_ECDSA_FULL = 16
+	PROV_EC_ECNRA_FULL = 17
+	PROV_DH_SCHANNEL   = 18
+	PROV_SPYRUS_LYNKS  = 20
+	PROV_RNG           = 21
+	PROV_INTEL_SEC     = 22
+	PROV_REPLACE_OWF   = 23
+	PROV_RSA_AES       = 24
+
+	/* dwFlags definitions for CryptAcquireContext */
 	CRYPT_VERIFYCONTEXT              = 0xF0000000
 	CRYPT_NEWKEYSET                  = 0x00000008
 	CRYPT_DELETEKEYSET               = 0x00000010
@@ -274,6 +293,34 @@ const (
 	CRYPT_SILENT                     = 0x00000040
 	CRYPT_DEFAULT_CONTAINER_OPTIONAL = 0x00000080
 
+	/* Flags for PFXImportCertStore */
+	CRYPT_EXPORTABLE                   = 0x00000001
+	CRYPT_USER_PROTECTED               = 0x00000002
+	CRYPT_USER_KEYSET                  = 0x00001000
+	PKCS12_PREFER_CNG_KSP              = 0x00000100
+	PKCS12_ALWAYS_CNG_KSP              = 0x00000200
+	PKCS12_ALLOW_OVERWRITE_KEY         = 0x00004000
+	PKCS12_NO_PERSIST_KEY              = 0x00008000
+	PKCS12_INCLUDE_EXTENDED_PROPERTIES = 0x00000010
+
+	/* Flags for CryptAcquireCertificatePrivateKey */
+	CRYPT_ACQUIRE_CACHE_FLAG             = 0x00000001
+	CRYPT_ACQUIRE_USE_PROV_INFO_FLAG     = 0x00000002
+	CRYPT_ACQUIRE_COMPARE_KEY_FLAG       = 0x00000004
+	CRYPT_ACQUIRE_NO_HEALING             = 0x00000008
+	CRYPT_ACQUIRE_SILENT_FLAG            = 0x00000040
+	CRYPT_ACQUIRE_WINDOW_HANDLE_FLAG     = 0x00000080
+	CRYPT_ACQUIRE_NCRYPT_KEY_FLAGS_MASK  = 0x00070000
+	CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG  = 0x00010000
+	CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG = 0x00020000
+	CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG   = 0x00040000
+
+	/* pdwKeySpec for CryptAcquireCertificatePrivateKey */
+	AT_KEYEXCHANGE       = 1
+	AT_SIGNATURE         = 2
+	CERT_NCRYPT_KEY_SPEC = 0xFFFFFFFF
+
+	/* Default usage match type is AND with value zero */
 	USAGE_MATCH_TYPE_AND = 0
 	USAGE_MATCH_TYPE_OR  = 1
 
@@ -398,6 +445,89 @@ const (
 	CERT_TRUST_IS_CA_TRUSTED                 = 0x00004000
 	CERT_TRUST_IS_COMPLEX_CHAIN              = 0x00010000
 
+	/* Certificate Information Flags */
+	CERT_INFO_VERSION_FLAG                 = 1
+	CERT_INFO_SERIAL_NUMBER_FLAG           = 2
+	CERT_INFO_SIGNATURE_ALGORITHM_FLAG     = 3
+	CERT_INFO_ISSUER_FLAG                  = 4
+	CERT_INFO_NOT_BEFORE_FLAG              = 5
+	CERT_INFO_NOT_AFTER_FLAG               = 6
+	CERT_INFO_SUBJECT_FLAG                 = 7
+	CERT_INFO_SUBJECT_PUBLIC_KEY_INFO_FLAG = 8
+	CERT_INFO_ISSUER_UNIQUE_ID_FLAG        = 9
+	CERT_INFO_SUBJECT_UNIQUE_ID_FLAG       = 10
+	CERT_INFO_EXTENSION_FLAG               = 11
+
+	/* dwFindType for CertFindCertificateInStore  */
+	CERT_COMPARE_MASK                     = 0xFFFF
+	CERT_COMPARE_SHIFT                    = 16
+	CERT_COMPARE_ANY                      = 0
+	CERT_COMPARE_SHA1_HASH                = 1
+	CERT_COMPARE_NAME                     = 2
+	CERT_COMPARE_ATTR                     = 3
+	CERT_COMPARE_MD5_HASH                 = 4
+	CERT_COMPARE_PROPERTY                 = 5
+	CERT_COMPARE_PUBLIC_KEY               = 6
+	CERT_COMPARE_HASH                     = CERT_COMPARE_SHA1_HASH
+	CERT_COMPARE_NAME_STR_A               = 7
+	CERT_COMPARE_NAME_STR_W               = 8
+	CERT_COMPARE_KEY_SPEC                 = 9
+	CERT_COMPARE_ENHKEY_USAGE             = 10
+	CERT_COMPARE_CTL_USAGE                = CERT_COMPARE_ENHKEY_USAGE
+	CERT_COMPARE_SUBJECT_CERT             = 11
+	CERT_COMPARE_ISSUER_OF                = 12
+	CERT_COMPARE_EXISTING                 = 13
+	CERT_COMPARE_SIGNATURE_HASH           = 14
+	CERT_COMPARE_KEY_IDENTIFIER           = 15
+	CERT_COMPARE_CERT_ID                  = 16
+	CERT_COMPARE_CROSS_CERT_DIST_POINTS   = 17
+	CERT_COMPARE_PUBKEY_MD5_HASH          = 18
+	CERT_COMPARE_SUBJECT_INFO_ACCESS      = 19
+	CERT_COMPARE_HASH_STR                 = 20
+	CERT_COMPARE_HAS_PRIVATE_KEY          = 21
+	CERT_FIND_ANY                         = (CERT_COMPARE_ANY << CERT_COMPARE_SHIFT)
+	CERT_FIND_SHA1_HASH                   = (CERT_COMPARE_SHA1_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_MD5_HASH                    = (CERT_COMPARE_MD5_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_SIGNATURE_HASH              = (CERT_COMPARE_SIGNATURE_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_KEY_IDENTIFIER              = (CERT_COMPARE_KEY_IDENTIFIER << CERT_COMPARE_SHIFT)
+	CERT_FIND_HASH                        = CERT_FIND_SHA1_HASH
+	CERT_FIND_PROPERTY                    = (CERT_COMPARE_PROPERTY << CERT_COMPARE_SHIFT)
+	CERT_FIND_PUBLIC_KEY                  = (CERT_COMPARE_PUBLIC_KEY << CERT_COMPARE_SHIFT)
+	CERT_FIND_SUBJECT_NAME                = (CERT_COMPARE_NAME<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_ATTR                = (CERT_COMPARE_ATTR<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_ISSUER_NAME                 = (CERT_COMPARE_NAME<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_ATTR                 = (CERT_COMPARE_ATTR<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_SUBJECT_STR_A               = (CERT_COMPARE_NAME_STR_A<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_STR_W               = (CERT_COMPARE_NAME_STR_W<<CERT_COMPARE_SHIFT | CERT_INFO_SUBJECT_FLAG)
+	CERT_FIND_SUBJECT_STR                 = CERT_FIND_SUBJECT_STR_W
+	CERT_FIND_ISSUER_STR_A                = (CERT_COMPARE_NAME_STR_A<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_STR_W                = (CERT_COMPARE_NAME_STR_W<<CERT_COMPARE_SHIFT | CERT_INFO_ISSUER_FLAG)
+	CERT_FIND_ISSUER_STR                  = CERT_FIND_ISSUER_STR_W
+	CERT_FIND_KEY_SPEC                    = (CERT_COMPARE_KEY_SPEC << CERT_COMPARE_SHIFT)
+	CERT_FIND_ENHKEY_USAGE                = (CERT_COMPARE_ENHKEY_USAGE << CERT_COMPARE_SHIFT)
+	CERT_FIND_CTL_USAGE                   = CERT_FIND_ENHKEY_USAGE
+	CERT_FIND_SUBJECT_CERT                = (CERT_COMPARE_SUBJECT_CERT << CERT_COMPARE_SHIFT)
+	CERT_FIND_ISSUER_OF                   = (CERT_COMPARE_ISSUER_OF << CERT_COMPARE_SHIFT)
+	CERT_FIND_EXISTING                    = (CERT_COMPARE_EXISTING << CERT_COMPARE_SHIFT)
+	CERT_FIND_CERT_ID                     = (CERT_COMPARE_CERT_ID << CERT_COMPARE_SHIFT)
+	CERT_FIND_CROSS_CERT_DIST_POINTS      = (CERT_COMPARE_CROSS_CERT_DIST_POINTS << CERT_COMPARE_SHIFT)
+	CERT_FIND_PUBKEY_MD5_HASH             = (CERT_COMPARE_PUBKEY_MD5_HASH << CERT_COMPARE_SHIFT)
+	CERT_FIND_SUBJECT_INFO_ACCESS         = (CERT_COMPARE_SUBJECT_INFO_ACCESS << CERT_COMPARE_SHIFT)
+	CERT_FIND_HASH_STR                    = (CERT_COMPARE_HASH_STR << CERT_COMPARE_SHIFT)
+	CERT_FIND_HAS_PRIVATE_KEY             = (CERT_COMPARE_HAS_PRIVATE_KEY << CERT_COMPARE_SHIFT)
+	CERT_FIND_OPTIONAL_ENHKEY_USAGE_FLAG  = 0x1
+	CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG  = 0x2
+	CERT_FIND_PROP_ONLY_ENHKEY_USAGE_FLAG = 0x4
+	CERT_FIND_NO_ENHKEY_USAGE_FLAG        = 0x8
+	CERT_FIND_OR_ENHKEY_USAGE_FLAG        = 0x10
+	CERT_FIND_VALID_ENHKEY_USAGE_FLAG     = 0x20
+	CERT_FIND_OPTIONAL_CTL_USAGE_FLAG     = CERT_FIND_OPTIONAL_ENHKEY_USAGE_FLAG
+	CERT_FIND_EXT_ONLY_CTL_USAGE_FLAG     = CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG
+	CERT_FIND_PROP_ONLY_CTL_USAGE_FLAG    = CERT_FIND_PROP_ONLY_ENHKEY_USAGE_FLAG
+	CERT_FIND_NO_CTL_USAGE_FLAG           = CERT_FIND_NO_ENHKEY_USAGE_FLAG
+	CERT_FIND_OR_CTL_USAGE_FLAG           = CERT_FIND_OR_ENHKEY_USAGE_FLAG
+	CERT_FIND_VALID_CTL_USAGE_FLAG        = CERT_FIND_VALID_ENHKEY_USAGE_FLAG
+
 	/* policyOID values for CertVerifyCertificateChainPolicy function */
 	CERT_CHAIN_POLICY_BASE              = 1
 	CERT_CHAIN_POLICY_AUTHENTICODE      = 2
@@ -409,6 +539,82 @@ const (
 	CERT_CHAIN_POLICY_EV                = 8
 	CERT_CHAIN_POLICY_SSL_F12           = 9
 
+	/* flag for dwFindType CertFindChainInStore  */
+	CERT_CHAIN_FIND_BY_ISSUER = 1
+
+	/* dwFindFlags for CertFindChainInStore when dwFindType == CERT_CHAIN_FIND_BY_ISSUER */
+	CERT_CHAIN_FIND_BY_ISSUER_COMPARE_KEY_FLAG    = 0x0001
+	CERT_CHAIN_FIND_BY_ISSUER_COMPLEX_CHAIN_FLAG  = 0x0002
+	CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_URL_FLAG = 0x0004
+	CERT_CHAIN_FIND_BY_ISSUER_LOCAL_MACHINE_FLAG  = 0x0008
+	CERT_CHAIN_FIND_BY_ISSUER_NO_KEY_FLAG         = 0x4000
+	CERT_CHAIN_FIND_BY_ISSUER_CACHE_ONLY_FLAG     = 0x8000
+
+	/* Certificate Store close flags */
+	CERT_CLOSE_STORE_FORCE_FLAG = 0x00000001
+	CERT_CLOSE_STORE_CHECK_FLAG = 0x00000002
+
+	/* CryptQueryObject object type */
+	CERT_QUERY_OBJECT_FILE = 1
+	CERT_QUERY_OBJECT_BLOB = 2
+
+	/* CryptQueryObject content type flags */
+	CERT_QUERY_CONTENT_CERT                    = 1
+	CERT_QUERY_CONTENT_CTL                     = 2
+	CERT_QUERY_CONTENT_CRL                     = 3
+	CERT_QUERY_CONTENT_SERIALIZED_STORE        = 4
+	CERT_QUERY_CONTENT_SERIALIZED_CERT         = 5
+	CERT_QUERY_CONTENT_SERIALIZED_CTL          = 6
+	CERT_QUERY_CONTENT_SERIALIZED_CRL          = 7
+	CERT_QUERY_CONTENT_PKCS7_SIGNED            = 8
+	CERT_QUERY_CONTENT_PKCS7_UNSIGNED          = 9
+	CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED      = 10
+	CERT_QUERY_CONTENT_PKCS10                  = 11
+	CERT_QUERY_CONTENT_PFX                     = 12
+	CERT_QUERY_CONTENT_CERT_PAIR               = 13
+	CERT_QUERY_CONTENT_PFX_AND_LOAD            = 14
+	CERT_QUERY_CONTENT_FLAG_CERT               = (1 << CERT_QUERY_CONTENT_CERT)
+	CERT_QUERY_CONTENT_FLAG_CTL                = (1 << CERT_QUERY_CONTENT_CTL)
+	CERT_QUERY_CONTENT_FLAG_CRL                = (1 << CERT_QUERY_CONTENT_CRL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE   = (1 << CERT_QUERY_CONTENT_SERIALIZED_STORE)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT    = (1 << CERT_QUERY_CONTENT_SERIALIZED_CERT)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CTL)
+	CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL     = (1 << CERT_QUERY_CONTENT_SERIALIZED_CRL)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED       = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED     = (1 << CERT_QUERY_CONTENT_PKCS7_UNSIGNED)
+	CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED = (1 << CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED)
+	CERT_QUERY_CONTENT_FLAG_PKCS10             = (1 << CERT_QUERY_CONTENT_PKCS10)
+	CERT_QUERY_CONTENT_FLAG_PFX                = (1 << CERT_QUERY_CONTENT_PFX)
+	CERT_QUERY_CONTENT_FLAG_CERT_PAIR          = (1 << CERT_QUERY_CONTENT_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_PFX_AND_LOAD       = (1 << CERT_QUERY_CONTENT_PFX_AND_LOAD)
+	CERT_QUERY_CONTENT_FLAG_ALL                = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_CTL | CERT_QUERY_CONTENT_FLAG_CRL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED | CERT_QUERY_CONTENT_FLAG_PKCS10 | CERT_QUERY_CONTENT_FLAG_PFX | CERT_QUERY_CONTENT_FLAG_CERT_PAIR)
+	CERT_QUERY_CONTENT_FLAG_ALL_ISSUER_CERT    = (CERT_QUERY_CONTENT_FLAG_CERT | CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE | CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT | CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED | CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED)
+
+	/* CryptQueryObject format type flags */
+	CERT_QUERY_FORMAT_BINARY                     = 1
+	CERT_QUERY_FORMAT_BASE64_ENCODED             = 2
+	CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED      = 3
+	CERT_QUERY_FORMAT_FLAG_BINARY                = (1 << CERT_QUERY_FORMAT_BINARY)
+	CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED        = (1 << CERT_QUERY_FORMAT_BASE64_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED = (1 << CERT_QUERY_FORMAT_ASN_ASCII_HEX_ENCODED)
+	CERT_QUERY_FORMAT_FLAG_ALL                   = (CERT_QUERY_FORMAT_FLAG_BINARY | CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED | CERT_QUERY_FORMAT_FLAG_ASN_ASCII_HEX_ENCODED)
+
+	/* CertGetNameString name types */
+	CERT_NAME_EMAIL_TYPE            = 1
+	CERT_NAME_RDN_TYPE              = 2
+	CERT_NAME_ATTR_TYPE             = 3
+	CERT_NAME_SIMPLE_DISPLAY_TYPE   = 4
+	CERT_NAME_FRIENDLY_DISPLAY_TYPE = 5
+	CERT_NAME_DNS_TYPE              = 6
+	CERT_NAME_URL_TYPE              = 7
+	CERT_NAME_UPN_TYPE              = 8
+
+	/* CertGetNameString flags */
+	CERT_NAME_ISSUER_FLAG              = 0x1
+	CERT_NAME_DISABLE_IE4_UTF8_FLAG    = 0x10000
+	CERT_NAME_SEARCH_ALL_NAMES_FLAG    = 0x2
+	CERT_NAME_STR_ENABLE_PUNYCODE_FLAG = 0x00200000
+
 	/* AuthType values for SSLExtraCertChainPolicyPara struct */
 	AUTHTYPE_CLIENT = 1
 	AUTHTYPE_SERVER = 2
@@ -419,6 +625,22 @@ const (
 	SECURITY_FLAG_IGNORE_WRONG_USAGE       = 0x00000200
 	SECURITY_FLAG_IGNORE_CERT_CN_INVALID   = 0x00001000
 	SECURITY_FLAG_IGNORE_CERT_DATE_INVALID = 0x00002000
+
+	/* Flags for Crypt[Un]ProtectData */
+	CRYPTPROTECT_UI_FORBIDDEN      = 0x1
+	CRYPTPROTECT_LOCAL_MACHINE     = 0x4
+	CRYPTPROTECT_CRED_SYNC         = 0x8
+	CRYPTPROTECT_AUDIT             = 0x10
+	CRYPTPROTECT_NO_RECOVERY       = 0x20
+	CRYPTPROTECT_VERIFY_PROTECTION = 0x40
+	CRYPTPROTECT_CRED_REGENERATE   = 0x80
+
+	/* Flags for CryptProtectPromptStruct */
+	CRYPTPROTECT_PROMPT_ON_UNPROTECT   = 1
+	CRYPTPROTECT_PROMPT_ON_PROTECT     = 2
+	CRYPTPROTECT_PROMPT_RESERVED       = 4
+	CRYPTPROTECT_PROMPT_STRONG         = 8
+	CRYPTPROTECT_PROMPT_REQUIRE_STRONG = 16
 )
 
 const (
@@ -441,10 +663,58 @@ const (
 	REALTIME_PRIORITY_CLASS       = 0x00000100
 )
 
+/* wintrust.h constants for WinVerifyTrustEx */
+const (
+	WTD_UI_ALL    = 1
+	WTD_UI_NONE   = 2
+	WTD_UI_NOBAD  = 3
+	WTD_UI_NOGOOD = 4
+
+	WTD_REVOKE_NONE       = 0
+	WTD_REVOKE_WHOLECHAIN = 1
+
+	WTD_CHOICE_FILE    = 1
+	WTD_CHOICE_CATALOG = 2
+	WTD_CHOICE_BLOB    = 3
+	WTD_CHOICE_SIGNER  = 4
+	WTD_CHOICE_CERT    = 5
+
+	WTD_STATEACTION_IGNORE           = 0x00000000
+	WTD_STATEACTION_VERIFY           = 0x00000010
+	WTD_STATEACTION_CLOSE            = 0x00000002
+	WTD_STATEACTION_AUTO_CACHE       = 0x00000003
+	WTD_STATEACTION_AUTO_CACHE_FLUSH = 0x00000004
+
+	WTD_USE_IE4_TRUST_FLAG                  = 0x1
+	WTD_NO_IE4_CHAIN_FLAG                   = 0x2
+	WTD_NO_POLICY_USAGE_FLAG                = 0x4
+	WTD_REVOCATION_CHECK_NONE               = 0x10
+	WTD_REVOCATION_CHECK_END_CERT           = 0x20
+	WTD_REVOCATION_CHECK_CHAIN              = 0x40
+	WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT = 0x80
+	WTD_SAFER_FLAG                          = 0x100
+	WTD_HASH_ONLY_FLAG                      = 0x200
+	WTD_USE_DEFAULT_OSVER_CHECK             = 0x400
+	WTD_LIFETIME_SIGNING_FLAG               = 0x800
+	WTD_CACHE_ONLY_URL_RETRIEVAL            = 0x1000
+	WTD_DISABLE_MD2_MD4                     = 0x2000
+	WTD_MOTW                                = 0x4000
+
+	WTD_UICONTEXT_EXECUTE = 0
+	WTD_UICONTEXT_INSTALL = 1
+)
+
 var (
 	OID_PKIX_KP_SERVER_AUTH = []byte("1.3.6.1.5.5.7.3.1\x00")
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
+
+	WINTRUST_ACTION_GENERIC_VERIFY_V2 = GUID{
+		Data1: 0xaac56b,
+		Data2: 0xcd44,
+		Data3: 0x11d0,
+		Data4: [8]byte{0x8c, 0xc2, 0x0, 0xc0, 0x4f, 0xc2, 0x95, 0xee},
+	}
 )
 
 // Pointer represents a pointer to an arbitrary Windows type.
@@ -540,6 +810,14 @@ type win32finddata1 struct {
 	Reserved1         uint32
 	FileName          [MAX_PATH]uint16
 	AlternateFileName [14]uint16
+
+	// The Microsoft documentation for this struct¹ describes three additional
+	// fields: dwFileType, dwCreatorType, and wFinderFlags. However, those fields
+	// are empirically only present in the macOS port of the Win32 API,² and thus
+	// not needed for binaries built for Windows.
+	//
+	// ¹ https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw describe
+	// ² https://golang.org/issue/42637#issuecomment-760715755.
 }
 
 func copyFindData(dst *Win32finddata, src *win32finddata1) {
@@ -622,6 +900,23 @@ type StartupInfo struct {
 	StdInput      Handle
 	StdOutput     Handle
 	StdErr        Handle
+}
+
+type StartupInfoEx struct {
+	StartupInfo
+	ProcThreadAttributeList *ProcThreadAttributeList
+}
+
+// ProcThreadAttributeList is a placeholder type to represent a PROC_THREAD_ATTRIBUTE_LIST.
+//
+// To create a *ProcThreadAttributeList, use NewProcThreadAttributeList, and
+// free its memory using ProcThreadAttributeList.Delete.
+type ProcThreadAttributeList struct {
+	// This is of type unsafe.Pointer, not of type byte or uintptr, because
+	// the contents of it is mostly a list of pointers, and in most cases,
+	// that's a list of pointers to Go-allocated objects. In order to keep
+	// the GC from collecting these objects, we declare this as unsafe.Pointer.
+	_ [1]unsafe.Pointer
 }
 
 type ProcessInformation struct {
@@ -725,6 +1020,7 @@ const (
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
+	IP_HDRINCL         = 0x2
 	IP_TOS             = 0x3
 	IP_TTL             = 0x4
 	IP_MULTICAST_IF    = 0x9
@@ -732,6 +1028,7 @@ const (
 	IP_MULTICAST_LOOP  = 0xb
 	IP_ADD_MEMBERSHIP  = 0xc
 	IP_DROP_MEMBERSHIP = 0xd
+	IP_PKTINFO         = 0x13
 
 	IPV6_V6ONLY         = 0x1b
 	IPV6_UNICAST_HOPS   = 0x4
@@ -740,6 +1037,7 @@ const (
 	IPV6_MULTICAST_LOOP = 0xb
 	IPV6_JOIN_GROUP     = 0xc
 	IPV6_LEAVE_GROUP    = 0xd
+	IPV6_PKTINFO        = 0x13
 
 	MSG_OOB       = 0x1
 	MSG_PEEK      = 0x2
@@ -776,6 +1074,18 @@ type WSAMsg struct {
 	Control     WSABuf
 	Flags       uint32
 }
+
+// Flags for WSASocket
+const (
+	WSA_FLAG_OVERLAPPED             = 0x01
+	WSA_FLAG_MULTIPOINT_C_ROOT      = 0x02
+	WSA_FLAG_MULTIPOINT_C_LEAF      = 0x04
+	WSA_FLAG_MULTIPOINT_D_ROOT      = 0x08
+	WSA_FLAG_MULTIPOINT_D_LEAF      = 0x10
+	WSA_FLAG_ACCESS_SYSTEM_SECURITY = 0x40
+	WSA_FLAG_NO_HANDLE_INHERIT      = 0x80
+	WSA_FLAG_REGISTERED_IO          = 0x100
+)
 
 // Invented values to support what package os expects.
 const (
@@ -1033,7 +1343,57 @@ type MibIfRow struct {
 }
 
 type CertInfo struct {
-	// Not implemented
+	Version              uint32
+	SerialNumber         CryptIntegerBlob
+	SignatureAlgorithm   CryptAlgorithmIdentifier
+	Issuer               CertNameBlob
+	NotBefore            Filetime
+	NotAfter             Filetime
+	Subject              CertNameBlob
+	SubjectPublicKeyInfo CertPublicKeyInfo
+	IssuerUniqueId       CryptBitBlob
+	SubjectUniqueId      CryptBitBlob
+	CountExtensions      uint32
+	Extensions           *CertExtension
+}
+
+type CertExtension struct {
+	ObjId    *byte
+	Critical int32
+	Value    CryptObjidBlob
+}
+
+type CryptAlgorithmIdentifier struct {
+	ObjId      *byte
+	Parameters CryptObjidBlob
+}
+
+type CertPublicKeyInfo struct {
+	Algorithm CryptAlgorithmIdentifier
+	PublicKey CryptBitBlob
+}
+
+type DataBlob struct {
+	Size uint32
+	Data *byte
+}
+type CryptIntegerBlob DataBlob
+type CryptUintBlob DataBlob
+type CryptObjidBlob DataBlob
+type CertNameBlob DataBlob
+type CertRdnValueBlob DataBlob
+type CertBlob DataBlob
+type CrlBlob DataBlob
+type CryptDataBlob DataBlob
+type CryptHashBlob DataBlob
+type CryptDigestBlob DataBlob
+type CryptDerBlob DataBlob
+type CryptAttrBlob DataBlob
+
+type CryptBitBlob struct {
+	Size       uint32
+	Data       *byte
+	UnusedBits uint32
 }
 
 type CertContext struct {
@@ -1137,6 +1497,79 @@ type CertChainPolicyStatus struct {
 	ChainIndex        uint32
 	ElementIndex      uint32
 	ExtraPolicyStatus Pointer
+}
+
+type CertPolicyInfo struct {
+	Identifier      *byte
+	CountQualifiers uint32
+	Qualifiers      *CertPolicyQualifierInfo
+}
+
+type CertPoliciesInfo struct {
+	Count       uint32
+	PolicyInfos *CertPolicyInfo
+}
+
+type CertPolicyQualifierInfo struct {
+	// Not implemented
+}
+
+type CertStrongSignPara struct {
+	Size                      uint32
+	InfoChoice                uint32
+	InfoOrSerializedInfoOrOID unsafe.Pointer
+}
+
+type CryptProtectPromptStruct struct {
+	Size        uint32
+	PromptFlags uint32
+	App         HWND
+	Prompt      *uint16
+}
+
+type CertChainFindByIssuerPara struct {
+	Size                   uint32
+	UsageIdentifier        *byte
+	KeySpec                uint32
+	AcquirePrivateKeyFlags uint32
+	IssuerCount            uint32
+	Issuer                 Pointer
+	FindCallback           Pointer
+	FindArg                Pointer
+	IssuerChainIndex       *uint32
+	IssuerElementIndex     *uint32
+}
+
+type WinTrustData struct {
+	Size                            uint32
+	PolicyCallbackData              uintptr
+	SIPClientData                   uintptr
+	UIChoice                        uint32
+	RevocationChecks                uint32
+	UnionChoice                     uint32
+	FileOrCatalogOrBlobOrSgnrOrCert unsafe.Pointer
+	StateAction                     uint32
+	StateData                       Handle
+	URLReference                    *uint16
+	ProvFlags                       uint32
+	UIContext                       uint32
+	SignatureSettings               *WinTrustSignatureSettings
+}
+
+type WinTrustFileInfo struct {
+	Size         uint32
+	FilePath     *uint16
+	File         Handle
+	KnownSubject *GUID
+}
+
+type WinTrustSignatureSettings struct {
+	Size             uint32
+	Index            uint32
+	Flags            uint32
+	SecondarySigs    uint32
+	VerifiedSigIndex uint32
+	CryptoPolicy     *CertStrongSignPara
 }
 
 const (
@@ -1820,3 +2253,522 @@ const (
 	LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER = 0x00004000
 	LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY      = 0x00008000
 )
+
+// RegNotifyChangeKeyValue notifyFilter flags.
+const (
+	// REG_NOTIFY_CHANGE_NAME notifies the caller if a subkey is added or deleted.
+	REG_NOTIFY_CHANGE_NAME = 0x00000001
+
+	// REG_NOTIFY_CHANGE_ATTRIBUTES notifies the caller of changes to the attributes of the key, such as the security descriptor information.
+	REG_NOTIFY_CHANGE_ATTRIBUTES = 0x00000002
+
+	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
+	REG_NOTIFY_CHANGE_LAST_SET = 0x00000004
+
+	// REG_NOTIFY_CHANGE_SECURITY notifies the caller of changes to the security descriptor of the key.
+	REG_NOTIFY_CHANGE_SECURITY = 0x00000008
+
+	// REG_NOTIFY_THREAD_AGNOSTIC indicates that the lifetime of the registration must not be tied to the lifetime of the thread issuing the RegNotifyChangeKeyValue call. Note: This flag value is only supported in Windows 8 and later.
+	REG_NOTIFY_THREAD_AGNOSTIC = 0x10000000
+)
+
+type CommTimeouts struct {
+	ReadIntervalTimeout         uint32
+	ReadTotalTimeoutMultiplier  uint32
+	ReadTotalTimeoutConstant    uint32
+	WriteTotalTimeoutMultiplier uint32
+	WriteTotalTimeoutConstant   uint32
+}
+
+// NTUnicodeString is a UTF-16 string for NT native APIs, corresponding to UNICODE_STRING.
+type NTUnicodeString struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *uint16
+}
+
+// NTString is an ANSI string for NT native APIs, corresponding to STRING.
+type NTString struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *byte
+}
+
+type LIST_ENTRY struct {
+	Flink *LIST_ENTRY
+	Blink *LIST_ENTRY
+}
+
+type LDR_DATA_TABLE_ENTRY struct {
+	reserved1          [2]uintptr
+	InMemoryOrderLinks LIST_ENTRY
+	reserved2          [2]uintptr
+	DllBase            uintptr
+	reserved3          [2]uintptr
+	FullDllName        NTUnicodeString
+	reserved4          [8]byte
+	reserved5          [3]uintptr
+	reserved6          uintptr
+	TimeDateStamp      uint32
+}
+
+type PEB_LDR_DATA struct {
+	reserved1               [8]byte
+	reserved2               [3]uintptr
+	InMemoryOrderModuleList LIST_ENTRY
+}
+
+type CURDIR struct {
+	DosPath NTUnicodeString
+	Handle  Handle
+}
+
+type RTL_DRIVE_LETTER_CURDIR struct {
+	Flags     uint16
+	Length    uint16
+	TimeStamp uint32
+	DosPath   NTString
+}
+
+type RTL_USER_PROCESS_PARAMETERS struct {
+	MaximumLength, Length uint32
+
+	Flags, DebugFlags uint32
+
+	ConsoleHandle                                Handle
+	ConsoleFlags                                 uint32
+	StandardInput, StandardOutput, StandardError Handle
+
+	CurrentDirectory CURDIR
+	DllPath          NTUnicodeString
+	ImagePathName    NTUnicodeString
+	CommandLine      NTUnicodeString
+	Environment      unsafe.Pointer
+
+	StartingX, StartingY, CountX, CountY, CountCharsX, CountCharsY, FillAttribute uint32
+
+	WindowFlags, ShowWindowFlags                     uint32
+	WindowTitle, DesktopInfo, ShellInfo, RuntimeData NTUnicodeString
+	CurrentDirectories                               [32]RTL_DRIVE_LETTER_CURDIR
+
+	EnvironmentSize, EnvironmentVersion uintptr
+
+	PackageDependencyData unsafe.Pointer
+	ProcessGroupId        uint32
+	LoaderThreads         uint32
+
+	RedirectionDllName               NTUnicodeString
+	HeapPartitionName                NTUnicodeString
+	DefaultThreadpoolCpuSetMasks     uintptr
+	DefaultThreadpoolCpuSetMaskCount uint32
+}
+
+type PEB struct {
+	reserved1              [2]byte
+	BeingDebugged          byte
+	BitField               byte
+	reserved3              uintptr
+	ImageBaseAddress       uintptr
+	Ldr                    *PEB_LDR_DATA
+	ProcessParameters      *RTL_USER_PROCESS_PARAMETERS
+	reserved4              [3]uintptr
+	AtlThunkSListPtr       uintptr
+	reserved5              uintptr
+	reserved6              uint32
+	reserved7              uintptr
+	reserved8              uint32
+	AtlThunkSListPtr32     uint32
+	reserved9              [45]uintptr
+	reserved10             [96]byte
+	PostProcessInitRoutine uintptr
+	reserved11             [128]byte
+	reserved12             [1]uintptr
+	SessionId              uint32
+}
+
+type OBJECT_ATTRIBUTES struct {
+	Length             uint32
+	RootDirectory      Handle
+	ObjectName         *NTUnicodeString
+	Attributes         uint32
+	SecurityDescriptor *SECURITY_DESCRIPTOR
+	SecurityQoS        *SECURITY_QUALITY_OF_SERVICE
+}
+
+// Values for the Attributes member of OBJECT_ATTRIBUTES.
+const (
+	OBJ_INHERIT                       = 0x00000002
+	OBJ_PERMANENT                     = 0x00000010
+	OBJ_EXCLUSIVE                     = 0x00000020
+	OBJ_CASE_INSENSITIVE              = 0x00000040
+	OBJ_OPENIF                        = 0x00000080
+	OBJ_OPENLINK                      = 0x00000100
+	OBJ_KERNEL_HANDLE                 = 0x00000200
+	OBJ_FORCE_ACCESS_CHECK            = 0x00000400
+	OBJ_IGNORE_IMPERSONATED_DEVICEMAP = 0x00000800
+	OBJ_DONT_REPARSE                  = 0x00001000
+	OBJ_VALID_ATTRIBUTES              = 0x00001FF2
+)
+
+type IO_STATUS_BLOCK struct {
+	Status      NTStatus
+	Information uintptr
+}
+
+type RTLP_CURDIR_REF struct {
+	RefCount int32
+	Handle   Handle
+}
+
+type RTL_RELATIVE_NAME struct {
+	RelativeName        NTUnicodeString
+	ContainingDirectory Handle
+	CurDirRef           *RTLP_CURDIR_REF
+}
+
+const (
+	// CreateDisposition flags for NtCreateFile and NtCreateNamedPipeFile.
+	FILE_SUPERSEDE           = 0x00000000
+	FILE_OPEN                = 0x00000001
+	FILE_CREATE              = 0x00000002
+	FILE_OPEN_IF             = 0x00000003
+	FILE_OVERWRITE           = 0x00000004
+	FILE_OVERWRITE_IF        = 0x00000005
+	FILE_MAXIMUM_DISPOSITION = 0x00000005
+
+	// CreateOptions flags for NtCreateFile and NtCreateNamedPipeFile.
+	FILE_DIRECTORY_FILE            = 0x00000001
+	FILE_WRITE_THROUGH             = 0x00000002
+	FILE_SEQUENTIAL_ONLY           = 0x00000004
+	FILE_NO_INTERMEDIATE_BUFFERING = 0x00000008
+	FILE_SYNCHRONOUS_IO_ALERT      = 0x00000010
+	FILE_SYNCHRONOUS_IO_NONALERT   = 0x00000020
+	FILE_NON_DIRECTORY_FILE        = 0x00000040
+	FILE_CREATE_TREE_CONNECTION    = 0x00000080
+	FILE_COMPLETE_IF_OPLOCKED      = 0x00000100
+	FILE_NO_EA_KNOWLEDGE           = 0x00000200
+	FILE_OPEN_REMOTE_INSTANCE      = 0x00000400
+	FILE_RANDOM_ACCESS             = 0x00000800
+	FILE_DELETE_ON_CLOSE           = 0x00001000
+	FILE_OPEN_BY_FILE_ID           = 0x00002000
+	FILE_OPEN_FOR_BACKUP_INTENT    = 0x00004000
+	FILE_NO_COMPRESSION            = 0x00008000
+	FILE_OPEN_REQUIRING_OPLOCK     = 0x00010000
+	FILE_DISALLOW_EXCLUSIVE        = 0x00020000
+	FILE_RESERVE_OPFILTER          = 0x00100000
+	FILE_OPEN_REPARSE_POINT        = 0x00200000
+	FILE_OPEN_NO_RECALL            = 0x00400000
+	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
+
+	// Parameter constants for NtCreateNamedPipeFile.
+
+	FILE_PIPE_BYTE_STREAM_TYPE = 0x00000000
+	FILE_PIPE_MESSAGE_TYPE     = 0x00000001
+
+	FILE_PIPE_ACCEPT_REMOTE_CLIENTS = 0x00000000
+	FILE_PIPE_REJECT_REMOTE_CLIENTS = 0x00000002
+
+	FILE_PIPE_TYPE_VALID_MASK = 0x00000003
+
+	FILE_PIPE_BYTE_STREAM_MODE = 0x00000000
+	FILE_PIPE_MESSAGE_MODE     = 0x00000001
+
+	FILE_PIPE_QUEUE_OPERATION    = 0x00000000
+	FILE_PIPE_COMPLETE_OPERATION = 0x00000001
+
+	FILE_PIPE_INBOUND     = 0x00000000
+	FILE_PIPE_OUTBOUND    = 0x00000001
+	FILE_PIPE_FULL_DUPLEX = 0x00000002
+
+	FILE_PIPE_DISCONNECTED_STATE = 0x00000001
+	FILE_PIPE_LISTENING_STATE    = 0x00000002
+	FILE_PIPE_CONNECTED_STATE    = 0x00000003
+	FILE_PIPE_CLOSING_STATE      = 0x00000004
+
+	FILE_PIPE_CLIENT_END = 0x00000000
+	FILE_PIPE_SERVER_END = 0x00000001
+)
+
+// ProcessInformationClasses for NtQueryInformationProcess and NtSetInformationProcess.
+const (
+	ProcessBasicInformation = iota
+	ProcessQuotaLimits
+	ProcessIoCounters
+	ProcessVmCounters
+	ProcessTimes
+	ProcessBasePriority
+	ProcessRaisePriority
+	ProcessDebugPort
+	ProcessExceptionPort
+	ProcessAccessToken
+	ProcessLdtInformation
+	ProcessLdtSize
+	ProcessDefaultHardErrorMode
+	ProcessIoPortHandlers
+	ProcessPooledUsageAndLimits
+	ProcessWorkingSetWatch
+	ProcessUserModeIOPL
+	ProcessEnableAlignmentFaultFixup
+	ProcessPriorityClass
+	ProcessWx86Information
+	ProcessHandleCount
+	ProcessAffinityMask
+	ProcessPriorityBoost
+	ProcessDeviceMap
+	ProcessSessionInformation
+	ProcessForegroundInformation
+	ProcessWow64Information
+	ProcessImageFileName
+	ProcessLUIDDeviceMapsEnabled
+	ProcessBreakOnTermination
+	ProcessDebugObjectHandle
+	ProcessDebugFlags
+	ProcessHandleTracing
+	ProcessIoPriority
+	ProcessExecuteFlags
+	ProcessTlsInformation
+	ProcessCookie
+	ProcessImageInformation
+	ProcessCycleTime
+	ProcessPagePriority
+	ProcessInstrumentationCallback
+	ProcessThreadStackAllocation
+	ProcessWorkingSetWatchEx
+	ProcessImageFileNameWin32
+	ProcessImageFileMapping
+	ProcessAffinityUpdateMode
+	ProcessMemoryAllocationMode
+	ProcessGroupInformation
+	ProcessTokenVirtualizationEnabled
+	ProcessConsoleHostProcess
+	ProcessWindowInformation
+	ProcessHandleInformation
+	ProcessMitigationPolicy
+	ProcessDynamicFunctionTableInformation
+	ProcessHandleCheckingMode
+	ProcessKeepAliveCount
+	ProcessRevokeFileHandles
+	ProcessWorkingSetControl
+	ProcessHandleTable
+	ProcessCheckStackExtentsMode
+	ProcessCommandLineInformation
+	ProcessProtectionInformation
+	ProcessMemoryExhaustion
+	ProcessFaultInformation
+	ProcessTelemetryIdInformation
+	ProcessCommitReleaseInformation
+	ProcessDefaultCpuSetsInformation
+	ProcessAllowedCpuSetsInformation
+	ProcessSubsystemProcess
+	ProcessJobMemoryInformation
+	ProcessInPrivate
+	ProcessRaiseUMExceptionOnInvalidHandleClose
+	ProcessIumChallengeResponse
+	ProcessChildProcessInformation
+	ProcessHighGraphicsPriorityInformation
+	ProcessSubsystemInformation
+	ProcessEnergyValues
+	ProcessActivityThrottleState
+	ProcessActivityThrottlePolicy
+	ProcessWin32kSyscallFilterInformation
+	ProcessDisableSystemAllowedCpuSets
+	ProcessWakeInformation
+	ProcessEnergyTrackingState
+	ProcessManageWritesToExecutableMemory
+	ProcessCaptureTrustletLiveDump
+	ProcessTelemetryCoverage
+	ProcessEnclaveInformation
+	ProcessEnableReadWriteVmLogging
+	ProcessUptimeInformation
+	ProcessImageSection
+	ProcessDebugAuthInformation
+	ProcessSystemResourceManagement
+	ProcessSequenceNumber
+	ProcessLoaderDetour
+	ProcessSecurityDomainInformation
+	ProcessCombineSecurityDomainsInformation
+	ProcessEnableLogging
+	ProcessLeapSecondInformation
+	ProcessFiberShadowStackAllocation
+	ProcessFreeFiberShadowStackAllocation
+	ProcessAltSystemCallInformation
+	ProcessDynamicEHContinuationTargets
+	ProcessDynamicEnforcedCetCompatibleRanges
+)
+
+type PROCESS_BASIC_INFORMATION struct {
+	ExitStatus                   NTStatus
+	PebBaseAddress               *PEB
+	AffinityMask                 uintptr
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+}
+
+// Constants for LocalAlloc flags.
+const (
+	LMEM_FIXED          = 0x0
+	LMEM_MOVEABLE       = 0x2
+	LMEM_NOCOMPACT      = 0x10
+	LMEM_NODISCARD      = 0x20
+	LMEM_ZEROINIT       = 0x40
+	LMEM_MODIFY         = 0x80
+	LMEM_DISCARDABLE    = 0xf00
+	LMEM_VALID_FLAGS    = 0xf72
+	LMEM_INVALID_HANDLE = 0x8000
+	LHND                = LMEM_MOVEABLE | LMEM_ZEROINIT
+	LPTR                = LMEM_FIXED | LMEM_ZEROINIT
+	NONZEROLHND         = LMEM_MOVEABLE
+	NONZEROLPTR         = LMEM_FIXED
+)
+
+// Constants for the CreateNamedPipe-family of functions.
+const (
+	PIPE_ACCESS_INBOUND  = 0x1
+	PIPE_ACCESS_OUTBOUND = 0x2
+	PIPE_ACCESS_DUPLEX   = 0x3
+
+	PIPE_CLIENT_END = 0x0
+	PIPE_SERVER_END = 0x1
+
+	PIPE_WAIT                  = 0x0
+	PIPE_NOWAIT                = 0x1
+	PIPE_READMODE_BYTE         = 0x0
+	PIPE_READMODE_MESSAGE      = 0x2
+	PIPE_TYPE_BYTE             = 0x0
+	PIPE_TYPE_MESSAGE          = 0x4
+	PIPE_ACCEPT_REMOTE_CLIENTS = 0x0
+	PIPE_REJECT_REMOTE_CLIENTS = 0x8
+
+	PIPE_UNLIMITED_INSTANCES = 255
+)
+
+// Constants for security attributes when opening named pipes.
+const (
+	SECURITY_ANONYMOUS      = SecurityAnonymous << 16
+	SECURITY_IDENTIFICATION = SecurityIdentification << 16
+	SECURITY_IMPERSONATION  = SecurityImpersonation << 16
+	SECURITY_DELEGATION     = SecurityDelegation << 16
+
+	SECURITY_CONTEXT_TRACKING = 0x40000
+	SECURITY_EFFECTIVE_ONLY   = 0x80000
+
+	SECURITY_SQOS_PRESENT     = 0x100000
+	SECURITY_VALID_SQOS_FLAGS = 0x1f0000
+)
+
+// ResourceID represents a 16-bit resource identifier, traditionally created with the MAKEINTRESOURCE macro.
+type ResourceID uint16
+
+// ResourceIDOrString must be either a ResourceID, to specify a resource or resource type by ID,
+// or a string, to specify a resource or resource type by name.
+type ResourceIDOrString interface{}
+
+// Predefined resource names and types.
+var (
+	// Predefined names.
+	CREATEPROCESS_MANIFEST_RESOURCE_ID                 ResourceID = 1
+	ISOLATIONAWARE_MANIFEST_RESOURCE_ID                ResourceID = 2
+	ISOLATIONAWARE_NOSTATICIMPORT_MANIFEST_RESOURCE_ID ResourceID = 3
+	ISOLATIONPOLICY_MANIFEST_RESOURCE_ID               ResourceID = 4
+	ISOLATIONPOLICY_BROWSER_MANIFEST_RESOURCE_ID       ResourceID = 5
+	MINIMUM_RESERVED_MANIFEST_RESOURCE_ID              ResourceID = 1  // inclusive
+	MAXIMUM_RESERVED_MANIFEST_RESOURCE_ID              ResourceID = 16 // inclusive
+
+	// Predefined types.
+	RT_CURSOR       ResourceID = 1
+	RT_BITMAP       ResourceID = 2
+	RT_ICON         ResourceID = 3
+	RT_MENU         ResourceID = 4
+	RT_DIALOG       ResourceID = 5
+	RT_STRING       ResourceID = 6
+	RT_FONTDIR      ResourceID = 7
+	RT_FONT         ResourceID = 8
+	RT_ACCELERATOR  ResourceID = 9
+	RT_RCDATA       ResourceID = 10
+	RT_MESSAGETABLE ResourceID = 11
+	RT_GROUP_CURSOR ResourceID = 12
+	RT_GROUP_ICON   ResourceID = 14
+	RT_VERSION      ResourceID = 16
+	RT_DLGINCLUDE   ResourceID = 17
+	RT_PLUGPLAY     ResourceID = 19
+	RT_VXD          ResourceID = 20
+	RT_ANICURSOR    ResourceID = 21
+	RT_ANIICON      ResourceID = 22
+	RT_HTML         ResourceID = 23
+	RT_MANIFEST     ResourceID = 24
+)
+
+type COAUTHIDENTITY struct {
+	User           *uint16
+	UserLength     uint32
+	Domain         *uint16
+	DomainLength   uint32
+	Password       *uint16
+	PasswordLength uint32
+	Flags          uint32
+}
+
+type COAUTHINFO struct {
+	AuthnSvc           uint32
+	AuthzSvc           uint32
+	ServerPrincName    *uint16
+	AuthnLevel         uint32
+	ImpersonationLevel uint32
+	AuthIdentityData   *COAUTHIDENTITY
+	Capabilities       uint32
+}
+
+type COSERVERINFO struct {
+	Reserved1 uint32
+	Aame      *uint16
+	AuthInfo  *COAUTHINFO
+	Reserved2 uint32
+}
+
+type BIND_OPTS3 struct {
+	CbStruct          uint32
+	Flags             uint32
+	Mode              uint32
+	TickCountDeadline uint32
+	TrackFlags        uint32
+	ClassContext      uint32
+	Locale            uint32
+	ServerInfo        *COSERVERINFO
+	Hwnd              HWND
+}
+
+const (
+	CLSCTX_INPROC_SERVER          = 0x1
+	CLSCTX_INPROC_HANDLER         = 0x2
+	CLSCTX_LOCAL_SERVER           = 0x4
+	CLSCTX_INPROC_SERVER16        = 0x8
+	CLSCTX_REMOTE_SERVER          = 0x10
+	CLSCTX_INPROC_HANDLER16       = 0x20
+	CLSCTX_RESERVED1              = 0x40
+	CLSCTX_RESERVED2              = 0x80
+	CLSCTX_RESERVED3              = 0x100
+	CLSCTX_RESERVED4              = 0x200
+	CLSCTX_NO_CODE_DOWNLOAD       = 0x400
+	CLSCTX_RESERVED5              = 0x800
+	CLSCTX_NO_CUSTOM_MARSHAL      = 0x1000
+	CLSCTX_ENABLE_CODE_DOWNLOAD   = 0x2000
+	CLSCTX_NO_FAILURE_LOG         = 0x4000
+	CLSCTX_DISABLE_AAA            = 0x8000
+	CLSCTX_ENABLE_AAA             = 0x10000
+	CLSCTX_FROM_DEFAULT_CONTEXT   = 0x20000
+	CLSCTX_ACTIVATE_32_BIT_SERVER = 0x40000
+	CLSCTX_ACTIVATE_64_BIT_SERVER = 0x80000
+	CLSCTX_ENABLE_CLOAKING        = 0x100000
+	CLSCTX_APPCONTAINER           = 0x400000
+	CLSCTX_ACTIVATE_AAA_AS_IU     = 0x800000
+	CLSCTX_PS_DLL                 = 0x80000000
+
+	COINIT_MULTITHREADED     = 0x0
+	COINIT_APARTMENTTHREADED = 0x2
+	COINIT_DISABLE_OLE1DDE   = 0x4
+	COINIT_SPEED_OVER_MEMORY = 0x8
+)
+
+// Flag for QueryFullProcessImageName.
+const PROCESS_NAME_NATIVE = 1

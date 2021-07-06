@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -712,7 +713,8 @@ func (s *Sample) DiffBaseSample() bool {
 	return s.HasLabel("pprof::base", "true")
 }
 
-// Scale multiplies all sample values in a profile by a constant.
+// Scale multiplies all sample values in a profile by a constant and keeps
+// only samples that have at least one non-zero value.
 func (p *Profile) Scale(ratio float64) {
 	if ratio == 1 {
 		return
@@ -724,7 +726,8 @@ func (p *Profile) Scale(ratio float64) {
 	p.ScaleN(ratios)
 }
 
-// ScaleN multiplies each sample values in a sample by a different amount.
+// ScaleN multiplies each sample values in a sample by a different amount
+// and keeps only samples that have at least one non-zero value.
 func (p *Profile) ScaleN(ratios []float64) error {
 	if len(p.SampleType) != len(ratios) {
 		return fmt.Errorf("mismatched scale ratios, got %d, want %d", len(ratios), len(p.SampleType))
@@ -739,13 +742,22 @@ func (p *Profile) ScaleN(ratios []float64) error {
 	if allOnes {
 		return nil
 	}
+	fillIdx := 0
 	for _, s := range p.Sample {
+		keepSample := false
 		for i, v := range s.Value {
 			if ratios[i] != 1 {
-				s.Value[i] = int64(float64(v) * ratios[i])
+				val := int64(math.Round(float64(v) * ratios[i]))
+				s.Value[i] = val
+				keepSample = keepSample || val != 0
 			}
 		}
+		if keepSample {
+			p.Sample[fillIdx] = s
+			fillIdx++
+		}
 	}
+	p.Sample = p.Sample[:fillIdx]
 	return nil
 }
 

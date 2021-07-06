@@ -164,6 +164,8 @@ var goodLinkerFlags = [][]string{
 	{"-Wl,-framework", "-Wl,Chocolate"},
 	{"-Wl,-framework,Chocolate"},
 	{"-Wl,-unresolved-symbols=ignore-all"},
+	{"libcgotbdtest.tbd"},
+	{"./libcgotbdtest.tbd"},
 }
 
 var badLinkerFlags = [][]string{

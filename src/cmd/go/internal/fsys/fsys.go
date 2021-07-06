@@ -44,7 +44,7 @@ func (n *node) isDeleted() bool {
 
 // TODO(matloob): encapsulate these in an io/fs-like interface
 var overlay map[string]*node // path -> file or directory node
-var cwd string               // copy of base.Cwd to avoid dependency
+var cwd string               // copy of base.Cwd() to avoid dependency
 
 // Canonicalize a path for looking it up in the overlay.
 // Important: filepath.Join(cwd, path) doesn't always produce
@@ -100,7 +100,7 @@ func Init(wd string) error {
 }
 
 func initFromJSON(overlayJSON OverlayJSON) error {
-	// Canonicalize the paths in in the overlay map.
+	// Canonicalize the paths in the overlay map.
 	// Use reverseCanonicalized to check for collisions:
 	// no two 'from' paths should canonicalize to the same path.
 	overlay = make(map[string]*node)

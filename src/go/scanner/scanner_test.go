@@ -628,7 +628,7 @@ func TestInvalidLineDirectives(t *testing.T) {
 	}
 
 	if S.ErrorCount != len(invalidSegments) {
-		t.Errorf("go %d errors; want %d", S.ErrorCount, len(invalidSegments))
+		t.Errorf("got %d errors; want %d", S.ErrorCount, len(invalidSegments))
 	}
 }
 
@@ -812,6 +812,8 @@ var errors = []struct {
 	{"//\ufeff", token.COMMENT, 2, "//\ufeff", "illegal byte order mark"},                                // only first BOM is ignored
 	{"'\ufeff" + `'`, token.CHAR, 1, "'\ufeff" + `'`, "illegal byte order mark"},                         // only first BOM is ignored
 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
+	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
+	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
 }
 
 func TestScanErrors(t *testing.T) {
@@ -889,26 +891,37 @@ func BenchmarkScan(b *testing.B) {
 	}
 }
 
-func BenchmarkScanFile(b *testing.B) {
-	b.StopTimer()
-	const filename = "scanner.go"
-	src, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	fset := token.NewFileSet()
-	file := fset.AddFile(filename, fset.Base(), len(src))
-	b.SetBytes(int64(len(src)))
-	var s Scanner
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		s.Init(file, src, nil, ScanComments)
-		for {
-			_, tok, _ := s.Scan()
-			if tok == token.EOF {
-				break
+func BenchmarkScanFiles(b *testing.B) {
+	// Scan a few arbitrary large files, and one small one, to provide some
+	// variety in benchmarks.
+	for _, p := range []string{
+		"go/types/expr.go",
+		"go/parser/parser.go",
+		"net/http/server.go",
+		"go/scanner/errors.go",
+	} {
+		b.Run(p, func(b *testing.B) {
+			b.StopTimer()
+			filename := filepath.Join("..", "..", filepath.FromSlash(p))
+			src, err := os.ReadFile(filename)
+			if err != nil {
+				b.Fatal(err)
 			}
-		}
+			fset := token.NewFileSet()
+			file := fset.AddFile(filename, fset.Base(), len(src))
+			b.SetBytes(int64(len(src)))
+			var s Scanner
+			b.StartTimer()
+			for i := 0; i < b.N; i++ {
+				s.Init(file, src, nil, ScanComments)
+				for {
+					_, tok, _ := s.Scan()
+					if tok == token.EOF {
+						break
+					}
+				}
+			}
+		})
 	}
 }
 

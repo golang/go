@@ -6,67 +6,12 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
 type mOS struct {
 	waitsemacount uint32
 }
-
-//go:noescape
-func setitimer(mode int32, new, old *itimerval)
-
-//go:noescape
-func sigaction(sig uint32, new, old *sigactiont)
-
-//go:noescape
-func sigaltstack(new, old *stackt)
-
-//go:noescape
-func obsdsigprocmask(how int32, new sigset) sigset
-
-//go:nosplit
-//go:nowritebarrierrec
-func sigprocmask(how int32, new, old *sigset) {
-	n := sigset(0)
-	if new != nil {
-		n = *new
-	}
-	r := obsdsigprocmask(how, n)
-	if old != nil {
-		*old = r
-	}
-}
-
-//go:noescape
-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
-
-func raiseproc(sig uint32)
-
-func getthrid() int32
-func thrkill(tid int32, sig int)
-
-//go:noescape
-func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
-
-//go:noescape
-func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
-
-//go:noescape
-func thrwakeup(ident uintptr, n int32) int32
-
-func osyield()
-
-func kqueue() int32
-
-//go:noescape
-func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
-
-func pipe() (r, w int32, errno int32)
-func pipe2(flags int32) (r, w int32, errno int32)
-func closeonexec(fd int32)
-func setNonblock(fd int32)
 
 const (
 	_ESRCH       = 3
@@ -183,36 +128,6 @@ func semawakeup(mp *m) {
 	}
 }
 
-// May run with m.p==nil, so write barriers are not allowed.
-//go:nowritebarrier
-func newosproc(mp *m) {
-	stk := unsafe.Pointer(mp.g0.stack.hi)
-	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
-	}
-
-	// Stack pointer must point inside stack area (as marked with MAP_STACK),
-	// rather than at the top of it.
-	param := tforkt{
-		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
-		tf_tid:   nil, // minit will record tid
-		tf_stack: uintptr(stk) - sys.PtrSize,
-	}
-
-	var oset sigset
-	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
-	sigprocmask(_SIG_SETMASK, &oset, nil)
-
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
-			println("runtime: may need to increase max user processes (ulimit -p)")
-		}
-		throw("runtime.newosproc")
-	}
-}
-
 func osinit() {
 	ncpu = getncpu()
 	physPageSize = getPageSize()
@@ -255,6 +170,11 @@ func minit() {
 //go:nosplit
 func unminit() {
 	unminitSignals()
+}
+
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
 }
 
 func sigtramp()

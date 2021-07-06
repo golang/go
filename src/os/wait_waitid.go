@@ -5,6 +5,7 @@
 // We used to used this code for Darwin, but according to issue #19314
 // waitid returns if the process is stopped, even when using WEXITED.
 
+//go:build linux
 // +build linux
 
 package os
@@ -22,7 +23,7 @@ const _P_PID = 1
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
 	// The waitid system call expects a pointer to a siginfo_t,
-	// which is 128 bytes on all GNU/Linux systems.
+	// which is 128 bytes on all Linux systems.
 	// On darwin/amd64, it requires 104 bytes.
 	// We don't care about the values it returns.
 	var siginfo [16]uint64

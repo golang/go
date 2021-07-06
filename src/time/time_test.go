@@ -202,6 +202,28 @@ func TestNanosecondsToUTCAndBack(t *testing.T) {
 	}
 }
 
+func TestUnixMilli(t *testing.T) {
+	f := func(msec int64) bool {
+		t := UnixMilli(msec)
+		return t.UnixMilli() == msec
+	}
+	cfg := &quick.Config{MaxCount: 10000}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnixMicro(t *testing.T) {
+	f := func(usec int64) bool {
+		t := UnixMicro(usec)
+		return t.UnixMicro() == usec
+	}
+	cfg := &quick.Config{MaxCount: 10000}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // The time routines provide no way to get absolute time
 // (seconds since zero), but we need it to compute the right
 // answer for bizarre roundings like "to the nearest 3 ns".
@@ -895,6 +917,11 @@ var parseDurationErrorTests = []struct {
 	{".s", `".s"`},
 	{"+.s", `"+.s"`},
 	{"1d", `"1d"`},
+	{"\x85\x85", `"\x85\x85"`},
+	{"\xffff", `"\xffff"`},
+	{"hello \xffff world", `"hello \xffff world"`},
+	{"\uFFFD", `"\xef\xbf\xbd"`},                                             // utf8.RuneError
+	{"\uFFFD hello \uFFFD world", `"\xef\xbf\xbd hello \xef\xbf\xbd world"`}, // utf8.RuneError
 	// overflow
 	{"9223372036854775810ns", `"9223372036854775810ns"`},
 	{"9223372036854775808ns", `"9223372036854775808ns"`},
@@ -959,6 +986,8 @@ var mallocTest = []struct {
 }{
 	{0, `time.Now()`, func() { t = Now() }},
 	{0, `time.Now().UnixNano()`, func() { u = Now().UnixNano() }},
+	{0, `time.Now().UnixMilli()`, func() { u = Now().UnixMilli() }},
+	{0, `time.Now().UnixMicro()`, func() { u = Now().UnixMicro() }},
 }
 
 func TestCountMallocs(t *testing.T) {
@@ -1249,6 +1278,8 @@ var defaultLocTests = []struct {
 
 	{"Unix", func(t1, t2 Time) bool { return t1.Unix() == t2.Unix() }},
 	{"UnixNano", func(t1, t2 Time) bool { return t1.UnixNano() == t2.UnixNano() }},
+	{"UnixMilli", func(t1, t2 Time) bool { return t1.UnixMilli() == t2.UnixMilli() }},
+	{"UnixMicro", func(t1, t2 Time) bool { return t1.UnixMicro() == t2.UnixMicro() }},
 
 	{"MarshalBinary", func(t1, t2 Time) bool {
 		a1, b1 := t1.MarshalBinary()
@@ -1298,6 +1329,18 @@ func BenchmarkNow(b *testing.B) {
 func BenchmarkNowUnixNano(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		u = Now().UnixNano()
+	}
+}
+
+func BenchmarkNowUnixMilli(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		u = Now().UnixMilli()
+	}
+}
+
+func BenchmarkNowUnixMicro(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		u = Now().UnixMicro()
 	}
 }
 
@@ -1464,4 +1507,65 @@ func TestConcurrentTimerResetStop(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestTimeIsDST(t *testing.T) {
+	ForceZipFileForTesting(true)
+	defer ForceZipFileForTesting(false)
+
+	tzWithDST, err := LoadLocation("Australia/Sydney")
+	if err != nil {
+		t.Fatalf("could not load tz 'Australia/Sydney': %v", err)
+	}
+	tzWithoutDST, err := LoadLocation("Australia/Brisbane")
+	if err != nil {
+		t.Fatalf("could not load tz 'Australia/Brisbane': %v", err)
+	}
+	tzFixed := FixedZone("FIXED_TIME", 12345)
+
+	tests := [...]struct {
+		time Time
+		want bool
+	}{
+		0: {Date(2009, 1, 1, 12, 0, 0, 0, UTC), false},
+		1: {Date(2009, 6, 1, 12, 0, 0, 0, UTC), false},
+		2: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithDST), true},
+		3: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithDST), false},
+		4: {Date(2009, 1, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		5: {Date(2009, 6, 1, 12, 0, 0, 0, tzWithoutDST), false},
+		6: {Date(2009, 1, 1, 12, 0, 0, 0, tzFixed), false},
+		7: {Date(2009, 6, 1, 12, 0, 0, 0, tzFixed), false},
+	}
+
+	for i, tt := range tests {
+		got := tt.time.IsDST()
+		if got != tt.want {
+			t.Errorf("#%d:: (%#v).IsDST()=%t, want %t", i, tt.time.Format(RFC3339), got, tt.want)
+		}
+	}
+}
+
+func TestTimeAddSecOverflow(t *testing.T) {
+	// Test it with positive delta.
+	var maxInt64 int64 = 1<<63 - 1
+	timeExt := maxInt64 - UnixToInternal - 50
+	notMonoTime := Unix(timeExt, 0)
+	for i := int64(0); i < 100; i++ {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
+		}
+	}
+
+	// Test it with negative delta.
+	maxInt64 = -maxInt64
+	notMonoTime = NotMonoNegativeTime
+	for i := int64(0); i > -100; i-- {
+		sec := notMonoTime.Unix()
+		notMonoTime = notMonoTime.Add(Duration(i * 1e9))
+		if newSec := notMonoTime.Unix(); newSec != sec+i && newSec+UnixToInternal != maxInt64 {
+			t.Fatalf("time ext: %d overflows with positive delta, overflow threshold: %d", newSec, maxInt64)
+		}
+	}
 }

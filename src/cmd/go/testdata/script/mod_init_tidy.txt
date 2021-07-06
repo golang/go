@@ -8,14 +8,14 @@ cd ..
 # 'go mod init' should recommend 'go mod tidy' if the directory has a .go file.
 cd pkginroot
 go mod init m
-stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
+stderr '^go: to add module requirements and sums:\n\tgo mod tidy$'
 cd ..
 
 # 'go mod init' should recommend 'go mod tidy' if the directory has a
 # subdirectory. We don't walk the tree to see if it has .go files.
 cd subdir
 go mod init m
-stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
+stderr '^go: to add module requirements and sums:\n\tgo mod tidy$'
 cd ..
 
 -- empty/empty.txt --

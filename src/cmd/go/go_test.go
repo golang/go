@@ -72,7 +72,6 @@ func tooSlow(t *testing.T) {
 // (temp) directory.
 var testGOROOT string
 
-var testCC string
 var testGOCACHE string
 
 var testGo string
@@ -179,13 +178,6 @@ func TestMain(m *testing.M) {
 			os.Exit(2)
 		}
 
-		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
-			os.Exit(2)
-		}
-		testCC = strings.TrimSpace(string(out))
-
 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
 		cmd.Stderr = new(strings.Builder)
 		if out, err := cmd.Output(); err != nil {
@@ -216,6 +208,7 @@ func TestMain(m *testing.M) {
 	}
 	// Don't let these environment variables confuse the test.
 	os.Setenv("GOENV", "off")
+	os.Unsetenv("GOFLAGS")
 	os.Unsetenv("GOBIN")
 	os.Unsetenv("GOPATH")
 	os.Unsetenv("GIT_ALLOW_PROTOCOL")
@@ -810,8 +803,10 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// so that we can change files.
 	for _, copydir := range []string{
 		"src/runtime",
+		"src/internal/abi",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/internal/goexperiment",
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
@@ -2182,7 +2177,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
 			section := f.Section(".edata")
 			if section == nil {
-				t.Fatalf(".edata section is not present")
+				t.Skip(".edata section is not present")
 			}
 			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
 			type IMAGE_EXPORT_DIRECTORY struct {
@@ -2655,12 +2650,12 @@ func TestBadCommandLines(t *testing.T) {
 	tg.tempFile("src/@x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "@x")
-	tg.grepStderr("invalid input directory name \"@x\"|cannot use path@version syntax", "did not reject @x directory")
+	tg.grepStderr("invalid input directory name \"@x\"|can only use path@version syntax with 'go get' and 'go install' in module-aware mode", "did not reject @x directory")
 
 	tg.tempFile("src/@x/y/y.go", "package y\n")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "@x/y")
-	tg.grepStderr("invalid import path \"@x/y\"|cannot use path@version syntax", "did not reject @x/y import path")
+	tg.grepStderr("invalid import path \"@x/y\"|can only use path@version syntax with 'go get' and 'go install' in module-aware mode", "did not reject @x/y import path")
 
 	tg.tempFile("src/-x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))
@@ -2828,4 +2823,28 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.run("test", "-coverpkg=a", "atest")
 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
 	tg.grepStdout("coverage: 100", "no coverage")
+}
+
+// Regression test for golang.org/issue/34499: version command should not crash
+// when executed in a deleted directory on Linux.
+func TestExecInDeletedDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9",
+		"aix",                // Fails with "device busy".
+		"solaris", "illumos": // Fails with "invalid argument".
+		t.Skipf("%v does not support removing the current working directory", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	wd, err := os.Getwd()
+	tg.check(err)
+	tg.makeTempdir()
+	tg.check(os.Chdir(tg.tempdir))
+	defer func() { tg.check(os.Chdir(wd)) }()
+
+	tg.check(os.Remove(tg.tempdir))
+
+	// `go version` should not fail
+	tg.run("version")
 }

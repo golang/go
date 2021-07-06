@@ -258,22 +258,25 @@ const (
 	REG_DR = REG_DR0
 	REG_TR = REG_TR0
 
-	REGARG   = -1
-	REGRET   = REG_AX
-	FREGRET  = REG_X0
-	REGSP    = REG_SP
-	REGCTXT  = REG_DX
-	REGEXT   = REG_R15     // compiler allocates external registers R15 down
-	FREGMIN  = REG_X0 + 5  // first register variable
-	FREGEXT  = REG_X0 + 15 // first external register
-	T_TYPE   = 1 << 0
-	T_INDEX  = 1 << 1
-	T_OFFSET = 1 << 2
-	T_FCONST = 1 << 3
-	T_SYM    = 1 << 4
-	T_SCONST = 1 << 5
-	T_64     = 1 << 6
-	T_GOTYPE = 1 << 7
+	REGARG       = -1
+	REGRET       = REG_AX
+	FREGRET      = REG_X0
+	REGSP        = REG_SP
+	REGCTXT      = REG_DX
+	REGENTRYTMP0 = REG_R12     // scratch register available at function entry in ABIInternal
+	REGENTRYTMP1 = REG_R13     // scratch register available at function entry in ABIInternal
+	REGG         = REG_R14     // g register in ABIInternal
+	REGEXT       = REG_R15     // compiler allocates external registers R15 down
+	FREGMIN      = REG_X0 + 5  // first register variable
+	FREGEXT      = REG_X0 + 15 // first external register
+	T_TYPE       = 1 << 0
+	T_INDEX      = 1 << 1
+	T_OFFSET     = 1 << 2
+	T_FCONST     = 1 << 3
+	T_SYM        = 1 << 4
+	T_SCONST     = 1 << 5
+	T_64         = 1 << 6
+	T_GOTYPE     = 1 << 7
 )
 
 // https://www.uclibc.org/docs/psABI-x86_64.pdf, figure 3.36

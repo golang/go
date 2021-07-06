@@ -6,7 +6,10 @@ package fs_test
 
 import (
 	. "io/fs"
+	"os"
 	"testing"
+	"testing/fstest"
+	"time"
 )
 
 type readDirOnly struct{ ReadDirFS }
@@ -40,4 +43,51 @@ func TestReadDir(t *testing.T) {
 	}
 	dirs, err = ReadDir(sub, ".")
 	check("sub(.)", dirs, err)
+}
+
+func TestFileInfoToDirEntry(t *testing.T) {
+	testFs := fstest.MapFS{
+		"notadir.txt": {
+			Data:    []byte("hello, world"),
+			Mode:    0,
+			ModTime: time.Now(),
+			Sys:     &sysValue,
+		},
+		"adir": {
+			Data:    nil,
+			Mode:    os.ModeDir,
+			ModTime: time.Now(),
+			Sys:     &sysValue,
+		},
+	}
+
+	tests := []struct {
+		path     string
+		wantMode FileMode
+		wantDir  bool
+	}{
+		{path: "notadir.txt", wantMode: 0, wantDir: false},
+		{path: "adir", wantMode: os.ModeDir, wantDir: true},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.path, func(t *testing.T) {
+			fi, err := Stat(testFs, test.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			dirEntry := FileInfoToDirEntry(fi)
+			if g, w := dirEntry.Type(), test.wantMode; g != w {
+				t.Errorf("FileMode mismatch: got=%v, want=%v", g, w)
+			}
+			if g, w := dirEntry.Name(), test.path; g != w {
+				t.Errorf("Name mismatch: got=%v, want=%v", g, w)
+			}
+			if g, w := dirEntry.IsDir(), test.wantDir; g != w {
+				t.Errorf("IsDir mismatch: got=%v, want=%v", g, w)
+			}
+		})
+	}
 }

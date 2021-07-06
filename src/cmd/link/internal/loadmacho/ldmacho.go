@@ -607,7 +607,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := l.LookupOrCreateSym(name, v)
+		s := l.LookupOrCreateCgoExport(name, v)
 		if machsym.type_&N_EXT == 0 {
 			l.SetAttrDuplicateOK(s, true)
 		}

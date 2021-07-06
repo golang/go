@@ -299,7 +299,7 @@ func lookupPTR(name string) (ptr []string, err error) {
 	ptr = make([]string, 0, 10)
 	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ptr = append(ptr, ans[1]+".")
+		ptr = append(ptr, absDomainName([]byte(ans[1])))
 	}
 	return
 }

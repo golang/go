@@ -87,7 +87,7 @@ stderr '^go get: malformed module path "example": missing dot in first path elem
 go mod edit -replace example@v0.1.0=./example
 
 ! go list example
-stderr '^module example provides package example and is replaced but not required; try ''go get -d example@v0.1.0'' to add it$'
+stderr '^module example provides package example and is replaced but not required; to add it:\n\tgo get example@v0.1.0$'
 
 go get -d example
 go list -m example

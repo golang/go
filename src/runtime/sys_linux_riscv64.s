@@ -219,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	A0, ret+24(FP)
 	RET
 
-// func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$24-12
+// func walltime() (sec int64, nsec int32)
+TEXT runtime·walltime(SB),NOSPLIT,$24-12
 	MOV	$0, A0 // CLOCK_REALTIME
 	MOV	$8(X2), A1
 	MOV	$SYS_clock_gettime, A7

@@ -37,3 +37,9 @@ go get -d rsc.io/fortune
 
 -- go.mod.orig --
 module m
+
+go 1.16
+-- m.go --
+package m
+
+import _ "rsc.io/quote"

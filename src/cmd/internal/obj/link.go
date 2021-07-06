@@ -39,6 +39,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // An Addr is an argument to an instruction.
@@ -250,6 +251,12 @@ func (a *Addr) SetTarget(t *Prog) {
 	a.Val = t
 }
 
+func (a *Addr) SetConst(v int64) {
+	a.Sym = nil
+	a.Type = TYPE_CONST
+	a.Offset = v
+}
+
 // Prog describes a single machine instruction.
 //
 // The general instruction form is:
@@ -353,7 +360,21 @@ func (p *Prog) SetFrom3(a Addr) {
 	p.RestArgs = []AddrPos{{a, Source}}
 }
 
-// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
+// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Reg(reg int16) {
+	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
+}
+
+// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
+//
+// Deprecated: for the same reasons as Prog.GetFrom3.
+func (p *Prog) SetFrom3Const(off int64) {
+	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
+}
+
+// SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
 func (p *Prog) SetTo2(a Addr) {
 	p.RestArgs = []AddrPos{{a, Destination}}
@@ -447,10 +468,12 @@ type FuncInfo struct {
 	Locals   int32
 	Align    int32
 	FuncID   objabi.FuncID
+	FuncFlag objabi.FuncFlag
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
 	InlMarks []InlMark
+	spills   []RegSpill
 
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym
@@ -462,6 +485,7 @@ type FuncInfo struct {
 	GCLocals           *LSym
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
+	ArgInfo            *LSym // argument info for traceback
 
 	FuncInfoSym *LSym
 }
@@ -530,6 +554,11 @@ func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
 	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
 }
 
+// AddSpill appends a spill record to the list for FuncInfo fi
+func (fi *FuncInfo) AddSpill(s RegSpill) {
+	fi.spills = append(fi.spills, s)
+}
+
 // Record the type symbol for an auto variable so that the linker
 // an emit DWARF type information for the type.
 func (fi *FuncInfo) RecordAutoType(gotype *LSym) {
@@ -575,6 +604,48 @@ func ParseABI(abistr string) (ABI, bool) {
 	}
 }
 
+// ABISet is a bit set of ABI values.
+type ABISet uint8
+
+const (
+	// ABISetCallable is the set of all ABIs any function could
+	// potentially be called using.
+	ABISetCallable ABISet = (1 << ABI0) | (1 << ABIInternal)
+)
+
+// Ensure ABISet is big enough to hold all ABIs.
+var _ ABISet = 1 << (ABICount - 1)
+
+func ABISetOf(abi ABI) ABISet {
+	return 1 << abi
+}
+
+func (a *ABISet) Set(abi ABI, value bool) {
+	if value {
+		*a |= 1 << abi
+	} else {
+		*a &^= 1 << abi
+	}
+}
+
+func (a *ABISet) Get(abi ABI) bool {
+	return (*a>>abi)&1 != 0
+}
+
+func (a ABISet) String() string {
+	s := "{"
+	for i := ABI(0); a != 0; i++ {
+		if a&(1<<i) != 0 {
+			if s != "{" {
+				s += ","
+			}
+			s += i.String()
+			a &^= 1 << i
+		}
+	}
+	return s + "}"
+}
+
 // Attribute is a set of symbol attributes.
 type Attribute uint32
 
@@ -612,10 +683,6 @@ const (
 	// target of an inline during compilation
 	AttrWasInlined
 
-	// TopFrame means that this function is an entry point and unwinders should not
-	// keep unwinding beyond this frame.
-	AttrTopFrame
-
 	// Indexed indicates this symbol has been assigned with an index (when using the
 	// new object file format).
 	AttrIndexed
@@ -629,6 +696,10 @@ const (
 	// ContentAddressable indicates this is a content-addressable symbol.
 	AttrContentAddressable
 
+	// ABI wrapper is set for compiler-generated text symbols that
+	// convert between ABI0 and ABIInternal calling conventions.
+	AttrABIWrapper
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -637,36 +708,51 @@ const (
 	attrABIBase
 )
 
-func (a Attribute) DuplicateOK() bool        { return a&AttrDuplicateOK != 0 }
-func (a Attribute) MakeTypelink() bool       { return a&AttrMakeTypelink != 0 }
-func (a Attribute) CFunc() bool              { return a&AttrCFunc != 0 }
-func (a Attribute) NoSplit() bool            { return a&AttrNoSplit != 0 }
-func (a Attribute) Leaf() bool               { return a&AttrLeaf != 0 }
-func (a Attribute) OnList() bool             { return a&AttrOnList != 0 }
-func (a Attribute) ReflectMethod() bool      { return a&AttrReflectMethod != 0 }
-func (a Attribute) Local() bool              { return a&AttrLocal != 0 }
-func (a Attribute) Wrapper() bool            { return a&AttrWrapper != 0 }
-func (a Attribute) NeedCtxt() bool           { return a&AttrNeedCtxt != 0 }
-func (a Attribute) NoFrame() bool            { return a&AttrNoFrame != 0 }
-func (a Attribute) Static() bool             { return a&AttrStatic != 0 }
-func (a Attribute) WasInlined() bool         { return a&AttrWasInlined != 0 }
-func (a Attribute) TopFrame() bool           { return a&AttrTopFrame != 0 }
-func (a Attribute) Indexed() bool            { return a&AttrIndexed != 0 }
-func (a Attribute) UsedInIface() bool        { return a&AttrUsedInIface != 0 }
-func (a Attribute) ContentAddressable() bool { return a&AttrContentAddressable != 0 }
+func (a *Attribute) load() Attribute { return Attribute(atomic.LoadUint32((*uint32)(a))) }
+
+func (a *Attribute) DuplicateOK() bool        { return a.load()&AttrDuplicateOK != 0 }
+func (a *Attribute) MakeTypelink() bool       { return a.load()&AttrMakeTypelink != 0 }
+func (a *Attribute) CFunc() bool              { return a.load()&AttrCFunc != 0 }
+func (a *Attribute) NoSplit() bool            { return a.load()&AttrNoSplit != 0 }
+func (a *Attribute) Leaf() bool               { return a.load()&AttrLeaf != 0 }
+func (a *Attribute) OnList() bool             { return a.load()&AttrOnList != 0 }
+func (a *Attribute) ReflectMethod() bool      { return a.load()&AttrReflectMethod != 0 }
+func (a *Attribute) Local() bool              { return a.load()&AttrLocal != 0 }
+func (a *Attribute) Wrapper() bool            { return a.load()&AttrWrapper != 0 }
+func (a *Attribute) NeedCtxt() bool           { return a.load()&AttrNeedCtxt != 0 }
+func (a *Attribute) NoFrame() bool            { return a.load()&AttrNoFrame != 0 }
+func (a *Attribute) Static() bool             { return a.load()&AttrStatic != 0 }
+func (a *Attribute) WasInlined() bool         { return a.load()&AttrWasInlined != 0 }
+func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0 }
+func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
+func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
+func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
-	if value {
-		*a |= flag
-	} else {
-		*a &^= flag
+	for {
+		v0 := a.load()
+		v := v0
+		if value {
+			v |= flag
+		} else {
+			v &^= flag
+		}
+		if atomic.CompareAndSwapUint32((*uint32)(a), uint32(v0), uint32(v)) {
+			break
+		}
 	}
 }
 
-func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
+func (a *Attribute) ABI() ABI { return ABI(a.load() / attrABIBase) }
 func (a *Attribute) SetABI(abi ABI) {
 	const mask = 1 // Only one ABI bit for now.
-	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
+	for {
+		v0 := a.load()
+		v := (v0 &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
+		if atomic.CompareAndSwapUint32((*uint32)(a), uint32(v0), uint32(v)) {
+			break
+		}
+	}
 }
 
 var textAttrStrings = [...]struct {
@@ -686,13 +772,13 @@ var textAttrStrings = [...]struct {
 	{bit: AttrNoFrame, s: "NOFRAME"},
 	{bit: AttrStatic, s: "STATIC"},
 	{bit: AttrWasInlined, s: ""},
-	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
+	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
 }
 
-// TextAttrString formats a for printing in as part of a TEXT prog.
-func (a Attribute) TextAttrString() string {
+// String formats a for printing in as part of a TEXT prog.
+func (a Attribute) String() string {
 	var s string
 	for _, x := range textAttrStrings {
 		if a&x.bit != 0 {
@@ -718,13 +804,25 @@ func (a Attribute) TextAttrString() string {
 	return s
 }
 
+// TextAttrString formats the symbol attributes for printing in as part of a TEXT prog.
+func (s *LSym) TextAttrString() string {
+	attr := s.Attribute.String()
+	if s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+		if attr != "" {
+			attr += "|"
+		}
+		attr += "TOPFRAME"
+	}
+	return attr
+}
+
 func (s *LSym) String() string {
 	return s.Name
 }
 
 // The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
-func (s *LSym) CanBeAnSSASym() {
-}
+func (*LSym) CanBeAnSSASym() {}
+func (*LSym) CanBeAnSSAAux() {}
 
 type Pcln struct {
 	// Aux symbols for pcln
@@ -752,6 +850,17 @@ type Auto struct {
 	Aoffset int32
 	Name    AddrName
 	Gotype  *LSym
+}
+
+// RegSpill provides spill/fill information for a register-resident argument
+// to a function.  These need spilling/filling in the safepoint/stackgrowth case.
+// At the time of fill/spill, the offset must be adjusted by the architecture-dependent
+// adjustment to hardware SP that occurs in a call instruction.  E.g., for AMD64,
+// at Offset+8 because the return address was pushed.
+type RegSpill struct {
+	Addr           Addr
+	Reg            int16
+	Spill, Unspill As
 }
 
 // Link holds the context for writing object code from a compiler
@@ -832,6 +941,36 @@ func (ctxt *Link) Logf(format string, args ...interface{}) {
 	ctxt.Bso.Flush()
 }
 
+// SpillRegisterArgs emits the code to spill register args into whatever
+// locations the spill records specify.
+func (fi *FuncInfo) SpillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+	// Spill register args.
+	for _, ra := range fi.spills {
+		spill := Appendp(last, pa)
+		spill.As = ra.Spill
+		spill.From.Type = TYPE_REG
+		spill.From.Reg = ra.Reg
+		spill.To = ra.Addr
+		last = spill
+	}
+	return last
+}
+
+// UnspillRegisterArgs emits the code to restore register args from whatever
+// locations the spill records specify.
+func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
+	// Unspill any spilled register args
+	for _, ra := range fi.spills {
+		unspill := Appendp(last, pa)
+		unspill.As = ra.Unspill
+		unspill.From = ra.Addr
+		unspill.To.Type = TYPE_REG
+		unspill.To.Reg = ra.Reg
+		last = unspill
+	}
+	return last
+}
+
 // The smallest possible offset from the hardware stack pointer to a local
 // variable on the stack. Architectures that use a link register save its value
 // on the stack in the function prologue and so always have a pointer between
@@ -853,6 +992,7 @@ func (ctxt *Link) FixedFrameSize() int64 {
 type LinkArch struct {
 	*sys.Arch
 	Init           func(*Link)
+	ErrorCheck     func(*Link, *LSym)
 	Preprocess     func(*Link, *LSym, ProgAlloc)
 	Assemble       func(*Link, *LSym, ProgAlloc)
 	Progedit       func(*Link, *Prog, ProgAlloc)

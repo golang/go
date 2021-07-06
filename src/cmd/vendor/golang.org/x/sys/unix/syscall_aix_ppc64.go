@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix
-// +build ppc64
+//go:build aix && ppc64
+// +build aix,ppc64
 
 package unix
 
