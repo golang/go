@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
@@ -601,8 +603,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 				dir = filepath.Join(ModRoot(), dir)
 			}
 			gomod := filepath.Join(dir, "go.mod")
-
-			data, err := lockedfile.Read(gomod)
+			var data []byte
+			var err error
+			if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+				// Don't lock go.mod if it's part of the overlay.
+				// On Plan 9, locking requires chmod, and we don't want to modify any file
+				// in the overlay. See #44700.
+				data, err = os.ReadFile(gomodActual)
+			} else {
+				data, err = lockedfile.Read(gomodActual)
+			}
 			if err != nil {
 				return cached{nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))}
 			}
