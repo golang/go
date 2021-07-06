@@ -22,6 +22,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
@@ -416,7 +417,18 @@ func initGoSum() (bool, error) {
 
 	goSum.m = make(map[module.Version][]string)
 	goSum.status = make(map[modSum]modSumStatus)
-	data, err := lockedfile.Read(GoSumFile)
+	var (
+		data []byte
+		err  error
+	)
+	if actualSumFile, ok := fsys.OverlayPath(GoSumFile); ok {
+		// Don't lock go.sum if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(actualSumFile)
+	} else {
+		data, err = lockedfile.Read(GoSumFile)
+	}
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
@@ -715,6 +727,9 @@ Outer:
 	}
 	if cfg.BuildMod == "readonly" {
 		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
+	}
+	if _, ok := fsys.OverlayPath(GoSumFile); ok {
+		base.Fatalf("go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay")
 	}
 
 	// Make a best-effort attempt to acquire the side lock, only to exclude
