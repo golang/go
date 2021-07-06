@@ -979,21 +979,14 @@ func getDictionaryEntry(pos src.XPos, dict *ir.Name, i int, size int) ir.Node {
 	return r
 }
 
-// getDictionaryType returns a *runtime._type from the dictionary corresponding to the input type.
-// The input type must be a type parameter (TODO: or a local derived type).
-func (subst *subster) getDictionaryType(pos src.XPos, t *types.Type) ir.Node {
-	tparams := subst.ts.Tparams
-	var i = 0
-	for i = range tparams {
-		if t == tparams[i] {
-			break
-		}
-	}
-	if i == len(tparams) {
-		base.Fatalf(fmt.Sprintf("couldn't find type param %+v", t))
+// getDictionaryType returns a *runtime._type from the dictionary entry i
+// (which refers to a type param or a derived type that uses type params).
+func (subst *subster) getDictionaryType(pos src.XPos, i int) ir.Node {
+	if i < 0 || i >= subst.info.startSubDict {
+		base.Fatalf(fmt.Sprintf("bad dict index %d", i))
 	}
 
-	r := getDictionaryEntry(pos, subst.info.dictParam, i, len(tparams))
+	r := getDictionaryEntry(pos, subst.info.dictParam, i, subst.info.startSubDict)
 	// change type of retrieved dictionary entry to *byte, which is the
 	// standard typing of a *runtime._type in the compiler
 	typed(types.Types[types.TUINT8].PtrTo(), r)
@@ -1134,11 +1127,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// type argument.
 				m = transformConvCall(call)
 				if m.Op() == ir.OCONVIFACE {
-					if srcType := x.(*ir.CallExpr).Args[0].Type(); srcType.IsTypeParam() { // TODO: or derived type
-						// Note: srcType uses x.Args[0], not m.X or call.Args[0], because
-						// we need the type before the type parameter -> type argument substitution.
+					// Note: srcType uses x.Args[0], not m.X or call.Args[0], because
+					// we need the type before the type parameter -> type argument substitution.
+					srcType := x.(*ir.CallExpr).Args[0].Type()
+					if ix := subst.findDictType(srcType); ix >= 0 {
 						c := m.(*ir.ConvExpr)
-						m = subst.convertUsingDictionary(c.Pos(), c.X, c.Type(), srcType)
+						m = subst.convertUsingDictionary(c.Pos(), c.X, c.Type(), srcType, ix)
 					}
 				}
 
@@ -1240,8 +1234,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			x := x.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if t := x.X.Type(); t.IsTypeParam() {
-				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t)
+			t := x.X.Type()
+			if ix := subst.findDictType(t); ix >= 0 {
+				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t, ix)
 			}
 		}
 		return m
@@ -1250,18 +1245,31 @@ func (subst *subster) node(n ir.Node) ir.Node {
 	return edit(n)
 }
 
-// convertUsingDictionary converts value v from generic type src to an interface type dst.
-func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, dst, src *types.Type) ir.Node {
-	// TODO: handle converting from derived types. For now, just from naked
-	// type parameters.
-	if !src.IsTypeParam() {
-		base.Fatalf("source must be a type parameter %+v", src)
+// findDictType looks for type t in the typeparams or derived types in the generic
+// function info subst.info.gfInfo. This will indicate the dictionary entry with the
+// correct concrete type for the associated instantiated function.
+func (subst *subster) findDictType(t *types.Type) int {
+	for i, dt := range subst.info.gfInfo.tparams {
+		if dt == t {
+			return i
+		}
 	}
+	for i, dt := range subst.info.gfInfo.derivedTypes {
+		if types.Identical(dt, t) {
+			return i + len(subst.info.gfInfo.tparams)
+		}
+	}
+	return -1
+}
+
+// convertUsingDictionary converts value v from instantiated type src (which is index
+// 'ix' in the instantiation's dictionary) to an interface type dst.
+func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, dst, src *types.Type, ix int) ir.Node {
 	if !dst.IsInterface() {
 		base.Fatalf("can only convert type parameters to interfaces %+v -> %+v", src, dst)
 	}
 	// Load the actual runtime._type of the type parameter from the dictionary.
-	rt := subst.getDictionaryType(pos, src)
+	rt := subst.getDictionaryType(pos, ix)
 
 	// Convert value to an interface type, so the data field is what we want.
 	if !v.Type().IsInterface() {

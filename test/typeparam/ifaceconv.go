@@ -18,6 +18,13 @@ func f[T any](x T) interface{} {
 	var i interface{} = x
 	return i
 }
+
+func fs[T any](x T) interface{} {
+	y := []T{x}
+	var i interface{} = y
+	return i
+}
+
 func g[T any](x T) E {
 	var i E = x
 	return i
@@ -46,8 +53,16 @@ func j[T C](t T) C {
 	return C(t) // explicit conversion
 }
 
+func js[T any](x T) interface{} {
+	y := []T{x}
+	return interface{}(y)
+}
+
 func main() {
 	if got, want := f[int](7), 7; got != want {
+		panic(fmt.Sprintf("got %d want %d", got, want))
+	}
+	if got, want := fs[int](7), []int{7}; got.([]int)[0] != want[0] {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 	if got, want := g[int](7), 7; got != want {
@@ -60,6 +75,9 @@ func main() {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 	if got, want := j[myInt](7).foo(), 8; got != want {
+		panic(fmt.Sprintf("got %d want %d", got, want))
+	}
+	if got, want := js[int](7), []int{7}; got.([]int)[0] != want[0] {
 		panic(fmt.Sprintf("got %d want %d", got, want))
 	}
 }
