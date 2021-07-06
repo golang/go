@@ -123,6 +123,8 @@ var (
 
 	// Predeclared error interface type.
 	ErrorType *Type
+	// Predeclared comparable interface type.
+	ComparableType *Type
 
 	// Types to represent untyped string and boolean constants.
 	UntypedString = New(TSTRING)
