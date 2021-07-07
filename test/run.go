@@ -2204,15 +2204,8 @@ var g3Failures = setOf(
 
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
-	"typeparam/mdempsky/1.go",
-	"typeparam/mdempsky/2.go",
-	"typeparam/mdempsky/3.go",
-	"typeparam/mdempsky/4.go",
-	"typeparam/mdempsky/5.go",
-	"typeparam/mdempsky/9.go",
-	"typeparam/mdempsky/11.go",
-	"typeparam/mdempsky/12.go",
-	"typeparam/mdempsky/13.go",
+	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
+	"typeparam/mdempsky/11.go", // types2/noder2 should give conversion error, because of "notinheap" mismatch
 )
 
 var unifiedFailures = setOf(

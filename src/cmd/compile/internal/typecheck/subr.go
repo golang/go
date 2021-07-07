@@ -931,7 +931,11 @@ func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string 
 			b.WriteString(targ.Sym().Pkg.Name)
 			b.WriteByte('.')
 		}
-		b.WriteString(targ.String())
+		// types1 uses "interface {" and types2 uses "interface{" - convert
+		// to consistent types2 format.
+		tstring := targ.String()
+		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
+		b.WriteString(tstring)
 	}
 	b.WriteString("]")
 	if i >= 0 {
@@ -1163,6 +1167,10 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		} else {
 			assert(false)
 		}
+	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
+		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
+		types.TUINTPTR, types.TBOOL, types.TSTRING:
+		newt = t.Underlying()
 	}
 	if newt == nil {
 		// Even though there were typeparams in the type, there may be no

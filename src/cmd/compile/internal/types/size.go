@@ -128,9 +128,12 @@ func expandiface(t *Type) {
 			continue
 		}
 
-		// Once we go to 1.18, then embedded types can be anything, but
-		// for now, just interfaces and unions.
+		// In 1.18, embedded types can be anything. In Go 1.17, we disallow
+		// embedding anything other than interfaces.
 		if !m.Type.IsInterface() {
+			if AllowsGoVersion(t.Pkg(), 1, 18) {
+				continue
+			}
 			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
 			m.SetBroke(true)
 			t.SetBroke(true)
