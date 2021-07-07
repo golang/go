@@ -109,10 +109,6 @@ func sconv(s *Sym, verb rune, mode fmtMode) string {
 		return "<S>"
 	}
 
-	if s.Name == "_" {
-		return "_"
-	}
-
 	q := pkgqual(s.Pkg, verb, mode)
 	if q == "" {
 		return s.Name
@@ -134,10 +130,6 @@ func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 	}
 	if s == nil {
 		b.WriteString("<S>")
-		return
-	}
-	if s.Name == "_" {
-		b.WriteString("_")
 		return
 	}
 
