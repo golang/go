@@ -140,3 +140,13 @@ func isInterruptError(err error) bool {
 	// returned by Wait. It looks like an ExitError with status 1.
 	return false
 }
+
+// terminationSignal returns -1 and false because Windows doesn't have signals.
+func terminationSignal(err error) (os.Signal, bool) {
+	return syscall.Signal(-1), false
+}
+
+// isCrashSignal is not implemented because Windows doesn't have signals.
+func isCrashSignal(signal os.Signal) bool {
+	panic("not implemented: no signals on windows")
+}

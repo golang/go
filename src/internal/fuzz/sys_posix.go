@@ -88,5 +88,44 @@ func isInterruptError(err error) bool {
 		return false
 	}
 	status := exitErr.Sys().(syscall.WaitStatus)
-	return status.Signal() == syscall.SIGINT || status.Signal() == syscall.SIGKILL
+	return status.Signal() == syscall.SIGINT
+}
+
+// terminationSignal checks if err is an exec.ExitError with a signal status.
+// If it is, terminationSignal returns the signal and true.
+// If not, -1 and false.
+func terminationSignal(err error) (os.Signal, bool) {
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() >= 0 {
+		return syscall.Signal(-1), false
+	}
+	status := exitErr.Sys().(syscall.WaitStatus)
+	return status.Signal(), status.Signaled()
+}
+
+// isCrashSignal returns whether a signal was likely to have been caused by an
+// error in the program that received it, triggered by a fuzz input. For
+// example, SIGSEGV would be received after a nil pointer dereference.
+// Other signals like SIGKILL or SIGHUP are more likely to have been sent by
+// another process, and we shouldn't record a crasher if the worker process
+// receives one of these.
+//
+// Note that Go installs its own signal handlers on startup, so some of these
+// signals may only be received if signal handlers are changed. For example,
+// SIGSEGV is normally transformed into a panic that causes the process to exit
+// with status 2 if not recovered, which we handle as a crash.
+func isCrashSignal(signal os.Signal) bool {
+	switch signal {
+	case
+		syscall.SIGILL,  // illegal instruction
+		syscall.SIGTRAP, // breakpoint
+		syscall.SIGABRT, // abort() called
+		syscall.SIGBUS,  // invalid memory access (e.g., misaligned address)
+		syscall.SIGFPE,  // math error, e.g., integer divide by zero
+		syscall.SIGSEGV, // invalid memory access (e.g., write to read-only)
+		syscall.SIGPIPE: // sent data to closed pipe or socket
+		return true
+	default:
+		return false
+	}
 }

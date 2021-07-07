@@ -34,3 +34,11 @@ func getWorkerComm() (comm workerComm, err error) {
 func isInterruptError(err error) bool {
 	panic("not implemented")
 }
+
+func terminationSignal(err error) (os.Signal, bool) {
+	panic("not implemented")
+}
+
+func isCrashSignal(signal os.Signal) bool {
+	panic("not implemented")
+}
