@@ -104,8 +104,6 @@ var predeclared = []types.Type{
 
 	// error
 	types.Universe.Lookup("error").Type(),
-	// comparable
-	types.Universe.Lookup("comparable").Type(),
 
 	// untyped types
 	types.Typ[types.UntypedBool],
@@ -124,6 +122,9 @@ var predeclared = []types.Type{
 
 	// used internally by gc; never used by this package or in .a files
 	anyType{},
+
+	// comparable
+	types.Universe.Lookup("comparable").Type(),
 }
 
 type anyType struct{}

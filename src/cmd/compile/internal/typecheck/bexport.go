@@ -78,8 +78,6 @@ func predeclared() []*types.Type {
 
 			// error
 			types.ErrorType,
-			// comparable
-			types.ComparableType,
 
 			// untyped types
 			types.UntypedBool,
@@ -98,6 +96,9 @@ func predeclared() []*types.Type {
 
 			// any type, for builtin export data
 			types.Types[types.TANY],
+
+			// comparable
+			types.ComparableType,
 		}
 	}
 	return predecl
