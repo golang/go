@@ -265,6 +265,7 @@ type importReader struct {
 	// Slice of all dcls for function, including any interior closures
 	allDcls        []*ir.Name
 	allClosureVars []*ir.Name
+	autotmpgen     int
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -516,8 +517,15 @@ func (r *importReader) ident(selector bool) *types.Sym {
 		return nil
 	}
 	pkg := r.currPkg
-	if selector && types.IsExported(name) {
-		pkg = types.LocalPkg
+	if selector {
+		if types.IsExported(name) {
+			pkg = types.LocalPkg
+		}
+	} else {
+		if name == "$autotmp" {
+			name = autotmpname(r.autotmpgen)
+			r.autotmpgen++
+		}
 	}
 	return pkg.Lookup(name)
 }
