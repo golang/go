@@ -137,47 +137,44 @@ func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
 }
 
 func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
+	if q := pkgqual(s.Pkg, verb, mode); q != "" {
+		b.WriteString(q)
+		b.WriteByte('.')
+	}
+	b.WriteString(s.Name)
+}
+
+// pkgqual returns the qualifier that should be used for printing
+// symbols from the given package in the given mode.
+// If it returns the empty string, no qualification is needed.
+func pkgqual(pkg *Pkg, verb rune, mode fmtMode) string {
 	if verb != 'S' {
 		switch mode {
 		case fmtGo: // This is for the user
-			if s.Pkg == BuiltinPkg || s.Pkg == LocalPkg {
-				b.WriteString(s.Name)
-				return
+			if pkg == BuiltinPkg || pkg == LocalPkg {
+				return ""
 			}
 
 			// If the name was used by multiple packages, display the full path,
-			if s.Pkg.Name != "" && NumImport[s.Pkg.Name] > 1 {
-				fmt.Fprintf(b, "%q.%s", s.Pkg.Path, s.Name)
-				return
+			if pkg.Name != "" && NumImport[pkg.Name] > 1 {
+				return strconv.Quote(pkg.Path)
 			}
-			b.WriteString(s.Pkg.Name)
-			b.WriteByte('.')
-			b.WriteString(s.Name)
-			return
+			return pkg.Name
 
 		case fmtDebug:
-			b.WriteString(s.Pkg.Name)
-			b.WriteByte('.')
-			b.WriteString(s.Name)
-			return
+			return pkg.Name
 
 		case fmtTypeIDName:
 			// dcommontype, typehash
-			b.WriteString(s.Pkg.Name)
-			b.WriteByte('.')
-			b.WriteString(s.Name)
-			return
+			return pkg.Name
 
 		case fmtTypeID:
 			// (methodsym), typesym, weaksym
-			b.WriteString(s.Pkg.Prefix)
-			b.WriteByte('.')
-			b.WriteString(s.Name)
-			return
+			return pkg.Prefix
 		}
 	}
 
-	b.WriteString(s.Name)
+	return ""
 }
 
 // Type
