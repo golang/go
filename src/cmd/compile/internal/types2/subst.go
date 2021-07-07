@@ -313,9 +313,6 @@ func (subst *subster) typ(typ Type) Type {
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
 			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
-			if subst.check == nil {
-				panic("internal error: cannot instantiate interfaces yet")
-			}
 			return iface
 		}
 
