@@ -160,6 +160,14 @@ func (w *worker) coordinate(ctx context.Context) error {
 					// Since we expect I/O errors around interrupts, ignore this error.
 					return nil
 				}
+				if sig, ok := terminationSignal(w.waitErr); ok && !isCrashSignal(sig) {
+					// Worker terminated by a signal that probably wasn't caused by a
+					// specific input to the fuzz function. For example, on Linux,
+					// the kernel (OOM killer) may send SIGKILL to a process using a lot
+					// of memory. Or the shell might send SIGHUP when the terminal
+					// is closed. Don't record a crasher.
+					return fmt.Errorf("fuzzing process terminated by unexpected signal; no crash will be recorded: %v", w.waitErr)
+				}
 				// Unexpected termination. Set error message and fall through.
 				// We'll restart the worker on the next iteration.
 				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
