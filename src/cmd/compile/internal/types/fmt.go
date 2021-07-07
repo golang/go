@@ -112,11 +112,19 @@ func sconv(s *Sym, verb rune, mode fmtMode) string {
 	if s.Name == "_" {
 		return "_"
 	}
+
+	q := pkgqual(s.Pkg, verb, mode)
+	if q == "" {
+		return s.Name
+	}
+
 	buf := fmtBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer fmtBufferPool.Put(buf)
 
-	symfmt(buf, s, verb, mode)
+	buf.WriteString(q)
+	buf.WriteByte('.')
+	buf.WriteString(s.Name)
 	return InternString(buf.Bytes())
 }
 
