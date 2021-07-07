@@ -1026,7 +1026,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// an error.
 				_, isCallExpr := m.(*ir.CallExpr)
 				_, isStructKeyExpr := m.(*ir.StructKeyExpr)
-				if !isCallExpr && !isStructKeyExpr && x.Op() != ir.OPANIC &&
+				_, isKeyExpr := m.(*ir.KeyExpr)
+				if !isCallExpr && !isStructKeyExpr && !isKeyExpr && x.Op() != ir.OPANIC &&
 					x.Op() != ir.OCLOSE {
 					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
 				}
@@ -1136,7 +1137,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					}
 				}
 
-			case ir.OMETHVALUE:
+			case ir.OMETHVALUE, ir.OMETHEXPR:
 				// Redo the transformation of OXDOT, now that we
 				// know the method value is being called. Then
 				// transform the call.
