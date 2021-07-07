@@ -587,7 +587,7 @@ func (w *Writer) Offset() uint32 {
 }
 
 type Reader struct {
-	b        []byte // mmapped bytes, if not nil
+	b        []byte
 	readonly bool   // whether b is backed with read-only memory
 
 	h Header // keep block offsets
