@@ -323,8 +323,7 @@ func (p *noder) processPragmas() {
 		}
 		n := ir.AsNode(typecheck.Lookup(l.local).Def)
 		if n == nil || n.Op() != ir.ONAME {
-			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
-			// base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
+			p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
 			continue
 		}
 		if n.Sym().Linkname != "" {
