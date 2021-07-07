@@ -2116,8 +2116,15 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 		return
 	}
 
-	// TODO(mdempsky): Fix autotmp hack.
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".autotmp_") && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
+	// The name of autotmp variables isn't important; they just need to
+	// be unique. To stabilize the export data, simply write out "$" as
+	// a marker and let the importer generate its own unique name.
+	if strings.HasPrefix(name, ".autotmp_") {
+		w.string("$autotmp")
+		return
+	}
+
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
