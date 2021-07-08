@@ -18,7 +18,7 @@ func TestDebouncer(t *testing.T) {
 	t.Parallel()
 
 	const evtWait = 30 * time.Millisecond
-	const initialDelay = 100 * time.Millisecond
+	const initialDelay = 400 * time.Millisecond
 
 	type event struct {
 		key       string
@@ -65,26 +65,28 @@ func TestDebouncer(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
-			t.Parallel()
-
 			try := func(delay time.Duration) (bool, error) {
 				d := newDebouncer()
 				var wg sync.WaitGroup
+				var validMu sync.Mutex
 				valid := true
+				prev := -1
 				for i, e := range test.events {
 					wg.Add(1)
-					start := time.Now()
-					go func(e *event) {
-						if time.Since(start) > evtWait {
-							// Due to slow scheduling this event is likely to have fired out
-							// of order, so mark this attempt as invalid.
+					go func(i int, e *event) {
+						// Check if goroutines were not scheduled in the intended order.
+						validMu.Lock()
+						if prev != i-1 {
 							valid = false
 						}
+						prev = i
+						validMu.Unlock()
+
 						d.debounce(e.key, e.order, delay, func() {
 							e.fired = true
 						})
 						wg.Done()
-					}(e)
+					}(i, e)
 					// For a bit more fidelity, sleep to try to make things actually
 					// execute in order. This shouldn't have to be perfect: as long as we
 					// don't have extreme pauses the test should still pass.
@@ -93,6 +95,7 @@ func TestDebouncer(t *testing.T) {
 					}
 				}
 				wg.Wait()
+
 				var errs []string
 				for _, event := range test.events {
 					if event.fired != event.wantFired {
@@ -105,11 +108,10 @@ func TestDebouncer(t *testing.T) {
 				if len(errs) > 0 {
 					err = errors.New(strings.Join(errs, "\n"))
 				}
-				// If the test took less than maxwait, no event before the
 				return valid, err
 			}
 
-			if err := retryInvalid(100*time.Millisecond, try); err != nil {
+			if err := retryInvalid(initialDelay, try); err != nil {
 				t.Error(err)
 			}
 		})
