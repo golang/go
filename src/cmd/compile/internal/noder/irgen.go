@@ -219,6 +219,10 @@ Outer:
 		}
 	}
 
+	// Check for unusual case where noder2 encounters a type error that types2
+	// doesn't check for (e.g. notinheap incompatibility).
+	base.ExitIfErrors()
+
 	typecheck.DeclareUniverse()
 
 	for _, p := range noders {
