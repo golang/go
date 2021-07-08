@@ -71,7 +71,7 @@ type Root int
 const (
 	// AutoRoot is the default for most commands. modload.Init will look for
 	// a go.mod file in the current directory or any parent. If none is found,
-	// modules may be disabled (GO111MODULE=on) or commands may run in a
+	// modules may be disabled (GO111MODULE=auto) or commands may run in a
 	// limited module mode.
 	AutoRoot Root = iota
 
@@ -412,7 +412,16 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	}
 
 	gomod := ModFilePath()
-	data, err := lockedfile.Read(gomod)
+	var data []byte
+	var err error
+	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+		// Don't lock go.mod if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(gomodActual)
+	} else {
+		data, err = lockedfile.Read(gomodActual)
+	}
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -1023,6 +1032,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums))
+		}
+		return
+	}
+	gomod := ModFilePath()
+	if _, ok := fsys.OverlayPath(gomod); ok {
+		if dirty {
+			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}
 		return
 	}

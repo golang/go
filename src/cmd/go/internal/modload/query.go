@@ -920,8 +920,8 @@ func (e *PackageNotInModuleError) ImportPath() string {
 	return ""
 }
 
-// ModuleHasRootPackage returns whether module m contains a package m.Path.
-func ModuleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+// moduleHasRootPackage returns whether module m contains a package m.Path.
+func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
 	needSum := false
 	root, isLocal, err := fetch(ctx, m, needSum)
 	if err != nil {
