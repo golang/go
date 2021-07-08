@@ -85,7 +85,15 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 // etc.  Corresponds to typecheck.tcConv.
 func transformConv(n *ir.ConvExpr) ir.Node {
 	t := n.X.Type()
-	op, _ := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	op, why := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	if op == ir.OXXX {
+		// types2 currently ignores pragmas, so a 'notinheap' mismatch is the
+		// one type-related error that it does not catch. This error will be
+		// caught here by Convertop (see two checks near beginning of
+		// Convertop) and reported at the end of noding.
+		base.ErrorfAt(n.Pos(), "cannot convert %L to type %v%s", n.X, n.Type(), why)
+		return n
+	}
 	n.SetOp(op)
 	switch n.Op() {
 	case ir.OCONVNOP:
