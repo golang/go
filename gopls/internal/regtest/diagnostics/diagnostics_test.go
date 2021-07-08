@@ -1618,7 +1618,6 @@ import _ "mod.com/triple/a"
 // Tests golang/go#46667: deleting a problematic import path should resolve
 // import cycle errors.
 func TestResolveImportCycle(t *testing.T) {
-	t.Skip("flaky test: see golang/go#46773")
 	const mod = `
 -- go.mod --
 module mod.test
@@ -1646,8 +1645,8 @@ const B = a.B
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
 		env.SaveBuffer("b/b.go")
 		env.Await(
-			EmptyDiagnostics("a/a.go"),
-			EmptyDiagnostics("b/b.go"),
+			EmptyOrNoDiagnostics("a/a.go"),
+			EmptyOrNoDiagnostics("b/b.go"),
 		)
 	})
 }
