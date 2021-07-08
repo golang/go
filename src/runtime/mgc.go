@@ -154,7 +154,7 @@ func gcinit() {
 		throw("size of Workbuf is suboptimal")
 	}
 	// No sweep on the first cycle.
-	mheap_.sweepDrained = 1
+	sweep.active.state.Store(sweepDrainedMask)
 
 	// Initialize GC pacer state.
 	// Use the environment variable GOGC for the initial gcPercent value.
@@ -1022,8 +1022,10 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	// Those aren't tracked in any sweep lists, so we need to
 	// count them against sweep completion until we ensure all
 	// those spans have been forced out.
-	sl := newSweepLocker()
-	sl.blockCompletion()
+	sl := sweep.active.begin()
+	if !sl.valid {
+		throw("failed to set sweep barrier")
+	}
 
 	systemstack(func() { startTheWorldWithSema(true) })
 
@@ -1050,7 +1052,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	})
 	// Now that we've swept stale spans in mcaches, they don't
 	// count against unswept spans.
-	sl.dispose()
+	sweep.active.end(sl)
 
 	// Print gctrace before dropping worldsema. As soon as we drop
 	// worldsema another cycle could start and smash the stats
@@ -1457,7 +1459,7 @@ func gcSweep(mode gcMode) {
 
 	lock(&mheap_.lock)
 	mheap_.sweepgen += 2
-	mheap_.sweepDrained = 0
+	sweep.active.reset()
 	mheap_.pagesSwept.Store(0)
 	mheap_.sweepArenas = mheap_.allArenas
 	mheap_.reclaimIndex.Store(0)
