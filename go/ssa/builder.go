@@ -693,6 +693,10 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 	case *ast.SelectorExpr:
 		sel, ok := fn.Pkg.info.Selections[e]
 		if !ok {
+			// builtin unsafe.{Add,Slice}
+			if obj, ok := fn.Pkg.info.Uses[e.Sel].(*types.Builtin); ok {
+				return &Builtin{name: obj.Name(), sig: tv.Type.(*types.Signature)}
+			}
 			// qualified identifier
 			return b.expr(fn, e.Sel)
 		}
