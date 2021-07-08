@@ -65,9 +65,7 @@ type mheap struct {
 	lock  mutex
 	pages pageAlloc // page allocation data structure
 
-	sweepgen     uint32 // sweep generation, see comment in mspan; written during STW
-	sweepDrained uint32 // all spans are swept or are being swept
-	sweepers     uint32 // number of active sweepone calls
+	sweepgen uint32 // sweep generation, see comment in mspan; written during STW
 
 	// allspans is a slice of all mspans ever created. Each mspan
 	// appears exactly once.
@@ -815,7 +813,10 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 
 	n0 := n
 	var nFreed uintptr
-	sl := newSweepLocker()
+	sl := sweep.active.begin()
+	if !sl.valid {
+		return 0
+	}
 	for n > 0 {
 		ai := arenas[pageIdx/pagesPerArena]
 		ha := h.arenas[ai.l1()][ai.l2()]
@@ -861,7 +862,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		pageIdx += uintptr(len(inUse) * 8)
 		n -= uintptr(len(inUse) * 8)
 	}
-	sl.dispose()
+	sweep.active.end(sl)
 	if trace.enabled {
 		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
