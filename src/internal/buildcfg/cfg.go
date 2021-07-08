@@ -110,8 +110,10 @@ func goppc64() int {
 		return 8
 	case "power9":
 		return 9
+	case "power10":
+		return 10
 	}
-	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9")
+	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9, power10")
 	return int(defaultGOPPC64[len("power")] - '0')
 }
 

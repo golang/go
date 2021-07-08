@@ -23,10 +23,20 @@ env GOPPC64=power9
 go list -f '{{context.ToolTags}}'
 stdout 'ppc64.power8 ppc64.power9'
 
+env GOARCH=ppc64
+env GOPPC64=power10
+go list -f '{{context.ToolTags}}'
+stdout 'ppc64.power8 ppc64.power9 ppc64.power10'
+
 env GOARCH=ppc64le
 env GOPPC64=power9
 go list -f '{{context.ToolTags}}'
 stdout 'ppc64le.power8 ppc64le.power9'
+
+env GOARCH=ppc64le
+env GOPPC64=power10
+go list -f '{{context.ToolTags}}'
+stdout 'ppc64le.power8 ppc64le.power9 ppc64le.power10'
 
 env GOARCH=386
 env GO386=sse2
