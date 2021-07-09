@@ -98,7 +98,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 	defer done()
 
 	fset := i.Snapshot.FileSet()
-	h, err := HoverInfo(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node, i.Declaration.fullSpec)
+	h, err := HoverInfo(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node, i.Declaration.fullDecl)
 	if err != nil {
 		return nil, err
 	}
@@ -284,15 +284,28 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 }
 
 // HoverInfo returns a HoverInformation struct for an ast node and its type
-// object.
-func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, node ast.Node, spec ast.Spec) (*HoverInformation, error) {
+// object. node should be the actual node used in type checking, while fullNode
+// could be a separate node with more complete syntactic information.
+func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, pkgNode ast.Node, fullDecl ast.Decl) (*HoverInformation, error) {
 	var info *HoverInformation
+
+	// This is problematic for a number of reasons. We really need to have a more
+	// general mechanism to validate the coherency of AST with type information,
+	// but absent that we must do our best to ensure that we don't use fullNode
+	// when we actually need the node that was type checked.
+	//
+	// pkgNode may be nil, if it was eliminated from the type-checked syntax. In
+	// that case, use fullDecl if available.
+	node := pkgNode
+	if node == nil && fullDecl != nil {
+		node = fullDecl
+	}
 
 	switch node := node.(type) {
 	case *ast.Ident:
 		// The package declaration.
 		for _, f := range pkg.GetSyntax() {
-			if f.Name == node {
+			if f.Name == pkgNode {
 				info = &HoverInformation{comment: f.Doc}
 			}
 		}
@@ -316,6 +329,23 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, n
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
+			// Always use the full declaration here if we have it, because the
+			// dependent code doesn't rely on pointer identity. This is fragile.
+			if d, _ := fullDecl.(*ast.GenDecl); d != nil {
+				node = d
+			}
+			// obj may not have been produced by type checking the AST containing
+			// node, so we need to be careful about using token.Pos.
+			tok := s.FileSet().File(obj.Pos())
+			offset := tok.Offset(obj.Pos())
+			tok2 := s.FileSet().File(node.Pos())
+			var spec ast.Spec
+			for _, s := range node.Specs {
+				if tok2.Offset(s.Pos()) <= offset && offset <= tok2.Offset(s.End()) {
+					spec = s
+					break
+				}
+			}
 			var err error
 			info, err = formatGenDecl(node, spec, obj, obj.Type())
 			if err != nil {
@@ -394,14 +424,6 @@ func formatGenDecl(node *ast.GenDecl, spec ast.Spec, obj types.Object, typ types
 		switch typ.Underlying().(type) {
 		case *types.Interface, *types.Struct:
 			return formatGenDecl(node, spec, obj, typ.Underlying())
-		}
-	}
-	if spec == nil {
-		for _, s := range node.Specs {
-			if s.Pos() <= obj.Pos() && obj.Pos() <= s.End() {
-				spec = s
-				break
-			}
 		}
 	}
 	if spec == nil {

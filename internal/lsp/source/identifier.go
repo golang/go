@@ -57,10 +57,11 @@ type Declaration struct {
 
 	// The typechecked node.
 	node ast.Node
-	// Optional: the fully parsed spec, to be used for formatting in cases where
+
+	// Optional: the fully parsed node, to be used for formatting in cases where
 	// node has missing information. This could be the case when node was parsed
 	// in ParseExported mode.
-	fullSpec ast.Spec
+	fullDecl ast.Decl
 
 	// The typechecked object.
 	obj types.Object
@@ -290,8 +291,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	}
 	// Ensure that we have the full declaration, in case the declaration was
 	// parsed in ParseExported and therefore could be missing information.
-	result.Declaration.fullSpec, err = fullSpec(snapshot, result.Declaration.obj, declPkg)
-	if err != nil {
+	if result.Declaration.fullDecl, err = fullNode(snapshot, result.Declaration.obj, declPkg); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -314,10 +314,10 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	return result, nil
 }
 
-// fullSpec tries to extract the full spec corresponding to obj's declaration.
+// fullNode tries to extract the full spec corresponding to obj's declaration.
 // If the package was not parsed in full, the declaration file will be
 // re-parsed to ensure it has complete syntax.
-func fullSpec(snapshot Snapshot, obj types.Object, pkg Package) (ast.Spec, error) {
+func fullNode(snapshot Snapshot, obj types.Object, pkg Package) (ast.Decl, error) {
 	// declaration in a different package... make sure we have full AST information.
 	tok := snapshot.FileSet().File(obj.Pos())
 	uri := span.URIFromPath(tok.Name())
@@ -338,9 +338,9 @@ func fullSpec(snapshot Snapshot, obj types.Object, pkg Package) (ast.Spec, error
 		}
 	}
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
-	if len(path) > 1 {
-		if spec, _ := path[1].(*ast.TypeSpec); spec != nil {
-			return spec, nil
+	for _, n := range path {
+		if decl, ok := n.(ast.Decl); ok {
+			return decl, nil
 		}
 	}
 	return nil, nil

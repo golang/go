@@ -26,6 +26,10 @@ type Mixed struct {
 	Exported   int
 	unexported string
 }
+
+func printMixed(m Mixed) {
+	println(m)
+}
 `
 	const mod = `
 -- go.mod --
@@ -35,7 +39,7 @@ go 1.12
 
 require golang.org/x/structs v1.0.0
 -- go.sum --
-golang.org/x/structs v1.0.0 h1:oxD5q25qV458xBbXf5+QX+Johgg71KFtwuJzt145c9A=
+golang.org/x/structs v1.0.0 h1:3DlrFfd3OsEen7FnCHfqtnJvjBZ8ZFKmrD/+HjpdJj0=
 golang.org/x/structs v1.0.0/go.mod h1:47gkSIdo5AaQaWJS0upVORsxfEr1LL1MWv9dmYF3iq4=
 -- main.go --
 package main
@@ -51,9 +55,16 @@ func main() {
 		ProxyFiles(proxy),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		got, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Mixed"))
+		mixedPos := env.RegexpSearch("main.go", "Mixed")
+		got, _ := env.Hover("main.go", mixedPos)
 		if !strings.Contains(got.Value, "unexported") {
-			t.Errorf("Hover: missing expected field 'unexported'. Got:\n%q", got.Value)
+			t.Errorf("Workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
+		}
+		cacheFile, _ := env.GoToDefinition("main.go", mixedPos)
+		argPos := env.RegexpSearch(cacheFile, "printMixed.*(Mixed)")
+		got, _ = env.Hover(cacheFile, argPos)
+		if !strings.Contains(got.Value, "unexported") {
+			t.Errorf("Non-workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
 		}
 	})
 }
