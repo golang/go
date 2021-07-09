@@ -111,7 +111,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 	}
 	// regabi is only supported on amd64 and arm64.
 	if goarch != "amd64" && goarch != "arm64" {
-		flags.RegabiWrappers = false
 		flags.RegabiReflect = false
 		flags.RegabiArgs = false
 	}
