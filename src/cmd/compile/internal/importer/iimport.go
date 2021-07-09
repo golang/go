@@ -665,7 +665,8 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		baseType := r.typ()
 		// The imported instantiated type doesn't include any methods, so
 		// we must always use the methods of the base (orig) type.
-		t := types2.Instantiate(pos, baseType, targs)
+		var check *types2.Checker // TODO provide a non-nil *Checker
+		t := check.Instantiate(pos, baseType, targs, nil, false)
 		return t
 
 	case unionType:
