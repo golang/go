@@ -86,6 +86,17 @@ func TestMemoryProfiler(t *testing.T) {
 
 	runtime.GC() // materialize stats
 
+	// TODO(mknyszek): Fix #45315 and remove this extra call.
+	//
+	// Unfortunately, it's possible for the sweep termination condition
+	// to flap, so with just one runtime.GC call, a freed object could be
+	// missed, leading this test to fail. A second call reduces the chance
+	// of this happening to zero, because sweeping actually has to finish
+	// to move on to the next GC, during which nothing will happen.
+	//
+	// See #46500 for more details.
+	runtime.GC()
+
 	memoryProfilerRun++
 
 	tests := []struct {
