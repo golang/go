@@ -224,7 +224,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
-			return r.p.check.InstantiateLazy(syntax.Pos{}, name.Type(), targs)
+			return r.p.check.InstantiateLazy(syntax.Pos{}, name.Type(), targs, false)
 		}
 		return name.Type()
 
