@@ -59,6 +59,23 @@ type worker struct {
 	termC       chan struct{} // closed by wait when worker process terminates
 }
 
+func newWorker(c *coordinator, dir, binPath string, args, env []string) (*worker, error) {
+	mem, err := sharedMemTempFile(workerSharedMemSize)
+	if err != nil {
+		return nil, err
+	}
+	memMu := make(chan *sharedMem, 1)
+	memMu <- mem
+	return &worker{
+		dir:         dir,
+		binPath:     binPath,
+		args:        args,
+		env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
+		coordinator: c,
+		memMu:       memMu,
+	}, nil
+}
+
 // cleanup releases persistent resources associated with the worker.
 func (w *worker) cleanup() error {
 	mem := <-w.memMu
@@ -625,8 +642,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	start := time.Now()
 	defer func() { resp.TotalDuration = time.Since(start) }()
 
-	fuzzCtx, cancel := context.WithTimeout(ctx, args.Timeout)
-	defer cancel()
+	if args.Timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, args.Timeout)
+		defer cancel()
+	}
 	mem := <-ws.memMu
 	defer func() {
 		resp.Count = mem.header().count
@@ -654,7 +674,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 	for {
 		select {
-		case <-fuzzCtx.Done():
+		case <-ctx.Done():
 			return resp
 
 		default:

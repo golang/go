@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -116,6 +117,47 @@ float32(2.5)`,
 			want := strings.TrimSpace(test.in)
 			if want != string(newB) {
 				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", want, newB)
+			}
+		})
+	}
+}
+
+// BenchmarkMarshalCorpusFile measures the time it takes to serialize byte
+// slices of various sizes to a corpus file. The slice contains a repeating
+// sequence of bytes 0-255 to mix escaped and non-escaped characters.
+func BenchmarkMarshalCorpusFile(b *testing.B) {
+	buf := make([]byte, 1024*1024)
+	for i := 0; i < len(buf); i++ {
+		buf[i] = byte(i)
+	}
+
+	for sz := 1; sz <= len(buf); sz <<= 1 {
+		sz := sz
+		b.Run(strconv.Itoa(sz), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.SetBytes(int64(sz))
+				marshalCorpusFile(buf[:sz])
+			}
+		})
+	}
+}
+
+// BenchmarkUnmarshalCorpusfile measures the time it takes to deserialize
+// files encoding byte slices of various sizes. The slice contains a repeating
+// sequence of bytes 0-255 to mix escaped and non-escaped characters.
+func BenchmarkUnmarshalCorpusFile(b *testing.B) {
+	buf := make([]byte, 1024*1024)
+	for i := 0; i < len(buf); i++ {
+		buf[i] = byte(i)
+	}
+
+	for sz := 1; sz <= len(buf); sz <<= 1 {
+		sz := sz
+		data := marshalCorpusFile(buf[:sz])
+		b.Run(strconv.Itoa(sz), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.SetBytes(int64(sz))
+				unmarshalCorpusFile(data)
 			}
 		})
 	}
