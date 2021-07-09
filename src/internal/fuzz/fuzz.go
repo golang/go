@@ -110,30 +110,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 		defer cancel()
 	}
 
-	// TODO(jayconrod): do we want to support fuzzing different binaries?
-	dir := "" // same as self
-	binPath := os.Args[0]
-	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
-	env := os.Environ() // same as self
-
-	// newWorker creates a worker but doesn't start it yet.
-	newWorker := func() (*worker, error) {
-		mem, err := sharedMemTempFile(workerSharedMemSize)
-		if err != nil {
-			return nil, err
-		}
-		memMu := make(chan *sharedMem, 1)
-		memMu <- mem
-		return &worker{
-			dir:         dir,
-			binPath:     binPath,
-			args:        args,
-			env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
-			coordinator: c,
-			memMu:       memMu,
-		}, nil
-	}
-
 	// fuzzCtx is used to stop workers, for example, after finding a crasher.
 	fuzzCtx, cancelWorkers := context.WithCancel(ctx)
 	defer cancelWorkers()
@@ -163,11 +139,17 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	}
 
 	// Start workers.
+	// TODO(jayconrod): do we want to support fuzzing different binaries?
+	dir := "" // same as self
+	binPath := os.Args[0]
+	args := append([]string{"-test.fuzzworker"}, os.Args[1:]...)
+	env := os.Environ() // same as self
+
 	errC := make(chan error)
 	workers := make([]*worker, opts.Parallel)
 	for i := range workers {
 		var err error
-		workers[i], err = newWorker()
+		workers[i], err = newWorker(c, dir, binPath, args, env)
 		if err != nil {
 			return err
 		}

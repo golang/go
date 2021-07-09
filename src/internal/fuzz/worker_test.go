@@ -6,10 +6,25 @@ package fuzz
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"reflect"
 	"testing"
 )
+
+var benchmarkWorkerFlag = flag.Bool("benchmarkworker", false, "")
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if *benchmarkWorkerFlag {
+		runBenchmarkWorker()
+		return
+	}
+	os.Exit(m.Run())
+}
 
 func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 	origEnv := os.Getenv("GODEBUG")
@@ -44,5 +59,88 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 		mem.header().count = 0
 
 		ws.fuzz(context.Background(), fuzzArgs{Limit: 1})
+	}
+}
+
+// BenchmarkWorkerPing acts as the coordinator and measures the time it takes
+// a worker to respond to N pings. This is a rough measure of our RPC latency.
+func BenchmarkWorkerPing(b *testing.B) {
+	b.SetParallelism(1)
+	w := newWorkerForTest(b)
+	for i := 0; i < b.N; i++ {
+		if err := w.client.ping(context.Background()); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkWorkerFuzz acts as the coordinator and measures the time it takes
+// a worker to mutate a given input and call a trivial fuzz function N times.
+func BenchmarkWorkerFuzz(b *testing.B) {
+	b.SetParallelism(1)
+	w := newWorkerForTest(b)
+	data := marshalCorpusFile([]byte(nil))
+	for i := int64(0); i < int64(b.N); {
+		args := fuzzArgs{
+			Limit:   int64(b.N) - i,
+			Timeout: workerFuzzDuration,
+		}
+		_, resp, err := w.client.fuzz(context.Background(), data, args)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if resp.Err != "" {
+			b.Fatal(resp.Err)
+		}
+		if resp.Count == 0 {
+			b.Fatal("worker did not make progress")
+		}
+		i += resp.Count
+	}
+}
+
+// newWorkerForTest creates and starts a worker process for testing or
+// benchmarking. The worker process calls RunFuzzWorker, which responds to
+// RPC messages until it's stopped. The process is stopped and cleaned up
+// automatically when the test is done.
+func newWorkerForTest(tb testing.TB) *worker {
+	tb.Helper()
+	c, err := newCoordinator(CoordinateFuzzingOpts{
+		Types: []reflect.Type{reflect.TypeOf([]byte(nil))},
+		Log:   io.Discard,
+	})
+	if err != nil {
+		tb.Fatal(err)
+	}
+	dir := ""             // same as self
+	binPath := os.Args[0] // same as self
+	args := append(os.Args[1:], "-benchmarkworker")
+	env := os.Environ() // same as self
+	w, err := newWorker(c, dir, binPath, args, env)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(func() {
+		if err := w.cleanup(); err != nil {
+			tb.Error(err)
+		}
+	})
+	if err := w.startAndPing(context.Background()); err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(func() {
+		if err := w.stop(); err != nil {
+			tb.Error(err)
+		}
+	})
+	return w
+}
+
+func runBenchmarkWorker() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	fn := func(CorpusEntry) error { return nil }
+	if err := RunFuzzWorker(ctx, fn); err != nil && err != ctx.Err() {
+		panic(err)
 	}
 }
