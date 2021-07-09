@@ -1905,8 +1905,6 @@ func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 	for _, mode := range modes {
 		mode := mode
 		t.Run(fmt.Sprint(mode), func(t *testing.T) {
-			t.Parallel()
-
 			exported.Config.Mode = mode
 			pkgs, err := packages.Load(exported.Config, "golang.org/fake/c")
 			if err != nil {
