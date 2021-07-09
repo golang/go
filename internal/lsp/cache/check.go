@@ -539,8 +539,10 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *metadata, mode sour
 	for _, cgf := range pkg.compiledGoFiles {
 		files = append(files, cgf.File)
 	}
+
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files)
+
 	// If the context was cancelled, we may have returned a ton of transient
 	// errors to the type checker. Swallow them.
 	if ctx.Err() != nil {

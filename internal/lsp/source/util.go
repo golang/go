@@ -274,19 +274,35 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-// FindPackageFromPos finds the parsed file for a position in a given search
-// package.
+// FindPackageFromPos finds the first package containing pos in its
+// type-checked AST.
 func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (Package, error) {
 	tok := snapshot.FileSet().File(pos)
 	if tok == nil {
 		return nil, errors.Errorf("no file for pos %v", pos)
 	}
 	uri := span.URIFromPath(tok.Name())
-	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckWorkspace)
+	// Search all packages: some callers may be working with packages not
+	// type-checked in workspace mode.
+	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckAll)
 	if err != nil {
 		return nil, err
 	}
-	return pkgs[0], nil
+	// Only return the package if it actually type-checked the given position.
+	for _, pkg := range pkgs {
+		parsed, err := pkg.File(uri)
+		if err != nil {
+			return nil, err
+		}
+		if parsed == nil {
+			continue
+		}
+		if parsed.Tok.Base() != tok.Base() {
+			continue
+		}
+		return pkg, nil
+	}
+	return nil, errors.Errorf("no package for given file position")
 }
 
 // findFileInDeps finds uri in pkg or its dependencies.

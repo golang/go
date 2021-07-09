@@ -61,6 +61,10 @@ func (p *pkg) PkgPath() string {
 	return string(p.m.pkgPath)
 }
 
+func (p *pkg) ParseMode() source.ParseMode {
+	return p.mode
+}
+
 func (p *pkg) CompiledGoFiles() []*source.ParsedGoFile {
 	return p.compiledGoFiles
 }

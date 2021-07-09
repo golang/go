@@ -85,6 +85,10 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		return nil, fmt.Errorf("no packages for file %v", fh.URI())
 	}
 	sort.Slice(pkgs, func(i, j int) bool {
+		// Prefer packages with a more complete parse mode.
+		if pkgs[i].ParseMode() != pkgs[j].ParseMode() {
+			return pkgs[i].ParseMode() > pkgs[j].ParseMode()
+		}
 		return len(pkgs[i].CompiledGoFiles()) < len(pkgs[j].CompiledGoFiles())
 	})
 	var findErr error

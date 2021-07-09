@@ -581,6 +581,7 @@ type Package interface {
 	Version() *module.Version
 	HasListOrParseErrors() bool
 	HasTypeErrors() bool
+	ParseMode() ParseMode
 }
 
 type CriticalError struct {
