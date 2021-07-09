@@ -729,11 +729,37 @@ func gcshapeType(t *types.Type) (*types.Type, string) {
 
 	// Call CallSize so type sizes and field offsets are available.
 	types.CalcSize(t)
+
+	instType := t.Sym() != nil && t.IsFullyInstantiated()
+	if instType {
+		// We distinguish the gcshape of all top-level instantiated type from
+		// normal concrete types, even if they have the exact same underlying
+		// "shape", because in a function instantiation, any method call on
+		// this type arg will be a generic method call (requiring a
+		// dictionary), rather than a direct method call on the underlying
+		// type (no dictionary). So, we add the instshape prefix to the
+		// normal gcshape name, and will make it a defined type with that
+		// name below.
+		buf.WriteString("instshape-")
+	}
 	fl = accumGcshape(fl, buf, t, nil)
+
 	// TODO: Should gcshapes be in a global package, so we don't have to
 	// duplicate in each package? Or at least in the specified source package
 	// of a function/method instantiation?
 	gcshape := types.NewStruct(types.LocalPkg, fl)
+	gcname := buf.String()
+	if instType {
+		// Lookup or create type with name 'gcname' (with instshape prefix).
+		newsym := t.Sym().Pkg.Lookup(gcname)
+		if newsym.Def != nil {
+			gcshape = newsym.Def.Type()
+		} else {
+			newt := typecheck.NewIncompleteNamedType(t.Pos(), newsym)
+			newt.SetUnderlying(gcshape.Underlying())
+			gcshape = newt
+		}
+	}
 	assert(gcshape.Size() == t.Size())
 	return gcshape, buf.String()
 }
@@ -764,7 +790,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 			// Testing out gcshapeType() and gcshapeName()
 			for i, t := range targs {
 				gct, gcs := gcshapeType(t)
-				fmt.Printf("targ %d: %v %v\n", i, gct, gcs)
+				fmt.Printf("targ %d: %v %v %v\n", i, gcs, gct, gct.Underlying())
 			}
 		}
 		// If instantiation doesn't exist yet, create it and add
