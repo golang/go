@@ -26,8 +26,6 @@ var (
 	ErrNegativeCount     = errors.New("bufio: negative count")
 )
 
-// Buffered input.
-
 // Reader implements buffering for an io.Reader object.
 type Reader struct {
 	buf          []byte
