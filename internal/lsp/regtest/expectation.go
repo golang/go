@@ -539,7 +539,7 @@ func EmptyDiagnostics(name string) Expectation {
 // send at least one diagnostic set for open files.
 func EmptyOrNoDiagnostics(name string) Expectation {
 	check := func(s State) Verdict {
-		if diags := s.diagnostics[name]; len(diags.Diagnostics) == 0 {
+		if diags := s.diagnostics[name]; diags == nil || len(diags.Diagnostics) == 0 {
 			return Met
 		}
 		return Unmet

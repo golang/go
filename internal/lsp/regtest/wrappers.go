@@ -6,14 +6,12 @@ package regtest
 
 import (
 	"encoding/json"
-	"io"
 	"path"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	errors "golang.org/x/xerrors"
 )
 
 func (e *Env) ChangeFilesOnDisk(events []fake.FileEvent) {
@@ -245,19 +243,6 @@ func (e *Env) DocumentHighlight(name string, pos fake.Pos) []protocol.DocumentHi
 		e.T.Fatal(err)
 	}
 	return highlights
-}
-
-func checkIsFatal(t testing.TB, err error) {
-	t.Helper()
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
-		t.Fatal(err)
-	}
-}
-
-// CloseEditor shuts down the editor, calling t.Fatal on any error.
-func (e *Env) CloseEditor() {
-	e.T.Helper()
-	checkIsFatal(e.T, e.Editor.Close(e.Ctx))
 }
 
 // RunGenerate runs go:generate on the given dir, calling t.Fatal on any error.

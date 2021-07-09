@@ -53,7 +53,9 @@ func TestSimultaneousEdits(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	runShared(t, func(env1 *Env, env2 *Env) {
-		env1.CloseEditor()
+		if err := env1.Editor.Close(env1.Ctx); err != nil {
+			t.Errorf("closing first editor: %v", err)
+		}
 		// Now make an edit in editor #2 to trigger diagnostics.
 		env2.OpenFile("main.go")
 		env2.RegexpReplace("main.go", "\\)\n(})", "")

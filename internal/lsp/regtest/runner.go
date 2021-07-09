@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 // Mode is a bitmask that defines for which execution modes a test should run.
@@ -307,7 +308,13 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 				if t.Failed() || testing.Verbose() {
 					ls.printBuffers(t.Name(), os.Stderr)
 				}
-				env.CloseEditor()
+				// For tests that failed due to a timeout, don't fail to shutdown
+				// because ctx is done.
+				closeCtx, cancel := context.WithTimeout(xcontext.Detach(ctx), 5*time.Second)
+				defer cancel()
+				if err := env.Editor.Close(closeCtx); err != nil {
+					t.Errorf("closing editor: %v", err)
+				}
 			}()
 			// Always await the initial workspace load.
 			env.Await(InitialWorkspaceLoad)
