@@ -112,19 +112,21 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 }
 
 // InstantiateLazy is like Instantiate, but avoids actually
-// instantiating the type until needed.
-func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, verify bool) (res Type) {
+// instantiating the type until needed. typ must be a *Named
+// type.
+func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) Type {
 	base := asNamed(typ)
 	if base == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
 
 	return &instance{
-		check:  check,
-		pos:    pos,
-		base:   base,
-		targs:  targs,
-		verify: verify,
+		check:   check,
+		pos:     pos,
+		base:    base,
+		targs:   targs,
+		posList: posList,
+		verify:  verify,
 	}
 }
 

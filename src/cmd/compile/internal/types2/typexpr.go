@@ -410,45 +410,32 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
 	return Typ[Invalid]
 }
 
-func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *Named) Type {
-	b := check.genericType(x, true) // TODO(gri) what about cycles?
-	if b == Typ[Invalid] {
-		return b // error already reported
-	}
-	base := asNamed(b)
-	if base == nil {
-		unreachable() // should have been caught by genericType
+func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
+	base := check.genericType(x, true)
+	if base == Typ[Invalid] {
+		return base // error already reported
 	}
 
-	// create a new type instance rather than instantiate the type
-	// TODO(gri) should do argument number check here rather than
-	//           when instantiating the type?
-	// TODO(gri) use InstantiateLazy here (cleanup)
-	typ := new(instance)
-	def.setUnderlying(typ)
-
-	typ.check = check
-	typ.pos = x.Pos()
-	typ.base = base
-	typ.verify = true
-
-	// evaluate arguments (always)
-	typ.targs = check.typeList(targs)
-	if typ.targs == nil {
+	// evaluate arguments
+	targs := check.typeList(targsx)
+	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
 	}
 
-	// determine argument positions (for error reporting)
-	typ.poslist = make([]syntax.Pos, len(targs))
-	for i, arg := range targs {
-		typ.poslist[i] = syntax.StartPos(arg)
+	// determine argument positions
+	posList := make([]syntax.Pos, len(targs))
+	for i, arg := range targsx {
+		posList[i] = syntax.StartPos(arg)
 	}
+
+	typ := check.InstantiateLazy(x.Pos(), base, targs, posList, true)
+	def.setUnderlying(typ)
 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid
 	check.later(func() {
-		t := typ.expand()
+		t := typ.(*instance).expand()
 		check.validType(t, nil)
 	})
 
