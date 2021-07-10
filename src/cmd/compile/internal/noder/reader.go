@@ -1252,7 +1252,7 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
 			continue
 		}
 
-		lhs[i] = r.expr()
+		lhs[i] = typecheck.AssignExpr(r.expr0())
 	}
 
 	return names, lhs
@@ -1351,7 +1351,21 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 	r.openScope()
 	pos := r.pos()
 	init := r.stmt()
-	tag := r.expr()
+
+	var tag ir.Node
+	if r.bool() {
+		pos := r.pos()
+		var ident *ir.Ident
+		if r.bool() {
+			pos := r.pos()
+			sym := typecheck.Lookup(r.string())
+			ident = ir.NewIdent(pos, sym)
+		}
+		x := r.expr()
+		tag = ir.NewTypeSwitchGuard(pos, ident, x)
+	} else {
+		tag = r.expr()
+	}
 
 	tswitch, ok := tag.(*ir.TypeSwitchGuard)
 	if ok && tswitch.Tag == nil {
@@ -1432,7 +1446,19 @@ func (r *reader) initDefn(defn ir.InitNode, names []*ir.Name) bool {
 
 // @@@ Expressions
 
+// expr reads and returns a typechecked expression.
 func (r *reader) expr() ir.Node {
+	n := r.expr0()
+	if n == nil || n.Op() == ir.OTYPE {
+		// TODO(mdempsky): Push this responsibility up to callers?
+		return n
+	}
+	return typecheck.Expr(n)
+}
+
+// expr0 reads and returns an expression, possibly untypechecked.
+// The caller must typecheck the result as appropriate for its context.
+func (r *reader) expr0() ir.Node {
 	switch tag := codeExpr(r.code(syncExpr)); tag {
 	default:
 		panic("unhandled expression")
@@ -1522,22 +1548,17 @@ func (r *reader) expr() ir.Node {
 		return ir.NewBinaryExpr(pos, op, x, y)
 
 	case exprCall:
-		fun := r.expr()
+		fun := typecheck.Callee(r.expr0())
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.bool()
 		return typecheck.Call(pos, fun, args, dots)
 
-	case exprTypeSwitchGuard:
+	case exprConvert:
+		typ := r.typ()
 		pos := r.pos()
-		var tag *ir.Ident
-		if r.bool() {
-			pos := r.pos()
-			sym := typecheck.Lookup(r.string())
-			tag = ir.NewIdent(pos, sym)
-		}
 		x := r.expr()
-		return ir.NewTypeSwitchGuard(pos, tag, x)
+		return ir.NewConvExpr(pos, ir.OCONV, typ, x)
 	}
 }
 
