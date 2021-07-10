@@ -157,6 +157,14 @@ var op2str2 = [...]string{
 	syntax.Shl: "shift",
 }
 
+func underIs(typ Type, f func(Type) bool) bool {
+	u := under(typ)
+	if tpar, _ := u.(*TypeParam); tpar != nil {
+		return tpar.underIs(f)
+	}
+	return f(u)
+}
+
 func (check *Checker) unary(x *operand, e *syntax.Operation) {
 	check.expr(x, e.X)
 	if x.mode == invalid {
@@ -177,19 +185,29 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
-		typ := asChan(x.typ)
-		if typ == nil {
-			check.errorf(x, invalidOp+"cannot receive from non-channel %s", x)
-			x.mode = invalid
-			return
-		}
-		if typ.dir == SendOnly {
-			check.errorf(x, invalidOp+"cannot receive from send-only channel %s", x)
+		var elem Type
+		if !underIs(x.typ, func(u Type) bool {
+			ch, _ := u.(*Chan)
+			if ch == nil {
+				check.errorf(x, invalidOp+"cannot receive from non-channel %s", x)
+				return false
+			}
+			if ch.dir == SendOnly {
+				check.errorf(x, invalidOp+"cannot receive from send-only channel %s", x)
+				return false
+			}
+			if elem != nil && !Identical(ch.elem, elem) {
+				check.errorf(x, invalidOp+"channels of %s must have the same element type", x)
+				return false
+			}
+			elem = ch.elem
+			return true
+		}) {
 			x.mode = invalid
 			return
 		}
 		x.mode = commaok
-		x.typ = typ.elem
+		x.typ = elem
 		check.hasCallOrRecv = true
 		return
 	}
