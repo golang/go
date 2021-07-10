@@ -1230,19 +1230,32 @@ func (w *writer) expr(expr syntax.Expr) {
 			break
 		}
 
-		w.code(exprCall)
+		writeFunExpr := func() {
+			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
+				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
+					w.expr(selector.X)
+					w.bool(true) // method call
+					w.pos(selector)
+					w.selector(sel.Obj())
+					return
+				}
+			}
 
-		if inf, ok := w.p.info.Inferred[expr]; ok {
-			obj, _ := lookupObj(w.p.info, expr.Fun)
-			assert(obj != nil)
+			if inf, ok := w.p.info.Inferred[expr]; ok {
+				obj, _ := lookupObj(w.p.info, expr.Fun)
+				assert(obj != nil)
 
-			// As if w.expr(expr.Fun), but using inf.TArgs instead.
-			w.code(exprName)
-			w.obj(obj, inf.TArgs)
-		} else {
-			w.expr(expr.Fun)
+				// As if w.expr(expr.Fun), but using inf.TArgs instead.
+				w.code(exprName)
+				w.obj(obj, inf.TArgs)
+			} else {
+				w.expr(expr.Fun)
+			}
+			w.bool(false) // not a method call (i.e., normal function call)
 		}
 
+		w.code(exprCall)
+		writeFunExpr()
 		w.pos(expr)
 		w.exprs(expr.ArgList)
 		w.bool(expr.HasDots)

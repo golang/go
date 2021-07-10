@@ -1252,7 +1252,7 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
 			continue
 		}
 
-		lhs[i] = typecheck.AssignExpr(r.expr0())
+		lhs[i] = r.expr()
 	}
 
 	return names, lhs
@@ -1447,18 +1447,13 @@ func (r *reader) initDefn(defn ir.InitNode, names []*ir.Name) bool {
 // @@@ Expressions
 
 // expr reads and returns a typechecked expression.
-func (r *reader) expr() ir.Node {
-	n := r.expr0()
-	if n == nil || n.Op() == ir.OTYPE {
-		// TODO(mdempsky): Push this responsibility up to callers?
-		return n
-	}
-	return typecheck.Expr(n)
-}
+func (r *reader) expr() (res ir.Node) {
+	defer func() {
+		if res != nil && res.Typecheck() == 0 {
+			base.FatalfAt(res.Pos(), "%v missed typecheck", res)
+		}
+	}()
 
-// expr0 reads and returns an expression, possibly untypechecked.
-// The caller must typecheck the result as appropriate for its context.
-func (r *reader) expr0() ir.Node {
 	switch tag := codeExpr(r.code(syncExpr)); tag {
 	default:
 		panic("unhandled expression")
@@ -1467,23 +1462,30 @@ func (r *reader) expr0() ir.Node {
 		return nil
 
 	case exprBlank:
-		return ir.BlankNode
+		// blank only allowed in LHS of assignments
+		// TODO(mdempsky): Handle directly in assignList instead?
+		return typecheck.AssignExpr(ir.BlankNode)
 
 	case exprLocal:
-		return r.useLocal()
+		return typecheck.Expr(r.useLocal())
 
 	case exprName:
-		return r.obj()
+		// Callee instead of Expr allows builtins
+		// TODO(mdempsky): Handle builtins directly in exprCall, like method calls?
+		return typecheck.Callee(r.obj())
 
 	case exprType:
-		return ir.TypeNode(r.typ())
+		// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+		n := ir.TypeNode(r.typ())
+		n.SetTypecheck(1)
+		return n
 
 	case exprConst:
 		pos := r.pos()
 		typ, val := r.value()
 		op := r.op()
 		orig := r.string()
-		return OrigConst(pos, typ, val, op, orig)
+		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
 
 	case exprCompLit:
 		return r.compLit()
@@ -1495,13 +1497,13 @@ func (r *reader) expr0() ir.Node {
 		x := r.expr()
 		pos := r.pos()
 		_, sym := r.selector()
-		return ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
+		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym))
 
 	case exprIndex:
 		x := r.expr()
 		pos := r.pos()
 		index := r.expr()
-		return ir.NewIndexExpr(pos, x, index)
+		return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
 
 	case exprSlice:
 		x := r.expr()
@@ -1514,13 +1516,13 @@ func (r *reader) expr0() ir.Node {
 		if index[2] != nil {
 			op = ir.OSLICE3
 		}
-		return ir.NewSliceExpr(pos, op, x, index[0], index[1], index[2])
+		return typecheck.Expr(ir.NewSliceExpr(pos, op, x, index[0], index[1], index[2]))
 
 	case exprAssert:
 		x := r.expr()
 		pos := r.pos()
 		typ := r.expr().(ir.Ntype)
-		return ir.NewTypeAssertExpr(pos, x, typ)
+		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ))
 
 	case exprUnaryOp:
 		op := r.op()
@@ -1529,11 +1531,11 @@ func (r *reader) expr0() ir.Node {
 
 		switch op {
 		case ir.OADDR:
-			return typecheck.NodAddrAt(pos, x)
+			return typecheck.Expr(typecheck.NodAddrAt(pos, x))
 		case ir.ODEREF:
-			return ir.NewStarExpr(pos, x)
+			return typecheck.Expr(ir.NewStarExpr(pos, x))
 		}
-		return ir.NewUnaryExpr(pos, op, x)
+		return typecheck.Expr(ir.NewUnaryExpr(pos, op, x))
 
 	case exprBinaryOp:
 		op := r.op()
@@ -1543,12 +1545,17 @@ func (r *reader) expr0() ir.Node {
 
 		switch op {
 		case ir.OANDAND, ir.OOROR:
-			return ir.NewLogicalExpr(pos, op, x, y)
+			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
 		}
-		return ir.NewBinaryExpr(pos, op, x, y)
+		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
 
 	case exprCall:
-		fun := typecheck.Callee(r.expr0())
+		fun := r.expr()
+		if r.bool() { // method call
+			pos := r.pos()
+			_, sym := r.selector()
+			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
+		}
 		pos := r.pos()
 		args := r.exprs()
 		dots := r.bool()
@@ -1558,17 +1565,17 @@ func (r *reader) expr0() ir.Node {
 		typ := r.typ()
 		pos := r.pos()
 		x := r.expr()
-		return ir.NewConvExpr(pos, ir.OCONV, typ, x)
+		return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONV, typ, x))
 	}
 }
 
 func (r *reader) compLit() ir.Node {
 	r.sync(syncCompLit)
 	pos := r.pos()
-	typ := r.typ()
+	typ0 := r.typ()
 
-	isPtrLit := typ.IsPtr()
-	if isPtrLit {
+	typ := typ0
+	if typ.IsPtr() {
 		typ = typ.Elem()
 	}
 	if typ.Kind() == types.TFORW {
@@ -1591,9 +1598,10 @@ func (r *reader) compLit() ir.Node {
 		*elemp = wrapName(r.pos(), r.expr())
 	}
 
-	lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems)
-	if isPtrLit {
-		return typecheck.NodAddrAt(pos, lit)
+	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems))
+	if typ0.IsPtr() {
+		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
+		lit.SetType(typ0)
 	}
 	return lit
 }
