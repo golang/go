@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"go/types"
 	"log"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -94,7 +93,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	if err != nil {
 		return nil, err
 	}
-	// ignore pgf.ParseErr. Do what we can.
+	// don't return errors on pgf.ParseErr. Do what we can.
 	if rng == nil && len(pgf.Src) > maxFullFileSize {
 		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
 			fh.URI().Filename(), len(pgf.Src), maxFullFileSize)
@@ -123,7 +122,6 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 
 func (e *encoded) semantics() {
 	f := e.pgf.File
-	// may not be in range, but harmless
 	e.token(f.Package, len("package"), tokKeyword, nil)
 	e.token(f.Name.NamePos, len(f.Name.Name), tokNamespace, nil)
 	inspect := func(n ast.Node) bool {
@@ -168,11 +166,8 @@ const (
 )
 
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
-
-	if start == token.NoPos {
-		// This is not worth reporting
-		//e.unexpected("token at token.NoPos")
-		return
+	if start == 0 {
+		e.unexpected("token at token.NoPos")
 	}
 	if start >= e.end || start+token.Pos(leng) <= e.start {
 		return
@@ -191,7 +186,10 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 		return
 	}
 	if lspRange.End.Line != lspRange.Start.Line {
-		// this happens if users are typing at the end of the file, but report nothing
+		// abrupt end of file, without \n. TODO(pjw): fix?
+		pos := e.fset.PositionFor(start, false)
+		msg := fmt.Sprintf("token at %s:%d.%d overflows", pos.Filename, pos.Line, pos.Column)
+		event.Log(e.ctx, msg)
 		return
 	}
 	// token is all on one line
@@ -238,20 +236,10 @@ func (e *encoded) strStack() string {
 	if len(e.stack) > 0 {
 		loc := e.stack[len(e.stack)-1].Pos()
 		add := e.pgf.Tok.PositionFor(loc, false)
-		nm := filepath.Base(add.Filename)
-		msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
+		msg = append(msg, fmt.Sprintf("(line:%d,col:%d)", add.Line, add.Column))
 	}
 	msg = append(msg, "]")
 	return strings.Join(msg, " ")
-}
-
-func (e *encoded) srcLine(x ast.Node) string {
-	file := e.pgf.Tok
-	line := file.Line(x.Pos())
-	start := file.Offset(file.LineStart(line))
-	end := file.Offset(file.LineStart(line + 1)) // and hope it's not the last line of the file
-	ans := e.pgf.Src[start : end-1]
-	return string(ans)
 }
 
 func (e *encoded) inspector(n ast.Node) bool {
@@ -421,26 +409,6 @@ func (e *encoded) ident(x *ast.Ident) {
 	use := e.ti.Uses[x]
 	switch y := use.(type) {
 	case nil:
-		// In this position we think the identifier is either a function or a variable
-		// and it is possible that it is being defined. The decision has to be made based
-		// on where we are in the parse tree (and all that's known is the parse stack).
-		// The present logic is inadequate, and will be fixed in the next CL:
-		// ExprStmt CallExpr Ident: var [x in a(x)]
-		// ExprStmt CallExpr Ident: function [f()]
-		// CallExpr TypeAssertExpr Ident: type [so not variable nor function]
-		log.SetFlags(log.Lshortfile)
-		log.Printf("%s %s%q", x.Name, e.strStack(), e.srcLine(x))
-		if len(e.stack) >= 3 {
-			n := len(e.stack) - 1
-			if _, ok := e.stack[n-1].(*ast.SelectorExpr); ok {
-				if _, ok = e.stack[n-2].(*ast.CallExpr); ok {
-					log.Print("function")
-					e.token(x.NamePos, len(x.Name), tokFunction, nil)
-					break
-				}
-			}
-		}
-		log.Print("var def")
 		e.token(x.NamePos, len(x.Name), tokVariable, []string{"definition"})
 	case *types.Builtin:
 		e.token(x.NamePos, len(x.Name), tokFunction, []string{"defaultLibrary"})
@@ -674,21 +642,16 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		}
 		// and fall through for _
 	}
-	val := d.Path.Value
-	if len(val) < 2 || val[0] != '"' || val[len(val)-1] != '"' {
-		// avoid panics on imports without a properly quoted string
+	if d.Path.Value == "" {
 		return
 	}
-	nm := val[1 : len(val)-1] // remove surrounding "s
+	nm := d.Path.Value[1 : len(d.Path.Value)-1] // trailing "
 	v := strings.LastIndex(nm, "/")
 	if v != -1 {
-		// in import "lib/math", 'math' is the package name
 		nm = nm[v+1:]
 	}
 	start := d.Path.End() - token.Pos(1+len(nm))
 	e.token(start, len(nm), tokNamespace, nil)
-	// There may be more cases, as import strings are implementation defined.
-	// (E.g., module a.b.c (without a /), the 'a' should be tokNamespace, if we cared.)
 }
 
 // log unexpected state
