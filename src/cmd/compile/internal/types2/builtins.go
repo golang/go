@@ -212,19 +212,23 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Close:
 		// close(c)
-		c := asChan(x.typ)
-		if c == nil {
-			check.errorf(x, invalidArg+"%s is not a channel", x)
+		if !underIs(x.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.errorf(x, invalidOp+"cannot close non-channel %s", x)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.errorf(x, invalidOp+"cannot close receive-only channel %s", x)
+				return false
+			}
+			return true
+		}) {
 			return
 		}
-		if c.dir == RecvOnly {
-			check.errorf(x, invalidArg+"%s must not be a receive-only channel", x)
-			return
-		}
-
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, c))
+			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
 		}
 
 	case _Complex:
