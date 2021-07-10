@@ -1033,7 +1033,17 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
 	w.openScope(stmt.Pos())
 	w.pos(stmt)
 	w.stmt(stmt.Init)
-	w.expr(stmt.Tag)
+
+	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.bool(ok) {
+		w.pos(guard)
+		if tag := guard.Lhs; w.bool(tag != nil) {
+			w.pos(tag)
+			w.string(tag.Value)
+		}
+		w.expr(guard.X)
+	} else {
+		w.expr(stmt.Tag)
+	}
 
 	w.len(len(stmt.Body))
 	for i, clause := range stmt.Body {
@@ -1207,6 +1217,19 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.expr(expr.Y)
 
 	case *syntax.CallExpr:
+		tv, ok := w.p.info.Types[expr.Fun]
+		assert(ok)
+		if tv.IsType() {
+			assert(len(expr.ArgList) == 1)
+			assert(!expr.HasDots)
+
+			w.code(exprConvert)
+			w.typ(tv.Type)
+			w.pos(expr)
+			w.expr(expr.ArgList[0])
+			break
+		}
+
 		w.code(exprCall)
 
 		if inf, ok := w.p.info.Inferred[expr]; ok {
@@ -1223,15 +1246,6 @@ func (w *writer) expr(expr syntax.Expr) {
 		w.pos(expr)
 		w.exprs(expr.ArgList)
 		w.bool(expr.HasDots)
-
-	case *syntax.TypeSwitchGuard:
-		w.code(exprTypeSwitchGuard)
-		w.pos(expr)
-		if tag := expr.Lhs; w.bool(tag != nil) {
-			w.pos(tag)
-			w.string(tag.Value)
-		}
-		w.expr(expr.X)
 	}
 }
 

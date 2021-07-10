@@ -107,9 +107,7 @@ const (
 	exprUnaryOp
 	exprBinaryOp
 	exprCall
-
-	// TODO(mdempsky): Handle in switchStmt directly instead.
-	exprTypeSwitchGuard
+	exprConvert
 )
 
 type codeDecl int
