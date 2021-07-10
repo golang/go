@@ -49,3 +49,34 @@ func TestBuildPackageGo117(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildPackageFailuresGo117(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		importer types.Importer
+	}{
+		{"slice to array pointer - source is not a slice", "package p; var s [4]byte; var _ = (*[4]byte)(s)", nil},
+		{"slice to array pointer - dest is not a pointer", "package p; var s []byte; var _ = ([4]byte)(s)", nil},
+		{"slice to array pointer - dest pointer elem is not an array", "package p; var s []byte; var _ = (*byte)(s)", nil},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, "p.go", tc.src, parser.ParseComments)
+			if err != nil {
+				t.Error(err)
+			}
+			files := []*ast.File{f}
+
+			pkg := types.NewPackage("p", "")
+			conf := &types.Config{Importer: tc.importer}
+			if _, _, err := ssautil.BuildPackage(conf, fset, pkg, files, ssa.SanityCheckFunctions); err == nil {
+				t.Error("want error, but got nil")
+			}
+		})
+	}
+}

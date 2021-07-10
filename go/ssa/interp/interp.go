@@ -210,6 +210,9 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 	case *ssa.Convert:
 		fr.env[instr] = conv(instr.Type(), instr.X.Type(), fr.get(instr.X))
 
+	case *ssa.SliceToArrayPointer:
+		fr.env[instr] = sliceToArrayPointer(instr.Type(), instr.X.Type(), fr.get(instr.X))
+
 	case *ssa.MakeInterface:
 		fr.env[instr] = iface{t: instr.X.Type(), v: fr.get(instr.X)}
 

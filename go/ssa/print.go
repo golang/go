@@ -159,10 +159,11 @@ func printConv(prefix string, v, x Value) string {
 		relName(x, v.(Instruction)))
 }
 
-func (v *ChangeType) String() string      { return printConv("changetype", v, v.X) }
-func (v *Convert) String() string         { return printConv("convert", v, v.X) }
-func (v *ChangeInterface) String() string { return printConv("change interface", v, v.X) }
-func (v *MakeInterface) String() string   { return printConv("make", v, v.X) }
+func (v *ChangeType) String() string          { return printConv("changetype", v, v.X) }
+func (v *Convert) String() string             { return printConv("convert", v, v.X) }
+func (v *ChangeInterface) String() string     { return printConv("change interface", v, v.X) }
+func (v *SliceToArrayPointer) String() string { return printConv("slice to array pointer", v, v.X) }
+func (v *MakeInterface) String() string       { return printConv("make", v, v.X) }
 
 func (v *MakeClosure) String() string {
 	var b bytes.Buffer
