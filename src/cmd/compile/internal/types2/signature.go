@@ -211,9 +211,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
-		if t := rtyp; t != Typ[Invalid] {
+		if rtyp != Typ[Invalid] {
 			var err string
-			if T := asNamed(t); T != nil {
+			switch T := rtyp.(type) {
+			case *Named:
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
@@ -224,23 +225,30 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 						err = ""
 					}
 				} else {
-					switch u := optype(T).(type) {
-					case *Basic:
-						// unsafe.Pointer is treated like a regular pointer
-						if u.kind == UnsafePointer {
-							err = "unsafe.Pointer"
+					// The underlying type of a receiver base type can be a type parameter;
+					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+					underIs(T, func(u Type) bool {
+						switch u := u.(type) {
+						case *Basic:
+							// unsafe.Pointer is treated like a regular pointer
+							if u.kind == UnsafePointer {
+								err = "unsafe.Pointer"
+								return false
+							}
+						case *Pointer, *Interface:
+							err = "pointer or interface type"
+							return false
 						}
-					case *Pointer, *Interface:
-						err = "pointer or interface type"
-					}
+						return true
+					})
 				}
-			} else if T := asBasic(t); T != nil {
+			case *Basic:
 				err = "basic or unnamed type"
 				if check.conf.CompilerErrorMessages {
 					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
 					err = ""
 				}
-			} else {
+			default:
 				check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
 			}
 			if err != "" {
