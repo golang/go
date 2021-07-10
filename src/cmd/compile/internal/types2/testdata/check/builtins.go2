@@ -6,6 +6,45 @@
 
 package builtins
 
+// close
+
+type C0 interface{ int }
+type C1 interface{ chan int }
+type C2 interface{ chan int | <-chan int }
+type C3 interface{ chan int | chan float32 }
+type C4 interface{ chan int | chan<- int }
+type C5[T any] interface{ ~chan T | chan<- T }
+
+func _[T any](ch T) {
+	close(ch /* ERROR cannot close non-channel */)
+}
+
+func _[T C0](ch T) {
+	close(ch /* ERROR cannot close non-channel */)
+}
+
+func _[T C1](ch T) {
+	close(ch)
+}
+
+func _[T C2](ch T) {
+	close(ch /* ERROR cannot close receive-only channel */)
+}
+
+func _[T C3](ch T) {
+	close(ch)
+}
+
+func _[T C4](ch T) {
+	close(ch)
+}
+
+func _[T C5[X], X any](ch T) {
+	close(ch)
+}
+
+// make
+
 type Bmc interface {
 	~map[rune]string | ~chan int
 }
@@ -22,31 +61,31 @@ type Bss interface {
 	~[]int | ~[]string
 }
 
-func _[T any] () {
-	_ = make(T /* ERROR invalid argument */ )
-	_ = make(T /* ERROR invalid argument */ , 10)
-	_ = make(T /* ERROR invalid argument */ , 10, 20)
+func _[T any]() {
+	_ = make(T /* ERROR invalid argument */)
+	_ = make(T /* ERROR invalid argument */, 10)
+	_ = make(T /* ERROR invalid argument */, 10, 20)
 }
 
-func _[T Bmc] () {
+func _[T Bmc]() {
 	_ = make(T)
 	_ = make(T, 10)
 	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
 }
 
-func _[T Bms] () {
+func _[T Bms]() {
 	_ = make /* ERROR expects 2 arguments */ (T)
 	_ = make(T, 10)
 	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
 }
 
-func _[T Bcs] () {
+func _[T Bcs]() {
 	_ = make /* ERROR expects 2 arguments */ (T)
 	_ = make(T, 10)
 	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
 }
 
-func _[T Bss] () {
+func _[T Bss]() {
 	_ = make /* ERROR expects 2 or 3 arguments */ (T)
 	_ = make(T, 10)
 	_ = make(T, 10, 20)
