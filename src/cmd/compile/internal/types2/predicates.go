@@ -270,12 +270,21 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		}
 
 	case *Interface:
+		// Two interface types are identical if they describe the same type sets.
+		// With the existing implementation restriction, this simplifies to:
+		//
 		// Two interface types are identical if they have the same set of methods with
-		// the same names and identical function types. Lower-case method names from
-		// different packages are always different. The order of the methods is irrelevant.
+		// the same names and identical function types, and if any type restrictions
+		// are the same. Lower-case method names from different packages are always
+		// different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			a := x.typeSet().methods
-			b := y.typeSet().methods
+			xset := x.typeSet()
+			yset := y.typeSet()
+			if !Identical(xset.types, yset.types) {
+				return false
+			}
+			a := xset.methods
+			b := yset.methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
