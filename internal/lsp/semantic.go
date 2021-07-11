@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"log"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -93,7 +93,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	if err != nil {
 		return nil, err
 	}
-	// don't return errors on pgf.ParseErr. Do what we can.
+	// ignore pgf.ParseErr. Do what we can.
 	if rng == nil && len(pgf.Src) > maxFullFileSize {
 		err := fmt.Errorf("semantic tokens: file %s too large for full (%d>%d)",
 			fh.URI().Filename(), len(pgf.Src), maxFullFileSize)
@@ -122,6 +122,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 
 func (e *encoded) semantics() {
 	f := e.pgf.File
+	// may not be in range, but harmless
 	e.token(f.Package, len("package"), tokKeyword, nil)
 	e.token(f.Name.NamePos, len(f.Name.Name), tokNamespace, nil)
 	inspect := func(n ast.Node) bool {
@@ -166,8 +167,11 @@ const (
 )
 
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
-	if start == 0 {
-		e.unexpected("token at token.NoPos")
+
+	if !start.IsValid() {
+		// This is not worth reporting
+		//e.unexpected("token at token.NoPos")
+		return
 	}
 	if start >= e.end || start+token.Pos(leng) <= e.start {
 		return
@@ -186,10 +190,7 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 		return
 	}
 	if lspRange.End.Line != lspRange.Start.Line {
-		// abrupt end of file, without \n. TODO(pjw): fix?
-		pos := e.fset.PositionFor(start, false)
-		msg := fmt.Sprintf("token at %s:%d.%d overflows", pos.Filename, pos.Line, pos.Column)
-		event.Log(e.ctx, msg)
+		// this happens if users are typing at the end of the file, but report nothing
 		return
 	}
 	// token is all on one line
@@ -236,10 +237,24 @@ func (e *encoded) strStack() string {
 	if len(e.stack) > 0 {
 		loc := e.stack[len(e.stack)-1].Pos()
 		add := e.pgf.Tok.PositionFor(loc, false)
-		msg = append(msg, fmt.Sprintf("(line:%d,col:%d)", add.Line, add.Column))
+		nm := filepath.Base(add.Filename)
+		msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
 	}
 	msg = append(msg, "]")
 	return strings.Join(msg, " ")
+}
+
+// find the line in the source
+func (e *encoded) srcLine(x ast.Node) string {
+	file := e.pgf.Tok
+	line := file.Line(x.Pos())
+	start := file.Offset(file.LineStart(line))
+	end := start
+	for ; end < len(e.pgf.Src) && e.pgf.Src[end] != '\n'; end++ {
+
+	}
+	ans := e.pgf.Src[start:end]
+	return string(ans)
 }
 
 func (e *encoded) inspector(n ast.Node) bool {
@@ -381,12 +396,12 @@ func (e *encoded) inspector(n ast.Node) bool {
 	case *ast.UnaryExpr:
 		e.token(x.OpPos, len(x.Op.String()), tokOperator, nil)
 	case *ast.ValueSpec:
-	// things we only see with parsing or type errors, so we ignore them
+	// things only seen with parsing or type errors, so ignore them
 	case *ast.BadDecl, *ast.BadExpr, *ast.BadStmt:
 		return true
 	// not going to see these
 	case *ast.File, *ast.Package:
-		log.Printf("implement %T %s", x, e.pgf.Tok.PositionFor(x.Pos(), false))
+		e.unexpected(fmt.Sprintf("implement %T %s", x, e.pgf.Tok.PositionFor(x.Pos(), false)))
 	// other things we knowingly ignore
 	case *ast.Comment, *ast.CommentGroup:
 		pop()
@@ -409,7 +424,8 @@ func (e *encoded) ident(x *ast.Ident) {
 	use := e.ti.Uses[x]
 	switch y := use.(type) {
 	case nil:
-		e.token(x.NamePos, len(x.Name), tokVariable, []string{"definition"})
+		e.unkIdent(x)
+		return
 	case *types.Builtin:
 		e.token(x.NamePos, len(x.Name), tokFunction, []string{"defaultLibrary"})
 	case *types.Const:
@@ -459,6 +475,134 @@ func (e *encoded) ident(x *ast.Ident) {
 		} else {
 			e.unexpected(fmt.Sprintf("%s %T", x.String(), use))
 		}
+	}
+}
+
+// both e.ti.Defs and e.ti.Uses are nil. use the parse stack
+// a lot of these only happen when the package doesn't compile
+func (e *encoded) unkIdent(x *ast.Ident) {
+	tok := func(tok tokenType, mod []string) {
+		e.token(x.Pos(), len(x.Name), tok, mod)
+	}
+	def := []string{"definition"}
+	n := len(e.stack) - 2 // parent of Ident
+	if n < 0 {
+		e.unexpected("no stack?")
+		return
+	}
+	switch nd := e.stack[n].(type) {
+	case *ast.BinaryExpr, *ast.UnaryExpr, *ast.ParenExpr, *ast.StarExpr,
+		*ast.IncDecStmt, *ast.SliceExpr, *ast.ExprStmt, *ast.IndexExpr,
+		*ast.ReturnStmt,
+		*ast.IfStmt,       /* condition */
+		*ast.KeyValueExpr: // either key or value
+		tok(tokVariable, nil)
+	case *ast.Ellipsis:
+		tok(tokType, nil)
+	case *ast.CaseClause:
+		if n-2 >= 0 {
+			if _, ok := e.stack[n-2].(*ast.TypeSwitchStmt); ok {
+				tok(tokType, nil)
+				return
+			}
+		}
+		tok(tokVariable, nil)
+	case *ast.ArrayType:
+		if x == nd.Len {
+			tok(tokVariable, nil)
+		} else {
+			tok(tokType, nil)
+		}
+	case *ast.MapType:
+		tok(tokType, nil)
+	case *ast.CallExpr:
+		if x == nd.Fun {
+			tok(tokFunction, nil)
+			return
+		}
+		tok(tokVariable, nil)
+	case *ast.TypeAssertExpr:
+		if x == nd.X {
+			tok(tokVariable, nil)
+		} else if x == nd.Type {
+			tok(tokType, nil)
+		}
+	case *ast.ValueSpec:
+		for _, p := range nd.Names {
+			if p == x {
+				tok(tokVariable, def)
+				return
+			}
+		}
+		for _, p := range nd.Values {
+			if p == x {
+				tok(tokVariable, nil)
+				return
+			}
+		}
+		tok(tokType, nil)
+	case *ast.SelectorExpr: // e.ti.Selections[nd] is nil, so no help
+		if n-1 >= 0 {
+			if ce, ok := e.stack[n-1].(*ast.CallExpr); ok {
+				// ... CallExpr SelectorExpr Ident (_.x())
+				if ce.Fun == nd && nd.Sel == x {
+					tok(tokFunction, nil)
+					return
+				}
+			}
+		}
+		tok(tokVariable, nil)
+	case *ast.AssignStmt:
+		for _, p := range nd.Lhs {
+			// x := ..., or x = ...
+			if p == x {
+				if nd.Tok != token.DEFINE {
+					def = nil
+				}
+				tok(tokVariable, def)
+				return
+			}
+		}
+		// RHS, = x
+		tok(tokVariable, nil)
+	case *ast.TypeSpec: // it's a type if it is either the Name or the Type
+		if x == nd.Type {
+			def = nil
+		}
+		tok(tokType, def)
+	case *ast.Field:
+		// ident could be type in a field, or a method in an interface type, or a variable
+		if x == nd.Type {
+			tok(tokType, nil)
+			return
+		}
+		if n-2 >= 0 {
+			_, okit := e.stack[n-2].(*ast.InterfaceType)
+			_, okfl := e.stack[n-1].(*ast.FieldList)
+			if okit && okfl {
+				tok(tokMember, def)
+				return
+			}
+		}
+		tok(tokVariable, nil)
+	case *ast.LabeledStmt, *ast.BranchStmt:
+		// nothing to report
+	case *ast.CompositeLit:
+		if nd.Type == x {
+			tok(tokType, nil)
+			return
+		}
+		tok(tokVariable, nil)
+	case *ast.RangeStmt:
+		if nd.Tok != token.DEFINE {
+			def = nil
+		}
+		tok(tokVariable, def)
+	case *ast.FuncDecl:
+		tok(tokFunction, def)
+	default:
+		msg := fmt.Sprintf("%T undexpected: %s %s%q", nd, x.Name, e.strStack(), e.srcLine(x))
+		e.unexpected(msg)
 	}
 }
 
@@ -642,16 +786,17 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		}
 		// and fall through for _
 	}
-	if d.Path.Value == "" {
+	val := d.Path.Value
+	if len(val) < 2 || val[0] != '"' || val[len(val)-1] != '"' {
+		// avoid panics on imports without a properly quoted string
 		return
 	}
-	nm := d.Path.Value[1 : len(d.Path.Value)-1] // trailing "
-	v := strings.LastIndex(nm, "/")
-	if v != -1 {
-		nm = nm[v+1:]
-	}
+	nm := val[1 : len(val)-1] // remove surrounding "s
+	nm = filepath.Base(nm)
+	// in import "lib/math", 'math' is the package name
 	start := d.Path.End() - token.Pos(1+len(nm))
 	e.token(start, len(nm), tokNamespace, nil)
+	// There may be more cases, as import strings are implementation defined.
 }
 
 // log unexpected state
