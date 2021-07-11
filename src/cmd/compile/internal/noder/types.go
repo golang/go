@@ -39,6 +39,11 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	// recursive types have been fully constructed before we call CheckSize.
 	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
 		types.CheckSize(res)
+		if res.IsPtr() {
+			// Pointers always have their size set, even though their element
+			// may not have its size set.
+			types.CheckSize(res.Elem())
+		}
 	}
 	return res
 }

@@ -2167,12 +2167,7 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	"writebarrier.go",         // correct diagnostics, but different lines (probably irgen's fault)
-	"fixedbugs/issue17270.go", // ICE in irgen
-	"fixedbugs/issue20174.go", // ICE due to width not calculated (probably irgen's fault)
-	"fixedbugs/issue20250.go", // correct diagnostics, but different lines (probably irgen's fault)
-	"fixedbugs/issue37837.go", // ICE due to width not calculated
-	"fixedbugs/issue9691.go",  // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
 
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
