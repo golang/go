@@ -29,7 +29,7 @@ func (g *irgen) use(name *syntax.Name) *ir.Name {
 	if !ok {
 		base.FatalfAt(g.pos(name), "unknown name %v", name)
 	}
-	obj := ir.CaptureName(g.pos(obj2), ir.CurFunc, g.obj(obj2))
+	obj := ir.CaptureName(g.pos(name), ir.CurFunc, g.obj(obj2))
 	if obj.Defn != nil && obj.Defn.Op() == ir.ONAME {
 		// If CaptureName created a closure variable, then transfer the
 		// type of the captured name to the new closure variable.

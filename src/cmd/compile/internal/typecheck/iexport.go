@@ -1636,7 +1636,9 @@ func (w *exportWriter) expr(n ir.Node) {
 	// (somewhat closely following the structure of exprfmt in fmt.go)
 	case ir.ONIL:
 		n := n.(*ir.NilExpr)
-		if !n.Type().HasNil() {
+		// If n is a typeparam, it will have already been checked
+		// for proper use by the types2 typechecker.
+		if !n.Type().IsTypeParam() && !n.Type().HasNil() {
 			base.Fatalf("unexpected type for nil: %v", n.Type())
 		}
 		w.op(ir.ONIL)
