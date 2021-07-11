@@ -1479,13 +1479,24 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				case typexpr:
 					x.typ = &Pointer{base: x.typ}
 				default:
-					if typ := asPointer(x.typ); typ != nil {
-						x.mode = variable
-						x.typ = typ.base
-					} else {
-						check.errorf(x, invalidOp+"cannot indirect %s", x)
+					var base Type
+					if !underIs(x.typ, func(u Type) bool {
+						p, _ := u.(*Pointer)
+						if p == nil {
+							check.errorf(x, invalidOp+"cannot indirect %s", x)
+							return false
+						}
+						if base != nil && !Identical(p.base, base) {
+							check.errorf(x, invalidOp+"pointers of %s must have identical base types", x)
+							return false
+						}
+						base = p.base
+						return true
+					}) {
 						goto Error
 					}
+					x.mode = variable
+					x.typ = base
 				}
 				break
 			}
