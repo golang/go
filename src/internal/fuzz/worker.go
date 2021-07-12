@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -156,7 +157,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// to the client.
 				args.CoverageData = input.coverageData
 			}
-			value, resp, err := w.client.fuzz(ctx, input.entry.Data, args)
+			entry, resp, err := w.client.fuzz(ctx, input.entry, args)
 			if err != nil {
 				// Error communicating with worker.
 				w.stop()
@@ -194,26 +195,11 @@ func (w *worker) coordinate(ctx context.Context) error {
 				count:          resp.Count,
 				totalDuration:  resp.TotalDuration,
 				entryDuration:  resp.InterestingDuration,
+				entry:          entry,
 			}
 			if resp.Err != "" {
-				h := sha256.Sum256(value)
-				name := fmt.Sprintf("%x", h[:4])
-				result.entry = CorpusEntry{
-					Name:       name,
-					Parent:     input.entry.Name,
-					Data:       value,
-					Generation: input.entry.Generation + 1,
-				}
 				result.crasherMsg = resp.Err
 			} else if resp.CoverageData != nil {
-				h := sha256.Sum256(value)
-				name := fmt.Sprintf("%x", h[:4])
-				result.entry = CorpusEntry{
-					Name:       name,
-					Parent:     input.entry.Name,
-					Data:       value,
-					Generation: input.entry.Generation + 1,
-				}
 				result.coverageData = resp.CoverageData
 			}
 			w.coordinator.resultC <- result
@@ -252,7 +238,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult
 		Limit:   w.coordinator.opts.MinimizeLimit,
 		Timeout: w.coordinator.opts.MinimizeTimeout,
 	}
-	value, resp, err := w.client.minimize(ctx, input.entry.Data, args)
+	minEntry, resp, err := w.client.minimize(ctx, input.entry, args)
 	if err != nil {
 		// Error communicating with worker.
 		w.stop()
@@ -274,7 +260,7 @@ func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult
 	min.crasherMsg = resp.Err
 	min.count = resp.Count
 	min.totalDuration = resp.Duration
-	min.entry.Data = value
+	min.entry = minEntry
 	return min, nil
 }
 
@@ -369,7 +355,9 @@ func (w *worker) start() (err error) {
 	// called later by stop.
 	w.cmd = cmd
 	w.termC = make(chan struct{})
-	w.client = newWorkerClient(workerComm{fuzzIn: fuzzInW, fuzzOut: fuzzOutR, memMu: w.memMu})
+	comm := workerComm{fuzzIn: fuzzInW, fuzzOut: fuzzOutR, memMu: w.memMu}
+	m := newMutator()
+	w.client = newWorkerClient(comm, m)
 
 	go func() {
 		w.waitErr = w.cmd.Wait()
@@ -632,9 +620,17 @@ func (ws *workerServer) serve(ctx context.Context) error {
 	}
 }
 
-// fuzz runs the test function on random variations of a given input value for
-// a given amount of time. fuzz returns early if it finds an input that crashes
-// the fuzz function or an input that expands coverage.
+// fuzz runs the test function on random variations of the input value in shared
+// memory for a limited duration or number of iterations.
+//
+// fuzz returns early if it finds an input that crashes the fuzz function (with
+// fuzzResponse.Err set) or an input that expands coverage (with
+// fuzzResponse.InterestingDuration set).
+//
+// fuzz does not modify the input in shared memory. Instead, it saves the
+// initial PRNG state in shared memory and increments a counter in shared
+// memory before each call to the test function. The caller may reconstruct
+// the crashing input with this information, since the PRNG is deterministic.
 func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzResponse) {
 	if args.CoverageData != nil {
 		ws.coverageData = args.CoverageData
@@ -648,6 +644,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		defer cancel()
 	}
 	mem := <-ws.memMu
+	ws.m.r.save(&mem.header().randState, &mem.header().randInc)
 	defer func() {
 		resp.Count = mem.header().count
 		ws.memMu <- mem
@@ -680,7 +677,6 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		default:
 			mem.header().count++
 			ws.m.mutate(vals, cap(mem.valueRef()))
-			writeToMem(vals, mem)
 			fStart := time.Now()
 			err := ws.fuzzFn(CorpusEntry{Values: vals})
 			fDur := time.Since(fStart)
@@ -879,10 +875,11 @@ func (ws *workerServer) ping(ctx context.Context, args pingArgs) pingResponse {
 type workerClient struct {
 	workerComm
 	mu sync.Mutex
+	m  *mutator
 }
 
-func newWorkerClient(comm workerComm) *workerClient {
-	return &workerClient{workerComm: comm}
+func newWorkerClient(comm workerComm, m *mutator) *workerClient {
+	return &workerClient{workerComm: comm, m: m}
 }
 
 // Close shuts down the connection to the RPC server (the worker process) by
@@ -919,55 +916,81 @@ var errSharedMemClosed = errors.New("internal error: shared memory was closed an
 
 // minimize tells the worker to call the minimize method. See
 // workerServer.minimize.
-func (wc *workerClient) minimize(ctx context.Context, valueIn []byte, args minimizeArgs) (valueOut []byte, resp minimizeResponse, err error) {
+func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args minimizeArgs) (entryOut CorpusEntry, resp minimizeResponse, err error) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
 	mem, ok := <-wc.memMu
 	if !ok {
-		return nil, minimizeResponse{}, errSharedMemClosed
+		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	mem.setValue(valueIn)
+	mem.setValue(entryIn.Data)
 	wc.memMu <- mem
+	defer func() { wc.memMu <- mem }()
 
 	c := call{Minimize: &args}
-	err = wc.callLocked(ctx, c, &resp)
+	callErr := wc.callLocked(ctx, c, &resp)
 	mem, ok = <-wc.memMu
 	if !ok {
-		return nil, minimizeResponse{}, errSharedMemClosed
+		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
-	valueOut = mem.valueCopy()
+	entryOut.Data = mem.valueCopy()
+	entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
+	if err != nil {
+		panic(fmt.Sprintf("workerClient.minimize unmarshaling minimized value: %v", err))
+	}
 	resp.Count = mem.header().count
-	wc.memMu <- mem
 
-	return valueOut, resp, err
+	return entryOut, resp, callErr
 }
 
 // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
-func (wc *workerClient) fuzz(ctx context.Context, valueIn []byte, args fuzzArgs) (valueOut []byte, resp fuzzResponse, err error) {
+func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzzArgs) (entryOut CorpusEntry, resp fuzzResponse, err error) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
 	mem, ok := <-wc.memMu
 	if !ok {
-		return nil, fuzzResponse{}, errSharedMemClosed
+		return CorpusEntry{}, fuzzResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	mem.setValue(valueIn)
+	mem.setValue(entryIn.Data)
 	wc.memMu <- mem
 
 	c := call{Fuzz: &args}
-	err = wc.callLocked(ctx, c, &resp)
+	callErr := wc.callLocked(ctx, c, &resp)
 	mem, ok = <-wc.memMu
 	if !ok {
-		return nil, fuzzResponse{}, errSharedMemClosed
+		return CorpusEntry{}, fuzzResponse{}, errSharedMemClosed
 	}
-	valueOut = mem.valueCopy()
+	defer func() { wc.memMu <- mem }()
 	resp.Count = mem.header().count
-	wc.memMu <- mem
 
-	return valueOut, resp, err
+	if !bytes.Equal(entryIn.Data, mem.valueRef()) {
+		panic("workerServer.fuzz modified input")
+	}
+	valuesOut, err := unmarshalCorpusFile(entryIn.Data)
+	if err != nil {
+		panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
+	}
+	wc.m.r.restore(mem.header().randState, mem.header().randInc)
+	for i := int64(0); i < mem.header().count; i++ {
+		wc.m.mutate(valuesOut, cap(mem.valueRef()))
+	}
+	dataOut := marshalCorpusFile(valuesOut...)
+
+	h := sha256.Sum256(dataOut)
+	name := fmt.Sprintf("%x", h[:4])
+	entryOut = CorpusEntry{
+		Name:       name,
+		Parent:     entryIn.Name,
+		Data:       dataOut,
+		Values:     valuesOut,
+		Generation: entryIn.Generation + 1,
+	}
+
+	return entryOut, resp, callErr
 }
 
 // ping tells the worker to call the ping method. See workerServer.ping.

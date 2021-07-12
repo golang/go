@@ -19,6 +19,9 @@ type mutatorRand interface {
 	uint32n(uint32) uint32
 	exp2() int
 	bool() bool
+
+	save(randState, randInc *uint64)
+	restore(randState, randInc uint64)
 }
 
 // The functions in pcg implement a 32 bit PRNG with a 64 bit period: pcg xsh rr
@@ -72,6 +75,16 @@ func newPcgRand() *pcgRand {
 func (r *pcgRand) step() {
 	r.state *= multiplier
 	r.state += r.inc
+}
+
+func (r *pcgRand) save(randState, randInc *uint64) {
+	*randState = r.state
+	*randInc = r.inc
+}
+
+func (r *pcgRand) restore(randState, randInc uint64) {
+	r.state = randState
+	r.inc = randInc
 }
 
 // uint32 returns a pseudo-random uint32.

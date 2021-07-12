@@ -79,13 +79,14 @@ func BenchmarkWorkerPing(b *testing.B) {
 func BenchmarkWorkerFuzz(b *testing.B) {
 	b.SetParallelism(1)
 	w := newWorkerForTest(b)
-	data := marshalCorpusFile([]byte(nil))
+	entry := CorpusEntry{Values: []interface{}{[]byte(nil)}}
+	entry.Data = marshalCorpusFile(entry.Values...)
 	for i := int64(0); i < int64(b.N); {
 		args := fuzzArgs{
 			Limit:   int64(b.N) - i,
 			Timeout: workerFuzzDuration,
 		}
-		_, resp, err := w.client.fuzz(context.Background(), data, args)
+		_, resp, err := w.client.fuzz(context.Background(), entry, args)
 		if err != nil {
 			b.Fatal(err)
 		}
