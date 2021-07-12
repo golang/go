@@ -727,6 +727,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		default:
 			return false
 		}
+	case objabi.R_ADDRPOWER_D34:
+		out.Write64(uint64(elf.R_PPC64_D34) | uint64(elfsym)<<32)
+	case objabi.R_ADDRPOWER_PCREL34:
+		out.Write64(uint64(elf.R_PPC64_PCREL34) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS:
 		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_LE:
@@ -734,6 +738,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_PPC64_TPREL16_LO) | uint64(elfsym)<<32)
+	case objabi.R_POWER_TLS_LE_TPREL34:
+		out.Write64(uint64(elf.R_PPC64_TPREL34) | uint64(elfsym)<<32)
+	case objabi.R_POWER_TLS_IE_PCREL34:
+		out.Write64(uint64(elf.R_PPC64_GOT_TPREL_PCREL34) | uint64(elfsym)<<32)
 	case objabi.R_POWER_TLS_IE:
 		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
@@ -888,48 +896,41 @@ func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r l
 	if target.IsAIX() {
 		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
 	}
-	var o1, o2 uint32
-	if target.IsBigEndian() {
-		o1 = uint32(val >> 32)
-		o2 = uint32(val)
-	} else {
-		o1 = uint32(val)
-		o2 = uint32(val >> 32)
-	}
+	o1, o2 := unpackInstPair(target, val)
 
-	// We are spreading a 31-bit address across two instructions, putting the
-	// high (adjusted) part in the low 16 bits of the first instruction and the
-	// low part in the low 16 bits of the second instruction, or, in the DS case,
-	// bits 15-2 (inclusive) of the address into bits 15-2 of the second
-	// instruction (it is an error in this case if the low 2 bits of the address
-	// are non-zero).
-
+	// Verify resulting address fits within a 31 bit (2GB) address space.
+	// This is a restriction arising  from the usage of lis (HA) + d-form
+	// (LO) instruction sequences used to implement absolute relocations
+	// on PPC64 prior to ISA 3.1 (P10). For consistency, maintain this
+	// restriction for ISA 3.1 unless it becomes problematic.
 	t := ldr.SymAddr(rs) + r.Add()
 	if t < 0 || t >= 1<<31 {
 		ldr.Errorf(s, "relocation for %s is too big (>=2G): 0x%x", ldr.SymName(s), ldr.SymValue(rs))
 	}
-	if t&0x8000 != 0 {
-		t += 0x10000
-	}
 
 	switch r.Type() {
+	case objabi.R_ADDRPOWER_PCREL34:
+		// S + A - P
+		t -= (ldr.SymValue(s) + int64(r.Off()))
+		o1 |= computePrefix34HI(t)
+		o2 |= computeLO(int32(t))
+	case objabi.R_ADDRPOWER_D34:
+		o1 |= computePrefix34HI(t)
+		o2 |= computeLO(int32(t))
 	case objabi.R_ADDRPOWER:
-		o1 |= (uint32(t) >> 16) & 0xffff
-		o2 |= uint32(t) & 0xffff
+		o1 |= computeHA(int32(t))
+		o2 |= computeLO(int32(t))
 	case objabi.R_ADDRPOWER_DS:
-		o1 |= (uint32(t) >> 16) & 0xffff
+		o1 |= computeHA(int32(t))
+		o2 |= computeLO(int32(t))
 		if t&3 != 0 {
 			ldr.Errorf(s, "bad DS reloc for %s: %d", ldr.SymName(s), ldr.SymValue(rs))
 		}
-		o2 |= uint32(t) & 0xfffc
 	default:
 		return -1
 	}
 
-	if target.IsBigEndian() {
-		return int64(o1)<<32 | int64(o2)
-	}
-	return int64(o2)<<32 | int64(o1)
+	return packInstPair(target, o1, o2)
 }
 
 // Determine if the code was compiled so that the TOC register R2 is initialized and maintained
@@ -1084,6 +1085,61 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetData(P)
 }
 
+// Unpack a pair of 32 bit instruction words from
+// a 64 bit relocation into instN and instN+1 in endian order.
+func unpackInstPair(target *ld.Target, r int64) (uint32, uint32) {
+	if target.IsBigEndian() {
+		return uint32(r >> 32), uint32(r)
+	}
+	return uint32(r), uint32(r >> 32)
+}
+
+// Pack a pair of 32 bit instruction words o1, o2 into 64 bit relocation
+// in endian order.
+func packInstPair(target *ld.Target, o1, o2 uint32) int64 {
+	if target.IsBigEndian() {
+		return (int64(o1) << 32) | int64(o2)
+	}
+	return int64(o1) | (int64(o2) << 32)
+}
+
+// Compute the high-adjusted value (always a signed 32b value) per the ELF ABI.
+// The returned value is always 0 <= x <= 0xFFFF.
+func computeHA(val int32) uint32 {
+	return uint32(uint16((val + 0x8000) >> 16))
+}
+
+// Compute the low value (the lower 16 bits of any 32b value) per the ELF ABI.
+// The returned value is always 0 <= x <= 0xFFFF.
+func computeLO(val int32) uint32 {
+	return uint32(uint16(val))
+}
+
+// Compute the high 18 bits of a signed 34b constant. Used to pack the high 18 bits
+// of a prefix34 relocation field. This assumes the input is already restricted to
+// 34 bits.
+func computePrefix34HI(val int64) uint32 {
+	return uint32((val >> 16) & 0x3FFFF)
+}
+
+func computeTLSLEReloc(target *ld.Target, ldr *loader.Loader, rs, s loader.Sym) int64 {
+	// The thread pointer points 0x7000 bytes after the start of the
+	// thread local storage area as documented in section "3.7.2 TLS
+	// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
+	// Specification".
+	v := ldr.SymValue(rs) - 0x7000
+	if target.IsAIX() {
+		// On AIX, the thread pointer points 0x7800 bytes after
+		// the TLS.
+		v -= 0x800
+	}
+
+	if int64(int32(v)) != v {
+		ldr.Errorf(s, "TLS offset out of range %d", v)
+	}
+	return v
+}
+
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	if target.IsExternal() {
@@ -1094,7 +1150,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if !target.IsAIX() {
 				return val, nExtReloc, false
 			}
-		case objabi.R_POWER_TLS:
+		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34:
 			nExtReloc = 1
 			return val, nExtReloc, true
 		case objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
@@ -1125,7 +1181,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if !target.IsAIX() {
 				return val, nExtReloc, true
 			}
-		case objabi.R_CALLPOWER:
+		case objabi.R_CALLPOWER, objabi.R_ADDRPOWER_D34, objabi.R_ADDRPOWER_PCREL34:
 			nExtReloc = 1
 			if !target.IsAIX() {
 				return val, nExtReloc, true
@@ -1136,7 +1192,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	switch r.Type() {
 	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
 		return archreloctoc(ldr, target, syms, r, s, val), nExtReloc, true
-	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
+	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS, objabi.R_ADDRPOWER_D34, objabi.R_ADDRPOWER_PCREL34:
 		return archrelocaddr(ldr, target, syms, r, s, val), nExtReloc, true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
@@ -1169,16 +1225,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 	case objabi.R_ADDRPOWER_PCREL: // S + A - P
 		t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
-		ha := uint16(((t + 0x8000) >> 16) & 0xFFFF)
-		l := uint16(t)
-		if target.IsBigEndian() {
-			val |= int64(l)
-			val |= int64(ha) << 32
-		} else {
-			val |= int64(ha)
-			val |= int64(l) << 32
-		}
-		return val, nExtReloc, true
+		ha, l := unpackInstPair(target, val)
+		l |= computeLO(int32(t))
+		ha |= computeHA(int32(t))
+		return packInstPair(target, ha, l), nExtReloc, true
 
 	case objabi.R_POWER_TLS:
 		const OP_ADD = 31<<26 | 266<<1
@@ -1210,50 +1260,48 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		const OP_ADDI = 14 << 26
 		const OP_MASK = 0x3F << 26
 		const OP_RA_MASK = 0x1F << 16
-		uval := uint64(val)
 		// convert r2 to r0, and ld to addi
-		if target.IsBigEndian() {
-			uval = uval &^ (OP_RA_MASK << 32)
-			uval = (uval &^ OP_MASK) | OP_ADDI
-		} else {
-			uval = uval &^ (OP_RA_MASK)
-			uval = (uval &^ (OP_MASK << 32)) | (OP_ADDI << 32)
-		}
-		val = int64(uval)
-		// Treat this like an R_POWER_TLS_LE relocation now.
+		mask := packInstPair(target, OP_RA_MASK, OP_MASK)
+		addi_op := packInstPair(target, 0, OP_ADDI)
+		val &^= mask
+		val |= addi_op
 		fallthrough
 
 	case objabi.R_POWER_TLS_LE:
-		// The thread pointer points 0x7000 bytes after the start of the
-		// thread local storage area as documented in section "3.7.2 TLS
-		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
-		// Specification".
-		v := ldr.SymValue(rs) - 0x7000
-		if target.IsAIX() {
-			// On AIX, the thread pointer points 0x7800 bytes after
-			// the TLS.
-			v -= 0x800
+		v := computeTLSLEReloc(target, ldr, rs, s)
+		o1, o2 := unpackInstPair(target, val)
+		o1 |= computeHA(int32(v))
+		o2 |= computeLO(int32(v))
+		return packInstPair(target, o1, o2), nExtReloc, true
+
+	case objabi.R_POWER_TLS_IE_PCREL34:
+		// Convert TLS_IE relocation to TLS_LE if supported.
+		if !(target.IsPIE() && target.IsElf()) {
+			log.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
 		}
 
-		var o1, o2 uint32
-		if int64(int32(v)) != v {
-			ldr.Errorf(s, "TLS offset out of range %d", v)
-		}
-		if target.IsBigEndian() {
-			o1 = uint32(val >> 32)
-			o2 = uint32(val)
-		} else {
-			o1 = uint32(val)
-			o2 = uint32(val >> 32)
-		}
+		// We are an ELF binary, we can safely convert to TLS_LE_TPREL34 from:
+		// pld rX, x@got@tprel@pcrel
+		//
+		// to TLS_LE_TPREL32 by converting to:
+		// pla rX, x@tprel
 
-		o1 |= uint32(((v + 0x8000) >> 16) & 0xFFFF)
-		o2 |= uint32(v & 0xFFFF)
+		const OP_MASK_PFX = 0xFFFFFFFF        // Discard prefix word
+		const OP_MASK = (0x3F << 26) | 0xFFFF // Preserve RT, RA
+		const OP_PFX = 1<<26 | 2<<24
+		const OP_PLA = 14 << 26
+		mask := packInstPair(target, OP_MASK_PFX, OP_MASK)
+		pla_op := packInstPair(target, OP_PFX, OP_PLA)
+		val &^= mask
+		val |= pla_op
+		fallthrough
 
-		if target.IsBigEndian() {
-			return int64(o1)<<32 | int64(o2), nExtReloc, true
-		}
-		return int64(o2)<<32 | int64(o1), nExtReloc, true
+	case objabi.R_POWER_TLS_LE_TPREL34:
+		v := computeTLSLEReloc(target, ldr, rs, s)
+		o1, o2 := unpackInstPair(target, val)
+		o1 |= computePrefix34HI(v)
+		o2 |= computeLO(int32(v))
+		return packInstPair(target, o1, o2), nExtReloc, true
 	}
 
 	return val, nExtReloc, false
@@ -1354,14 +1402,16 @@ overflow:
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
-	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE, objabi.R_CALLPOWER:
+	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34, objabi.R_CALLPOWER:
 		return ld.ExtrelocSimple(ldr, r), true
 	case objabi.R_ADDRPOWER,
 		objabi.R_ADDRPOWER_DS,
 		objabi.R_ADDRPOWER_TOCREL,
 		objabi.R_ADDRPOWER_TOCREL_DS,
 		objabi.R_ADDRPOWER_GOT,
-		objabi.R_ADDRPOWER_PCREL:
+		objabi.R_ADDRPOWER_PCREL,
+		objabi.R_ADDRPOWER_D34,
+		objabi.R_ADDRPOWER_PCREL34:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false
