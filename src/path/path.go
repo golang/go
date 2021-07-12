@@ -217,7 +217,7 @@ func Base(path string) string {
 
 // IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
-	return len(path) > 0 && path[0] == '/'
+	return len(path) > 0 && (path[0] == '/' || path[0:1] == "\\")
 }
 
 // Dir returns all but the last element of path, typically the path's directory.
