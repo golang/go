@@ -163,7 +163,7 @@ func UnpackTxt(txt string) map[string][]byte {
 }
 
 func validateConfig(config SandboxConfig) error {
-	if filepath.IsAbs(config.Workdir) && (config.Files != nil || config.InGoPath) {
+	if filepath.IsAbs(config.Workdir) && (len(config.Files) > 0 || config.InGoPath) {
 		return errors.New("absolute Workdir cannot be set in conjunction with Files or InGoPath")
 	}
 	if config.Workdir != "" && config.InGoPath {
