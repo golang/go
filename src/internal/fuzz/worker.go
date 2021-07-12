@@ -632,6 +632,9 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		resp.Count = mem.header().count
 		ws.memMu <- mem
 	}()
+	if args.Limit > 0 && mem.header().count >= args.Limit {
+		panic(fmt.Sprintf("mem.header().count %d already exceeds args.Limit %d", mem.header().count, args.Limit))
+	}
 
 	vals, err := unmarshalCorpusFile(mem.valueCopy())
 	if err != nil {

@@ -25,6 +25,11 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to create temporary shared memory file: %s", err)
 	}
+	defer func() {
+		if err := mem.Close(); err != nil {
+			b.Error(err)
+		}
+	}()
 
 	initialVal := []interface{}{make([]byte, 32)}
 	encodedVals := marshalCorpusFile(initialVal...)
@@ -36,6 +41,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ws.m = newMutator()
 		mem.setValue(encodedVals)
+		mem.header().count = 0
 
 		ws.fuzz(context.Background(), fuzzArgs{Limit: 1})
 	}
