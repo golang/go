@@ -1242,6 +1242,21 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			if ix := subst.findDictType(t); ix >= 0 {
 				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t, ix)
 			}
+		case ir.OEQ, ir.ONE:
+			// Equality between a non-interface and an interface requires the non-interface
+			// to be promoted to an interface.
+			x := x.(*ir.BinaryExpr)
+			m := m.(*ir.BinaryExpr)
+			if i := x.Y.Type(); i.IsInterface() {
+				if ix := subst.findDictType(x.X.Type()); ix >= 0 {
+					m.X = subst.convertUsingDictionary(m.X.Pos(), m.X, i, x.X.Type(), ix)
+				}
+			}
+			if i := x.X.Type(); i.IsInterface() {
+				if ix := subst.findDictType(x.Y.Type()); ix >= 0 {
+					m.Y = subst.convertUsingDictionary(m.Y.Pos(), m.Y, i, x.X.Type(), ix)
+				}
+			}
 		}
 		return m
 	}
