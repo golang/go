@@ -3159,7 +3159,7 @@ func TestTxEndBadConn(t *testing.T) {
 			return broken
 		}
 
-		if err := op(); err != driver.ErrBadConn {
+		if err := op(); !errors.Is(err, driver.ErrBadConn) {
 			t.Errorf(name+": %v", err)
 			return
 		}
