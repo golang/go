@@ -44,6 +44,14 @@ func (mr *mockRand) bool() bool {
 	return b
 }
 
+func (mr *mockRand) save(*uint64, *uint64) {
+	panic("unimplemented")
+}
+
+func (mr *mockRand) restore(uint64, uint64) {
+	panic("unimplemented")
+}
+
 func TestByteSliceMutators(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

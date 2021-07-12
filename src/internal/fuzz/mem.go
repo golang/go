@@ -43,6 +43,9 @@ type sharedMemHeader struct {
 
 	// valueLen is the length of the value that was last fuzzed.
 	valueLen int
+
+	// randState and randInc hold the state of a pseudo-random number generator.
+	randState, randInc uint64
 }
 
 // sharedMemSize returns the size needed for a shared memory buffer that can
