@@ -111,7 +111,7 @@
 // 	-p n
 // 		the number of programs, such as build commands or
 // 		test binaries, that can be run in parallel.
-// 		The default is GOMAXPROCS, normally the number of CPUs available.
+// 		The default is the number of CPUs available.
 // 	-race
 // 		enable data race detection.
 // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
@@ -174,8 +174,8 @@
 // 		a build will run as if the disk file path exists with the contents
 // 		given by the backing file paths, or as if the disk file path does not
 // 		exist if its backing file path is empty. Support for the -overlay flag
-// 		has some limitations: importantly, cgo files included from outside the
-// 		include path must be in the same directory as the Go package they are
+// 		has some limitations:importantly, cgo files included from outside the
+// 		include path must be  in the same directory as the Go package they are
 // 		included from, and overlays will not appear when binaries and tests are
 // 		run through go run and go test respectively.
 // 	-pkgdir dir
@@ -198,8 +198,6 @@
 // 		a program to use to invoke toolchain programs like vet and asm.
 // 		For example, instead of running asm, the go command will run
 // 		'cmd args /path/to/asm <arguments for asm>'.
-// 		The TOOLEXEC_IMPORTPATH environment variable will be set,
-// 		matching 'go list -f {{.ImportPath}}' for the package being built.
 //
 // The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
 // space-separated list of arguments to pass to an underlying tool
@@ -293,7 +291,7 @@
 //
 // Usage:
 //
-// 	go doc [doc flags] [package|[package.]symbol[.methodOrField]]
+// 	go doc [-u] [-c] [package|[package.]symbol[.methodOrField]]
 //
 // Doc prints the documentation comments associated with the item identified by its
 // arguments (a package, const, func, type, var, method, or struct field)
@@ -598,7 +596,7 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
+// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
 // updates go.mod to require those versions, downloads source code into the
@@ -642,6 +640,14 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
+//
+// The -insecure flag permits fetching from repositories and resolving
+// custom domains using insecure schemes such as HTTP, and also bypassess
+// module sum validation using the checksum database. Use with caution.
+// This flag is deprecated and will be removed in a future version of go.
+// To permit the use of insecure schemes, use the GOINSECURE environment
+// variable instead. To bypass module sum validation, use GOPRIVATE or
+// GONOSUMDB. See 'go help environment' for details.
 //
 // The -d flag instructs get not to build or install packages. get will only
 // update go.mod and download source code needed to build packages.
@@ -843,7 +849,6 @@
 //         UseAllFiles   bool     // use files regardless of +build lines, file names
 //         Compiler      string   // compiler to assume when computing target paths
 //         BuildTags     []string // build constraints to match in +build lines
-//         ToolTags      []string // toolchain-specific build constraints
 //         ReleaseTags   []string // releases the current release is compatible with
 //         InstallSuffix string   // suffix to use in the name of the install dir
 //     }
@@ -1137,22 +1142,17 @@
 // writing it back to go.mod. The JSON output corresponds to these Go types:
 //
 // 	type Module struct {
-// 		Path    string
+// 		Path string
 // 		Version string
 // 	}
 //
 // 	type GoMod struct {
-// 		Module  ModPath
+// 		Module  Module
 // 		Go      string
 // 		Require []Require
 // 		Exclude []Module
 // 		Replace []Replace
 // 		Retract []Retract
-// 	}
-//
-// 	type ModPath struct {
-// 		Path       string
-// 		Deprecated string
 // 	}
 //
 // 	type Require struct {
@@ -1186,16 +1186,12 @@
 //
 // Usage:
 //
-// 	go mod graph [-go=version]
+// 	go mod graph
 //
 // Graph prints the module requirement graph (with replacements applied)
 // in text form. Each line in the output has two space-separated fields: a module
 // and one of its requirements. Each module is identified as a string of the form
 // path@version, except for the main module, which has no @version suffix.
-//
-// The -go flag causes graph to report the module graph as loaded by by the
-// given Go version, instead of the version indicated by the 'go' directive
-// in the go.mod file.
 //
 // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
@@ -1225,7 +1221,7 @@
 //
 // Usage:
 //
-// 	go mod tidy [-e] [-v] [-go=version] [-compat=version]
+// 	go mod tidy [-e] [-v]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1238,20 +1234,6 @@
 //
 // The -e flag causes tidy to attempt to proceed despite errors
 // encountered while loading packages.
-//
-// The -go flag causes tidy to update the 'go' directive in the go.mod
-// file to the given version, which may change which module dependencies
-// are retained as explicit requirements in the go.mod file.
-// (Go versions 1.17 and higher retain more requirements in order to
-// support lazy module loading.)
-//
-// The -compat flag preserves any additional checksums needed for the
-// 'go' command from the indicated major Go release to successfully load
-// the module graph, and causes tidy to error out if that version of the
-// 'go' command would load any imported package from a different module
-// version. By default, tidy acts as if the -compat flag were set to the
-// version prior to the one indicated by the 'go' directive in the go.mod
-// file.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
@@ -1336,20 +1318,9 @@
 // 	go run [build flags] [-exec xprog] package [arguments...]
 //
 // Run compiles and runs the named main Go package.
-// Typically the package is specified as a list of .go source files from a single
-// directory, but it may also be an import path, file system path, or pattern
+// Typically the package is specified as a list of .go source files from a single directory,
+// but it may also be an import path, file system path, or pattern
 // matching a single known package, as in 'go run .' or 'go run my/cmd'.
-//
-// If the package argument has a version suffix (like @latest or @v1.0.0),
-// "go run" builds the program in module-aware mode, ignoring the go.mod file in
-// the current directory or any parent directory, if there is one. This is useful
-// for running programs without affecting the dependencies of the main module.
-//
-// If the package argument doesn't have a version suffix, "go run" may run in
-// module-aware mode or GOPATH mode, depending on the GO111MODULE environment
-// variable and the presence of a go.mod file. See 'go help modules' for details.
-// If module-aware mode is enabled, "go run" runs in the context of the main
-// module.
 //
 // By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
 // If the -exec flag is given, 'go run' invokes the binary using xprog:
@@ -1445,8 +1416,8 @@
 //
 // The rule for a match in the cache is that the run involves the same
 // test binary and the flags on the command line come entirely from a
-// restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
-// -list, -parallel, -run, -short, and -v. If a run of go test has any test
+// restricted set of 'cacheable' test flags, defined as -cpu, -list,
+// -parallel, -run, -short, and -v. If a run of go test has any test
 // or non-test flags outside this set, the result is not cached. To
 // disable test caching, use any test flag or argument other than the
 // cacheable flags. The idiomatic way to disable test caching explicitly
@@ -1572,7 +1543,7 @@
 //
 // A build constraint, also known as a build tag, is a line comment that begins
 //
-// 	//go:build
+// 	// +build
 //
 // that lists the conditions under which a file should be included in the package.
 // Constraints may appear in any kind of source file (not just Go), but
@@ -1580,20 +1551,30 @@
 // only by blank lines and other line comments. These rules mean that in Go
 // files a build constraint must appear before the package clause.
 //
-// To distinguish build constraints from package documentation,
-// a build constraint should be followed by a blank line.
+// To distinguish build constraints from package documentation, a series of
+// build constraints must be followed by a blank line.
 //
-// A build constraint is evaluated as an expression containing options
-// combined by ||, &&, and ! operators and parentheses. Operators have
-// the same meaning as in Go.
+// A build constraint is evaluated as the OR of space-separated options.
+// Each option evaluates as the AND of its comma-separated terms.
+// Each term consists of letters, digits, underscores, and dots.
+// A term may be negated with a preceding !.
+// For example, the build constraint:
 //
-// For example, the following build constraint constrains a file to
-// build when the "linux" and "386" constraints are satisfied, or when
-// "darwin" is satisfied and "cgo" is not:
+// 	// +build linux,386 darwin,!cgo
 //
-// 	//go:build (linux && 386) || (darwin && !cgo)
+// corresponds to the boolean formula:
 //
-// It is an error for a file to have more than one //go:build line.
+// 	(linux AND 386) OR (darwin AND (NOT cgo))
+//
+// A file may have multiple build constraints. The overall constraint is the AND
+// of the individual constraints. That is, the build constraints:
+//
+// 	// +build linux darwin
+// 	// +build amd64
+//
+// corresponds to the boolean formula:
+//
+// 	(linux OR darwin) AND amd64
 //
 // During a particular build, the following words are satisfied:
 //
@@ -1631,27 +1612,23 @@
 //
 // To keep a file from being considered for the build:
 //
-// 	//go:build ignore
+// 	// +build ignore
 //
 // (any other unsatisfied word will work as well, but "ignore" is conventional.)
 //
 // To build a file only when using cgo, and only on Linux and OS X:
 //
-// 	//go:build cgo && (linux || darwin)
+// 	// +build linux,cgo darwin,cgo
 //
 // Such a file is usually paired with another file implementing the
 // default functionality for other systems, which in this case would
 // carry the constraint:
 //
-// 	//go:build !(cgo && (linux || darwin))
+// 	// +build !linux,!darwin !cgo
 //
 // Naming a file dns_windows.go will cause it to be included only when
 // building the package for Windows; similarly, math_386.s will be included
 // only when building the package for 32-bit x86.
-//
-// Go versions 1.16 and earlier used a different syntax for build constraints,
-// with a "// +build" prefix. The gofmt command will add an equivalent //go:build
-// constraint when encountering the older syntax.
 //
 //
 // Build modes
@@ -1810,8 +1787,9 @@
 // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
 // 		of module path prefixes that should always be fetched in an insecure
 // 		manner. Only applies to dependencies that are being fetched directly.
-// 		GOINSECURE does not disable checksum database validation. GOPRIVATE or
-// 		GONOSUMDB may be used to achieve that.
+// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
+// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
+// 		to achieve that.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1891,9 +1869,6 @@
 // 	GOMIPS64
 // 		For GOARCH=mips64{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
-// 	GOPPC64
-// 		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
-// 		Valid values are power8 (default), power9.
 // 	GOWASM
 // 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 // 		Valid values are satconv, signext.
@@ -1903,12 +1878,6 @@
 // 	GCCGOTOOLDIR
 // 		If set, where to find gccgo tools, such as cgo.
 // 		The default is based on how gccgo was configured.
-// 	GOEXPERIMENT
-// 		Comma-separated list of toolchain experiments to enable or disable.
-// 		The list of available experiments may change arbitrarily over time.
-// 		See src/internal/goexperiment/flags.go for currently valid values.
-// 		Warning: This variable is provided for the development and testing
-// 		of the Go toolchain itself. Use beyond that purpose is unsupported.
 // 	GOROOT_FINAL
 // 		The root of the installed Go tree, when it is
 // 		installed in a location other than where it is built.
@@ -1992,7 +1961,7 @@
 // The go.mod file format is described in detail at
 // https://golang.org/ref/mod#go-mod-file.
 //
-// To create a new go.mod file, use 'go mod init'. For details see
+// To create a new go.mod file, use 'go help init'. For details see
 // 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
 //
 // To add missing module requirements or remove unneeded requirements,
@@ -2170,7 +2139,7 @@
 // This help text, accessible as 'go help gopath-get' even in module-aware mode,
 // describes 'go get' as it operates in legacy GOPATH mode.
 //
-// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [build flags] [packages]
+// Usage: go get [-d] [-f] [-t] [-u] [-v] [-fix] [-insecure] [build flags] [packages]
 //
 // Get downloads the packages named by the import paths, along with their
 // dependencies. It then installs the named packages, like 'go install'.
@@ -2185,6 +2154,13 @@
 //
 // The -fix flag instructs get to run the fix tool on the downloaded packages
 // before resolving dependencies or building the code.
+//
+// The -insecure flag permits fetching from repositories and resolving
+// custom domains using insecure schemes such as HTTP. Use with caution.
+// This flag is deprecated and will be removed in a future version of go.
+// The GOINSECURE environment variable should be used instead, since it
+// provides control over which packages may be retrieved using an insecure
+// scheme. See 'go help environment' for details.
 //
 // The -t flag instructs get to also download the packages required to build
 // the tests for the specified packages.
@@ -2370,7 +2346,7 @@
 // will result in the following requests:
 //
 // 	https://example.org/pkg/foo?go-get=1 (preferred)
-// 	http://example.org/pkg/foo?go-get=1  (fallback, only with use of correctly set GOINSECURE)
+// 	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
 //
 // If that page contains the meta tag
 //
@@ -2687,13 +2663,6 @@
 // 	    It is off by default but set during all.bash so that installing
 // 	    the Go tree can run a sanity check but not spend time running
 // 	    exhaustive tests.
-//
-// 	-shuffle off,on,N
-// 		Randomize the execution order of tests and benchmarks.
-// 		It is off by default. If -shuffle is set to on, then it will seed
-// 		the randomizer using the system clock. If -shuffle is set to an
-// 		integer N, then N will be used as the seed value. In both cases,
-// 		the seed will be reported for reproducibility.
 //
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.
