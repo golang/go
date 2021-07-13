@@ -401,30 +401,37 @@ func Foo() bool {
 
 <p><!-- golang.org/issue/40724 -->
   Go 1.17 implements a new way of passing function arguments and results using
-  registers instead of the stack. This work is enabled for Linux, macOS, and
-  Windows on the 64-bit x86 architecture (the <code>linux/amd64</code>,
-  <code>darwin/amd64</code>, <code>windows/amd64</code> ports). For a
-  representative set of Go packages and programs, benchmarking has shown
-  performance improvements of about 5%, and a typical reduction in binary size
-  of about 2%.
+  registers instead of the stack.
+  Benchmarks for a representative set of Go packages and programs show
+  performance improvements of about 5%, and a typical reduction in
+  binary size of about 2%.
+  This is currently enabled for Linux, macOS, and Windows on the
+  64-bit x86 architecture (the <code>linux/amd64</code>,
+  <code>darwin/amd64</code>, and <code>windows/amd64</code> ports).
 </p>
 
 <p>
-  This change does not affect the functionality of any safe Go code. It can affect
-  code outside the <a href="/doc/go1compat">compatibility guidelines</a> with
-  minimal impact. To maintain compatibility with existing assembly functions,
-  adapter functions converting between the new register-based calling convention
-  and the previous stack-based calling convention (also known as ABI wrappers)
-  are sometimes used. This is mostly invisible to users, except for assembly
-  functions that have their addresses taken in Go. Using <code>reflect.ValueOf(fn).Pointer()</code>
-  (or similar approaches such as via <code>unsafe.Pointer</code>) to get the address
-  of an assembly function will now return the address of the ABI wrapper. This is
-  mostly harmless, except for special-purpose assembly code (such as accessing
-  thread-local storage or requiring a special stack alignment). Assembly functions
-  called indirectly from Go via <code>func</code> values will now be made through
-  ABI wrappers, which may cause a very small performance overhead. Also, calling
-  Go functions from assembly may now go through ABI wrappers, with a very small
-  performance overhead.
+  This change does not affect the functionality of any safe Go code
+  and is designed to have no impact on most assembly code.
+  It may affect code that violates
+  the <a href="/pkg/unsafe#Pointer"><code>unsafe.Pointer</code></a>
+  rules when accessing function arguments, or that depends on
+  undocumented behavior involving comparing function code pointers.
+  To maintain compatibility with existing assembly functions, the
+  compiler generates adapter functions that convert between the new
+  register-based calling convention and the previous stack-based
+  calling convention.
+  These adapters are typically invisible to users, except that taking
+  the address of a Go function in assembly code or taking the address
+  of an assembly function in Go code
+  using <code>reflect.ValueOf(fn).Pointer()</code>
+  or <code>unsafe.Pointer</code> will now return the address of the
+  adapter.
+  Code that depends on the value of these code pointers may no longer
+  behave as expected.
+  Adapters also may cause a very small performance overhead in two
+  cases: calling an assembly function indirectly from Go via
+  a <code>func</code> value, and calling Go functions from assembly.
 </p>
 
 <p><!-- CL 304470 -->
@@ -440,11 +447,14 @@ func Foo() bool {
 </p>
 
 <p><!-- CL 283112, golang.org/issue/28727 -->
-  Functions containing closures can now be inlined. One effect of this change is
-  that a function with a closure may actually produce a distinct closure function
-  for each place that the function is inlined. Hence, this change could reveal
-  bugs where Go functions are compared (incorrectly) by pointer value. Go
-  functions are by definition not comparable.
+  Functions containing closures can now be inlined.
+  One effect of this change is that a function with a closure may
+  produce a distinct closure code pointer for each place that the
+  function is inlined.
+  Go function values are not directly comparable, but this change
+  could reveal bugs in code that uses <code>reflect</code>
+  or <code>unsafe.Pointer</code> to bypass this language restriction
+  and compare functions by code pointer.
 </p>
 
 <h2 id="library">Core library</h2>
