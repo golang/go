@@ -833,6 +833,18 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
 
+// ITabLsym returns the LSym representing the itab for concreate type typ
+// implementing interface iface.
+func ITabLsym(typ, iface *types.Type) *obj.LSym {
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
+	lsym := s.Linksym()
+
+	if !existed {
+		writeITab(lsym, typ, iface)
+	}
+	return lsym
+}
+
 // ITabAddr returns an expression representing a pointer to the itab
 // for concrete type typ implementing interface iface.
 func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
@@ -1283,6 +1295,12 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
 			if m.isym == nil {
 				panic("NO ISYM")
 			}
+			sigs = sigs[1:]
+			if len(sigs) == 0 {
+				break
+			}
+		}
+		if sigs[0].Sym.Name == "==" {
 			sigs = sigs[1:]
 			if len(sigs) == 0 {
 				break

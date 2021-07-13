@@ -104,6 +104,9 @@ type gfInfo struct {
 	// method and function calls (OCALL), function values (OFUNCINST), method
 	// values/expressions (OXDOT).
 	subDictCalls []ir.Node
+	// Nodes in generic functions that are a conversion from a typeparam/derived
+	// type to a specific interface.
+	itabConvs []ir.Node
 }
 
 // instInfo is information gathered on an gcshape (or fully concrete)
@@ -115,8 +118,9 @@ type instInfo struct {
 	gf     *ir.Name // The associated generic function
 	gfInfo *gfInfo
 
-	startSubDict int // Start of dict entries for subdictionaries
-	dictLen      int // Total number of entries in dictionary
+	startSubDict  int // Start of dict entries for subdictionaries
+	startItabConv int // Start of dict entries for itab conversions
+	dictLen       int // Total number of entries in dictionary
 
 	// Map from nodes in instantiated fun (OCALL, OCALLMETHOD, OFUNCINST, and
 	// OMETHEXPR) to the associated dictionary entry for a sub-dictionary
@@ -146,6 +150,17 @@ type irgen struct {
 	// its instantiated function, associated generic function/method, and the
 	// mapping from IR nodes to dictionary entries.
 	instInfoMap map[*types.Sym]*instInfo
+
+	// dictionary syms which we need to finish, by writing out any itabconv
+	// entries.
+	dictSymsToFinalize []*delayInfo
+}
+
+type delayInfo struct {
+	gf    *ir.Name
+	targs []*types.Type
+	sym   *types.Sym
+	off   int
 }
 
 func (g *irgen) generate(noders []*noder) {

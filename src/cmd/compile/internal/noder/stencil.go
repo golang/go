@@ -225,6 +225,7 @@ func (g *irgen) stencil() {
 		g.instantiateMethods()
 	}
 
+	g.finalizeSyms()
 }
 
 // buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR
@@ -823,11 +824,12 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth 
 		// to the list of decls.
 		gfInfo := g.getGfInfo(nameNode)
 		info = &instInfo{
-			gf:           nameNode,
-			gfInfo:       gfInfo,
-			startSubDict: len(targs) + len(gfInfo.derivedTypes),
-			dictLen:      len(targs) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls),
-			dictEntryMap: make(map[ir.Node]int),
+			gf:            nameNode,
+			gfInfo:        gfInfo,
+			startSubDict:  len(targs) + len(gfInfo.derivedTypes),
+			startItabConv: len(targs) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls),
+			dictLen:       len(targs) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls) + len(gfInfo.itabConvs),
+			dictEntryMap:  make(map[ir.Node]int),
 		}
 		// genericSubst fills in info.dictParam and info.dictEntryMap.
 		st := g.genericSubst(sym, nameNode, shapes, targs, isMeth, info)
@@ -1235,12 +1237,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					// Implement x.M as a conversion-to-bound-interface
 					//  1) convert x to the bound interface
 					//  2) call M on that interface
-					dst := subst.concretify.Typ(subst.shape2param[src].Bound())
-					// Mark that we use the methods of this concrete type.
-					// Otherwise the linker deadcode-eliminates them :(
-					ix := subst.findDictType(subst.shape2param[src])
-					assert(ix >= 0)
-					mse.X = subst.convertUsingDictionary(m.Pos(), mse.X, dst, subst.shape2param[src], ix)
+					gsrc := x.(*ir.SelectorExpr).X.Type()
+					dst := subst.concretify.Typ(gsrc.Bound())
+					mse.X = subst.convertUsingDictionary(m.Pos(), mse.X, x, dst, gsrc)
 				}
 			}
 			transformDot(mse, false)
@@ -1365,9 +1364,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			x := x.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			t := x.X.Type()
-			if ix := subst.findDictType(t); ix >= 0 {
-				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t, ix)
+			if x.X.Type().HasTParam() {
+				m = subst.convertUsingDictionary(m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
 			}
 
 		case ir.ONEW:
@@ -1411,14 +1409,35 @@ func (subst *subster) findDictType(t *types.Type) int {
 	return -1
 }
 
-// convertUsingDictionary converts value v from instantiated type src (which is index
-// 'ix' in the instantiation's dictionary) to an interface type dst.
-func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, dst, src *types.Type, ix int) ir.Node {
-	if !dst.IsInterface() {
-		base.Fatalf("can only convert type parameters to interfaces %+v -> %+v", src, dst)
+// convertUsingDictionary converts value v from instantiated type src to an interface
+// type dst, by returning a new set of nodes that make use of a dictionary entry. src
+// is the generic (not shape) type, and gn is the original generic node of the
+// CONVIFACE node or XDOT node (for a bound method call) that is causing the
+// conversion.
+func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, gn ir.Node, dst, src *types.Type) ir.Node {
+	assert(src.HasTParam())
+	assert(dst.IsInterface())
+
+	var rt ir.Node
+	if !dst.IsEmptyInterface() {
+		// We should have an itab entry in the dictionary. Using this itab
+		// will be more efficient than converting to an empty interface first
+		// and then type asserting to dst.
+		ix := -1
+		for i, ic := range subst.info.gfInfo.itabConvs {
+			if ic == gn {
+				ix = subst.info.startItabConv + i
+				break
+			}
+		}
+		assert(ix >= 0)
+		rt = getDictionaryEntry(pos, subst.info.dictParam, ix, subst.info.dictLen)
+	} else {
+		ix := subst.findDictType(src)
+		assert(ix >= 0)
+		// Load the actual runtime._type of the type parameter from the dictionary.
+		rt = subst.getDictionaryType(pos, ix)
 	}
-	// Load the actual runtime._type of the type parameter from the dictionary.
-	rt := subst.getDictionaryType(pos, ix)
 
 	// Convert value to an interface type, so the data field is what we want.
 	if !v.Type().IsInterface() {
@@ -1432,12 +1451,6 @@ func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, dst, src *
 	data := ir.NewUnaryExpr(pos, ir.OIDATA, v)
 	typed(types.Types[types.TUNSAFEPTR], data)
 	var i ir.Node = ir.NewBinaryExpr(pos, ir.OEFACE, rt, data)
-	if !dst.IsEmptyInterface() {
-		// We just built an empty interface{}. Type it as such,
-		// then assert it to the required non-empty interface.
-		typed(types.NewInterface(types.LocalPkg, nil), i)
-		i = ir.NewTypeAssertExpr(pos, i, nil)
-	}
 	typed(dst, i)
 	// TODO: we're throwing away the type word of the original version
 	// of m here (it would be OITAB(m)), which probably took some
@@ -1650,14 +1663,58 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 				infoPrint(" - Subdict %v\n", sym.Name)
 			}
 		}
-		objw.Global(lsym, int32(off), obj.DUPOK|obj.RODATA)
-		infoPrint("=== Done dictionary\n")
 
-		// Add any new, fully instantiated types seen during the substitution to g.instTypeList.
+		delay := &delayInfo{
+			gf:    gf,
+			targs: targs,
+			sym:   sym,
+			off:   off,
+		}
+		g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
 		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	}
 	return sym
 }
+
+// finalizeSyms finishes up all dictionaries on g.dictSymsToFinalize, by writing out
+// any needed LSyms for itabs. The itab lsyms create wrappers which need various
+// dictionaries and method instantiations to be complete, so, to avoid recursive
+// dependencies, we finalize the itab lsyms only after all dictionaries syms and
+// instantiations have been created.
+func (g *irgen) finalizeSyms() {
+	for _, d := range g.dictSymsToFinalize {
+		lsym := d.sym.Linksym()
+		info := g.getGfInfo(d.gf)
+
+		subst := typecheck.Tsubster{
+			Tparams: info.tparams,
+			Targs:   d.targs,
+		}
+
+		// Emit an entry for each itab
+		for _, n := range info.itabConvs {
+			var srctype, dsttype *types.Type
+			if n.Op() == ir.OXDOT {
+				se := n.(*ir.SelectorExpr)
+				srctype = subst.Typ(se.X.Type())
+				dsttype = subst.Typ(se.X.Type().Bound())
+			} else {
+				assert(n.Op() == ir.OCONVIFACE)
+				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())
+				dsttype = subst.Typ(n.Type())
+			}
+			itabLsym := reflectdata.ITabLsym(srctype, dsttype)
+			d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+		}
+
+		objw.Global(lsym, int32(d.off), obj.DUPOK|obj.RODATA)
+		infoPrint("=== Finalized dictionary %s\n", d.sym.Name)
+
+		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
+	}
+	g.dictSymsToFinalize = nil
+}
+
 func (g *irgen) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
 	sym := g.getDictionarySym(gf, targs, isMeth)
 
@@ -1777,6 +1834,16 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
 			infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
 			info.subDictCalls = append(info.subDictCalls, n)
+		}
+		if n.Op() == ir.OCONVIFACE && n.Type().IsInterface() &&
+			!n.Type().IsEmptyInterface() &&
+			n.(*ir.ConvExpr).X.Type().HasTParam() {
+			infoPrint("  Itab for interface conv: %v\n", n)
+			info.itabConvs = append(info.itabConvs, n)
+		}
+		if n.Op() == ir.OXDOT && n.(*ir.SelectorExpr).X.Type().IsTypeParam() {
+			infoPrint("  Itab for interface conv: %v\n", n)
+			info.itabConvs = append(info.itabConvs, n)
 		}
 		if n.Op() == ir.OCLOSURE {
 			// Visit the closure body and add all relevant entries to the
