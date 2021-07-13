@@ -128,13 +128,18 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 	return newUnion(types, tilde)
 }
 
-func parseTilde(check *Checker, x syntax.Expr) (Type, bool) {
-	tilde := false
+func parseTilde(check *Checker, x syntax.Expr) (typ Type, tilde bool) {
 	if op, _ := x.(*syntax.Operation); op != nil && op.Op == syntax.Tilde {
 		x = op.X
 		tilde = true
 	}
-	return check.anyType(x), tilde
+	typ = check.anyType(x)
+	// embedding stand-alone type parameters is not permitted (issue #47127).
+	if _, ok := under(typ).(*TypeParam); ok {
+		check.error(x, "cannot embed a type parameter")
+		typ = Typ[Invalid]
+	}
+	return
 }
 
 // intersect computes the intersection of the types x and y,
