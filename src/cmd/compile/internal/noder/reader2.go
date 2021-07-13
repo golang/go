@@ -61,12 +61,12 @@ type reader2 struct {
 }
 
 type reader2Dict struct {
-	bounds []reader2TypeBound
+	bounds []typeInfo
 
 	tparams []*types2.TypeParam
 
-	derivedReloc []int
-	derived      []types2.Type
+	derived      []derivedInfo
+	derivedTypes []types2.Type
 }
 
 type reader2TypeBound struct {
@@ -176,18 +176,23 @@ func (r *reader2) doPkg() *types2.Package {
 // @@@ Types
 
 func (r *reader2) typ() types2.Type {
-	r.sync(syncType)
-	if r.bool() {
-		return r.p.typIdx(r.len(), r.dict)
-	}
-	return r.p.typIdx(r.reloc(relocType), nil)
+	return r.p.typIdx(r.typInfo(), r.dict)
 }
 
-func (pr *pkgReader2) typIdx(idx int, dict *reader2Dict) types2.Type {
+func (r *reader2) typInfo() typeInfo {
+	r.sync(syncType)
+	if r.bool() {
+		return typeInfo{idx: r.len(), derived: true}
+	}
+	return typeInfo{idx: r.reloc(relocType), derived: false}
+}
+
+func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
+	idx := info.idx
 	var where *types2.Type
-	if dict != nil {
-		where = &dict.derived[idx]
-		idx = dict.derivedReloc[idx]
+	if info.derived {
+		where = &dict.derivedTypes[idx]
+		idx = dict.derived[idx].idx
 	} else {
 		where = &pr.typs[idx]
 	}
@@ -339,6 +344,8 @@ func (r *reader2) param() *types2.Var {
 func (r *reader2) obj() (types2.Object, []types2.Type) {
 	r.sync(syncObject)
 
+	assert(!r.bool())
+
 	pkg, name := r.p.objIdx(r.reloc(relocObj))
 	obj := pkg.Scope().Lookup(name)
 
@@ -367,11 +374,12 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 
 	{
 		rdict := r.p.newReader(relocObjDict, idx, syncObject1)
-		r.dict.derivedReloc = make([]int, rdict.len())
-		r.dict.derived = make([]types2.Type, len(r.dict.derivedReloc))
+		r.dict.derived = make([]derivedInfo, rdict.len())
+		r.dict.derivedTypes = make([]types2.Type, len(r.dict.derived))
 		for i := range r.dict.derived {
-			r.dict.derivedReloc[i] = rdict.reloc(relocType)
+			r.dict.derived[i] = derivedInfo{rdict.reloc(relocType), rdict.bool()}
 		}
+		// function references follow, but reader2 doesn't need those
 	}
 
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
@@ -438,16 +446,9 @@ func (r *reader2) typeParamBounds() {
 		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
 	}
 
-	r.dict.bounds = make([]reader2TypeBound, r.len())
+	r.dict.bounds = make([]typeInfo, r.len())
 	for i := range r.dict.bounds {
-		b := &r.dict.bounds[i]
-		r.sync(syncType)
-		b.derived = r.bool()
-		if b.derived {
-			b.boundIdx = r.len()
-		} else {
-			b.boundIdx = r.reloc(relocType)
-		}
+		r.dict.bounds[i] = r.typInfo()
 	}
 }
 
@@ -479,12 +480,7 @@ func (r *reader2) typeParamNames() []*types2.TypeName {
 	}
 
 	for i, bound := range r.dict.bounds {
-		var dict *reader2Dict
-		if bound.derived {
-			dict = r.dict
-		}
-		boundType := r.p.typIdx(bound.boundIdx, dict)
-		r.dict.tparams[i].SetBound(boundType)
+		r.dict.tparams[i].SetBound(r.p.typIdx(bound, r.dict))
 	}
 
 	return names

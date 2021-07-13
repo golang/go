@@ -142,8 +142,11 @@ type readerDict struct {
 	// arguments; the rest are explicit.
 	implicits int
 
-	derivedReloc []int         // reloc index of the derived type's descriptor
-	derived      []*types.Type // slice of previously computed derived types
+	derived      []derivedInfo // reloc index of the derived type's descriptor
+	derivedTypes []*types.Type // slice of previously computed derived types
+
+	funcs    []objInfo
+	funcsObj []ir.Node
 }
 
 func (r *reader) setType(n ir.Node, typ *types.Type) {
@@ -293,18 +296,23 @@ func (r *reader) doPkg() *types.Pkg {
 // @@@ Types
 
 func (r *reader) typ() *types.Type {
-	r.sync(syncType)
-	if r.bool() {
-		return r.p.typIdx(r.len(), r.dict)
-	}
-	return r.p.typIdx(r.reloc(relocType), nil)
+	return r.p.typIdx(r.typInfo(), r.dict)
 }
 
-func (pr *pkgReader) typIdx(idx int, dict *readerDict) *types.Type {
+func (r *reader) typInfo() typeInfo {
+	r.sync(syncType)
+	if r.bool() {
+		return typeInfo{idx: r.len(), derived: true}
+	}
+	return typeInfo{idx: r.reloc(relocType), derived: false}
+}
+
+func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) *types.Type {
+	idx := info.idx
 	var where **types.Type
-	if dict != nil {
-		where = &dict.derived[idx]
-		idx = dict.derivedReloc[idx]
+	if info.derived {
+		where = &dict.derivedTypes[idx]
+		idx = dict.derived[idx].idx
 	} else {
 		where = &pr.typs[idx]
 	}
@@ -493,6 +501,23 @@ var objReader = map[*types.Sym]pkgReaderIndex{}
 func (r *reader) obj() ir.Node {
 	r.sync(syncObject)
 
+	if r.bool() {
+		idx := r.len()
+		obj := r.dict.funcsObj[idx]
+		if obj == nil {
+			fn := r.dict.funcs[idx]
+			targs := make([]*types.Type, len(fn.explicits))
+			for i, targ := range fn.explicits {
+				targs[i] = r.p.typIdx(targ, r.dict)
+			}
+
+			obj = r.p.objIdx(fn.idx, nil, targs)
+			assert(r.dict.funcsObj[idx] == nil)
+			r.dict.funcsObj[idx] = obj
+		}
+		return obj
+	}
+
 	idx := r.reloc(relocObj)
 
 	explicits := make([]*types.Type, r.len())
@@ -539,10 +564,20 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	{
 		rdict := pr.newReader(relocObjDict, idx, syncObject1)
-		r.dict.derivedReloc = make([]int, rdict.len())
-		r.dict.derived = make([]*types.Type, len(r.dict.derivedReloc))
+		r.dict.derived = make([]derivedInfo, rdict.len())
+		r.dict.derivedTypes = make([]*types.Type, len(r.dict.derived))
 		for i := range r.dict.derived {
-			r.dict.derivedReloc[i] = rdict.reloc(relocType)
+			r.dict.derived[i] = derivedInfo{rdict.reloc(relocType), rdict.bool()}
+		}
+		r.dict.funcs = make([]objInfo, rdict.len())
+		r.dict.funcsObj = make([]ir.Node, len(r.dict.funcs))
+		for i := range r.dict.funcs {
+			objIdx := rdict.reloc(relocObj)
+			targs := make([]typeInfo, rdict.len())
+			for j := range targs {
+				targs[j] = rdict.typInfo()
+			}
+			r.dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
 		}
 	}
 

@@ -103,11 +103,53 @@ type writerDict struct {
 
 	// derived is a slice of type indices for computing derived types
 	// (i.e., types that depend on the declaration's type parameters).
-	derived []int
+	derived []derivedInfo
 
 	// derivedIdx maps a Type to its corresponding index within the
 	// derived slice, if present.
 	derivedIdx map[types2.Type]int
+
+	// funcs lists references to generic functions that were
+	// instantiated with derived types (i.e., that require
+	// sub-dictionaries when called at run time).
+	funcs []objInfo
+}
+
+type derivedInfo struct {
+	idx    int
+	needed bool
+}
+
+type typeInfo struct {
+	idx     int
+	derived bool
+}
+
+type objInfo struct {
+	idx       int        // index for the generic function declaration
+	explicits []typeInfo // info for the type arguments
+}
+
+func (info objInfo) anyDerived() bool {
+	for _, explicit := range info.explicits {
+		if explicit.derived {
+			return true
+		}
+	}
+	return false
+}
+
+func (info objInfo) equals(other objInfo) bool {
+	if info.idx != other.idx {
+		return false
+	}
+	assert(len(info.explicits) == len(other.explicits))
+	for i, targ := range info.explicits {
+		if targ != other.explicits[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
@@ -200,14 +242,16 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
 // @@@ Types
 
 func (w *writer) typ(typ types2.Type) {
-	idx, derived := w.p.typIdx(typ, w.dict)
+	w.typInfo(w.p.typIdx(typ, w.dict))
+}
 
+func (w *writer) typInfo(info typeInfo) {
 	w.sync(syncType)
-	if w.bool(derived) {
-		w.len(idx)
+	if w.bool(info.derived) {
+		w.len(info.idx)
 		w.derived = true
 	} else {
-		w.reloc(relocType, idx)
+		w.reloc(relocType, info.idx)
 	}
 }
 
@@ -216,17 +260,17 @@ func (w *writer) typ(typ types2.Type) {
 //
 // typIdx also reports whether typ is a derived type; that is, whether
 // its identity depends on type parameters.
-func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) (int, bool) {
+func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	if quirksMode() {
 		typ = pw.dups.orig(typ)
 	}
 
 	if idx, ok := pw.typsIdx[typ]; ok {
-		return idx, false
+		return typeInfo{idx: idx, derived: false}
 	}
 	if dict != nil {
 		if idx, ok := dict.derivedIdx[typ]; ok {
-			return idx, true
+			return typeInfo{idx: idx, derived: true}
 		}
 	}
 
@@ -324,13 +368,13 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) (int, bool) {
 
 	if w.derived {
 		idx := len(dict.derived)
-		dict.derived = append(dict.derived, w.flush())
+		dict.derived = append(dict.derived, derivedInfo{idx: w.flush()})
 		dict.derivedIdx[typ] = idx
-		return idx, true
+		return typeInfo{idx: idx, derived: true}
 	}
 
 	pw.typsIdx[typ] = w.idx
-	return w.flush(), false
+	return typeInfo{idx: w.flush(), derived: false}
 }
 
 func (w *writer) structType(typ *types2.Struct) {
@@ -398,6 +442,34 @@ func (w *writer) param(param *types2.Var) {
 // @@@ Objects
 
 func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
+	explicitInfos := make([]typeInfo, len(explicits))
+	for i, explicit := range explicits {
+		explicitInfos[i] = w.p.typIdx(explicit, w.dict)
+	}
+	info := objInfo{idx: w.p.objIdx(obj), explicits: explicitInfos}
+
+	if _, ok := obj.(*types2.Func); ok && info.anyDerived() {
+		idx := -1
+		for i, prev := range w.dict.funcs {
+			if prev.equals(info) {
+				idx = i
+			}
+		}
+		if idx < 0 {
+			idx = len(w.dict.funcs)
+			w.dict.funcs = append(w.dict.funcs, info)
+		}
+
+		// TODO(mdempsky): Push up into expr; this shouldn't appear
+		// outside of expression context.
+		w.sync(syncObject)
+		w.bool(true)
+		w.len(idx)
+		return
+	}
+
+	// TODO(mdempsky): Push up into typIdx; this shouldn't be needed
+	// except while writing out types.
 	if isDefinedType(obj) && obj.Pkg() == w.p.curpkg {
 		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
 		assert(ok)
@@ -407,11 +479,12 @@ func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
 	}
 
 	w.sync(syncObject)
-	w.reloc(relocObj, w.p.objIdx(obj))
+	w.bool(false)
+	w.reloc(relocObj, info.idx)
 
-	w.len(len(explicits))
-	for _, explicit := range explicits {
-		w.typ(explicit)
+	w.len(len(info.explicits))
+	for _, info := range info.explicits {
+		w.typInfo(info)
 	}
 }
 
@@ -453,16 +526,19 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 	w.ext.flush()
 
 	// Done writing out the object description; write out the list of
-	// derived types that we found along the way.
-	//
-	// TODO(mdempsky): Record details about how derived types are
-	// actually used so reader can optimize its runtime dictionaries.
-	//
-	// TODO(mdempsky): Record details about which instantiated functions
-	// are used too.
+	// derived types and instantiated functions found along the way.
 	wdict.len(len(dict.derived))
 	for _, typ := range dict.derived {
-		wdict.reloc(relocType, typ)
+		wdict.reloc(relocType, typ.idx)
+		wdict.bool(typ.needed)
+	}
+	wdict.len(len(dict.funcs))
+	for _, fn := range dict.funcs {
+		wdict.reloc(relocObj, fn.idx)
+		wdict.len(len(fn.explicits))
+		for _, targ := range fn.explicits {
+			wdict.typInfo(targ)
+		}
 	}
 	wdict.flush()
 
@@ -1103,6 +1179,9 @@ func (w *writer) expr(expr syntax.Expr) {
 	obj, targs := lookupObj(w.p.info, expr)
 
 	if tv, ok := w.p.info.Types[expr]; ok {
+		// TODO(mdempsky): Be more judicious about which types are marked as "needed".
+		w.needType(tv.Type)
+
 		if tv.IsType() {
 			w.code(exprType)
 			w.typ(tv.Type)
@@ -1354,6 +1433,20 @@ func (w *writer) op(op ir.Op) {
 	assert(op != 0)
 	w.sync(syncOp)
 	w.len(int(op))
+}
+
+func (w *writer) needType(typ types2.Type) {
+	// Decompose tuple into component element types.
+	if typ, ok := typ.(*types2.Tuple); ok {
+		for i := 0; i < typ.Len(); i++ {
+			w.needType(typ.At(i).Type())
+		}
+		return
+	}
+
+	if info := w.p.typIdx(typ, w.dict); info.derived {
+		w.dict.derived[info.idx].needed = true
+	}
 }
 
 // @@@ Package initialization

@@ -259,6 +259,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 
 	for i, n := 0, r.len(); i < n; i++ {
 		r.sync(syncObject)
+		assert(!r.bool())
 		idx := r.reloc(relocObj)
 		assert(r.len() == 0)
 
@@ -293,6 +294,7 @@ func writeNewExport(out io.Writer) {
 
 		for i, n := 0, r.len(); i < n; i++ {
 			r.sync(syncObject)
+			assert(!r.bool())
 			idx := r.reloc(relocObj)
 			assert(r.len() == 0)
 
@@ -325,6 +327,7 @@ func writeNewExport(out io.Writer) {
 		w.len(len(idxs))
 		for _, idx := range idxs {
 			w.sync(syncObject)
+			w.bool(false)
 			w.reloc(relocObj, idx)
 			w.len(0)
 		}
