@@ -40,4 +40,5 @@ const (
 const (
 	dwarfRegSP = 4
 	dwarfRegLR = 8
+	dwarfRegBP = 5
 )

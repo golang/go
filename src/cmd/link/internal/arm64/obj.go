@@ -45,6 +45,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		Dwarfregbp: dwarfRegBP,
 		TrampLimit: 0x7c00000, // 26-bit signed offset * 4, leave room for PLT etc.
 
 		Adddynrel:        adddynrel,

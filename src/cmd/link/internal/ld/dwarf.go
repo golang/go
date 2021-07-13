@@ -398,6 +398,11 @@ func (d *dwctxt) adddwarfref(sb *loader.SymbolBuilder, t loader.Sym, size int) i
 	return result
 }
 
+func (d* dwctxt) addpcref(sb *loader.SymbolBuilder, t loader.Sym, size int, offset int64) int64 {
+	var result int64
+	result = sb.AddSymRef(d.arch, t, offset, objabi.R_PCREL, size)
+	return result
+}
 func (d *dwctxt) newrefattr(die *dwarf.DWDie, attr uint16, ref loader.Sym) *dwarf.DWAttr {
 	if ref == 0 {
 		return nil
@@ -1508,6 +1513,188 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 	return dwarfSecInfo{syms: []loader.Sym{fs}}
 }
 
+func (d *dwctxt) writeehframes(fs loader.Sym) dwarfSecInfo {
+	fsd := dwSym(fs)
+	fsu := d.ldr.MakeSymbolUpdater(fs)
+	fsu.SetType(sym.SDWARFSECT)
+	haslr := haslinkregister(d.linkctxt)
+
+	ciePtr := uint64(0)
+
+	// Length field is 4 bytes
+	lengthFieldSize := int64(4)
+
+	// Emit the CIE, Section 6.4.1
+	cieReserve := uint32(20)
+	d.createUnitLength(fsu, uint64(cieReserve))         // initial length, must be multiple of thearch.ptrsize
+	d.addDwarfAddrField(fsu, uint64(0))                // cid
+	fsu.AddUint8(1)                                     // version
+	fsu.AddUint8('z')                                     // augmentation "z"
+	fsu.AddUint8('R')                                     // augmentation "R"
+	fsu.AddUint8(0)                                     // augmentation ""
+	dwarf.Uleb128put(d, fsd, 1)                         // code_alignment_factor
+	dwarf.Sleb128put(d, fsd, dataAlignmentFactor)       // all CFI offset calculations include multiplication with this factor
+        fsu.AddUint8(uint8(thearch.Dwarfreglr))		    // Return adress register
+
+	dwarf.Uleb128put(d, fsd, 1)
+	fsu.AddUint8(0x1b)					// DW_EH_PE_pcrel | DW_EH_PE_sdata4
+
+	if (haslr) {
+		fsu.AddUint8(dwarf.DW_CFA_def_cfa)                  // Set the current frame address..
+		dwarf.Uleb128put(d, fsd, int64(thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)
+		dwarf.Uleb128put(d, fsd, 0)
+	} else {
+		fsu.AddUint8(dwarf.DW_CFA_def_cfa)                  // Set the current frame address..
+		dwarf.Uleb128put(d, fsd, int64(thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)...
+		dwarf.Uleb128put(d, fsd, int64(d.arch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
+
+		fsu.AddUint8(uint8(dwarf.DW_CFA_offset|thearch.Dwarfreglr))		// The previous value of the return address...
+		dwarf.Uleb128put(d, fsd, int64(-d.arch.PtrSize)/dataAlignmentFactor)	// ...is saved at [CFA - (PtrSize/4)].
+	}
+
+	pad := int64(cieReserve) + lengthFieldSize - int64(len(d.ldr.Data(fs)))
+
+	if pad < 0 {
+		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
+	}
+
+	ciePtr += uint64(cieReserve) + uint64(lengthFieldSize)*2
+
+	fsu.AddBytes(zeros[:pad])
+
+	var deltaBuf []byte
+
+	pcsp := obj.NewPCIter(uint32(d.arch.MinLC))
+	for _, s := range d.linkctxt.Textp {
+		fn := loader.Sym(s)
+		fi := d.ldr.FuncInfo(fn)
+		if !fi.Valid() {
+			continue
+		}
+
+		if d.ldr.SymName(s) == "runtime.asmcgocall" {
+			// Emit a FDE, Section 6.4.1.
+			// First build the section contents into a byte buffer.
+			deltaBuf = deltaBuf[:0]
+
+			deltaBuf = dwarf.AppendUleb128(deltaBuf, 0)
+
+			if (haslr) {
+				deltaBuf = append(deltaBuf, dwarf.DW_CFA_def_cfa)
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, 2)
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(2*d.arch.PtrSize))
+
+				deltaBuf = append(deltaBuf, uint8(dwarf.DW_CFA_offset|thearch.Dwarfreglr))
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(int64(-2*d.arch.PtrSize)/dataAlignmentFactor))
+
+				deltaBuf = append(deltaBuf, uint8(dwarf.DW_CFA_offset|thearch.Dwarfregbp))
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(int64(-3*d.arch.PtrSize)/dataAlignmentFactor))
+			} else {
+				deltaBuf = append(deltaBuf, uint8(dwarf.DW_CFA_offset|thearch.Dwarfregbp))
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(int64(-2*d.arch.PtrSize)/dataAlignmentFactor))
+
+				deltaBuf = append(deltaBuf, dwarf.DW_CFA_def_cfa)
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfregbp))
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(2*d.arch.PtrSize))
+			}
+
+			// Emit the FDE header, Section 6.4.1.
+			//	4 bytes: length, must be multiple of thearch.ptrsize
+			//	4/8 bytes: Pointer to the CIE above, at offset 0
+			//	ptrsize: initial location
+			//	ptrsize: address range
+
+			pad := int(Rnd(int64(len(deltaBuf)), int64(d.arch.PtrSize))) - len(deltaBuf)
+		        deltaBuf = append(deltaBuf, zeros[:pad]...)
+
+			fdeLength := uint64(4 + 4 + 4 + len(deltaBuf))
+			d.createUnitLength(fsu, fdeLength)
+
+			d.addDwarfAddrField(fsu, ciePtr) // CIE offset
+			d.addpcref(fsu, s, 4, 4)
+			fsu.AddUint32(d.arch, uint32(len(d.ldr.Data(fn)))) // address range
+			fsu.AddBytes(deltaBuf)
+
+			ciePtr += fdeLength + uint64(lengthFieldSize)
+		} else {
+			fpcsp := fi.Pcsp()
+
+			// Emit a FDE, Section 6.4.1.
+			// First build the section contents into a byte buffer.
+			deltaBuf = deltaBuf[:0]
+			deltaBuf = dwarf.AppendUleb128(deltaBuf, 0)
+
+			if haslr && fi.TopFrame() {
+				// Mark the link register as having an undefined value.
+				// This stops call stack unwinders progressing any further.
+				// TODO: similar mark on non-LR architectures.
+				deltaBuf = append(deltaBuf, dwarf.DW_CFA_undefined)
+				deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+			}
+
+			for pcsp.Init(d.linkctxt.loader.Data(fpcsp)); !pcsp.Done; pcsp.Next() {
+				nextpc := pcsp.NextPC
+
+				// pciterinit goes up to the end of the function,
+				// but DWARF expects us to stop just before the end.
+				if int64(nextpc) == int64(len(d.ldr.Data(fn))) {
+					nextpc--
+					if nextpc < pcsp.PC {
+						continue
+					}
+				}
+
+				spdelta := int64(pcsp.Value)
+				if !haslr {
+					// Return address has been pushed onto stack.
+					spdelta += int64(d.arch.PtrSize)
+				}
+
+				if haslr && !fi.TopFrame() {
+					// TODO(bryanpkc): This is imprecise. In general, the instruction
+					// that stores the return address to the stack frame is not the
+					// same one that allocates the frame.
+					if pcsp.Value > 0 {
+						// The return address is preserved at (CFA-frame_size)
+						// after a stack frame has been allocated.
+						deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
+						deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+						deltaBuf = dwarf.AppendSleb128(deltaBuf, -spdelta/dataAlignmentFactor)
+					} else {
+						// The return address is restored into the link register
+						// when a stack frame has been de-allocated.
+						deltaBuf = append(deltaBuf, dwarf.DW_CFA_same_value)
+						deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+					}
+				}
+
+				deltaBuf = appendPCDeltaCFA(d.arch, deltaBuf, int64(nextpc)-int64(pcsp.PC), spdelta)
+			}
+			pad := int(Rnd(int64(len(deltaBuf)), int64(d.arch.PtrSize))) - len(deltaBuf)
+			deltaBuf = append(deltaBuf, zeros[:pad]...)
+
+			// Emit the FDE header, Section 6.4.1.
+			//	4 bytes: length, must be multiple of thearch.ptrsize
+			//	4/8 bytes: Pointer to the CIE above, at offset 0
+			//	ptrsize: initial location
+			//	ptrsize: address range
+
+			fdeLength := uint64(4 + 4 + 4 + len(deltaBuf))
+			d.createUnitLength(fsu, fdeLength)
+
+			d.addDwarfAddrField(fsu, ciePtr) // CIE offset
+
+			d.addpcref(fsu, s, 4, 4)
+			fsu.AddUint32(d.arch, uint32(len(d.ldr.Data(fn)))) // address range
+			fsu.AddBytes(deltaBuf)
+
+			ciePtr += fdeLength + uint64(lengthFieldSize)
+		}
+	}
+
+	return dwarfSecInfo{syms: []loader.Sym{fs}}
+}
+
 /*
  *  Walk DWarfDebugInfoEntries, and emit .debug_info
  */
@@ -2015,6 +2202,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	}
 
 	// Create the section symbols.
+	ehFrameSym := mkSecSym(".eh_frame")
 	frameSym := mkSecSym(".debug_frame")
 	locSym := mkSecSym(".debug_loc")
 	lineSym := mkSecSym(".debug_line")
@@ -2022,6 +2210,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	infoSym := mkSecSym(".debug_info")
 
 	// Create the section objects
+	ehFrameSec := dwarfSecInfo{syms: []loader.Sym{ehFrameSym}}
 	lineSec := dwarfSecInfo{syms: []loader.Sym{lineSym}}
 	locSec := dwarfSecInfo{syms: []loader.Sym{locSym}}
 	rangesSec := dwarfSecInfo{syms: []loader.Sym{rangesSym}}
@@ -2052,6 +2241,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 			wg.Done()
 		}()
 		frameSec = d.writeframes(frameSym)
+		ehFrameSec = d.writeehframes(ehFrameSym)
 	}()
 
 	// Create a goroutine per comp unit to handle the generation that
@@ -2088,6 +2278,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	}
 	dwarfp = append(dwarfp, lineSec)
 	dwarfp = append(dwarfp, frameSec)
+	dwarfp = append(dwarfp, ehFrameSec)
 	gdbScriptSec := d.writegdbscript()
 	if gdbScriptSec.secSym() != 0 {
 		dwarfp = append(dwarfp, gdbScriptSec)
@@ -2148,6 +2339,10 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
 			shstrtab.Addstring(".zdebug_" + sec)
 		}
 	}
+	if ctxt.IsExternal() {
+		shstrtab.Addstring(elfRelType + ".eh_frame")
+	}
+	shstrtab.Addstring(".eh_frame")
 }
 
 func dwarfaddelfsectionsyms(ctxt *Link) {
@@ -2201,8 +2396,8 @@ func dwarfcompress(ctxt *Link) {
 	Segdwarf.Sections = Segdwarf.Sections[:0]
 	for _, z := range res {
 		s := z.syms[0]
-		if z.compressed == nil {
-			// Compression didn't help.
+		if ((z.compressed == nil) || (strings.Compare(ldr.SymSect(s).Name, ".eh_frame")==0)) {
+			// Compression didn't help, and don't compress .eh_frame section
 			ds := dwarfSecInfo{syms: z.syms}
 			newDwarfp = append(newDwarfp, ds)
 			Segdwarf.Sections = append(Segdwarf.Sections, ldr.SymSect(s))

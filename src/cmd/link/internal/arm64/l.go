@@ -71,4 +71,5 @@ const (
 const (
 	dwarfRegSP = 31
 	dwarfRegLR = 30
+	dwarfRegBP = 29
 )

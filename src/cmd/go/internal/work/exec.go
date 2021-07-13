@@ -2513,6 +2513,11 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 		a = append(a, "-Qunused-arguments")
 	}
 
+	// add eh_frame generation
+	if b.gccSupportsFlag(compiler, "-funwind-tables") {
+		a = append(a, "-funwind-tables")
+	}
+
 	// disable word wrapping in error messages
 	a = append(a, "-fmessage-length=0")
 

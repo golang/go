@@ -45,6 +45,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:   minAlign,
 		Dwarfregsp: dwarfRegSP,
 		Dwarfreglr: dwarfRegLR,
+		Dwarfregbp: dwarfRegBP,
 		// 0xCC is INT $3 - breakpoint instruction
 		CodePad: []byte{0xCC},
 

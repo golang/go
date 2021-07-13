@@ -182,6 +182,7 @@ type Arch struct {
 	Minalign   int
 	Dwarfregsp int
 	Dwarfreglr int
+	Dwarfregbp int
 
 	// Threshold of total text size, used for trampoline insertion. If the total
 	// text size is smaller than TrampLimit, we won't need to insert trampolines.
@@ -1466,6 +1467,11 @@ func (ctxt *Link) hostlink() {
 	const unusedArguments = "-Qunused-arguments"
 	if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, unusedArguments) {
 		argv = append(argv, unusedArguments)
+	}
+
+	const ehframeHdrArgument = "-Wl,--eh-frame-hdr"
+	if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, ehframeHdrArgument) {
+		argv = append(argv, ehframeHdrArgument)
 	}
 
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"

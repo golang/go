@@ -486,7 +486,16 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			return false
 		}
 		out.Write64(uint64(elf.R_AARCH64_CALL26) | uint64(elfsym)<<32)
-
+	case objabi.R_PCREL:
+                if siz == 4 {
+                        if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
+                                panic("not managed")
+                        } else {
+                                out.Write64(uint64(elf.R_AARCH64_PREL32) | uint64(elfsym)<<32)
+                        }
+                } else {
+                        return false
+                }
 	}
 	out.Write64(uint64(r.Xadd))
 
@@ -578,6 +587,9 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_GOT_LOAD_PAGE21 << 28
+	 case objabi.R_PCREL:
+                v |= 1 << 24 // pc-relative bit
+                v |= ld.MACHO_X86_64_RELOC_SIGNED << 28
 	}
 
 	switch siz {
