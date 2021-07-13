@@ -1514,6 +1514,13 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 }
 
 func (d *dwctxt) writeehframes(fs loader.Sym) dwarfSecInfo {
+	if (d.arch.Family != sys.ARM64) && (d.arch.Family != sys.AMD64) {
+	return dwarfSecInfo{syms: []loader.Sym{fs}}
+	}
+	if (!d.linkctxt.IsELF) {
+		return dwarfSecInfo{syms: []loader.Sym{fs}}
+	}
+
 	fsd := dwSym(fs)
 	fsu := d.ldr.MakeSymbolUpdater(fs)
 	fsu.SetType(sym.SDWARFSECT)
