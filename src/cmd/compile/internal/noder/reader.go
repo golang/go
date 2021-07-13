@@ -520,14 +520,22 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	r.typeParamBounds(sym, implicits, explicits)
 
-	origSym := sym
-
-	sym = r.mangle(sym)
-	if !sym.IsBlank() && sym.Def != nil {
-		return sym.Def.(ir.Node)
-	}
-
 	tag := codeObj(r.code(syncCodeObj))
+	if tag == objStub {
+		assert(!sym.IsBlank())
+		switch sym.Pkg {
+		case types.BuiltinPkg, ir.Pkgs.Unsafe:
+			return sym.Def.(ir.Node)
+		}
+		if pri, ok := objReader[sym]; ok {
+			return pri.pr.objIdx(pri.idx, nil, explicits)
+		}
+		if haveLegacyImports {
+			assert(!r.hasTypeParams())
+			return typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+		}
+		base.Fatalf("unresolved stub: %v", sym)
+	}
 
 	{
 		rdict := pr.newReader(relocObjDict, idx, syncObject1)
@@ -536,6 +544,11 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		for i := range r.dict.derived {
 			r.dict.derivedReloc[i] = rdict.reloc(relocType)
 		}
+	}
+
+	sym = r.mangle(sym)
+	if !sym.IsBlank() && sym.Def != nil {
+		return sym.Def.(*ir.Name)
 	}
 
 	do := func(op ir.Op, hasTParams bool) *ir.Name {
@@ -559,17 +572,6 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 	switch tag {
 	default:
 		panic("unexpected object")
-
-	case objStub:
-		if pri, ok := objReader[origSym]; ok {
-			return pri.pr.objIdx(pri.idx, nil, explicits)
-		}
-		if haveLegacyImports {
-			assert(!r.hasTypeParams())
-			return typecheck.Resolve(ir.NewIdent(src.NoXPos, origSym))
-		}
-		base.Fatalf("unresolved stub: %v", origSym)
-		panic("unreachable")
 
 	case objAlias:
 		name := do(ir.OTYPE, false)
