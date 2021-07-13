@@ -282,6 +282,7 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 		// produce a better error message. The actual race to the cache should be
 		// guarded by Session.viewMu.
 		s.stateMu.Unlock()
+		close(diagnoseDone)
 		return errors.New("server is shut down")
 	}
 	s.stateMu.Unlock()
@@ -291,6 +292,7 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 
 	snapshots, releases, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
+		close(diagnoseDone)
 		return err
 	}
 
