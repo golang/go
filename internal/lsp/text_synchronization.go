@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -241,7 +242,11 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	//     process changes in order.
 	s.pendingOnDiskChanges = append(s.pendingOnDiskChanges, pending)
 	ctx = xcontext.Detach(ctx)
-	delayed := func() {
+	okc := s.watchedFileDebouncer.debounce("", 0, time.After(delay))
+	go func() {
+		if ok := <-okc; !ok {
+			return
+		}
 		s.fileChangeMu.Lock()
 		var allChanges []source.FileModification
 		// For accurate progress notifications, we must notify all goroutines
@@ -263,8 +268,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 		for _, done := range dones {
 			close(done)
 		}
-	}
-	go s.watchedFileDebouncer.debounce("", 0, delay, delayed)
+	}()
 	return nil
 }
 

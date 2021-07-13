@@ -5,25 +5,16 @@
 package lsp
 
 import (
-	"fmt"
-	"strings"
-	"sync"
 	"testing"
 	"time"
-
-	errors "golang.org/x/xerrors"
 )
 
 func TestDebouncer(t *testing.T) {
 	t.Parallel()
 
-	const evtWait = 30 * time.Millisecond
-	const initialDelay = 400 * time.Millisecond
-
 	type event struct {
 		key       string
 		order     uint64
-		fired     bool
 		wantFired bool
 	}
 	tests := []struct {
@@ -65,72 +56,26 @@ func TestDebouncer(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
-			try := func(delay time.Duration) (bool, error) {
-				d := newDebouncer()
-				var wg sync.WaitGroup
-				var validMu sync.Mutex
-				valid := true
-				prev := -1
-				for i, e := range test.events {
-					wg.Add(1)
-					go func(i int, e *event) {
-						// Check if goroutines were not scheduled in the intended order.
-						validMu.Lock()
-						if prev != i-1 {
-							valid = false
-						}
-						prev = i
-						validMu.Unlock()
+			d := newDebouncer()
 
-						d.debounce(e.key, e.order, delay, func() {
-							e.fired = true
-						})
-						wg.Done()
-					}(i, e)
-					// For a bit more fidelity, sleep to try to make things actually
-					// execute in order. This shouldn't have to be perfect: as long as we
-					// don't have extreme pauses the test should still pass.
-					if i < len(test.events)-1 {
-						time.Sleep(evtWait)
-					}
-				}
-				wg.Wait()
+			delays := make([]chan time.Time, len(test.events))
+			okcs := make([]<-chan bool, len(test.events))
 
-				var errs []string
-				for _, event := range test.events {
-					if event.fired != event.wantFired {
-						msg := fmt.Sprintf("(key: %q, order: %d): fired = %t, want %t",
-							event.key, event.order, event.fired, event.wantFired)
-						errs = append(errs, msg)
-					}
-				}
-				var err error
-				if len(errs) > 0 {
-					err = errors.New(strings.Join(errs, "\n"))
-				}
-				return valid, err
+			// Register the events in deterministic order, synchronously.
+			for i, e := range test.events {
+				delays[i] = make(chan time.Time, 1)
+				okcs[i] = d.debounce(e.key, e.order, delays[i])
 			}
 
-			if err := retryInvalid(initialDelay, try); err != nil {
-				t.Error(err)
+			// Now see which event fired.
+			for i, okc := range okcs {
+				event := test.events[i]
+				delays[i] <- time.Now()
+				fired := <-okc
+				if fired != event.wantFired {
+					t.Errorf("[key: %q, order: %d]: fired = %t, want %t", event.key, event.order, fired, event.wantFired)
+				}
 			}
 		})
 	}
-}
-
-// retryInvalid runs the try func up to three times with exponential back-off
-// in its duration argument, starting with the provided initial duration. Calls
-// to try are retried if their first result indicates that they may be invalid,
-// and their second result is a non-nil error.
-func retryInvalid(initial time.Duration, try func(time.Duration) (valid bool, err error)) (err error) {
-	delay := initial
-	for attempts := 3; attempts > 0; attempts-- {
-		var valid bool
-		valid, err = try(delay)
-		if err == nil || valid {
-			return err
-		}
-		delay += delay
-	}
-	return err
 }

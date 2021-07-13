@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/debug/log"
@@ -119,10 +120,10 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		// delay.
 		s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		s.publishDiagnostics(ctx, false, snapshot)
-		s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.ID(), delay, func() {
+		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.ID(), time.After(delay)); ok {
 			s.diagnose(ctx, snapshot, false)
 			s.publishDiagnostics(ctx, true, snapshot)
-		})
+		}
 		return
 	}
 
