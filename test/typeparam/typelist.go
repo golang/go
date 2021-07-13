@@ -67,6 +67,8 @@ func _[V any, T interface { type map[string]V }](p T) V {
 // Testing partial and full type inference, including the case where the types can
 // be inferred without needing the types of the function arguments.
 
+// Cannot embed stand-alone type parameters. Disabled for now.
+/*
 func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
 func _() {
         f := f0[string]
@@ -82,6 +84,7 @@ func _() {
         f(0, 0)
         f1(0, 0)
 }
+*/
 
 func f2[A any, B interface{type []A}](_ A, _ B)
 func _() {
@@ -92,6 +95,8 @@ func _() {
 	// f2(0, []byte{}) - this one doesn't work
 }
 
+// Cannot embed stand-alone type parameters. Disabled for now.
+/*
 func f3[A any, B interface{type C}, C interface{type *A}](a A, _ B, c C)
 func _() {
 	f := f3[int]
@@ -99,6 +104,7 @@ func _() {
 	f(x, &x, &x)
 	f3(x, &x, &x)
 }
+*/
 
 func f4[A any, B interface{type []C}, C interface{type *A}](_ A, _ B, c C)
 func _() {
