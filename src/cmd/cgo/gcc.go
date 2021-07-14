@@ -23,10 +23,13 @@ import (
 	"internal/xcoff"
 	"math"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/internal/str"
 )
 
 var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
@@ -382,7 +385,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		stderr = p.gccErrors(b.Bytes())
 	}
 	if stderr == "" {
-		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
+		fatalf("%s produced no output\non input:\n%s", gccBaseCmd[0], b.Bytes())
 	}
 
 	completed := false
@@ -457,7 +460,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	}
 
 	if !completed {
-		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
+		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", gccBaseCmd[0], b.Bytes(), stderr)
 	}
 
 	for i, n := range names {
@@ -488,7 +491,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		// to users debugging preamble mistakes. See issue 8442.
 		preambleErrors := p.gccErrors([]byte(f.Preamble))
 		if len(preambleErrors) > 0 {
-			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
+			error_(token.NoPos, "\n%s errors for preamble:\n%s", gccBaseCmd[0], preambleErrors)
 		}
 
 		fatalf("unresolved names")
@@ -1545,20 +1548,37 @@ func gofmtPos(n ast.Expr, pos token.Pos) string {
 	return fmt.Sprintf("/*line :%d:%d*/%s", p.Line, p.Column, s)
 }
 
-// gccBaseCmd returns the start of the compiler command line.
+// checkGCCBaseCmd returns the start of the compiler command line.
 // It uses $CC if set, or else $GCC, or else the compiler recorded
 // during the initial build as defaultCC.
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
-func (p *Package) gccBaseCmd() []string {
+//
+// The compiler command line is split into arguments on whitespace. Quotes
+// are understood, so arguments may contain whitespace.
+//
+// checkGCCBaseCmd confirms that the compiler exists in PATH, returning
+// an error if it does not.
+func checkGCCBaseCmd() ([]string, error) {
 	// Use $CC if set, since that's what the build uses.
-	if ret := strings.Fields(os.Getenv("CC")); len(ret) > 0 {
-		return ret
+	value := os.Getenv("CC")
+	if value == "" {
+		// Try $GCC if set, since that's what we used to use.
+		value = os.Getenv("GCC")
 	}
-	// Try $GCC if set, since that's what we used to use.
-	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
-		return ret
+	if value == "" {
+		value = defaultCC(goos, goarch)
 	}
-	return strings.Fields(defaultCC(goos, goarch))
+	args, err := str.SplitQuotedFields(value)
+	if err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		return nil, errors.New("CC not set and no default found")
+	}
+	if _, err := exec.LookPath(args[0]); err != nil {
+		return nil, fmt.Errorf("C compiler %q not found: %v", args[0], err)
+	}
+	return args[:len(args):len(args)], nil
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
@@ -1604,7 +1624,7 @@ func gccTmp() string {
 // gccCmd returns the gcc command line to use for compiling
 // the input.
 func (p *Package) gccCmd() []string {
-	c := append(p.gccBaseCmd(),
+	c := append(gccBaseCmd,
 		"-w",          // no warnings
 		"-Wno-error",  // warnings are not errors
 		"-o"+gccTmp(), // write object to tmp
@@ -2005,7 +2025,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := append(p.gccBaseCmd(), "-E", "-dM", "-xc")
+	base := append(gccBaseCmd, "-E", "-dM", "-xc")
 	base = append(base, p.gccMachine()...)
 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
 	return stdout

@@ -282,8 +282,8 @@ func TestBuildForTvOS(t *testing.T) {
 		"-isysroot", strings.TrimSpace(string(sdkPath)),
 		"-mtvos-version-min=12.0",
 		"-fembed-bitcode",
-		"-framework", "CoreFoundation",
 	}
+	CGO_LDFLAGS := []string{"-framework", "CoreFoundation"}
 	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
 	tmpDir := t.TempDir()
 
@@ -295,12 +295,14 @@ func TestBuildForTvOS(t *testing.T) {
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
 		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+		"CGO_LDFLAGS="+strings.Join(CGO_LDFLAGS, " "),
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
 
 	link := exec.Command(CC[0], CC[1:]...)
+	link.Args = append(link.Args, CGO_LDFLAGS...)
 	link.Args = append(link.Args, "-o", filepath.Join(tmpDir, "a.out")) // Avoid writing to package directory.
 	link.Args = append(link.Args, ar, filepath.Join("testdata", "testBuildFortvOS", "main.m"))
 	if out, err := link.CombinedOutput(); err != nil {

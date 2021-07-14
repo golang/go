@@ -545,33 +545,18 @@ func packInternal(afile string, ofiles []string) error {
 }
 
 // setextld sets the appropriate linker flags for the specified compiler.
-func setextld(ldflags []string, compiler []string) []string {
+func setextld(ldflags []string, compiler []string) ([]string, error) {
 	for _, f := range ldflags {
 		if f == "-extld" || strings.HasPrefix(f, "-extld=") {
 			// don't override -extld if supplied
-			return ldflags
+			return ldflags, nil
 		}
 	}
-	ldflags = append(ldflags, "-extld="+compiler[0])
-	if len(compiler) > 1 {
-		extldflags := false
-		add := strings.Join(compiler[1:], " ")
-		for i, f := range ldflags {
-			if f == "-extldflags" && i+1 < len(ldflags) {
-				ldflags[i+1] = add + " " + ldflags[i+1]
-				extldflags = true
-				break
-			} else if strings.HasPrefix(f, "-extldflags=") {
-				ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
-				extldflags = true
-				break
-			}
-		}
-		if !extldflags {
-			ldflags = append(ldflags, "-extldflags="+add)
-		}
+	joined, err := str.JoinAndQuoteFields(compiler)
+	if err != nil {
+		return nil, err
 	}
-	return ldflags
+	return append(ldflags, "-extld="+joined), nil
 }
 
 // pluginPath computes the package path for a plugin main package.
@@ -658,7 +643,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	}
 	ldflags = append(ldflags, forcedLdflags...)
 	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
-	ldflags = setextld(ldflags, compiler)
+	ldflags, err := setextld(ldflags, compiler)
+	if err != nil {
+		return err
+	}
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final
@@ -702,7 +690,10 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 	} else {
 		compiler = envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
 	}
-	ldflags = setextld(ldflags, compiler)
+	ldflags, err := setextld(ldflags, compiler)
+	if err != nil {
+		return err
+	}
 	for _, d := range toplevelactions {
 		if !strings.HasSuffix(d.Target, ".a") { // omit unsafe etc and actions for other shared libraries
 			continue
