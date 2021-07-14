@@ -7,7 +7,9 @@ package str
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -152,4 +154,74 @@ func SplitQuotedFields(s string) ([]string, error) {
 		s = s[i:]
 	}
 	return f, nil
+}
+
+// JoinAndQuoteFields joins a list of arguments into a string that can be parsed
+// with SplitQuotedFields. Arguments are quoted only if necessary; arguments
+// without spaces or quotes are kept as-is. No argument may contain both
+// single and double quotes.
+func JoinAndQuoteFields(args []string) (string, error) {
+	var buf []byte
+	for i, arg := range args {
+		if i > 0 {
+			buf = append(buf, ' ')
+		}
+		var sawSpace, sawSingleQuote, sawDoubleQuote bool
+		for _, c := range arg {
+			switch {
+			case c > unicode.MaxASCII:
+				continue
+			case isSpaceByte(byte(c)):
+				sawSpace = true
+			case c == '\'':
+				sawSingleQuote = true
+			case c == '"':
+				sawDoubleQuote = true
+			}
+		}
+		switch {
+		case !sawSpace && !sawSingleQuote && !sawDoubleQuote:
+			buf = append(buf, []byte(arg)...)
+
+		case !sawSingleQuote:
+			buf = append(buf, '\'')
+			buf = append(buf, []byte(arg)...)
+			buf = append(buf, '\'')
+
+		case !sawDoubleQuote:
+			buf = append(buf, '"')
+			buf = append(buf, []byte(arg)...)
+			buf = append(buf, '"')
+
+		default:
+			return "", fmt.Errorf("argument %q contains both single and double quotes and cannot be quoted", arg)
+		}
+	}
+	return string(buf), nil
+}
+
+// A QuotedStringListFlag parses a list of string arguments encoded with
+// JoinAndQuoteFields. It is useful for flags like cmd/link's -extldflags.
+type QuotedStringListFlag []string
+
+var _ flag.Value = (*QuotedStringListFlag)(nil)
+
+func (f *QuotedStringListFlag) Set(v string) error {
+	fs, err := SplitQuotedFields(v)
+	if err != nil {
+		return err
+	}
+	*f = fs[:len(fs):len(fs)]
+	return nil
+}
+
+func (f *QuotedStringListFlag) String() string {
+	if f == nil {
+		return ""
+	}
+	s, err := JoinAndQuoteFields(*f)
+	if err != nil {
+		return strings.Join(*f, " ")
+	}
+	return s
 }
