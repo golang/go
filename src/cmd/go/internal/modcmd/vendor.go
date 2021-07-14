@@ -24,7 +24,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
