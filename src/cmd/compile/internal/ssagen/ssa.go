@@ -6598,6 +6598,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
 
 	PtrSize := int64(types.PtrSize)
+	uintptrTyp := types.Types[types.TUINTPTR]
 
 	isAggregate := func(t *types.Type) bool {
 		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
@@ -6641,12 +6642,8 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
-	// Write one non-aggrgate arg/field/element if there is room.
-	// Returns whether to continue.
-	write1 := func(sz, offset int64) bool {
-		if n >= limit {
-			return false
-		}
+	// Write one non-aggrgate arg/field/element.
+	write1 := func(sz, offset int64) {
 		if offset >= _special {
 			writebyte(_offsetTooLarge)
 		} else {
@@ -6654,7 +6651,6 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			writebyte(uint8(sz))
 		}
 		n++
-		return true
 	}
 
 	// Visit t recursively and write it out.
@@ -6662,10 +6658,12 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
 	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
 		if n >= limit {
+			writebyte(_dotdotdot)
 			return false
 		}
 		if !isAggregate(t) {
-			return write1(t.Size(), baseOffset)
+			write1(t.Size(), baseOffset)
+			return true
 		}
 		writebyte(_startAgg)
 		depth++
@@ -6675,58 +6673,47 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			n++
 			return true
 		}
-		var r bool
 		switch {
 		case t.IsInterface(), t.IsString():
-			r = write1(PtrSize, baseOffset) &&
-				write1(PtrSize, baseOffset+PtrSize)
+			_ = visitType(baseOffset, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize, uintptrTyp, depth)
 		case t.IsSlice():
-			r = write1(PtrSize, baseOffset) &&
-				write1(PtrSize, baseOffset+PtrSize) &&
-				write1(PtrSize, baseOffset+PtrSize*2)
+			_ = visitType(baseOffset, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize*2, uintptrTyp, depth)
 		case t.IsComplex():
-			r = write1(t.Size()/2, baseOffset) &&
-				write1(t.Size()/2, baseOffset+t.Size()/2)
+			_ = visitType(baseOffset, types.FloatForComplex(t), depth) &&
+				visitType(baseOffset+t.Size()/2, types.FloatForComplex(t), depth)
 		case t.IsArray():
-			r = true
 			if t.NumElem() == 0 {
 				n++ // {} counts as a component
 				break
 			}
 			for i := int64(0); i < t.NumElem(); i++ {
 				if !visitType(baseOffset, t.Elem(), depth) {
-					r = false
 					break
 				}
 				baseOffset += t.Elem().Size()
 			}
 		case t.IsStruct():
-			r = true
 			if t.NumFields() == 0 {
 				n++ // {} counts as a component
 				break
 			}
 			for _, field := range t.Fields().Slice() {
 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
-					r = false
 					break
 				}
 			}
 		}
-		if !r {
-			writebyte(_dotdotdot)
-		}
 		writebyte(_endAgg)
-		return r
+		return true
 	}
 
-	c := true
 	for _, a := range abiInfo.InParams() {
-		if !c {
-			writebyte(_dotdotdot)
+		if !visitType(a.FrameOffset(abiInfo), a.Type, 0) {
 			break
 		}
-		c = visitType(a.FrameOffset(abiInfo), a.Type, 0)
 	}
 	writebyte(_endSeq)
 	if wOff > maxLen {
