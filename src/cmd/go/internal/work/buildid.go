@@ -15,8 +15,8 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/str"
 	"cmd/internal/buildid"
+	"cmd/internal/str"
 )
 
 // Build IDs

@@ -17,10 +17,10 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/search"
-	"cmd/go/internal/str"
 	"cmd/go/internal/vcs"
 	"cmd/go/internal/web"
 	"cmd/go/internal/work"
+	"cmd/internal/str"
 
 	"golang.org/x/mod/module"
 )
