@@ -57,77 +57,75 @@ func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, style Symb
 // See the comment for symbolCollector for more information.
 type matcherFunc func(name string) float64
 
-// A symbolizer returns the best symbol match for name with pkg, according to
-// some heuristic.
+// A symbolizer returns the best symbol match for a name with pkg, according to
+// some heuristic. The symbol name is passed as the slice nameParts of logical
+// name pieces. For example, for myType.field the caller can pass either
+// []string{"myType.field"} or []string{"myType.", "field"}.
 //
 // See the comment for symbolCollector for more information.
-type symbolizer func(name string, pkg Package, m matcherFunc) (string, float64)
+type symbolizer func(nameParts []string, pkg Package, m matcherFunc) (string, float64)
 
-func fullyQualifiedSymbolMatch(name string, pkg Package, matcher matcherFunc) (string, float64) {
-	_, score := dynamicSymbolMatch(name, pkg, matcher)
+func fullyQualifiedSymbolMatch(nameParts []string, pkg Package, matcher matcherFunc) (string, float64) {
+	_, score := dynamicSymbolMatch(nameParts, pkg, matcher)
+	path := append([]string{pkg.PkgPath() + "."}, nameParts...)
 	if score > 0 {
-		return pkg.PkgPath() + "." + name, score
+		return strings.Join(path, ""), score
 	}
 	return "", 0
 }
 
-func dynamicSymbolMatch(name string, pkg Package, matcher matcherFunc) (string, float64) {
-	// Prefer any package-qualified match.
-	pkgQualified := pkg.Name() + "." + name
-	if match, score := bestMatch(pkgQualified, matcher); match != "" {
-		return match, score
+func dynamicSymbolMatch(nameParts []string, pkg Package, matcher matcherFunc) (string, float64) {
+	var best string
+	fullName := strings.Join(nameParts, "")
+	var score float64
+	var name string
+
+	// Compute the match score by finding the highest scoring suffix. In these
+	// cases the matched symbol is still the full name: it is confusing to match
+	// an unqualified nested field or method.
+	if match := bestMatch("", nameParts, matcher); match > score {
+		best = fullName
+		score = match
 	}
-	fullyQualified := pkg.PkgPath() + "." + name
-	if match, score := bestMatch(fullyQualified, matcher); match != "" {
-		return match, score
+
+	// Next: try to match a package-qualified name.
+	name = pkg.Name() + "." + fullName
+	if match := matcher(name); match > score {
+		best = name
+		score = match
 	}
-	return "", 0
+
+	// Finally: consider a fully qualified name.
+	prefix := pkg.PkgPath() + "."
+	fullyQualified := prefix + fullName
+	// As with field/method selectors, consider suffixes from right to left, but
+	// always return a fully-qualified symbol.
+	pathParts := strings.SplitAfter(prefix, "/")
+	if match := bestMatch(fullName, pathParts, matcher); match > score {
+		best = fullyQualified
+		score = match
+	}
+	return best, score
 }
 
-func packageSymbolMatch(name string, pkg Package, matcher matcherFunc) (string, float64) {
-	qualified := pkg.Name() + "." + name
+func bestMatch(name string, prefixParts []string, matcher matcherFunc) float64 {
+	var score float64
+	for i := len(prefixParts) - 1; i >= 0; i-- {
+		name = prefixParts[i] + name
+		if match := matcher(name); match > score {
+			score = match
+		}
+	}
+	return score
+}
+
+func packageSymbolMatch(components []string, pkg Package, matcher matcherFunc) (string, float64) {
+	path := append([]string{pkg.Name() + "."}, components...)
+	qualified := strings.Join(path, "")
 	if matcher(qualified) > 0 {
 		return qualified, 1
 	}
 	return "", 0
-}
-
-// bestMatch returns the highest scoring symbol suffix of fullPath, starting
-// from the right and splitting on selectors and path components.
-//
-// e.g. given a symbol path of the form 'host.com/dir/pkg.type.field', we
-// check the match quality of the following:
-//  - field
-//  - type.field
-//  - pkg.type.field
-//  - dir/pkg.type.field
-//  - host.com/dir/pkg.type.field
-//
-// and return the best match, along with its score.
-//
-// This is used to implement the 'dynamic' symbol style.
-func bestMatch(fullPath string, matcher matcherFunc) (string, float64) {
-	pathParts := strings.Split(fullPath, "/")
-	dottedParts := strings.Split(pathParts[len(pathParts)-1], ".")
-
-	var best string
-	var score float64
-
-	for i := 0; i < len(dottedParts); i++ {
-		path := strings.Join(dottedParts[len(dottedParts)-1-i:], ".")
-		if match := matcher(path); match > score {
-			best = path
-			score = match
-		}
-	}
-	for i := 0; i < len(pathParts); i++ {
-		path := strings.Join(pathParts[len(pathParts)-1-i:], "/")
-		if match := matcher(path); match > score {
-			best = path
-			score = match
-		}
-	}
-	return best, score
 }
 
 // symbolCollector holds context as we walk Packages, gathering symbols that
@@ -420,7 +418,13 @@ func (sc *symbolCollector) walkType(typ ast.Expr, path ...*ast.Ident) {
 // or named. path is the path of nested identifiers containing the field.
 func (sc *symbolCollector) walkField(field *ast.Field, unnamedKind, namedKind protocol.SymbolKind, path ...*ast.Ident) {
 	if len(field.Names) == 0 {
-		sc.match(types.ExprString(field.Type), unnamedKind, field, path...)
+		switch typ := field.Type.(type) {
+		case *ast.SelectorExpr:
+			// embedded qualified type
+			sc.match(typ.Sel.Name, unnamedKind, field, path...)
+		default:
+			sc.match(types.ExprString(field.Type), unnamedKind, field, path...)
+		}
 	}
 	for _, name := range field.Names {
 		sc.match(name.Name, namedKind, name, path...)
@@ -466,18 +470,14 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 	}
 
 	isExported := isExported(name)
-	if len(path) > 0 {
-		var nameBuilder strings.Builder
-		for _, ident := range path {
-			nameBuilder.WriteString(ident.Name)
-			nameBuilder.WriteString(".")
-			if !ident.IsExported() {
-				isExported = false
-			}
+	var names []string
+	for _, ident := range path {
+		names = append(names, ident.Name+".")
+		if !ident.IsExported() {
+			isExported = false
 		}
-		nameBuilder.WriteString(name)
-		name = nameBuilder.String()
 	}
+	names = append(names, name)
 
 	// Factors to apply to the match score for the purpose of downranking
 	// results.
@@ -501,7 +501,7 @@ func (sc *symbolCollector) match(name string, kind protocol.SymbolKind, node ast
 		// can be noisy.
 		fieldFactor = 0.5
 	)
-	symbol, score := sc.symbolizer(name, sc.current.pkg, sc.matcher)
+	symbol, score := sc.symbolizer(names, sc.current.pkg, sc.matcher)
 
 	// Downrank symbols outside of the workspace.
 	if !sc.current.isWorkspace {
