@@ -1487,6 +1487,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
+			// NOTE: we don't attempt to parse quotes and unescapes here. pkg-config
+			// is typically used within shell backticks, which treats quotes literally.
 			ldflags = strings.Fields(string(out))
 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
@@ -2429,12 +2431,6 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 	return err
 }
 
-// Grab these before main helpfully overwrites them.
-var (
-	origCC  = cfg.Getenv("CC")
-	origCXX = cfg.Getenv("CXX")
-)
-
 // gccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GccCmd(incdir, workdir string) []string {
@@ -2454,40 +2450,23 @@ func (b *Builder) gfortranCmd(incdir, workdir string) []string {
 
 // ccExe returns the CC compiler setting without all the extra flags we add implicitly.
 func (b *Builder) ccExe() []string {
-	return b.compilerExe(origCC, cfg.DefaultCC(cfg.Goos, cfg.Goarch))
+	return envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
 }
 
 // cxxExe returns the CXX compiler setting without all the extra flags we add implicitly.
 func (b *Builder) cxxExe() []string {
-	return b.compilerExe(origCXX, cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
+	return envList("CXX", cfg.DefaultCXX(cfg.Goos, cfg.Goarch))
 }
 
 // fcExe returns the FC compiler setting without all the extra flags we add implicitly.
 func (b *Builder) fcExe() []string {
-	return b.compilerExe(cfg.Getenv("FC"), "gfortran")
-}
-
-// compilerExe returns the compiler to use given an
-// environment variable setting (the value not the name)
-// and a default. The resulting slice is usually just the name
-// of the compiler but can have additional arguments if they
-// were present in the environment value.
-// For example if CC="gcc -DGOPHER" then the result is ["gcc", "-DGOPHER"].
-func (b *Builder) compilerExe(envValue string, def string) []string {
-	compiler := strings.Fields(envValue)
-	if len(compiler) == 0 {
-		compiler = strings.Fields(def)
-	}
-	return compiler
+	return envList("FC", "gfortran")
 }
 
 // compilerCmd returns a command line prefix for the given environment
 // variable and using the default command when the variable is empty.
 func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []string {
-	// NOTE: env.go's mkEnv knows that the first three
-	// strings returned are "gcc", "-I", incdir (and cuts them off).
-	a := []string{compiler[0], "-I", incdir}
-	a = append(a, compiler[1:]...)
+	a := append(compiler, "-I", incdir)
 
 	// Definitely want -fPIC but on Windows gcc complains
 	// "-fPIC ignored for target (all code is position independent)"
@@ -2658,12 +2637,20 @@ func (b *Builder) gccArchArgs() []string {
 
 // envList returns the value of the given environment variable broken
 // into fields, using the default value when the variable is empty.
+//
+// The environment variable must be quoted correctly for
+// str.SplitQuotedFields. This should be done before building
+// anything, for example, in BuildInit.
 func envList(key, def string) []string {
 	v := cfg.Getenv(key)
 	if v == "" {
 		v = def
 	}
-	return strings.Fields(v)
+	args, err := str.SplitQuotedFields(v)
+	if err != nil {
+		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))
+	}
+	return args
 }
 
 // CFlags returns the flags to use when invoking the C, C++ or Fortran compilers, or cgo.

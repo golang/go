@@ -11,6 +11,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
+	"cmd/internal/str"
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
@@ -39,9 +40,18 @@ func BuildInit() {
 		cfg.BuildPkgdir = p
 	}
 
-	// Make sure CC and CXX are absolute paths
-	for _, key := range []string{"CC", "CXX"} {
-		if path := cfg.Getenv(key); !filepath.IsAbs(path) && path != "" && path != filepath.Base(path) {
+	// Make sure CC, CXX, and FC are absolute paths.
+	for _, key := range []string{"CC", "CXX", "FC"} {
+		value := cfg.Getenv(key)
+		args, err := str.SplitQuotedFields(value)
+		if err != nil {
+			base.Fatalf("go %s: %s environment variable could not be parsed: %v", flag.Args()[0], key, err)
+		}
+		if len(args) == 0 {
+			continue
+		}
+		path := args[0]
+		if !filepath.IsAbs(path) && path != filepath.Base(path) {
 			base.Fatalf("go %s: %s environment variable is relative; must be absolute path: %s\n", flag.Args()[0], key, path)
 		}
 	}

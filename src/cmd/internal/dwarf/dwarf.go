@@ -1617,8 +1617,10 @@ func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // current extld.
 // AIX ld doesn't support DWARF with -bnoobjreorder with version
 // prior to 7.2.2.
-func IsDWARFEnabledOnAIXLd(extld string) (bool, error) {
-	out, err := exec.Command(extld, "-Wl,-V").CombinedOutput()
+func IsDWARFEnabledOnAIXLd(extld []string) (bool, error) {
+	name, args := extld[0], extld[1:]
+	args = append(args, "-Wl,-V")
+	out, err := exec.Command(name, args...).CombinedOutput()
 	if err != nil {
 		// The normal output should display ld version and
 		// then fails because ".main" is not defined:
