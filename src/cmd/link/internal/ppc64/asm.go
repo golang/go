@@ -321,6 +321,11 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 			rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_PPC64_ADDR64)))
 			rela.AddUint64(target.Arch, uint64(r.Add()))
 			su.SetRelocType(rIdx, objabi.ElfRelocOffset) // ignore during relocsym
+		} else if target.IsPIE() && target.IsInternal() {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
 		}
 		return true
 
@@ -383,11 +388,93 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 	}
 
 	// Handle references to ELF symbols from our own object files.
-	if targType != sym.SDYNIMPORT {
+	relocs := ldr.Relocs(s)
+	r = relocs.At(rIdx)
+
+	switch r.Type() {
+	case objabi.R_ADDR:
+		if ldr.SymType(s) == sym.STEXT {
+			log.Fatalf("R_ADDR relocation in text symbol %s is unsupported\n", ldr.SymName(s))
+		}
+		if target.IsPIE() && target.IsInternal() {
+			// When internally linking, generate dynamic relocations
+			// for all typical R_ADDR relocations. The exception
+			// are those R_ADDR that are created as part of generating
+			// the dynamic relocations and must be resolved statically.
+			//
+			// There are three phases relevant to understanding this:
+			//
+			//	dodata()  // we are here
+			//	address() // symbol address assignment
+			//	reloc()   // resolution of static R_ADDR relocs
+			//
+			// At this point symbol addresses have not been
+			// assigned yet (as the final size of the .rela section
+			// will affect the addresses), and so we cannot write
+			// the Elf64_Rela.r_offset now. Instead we delay it
+			// until after the 'address' phase of the linker is
+			// complete. We do this via Addaddrplus, which creates
+			// a new R_ADDR relocation which will be resolved in
+			// the 'reloc' phase.
+			//
+			// These synthetic static R_ADDR relocs must be skipped
+			// now, or else we will be caught in an infinite loop
+			// of generating synthetic relocs for our synthetic
+			// relocs.
+			//
+			// Furthermore, the rela sections contain dynamic
+			// relocations with R_ADDR relocations on
+			// Elf64_Rela.r_offset. This field should contain the
+			// symbol offset as determined by reloc(), not the
+			// final dynamically linked address as a dynamic
+			// relocation would provide.
+			switch ldr.SymName(s) {
+			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+				return false
+			}
+		} else {
+			// Either internally linking a static executable,
+			// in which case we can resolve these relocations
+			// statically in the 'reloc' phase, or externally
+			// linking, in which case the relocation will be
+			// prepared in the 'reloc' phase and passed to the
+			// external linker in the 'asmb' phase.
+			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+				break
+			}
+		}
+		// Generate R_PPC64_RELATIVE relocations for best
+		// efficiency in the dynamic linker.
+		//
+		// As noted above, symbol addresses have not been
+		// assigned yet, so we can't generate the final reloc
+		// entry yet. We ultimately want:
+		//
+		// r_offset = s + r.Off
+		// r_info = R_PPC64_RELATIVE
+		// r_addend = targ + r.Add
+		//
+		// The dynamic linker will set *offset = base address +
+		// addend.
+		//
+		// AddAddrPlus is used for r_offset and r_addend to
+		// generate new R_ADDR relocations that will update
+		// these fields in the 'reloc' phase.
+		rela := ldr.MakeSymbolUpdater(syms.Rela)
+		rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+		if r.Siz() == 8 {
+			rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_PPC64_RELATIVE)))
+		} else {
+			ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
+		rela.AddAddrPlus(target.Arch, targ, int64(r.Add()))
+
+		// Not mark r done here. So we still apply it statically,
+		// so in the file content we'll also have the right offset
+		// to the relocation target. So it can be examined statically
+		// (e.g. go version).
 		return true
 	}
-
-	// TODO(austin): Translate our relocations to ELF
 
 	return false
 }
@@ -542,35 +629,40 @@ func symtoc(ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) int64 {
 }
 
 // archreloctoc relocates a TOC relative symbol.
-// If the symbol pointed by this TOC relative symbol is in .data or .bss, the
-// default load instruction can be changed to an addi instruction and the
-// symbol address can be used directly.
-// This code is for AIX only.
 func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
 	rs := r.Sym()
-	if target.IsLinux() {
-		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
-	}
 	var o1, o2 uint32
-
-	o1 = uint32(val >> 32)
-	o2 = uint32(val)
-
-	if !strings.HasPrefix(ldr.SymName(rs), "TOC.") {
-		ldr.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
-	}
 	var t int64
 	useAddi := false
-	relocs := ldr.Relocs(rs)
-	tarSym := relocs.At(0).Sym()
 
-	if target.IsInternal() && tarSym != 0 && ldr.AttrReachable(tarSym) && ldr.SymSect(tarSym).Seg == &ld.Segdata {
-		t = ldr.SymValue(tarSym) + r.Add() - ldr.SymValue(syms.TOC)
-		// change ld to addi in the second instruction
-		o2 = (o2 & 0x03FF0000) | 0xE<<26
-		useAddi = true
+	if target.IsBigEndian() {
+		o1 = uint32(val >> 32)
+		o2 = uint32(val)
 	} else {
-		t = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.TOC)
+		o1 = uint32(val)
+		o2 = uint32(val >> 32)
+	}
+
+	// On AIX, TOC data accesses are always made indirectly against R2 (a sequence of addis+ld+load/store). If the
+	// The target of the load is known, the sequence can be written into addis+addi+load/store. On Linux,
+	// TOC data accesses are always made directly against R2 (e.g addis+load/store).
+	if target.IsAIX() {
+		if !strings.HasPrefix(ldr.SymName(rs), "TOC.") {
+			ldr.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
+		}
+		relocs := ldr.Relocs(rs)
+		tarSym := relocs.At(0).Sym()
+
+		if target.IsInternal() && tarSym != 0 && ldr.AttrReachable(tarSym) && ldr.SymSect(tarSym).Seg == &ld.Segdata {
+			t = ldr.SymValue(tarSym) + r.Add() - ldr.SymValue(syms.TOC)
+			// change ld to addi in the second instruction
+			o2 = (o2 & 0x03FF0000) | 0xE<<26
+			useAddi = true
+		} else {
+			t = ldr.SymValue(rs) + r.Add() - ldr.SymValue(syms.TOC)
+		}
+	} else {
+		t = ldr.SymValue(rs) + r.Add() - symtoc(ldr, syms, s)
 	}
 
 	if t != int64(int32(t)) {
@@ -593,15 +685,20 @@ func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r lo
 			}
 			o2 |= uint32(t) & 0xFFFC
 		}
+	case objabi.R_ADDRPOWER_TOCREL:
+		o2 |= uint32(t) & 0xffff
 	default:
 		return -1
 	}
 
-	return int64(o1)<<32 | int64(o2)
+	if target.IsBigEndian() {
+		return int64(o1)<<32 | int64(o2)
+	}
+	return int64(o2)<<32 | int64(o1)
 }
 
 // archrelocaddr relocates a symbol address.
-// This code is for AIX only.
+// This code is for linux only.
 func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
 	rs := r.Sym()
 	if target.IsAIX() {
@@ -860,6 +957,18 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
 
+		tgtName := ldr.SymName(rs)
+
+		// If we are linking PIE or shared code, all golang generated object files have an extra 2 instruction prologue
+		// to regenerate the TOC pointer from R12.  The exception are two special case functions tested below.  Note,
+		// local call offsets for externally generated objects are accounted for when converting into golang relocs.
+		if !ldr.IsExternal(rs) && ldr.AttrShared(rs) && tgtName != "runtime.duffzero" && tgtName != "runtime.duffcopy" {
+			// Furthermore, only apply the offset if the target looks like the start of a function call.
+			if r.Add() == 0 && ldr.SymType(rs) == sym.STEXT {
+				t += 8
+			}
+		}
+
 		if t&3 != 0 {
 			ldr.Errorf(s, "relocation for %s+%d is not aligned: %d", ldr.SymName(rs), r.Off(), t)
 		}
@@ -871,6 +980,62 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return val | int64(uint32(t)&^0xfc000003), nExtReloc, true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
 		return ldr.SymValue(rs) + r.Add() - symtoc(ldr, syms, s), nExtReloc, true
+
+	case objabi.R_ADDRPOWER_PCREL: // S + A - P
+		t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+		ha := uint16(((t + 0x8000) >> 16) & 0xFFFF)
+		l := uint16(t)
+		if target.IsBigEndian() {
+			val |= int64(l)
+			val |= int64(ha) << 32
+		} else {
+			val |= int64(ha)
+			val |= int64(l) << 32
+		}
+		return val, nExtReloc, true
+
+	case objabi.R_POWER_TLS:
+		const OP_ADD = 31<<26 | 266<<1
+		const MASK_OP_ADD = 0x3F<<26 | 0x1FF<<1
+		if val&MASK_OP_ADD != OP_ADD {
+			ldr.Errorf(s, "R_POWER_TLS reloc only supports XO form ADD, not %08X", val)
+		}
+		// Verify RB is R13 in ADD RA,RB,RT.
+		if (val>>11)&0x1F != 13 {
+			// If external linking is made to support this, it may expect the linker to rewrite RB.
+			ldr.Errorf(s, "R_POWER_TLS reloc requires R13 in RB (%08X).", uint32(val))
+		}
+		return val, nExtReloc, true
+
+	case objabi.R_POWER_TLS_IE:
+		// Convert TLS_IE relocation to TLS_LE if supported.
+		if !(target.IsPIE() && target.IsElf()) {
+			log.Fatalf("cannot handle R_POWER_TLS_IE (sym %s) when linking non-PIE, non-ELF binaries internally", ldr.SymName(s))
+		}
+
+		// We are an ELF binary, we can safely convert to TLS_LE from:
+		// addis to, r2, x@got@tprel@ha
+		// ld to, to, x@got@tprel@l(to)
+		//
+		// to TLS_LE by converting to:
+		// addis to, r0, x@tprel@ha
+		// addi to, to, x@tprel@l(to)
+
+		const OP_ADDI = 14 << 26
+		const OP_MASK = 0x3F << 26
+		const OP_RA_MASK = 0x1F << 16
+		uval := uint64(val)
+		// convert r2 to r0, and ld to addi
+		if target.IsBigEndian() {
+			uval = uval &^ (OP_RA_MASK << 32)
+			uval = (uval &^ OP_MASK) | OP_ADDI
+		} else {
+			uval = uval &^ (OP_RA_MASK)
+			uval = (uval &^ (OP_MASK << 32)) | (OP_ADDI << 32)
+		}
+		val = int64(uval)
+		// Treat this like an R_POWER_TLS_LE relocation now.
+		fallthrough
 
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
