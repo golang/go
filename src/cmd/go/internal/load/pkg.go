@@ -36,8 +36,8 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
-	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/str"
 	"cmd/internal/sys"
 
 	"golang.org/x/mod/modfile"

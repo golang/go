@@ -34,8 +34,8 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/str"
 )
 
 // actionList returns the list of actions in the dag rooted at root
