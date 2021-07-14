@@ -119,6 +119,17 @@ Do not send CLs removing the interior tags from such phrases.
   stack frame pointers only on Linux, macOS, and iOS.
 </p>
 
+<h3 id="loong64">loong64 GOARCH value reserved</h3>
+
+<p><!-- CL 333909 -->
+  The main Go compiler does not yet support the LoongArch
+  architecture, but we've reserved the <code>GOARCH</code> value
+  "<code>loong64</code>".
+  This means that Go files named <code>*_loong64.go</code> will now
+  be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
+  tools</a> except when that GOARCH value is being used.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="go-command">Go command</h3>
