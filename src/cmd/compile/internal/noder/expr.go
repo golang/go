@@ -88,6 +88,11 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 
 func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	pos := g.pos(expr)
+	assert(pos.IsKnown())
+
+	// Set base.Pos for transformation code that still uses base.Pos, rather than
+	// the pos of the node being converted.
+	base.Pos = pos
 
 	switch expr := expr.(type) {
 	case *syntax.Name:

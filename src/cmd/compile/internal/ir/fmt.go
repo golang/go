@@ -714,6 +714,10 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				fmt.Fprintf(s, "... argument")
 				return
 			}
+			if typ := n.Type(); typ != nil {
+				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
+				return
+			}
 			if n.Ntype != nil {
 				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
 				return

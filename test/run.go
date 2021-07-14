@@ -2167,40 +2167,12 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	// TODO: Triage tests without explicit failure explanations. From a
-	// cursory inspection, they mostly fall into:
-	// - Anonymous result parameters given different names (e.g., ~r0 vs ~r1)
-	// - Some escape analysis diagnostics being printed without position information
-	// - Some expressions printed differently (e.g., "int(100)" instead
-	//   of "100" or "&composite literal" instead of "&[4]int{...}").
-
-	"closure3.go", // prints "s escapes to heap" without line number
-	"escape2.go",
-	"escape2n.go",
-	"escape4.go", // prints "1 escapes to heap" without line number
-	"escape_calls.go",
-	"escape_field.go",
-	"escape_iface.go",
-	"escape_indir.go",
-	"escape_level.go",
-	"escape_map.go",
-	"escape_param.go",
-	"escape_slice.go",
-	"escape_struct_param1.go",
-	"escape_struct_param2.go",
-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
-
-	"fixedbugs/issue12006.go",
-	"fixedbugs/issue13799.go",
+	"writebarrier.go",         // correct diagnostics, but different lines (probably irgen's fault)
 	"fixedbugs/issue17270.go", // ICE in irgen
 	"fixedbugs/issue20174.go", // ICE due to width not calculated (probably irgen's fault)
 	"fixedbugs/issue20250.go", // correct diagnostics, but different lines (probably irgen's fault)
-	"fixedbugs/issue21709.go",
-	"fixedbugs/issue31573.go",
-	"fixedbugs/issue37837.go",
-	"fixedbugs/issue39292.go",
-	"fixedbugs/issue7921.go", // prints "composite literal does not escape" but test expects "[]byte{...} does not escape"
-	"fixedbugs/issue9691.go", // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+	"fixedbugs/issue37837.go", // ICE due to width not calculated
+	"fixedbugs/issue9691.go",  // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
 
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
