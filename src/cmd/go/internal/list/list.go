@@ -23,8 +23,8 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/internal/str"
 )
 
 var CmdList = &base.Command{

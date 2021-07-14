@@ -6,7 +6,7 @@ package load
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 	"fmt"
 	"strings"
 )
