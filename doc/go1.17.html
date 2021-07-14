@@ -989,6 +989,18 @@ func Foo() bool {
 
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
+    <p><!-- CL 334669 -->
+      The new
+      <a href="/pkg/reflect/#Value.CanConvert"><code>Value.CanConvert</code></a>
+      method reports whether a value can be converted to a type.
+      This may be used to avoid a panic when converting a slice to an
+      array pointer type if the slice is too short.
+      Previously it was sufficient to use
+      <a href="/pkg/reflect/#Type.ConvertibleTo"><code>Type.ConvertibleTo</code></a>
+      for this, but the newly permitted conversion from slice to array
+      pointer type can panic even if the types are convertible.
+    </p>
+
     <p><!-- CL 266197 -->
       The new
       <a href="/pkg/reflect/#StructField.IsExported"><code>StructField.IsExported</code></a>
