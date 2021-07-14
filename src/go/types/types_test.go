@@ -4,11 +4,5 @@
 
 package types
 
-// SetGoVersion sets the unexported goVersion field on config, so that tests
-// which assert on behavior for older Go versions can set it.
-func SetGoVersion(config *Config, goVersion string) {
-	config.goVersion = goVersion
-}
-
 // Debug is set if go/types is built with debug mode enabled.
 const Debug = debug
