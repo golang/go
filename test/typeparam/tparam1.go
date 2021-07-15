@@ -10,8 +10,8 @@ package tparam1
 
 // The predeclared identifier "any" is only visible as a constraint
 // in a type parameter list.
-var _ any // ERROR "undefined"
-func _(_ any) // ERROR "undefined"
+var _ any // ERROR "cannot use any outside constraint position"
+func _(_ any) // ERROR "cannot use any outside constraint position"
 type _[_ any /* ok here */ ] struct{}
 
 const N = 10

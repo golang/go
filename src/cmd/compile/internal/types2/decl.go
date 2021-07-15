@@ -617,8 +617,9 @@ func (check *Checker) declareTypeParam(index int, name *syntax.Name) *TypeName {
 // The type must be an interface, including the predeclared type "any".
 func (check *Checker) boundType(e syntax.Expr) Type {
 	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
-	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == nil {
-		return universeAny
+	// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == universeAny {
+		return universeAny.Type()
 	}
 
 	bound := check.typ(e)
