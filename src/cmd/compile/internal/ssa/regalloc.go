@@ -620,20 +620,20 @@ func (s *regAllocState) init(f *Func) {
 	}
 	if s.f.Config.ctxt.Flag_dynlink {
 		switch s.f.Config.arch {
-		case "amd64":
-			s.allocatable &^= 1 << 15 // R15
-		case "arm":
-			s.allocatable &^= 1 << 9 // R9
-		case "ppc64le": // R2 already reserved.
-			// nothing to do
-		case "arm64":
-			// nothing to do?
 		case "386":
 			// nothing to do.
 			// Note that for Flag_shared (position independent code)
 			// we do need to be careful, but that carefulness is hidden
 			// in the rewrite rules so we always have a free register
 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
+		case "amd64":
+			s.allocatable &^= 1 << 15 // R15
+		case "arm":
+			s.allocatable &^= 1 << 9 // R9
+		case "arm64":
+			// nothing to do
+		case "ppc64le": // R2 already reserved.
+			// nothing to do
 		case "s390x":
 			s.allocatable &^= 1 << 11 // R11
 		default:
