@@ -171,7 +171,7 @@ func TestFormattingOnSave(t *testing.T) {
 // Import organization in these files has historically been a source of bugs.
 func TestCRLFLineEndings(t *testing.T) {
 	for _, tt := range []struct {
-		issue, want string
+		issue, input, want string
 	}{
 		{
 			issue: "41057",
@@ -224,10 +224,38 @@ type Tree struct {
 }
 `,
 		},
+		{
+			issue: "47200",
+			input: `package main
+
+import "fmt"
+
+func main() {
+	math.Sqrt(9)
+	fmt.Println("hello")
+}
+`,
+			want: `package main
+
+import (
+	"fmt"
+	"math"
+)
+
+func main() {
+	math.Sqrt(9)
+	fmt.Println("hello")
+}
+`,
+		},
 	} {
 		t.Run(tt.issue, func(t *testing.T) {
 			Run(t, "-- main.go --", func(t *testing.T, env *Env) {
-				crlf := strings.ReplaceAll(tt.want, "\n", "\r\n")
+				input := tt.input
+				if input == "" {
+					input = tt.want
+				}
+				crlf := strings.ReplaceAll(input, "\n", "\r\n")
 				env.CreateBuffer("main.go", crlf)
 				env.Await(env.DoneWithOpen())
 				env.OrganizeImports("main.go")
