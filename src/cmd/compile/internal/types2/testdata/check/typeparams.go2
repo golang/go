@@ -6,11 +6,11 @@ package p
 
 // import "io" // for type assertion tests
 
-// The predeclared identifier "any" is only visible as a constraint
+// The predeclared identifier "any" can only be used as a constraint
 // in a type parameter list.
-var _ any // ERROR undeclared
-func _[_ any /* ok here */ , _ interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
-        var _ any /* ERROR undeclared */
+var _ any // ERROR cannot use any outside constraint position
+func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
+        var _ any /* ERROR constraint */
 }
 
 func identity[T any](x T) T { return x }
