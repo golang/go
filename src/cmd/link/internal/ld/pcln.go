@@ -294,8 +294,12 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 		}
 	}
 
+	// Funcnametab offsets of 0 are considered invalid in the runtime. We respect
+	// that by just padding a single byte at the beginning of runtime.funcnametab,
+	// that way no real offsets can be zero.
+	size := int64(1)
+
 	// Loop through the CUs, and calculate the size needed.
-	var size int64
 	walkFuncs(ctxt, funcs, func(s loader.Sym) {
 		nameOffsets[s] = uint32(size)
 		size += int64(ctxt.loader.SymNameLen(s)) + 1 // NULL terminate
