@@ -132,7 +132,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		}
 		// g.End() < end
 		if beg <= g.Pos() {
-			// comment is within the range [beg, end[ of import declarations
+			// comment is within the range [beg, end] of import declarations
 			if i < first {
 				first = i
 			}
