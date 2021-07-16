@@ -470,7 +470,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 	check.instantiatedOperand(x)
 
-	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
 		case index != nil:
@@ -500,7 +500,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				} else {
 					changeCase = string(unicode.ToUpper(r)) + sel[1:]
 				}
-				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
 					why += ", but does have " + changeCase
 				}
 			}

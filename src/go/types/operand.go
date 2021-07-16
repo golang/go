@@ -240,7 +240,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	}
 
 	// x's type is identical to T
-	if check.identical(V, T) {
+	if Identical(V, T) {
 		return true, 0
 	}
 
@@ -272,7 +272,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true, 0
 	}
 
@@ -281,7 +281,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
-					if check.identical(m.typ, wrongType.typ) {
+					if Identical(m.typ, wrongType.typ) {
 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
 					} else {
 						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
@@ -300,7 +300,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
+		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
 			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
 		}
 	}

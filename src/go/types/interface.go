@@ -212,7 +212,7 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 			}
 			// check != nil
 			check.later(func() {
-				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
+				if !check.allowVersion(m.pkg, 1, 14) || !Identical(m.typ, other.Type()) {
 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
