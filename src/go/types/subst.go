@@ -56,8 +56,24 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
 	return tpar
 }
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
-	if trace {
+// Instantiate instantiates the type typ with the given type arguments
+// targs. To check type constraint satisfaction, verify must be set.
+// pos and posList correspond to the instantiation and type argument
+// positions respectively; posList may be nil or shorter than the number
+// of type arguments provided.
+// typ must be a *Named or a *Signature type, and its number of type
+// parameters must match the number of provided type arguments.
+// The receiver (check) may be nil if and only if verify is not set.
+// The result is a new, instantiated (not generic) type of the same kind
+// (either a *Named or a *Signature).
+// Any methods attached to a *Named are simply copied; they are not
+// instantiated.
+func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos, verify bool) (res Type) {
+	if verify && check == nil {
+		panic("cannot have nil receiver if verify is set")
+	}
+
+	if check != nil && trace {
 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
 		defer func() {
@@ -73,7 +89,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}()
 	}
 
-	assert(len(poslist) <= len(targs))
+	assert(len(posList) <= len(targs))
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
@@ -100,17 +116,19 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			// anymore; we need to set tparams to nil.
 			res.(*Signature).tparams = nil
 		}()
-
 	default:
-		check.dump("%v: cannot instantiate %v", pos, typ)
-		unreachable() // only defined types and (defined) functions can be generic
+		// only types and functions can be generic
+		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
 
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
-		check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
-		return Typ[Invalid]
+		if check != nil {
+			check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
+			return Typ[Invalid]
+		}
+		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
 	}
 
 	if len(tparams) == 0 {
@@ -120,16 +138,18 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	smap := makeSubstMap(tparams, targs)
 
 	// check bounds
-	for i, tname := range tparams {
-		// best position for error reporting
-		pos := pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
+	if verify {
+		for i, tname := range tparams {
+			// best position for error reporting
+			pos := pos
+			if i < len(posList) {
+				pos = posList[i]
+			}
 
-		// stop checking bounds after the first failure
-		if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
-			break
+			// stop checking bounds after the first failure
+			if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
+				break
+			}
 		}
 	}
 
