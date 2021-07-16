@@ -482,11 +482,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			var why string
 			if tpar := asTypeParam(x.typ); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
-				switch obj := tpar.Bound().obj.(type) {
-				case nil:
+				if tname := tpar.Bound().obj; tname != nil {
+					why = check.sprintf("interface %s has no method %s", tname.name, sel)
+				} else {
 					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
-				case *TypeName:
-					why = check.sprintf("interface %s has no method %s", obj.name, sel)
 				}
 			} else {
 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
