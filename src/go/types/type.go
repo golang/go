@@ -124,43 +124,6 @@ func NewSlice(elem Type) *Slice { return &Slice{elem: elem} }
 // Elem returns the element type of slice s.
 func (s *Slice) Elem() Type { return s.elem }
 
-// A Struct represents a struct type.
-type Struct struct {
-	fields []*Var
-	tags   []string // field tags; nil if there are no tags
-}
-
-// NewStruct returns a new struct with the given fields and corresponding field tags.
-// If a field with index i has a tag, tags[i] must be that tag, but len(tags) may be
-// only as long as required to hold the tag with the largest index i. Consequently,
-// if no field has a tag, tags may be nil.
-func NewStruct(fields []*Var, tags []string) *Struct {
-	var fset objset
-	for _, f := range fields {
-		if f.name != "_" && fset.insert(f) != nil {
-			panic("multiple fields with the same name")
-		}
-	}
-	if len(tags) > len(fields) {
-		panic("more tags than fields")
-	}
-	return &Struct{fields: fields, tags: tags}
-}
-
-// NumFields returns the number of fields in the struct (including blank and embedded fields).
-func (s *Struct) NumFields() int { return len(s.fields) }
-
-// Field returns the i'th field for 0 <= i < NumFields().
-func (s *Struct) Field(i int) *Var { return s.fields[i] }
-
-// Tag returns the i'th field tag for 0 <= i < NumFields().
-func (s *Struct) Tag(i int) string {
-	if i < len(s.tags) {
-		return s.tags[i]
-	}
-	return ""
-}
-
 // A Pointer represents a pointer type.
 type Pointer struct {
 	base Type // element type
@@ -729,7 +692,6 @@ var theTop = &top{}
 func (t *Basic) Underlying() Type     { return t }
 func (t *Array) Underlying() Type     { return t }
 func (t *Slice) Underlying() Type     { return t }
-func (t *Struct) Underlying() Type    { return t }
 func (t *Pointer) Underlying() Type   { return t }
 func (t *Tuple) Underlying() Type     { return t }
 func (t *Signature) Underlying() Type { return t }
@@ -745,7 +707,6 @@ func (t *top) Underlying() Type       { return t }
 func (t *Basic) String() string     { return TypeString(t, nil) }
 func (t *Array) String() string     { return TypeString(t, nil) }
 func (t *Slice) String() string     { return TypeString(t, nil) }
-func (t *Struct) String() string    { return TypeString(t, nil) }
 func (t *Pointer) String() string   { return TypeString(t, nil) }
 func (t *Tuple) String() string     { return TypeString(t, nil) }
 func (t *Signature) String() string { return TypeString(t, nil) }
