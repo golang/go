@@ -147,10 +147,17 @@ func (u *unifier) join(i, j int) bool {
 // If typ is a type parameter of d, index returns the type parameter index.
 // Otherwise, the result is < 0.
 func (d *tparamsList) index(typ Type) int {
-	if t, ok := typ.(*TypeParam); ok {
-		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
-			return i
-		}
+	if tpar, ok := typ.(*TypeParam); ok {
+		return tparamIndex(d.tparams, tpar)
+	}
+	return -1
+}
+
+// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+// Otherwise, the result is < 0. tpar must not be nil.
+func tparamIndex(list []*TypeName, tpar *TypeParam) int {
+	if i := tpar.index; i < len(list) && list[i].typ == tpar {
+		return i
 	}
 	return -1
 }

@@ -50,8 +50,9 @@ func TestNewMethodSet(t *testing.T) {
 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }":         {{"f", []int{0}, true}},
 		"type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
 
-		// Issue #45639.
-		"type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
+		// Issue #45639: We don't allow this anymore. Keep this code in case we
+		//               decide to revisit this decision.
+		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
 	}
 
 	check := func(src string, methods []method, generic bool) {
