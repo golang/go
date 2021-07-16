@@ -196,11 +196,14 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// when C owns the process, simply exit'ing the process on fatal errors
-	// and panics is surprising. Be louder and abort instead.
-	if !argsValid() {
-		argc = 0
-	} else {
+	argsValid := true
+	if islibrary || isarchive {
+		if !sysLibArgsValid() {
+			argsValid = false
+		}
+	}
+
+	if argsValid {
 		// skip over argv, envp to get to auxv
 		for argv_index(argv, n) != nil {
 			n++

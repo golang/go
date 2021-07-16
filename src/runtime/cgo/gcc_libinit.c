@@ -22,6 +22,7 @@ static int runtime_init_done;
 // The context function, used when tracing back C calls into Go.
 static void (*cgo_context_function)(struct context_arg*);
 
+// Detect if using glibc
 int
 x_cgo_sys_lib_args_valid()
 {
