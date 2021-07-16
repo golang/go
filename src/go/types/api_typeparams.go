@@ -21,10 +21,6 @@ func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 func (s *Signature) TParams() []*TypeName           { return s._TParams() }
 func (s *Signature) SetTParams(tparams []*TypeName) { s._SetTParams(tparams) }
 
-func (t *Interface) HasTypeList() bool  { return t._HasTypeList() }
-func (t *Interface) IsComparable() bool { return t._IsComparable() }
-func (t *Interface) IsConstraint() bool { return t._IsConstraint() }
-
 func (t *Named) TParams() []*TypeName { return t._TParams() }
 func (t *Named) TArgs() []Type        { return t._TArgs() }
 func (t *Named) SetTArgs(args []Type) { t._SetTArgs(args) }

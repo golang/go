@@ -6,10 +6,6 @@
 
 package types
 
-import (
-	"go/token"
-)
-
 // isNamed reports whether typ has a name.
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
@@ -109,7 +105,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	//
 	// is not comparable because []byte is not comparable.
 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
-		return t.Bound()._IsComparable()
+		return t.Bound().IsComparable()
 	}
 
 	switch t := optype(T).(type) {
@@ -133,7 +129,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 			return comparable(t, seen)
 		})
 	case *_TypeParam:
-		return t.Bound()._IsComparable()
+		return t.Bound().IsComparable()
 	}
 	return false
 }
@@ -291,16 +287,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			// If identical0 is called (indirectly) via an external API entry point
-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
-			// that case, interfaces are expected to be complete and lazy completion
-			// here is not needed.
-			if check != nil {
-				check.completeInterface(token.NoPos, x)
-				check.completeInterface(token.NoPos, y)
-			}
-			a := x.allMethods
-			b := y.allMethods
+			a := x.typeSet().methods
+			b := y.typeSet().methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles

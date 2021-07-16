@@ -113,9 +113,11 @@ func (s sanitizer) typ(typ Type) Type {
 	case *Interface:
 		s.funcList(t.methods)
 		s.typeList(t.embeddeds)
-		s.funcList(t.allMethods)
-		if allTypes := s.typ(t.allTypes); allTypes != t.allTypes {
-			t.allTypes = allTypes
+		// TODO(gri) do we need to sanitize type sets?
+		tset := t.typeSet()
+		s.funcList(tset.methods)
+		if types := s.typ(tset.types); types != tset.types {
+			tset.types = types
 		}
 
 	case *Map:

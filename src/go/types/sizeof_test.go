@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
 		{Tuple{}, 12, 24},
 		{Signature{}, 44, 88},
 		{Union{}, 24, 48},
-		{Interface{}, 52, 104},
+		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
 		{Named{}, 84, 160},
@@ -48,6 +48,7 @@ func TestSizeof(t *testing.T) {
 		// Misc
 		{Scope{}, 40, 80},
 		{Package{}, 40, 80},
+		{TypeSet{}, 20, 40},
 	}
 	for _, test := range tests {
 		got := reflect.TypeOf(test.val).Size()

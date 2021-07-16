@@ -90,7 +90,7 @@ func defPredeclaredTypes() {
 		res := NewVar(token.NoPos, nil, "", Typ[String])
 		sig := &Signature{results: NewTuple(res)}
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
+		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
 		def(NewTypeName(token.NoPos, nil, "error", typ))
 	}
@@ -218,7 +218,7 @@ func defPredeclaredComparable() {
 	// set up later to match the usual interface method assumptions.
 	sig := new(Signature)
 	eql := NewFunc(token.NoPos, nil, "==", sig)
-	iface := NewInterfaceType([]*Func{eql}, nil).Complete()
+	iface := NewInterfaceType([]*Func{eql}, nil)
 
 	// set up the defined type for the interface
 	obj := NewTypeName(token.NoPos, nil, "comparable", nil)

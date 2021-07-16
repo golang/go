@@ -258,18 +258,20 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {
+	obj       Object  // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func // ordered list of explicitly declared methods
-	embeddeds []Type  // ordered list of explicitly embedded types
+	embeddeds []Type  // ordered list of explicitly embedded elements
+	complete  bool    // indicates that obj, methods, and embeddeds are set and type set can be computed
 
-	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
-	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
-
-	obj Object // type declaration defining this interface; or nil (for better error messages)
+	tset *TypeSet // type set described by this interface, computed lazily
 }
+
+// typeSet returns the type set for interface t.
+func (t *Interface) typeSet() *TypeSet { return newTypeSet(nil, token.NoPos, t) }
 
 // is reports whether interface t represents types that all satisfy f.
 func (t *Interface) is(f func(Type, bool) bool) bool {
-	switch t := t.allTypes.(type) {
+	switch t := t.typeSet().types.(type) {
 	case nil, *top:
 		// TODO(gri) should settle on top or nil to represent this case
 		return false // we must have at least one type! (was bug)
@@ -281,20 +283,13 @@ func (t *Interface) is(f func(Type, bool) bool) bool {
 }
 
 // emptyInterface represents the empty (completed) interface
-var emptyInterface = Interface{allMethods: markComplete}
+var emptyInterface = Interface{complete: true, tset: &topTypeSet}
 
-// markComplete is used to mark an empty interface as completely
-// set up by setting the allMethods field to a non-nil empty slice.
-var markComplete = make([]*Func, 0)
-
-// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
-// Each embedded type must have an underlying type of interface type.
-// NewInterface takes ownership of the provided methods and may modify their types by setting
-// missing receivers. To compute the method set of the interface, Complete must be called.
+// NewInterface returns a new interface for the given methods and embedded types.
+// NewInterface takes ownership of the provided methods and may modify their types
+// by setting missing receivers.
 //
-// Deprecated: Use NewInterfaceType instead which allows any (even non-defined) interface types
-// to be embedded. This is necessary for interfaces that embed alias type names referring to
-// non-defined (literal) interface types.
+// Deprecated: Use NewInterfaceType instead which allows arbitrary embedded types.
 func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	tnames := make([]Type, len(embeddeds))
 	for i, t := range embeddeds {
@@ -303,12 +298,9 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	return NewInterfaceType(methods, tnames)
 }
 
-// NewInterfaceType returns a new (incomplete) interface for the given methods and embedded types.
-// Each embedded type must have an underlying type of interface type (this property is not
-// verified for defined types, which may be in the process of being set up and which don't
-// have a valid underlying type yet).
-// NewInterfaceType takes ownership of the provided methods and may modify their types by setting
-// missing receivers. To compute the method set of the interface, Complete must be called.
+// NewInterfaceType returns a new interface for the given methods and embedded types.
+// NewInterfaceType takes ownership of the provided methods and may modify their types
+// by setting missing receivers.
 func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	if len(methods) == 0 && len(embeddeds) == 0 {
 		return &emptyInterface
@@ -338,6 +330,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds
+	typ.complete = true
+
 	return typ
 }
 
@@ -361,64 +355,20 @@ func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named)
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
 
 // NumMethods returns the total number of methods of interface t.
-// The interface must have been completed.
-func (t *Interface) NumMethods() int { t.Complete(); return len(t.allMethods) }
+func (t *Interface) NumMethods() int { return t.typeSet().NumMethods() }
 
 // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
 // The methods are ordered by their unique Id.
-// The interface must have been completed.
-func (t *Interface) Method(i int) *Func { t.Complete(); return t.allMethods[i] }
+func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 
 // Empty reports whether t is the empty interface.
-func (t *Interface) Empty() bool {
-	t.Complete()
-	return len(t.allMethods) == 0 && t.allTypes == nil
-}
+func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
 
-// _HasTypeList reports whether interface t has a type list, possibly from an embedded type.
-func (t *Interface) _HasTypeList() bool {
-	t.Complete()
-	return t.allTypes != nil
-}
+// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 
-// _IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
-func (t *Interface) _IsComparable() bool {
-	t.Complete()
-	_, m := lookupMethod(t.allMethods, nil, "==")
-	return m != nil
-}
-
-// _IsConstraint reports t.HasTypeList() || t.IsComparable().
-func (t *Interface) _IsConstraint() bool {
-	return t._HasTypeList() || t._IsComparable()
-}
-
-// iterate calls f with t and then with any embedded interface of t, recursively, until f returns true.
-// iterate reports whether any call to f returned true.
-// TODO(rfindley) This is now only used by infer.go - see if we can eliminate it.
-func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) bool {
-	if f(t) {
-		return true
-	}
-	for _, e := range t.embeddeds {
-		// e should be an interface but be careful (it may be invalid)
-		if e := asInterface(e); e != nil {
-			// Cyclic interfaces such as "type E interface { E }" are not permitted
-			// but they are still constructed and we need to detect such cycles.
-			if seen[e] {
-				continue
-			}
-			if seen == nil {
-				seen = make(map[*Interface]bool)
-			}
-			seen[e] = true
-			if e.iterate(f, seen) {
-				return true
-			}
-		}
-	}
-	return false
-}
+// IsConstraint reports whether interface t is not just a method set.
+func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
 
 // isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
 // If the type list is empty (absent), typ trivially satisfies the interface.
@@ -426,7 +376,7 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
 //           "implements" predicate.
 func (t *Interface) isSatisfiedBy(typ Type) bool {
 	t.Complete()
-	switch t := t.allTypes.(type) {
+	switch t := t.typeSet().types.(type) {
 	case nil:
 		return true // no type restrictions
 	case *Union:
@@ -437,15 +387,22 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
 	}
 }
 
-// Complete computes the interface's method set. It must be called by users of
+// Complete computes the interface's type set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
 // fully defined and before using the interface type in any way other than to
 // form other types. The interface must not contain duplicate methods or a
 // panic occurs. Complete returns the receiver.
+//
+// Deprecated: Type sets are now computed lazily, on demand; this function
+//             is only here for backward-compatibility. It does not have to
+//             be called explicitly anymore.
 func (t *Interface) Complete() *Interface {
-	if t.allMethods == nil {
-		completeInterface(nil, token.NoPos, t)
-	}
+	// Some tests are still depending on the state change
+	// (string representation of an Interface not containing an
+	// /* incomplete */ marker) caused by the explicit Complete
+	// call, so we compute the type set eagerly here.
+	t.complete = true
+	t.typeSet()
 	return t
 }
 
@@ -668,7 +625,7 @@ func (t *_TypeParam) Bound() *Interface {
 		pos = n.obj.pos
 	}
 	// TODO(rFindley) switch this to an unexported method on Checker.
-	t.check.completeInterface(pos, iface)
+	newTypeSet(t.check, pos, iface)
 	return iface
 }
 
@@ -685,7 +642,7 @@ func optype(typ Type) Type {
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.
-		if a := t.Bound().allTypes; a != nil && a != typ {
+		if a := t.Bound().typeSet().types; a != nil && a != typ {
 			// If we have a union with a single entry, ignore
 			// any tilde because under(~t) == under(t).
 			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
