@@ -268,7 +268,7 @@ type Interface struct {
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *TypeSet { return newTypeSet(nil, token.NoPos, t) }
+func (t *Interface) typeSet() *TypeSet { return computeTypeSet(nil, token.NoPos, t) }
 
 // is reports whether interface t represents types that all satisfy f.
 func (t *Interface) is(f func(Type, bool) bool) bool {
@@ -634,7 +634,7 @@ func (t *TypeParam) Bound() *Interface {
 		pos = n.obj.pos
 	}
 	// TODO(rFindley) switch this to an unexported method on Checker.
-	newTypeSet(t.check, pos, iface)
+	computeTypeSet(t.check, pos, iface)
 	return iface
 }
 
