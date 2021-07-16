@@ -207,10 +207,8 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		t.Fatal("no source files")
 	}
 
-	if strings.HasSuffix(filenames[0], ".go2") && !typeparams.Enabled {
-		t.Skip("type params are not enabled")
-	}
-	if strings.HasSuffix(filenames[0], ".go1") && typeparams.Enabled {
+	if strings.HasSuffix(filenames[0], ".go1") {
+		// TODO(rfindley): re-enable this test by using GoVersion.
 		t.Skip("type params are enabled")
 	}
 
@@ -354,14 +352,6 @@ func TestLongConstants(t *testing.T) {
 func TestIndexRepresentability(t *testing.T) {
 	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
-}
-
-func TestIssue46453(t *testing.T) {
-	if typeparams.Enabled {
-		t.Skip("type params are enabled")
-	}
-	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
-	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }

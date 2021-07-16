@@ -77,7 +77,7 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 }
 
 func (p *parser) parseTypeParams() bool {
-	return typeparams.Enabled && p.mode&typeparams.DisallowParsing == 0
+	return p.mode&typeparams.DisallowParsing == 0
 }
 
 // ----------------------------------------------------------------------------

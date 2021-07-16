@@ -263,11 +263,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.IndexExpr, *ast.MultiIndexExpr:
 		ix := typeparams.UnpackIndexExpr(e)
-		if typeparams.Enabled {
-			return check.instantiatedType(ix, def)
-		}
-		check.errorf(e0, _NotAType, "%s is not a type", e0)
-		check.use(ix.X)
+		// TODO(rfindley): type instantiation should require go1.18
+		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.

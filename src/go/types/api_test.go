@@ -353,9 +353,6 @@ func TestTypesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
-			continue
-		}
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
 		var name string
 		if strings.HasPrefix(test.src, broken) {
@@ -534,9 +531,6 @@ func TestDefsInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
-			continue
-		}
 		info := Info{
 			Defs: make(map[*ast.Ident]Object),
 		}
@@ -582,9 +576,6 @@ func TestUsesInfo(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
-			continue
-		}
 		info := Info{
 			Uses: make(map[*ast.Ident]Object),
 		}

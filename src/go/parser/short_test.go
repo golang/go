@@ -133,9 +133,6 @@ func TestValid(t *testing.T) {
 		}
 	})
 	t.Run("tparams", func(t *testing.T) {
-		if !typeparams.Enabled {
-			t.Skip("type params are not enabled")
-		}
 		for _, src := range valids {
 			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
 		}
@@ -268,9 +265,6 @@ func TestInvalid(t *testing.T) {
 		}
 	})
 	t.Run("tparams", func(t *testing.T) {
-		if !typeparams.Enabled {
-			t.Skip("type params are not enabled")
-		}
 		for _, src := range invalids {
 			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
 		}
