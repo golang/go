@@ -56,7 +56,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
 	if t := asNamed(T); t != nil {
-		if p, _ := t.underlying.(*Pointer); p != nil {
+		if p, _ := t.Underlying().(*Pointer); p != nil {
 			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
@@ -128,6 +128,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				seen[named] = true
 
 				// look for a matching attached method
+				named.expand()
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
@@ -400,7 +401,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
-		if Vn != nil && len(Vn.tparams) > 0 {
+		if Vn != nil && len(Vn.TParams()) > 0 {
 			// Be careful: The number of type arguments may not match
 			// the number of receiver parameters. If so, an error was
 			// reported earlier but the length discrepancy is still

@@ -25,7 +25,7 @@ func isNamed(typ Type) bool {
 func isGeneric(typ Type) bool {
 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
-	return named != nil && named.obj != nil && named.tparams != nil && named.targs == nil
+	return named != nil && named.obj != nil && named.TParams() != nil && named.targs == nil
 }
 
 func is(typ Type, what BasicInfo) bool {

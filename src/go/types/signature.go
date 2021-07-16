@@ -57,7 +57,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
 				if recv := asNamed(check.genericType(rname, false)); recv != nil {
-					recvTParams = recv.tparams
+					recvTParams = recv.TParams()
 				}
 			}
 			// provide type parameter bounds

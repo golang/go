@@ -73,7 +73,7 @@ type importKey struct {
 // A dotImportKey describes a dot-imported object in the given scope.
 type dotImportKey struct {
 	scope *Scope
-	obj   Object
+	name  string
 }
 
 // A Checker maintains the state of the type checker.

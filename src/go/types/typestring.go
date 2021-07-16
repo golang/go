@@ -273,9 +273,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			buf.WriteByte('[')
 			writeTypeList(buf, t.targs, qf, visited)
 			buf.WriteByte(']')
-		} else if t.tparams != nil {
+		} else if t.TParams() != nil {
 			// parameterized type
-			writeTParamList(buf, t.tparams, qf, visited)
+			writeTParamList(buf, t.TParams(), qf, visited)
 		}
 
 	case *_TypeParam:

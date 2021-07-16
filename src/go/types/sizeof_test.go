@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
 		{Interface{}, 52, 104},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 68, 136},
+		{Named{}, 84, 160},
 		{_TypeParam{}, 28, 48},
 		{instance{}, 44, 88},
 		{top{}, 0, 0},
