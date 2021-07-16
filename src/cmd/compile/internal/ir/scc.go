@@ -116,12 +116,11 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
 		var i int
 		for i = len(v.stack) - 1; i >= 0; i-- {
 			x := v.stack[i]
+			v.nodeID[x] = ^uint32(0)
 			if x == n {
 				break
 			}
-			v.nodeID[x] = ^uint32(0)
 		}
-		v.nodeID[n] = ^uint32(0)
 		block := v.stack[i:]
 		// Run escape analysis on this set of functions.
 		v.stack = v.stack[:i]
