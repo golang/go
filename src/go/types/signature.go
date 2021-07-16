@@ -55,11 +55,14 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 // contain methods whose receiver type is a different interface.
 func (s *Signature) Recv() *Var { return s.recv }
 
-// _TParams returns the type parameters of signature s, or nil.
+// TParams returns the type parameters of signature s, or nil.
 func (s *Signature) TParams() []*TypeName { return s.tparams }
 
-// _SetTParams sets the type parameters of signature s.
+// SetTParams sets the type parameters of signature s.
 func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
+
+// SetRParams sets the receiver type params of signature s.
+func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = rparams }
 
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
