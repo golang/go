@@ -682,7 +682,6 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			return Typ[UntypedNil], nil, 0
 		}
 		// cannot assign untyped values to non-empty interfaces
-		check.completeInterface(token.NoPos, t)
 		if !t.Empty() {
 			return nil, nil, _InvalidUntypedConversion
 		}

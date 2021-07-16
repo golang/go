@@ -785,7 +785,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
 		tsum := newUnion(rtypes, tildes)
-		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
+		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
 
 		return ptyp
 	}

@@ -316,24 +316,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.params) || w.isParameterized(t.results)
 
 	case *Interface:
-		if t.allMethods != nil {
-			// TODO(rFindley) at some point we should enforce completeness here
-			for _, m := range t.allMethods {
-				if w.isParameterized(m.typ) {
-					return true
-				}
+		tset := t.typeSet()
+		for _, m := range tset.methods {
+			if w.isParameterized(m.typ) {
+				return true
 			}
-			return w.isParameterized(t.allTypes)
 		}
-
-		return t.iterate(func(t *Interface) bool {
-			for _, m := range t.methods {
-				if w.isParameterized(m.typ) {
-					return true
-				}
-			}
-			return w.isParameterizedList(t.embeddeds)
-		}, nil)
+		return w.isParameterized(tset.types)
 
 	case *Map:
 		return w.isParameterized(t.key) || w.isParameterized(t.elem)
@@ -471,15 +460,15 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 // structuralType returns the structural type of a constraint, if any.
 func (check *Checker) structuralType(constraint Type) Type {
 	if iface, _ := under(constraint).(*Interface); iface != nil {
-		check.completeInterface(token.NoPos, iface)
-		if u, _ := iface.allTypes.(*Union); u != nil {
+		types := iface.typeSet().types
+		if u, _ := types.(*Union); u != nil {
 			if u.NumTerms() == 1 {
 				// TODO(gri) do we need to respect tilde?
 				return u.types[0]
 			}
 			return nil
 		}
-		return iface.allTypes
+		return types
 	}
 	return nil
 }

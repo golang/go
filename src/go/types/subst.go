@@ -139,6 +139,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 // satisfies reports whether the type argument targ satisfies the constraint of type parameter
 // parameter tpar (after any of its type parameters have been substituted through smap).
 // A suitable error is reported if the result is false.
+// TODO(gri) This should be a method of interfaces or type sets.
 func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap *substMap) bool {
 	iface := tpar.Bound()
 	if iface.Empty() {
@@ -153,8 +154,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
 
 	// targ must implement iface (methods)
 	// - check only if we have methods
-	check.completeInterface(token.NoPos, iface)
-	if len(iface.allMethods) > 0 {
+	if iface.NumMethods() > 0 {
 		// If the type argument is a pointer to a type parameter, the type argument's
 		// method set is empty.
 		// TODO(gri) is this what we want? (spec question)
@@ -186,7 +186,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
 	}
 
 	// targ's underlying type must also be one of the interface types listed, if any
-	if iface.allTypes == nil {
+	if iface.typeSet().types == nil {
 		return true // nothing to do
 	}
 
@@ -194,7 +194,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
 	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 	if targ := asTypeParam(targ); targ != nil {
 		targBound := targ.Bound()
-		if targBound.allTypes == nil {
+		if targBound.typeSet().types == nil {
 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 			return false
 		}
@@ -202,7 +202,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
 			// TODO(gri) incorporate tilde information!
 			if !iface.isSatisfiedBy(typ) {
 				// TODO(gri) match this error message with the one below (or vice versa)
-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.allTypes)
+				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.typeSet().types)
 				return false
 			}
 			return true
@@ -211,7 +211,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
 
 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
 	if !iface.isSatisfiedBy(targ) {
-		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.allTypes)
+		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.typeSet().types)
 		return false
 	}
 
@@ -316,12 +316,11 @@ func (subst *subster) typ(typ Type) Type {
 		methods, mcopied := subst.funcList(t.methods)
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		if mcopied || ecopied {
-			iface := &Interface{methods: methods, embeddeds: embeddeds}
+			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
 			if subst.check == nil {
 				panic("internal error: cannot instantiate interfaces yet")
 			}
 			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
-			subst.check.completeInterface(token.NoPos, iface)
 			return iface
 		}
 

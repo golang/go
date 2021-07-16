@@ -186,9 +186,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 			case *Interface:
 				// look for a matching method
-				// TODO(gri) t.allMethods is sorted - use binary search
-				check.completeInterface(token.NoPos, t)
-				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
+				if i, m := t.typeSet().LookupMethod(pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
@@ -199,9 +197,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				}
 
 			case *_TypeParam:
-				// only consider explicit methods in the type parameter bound, not
-				// methods that may be common to all types in the type list.
-				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {
+				if i, m := t.Bound().typeSet().LookupMethod(pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
@@ -307,18 +303,15 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
 func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
-	check.completeInterface(token.NoPos, T)
-
 	// fast path for common case
 	if T.Empty() {
 		return
 	}
 
 	if ityp := asInterface(V); ityp != nil {
-		check.completeInterface(token.NoPos, ityp)
-		// TODO(gri) allMethods is sorted - can do this more efficiently
-		for _, m := range T.allMethods {
-			_, f := lookupMethod(ityp.allMethods, m.pkg, m.name)
+		// TODO(gri) the methods are sorted - could do this more efficiently
+		for _, m := range T.typeSet().methods {
+			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
 
 			if f == nil {
 				// if m is the magic method == we're ok (interfaces are comparable)
@@ -356,7 +349,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	// A concrete type implements T if it implements all methods of T.
 	Vd, _ := deref(V)
 	Vn := asNamed(Vd)
-	for _, m := range T.allMethods {
+	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
 

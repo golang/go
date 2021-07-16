@@ -98,9 +98,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*ast.UnaryExpr).X.Pos())
 	}
 
+	// All methods and embedded elements for this interface are collected;
+	// i.e., this interface is may be used in a type set computation.
+	ityp.complete = true
+
 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
 		// empty interface
-		ityp.allMethods = markComplete
+		ityp.tset = &topTypeSet
 		return
 	}
 
@@ -108,7 +112,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	sortMethods(ityp.methods)
 	sortTypes(ityp.embeddeds)
 
-	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
+	// Compute type set with a non-nil *Checker as soon as possible
+	// to report any errors. Subsequent uses of type sets should be
+	// using this computed type set and won't need to pass in a *Checker.
+	check.later(func() { newTypeSet(check, iface.Pos(), ityp) })
 }
 
 func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
@@ -119,24 +126,26 @@ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
 	return append(list, x)
 }
 
-func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
-	if ityp.allMethods != nil {
-		return
+// newTypeSet may be called with check == nil.
+// TODO(gri) move this function into typeset.go eventually
+func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+	if ityp.tset != nil {
+		return ityp.tset
 	}
 
-	// completeInterface may be called via the LookupFieldOrMethod,
-	// MissingMethod, Identical, or IdenticalIgnoreTags external API
-	// in which case check will be nil. In this case, type-checking
-	// must be finished and all interfaces should have been completed.
-	if check == nil {
-		panic("internal error: incomplete interface")
+	// If the interface is not fully set up yet, the type set will
+	// not be complete, which may lead to errors when using the the
+	// type set (e.g. missing method). Don't compute a partial type
+	// set (and don't store it!), so that we still compute the full
+	// type set eventually. Instead, return the top type set and
+	// let any follow-on errors play out.
+	//
+	// TODO(gri) Consider recording when this happens and reporting
+	// it as an error (but only if there were no other errors so to
+	// to not have unnecessary follow-on errors).
+	if !ityp.complete {
+		return &topTypeSet
 	}
-	completeInterface(check, pos, ityp)
-}
-
-// completeInterface may be called with check == nil.
-func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
-	assert(ityp.allMethods == nil)
 
 	if check != nil && trace {
 		// Types don't generally have position information.
@@ -146,11 +155,11 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 			pos = ityp.methods[0].pos
 		}
 
-		check.trace(pos, "complete %s", ityp)
+		check.trace(pos, "type set for %s", ityp)
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(pos, "=> %s (methods = %v, types = %v)", ityp, ityp.allMethods, ityp.allTypes)
+			check.trace(pos, "=> %s ", ityp.typeSet())
 		}()
 	}
 
@@ -159,7 +168,7 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 	// have valid interfaces. Mark the interface as complete to avoid
 	// infinite recursion if the validType check occurs later for some
 	// reason.
-	ityp.allMethods = markComplete
+	ityp.tset = new(TypeSet) // TODO(gri) is this sufficient?
 
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
@@ -229,14 +238,12 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 		var types Type
 		switch t := under(typ).(type) {
 		case *Interface:
-			if t.allMethods == nil {
-				completeInterface(check, pos, t)
-			}
-			for _, m := range t.allMethods {
+			tset := newTypeSet(check, pos, t)
+			for _, m := range tset.methods {
 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
 
 			}
-			types = t.allTypes
+			types = tset.types
 		case *Union:
 			// TODO(gri) combine with default case once we have
 			//           converted all tests to new notation and we
@@ -273,9 +280,11 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
 
 	if methods != nil {
 		sort.Sort(byUniqueMethodName(methods))
-		ityp.allMethods = methods
+		ityp.tset.methods = methods
 	}
-	ityp.allTypes = allTypes
+	ityp.tset.types = allTypes
+
+	return ityp.tset
 }
 
 func sortTypes(list []Type) {
