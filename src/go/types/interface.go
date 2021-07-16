@@ -72,17 +72,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 		}
 	}
 
-	// TODO(rfindley): this guard is not present in types2. Remove it?
-	// All embedded types should be interfaces; however, defined types
-	// may not yet be fully resolved. Only verify that non-defined types
-	// are interfaces. This matches the behavior of the code before the
-	// fix for #25301 (issue #25596).
-	for _, t := range embeddeds {
-		if _, ok := t.(*Named); !ok && !IsInterface(t) {
-			panic("embedded type is not an interface")
-		}
-	}
-
 	// sort for API stability
 	sortMethods(methods)
 
