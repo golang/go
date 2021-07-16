@@ -24,22 +24,20 @@ func _() {
 	eql[io.Reader](nil, nil)
 }
 
-// If we have a receiver of pointer type (below: *T) we must ignore
-// the pointer in the implementation of the method lookup because
-// the type bound of T is an interface and pointer to interface types
-// have no methods and then the lookup would fail.
+// If we have a receiver of pointer to type parameter type (below: *T)
+// we don't have any methods, like for interfaces.
 type C[T any] interface {
     m()
 }
 
 // using type bound C
 func _[T C[T]](x *T) {
-	x.m()
+	x.m  /* ERROR x\.m undefined */ ()
 }
 
 // using an interface literal as bound
 func _[T interface{ m() }](x *T) {
-	x.m()
+	x.m  /* ERROR x\.m undefined */ ()
 }
 
 // In a generic function body all method calls will be pointer method calls.
