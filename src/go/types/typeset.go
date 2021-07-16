@@ -78,8 +78,8 @@ func (s *TypeSet) String() string {
 // topTypeSet may be used as type set for the empty interface.
 var topTypeSet TypeSet
 
-// newTypeSet may be called with check == nil.
-func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+// computeTypeSet may be called with check == nil.
+func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 	if ityp.tset != nil {
 		return ityp.tset
 	}
@@ -188,7 +188,7 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 		var types Type
 		switch t := under(typ).(type) {
 		case *Interface:
-			tset := newTypeSet(check, pos, t)
+			tset := computeTypeSet(check, pos, t)
 			for _, m := range tset.methods {
 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
 
