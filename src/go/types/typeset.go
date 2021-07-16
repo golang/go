@@ -28,6 +28,7 @@ func (s *TypeSet) IsTop() bool { return len(s.methods) == 0 && s.types == nil }
 func (s *TypeSet) IsMethodSet() bool { return s.types == nil && !s.IsComparable() }
 
 // IsComparable reports whether each type in the set is comparable.
+// TODO(gri) this is not correct - there may be s.types values containing non-comparable types
 func (s *TypeSet) IsComparable() bool {
 	_, m := s.LookupMethod(nil, "==")
 	return m != nil

@@ -25,10 +25,10 @@ func isGeneric(typ Type) bool {
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := optype(typ).(type) {
+	switch t := under(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
-	case *Union:
+	case *TypeParam:
 		return t.underIs(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
@@ -97,18 +97,19 @@ func comparable(T Type, seen map[Type]bool) bool {
 	seen[T] = true
 
 	// If T is a type parameter not constrained by any type
-	// list (i.e., it's operational type is the top type),
+	// (i.e., it's operational type is the top type),
 	// T is comparable if it has the == method. Otherwise,
 	// the operational type "wins". For instance
 	//
 	//     interface{ comparable; type []byte }
 	//
 	// is not comparable because []byte is not comparable.
+	// TODO(gri) this code is not 100% correct (see comment for TypeSet.IsComparable)
 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
 		return t.Bound().IsComparable()
 	}
 
-	switch t := optype(T).(type) {
+	switch t := under(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -124,24 +125,22 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return true
 	case *Array:
 		return comparable(t.elem, seen)
-	case *Union:
+	case *TypeParam:
 		return t.underIs(func(t Type) bool {
 			return comparable(t, seen)
 		})
-	case *TypeParam:
-		return t.Bound().IsComparable()
 	}
 	return false
 }
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := optype(typ).(type) {
+	switch t := under(typ).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
-	case *Union:
+	case *TypeParam:
 		return t.underIs(hasNil)
 	}
 	return false
