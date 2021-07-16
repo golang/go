@@ -87,21 +87,25 @@ func defPredeclaredTypes() {
 
 	// type error interface{ Error() string }
 	{
+		obj := NewTypeName(token.NoPos, nil, "error", nil)
+		obj.setColor(black)
 		res := NewVar(token.NoPos, nil, "", Typ[String])
 		sig := NewSignature(nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil)}
+		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
-		def(NewTypeName(token.NoPos, nil, "error", typ))
+		def(obj)
 	}
 
 	// type comparable interface{ ==() }
 	{
+		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+		obj.setColor(black)
 		sig := NewSignature(nil, nil, nil, false)
 		eql := NewFunc(token.NoPos, nil, "==", sig)
-		typ := &Named{underlying: NewInterfaceType([]*Func{eql}, nil)}
+		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
-		def(NewTypeName(token.NoPos, nil, "comparable", typ))
+		def(obj)
 	}
 }
 

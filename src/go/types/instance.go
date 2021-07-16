@@ -16,7 +16,7 @@ type instance struct {
 	base    *Named      // parameterized type to be instantiated
 	targs   []Type      // type arguments
 	poslist []token.Pos // position of each targ; for error reporting only
-	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
+	value   Type        // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
 }
 
 // expand returns the instantiated (= expanded) type of t.

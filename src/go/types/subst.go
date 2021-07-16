@@ -430,8 +430,6 @@ func (subst *subster) typ(typ Type) Type {
 
 var instanceHashing = 0
 
-// TODO(gri) Eventually, this should be more sophisticated.
-//           It won't work correctly for locally declared types.
 func instantiatedHash(typ *Named, targs []Type) string {
 	assert(instanceHashing == 0)
 	instanceHashing++

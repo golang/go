@@ -358,22 +358,27 @@ func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
 	buf.WriteString(obj.name)
 
 	if instanceHashing != 0 {
-		// For local defined types, use the (original!) TypeName's position
-		// to disambiguate. This is overkill, and could probably instead
-		// just be the pointer value (if we assume a non-moving GC) or
-		// a unique ID (like cmd/compile uses). But this works for now,
-		// and is convenient for debugging.
-
-		// TODO(mdempsky): I still don't fully understand why typ.orig.orig
-		// can differ from typ.orig, or whether looping more than twice is
-		// ever necessary.
+		// For local defined types, use the (original!) TypeName's scope
+		// numbers to disambiguate.
 		typ := obj.typ.(*Named)
+		// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
+		//           and whether the loop can iterate more than twice.
+		//           (It seems somehow connected to instance types.)
 		for typ.orig != typ {
 			typ = typ.orig
 		}
-		if orig := typ.obj; orig.pkg != nil && orig.parent != orig.pkg.scope {
-			fmt.Fprintf(buf, "@%q", orig.pos)
-		}
+		writeScopeNumbers(buf, typ.obj.parent)
+	}
+}
+
+// writeScopeNumbers writes the number sequence for this scope to buf
+// in the form ".i.j.k" where i, j, k, etc. stand for scope numbers.
+// If a scope is nil or has no parent (such as a package scope), nothing
+// is written.
+func writeScopeNumbers(buf *bytes.Buffer, s *Scope) {
+	if s != nil && s.number > 0 {
+		writeScopeNumbers(buf, s.parent)
+		fmt.Fprintf(buf, ".%d", s.number)
 	}
 }
 
