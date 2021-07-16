@@ -70,7 +70,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				}
 				smap := makeSubstMap(recvTParams, list)
 				for i, tname := range sig.rparams {
-					bound := recvTParams[i].typ.(*_TypeParam).bound
+					bound := recvTParams[i].typ.(*TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the
 					// current context.
@@ -78,7 +78,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					//           (no bound == empty interface)
 					if bound != nil {
 						bound = check.subst(tname.pos, bound, smap)
-						tname.typ.(*_TypeParam).bound = bound
+						tname.typ.(*TypeParam).bound = bound
 					}
 				}
 			}

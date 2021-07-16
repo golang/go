@@ -242,10 +242,10 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 func (s *Signature) Recv() *Var { return s.recv }
 
 // _TParams returns the type parameters of signature s, or nil.
-func (s *Signature) _TParams() []*TypeName { return s.tparams }
+func (s *Signature) TParams() []*TypeName { return s.tparams }
 
 // _SetTParams sets the type parameters of signature s.
-func (s *Signature) _SetTParams(tparams []*TypeName) { s.tparams = tparams }
+func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
 
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
@@ -546,16 +546,16 @@ func (t *Named) _Orig() *Named { return t.orig }
 
 // _TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) _TParams() []*TypeName { return t.expand().tparams }
+func (t *Named) TParams() []*TypeName { return t.expand().tparams }
 
 // _SetTParams sets the type parameters of the named type t.
-func (t *Named) _SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
+func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
 
 // _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
-func (t *Named) _TArgs() []Type { return t.targs }
+func (t *Named) TArgs() []Type { return t.targs }
 
 // SetTArgs sets the type arguments of the named type t.
-func (t *Named) _SetTArgs(args []Type) { t.targs = args }
+func (t *Named) SetTArgs(args []Type) { t.targs = args }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.expand().methods) }
@@ -591,8 +591,8 @@ var lastID uint32
 // each call, starting with 1. It may be called concurrently.
 func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
 
-// A _TypeParam represents a type parameter type.
-type _TypeParam struct {
+// A TypeParam represents a type parameter type.
+type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id, for debugging only
 	obj   *TypeName // corresponding type name
@@ -600,7 +600,12 @@ type _TypeParam struct {
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
-func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
+// NewTypeParam returns a new TypeParam.
+func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+	return (*Checker)(nil).newTypeParam(obj, index, bound)
+}
+
+func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
 
 	// Always increment lastID, even if it is not used.
@@ -610,14 +615,14 @@ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeP
 		id = check.nextID
 	}
 
-	typ := &_TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
 	return typ
 }
 
-func (t *_TypeParam) Bound() *Interface {
+func (t *TypeParam) Bound() *Interface {
 	iface := asInterface(t.bound)
 	// use the type bound position if we have one
 	pos := token.NoPos
@@ -717,36 +722,36 @@ type top struct{}
 var theTop = &top{}
 
 // Type-specific implementations of Underlying.
-func (t *Basic) Underlying() Type      { return t }
-func (t *Array) Underlying() Type      { return t }
-func (t *Slice) Underlying() Type      { return t }
-func (t *Struct) Underlying() Type     { return t }
-func (t *Pointer) Underlying() Type    { return t }
-func (t *Tuple) Underlying() Type      { return t }
-func (t *Signature) Underlying() Type  { return t }
-func (t *Interface) Underlying() Type  { return t }
-func (t *Map) Underlying() Type        { return t }
-func (t *Chan) Underlying() Type       { return t }
-func (t *Named) Underlying() Type      { return t.expand().underlying }
-func (t *_TypeParam) Underlying() Type { return t }
-func (t *instance) Underlying() Type   { return t }
-func (t *top) Underlying() Type        { return t }
+func (t *Basic) Underlying() Type     { return t }
+func (t *Array) Underlying() Type     { return t }
+func (t *Slice) Underlying() Type     { return t }
+func (t *Struct) Underlying() Type    { return t }
+func (t *Pointer) Underlying() Type   { return t }
+func (t *Tuple) Underlying() Type     { return t }
+func (t *Signature) Underlying() Type { return t }
+func (t *Interface) Underlying() Type { return t }
+func (t *Map) Underlying() Type       { return t }
+func (t *Chan) Underlying() Type      { return t }
+func (t *Named) Underlying() Type     { return t.expand().underlying }
+func (t *TypeParam) Underlying() Type { return t }
+func (t *instance) Underlying() Type  { return t }
+func (t *top) Underlying() Type       { return t }
 
 // Type-specific implementations of String.
-func (t *Basic) String() string      { return TypeString(t, nil) }
-func (t *Array) String() string      { return TypeString(t, nil) }
-func (t *Slice) String() string      { return TypeString(t, nil) }
-func (t *Struct) String() string     { return TypeString(t, nil) }
-func (t *Pointer) String() string    { return TypeString(t, nil) }
-func (t *Tuple) String() string      { return TypeString(t, nil) }
-func (t *Signature) String() string  { return TypeString(t, nil) }
-func (t *Interface) String() string  { return TypeString(t, nil) }
-func (t *Map) String() string        { return TypeString(t, nil) }
-func (t *Chan) String() string       { return TypeString(t, nil) }
-func (t *Named) String() string      { return TypeString(t, nil) }
-func (t *_TypeParam) String() string { return TypeString(t, nil) }
-func (t *instance) String() string   { return TypeString(t, nil) }
-func (t *top) String() string        { return TypeString(t, nil) }
+func (t *Basic) String() string     { return TypeString(t, nil) }
+func (t *Array) String() string     { return TypeString(t, nil) }
+func (t *Slice) String() string     { return TypeString(t, nil) }
+func (t *Struct) String() string    { return TypeString(t, nil) }
+func (t *Pointer) String() string   { return TypeString(t, nil) }
+func (t *Tuple) String() string     { return TypeString(t, nil) }
+func (t *Signature) String() string { return TypeString(t, nil) }
+func (t *Interface) String() string { return TypeString(t, nil) }
+func (t *Map) String() string       { return TypeString(t, nil) }
+func (t *Chan) String() string      { return TypeString(t, nil) }
+func (t *Named) String() string     { return TypeString(t, nil) }
+func (t *TypeParam) String() string { return TypeString(t, nil) }
+func (t *instance) String() string  { return TypeString(t, nil) }
+func (t *top) String() string       { return TypeString(t, nil) }
 
 // under returns the true expanded underlying type.
 // If it doesn't exist, the result is Typ[Invalid].
@@ -827,7 +832,7 @@ func asNamed(t Type) *Named {
 	return e
 }
 
-func asTypeParam(t Type) *_TypeParam {
-	u, _ := under(t).(*_TypeParam)
+func asTypeParam(t Type) *TypeParam {
+	u, _ := under(t).(*TypeParam)
 	return u
 }

@@ -10,7 +10,7 @@ package types
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *_TypeParam, *instance:
+	case *Basic, *Named, *TypeParam, *instance:
 		return true
 	}
 	return false
@@ -128,7 +128,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return t.underIs(func(t Type) bool {
 			return comparable(t, seen)
 		})
-	case *_TypeParam:
+	case *TypeParam:
 		return t.Bound().IsComparable()
 	}
 	return false
@@ -356,7 +356,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 			return x.obj == y.obj
 		}
 
-	case *_TypeParam:
+	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
 
 	// case *instance:
@@ -382,7 +382,7 @@ func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifaceP
 	}
 	for i, x := range x {
 		y := y[i]
-		if !check.identical0(x.typ.(*_TypeParam).bound, y.typ.(*_TypeParam).bound, cmpTags, p) {
+		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
 			return false
 		}
 	}

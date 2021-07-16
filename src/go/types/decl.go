@@ -740,7 +740,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 	setBoundAt := func(at int, bound Type) {
 		assert(IsInterface(bound))
-		tparams[at].typ.(*_TypeParam).bound = bound
+		tparams[at].typ.(*TypeParam).bound = bound
 	}
 
 	index := 0

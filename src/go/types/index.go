@@ -123,7 +123,7 @@ func (check *Checker) indexExpr(x *operand, expr *typeparams.IndexExpr) (isFuncI
 				tkey = t.key
 				e = t.elem
 				nmaps++
-			case *_TypeParam:
+			case *TypeParam:
 				check.errorf(x, 0, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
 			case *instance:
 				panic("unimplemented")
@@ -246,7 +246,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		valid = true
 		// x.typ doesn't change
 
-	case *Union, *_TypeParam:
+	case *Union, *TypeParam:
 		check.errorf(x, 0, "generic slice expressions not yet implemented")
 		x.mode = invalid
 		return

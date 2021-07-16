@@ -22,21 +22,21 @@ type substMap struct {
 	// TODO(gri) rewrite that code, get rid of this field, and make this
 	//           struct just the map (proj)
 	targs []Type
-	proj  map[*_TypeParam]Type
+	proj  map[*TypeParam]Type
 }
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
 // If targs[i] is nil, tpars[i] is not substituted.
 func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
-	proj := make(map[*_TypeParam]Type, len(tpars))
+	proj := make(map[*TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
 		// We must expand type arguments otherwise *instance
 		// types end up as components in composite types.
 		// TODO(gri) explain why this causes problems, if it does
 		targ := expand(targs[i]) // possibly nil
 		targs[i] = targ
-		proj[tpar.typ.(*_TypeParam)] = targ
+		proj[tpar.typ.(*TypeParam)] = targ
 	}
 	return &substMap{targs, proj}
 }
@@ -49,7 +49,7 @@ func (m *substMap) empty() bool {
 	return len(m.proj) == 0
 }
 
-func (m *substMap) lookup(tpar *_TypeParam) Type {
+func (m *substMap) lookup(tpar *TypeParam) Type {
 	if t := m.proj[tpar]; t != nil {
 		return t
 	}
@@ -128,7 +128,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// stop checking bounds after the first failure
-		if !check.satisfies(pos, targs[i], tname.typ.(*_TypeParam), smap) {
+		if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
 			break
 		}
 	}
@@ -140,7 +140,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 // parameter tpar (after any of its type parameters have been substituted through smap).
 // A suitable error is reported if the result is false.
 // TODO(gri) This should be a method of interfaces or type sets.
-func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap *substMap) bool {
+func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap *substMap) bool {
 	iface := tpar.Bound()
 	if iface.Empty() {
 		return true // no type bound
@@ -232,7 +232,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
 	switch t := typ.(type) {
 	case *Basic:
 		return typ // nothing to do
-	case *_TypeParam:
+	case *TypeParam:
 		return smap.lookup(t)
 	}
 
@@ -415,7 +415,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		return named
 
-	case *_TypeParam:
+	case *TypeParam:
 		return subst.smap.lookup(t)
 
 	case *instance:

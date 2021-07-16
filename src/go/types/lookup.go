@@ -107,7 +107,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 		var next []embeddedType // embedded types found at current depth
 
 		// look for (pkg, name) in all types at current depth
-		var tpar *_TypeParam // set if obj receiver is a type parameter
+		var tpar *TypeParam // set if obj receiver is a type parameter
 		for _, e := range current {
 			typ := e.typ
 
@@ -196,7 +196,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					indirect = e.indirect
 				}
 
-			case *_TypeParam:
+			case *TypeParam:
 				if i, m := t.Bound().typeSet().LookupMethod(pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
