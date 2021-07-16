@@ -60,7 +60,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 	}
 
 	// instantiate function signature
-	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
 	assert(res.tparams == nil) // signature is not generic anymore
 	if inferred {
 		check.recordInferred(ix.Orig, targs, res)
@@ -333,7 +333,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		}
 
 		// compute result signature
-		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
+		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
 		assert(rsig.tparams == nil) // signature is not generic anymore
 		check.recordInferred(call, targs, rsig)
 

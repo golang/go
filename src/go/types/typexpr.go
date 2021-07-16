@@ -413,12 +413,14 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) Typ
 	// create a new type instance rather than instantiate the type
 	// TODO(gri) should do argument number check here rather than
 	//           when instantiating the type?
+	// TODO(gri) use InstantiateLazy here (cleanup)
 	typ := new(instance)
 	def.setUnderlying(typ)
 
 	typ.check = check
 	typ.pos = ix.X.Pos()
 	typ.base = base
+	typ.verify = true
 
 	// evaluate arguments (always)
 	typ.targs = check.typeList(ix.Indices)
