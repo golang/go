@@ -198,7 +198,7 @@ func sysargs(argc int32, argv **byte) {
 
 	// when C owns the process, simply exit'ing the process on fatal errors
 	// and panics is surprising. Be louder and abort instead.
-	if islibrary || isarchive {
+	if !argsValid() {
 		argc = 1
 		var myargv **byte
 		argv = myargv

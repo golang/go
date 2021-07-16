@@ -52,10 +52,22 @@ var (
 	argv **byte
 )
 
+func argsValid() bool {
+	if islibrary || isarchive {
+		if _cgo_sys_lib_args_valid != nil {
+			ret := asmcgocall(_cgo_sys_lib_args_valid, nil)
+			if ret != 1 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	if islibrary || isarchive {
+	if !argsValid() {
 		return nil
 	}
 
@@ -72,7 +84,7 @@ func goargs() {
 	if GOOS == "windows" {
 		return
 	}
-	if islibrary || isarchive {
+	if !argsValid() {
 		argslice = make([]string, 1)
 		return
 	}
