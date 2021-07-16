@@ -1817,3 +1817,26 @@ func f(x T) T { return foo.F(x) }
 		}
 	}
 }
+
+func TestInstantiate(t *testing.T) {
+	// eventually we like more tests but this is a start
+	const src = genericPkg + "p; type T[P any] *T[P]"
+	pkg, err := pkgFor(".", src, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// type T should have one type parameter
+	T := pkg.Scope().Lookup("T").Type().(*Named)
+	if n := len(T.TParams()); n != 1 {
+		t.Fatalf("expected 1 type parameter; found %d", n)
+	}
+
+	// instantiation should succeed (no endless recursion)
+	res := Instantiate(token.NoPos, T, []Type{Typ[Int]})
+
+	// instantiated type should point to itself
+	if res.Underlying().(*Pointer).Elem() != res {
+		t.Fatalf("unexpected result type: %s", res)
+	}
+}
