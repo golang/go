@@ -189,7 +189,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 		// only parameter type it can possibly match against is a *TypeParam.
 		// Thus, only consider untyped arguments for generic parameters that
 		// are not of composite types and which don't have a type inferred yet.
-		if tpar, _ := par.typ.(*_TypeParam); tpar != nil && targs[tpar.index] == nil {
+		if tpar, _ := par.typ.(*TypeParam); tpar != nil && targs[tpar.index] == nil {
 			arg := args[i]
 			targ := Default(arg.typ)
 			// The default type for an untyped nil is untyped nil. We must not
@@ -333,7 +333,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	case *Named:
 		return w.isParameterizedList(t.targs)
 
-	case *_TypeParam:
+	case *TypeParam:
 		// t must be one of w.tparams
 		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
 
@@ -382,7 +382,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
-		typ := tpar.typ.(*_TypeParam)
+		typ := tpar.typ.(*TypeParam)
 		sbound := check.structuralType(typ.bound)
 		if sbound != nil {
 			if !u.unify(typ, sbound) {

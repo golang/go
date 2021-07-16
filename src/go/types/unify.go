@@ -99,7 +99,7 @@ func (d *tparamsList) init(tparams []*TypeName) {
 	}
 	if debug {
 		for i, tpar := range tparams {
-			assert(i == tpar.typ.(*_TypeParam).index)
+			assert(i == tpar.typ.(*TypeParam).index)
 		}
 	}
 	d.tparams = tparams
@@ -147,7 +147,7 @@ func (u *unifier) join(i, j int) bool {
 // If typ is a type parameter of d, index returns the type parameter index.
 // Otherwise, the result is < 0.
 func (d *tparamsList) index(typ Type) int {
-	if t, ok := typ.(*_TypeParam); ok {
+	if t, ok := typ.(*TypeParam); ok {
 		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
 			return i
 		}
@@ -439,7 +439,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 			}
 		}
 
-	case *_TypeParam:
+	case *TypeParam:
 		// Two type parameters (which are not part of the type parameters of the
 		// enclosing type as those are handled in the beginning of this function)
 		// are identical if they originate in the same declaration.

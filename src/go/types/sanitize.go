@@ -24,7 +24,7 @@ func sanitizeInfo(info *Info) {
 		}
 	}
 
-	inferred := getInferred(info)
+	inferred := info.Inferred
 	for e, inf := range inferred {
 		changed := false
 		for i, targ := range inf.TArgs {
@@ -147,7 +147,7 @@ func (s sanitizer) typ(typ Type) Type {
 		s.typeList(t.targs)
 		s.funcList(t.methods)
 
-	case *_TypeParam:
+	case *TypeParam:
 		if bound := s.typ(t.bound); bound != t.bound {
 			t.bound = bound
 		}
