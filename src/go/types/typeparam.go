@@ -70,3 +70,10 @@ func (t *TypeParam) Bound() *Interface {
 
 func (t *TypeParam) Underlying() Type { return t }
 func (t *TypeParam) String() string   { return TypeString(t, nil) }
+
+// ----------------------------------------------------------------------------
+// Implementation
+
+func (t *TypeParam) underIs(f func(Type) bool) bool {
+	return t.Bound().typeSet().underIs(f)
+}

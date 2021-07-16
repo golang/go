@@ -60,7 +60,7 @@ func (u *Union) is(f func(Type, bool) bool) bool {
 	return true
 }
 
-// is reports whether f returned true for the underlying types of all terms of u.
+// underIs reports whether f returned true for the underlying types of all terms of u.
 func (u *Union) underIs(f func(Type) bool) bool {
 	if u.IsEmpty() {
 		return false
