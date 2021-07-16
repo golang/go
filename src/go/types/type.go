@@ -623,7 +623,11 @@ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypePa
 }
 
 func (t *TypeParam) Bound() *Interface {
-	iface := asInterface(t.bound)
+	// we may not have an interface (error reported elsewhere)
+	iface, _ := under(t.bound).(*Interface)
+	if iface == nil {
+		return &emptyInterface
+	}
 	// use the type bound position if we have one
 	pos := token.NoPos
 	if n, _ := t.bound.(*Named); n != nil {
