@@ -258,10 +258,11 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	obj       Object  // type name object defining this interface; or nil (for better error messages)
-	methods   []*Func // ordered list of explicitly declared methods
-	embeddeds []Type  // ordered list of explicitly embedded elements
-	complete  bool    // indicates that obj, methods, and embeddeds are set and type set can be computed
+	obj       Object       // type name object defining this interface; or nil (for better error messages)
+	methods   []*Func      // ordered list of explicitly declared methods
+	embeddeds []Type       // ordered list of explicitly embedded elements
+	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
+	complete  bool         // indicates that obj, methods, and embeddeds are set and type set can be computed
 
 	tset *TypeSet // type set described by this interface, computed lazily
 }
@@ -326,7 +327,6 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 
 	// sort for API stability
 	sortMethods(methods)
-	sortTypes(embeddeds)
 
 	typ.methods = methods
 	typ.embeddeds = embeddeds

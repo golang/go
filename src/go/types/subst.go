@@ -320,7 +320,6 @@ func (subst *subster) typ(typ Type) Type {
 			if subst.check == nil {
 				panic("internal error: cannot instantiate interfaces yet")
 			}
-			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
 			return iface
 		}
 
