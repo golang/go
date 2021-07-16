@@ -6,7 +6,7 @@
 
 package p
 
-import . "testing" // ERROR "imported and not used"
+import . "testing" // ERROR "imported but not used"
 
 type S struct {
 	T int

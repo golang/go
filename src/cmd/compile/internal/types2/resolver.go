@@ -706,13 +706,13 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
 	}
 	if obj.name == "" || obj.name == "." || obj.name == elem {
 		if check.conf.CompilerErrorMessages {
-			check.softErrorf(obj, "imported and not used: %q", path)
+			check.softErrorf(obj, "imported but not used: %q", path)
 		} else {
 			check.softErrorf(obj, "%q imported but not used", path)
 		}
 	} else {
 		if check.conf.CompilerErrorMessages {
-			check.softErrorf(obj, "imported and not used: %q as %s", path, obj.name)
+			check.softErrorf(obj, "imported but not used: %q as %s", path, obj.name)
 		} else {
 			check.softErrorf(obj, "%q imported but not used as %s", path, obj.name)
 		}

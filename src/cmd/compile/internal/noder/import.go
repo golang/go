@@ -386,9 +386,9 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {
-		base.ErrorfAt(lineno, "imported and not used: %q", path)
+		base.ErrorfAt(lineno, "imported but not used: %q", path)
 	} else {
-		base.ErrorfAt(lineno, "imported and not used: %q as %s", path, name)
+		base.ErrorfAt(lineno, "imported but not used: %q as %s", path, name)
 	}
 }
 
@@ -450,7 +450,7 @@ func clearImports() {
 func CheckDotImports() {
 	for _, pack := range dotImports {
 		if !pack.Used {
-			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
+			base.ErrorfAt(pack.Pos(), "imported but not used: %q", pack.Pkg.Path)
 		}
 	}
 
