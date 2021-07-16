@@ -65,7 +65,8 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 func (check *Checker) usage(scope *Scope) {
 	var unused []*Var
-	for _, elem := range scope.elems {
+	for name, elem := range scope.elems {
+		elem = resolve(name, elem)
 		if v, _ := elem.(*Var); v != nil && !v.used {
 			unused = append(unused, v)
 		}

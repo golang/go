@@ -56,7 +56,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
 		pkgName.used = true
 	}
 

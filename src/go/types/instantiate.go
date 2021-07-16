@@ -23,7 +23,7 @@ func Instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
 	var tparams []*TypeName
 	switch t := typ.(type) {
 	case *Named:
-		tparams = t.tparams
+		tparams = t.TParams()
 	case *Signature:
 		tparams = t.tparams
 		defer func() {
@@ -60,4 +60,20 @@ func Instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
 
 	smap := makeSubstMap(tparams, targs)
 	return (*Checker)(nil).subst(pos, typ, smap)
+}
+
+// InstantiateLazy is like Instantiate, but avoids actually
+// instantiating the type until needed.
+func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type) (res Type) {
+	base := asNamed(typ)
+	if base == nil {
+		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+	}
+
+	return &instance{
+		check: check,
+		pos:   pos,
+		base:  base,
+		targs: targs,
+	}
 }

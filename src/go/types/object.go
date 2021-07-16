@@ -230,6 +230,14 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
 }
 
+// _NewTypeNameLazy returns a new defined type like NewTypeName, but it
+// lazily calls resolve to finish constructing the Named object.
+func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeName, underlying Type, methods []*Func)) *TypeName {
+	obj := NewTypeName(pos, pkg, name, nil)
+	NewNamed(obj, nil, nil).resolve = resolve
+	return obj
+}
+
 // IsAlias reports whether obj is an alias name for a type.
 func (obj *TypeName) IsAlias() bool {
 	switch t := obj.typ.(type) {
