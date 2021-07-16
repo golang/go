@@ -258,7 +258,7 @@ func (s *Signature) Variadic() bool { return s.variadic }
 
 // An Interface represents an interface type.
 type Interface struct {
-	obj       Object       // type name object defining this interface; or nil (for better error messages)
+	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func      // ordered list of explicitly declared methods
 	embeddeds []Type       // ordered list of explicitly embedded elements
 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
