@@ -41,11 +41,13 @@ func under(t Type) Type {
 	return t
 }
 
-// optype returns a type's operational type. Except for type parameters,
-// the operational type is the same as the underlying type (as returned
-// by under). For Type parameters, the operational type is determined
-// by the corresponding type constraint. The result may be the top type,
-// but it is never the incoming type parameter.
+// optype returns a type's operational type. Except for
+// type parameters, the operational type is the same
+// as the underlying type (as returned by under). For
+// Type parameters, the operational type is determined
+// by the corresponding type bound's type list. The
+// result may be the bottom or top type, but it is never
+// the incoming type parameter.
 func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
 		// If the optype is typ, return the top type as we have

@@ -27,22 +27,14 @@ type TypeParam struct {
 	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
-// NewTypeParam returns a new TypeParam.
-func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
-	return (*Checker)(nil).newTypeParam(obj, index, bound)
-}
-
-// TODO(rfindley): this is factored slightly differently in types2.
-func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
-	assert(bound != nil)
-
+// NewTypeParam returns a new TypeParam.  bound can be nil (and set later).
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	// Always increment lastID, even if it is not used.
 	id := nextID()
 	if check != nil {
 		check.nextID++
 		id = check.nextID
 	}
-
 	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
 	if obj.typ == nil {
 		obj.typ = typ
@@ -77,6 +69,13 @@ func (t *TypeParam) Bound() *Interface {
 	// TODO(rFindley) switch this to an unexported method on Checker.
 	computeTypeSet(t.check, pos, iface)
 	return iface
+}
+
+func (t *TypeParam) _SetBound(bound Type) {
+	if bound == nil {
+		panic("internal error: bound must not be nil")
+	}
+	t.bound = bound
 }
 
 func (t *TypeParam) Underlying() Type { return t }
