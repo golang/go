@@ -196,19 +196,29 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
-	// skip over argv, envp to get to auxv
-	for argv_index(argv, n) != nil {
+	argsValid := true
+	if islibrary || isarchive {
+		if !sysLibArgsValid() {
+			argsValid = false
+		}
+	}
+
+	if argsValid {
+		// skip over argv, envp to get to auxv
+		for argv_index(argv, n) != nil {
+			n++
+		}
+
+		// skip NULL separator
 		n++
+
+		// now argv+n is auxv
+		auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+		if sysauxv(auxv[:]) != 0 {
+			return
+		}
 	}
 
-	// skip NULL separator
-	n++
-
-	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-	if sysauxv(auxv[:]) != 0 {
-		return
-	}
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
 	// Fall back to /proc/self/auxv.
