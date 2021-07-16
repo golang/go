@@ -50,7 +50,18 @@ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypePa
 	return typ
 }
 
-// TODO(rfindley): types2 to has Index and SetID. Should we add them here?
+// TODO(rfindley): remove or export these placeholder APIs.
+
+// Index returns the index of the type param within its param list.
+func (t *TypeParam) _Index() int {
+	return t.index
+}
+
+// SetId sets the unique id of a type param. Should only be used for type params
+// in imported generic types.
+func (t *TypeParam) _SetId(id uint64) {
+	t.id = id
+}
 
 func (t *TypeParam) Bound() *Interface {
 	// we may not have an interface (error reported elsewhere)
