@@ -428,14 +428,19 @@ func (subst *subster) typ(typ Type) Type {
 	return typ
 }
 
+var instanceHashing = 0
+
 // TODO(gri) Eventually, this should be more sophisticated.
 //           It won't work correctly for locally declared types.
 func instantiatedHash(typ *Named, targs []Type) string {
+	assert(instanceHashing == 0)
+	instanceHashing++
 	var buf bytes.Buffer
 	writeTypeName(&buf, typ.obj, nil)
 	buf.WriteByte('[')
 	writeTypeList(&buf, targs, nil, nil)
 	buf.WriteByte(']')
+	instanceHashing--
 
 	// With respect to the represented type, whether a
 	// type is fully expanded or stored as instance
