@@ -10,8 +10,6 @@ import (
 	"go/token"
 )
 
-const Enabled = true
-
 func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
 	switch len(exprs) {
 	case 0:

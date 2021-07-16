@@ -7,7 +7,6 @@ package types_test
 import (
 	"testing"
 
-	"go/internal/typeparams"
 	. "go/types"
 )
 
@@ -101,9 +100,7 @@ func TestNewMethodSet(t *testing.T) {
 		check(src, methods, false)
 	}
 
-	if typeparams.Enabled {
-		for src, methods := range genericTests {
-			check(src, methods, true)
-		}
+	for src, methods := range genericTests {
+		check(src, methods, true)
 	}
 }
