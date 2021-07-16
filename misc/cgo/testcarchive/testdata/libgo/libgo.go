@@ -46,7 +46,11 @@ func DidMainRun() bool { return ranMain }
 
 //export CheckArgs
 func CheckArgs() {
-	if len(os.Args) != 3 || os.Args[1] != "arg1" || os.Args[2] != "arg2" {
+	// Dynamic linkers which supply the library initialization functions with the
+	// main program's argc / argc should have 3 args here, else they should have
+	// none.
+	valid := (len(os.Args) == 3 && os.Args[1] == "arg1" && os.Args[2] == "arg2") || (len(os.Args) == 0)
+	if !valid {
 		fmt.Printf("CheckArgs: want [_, arg1, arg2], got: %v\n", os.Args)
 		os.Exit(2)
 	}
