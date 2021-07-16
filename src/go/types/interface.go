@@ -16,11 +16,18 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	var tlist []ast.Expr
 	var tname *ast.Ident // "type" name of first entry in a type list declaration
 
+	addEmbedded := func(pos token.Pos, typ Type) {
+		ityp.embeddeds = append(ityp.embeddeds, typ)
+		if ityp.embedPos == nil {
+			ityp.embedPos = new([]token.Pos)
+		}
+		*ityp.embedPos = append(*ityp.embedPos, pos)
+	}
+
 	for _, f := range iface.Methods.List {
 		if len(f.Names) == 0 {
 			// We have an embedded type; possibly a union of types.
-			ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, flattenUnion(nil, f.Type)))
-			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
+			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
 			continue
 		}
 
@@ -92,10 +99,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	// type constraints
 	if tlist != nil {
-		ityp.embeddeds = append(ityp.embeddeds, parseUnion(check, tlist))
-		// Types T in a type list are added as ~T expressions but we don't
-		// have the position of the '~'. Use the first type position instead.
-		check.posMap[ityp] = append(check.posMap[ityp], tlist[0].(*ast.UnaryExpr).X.Pos())
+		// TODO(rfindley): this differs from types2 due to the use of Pos() below,
+		// which should actually be on the ~. Confirm that this position is correct.
+		addEmbedded(tlist[0].Pos(), parseUnion(check, tlist))
 	}
 
 	// All methods and embedded elements for this interface are collected;
@@ -110,7 +116,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	// sort for API stability
 	sortMethods(ityp.methods)
-	sortTypes(ityp.embeddeds)
+	// (don't sort embeddeds: they must correspond to *embedPos entries)
 
 	// Compute type set with a non-nil *Checker as soon as possible
 	// to report any errors. Subsequent uses of type sets should be
@@ -226,14 +232,13 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 
 	// collect embedded elements
 	var allTypes Type
-	var posList []token.Pos
-	if check != nil {
-		posList = check.posMap[ityp]
-	}
 	for i, typ := range ityp.embeddeds {
+		// The embedding position is nil for imported interfaces
+		// and also for interface copies after substitution (but
+		// in that case we don't need to report errors again).
 		var pos token.Pos // embedding position
-		if posList != nil {
-			pos = posList[i]
+		if ityp.embedPos != nil {
+			pos = (*ityp.embedPos)[i]
 		}
 		var types Type
 		switch t := under(typ).(type) {
@@ -268,6 +273,7 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 		}
 		allTypes = intersect(allTypes, types)
 	}
+	ityp.embedPos = nil // not needed anymore (errors have been reported)
 
 	// process todo's (this only happens if check == nil)
 	for i := 0; i < len(todo); i += 2 {
@@ -285,24 +291,6 @@ func newTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 	ityp.tset.types = allTypes
 
 	return ityp.tset
-}
-
-func sortTypes(list []Type) {
-	sort.Stable(byUniqueTypeName(list))
-}
-
-// byUniqueTypeName named type lists can be sorted by their unique type names.
-type byUniqueTypeName []Type
-
-func (a byUniqueTypeName) Len() int           { return len(a) }
-func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
-func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-func sortName(t Type) string {
-	if named := asNamed(t); named != nil {
-		return named.obj.Id()
-	}
-	return ""
 }
 
 func sortMethods(list []*Func) {

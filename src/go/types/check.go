@@ -85,12 +85,11 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
-	version version                    // accepted language version
-	nextID  uint64                     // unique Id for type parameters (first valid Id is 1)
-	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
-	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
-	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
-	typMap  map[string]*Named          // maps an instantiated named type hash to a *Named type
+	version version                // accepted language version
+	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	typMap  map[string]*Named      // maps an instantiated named type hash to a *Named type
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -193,7 +192,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		version: version,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
-		posMap:  make(map[*Interface][]token.Pos),
 		typMap:  make(map[string]*Named),
 	}
 }
