@@ -337,13 +337,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 		var src Type
-		switch t := optype(y.typ).(type) {
+		switch t := under(y.typ).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
 			}
 		case *Slice:
 			src = t.elem
+		case *TypeParam:
+			check.error(x, _Todo, "copy on generic operands not yet implemented")
 		}
 
 		if dst == nil || src == nil {
@@ -464,12 +466,12 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var valid func(t Type) bool
 		valid = func(t Type) bool {
 			var m int
-			switch t := optype(t).(type) {
+			switch t := under(t).(type) {
 			case *Slice:
 				m = 2
 			case *Map, *Chan:
 				m = 1
-			case *Union:
+			case *TypeParam:
 				return t.underIs(valid)
 			default:
 				return false

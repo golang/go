@@ -199,7 +199,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := optype(x.typ).(type) {
+	switch typ := under(x.typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			if e.Slice3 {
@@ -239,8 +239,8 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		valid = true
 		// x.typ doesn't change
 
-	case *Union, *TypeParam:
-		check.errorf(x, 0, "generic slice expressions not yet implemented")
+	case *TypeParam:
+		check.errorf(x, _Todo, "generic slice expressions not yet implemented")
 		x.mode = invalid
 		return
 	}
