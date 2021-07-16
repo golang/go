@@ -8,6 +8,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 )
 
@@ -37,7 +38,6 @@ import (
 // and the respective types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
-	check *Checker
 	exact bool
 	x, y  tparamsList // x and y must initialized via tparamsList.init
 	types []Type      // inferred types, shared by x and y
@@ -48,8 +48,8 @@ type unifier struct {
 // exactly. If exact is not set, a named type's underlying type
 // is considered if unification would fail otherwise, and the
 // direction of channels is ignored.
-func newUnifier(check *Checker, exact bool) *unifier {
-	u := &unifier{check: check, exact: exact}
+func newUnifier(exact bool) *unifier {
+	u := &unifier{exact: exact}
 	u.x.unifier = u
 	u.y.unifier = u
 	return u
@@ -452,8 +452,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// avoid a crash in case of nil type
 
 	default:
-		u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
-		unreachable()
+		panic(fmt.Sprintf("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
 	}
 
 	return false

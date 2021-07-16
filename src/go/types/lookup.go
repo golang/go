@@ -8,6 +8,11 @@ package types
 
 import "go/token"
 
+// Internal use of LookupFieldOrMethod: If the obj result is a method
+// associated with a concrete (non-interface) type, the method's signature
+// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+// the method's type.
+
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
 // bool indicating if there were any pointer indirections on the path to the
@@ -35,19 +40,6 @@ import "go/token"
 //	the method's formal receiver base type, nor was the receiver addressable.
 //
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
-	return (*Checker)(nil).lookupFieldOrMethod(T, addressable, pkg, name)
-}
-
-// Internal use of Checker.lookupFieldOrMethod: If the obj result is a method
-// associated with a concrete (non-interface) type, the method's signature
-// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
-// the method's type.
-// TODO(gri) Now that we provide the *Checker, we can probably remove this
-// caveat by calling Checker.objDecl from lookupFieldOrMethod. Investigate.
-
-// lookupFieldOrMethod is like the external version but completes interfaces
-// as necessary.
-func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// Methods cannot be associated to a named pointer type
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
@@ -57,7 +49,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 	// not have found it for T (see also issue 8590).
 	if t := asNamed(T); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
+			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -65,7 +57,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 		}
 	}
 
-	return check.rawLookupFieldOrMethod(T, addressable, pkg, name)
+	return lookupFieldOrMethod(T, addressable, pkg, name)
 }
 
 // TODO(gri) The named type consolidation and seen maps below must be
@@ -73,10 +65,9 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 //           types always have only one representation (even when imported
 //           indirectly via different packages.)
 
-// rawLookupFieldOrMethod should only be called by lookupFieldOrMethod and missingMethod.
-func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
-	//          This function and NewMethodSet should be kept in sync.
 
 	if name == "_" {
 		return // blank fields/methods are never found
@@ -226,7 +217,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 			return
 		}
 
-		current = check.consolidateMultiples(next)
+		current = consolidateMultiples(next)
 	}
 
 	return nil, nil, false // not found
@@ -243,7 +234,7 @@ type embeddedType struct {
 // consolidateMultiples collects multiple list entries with the same type
 // into a single entry marked as containing multiples. The result is the
 // consolidated list.
-func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
+func consolidateMultiples(list []embeddedType) []embeddedType {
 	if len(list) <= 1 {
 		return list // at most one entry - nothing to do
 	}
@@ -251,7 +242,7 @@ func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
 	n := 0                     // number of entries w/ unique type
 	prev := make(map[Type]int) // index at which type was previously seen
 	for _, e := range list {
-		if i, found := check.lookupType(prev, e.typ); found {
+		if i, found := lookupType(prev, e.typ); found {
 			list[i].multiples = true
 			// ignore this entry
 		} else {
@@ -263,14 +254,14 @@ func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
 	return list[:n]
 }
 
-func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
+func lookupType(m map[Type]int, typ Type) (int, bool) {
 	// fast path: maybe the types are equal
 	if i, found := m[typ]; found {
 		return i, true
 	}
 
 	for t, i := range m {
-		if check.identical(t, typ) {
+		if Identical(t, typ) {
 			return i, true
 		}
 	}
@@ -336,7 +327,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// to see if they can be made to match.
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
-			u := newUnifier(check, true)
+			u := newUnifier(true)
 			u.x.init(ftyp.tparams)
 			if !u.unify(ftyp, mtyp) {
 				return m, f
@@ -351,12 +342,12 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	Vn := asNamed(Vd)
 	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
-		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
+		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
 
 		// Check if *V implements this method of T.
 		if obj == nil {
 			ptr := NewPointer(V)
-			obj, _, _ = check.rawLookupFieldOrMethod(ptr, false, m.pkg, m.name)
+			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name)
 			if obj != nil {
 				return m, obj.(*Func)
 			}
@@ -412,7 +403,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// to see if they can be made to match.
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
-		u := newUnifier(check, true)
+		u := newUnifier(true)
 		u.x.init(ftyp.rparams)
 		if !u.unify(ftyp, mtyp) {
 			return m, f

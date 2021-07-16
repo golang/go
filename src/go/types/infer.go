@@ -93,7 +93,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(check, false)
+	u := newUnifier(false)
 	u.x.init(tparams)
 
 	// Set the type arguments which we know already.
@@ -369,7 +369,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// Setup bidirectional unification between those structural bounds
 	// and the corresponding type arguments (which may be nil!).
-	u := newUnifier(check, false)
+	u := newUnifier(false)
 	u.x.init(tparams)
 	u.y = u.x // type parameters between LHS and RHS of unification are identical
 
