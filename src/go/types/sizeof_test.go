@@ -46,7 +46,7 @@ func TestSizeof(t *testing.T) {
 		{Nil{}, 40, 72},
 
 		// Misc
-		{Scope{}, 40, 80},
+		{Scope{}, 44, 88},
 		{Package{}, 40, 80},
 		{TypeSet{}, 20, 40},
 	}

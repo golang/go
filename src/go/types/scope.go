@@ -23,6 +23,7 @@ import (
 type Scope struct {
 	parent   *Scope
 	children []*Scope
+	number   int               // parent.children[number-1] is this scope; 0 if there is no parent
 	elems    map[string]Object // lazily allocated
 	pos, end token.Pos         // scope extent; may be invalid
 	comment  string            // for debugging only
@@ -32,10 +33,11 @@ type Scope struct {
 // NewScope returns a new, empty scope contained in the given parent
 // scope, if any. The comment is for debugging only.
 func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
-	s := &Scope{parent, nil, nil, pos, end, comment, false}
+	s := &Scope{parent, nil, 0, nil, pos, end, comment, false}
 	// don't add children to Universe scope!
 	if parent != nil && parent != Universe {
 		parent.children = append(parent.children, s)
+		s.number = len(parent.children)
 	}
 	return s
 }
