@@ -724,23 +724,13 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 }
 
-func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
-	// Type parameter lists should not be empty. The parser will
-	// complain but we still may get an incorrect AST: ignore it.
-	if list.NumFields() == 0 {
-		return
-	}
-
+func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
+	var tparams []*TypeName
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized interfaces).
 	for _, f := range list.List {
 		tparams = check.declareTypeParams(tparams, f.Names)
-	}
-
-	setBoundAt := func(at int, bound Type) {
-		assert(IsInterface(bound))
-		tparams[at].typ.(*TypeParam).bound = bound
 	}
 
 	index := 0
@@ -749,35 +739,16 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		if f.Type == nil {
 			goto next
 		}
-
-		// The predeclared identifier "any" is visible only as a constraint
-		// in a type parameter list. Look for it before general constraint
-		// resolution.
-		if tident, _ := unparen(f.Type).(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
-			bound = universeAny
-		} else {
-			bound = check.typ(f.Type)
-		}
-
-		// type bound must be an interface
-		// TODO(gri) We should delay the interface check because
-		//           we may not have a complete interface yet:
-		//           type C(type T C) interface {}
-		//           (issue #39724).
-		if _, ok := under(bound).(*Interface); ok {
-			// Otherwise, set the bound for each type parameter.
-			for i := range f.Names {
-				setBoundAt(index+i, bound)
-			}
-		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type, _Todo, "%s is not an interface", bound)
+		bound = check.boundType(f.Type)
+		for i := range f.Names {
+			tparams[index+i].typ.(*TypeParam).bound = bound
 		}
 
 	next:
 		index += len(f.Names)
 	}
 
-	return
+	return tparams
 }
 
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
@@ -793,6 +764,23 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
 	}
 
 	return tparams
+}
+
+// boundType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must be an interface, including the predeclared type "any".
+func (check *Checker) boundType(e ast.Expr) Type {
+	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+	if name, _ := unparen(e).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == nil {
+		return universeAny
+	}
+
+	bound := check.typ(e)
+	check.later(func() {
+		if _, ok := under(bound).(*Interface); !ok && bound != Typ[Invalid] {
+			check.errorf(e, _Todo, "%s is not an interface", bound)
+		}
+	})
+	return bound
 }
 
 func (check *Checker) collectMethods(obj *TypeName) {
