@@ -264,7 +264,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 	case *ast.IndexExpr, *ast.MultiIndexExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		// TODO(rfindley): type instantiation should require go1.18
-		return check.instantiatedType(ix, def)
+		return check.instantiatedType(ix.X, ix.Indices, def)
 
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
@@ -400,45 +400,32 @@ func (check *Checker) typeOrNil(e ast.Expr) Type {
 	return Typ[Invalid]
 }
 
-func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) Type {
-	b := check.genericType(ix.X, true) // TODO(gri) what about cycles?
-	if b == Typ[Invalid] {
-		return b // error already reported
-	}
-	base := asNamed(b)
-	if base == nil {
-		unreachable() // should have been caught by genericType
+func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) Type {
+	base := check.genericType(x, true)
+	if base == Typ[Invalid] {
+		return base // error already reported
 	}
 
-	// create a new type instance rather than instantiate the type
-	// TODO(gri) should do argument number check here rather than
-	//           when instantiating the type?
-	// TODO(gri) use InstantiateLazy here (cleanup)
-	typ := new(instance)
-	def.setUnderlying(typ)
-
-	typ.check = check
-	typ.pos = ix.X.Pos()
-	typ.base = base
-	typ.verify = true
-
-	// evaluate arguments (always)
-	typ.targs = check.typeList(ix.Indices)
-	if typ.targs == nil {
+	// evaluate arguments
+	targs := check.typeList(targsx)
+	if targs == nil {
 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 		return Typ[Invalid]
 	}
 
-	// determine argument positions (for error reporting)
-	typ.poslist = make([]token.Pos, len(ix.Indices))
-	for i, arg := range ix.Indices {
-		typ.poslist[i] = arg.Pos()
+	// determine argument positions
+	posList := make([]token.Pos, len(targs))
+	for i, arg := range targsx {
+		posList[i] = arg.Pos()
 	}
+
+	typ := check.InstantiateLazy(x.Pos(), base, targs, posList, true)
+	def.setUnderlying(typ)
 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid
 	check.later(func() {
-		t := typ.expand()
+		t := typ.(*instance).expand()
 		check.validType(t, nil)
 	})
 

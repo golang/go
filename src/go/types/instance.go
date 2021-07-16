@@ -15,7 +15,7 @@ type instance struct {
 	pos     token.Pos   // position of type instantiation; for error reporting only
 	base    *Named      // parameterized type to be instantiated
 	targs   []Type      // type arguments
-	poslist []token.Pos // position of each targ; for error reporting only
+	posList []token.Pos // position of each targ; for error reporting only
 	verify  bool        // if set, constraint satisfaction is verified
 	value   Type        // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
 }
@@ -26,7 +26,7 @@ type instance struct {
 func (t *instance) expand() Type {
 	v := t.value
 	if v == nil {
-		v = t.check.Instantiate(t.pos, t.base, t.targs, t.poslist, t.verify)
+		v = t.check.Instantiate(t.pos, t.base, t.targs, t.posList, t.verify)
 		if v == nil {
 			v = Typ[Invalid]
 		}
