@@ -105,11 +105,6 @@ func asPointer(t Type) *Pointer {
 	return op
 }
 
-func asTuple(t Type) *Tuple {
-	op, _ := optype(t).(*Tuple)
-	return op
-}
-
 func asSignature(t Type) *Signature {
 	op, _ := optype(t).(*Signature)
 	return op
@@ -117,11 +112,6 @@ func asSignature(t Type) *Signature {
 
 func asMap(t Type) *Map {
 	op, _ := optype(t).(*Map)
-	return op
-}
-
-func asChan(t Type) *Chan {
-	op, _ := optype(t).(*Chan)
 	return op
 }
 
