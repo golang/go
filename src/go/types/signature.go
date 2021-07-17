@@ -199,30 +199,40 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
-		if t := rtyp; t != Typ[Invalid] {
+		if rtyp != Typ[Invalid] {
 			var err string
-			if T := asNamed(t); T != nil {
+			switch T := rtyp.(type) {
+			case *Named:
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
 				} else {
-					switch u := optype(T).(type) {
-					case *Basic:
-						// unsafe.Pointer is treated like a regular pointer
-						if u.kind == UnsafePointer {
-							err = "unsafe.Pointer"
+					// The underlying type of a receiver base type can be a type parameter;
+					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+					underIs(T, func(u Type) bool {
+						switch u := u.(type) {
+						case *Basic:
+							// unsafe.Pointer is treated like a regular pointer
+							if u.kind == UnsafePointer {
+								err = "unsafe.Pointer"
+								return false
+							}
+						case *Pointer, *Interface:
+							err = "pointer or interface type"
+							return false
 						}
-					case *Pointer, *Interface:
-						err = "pointer or interface type"
-					}
+						return true
+					})
 				}
-			} else {
+			case *Basic:
 				err = "basic or unnamed type"
+			default:
+				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
 			}
 			if err != "" {
-				check.errorf(recv, _InvalidRecv, "invalid receiver %s (%s)", recv.typ, err)
+				check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
 				// ok to continue
 			}
 		}
