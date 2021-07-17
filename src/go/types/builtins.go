@@ -369,25 +369,40 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.typ = Typ[Int]
 
 	case _Delete:
-		// delete(m, k)
-		m := asMap(x.typ)
-		if m == nil {
-			check.invalidArg(x, _InvalidDelete, "%s is not a map", x)
+		// delete(map_, key)
+		// map_ must be a map type or a type parameter describing map types.
+		// The key cannot be a type parameter for now.
+		map_ := x.typ
+		var key Type
+		if !underIs(map_, func(u Type) bool {
+			map_, _ := u.(*Map)
+			if map_ == nil {
+				check.invalidArg(x, _InvalidDelete, "%s is not a map", x)
+				return false
+			}
+			if key != nil && !Identical(map_.key, key) {
+				check.invalidArg(x, _Todo, "maps of %s must have identical key types", x)
+				return false
+			}
+			key = map_.key
+			return true
+		}) {
 			return
 		}
+
 		arg(x, 1) // k
 		if x.mode == invalid {
 			return
 		}
 
-		check.assignment(x, m.key, "argument to delete")
+		check.assignment(x, key, "argument to delete")
 		if x.mode == invalid {
 			return
 		}
 
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, m, m.key))
+			check.recordBuiltinType(call.Fun, makeSig(nil, map_, key))
 		}
 
 	case _Imag, _Real:
