@@ -217,11 +217,9 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 			//           interface before go1.18.
 			types = typ
 		case *TypeParam:
-			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is a type parameter, not an interface", typ)
-				continue
-			}
-			types = typ
+			// Embedding stand-alone type parameters is not permitted for now.
+			// This case is handled during union parsing.
+			unreachable()
 		default:
 			if typ == Typ[Invalid] {
 				continue
