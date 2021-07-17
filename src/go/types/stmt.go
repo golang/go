@@ -361,25 +361,33 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.errorf(&x, code, "%s %s", &x, msg)
 
 	case *ast.SendStmt:
-		var ch, x operand
+		var ch, val operand
 		check.expr(&ch, s.Chan)
-		check.expr(&x, s.Value)
-		if ch.mode == invalid || x.mode == invalid {
+		check.expr(&val, s.Value)
+		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-
-		tch := asChan(ch.typ)
-		if tch == nil {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-chan type %s", ch.typ)
+		var elem Type
+		if !underIs(ch.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-channel %s", &ch)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only channel %s", &ch)
+				return false
+			}
+			if elem != nil && !Identical(uch.elem, elem) {
+				check.invalidOp(inNode(s, s.Arrow), _Todo, "channels of %s must have the same element type", &ch)
+				return false
+			}
+			elem = uch.elem
+			return true
+		}) {
 			return
 		}
-
-		if tch.dir == RecvOnly {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only type %s", tch)
-			return
-		}
-
-		check.assignment(&x, tch.elem, "send")
+		check.assignment(&val, elem, "send")
 
 	case *ast.IncDecStmt:
 		var op token.Token
