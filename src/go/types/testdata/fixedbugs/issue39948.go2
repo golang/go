@@ -2,14 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rfindley) Eventually, once we disallow type lists, we need to
-//                adjust this code: for 1.17 we don't accept type parameters,
-//                and for 1.18 this code is valid.
-//                Leaving for now so we can see that existing errors
-//                are being reported.
-
-package go1_17 // don't permit non-interface elements in interfaces
+package p
 
 type T[P any] interface{
-	P // ERROR P is a type parameter, not an interface
+	P // ERROR cannot embed a type parameter
 }

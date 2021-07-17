@@ -4,6 +4,9 @@
 
 package p
 
+// Embedding stand-alone type parameters is not permitted for now. Disabled.
+
+/*
 import "fmt"
 
 // Minimal test case.
@@ -25,3 +28,4 @@ func Print[T constr[T]](s []T) {
 func f() {
 	Print([]string{"Hello, ", "playground\n"})
 }
+*/
