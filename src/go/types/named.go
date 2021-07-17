@@ -142,3 +142,102 @@ func (t *Named) AddMethod(m *Func) {
 
 func (t *Named) Underlying() Type { return t.expand().underlying }
 func (t *Named) String() string   { return TypeString(t, nil) }
+
+// ----------------------------------------------------------------------------
+// Implementation
+
+// under returns the expanded underlying type of n0; possibly by following
+// forward chains of named types. If an underlying type is found, resolve
+// the chain by setting the underlying type for each defined type in the
+// chain before returning it. If no underlying type is found or a cycle
+// is detected, the result is Typ[Invalid]. If a cycle is detected and
+// n0.check != nil, the cycle is reported.
+func (n0 *Named) under() Type {
+	u := n0.Underlying()
+
+	if u == Typ[Invalid] {
+		return u
+	}
+
+	// If the underlying type of a defined type is not a defined
+	// (incl. instance) type, then that is the desired underlying
+	// type.
+	switch u.(type) {
+	case nil:
+		return Typ[Invalid]
+	default:
+		// common case
+		return u
+	case *Named, *instance:
+		// handled below
+	}
+
+	if n0.check == nil {
+		panic("internal error: Named.check == nil but type is incomplete")
+	}
+
+	// Invariant: after this point n0 as well as any named types in its
+	// underlying chain should be set up when this function exits.
+	check := n0.check
+
+	// If we can't expand u at this point, it is invalid.
+	n := asNamed(u)
+	if n == nil {
+		n0.underlying = Typ[Invalid]
+		return n0.underlying
+	}
+
+	// Otherwise, follow the forward chain.
+	seen := map[*Named]int{n0: 0}
+	path := []Object{n0.obj}
+	for {
+		u = n.Underlying()
+		if u == nil {
+			u = Typ[Invalid]
+			break
+		}
+		var n1 *Named
+		switch u1 := u.(type) {
+		case *Named:
+			n1 = u1
+		case *instance:
+			n1, _ = u1.expand().(*Named)
+			if n1 == nil {
+				u = Typ[Invalid]
+			}
+		}
+		if n1 == nil {
+			break // end of chain
+		}
+
+		seen[n] = len(seen)
+		path = append(path, n.obj)
+		n = n1
+
+		if i, ok := seen[n]; ok {
+			// cycle
+			check.cycleError(path[i:])
+			u = Typ[Invalid]
+			break
+		}
+	}
+
+	for n := range seen {
+		// We should never have to update the underlying type of an imported type;
+		// those underlying types should have been resolved during the import.
+		// Also, doing so would lead to a race condition (was issue #31749).
+		// Do this check always, not just in debug mode (it's cheap).
+		if n.obj.pkg != check.pkg {
+			panic("internal error: imported type with unresolved underlying type")
+		}
+		n.underlying = u
+	}
+
+	return u
+}
+
+func (n *Named) setUnderlying(typ Type) {
+	if n != nil {
+		n.underlying = typ
+	}
+}
