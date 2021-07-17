@@ -110,11 +110,6 @@ func asSignature(t Type) *Signature {
 	return op
 }
 
-func asMap(t Type) *Map {
-	op, _ := optype(t).(*Map)
-	return op
-}
-
 // If the argument to asInterface, asNamed, or asTypeParam is of the respective type
 // (possibly after expanding an instance type), these methods return that type.
 // Otherwise the result is nil.
