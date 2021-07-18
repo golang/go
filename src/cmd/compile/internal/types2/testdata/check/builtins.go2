@@ -6,6 +6,8 @@
 
 package builtins
 
+import "unsafe"
+
 // close
 
 type C0 interface{ int }
@@ -126,4 +128,109 @@ func _[T Bss]() {
 	_ = make /* ERROR expects 2 or 3 arguments */ (T)
 	_ = make(T, 10)
 	_ = make(T, 10, 20)
+}
+
+// unsafe.Alignof
+
+func _[T comparable]() {
+	var (
+		b int64
+		a [10]T
+		s struct{ f T }
+		p *T
+		l []T
+		f func(T)
+		i interface{ m() T }
+		c chan T
+		m map[T]T
+		t T
+	)
+
+	const bb = unsafe.Alignof(b)
+	assert(bb == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(a)
+	const _ = unsafe /* ERROR not constant */ .Alignof(s)
+	const pp = unsafe.Alignof(p)
+	assert(pp == 8)
+	const ll = unsafe.Alignof(l)
+	assert(ll == 8)
+	const ff = unsafe.Alignof(f)
+	assert(ff == 8)
+	const ii = unsafe.Alignof(i)
+	assert(ii == 8)
+	const cc = unsafe.Alignof(c)
+	assert(cc == 8)
+	const mm = unsafe.Alignof(m)
+	assert(mm == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(t)
+}
+
+// unsafe.Offsetof
+
+func _[T comparable]() {
+	var (
+		b struct{ _, f int64 }
+		a struct{ _, f [10]T }
+		s struct{ _, f struct{ f T } }
+		p struct{ _, f *T }
+		l struct{ _, f []T }
+		f struct{ _, f func(T) }
+		i struct{ _, f interface{ m() T } }
+		c struct{ _, f chan T }
+		m struct{ _, f map[T]T }
+		t struct{ _, f T }
+	)
+
+	const bb = unsafe.Offsetof(b.f)
+	assert(bb == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(a)
+	const _ = unsafe /* ERROR not constant */ .Alignof(s)
+	const pp = unsafe.Offsetof(p.f)
+	assert(pp == 8)
+	const ll = unsafe.Offsetof(l.f)
+	assert(ll == 24)
+	const ff = unsafe.Offsetof(f.f)
+	assert(ff == 8)
+	const ii = unsafe.Offsetof(i.f)
+	assert(ii == 16)
+	const cc = unsafe.Offsetof(c.f)
+	assert(cc == 8)
+	const mm = unsafe.Offsetof(m.f)
+	assert(mm == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(t)
+}
+
+// unsafe.Sizeof
+
+func _[T comparable]() {
+	var (
+		b int64
+		a [10]T
+		s struct{ f T }
+		p *T
+		l []T
+		f func(T)
+		i interface{ m() T }
+		c chan T
+		m map[T]T
+		t T
+	)
+
+	const bb = unsafe.Sizeof(b)
+	assert(bb == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(a)
+	const _ = unsafe /* ERROR not constant */ .Alignof(s)
+	const pp = unsafe.Sizeof(p)
+	assert(pp == 8)
+	const ll = unsafe.Sizeof(l)
+	assert(ll == 24)
+	const ff = unsafe.Sizeof(f)
+	assert(ff == 8)
+	const ii = unsafe.Sizeof(i)
+	assert(ii == 16)
+	const cc = unsafe.Sizeof(c)
+	assert(cc == 8)
+	const mm = unsafe.Sizeof(m)
+	assert(mm == 8)
+	const _ = unsafe /* ERROR not constant */ .Alignof(t)
 }
