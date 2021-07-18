@@ -5,6 +5,10 @@
 package test
 
 import (
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/cmdflag"
+	"cmd/go/internal/work"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,11 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/cmdflag"
-	"cmd/go/internal/work"
 )
 
 //go:generate go run ./genflags.go
@@ -134,6 +133,7 @@ type outputdirFlag struct {
 func (f *outputdirFlag) String() string {
 	return f.abs
 }
+
 func (f *outputdirFlag) Set(value string) (err error) {
 	if value == "" {
 		f.abs = ""
@@ -142,6 +142,7 @@ func (f *outputdirFlag) Set(value string) (err error) {
 	}
 	return err
 }
+
 func (f *outputdirFlag) getAbs() string {
 	if f.abs == "" {
 		return base.Cwd()
@@ -150,8 +151,12 @@ func (f *outputdirFlag) getAbs() string {
 }
 
 // vetFlag implements the special parsing logic for the -vet flag:
-// a comma-separated list, with a distinguished value "off" and
-// a boolean tracking whether it was set explicitly.
+// a comma-separated list, with distinguished values "all" and
+// "off", plus a boolean tracking whether it was set explicitly.
+//
+// "all" is encoded as vetFlag{true, false, nil}, since it will
+// pass no flags to the vet binary, and by default, it runs all
+// analyzers.
 type vetFlag struct {
 	explicit bool
 	off      bool
@@ -159,7 +164,10 @@ type vetFlag struct {
 }
 
 func (f *vetFlag) String() string {
-	if f.off {
+	switch {
+	case !f.off && !f.explicit && len(f.flags) == 0:
+		return "all"
+	case f.off:
 		return "off"
 	}
 
@@ -174,31 +182,37 @@ func (f *vetFlag) String() string {
 }
 
 func (f *vetFlag) Set(value string) error {
-	if value == "" {
+	switch {
+	case value == "":
 		*f = vetFlag{flags: defaultVetFlags}
 		return nil
-	}
-
-	if value == "off" {
-		*f = vetFlag{
-			explicit: true,
-			off:      true,
-		}
-		return nil
-	}
-
-	if strings.Contains(value, "=") {
+	case strings.Contains(value, "="):
 		return fmt.Errorf("-vet argument cannot contain equal signs")
-	}
-	if strings.Contains(value, " ") {
+	case strings.Contains(value, " "):
 		return fmt.Errorf("-vet argument is comma-separated list, cannot contain spaces")
 	}
 	*f = vetFlag{explicit: true}
+	var single string
 	for _, arg := range strings.Split(value, ",") {
-		if arg == "" {
+		switch arg {
+		case "":
 			return fmt.Errorf("-vet argument contains empty list element")
+		case "all":
+			single = arg
+			*f = vetFlag{explicit: true}
+			continue
+		case "off":
+			single = arg
+			*f = vetFlag{
+				explicit: true,
+				off:      true,
+			}
+			continue
 		}
 		f.flags = append(f.flags, "-"+arg)
+	}
+	if len(f.flags) > 1 && single != "" {
+		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
 	}
 	return nil
 }

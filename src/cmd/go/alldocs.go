@@ -1405,7 +1405,8 @@
 // used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
 // 'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
 // the documentation for these and other vet tests via "go doc cmd/vet".
-// To disable the running of go vet, use the -vet=off flag.
+// To disable the running of go vet, use the -vet=off flag. To run all
+// checks, use the -vet=all flag.
 //
 // All test output and summary lines are printed to the go command's
 // standard output, even if the test printed them to its own standard
