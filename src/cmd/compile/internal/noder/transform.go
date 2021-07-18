@@ -591,6 +591,24 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 	if n.Op() == ir.OXDOT {
 		n = typecheck.AddImplicitDots(n)
 		n.SetOp(ir.ODOT)
+
+		// Set the Selection field and typecheck flag for any new ODOT nodes
+		// added by AddImplicitDots(), and also transform to ODOTPTR if
+		// needed. Equivalent to 'n.X = typecheck(n.X, ctxExpr|ctxType)' in
+		// tcDot.
+		for n1 := n; n1.X.Op() == ir.ODOT; {
+			n1 = n1.X.(*ir.SelectorExpr)
+			if !n1.Implicit() {
+				break
+			}
+			t1 := n1.X.Type()
+			if t1.IsPtr() && !t1.Elem().IsInterface() {
+				t1 = t1.Elem()
+				n1.SetOp(ir.ODOTPTR)
+			}
+			typecheck.Lookdot(n1, t1, 0)
+			n1.SetTypecheck(1)
+		}
 	}
 
 	t := n.X.Type()
