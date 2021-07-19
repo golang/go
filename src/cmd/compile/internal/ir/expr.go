@@ -349,6 +349,14 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	if have := len(n.ReturnVars); have != 1 {
 		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
 	}
+	if !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape() {
+		// If the type of the call is not a shape, but the type of the return value
+		// is a shape, we need to do an implicit conversion, so the real type
+		// of n is maintained.
+		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[0])
+		r.SetTypecheck(1)
+		return r
+	}
 	return n.ReturnVars[0]
 }
 

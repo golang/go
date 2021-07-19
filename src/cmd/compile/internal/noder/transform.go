@@ -161,8 +161,6 @@ func transformCall(n *ir.CallExpr) {
 		typecheck.FixMethodCall(n)
 	}
 	if t.NumResults() == 1 {
-		n.SetType(l.Type().Results().Field(0).Type)
-
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
 			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
