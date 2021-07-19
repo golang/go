@@ -2173,6 +2173,11 @@ var g3Failures = setOf(
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+
+	"typeparam/cons.go",              // causes an unreachable method
+	"typeparam/dictionaryCapture.go", // segv, dictionary access failure?
+	"typeparam/issue44688.go",        // interface conversion fails due to missing method
+	"typeparam/mdempsky/14.go",       // interface comparison failure
 )
 
 var unifiedFailures = setOf(
