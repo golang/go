@@ -21,11 +21,11 @@ var Universe *Scope
 var Unsafe *Package
 
 var (
-	universeIota       *Const
-	universeByte       *Basic // uint8 alias, but has name "byte"
-	universeRune       *Basic // int32 alias, but has name "rune"
-	universeAny        *Interface
-	universeError      *Named
+	universeIota       Object
+	universeByte       Type // uint8 alias, but has name "byte"
+	universeRune       Type // int32 alias, but has name "rune"
+	universeAny        Object
+	universeError      Type
 	universeComparable Object
 )
 
@@ -80,9 +80,6 @@ func defPredeclaredTypes() {
 	}
 
 	// type any = interface{}
-	// Entered into universe scope so we do all the usual checks;
-	// but removed again from scope later since it's only visible
-	// as constraint in a type parameter list.
 	def(NewTypeName(token.NoPos, nil, "any", &emptyInterface))
 
 	// type error interface{ Error() string }
@@ -225,15 +222,12 @@ func init() {
 	defPredeclaredNil()
 	defPredeclaredFuncs()
 
-	universeIota = Universe.Lookup("iota").(*Const)
-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
-	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
-	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
+	universeIota = Universe.Lookup("iota")
+	universeByte = Universe.Lookup("byte").Type()
+	universeRune = Universe.Lookup("rune").Type()
+	universeAny = Universe.Lookup("any")
+	universeError = Universe.Lookup("error").Type()
 	universeComparable = Universe.Lookup("comparable")
-
-	// "any" is only visible as constraint in a type parameter list
-	delete(Universe.elems, "any")
 }
 
 // Objects with names containing blanks are internal and not entered into
