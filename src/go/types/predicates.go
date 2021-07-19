@@ -10,7 +10,7 @@ package types
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *TypeParam, *instance:
+	case *Basic, *Named, *TypeParam:
 		return true
 	}
 	return false
@@ -159,8 +159,8 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	// types must be expanded for comparison
-	x = expandf(x)
-	y = expandf(y)
+	x = expand(x)
+	y = expand(y)
 
 	if x == y {
 		return true

@@ -273,10 +273,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.recordUntyped()
 
-	if check.Info != nil {
-		sanitizeInfo(check.Info)
-	}
-
 	check.pkg.complete = true
 
 	// no longer needed - release memory

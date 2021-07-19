@@ -10,7 +10,7 @@ import "sync"
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker    // for Named.under implementation; nilled once under has been called
+	instance   *instance   // syntactic information for lazy instantiation
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       *Named      // original, uninstantiated type
@@ -65,7 +65,13 @@ func (t *Named) expand() *Named {
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
 func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams []*TypeName, methods []*Func) *Named {
-	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+	var inst *instance
+	if check != nil {
+		inst = &instance{
+			check: check,
+		}
+	}
+	typ := &Named{instance: inst, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
 	}
@@ -83,10 +89,10 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	if check != nil {
 		check.later(func() {
 			switch typ.under().(type) {
-			case *Named, *instance:
+			case *Named:
 				panic("internal error: unexpanded underlying type")
 			}
-			typ.check = nil
+			typ.instance = nil
 		})
 	}
 	return typ
@@ -153,6 +159,8 @@ func (t *Named) String() string   { return TypeString(t, nil) }
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
+	n0.complete()
+
 	u := n0.Underlying()
 
 	if u == Typ[Invalid] {
@@ -168,17 +176,17 @@ func (n0 *Named) under() Type {
 	default:
 		// common case
 		return u
-	case *Named, *instance:
+	case *Named:
 		// handled below
 	}
 
-	if n0.check == nil {
+	if n0.instance == nil || n0.instance.check == nil {
 		panic("internal error: Named.check == nil but type is incomplete")
 	}
 
 	// Invariant: after this point n0 as well as any named types in its
 	// underlying chain should be set up when this function exits.
-	check := n0.check
+	check := n0.instance.check
 
 	// If we can't expand u at this point, it is invalid.
 	n := asNamed(u)
@@ -199,12 +207,8 @@ func (n0 *Named) under() Type {
 		var n1 *Named
 		switch u1 := u.(type) {
 		case *Named:
+			u1.complete()
 			n1 = u1
-		case *instance:
-			n1, _ = u1.expand().(*Named)
-			if n1 == nil {
-				u = Typ[Invalid]
-			}
 		}
 		if n1 == nil {
 			break // end of chain
