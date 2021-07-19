@@ -2174,9 +2174,8 @@ var g3Failures = setOf(
 
 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
 
-	"typeparam/cons.go",        // causes an unreachable method
-	"typeparam/issue44688.go",  // interface conversion fails due to missing method
-	"typeparam/mdempsky/14.go", // interface comparison failure
+	"typeparam/cons.go",       // causes an unreachable method
+	"typeparam/issue44688.go", // interface conversion fails due to missing method
 )
 
 var unifiedFailures = setOf(

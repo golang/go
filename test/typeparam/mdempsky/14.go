@@ -6,11 +6,14 @@
 
 package main
 
-func Zero[T any]() (_ T) { return }
+// Zero returns the zero value of T
+func Zero[T any]() (_ T) {
+	return
+}
 
-type T[X any] int
+type AnyInt[X any] int
 
-func (T[X]) M() {
+func (AnyInt[X]) M() {
 	var have interface{} = Zero[X]()
 	var want interface{} = Zero[MyInt]()
 
@@ -22,7 +25,7 @@ func (T[X]) M() {
 type I interface{ M() }
 
 type MyInt int
-type U = T[MyInt]
+type U = AnyInt[MyInt]
 
 var x = U(0)
 var i I = x
