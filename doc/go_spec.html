@@ -4334,7 +4334,7 @@ s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 
 var t []string
 t0 := (*[0]string)(t)    // t0 == nil
-t1 := (*[1]string)(t)    // panics: len([1]string) > len(s)
+t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
 </pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
