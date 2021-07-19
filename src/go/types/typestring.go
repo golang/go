@@ -295,13 +295,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		buf.WriteString(s + subscript(t.id))
 
-	case *instance:
-		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
-		writeTypeName(buf, t.base.obj, qf)
-		buf.WriteByte('[')
-		writeTypeList(buf, t.targs, qf, visited)
-		buf.WriteByte(']')
-
 	case *top:
 		buf.WriteString("⊤")
 
