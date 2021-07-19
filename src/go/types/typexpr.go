@@ -27,13 +27,24 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	// Note that we cannot use check.lookup here because the returned scope
 	// may be different from obj.Parent(). See also Scope.LookupParent doc.
 	scope, obj := check.scope.LookupParent(e.Name, check.pos)
-	if obj == nil || obj == universeComparable && !check.allowVersion(check.pkg, 1, 18) {
+	switch obj {
+	case nil:
 		if e.Name == "_" {
-			check.errorf(e, _InvalidBlank, "cannot use _ as value or type")
+			check.error(e, _InvalidBlank, "cannot use _ as value or type")
 		} else {
 			check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Name)
 		}
 		return
+	case universeAny, universeComparable:
+		if !check.allowVersion(check.pkg, 1, 18) {
+			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
+			return
+		}
+		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+		if obj == universeAny {
+			check.error(e, _Todo, "cannot use any outside constraint position")
+			return
+		}
 	}
 	check.recordUse(e, obj)
 
