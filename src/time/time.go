@@ -1334,7 +1334,7 @@ func UnixMilli(msec int64) Time {
 }
 
 // UnixMicro returns the local Time corresponding to the given Unix time,
-// usec milliseconds since January 1, 1970 UTC.
+// usec microseconds since January 1, 1970 UTC.
 func UnixMicro(usec int64) Time {
 	return Unix(usec/1e6, (usec%1e6)*1e3)
 }
