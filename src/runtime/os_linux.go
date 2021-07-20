@@ -198,7 +198,7 @@ func sysargs(argc int32, argv **byte) {
 
 	argsValid := true
 	if islibrary || isarchive {
-		if !sysLibArgsValid() {
+		if !sysLibArgsValid {
 			argsValid = false
 		}
 	}
@@ -356,6 +356,13 @@ func goenvs() {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	if _cgo_sys_lib_args_valid != nil {
+		ret := asmcgocall(_cgo_sys_lib_args_valid, nil)
+		if ret != 1 {
+			sysLibArgsValid = false
+		}
+	}
+
 	initsig(true)
 }
 

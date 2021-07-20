@@ -52,24 +52,11 @@ var (
 	argv **byte
 )
 
-// when using -buildmode=c-archive or -buildmode=c-shared on linux
-// we have to first make sure that glibc is being used or else
-// we cannot rely on argc/argv/auxv to be accurate
-func sysLibArgsValid() bool {
-	if _cgo_sys_lib_args_valid != nil {
-		ret := asmcgocall(_cgo_sys_lib_args_valid, nil)
-		if ret != 1 {
-			return false
-		}
-	}
-	return true
-}
-
 // nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
 	if islibrary || isarchive {
-		if !sysLibArgsValid() {
+		if !sysLibArgsValid {
 			return nil
 		}
 	}
@@ -88,7 +75,7 @@ func goargs() {
 		return
 	}
 	if islibrary || isarchive {
-		if !sysLibArgsValid() {
+		if !sysLibArgsValid {
 			return
 		}
 	}

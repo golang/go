@@ -1104,5 +1104,10 @@ var (
 	isarchive bool // -buildmode=c-archive
 )
 
+// when using -buildmode=c-archive or -buildmode=c-shared on linux
+// we have to first make sure that glibc is being used or else
+// we cannot rely on argc/argv/auxv to be accurate
+var sysLibArgsValid bool = true
+
 // Must agree with cmd/internal/objabi.Framepointer_enabled.
 const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
