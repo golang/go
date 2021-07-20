@@ -513,12 +513,15 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
-	CMPBEQ	R6, g, g0
+	MOVD	m_gsignal(R6), R7
+	CMPBEQ	R7, g, g0
+	MOVD	m_g0(R6), R7
+	CMPBEQ	R7, g, g0
 	BL	gosave_systemstack_switch<>(SB)
-	MOVD	R6, g
+	MOVD	R7, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
 
