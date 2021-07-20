@@ -310,8 +310,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOV	g_m(g), X6
+	MOV	m_gsignal(X6), X7
+	BEQ	X7, g, g0
 	MOV	m_g0(X6), X7
 	BEQ	X7, g, g0
 

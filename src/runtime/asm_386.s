@@ -633,17 +633,17 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	get_tls(CX)
-	MOVL	g(CX), BP
-	CMPL	BP, $0
-	JEQ	nosave	// Don't even have a G yet.
-	MOVL	g_m(BP), BP
-	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
-	CMPL	SI, DI
-	JEQ	noswitch
+	CMPL	DI, $0
+	JEQ	nosave	// Don't even have a G yet.
+	MOVL	g_m(DI), BP
 	CMPL	DI, m_gsignal(BP)
+	JEQ	noswitch
+	MOVL	m_g0(BP), SI
+	CMPL	DI, SI
 	JEQ	noswitch
 	CALL	gosave_systemstack_switch<>(SB)
 	get_tls(CX)
