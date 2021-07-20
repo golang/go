@@ -1394,11 +1394,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// TODO: need to modify m.X? I don't think any downstream passes use it.
 			m.SetType(subst.unshapifyTyp(m.Type()))
 
-		case ir.OPTRLIT:
-			m := m.(*ir.AddrExpr)
-			// Walk uses the type of the argument of ptrlit. Also could be a shape type?
-			m.X.SetType(subst.unshapifyTyp(m.X.Type()))
-
 		case ir.OMETHEXPR:
 			se := m.(*ir.SelectorExpr)
 			se.X = ir.TypeNodeAt(se.X.Pos(), subst.unshapifyTyp(se.X.Type()))
