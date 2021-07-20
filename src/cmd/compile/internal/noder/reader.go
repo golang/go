@@ -534,18 +534,10 @@ func (r *reader) obj() ir.Node {
 }
 
 func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node {
-	r := pr.newReader(relocObj, idx, syncObject1)
-	r.ext = pr.newReader(relocObjExt, idx, syncObject1)
+	rname := pr.newReader(relocName, idx, syncObject1)
+	_, sym := rname.qualifiedIdent()
+	tag := codeObj(rname.code(syncCodeObj))
 
-	_, sym := r.qualifiedIdent()
-
-	dict := &readerDict{}
-	r.dict = dict
-	r.ext.dict = dict
-
-	r.typeParamBounds(sym, implicits, explicits)
-
-	tag := codeObj(r.code(syncCodeObj))
 	if tag == objStub {
 		assert(!sym.IsBlank())
 		switch sym.Pkg {
@@ -556,30 +548,19 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 			return pri.pr.objIdx(pri.idx, nil, explicits)
 		}
 		if haveLegacyImports {
-			assert(!r.hasTypeParams())
+			assert(len(explicits) == 0)
 			return typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
 		}
 		base.Fatalf("unresolved stub: %v", sym)
 	}
 
-	{
-		rdict := pr.newReader(relocObjDict, idx, syncObject1)
-		r.dict.derived = make([]derivedInfo, rdict.len())
-		r.dict.derivedTypes = make([]*types.Type, len(r.dict.derived))
-		for i := range r.dict.derived {
-			r.dict.derived[i] = derivedInfo{rdict.reloc(relocType), rdict.bool()}
-		}
-		r.dict.funcs = make([]objInfo, rdict.len())
-		r.dict.funcsObj = make([]ir.Node, len(r.dict.funcs))
-		for i := range r.dict.funcs {
-			objIdx := rdict.reloc(relocObj)
-			targs := make([]typeInfo, rdict.len())
-			for j := range targs {
-				targs[j] = rdict.typInfo()
-			}
-			r.dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
-		}
-	}
+	dict := pr.objDictIdx(sym, idx, implicits, explicits)
+
+	r := pr.newReader(relocObj, idx, syncObject1)
+	r.ext = pr.newReader(relocObjExt, idx, syncObject1)
+
+	r.dict = dict
+	r.ext.dict = dict
 
 	sym = r.mangle(sym)
 	if !sym.IsBlank() && sym.Def != nil {
@@ -692,8 +673,10 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
 	return sym.Pkg.Lookup(buf.String())
 }
 
-func (r *reader) typeParamBounds(sym *types.Sym, implicits, explicits []*types.Type) {
-	r.sync(syncTypeParamBounds)
+func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []*types.Type) *readerDict {
+	r := pr.newReader(relocObjDict, idx, syncObject1)
+
+	var dict readerDict
 
 	nimplicits := r.len()
 	nexplicits := r.len()
@@ -702,12 +685,11 @@ func (r *reader) typeParamBounds(sym *types.Sym, implicits, explicits []*types.T
 		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
 	}
 
-	r.dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
-	r.dict.implicits = nimplicits
+	dict.targs = append(implicits[:nimplicits:nimplicits], explicits...)
+	dict.implicits = nimplicits
 
 	// For stenciling, we can just skip over the type parameters.
-
-	for range r.dict.targs[r.dict.implicits:] {
+	for range dict.targs[dict.implicits:] {
 		// Skip past bounds without actually evaluating them.
 		r.sync(syncType)
 		if r.bool() {
@@ -716,6 +698,25 @@ func (r *reader) typeParamBounds(sym *types.Sym, implicits, explicits []*types.T
 			r.reloc(relocType)
 		}
 	}
+
+	dict.derived = make([]derivedInfo, r.len())
+	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+	for i := range dict.derived {
+		dict.derived[i] = derivedInfo{r.reloc(relocType), r.bool()}
+	}
+
+	dict.funcs = make([]objInfo, r.len())
+	dict.funcsObj = make([]ir.Node, len(dict.funcs))
+	for i := range dict.funcs {
+		objIdx := r.reloc(relocObj)
+		targs := make([]typeInfo, r.len())
+		for j := range targs {
+			targs[j] = r.typInfo()
+		}
+		dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
+	}
+
+	return &dict
 }
 
 func (r *reader) typeParamNames() {
@@ -790,7 +791,11 @@ func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
 }
 
 func (r *reader) hasTypeParams() bool {
-	return r.dict != nil && len(r.dict.targs) != 0
+	return r.dict.hasTypeParams()
+}
+
+func (dict *readerDict) hasTypeParams() bool {
+	return dict != nil && len(dict.targs) != 0
 }
 
 // @@@ Compiler extensions

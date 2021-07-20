@@ -183,4 +183,5 @@ const (
 	syncTypeParamNames
 	syncTypeParamBounds
 	syncImplicitTypes
+	syncObjectName
 )

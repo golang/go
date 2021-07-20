@@ -263,7 +263,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
 		idx := r.reloc(relocObj)
 		assert(r.len() == 0)
 
-		path, name, code, _ := r.p.peekObj(idx)
+		path, name, code := r.p.peekObj(idx)
 		if code != objStub {
 			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
 		}
@@ -298,7 +298,7 @@ func writeNewExport(out io.Writer) {
 			idx := r.reloc(relocObj)
 			assert(r.len() == 0)
 
-			xpath, xname, xtag, _ := pr.peekObj(idx)
+			xpath, xname, xtag := pr.peekObj(idx)
 			assert(xpath == pr.pkgPath)
 			assert(xtag != objStub)
 
