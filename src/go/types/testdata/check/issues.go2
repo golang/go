@@ -81,10 +81,8 @@ func (u T2[U]) Add1() U {
     return u.s + 1
 }
 
-// TODO(rfindley): we should probably report an error here as well, not
-//                 just when the type is first instantiated.
 func NewT2[U any]() T2[U /* ERROR U has no type constraints */ ] {
-    return T2[U]{}
+    return T2[U /* ERROR U has no type constraints */ ]{}
 }
 
 func _() {

@@ -54,10 +54,14 @@ func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
 
-	return check.instantiate(pos, typ, tparams, targs, posList, verify)
+	inst := check.instantiate(pos, typ, tparams, targs, posList)
+	if verify && len(tparams) == len(targs) {
+		check.verify(pos, tparams, targs, posList)
+	}
+	return inst
 }
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, posList []token.Pos, verify bool) (res Type) {
+func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, posList []token.Pos) (res Type) {
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
@@ -66,9 +70,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 			return Typ[Invalid]
 		}
 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
-	}
-	if verify && check == nil {
-		panic("cannot have nil receiver if verify is set")
 	}
 
 	if check != nil && trace {
@@ -97,22 +98,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 
 	smap := makeSubstMap(tparams, targs)
 
-	// check bounds
-	if verify {
-		for i, tname := range tparams {
-			// best position for error reporting
-			pos := pos
-			if i < len(posList) {
-				pos = posList[i]
-			}
-
-			// stop checking bounds after the first failure
-			if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
-				break
-			}
-		}
-	}
-
 	return check.subst(pos, typ, smap)
 }
 
@@ -123,6 +108,11 @@ func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, pos
 	base := asNamed(typ)
 	if base == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+	}
+	if verify && len(base.tparams) == len(targs) {
+		check.later(func() {
+			check.verify(pos, base.tparams, targs, posList)
+		})
 	}
 	h := instantiatedHash(base, targs)
 	if check != nil {
@@ -144,6 +134,26 @@ func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, pos
 		check.typMap[h] = named
 	}
 	return named
+}
+
+func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type, posList []token.Pos) {
+	if check == nil {
+		panic("cannot have nil Checker if verifying constraints")
+	}
+
+	smap := makeSubstMap(tparams, targs)
+	for i, tname := range tparams {
+		// best position for error reporting
+		pos := pos
+		if i < len(posList) {
+			pos = posList[i]
+		}
+
+		// stop checking bounds after the first failure
+		if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
+			break
+		}
+	}
 }
 
 // satisfies reports whether the type argument targ satisfies the constraint of type parameter

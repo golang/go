@@ -24,7 +24,7 @@ type instance struct {
 func (n *Named) complete() {
 	if n.instance != nil && len(n.targs) > 0 && n.underlying == nil {
 		check := n.instance.check
-		inst := check.instantiate(n.instance.pos, n.orig.underlying, n.tparams, n.targs, n.instance.posList, n.instance.verify)
+		inst := check.instantiate(n.instance.pos, n.orig.underlying, n.tparams, n.targs, n.instance.posList)
 		n.underlying = inst
 		n.fromRHS = inst
 		n.methods = n.orig.methods
