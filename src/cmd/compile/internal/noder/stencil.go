@@ -1270,7 +1270,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				name := call.X.Name()
 				if name.BuiltinOp != ir.OXXX {
 					switch name.BuiltinOp {
-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
 						// Transform these builtins now that we
 						// know the type of the args.
 						m = transformBuiltin(call)
