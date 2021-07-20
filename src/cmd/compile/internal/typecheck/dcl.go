@@ -106,7 +106,17 @@ func Export(n *ir.Name) {
 // Redeclared emits a diagnostic about symbol s being redeclared at pos.
 func Redeclared(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		pkgName := DotImportRefs[s.Def.(*ir.Ident)]
+		var pkgName *ir.PkgName
+		if s.Def == nil {
+			for id, pkg := range DotImportRefs {
+				if id.Sym().Name == s.Name {
+					pkgName = pkg
+					break
+				}
+			}
+		} else {
+			pkgName = DotImportRefs[s.Def.(*ir.Ident)]
+		}
 		base.ErrorfAt(pos, "%v redeclared %s\n"+
 			"\t%v: previous declaration during import %q", s, where, base.FmtPos(pkgName.Pos()), pkgName.Pkg.Path)
 	} else {

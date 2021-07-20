@@ -16,6 +16,7 @@ const IsArm64 = 0
 const IsArm64be = 0
 const IsPpc64 = 0
 const IsPpc64le = 0
+const IsLoong64 = 0
 const IsMips = 1
 const IsMipsle = 0
 const IsMips64 = 0

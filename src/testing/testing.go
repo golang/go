@@ -233,6 +233,8 @@
 //		os.Exit(m.Run())
 //	}
 //
+// TestMain is a low-level primitive and should not be necessary for casual
+// testing needs, where ordinary test functions suffice.
 package testing
 
 import (

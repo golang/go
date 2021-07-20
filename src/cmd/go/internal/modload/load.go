@@ -1808,7 +1808,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", ld.TidyCompatibleVersion, goFlag, ld.GoVersion)
 
 		// TODO(#46141): Populate the linked wiki page.
-		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/wiki/PruningModules\n")
+		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/doc/modules/pruning\n")
 	}
 
 	mg, err := rs.Graph(ctx)
