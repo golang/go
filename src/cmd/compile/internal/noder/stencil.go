@@ -23,9 +23,7 @@ import (
 )
 
 func assert(p bool) {
-	if !p {
-		panic("assertion failed")
-	}
+	base.Assert(p)
 }
 
 // Temporary - for outputting information on derived types, dictionaries, sub-dictionaries.
