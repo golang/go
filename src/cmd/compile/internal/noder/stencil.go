@@ -566,7 +566,6 @@ const UINTSTRING = "u8"        // XX fix for 32-bit arch
 // buf. fieldSym is the sym of the field associated with type t, if it is in a
 // struct. fieldSym could be used to have special naming for blank fields, etc.
 func accumGcshape(fl []*types.Field, buf *bytes.Buffer, t *types.Type, fieldSym *types.Sym) []*types.Field {
-
 	// t.Kind() is already the kind of the underlying type, so no need to
 	// reference t.Underlying() to reference the underlying type.
 	assert(t.Kind() == t.Underlying().Kind())
@@ -1220,7 +1219,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					dst := subst.concretify.Typ(subst.shape2param[src].Bound())
 					// Mark that we use the methods of this concrete type.
 					// Otherwise the linker deadcode-eliminates them :(
-					reflectdata.MarkTypeUsedInInterface(subst.unshapifyTyp(src), subst.newf.Sym().Linksym())
 					ix := subst.findDictType(subst.shape2param[src])
 					assert(ix >= 0)
 					mse.X = subst.convertUsingDictionary(m.Pos(), mse.X, dst, subst.shape2param[src], ix)
@@ -1566,6 +1564,11 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			infoPrint(" * %v\n", t)
 			s := reflectdata.TypeLinksym(t)
 			off = objw.SymPtr(lsym, off, s, 0)
+			// Ensure that methods on t don't get deadcode eliminated
+			// by the linker.
+			// TODO: This is somewhat overkill, we really only need it
+			// for types that are put into interfaces.
+			reflectdata.MarkTypeUsedInInterface(t, lsym)
 		}
 		subst := typecheck.Tsubster{
 			Tparams: info.tparams,
@@ -1577,6 +1580,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			infoPrint(" - %v\n", ts)
 			s := reflectdata.TypeLinksym(ts)
 			off = objw.SymPtr(lsym, off, s, 0)
+			reflectdata.MarkTypeUsedInInterface(ts, lsym)
 		}
 		// Emit an entry for each subdictionary (after substituting targs)
 		for _, n := range info.subDictCalls {
