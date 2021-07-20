@@ -358,29 +358,22 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
 }
 
 func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
-	r := pr.newReader(relocObj, idx, syncObject1)
-	r.dict = &reader2Dict{}
+	rname := pr.newReader(relocName, idx, syncObject1)
 
-	objPkg, objName := r.qualifiedIdent()
+	objPkg, objName := rname.qualifiedIdent()
 	assert(objName != "")
 
-	r.typeParamBounds()
-	tag := codeObj(r.code(syncCodeObj))
+	tag := codeObj(rname.code(syncCodeObj))
 
 	if tag == objStub {
 		assert(objPkg == nil)
 		return objPkg, objName
 	}
 
-	{
-		rdict := r.p.newReader(relocObjDict, idx, syncObject1)
-		r.dict.derived = make([]derivedInfo, rdict.len())
-		r.dict.derivedTypes = make([]types2.Type, len(r.dict.derived))
-		for i := range r.dict.derived {
-			r.dict.derived[i] = derivedInfo{rdict.reloc(relocType), rdict.bool()}
-		}
-		// function references follow, but reader2 doesn't need those
-	}
+	dict := pr.objDictIdx(idx)
+
+	r := pr.newReader(relocObj, idx, syncObject1)
+	r.dict = dict
 
 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
 		switch tag {
@@ -439,17 +432,29 @@ func (r *reader2) value() (types2.Type, constant.Value) {
 	return r.typ(), r.rawValue()
 }
 
-func (r *reader2) typeParamBounds() {
-	r.sync(syncTypeParamBounds)
+func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
+	r := pr.newReader(relocObjDict, idx, syncObject1)
+
+	var dict reader2Dict
 
 	if implicits := r.len(); implicits != 0 {
 		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
 	}
 
-	r.dict.bounds = make([]typeInfo, r.len())
-	for i := range r.dict.bounds {
-		r.dict.bounds[i] = r.typInfo()
+	dict.bounds = make([]typeInfo, r.len())
+	for i := range dict.bounds {
+		dict.bounds[i] = r.typInfo()
 	}
+
+	dict.derived = make([]derivedInfo, r.len())
+	dict.derivedTypes = make([]types2.Type, len(dict.derived))
+	for i := range dict.derived {
+		dict.derived[i] = derivedInfo{r.reloc(relocType), r.bool()}
+	}
+
+	// function references follow, but reader2 doesn't need those
+
+	return &dict
 }
 
 func (r *reader2) typeParamNames() []*types2.TypeName {

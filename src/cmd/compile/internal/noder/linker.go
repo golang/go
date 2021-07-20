@@ -110,7 +110,7 @@ func (l *linker) relocPkg(pr *pkgReader, idx int) int {
 }
 
 func (l *linker) relocObj(pr *pkgReader, idx int) int {
-	path, name, tag, _ := pr.peekObj(idx)
+	path, name, tag := pr.peekObj(idx)
 	sym := types.NewPkg(path, "").Lookup(name)
 
 	if newidx, ok := l.decls[sym]; ok {
@@ -127,7 +127,7 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 		pr = pri.pr
 		idx = pri.idx
 
-		path2, name2, tag2, _ := pr.peekObj(idx)
+		path2, name2, tag2 := pr.peekObj(idx)
 		sym2 := types.NewPkg(path2, "").Lookup(name2)
 		assert(sym == sym2)
 		assert(tag2 != objStub)
@@ -135,13 +135,16 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
 
 	w := l.pw.newEncoderRaw(relocObj)
 	wext := l.pw.newEncoderRaw(relocObjExt)
+	wname := l.pw.newEncoderRaw(relocName)
 	wdict := l.pw.newEncoderRaw(relocObjDict)
 
 	l.decls[sym] = w.idx
 	assert(wext.idx == w.idx)
+	assert(wname.idx == w.idx)
 	assert(wdict.idx == w.idx)
 
 	l.relocCommon(pr, &w, relocObj, idx)
+	l.relocCommon(pr, &wname, relocName, idx)
 	l.relocCommon(pr, &wdict, relocObjDict, idx)
 
 	var obj *ir.Name
@@ -279,33 +282,15 @@ func (pr *pkgDecoder) peekPkgPath(idx int) string {
 	return path
 }
 
-func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj, []int) {
-	r := pr.newDecoder(relocObj, idx, syncObject1)
+func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj) {
+	r := pr.newDecoder(relocName, idx, syncObject1)
 	r.sync(syncSym)
 	r.sync(syncPkg)
 	path := pr.peekPkgPath(r.reloc(relocPkg))
 	name := r.string()
 	assert(name != "")
 
-	r.sync(syncTypeParamBounds)
-	r.len() // implicits
-	bounds := make([]int, r.len())
-	for i := range bounds {
-		r.sync(syncType)
-		if r.bool() {
-			r.len()
-		} else {
-			r.reloc(relocType)
-		}
-
-		// TODO(mdempsky): This result now needs to include the 'derived'
-		// bool too, but none of the callers currently depend on it
-		// anyway. Either fix it to be meaningful, or just get rid of it
-		// altogether.
-		bounds[i] = -1
-	}
-
 	tag := codeObj(r.code(syncCodeObj))
 
-	return path, name, tag, bounds
+	return path, name, tag
 }

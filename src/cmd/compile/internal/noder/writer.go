@@ -505,60 +505,45 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 
 	w := pw.newWriter(relocObj, syncObject1)
 	w.ext = pw.newWriter(relocObjExt, syncObject1)
+	wname := pw.newWriter(relocName, syncObject1)
 	wdict := pw.newWriter(relocObjDict, syncObject1)
 
 	pw.globalsIdx[obj] = w.idx // break cycles
 	assert(w.ext.idx == w.idx)
+	assert(wname.idx == w.idx)
 	assert(wdict.idx == w.idx)
 
 	w.dict = dict
 	w.ext.dict = dict
 
-	// Ident goes first so importer can avoid unnecessary work if
-	// they've already resolved this object.
-	w.qualifiedIdent(obj)
-
-	w.typeParamBounds(objTypeParams(obj))
-
-	w.doObj(obj)
-
+	code := w.doObj(obj)
 	w.flush()
 	w.ext.flush()
 
-	// Done writing out the object description; write out the list of
-	// derived types and instantiated functions found along the way.
-	wdict.len(len(dict.derived))
-	for _, typ := range dict.derived {
-		wdict.reloc(relocType, typ.idx)
-		wdict.bool(typ.needed)
-	}
-	wdict.len(len(dict.funcs))
-	for _, fn := range dict.funcs {
-		wdict.reloc(relocObj, fn.idx)
-		wdict.len(len(fn.explicits))
-		for _, targ := range fn.explicits {
-			wdict.typInfo(targ)
-		}
-	}
+	wname.qualifiedIdent(obj)
+	wname.code(code)
+	wname.flush()
+
+	wdict.objDict(obj, w.dict)
 	wdict.flush()
 
 	return w.idx
 }
 
-func (w *writer) doObj(obj types2.Object) {
+func (w *writer) doObj(obj types2.Object) codeObj {
 	if obj.Pkg() != w.p.curpkg {
-		w.code(objStub)
-		return
+		return objStub
 	}
 
 	switch obj := obj.(type) {
 	default:
 		w.p.unexpected("object", obj)
+		panic("unreachable")
 
 	case *types2.Const:
-		w.code(objConst)
 		w.pos(obj)
 		w.value(obj.Type(), obj.Val())
+		return objConst
 
 	case *types2.Func:
 		decl, ok := w.p.funDecls[obj]
@@ -584,28 +569,26 @@ func (w *writer) doObj(obj types2.Object) {
 			sig = types2.NewSignature(nil, types2.NewTuple(params...), sig.Results(), sig.Variadic())
 		}
 
-		w.code(objFunc)
 		w.pos(obj)
 		w.typeParamNames(sig.TParams())
 		w.signature(sig)
 		w.pos(decl)
 		w.ext.funcExt(obj)
+		return objFunc
 
 	case *types2.TypeName:
 		decl, ok := w.p.typDecls[obj]
 		assert(ok)
 
 		if obj.IsAlias() {
-			w.code(objAlias)
 			w.pos(obj)
 			w.typ(obj.Type())
-			break
+			return objAlias
 		}
 
 		named := obj.Type().(*types2.Named)
 		assert(named.TArgs() == nil)
 
-		w.code(objType)
 		w.pos(obj)
 		w.typeParamNames(named.TParams())
 		w.ext.typeExt(obj)
@@ -616,11 +599,13 @@ func (w *writer) doObj(obj types2.Object) {
 			w.method(named.Method(i))
 		}
 
+		return objType
+
 	case *types2.Var:
-		w.code(objVar)
 		w.pos(obj)
 		w.typ(obj.Type())
 		w.ext.varExt(obj)
+		return objVar
 	}
 }
 
@@ -638,15 +623,41 @@ func (w *writer) value(typ types2.Type, val constant.Value) {
 	w.rawValue(val)
 }
 
-func (w *writer) typeParamBounds(tparams []*types2.TypeName) {
-	w.sync(syncTypeParamBounds)
+// objDict writes the dictionary needed for reading the given object.
+func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+	// TODO(mdempsky): Split objDict into multiple entries? reader.go
+	// doesn't care about the type parameter bounds, and reader2.go
+	// doesn't care about referenced functions.
 
-	w.len(len(w.dict.implicits))
+	w.dict = dict // TODO(mdempsky): This is a bit sketchy.
 
+	w.len(len(dict.implicits))
+
+	tparams := objTypeParams(obj)
 	w.len(len(tparams))
 	for _, tparam := range tparams {
 		w.typ(tparam.Type().(*types2.TypeParam).Bound())
 	}
+
+	nderived := len(dict.derived)
+	w.len(nderived)
+	for _, typ := range dict.derived {
+		w.reloc(relocType, typ.idx)
+		w.bool(typ.needed)
+	}
+
+	nfuncs := len(dict.funcs)
+	w.len(nfuncs)
+	for _, fn := range dict.funcs {
+		w.reloc(relocObj, fn.idx)
+		w.len(len(fn.explicits))
+		for _, targ := range fn.explicits {
+			w.typInfo(targ)
+		}
+	}
+
+	assert(len(dict.derived) == nderived)
+	assert(len(dict.funcs) == nfuncs)
 }
 
 func (w *writer) typeParamNames(tparams []*types2.TypeName) {

@@ -31,6 +31,7 @@ const (
 	relocMeta
 	relocPosBase
 	relocPkg
+	relocName
 	relocType
 	relocObj
 	relocObjExt
