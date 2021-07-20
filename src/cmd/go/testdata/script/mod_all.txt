@@ -315,7 +315,7 @@ go 1.15
 
 require (
 	example.com/a v0.1.0
-	example.com/b v0.1.0
+	example.com/b v0.1.0 // indirect
 	example.com/q v0.1.0
 	example.com/r v0.1.0 // indirect
 	example.com/t v0.1.0

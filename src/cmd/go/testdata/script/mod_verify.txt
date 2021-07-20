@@ -39,11 +39,6 @@ stderr 'go.mod: checksum mismatch'
 
 # go.sum should be created and updated automatically.
 rm go.sum
-go mod graph
-exists go.sum
-grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
-! grep '^rsc.io/quote v1.1.0 ' go.sum
-
 go mod tidy
 grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
 grep '^rsc.io/quote v1.1.0 ' go.sum

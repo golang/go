@@ -24,6 +24,11 @@ stdout '^go.alt.mod$'
 go mod edit -require rsc.io/quote@v1.5.2
 grep rsc.io/quote go.alt.mod
 
+# 'go list -m' should add sums to the alternate go.sum.
+go list -m -mod=mod all
+grep '^rsc.io/quote v1.5.2/go.mod ' go.alt.sum
+! grep '^rsc.io/quote v1.5.2 ' go.alt.sum
+
 # other 'go mod' commands should work. 'go mod vendor' is tested later.
 go mod download rsc.io/quote
 go mod graph
