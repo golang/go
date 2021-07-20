@@ -981,9 +981,7 @@ func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.S
 }
 
 func assert(p bool) {
-	if !p {
-		panic("assertion failed")
-	}
+	base.Assert(p)
 }
 
 // General type substituter, for replacing typeparams with type args.
