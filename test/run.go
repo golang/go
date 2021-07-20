@@ -2151,6 +2151,7 @@ var types2Failures = setOf(
 	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
 	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
+	"fixedbugs/issue47201.go",  // types2 spells the error message differently
 	"fixedbugs/issue5609.go",   // types2 needs a better error message
 	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
