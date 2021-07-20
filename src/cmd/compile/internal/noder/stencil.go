@@ -1836,11 +1836,7 @@ func addType(info *gfInfo, n ir.Node, t *types.Type) {
 	if t.IsTypeParam() && t.Underlying() == t {
 		return
 	}
-	if t.Kind() == types.TFUNC && n != nil &&
-		(n.Op() != ir.ONAME || n.Name().Class == ir.PFUNC) {
-		// For now, only record function types that are associate with a
-		// local/global variable (a name which is not a named global
-		// function).
+	if !parameterizedBy(t, info.tparams) {
 		return
 	}
 	if t.Kind() == types.TSTRUCT && t.IsFuncArgStruct() {
@@ -1854,4 +1850,61 @@ func addType(info *gfInfo, n ir.Node, t *types.Type) {
 		}
 	}
 	info.derivedTypes = append(info.derivedTypes, t)
+}
+
+// parameterizedBy returns true if t is parameterized by (at most) params.
+func parameterizedBy(t *types.Type, params []*types.Type) bool {
+	return parameterizedBy1(t, params, map[*types.Type]bool{})
+}
+func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Type]bool) bool {
+	if visited[t] {
+		return true
+	}
+	visited[t] = true
+	switch t.Kind() {
+	case types.TTYPEPARAM:
+		for _, p := range params {
+			if p == t {
+				return true
+			}
+		}
+		return false
+
+	case types.TARRAY, types.TPTR, types.TSLICE, types.TCHAN:
+		return parameterizedBy1(t.Elem(), params, visited)
+
+	case types.TMAP:
+		return parameterizedBy1(t.Key(), params, visited) && parameterizedBy1(t.Elem(), params, visited)
+
+	case types.TFUNC:
+		if t.NumTParams() > 0 {
+			return false
+		}
+		return parameterizedBy1(t.Recvs(), params, visited) && parameterizedBy1(t.Params(), params, visited) && parameterizedBy1(t.Results(), params, visited)
+
+	case types.TSTRUCT:
+		for _, f := range t.Fields().Slice() {
+			if !parameterizedBy1(f.Type, params, visited) {
+				return false
+			}
+		}
+		return true
+
+	case types.TINTER:
+		for _, f := range t.Methods().Slice() {
+			if !parameterizedBy1(f.Type, params, visited) {
+				return false
+			}
+		}
+		return true
+
+	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
+		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
+		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
+		return true
+
+	default:
+		base.Fatalf("bad type kind %+v", t)
+		return true
+	}
 }
