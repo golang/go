@@ -686,11 +686,24 @@ func setDefaultBuildMod() {
 		return
 	}
 
-	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
-		// 'get' and 'go mod' commands may update go.mod automatically.
-		// TODO(jayconrod): should this narrower? Should 'go mod download' or
-		// 'go mod graph' update go.mod by default?
+	// TODO(#40775): commands should pass in the module mode as an option
+	// to modload functions instead of relying on an implicit setting
+	// based on command name.
+	switch cfg.CmdName {
+	case "get", "mod download", "mod init", "mod tidy":
+		// These commands are intended to update go.mod and go.sum.
 		cfg.BuildMod = "mod"
+		return
+	case "mod graph", "mod verify", "mod why":
+		// These commands should not update go.mod or go.sum, but they should be
+		// able to fetch modules not in go.sum and should not report errors if
+		// go.mod is inconsistent. They're useful for debugging, and they need
+		// to work in buggy situations.
+		cfg.BuildMod = "mod"
+		allowWriteGoMod = false
+		return
+	case "mod vendor":
+		cfg.BuildMod = "readonly"
 		return
 	}
 	if modRoot == "" {

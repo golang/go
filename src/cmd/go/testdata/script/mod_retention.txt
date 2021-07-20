@@ -39,12 +39,14 @@ go list -mod=mod all
 cmp go.mod go.mod.tidy
 
 # "// indirect" comments should be added if appropriate.
+# TODO(#42504): add case for 'go list -mod=mod -tags=any all' when -tags=any
+# is supported. Only a command that loads "all" without build constraints
+# (except "ignore") has enough information to add "// indirect" comments.
+# 'go mod tidy' and 'go mod vendor' are the only commands that do that,
+# but 'go mod vendor' cannot write go.mod.
 cp go.mod.toodirect go.mod
 go list all
 cmp go.mod go.mod.toodirect
-go mod vendor # loads everything, so adds "// indirect" comments.
-cmp go.mod go.mod.tidy
-rm -r vendor
 
 
 # Redundant requirements should be preserved...

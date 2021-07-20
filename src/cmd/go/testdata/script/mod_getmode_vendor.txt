@@ -25,6 +25,7 @@ stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\
 -- go.mod --
 module x
 
+go 1.16
 -- x.go --
 package x
 import _ "rsc.io/quote"
