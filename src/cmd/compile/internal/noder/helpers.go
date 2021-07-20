@@ -126,22 +126,17 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	}
 
 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
-		// For Builtin ops, we currently stay with using the old
-		// typechecker to transform the call to a more specific expression
-		// and possibly use more specific ops. However, for a bunch of the
-		// ops, we delay doing the old typechecker if any of the args have
-		// type params, for a variety of reasons:
+		// For most Builtin ops, we delay doing transformBuiltin if any of the
+		// args have type params, for a variety of reasons:
 		//
-		// OMAKE: hard to choose specific ops OMAKESLICE, etc. until arg type is known
-		// OREAL/OIMAG: can't determine type float32/float64 until arg type know
-		// OLEN/OCAP: old typechecker will complain if arg is not obviously a slice/array.
-		// OAPPEND: old typechecker will complain if arg is not obviously slice, etc.
-		//
-		// We will eventually break out the transforming functionality
-		// needed for builtin's, and call it here or during stenciling, as
-		// appropriate.
+		// OMAKE: transformMake can't choose specific ops OMAKESLICE, etc.
+		//    until arg type is known
+		// OREAL/OIMAG: transformRealImag can't determine type float32/float64
+		//    until arg type known
+		// OAPPEND: transformAppend requires that the arg is a slice
+		// ODELETE: transformDelete requires that the arg is a map
 		switch fun.BuiltinOp {
-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
 			hasTParam := false
 			for _, arg := range args {
 				if arg.Type().HasTParam() {
