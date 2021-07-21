@@ -213,7 +213,7 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 // file. This also includes test packages for these packages (<pkg>_test) and
 // the directory name itself.
 func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) (packages []candidate, err error) {
-	workspacePackages, err := snapshot.WorkspacePackages(ctx)
+	workspacePackages, err := snapshot.ActivePackages(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -311,7 +311,9 @@ func (sc *symbolCollector) collectPackages(ctx context.Context, views []View) ([
 		if err != nil {
 			return nil, err
 		}
-		workspacePackages, err := snapshot.WorkspacePackages(ctx)
+		// TODO(rfindley): this can result in incomplete information in degraded
+		// memory mode.
+		workspacePackages, err := snapshot.ActivePackages(ctx)
 		if err != nil {
 			return nil, err
 		}

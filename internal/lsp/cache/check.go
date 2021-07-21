@@ -207,16 +207,8 @@ func (s *snapshot) workspaceParseMode(id packageID) source.ParseMode {
 	if s.view.Options().MemoryMode == source.ModeNormal {
 		return source.ParseFull
 	}
-
-	// Degraded mode. Check for open files.
-	m, ok := s.metadata[id]
-	if !ok {
-		return source.ParseExported
-	}
-	for _, cgf := range m.compiledGoFiles {
-		if s.isOpenLocked(cgf) {
-			return source.ParseFull
-		}
+	if s.isActiveLocked(id, nil) {
+		return source.ParseFull
 	}
 	return source.ParseExported
 }

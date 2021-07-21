@@ -140,13 +140,15 @@ func (s *Session) SetProgressTracker(tracker *progress.Tracker) {
 }
 
 func (s *Session) Shutdown(ctx context.Context) {
+	var views []*View
 	s.viewMu.Lock()
-	defer s.viewMu.Unlock()
-	for _, view := range s.views {
-		view.shutdown(ctx)
-	}
+	views = append(views, s.views...)
 	s.views = nil
 	s.viewMap = nil
+	s.viewMu.Unlock()
+	for _, view := range views {
+		view.shutdown(ctx)
+	}
 	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
 

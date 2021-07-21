@@ -211,7 +211,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 
 	// Diagnose all of the packages in the workspace.
-	wsPkgs, err := snapshot.WorkspacePackages(ctx)
+	wsPkgs, err := snapshot.ActivePackages(ctx)
 	if s.shouldIgnoreError(ctx, snapshot, err) {
 		return
 	}

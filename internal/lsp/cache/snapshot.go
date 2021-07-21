@@ -725,6 +725,50 @@ func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 	return ids
 }
 
+func (s *snapshot) activePackageIDs() (ids []packageID) {
+	if s.view.Options().MemoryMode == source.ModeNormal {
+		return s.workspacePackageIDs()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	seen := make(map[packageID]bool)
+	for id := range s.workspacePackages {
+		if s.isActiveLocked(id, seen) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func (s *snapshot) isActiveLocked(id packageID, seen map[packageID]bool) (active bool) {
+	if seen == nil {
+		seen = make(map[packageID]bool)
+	}
+	if seen, ok := seen[id]; ok {
+		return seen
+	}
+	defer func() {
+		seen[id] = active
+	}()
+	m, ok := s.metadata[id]
+	if !ok {
+		return false
+	}
+	for _, cgf := range m.compiledGoFiles {
+		if s.isOpenLocked(cgf) {
+			return true
+		}
+	}
+	for _, dep := range m.deps {
+		if s.isActiveLocked(dep, seen) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *snapshot) getWorkspacePkgPath(id packageID) packagePath {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -870,8 +914,23 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	return files
 }
 
-func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, error) {
-	phs, err := s.workspacePackageHandles(ctx)
+func (s *snapshot) workspacePackageHandles(ctx context.Context) ([]*packageHandle, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
+	var phs []*packageHandle
+	for _, pkgID := range s.workspacePackageIDs() {
+		ph, err := s.buildPackageHandle(ctx, pkgID, s.workspaceParseMode(pkgID))
+		if err != nil {
+			return nil, err
+		}
+		phs = append(phs, ph)
+	}
+	return phs, nil
+}
+
+func (s *snapshot) ActivePackages(ctx context.Context) ([]source.Package, error) {
+	phs, err := s.activePackageHandles(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -886,12 +945,12 @@ func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.Package, err
 	return pkgs, nil
 }
 
-func (s *snapshot) workspacePackageHandles(ctx context.Context) ([]*packageHandle, error) {
+func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 	var phs []*packageHandle
-	for _, pkgID := range s.workspacePackageIDs() {
+	for _, pkgID := range s.activePackageIDs() {
 		ph, err := s.buildPackageHandle(ctx, pkgID, s.workspaceParseMode(pkgID))
 		if err != nil {
 			return nil, err
@@ -1263,7 +1322,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	// Even if packages didn't fail to load, we still may want to show
 	// additional warnings.
 	if loadErr == nil {
-		wsPkgs, _ := s.WorkspacePackages(ctx)
+		wsPkgs, _ := s.ActivePackages(ctx)
 		if msg := shouldShowAdHocPackagesWarning(s, wsPkgs); msg != "" {
 			return &source.CriticalError{
 				MainError: errors.New(msg),
