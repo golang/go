@@ -625,13 +625,13 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	named.underlying = under(named)
 
 	// If the RHS is a type parameter, it must be from this type declaration.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams, tpar) < 0 {
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams.list(), tpar) < 0 {
 		check.errorf(tdecl.Type, _Todo, "cannot use function type parameter %s as RHS in type declaration", tpar)
 		named.underlying = Typ[Invalid]
 	}
 }
 
-func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
+func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParams {
 	var tparams []*TypeName
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
@@ -655,13 +655,13 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
 		index += len(f.Names)
 	}
 
-	return tparams
+	return bindTParams(tparams)
 }
 
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
 	for _, name := range names {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+		check.NewTypeParam(tpar, &emptyInterface)               // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}

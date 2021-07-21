@@ -16,7 +16,7 @@ type Named struct {
 	orig       *Named      // original, uninstantiated type
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
-	tparams    []*TypeName // type parameters, or nil
+	tparams    *TypeParams // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
@@ -56,7 +56,7 @@ func (t *Named) expand() *Named {
 			panic("invalid underlying type")
 		}
 
-		t.tparams = tparams
+		t.tparams = bindTParams(tparams)
 		t.underlying = underlying
 		t.methods = methods
 	})
@@ -64,7 +64,7 @@ func (t *Named) expand() *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams []*TypeName, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParams, methods []*Func) *Named {
 	var inst *instance
 	if check != nil {
 		inst = &instance{
@@ -108,14 +108,14 @@ func (t *Named) _Orig() *Named { return t.orig }
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
 
-// _TParams returns the type parameters of the named type t, or nil.
+// TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() []*TypeName { return t.expand().tparams }
+func (t *Named) TParams() *TypeParams { return t.expand().tparams }
 
-// _SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
+// SetTParams sets the type parameters of the named type t.
+func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = bindTParams(tparams) }
 
-// _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) TArgs() []Type { return t.targs }
 
 // SetTArgs sets the type arguments of the named type t.

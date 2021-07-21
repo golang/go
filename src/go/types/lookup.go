@@ -317,10 +317,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
-			if len(ftyp.tparams) != len(mtyp.tparams) {
+			if ftyp.TParams().Len() != mtyp.TParams().Len() {
 				return m, f
 			}
-			if len(ftyp.tparams) > 0 {
+			if ftyp.TParams().Len() > 0 {
 				panic("internal error: method with type parameters")
 			}
 
@@ -330,7 +330,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := newUnifier(true)
-			u.x.init(ftyp.tparams)
+			u.x.init(ftyp.TParams().list())
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -373,10 +373,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
 		mtyp := m.typ.(*Signature)
-		if len(ftyp.tparams) != len(mtyp.tparams) {
+		if ftyp.TParams().Len() != mtyp.TParams().Len() {
 			return m, f
 		}
-		if len(ftyp.tparams) > 0 {
+		if ftyp.TParams().Len() > 0 {
 			panic("internal error: method with type parameters")
 		}
 
@@ -387,17 +387,17 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
-		if Vn != nil && len(Vn.TParams()) > 0 {
+		if Vn != nil && Vn.TParams().Len() > 0 {
 			// Be careful: The number of type arguments may not match
 			// the number of receiver parameters. If so, an error was
 			// reported earlier but the length discrepancy is still
 			// here. Exit early in this case to prevent an assertion
 			// failure in makeSubstMap.
 			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.rparams) != len(Vn.targs) {
+			if len(ftyp.RParams().list()) != len(Vn.targs) {
 				return
 			}
-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
+			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs)).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
@@ -406,7 +406,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(true)
-		u.x.init(ftyp.rparams)
+		u.x.init(ftyp.RParams().list())
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}

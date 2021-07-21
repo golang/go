@@ -1828,7 +1828,7 @@ func TestInstantiate(t *testing.T) {
 
 	// type T should have one type parameter
 	T := pkg.Scope().Lookup("T").Type().(*Named)
-	if n := len(T.TParams()); n != 1 {
+	if n := T.TParams().Len(); n != 1 {
 		t.Fatalf("expected 1 type parameter; found %d", n)
 	}
 

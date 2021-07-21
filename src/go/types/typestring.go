@@ -278,7 +278,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			buf.WriteByte(']')
 		} else if t.TParams() != nil {
 			// parameterized type
-			writeTParamList(buf, t.TParams(), qf, visited)
+			writeTParamList(buf, t.TParams().list(), qf, visited)
 		}
 
 	case *TypeParam:
@@ -425,7 +425,7 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 
 func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
 	if sig.tparams != nil {
-		writeTParamList(buf, sig.tparams, qf, visited)
+		writeTParamList(buf, sig.TParams().list(), qf, visited)
 	}
 
 	writeTuple(buf, sig.params, sig.variadic, qf, visited)
