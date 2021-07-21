@@ -1135,13 +1135,21 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		msanmalloc(x, size)
 	}
 
+	if rate := MemProfileRate; rate > 0 {
+		// Note cache c only valid while m acquired; see #47302
+		if rate != 1 && size < c.nextSample {
+			c.nextSample -= size
+		} else {
+			profilealloc(mp, x, size)
+		}
+	}
 	mp.mallocing = 0
 	releasem(mp)
 
 	// Pointerfree data can be zeroed late in a context where preemption can occur.
 	// x will keep the memory alive.
 	if !isZeroed && needzero {
-		memclrNoHeapPointersChunked(size, x)
+		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
 	}
 
 	if debug.malloc {
@@ -1152,16 +1160,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		if inittrace.active && inittrace.id == getg().goid {
 			// Init functions are executed sequentially in a single goroutine.
 			inittrace.bytes += uint64(size)
-		}
-	}
-
-	if rate := MemProfileRate; rate > 0 {
-		if rate != 1 && size < c.nextSample {
-			c.nextSample -= size
-		} else {
-			mp := acquirem()
-			profilealloc(mp, x, size)
-			releasem(mp)
 		}
 	}
 
