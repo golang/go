@@ -798,7 +798,7 @@ func hasVarSize(t Type) bool {
 		}
 	case *TypeParam:
 		return true
-	case *Named, *Union, *instance, *top:
+	case *Named, *Union, *top:
 		unreachable()
 	}
 	return false

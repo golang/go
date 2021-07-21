@@ -446,7 +446,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid
 	check.later(func() {
-		t := typ.(*instance).expand()
+		t := expand(typ)
 		check.validType(t, nil)
 	})
 

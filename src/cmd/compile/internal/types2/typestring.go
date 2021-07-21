@@ -269,6 +269,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *Named:
+		if t.instance != nil {
+			buf.WriteByte(instanceMarker)
+		}
 		writeTypeName(buf, t.obj, qf)
 		if t.targs != nil {
 			// instantiated type
@@ -293,13 +296,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			s = t.obj.name
 		}
 		buf.WriteString(s + subscript(t.id))
-
-	case *instance:
-		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
-		writeTypeName(buf, t.base.obj, qf)
-		buf.WriteByte('[')
-		writeTypeList(buf, t.targs, qf, visited)
-		buf.WriteByte(']')
 
 	case *top:
 		buf.WriteString("⊤")
