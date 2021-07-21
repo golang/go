@@ -193,7 +193,7 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if t.TParams() == nil {
+		if t.TParams().Len() == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}

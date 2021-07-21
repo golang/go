@@ -276,7 +276,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			buf.WriteByte('[')
 			writeTypeList(buf, t.targs, qf, visited)
 			buf.WriteByte(']')
-		} else if t.TParams() != nil {
+		} else if t.TParams().Len() != 0 {
 			// parameterized type
 			writeTParamList(buf, t.TParams().list(), qf, visited)
 		}
@@ -424,7 +424,7 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
-	if sig.tparams != nil {
+	if sig.TParams().Len() != 0 {
 		writeTParamList(buf, sig.TParams().list(), qf, visited)
 	}
 
