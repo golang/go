@@ -317,6 +317,8 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
+		t.expand()
+
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
 		if t.obj.pkg != check.pkg {
@@ -349,9 +351,6 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 			panic("internal error: cycle start not found")
 		}
 		return t.info
-
-	case *instance:
-		return check.validType(t.expand(), path)
 	}
 
 	return valid
@@ -557,7 +556,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 	// determine underlying type of named
 	named.fromRHS = check.definedType(tdecl.Type, named)
-
+	assert(named.fromRHS != nil)
 	// The underlying type of named may be itself a named type that is
 	// incomplete:
 	//
@@ -624,7 +623,8 @@ func (check *Checker) boundType(e syntax.Expr) Type {
 
 	bound := check.typ(e)
 	check.later(func() {
-		if _, ok := under(bound).(*Interface); !ok && bound != Typ[Invalid] {
+		u := under(bound)
+		if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
 			check.errorf(e, "%s is not an interface", bound)
 		}
 	})
@@ -692,7 +692,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		}
 
 		if base != nil {
-			base.expand() // TODO(mdempsky): Probably unnecessary.
+			base.load() // TODO(mdempsky): Probably unnecessary.
 			base.methods = append(base.methods, m)
 		}
 	}

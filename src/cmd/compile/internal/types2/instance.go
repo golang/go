@@ -4,56 +4,40 @@
 
 package types2
 
+// TODO(rfindley): move this code to named.go.
+
 import "cmd/compile/internal/syntax"
 
-// An instance represents an instantiated generic type syntactically
-// (without expanding the instantiation). Type instances appear only
-// during type-checking and are replaced by their fully instantiated
-// (expanded) types before the end of type-checking.
+// instance holds position information for use in lazy instantiation.
+//
+// TODO(rfindley): come up with a better name for this type, now that its usage
+// has changed.
 type instance struct {
-	check   *Checker     // for lazy instantiation
 	pos     syntax.Pos   // position of type instantiation; for error reporting only
-	base    *Named       // parameterized type to be instantiated
-	targs   []Type       // type arguments
 	posList []syntax.Pos // position of each targ; for error reporting only
-	verify  bool         // if set, constraint satisfaction is verified
-	value   Type         // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
+	verify  bool         // if set, check constraint satisfaction upon instantiation
 }
 
-// expand returns the instantiated (= expanded) type of t.
-// The result is either an instantiated *Named type, or
-// Typ[Invalid] if there was an error.
-func (t *instance) expand() Type {
-	v := t.value
-	if v == nil {
-		v = t.check.Instantiate(t.pos, t.base, t.targs, t.posList, t.verify)
-		if v == nil {
-			v = Typ[Invalid]
-		}
-		t.value = v
+// expand ensures that the underlying type of n is instantiated.
+// The underlying type will be Typ[Invalid] if there was an error.
+func (n *Named) expand() {
+	if n.instance != nil {
+		// n must be loaded before instantiation, in order to have accurate
+		// tparams. This is done implicitly by the call to n.TParams, but making it
+		// explicit is harmless: load is idempotent.
+		n.load()
+		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams(), n.targs, n.instance.posList, n.instance.verify)
+		n.underlying = inst
+		n.fromRHS = inst
+		n.instance = nil
 	}
-	// After instantiation we must have an invalid or a *Named type.
-	if debug && v != Typ[Invalid] {
-		_ = v.(*Named)
-	}
-	return v
 }
 
-// expand expands a type instance into its instantiated
-// type and leaves all other types alone. expand does
-// not recurse.
+// expand expands uninstantiated named types and leaves all other types alone.
+// expand does not recurse.
 func expand(typ Type) Type {
-	if t, _ := typ.(*instance); t != nil {
-		return t.expand()
+	if t, _ := typ.(*Named); t != nil {
+		t.expand()
 	}
 	return typ
 }
-
-// expandf is set to expand.
-// Call expandf when calling expand causes compile-time cycle error.
-var expandf func(Type) Type
-
-func init() { expandf = expand }
-
-func (t *instance) Underlying() Type { return t }
-func (t *instance) String() string   { return TypeString(t, nil) }

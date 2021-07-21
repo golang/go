@@ -21,7 +21,8 @@ type TypeParam struct {
 	id    uint64    // unique id, for debugging only
 	obj   *TypeName // corresponding type name
 	index int       // type parameter index in source order, starting at 0
-	bound Type      // *Named or *Interface; underlying type is always *Interface
+	// TODO(rfindley): this could also be Typ[Invalid]. Verify that this is handled correctly.
+	bound Type // *Named or *Interface; underlying type is always *Interface
 }
 
 // Obj returns the type name for the type parameter t.

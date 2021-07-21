@@ -10,12 +10,13 @@ import "sync"
 
 // A Named represents a named (defined) type.
 type Named struct {
-	check      *Checker    // for Named.under implementation; nilled once under has been called
+	check      *Checker
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       *Named      // original, uninstantiated type
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
+	instance   *instance   // position information for lazy instantiation, or nil
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
@@ -34,7 +35,19 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
 }
 
-func (t *Named) expand() *Named {
+func (t *Named) load() *Named {
+	// If t is an instantiated type, it derives its methods and tparams from its
+	// base type. Since we expect type parameters and methods to be set after a
+	// call to load, we must load the base and copy here.
+	//
+	// underlying is set when t is expanded.
+	//
+	// By convention, a type instance is loaded iff its tparams are set.
+	if len(t.targs) > 0 && t.tparams == nil {
+		t.orig.load()
+		t.tparams = t.orig.tparams
+		t.methods = t.orig.methods
+	}
 	if t.resolve == nil {
 		return t
 	}
@@ -83,7 +96,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	if check != nil {
 		check.later(func() {
 			switch typ.under().(type) {
-			case *Named, *instance:
+			case *Named:
 				panic("internal error: unexpanded underlying type")
 			}
 			typ.check = nil
@@ -104,10 +117,12 @@ func (t *Named) Orig() *Named { return t.orig }
 
 // TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() []*TypeName { return t.expand().tparams }
+func (t *Named) TParams() []*TypeName {
+	return t.load().tparams
+}
 
 // SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
+func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = tparams }
 
 // TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) TArgs() []Type { return t.targs }
@@ -116,10 +131,10 @@ func (t *Named) TArgs() []Type { return t.targs }
 func (t *Named) SetTArgs(args []Type) { t.targs = args }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
-func (t *Named) NumMethods() int { return len(t.expand().methods) }
+func (t *Named) NumMethods() int { return len(t.load().methods) }
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
-func (t *Named) Method(i int) *Func { return t.expand().methods[i] }
+func (t *Named) Method(i int) *Func { return t.load().methods[i] }
 
 // SetUnderlying sets the underlying type and marks t as complete.
 func (t *Named) SetUnderlying(underlying Type) {
@@ -129,18 +144,18 @@ func (t *Named) SetUnderlying(underlying Type) {
 	if _, ok := underlying.(*Named); ok {
 		panic("types2.Named.SetUnderlying: underlying type must not be *Named")
 	}
-	t.expand().underlying = underlying
+	t.load().underlying = underlying
 }
 
 // AddMethod adds method m unless it is already in the method list.
 func (t *Named) AddMethod(m *Func) {
-	t.expand()
+	t.load()
 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
 		t.methods = append(t.methods, m)
 	}
 }
 
-func (t *Named) Underlying() Type { return t.expand().underlying }
+func (t *Named) Underlying() Type { return t.load().underlying }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
@@ -153,6 +168,8 @@ func (t *Named) String() string   { return TypeString(t, nil) }
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
+	n0.expand()
+
 	u := n0.Underlying()
 
 	if u == Typ[Invalid] {
@@ -168,7 +185,7 @@ func (n0 *Named) under() Type {
 	default:
 		// common case
 		return u
-	case *Named, *instance:
+	case *Named:
 		// handled below
 	}
 
@@ -199,12 +216,8 @@ func (n0 *Named) under() Type {
 		var n1 *Named
 		switch u1 := u.(type) {
 		case *Named:
+			u1.expand()
 			n1 = u1
-		case *instance:
-			n1, _ = u1.expand().(*Named)
-			if n1 == nil {
-				u = Typ[Invalid]
-			}
 		}
 		if n1 == nil {
 			break // end of chain

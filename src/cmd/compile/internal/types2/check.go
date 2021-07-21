@@ -282,11 +282,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	print("== recordUntyped ==")
 	check.recordUntyped()
 
-	if check.Info != nil {
-		print("== sanitizeInfo ==")
-		sanitizeInfo(check.Info)
-	}
-
 	check.pkg.complete = true
 
 	// no longer needed - release memory

@@ -10,7 +10,7 @@ package types2
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *TypeParam, *instance:
+	case *Basic, *Named, *TypeParam:
 		return true
 	}
 	return false
@@ -21,7 +21,7 @@ func isNamed(typ Type) bool {
 func isGeneric(typ Type) bool {
 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
-	return named != nil && named.obj != nil && named.TParams() != nil && named.targs == nil
+	return named != nil && named.obj != nil && named.targs == nil && named.TParams() != nil
 }
 
 func is(typ Type, what BasicInfo) bool {
@@ -144,8 +144,8 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	// types must be expanded for comparison
-	x = expandf(x)
-	y = expandf(y)
+	x = expand(x)
+	y = expand(y)
 
 	if x == y {
 		return true
