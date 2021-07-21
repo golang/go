@@ -2140,7 +2140,6 @@ var types2Failures = setOf(
 	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
 	"fixedbugs/issue11614.go",  // types2 reports an extra error
 	"fixedbugs/issue14520.go",  // missing import path error by types2
-	"fixedbugs/issue16133.go",  // types2 doesn't use package path for qualified identifiers when package name is ambiguous
 	"fixedbugs/issue16428.go",  // types2 reports two instead of one error
 	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
 	"fixedbugs/issue17645.go",  // multiple errors on same line
