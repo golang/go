@@ -80,7 +80,7 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
 	if n.Typecheck() != 1 && n.Typecheck() != 3 {
 		base.FatalfAt(g.pos(expr), "missed typecheck: %+v", n)
 	}
-	if !g.match(n.Type(), typ, tv.HasOk()) {
+	if n.Op() != ir.OFUNCINST && !g.match(n.Type(), typ, tv.HasOk()) {
 		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, typ)
 	}
 	return n
@@ -128,11 +128,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 				// includes the additional inferred type args
 				fun.(*ir.InstExpr).Targs = targs
 			} else {
-				// Create a function instantiation here, given
-				// there are only inferred type args (e.g.
-				// min(5,6), where min is a generic function)
+				// Create a function instantiation here, given there
+				// are only inferred type args (e.g. min(5,6), where
+				// min is a generic function). Substitute the type
+				// args for the type params in the uninstantiated function's
+				// type.
 				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
-				typed(fun.Type(), inst)
+				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
+				typed(newt, inst)
 				fun = inst
 			}
 
@@ -169,7 +172,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			panic("Incorrect argument for generic func instantiation")
 		}
 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
-		typed(g.typ(typ), n)
+		newt := g.typ(typ)
+		// Substitute the type args for the type params in the uninstantiated
+		// function's type. If there aren't enough type args, then the rest
+		// will be inferred at the call node, so don't try the substitution yet.
+		if x.Type().TParams().NumFields() == len(targs) {
+			newt = g.substType(g.typ(typ), x.Type().TParams(), targs)
+		}
+		typed(newt, n)
 		return n
 
 	case *syntax.SelectorExpr:
@@ -199,6 +209,28 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		g.unhandled("expression", expr)
 		panic("unreachable")
 	}
+}
+
+// substType does a normal type substition, but tparams is in the form of a field
+// list, and targs is in terms of a slice of type nodes. substType records any newly
+// instantiated types into g.instTypeList.
+func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node) *types.Type {
+	fields := tparams.FieldSlice()
+	tparams1 := make([]*types.Type, len(fields))
+	for i, f := range fields {
+		tparams1[i] = f.Type
+	}
+	targs1 := make([]*types.Type, len(targs))
+	for i, n := range targs {
+		targs1[i] = n.Type()
+	}
+	ts := typecheck.Tsubster{
+		Tparams: tparams1,
+		Targs:   targs1,
+	}
+	newt := ts.Typ(typ)
+	g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
+	return newt
 }
 
 // selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually

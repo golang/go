@@ -1130,7 +1130,10 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		newrecvs := ts.tstruct(t.Recvs(), false)
 		newparams := ts.tstruct(t.Params(), false)
 		newresults := ts.tstruct(t.Results(), false)
-		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() || targsChanged {
+		// Translate the tparams of a signature.
+		newtparams := ts.tstruct(t.TParams(), false)
+		if newrecvs != t.Recvs() || newparams != t.Params() ||
+			newresults != t.Results() || newtparams != t.TParams() || targsChanged {
 			// If any types have changed, then the all the fields of
 			// of recv, params, and results must be copied, because they have
 			// offset fields that are dependent, and so must have an
@@ -1148,7 +1151,16 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 			if newresults == t.Results() {
 				newresults = ts.tstruct(t.Results(), true)
 			}
-			newt = types.NewSignature(t.Pkg(), newrecv, t.TParams().FieldSlice(), newparams.FieldSlice(), newresults.FieldSlice())
+			var tparamfields []*types.Field
+			if newtparams.HasTParam() {
+				tparamfields = newtparams.FieldSlice()
+			} else {
+				// Completely remove the tparams from the resulting
+				// signature, if the tparams are now concrete types.
+				tparamfields = nil
+			}
+			newt = types.NewSignature(t.Pkg(), newrecv, tparamfields,
+				newparams.FieldSlice(), newresults.FieldSlice())
 		}
 
 	case types.TINTER:
