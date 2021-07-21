@@ -1251,21 +1251,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 		case ir.OCALL:
 			call := m.(*ir.CallExpr)
-			convcheck := false
 			switch call.X.Op() {
 			case ir.OTYPE:
 				// Transform the conversion, now that we know the
 				// type argument.
 				m = transformConvCall(call)
-				if m.Op() == ir.OCONVIFACE {
-					// Note: srcType uses x.Args[0], not m.X or call.Args[0], because
-					// we need the type before the type parameter -> type argument substitution.
-					srcType := x.(*ir.CallExpr).Args[0].Type()
-					if ix := subst.findDictType(srcType); ix >= 0 {
-						c := m.(*ir.ConvExpr)
-						m = subst.convertUsingDictionary(c.Pos(), c.X, c.Type(), srcType, ix)
-					}
-				}
+				// CONVIFACE transformation was already done in node2
+				assert(m.Op() != ir.OCONVIFACE)
 
 			case ir.OMETHVALUE, ir.OMETHEXPR:
 				// Redo the transformation of OXDOT, now that we
@@ -1275,7 +1267,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				transformDot(call.X.(*ir.SelectorExpr), true)
 				call.X.SetType(subst.unshapifyTyp(call.X.Type()))
 				transformCall(call)
-				convcheck = true
 
 			case ir.ODOT, ir.ODOTPTR:
 				// An OXDOT for a generic receiver was resolved to
@@ -1283,7 +1274,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
 				transformCall(call)
-				convcheck = true
 
 			case ir.ONAME:
 				name := call.X.Name()
@@ -1308,12 +1298,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					// type parameter (implied to be a function via a
 					// structural constraint) which is now resolved.
 					transformCall(call)
-					convcheck = true
 				}
 
 			case ir.OCLOSURE:
 				transformCall(call)
-				convcheck = true
 
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
@@ -1322,16 +1310,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 			default:
 				base.FatalfAt(call.Pos(), fmt.Sprintf("Unexpected op with CALL during stenciling: %v", call.X.Op()))
-			}
-			if convcheck {
-				for i, arg := range x.(*ir.CallExpr).Args {
-					if arg.Type().HasTParam() && arg.Op() != ir.OCONVIFACE &&
-						call.Args[i].Op() == ir.OCONVIFACE {
-						ix := subst.findDictType(arg.Type())
-						assert(ix >= 0)
-						call.Args[i] = subst.convertUsingDictionary(arg.Pos(), call.Args[i].(*ir.ConvExpr).X, call.Args[i].Type(), arg.Type(), ix)
-					}
-				}
 			}
 
 		case ir.OCLOSURE:
@@ -1390,21 +1368,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			t := x.X.Type()
 			if ix := subst.findDictType(t); ix >= 0 {
 				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t, ix)
-			}
-		case ir.OEQ, ir.ONE:
-			// Equality between a non-interface and an interface requires the non-interface
-			// to be promoted to an interface.
-			x := x.(*ir.BinaryExpr)
-			m := m.(*ir.BinaryExpr)
-			if i := x.Y.Type(); i.IsInterface() {
-				if ix := subst.findDictType(x.X.Type()); ix >= 0 {
-					m.X = subst.convertUsingDictionary(m.X.Pos(), m.X, i, x.X.Type(), ix)
-				}
-			}
-			if i := x.X.Type(); i.IsInterface() {
-				if ix := subst.findDictType(x.Y.Type()); ix >= 0 {
-					m.Y = subst.convertUsingDictionary(m.Y.Pos(), m.Y, i, x.X.Type(), ix)
-				}
 			}
 
 		case ir.ONEW:

@@ -116,9 +116,12 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 
 	if fun.Op() == ir.OTYPE {
 		// Actually a type conversion, not a function call.
-		if fun.Type().HasTParam() || args[0].Type().HasTParam() {
-			// For type params, don't typecheck until we actually know
-			// the type.
+		if !fun.Type().IsInterface() &&
+			(fun.Type().HasTParam() || args[0].Type().HasTParam()) {
+			// For type params, we can transform if fun.Type() is known
+			// to be an interface (in which case a CONVIFACE node will be
+			// inserted). Otherwise, don't typecheck until we actually
+			// know the type.
 			return typed(typ, n)
 		}
 		typed(typ, n)
@@ -169,11 +172,15 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	}
 
 	if fun.Type().HasTParam() {
-		// If the fun arg is or has a type param, don't do any extra
-		// transformations, since we may not have needed properties yet
-		// (e.g. number of return values, etc). The type param is probably
-		// described by a structural constraint that requires it to be a
-		// certain function type, etc., but we don't want to analyze that.
+		// If the fun arg is or has a type param, we can't do all the
+		// transformations, since we may not have needed properties yet.
+		// (e.g. number of return values, etc). However, if we do have the
+		// function type (even though it is parameterized), then can add in
+		// any needed CONVIFACE nodes. We can't do anything if fun is a type
+		// param (which is probably described by a structural constraint)
+		if fun.Type().Kind() == types.TFUNC {
+			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
+		}
 		return typed(typ, n)
 	}
 
@@ -203,11 +210,18 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
 	n := ir.NewBinaryExpr(pos, op, x, y)
 	if x.Type().HasTParam() || y.Type().HasTParam() {
-		// Delay transformCompare() if either arg has a type param, since
-		// it needs to know the exact types to decide on any needed conversions.
-		n.SetType(typ)
-		n.SetTypecheck(3)
-		return n
+		xIsInt := x.Type().IsInterface()
+		yIsInt := y.Type().IsInterface()
+		if !(xIsInt && !yIsInt || !xIsInt && yIsInt) {
+			// If either arg is a type param, then we can still do the
+			// transformCompare() if we know that one arg is an interface
+			// and the other is not. Otherwise, we delay
+			// transformCompare(), since it needs to know the exact types
+			// to decide on any needed conversions.
+			n.SetType(typ)
+			n.SetTypecheck(3)
+			return n
+		}
 	}
 	typed(typ, n)
 	transformCompare(n)
