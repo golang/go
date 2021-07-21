@@ -27,7 +27,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 
 	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
-	got, want := len(targs), len(sig.tparams)
+	got, want := len(targs), sig.TParams().Len()
 	if got > want {
 		check.errorf(ix.Indices[got-1], _Todo, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
@@ -39,7 +39,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
 	inferred := false
 
 	if got < want {
-		targs = check.infer(ix.Orig, sig.tparams, targs, nil, nil, true)
+		targs = check.infer(ix.Orig, sig.TParams().list(), targs, nil, nil, true)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -160,7 +160,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		assert(len(targs) == len(ix.Indices))
 
 		// check number of type arguments (got) vs number of type parameters (want)
-		got, want := len(targs), len(sig.tparams)
+		got, want := len(targs), sig.TParams().Len()
 		if got > want {
 			check.errorf(ix.Indices[want], _Todo, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
@@ -194,7 +194,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// if type inference failed, a parametrized result must be invalidated
 	// (operands cannot have a parametrized type)
-	if x.mode == value && len(sig.tparams) > 0 && isParameterized(sig.tparams, x.typ) {
+	if x.mode == value && sig.TParams().Len() > 0 && isParameterized(sig.TParams().list(), x.typ) {
 		x.mode = invalid
 	}
 
@@ -324,10 +324,10 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	}
 
 	// infer type arguments and instantiate signature if necessary
-	if len(sig.tparams) > 0 {
+	if sig.TParams().Len() > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call, sig.tparams, targs, sigParams, args, true)
+		targs := check.infer(call, sig.TParams().list(), targs, sigParams, args, true)
 		if targs == nil {
 			return // error already reported
 		}
@@ -341,7 +341,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.tparams, targs)).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.TParams().list(), targs)).(*Tuple)
 		} else {
 			sigParams = rsig.params
 		}
@@ -517,7 +517,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
-		if len(sig.rparams) > 0 {
+		if sig.RParams().Len() > 0 {
 			// For inference to work, we must use the receiver type
 			// matching the receiver in the actual method declaration.
 			// If the method is embedded, the matching receiver is the
@@ -545,7 +545,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// the receiver type arguments here, the receiver must be be otherwise invalid
 			// and an error has been reported elsewhere.
 			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs := check.infer(m, sig.rparams, nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+			targs := check.infer(m, sig.RParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
 			if targs == nil {
 				// We may reach here if there were other errors (see issue #40056).
 				goto Error
@@ -554,7 +554,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
 			// TODO(gri) investigate and provide a correct explanation here
 			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.rparams, targs))
+			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RParams().list(), targs))
 			obj = &copy
 		}
 		// TODO(gri) we also need to do substitution for parameterized interface methods

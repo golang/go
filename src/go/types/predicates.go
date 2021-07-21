@@ -242,7 +242,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// parameter names.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
+				identicalTParams(x.TParams().list(), y.TParams().list(), cmpTags, p) &&
 				identical(x.params, y.params, cmpTags, p) &&
 				identical(x.results, y.results, cmpTags, p)
 		}

@@ -33,7 +33,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		return false
 
 	case value:
-		if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
+		if sig := asSignature(x.typ); sig != nil && sig.TParams().Len() > 0 {
 			// function instantiation
 			return true
 		}

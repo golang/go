@@ -28,15 +28,19 @@ type TypeParam struct {
 	bound Type // *Named or *Interface; underlying type is always *Interface
 }
 
-// NewTypeParam returns a new TypeParam.  bound can be nil (and set later).
-func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+// NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
+// or Signature type by calling SetTParams. Setting a type parameter on more
+// than one type will result in a panic.
+//
+// The bound argument can be nil, and set later via SetBound.
+func (check *Checker) NewTypeParam(obj *TypeName, bound Type) *TypeParam {
 	// Always increment lastID, even if it is not used.
 	id := nextID()
 	if check != nil {
 		check.nextID++
 		id = check.nextID
 	}
-	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
+	typ := &TypeParam{check: check, id: id, obj: obj, index: -1, bound: bound}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -56,6 +60,8 @@ func (t *TypeParam) _SetId(id uint64) {
 	t.id = id
 }
 
+// TODO(rfindley): document the Bound and SetBound methods.
+
 func (t *TypeParam) Bound() *Interface {
 	// we may not have an interface (error reported elsewhere)
 	iface, _ := under(t.bound).(*Interface)
@@ -72,7 +78,7 @@ func (t *TypeParam) Bound() *Interface {
 	return iface
 }
 
-func (t *TypeParam) _SetBound(bound Type) {
+func (t *TypeParam) SetBound(bound Type) {
 	if bound == nil {
 		panic("internal error: bound must not be nil")
 	}
@@ -81,6 +87,42 @@ func (t *TypeParam) _SetBound(bound Type) {
 
 func (t *TypeParam) Underlying() Type { return t }
 func (t *TypeParam) String() string   { return TypeString(t, nil) }
+
+// TypeParams holds a list of type parameters bound to a type.
+type TypeParams struct{ tparams []*TypeName }
+
+// Len returns the number of type parameters in the list.
+// It is safe to call on a nil receiver.
+func (tps *TypeParams) Len() int {
+	return len(tps.list())
+}
+
+// At returns the i'th type parameter in the list.
+// It is safe to call on a nil receiver.
+func (tps *TypeParams) At(i int) *TypeName {
+	return tps.list()[i]
+}
+
+func (tps *TypeParams) list() []*TypeName {
+	if tps == nil {
+		return nil
+	}
+	return tps.tparams
+}
+
+func bindTParams(list []*TypeName) *TypeParams {
+	if len(list) == 0 {
+		return nil
+	}
+	for i, tp := range list {
+		typ := tp.Type().(*TypeParam)
+		if typ.index >= 0 {
+			panic("internal error: type parameter bound more than once")
+		}
+		typ.index = i
+	}
+	return &TypeParams{tparams: list}
+}
 
 // ----------------------------------------------------------------------------
 // Implementation
