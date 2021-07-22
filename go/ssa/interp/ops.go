@@ -1367,11 +1367,13 @@ func sliceToArrayPointer(t_dst, t_src types.Type, x value) value {
 		if utSrc, ok := utDst.(*types.Pointer); ok {
 			if arr, ok := utSrc.Elem().(*types.Array); ok {
 				x := x.([]value)
-				a := make(array, arr.Len())
-				for i := range a {
-					a[i] = x[i]
+				if arr.Len() > int64(len(x)) {
+					panic("array length is greater than slice length")
 				}
-				v := value(a)
+				if x == nil {
+					return zero(utSrc)
+				}
+				v := value(array(x[:arr.Len()]))
 				return &v
 			}
 		}
