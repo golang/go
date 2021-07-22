@@ -22,6 +22,9 @@ import (
 	"strconv"
 )
 
+// Enable extra consistency checks.
+const doubleCheck = true
+
 func assert(p bool) {
 	base.Assert(p)
 }
@@ -1820,7 +1823,6 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 				ir.Visit(n1, visitFunc)
 			}
 		}
-
 		addType(&info, n, n.Type())
 	}
 
@@ -1847,8 +1849,16 @@ func addType(info *gfInfo, n ir.Node, t *types.Type) {
 	if t.IsTypeParam() && t.Underlying() == t {
 		return
 	}
-	if !parameterizedBy(t, info.tparams) {
+	if t.Kind() == types.TFUNC && n != nil &&
+		(t.Recv() != nil ||
+			n.Op() == ir.ONAME && n.Name().Class == ir.PFUNC) {
+		// Don't use the type of a named generic function or method,
+		// since that is parameterized by other typeparams.
+		// (They all come from arguments of a FUNCINST node.)
 		return
+	}
+	if doubleCheck && !parameterizedBy(t, info.tparams) {
+		base.Fatalf("adding type with invalid parameters %+v", t)
 	}
 	if t.Kind() == types.TSTRUCT && t.IsFuncArgStruct() {
 		// Multiple return values are not a relevant new type (?).
@@ -1872,13 +1882,25 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 		return true
 	}
 	visited[t] = true
+
+	if t.Sym() != nil && len(t.RParams()) > 0 {
+		// This defined type is instantiated. Check the instantiating types.
+		for _, r := range t.RParams() {
+			if !parameterizedBy1(r, params, visited) {
+				return false
+			}
+		}
+		return true
+	}
 	switch t.Kind() {
 	case types.TTYPEPARAM:
+		// Check if t is one of the allowed parameters in scope.
 		for _, p := range params {
 			if p == t {
 				return true
 			}
 		}
+		// Couldn't find t in the list of allowed parameters.
 		return false
 
 	case types.TARRAY, types.TPTR, types.TSLICE, types.TCHAN:
@@ -1888,10 +1910,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 		return parameterizedBy1(t.Key(), params, visited) && parameterizedBy1(t.Elem(), params, visited)
 
 	case types.TFUNC:
-		if t.NumTParams() > 0 {
-			return false
-		}
-		return parameterizedBy1(t.Recvs(), params, visited) && parameterizedBy1(t.Params(), params, visited) && parameterizedBy1(t.Results(), params, visited)
+		return parameterizedBy1(t.TParams(), params, visited) && parameterizedBy1(t.Recvs(), params, visited) && parameterizedBy1(t.Params(), params, visited) && parameterizedBy1(t.Results(), params, visited)
 
 	case types.TSTRUCT:
 		for _, f := range t.Fields().Slice() {
