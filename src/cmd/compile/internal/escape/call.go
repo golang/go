@@ -320,8 +320,6 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 			return
 		case ir.ONAME:
 			if arg.(*ir.Name).Class == ir.PFUNC {
-				// TODO(cuonglm): figure it why this is necessary, we should not depend on this to make
-				//                ABI analyze works correctly (see #47227 and discussion in CL 334882).
 				return
 			}
 		}
