@@ -180,7 +180,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// wait with timeout
 	select {
-	case <-time.After(10 * time.Second): // plenty of a safety margin, even for very slow machines
+	case <-time.After(1000 * time.Second): // plenty of a safety margin, even for very slow machines
 		// test running past time out
 		t.Errorf("%s: running too slowly", source)
 	case <-cc:
