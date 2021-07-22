@@ -590,6 +590,18 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			b.WriteString(fmt.Sprintf("%p", t))
 		}
 
+	case TUNION:
+		for i := 0; i < t.NumTerms(); i++ {
+			if i > 0 {
+				b.WriteString("|")
+			}
+			elem, tilde := t.Term(i)
+			if tilde {
+				b.WriteString("~")
+			}
+			tconv2(b, elem, 0, mode, visited)
+		}
+
 	case Txxx:
 		b.WriteString("Txxx")
 
