@@ -92,8 +92,8 @@ func (l *List) lazyInit() {
 func (l *List) insert(e, at *Element) *Element {
 	e.prev = at
 	e.next = at.next
-	e.prev.next = e
-	e.next.prev = e
+	at.next = e
+	at.next.prev = e
 	e.list = l
 	l.len++
 	return e
