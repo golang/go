@@ -1644,13 +1644,31 @@ func (ctxt *Link) hostlink() {
 	}
 
 	if combineDwarf {
+		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
+		var cc []string
+		cc = append(cc, ctxt.extld()...)
+		cc = append(cc, hostlinkArchArgs(ctxt.Arch)...)
+		cc = append(cc, "--print-prog-name", "dsymutil")
+		out, err := exec.Command(cc[0], cc[1:]...).CombinedOutput()
+		if err != nil {
+			Exitf("%s: finding dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		dsymutilCmd := strings.TrimSuffix(string(out), "\n")
+
+		cc[len(cc)-1] = "strip"
+		out, err = exec.Command(cc[0], cc[1:]...).CombinedOutput()
+		if err != nil {
+			Exitf("%s: finding strip failed: %v\n%s", os.Args[0], err, out)
+		}
+		stripCmd := strings.TrimSuffix(string(out), "\n")
+
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-		if out, err := exec.Command("xcrun", "dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+		if out, err := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
-		if out, err := exec.Command("xcrun", "strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+		if out, err := exec.Command(stripCmd, "-S", *flagOutfile).CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
