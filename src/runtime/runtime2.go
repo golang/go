@@ -681,7 +681,7 @@ type p struct {
 	// timerModifiedEarlier status. Because the timer may have been
 	// modified again, there need not be any timer with this value.
 	// This is updated using atomic functions.
-	// This is 0 if the value is unknown.
+	// This is 0 if there are no timerModifiedEarlier timers.
 	timerModifiedEarliest uint64
 
 	// Per-P GC state
