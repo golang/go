@@ -8,10 +8,6 @@
 #include "time_windows.h"
 #include "cgo/abi_amd64.h"
 
-// maxargs should be divisible by 2, as Windows stack
-// must be kept 16-byte aligned on syscall entry.
-#define maxargs 18
-
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	// asmcgocall will put first argument into CX.
@@ -24,14 +20,14 @@ TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	0x30(GS), DI
 	MOVL	$0, 0x68(DI)
 
-	SUBQ	$(maxargs*8), SP	// room for args
+	SUBQ	$(const_maxArgs*8), SP	// room for args
 
 	// Fast version, do not store args on the stack.
 	CMPL	CX, $4
 	JLE	loadregs
 
 	// Check we have enough room for args.
-	CMPL	CX, $maxargs
+	CMPL	CX, $const_maxArgs
 	JLE	2(PC)
 	INT	$3			// not enough room -> crash
 
@@ -59,7 +55,7 @@ loadregs:
 	// Call stdcall function.
 	CALL	AX
 
-	ADDQ	$(maxargs*8), SP
+	ADDQ	$(const_maxArgs*8), SP
 
 	// Return result.
 	POPQ	CX

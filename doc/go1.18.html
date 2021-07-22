@@ -82,3 +82,20 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- CL 336550 -->
+      The new function <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>
+      has been introduced for Windows, allowing for calls with arbitrary number
+      of arguments. As results,
+      <a href="/pkg/syscall/?GOOS=windows#Syscall"><code>Syscall</code></a>,
+      <a href="/pkg/syscall/?GOOS=windows#Syscall6"><code>Syscall6</code></a>,
+      <a href="/pkg/syscall/?GOOS=windows#Syscall9"><code>Syscall9</code></a>,
+      <a href="/pkg/syscall/?GOOS=windows#Syscall12"><code>Syscall12</code></a>,
+      <a href="/pkg/syscall/?GOOS=windows#Syscall15"><code>Syscall15</code></a>, and
+      <a href="/pkg/syscall/?GOOS=windows#Syscall18"><code>Syscall18</code></a> are
+      deprecated in favor of <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>.
+    </p>
+  </dd>
+</dl><!-- syscall -->
