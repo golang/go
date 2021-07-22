@@ -431,13 +431,11 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
 	var frag []byte
 	// Use ReadSlice to look for delim, accumulating full buffers.
 	for {
-		var e error
-		frag, e = b.ReadSlice(delim)
-		if e == nil { // got final fragment
+		frag, err = b.ReadSlice(delim)
+		if err == nil { // got final fragment
 			break
 		}
-		if e != ErrBufferFull { // unexpected error
-			err = e
+		if err != ErrBufferFull { // unexpected error
 			break
 		}
 
