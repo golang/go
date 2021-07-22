@@ -1006,7 +1006,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			// its size >= maxTinySize.
 			//
 			// SetFinalizer has a special case for objects potentially coming
-			// from tiny allocator, it such case it allows to set finalizers
+			// from tiny allocator, in such case it allows to set finalizers
 			// for an inner byte of a memory block.
 			//
 			// The main targets of tiny allocator are small strings and
