@@ -24,6 +24,9 @@ func TestPanicOnFault(t *testing.T) {
 	if runtime.GOOS == "ios" {
 		t.Skip("iOS doesn't provide fault addresses")
 	}
+	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm" {
+		t.Skip("netbsd-arm doesn't provide fault address (golang.org/issue/45026)")
+	}
 	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
 	if err != nil {
 		t.Fatalf("can't map anonymous memory: %s", err)
