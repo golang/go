@@ -80,6 +80,7 @@ pkg net/url, method (Values) Has(string) bool
 pkg reflect, func VisibleFields(Type) []StructField
 pkg reflect, method (Method) IsExported() bool
 pkg reflect, method (StructField) IsExported() bool
+pkg reflect, method (Value) CanConvert(Type) bool
 pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
 pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
 pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
