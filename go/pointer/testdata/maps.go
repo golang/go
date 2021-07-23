@@ -58,8 +58,8 @@ func maps3() {
 	// is ill-typed.
 
 	// sizeof(K) > 1, abstractly
-	type K struct{ a, b *float64 }
-	k := K{new(float64), nil}
+	type K struct{ a, b, c, d *float64 }
+	k := K{new(float64), nil, nil, nil}
 	m := map[K]*int{k: &g}
 
 	for _, v := range m {
@@ -67,8 +67,42 @@ func maps3() {
 	}
 }
 
+var v float64
+
+func maps4() {
+	// Regression test for generating constraints for cases of key and values
+	// being blank identifiers or different types assignable from the
+	// corresponding map types in a range stmt.
+	type K struct{ a *float64 }
+	k := K{&v}
+	m := map[K]*int{k: &g}
+
+	for x, y := range m {
+		print(x.a) // @pointsto main.v
+		print(y)   // @pointsto main.g
+	}
+	var i struct{ a *float64 }
+	for i, _ = range m {
+		print(i.a) // @pointsto main.v
+	}
+	var j interface{}
+	for _, j = range m {
+		// TODO support the statement `print(j.(*int))`
+		print(j) // @pointsto main.g
+	}
+	for _, _ = range m {
+	}
+	// do something after 'for _, _ =' to exercise the
+	// effects of indexing
+	for _, j = range m {
+		// TODO support the statement `print(j.(*int))`
+		print(j) // @pointsto main.g
+	}
+}
+
 func main() {
 	maps1()
 	maps2()
 	maps3()
+	maps4()
 }

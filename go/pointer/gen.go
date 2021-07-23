@@ -1055,16 +1055,42 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		// Do nothing.  Next{Iter: *ssa.Range} handles this case.
 
 	case *ssa.Next:
-		if !instr.IsString { // map
-			// Assumes that Next is always directly applied to a Range result.
+		if !instr.IsString {
+			// Assumes that Next is always directly applied to a Range result
+			// for a map.
+
+			// Next results in a destination tuple (ok, dk, dv).
+			// Recall a map is modeled as type *M where M = struct{sk K; sv V}.
+			// Next copies from a src map struct{sk K; sv V} to a dst tuple (ok, dk, dv)
+			//
+			// When keys or value is a blank identifier in a range statement, e.g
+			//   for _, v := range m { ... }
+			// or
+			//   for _, _ = range m { ... }
+			// we skip copying from sk or dk as there is no use. dk and dv will have
+			// Invalid types if they are blank identifiers. This means that the
+			//   size( (ok, dk, dv) )  may differ from 1 + size(struct{sk K; sv V}).
+			//
+			// We encode Next using one load of size sz from an offset in src osrc to an
+			// offset in dst odst. There are 4 cases to consider:
+			//           odst       | osrc     | sz
+			//   k, v  | 1          | 0        | size(sk) + size(sv)
+			//   k, _  | 1          | 0        | size(sk)
+			//   _, v  | 1+size(dk) | size(sk) | size(sv)
+			//   _, _  | 1+size(dk) | size(sk) | 0
+
+			// get the source key and value size.  Note the source types
+			// may be different than the 3-tuple types, but if this is the
+			// case then the source is assignable to the destination.
 			theMap := instr.Iter.(*ssa.Range).X
 			tMap := theMap.Type().Underlying().(*types.Map)
 
-			ksize := a.sizeof(tMap.Key())
-			vsize := a.sizeof(tMap.Elem())
+			sksize := a.sizeof(tMap.Key())
+			svsize := a.sizeof(tMap.Elem())
 
-			// The k/v components of the Next tuple may each be invalid.
+			// get the key size of the destination tuple.
 			tTuple := instr.Type().(*types.Tuple)
+			dksize := a.sizeof(tTuple.At(1).Type())
 
 			// Load from the map's (k,v) into the tuple's (ok, k, v).
 			osrc := uint32(0) // offset within map object
@@ -1073,15 +1099,15 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 
 			// Is key valid?
 			if tTuple.At(1).Type() != tInvalid {
-				sz += ksize
+				sz += sksize
 			} else {
-				odst += ksize
-				osrc += ksize
+				odst += dksize
+				osrc += sksize
 			}
 
 			// Is value valid?
 			if tTuple.At(2).Type() != tInvalid {
-				sz += vsize
+				sz += svsize
 			}
 
 			a.genLoad(cgn, a.valueNode(instr)+nodeid(odst), theMap, osrc, sz)
