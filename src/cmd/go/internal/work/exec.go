@@ -180,6 +180,12 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	if cfg.BuildN {
 		par = 1
 	}
+
+	if par <= 0 {
+		fmt.Fprintf(os.Stderr, "go: the number of builds should be positive: %v\n", par)
+		base.SetExitStatus(1)
+	}
+
 	for i := 0; i < par; i++ {
 		wg.Add(1)
 		go func() {
