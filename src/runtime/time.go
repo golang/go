@@ -668,11 +668,6 @@ func adjusttimers(pp *p, now int64) {
 		if verifyTimers {
 			verifyTimerHeap(pp)
 		}
-		// There are no timers to adjust, so it is safe to clear
-		// timerModifiedEarliest. Do so in case it is stale.
-		// Everything will work if we don't do this,
-		// but clearing here may save future calls to adjusttimers.
-		atomic.Store64(&pp.timerModifiedEarliest, 0)
 		return
 	}
 
