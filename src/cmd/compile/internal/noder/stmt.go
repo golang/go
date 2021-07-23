@@ -128,6 +128,11 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 			if e.Type().HasTParam() {
 				// Delay transforming the return statement if any of the
 				// return values have a type param.
+				if !ir.HasNamedResults(ir.CurFunc) {
+					// But add CONVIFACE nodes where needed if
+					// any of the return values have interface type.
+					typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, true)
+				}
 				n.SetTypecheck(3)
 				return n
 			}
