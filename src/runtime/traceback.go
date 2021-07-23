@@ -566,7 +566,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 
 	print1 := func(off, sz uint8) {
 		x := readUnaligned64(add(argp, uintptr(off)))
-		// mask out irrelavant bits
+		// mask out irrelevant bits
 		if sz < 8 {
 			shift := 64 - sz*8
 			if goarch.BigEndian {

@@ -242,7 +242,7 @@ func vendorPkg(vdir, pkg string) {
 	if err != nil {
 		if errors.As(err, &noGoError) {
 			return // No source files in this package are built. Skip embeds in ignored files.
-		} else if !errors.As(err, &multiplePackageError) { // multiplePackgeErrors are okay, but others are not.
+		} else if !errors.As(err, &multiplePackageError) { // multiplePackageErrors are OK, but others are not.
 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
 		}
 	}

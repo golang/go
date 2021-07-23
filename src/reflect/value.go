@@ -930,7 +930,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
-		// Only copy the reciever to the stack if the ABI says so.
+		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
 	} else {
