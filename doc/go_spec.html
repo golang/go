@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jul 1, 2021",
+	"Subtitle": "Version of Jul 3, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -3071,7 +3071,8 @@ using a pointer will automatically dereference that pointer: <code>pt.Mv</code> 
 
 <p>
 As with <a href="#Calls">method calls</a>, a reference to a non-interface method with a pointer receiver
-using an addressable value will automatically take the address of that value: <code>t.Mp</code> is equivalent to <code>(&amp;t).Mp</code>.
+using an <a href="#Address_operators">addressable</a> value will automatically take the address of that value:
+<code>t.Mp</code> is equivalent to <code>(&amp;t).Mp</code>.
 </p>
 
 <pre>
