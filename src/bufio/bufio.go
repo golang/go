@@ -114,10 +114,9 @@ func (b *Reader) fill() {
 	b.err = io.ErrNoProgress
 }
 
-func (b *Reader) readErr() error {
-	err := b.err
-	b.err = nil
-	return err
+func (b *Reader) readErr() (err error) {
+	err, b.err = b.err, nil
+	return
 }
 
 // Peek returns the next n bytes without advancing the reader. The bytes stop
