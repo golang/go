@@ -29,7 +29,10 @@ More file 1 text.
 File 2 text.
 -- empty --
 -- noNL --
-hello world`,
+hello world
+-- empty filename line --
+some content
+-- --`,
 			parsed: &Archive{
 				Comment: []byte("comment1\ncomment2\n"),
 				Files: []File{
@@ -37,6 +40,7 @@ hello world`,
 					{"file 2", []byte("File 2 text.\n")},
 					{"empty", []byte{}},
 					{"noNL", []byte("hello world\n")},
+					{"empty filename line", []byte("some content\n-- --\n")},
 				},
 			},
 		},
