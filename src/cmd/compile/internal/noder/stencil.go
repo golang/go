@@ -994,6 +994,26 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 	g.instTypeList = append(g.instTypeList, subst.unshapify.InstTypeList...)
 	g.instTypeList = append(g.instTypeList, subst.concretify.InstTypeList...)
 
+	if doubleCheck {
+		okConvs := map[ir.Node]bool{}
+		ir.Visit(newf, func(n ir.Node) {
+			if n.Op() == ir.OIDATA {
+				// IDATA(OCONVIFACE(x)) is ok, as we don't use the type of x.
+				// TODO: use some other op besides OCONVIFACE. ONEW might work
+				// (with appropriate direct vs. indirect interface cases).
+				okConvs[n.(*ir.UnaryExpr).X] = true
+			}
+			if n.Op() == ir.OCONVIFACE && !okConvs[n] {
+				c := n.(*ir.ConvExpr)
+				if c.X.Type().HasShape() {
+					ir.Dump("BAD FUNCTION", newf)
+					ir.Dump("BAD CONVERSION", c)
+					base.Fatalf("converting shape type to interface")
+				}
+			}
+		})
+	}
+
 	return newf
 }
 
@@ -1367,6 +1387,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			if x.X.Type().HasTParam() {
 				m = subst.convertUsingDictionary(m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
 			}
+		case ir.ODOTTYPE, ir.ODOTTYPE2:
+			m.SetType(subst.unshapifyTyp(m.Type()))
 
 		case ir.ONEW:
 			// New needs to pass a concrete type to the runtime.
@@ -1535,7 +1557,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 
 	// Enforce that only concrete types can make it to here.
 	for _, t := range targs {
-		if t.IsShape() {
+		if t.HasShape() {
 			panic(fmt.Sprintf("shape %+v in dictionary for %s", t, gf.Sym().Name))
 		}
 	}
