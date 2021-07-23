@@ -248,7 +248,7 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOV	gobuf_pc(T0), T0
 	JALR	ZERO, T0
 
-// func jmpdefer(fv *funcval, argp uintptr)
+// func jmpdefer(fv func(), argp uintptr)
 // called from deferreturn
 // 1. grab stored return address from the caller's frame
 // 2. sub 8 bytes to get back to JAL deferreturn

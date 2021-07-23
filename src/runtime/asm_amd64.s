@@ -662,7 +662,7 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 	// compile barrier.
 	RET
 
-// func jmpdefer(fv *funcval, argp uintptr)
+// func jmpdefer(fv func(), argp uintptr)
 // argp is a caller SP.
 // called from deferreturn.
 // 1. pop the caller
