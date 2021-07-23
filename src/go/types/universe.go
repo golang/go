@@ -89,7 +89,9 @@ func defPredeclaredTypes() {
 		res := NewVar(token.NoPos, nil, "", Typ[String])
 		sig := NewSignature(nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		typ := NewNamed(obj, NewInterfaceType([]*Func{err}, nil), nil)
+		ityp := NewInterfaceType([]*Func{err}, nil)
+		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
 		def(obj)
 	}
@@ -100,7 +102,9 @@ func defPredeclaredTypes() {
 		obj.setColor(black)
 		sig := NewSignature(nil, nil, nil, false)
 		eql := NewFunc(token.NoPos, nil, "==", sig)
-		typ := NewNamed(obj, NewInterfaceType([]*Func{eql}, nil), nil)
+		ityp := NewInterfaceType([]*Func{eql}, nil)
+		computeTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
 		def(obj)
 	}
