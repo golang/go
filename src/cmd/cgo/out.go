@@ -1054,9 +1054,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
 
+		fmt.Fprintf(fgo2, "\t")
+
 		if gccResult != "void" {
 			// Write results back to frame.
-			fmt.Fprintf(fgo2, "\t")
 			forFieldList(fntype.Results,
 				func(i int, aname string, atype ast.Expr) {
 					if i > 0 {
