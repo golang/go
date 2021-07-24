@@ -119,7 +119,7 @@ elapsed time in the summary line.
 The rule for a match in the cache is that the run involves the same
 test binary and the flags on the command line come entirely from a
 restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
--list, -parallel, -run, -short, and -v. If a run of go test has any test
+-list, -parallel, -run, -short, -timeout, -failfast, and -v. If a run of go test has any test
 or non-test flags outside this set, the result is not cached. To
 disable test caching, use any test flag or argument other than the
 cacheable flags. The idiomatic way to disable test caching explicitly
@@ -1347,6 +1347,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			"-test.run",
 			"-test.short",
 			"-test.timeout",
+			"-test.failfast",
 			"-test.v":
 			// These are cacheable.
 			// Note that this list is documented above,
