@@ -2880,13 +2880,3 @@ func TestMissingCC(t *testing.T) {
 		t.Error(`clearing "PATH" causes "net" to be stale`)
 	}
 }
-
-// Issue 46686
-func TestInvalidValueForFlagP(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.runFail("build", "-p=-1")
-}
