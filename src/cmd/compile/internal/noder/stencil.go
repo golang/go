@@ -1376,12 +1376,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			m.SetType(subst.unshapifyTyp(m.Type()))
 
-		case ir.ONEW:
-			// New needs to pass a concrete type to the runtime.
-			// Or maybe it doesn't? We could use a shape type.
-			// TODO: need to modify m.X? I don't think any downstream passes use it.
-			m.SetType(subst.unshapifyTyp(m.Type()))
-
 		case ir.OMETHEXPR:
 			se := m.(*ir.SelectorExpr)
 			se.X = ir.TypeNodeAt(se.X.Pos(), subst.unshapifyTyp(se.X.Type()))
