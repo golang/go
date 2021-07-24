@@ -1156,16 +1156,20 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 
 	// concrete type (not interface) argument might need an addressable
 	// temporary to pass to the runtime conversion routine.
-	case ir.OCONVIFACE:
+	case ir.OCONVIFACE, ir.OCONVIDATA:
 		n := n.(*ir.ConvExpr)
 		n.X = o.expr(n.X, nil)
 		if n.X.Type().IsInterface() {
 			return n
 		}
-		if _, _, needsaddr := convFuncName(n.X.Type(), n.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
+		to := n.Type()
+		if n.Op() == ir.OCONVIDATA {
+			to = types.NewInterface(types.LocalPkg, nil)
+		}
+		if _, _, needsaddr := convFuncName(n.X.Type(), to); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
-			// whose address we can put directly in an interface (see OCONVIFACE case in walk).
+			// whose address we can put directly in an interface (see OCONVIFACE/OCONVIDATA case in walk).
 			n.X = o.addrTemp(n.X)
 		}
 		return n

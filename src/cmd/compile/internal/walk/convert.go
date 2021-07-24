@@ -39,14 +39,22 @@ func walkConv(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	return typecheck.Conv(mkcall(fn, types.Types[result], init, typecheck.Conv(n.X, types.Types[param])), n.Type())
 }
 
-// walkConvInterface walks an OCONVIFACE node.
+// walkConvInterface walks an OCONVIFACE or OCONVIDATA node.
 func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+
 	n.X = walkExpr(n.X, init)
 
 	fromType := n.X.Type()
 	toType := n.Type()
-
-	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) { // skip unnamed functions (func _())
+	if n.Op() == ir.OCONVIDATA {
+		// Just convert to empty interface, to make it easy.
+		// The caller throws away the type word.
+		toType = types.NewInterface(types.LocalPkg, nil)
+		// Note: don't pass fromType to MarkTypeUsedInInterface because it is likely
+		// a shape type. The appropriate call to MarkTypeUsedInInterface will come
+		// when building the dictionary (from which the matching type word will come).
+	} else if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) {
+		// skip unnamed functions (func _())
 		reflectdata.MarkTypeUsedInInterface(fromType, ir.CurFunc.LSym)
 	}
 
