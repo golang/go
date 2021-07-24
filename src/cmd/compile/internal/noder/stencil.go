@@ -1461,24 +1461,18 @@ func (subst *subster) convertUsingDictionary(pos src.XPos, v ir.Node, gn ir.Node
 		rt = subst.getDictionaryType(pos, ix)
 	}
 
-	// Convert value to an interface type, so the data field is what we want.
-	if !v.Type().IsInterface() {
-		v = ir.NewConvExpr(v.Pos(), ir.OCONVIFACE, nil, v)
-		typed(types.NewInterface(types.LocalPkg, nil), v)
+	// Figure out what the data field of the interface will be.
+	var data ir.Node
+	if v.Type().IsInterface() {
+		data = ir.NewUnaryExpr(pos, ir.OIDATA, v)
+	} else {
+		data = ir.NewConvExpr(pos, ir.OCONVIDATA, nil, v)
 	}
-
-	// At this point, v is an interface type with a data word we want.
-	// But the type word represents a gcshape type, which we don't want.
-	// Replace with the instantiated type loaded from the dictionary.
-	data := ir.NewUnaryExpr(pos, ir.OIDATA, v)
 	typed(types.Types[types.TUNSAFEPTR], data)
+
+	// Build an interface from the type and data parts.
 	var i ir.Node = ir.NewBinaryExpr(pos, ir.OEFACE, rt, data)
 	typed(dst, i)
-	// TODO: we're throwing away the type word of the original version
-	// of m here (it would be OITAB(m)), which probably took some
-	// work to generate. Can we avoid generating it at all?
-	// (The linker will throw them away if not needed, so it would just
-	// save toolchain work, not binary size.)
 	return i
 
 }

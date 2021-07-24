@@ -206,6 +206,13 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.ConvExpr)
 		return walkConvInterface(n, init)
 
+	case ir.OCONVIDATA:
+		n := n.(*ir.ConvExpr)
+		r := ir.NewUnaryExpr(n.Pos(), ir.OIDATA, walkConvInterface(n, init))
+		r.SetType(types.Types[types.TUNSAFEPTR])
+		r.SetTypecheck(1)
+		return r
+
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
 		return walkConv(n, init)

@@ -170,6 +170,7 @@ const (
 	OPTRLIT    // &X (X is composite literal)
 	OCONV      // Type(X) (type conversion)
 	OCONVIFACE // Type(X) (type conversion, to interface)
+	OCONVIDATA // Builds a data word to store X in an interface. Equivalent to IDATA(CONVIFACE(X)). Is an ir.ConvExpr.
 	OCONVNOP   // Type(X) (type conversion, no effect)
 	OCOPY      // copy(X, Y)
 	ODCL       // var X (declares X of type X.Type)

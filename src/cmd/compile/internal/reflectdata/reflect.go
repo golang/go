@@ -1983,10 +1983,8 @@ var ZeroSize int64
 // This information is used in the linker in dead method elimination.
 func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 	if t.HasShape() {
-		// TODO: shape types shouldn't be put in interfaces, so we shouldn't ever get here.
-		// We don't from ../noder/stencil.go, but we do from ../walk/walk.go when we let
-		// shape types become the types of interfaces.
-		//base.Fatalf("shape types have no methods %+v", t)
+		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
+		base.Fatalf("shape types have no methods %+v", t)
 	}
 	tsym := TypeLinksym(t)
 	// Emit a marker relocation. The linker will know the type is converted

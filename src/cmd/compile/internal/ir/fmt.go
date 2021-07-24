@@ -185,6 +185,7 @@ var OpPrec = []int{
 	OCLOSE:         8,
 	OCOMPLIT:       8,
 	OCONVIFACE:     8,
+	OCONVIDATA:     8,
 	OCONVNOP:       8,
 	OCONV:          8,
 	OCOPY:          8,
@@ -546,7 +547,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				n = nn.X
 				continue
 			}
-		case OCONV, OCONVNOP, OCONVIFACE:
+		case OCONV, OCONVNOP, OCONVIFACE, OCONVIDATA:
 			nn := nn.(*ConvExpr)
 			if nn.Implicit() {
 				n = nn.X
@@ -813,6 +814,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCONV,
 		OCONVIFACE,
+		OCONVIDATA,
 		OCONVNOP,
 		OBYTES2STR,
 		ORUNES2STR,

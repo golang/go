@@ -109,7 +109,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		} else {
 			e.expr(k, n.X)
 		}
-	case ir.OCONVIFACE:
+	case ir.OCONVIFACE, ir.OCONVIDATA:
 		n := n.(*ir.ConvExpr)
 		if !n.X.Type().IsInterface() && !types.IsDirectIface(n.X.Type()) {
 			k = e.spill(k, n)

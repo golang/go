@@ -1873,7 +1873,7 @@ func (w *exportWriter) expr(n ir.Node) {
 			w.op(ir.OEND)
 		}
 
-	case ir.OCONV, ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
+	case ir.OCONV, ir.OCONVIFACE, ir.OCONVIDATA, ir.OCONVNOP, ir.OBYTES2STR, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2RUNES, ir.ORUNESTR, ir.OSLICE2ARRPTR:
 		n := n.(*ir.ConvExpr)
 		if go117ExportTypes {
 			w.op(n.Op())
