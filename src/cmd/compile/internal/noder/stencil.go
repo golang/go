@@ -855,13 +855,9 @@ type subster struct {
 	ts       typecheck.Tsubster
 	info     *instInfo // Place to put extra info in the instantiation
 
-	// Which type parameter the shape type came from.
-	shape2param map[*types.Type]*types.Type
-
 	// unshapeify maps from shape types to the concrete types they represent.
 	// TODO: remove when we no longer need it.
-	unshapify  typecheck.Tsubster
-	concretify typecheck.Tsubster
+	unshapify typecheck.Tsubster
 
 	// TODO: some sort of map from <shape type, interface type> to index in the
 	// dictionary where a *runtime.itab for the corresponding <concrete type,
@@ -920,23 +916,11 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 			Targs:   shapes,
 			Vars:    make(map[*ir.Name]*ir.Name),
 		},
-		shape2param: map[*types.Type]*types.Type{},
 		unshapify: typecheck.Tsubster{
 			Tparams: shapes,
 			Targs:   targs,
 			Vars:    make(map[*ir.Name]*ir.Name),
 		},
-		concretify: typecheck.Tsubster{
-			Tparams: tparams,
-			Targs:   targs,
-			Vars:    make(map[*ir.Name]*ir.Name),
-		},
-	}
-	for i := range shapes {
-		if !shapes[i].IsShape() {
-			panic("must be a shape type")
-		}
-		subst.shape2param[shapes[i]] = tparams[i]
 	}
 
 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
@@ -992,7 +976,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 	// g.instTypeList.
 	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
 	g.instTypeList = append(g.instTypeList, subst.unshapify.InstTypeList...)
-	g.instTypeList = append(g.instTypeList, subst.concretify.InstTypeList...)
 
 	if doubleCheck {
 		okConvs := map[ir.Node]bool{}
@@ -1258,7 +1241,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					//  1) convert x to the bound interface
 					//  2) call M on that interface
 					gsrc := x.(*ir.SelectorExpr).X.Type()
-					dst := subst.concretify.Typ(gsrc.Bound())
+					dst := gsrc.Bound()
+					if dst.HasTParam() {
+						dst = subst.ts.Typ(dst)
+					}
 					mse.X = subst.convertUsingDictionary(m.Pos(), mse.X, x, dst, gsrc)
 				}
 			}
@@ -1714,6 +1700,18 @@ func (g *irgen) finalizeSyms() {
 				se := n.(*ir.SelectorExpr)
 				srctype = subst.Typ(se.X.Type())
 				dsttype = subst.Typ(se.X.Type().Bound())
+				found := false
+				for i, m := range dsttype.AllMethods().Slice() {
+					if se.Sel == m.Sym {
+						// Mark that this method se.Sel is
+						// used for the dsttype interface, so
+						// it won't get deadcoded.
+						reflectdata.MarkUsedIfaceMethodIndex(lsym, dsttype, i)
+						found = true
+						break
+					}
+				}
+				assert(found)
 			} else {
 				assert(n.Op() == ir.OCONVIFACE)
 				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())

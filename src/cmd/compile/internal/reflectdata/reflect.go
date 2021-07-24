@@ -2006,10 +2006,20 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
-	// dot.Xoffset is the method index * PtrSize (the offset of code pointer
+	// dot.Offset() is the method index * PtrSize (the offset of code pointer
 	// in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
+	r.Type = objabi.R_USEIFACEMETHOD
+}
+
+// MarkUsedIfaceMethodIndex marks that that method number ix (in the AllMethods list)
+// of interface type ityp is used, and should be attached to lsym.
+func MarkUsedIfaceMethodIndex(lsym *obj.LSym, ityp *types.Type, ix int) {
+	tsym := TypeLinksym(ityp)
+	r := obj.Addrel(lsym)
+	r.Sym = tsym
+	r.Add = InterfaceMethodOffset(ityp, int64(ix))
 	r.Type = objabi.R_USEIFACEMETHOD
 }
 
