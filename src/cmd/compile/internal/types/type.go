@@ -2189,7 +2189,13 @@ func (t *Type) HasShape1(visited map[*Type]bool) bool {
 				}
 			}
 		}
-		// TODO: TINTER - check methods?
+	case TINTER:
+		for _, f := range t.Methods().Slice() {
+			if f.Type.HasShape1(visited) {
+				return true
+			}
+		}
+		return false
 	}
 	return false
 }
