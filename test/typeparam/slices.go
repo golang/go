@@ -60,7 +60,7 @@ func _Equal[Elem comparable](s1, s2 []Elem) bool {
 	return true
 }
 
-// _EqualFn reports whether two slices are equal using a comparision
+// _EqualFn reports whether two slices are equal using a comparison
 // function on each element.
 func _EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
 	if len(s1) != len(s2) {

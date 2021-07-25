@@ -620,6 +620,6 @@ func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error
 }
 
 // errMalformedDNSRecordsDetail is the DNSError detail which is returned when a Resolver.Lookup...
-// method recieves DNS records which contain invalid DNS names. This may be returned alongside
+// method receives DNS records which contain invalid DNS names. This may be returned alongside
 // results which have had the malformed records filtered out.
 var errMalformedDNSRecordsDetail = "DNS response contained records which contain invalid names"
