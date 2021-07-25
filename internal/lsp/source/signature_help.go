@@ -51,7 +51,12 @@ FindCall:
 			// which may be the parameter to the *ast.CallExpr.
 			// Don't show signature help in this case.
 			return nil, 0, errors.Errorf("no signature help within a function declaration")
+		case *ast.BasicLit:
+			if node.Kind == token.STRING {
+				return nil, 0, errors.Errorf("no signature help within a string literal")
+			}
 		}
+
 	}
 	if callExpr == nil || callExpr.Fun == nil {
 		return nil, 0, errors.Errorf("cannot find an enclosing function")

@@ -47,11 +47,12 @@ func Qux() {
 		return func(int) rune { return 0 }
 	}
 
-	fn("hi", "there")    //@signature("hi", "fn(hi string, there string) func(i int) rune", 0)
+	fn("hi", "there")    //@signature("hi", "", 0)
+	fn("hi", "there")    //@signature(",", "fn(hi string, there string) func(i int) rune", 0)
 	fn("hi", "there")(1) //@signature("1", "func(i int) rune", 0)
 
 	fnPtr := &fn
-	(*fnPtr)("hi", "there") //@signature("hi", "func(hi string, there string) func(i int) rune", 0)
+	(*fnPtr)("hi", "there") //@signature(",", "func(hi string, there string) func(i int) rune", 0)
 
 	var fnIntf interface{} = Foo
 	fnIntf.(func(string, int) bool)("hi", 123) //@signature("123", "func(string, int) bool", 1)
@@ -69,8 +70,8 @@ func Qux() {
 	Foo(myFunc(123), 456) //@signature("myFunc", "Foo(a string, b int) (c bool)", 0)
 	Foo(myFunc(123), 456) //@signature("123", "myFunc(foo int) string", 0)
 
-	panic("oops!")            //@signature("oops", "panic(v interface{})", 0)
-	println("hello", "world") //@signature("world", "println(args ...Type)", 0)
+	panic("oops!")            //@signature(")", "panic(v interface{})", 0)
+	println("hello", "world") //@signature(",", "println(args ...Type)", 0)
 
 	Hello(func() {
 		//@signature("//", "", 0)
