@@ -210,7 +210,7 @@ func MemclrBytes(b []byte) {
 	memclrNoHeapPointers(s.array, uintptr(s.len))
 }
 
-var HashLoad = &hashLoad
+const HashLoad = hashLoad
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {

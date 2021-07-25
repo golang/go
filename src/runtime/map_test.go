@@ -473,7 +473,7 @@ func TestMapNanGrowIterator(t *testing.T) {
 	nan := math.NaN()
 	const nBuckets = 16
 	// To fill nBuckets buckets takes LOAD * nBuckets keys.
-	nKeys := int(nBuckets * *runtime.HashLoad)
+	nKeys := int(nBuckets * runtime.HashLoad)
 
 	// Get map to full point with nan keys.
 	for i := 0; i < nKeys; i++ {
