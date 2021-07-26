@@ -261,10 +261,8 @@ func deferproc(fn func()) {
 // deferprocStack queues a new deferred function with a defer record on the stack.
 // The defer record must have its fn field initialized.
 // All other fields can contain junk.
-// The defer record must be immediately followed in memory by
-// the arguments of the defer.
-// Nosplit because the arguments on the stack won't be scanned
-// until the defer record is spliced into the gp._defer list.
+// Nosplit because of the uninitialized pointer fields on the stack.
+//
 //go:nosplit
 func deferprocStack(d *_defer) {
 	gp := getg()
@@ -310,27 +308,26 @@ func deferprocStack(d *_defer) {
 // added to any defer chain yet.
 func newdefer() *_defer {
 	var d *_defer
-	gp := getg()
-	pp := gp.m.p.ptr()
+	mp := acquirem()
+	pp := mp.p.ptr()
 	if len(pp.deferpool) == 0 && sched.deferpool != nil {
-		// Take the slow path on the system stack so
-		// we don't grow newdefer's stack.
-		systemstack(func() {
-			lock(&sched.deferlock)
-			for len(pp.deferpool) < cap(pp.deferpool)/2 && sched.deferpool != nil {
-				d := sched.deferpool
-				sched.deferpool = d.link
-				d.link = nil
-				pp.deferpool = append(pp.deferpool, d)
-			}
-			unlock(&sched.deferlock)
-		})
+		lock(&sched.deferlock)
+		for len(pp.deferpool) < cap(pp.deferpool)/2 && sched.deferpool != nil {
+			d := sched.deferpool
+			sched.deferpool = d.link
+			d.link = nil
+			pp.deferpool = append(pp.deferpool, d)
+		}
+		unlock(&sched.deferlock)
 	}
 	if n := len(pp.deferpool); n > 0 {
 		d = pp.deferpool[n-1]
 		pp.deferpool[n-1] = nil
 		pp.deferpool = pp.deferpool[:n-1]
 	}
+	releasem(mp)
+	mp, pp = nil, nil
+
 	if d == nil {
 		// Allocate new defer.
 		d = new(_defer)
@@ -341,11 +338,6 @@ func newdefer() *_defer {
 
 // Free the given defer.
 // The defer cannot be used after this call.
-//
-// This must not grow the stack because there may be a frame without a
-// stack map when this is called.
-//
-//go:nosplit
 func freedefer(d *_defer) {
 	if d._panic != nil {
 		freedeferpanic()
@@ -356,31 +348,28 @@ func freedefer(d *_defer) {
 	if !d.heap {
 		return
 	}
-	pp := getg().m.p.ptr()
+
+	mp := acquirem()
+	pp := mp.p.ptr()
 	if len(pp.deferpool) == cap(pp.deferpool) {
 		// Transfer half of local cache to the central cache.
-		//
-		// Take this slow path on the system stack so
-		// we don't grow freedefer's stack.
-		systemstack(func() {
-			var first, last *_defer
-			for len(pp.deferpool) > cap(pp.deferpool)/2 {
-				n := len(pp.deferpool)
-				d := pp.deferpool[n-1]
-				pp.deferpool[n-1] = nil
-				pp.deferpool = pp.deferpool[:n-1]
-				if first == nil {
-					first = d
-				} else {
-					last.link = d
-				}
-				last = d
+		var first, last *_defer
+		for len(pp.deferpool) > cap(pp.deferpool)/2 {
+			n := len(pp.deferpool)
+			d := pp.deferpool[n-1]
+			pp.deferpool[n-1] = nil
+			pp.deferpool = pp.deferpool[:n-1]
+			if first == nil {
+				first = d
+			} else {
+				last.link = d
 			}
-			lock(&sched.deferlock)
-			last.link = sched.deferpool
-			sched.deferpool = first
-			unlock(&sched.deferlock)
-		})
+			last = d
+		}
+		lock(&sched.deferlock)
+		last.link = sched.deferpool
+		sched.deferpool = first
+		unlock(&sched.deferlock)
 	}
 
 	// These lines used to be simply `*d = _defer{}` but that
@@ -398,6 +387,9 @@ func freedefer(d *_defer) {
 	d.link = nil
 
 	pp.deferpool = append(pp.deferpool, d)
+
+	releasem(mp)
+	mp, pp = nil, nil
 }
 
 // Separate function so that it can split stack.
@@ -420,12 +412,6 @@ func freedeferfn() {
 // to have been called by the caller of deferreturn at the point
 // just before deferreturn was called. The effect is that deferreturn
 // is called again and again until there are no more deferred functions.
-//
-// Declared as nosplit, because the function should not be preempted once we start
-// modifying the caller's frame in order to reuse the frame to call the deferred
-// function.
-//
-//go:nosplit
 func deferreturn() {
 	gp := getg()
 	d := gp._defer
@@ -446,13 +432,6 @@ func deferreturn() {
 		return
 	}
 
-	// Moving arguments around.
-	//
-	// Everything called after this point must be recursively
-	// nosplit because the garbage collector won't know the form
-	// of the arguments until the jmpdefer can flip the PC over to
-	// fn.
-	argp := getcallersp() + sys.MinFrameSize
 	fn := d.fn
 	d.fn = nil
 	gp._defer = d.link
@@ -462,6 +441,9 @@ func deferreturn() {
 	// called with a callback on an LR architecture and jmpdefer is on the
 	// stack, because jmpdefer manipulates SP (see issue #8153).
 	_ = **(**funcval)(unsafe.Pointer(&fn))
+	// We must not split the stack between computing argp and
+	// calling jmpdefer because argp is a uintptr stack pointer.
+	argp := getcallersp() + sys.MinFrameSize
 	jmpdefer(fn, argp)
 }
 
