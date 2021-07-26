@@ -96,19 +96,6 @@ func comparable(T Type, seen map[Type]bool) bool {
 	}
 	seen[T] = true
 
-	// If T is a type parameter not constrained by any type
-	// (i.e., it's operational type is the top type),
-	// T is comparable if it has the == method. Otherwise,
-	// the operational type "wins". For instance
-	//
-	//     interface{ comparable; type []byte }
-	//
-	// is not comparable because []byte is not comparable.
-	// TODO(gri) this code is not 100% correct (see comment for TypeSet.IsComparable)
-	if t := asTypeParam(T); t != nil && optype(t) == theTop {
-		return t.Bound().IsComparable()
-	}
-
 	switch t := under(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
@@ -126,9 +113,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	case *Array:
 		return comparable(t.elem, seen)
 	case *TypeParam:
-		return t.underIs(func(t Type) bool {
-			return comparable(t, seen)
-		})
+		return t.Bound().IsComparable()
 	}
 	return false
 }
