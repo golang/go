@@ -31,9 +31,10 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
-	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
+
+	"golang.org/x/tools/txtar"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
