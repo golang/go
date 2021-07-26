@@ -310,6 +310,7 @@ func ubtoa(dst []byte, start int, v byte) int {
 //   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
 //   - IPv6 ("2001:db8::1"), if ip is a valid IPv6 address
 //   - the hexadecimal form of ip, without punctuation, if no other cases apply
+// For IPv6, the returned forms conform to RFC 4291 and RFC 5952.
 func (ip IP) String() string {
 	p := ip
 
