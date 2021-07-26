@@ -88,23 +88,19 @@ func defPredeclaredTypes() {
 		res := NewVar(nopos, nil, "", Typ[String])
 		sig := NewSignature(nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
-		ityp := NewInterfaceType([]*Func{err}, nil)
+		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
 		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(nopos, nil, "", typ)
 		def(obj)
 	}
 
-	// type comparable interface{ ==() }
+	// type comparable interface{ /* type set marked comparable */ }
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		sig := NewSignature(nil, nil, nil, false)
-		eql := NewFunc(nopos, nil, "==", sig)
-		ityp := NewInterfaceType([]*Func{eql}, nil)
-		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
-		typ := NewNamed(obj, ityp, nil)
-		sig.recv = NewVar(nopos, nil, "", typ)
+		ityp := &Interface{obj, nil, nil, nil, true, &TypeSet{true, nil, nil}}
+		NewNamed(obj, ityp, nil)
 		def(obj)
 	}
 }
