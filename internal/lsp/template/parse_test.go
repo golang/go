@@ -190,3 +190,28 @@ func TestUtf16(t *testing.T) {
 		t.Error("expected nonASCII to be true")
 	}
 }
+
+type ttest struct {
+	tmpl   string
+	tokCnt int
+}
+
+func TestQuotes(t *testing.T) {
+	tsts := []ttest{
+		{"{{- /*comment*/ -}}", 1},
+		{"{{/*`\ncomment\n`*/}}", 1},
+		//{"{{foo\nbar}}\n", 1}, // this action spanning lines parses in 1.16
+		{"{{\"{{foo}}{{\"}}", 1},
+		{"{{\n{{- when}}", 1},      // corrected
+		{"{{{{if .}}xx{{end}}", 2}, // corrected
+	}
+	for _, s := range tsts {
+		p := parseBuffer([]byte(s.tmpl))
+		if len(p.tokens) != s.tokCnt {
+			t.Errorf("%q: got %d tokens, expected %d", s, len(p.tokens), s.tokCnt)
+		}
+		if p.ParseErr != nil {
+			t.Errorf("%q: %v", string(p.buf), p.ParseErr)
+		}
+	}
+}

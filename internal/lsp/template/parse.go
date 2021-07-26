@@ -116,13 +116,14 @@ func parseBuffer(buf []byte) *Parsed {
 		for t == nil && ans.ParseErr == nil {
 			//  template: :2: function "foo" not defined
 			matches := parseErrR.FindStringSubmatch(err.Error())
-			if len(matches) < 2 { // uncorrectable error
-				ans.ParseErr = err
-				return ans
+			if len(matches) == 2 {
+				// suppress the error by giving it a function with the right name
+				funcs[matches[1]] = func() interface{} { return nil }
+				t, err = template.New("").Funcs(funcs).Parse(string(buf))
+				continue
 			}
-			// suppress the error by giving it a function with the right name
-			funcs[matches[1]] = func(interface{}) interface{} { return nil }
-			t, err = template.New("").Funcs(funcs).Parse(string(buf))
+			ans.ParseErr = err // unfixed error
+			return ans
 		}
 	}
 	ans.named = t.Templates()
@@ -173,24 +174,85 @@ func (p *Parsed) FindLiteralBefore(pos int) (int, int) {
 	return left + 1, right - left - 1
 }
 
-var parseErrR = regexp.MustCompile(`template:.*function "([^"]+)" not defined`)
+var (
+	parseErrR = regexp.MustCompile(`template:.*function "([^"]+)" not defined`)
+)
 
 func (p *Parsed) setTokens() {
-	last := 0
-	for left := bytes.Index(p.buf[last:], Left); left != -1; left = bytes.Index(p.buf[last:], Left) {
-		left += last
-		tok := Token{Start: left}
-		last = left + len(Left)
-		right := bytes.Index(p.buf[last:], Right)
-		if right == -1 {
-			break
+	const (
+		// InRaw and InString only occur inside an action (SeenLeft)
+		Start = iota
+		InRaw
+		InString
+		SeenLeft
+	)
+	state := Start
+	var left, oldState int
+	for n := 0; n < len(p.buf); n++ {
+		c := p.buf[n]
+		switch state {
+		case InRaw:
+			if c == '`' {
+				state = oldState
+			}
+		case InString:
+			if c == '"' && !isEscaped(p.buf[:n]) {
+				state = oldState
+			}
+		case SeenLeft:
+			if c == '`' {
+				oldState = state // it's SeenLeft, but a little clearer this way
+				state = InRaw
+				continue
+			}
+			if c == '"' {
+				oldState = state
+				state = InString
+				continue
+			}
+			if bytes.HasPrefix(p.buf[n:], Right) {
+				right := n + len(Right)
+				tok := Token{Start: left,
+					End:       right,
+					Multiline: bytes.Contains(p.buf[left:right], []byte{'\n'}),
+				}
+				p.tokens = append(p.tokens, tok)
+				state = Start
+			}
+			// If we see (unquoted) Left then the original left is probably the user
+			// typing. Suppress the original left
+			if bytes.HasPrefix(p.buf[n:], Left) {
+				for i := 0; i < len(Left); i++ {
+					p.buf[left+i] = ' '
+				}
+				left = n
+				n += len(Left) - 1 // skip the rest
+			}
+		case Start:
+			if bytes.HasPrefix(p.buf[n:], Left) {
+				left = n
+				state = SeenLeft
+				n += len(Left) - 1 // skip the rest (avoids {{{ bug)
+			}
 		}
-		right += last + len(Right)
-		tok.End = right
-		tok.Multiline = bytes.Contains(p.buf[left:right], []byte{'\n'})
-		p.tokens = append(p.tokens, tok)
-		last = right
 	}
+	// this error occurs after typing {{ at the end of the file
+	if state != Start {
+		log.Printf("state is %d", state)
+		// Unclosed Left. remove the Left at left
+		for i := 0; i < len(Left); i++ {
+			p.buf[left+i] = ' '
+		}
+	}
+}
+
+// isEscaped reports whether the byte after buf is escaped
+func isEscaped(buf []byte) bool {
+	backSlashes := 0
+	for j := len(buf) - 1; j >= 0 && buf[j] == '\\'; j-- {
+		backSlashes++
+	}
+	return backSlashes%2 == 1
 }
 
 func (p *Parsed) Tokens() []Token {
