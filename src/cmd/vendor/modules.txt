@@ -93,6 +93,7 @@ golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/lsp/fuzzy
 golang.org/x/tools/internal/typeparams
+golang.org/x/tools/txtar
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 ## explicit; go 1.11
 golang.org/x/xerrors

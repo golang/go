@@ -34,7 +34,7 @@ package txtar
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"strings"
 )
 
@@ -66,7 +66,7 @@ func Format(a *Archive) []byte {
 
 // ParseFile parses the named file as an archive.
 func ParseFile(file string) (*Archive, error) {
-	data, err := os.ReadFile(file)
+	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func isMarker(data []byte) (name string, after []byte) {
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
 		data, after = data[:i], data[i+1:]
 	}
-	if !bytes.HasSuffix(data, markerEnd) {
+	if !(bytes.HasSuffix(data, markerEnd) && len(data) >= len(marker)+len(markerEnd)) {
 		return "", nil
 	}
 	return strings.TrimSpace(string(data[len(marker) : len(data)-len(markerEnd)])), after
