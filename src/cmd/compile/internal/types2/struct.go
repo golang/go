@@ -135,7 +135,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 			embeddedPos := pos
 			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := optype(t).(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before
@@ -147,6 +147,8 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 					}
 				case *Pointer:
 					check.error(embeddedPos, "embedded field type cannot be a pointer")
+				case *TypeParam:
+					check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
 				case *Interface:
 					if isPtr {
 						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
