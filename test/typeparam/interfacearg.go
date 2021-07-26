@@ -9,14 +9,14 @@ package main
 type I interface{}
 
 type _S[T any] struct {
-	*T
+	x *T
 }
 
 // F is a non-generic function, but has a type _S[I] which is instantiated from a
 // generic type. Test that _S[I] is successfully exported.
 func F() {
 	v := _S[I]{}
-	if v.T != nil {
+	if v.x != nil {
 		panic(v)
 	}
 }
@@ -33,9 +33,9 @@ func _F1[T interface{ M() }](t T) {
 }
 
 func F2() {
-        _F1(&S1{})
-        _F1(S2{})
-        _F1(&S2{})
+	_F1(&S1{})
+	_F1(S2{})
+	_F1(&S2{})
 }
 
 func main() {
