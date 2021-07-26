@@ -982,23 +982,6 @@ again:
 	CBNZ	R0, again
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 4 bytes to get back to BL deferreturn
-// 3. BR to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
-	MOVD	0(RSP), R0
-	SUB	$4, R0
-	MOVD	R0, LR
-
-	MOVD	fv+0(FP), R26
-	MOVD	argp+8(FP), R0
-	MOVD	R0, RSP
-	SUB	$8, RSP
-	MOVD	0(R26), R3
-	B	(R3)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)

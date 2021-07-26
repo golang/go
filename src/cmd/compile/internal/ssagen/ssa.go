@@ -7335,18 +7335,6 @@ func (s *State) PrepareCall(v *ssa.Value) {
 
 	call, ok := v.Aux.(*ssa.AuxCall)
 
-	if ok && call.Fn == ir.Syms.Deferreturn {
-		// Deferred calls will appear to be returning to
-		// the CALL deferreturn(SB) that we are about to emit.
-		// However, the stack trace code will show the line
-		// of the instruction byte before the return PC.
-		// To avoid that being an unrelated instruction,
-		// insert an actual hardware NOP that will have the right line number.
-		// This is different from obj.ANOP, which is a virtual no-op
-		// that doesn't make it into the instruction stream.
-		Arch.Ginsnopdefer(s.pp)
-	}
-
 	if ok {
 		// Record call graph information for nowritebarrierrec
 		// analysis.
