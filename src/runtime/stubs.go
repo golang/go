@@ -176,8 +176,6 @@ func cgocallback(fn, frame, ctxt uintptr)
 
 func gogo(buf *gobuf)
 
-//go:noescape
-func jmpdefer(fv func(), argp uintptr)
 func asminit()
 func setg(gg *g)
 func breakpoint()
