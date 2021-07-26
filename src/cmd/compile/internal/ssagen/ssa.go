@@ -1228,7 +1228,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		if f.Sym.IsBlank() {
 			continue
 		}
-		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), abi.FieldOffsetOf(f), addr)
+		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
 		s.instrumentFields(f.Type, offptr, kind)
 	}
 }

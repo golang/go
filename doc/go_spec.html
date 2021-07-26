@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jul 1, 2021",
+	"Subtitle": "Version of Jul 26, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -490,8 +490,8 @@ After a backslash, certain single-character escapes represent special values:
 \n   U+000A line feed or newline
 \r   U+000D carriage return
 \t   U+0009 horizontal tab
-\v   U+000b vertical tab
-\\   U+005c backslash
+\v   U+000B vertical tab
+\\   U+005C backslash
 \'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
@@ -4335,6 +4335,9 @@ s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 var t []string
 t0 := (*[0]string)(t)    // t0 == nil
 t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+
+u := make([]byte, 0)
+u0 = (*[0]byte)(u)       // u0 != nil
 </pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
