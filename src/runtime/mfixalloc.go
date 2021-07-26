@@ -47,10 +47,17 @@ type mlink struct {
 	next *mlink
 }
 
+func maxUintptr(a, b uintptr) uintptr {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
 func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *sysMemStat) {
-	f.size = size
+	f.size = maxUintptr(size, unsafe.Sizeof(mlink{}))
 	f.first = first
 	f.arg = arg
 	f.list = nil
@@ -77,7 +84,8 @@ func (f *fixalloc) alloc() unsafe.Pointer {
 		return v
 	}
 	if uintptr(f.nchunk) < f.size {
-		f.chunk = uintptr(persistentalloc(_FixAllocChunk, 0, f.stat))
+		chunksz := maxUintptr(f.size, _FixAllocChunk)
+		f.chunk = uintptr(persistentalloc(chunksz, 0, f.stat))
 		f.nchunk = _FixAllocChunk
 	}
 
