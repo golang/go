@@ -2181,7 +2181,6 @@ var g3Failures = setOf(
 
 	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
 
-	"typeparam/cons.go",   // causes an unreachable method
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
 	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops

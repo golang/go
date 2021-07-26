@@ -1515,6 +1515,23 @@ func deref(t *types.Type) *types.Type {
 	return t
 }
 
+// markTypeUsed marks type t as used in order to help avoid dead-code elimination of
+// needed methods.
+func markTypeUsed(t *types.Type, lsym *obj.LSym) {
+	if t.IsInterface() {
+		// Mark all the methods of the interface as used.
+		// TODO: we should really only mark the interface methods
+		// that are actually called in the application.
+		for i, _ := range t.AllMethods().Slice() {
+			reflectdata.MarkUsedIfaceMethodIndex(lsym, t, i)
+		}
+	} else {
+		// TODO: This is somewhat overkill, we really only need it
+		// for types that are put into interfaces.
+		reflectdata.MarkTypeUsedInInterface(t, lsym)
+	}
+}
+
 // getDictionarySym returns the dictionary for the named generic function gf, which
 // is instantiated with the type arguments targs.
 func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
@@ -1543,11 +1560,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			infoPrint(" * %v\n", t)
 			s := reflectdata.TypeLinksym(t)
 			off = objw.SymPtr(lsym, off, s, 0)
-			// Ensure that methods on t don't get deadcode eliminated
-			// by the linker.
-			// TODO: This is somewhat overkill, we really only need it
-			// for types that are put into interfaces.
-			reflectdata.MarkTypeUsedInInterface(t, lsym)
+			markTypeUsed(t, lsym)
 		}
 		subst := typecheck.Tsubster{
 			Tparams: info.tparams,
@@ -1559,7 +1572,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 			infoPrint(" - %v\n", ts)
 			s := reflectdata.TypeLinksym(ts)
 			off = objw.SymPtr(lsym, off, s, 0)
-			reflectdata.MarkTypeUsedInInterface(ts, lsym)
+			markTypeUsed(ts, lsym)
 		}
 		// Emit an entry for each subdictionary (after substituting targs)
 		for _, n := range info.subDictCalls {
