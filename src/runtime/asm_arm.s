@@ -506,20 +506,6 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// void jmpdefer(fn, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 4 bytes to get back to BL deferreturn
-// 3. B to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
-	MOVW	0(R13), LR
-	MOVW	$-4(LR), LR	// BL deferreturn
-	MOVW	fv+0(FP), R7
-	MOVW	argp+4(FP), R13
-	MOVW	$-4(R13), R13	// SP is 4 below argp, due to saved LR
-	MOVW	0(R7), R1
-	B	(R1)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)

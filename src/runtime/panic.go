@@ -396,47 +396,39 @@ func freedeferfn() {
 	throw("freedefer with d.fn != nil")
 }
 
-// Run a deferred function if there is one.
+// deferreturn runs deferred functions for the caller's frame.
 // The compiler inserts a call to this at the end of any
 // function which calls defer.
-// If there is a deferred function, this will call runtime·jmpdefer,
-// which will jump to the deferred function such that it appears
-// to have been called by the caller of deferreturn at the point
-// just before deferreturn was called. The effect is that deferreturn
-// is called again and again until there are no more deferred functions.
 func deferreturn() {
 	gp := getg()
-	d := gp._defer
-	if d == nil {
-		return
-	}
-	sp := getcallersp()
-	if d.sp != sp {
-		return
-	}
-	if d.openDefer {
-		done := runOpenDeferFrame(gp, d)
-		if !done {
-			throw("unfinished open-coded defers in deferreturn")
+	for {
+		d := gp._defer
+		if d == nil {
+			return
 		}
+		sp := getcallersp()
+		if d.sp != sp {
+			return
+		}
+		if d.openDefer {
+			done := runOpenDeferFrame(gp, d)
+			if !done {
+				throw("unfinished open-coded defers in deferreturn")
+			}
+			gp._defer = d.link
+			freedefer(d)
+			// If this frame uses open defers, then this
+			// must be the only defer record for the
+			// frame, so we can just return.
+			return
+		}
+
+		fn := d.fn
+		d.fn = nil
 		gp._defer = d.link
 		freedefer(d)
-		return
+		fn()
 	}
-
-	fn := d.fn
-	d.fn = nil
-	gp._defer = d.link
-	freedefer(d)
-	// If the defer function pointer is nil, force the seg fault to happen
-	// here rather than in jmpdefer. gentraceback() throws an error if it is
-	// called with a callback on an LR architecture and jmpdefer is on the
-	// stack, because jmpdefer manipulates SP (see issue #8153).
-	_ = **(**funcval)(unsafe.Pointer(&fn))
-	// We must not split the stack between computing argp and
-	// calling jmpdefer because argp is a uintptr stack pointer.
-	argp := getcallersp() + sys.MinFrameSize
-	jmpdefer(fn, argp)
 }
 
 // Goexit terminates the goroutine that calls it. No other goroutine is affected.
