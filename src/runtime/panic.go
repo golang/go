@@ -234,9 +234,6 @@ func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
 		throw("defer on system stack")
 	}
 
-	sp := getcallersp()
-	callerpc := getcallerpc()
-
 	d := newdefer()
 	if d._panic != nil {
 		throw("deferproc: d.panic != nil after newdefer")
@@ -244,8 +241,11 @@ func deferproc(fn *funcval) { // TODO: Make deferproc just take a func().
 	d.link = gp._defer
 	gp._defer = d
 	d.fn = fn
-	d.pc = callerpc
-	d.sp = sp
+	d.pc = getcallerpc()
+	// We must not be preempted between calling getcallersp and
+	// storing it to d.sp because getcallersp's result is a
+	// uintptr stack pointer.
+	d.sp = getcallersp()
 
 	// deferproc returns 0 normally.
 	// a deferred func that stops a panic
