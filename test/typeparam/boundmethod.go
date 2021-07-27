@@ -29,32 +29,78 @@ type Stringer interface {
 
 func stringify[T Stringer](s []T) (ret []string) {
 	for _, v := range s {
+		// Test normal bounds method call on type param
+		x1 := v.String()
+
+		// Test converting type param to its bound interface first
+		v1 := Stringer(v)
+		x2 := v1.String()
+
+		// Test method expression with type param type
+		f1 := T.String
+		x3 := f1(v)
+
+		// Test creating and calling closure equivalent to the method expression
+		f2 := func(v1 T) string {
+			return Stringer(v1).String()
+		}
+		x4 := f2(v)
+
+		if x1 != x2 || x2 != x3 || x3 != x4 {
+			panic(fmt.Sprintf("Mismatched values %v, %v, %v, %v\n", x1, x2, x3, x4))
+		}
+
 		ret = append(ret, v.String())
 	}
 	return ret
 }
 
-type StringInt[T any] T
+type Ints interface {
+	~int32 | ~int
+}
+
+type StringInt[T Ints] T
 
 //go:noinline
 func (m StringInt[T]) String() string {
-	return "aa"
+	return strconv.Itoa(int(m))
+}
+
+type StringStruct[T Ints] struct {
+	f T
+}
+
+func (m StringStruct[T]) String() string {
+	return strconv.Itoa(int(m.f))
 }
 
 func main() {
 	x := []myint{myint(1), myint(2), myint(3)}
 
+	// stringify on a normal type, whose bound method is associated with the base type.
 	got := stringify(x)
 	want := []string{"1", "2", "3"}
 	if !reflect.DeepEqual(got, want) {
 		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
-	x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
+	x2 := []StringInt[myint]{StringInt[myint](5), StringInt[myint](7), StringInt[myint](6)}
 
+	// stringify on an instantiated type, whose bound method is associated with
+	// the generic type StringInt[T], which maps directly to T.
 	got2 := stringify(x2)
-	want2 := []string{"aa", "aa", "aa"}
+	want2 := []string{ "5", "7", "6" }
 	if !reflect.DeepEqual(got2, want2) {
 		panic(fmt.Sprintf("got %s, want %s", got2, want2))
+	}
+
+	// stringify on an instantiated type, whose bound method is associated with
+	// the generic type StringStruct[T], which maps to a struct containing T.
+	x3 := []StringStruct[myint]{StringStruct[myint]{f: 11}, StringStruct[myint]{f: 10}, StringStruct[myint]{f: 9}}
+
+	got3 := stringify(x3)
+	want3 := []string{ "11", "10", "9" }
+	if !reflect.DeepEqual(got3, want3) {
+		panic(fmt.Sprintf("got %s, want %s", got3, want3))
 	}
 }

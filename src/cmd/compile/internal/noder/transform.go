@@ -664,7 +664,11 @@ func transformMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 
 	s := n.Sel
 	m := typecheck.Lookdot1(n, s, t, ms, 0)
-	assert(m != nil)
+	if !t.HasShape() {
+		// It's OK to not find the method if t is instantiated by shape types,
+		// because we will use the methods on the generic type anyway.
+		assert(m != nil)
+	}
 
 	n.SetOp(ir.OMETHEXPR)
 	n.Selection = m
