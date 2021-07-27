@@ -319,6 +319,10 @@ const (
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 	OLINKSYMOFFSET // offset within a name
 
+	// opcodes for generics
+	ODYNAMICDOTTYPE
+	ODYNAMICDOTTYPE2
+
 	// arch-specific opcodes
 	OTAILCALL    // tail call to another function
 	OGETG        // runtime.getg() (read g pointer)

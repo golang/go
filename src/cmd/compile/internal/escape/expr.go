@@ -74,6 +74,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.ODOTTYPE, ir.ODOTTYPE2:
 		n := n.(*ir.TypeAssertExpr)
 		e.expr(k.dotType(n.Type(), n, "dot"), n.X)
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		e.expr(k.dotType(n.Type(), n, "dot"), n.X)
+		// n.T doesn't need to be tracked; it always points to read-only storage.
 	case ir.OINDEX:
 		n := n.(*ir.IndexExpr)
 		if n.X.Type().IsArray() {

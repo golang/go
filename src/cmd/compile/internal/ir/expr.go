@@ -677,6 +677,29 @@ func (n *TypeAssertExpr) SetOp(op Op) {
 	}
 }
 
+// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
+type DynamicTypeAssertExpr struct {
+	miniExpr
+	X Node
+	// N = not an interface
+	// E = empty interface
+	// I = nonempty interface
+	// For E->N, T is a *runtime.type for N
+	// For I->N, T is a *runtime.itab for N+I
+	// For E->I, T is a *runtime.type for I
+	// For I->I, ditto
+	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
+	// For E->E, ditto
+	T Node
+}
+
+func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
+	n := &DynamicTypeAssertExpr{X: x, T: t}
+	n.pos = pos
+	n.op = op
+	return n
+}
+
 // A UnaryExpr is a unary expression Op X,
 // or Op(X) for a builtin function that does not end up being a call.
 type UnaryExpr struct {

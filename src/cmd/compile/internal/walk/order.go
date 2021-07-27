@@ -686,6 +686,10 @@ func (o *orderState) stmt(n ir.Node) {
 		case ir.ODOTTYPE2:
 			r := r.(*ir.TypeAssertExpr)
 			r.X = o.expr(r.X, nil)
+		case ir.ODYNAMICDOTTYPE2:
+			r := r.(*ir.DynamicTypeAssertExpr)
+			r.X = o.expr(r.X, nil)
+			r.T = o.expr(r.T, nil)
 		case ir.ORECV:
 			r := r.(*ir.UnaryExpr)
 			r.X = o.expr(r.X, nil)

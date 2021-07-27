@@ -136,6 +136,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.TypeAssertExpr)
 		return walkDotType(n, init)
 
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		return walkDynamicDotType(n, init)
+
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
 		return walkLenCap(n, init)
@@ -666,6 +670,13 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
+	return n
+}
+
+// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
+	n.X = walkExpr(n.X, init)
+	n.T = walkExpr(n.T, init)
 	return n
 }
 
