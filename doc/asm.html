@@ -166,7 +166,7 @@ jumps and branches.
 </li>
 
 <li>
-<code>SP</code>: Stack pointer: top of stack.
+<code>SP</code>: Stack pointer: bottom of local stack.
 </li>
 
 </ul>
@@ -216,7 +216,8 @@ If a Go prototype does not name its result, the expected assembly name is <code>
 The <code>SP</code> pseudo-register is a virtual stack pointer
 used to refer to frame-local variables and the arguments being
 prepared for function calls.
-It points to the top of the local stack frame, so references should use negative offsets
+Goroutine stack grows from high address to low address,
+and SP points to the bottom of the local stack frame, so references should use negative offsets
 in the range [−framesize, 0):
 <code>x-8(SP)</code>, <code>y-4(SP)</code>, and so on.
 </p>
