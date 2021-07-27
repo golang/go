@@ -595,47 +595,14 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	}
 	c := rawGoModSummaryCache.Do(m, func() interface{} {
 		summary := new(modFileSummary)
-		var f *modfile.File
-		if m.Version == "" {
-			// m is a replacement module with only a file path.
-			dir := m.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			gomod := filepath.Join(dir, "go.mod")
-			var data []byte
-			var err error
-			if gomodActual, ok := fsys.OverlayPath(gomod); ok {
-				// Don't lock go.mod if it's part of the overlay.
-				// On Plan 9, locking requires chmod, and we don't want to modify any file
-				// in the overlay. See #44700.
-				data, err = os.ReadFile(gomodActual)
-			} else {
-				data, err = lockedfile.Read(gomodActual)
-			}
-			if err != nil {
-				return cached{nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))}
-			}
-			f, err = modfile.ParseLax(gomod, data, nil)
-			if err != nil {
-				return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err))}
-			}
-		} else {
-			if !semver.IsValid(m.Version) {
-				// Disallow the broader queries supported by fetch.Lookup.
-				base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
-			}
-
-			data, err := modfetch.GoMod(m.Path, m.Version)
-			if err != nil {
-				return cached{nil, err}
-			}
-			f, err = modfile.ParseLax("go.mod", data, nil)
-			if err != nil {
-				return cached{nil, module.VersionError(m, fmt.Errorf("parsing go.mod: %v", err))}
-			}
+		name, data, err := rawGoModData(m)
+		if err != nil {
+			return cached{nil, err}
 		}
-
+		f, err := modfile.ParseLax(name, data, nil)
+		if err != nil {
+			return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))}
+		}
 		if f.Module != nil {
 			summary.module = f.Module.Mod
 			summary.deprecated = f.Module.Deprecated
@@ -670,6 +637,42 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 }
 
 var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+
+// rawGoModData returns the content of the go.mod file for module m, ignoring
+// all replacements that may apply to m.
+//
+// rawGoModData cannot be used on the Target module.
+//
+// Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
+// Use rawGoModSummary instead unless you specifically need these bytes.
+func rawGoModData(m module.Version) (name string, data []byte, err error) {
+	if m.Version == "" {
+		// m is a replacement module with only a file path.
+		dir := m.Path
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(ModRoot(), dir)
+		}
+		gomod := filepath.Join(dir, "go.mod")
+		if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+			// Don't lock go.mod if it's part of the overlay.
+			// On Plan 9, locking requires chmod, and we don't want to modify any file
+			// in the overlay. See #44700.
+			data, err = os.ReadFile(gomodActual)
+		} else {
+			data, err = lockedfile.Read(gomodActual)
+		}
+		if err != nil {
+			return gomod, nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))
+		}
+	} else {
+		if !semver.IsValid(m.Version) {
+			// Disallow the broader queries supported by fetch.Lookup.
+			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
+		}
+		data, err = modfetch.GoMod(m.Path, m.Version)
+	}
+	return "go.mod", data, err
+}
 
 // queryLatestVersionIgnoringRetractions looks up the latest version of the
 // module with the given path without considering retracted or excluded
