@@ -1446,16 +1446,16 @@
 // The rule for a match in the cache is that the run involves the same
 // test binary and the flags on the command line come entirely from a
 // restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
-// -list, -parallel, -run, -short, and -v. If a run of go test has any test
-// or non-test flags outside this set, the result is not cached. To
-// disable test caching, use any test flag or argument other than the
-// cacheable flags. The idiomatic way to disable test caching explicitly
-// is to use -count=1. Tests that open files within the package's source
-// root (usually $GOPATH) or that consult environment variables only
-// match future runs in which the files and environment variables are unchanged.
-// A cached test result is treated as executing in no time at all,
-// so a successful package test result will be cached and reused
-// regardless of -timeout setting.
+// -list, -parallel, -run, -short, -timeout, -failfast, and -v.
+// If a run of go test has any test or non-test flags outside this set,
+// the result is not cached. To disable test caching, use any test flag
+// or argument other than the cacheable flags. The idiomatic way to disable
+// test caching explicitly is to use -count=1. Tests that open files within
+// the package's source root (usually $GOPATH) or that consult environment
+// variables only match future runs in which the files and environment
+// variables are unchanged. A cached test result is treated as executing
+// in no time at all,so a successful package test result will be cached and
+// reused regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
 //
