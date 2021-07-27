@@ -1078,7 +1078,7 @@
 //
 // Usage:
 //
-// 	go mod edit [editing flags] [go.mod]
+// 	go mod edit [editing flags] [-fmt|-print|-json] [go.mod]
 //
 // Edit provides a command-line interface for editing go.mod,
 // for use primarily by tools or scripts. It reads only go.mod;
@@ -1204,7 +1204,7 @@
 //
 // Usage:
 //
-// 	go mod init [module]
+// 	go mod init [module-path]
 //
 // Init initializes and writes a new go.mod file in the current directory, in
 // effect creating a new module rooted at the current directory. The go.mod file
