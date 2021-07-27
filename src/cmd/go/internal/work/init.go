@@ -41,7 +41,6 @@ func BuildInit() {
 
 	if cfg.BuildP <= 0 {
 		base.Fatalf("go: -p must be a positive integer: %v\n", cfg.BuildP)
-		base.SetExitStatus(1)
 	}
 
 	// Make sure CC and CXX are absolute paths
