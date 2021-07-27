@@ -1423,7 +1423,12 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.OAS2DOTTYPE:
 		n := n.(*ir.AssignListStmt)
-		res, resok := s.dottype(n.Rhs[0].(*ir.TypeAssertExpr), true)
+		var res, resok *ssa.Value
+		if n.Rhs[0].Op() == ir.ODOTTYPE2 {
+			res, resok = s.dottype(n.Rhs[0].(*ir.TypeAssertExpr), true)
+		} else {
+			res, resok = s.dynamicDottype(n.Rhs[0].(*ir.DynamicTypeAssertExpr), true)
+		}
 		deref := false
 		if !TypeOK(n.Rhs[0].Type()) {
 			if res.Op != ssa.OpLoad {
@@ -2678,6 +2683,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.ODOTTYPE:
 		n := n.(*ir.TypeAssertExpr)
 		res, _ := s.dottype(n, false)
+		return res
+
+	case ir.ODYNAMICDOTTYPE:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		res, _ := s.dynamicDottype(n, false)
 		return res
 
 	// binary ops
@@ -5147,9 +5157,13 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 	case ir.OCALLFUNC, ir.OCALLINTER:
 		n := n.(*ir.CallExpr)
 		return s.callAddr(n, callNormal)
-	case ir.ODOTTYPE:
-		n := n.(*ir.TypeAssertExpr)
-		v, _ := s.dottype(n, false)
+	case ir.ODOTTYPE, ir.ODYNAMICDOTTYPE:
+		var v *ssa.Value
+		if n.Op() == ir.ODOTTYPE {
+			v, _ = s.dottype(n.(*ir.TypeAssertExpr), false)
+		} else {
+			v, _ = s.dynamicDottype(n.(*ir.DynamicTypeAssertExpr), false)
+		}
 		if v.Op != ssa.OpLoad {
 			s.Fatalf("dottype of non-load")
 		}
@@ -6043,14 +6057,38 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.X)              // input interface
 	target := s.reflectType(n.Type()) // target type
-	byteptr := s.f.Config.Types.BytePtr
+	var targetItab *ssa.Value
+	if n.Itab != nil {
+		targetItab = s.expr(n.Itab)
+	}
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+}
 
-	if n.Type().IsInterface() {
-		if n.Type().IsEmptyInterface() {
+func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+	iface := s.expr(n.X)
+	target := s.expr(n.T)
+	var itab *ssa.Value
+	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
+		byteptr := s.f.Config.Types.BytePtr
+		itab = target
+		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)) // itab.typ
+	}
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, itab, commaok)
+}
+
+// dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
+// and src is the type we're asserting from.
+// target is the *runtime._type of dst.
+// If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
+// commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
+func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
+	byteptr := s.f.Config.Types.BytePtr
+	if dst.IsInterface() {
+		if dst.IsEmptyInterface() {
 			// Converting to an empty interface.
 			// Input could be an empty or nonempty interface.
 			if base.Debug.TypeAssert > 0 {
-				base.WarnfAt(n.Pos(), "type assertion inlined")
+				base.WarnfAt(pos, "type assertion inlined")
 			}
 
 			// Get itab/type field from input.
@@ -6058,7 +6096,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			// Conversion succeeds iff that field is not nil.
 			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
 
-			if n.X.Type().IsEmptyInterface() && commaok {
+			if src.IsEmptyInterface() && commaok {
 				// Converting empty interface to empty interface with ,ok is just a nil check.
 				return iface, cond
 			}
@@ -6080,7 +6118,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 
 				// On success, return (perhaps modified) input interface.
 				s.startBlock(bOk)
-				if n.X.Type().IsEmptyInterface() {
+				if src.IsEmptyInterface() {
 					res = iface // Use input interface unchanged.
 					return
 				}
@@ -6088,7 +6126,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
 				typ := s.load(byteptr, off)
 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
-				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
+				res = s.newValue2(ssa.OpIMake, dst, typ, idata)
 				return
 			}
 
@@ -6110,62 +6148,62 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 			bFail.AddEdgeTo(bEnd)
 			s.startBlock(bEnd)
 			idata := s.newValue1(ssa.OpIData, byteptr, iface)
-			res = s.newValue2(ssa.OpIMake, n.Type(), s.variable(typVar, byteptr), idata)
+			res = s.newValue2(ssa.OpIMake, dst, s.variable(typVar, byteptr), idata)
 			resok = cond
 			delete(s.vars, typVar)
 			return
 		}
 		// converting to a nonempty interface needs a runtime call.
 		if base.Debug.TypeAssert > 0 {
-			base.WarnfAt(n.Pos(), "type assertion not inlined")
+			base.WarnfAt(pos, "type assertion not inlined")
 		}
 		if !commaok {
 			fn := ir.Syms.AssertI2I
-			if n.X.Type().IsEmptyInterface() {
+			if src.IsEmptyInterface() {
 				fn = ir.Syms.AssertE2I
 			}
 			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
 			tab := s.newValue1(ssa.OpITab, byteptr, iface)
 			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
-			return s.newValue2(ssa.OpIMake, n.Type(), tab, data), nil
+			return s.newValue2(ssa.OpIMake, dst, tab, data), nil
 		}
 		fn := ir.Syms.AssertI2I2
-		if n.X.Type().IsEmptyInterface() {
+		if src.IsEmptyInterface() {
 			fn = ir.Syms.AssertE2I2
 		}
-		res = s.rtcall(fn, true, []*types.Type{n.Type()}, target, iface)[0]
-		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(n.Type()))
+		res = s.rtcall(fn, true, []*types.Type{dst}, target, iface)[0]
+		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(dst))
 		return
 	}
 
 	if base.Debug.TypeAssert > 0 {
-		base.WarnfAt(n.Pos(), "type assertion inlined")
+		base.WarnfAt(pos, "type assertion inlined")
 	}
 
 	// Converting to a concrete type.
-	direct := types.IsDirectIface(n.Type())
+	direct := types.IsDirectIface(dst)
 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
 	if base.Debug.TypeAssert > 0 {
-		base.WarnfAt(n.Pos(), "type assertion inlined")
+		base.WarnfAt(pos, "type assertion inlined")
 	}
-	var targetITab *ssa.Value
-	if n.X.Type().IsEmptyInterface() {
+	var wantedFirstWord *ssa.Value
+	if src.IsEmptyInterface() {
 		// Looking for pointer to target type.
-		targetITab = target
+		wantedFirstWord = target
 	} else {
 		// Looking for pointer to itab for target type and source interface.
-		targetITab = s.expr(n.Itab)
+		wantedFirstWord = targetItab
 	}
 
 	var tmp ir.Node     // temporary for use with large types
 	var addr *ssa.Value // address of tmp
-	if commaok && !TypeOK(n.Type()) {
+	if commaok && !TypeOK(dst) {
 		// unSSAable type, use temporary.
 		// TODO: get rid of some of these temporaries.
-		tmp, addr = s.temp(n.Pos(), n.Type())
+		tmp, addr = s.temp(pos, dst)
 	}
 
-	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, targetITab)
+	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, wantedFirstWord)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cond)
@@ -6179,8 +6217,8 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.reflectType(n.X.Type())
-		if n.X.Type().IsEmptyInterface() {
+		taddr := s.reflectType(src)
+		if src.IsEmptyInterface() {
 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {
 			s.rtcall(ir.Syms.PanicdottypeI, false, nil, itab, target, taddr)
@@ -6189,10 +6227,10 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 		// on success, return data from interface
 		s.startBlock(bOk)
 		if direct {
-			return s.newValue1(ssa.OpIData, n.Type(), iface), nil
+			return s.newValue1(ssa.OpIData, dst, iface), nil
 		}
-		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
-		return s.load(n.Type(), p), nil
+		p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
+		return s.load(dst, p), nil
 	}
 
 	// commaok is the more complicated case because we have
@@ -6206,14 +6244,14 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	s.startBlock(bOk)
 	if tmp == nil {
 		if direct {
-			s.vars[valVar] = s.newValue1(ssa.OpIData, n.Type(), iface)
+			s.vars[valVar] = s.newValue1(ssa.OpIData, dst, iface)
 		} else {
-			p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
-			s.vars[valVar] = s.load(n.Type(), p)
+			p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
+			s.vars[valVar] = s.load(dst, p)
 		}
 	} else {
-		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
-		s.move(n.Type(), addr, p)
+		p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
+		s.move(dst, addr, p)
 	}
 	s.vars[okVar] = s.constBool(true)
 	s.endBlock()
@@ -6222,9 +6260,9 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	// type assertion failed
 	s.startBlock(bFail)
 	if tmp == nil {
-		s.vars[valVar] = s.zeroVal(n.Type())
+		s.vars[valVar] = s.zeroVal(dst)
 	} else {
-		s.zero(n.Type(), addr)
+		s.zero(dst, addr)
 	}
 	s.vars[okVar] = s.constBool(false)
 	s.endBlock()
@@ -6233,10 +6271,10 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	// merge point
 	s.startBlock(bEnd)
 	if tmp == nil {
-		res = s.variable(valVar, n.Type())
+		res = s.variable(valVar, dst)
 		delete(s.vars, valVar)
 	} else {
-		res = s.load(n.Type(), addr)
+		res = s.load(dst, addr)
 		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
 	}
 	resok = s.variable(okVar, types.Types[types.TBOOL])

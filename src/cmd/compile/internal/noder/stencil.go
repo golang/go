@@ -1039,6 +1039,7 @@ func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code 
 	d.SetTypecheck(1)
 	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(len(targs))).PtrTo(), d)
 	d.SetTypecheck(1)
+	types.CheckSize(d.Type().Elem())
 
 	// Check that each type entry in the dictionary is correct.
 	for i, t := range targs {
@@ -1079,6 +1080,7 @@ func getDictionaryEntry(pos src.XPos, dict *ir.Name, i int, size int) ir.Node {
 	d.SetTypecheck(1)
 	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(size)).PtrTo(), d)
 	d.SetTypecheck(1)
+	types.CheckSize(d.Type().Elem())
 
 	// Load entry i out of the dictionary.
 	deref := ir.NewStarExpr(pos, d)
@@ -1367,7 +1369,31 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				m = subst.convertUsingDictionary(m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
-			m.SetType(subst.unshapifyTyp(m.Type()))
+			dt := m.(*ir.TypeAssertExpr)
+			var rt ir.Node
+			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
+				ix := subst.findDictType(x.Type())
+				assert(ix >= 0)
+				rt = subst.getDictionaryType(dt.Pos(), ix)
+			} else {
+				// nonempty interface to noninterface. Need an itab.
+				ix := -1
+				for i, ic := range subst.info.gfInfo.itabConvs {
+					if ic == x {
+						ix = subst.info.startItabConv + i
+						break
+					}
+				}
+				assert(ix >= 0)
+				rt = getDictionaryEntry(dt.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
+			}
+			op := ir.ODYNAMICDOTTYPE
+			if x.Op() == ir.ODOTTYPE2 {
+				op = ir.ODYNAMICDOTTYPE2
+			}
+			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
+			m.SetType(dt.Type())
+			m.SetTypecheck(1)
 
 		case ir.OMETHEXPR:
 			se := m.(*ir.SelectorExpr)
@@ -1696,7 +1722,8 @@ func (g *irgen) finalizeSyms() {
 		// Emit an entry for each itab
 		for _, n := range info.itabConvs {
 			var srctype, dsttype *types.Type
-			if n.Op() == ir.OXDOT {
+			switch n.Op() {
+			case ir.OXDOT:
 				se := n.(*ir.SelectorExpr)
 				srctype = subst.Typ(se.X.Type())
 				dsttype = subst.Typ(se.X.Type().Bound())
@@ -1712,10 +1739,14 @@ func (g *irgen) finalizeSyms() {
 					}
 				}
 				assert(found)
-			} else {
-				assert(n.Op() == ir.OCONVIFACE)
+			case ir.ODOTTYPE, ir.ODOTTYPE2:
+				srctype = subst.Typ(n.(*ir.TypeAssertExpr).Type())
+				dsttype = subst.Typ(n.(*ir.TypeAssertExpr).X.Type())
+			case ir.OCONVIFACE:
 				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())
 				dsttype = subst.Typ(n.Type())
+			default:
+				base.Fatalf("itab entry with unknown op %s", n.Op())
 			}
 			itabLsym := reflectdata.ITabLsym(srctype, dsttype)
 			d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
@@ -1857,6 +1888,10 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 		}
 		if n.Op() == ir.OXDOT && n.(*ir.SelectorExpr).X.Type().IsTypeParam() {
 			infoPrint("  Itab for interface conv: %v\n", n)
+			info.itabConvs = append(info.itabConvs, n)
+		}
+		if (n.Op() == ir.ODOTTYPE || n.Op() == ir.ODOTTYPE2) && !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
+			infoPrint("  Itab for dot type: %v\n", n)
 			info.itabConvs = append(info.itabConvs, n)
 		}
 		if n.Op() == ir.OCLOSURE {
