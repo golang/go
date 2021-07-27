@@ -94,7 +94,7 @@ func (l *List) insert(e, at *Element) *Element {
 	e.next = at.next
 	e.prev.next = e
 	if e.next != nil {
-		e.next.prev = e
+		e.next.prev=e
 	}
 	e.list = l
 	l.len++
