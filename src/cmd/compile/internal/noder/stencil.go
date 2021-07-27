@@ -1291,13 +1291,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					default:
 						base.FatalfAt(call.Pos(), "Unexpected builtin op")
 					}
-					switch m.Op() {
-					case ir.OAPPEND:
-						// Append needs to pass a concrete type to the runtime.
-						// TODO: there's no way to record a dictionary-loaded type for walk to use here
-						m.SetType(subst.unshapifyTyp(m.Type()))
-					}
-
 				} else {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
