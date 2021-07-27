@@ -135,6 +135,11 @@ func runFunc(pass *analysis.Pass, fn *ssa.Function) {
 				if nilnessOf(stack, instr.X) == isnil {
 					reportf("nilpanic", instr.Pos(), "panic with nil value")
 				}
+			case *ssa.SliceToArrayPointer:
+				nn := nilnessOf(stack, instr.X)
+				if nn == isnil && slice2ArrayPtrLen(instr) > 0 {
+					reportf("conversionpanic", instr.Pos(), "nil slice being cast to an array of len > 0 will always panic")
+				}
 			}
 		}
 
@@ -259,6 +264,26 @@ func nilnessOf(stack []fact, v ssa.Value) nilness {
 		if underlying := nilnessOf(stack, v.X); underlying != unknown {
 			return underlying
 		}
+	case *ssa.SliceToArrayPointer:
+		nn := nilnessOf(stack, v.X)
+		if slice2ArrayPtrLen(v) > 0 {
+			if nn == isnil {
+				// We know that *(*[1]byte)(nil) is going to panic because of the
+				// conversion. So return unknown to the caller, prevent useless
+				// nil deference reporting due to * operator.
+				return unknown
+			}
+			// Otherwise, the conversion will yield a non-nil pointer to array.
+			// Note that the instruction can still panic if array length greater
+			// than slice length. If the value is used by another instruction,
+			// that instruction can assume the panic did not happen when that
+			// instruction is reached.
+			return isnonnil
+		}
+		// In case array length is zero, the conversion result depends on nilness of the slice.
+		if nn != unknown {
+			return nn
+		}
 	}
 
 	// Is value intrinsically nil or non-nil?
@@ -290,6 +315,10 @@ func nilnessOf(stack []fact, v ssa.Value) nilness {
 		}
 	}
 	return unknown
+}
+
+func slice2ArrayPtrLen(v *ssa.SliceToArrayPointer) int64 {
+	return v.Type().(*types.Pointer).Elem().Underlying().(*types.Array).Len()
 }
 
 // If b ends with an equality comparison, eq returns the operation and
