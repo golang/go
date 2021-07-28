@@ -167,10 +167,10 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
 
 	tparams := otyp.(*types2.Named).TParams()
-	if len(tparams) > 0 {
-		rparams := make([]*types.Type, len(tparams))
+	if n := tparams.Len(); n > 0 {
+		rparams := make([]*types.Type, n)
 		for i := range rparams {
-			rparams[i] = g.typ(tparams[i].Type())
+			rparams[i] = g.typ(tparams.At(i).Type())
 		}
 		// This will set hasTParam flag if any rparams are not concrete types.
 		ntyp.SetRParams(rparams)

@@ -17,7 +17,7 @@ type Named struct {
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
 	instance   *instance   // position information for lazy instantiation, or nil
-	tparams    []*TypeName // type parameters, or nil
+	tparams    *TypeParams // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
@@ -69,7 +69,7 @@ func (t *Named) load() *Named {
 			panic("invalid underlying type")
 		}
 
-		t.tparams = tparams
+		t.tparams = bindTParams(tparams)
 		t.underlying = underlying
 		t.methods = methods
 	})
@@ -77,7 +77,7 @@ func (t *Named) load() *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams []*TypeName, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParams, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
@@ -117,12 +117,10 @@ func (t *Named) Orig() *Named { return t.orig }
 
 // TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() []*TypeName {
-	return t.load().tparams
-}
+func (t *Named) TParams() *TypeParams { return t.load().tparams }
 
 // SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = tparams }
+func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
 
 // TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) TArgs() []Type { return t.targs }

@@ -575,20 +575,20 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	named.underlying = under(named)
 
 	// If the RHS is a type parameter, it must be from this type declaration.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams, tpar) < 0 {
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.tparams.list(), tpar) < 0 {
 		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
 		named.underlying = Typ[Invalid]
 	}
 }
 
-func (check *Checker) collectTypeParams(list []*syntax.Field) []*TypeName {
+func (check *Checker) collectTypeParams(list []*syntax.Field) *TypeParams {
 	tparams := make([]*TypeName, len(list))
 
 	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized type bounds).
 	for i, f := range list {
-		tparams[i] = check.declareTypeParam(i, f.Name)
+		tparams[i] = check.declareTypeParam(f.Name)
 	}
 
 	var bound Type
@@ -602,12 +602,12 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) []*TypeName {
 		tparams[i].typ.(*TypeParam).bound = bound
 	}
 
-	return tparams
+	return bindTParams(tparams)
 }
 
-func (check *Checker) declareTypeParam(index int, name *syntax.Name) *TypeName {
+func (check *Checker) declareTypeParam(name *syntax.Name) *TypeName {
 	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	check.NewTypeParam(tpar, index, nil)                    // assigns type to tpar as a side-effect
+	check.NewTypeParam(tpar, nil)                           // assigns type to tpar as a side-effect
 	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }

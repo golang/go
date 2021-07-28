@@ -368,10 +368,13 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		index := int(r.int64())
+		// Type parameter indices are lazily "allocated".
+		// There's no need to export them anymore.
+		// TODO change the export format accordingly
+		_ = int(r.int64())
 		name0, sub := parseSubscript(name)
 		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
-		t := (*types2.Checker)(nil).NewTypeParam(tn, index, nil)
+		t := (*types2.Checker)(nil).NewTypeParam(tn, nil)
 		if sub == 0 {
 			errorf("missing subscript")
 		}

@@ -29,9 +29,9 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 	var tparams []*TypeName
 	switch t := typ.(type) {
 	case *Named:
-		tparams = t.TParams()
+		tparams = t.TParams().list()
 	case *Signature:
-		tparams = t.tparams
+		tparams = t.TParams().list()
 		defer func() {
 			// If we had an unexpected failure somewhere don't panic below when
 			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
@@ -109,9 +109,9 @@ func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, po
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
 
-	if verify && len(base.tparams) == len(targs) {
+	if verify && base.TParams().Len() == len(targs) {
 		check.later(func() {
-			check.verify(pos, base.tparams, targs, posList)
+			check.verify(pos, base.tparams.list(), targs, posList)
 		})
 	}
 
@@ -125,7 +125,7 @@ func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, po
 	}
 
 	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
-	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded.
+	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded
 	named.targs = targs
 	named.instance = &instance{pos, posList}
 	if check != nil {

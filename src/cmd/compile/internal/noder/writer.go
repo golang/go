@@ -299,7 +299,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		// Type aliases can refer to uninstantiated generic types, so we
 		// might see len(TParams) != 0 && len(TArgs) == 0 here.
 		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(len(typ.TParams()) == len(typ.TArgs()) || len(typ.TArgs()) == 0)
+		assert(typ.TParams().Len() == len(typ.TArgs()) || len(typ.TArgs()) == 0)
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
@@ -615,9 +615,10 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	w.len(len(dict.implicits))
 
 	tparams := objTypeParams(obj)
-	w.len(len(tparams))
-	for _, tparam := range tparams {
-		w.typ(tparam.Type().(*types2.TypeParam).Bound())
+	ntparams := tparams.Len()
+	w.len(ntparams)
+	for i := 0; i < ntparams; i++ {
+		w.typ(tparams.At(i).Type().(*types2.TypeParam).Bound())
 	}
 
 	nderived := len(dict.derived)
@@ -641,10 +642,12 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	assert(len(dict.funcs) == nfuncs)
 }
 
-func (w *writer) typeParamNames(tparams []*types2.TypeName) {
+func (w *writer) typeParamNames(tparams *types2.TypeParams) {
 	w.sync(syncTypeParamNames)
 
-	for _, tparam := range tparams {
+	ntparams := tparams.Len()
+	for i := 0; i < ntparams; i++ {
+		tparam := tparams.At(i)
 		w.pos(tparam)
 		w.localIdent(tparam)
 	}
@@ -1468,13 +1471,16 @@ type declCollector struct {
 
 func (c *declCollector) withTParams(obj types2.Object) *declCollector {
 	tparams := objTypeParams(obj)
-	if len(tparams) == 0 {
+	n := tparams.Len()
+	if n == 0 {
 		return c
 	}
 
 	copy := *c
 	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
-	copy.implicits = append(copy.implicits, objTypeParams(obj)...)
+	for i := 0; i < n; i++ {
+		copy.implicits = append(copy.implicits, tparams.At(i))
+	}
 	return &copy
 }
 
@@ -1705,7 +1711,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// TODO(mdempsky): Revisit after #46477 is resolved.
 		if name.IsAlias() {
 			named, ok := name.Type().(*types2.Named)
-			if ok && len(named.TParams()) != 0 && len(named.TArgs()) == 0 {
+			if ok && named.TParams().Len() != 0 && len(named.TArgs()) == 0 {
 				break
 			}
 		}
@@ -1851,7 +1857,7 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 }
 
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) []*types2.TypeName {
+func objTypeParams(obj types2.Object) *types2.TypeParams {
 	switch obj := obj.(type) {
 	case *types2.Func:
 		sig := obj.Type().(*types2.Signature)

@@ -481,7 +481,7 @@ func (r *reader2) typeParamNames() []*types2.TypeName {
 		pkg, name := r.localIdent()
 
 		names[i] = types2.NewTypeName(pos, pkg, name, nil)
-		r.dict.tparams[i] = r.p.check.NewTypeParam(names[i], i, nil)
+		r.dict.tparams[i] = r.p.check.NewTypeParam(names[i], nil)
 	}
 
 	for i, bound := range r.dict.bounds {
