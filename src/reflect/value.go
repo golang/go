@@ -2811,6 +2811,26 @@ func (v Value) Convert(t Type) Value {
 	return op(v, t)
 }
 
+// CanConvert reports whether the value v can be converted to type t.
+// If v.CanConvert(t) returns true then v.Convert(t) will not panic.
+func (v Value) CanConvert(t Type) bool {
+	vt := v.Type()
+	if !vt.ConvertibleTo(t) {
+		return false
+	}
+	// Currently the only conversion that is OK in terms of type
+	// but that can panic depending on the value is converting
+	// from slice to pointer-to-array.
+	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+		n := t.Elem().Len()
+		h := (*unsafeheader.Slice)(v.ptr)
+		if n > h.Len {
+			return false
+		}
+	}
+	return true
+}
+
 // convertOp returns the function to convert a value of type src
 // to a value of type dst. If the conversion is illegal, convertOp returns nil.
 func convertOp(dst, src *rtype) func(Value, Type) Value {

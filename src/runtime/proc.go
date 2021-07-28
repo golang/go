@@ -4919,7 +4919,6 @@ func (pp *p) destroy() {
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
 		pp.numTimers = 0
-		pp.adjustTimers = 0
 		pp.deletedTimers = 0
 		atomic.Store64(&pp.timer0When, 0)
 		unlock(&pp.timersLock)
