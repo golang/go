@@ -11,7 +11,7 @@ import "sync"
 // A Lockable is a value that may be safely simultaneously accessed
 // from multiple goroutines via the Get and Set methods.
 type Lockable[T any] struct {
-	x T
+	x  T
 	mu sync.Mutex
 }
 

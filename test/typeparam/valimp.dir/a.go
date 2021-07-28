@@ -5,7 +5,7 @@
 package a
 
 type Value[T any] struct {
-        val T
+	val T
 }
 
 // The noinline directive should survive across import, and prevent instantiations
@@ -13,20 +13,20 @@ type Value[T any] struct {
 
 //go:noinline
 func Get[T any](v *Value[T]) T {
-        return v.val
+	return v.val
 }
 
 //go:noinline
 func Set[T any](v *Value[T], val T) {
-        v.val = val
+	v.val = val
 }
 
 //go:noinline
 func (v *Value[T]) Set(val T) {
-        v.val = val
+	v.val = val
 }
 
 //go:noinline
 func (v *Value[T]) Get() T {
-        return v.val
+	return v.val
 }

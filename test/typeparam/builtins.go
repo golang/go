@@ -39,7 +39,9 @@ func _[T C5[X], X any](ch T) {
 
 type M0 interface{ int }
 type M1 interface{ map[string]int }
-type M2 interface { map[string]int | map[string]float64 }
+type M2 interface {
+	map[string]int | map[string]float64
+}
 type M3 interface{ map[string]int | map[rune]int }
 type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
 

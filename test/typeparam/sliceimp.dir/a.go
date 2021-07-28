@@ -5,26 +5,26 @@
 package a
 
 type Ordered interface {
-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
-                ~float32 | ~float64 |
-                ~string
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64 |
+		~string
 }
 
 // Max returns the maximum of two values of some ordered type.
 func Max[T Ordered](a, b T) T {
-        if a > b {
-                return a
-        }
-        return b
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // Min returns the minimum of two values of some ordered type.
 func Min[T Ordered](a, b T) T {
-        if a < b {
-                return a
-        }
-        return b
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Equal reports whether two slices are equal: the same length and all
@@ -121,7 +121,7 @@ func Append[T any](s []T, t ...T) []T {
 	if tot <= cap(s) {
 		s = s[:tot]
 	} else {
-		news := make([]T, tot, tot + tot/2)
+		news := make([]T, tot, tot+tot/2)
 		Copy(news, s)
 		s = news
 	}

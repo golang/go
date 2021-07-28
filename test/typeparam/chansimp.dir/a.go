@@ -176,7 +176,7 @@ func Ranger[Elem any]() (*Sender[Elem], *Receiver[Elem]) {
 		values: c,
 		done:   d,
 	}
-	r := &Receiver[Elem] {
+	r := &Receiver[Elem]{
 		values: c,
 		done:   d,
 	}

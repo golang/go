@@ -40,11 +40,11 @@ func main() {
 
 	fwant := vec2[0] + vec2[1]
 	fgot := Sum[float64](vec2)
-	if Abs(fgot - fwant) > 1e-10 {
+	if Abs(fgot-fwant) > 1e-10 {
 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
 	}
 	fgot = Sum(vec2)
-	if Abs(fgot - fwant) > 1e-10 {
+	if Abs(fgot-fwant) > 1e-10 {
 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
 	}
 }

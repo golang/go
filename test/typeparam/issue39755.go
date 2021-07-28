@@ -8,14 +8,14 @@
 
 package p
 
-func _[T interface{~map[string]int}](x T) {
+func _[T interface{ ~map[string]int }](x T) {
 	_ = x == nil
 }
 
 // simplified test case from issue
 
 type PathParamsConstraint interface {
-        ~map[string]string | ~[]struct{key, value string}
+	~map[string]string | ~[]struct{ key, value string }
 }
 
 type PathParams[T PathParamsConstraint] struct {

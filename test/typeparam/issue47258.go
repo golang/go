@@ -11,7 +11,7 @@ import (
 )
 
 type Numeric interface {
-	int32|int64|float64|complex64
+	int32 | int64 | float64 | complex64
 }
 
 //go:noline

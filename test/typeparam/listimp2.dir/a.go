@@ -44,7 +44,7 @@ func (e *Element[T]) Prev() *Element[T] {
 // The zero value for List is an empty list ready to use.
 type List[T any] struct {
 	root Element[T] // sentinel list element, only &root, root.prev, and root.next are used
-	len  int     // current list length excluding (this) sentinel element
+	len  int        // current list length excluding (this) sentinel element
 }
 
 // Init initializes or clears list l.

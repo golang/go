@@ -23,9 +23,11 @@ func F() {
 
 // Testing the various combinations of method expressions.
 type S1 struct{}
+
 func (*S1) M() {}
 
 type S2 struct{}
+
 func (S2) M() {}
 
 func _F1[T interface{ M() }](t T) {

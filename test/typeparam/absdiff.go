@@ -61,7 +61,7 @@ type complexAbs[T Complex] T
 func (a complexAbs[T]) Abs() complexAbs[T] {
 	r := float64(real(a))
 	i := float64(imag(a))
-	d := math.Sqrt(r * r + i * i)
+	d := math.Sqrt(r*r + i*i)
 	return complexAbs[T](complex(d, 0))
 }
 
@@ -88,10 +88,10 @@ func main() {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 
-	if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5+0i; got != want {
+	if got, want := complexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
-	if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5+0i; got != want {
+	if got, want := complexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 }

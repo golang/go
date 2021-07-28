@@ -37,11 +37,11 @@ type C interface {
 type myInt int
 
 func (x myInt) foo() int {
-	return int(x+1)
+	return int(x + 1)
 }
 
-func h[T C](x T) interface{foo() int} {
-	var i interface{foo()int} = x
+func h[T C](x T) interface{ foo() int } {
+	var i interface{ foo() int } = x
 	return i
 }
 func i[T C](x T) C {

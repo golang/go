@@ -29,8 +29,8 @@ type _ T2[int, string, struct{}]
 type _ T3[bool]
 
 // methods
-func (T1[P]) m1() {}
-func (T1[_]) m2() {}
+func (T1[P]) m1()           {}
+func (T1[_]) m2()           {}
 func (x T2[P1, P2, P3]) m() {}
 
 // type lists

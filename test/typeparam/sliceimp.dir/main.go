@@ -12,42 +12,42 @@ import (
 )
 
 type Integer interface {
-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
 
 func TestEqual() {
-        s1 := []int{1, 2, 3}
-        if !a.Equal(s1, s1) {
-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s1))
-        }
-        s2 := []int{1, 2, 3}
-        if !a.Equal(s1, s2) {
-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s2))
-        }
-        s2 = append(s2, 4)
-        if a.Equal(s1, s2) {
-                panic(fmt.Sprintf("a.Equal(%v, %v) = true, want false", s1, s2))
-        }
+	s1 := []int{1, 2, 3}
+	if !a.Equal(s1, s1) {
+		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s1))
+	}
+	s2 := []int{1, 2, 3}
+	if !a.Equal(s1, s2) {
+		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s2))
+	}
+	s2 = append(s2, 4)
+	if a.Equal(s1, s2) {
+		panic(fmt.Sprintf("a.Equal(%v, %v) = true, want false", s1, s2))
+	}
 
-        s3 := []float64{1, 2, math.NaN()}
-        if !a.Equal(s3, s3) {
-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s3, s3))
-        }
+	s3 := []float64{1, 2, math.NaN()}
+	if !a.Equal(s3, s3) {
+		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s3, s3))
+	}
 
-        if a.Equal(s1, nil) {
-                panic(fmt.Sprintf("a.Equal(%v, nil) = true, want false", s1))
-        }
-        if a.Equal(nil, s1) {
-                panic(fmt.Sprintf("a.Equal(nil, %v) = true, want false", s1))
-        }
-        if !a.Equal(s1[:0], nil) {
-                panic(fmt.Sprintf("a.Equal(%v, nil = false, want true", s1[:0]))
-        }
+	if a.Equal(s1, nil) {
+		panic(fmt.Sprintf("a.Equal(%v, nil) = true, want false", s1))
+	}
+	if a.Equal(nil, s1) {
+		panic(fmt.Sprintf("a.Equal(nil, %v) = true, want false", s1))
+	}
+	if !a.Equal(s1[:0], nil) {
+		panic(fmt.Sprintf("a.Equal(%v, nil = false, want true", s1[:0]))
+	}
 }
 
 func offByOne[Elem Integer](a, b Elem) bool {
-	return a == b + 1 || a == b - 1
+	return a == b+1 || a == b-1
 }
 
 func TestEqualFn() {
@@ -92,12 +92,12 @@ func TestMap() {
 
 func TestReduce() {
 	s1 := []int{1, 2, 3}
-	r := a.Reduce(s1, 0, func(f float64, i int) float64 { return float64(i) * 2.5 + f })
+	r := a.Reduce(s1, 0, func(f float64, i int) float64 { return float64(i)*2.5 + f })
 	if want := 15.0; r != want {
 		panic(fmt.Sprintf("a.Reduce(%v, 0, ...) = %v, want %v", s1, r, want))
 	}
 
-	if got := a.Reduce(nil, 0, func(i, j int) int { return i + j}); got != 0 {
+	if got := a.Reduce(nil, 0, func(i, j int) int { return i + j }); got != 0 {
 		panic(fmt.Sprintf("a.Reduce(nil, 0, add) = %v, want 0", got))
 	}
 }
