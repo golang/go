@@ -794,21 +794,17 @@ func readProfile() (data []uint64, tags []unsafe.Pointer, eof bool)
 
 func profileWriter(w io.Writer) {
 	b := newProfileBuilder(w)
-	var err error
 	for {
 		time.Sleep(100 * time.Millisecond)
 		data, tags, eof := readProfile()
-		if e := b.addCPUData(data, tags); e != nil && err == nil {
-			err = e
+		if e := b.addCPUData(data, tags); e != nil {
+			// The runtime should never produce an invalid or truncated profile.
+			// It drops records that can't fit into its log buffers.
+			panic("runtime/pprof: converting profile: " + e.Error())
 		}
 		if eof {
 			break
 		}
-	}
-	if err != nil {
-		// The runtime should never produce an invalid or truncated profile.
-		// It drops records that can't fit into its log buffers.
-		panic("runtime/pprof: converting profile: " + err.Error())
 	}
 	b.build()
 	cpu.done <- true
