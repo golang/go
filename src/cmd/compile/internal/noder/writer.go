@@ -550,25 +550,6 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		assert(ok)
 		sig := obj.Type().(*types2.Signature)
 
-		// Rewrite blank methods into blank functions.
-		// They aren't included in the receiver type's method set,
-		// and we still want to write them out to be compiled
-		// for regression tests.
-		// TODO(mdempsky): Change regress tests to avoid relying
-		// on blank functions/methods, so we can just ignore them
-		// altogether.
-		if recv := sig.Recv(); recv != nil {
-			assert(obj.Name() == "_")
-			assert(sig.TParams() == nil)
-
-			params := make([]*types2.Var, 1+sig.Params().Len())
-			params[0] = recv
-			for i := 0; i < sig.Params().Len(); i++ {
-				params[1+i] = sig.Params().At(i)
-			}
-			sig = types2.NewSignature(nil, types2.NewTuple(params...), sig.Results(), sig.Variadic())
-		}
-
 		w.pos(obj)
 		w.typeParamNames(sig.TParams())
 		w.signature(sig)
@@ -1683,6 +1664,10 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		w.pkgObjs(decl.NameList...)
 
 	case *syntax.FuncDecl:
+		if decl.Name.Value == "_" {
+			break // skip blank functions
+		}
+
 		obj := w.p.info.Defs[decl.Name].(*types2.Func)
 		sig := obj.Type().(*types2.Signature)
 
@@ -1690,7 +1675,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 			break // skip generic functions
 		}
 
-		if recv := sig.Recv(); recv != nil && obj.Name() != "_" {
+		if recv := sig.Recv(); recv != nil {
 			w.code(declMethod)
 			w.typ(recvBase(recv))
 			w.selector(obj)
