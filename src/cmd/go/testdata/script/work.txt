@@ -36,6 +36,11 @@ cp go.work.backup go.work
 cp go.work.d go.work
 go run example.com/d
 
+# Test that we don't run into "newRequirements called with unsorted roots"
+# panic with unsorted main modules.
+cp go.work.backwards go.work
+go run example.com/d
+
 -- go.work.dup --
 go 1.17
 
@@ -109,3 +114,12 @@ import "example.com/b/lib"
 func main() {
 	lib.Hello()
 }
+
+-- go.work.backwards --
+go 1.18
+
+directory (
+    d
+    b
+    a
+)

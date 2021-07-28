@@ -1083,6 +1083,9 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
 		}
 		roots = append(roots, min...)
 	}
+	if MainModules.Len() > 1 {
+		module.Sort(roots)
+	}
 	if rs.depth == eager && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
 		// The root set is unchanged and rs was already eager, so keep rs to
 		// preserve its cached ModuleGraph (if any).
