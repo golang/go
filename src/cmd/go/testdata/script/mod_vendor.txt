@@ -82,6 +82,48 @@ exists vendor/mysite/myname/mypkg/LICENSE.txt
 ! exists vendor/x/x2
 ! exists vendor/x/x2/LICENSE
 
+# 'go mod vendor' should work with an alternative vendor directory if the -o flag is provided.
+go mod vendor -v -o alternative-vendor-dir
+exists alternative-vendor-dir/modules.txt
+exists alternative-vendor-dir/a/foo/LICENSE
+
+# 'go mod vendor' should interpret paths relative to the current working directory when the -o flag is provided.
+mkdir dir1
+mkdir dir2
+
+cd dir1
+go mod vendor -v -o relative-vendor-dir
+
+go mod vendor -v -o ../dir2/relative-vendor-dir
+
+cd ..
+exists dir1/relative-vendor-dir/modules.txt
+exists dir1/relative-vendor-dir/a/foo/LICENSE
+exists dir2/relative-vendor-dir/modules.txt
+exists dir2/relative-vendor-dir/a/foo/LICENSE
+
+# 'go mod vendor' should fall back to the default 'vendor' directory when an empty argument is passed to the -o flag
+# the same behavior should be exhibited both on the module root directory, as well as nested subdirectories
+
+go mod vendor -v -o ''
+exists vendor/modules.txt
+
+env GOFLAGS=-o=foo
+go mod vendor -v -o ''
+exists vendor/modules.txt
+env GOFLAGS=''
+
+mkdir -p nested/dir
+cd nested/dir
+go mod vendor -v -o ''
+! exists vendor/
+exists ../../vendor/modules.txt
+cd ../..
+
+# 'go mod vendor' should work with absolute paths as well
+go mod vendor -v -o $WORK/tmp/absolute-vendor-dir
+exists $WORK/tmp/absolute-vendor-dir/modules.txt
+
 [short] stop
 
 # 'go build' and 'go test' using vendored packages should succeed.
