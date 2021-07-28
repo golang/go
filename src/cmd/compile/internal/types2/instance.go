@@ -15,7 +15,6 @@ import "cmd/compile/internal/syntax"
 type instance struct {
 	pos     syntax.Pos   // position of type instantiation; for error reporting only
 	posList []syntax.Pos // position of each targ; for error reporting only
-	verify  bool         // if set, check constraint satisfaction upon instantiation
 }
 
 // expand ensures that the underlying type of n is instantiated.
