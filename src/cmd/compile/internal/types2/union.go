@@ -10,10 +10,8 @@ import "cmd/compile/internal/syntax"
 // API
 
 // A Union represents a union of terms.
-// A term is a type with a ~ (tilde) flag.
 type Union struct {
-	types []Type // types are unique
-	tilde []bool // if tilde[i] is set, terms[i] is of the form ~T
+	terms []*term
 }
 
 // NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
@@ -21,9 +19,9 @@ type Union struct {
 // of no types.
 func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
 
-func (u *Union) IsEmpty() bool           { return len(u.types) == 0 }
-func (u *Union) NumTerms() int           { return len(u.types) }
-func (u *Union) Term(i int) (Type, bool) { return u.types[i], u.tilde[i] }
+func (u *Union) IsEmpty() bool           { return len(u.terms) == 0 }
+func (u *Union) NumTerms() int           { return len(u.terms) }
+func (u *Union) Term(i int) (Type, bool) { t := u.terms[i]; return t.typ, t.tilde }
 
 func (u *Union) Underlying() Type { return u }
 func (u *Union) String() string   { return TypeString(u, nil) }
@@ -39,18 +37,20 @@ func newUnion(types []Type, tilde []bool) *Union {
 		return emptyUnion
 	}
 	t := new(Union)
-	t.types = types
-	t.tilde = tilde
+	t.terms = make([]*term, len(types))
+	for i, typ := range types {
+		t.terms[i] = &term{tilde[i], typ}
+	}
 	return t
 }
 
-// is reports whether f returned true for all terms (type, tilde) of u.
-func (u *Union) is(f func(Type, bool) bool) bool {
+// is reports whether f returns true for all terms of u.
+func (u *Union) is(f func(*term) bool) bool {
 	if u.IsEmpty() {
 		return false
 	}
-	for i, t := range u.types {
-		if !f(t, u.tilde[i]) {
+	for _, t := range u.terms {
+		if !f(t) {
 			return false
 		}
 	}
@@ -62,8 +62,8 @@ func (u *Union) underIs(f func(Type) bool) bool {
 	if u.IsEmpty() {
 		return false
 	}
-	for _, t := range u.types {
-		if !f(under(t)) {
+	for _, t := range u.terms {
+		if !f(under(t.typ)) {
 			return false
 		}
 	}
@@ -83,7 +83,7 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 	}
 
 	// Ensure that each type is only present once in the type list.
-	// It's ok to do this check at the end because it's not a requirement
+	// It's ok to do this check later because it's not a requirement
 	// for correctness of the code.
 	// Note: This is a quadratic algorithm, but unions tend to be short.
 	check.later(func() {
@@ -96,7 +96,7 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 			x := tlist[i]
 			pos := syntax.StartPos(x)
 			// We may not know the position of x if it was a typechecker-
-			// introduced ~T type of a type list entry T. Use the position
+			// introduced ~T term for a type list entry T. Use the position
 			// of T instead.
 			// TODO(gri) remove this test once we don't support type lists anymore
 			if !pos.IsKnown() {
@@ -106,13 +106,24 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 			}
 
 			u := under(t)
-			if tilde[i] && !Identical(u, t) {
-				check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
-				continue // don't report another error for t
+			f, _ := u.(*Interface)
+			if tilde[i] {
+				if f != nil {
+					check.errorf(x, "invalid use of ~ (%s is an interface)", t)
+					continue // don't report another error for t
+				}
+
+				if !Identical(u, t) {
+					check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
+					continue // don't report another error for t
+				}
 			}
-			if _, ok := u.(*Interface); ok {
-				// A single type with a ~ is a single-term union.
-				check.errorf(pos, "cannot use interface %s with ~ or inside a union (implementation restriction)", t)
+
+			// Stand-alone embedded interfaces are ok and are handled by the single-type case
+			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+			// here, we must have at least two terms in the union.
+			if f != nil && !f.typeSet().IsTypeSet() {
+				check.errorf(pos, "cannot use %s in union (interface contains methods)", t)
 				continue // don't report another error for t
 			}
 
@@ -164,25 +175,7 @@ func intersect(x, y Type) (r Type) {
 	yu, _ := y.(*Union)
 	switch {
 	case xu != nil && yu != nil:
-		// Quadratic algorithm, but good enough for now.
-		// TODO(gri) fix asymptotic performance
-		var types []Type
-		var tilde []bool
-		for j, y := range yu.types {
-			yt := yu.tilde[j]
-			if r, rt := xu.intersect(y, yt); r != nil {
-				// Terms x[i] and y[j] match: Select the one that
-				// is not a ~t because that is the intersection
-				// type. If both are ~t, they are identical:
-				//  T ∩  T =  T
-				//  T ∩ ~t =  T
-				// ~t ∩  T =  T
-				// ~t ∩ ~t = ~t
-				types = append(types, r)
-				tilde = append(tilde, rt)
-			}
-		}
-		return newUnion(types, tilde)
+		return &Union{intersectTerms(xu.terms, yu.terms)}
 
 	case xu != nil:
 		if r, _ := xu.intersect(y, false); r != nil {
@@ -216,14 +209,16 @@ func includes(list []Type, typ Type) bool {
 // intersect computes the intersection of the union u and term (y, yt)
 // and returns the intersection term, if any. Otherwise the result is
 // (nil, false).
+// TODO(gri) this needs to cleaned up/removed once we switch to lazy
+//           union type set computation.
 func (u *Union) intersect(y Type, yt bool) (Type, bool) {
 	under_y := under(y)
-	for i, x := range u.types {
-		xt := u.tilde[i]
+	for _, x := range u.terms {
+		xt := x.tilde
 		// determine which types xx, yy to compare
-		xx := x
+		xx := x.typ
 		if yt {
-			xx = under(x)
+			xx = under(xx)
 		}
 		yy := y
 		if xt {
@@ -238,4 +233,36 @@ func (u *Union) intersect(y Type, yt bool) (Type, bool) {
 		}
 	}
 	return nil, false
+}
+
+func identicalTerms(list1, list2 []*term) bool {
+	if len(list1) != len(list2) {
+		return false
+	}
+	// Every term in list1 must be in list2.
+	// Quadratic algorithm, but probably good enough for now.
+	// TODO(gri) we need a fast quick type ID/hash for all types.
+L:
+	for _, x := range list1 {
+		for _, y := range list2 {
+			if x.equal(y) {
+				continue L // x is in list2
+			}
+		}
+		return false
+	}
+	return true
+}
+
+func intersectTerms(list1, list2 []*term) (list []*term) {
+	// Quadratic algorithm, but good enough for now.
+	// TODO(gri) fix asymptotic performance
+	for _, x := range list1 {
+		for _, y := range list2 {
+			if r := x.intersect(y); r != nil {
+				list = append(list, r)
+			}
+		}
+	}
+	return
 }
