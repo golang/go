@@ -188,6 +188,11 @@ package runtime
 
 import "runtime/internal/sys"
 
+var (
+	mframe = map[uintptr]Frame{}
+	rwlock = rwmutex{}
+)
+
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
 // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
@@ -195,12 +200,23 @@ import "runtime/internal/sys"
 // program counter, file name, and line number within the file of the corresponding
 // call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
-	rpc := make([]uintptr, 1)
+	rpc := [1]uintptr{}
 	n := callers(skip+1, rpc[:])
 	if n < 1 {
 		return
 	}
-	frame, _ := CallersFrames(rpc).Next()
+	var frame Frame
+	rwlock.rlock()
+	frame, ok = mframe[rpc[0]]
+	rwlock.runlock()
+	if !ok {
+		var tmp = []uintptr{rpc[0]}
+		rwlock.lock()
+		frame, _ = CallersFrames(tmp).Next()
+		// TODO: clear cache
+		mframe[rpc[0]] = frame
+		rwlock.unlock()
+	}
 	return frame.PC, frame.File, frame.Line, frame.PC != 0
 }
 
