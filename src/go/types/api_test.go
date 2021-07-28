@@ -322,6 +322,18 @@ func TestTypesInfo(t *testing.T) {
 			`[][]struct{}`,
 		},
 
+		// issue 47243
+		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
+		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `uint`}, // issue 47410: should be untyped float
+		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
+		{`package issue47243_d; var x int32; var _ = 1 << x`, `1`, `int`},
+		{`package issue47243_e; var x int32; var _ = 1 << 2`, `1`, `untyped int`},
+		{`package issue47243_f; var x int32; var _ = 1 << 2`, `2`, `untyped int`},
+		{`package issue47243_g; var x int32; var _ = int(1) << 2`, `2`, `untyped int`},
+		{`package issue47243_h; var x int32; var _ = 1 << (2 << x)`, `1`, `int`},
+		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
+		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
+
 		// tests for broken code that doesn't parse or type-check
 		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},

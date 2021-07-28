@@ -191,7 +191,7 @@ type Root int
 const (
 	// AutoRoot is the default for most commands. modload.Init will look for
 	// a go.mod file in the current directory or any parent. If none is found,
-	// modules may be disabled (GO111MODULE=on) or commands may run in a
+	// modules may be disabled (GO111MODULE=auto) or commands may run in a
 	// limited module mode.
 	AutoRoot Root = iota
 
@@ -1361,6 +1361,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			if err := modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums), mustHaveCompleteRequirements()); err != nil {
 				base.Fatalf("go: %v", err)
 			}
+		}
+		return
+	}
+	gomod := ModFilePath()
+	if _, ok := fsys.OverlayPath(gomod); ok {
+		if dirty {
+			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}
 		return
 	}
