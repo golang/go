@@ -57,7 +57,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 
 	// instantiate function signature
 	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
-	assert(res.tparams == nil) // signature is not generic anymore
+	assert(res.TParams().Len() == 0) // signature is not generic anymore
 	if inferred {
 		check.recordInferred(inst, targs, res)
 	}
@@ -327,7 +327,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 
 		// compute result signature
 		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
-		assert(rsig.tparams == nil) // signature is not generic anymore
+		assert(rsig.TParams().Len() == 0) // signature is not generic anymore
 		check.recordInferred(call, targs, rsig)
 
 		// Optimization: Only if the parameter list was adjusted do we
