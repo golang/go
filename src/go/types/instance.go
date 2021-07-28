@@ -14,7 +14,6 @@ type instance struct {
 	check   *Checker
 	pos     token.Pos   // position of type instantiation; for error reporting only
 	posList []token.Pos // position of each targ; for error reporting only
-	verify  bool        // if set, constraint satisfaction is verified
 }
 
 // complete ensures that the underlying type of n is instantiated.

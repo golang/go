@@ -124,15 +124,11 @@ func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, pos
 	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
 	named := check.newNamed(tname, base, nil, base.TParams(), base.methods) // methods are instantiated lazily
 	named.targs = targs
-	named.instance = &instance{
-		check:   check,
-		pos:     pos,
-		posList: posList,
-		verify:  verify,
-	}
+	named.instance = &instance{check, pos, posList}
 	if check != nil {
 		check.typMap[h] = named
 	}
+
 	return named
 }
 
