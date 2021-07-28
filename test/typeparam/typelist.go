@@ -69,14 +69,14 @@ func _[V any, T interface{ type map[string]V }](p T) V {
 // Cannot embed stand-alone type parameters. Disabled for now.
 /*
 func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
-func _() {
+func f0x() {
         f := f0[string]
         f("a", "b", "c", "d")
         f0("a", "b", "c", "d")
 }
 
 func f1[A any, B interface{type A}](A, B)
-func _() {
+func f1x() {
         f := f1[int]
         f(int(0), int(0))
         f1(int(0), int(0))
@@ -86,7 +86,7 @@ func _() {
 */
 
 func f2[A any, B interface{ type []A }](_ A, _ B)
-func _() {
+func f2x() {
 	f := f2[byte]
 	f(byte(0), []byte{})
 	f2(byte(0), []byte{})
@@ -97,7 +97,7 @@ func _() {
 // Cannot embed stand-alone type parameters. Disabled for now.
 /*
 func f3[A any, B interface{type C}, C interface{type *A}](a A, _ B, c C)
-func _() {
+func f3x() {
 	f := f3[int]
 	var x int
 	f(x, &x, &x)
@@ -106,7 +106,7 @@ func _() {
 */
 
 func f4[A any, B interface{ type []C }, C interface{ type *A }](_ A, _ B, c C)
-func _() {
+func f4x() {
 	f := f4[int]
 	var x int
 	f(x, []*int{}, &x)
@@ -119,14 +119,14 @@ func f5[A interface {
 		c C
 	}
 }, B any, C interface{ type *B }](x B) A
-func _() {
+func f5x() {
 	x := f5(1.2)
 	var _ float64 = x.b
 	var _ float64 = *x.c
 }
 
 func f6[A any, B interface{ type struct{ f []A } }](B) A
-func _() {
+func f6x() {
 	x := f6(struct{ f []string }{})
 	var _ string = x
 }

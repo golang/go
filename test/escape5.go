@@ -173,13 +173,13 @@ type U int
 func (*U) M()   {}
 func (_ *U) N() {}
 
-func _() {
+func fbad24305a() {
 	var u U
 	u.M()
 	u.N()
 }
 
-func fbad24305() {
+func fbad24305b() {
 	var u U
 	(*U).M(&u)
 	(*U).N(&u)

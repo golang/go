@@ -22,7 +22,7 @@ func (r *impl) Foo() Barer {
 
 func (r *impl) Bar() {}
 
-func _() {
+func f1() {
 	var r Fooer = &impl{}
 	r.Foo().Bar()
 }

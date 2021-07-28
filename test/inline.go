@@ -49,7 +49,7 @@ func j(x int) int { // ERROR "can inline j"
 	}
 }
 
-func _() int { // ERROR "can inline _"
+func f2() int { // ERROR "can inline f2"
 	tmp1 := h
 	tmp2 := tmp1
 	return tmp2(0) // ERROR "inlining call to h"
@@ -167,7 +167,7 @@ func (T) meth(int, int) {} // ERROR "can inline T.meth"
 
 func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
 
-func _() { // ERROR "can inline _"
+func f3() { // ERROR "can inline f3"
 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
 	// ERRORAUTO "inlining call to T.meth"
 }
