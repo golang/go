@@ -1295,7 +1295,7 @@
 //
 // Usage:
 //
-// 	go mod vendor [-e] [-v]
+// 	go mod vendor [-e] [-v] [-o outdir]
 //
 // Vendor resets the main module's vendor directory to include all packages
 // needed to build and test all the main module's packages.
@@ -1306,6 +1306,11 @@
 //
 // The -e flag causes vendor to attempt to proceed despite errors
 // encountered while loading packages.
+//
+// The -o flag causes vendor to create the vendor directory at the given
+// path instead of "vendor". The go command can only use a vendor directory
+// named "vendor" within the module root directory, so this flag is
+// primarily useful for other tools.
 //
 // See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
 //
