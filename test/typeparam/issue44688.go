@@ -8,7 +8,7 @@
 
 package main
 
-type A1[T any] struct{
+type A1[T any] struct {
 	val T
 }
 

@@ -160,7 +160,7 @@ func TestSet() {
 	vals := s1.Values()
 	sort.Ints(vals)
 	w1 := []int{1, 2, 3, 4}
-	if !_SliceEqual(vals,  w1) {
+	if !_SliceEqual(vals, w1) {
 		panic(fmt.Sprintf("(%v).Values() == %v, want %v", s1, vals, w1))
 	}
 }

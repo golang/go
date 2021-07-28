@@ -44,7 +44,6 @@ func fromStrings1a[T any, PT Setter[T]](s []string) []PT {
 	return result
 }
 
-
 // Takes one type parameter and a set function
 func fromStrings2[T any](s []string, set func(*T, string)) []T {
 	results := make([]T, len(s))

@@ -51,7 +51,7 @@ type List[a any] interface {
 	Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any
 }
 
-type Nil[a any] struct{
+type Nil[a any] struct {
 }
 
 func (xs Nil[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
@@ -67,7 +67,7 @@ func (xs Cons[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a]
 	return casecons.Apply(xs)
 }
 
-type mapNil[a, b any] struct{
+type mapNil[a, b any] struct {
 }
 
 func (m mapNil[a, b]) Apply(_ Nil[a]) any {

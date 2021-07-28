@@ -7,7 +7,7 @@ package main
 import "a"
 
 type R[T any] struct {
-        F T
+	F T
 }
 
 type S = R

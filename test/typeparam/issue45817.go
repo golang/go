@@ -13,11 +13,12 @@ import (
 type s[T any] struct {
 	a T
 }
+
 func (x s[T]) f() T {
 	return x.a
 }
 func main() {
-	x := s[int]{a:7}
+	x := s[int]{a: 7}
 	f := x.f
 	if got, want := f(), 7; got != want {
 		panic(fmt.Sprintf("got %d, want %d", got, want))

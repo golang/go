@@ -10,18 +10,18 @@ package tparam1
 
 // The predeclared identifier "any" is only visible as a constraint
 // in a type parameter list.
-var _ any // ERROR "cannot use any outside constraint position"
+var _ any     // ERROR "cannot use any outside constraint position"
 func _(_ any) // ERROR "cannot use any outside constraint position"
-type _[_ any /* ok here */ ] struct{}
+type _[_ any /* ok here */] struct{}
 
 const N = 10
 
 type (
-        _[] struct{} // slice
-        _[N] struct{} // array
-        _[T any] struct{}
-        _[T, T any] struct{} // ERROR "T redeclared"
-        _[T1, T2 any, T3 any] struct{}
+	_                     []struct{}  // slice
+	_                     [N]struct{} // array
+	_[T any]              struct{}
+	_[T, T any]           struct{} // ERROR "T redeclared"
+	_[T1, T2 any, T3 any] struct{}
 )
 
 func _[T any]()
@@ -36,7 +36,7 @@ func _[T C]()
 func _[T struct{}]() // ERROR "not an interface"
 func _[T interface{ m() T }]()
 func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
-        var _ T1
+	var _ T1
 }
 
 // TODO(gri) expand this

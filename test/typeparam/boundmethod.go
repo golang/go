@@ -11,50 +11,50 @@
 package main
 
 import (
-        "fmt"
-        "reflect"
-        "strconv"
+	"fmt"
+	"reflect"
+	"strconv"
 )
 
 type myint int
 
 //go:noinline
 func (m myint) String() string {
-        return strconv.Itoa(int(m))
+	return strconv.Itoa(int(m))
 }
 
 type Stringer interface {
-        String() string
+	String() string
 }
 
 func stringify[T Stringer](s []T) (ret []string) {
-        for _, v := range s {
-                ret = append(ret, v.String())
-        }
-        return ret
+	for _, v := range s {
+		ret = append(ret, v.String())
+	}
+	return ret
 }
 
 type StringInt[T any] T
 
 //go:noinline
 func (m StringInt[T]) String() string {
-        return "aa"
+	return "aa"
 }
 
 func main() {
-        x := []myint{myint(1), myint(2), myint(3)}
+	x := []myint{myint(1), myint(2), myint(3)}
 
-        got := stringify(x)
-        want := []string{"1", "2", "3"}
-        if !reflect.DeepEqual(got, want) {
-                panic(fmt.Sprintf("got %s, want %s", got, want))
-        }
+	got := stringify(x)
+	want := []string{"1", "2", "3"}
+	if !reflect.DeepEqual(got, want) {
+		panic(fmt.Sprintf("got %s, want %s", got, want))
+	}
 
-        x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
+	x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
 
-        got2 := stringify(x2)
-        want2 := []string{"aa", "aa", "aa"}
-        if !reflect.DeepEqual(got2, want2) {
-                panic(fmt.Sprintf("got %s, want %s", got2, want2))
-        }
+	got2 := stringify(x2)
+	want2 := []string{"aa", "aa", "aa"}
+	if !reflect.DeepEqual(got2, want2) {
+		panic(fmt.Sprintf("got %s, want %s", got2, want2))
+	}
 }

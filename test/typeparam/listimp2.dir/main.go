@@ -301,7 +301,6 @@ func TestTransform() {
 	checkList(l2, []interface{}{"1", "2"})
 }
 
-
 func main() {
 	TestList()
 	TestExtending()

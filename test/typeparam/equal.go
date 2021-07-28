@@ -40,7 +40,7 @@ func (x myint) foo() {
 
 func k[T comparable](t T, i interface{}) bool {
 	// Compare derived type value to interface.
-	return struct{a, b T}{t, t} == i
+	return struct{ a, b T }{t, t} == i
 }
 
 func main() {
@@ -51,21 +51,19 @@ func main() {
 	assert(h(myint(3), myint(3)))
 	assert(!h(myint(3), myint(5)))
 
-	type S struct { a, b float64 }
+	type S struct{ a, b float64 }
 
-	assert(f(S{3,5}, S{3,5}))
-	assert(!f(S{3,5}, S{4,6}))
-	assert(g(S{3,5}, S{3,5}))
-	assert(!g(S{3,5}, S{4,6}))
+	assert(f(S{3, 5}, S{3, 5}))
+	assert(!f(S{3, 5}, S{4, 6}))
+	assert(g(S{3, 5}, S{3, 5}))
+	assert(!g(S{3, 5}, S{4, 6}))
 
-	assert(k(3, struct{a, b int}{3, 3}))
-	assert(!k(3, struct{a, b int}{3, 4}))
+	assert(k(3, struct{ a, b int }{3, 3}))
+	assert(!k(3, struct{ a, b int }{3, 4}))
 }
 
-func assert(b bool)  {
+func assert(b bool) {
 	if !b {
 		panic("assertion failed")
 	}
 }
-
-

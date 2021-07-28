@@ -38,9 +38,9 @@ func (a myint) String() string {
 }
 
 func main() {
-	v := StringableList[myint]{ myint(1), myint(2) }
+	v := StringableList[myint]{myint(1), myint(2)}
 
 	if got, want := v.String(), "1, 2"; got != want {
-                panic(fmt.Sprintf("got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 }

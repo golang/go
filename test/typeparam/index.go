@@ -79,4 +79,3 @@ func main() {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 }
-

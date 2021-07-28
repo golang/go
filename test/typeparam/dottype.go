@@ -36,19 +36,19 @@ func g2[T I](x I) (T, bool) {
 	return t, ok
 }
 
-func h[T any](x interface{}) struct{a, b T} {
-	return x.(struct{a, b T})
+func h[T any](x interface{}) struct{ a, b T } {
+	return x.(struct{ a, b T })
 }
 
-func k[T any](x interface{}) interface { bar() T } {
-	return x.(interface{bar() T })
+func k[T any](x interface{}) interface{ bar() T } {
+	return x.(interface{ bar() T })
 }
 
 type mybar int
+
 func (x mybar) bar() int {
 	return int(x)
 }
-
 
 func main() {
 	var i interface{} = int(3)
@@ -66,7 +66,7 @@ func main() {
 	println(g2[myint](j))
 	println(g2[myint](y))
 
-	println(h[int](struct{a, b int}{3, 5}).a)
+	println(h[int](struct{ a, b int }{3, 5}).a)
 
 	println(k[int](mybar(3)).bar())
 }
