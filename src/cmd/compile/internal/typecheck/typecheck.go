@@ -51,8 +51,8 @@ func FuncBody(n *ir.Func) {
 	Stmts(n.Body)
 	CheckUnused(n)
 	CheckReturn(n)
-	if base.Errors() > errorsBefore {
-		n.Body = nil // type errors; do not compile
+	if ir.IsBlank(n.Nname) || base.Errors() > errorsBefore {
+		n.Body = nil // blank function or type errors; do not compile
 	}
 }
 
