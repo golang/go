@@ -26,7 +26,7 @@ func (n *Named) expand() {
 		// tparams. This is done implicitly by the call to n.TParams, but making it
 		// explicit is harmless: load is idempotent.
 		n.load()
-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams(), n.targs, n.instance.posList, n.instance.verify)
+		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams(), n.targs, n.instance.posList)
 		n.underlying = inst
 		n.fromRHS = inst
 		n.instance = nil
