@@ -304,9 +304,9 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				} else {
 					meth2 = ir.NewNameAt(meth.Pos(), newsym)
 					rparams := types2.AsSignature(m.Type()).RParams()
-					tparams := make([]*types.Type, len(rparams))
-					for i, rparam := range rparams {
-						tparams[i] = g.typ1(rparam.Type())
+					tparams := make([]*types.Type, rparams.Len())
+					for i := range tparams {
+						tparams[i] = g.typ1(rparams.At(i).Type())
 					}
 					assert(len(tparams) == len(targs))
 					ts := typecheck.Tsubster{
@@ -336,9 +336,9 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 
 func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type {
 	tparams2 := sig.TParams()
-	tparams := make([]*types.Field, len(tparams2))
+	tparams := make([]*types.Field, tparams2.Len())
 	for i := range tparams {
-		tp := tparams2[i]
+		tp := tparams2.At(i)
 		tparams[i] = types.NewField(g.pos(tp), g.sym(tp), g.typ1(tp.Type()))
 	}
 

@@ -197,7 +197,7 @@ func (subst *subster) typ(typ Type) Type {
 		if len(t.targs) > 0 {
 			// already instantiated
 			dump(">>> %s already instantiated", t)
-			assert(len(t.targs) == len(t.TParams()))
+			assert(len(t.targs) == t.TParams().Len())
 			// For each (existing) type argument targ, determine if it needs
 			// to be substituted; i.e., if it is or contains a type parameter
 			// that has a type argument for it.
@@ -207,7 +207,7 @@ func (subst *subster) typ(typ Type) Type {
 				if new_targ != targ {
 					dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 					if new_targs == nil {
-						new_targs = make([]Type, len(t.TParams()))
+						new_targs = make([]Type, t.TParams().Len())
 						copy(new_targs, t.targs)
 					}
 					new_targs[i] = new_targ

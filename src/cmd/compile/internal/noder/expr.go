@@ -337,7 +337,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 			if wantPtr {
 				recvType2Base = types2.AsPointer(recvType2).Elem()
 			}
-			if len(types2.AsNamed(recvType2Base).TParams()) > 0 {
+			if types2.AsNamed(recvType2Base).TParams().Len() > 0 {
 				// recvType2 is the original generic type that is
 				// instantiated for this method call.
 				// selinfo.Recv() is the instantiated type
