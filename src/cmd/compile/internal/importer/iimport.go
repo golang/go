@@ -384,7 +384,7 @@ func (r *importReader) obj(name string) {
 		id := ident{r.currPkg.Name(), name}
 		r.p.tparamIndex[id] = t
 
-		t.SetBound(r.typ())
+		t.SetConstraint(r.typ())
 
 	case 'V':
 		typ := r.typ()
