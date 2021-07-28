@@ -72,21 +72,27 @@ func (t *TypeParam) Constraint() Type {
 	return t.bound
 }
 
-// Bound returns the underlying type of the type parameter's
-// constraint.
-// Deprecated for external use. Use Constraint instead.
-func (t *TypeParam) Bound() *Interface {
+// SetConstraint sets the type constraint for t.
+func (t *TypeParam) SetConstraint(bound Type) {
+	if bound == nil {
+		panic("types2.TypeParam.SetConstraint: bound must not be nil")
+	}
+	t.bound = bound
+}
+
+// iface returns the constraint interface of t.
+func (t *TypeParam) iface() *Interface {
 	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
 		return iface
 	}
 	return &emptyInterface
 }
 
-func (t *TypeParam) SetBound(bound Type) {
-	if bound == nil {
-		panic("types2.TypeParam.SetBound: bound must not be nil")
-	}
-	t.bound = bound
+// Bound returns the constraint interface of t.
+// Deprecated. Only here for the compiler.
+// TODO(gri) remove in favor of uses of Constraint.
+func (t *TypeParam) Bound() *Interface {
+	return t.iface()
 }
 
 func (t *TypeParam) Underlying() Type { return t }
@@ -132,5 +138,5 @@ func bindTParams(list []*TypeName) *TypeParams {
 // Implementation
 
 func (t *TypeParam) underIs(f func(Type) bool) bool {
-	return t.Bound().typeSet().underIs(f)
+	return t.iface().typeSet().underIs(f)
 }

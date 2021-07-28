@@ -485,7 +485,7 @@ func (r *reader2) typeParamNames() []*types2.TypeName {
 	}
 
 	for i, bound := range r.dict.bounds {
-		r.dict.tparams[i].SetBound(r.p.typIdx(bound, r.dict))
+		r.dict.tparams[i].SetConstraint(r.p.typIdx(bound, r.dict))
 	}
 
 	return names
