@@ -652,8 +652,8 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 		if !filepath.IsAbs(dir) {
 			dir = filepath.Join(ModRoot(), dir)
 		}
-		gomod := filepath.Join(dir, "go.mod")
-		if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+		name = filepath.Join(dir, "go.mod")
+		if gomodActual, ok := fsys.OverlayPath(name); ok {
 			// Don't lock go.mod if it's part of the overlay.
 			// On Plan 9, locking requires chmod, and we don't want to modify any file
 			// in the overlay. See #44700.
@@ -662,16 +662,17 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 			data, err = lockedfile.Read(gomodActual)
 		}
 		if err != nil {
-			return gomod, nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))
+			return "", nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(name), err))
 		}
 	} else {
 		if !semver.IsValid(m.Version) {
 			// Disallow the broader queries supported by fetch.Lookup.
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}
+		name = "go.mod"
 		data, err = modfetch.GoMod(m.Path, m.Version)
 	}
-	return "go.mod", data, err
+	return name, data, err
 }
 
 // queryLatestVersionIgnoringRetractions looks up the latest version of the
