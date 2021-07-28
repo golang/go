@@ -19,6 +19,8 @@ import (
 	"math/big"
 )
 
+//go:generate go run -tags=tablegen gen_p256_table.go
+
 type (
 	p256Curve struct {
 		*CurveParams
@@ -79,7 +81,7 @@ func p256LittleToBig(res []byte, in []uint64)
 func p256Select(point, table []uint64, idx int)
 
 //go:noescape
-func p256SelectBase(point, table []uint64, idx int)
+func p256SelectBase(point *[12]uint64, table string, idx int)
 
 // Montgomery multiplication modulo Ord(G)
 //go:noescape
@@ -410,7 +412,7 @@ func boothW6(in uint) (int, int) {
 func (p *p256Point) p256BaseMult(scalar []uint64) {
 	wvalue := (scalar[0] << 1) & 0x7f
 	sel, sign := boothW6(uint(wvalue))
-	p256SelectBase(p.xyz[0:8], p256Precomputed[0][0:], sel)
+	p256SelectBase(&p.xyz, p256Precomputed, sel)
 	p256NegCond(p.xyz[4:8], sign)
 
 	// (This is one, in the Montgomery domain.)
@@ -437,7 +439,7 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
 		}
 		index += 6
 		sel, sign = boothW6(uint(wvalue))
-		p256SelectBase(t0.xyz[0:8], p256Precomputed[i][0:], sel)
+		p256SelectBase(&t0.xyz, p256Precomputed[i*32*8*8:], sel)
 		p256PointAddAffineAsm(p.xyz[0:12], p.xyz[0:12], t0.xyz[0:8], sign, sel, zero)
 		zero |= sel
 	}
