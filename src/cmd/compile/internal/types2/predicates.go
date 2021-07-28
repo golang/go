@@ -238,20 +238,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// types - each type appears exactly once. Thus, two union types
 		// must contain the same number of types to have chance of
 		// being equal.
-		if y, ok := y.(*Union); ok && x.NumTerms() == y.NumTerms() {
-			// Every type in x.types must be in y.types.
-			// Quadratic algorithm, but probably good enough for now.
-			// TODO(gri) we need a fast quick type ID/hash for all types.
-		L:
-			for i, xt := range x.types {
-				for j, yt := range y.types {
-					if Identical(xt, yt) && x.tilde[i] == y.tilde[j] {
-						continue L // x is in y.types
-					}
-				}
-				return false // x is not in y.types
-			}
-			return true
+		if y, ok := y.(*Union); ok {
+			return identicalTerms(x.terms, y.terms)
 		}
 
 	case *Interface:

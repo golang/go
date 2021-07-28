@@ -31,9 +31,9 @@ type (
 	_ interface{int|~ /* ERROR duplicate term int */ int }
 	_ interface{~int|~ /* ERROR duplicate term int */ int }
 
-	// For now we do not permit interfaces with ~ or in unions.
-	_ interface{~ /* ERROR cannot use interface */ interface{}}
-	_ interface{int|interface /* ERROR cannot use interface */ {}}
+	// For now we do not permit interfaces with methods in unions.
+	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
+	_ interface{int|interface /* ERROR cannot use .* in union */ { m() }}
 )
 
 type (
