@@ -529,6 +529,31 @@ func TestCookieSanitizePath(t *testing.T) {
 	}
 }
 
+func TestCookieValid(t *testing.T) {
+	tests := []struct {
+		cookie *Cookie
+		valid  bool
+	}{
+		{nil, false},
+		{&Cookie{Name: ""}, false},
+		{&Cookie{Name: "invalid-expires"}, false},
+		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
+		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
+		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
+		{&Cookie{Name: "valid", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
+	}
+
+	for _, tt := range tests {
+		err := tt.cookie.Valid()
+		if err != nil && tt.valid {
+			t.Errorf("%#v.Valid() returned error %v; want nil", tt.cookie, err)
+		}
+		if err == nil && !tt.valid {
+			t.Errorf("%#v.Valid() returned nil; want error", tt.cookie)
+		}
+	}
+}
+
 func BenchmarkCookieString(b *testing.B) {
 	const wantCookieString = `cookie-9=i3e01nf61b6t23bvfmplnanol3; Path=/restricted/; Domain=example.com; Expires=Tue, 10 Nov 2009 23:00:00 GMT; Max-Age=3600`
 	c := &Cookie{

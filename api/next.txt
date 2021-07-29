@@ -142,3 +142,4 @@ pkg testing, type FuzzResult struct, T time.Duration
 pkg testing, type InternalFuzzTarget struct
 pkg testing, type InternalFuzzTarget struct, Fn func(*F)
 pkg testing, type InternalFuzzTarget struct, Name string
+pkg net/http, method (*Cookie) Valid() error
