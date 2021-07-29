@@ -244,7 +244,7 @@ func (subst *subster) typ(typ Type) Type {
 		named := subst.check.newNamed(tname, t, t.Underlying(), t.TParams(), t.methods) // method signatures are updated lazily
 		named.targs = newTargs
 		subst.typMap[h] = named
-		t.complete() // must happen after typMap update to avoid infinite recursion
+		t.expand() // must happen after typMap update to avoid infinite recursion
 
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTargs)
