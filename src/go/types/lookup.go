@@ -121,7 +121,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
-				named.expand()
+				named.load()
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet

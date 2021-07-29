@@ -270,6 +270,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *Named:
+		if t.instance != nil {
+			buf.WriteByte(instanceMarker)
+		}
 		writeTypeName(buf, t.obj, qf)
 		if t.targs != nil {
 			// instantiated type

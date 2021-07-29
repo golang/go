@@ -105,7 +105,9 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 // instantiating the type until needed. typ must be a *Named
 // type.
 func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, posList []token.Pos, verify bool) Type {
-	base := asNamed(typ)
+	// Don't use asNamed here: we don't want to expand the base during lazy
+	// instantiation.
+	base := typ.(*Named)
 	if base == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
@@ -116,15 +118,18 @@ func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, pos
 	}
 	h := instantiatedHash(base, targs)
 	if check != nil {
+		// typ may already have been instantiated with identical type arguments. In
+		// that case, re-use the existing instance.
 		if named := check.typMap[h]; named != nil {
 			return named
 		}
 	}
 
 	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
-	named := check.newNamed(tname, base, nil, base.TParams(), base.methods) // methods are instantiated lazily
+	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded.
 	named.targs = targs
-	named.instance = &instance{check, pos, posList}
+	named.instance = &instance{pos, posList}
+
 	if check != nil {
 		check.typMap[h] = named
 	}
