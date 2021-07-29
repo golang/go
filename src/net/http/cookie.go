@@ -5,6 +5,8 @@
 package http
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http/internal/ascii"
@@ -234,6 +236,37 @@ func (c *Cookie) String() string {
 		b.WriteString("; SameSite=Strict")
 	}
 	return b.String()
+}
+
+// Valid reports whether the cookie is valid.
+func (c *Cookie) Valid() error {
+	if c == nil {
+		return errors.New("http: nil Cookie")
+	}
+	if !isCookieNameValid(c.Name) {
+		return errors.New("http: invalid Cookie.Name")
+	}
+	if !validCookieExpires(c.Expires) {
+		return errors.New("http: invalid Cookie.Expires")
+	}
+	for i := 0; i < len(c.Value); i++ {
+		if !validCookieValueByte(c.Value[i]) {
+			return fmt.Errorf("http: invalid byte %q in Cookie.Value", c.Value[i])
+		}
+	}
+	if len(c.Path) > 0 {
+		for i := 0; i < len(c.Path); i++ {
+			if !validCookiePathByte(c.Path[i]) {
+				return fmt.Errorf("http: invalid byte %q in Cookie.Path", c.Path[i])
+			}
+		}
+	}
+	if len(c.Domain) > 0 {
+		if !validCookieDomain(c.Domain) {
+			return errors.New("http: invalid Cookie.Domain")
+		}
+	}
+	return nil
 }
 
 // readCookies parses all "Cookie" values from the header h and
