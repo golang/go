@@ -98,7 +98,6 @@ func (tps *TypeParams) Len() int {
 }
 
 // At returns the i'th type parameter in the list.
-// It is safe to call on a nil receiver.
 func (tps *TypeParams) At(i int) *TypeName {
 	return tps.list()[i]
 }
