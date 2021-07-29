@@ -214,16 +214,6 @@ imethods:
 		if ipkg == "" {
 			ipkg = inter.pkgpath.name()
 		}
-		if iname == "==" {
-			// Don't need '==' method right now (from comparable),
-			// just fill in with a random pointer for now.
-			if k == 0 {
-				fun0 = unsafe.Pointer(m)
-			} else {
-				methods[k] = unsafe.Pointer(m)
-			}
-			continue imethods
-		}
 		for ; j < nt; j++ {
 			t := &xmhdr[j]
 			tname := typ.nameOff(t.name)
