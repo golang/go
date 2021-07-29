@@ -921,7 +921,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "receive from send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *Union:
+	case *TypeParam:
 		first := true
 		var key, val Type
 		var msg string
