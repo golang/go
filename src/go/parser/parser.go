@@ -930,14 +930,16 @@ func (p *parser) parseResult() *ast.FieldList {
 	return nil
 }
 
-func (p *parser) parseFuncType() *ast.FuncType {
-	if p.trace {
-		defer un(trace(p, "FuncType"))
+func (p *parser) parseFuncType(acceptTParams bool) *ast.FuncType {
+	pos := token.NoPos
+	if acceptTParams {
+		if p.trace {
+			defer un(trace(p, "FuncType"))
+		}
+		pos = p.expect(token.FUNC)
 	}
-
-	pos := p.expect(token.FUNC)
-	tparams, params := p.parseParameters(true)
-	if tparams != nil {
+	tparams, params := p.parseParameters(acceptTParams)
+	if acceptTParams && tparams != nil {
 		p.error(tparams.Pos(), "function type cannot have type parameters")
 	}
 	results := p.parseResult()
@@ -968,11 +970,8 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				list := p.parseParameterList(name0, token.RBRACK, p.parseParamDecl, true)
 				rbrack := p.expect(token.RBRACK)
 				tparams := &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
-				// TODO(rfindley) refactor to share code with parseFuncType.
-				_, params := p.parseParameters(false)
-				results := p.parseResult()
+				typ = p.parseFuncType(false)
 				idents = []*ast.Ident{ident}
-				typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 				typeparams.Set(typ, tparams)
 			} else {
 				// embedded instantiated type
@@ -994,11 +993,8 @@ func (p *parser) parseMethodSpec() *ast.Field {
 			}
 		case p.tok == token.LPAREN:
 			// ordinary method
-			// TODO(rfindley) refactor to share code with parseFuncType.
-			_, params := p.parseParameters(false)
-			results := p.parseResult()
+			typ = p.parseFuncType(false)
 			idents = []*ast.Ident{ident}
-			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 		default:
 			// embedded type
 			typ = x
@@ -1137,8 +1133,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 	case token.MUL:
 		return p.parsePointerType()
 	case token.FUNC:
-		typ := p.parseFuncType()
-		return typ
+		return p.parseFuncType(true)
 	case token.INTERFACE:
 		return p.parseInterfaceType()
 	case token.MAP:
@@ -1204,7 +1199,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 		defer un(trace(p, "FuncTypeOrLit"))
 	}
 
-	typ := p.parseFuncType()
+	typ := p.parseFuncType(true)
 	if p.tok != token.LBRACE {
 		// function type only
 		return typ
