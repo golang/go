@@ -618,7 +618,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	ntparams := tparams.Len()
 	w.len(ntparams)
 	for i := 0; i < ntparams; i++ {
-		w.typ(tparams.At(i).Type().(*types2.TypeParam).Bound())
+		w.typ(tparams.At(i).Type().(*types2.TypeParam).Constraint())
 	}
 
 	nderived := len(dict.derived)
