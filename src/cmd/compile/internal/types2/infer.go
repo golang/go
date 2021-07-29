@@ -280,7 +280,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	}()
 
 	switch t := typ.(type) {
-	case nil, *Basic: // TODO(gri) should nil be handled here?
+	case nil, *top, *Basic: // TODO(gri) should nil be handled here?
 		break
 
 	case *Array:
@@ -307,9 +307,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 			}
 		}
 
-	case *Union:
-		return w.isParameterizedTermList(t.terms)
-
 	case *Signature:
 		// t.tparams may not be nil if we are looking at a signature
 		// of a generic function type (or an interface method) that is
@@ -327,7 +324,9 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 				return true
 			}
 		}
-		return w.isParameterized(tset.types)
+		return tset.is(func(t *term) bool {
+			return w.isParameterized(t.typ)
+		})
 
 	case *Map:
 		return w.isParameterized(t.key) || w.isParameterized(t.elem)
@@ -352,15 +351,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 	for _, t := range list {
 		if w.isParameterized(t) {
-			return true
-		}
-	}
-	return false
-}
-
-func (w *tpWalker) isParameterizedTermList(list []*term) bool {
-	for _, t := range list {
-		if w.isParameterized(t.typ) {
 			return true
 		}
 	}
@@ -394,7 +384,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
 		typ := tpar.typ.(*TypeParam)
-		sbound := check.structuralType(typ.bound)
+		sbound := typ.structuralType()
 		if sbound != nil {
 			if !u.unify(typ, sbound) {
 				if report {
@@ -466,21 +456,4 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 	}
 
 	return
-}
-
-// structuralType returns the structural type of a constraint, if any.
-func (check *Checker) structuralType(constraint Type) Type {
-	if iface, _ := under(constraint).(*Interface); iface != nil {
-		types := iface.typeSet().types
-		if u, _ := types.(*Union); u != nil {
-			if u.NumTerms() == 1 {
-				// TODO(gri) do we need to respect tilde?
-				t, _ := u.Term(0)
-				return t
-			}
-			return nil
-		}
-		return types
-	}
-	return nil
 }

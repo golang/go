@@ -361,9 +361,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 				u.nify(x.results, y.results, p)
 		}
 
-	case *Union:
-		panic("unimplemented: unification with type sets described by types")
-
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from
@@ -371,7 +368,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		if y, ok := y.(*Interface); ok {
 			xset := x.typeSet()
 			yset := y.typeSet()
-			if !Identical(xset.types, yset.types) {
+			if !xset.terms.equal(yset.terms) {
 				return false
 			}
 			a := xset.methods

@@ -89,7 +89,7 @@ func defPredeclaredTypes() {
 		sig := NewSignature(nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
 		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
-		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(nopos, nil, "", typ)
 		def(obj)
@@ -99,7 +99,7 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{obj, nil, nil, nil, true, &TypeSet{true, nil, nil}}
+		ityp := &Interface{obj, nil, nil, nil, true, &TypeSet{true, nil, topTermlist}}
 		NewNamed(obj, ityp, nil)
 		def(obj)
 	}
