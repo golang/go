@@ -768,38 +768,49 @@ func checkFetchBody(nameNode *ir.Name) {
 }
 
 // getInstantiation gets the instantiantion and dictionary of the function or method nameNode
-// with the type arguments targs. If the instantiated function is not already
+// with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
+func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *ir.Func {
 	checkFetchBody(nameNode)
 
-	// Convert type arguments to their shape, so we can reduce the number
-	// of instantiations we have to generate.
-	shapes := typecheck.ShapifyList(targs)
+	// Convert any non-shape type arguments to their shape, so we can reduce the
+	// number of instantiations we have to generate. You can actually have a mix
+	// of shape and non-shape arguments, because of inferred or explicitly
+	// specified concrete type args.
+	var s1 []*types.Type
+	for i, t := range shapes {
+		if !t.HasShape() {
+			if s1 == nil {
+				s1 = make([]*types.Type, len(shapes))
+				for j := 0; j < i; j++ {
+					s1[j] = shapes[j]
+				}
+			}
+			s1[i] = typecheck.Shapify(t)
+		} else if s1 != nil {
+			s1[i] = shapes[i]
+		}
+	}
+	if s1 != nil {
+		shapes = s1
+	}
 
 	sym := typecheck.MakeInstName(nameNode.Sym(), shapes, isMeth)
 	info := g.instInfoMap[sym]
 	if info == nil {
-		if false {
-			// Testing out gcshapeType() and gcshapeName()
-			for i, t := range targs {
-				gct, gcs := gcshapeType(t)
-				fmt.Printf("targ %d: %v %v %v\n", i, gcs, gct, gct.Underlying())
-			}
-		}
 		// If instantiation doesn't exist yet, create it and add
 		// to the list of decls.
 		gfInfo := g.getGfInfo(nameNode)
 		info = &instInfo{
 			gf:            nameNode,
 			gfInfo:        gfInfo,
-			startSubDict:  len(targs) + len(gfInfo.derivedTypes),
-			startItabConv: len(targs) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls),
-			dictLen:       len(targs) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls) + len(gfInfo.itabConvs),
+			startSubDict:  len(shapes) + len(gfInfo.derivedTypes),
+			startItabConv: len(shapes) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls),
+			dictLen:       len(shapes) + len(gfInfo.derivedTypes) + len(gfInfo.subDictCalls) + len(gfInfo.itabConvs),
 			dictEntryMap:  make(map[ir.Node]int),
 		}
 		// genericSubst fills in info.dictParam and info.dictEntryMap.
-		st := g.genericSubst(sym, nameNode, shapes, targs, isMeth, info)
+		st := g.genericSubst(sym, nameNode, shapes, isMeth, info)
 		info.fun = st
 		g.instInfoMap[sym] = info
 		// This ensures that the linker drops duplicates of this instantiation.
@@ -821,23 +832,15 @@ type subster struct {
 	newf     *ir.Func // Func node for the new stenciled function
 	ts       typecheck.Tsubster
 	info     *instInfo // Place to put extra info in the instantiation
-
-	// unshapeify maps from shape types to the concrete types they represent.
-	// TODO: remove when we no longer need it.
-	unshapify typecheck.Tsubster
-
-	// TODO: some sort of map from <shape type, interface type> to index in the
-	// dictionary where a *runtime.itab for the corresponding <concrete type,
-	// interface type> pair resides.
 }
 
 // genericSubst returns a new function with name newsym. The function is an
 // instantiation of a generic function or method specified by namedNode with type
-// args targs. For a method with a generic receiver, it returns an instantiated
-// function type where the receiver becomes the first parameter. Otherwise the
-// instantiated method would still need to be transformed by later compiler
-// phases.  genericSubst fills in info.dictParam and info.dictEntryMap.
-func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+// args shapes. For a method with a generic receiver, it returns an instantiated
+// function type where the receiver becomes the first parameter. For either a generic
+// method or function, a dictionary parameter is the added as the very first
+// parameter. genericSubst fills in info.dictParam and info.dictEntryMap.
+func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
 	var tparams []*types.Type
 	if isMethod {
 		// Get the type params from the method receiver (after skipping
@@ -850,11 +853,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 		tparams = make([]*types.Type, len(fields))
 		for i, f := range fields {
 			tparams[i] = f.Type
-		}
-	}
-	for i := range targs {
-		if targs[i].HasShape() {
-			base.Fatalf("generiSubst shape %s %+v %+v\n", newsym.Name, shapes[i], targs[i])
 		}
 	}
 	gf := nameNode.Func
@@ -871,7 +869,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 	ir.CurFunc = newf
 
 	assert(len(tparams) == len(shapes))
-	assert(len(tparams) == len(targs))
 
 	subst := &subster{
 		g:        g,
@@ -881,11 +878,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 		ts: typecheck.Tsubster{
 			Tparams: tparams,
 			Targs:   shapes,
-			Vars:    make(map[*ir.Name]*ir.Name),
-		},
-		unshapify: typecheck.Tsubster{
-			Tparams: shapes,
-			Targs:   targs,
 			Vars:    make(map[*ir.Name]*ir.Name),
 		},
 	}
@@ -935,14 +927,14 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 	newf.Body = subst.list(gf.Body)
 
 	// Add code to check that the dictionary is correct.
-	// TODO: must go away when we move to many->1 shape to concrete mapping.
-	newf.Body.Prepend(subst.checkDictionary(dictionaryName, targs)...)
+	// TODO: must be adjusted to deal with shapes, but will go away soon when we move
+	// to many->1 shape to concrete mapping.
+	// newf.Body.Prepend(subst.checkDictionary(dictionaryName, shapes)...)
 
 	ir.CurFunc = savef
 	// Add any new, fully instantiated types seen during the substitution to
 	// g.instTypeList.
 	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
-	g.instTypeList = append(g.instTypeList, subst.unshapify.InstTypeList...)
 
 	if doubleCheck {
 		okConvs := map[ir.Node]bool{}
@@ -965,12 +957,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes, targs
 	}
 
 	return newf
-}
-
-func (subst *subster) unshapifyTyp(t *types.Type) *types.Type {
-	res := subst.unshapify.Typ(t)
-	types.CheckSize(res)
-	return res
 }
 
 // localvar creates a new name node for the specified local variable and enters it
@@ -1012,10 +998,7 @@ func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code 
 	for i, t := range targs {
 		if t.HasShape() {
 			// Check the concrete type, not the shape type.
-			// TODO: can this happen?
-			//t = subst.unshapify.Typ(t)
 			base.Fatalf("shape type in dictionary %s %+v\n", name.Sym().Name, t)
-			continue
 		}
 		want := reflectdata.TypePtr(t)
 		typed(types.Types[types.TUINTPTR], want)
@@ -1239,7 +1222,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				transformDot(call.X.(*ir.SelectorExpr), true)
-				call.X.SetType(subst.unshapifyTyp(call.X.Type()))
 				transformCall(call)
 
 			case ir.ODOT, ir.ODOTPTR:
@@ -1367,15 +1349,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
 			m.SetType(dt.Type())
 			m.SetTypecheck(1)
-
-		case ir.OFUNCINST:
-			inst := m.(*ir.InstExpr)
-			targs2 := make([]ir.Node, len(inst.Targs))
-			for i, n := range inst.Targs {
-				targs2[i] = ir.TypeNodeAt(n.Pos(), subst.unshapifyTyp(n.Type()))
-				// TODO: need an ir.Name node?
-			}
-			inst.Targs = targs2
 		}
 		return m
 	}
