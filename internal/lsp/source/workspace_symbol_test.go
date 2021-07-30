@@ -39,7 +39,7 @@ func TestParseQuery(t *testing.T) {
 
 	for _, test := range tests {
 		matcher := parseQuery(test.query)
-		if score := matcher(test.s); score > 0 != test.wantMatch {
+		if _, score := matcher(test.s); score > 0 != test.wantMatch {
 			t.Errorf("parseQuery(%q) match for %q: %.2g, want match: %t", test.query, test.s, score, test.wantMatch)
 		}
 	}
