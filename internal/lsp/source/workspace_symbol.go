@@ -69,17 +69,17 @@ type matcherFunc func(chunks []string) (int, float64)
 // []string{"myType.field"} or []string{"myType.", "field"}.
 //
 // See the comment for symbolCollector for more information.
-type symbolizer func(name string, pkg Metadata, m matcherFunc) (string, float64)
+type symbolizer func(name string, pkg Metadata, m matcherFunc) ([]string, float64)
 
-func fullyQualifiedSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string, float64) {
+func fullyQualifiedSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	_, score := dynamicSymbolMatch(name, pkg, matcher)
 	if score > 0 {
-		return pkg.PkgPath() + "." + name, score
+		return []string{pkg.PkgPath(), ".", name}, score
 	}
-	return "", 0
+	return nil, 0
 }
 
-func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string, float64) {
+func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	var score float64
 
 	endsInPkgName := strings.HasSuffix(pkg.PkgPath(), pkg.Name())
@@ -94,10 +94,10 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 			// If our match is contained entirely within the unqualified portion,
 			// just return that.
 			if idx >= nameStart {
-				return name, score
+				return []string{name}, score
 			}
 			// Lower the score for matches that include the package name.
-			return strings.Join(pkgQualified, ""), score * 0.8
+			return pkgQualified, score * 0.8
 		}
 	}
 
@@ -108,7 +108,7 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 	// As above, check if we matched just the unqualified symbol name.
 	nameStart := len(pkg.PkgPath()) + 1
 	if idx >= nameStart {
-		return name, score
+		return []string{name}, score
 	}
 
 	// If our package path ends in the package name, we'll have skipped the
@@ -117,21 +117,21 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 	if endsInPkgName && idx >= 0 {
 		pkgStart := len(pkg.PkgPath()) - len(pkg.Name())
 		if idx >= pkgStart {
-			return pkg.Name() + "." + name, score
+			return []string{pkg.Name(), ".", name}, score
 		}
 	}
 
 	// Our match was not contained within the unqualified or package qualified
 	// symbol. Return the fully qualified symbol but discount the score.
-	return strings.Join(fullyQualified, ""), score * 0.6
+	return fullyQualified, score * 0.6
 }
 
-func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string, float64) {
+func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	qualified := []string{pkg.Name(), ".", name}
 	if _, s := matcher(qualified); s > 0 {
-		return strings.Join(qualified, ""), s
+		return qualified, s
 	}
-	return "", 0
+	return nil, 0
 }
 
 // symbolCollector holds context as we walk Packages, gathering symbols that
@@ -319,7 +319,7 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 			}
 			md := mds[0]
 			for _, sym := range syms {
-				symbol, score := sc.symbolizer(sym.Name, md, sc.matcher)
+				symbolParts, score := sc.symbolizer(sym.Name, md, sc.matcher)
 
 				// Check if the score is too low before applying any downranking.
 				if sc.tooLow(score) {
@@ -392,7 +392,7 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 
 				si := symbolInformation{
 					score:     score,
-					symbol:    symbol,
+					symbol:    strings.Join(symbolParts, ""),
 					kind:      sym.Kind,
 					uri:       uri,
 					rng:       sym.Range,
