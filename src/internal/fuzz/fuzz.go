@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/bits"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -235,8 +236,8 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					stop(err)
 				}
 			} else if result.coverageData != nil {
-				newEdges := c.updateCoverage(result.coverageData)
-				if newEdges > 0 && !c.coverageOnlyRun() {
+				newBitCount := c.updateCoverage(result.coverageData)
+				if newBitCount > 0 && !c.coverageOnlyRun() {
 					// Found an interesting value that expanded coverage.
 					// This is not a crasher, but we should add it to the
 					// on-disk corpus, and prioritize it for future fuzzing.
@@ -255,13 +256,13 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					if printDebugInfo() {
 						fmt.Fprintf(
 							c.opts.Log,
-							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new edges: %d, total edges: %d, size: %d, exec time: %s\n",
+							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new bits: %d, total bits: %d, size: %d, exec time: %s\n",
 							time.Since(c.startTime),
 							result.entry.Name,
 							result.entry.Parent,
 							result.entry.Generation,
-							newEdges,
-							countEdges(c.coverageData),
+							newBitCount,
+							countBits(c.coverageMask),
 							len(result.entry.Data),
 							result.entryDuration,
 						)
@@ -271,10 +272,10 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					if printDebugInfo() {
 						fmt.Fprintf(
 							c.opts.Log,
-							"DEBUG processed an initial input, elapsed: %s, id: %s, new edges: %d, size: %d, exec time: %s\n",
+							"DEBUG processed an initial input, elapsed: %s, id: %s, new bits: %d, size: %d, exec time: %s\n",
 							time.Since(c.startTime),
 							result.entry.Parent,
-							newEdges,
+							newBitCount,
 							len(result.entry.Data),
 							result.entryDuration,
 						)
@@ -288,10 +289,10 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						if printDebugInfo() {
 							fmt.Fprintf(
 								c.opts.Log,
-								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage edges: %d\n",
+								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage bits: %d\n",
 								time.Since(c.startTime),
 								len(c.corpus.entries),
-								countEdges(c.coverageData),
+								countBits(c.coverageMask),
 							)
 						}
 					}
@@ -494,7 +495,13 @@ type coordinator struct {
 	// which corpus value to send next (or generates something new).
 	corpusIndex int
 
-	coverageData []byte
+	// coverageMask aggregates coverage that was found for all inputs in the
+	// corpus. Each byte represents a single basic execution block. Each set bit
+	// within the byte indicates that an input has triggered that block at least
+	// 1 << n times, where n is the position of the bit in the byte. For example, a
+	// value of 12 indicates that separate inputs have triggered this block
+	// between 4-7 times and 8-15 times.
+	coverageMask []byte
 }
 
 func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
@@ -535,7 +542,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		c.covOnlyInputs = 0
 	} else {
 		// Set c.coverageData to a clean []byte full of zeros.
-		c.coverageData = make([]byte, covSize)
+		c.coverageMask = make([]byte, covSize)
 	}
 
 	if c.covOnlyInputs > 0 {
@@ -555,8 +562,6 @@ func (c *coordinator) updateStats(result fuzzResult) {
 }
 
 func (c *coordinator) logStats() {
-	// TODO(jayconrod,katiehockman): consider printing the amount of coverage
-	// that has been reached so far (perhaps a percentage of edges?)
 	elapsed := time.Since(c.startTime)
 	if c.coverageOnlyRun() {
 		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
@@ -578,8 +583,9 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 	input := fuzzInput{
 		entry:            c.corpus.entries[c.corpusIndex],
 		interestingCount: c.interestingCount,
-		coverageData:     c.coverageData,
+		coverageData:     make([]byte, len(c.coverageMask)),
 	}
+	copy(input.coverageData, c.coverageMask)
 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
 
 	if c.coverageOnlyRun() {
@@ -607,22 +613,20 @@ func (c *coordinator) coverageOnlyRun() bool {
 	return c.covOnlyInputs > 0
 }
 
-// updateCoverage updates c.coverageData for all edges that have a higher
-// counter value in newCoverage. It return true if a new edge was hit.
+// updateCoverage sets bits in c.coverageData that are set in newCoverage.
+// updateCoverage returns the number of newly set bits. See the comment on
+// coverageMask for the format.
 func (c *coordinator) updateCoverage(newCoverage []byte) int {
-	if len(newCoverage) != len(c.coverageData) {
-		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(newCoverage), len(c.coverageData)))
+	if len(newCoverage) != len(c.coverageMask) {
+		panic(fmt.Sprintf("number of coverage counters changed at runtime: %d, expected %d", len(newCoverage), len(c.coverageMask)))
 	}
-	newEdges := 0
+	newBitCount := 0
 	for i := range newCoverage {
-		if newCoverage[i] > c.coverageData[i] {
-			if c.coverageData[i] == 0 {
-				newEdges++
-			}
-			c.coverageData[i] = newCoverage[i]
-		}
+		diff := newCoverage[i] &^ c.coverageMask[i]
+		newBitCount += bits.OnesCount8(diff)
+		c.coverageMask[i] |= newCoverage[i]
 	}
-	return newEdges
+	return newBitCount
 }
 
 // readCache creates a combined corpus from seed values and values in the cache

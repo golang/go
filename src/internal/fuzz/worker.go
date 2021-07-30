@@ -569,10 +569,10 @@ type workerServer struct {
 	workerComm
 	m *mutator
 
-	// coverageData is the local coverage data for the worker. It is
+	// coverageMask is the local coverage data for the worker. It is
 	// periodically updated to reflect the data in the coordinator when new
-	// edges are hit.
-	coverageData []byte
+	// coverage is found.
+	coverageMask []byte
 
 	// fuzzFn runs the worker's fuzz function on the given input and returns
 	// an error if it finds a crasher (the process may also exit or crash).
@@ -633,7 +633,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
 // the crashing input with this information, since the PRNG is deterministic.
 func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzResponse) {
 	if args.CoverageData != nil {
-		ws.coverageData = args.CoverageData
+		ws.coverageMask = args.CoverageData
 	}
 	start := time.Now()
 	defer func() { resp.TotalDuration = time.Since(start) }()
@@ -666,8 +666,8 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		return resp
 	}
 
-	if cov := coverage(); len(cov) != len(ws.coverageData) {
-		panic(fmt.Sprintf("num edges changed at runtime: %d, expected %d", len(cov), len(ws.coverageData)))
+	if cov := coverage(); len(cov) != len(ws.coverageMask) {
+		panic(fmt.Sprintf("number of coverage counters changed at runtime: %d, expected %d", len(cov), len(ws.coverageMask)))
 	}
 	for {
 		select {
@@ -687,13 +687,11 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 				}
 				return resp
 			}
-			for i := range coverageSnapshot {
-				if ws.coverageData[i] == 0 && coverageSnapshot[i] > ws.coverageData[i] {
-					// TODO(jayconrod,katie): minimize this.
-					resp.CoverageData = coverageSnapshot
-					resp.InterestingDuration = fDur
-					return resp
-				}
+			if countNewCoverageBits(ws.coverageMask, coverageSnapshot) > 0 {
+				// TODO(jayconrod,katie): minimize this.
+				resp.CoverageData = coverageSnapshot
+				resp.InterestingDuration = fDur
+				return resp
 			}
 			if args.Limit > 0 && mem.header().count == args.Limit {
 				return resp
