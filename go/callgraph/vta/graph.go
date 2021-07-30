@@ -72,7 +72,7 @@ func (mv mapValue) String() string {
 	return fmt.Sprintf("MapValue(%v)", mv.Type())
 }
 
-// sliceElem node for VTA, modeling reachable slice element types.
+// sliceElem node for VTA, modeling reachable slice and array element types.
 type sliceElem struct {
 	typ types.Type
 }
@@ -346,8 +346,11 @@ func (b *builder) instr(instr ssa.Instruction) {
 		b.rtrn(i)
 	case *ssa.MakeChan, *ssa.MakeMap, *ssa.MakeSlice, *ssa.BinOp,
 		*ssa.Alloc, *ssa.DebugRef, *ssa.Convert, *ssa.Jump, *ssa.If,
-		*ssa.Slice, *ssa.Range, *ssa.RunDefers:
+		*ssa.Slice, *ssa.SliceToArrayPointer, *ssa.Range, *ssa.RunDefers:
 		// No interesting flow here.
+		// Notes on individual instructions:
+		// SliceToArrayPointer: t1 = slice to array pointer *[4]T <- []T (t0)
+		// No interesting flow as sliceArrayElem(t1) == sliceArrayElem(t0).
 		return
 	default:
 		panic(fmt.Sprintf("unsupported instruction %v\n", instr))
