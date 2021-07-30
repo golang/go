@@ -34,6 +34,7 @@ const (
 	FuncID_gogo
 	FuncID_gopanic
 	FuncID_handleAsyncEvent
+	FuncID_jmpdefer
 	FuncID_mcall
 	FuncID_morestack
 	FuncID_mstart
@@ -59,6 +60,7 @@ var funcIDs = map[string]FuncID{
 	"gogo":             FuncID_gogo,
 	"gopanic":          FuncID_gopanic,
 	"handleAsyncEvent": FuncID_handleAsyncEvent,
+	"jmpdefer":         FuncID_jmpdefer,
 	"main":             FuncID_runtime_main,
 	"mcall":            FuncID_mcall,
 	"morestack":        FuncID_morestack,

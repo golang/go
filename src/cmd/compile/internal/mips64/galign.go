@@ -21,6 +21,7 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.SoftFloat = buildcfg.GOMIPS64 == "softfloat"
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
+	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
 	arch.SSAGenValue = ssaGenValue

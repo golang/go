@@ -248,6 +248,21 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOV	gobuf_pc(T0), T0
 	JALR	ZERO, T0
 
+// func jmpdefer(fv func(), argp uintptr)
+// called from deferreturn
+// 1. grab stored return address from the caller's frame
+// 2. sub 8 bytes to get back to JAL deferreturn
+// 3. JMP to fn
+TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+	MOV	0(X2), RA
+	ADD	$-8, RA
+
+	MOV	fv+0(FP), CTXT
+	MOV	argp+8(FP), X2
+	ADD	$-8, X2
+	MOV	0(CTXT), T0
+	JALR	ZERO, T0
+
 // func procyield(cycles uint32)
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET

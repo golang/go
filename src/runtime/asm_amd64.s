@@ -662,6 +662,21 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 	// compile barrier.
 	RET
 
+// func jmpdefer(fv func(), argp uintptr)
+// argp is a caller SP.
+// called from deferreturn.
+// 1. pop the caller
+// 2. sub 5 bytes from the callers return
+// 3. jmp to the argument
+TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+	MOVQ	fv+0(FP), DX	// fn
+	MOVQ	argp+8(FP), BX	// caller sp
+	LEAQ	-8(BX), SP	// caller sp after CALL
+	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
+	SUBQ	$5, (SP)	// return to CALL again
+	MOVQ	0(DX), BX
+	JMP	BX	// but first run the deferred function
+
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)

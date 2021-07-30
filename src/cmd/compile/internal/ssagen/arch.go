@@ -29,7 +29,8 @@ type ArchInfo struct {
 	// at function entry, and it is ok to clobber registers.
 	ZeroRange func(*objw.Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
 
-	Ginsnop func(*objw.Progs) *obj.Prog
+	Ginsnop      func(*objw.Progs) *obj.Prog
+	Ginsnopdefer func(*objw.Progs) *obj.Prog // special ginsnop for deferreturn
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*State, *ssa.Block)
