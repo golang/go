@@ -947,8 +947,8 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 // wasn't provided. setDefaultBuildMod may be called multiple times.
 func setDefaultBuildMod() {
 	if cfg.BuildModExplicit {
-		if inWorkspaceMode() {
-			base.Fatalf("go: -mod can't be set explicitly when in workspace mode." +
+		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
+			base.Fatalf("go: -mod may only be set to readonly when in workspace mode." +
 				"\n\tRemove the -mod flag to use the default readonly value," +
 				"\n\tor set -workfile=off to disable workspace mode.")
 		}
