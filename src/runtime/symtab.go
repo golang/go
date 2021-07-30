@@ -331,6 +331,7 @@ const (
 	funcID_gogo
 	funcID_gopanic
 	funcID_handleAsyncEvent
+	funcID_jmpdefer
 	funcID_mcall
 	funcID_morestack
 	funcID_mstart

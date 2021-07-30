@@ -43,6 +43,7 @@ import (
 
 var (
 	plan9privates *obj.LSym
+	deferreturn   *obj.LSym
 )
 
 // Instruction layout.
