@@ -1348,32 +1348,26 @@ func Shapify(t *types.Type) *types.Type {
 	if t.IsShape() {
 		return t // TODO: is this right?
 	}
-	if s := Shaped[t]; s != nil {
+	// Map all types with the same underlying type to the same shape.
+	u := t.Underlying()
+
+	if s := shaped[u]; s != nil {
 		return s //TODO: keep?
 	}
 
-	// For now, there is a 1-1 mapping between regular types and shape types.
 	sym := Lookup(fmt.Sprintf(".shape%d", snum))
 	snum++
-	name := ir.NewDeclNameAt(t.Pos(), ir.OTYPE, sym)
+	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
 	s := types.NewNamed(name)
-	s.SetUnderlying(t.Underlying())
+	s.SetUnderlying(u)
 	s.SetIsShape(true)
 	name.SetType(s)
 	name.SetTypecheck(1)
 	// TODO: add methods to s that the bound has?
-	Shaped[t] = s
+	shaped[u] = s
 	return s
 }
 
 var snum int
 
-var Shaped = map[*types.Type]*types.Type{}
-
-func ShapifyList(targs []*types.Type) []*types.Type {
-	r := make([]*types.Type, len(targs))
-	for i, t := range targs {
-		r[i] = Shapify(t)
-	}
-	return r
-}
+var shaped = map[*types.Type]*types.Type{}

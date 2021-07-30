@@ -1920,7 +1920,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			// Target method uses shaped names.
 			targs2 := make([]*types.Type, len(targs))
 			for i, t := range targs {
-				targs2[i] = typecheck.Shaped[t]
+				targs2[i] = typecheck.Shapify(t)
 			}
 			targs = targs2
 
