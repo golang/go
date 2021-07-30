@@ -57,9 +57,6 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 func isTyped(typ Type) bool {
 	// isTyped is called with types that are not fully
 	// set up. Must not call asBasic()!
-	// A *Named or *instance type is always typed, so
-	// we only need to check if we have a true *Basic
-	// type.
 	t, _ := typ.(*Basic)
 	return t == nil || t.info&IsUntyped == 0
 }
@@ -327,9 +324,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 
 	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
-
-	// case *instance:
-	//	unreachable since types are expanded
 
 	case *top:
 		// Either both types are theTop in which case the initial x == y check
