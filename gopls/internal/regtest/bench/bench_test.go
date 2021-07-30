@@ -91,7 +91,7 @@ func TestBenchmarkSymbols(t *testing.T) {
 		t.Skip("-symbol_workdir not configured")
 	}
 
-	opts := stressTestOptions(symbolOptions.workdir)
+	opts := benchmarkOptions(symbolOptions.workdir)
 	conf := EditorConfig{}
 	if symbolOptions.matcher != "" {
 		conf.SymbolMatcher = &symbolOptions.matcher
