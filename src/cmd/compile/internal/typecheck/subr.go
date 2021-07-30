@@ -1351,6 +1351,12 @@ func Shapify(t *types.Type) *types.Type {
 	// Map all types with the same underlying type to the same shape.
 	u := t.Underlying()
 
+	// All pointers have the same shape.
+	// TODO: Make unsafe.Pointer the same shape as normal pointers.
+	if u.Kind() == types.TPTR {
+		u = types.Types[types.TUINT8].PtrTo()
+	}
+
 	if s := shaped[u]; s != nil {
 		return s //TODO: keep?
 	}
