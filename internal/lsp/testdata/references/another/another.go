@@ -7,7 +7,7 @@ import (
 
 func _() {
 	xes := other.GetXes()
-	for _, x := range xes {
-		_ = x.Y //@mark(anotherXY, "Y"),refs("Y", typeXY, anotherXY, GetXesY)
+	for _, x := range xes { //@mark(defX, "x")
+		_ = x.Y //@mark(useX, "x"),mark(anotherXY, "Y"),refs("Y", typeXY, anotherXY, GetXesY),refs(".", defX, useX),refs("x", defX, useX)
 	}
 }

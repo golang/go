@@ -349,11 +349,6 @@ func pathEnclosingObjNode(f *ast.File, pos token.Pos) []ast.Node {
 			if pos == n.Star {
 				pos = n.X.Pos()
 			}
-		case *ast.SelectorExpr:
-			// If pos is on the ".", move it into the selector.
-			if pos == n.X.End() {
-				pos = n.Sel.Pos()
-			}
 		}
 
 		return !found
