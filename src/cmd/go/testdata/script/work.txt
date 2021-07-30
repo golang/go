@@ -21,10 +21,11 @@ go list all # all includes both modules
 stdout 'example.com/a'
 stdout 'example.com/b'
 
-# -mod can't be set in workspace mode, even to readonly
-! go list -mod=readonly all
-stderr '^go: -mod can''t be set explicitly'
-go list -mod=readonly -workfile=off all
+# -mod can only be set to readonly in workspace mode
+go list -mod=readonly all
+! go list -mod=mod all
+stderr '^go: -mod may only be set to readonly when in workspace mode'
+go list -mod=mod -workfile=off all
 
 # Test that duplicates in the directory list return an error
 cp go.work go.work.backup
