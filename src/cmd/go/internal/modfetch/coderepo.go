@@ -864,22 +864,25 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
 	data, err = r.code.ReadFile(rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return r.legacyGoMod(rev, dir), nil
+			return LegacyGoMod(r.modPath), nil
 		}
 		return nil, err
 	}
 	return data, nil
 }
 
-func (r *codeRepo) legacyGoMod(rev, dir string) []byte {
-	// We used to try to build a go.mod reflecting pre-existing
-	// package management metadata files, but the conversion
-	// was inherently imperfect (because those files don't have
-	// exactly the same semantics as go.mod) and, when done
-	// for dependencies in the middle of a build, impossible to
-	// correct. So we stopped.
-	// Return a fake go.mod that simply declares the module path.
-	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(r.modPath)))
+// LegacyGoMod generates a fake go.mod file for a module that doesn't have one.
+// The go.mod file contains a module directive and nothing else: no go version,
+// no requirements.
+//
+// We used to try to build a go.mod reflecting pre-existing
+// package management metadata files, but the conversion
+// was inherently imperfect (because those files don't have
+// exactly the same semantics as go.mod) and, when done
+// for dependencies in the middle of a build, impossible to
+// correct. So we stopped.
+func LegacyGoMod(modPath string) []byte {
+	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(modPath)))
 }
 
 func (r *codeRepo) modPrefix(rev string) string {
