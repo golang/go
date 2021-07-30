@@ -325,30 +325,7 @@ func (w *huffmanBitWriter) storedSize(in []byte) (int, bool) {
 }
 
 func (w *huffmanBitWriter) writeCode(c hcode) {
-	if w.err != nil {
-		return
-	}
-	w.bits |= uint64(c.code) << w.nbits
-	w.nbits += uint(c.len)
-	if w.nbits >= 48 {
-		bits := w.bits
-		w.bits >>= 48
-		w.nbits -= 48
-		n := w.nbytes
-		bytes := w.bytes[n : n+6]
-		bytes[0] = byte(bits)
-		bytes[1] = byte(bits >> 8)
-		bytes[2] = byte(bits >> 16)
-		bytes[3] = byte(bits >> 24)
-		bytes[4] = byte(bits >> 32)
-		bytes[5] = byte(bits >> 40)
-		n += 6
-		if n >= bufferFlushSize {
-			w.write(w.bytes[:n])
-			n = 0
-		}
-		w.nbytes = n
-	}
+	w.writeBits(int32(c.code), uint(c.len))
 }
 
 // Write the header of a dynamic Huffman block to the output stream.
