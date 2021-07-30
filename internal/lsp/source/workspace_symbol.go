@@ -233,8 +233,7 @@ func parseQuery(q string) matcherFunc {
 		default:
 			fm := fuzzy.NewMatcher(field)
 			f = func(chunks []string) (int, float64) {
-				s := strings.Join(chunks, "")
-				score := float64(fm.Score(s))
+				score := float64(fm.ScoreChunks(chunks))
 				ranges := fm.MatchedRanges()
 				if len(ranges) > 0 {
 					return ranges[0], score
