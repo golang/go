@@ -5808,7 +5808,6 @@ func (s *state) uint64Tofloat(cvttab *u642fcvtTab, n ir.Node, x *ssa.Value, ft, 
 	// } else {
 	// 	  y = uintX(x) ; y = x & 1
 	// 	  z = uintX(x) ; z = z >> 1
-	// 	  z = z >> 1
 	// 	  z = z | y
 	// 	  result = floatY(z)
 	// 	  result = result + result
