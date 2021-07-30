@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -1150,5 +1151,35 @@ func TestDecodeErrorMultipleTypes(t *testing.T) {
 		t.Errorf("decode: expected duplicate type error, got nil")
 	} else if !strings.Contains(err.Error(), "duplicate type") {
 		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
+	}
+}
+
+// Issue 24075
+func TestMarshalFloatMap(t *testing.T) {
+	var m = map[float64]string{math.NaN(): "NaN"}
+
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+	err := enc.Encode(m)
+	if err != nil {
+		t.Errorf("Encode() error: %v", err)
+	}
+
+	var result = map[float64]string{}
+	dec := NewDecoder(&b)
+	err = dec.Decode(&result)
+
+	if err != nil {
+		t.Fatalf("decoder fail: %v", err)
+	}
+
+	// NaN cannot compare
+	for k, v := range result {
+		if fmt.Sprintf("%v", k) != "NaN" {
+			t.Fatalf("decoder fail: %v", k)
+		}
+		if v != "NaN" {
+			t.Fatalf("decoder fail: %v", v)
+		}
 	}
 }
