@@ -36,19 +36,6 @@ func TestOKErrorf(t *testing.T) {
 	}
 }
 
-func BenchmarkBadFatalf(b *testing.B) {
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
-	for i := 0; i < b.N; i++ {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-			b.Fatalf("TestFailed: id = %v\n", id) // want "call to .+B.+Fatalf from a non-test goroutine"
-		}(i)
-	}
-}
-
 func TestBadFatal(t *testing.T) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -58,6 +45,32 @@ func TestBadFatal(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			t.Fatal("TestFailed") // want "call to .+T.+Fatal from a non-test goroutine"
+		}(i)
+	}
+}
+
+func f(t *testing.T, _ string) {
+	t.Fatal("TestFailed")
+}
+
+func TestBadFatalIssue47470(t *testing.T) {
+	go f(t, "failed test 1") // want "call to .+T.+Fatal from a non-test goroutine"
+
+	g := func(t *testing.T, _ string) {
+		t.Fatal("TestFailed")
+	}
+	go g(t, "failed test 2") // want "call to .+T.+Fatal from a non-test goroutine"
+}
+
+func BenchmarkBadFatalf(b *testing.B) {
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	for i := 0; i < b.N; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			b.Fatalf("TestFailed: id = %v\n", id) // want "call to .+B.+Fatalf from a non-test goroutine"
 		}(i)
 	}
 }
