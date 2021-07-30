@@ -1540,7 +1540,7 @@ func (r *importReader) exprsOrNil() (a, b ir.Node) {
 func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
 	if go117ExportTypes {
 		// These should all be encoded as direct ops, not OCALL.
-		base.Fatalf("builtinCall should not be invoked when types are included in inport/export")
+		base.Fatalf("builtinCall should not be invoked when types are included in import/export")
 	}
 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }

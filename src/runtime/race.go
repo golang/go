@@ -343,7 +343,7 @@ func racereadrangepc1(addr, size, pc uintptr)
 func racewriterangepc1(addr, size, pc uintptr)
 func racecallbackthunk(uintptr)
 
-// racecall allows calling an arbitrary function f from C race runtime
+// racecall allows calling an arbitrary function fn from C race runtime
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 

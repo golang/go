@@ -148,7 +148,7 @@ func dumpdata() {
 	if reflectdata.ZeroSize > 0 {
 		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
-		zero.Set(obj.AttrContentAddressable, true)
+		zero.Set(obj.AttrStatic, true)
 	}
 
 	staticdata.WriteFuncSyms()

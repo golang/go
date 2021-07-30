@@ -7,6 +7,11 @@ package runtime
 import "unsafe"
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+	// nil pointer is always suitably aligned (#47430).
+	if p == nil {
+		return
+	}
+
 	// Check that (*[n]elem)(p) is appropriately aligned.
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
@@ -29,10 +34,12 @@ func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
 		return false
 	}
 
-	end := add(ptr, size-1)
-	if uintptr(end) < uintptr(ptr) {
+	// Check that add(ptr, size-1) won't overflow. This avoids the risk
+	// of producing an illegal pointer value (assuming ptr is legal).
+	if uintptr(ptr) >= -(size - 1) {
 		return true
 	}
+	end := add(ptr, size-1)
 
 	// TODO(mdempsky): Detect when [ptr, end] contains Go allocations,
 	// but neither ptr nor end point into one themselves.

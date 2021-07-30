@@ -715,20 +715,6 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 	return ".", module.Version{}
 }
 
-// TargetPackages returns the list of packages in the target (top-level) module
-// matching pattern, which may be relative to the working directory, under all
-// build tag settings.
-func TargetPackages(ctx context.Context, pattern string) *search.Match {
-	// TargetPackages is relative to the main module, so ensure that the main
-	// module is a thing that can contain packages.
-	LoadModFile(ctx) // Sets Target.
-	ModRoot()        // Emits an error if Target cannot contain packages.
-
-	m := search.NewMatch(pattern)
-	matchPackages(ctx, m, imports.AnyTags(), omitStd, MainModules.Versions())
-	return m
-}
-
 // ImportMap returns the actual package import path
 // for an import path found in source code.
 // If the given import path does not appear in the source code
@@ -758,29 +744,6 @@ func PackageModule(path string) module.Version {
 		return module.Version{}
 	}
 	return pkg.mod
-}
-
-// PackageImports returns the imports for the package named by the import path.
-// Test imports will be returned as well if tests were loaded for the package
-// (i.e., if "all" was loaded or if LoadTests was set and the path was matched
-// by a command line argument). PackageImports will return nil for
-// unknown package paths.
-func PackageImports(path string) (imports, testImports []string) {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if !ok {
-		return nil, nil
-	}
-	imports = make([]string, len(pkg.imports))
-	for i, p := range pkg.imports {
-		imports[i] = p.path
-	}
-	if pkg.test != nil {
-		testImports = make([]string, len(pkg.test.imports))
-		for i, p := range pkg.test.imports {
-			testImports[i] = p.path
-		}
-	}
-	return imports, testImports
 }
 
 // Lookup returns the source directory, import path, and any loading error for
@@ -1883,7 +1846,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", ld.TidyCompatibleVersion, goFlag, ld.GoVersion)
 
 		// TODO(#46141): Populate the linked wiki page.
-		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/wiki/PruningModules\n")
+		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/doc/modules/pruning\n")
 	}
 
 	mg, err := rs.Graph(ctx)

@@ -1087,7 +1087,7 @@
 //
 // Usage:
 //
-// 	go mod edit [editing flags] [go.mod]
+// 	go mod edit [editing flags] [-fmt|-print|-json] [go.mod]
 //
 // Edit provides a command-line interface for editing go.mod,
 // for use primarily by tools or scripts. It reads only go.mod;
@@ -1202,7 +1202,7 @@
 // and one of its requirements. Each module is identified as a string of the form
 // path@version, except for the main module, which has no @version suffix.
 //
-// The -go flag causes graph to report the module graph as loaded by by the
+// The -go flag causes graph to report the module graph as loaded by the
 // given Go version, instead of the version indicated by the 'go' directive
 // in the go.mod file.
 //
@@ -1213,7 +1213,7 @@
 //
 // Usage:
 //
-// 	go mod init [module]
+// 	go mod init [module-path]
 //
 // Init initializes and writes a new go.mod file in the current directory, in
 // effect creating a new module rooted at the current directory. The go.mod file

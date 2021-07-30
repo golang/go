@@ -2848,3 +2848,35 @@ func TestExecInDeletedDir(t *testing.T) {
 	// `go version` should not fail
 	tg.run("version")
 }
+
+// A missing C compiler should not force the net package to be stale.
+// Issue 47215.
+func TestMissingCC(t *testing.T) {
+	if !canCgo {
+		t.Skip("test is only meaningful on systems with cgo")
+	}
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "gcc"
+	}
+	if filepath.IsAbs(cc) {
+		t.Skipf(`"CC" (%s) is an absolute path`, cc)
+	}
+	_, err := exec.LookPath(cc)
+	if err != nil {
+		t.Skipf(`"CC" (%s) not on PATH`, cc)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	netStale, _ := tg.isStale("net")
+	if netStale {
+		t.Skip(`skipping test because "net" package is currently stale`)
+	}
+
+	tg.setenv("PATH", "") // No C compiler on PATH.
+	netStale, _ = tg.isStale("net")
+	if netStale {
+		t.Error(`clearing "PATH" causes "net" to be stale`)
+	}
+}
