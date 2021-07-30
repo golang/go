@@ -543,6 +543,7 @@ type SymbolMatcher string
 
 const (
 	SymbolFuzzy           SymbolMatcher = "Fuzzy"
+	SymbolFastFuzzy       SymbolMatcher = "FastFuzzy"
 	SymbolCaseInsensitive SymbolMatcher = "CaseInsensitive"
 	SymbolCaseSensitive   SymbolMatcher = "CaseSensitive"
 )
@@ -834,6 +835,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 	case "symbolMatcher":
 		if s, ok := result.asOneOf(
 			string(SymbolFuzzy),
+			string(SymbolFastFuzzy),
 			string(SymbolCaseInsensitive),
 			string(SymbolCaseSensitive),
 		); ok {

@@ -326,6 +326,10 @@ var GeneratedAPIJSON = &APIJSON{
 						Doc:   "",
 					},
 					{
+						Value: "\"FastFuzzy\"",
+						Doc:   "",
+					},
+					{
 						Value: "\"Fuzzy\"",
 						Doc:   "",
 					},

@@ -157,6 +157,8 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 	switch matcher {
 	case SymbolFuzzy:
 		m = parseQuery(query)
+	case SymbolFastFuzzy:
+		m = fuzzy.NewSymbolMatcher(query).Match
 	case SymbolCaseSensitive:
 		m = matchExact(query)
 	case SymbolCaseInsensitive:

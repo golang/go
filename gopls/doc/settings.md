@@ -397,6 +397,7 @@ Must be one of:
 
 * `"CaseInsensitive"`
 * `"CaseSensitive"`
+* `"FastFuzzy"`
 * `"Fuzzy"`
 Default: `"Fuzzy"`.
 
