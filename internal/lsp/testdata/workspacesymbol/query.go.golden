@@ -41,7 +41,7 @@ workspacesymbol/main.go:21:2-15 main.myStruct.myStructField Field
 workspacesymbol/main.go:21:2-15 main.myStruct.myStructField Field
 
 -- workspace_symbol-casesensitive-main.myType --
-workspacesymbol/main.go:14:6-12 main.myType String
+workspacesymbol/main.go:14:6-12 main.myType Class
 workspacesymbol/main.go:18:18-26 main.myType.Blahblah Method
 
 -- workspace_symbol-casesensitive-main.myType.Blahblah --

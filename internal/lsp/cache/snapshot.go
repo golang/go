@@ -85,6 +85,9 @@ type snapshot struct {
 	// goFiles maps a parseKey to its parseGoHandle.
 	goFiles map[parseKey]*parseGoHandle
 
+	// TODO(rfindley): consider merging this with files to reduce burden on clone.
+	symbols map[span.URI]*symbolHandle
+
 	// packages maps a packageKey to a set of packageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
 	packages map[packageKey]*packageHandle
@@ -523,32 +526,9 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	if fh.Kind() != source.Go {
 		return nil, fmt.Errorf("no packages for non-Go file %s", uri)
 	}
-	knownIDs := s.getIDsForURI(uri)
-	reload := len(knownIDs) == 0
-	for _, id := range knownIDs {
-		// Reload package metadata if any of the metadata has missing
-		// dependencies, in case something has changed since the last time we
-		// reloaded it.
-		if s.noValidMetadataForID(id) {
-			reload = true
-			break
-		}
-		// TODO(golang/go#36918): Previously, we would reload any package with
-		// missing dependencies. This is expensive and results in too many
-		// calls to packages.Load. Determine what we should do instead.
-	}
-	if reload {
-		err = s.load(ctx, false, fileURI(uri))
-
-		if !s.useInvalidMetadata() && err != nil {
-			return nil, err
-		}
-		// We've tried to reload and there are still no known IDs for the URI.
-		// Return the load error, if there was one.
-		knownIDs = s.getIDsForURI(uri)
-		if len(knownIDs) == 0 {
-			return nil, err
-		}
+	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
+	if err != nil {
+		return nil, err
 	}
 
 	var phs []*packageHandle
@@ -581,6 +561,37 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 		}
 	}
 	return phs, nil
+}
+
+func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]packageID, error) {
+	knownIDs := s.getIDsForURI(uri)
+	reload := len(knownIDs) == 0
+	for _, id := range knownIDs {
+		// Reload package metadata if any of the metadata has missing
+		// dependencies, in case something has changed since the last time we
+		// reloaded it.
+		if s.noValidMetadataForID(id) {
+			reload = true
+			break
+		}
+		// TODO(golang/go#36918): Previously, we would reload any package with
+		// missing dependencies. This is expensive and results in too many
+		// calls to packages.Load. Determine what we should do instead.
+	}
+	if reload {
+		err := s.load(ctx, false, fileURI(uri))
+
+		if !s.useInvalidMetadata() && err != nil {
+			return nil, err
+		}
+		// We've tried to reload and there are still no known IDs for the URI.
+		// Return the load error, if there was one.
+		knownIDs = s.getIDsForURI(uri)
+		if len(knownIDs) == 0 {
+			return nil, err
+		}
+	}
+	return knownIDs, nil
 }
 
 // Only use invalid metadata for Go versions >= 1.13. Go 1.12 and below has
@@ -960,6 +971,33 @@ func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, 
 	return phs, nil
 }
 
+func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
+	result := make(map[span.URI][]source.Symbol)
+	for uri, f := range s.files {
+		sh := s.buildSymbolHandle(ctx, f)
+		v, err := sh.handle.Get(ctx, s.generation, s)
+		if err != nil {
+			return nil, err
+		}
+		data := v.(*symbolData)
+		result[uri] = data.symbols
+	}
+	return result, nil
+}
+
+func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]source.Metadata, error) {
+	knownIDs, err := s.getOrLoadIDsForURI(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	var mds []source.Metadata
+	for _, id := range knownIDs {
+		md := s.getMetadata(id)
+		mds = append(mds, md)
+	}
+	return mds, nil
+}
+
 func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
@@ -1044,6 +1082,26 @@ func (s *snapshot) getPackage(id packageID, mode source.ParseMode) *packageHandl
 	return s.packages[key]
 }
 
+func (s *snapshot) getSymbolHandle(uri span.URI) *symbolHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.symbols[uri]
+}
+
+func (s *snapshot) addSymbolHandle(sh *symbolHandle) *symbolHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	uri := sh.fh.URI()
+	// If the package handle has already been cached,
+	// return the cached handle instead of overriding it.
+	if sh, ok := s.symbols[uri]; ok {
+		return sh
+	}
+	s.symbols[uri] = sh
+	return sh
+}
 func (s *snapshot) getActionHandle(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1633,6 +1691,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
 		files:             make(map[span.URI]source.VersionedFileHandle, len(s.files)),
 		goFiles:           make(map[parseKey]*parseGoHandle, len(s.goFiles)),
+		symbols:           make(map[span.URI]*symbolHandle, len(s.symbols)),
 		workspacePackages: make(map[packageID]packagePath, len(s.workspacePackages)),
 		unloadableFiles:   make(map[span.URI]struct{}, len(s.unloadableFiles)),
 		parseModHandles:   make(map[span.URI]*parseModHandle, len(s.parseModHandles)),
@@ -1650,6 +1709,16 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Copy all of the FileHandles.
 	for k, v := range s.files {
 		result.files[k] = v
+	}
+	for k, v := range s.symbols {
+		if change, ok := changes[k]; ok {
+			if change.exists {
+				result.symbols[k] = result.buildSymbolHandle(ctx, change.fileHandle)
+			}
+			continue
+		}
+		newGen.Inherit(v.handle)
+		result.symbols[k] = v
 	}
 
 	// Copy the set of unloadable files.

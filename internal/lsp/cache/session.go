@@ -234,6 +234,7 @@ func (s *Session) createView(ctx context.Context, name string, folder, tempWorks
 		metadata:          make(map[packageID]*knownMetadata),
 		files:             make(map[span.URI]source.VersionedFileHandle),
 		goFiles:           make(map[parseKey]*parseGoHandle),
+		symbols:           make(map[span.URI]*symbolHandle),
 		importedBy:        make(map[packageID][]packageID),
 		actions:           make(map[actionKey]*actionHandle),
 		workspacePackages: make(map[packageID]packagePath),

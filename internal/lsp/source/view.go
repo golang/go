@@ -162,6 +162,12 @@ type Snapshot interface {
 	// mode, this is just the reverse transitive closure of open packages.
 	ActivePackages(ctx context.Context) ([]Package, error)
 
+	// Symbols returns all symbols in the snapshot.
+	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
+
+	// Metadata returns package metadata associated with the given file URI.
+	MetadataForFile(ctx context.Context, uri span.URI) ([]Metadata, error)
+
 	// GetCriticalError returns any critical errors in the workspace.
 	GetCriticalError(ctx context.Context) *CriticalError
 
@@ -297,6 +303,15 @@ type TidiedModule struct {
 	Diagnostics []*Diagnostic
 	// The bytes of the go.mod file after it was tidied.
 	TidiedContent []byte
+}
+
+// Metadata represents package metadata retrieved from go/packages.
+type Metadata interface {
+	// Name is the package name.
+	Name() string
+
+	// PkgPath is the package path.
+	PkgPath() string
 }
 
 // Session represents a single connection from a client.

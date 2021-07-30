@@ -52,6 +52,16 @@ type metadata struct {
 	isIntermediateTestVariant bool
 }
 
+// Name implements the source.Metadata interface.
+func (m *metadata) Name() string {
+	return string(m.name)
+}
+
+// PkgPath implements the source.Metadata interface.
+func (m *metadata) PkgPath() string {
+	return string(m.pkgPath)
+}
+
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
 func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
