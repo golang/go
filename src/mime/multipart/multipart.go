@@ -264,7 +264,8 @@ func scanUntilBoundary(buf, dashBoundary, nlDashBoundary []byte, total int64, re
 // and the caller has verified already that bytes.HasPrefix(buf, prefix) is true.
 //
 // matchAfterPrefix returns +1 if the buffer does match the boundary,
-// meaning the prefix is followed by a dash, space, tab, cr, nl, or end of input.
+// meaning the prefix is followed by a double dash, space, tab, cr, nl,
+// or end of input.
 // It returns -1 if the buffer definitely does NOT match the boundary,
 // meaning the prefix is followed by some other character.
 // For example, "--foobar" does not match "--foo".
@@ -278,9 +279,25 @@ func matchAfterPrefix(buf, prefix []byte, readErr error) int {
 		return 0
 	}
 	c := buf[len(prefix)]
-	if c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '-' {
+
+	if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
 		return +1
 	}
+
+	// Try to detect boundaryDash
+	if c == '-' {
+		if len(buf) == len(prefix)+1 {
+			if readErr != nil {
+				// Prefix + "-" does not match
+				return -1
+			}
+			return 0
+		}
+		if buf[len(prefix)+1] == '-' {
+			return +1
+		}
+	}
+
 	return -1
 }
 
