@@ -61,7 +61,7 @@ func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, style Symb
 // A matcherFunc returns the index and score of a symbol match.
 //
 // See the comment for symbolCollector for more information.
-type matcherFunc func(name string) (int, float64)
+type matcherFunc func(chunks []string) (int, float64)
 
 // A symbolizer returns the best symbol match for a name with pkg, according to
 // some heuristic. The symbol name is passed as the slice nameParts of logical
@@ -87,9 +87,9 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 	// If the package path does not end in the package name, we need to check the
 	// package-qualified symbol as an extra pass first.
 	if !endsInPkgName {
-		pkgQualified := pkg.Name() + "." + name
+		pkgQualified := []string{pkg.Name(), ".", name}
 		idx, score := matcher(pkgQualified)
-		nameStart := len(pkgQualified) - len(name)
+		nameStart := len(pkg.Name()) + 1
 		if score > 0 {
 			// If our match is contained entirely within the unqualified portion,
 			// just return that.
@@ -97,16 +97,16 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 				return name, score
 			}
 			// Lower the score for matches that include the package name.
-			return pkgQualified, score * 0.8
+			return strings.Join(pkgQualified, ""), score * 0.8
 		}
 	}
 
 	// Now try matching the fully qualified symbol.
-	fullyQualified := pkg.PkgPath() + "." + name
+	fullyQualified := []string{pkg.PkgPath(), ".", name}
 	idx, score := matcher(fullyQualified)
 
 	// As above, check if we matched just the unqualified symbol name.
-	nameStart := len(fullyQualified) - len(name)
+	nameStart := len(pkg.PkgPath()) + 1
 	if idx >= nameStart {
 		return name, score
 	}
@@ -115,21 +115,21 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string,
 	// initial pass above, so check if we matched just the package-qualified
 	// name.
 	if endsInPkgName && idx >= 0 {
-		pkgStart := len(fullyQualified) - len(name) - 1 - len(pkg.Name())
+		pkgStart := len(pkg.PkgPath()) - len(pkg.Name())
 		if idx >= pkgStart {
-			return fullyQualified[pkgStart:], score
+			return pkg.Name() + "." + name, score
 		}
 	}
 
 	// Our match was not contained within the unqualified or package qualified
 	// symbol. Return the fully qualified symbol but discount the score.
-	return fullyQualified, score * 0.6
+	return strings.Join(fullyQualified, ""), score * 0.6
 }
 
 func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (string, float64) {
-	qualified := pkg.Name() + "." + name
+	qualified := []string{pkg.Name(), ".", name}
 	if _, s := matcher(qualified); s > 0 {
-		return qualified, s
+		return strings.Join(qualified, ""), s
 	}
 	return "", 0
 }
@@ -162,9 +162,11 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 	case SymbolCaseInsensitive:
 		q := strings.ToLower(query)
 		exact := matchExact(q)
-		m = func(s string) (int, float64) {
-			lower := strings.ToLower(s)
-			return exact(lower)
+		wrapper := []string{""}
+		m = func(chunks []string) (int, float64) {
+			s := strings.Join(chunks, "")
+			wrapper[0] = strings.ToLower(s)
+			return exact(wrapper)
 		}
 	default:
 		panic(fmt.Errorf("unknown symbol matcher: %v", matcher))
@@ -201,7 +203,7 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 func parseQuery(q string) matcherFunc {
 	fields := strings.Fields(q)
 	if len(fields) == 0 {
-		return func(string) (int, float64) { return -1, 0 }
+		return func([]string) (int, float64) { return -1, 0 }
 	}
 	var funcs []matcherFunc
 	for _, field := range fields {
@@ -209,7 +211,8 @@ func parseQuery(q string) matcherFunc {
 		switch {
 		case strings.HasPrefix(field, "^"):
 			prefix := field[1:]
-			f = smartCase(prefix, func(s string) (int, float64) {
+			f = smartCase(prefix, func(chunks []string) (int, float64) {
+				s := strings.Join(chunks, "")
 				if strings.HasPrefix(s, prefix) {
 					return 0, 1
 				}
@@ -220,7 +223,8 @@ func parseQuery(q string) matcherFunc {
 			f = smartCase(exact, matchExact(exact))
 		case strings.HasSuffix(field, "$"):
 			suffix := field[0 : len(field)-1]
-			f = smartCase(suffix, func(s string) (int, float64) {
+			f = smartCase(suffix, func(chunks []string) (int, float64) {
+				s := strings.Join(chunks, "")
 				if strings.HasSuffix(s, suffix) {
 					return len(s) - len(suffix), 1
 				}
@@ -228,7 +232,8 @@ func parseQuery(q string) matcherFunc {
 			})
 		default:
 			fm := fuzzy.NewMatcher(field)
-			f = func(s string) (int, float64) {
+			f = func(chunks []string) (int, float64) {
+				s := strings.Join(chunks, "")
 				score := float64(fm.Score(s))
 				ranges := fm.MatchedRanges()
 				if len(ranges) > 0 {
@@ -246,7 +251,8 @@ func parseQuery(q string) matcherFunc {
 }
 
 func matchExact(exact string) matcherFunc {
-	return func(s string) (int, float64) {
+	return func(chunks []string) (int, float64) {
+		s := strings.Join(chunks, "")
 		if idx := strings.LastIndex(s, exact); idx >= 0 {
 			return idx, 1
 		}
@@ -258,21 +264,24 @@ func matchExact(exact string) matcherFunc {
 // upper-case characters, and case-insensitive otherwise.
 func smartCase(q string, m matcherFunc) matcherFunc {
 	insensitive := strings.ToLower(q) == q
-	return func(s string) (int, float64) {
+	wrapper := []string{""}
+	return func(chunks []string) (int, float64) {
+		s := strings.Join(chunks, "")
 		if insensitive {
 			s = strings.ToLower(s)
 		}
-		return m(s)
+		wrapper[0] = s
+		return m(wrapper)
 	}
 }
 
 type comboMatcher []matcherFunc
 
-func (c comboMatcher) match(s string) (int, float64) {
+func (c comboMatcher) match(chunks []string) (int, float64) {
 	score := 1.0
 	first := 0
 	for _, f := range c {
-		idx, s := f(s)
+		idx, s := f(chunks)
 		if idx < first {
 			first = idx
 		}
