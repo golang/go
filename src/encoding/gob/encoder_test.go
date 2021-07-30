@@ -11,6 +11,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -1156,7 +1157,11 @@ func TestDecodeErrorMultipleTypes(t *testing.T) {
 
 // Issue 24075
 func TestMarshalFloatMap(t *testing.T) {
-	var m = map[float64]string{math.NaN(): "NaN"}
+	var m = map[float64]string{
+		math.NaN(): "a",
+		math.NaN(): "b",
+		math.NaN(): "c",
+	}
 
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
@@ -1174,12 +1179,26 @@ func TestMarshalFloatMap(t *testing.T) {
 	}
 
 	// NaN cannot compare
-	for k, v := range result {
-		if fmt.Sprintf("%v", k) != "NaN" {
-			t.Fatalf("decoder fail: %v", k)
+
+	readMap := func(m map[float64]string) ([]uint64, []string) {
+		var (
+			mk = []uint64{}
+			mv = []string{}
+		)
+		for k, v := range m {
+			mk = append(mk, math.Float64bits(k)) // conversion NaN to a uint64
+			mv = append(mv, v)
 		}
-		if v != "NaN" {
-			t.Fatalf("decoder fail: %v", v)
-		}
+		sort.Slice(mk, func(i, j int) bool {
+			return mk[i] < mk[j]
+		})
+		sort.Strings(mv)
+		return mk, mv
+	}
+	mk, mv := readMap(m)
+	resultk, resultv := readMap(result)
+
+	if !reflect.DeepEqual(mk, resultk) || !reflect.DeepEqual(mv, resultv) {
+		t.Fatalf("decoder fail: \n %v %v \n %v %v", mk, mv, resultk, resultv)
 	}
 }
