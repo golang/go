@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/types"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode"
@@ -145,34 +146,14 @@ func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 //    enables the 'symbolStyle' configuration option.
 type symbolCollector struct {
 	// These types parameterize the symbol-matching pass.
-	matcher    matcherFunc
+	matchers   []matcherFunc
 	symbolizer symbolizer
 
 	seen map[span.URI]bool
-	res  [maxSymbols]symbolInformation
+	symbolStore
 }
 
 func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) *symbolCollector {
-	var m matcherFunc
-	switch matcher {
-	case SymbolFuzzy:
-		m = parseQuery(query)
-	case SymbolFastFuzzy:
-		m = fuzzy.NewSymbolMatcher(query).Match
-	case SymbolCaseSensitive:
-		m = matchExact(query)
-	case SymbolCaseInsensitive:
-		q := strings.ToLower(query)
-		exact := matchExact(q)
-		wrapper := []string{""}
-		m = func(chunks []string) (int, float64) {
-			s := strings.Join(chunks, "")
-			wrapper[0] = strings.ToLower(s)
-			return exact(wrapper)
-		}
-	default:
-		panic(fmt.Errorf("unknown symbol matcher: %v", matcher))
-	}
 	var s symbolizer
 	switch style {
 	case DynamicSymbols:
@@ -184,10 +165,33 @@ func newSymbolCollector(matcher SymbolMatcher, style SymbolStyle, query string) 
 	default:
 		panic(fmt.Errorf("unknown symbol style: %v", style))
 	}
-	return &symbolCollector{
-		matcher:    m,
-		symbolizer: s,
+	sc := &symbolCollector{symbolizer: s}
+	sc.matchers = make([]matcherFunc, runtime.GOMAXPROCS(-1))
+	for i := range sc.matchers {
+		sc.matchers[i] = buildMatcher(matcher, query)
 	}
+	return sc
+}
+
+func buildMatcher(matcher SymbolMatcher, query string) matcherFunc {
+	switch matcher {
+	case SymbolFuzzy:
+		return parseQuery(query)
+	case SymbolFastFuzzy:
+		return fuzzy.NewSymbolMatcher(query).Match
+	case SymbolCaseSensitive:
+		return matchExact(query)
+	case SymbolCaseInsensitive:
+		q := strings.ToLower(query)
+		exact := matchExact(q)
+		wrapper := []string{""}
+		return func(chunks []string) (int, float64) {
+			s := strings.Join(chunks, "")
+			wrapper[0] = strings.ToLower(s)
+			return exact(wrapper)
+		}
+	}
+	panic(fmt.Errorf("unknown symbol matcher: %v", matcher))
 }
 
 // parseQuery parses a field-separated symbol query, extracting the special
@@ -300,6 +304,9 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 		roots = append(roots, strings.TrimRight(string(v.Folder()), "/"))
 	}
 
+	results := make(chan *symbolStore)
+	matcherlen := len(sc.matchers)
+
 	for _, v := range views {
 		snapshot, release := v.Snapshot(ctx)
 		defer release()
@@ -307,6 +314,7 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 		if err != nil {
 			return nil, err
 		}
+		var work []symbolFile
 
 		for uri, syms := range psyms {
 			mds, err := snapshot.MetadataForFile(ctx, uri)
@@ -317,95 +325,143 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 				// TODO: should use the bug reporting API
 				continue
 			}
-			md := mds[0]
-			for _, sym := range syms {
-				symbolParts, score := sc.symbolizer(sym.Name, md, sc.matcher)
+			work = append(work, symbolFile{uri, mds[0], syms})
+		}
 
-				// Check if the score is too low before applying any downranking.
-				if sc.tooLow(score) {
-					continue
+		// Compute matches concurrently. Each symbolWorker has its own symbolStore,
+		// which we merge at the end.
+
+		for i, matcher := range sc.matchers {
+			go func(i int, matcher matcherFunc) {
+				w := &symbolWorker{
+					symbolizer: sc.symbolizer,
+					matcher:    matcher,
+					ss:         &symbolStore{},
+					roots:      roots,
 				}
-
-				// Factors to apply to the match score for the purpose of downranking
-				// results.
-				//
-				// These numbers were crudely calibrated based on trial-and-error using a
-				// small number of sample queries. Adjust as necessary.
-				//
-				// All factors are multiplicative, meaning if more than one applies they are
-				// multiplied together.
-				const (
-					// nonWorkspaceFactor is applied to symbols outside of any active
-					// workspace. Developers are less likely to want to jump to code that they
-					// are not actively working on.
-					nonWorkspaceFactor = 0.5
-					// nonWorkspaceUnexportedFactor is applied to unexported symbols outside of
-					// any active workspace. Since one wouldn't usually jump to unexported
-					// symbols to understand a package API, they are particularly irrelevant.
-					nonWorkspaceUnexportedFactor = 0.5
-					// every field or method nesting level to access the field decreases
-					// the score by a factor of 1.0 - depth*depthFactor, up to a depth of
-					// 3.
-					depthFactor = 0.2
-				)
-
-				startWord := true
-				exported := true
-				depth := 0.0
-				for _, r := range sym.Name {
-					if startWord && !unicode.IsUpper(r) {
-						exported = false
-					}
-					if r == '.' {
-						startWord = true
-						depth++
-					} else {
-						startWord = false
-					}
+				for j := i; j < len(work); j += matcherlen {
+					w.matchFile(work[j])
 				}
+				results <- w.ss
+			}(i, matcher)
+		}
+	}
 
-				inWorkspace := false
-				for _, root := range roots {
-					if strings.HasPrefix(string(uri), root) {
-						inWorkspace = true
-						break
-					}
-				}
-
-				// Apply downranking based on workspace position.
-				if !inWorkspace {
-					score *= nonWorkspaceFactor
-					if !exported {
-						score *= nonWorkspaceUnexportedFactor
-					}
-				}
-
-				// Apply downranking based on symbol depth.
-				if depth > 3 {
-					depth = 3
-				}
-				score *= 1.0 - depth*depthFactor
-
-				if sc.tooLow(score) {
-					continue
-				}
-
-				si := symbolInformation{
-					score:     score,
-					symbol:    strings.Join(symbolParts, ""),
-					kind:      sym.Kind,
-					uri:       uri,
-					rng:       sym.Range,
-					container: md.PkgPath(),
-				}
-				sc.store(si)
-			}
+	for i := 0; i < matcherlen; i++ {
+		ss := <-results
+		for _, si := range ss.res {
+			sc.store(si)
 		}
 	}
 	return sc.results(), nil
 }
 
-func (sc *symbolCollector) store(si symbolInformation) {
+// symbolFile holds symbol information for a single file.
+type symbolFile struct {
+	uri  span.URI
+	md   Metadata
+	syms []Symbol
+}
+
+// symbolWorker matches symbols and captures the highest scoring results.
+type symbolWorker struct {
+	symbolizer symbolizer
+	matcher    matcherFunc
+	ss         *symbolStore
+	roots      []string
+}
+
+func (w *symbolWorker) matchFile(i symbolFile) {
+	for _, sym := range i.syms {
+		symbolParts, score := w.symbolizer(sym.Name, i.md, w.matcher)
+
+		// Check if the score is too low before applying any downranking.
+		if w.ss.tooLow(score) {
+			continue
+		}
+
+		// Factors to apply to the match score for the purpose of downranking
+		// results.
+		//
+		// These numbers were crudely calibrated based on trial-and-error using a
+		// small number of sample queries. Adjust as necessary.
+		//
+		// All factors are multiplicative, meaning if more than one applies they are
+		// multiplied together.
+		const (
+			// nonWorkspaceFactor is applied to symbols outside of any active
+			// workspace. Developers are less likely to want to jump to code that they
+			// are not actively working on.
+			nonWorkspaceFactor = 0.5
+			// nonWorkspaceUnexportedFactor is applied to unexported symbols outside of
+			// any active workspace. Since one wouldn't usually jump to unexported
+			// symbols to understand a package API, they are particularly irrelevant.
+			nonWorkspaceUnexportedFactor = 0.5
+			// every field or method nesting level to access the field decreases
+			// the score by a factor of 1.0 - depth*depthFactor, up to a depth of
+			// 3.
+			depthFactor = 0.2
+		)
+
+		startWord := true
+		exported := true
+		depth := 0.0
+		for _, r := range sym.Name {
+			if startWord && !unicode.IsUpper(r) {
+				exported = false
+			}
+			if r == '.' {
+				startWord = true
+				depth++
+			} else {
+				startWord = false
+			}
+		}
+
+		inWorkspace := false
+		for _, root := range w.roots {
+			if strings.HasPrefix(string(i.uri), root) {
+				inWorkspace = true
+				break
+			}
+		}
+
+		// Apply downranking based on workspace position.
+		if !inWorkspace {
+			score *= nonWorkspaceFactor
+			if !exported {
+				score *= nonWorkspaceUnexportedFactor
+			}
+		}
+
+		// Apply downranking based on symbol depth.
+		if depth > 3 {
+			depth = 3
+		}
+		score *= 1.0 - depth*depthFactor
+
+		if w.ss.tooLow(score) {
+			continue
+		}
+
+		si := symbolInformation{
+			score:     score,
+			symbol:    strings.Join(symbolParts, ""),
+			kind:      sym.Kind,
+			uri:       i.uri,
+			rng:       sym.Range,
+			container: i.md.PkgPath(),
+		}
+		w.ss.store(si)
+	}
+}
+
+type symbolStore struct {
+	res [maxSymbols]symbolInformation
+}
+
+// store inserts si into the sorted results, if si has a high enough score.
+func (sc *symbolStore) store(si symbolInformation) {
 	if sc.tooLow(si.score) {
 		return
 	}
@@ -418,11 +474,11 @@ func (sc *symbolCollector) store(si symbolInformation) {
 	sc.res[insertAt] = si
 }
 
-func (sc *symbolCollector) tooLow(score float64) bool {
+func (sc *symbolStore) tooLow(score float64) bool {
 	return score <= sc.res[len(sc.res)-1].score
 }
 
-func (sc *symbolCollector) results() []protocol.SymbolInformation {
+func (sc *symbolStore) results() []protocol.SymbolInformation {
 	var res []protocol.SymbolInformation
 	for _, si := range sc.res {
 		if si.score <= 0 {
