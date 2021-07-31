@@ -297,6 +297,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.Reg = r0
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = v.Reg1()
+	case ssa.OpRISCV64LoweredMuluover:
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		p := s.Prog(riscv.AMULHU)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r1
+		p.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg1()
+		p1 := s.Prog(riscv.AMUL)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(riscv.ASNEZ)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = v.Reg1()
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg1()
+
 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,

@@ -159,6 +159,7 @@ func init() {
 		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64"},
 		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64"},
 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
+		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
 
 		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
 		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},

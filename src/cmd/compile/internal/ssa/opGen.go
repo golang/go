@@ -2070,6 +2070,7 @@ const (
 	OpRISCV64MULH
 	OpRISCV64MULHU
 	OpRISCV64LoweredMuluhilo
+	OpRISCV64LoweredMuluover
 	OpRISCV64DIV
 	OpRISCV64DIVU
 	OpRISCV64DIVW
@@ -27606,6 +27607,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:            "LoweredMuluhilo",
+		argLen:          2,
+		resultNotInArgs: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:            "LoweredMuluover",
 		argLen:          2,
 		resultNotInArgs: true,
 		reg: regInfo{
