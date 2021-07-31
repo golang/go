@@ -359,6 +359,9 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpMul64uhilo:
 		v.Op = OpRISCV64LoweredMuluhilo
 		return true
+	case OpMul64uover:
+		v.Op = OpRISCV64LoweredMuluover
+		return true
 	case OpMul8:
 		return rewriteValueRISCV64_OpMul8(v)
 	case OpNeg16:
