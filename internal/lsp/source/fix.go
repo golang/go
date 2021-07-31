@@ -71,7 +71,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		return nil, nil
 	}
 
-	var edits []protocol.TextDocumentEdit
+	var edits []protocol.TextEdit
 	for _, edit := range suggestion.TextEdits {
 		rng := span.NewRange(fset, edit.Pos, edit.End)
 		spn, err := rng.Span()
@@ -82,22 +82,20 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		if err != nil {
 			return nil, err
 		}
-		edits = append(edits, protocol.TextDocumentEdit{
-			TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-				Version: fh.Version(),
-				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.URIFromSpanURI(fh.URI()),
-				},
-			},
-			Edits: []protocol.TextEdit{
-				{
-					Range:   clRng,
-					NewText: string(edit.NewText),
-				},
-			},
+		edits = append(edits, protocol.TextEdit{
+			Range:   clRng,
+			NewText: string(edit.NewText),
 		})
 	}
-	return edits, nil
+	return []protocol.TextDocumentEdit{{
+		TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
+			Version: fh.Version(),
+			TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+				URI: protocol.URIFromSpanURI(fh.URI()),
+			},
+		},
+		Edits: edits,
+	}}, nil
 }
 
 // getAllSuggestedFixInputs is a helper function to collect all possible needed

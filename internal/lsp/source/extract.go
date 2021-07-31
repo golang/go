@@ -80,14 +80,14 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	return &analysis.SuggestedFix{
 		TextEdits: []analysis.TextEdit{
 			{
-				Pos:     rng.Start,
-				End:     rng.End,
-				NewText: []byte(lhs),
-			},
-			{
 				Pos:     insertBeforeStmt.Pos(),
 				End:     insertBeforeStmt.Pos(),
 				NewText: []byte(assignment),
+			},
+			{
+				Pos:     rng.Start,
+				End:     rng.End,
+				NewText: []byte(lhs),
 			},
 		},
 	}, nil
