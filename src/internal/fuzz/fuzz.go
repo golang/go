@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/ioutil"
 	"math/bits"
@@ -1063,13 +1064,7 @@ var (
 
 func shouldPrintDebugInfo() bool {
 	debugInfoOnce.Do(func() {
-		debug := strings.Split(os.Getenv("GODEBUG"), ",")
-		for _, f := range debug {
-			if f == "fuzzdebug=1" {
-				debugInfo = true
-				break
-			}
-		}
+		debugInfo = godebug.Get("fuzzdebug") == "1"
 	})
 	return debugInfo
 }

@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"internal/itoa"
+	"net/netip"
 	"syscall"
 )
 
@@ -24,6 +25,20 @@ type UDPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone
+}
+
+// AddrPort returns the UDPAddr a as a netip.AddrPort.
+//
+// If a.Port does not fit in a uint16, it's silently truncated.
+//
+// If a is nil, a zero value is returned.
+func (a *UDPAddr) AddrPort() netip.AddrPort {
+	if a == nil {
+		return netip.AddrPort{}
+	}
+	na, _ := netip.AddrFromSlice(a.IP)
+	na = na.WithZone(a.Zone)
+	return netip.AddrPortFrom(na, uint16(a.Port))
 }
 
 // Network returns the address's network name, "udp".
@@ -82,6 +97,21 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 		return nil, err
 	}
 	return addrs.forResolve(network, address).(*UDPAddr), nil
+}
+
+// UDPAddrFromAddrPort returns addr as a UDPAddr.
+//
+// If addr is not valid, it returns nil.
+func UDPAddrFromAddrPort(addr netip.AddrPort) *UDPAddr {
+	if !addr.IsValid() {
+		return nil
+	}
+	ip16 := addr.Addr().As16()
+	return &UDPAddr{
+		IP:   IP(ip16[:]),
+		Zone: addr.Addr().Zone(),
+		Port: int(addr.Port()),
+	}
 }
 
 // UDPConn is the implementation of the Conn and PacketConn interfaces
@@ -148,6 +178,18 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 	return
 }
 
+// ReadMsgUDPAddrPort is like ReadMsgUDP but returns an netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) ReadMsgUDPAddrPort(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+	// TODO(bradfitz): make this efficient, making the internal net package
+	// type throughout be netip.Addr and only converting to the net.IP slice
+	// version at the edge. But for now (2021-10-20), this is a wrapper around
+	// the old way.
+	var ua *UDPAddr
+	n, oobn, flags, ua, err = c.ReadMsgUDP(b, oob)
+	addr = ua.AddrPort()
+	return
+}
+
 // WriteToUDP acts like WriteTo but takes a UDPAddr.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if !c.ok() {
@@ -158,6 +200,15 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
 	}
 	return n, err
+}
+
+// WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
+func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	// TODO(bradfitz): make this efficient, making the internal net package
+	// type throughout be netip.Addr and only converting to the net.IP slice
+	// version at the edge. But for now (2021-10-20), this is a wrapper around
+	// the old way.
+	return c.WriteToUDP(b, UDPAddrFromAddrPort(addr))
 }
 
 // WriteTo implements the PacketConn WriteTo method.
@@ -193,6 +244,15 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
 	}
 	return
+}
+
+// WriteMsgUDPAddrPort is like WriteMsgUDP but takes a netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+	// TODO(bradfitz): make this efficient, making the internal net package
+	// type throughout be netip.Addr and only converting to the net.IP slice
+	// version at the edge. But for now (2021-10-20), this is a wrapper around
+	// the old way.
+	return c.WriteMsgUDP(b, oob, UDPAddrFromAddrPort(addr))
 }
 
 func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
