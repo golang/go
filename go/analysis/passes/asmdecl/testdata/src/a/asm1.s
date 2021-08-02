@@ -346,6 +346,14 @@ TEXT ·pickFutureABI<ABISomethingNotyetInvented>(SB), NOSPLIT, $32
 	MOVQ	x+0(FP), AX
 	RET
 
+// writing to result in ABIInternal function
+TEXT ·returnABIInternal<ABIInternal>(SB), NOSPLIT, $32
+	MOVQ	$123, AX
+	RET
+TEXT ·returnmissingABIInternal<ABIInternal>(SB), NOSPLIT, $32
+	MOVQ	$123, CX
+	RET // want `RET without writing to result register`
+
 // return jump
 TEXT ·retjmp(SB), NOSPLIT, $0-8
 	RET	retjmp1(SB) // It's okay to not write results if there's a tail call.

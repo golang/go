@@ -52,4 +52,7 @@ func pickStableABI(x int)
 func pickInternalABI(x int)
 func pickFutureABI(x int)
 
+func returnABIInternal() int
+func returnmissingABIInternal() int
+
 func retjmp() int
