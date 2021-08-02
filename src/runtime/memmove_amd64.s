@@ -34,18 +34,12 @@
 // func memmove(to, from unsafe.Pointer, n uintptr)
 // ABIInternal for performance.
 TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT, $0-24
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = to
 	// BX = from
 	// CX = n
 	MOVQ	AX, DI
 	MOVQ	BX, SI
 	MOVQ	CX, BX
-#else
-	MOVQ	to+0(FP), DI
-	MOVQ	from+8(FP), SI
-	MOVQ	n+16(FP), BX
-#endif
 
 	// REP instructions have a high startup cost, so we handle small sizes
 	// with some straightline code. The REP MOVSQ instruction is really fast
