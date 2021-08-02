@@ -474,10 +474,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 func (g *irgen) instantiateMethods() {
 	for i := 0; i < len(g.instTypeList); i++ {
 		typ := g.instTypeList[i]
-		if typ.HasShape() {
-			// Shape types should not have any methods.
-			continue
-		}
+		assert(!typ.HasShape())
 		// Mark runtime type as needed, since this ensures that the
 		// compiler puts out the needed DWARF symbols, when this
 		// instantiated type has a different package from the local
@@ -782,9 +779,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 		if !t.HasShape() {
 			if s1 == nil {
 				s1 = make([]*types.Type, len(shapes))
-				for j := 0; j < i; j++ {
-					s1[j] = shapes[j]
-				}
+				copy(s1[0:i], shapes[0:i])
 			}
 			s1[i] = typecheck.Shapify(t)
 		} else if s1 != nil {

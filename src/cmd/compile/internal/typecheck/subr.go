@@ -1338,6 +1338,9 @@ func genericTypeName(sym *types.Sym) string {
 
 // Shapify takes a concrete type and returns a GCshape type that can
 // be used in place of the input type and still generate identical code.
+// No methods are added - all methods calls directly on a shape should
+// be done by converting to an interface using the dictionary.
+//
 // TODO: this could take the generic function and base its decisions
 // on how that generic function uses this type argument. For instance,
 // if it doesn't use it as a function argument/return value, then
@@ -1345,9 +1348,7 @@ func genericTypeName(sym *types.Sym) string {
 // differ in how they get passed as arguments). For now, we only
 // unify two different types if they are identical in every possible way.
 func Shapify(t *types.Type) *types.Type {
-	if t.IsShape() {
-		return t // TODO: is this right?
-	}
+	assert(!t.HasShape())
 	// Map all types with the same underlying type to the same shape.
 	u := t.Underlying()
 
@@ -1358,7 +1359,7 @@ func Shapify(t *types.Type) *types.Type {
 	}
 
 	if s := shaped[u]; s != nil {
-		return s //TODO: keep?
+		return s
 	}
 
 	sym := Lookup(fmt.Sprintf(".shape%d", snum))
@@ -1370,7 +1371,6 @@ func Shapify(t *types.Type) *types.Type {
 	s.SetHasShape(true)
 	name.SetType(s)
 	name.SetTypecheck(1)
-	// TODO: add methods to s that the bound has?
 	shaped[u] = s
 	return s
 }
