@@ -4,8 +4,8 @@
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 092c2afc3ad7e4d2b03fe8ac0deb418ec4276915
-// last fetched Sat Jul 03 2021 10:17:05 GMT-0700 (Pacific Daylight Time)
+// commit: 0cb3812e7d540ef3a904e96df795bc37a21de9b0
+// last fetched Mon Aug 02 2021 10:08:19 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -976,17 +976,15 @@ type CompletionItemKind float64
  */
 type CompletionItemLabelDetails struct {
 	/**
-	 * The parameters without the return type.
+	 * An optional string which is rendered less prominently directly after {@link CompletionItemLabel.label label},
+	 * without any spacing. Should be used for function signatures or type annotations.
 	 */
-	Parameters string `json:"parameters,omitempty"`
+	Detail string `json:"detail,omitempty"`
 	/**
-	 * The fully qualified name, like package name or file path.
+	 * An optional string which is rendered less prominently after {@link CompletionItemLabel.detail}. Should be used
+	 * for fully qualified names or file path.
 	 */
-	Qualifier string `json:"qualifier,omitempty"`
-	/**
-	 * The return-type of a function or type of a property/variable.
-	 */
-	Type string `json:"type,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 /**
