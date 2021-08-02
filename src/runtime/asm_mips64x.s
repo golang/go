@@ -446,10 +446,12 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVV	m_g0(R5), R6
 	BEQ	R6, g, g0
 
+	MOVV    R25, R15 // call to save_g clobbers R25 when buildmode=c-shared
 	JAL	gosave_systemstack_switch<>(SB)
 	MOVV	R6, g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R29
+	MOVV    R15, R25
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:

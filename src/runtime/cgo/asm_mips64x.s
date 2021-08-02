@@ -47,11 +47,23 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	MOVD	F30, (8*21)(R29)
 	MOVD	F31, (8*22)(R29)
 #endif
+	MOVV    0(R25), R14   //R25 saved the start address of function crosscall2
+	SRLV    $16, R14, R14
+	//crosscall2 begin with lui instruction when buildmode=c-shared
+	//The "lui" instruction is added by editSharedFunc function in src/cmd/internal/obj/mips/obj.go
+	//0x3c1c represents high 16 bit of the machine code "lui gp, 0x0" on mips64x
+	//The "lui" instruction is used to determine buildmode=c-shared here
+	MOVV    $0x3c1c, R15
+	AND     R14, R15, R14
+	//When buildmode=c-shared, the binary is PIC code, and gp register hold the GOT address in MIPS ABI
+	//The GOT address is calculated by lui+daddu+daddiu instructions at the beginning of crosscall2 function
+	BEQ     R14, R15, shared
 	// Initialize Go ABI environment
 	// prepare SB register = PC & 0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
 	SLLV	$32, RSB
+shared:
 	JAL	runtime·load_g(SB)
 
 	JAL	runtime·cgocallback(SB)
