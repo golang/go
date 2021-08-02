@@ -528,7 +528,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 
 		// For every module other than the target,
 		// return the full list of modules from modules.txt.
-		readVendorList()
+		readVendorList(MainModules.mustGetSingleMainModule())
 
 		// We don't know what versions the vendored module actually relies on,
 		// so assume that it requires everything.

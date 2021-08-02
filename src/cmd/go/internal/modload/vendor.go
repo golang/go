@@ -36,13 +36,13 @@ type vendorMetadata struct {
 }
 
 // readVendorList reads the list of vendored modules from vendor/modules.txt.
-func readVendorList() {
+func readVendorList(mainModule module.Version) {
 	vendorOnce.Do(func() {
 		vendorList = nil
 		vendorPkgModule = make(map[string]module.Version)
 		vendorVersion = make(map[string]string)
 		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := os.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+		data, err := os.ReadFile(filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt"))
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				base.Fatalf("go: %s", err)
@@ -136,7 +136,7 @@ func readVendorList() {
 // go 1.14) or at least does not contradict (go 1.13 or earlier) the
 // requirements and replacements listed in the main module's go.mod file.
 func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
-	readVendorList()
+	readVendorList(MainModules.mustGetSingleMainModule())
 
 	pre114 := false
 	if semver.Compare(index.goVersionV, "v1.14") < 0 {

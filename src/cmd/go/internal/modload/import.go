@@ -294,7 +294,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		if mainErr != nil {
 			return module.Version{}, "", mainErr
 		}
-		readVendorList()
+		readVendorList(mainModule)
 		return vendorPkgModule[path], vendorDir, nil
 	}
 
@@ -653,11 +653,11 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
 		return modRoot, true, nil
 	}
-	if r, _ := Replacement(mod); r.Path != "" {
+	if r, replacedFrom := Replacement(mod); r.Path != "" {
 		if r.Version == "" {
 			dir = r.Path
 			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
+				dir = filepath.Join(replacedFrom, dir)
 			}
 			// Ensure that the replacement directory actually exists:
 			// dirInModule does not report errors for missing modules,

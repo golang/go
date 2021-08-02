@@ -74,7 +74,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
-	vdir := filepath.Join(modload.ModRoot(), "vendor")
+	vdir := filepath.Join(modload.VendorDir())
 	if err := os.RemoveAll(vdir); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}

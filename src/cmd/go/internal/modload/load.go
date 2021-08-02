@@ -440,7 +440,16 @@ func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
 		if !filepath.IsAbs(dir) {
 			absDir = filepath.Join(base.Cwd(), dir)
 		}
-		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+
+		modRoot := findModuleRoot(absDir)
+		found := false
+		for _, mod := range MainModules.Versions() {
+			if MainModules.ModRoot(mod) == modRoot {
+				found = true
+				break
+			}
+		}
+		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
 			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
 			return
@@ -513,7 +522,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
 				}
 
-				readVendorList()
+				readVendorList(mainModule)
 				pkg := strings.TrimPrefix(suffix, "/vendor/")
 				if _, ok := vendorPkgModule[pkg]; !ok {
 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
@@ -582,10 +591,10 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 	tryMod := func(m module.Version) (string, bool) {
 		var root string
 		var err error
-		if repl, _ := Replacement(m); repl.Path != "" && repl.Version == "" {
+		if repl, replModRoot := Replacement(m); repl.Path != "" && repl.Version == "" {
 			root = repl.Path
 			if !filepath.IsAbs(root) {
-				root = filepath.Join(ModRoot(), root)
+				root = filepath.Join(replModRoot, root)
 			}
 		} else if repl.Path != "" {
 			root, err = modfetch.DownloadDir(repl)
