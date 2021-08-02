@@ -1367,6 +1367,7 @@ func Shapify(t *types.Type) *types.Type {
 	s := types.NewNamed(name)
 	s.SetUnderlying(u)
 	s.SetIsShape(true)
+	s.SetHasShape(true)
 	name.SetType(s)
 	name.SetTypecheck(1)
 	// TODO: add methods to s that the bound has?
