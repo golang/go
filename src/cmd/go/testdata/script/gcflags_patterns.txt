@@ -34,6 +34,10 @@ stderr 'compile.* -p z3.* -e '
 ! go build -gcflags=-d=ssa/ z1
 stderr 'PhaseOptions usage'
 
+# check for valid -ldflags parameter
+! go build '-ldflags="-X main.X=Hello"'
+stderr 'invalid value'
+
 # -ldflags for implicit test package applies to test binary
 go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
 stderr 'compile.* -N .*z_test.go'

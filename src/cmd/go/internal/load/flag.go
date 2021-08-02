@@ -59,6 +59,9 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 		if i == 0 {
 			return fmt.Errorf("missing <pattern> in <pattern>=<value>")
 		}
+		if v[0] == '\'' || v[0] == '"' {
+			return fmt.Errorf("parameter may not start with quote character %c", v[0])
+		}
 		pattern := strings.TrimSpace(v[:i])
 		match = MatchPackage(pattern, cwd)
 		v = v[i+1:]
