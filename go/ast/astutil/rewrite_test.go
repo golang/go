@@ -205,14 +205,17 @@ type R T[int, string]
 `,
 			want: `package p
 
-type T[P1, P2 any] int32
+type S[P1, P2 any] int32
 
-type R T[int32, string]
+type R S[int32, string]
 `,
 			post: func(c *astutil.Cursor) bool {
 				if ident, ok := c.Node().(*ast.Ident); ok {
 					if ident.Name == "int" {
 						c.Replace(ast.NewIdent("int32"))
+					}
+					if ident.Name == "T" {
+						c.Replace(ast.NewIdent("S"))
 					}
 				}
 				return true

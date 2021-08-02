@@ -9,3 +9,17 @@
 // This package exists to make it easier for tools to work with generic code,
 // while also compiling against older Go versions.
 package typeparams
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+// A IndexExprData holds data from both ast.IndexExpr and the new
+// ast.MultiIndexExpr, which was introduced in Go 1.18.
+type IndexExprData struct {
+	X       ast.Expr   // expression
+	Lbrack  token.Pos  // position of "["
+	Indices []ast.Expr // index expressions
+	Rbrack  token.Pos  // position of "]"
+}

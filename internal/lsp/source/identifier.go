@@ -371,21 +371,24 @@ func inferredSignature(info *types.Info, path []ast.Node) *types.Signature {
 	case *ast.CallExpr:
 		_, sig := typeparams.GetInferred(info, n)
 		return sig
-	case *ast.IndexExpr:
-		// If the IndexExpr is fully instantiated, we consider that 'inference' for
-		// gopls' purposes.
-		sig, _ := info.TypeOf(n).(*types.Signature)
-		if sig != nil && len(typeparams.ForSignature(sig)) == 0 {
-			return sig
-		}
-		_, sig = typeparams.GetInferred(info, n)
-		if sig != nil {
-			return sig
-		}
-		if len(path) >= 2 {
-			if call, _ := path[2].(*ast.CallExpr); call != nil {
-				_, sig := typeparams.GetInferred(info, call)
+	default:
+		if ix := typeparams.GetIndexExprData(n); ix != nil {
+			e := n.(ast.Expr)
+			// If the IndexExpr is fully instantiated, we consider that 'inference' for
+			// gopls' purposes.
+			sig, _ := info.TypeOf(e).(*types.Signature)
+			if sig != nil && len(typeparams.ForSignature(sig)) == 0 {
 				return sig
+			}
+			_, sig = typeparams.GetInferred(info, e)
+			if sig != nil {
+				return sig
+			}
+			if len(path) >= 2 {
+				if call, _ := path[2].(*ast.CallExpr); call != nil {
+					_, sig := typeparams.GetInferred(info, call)
+					return sig
+				}
 			}
 		}
 	}

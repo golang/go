@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build typeparams && go1.17
-// +build typeparams,go1.17
+//go:build typeparams && go1.18
+// +build typeparams,go1.18
 
 package typeparams
 
@@ -18,24 +18,28 @@ import (
 // environment.
 const Enabled = true
 
-// UnpackIndex extracts all index expressions from e. For non-generic code this
-// is always one expression: e.Index, but may be more than one expression for
-// generic type instantiation.
-func UnpackIndex(e *ast.IndexExpr) []ast.Expr {
-	if x, _ := e.Index.(*ast.ListExpr); x != nil {
-		return x.ElemList
-	}
-	if e.Index != nil {
-		return []ast.Expr{e.Index}
+// GetIndexExprData extracts data from AST nodes that represent index
+// expressions.
+//
+// For an ast.IndexExpr, the resulting IndexExprData will have exactly one
+// index expression. For an ast.MultiIndexExpr (go1.18+), it may have a
+// variable number of index expressions.
+//
+// For nodes that don't represent index expressions, GetIndexExprData returns
+// nil.
+func GetIndexExprData(n ast.Node) *IndexExprData {
+	switch e := n.(type) {
+	case *ast.IndexExpr:
+		return &IndexExprData{
+			X:       e.X,
+			Lbrack:  e.Lbrack,
+			Indices: []ast.Expr{e.Index},
+			Rbrack:  e.Rbrack,
+		}
+	case *ast.MultiIndexExpr:
+		return (*IndexExprData)(e)
 	}
 	return nil
-}
-
-// IsListExpr reports whether n is an *ast.ListExpr, which is a new node type
-// introduced to hold type arguments for generic type instantiation.
-func IsListExpr(n ast.Node) bool {
-	_, ok := n.(*ast.ListExpr)
-	return ok
 }
 
 // ForTypeDecl extracts the (possibly nil) type parameter node list from n.
@@ -54,12 +58,7 @@ func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
 // ForSignature extracts the (possibly empty) type parameter object list from
 // sig.
 func ForSignature(sig *types.Signature) []*types.TypeName {
-	return sig.TParams()
-}
-
-// HasTypeSet reports if iface has a type set.
-func HasTypeSet(iface *types.Interface) bool {
-	return iface.HasTypeList()
+	return tparamsSlice(sig.TParams())
 }
 
 // IsComparable reports if iface is the comparable interface.
@@ -76,7 +75,18 @@ func IsConstraint(iface *types.Interface) bool {
 // ForNamed extracts the (possibly empty) type parameter object list from
 // named.
 func ForNamed(named *types.Named) []*types.TypeName {
-	return named.TParams()
+	return tparamsSlice(named.TParams())
+}
+
+func tparamsSlice(tparams *types.TypeParams) []*types.TypeName {
+	if tparams.Len() == 0 {
+		return nil
+	}
+	result := make([]*types.TypeName, tparams.Len())
+	for i := 0; i < tparams.Len(); i++ {
+		result[i] = tparams.At(i)
+	}
+	return result
 }
 
 // NamedTArgs extracts the (possibly empty) type argument list from named.
