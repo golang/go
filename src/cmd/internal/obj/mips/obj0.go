@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -57,6 +58,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
+	constext := false
+
 	// Rewrite float constants to values stored in memory.
 	switch p.As {
 	case AMOVF:
@@ -72,6 +75,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
+			constext = true
 		}
 
 	case AMOVD:
@@ -87,6 +91,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Sym = ctxt.Float64Sym(f64)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
+			constext = true
 		}
 
 		// Put >32-bit constants in memory and load them
@@ -96,6 +101,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
+			constext = true
 		}
 	}
 
@@ -125,6 +131,118 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AADDVU
 		}
 	}
+
+	if c.ctxt.Flag_shared {
+		c.rewriteToUseGot(p, constext)
+	}
+}
+
+// Rewrite p, if necessary, to access global data via the global offset table.
+func (c *ctxt0) rewriteToUseGot(p *obj.Prog, constext bool) {
+	var mov, add obj.As
+	if c.ctxt.Arch.Family == sys.MIPS64 {
+		add = AADDV
+		mov = AMOVV
+	} else {
+		add = AADDU
+		mov = AMOVW
+	}
+	// Rewrite function call to AJALR when using PIC
+	// MOV sym@GOT, REG_R25
+	// CALL REG_R25
+	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+		//     ADUFFxxx $offset
+		// becomes
+		//     MOVD runtime.duffxxx@GOT, REGTMP
+		//     ADD $offset, REGTMP
+		//     CALL REGTMP
+		var sym *obj.LSym
+		if p.As == obj.ADUFFZERO {
+			sym = c.ctxt.Lookup("runtime.duffzero")
+		}
+		if p.As == obj.ADUFFCOPY {
+			sym = c.ctxt.Lookup("runtime.duffcopy")
+		}
+		p.As = AJAL
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.Sym = sym
+	}
+
+	// We only care about global data: NAME_EXTERN means a global
+	// symbol in the Go sense, and p.Sym.Local is true for a few
+	// internally defined symbols.
+	if p.From.Type == obj.TYPE_ADDR && (p.From.Name == obj.NAME_EXTERN || p.From.Name == obj.NAME_STATIC) && !p.From.Sym.Local() {
+		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+		if p.As != mov {
+			c.ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -shared", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			c.ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -shared", p)
+		}
+		//p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		p.Reg = REGSB
+		if p.From.Offset != 0 {
+			q := obj.Appendp(p, c.newprog)
+			q.As = add
+			q.From.Type = obj.TYPE_CONST
+			q.From.Offset = p.From.Offset
+			q.To = p.To
+			p.From.Offset = 0
+		}
+	}
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
+		c.ctxt.Diag("don't know how to handle %v with -shared", p)
+	}
+	var source *obj.Addr
+	if (p.From.Name == obj.NAME_EXTERN || p.From.Name == obj.NAME_STATIC) && (!p.From.Sym.Local() || constext) {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+			c.ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -shared", p)
+		}
+		source = &p.From
+	} else if (p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC) && (!p.To.Sym.Local() || constext) {
+		source = &p.To
+	} else {
+		return
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+	if source.Sym.Type == objabi.STLSBSS {
+		return
+	}
+	if source.Type != obj.TYPE_MEM {
+		c.ctxt.Diag("don't know how to handle %v with -shared", p)
+	}
+	p1 := obj.Appendp(p, c.newprog)
+
+	// MOVx sym, Ry => MOVD sym@GOT, Ry
+	if p.From.Name == obj.NAME_EXTERN || p.From.Name == obj.NAME_STATIC {
+		p1.As = p.As
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Sym = source.Sym
+		//p1.From.Reg = REGTMP
+		p1.Reg = REGSB
+		//p1.From.Offset = 0
+		p1.From.Name = obj.NAME_GOTREF
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = p.To.Reg
+		// MOVx Ry, sym => MOVD Ry, sym@GOT
+	} else if p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC {
+		p1.As = p.As
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = p.From.Reg
+		p1.Reg = REGSB
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Sym = source.Sym
+		//p1.To.Reg = REGTMP
+		//p1.To.Offset = 0
+		p1.To.Name = obj.NAME_GOTREF
+	} else {
+		return
+	}
+	obj.Nopout(p)
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -269,6 +387,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+
 		o := p.As
 		switch o {
 		case obj.ATEXT:
@@ -300,6 +419,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
+			// buildmode=c-shared save register and caculate the GP for GOT
+			if c.ctxt.Flag_shared && (strings.Contains(fmt.Sprintf("%+v\n", p), "_rt0_mips64le_linux_lib") ||
+				strings.Contains(fmt.Sprintf("%+v\n", p), "_rt0_mips64le_linux_lib_go") ||
+				strings.Contains(fmt.Sprintf("%+v\n", p), "setg_gcc") ||
+				strings.Contains(fmt.Sprintf("%+v\n", p), "crosscall2") ||
+				strings.Contains(fmt.Sprintf("%+v\n", p), "runtime.load_g")) {
+				editSharedFunc(&c, p, int64(ctxt.Arch.PtrSize))
+			}
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
@@ -645,6 +772,29 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 		q = p
 	}
+}
+
+func editSharedFunc(c *ctxt0, p *obj.Prog, stkoffset int64) {
+	var add obj.As
+	if c.ctxt.Arch.Family == sys.MIPS64 {
+		add = AADDVU
+	} else {
+		add = AADDU
+	}
+
+	q := c.cursym.Func().Text
+
+	// caculate got addr
+	// mips64: lui + daddu + daddiu
+	p1 := obj.Appendp(p, c.newprog)
+	p1.As = add
+	p1.From.Type = obj.TYPE_REG
+	p1.From.Offset = p.From.Offset
+	p1.From.Sym = q.From.Sym // fix missing xsym relocation
+	p1.From.Reg = REG_R25
+	p1.To.Type = obj.TYPE_MEM
+	p1.To.Name = obj.NAME_GOTREF
+	p1.To.Reg = REGSB
 }
 
 func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {

@@ -301,16 +301,27 @@ const (
 	C_STCON /* $tlsvar */
 	C_SBRA
 	C_LBRA
+	C_LOBRA  /* PIC call or jump to offset */
+	C_SYMBRA /* PIC call or jump to GOT sym */
 	C_SAUTO
 	C_LAUTO
 	C_SEXT
 	C_LEXT
 	C_ZOREG
+	C_SHZOREG /* PIC call to register without offset */
 	C_SOREG
 	C_LOREG
 	C_GOK
 	C_ADDR
-	C_TLS
+	C_GOTADDR /* for GOT sym  */
+	C_GOTREF
+
+	// TLS "var" in local exec mode: will become a constant offset from
+	// thread local base that is ultimately chosen by the program linker.
+	C_TLS_LE
+
+	C_TLS_GD
+
 	C_TEXTSIZE
 
 	C_NCLASS /* must be the last */

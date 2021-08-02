@@ -115,6 +115,20 @@ var optab = []Optab{
 	{AMOVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
 	{AMOVD, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
 
+	{AMOVW, C_GOTREF, C_REG, C_REG, 59, 8, 0, 0, 0},
+	{AMOVWU, C_GOTREF, C_REG, C_REG, 59, 8, 0, 0, 0},
+	{AMOVB, C_GOTREF, C_REG, C_REG, 59, 8, 0, 0, 0},
+	{AMOVBU, C_GOTREF, C_REG, C_REG, 59, 8, 0, 0, 0},
+	{AMOVV, C_GOTREF, C_REG, C_REG, 59, 8, 0, sys.MIPS64, 0},
+	{AMOVD, C_GOTREF, C_REG, C_FREG, 59, 8, 0, sys.MIPS64, 0},
+	{AMOVF, C_GOTREF, C_REG, C_FREG, 59, 8, 0, sys.MIPS64, 0},
+
+	{AMOVW, C_REG, C_REG, C_GOTREF, 59, 8, 0, 0, 0},
+	{AMOVWU, C_REG, C_REG, C_GOTREF, 59, 8, 0, 0, 0},
+	{AMOVB, C_REG, C_REG, C_GOTREF, 59, 8, 0, 0, 0},
+	{AMOVBU, C_REG, C_REG, C_GOTREF, 59, 8, 0, 0, 0},
+	{AMOVV, C_REG, C_REG, C_GOTREF, 59, 8, 0, sys.MIPS64, 0},
+
 	{AMOVW, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
 	{AMOVWU, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
 	{AMOVV, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
@@ -187,11 +201,20 @@ var optab = []Optab{
 	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 12, 0, sys.MIPS64, 0},
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 8, 0, sys.MIPS, 0},
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 12, 0, sys.MIPS64, 0},
-	{AMOVW, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
-	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, NOTUSETMP},
-	{AMOVV, C_REG, C_NONE, C_TLS, 53, 8, 0, sys.MIPS64, NOTUSETMP},
-	{AMOVB, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
-	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 8, 0, 0, NOTUSETMP},
+
+	{AADD, C_REG, C_NONE, C_GOTREF, 62, 12, 0, sys.MIPS, 0},
+	{AADDV, C_REG, C_NONE, C_GOTREF, 62, 12, 0, sys.MIPS64, 0},
+
+	{AMOVW, C_REG, C_NONE, C_TLS_LE, 53, 8, 0, 0, NOTUSETMP},
+	{AMOVWU, C_REG, C_NONE, C_TLS_LE, 53, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_REG, C_NONE, C_TLS_LE, 53, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_REG, C_NONE, C_TLS_LE, 53, 8, 0, 0, NOTUSETMP},
+	{AMOVBU, C_REG, C_NONE, C_TLS_LE, 53, 8, 0, 0, NOTUSETMP},
+	{AMOVW, C_REG, C_NONE, C_TLS_GD, 60, 24, 0, 0, NOTUSETMP},
+	{AMOVWU, C_REG, C_NONE, C_TLS_GD, 60, 24, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_REG, C_NONE, C_TLS_GD, 60, 24, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_REG, C_NONE, C_TLS_GD, 60, 24, 0, 0, NOTUSETMP},
+	{AMOVBU, C_REG, C_NONE, C_TLS_GD, 60, 24, 0, 0, NOTUSETMP},
 
 	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, REGSB, sys.MIPS64, 0},
 	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB, sys.MIPS64, 0},
@@ -216,11 +239,16 @@ var optab = []Optab{
 	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 12, 0, sys.MIPS64, 0},
 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 8, 0, sys.MIPS, 0},
 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 12, 0, sys.MIPS64, 0},
-	{AMOVW, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
-	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
-	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
-	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
-	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVW, C_TLS_LE, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVWU, C_TLS_LE, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_TLS_LE, C_NONE, C_REG, 54, 8, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_TLS_LE, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVBU, C_TLS_LE, C_NONE, C_REG, 54, 8, 0, 0, NOTUSETMP},
+	{AMOVW, C_TLS_GD, C_NONE, C_REG, 61, 24, 0, 0, NOTUSETMP},
+	{AMOVWU, C_TLS_GD, C_NONE, C_REG, 61, 24, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_TLS_GD, C_NONE, C_REG, 61, 24, 0, sys.MIPS64, NOTUSETMP},
+	{AMOVB, C_TLS_GD, C_NONE, C_REG, 61, 24, 0, 0, NOTUSETMP},
+	{AMOVBU, C_TLS_GD, C_NONE, C_REG, 61, 24, 0, 0, NOTUSETMP},
 
 	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB, sys.MIPS64, 0},
@@ -229,6 +257,8 @@ var optab = []Optab{
 	{AMOVW, C_LECON, C_NONE, C_REG, 52, 8, REGSB, sys.MIPS, NOTUSETMP},
 	{AMOVW, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, NOTUSETMP},
 	{AMOVV, C_LECON, C_NONE, C_REG, 52, 12, REGSB, sys.MIPS64, NOTUSETMP},
+	{AMOVV, C_GOTADDR, C_REG, C_REG, 66, 8, REGSB, sys.MIPS64, 0},
+	{AMOVV, C_GOTADDR, C_NONE, C_REG, 66, 8, REGSB, sys.MIPS64, 0},
 
 	{AMOVW, C_LACON, C_NONE, C_REG, 26, 12, REGSP, 0, 0},
 	{AMOVV, C_LACON, C_NONE, C_REG, 26, 12, REGSP, sys.MIPS64, 0},
@@ -299,11 +329,24 @@ var optab = []Optab{
 	{ABLEZ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
 	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0, NOTUSETMP},
 
+	{ABEQ, C_REG, C_REG, C_LOBRA, 6, 4, 0, 0, 0},
+	{ABEQ, C_REG, C_NONE, C_LOBRA, 6, 4, 0, 0, 0},
+	{ABLEZ, C_REG, C_NONE, C_LOBRA, 6, 4, 0, 0, 0},
+	{ABFPT, C_NONE, C_NONE, C_LOBRA, 6, 8, 0, 0, NOTUSETMP},
+
 	{AJMP, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
 	{AJAL, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
 
 	{AJMP, C_NONE, C_NONE, C_ZOREG, 18, 4, REGZERO, 0, 0},
 	{AJAL, C_NONE, C_NONE, C_ZOREG, 18, 4, REGLINK, 0, 0},
+
+	{AJMP, C_NONE, C_NONE, C_LOBRA, 67, 4, REGZERO, 0, 0},
+
+	{AJMP, C_NONE, C_NONE, C_SYMBRA, 64, 16, REGZERO, 0, 0},
+	{AJAL, C_NONE, C_NONE, C_SYMBRA, 64, 16, REGLINK, 0, 0},
+
+	{AJMP, C_NONE, C_NONE, C_SHZOREG, 18, 4, REGZERO, 0, 0},
+	{AJAL, C_NONE, C_NONE, C_SHZOREG, 65, 8, REGLINK, 0, 0},
 
 	{AMOVW, C_SEXT, C_NONE, C_FREG, 27, 4, REGSB, sys.MIPS64, 0},
 	{AMOVF, C_SEXT, C_NONE, C_FREG, 27, 4, REGSB, sys.MIPS64, 0},
@@ -511,7 +554,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	bp := c.cursym.P
 	var i int32
-	var out [4]uint32
+	var out [6]uint32
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)
@@ -603,11 +646,17 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			c.instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == objabi.STLSBSS {
-					return C_TLS
+					if c.ctxt.Flag_shared {
+						return C_TLS_GD
+					} else {
+						return C_TLS_LE
+					}
 				}
 				return C_ADDR
 			}
 			return C_LEXT
+		case obj.NAME_GOTREF:
+			return C_GOTREF
 
 		case obj.NAME_AUTO:
 			if a.Reg == REGSP {
@@ -636,12 +685,17 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		case obj.NAME_NONE:
 			c.instoffset = a.Offset
 			if c.instoffset == 0 {
-				return C_ZOREG
+				if c.ctxt.Flag_shared {
+					return C_SHZOREG
+				} else {
+					return C_ZOREG
+				}
 			}
 			if c.instoffset >= -BIG && c.instoffset < BIG {
 				return C_SOREG
 			}
 			return C_LOREG
+
 		}
 
 		return C_GOK
@@ -673,9 +727,20 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 
 			c.instoffset = a.Offset
 			if s.Type == objabi.STLSBSS {
-				return C_STCON // address of TLS variable
+				if c.ctxt.Flag_shared {
+					c.ctxt.Diag("taking address of TLS variable is not supported")
+				} else {
+					return C_STCON // address of TLS variable
+				}
 			}
-			return C_LECON
+			if c.ctxt.Flag_shared {
+				return C_GOTADDR
+			} else {
+				return C_LECON
+			}
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 
 		case obj.NAME_AUTO:
 			if a.Reg == REGSP {
@@ -736,9 +801,16 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 		return C_LCON // C_DCON
 
 	case obj.TYPE_BRANCH:
-		return C_SBRA
+		if !c.ctxt.Flag_shared {
+			return C_SBRA
+		} else {
+			if a.Sym != nil {
+				return C_SYMBRA
+			} else {
+				return C_LOBRA
+			}
+		}
 	}
-
 	return C_GOK
 }
 
@@ -791,7 +863,7 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0, 0}
 }
 
-func cmp(a int, b int) bool {
+func cmp(ctxt *obj.Link, a int, b int) bool {
 	if a == b {
 		return true
 	}
@@ -839,10 +911,13 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_LBRA:
-		if b == C_SBRA {
+		if b == C_SBRA && !ctxt.Flag_shared {
 			return true
 		}
-
+	case C_LOBRA:
+		if b == C_SBRA && ctxt.Flag_shared {
+			return true
+		}
 	case C_LEXT:
 		if b == C_SEXT {
 			return true
@@ -859,12 +934,12 @@ func cmp(a int, b int) bool {
 		}
 
 	case C_LOREG:
-		if b == C_ZOREG || b == C_SOREG {
+		if b == C_ZOREG || b == C_SOREG || (ctxt.Flag_shared && b == C_SHZOREG) {
 			return true
 		}
 
 	case C_SOREG:
-		if b == C_ZOREG {
+		if b == C_ZOREG || (ctxt.Flag_shared && b == C_SHZOREG) {
 			return true
 		}
 	}
@@ -920,7 +995,7 @@ func buildop(ctxt *obj.Link) {
 
 	for i := 0; i < C_NCLASS; i++ {
 		for n = 0; n < C_NCLASS; n++ {
-			if cmp(n, i) {
+			if cmp(ctxt, n, i) {
 				xcmp[i][n] = true
 			}
 		}
@@ -1170,6 +1245,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	o2 := uint32(0)
 	o3 := uint32(0)
 	o4 := uint32(0)
+	o5 := uint32(0)
+	o6 := uint32(0)
 
 	add := AADDU
 
@@ -1244,6 +1321,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		// for ABFPT and ABFPF only: always fill delay slot with 0
 		// see comments in func preprocess for details.
 		o2 = 0
+	case 67: /* PIC convert JMP to B, PC-relative instruction */
+		v := int32(0)
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc-p.Pc-4) >> 2
+		} else if p.To.Offset != 0 {
+			v = int32(p.To.Offset) >> 2
+		} else {
+			v = int32(-4) >> 2
+		}
+		if (v<<16)>>16 != v {
+			c.ctxt.Diag("short branch too far\n%v", p)
+		}
+		o1 = OP_IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
 
 	case 7: /* mov r, soreg ==> sw o(r) */
 		r := int(p.To.Reg)
@@ -1317,6 +1407,28 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else {
 			rel.Type = objabi.R_JMPMIPS
 		}
+	case 64: /* PIC local function call via got - ld v0, sym(got) + daddiu + move t9,v0 + jalr t9*/
+		r := int(o.param)
+		o1 = OP_IRR(c.opirr(-AMOVV), uint32(0), uint32(REGSB), uint32(REGTMP))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.To.Sym
+		rel.Type = objabi.R_MIPS_GOT_PAGE
+		o2 = OP_IRR(c.opirr(AADDV), uint32(0), uint32(REGTMP), uint32(REGTMP))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.To.Sym
+		rel2.Add = p.To.Offset
+		rel2.Type = objabi.R_MIPS_GOT_OFST
+		o3 = OP_RRR(c.oprrr(AOR), uint32(REG_R0), uint32(REGTMP), uint32(REG_R25))
+		o4 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(REG_R25), uint32(r))
+
+	case 65: /* PIC function call JAL (REGx) => move t9,v0 + jalr t9  */
+		r := int(o.param)
+		o1 = OP_RRR(c.oprrr(AOR), uint32(REG_R0), uint32(p.To.Reg), uint32(REG_R25))
+		o2 = OP_RRR(c.oprrr(AJAL), uint32(0), uint32(REG_R25), uint32(r))
 
 	case 12: /* movbs r,r */
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1636,7 +1748,22 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rel2.Off += 4
 		}
 
-	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
+	case 66: /* move addr@GOT, reg */
+		o1 = OP_IRR(c.opirr(-p.As), uint32(0), uint32(REGSB), uint32(REGTMP))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = objabi.R_MIPS_GOT_PAGE
+		o2 = OP_IRR(c.opirr(AADDV), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Add = p.To.Offset
+		rel2.Type = objabi.R_MIPS_GOT_OFST
+
+	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) LE model */
 		// clobbers R3 !
 		// load thread pointer with RDHWR, R3 is used for fast kernel emulation on Linux
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -1650,7 +1777,40 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = p.To.Offset
 		rel.Type = objabi.R_ADDRMIPSTLS
 
-	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
+	case 60: /* mov r, tlsvar  GD model */
+		// clobbers R2, R4, R25 !
+		// ld    v0,0(gp)    /// R_MIPS_CALL16
+		// daddiu  a0,gp,0   /// R_MIPS_TLS_GD
+		// move    t9,v0
+		// jalr    t9        /// R_MIPS_JALR
+		// nop
+		// sw      r,0(v0)
+		o1 = OP_IRR(c.opirr(-AMOVV), uint32(0), uint32(REG_R28), uint32(REG_R2))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = c.ctxt.Lookup("__tls_get_addr")
+		rel.Add = 0
+		rel.Type = objabi.R_MIPS_CALL16
+		o2 = OP_IRR(c.opirr(AADDVU), uint32(0), uint32(REGSB), uint32(REG_R4))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.To.Sym
+		rel2.Add = p.To.Offset
+		rel2.Type = objabi.R_MIPS_TLS_GD
+		o3 = OP_RRR(c.oprrr(AOR), uint32(REG_R0), uint32(REG_R2), uint32(REG_R25))
+		o4 = OP_RRR(c.oprrr(AJAL), uint32(0), uint32(REG_R25), uint32(REGLINK))
+		rel3 := obj.Addrel(c.cursym)
+		rel3.Off = int32(c.pc + 12)
+		rel3.Siz = 4
+		rel3.Sym = c.ctxt.Lookup("__tls_get_addr")
+		rel3.Add = 0
+		rel3.Type = objabi.R_MIPS_JALR
+		o5 = uint32(0)
+		o6 = OP_IRR(c.opirr(p.As), uint32(0), uint32(REG_R2), uint32(p.From.Reg))
+
+	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) LE model */
 		// clobbers R3 !
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
@@ -1662,6 +1822,39 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = objabi.R_ADDRMIPSTLS
+
+	case 61: /* mov tlsvar r, GD model */
+		// clobbers R2, R4, R25 !
+		// ld    v0,0(gp)    /// R_MIPS_CALL16
+		// daddiu  a0,gp,0   /// R_MIPS_TLS_GD
+		// move    t9,v0
+		// jalr    t9        /// R_MIPS_JALR
+		// nop
+		// sw      r,0(v0)
+		o1 = OP_IRR(c.opirr(-AMOVV), uint32(0), uint32(REG_R28), uint32(REG_R2))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = c.ctxt.Lookup("__tls_get_addr")
+		rel.Add = 0
+		rel.Type = objabi.R_MIPS_CALL16
+		o2 = OP_IRR(c.opirr(AADDVU), uint32(0), uint32(REG_R28), uint32(REG_R4))
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Sym = p.From.Sym
+		rel2.Add = p.From.Offset
+		rel2.Type = objabi.R_MIPS_TLS_GD
+		o3 = OP_RRR(c.oprrr(AOR), uint32(REG_R0), uint32(REG_R2), uint32(REG_R25))
+		o4 = OP_RRR(c.oprrr(AJAL), uint32(0), uint32(REG_R25), uint32(REGLINK))
+		rel3 := obj.Addrel(c.cursym)
+		rel3.Off = int32(c.pc + 12)
+		rel3.Siz = 4
+		rel3.Sym = c.ctxt.Lookup("__tls_get_addr")
+		rel3.Add = 0
+		rel3.Type = objabi.R_MIPS_JALR
+		o5 = uint32(0)
+		o6 = OP_IRR(c.opirr(-p.As), uint32(0), uint32(REG_R2), uint32(p.To.Reg))
 
 	case 55: /* mov $tlsvar, r ==> rdhwr + add */
 		// clobbers R3 !
@@ -1688,12 +1881,53 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 58: /* vst wr, $soreg */
 		v := c.lsoffset(p.As, c.regoff(&p.To))
 		o1 = OP_VMI10(v, uint32(p.To.Reg), uint32(p.From.Reg), 9, c.twobitdf(p.As))
+	case 59: /* movd sym@GOT, reg  movd reg, sym@GOT  */
+		// ld reg, offset(gp)
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Add = 0
+		rel.Type = objabi.R_MIPS_GOT_PAGE
+		if o.a3 == C_GOTREF {
+			o1 = OP_IRR(c.opirr(-AMOVV), uint32(p.To.Offset), uint32(p.Reg), uint32(REGTMP))
+			rel.Sym = p.To.Sym
+		} else {
+			o1 = OP_IRR(c.opirr(-AMOVV), uint32(p.From.Offset), uint32(p.Reg), uint32(REGTMP))
+			rel.Sym = p.From.Sym
+		}
+		rel2 := obj.Addrel(c.cursym)
+		rel2.Off = int32(c.pc + 4)
+		rel2.Siz = 4
+		rel2.Add = 0
+		rel2.Type = objabi.R_MIPS_GOT_OFST
+		if o.a3 == C_GOTREF {
+			// sd/sw v1, 0(v0)
+			o2 = OP_IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+			rel2.Sym = p.To.Sym
+		} else {
+			// ld/lw v1, 0(v0)
+			o2 = OP_IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+			rel2.Sym = p.From.Sym
+		}
+
+	case 62: /* caculate GOT addr -  add gp,t9,offset ==> lui + daddu + daddiu */
+		o1 = OP_IRR(c.opirr(ALUI), uint32(0), uint32(REGZERO), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Add = p.From.Offset
+		rel.Type = objabi.R_MIPS_GOTPCREL
+		o2 = OP_RRR(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.To.Reg))
+		o3 = OP_IRR(c.opirr(p.As), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 	}
 
 	out[0] = o1
 	out[1] = o2
 	out[2] = o3
 	out[3] = o4
+	out[4] = o5
+	out[5] = o6
 }
 
 func (c *ctxt0) vregoff(a *obj.Addr) int64 {
@@ -1777,7 +2011,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(1, 0)
 	case AJAL:
 		return OP(1, 1)
-
 	case ABREAK:
 		return OP(1, 5)
 	case ASYSCALL:
