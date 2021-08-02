@@ -233,6 +233,8 @@
 //		os.Exit(m.Run())
 //	}
 //
+// TestMain is a low-level primitive and should not be necessary for casual
+// testing needs, where ordinary test functions suffice.
 package testing
 
 import (
@@ -678,7 +680,11 @@ type T struct {
 
 func (c *common) private() {}
 
-// Name returns the name of the running test or benchmark.
+// Name returns the name of the running (sub-) test or benchmark.
+//
+// The name will include the name of the test along with the names of
+// any nested sub-tests. If two sibling sub-tests have the same name,
+// Name will append a suffix to guarantee the returned name is unique.
 func (c *common) Name() string {
 	return c.name
 }
