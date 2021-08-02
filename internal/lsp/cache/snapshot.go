@@ -1902,20 +1902,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			shouldLoad: v.shouldLoad || invalidateMetadata,
 		}
 	}
-	// Copy the URI to package ID mappings, skipping only those URIs whose
-	// metadata will be reloaded in future calls to load.
-	for k, ids := range s.ids {
-		var newIDs []packageID
-		for _, id := range ids {
-			if invalidateMetadata, ok := idsToInvalidate[id]; invalidateMetadata && ok {
-				continue
-			}
-			newIDs = append(newIDs, id)
-		}
-		if len(newIDs) != 0 {
-			result.ids[k] = newIDs
-		}
-	}
 
 	// Copy the set of initially loaded packages.
 	for id, pkgPath := range s.workspacePackages {
