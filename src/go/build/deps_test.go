@@ -173,7 +173,7 @@ var depsRules = `
 	io/fs
 	< embed;
 
-	unicode, fmt !< os, os/signal;
+	unicode, fmt !< net, os, os/signal;
 
 	os/signal, STR
 	< path/filepath
@@ -186,6 +186,8 @@ var depsRules = `
 
 	OS
 	< golang.org/x/sys/cpu;
+
+	os < internal/godebug;
 
 	# FMT is OS (which includes string routines) plus reflect and fmt.
 	# It does not include package log, which should be avoided in core packages.
@@ -352,6 +354,13 @@ var depsRules = `
 	  golang.org/x/net/lif,
 	  golang.org/x/net/route;
 
+	os, runtime, strconv, sync, unsafe,
+	internal/godebug
+	< internal/intern;
+
+	internal/bytealg, internal/intern, internal/itoa, math/bits, sort, strconv
+	< net/netip;
+
 	# net is unavoidable when doing any networking,
 	# so large dependencies must be kept out.
 	# This is a long-looking list but most of these
@@ -360,10 +369,12 @@ var depsRules = `
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
 	golang.org/x/net/route,
+	internal/godebug,
 	internal/nettrace,
 	internal/poll,
 	internal/singleflight,
 	internal/race,
+	net/netip,
 	os
 	< net;
 
@@ -515,7 +526,8 @@ var depsRules = `
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
-	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand, encoding/hex, crypto/sha256
+	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
+	internal/godebug, math/rand, encoding/hex, crypto/sha256
 	< internal/fuzz;
 
 	internal/fuzz, internal/testlog, runtime/pprof, regexp
