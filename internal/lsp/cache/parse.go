@@ -1072,10 +1072,10 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 	// Avoid doing tok.Offset(to) since that panics if badExpr ends at EOF.
 	// It also panics if the position is not in the range of the file, and
 	// badExprs may not necessarily have good positions, so check first.
-	if !inRange(tok, from) {
+	if !source.InRange(tok, from) {
 		return false
 	}
-	if !inRange(tok, to-1) {
+	if !source.InRange(tok, to-1) {
 		return false
 	}
 	fromOffset := tok.Offset(from)
@@ -1110,12 +1110,6 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 	}
 
 	return replaceNode(parent, bad, at)
-}
-
-// inRange reports whether the given position is in the given token.File.
-func inRange(tok *token.File, pos token.Pos) bool {
-	size := tok.Pos(tok.Size())
-	return int(pos) >= tok.Base() && pos <= size
 }
 
 // precedingToken scans src to find the token preceding pos.

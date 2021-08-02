@@ -544,3 +544,9 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 func IsCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
 }
+
+// InRange reports whether the given position is in the given token.File.
+func InRange(tok *token.File, pos token.Pos) bool {
+	size := tok.Pos(tok.Size())
+	return int(pos) >= tok.Base() && pos <= size
+}

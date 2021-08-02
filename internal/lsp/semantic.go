@@ -236,9 +236,13 @@ func (e *encoded) strStack() string {
 	}
 	if len(e.stack) > 0 {
 		loc := e.stack[len(e.stack)-1].Pos()
-		add := e.pgf.Tok.PositionFor(loc, false)
-		nm := filepath.Base(add.Filename)
-		msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
+		if !source.InRange(e.pgf.Tok, loc) {
+			msg = append(msg, fmt.Sprintf("invalid position %v for %s", loc, e.pgf.URI))
+		} else {
+			add := e.pgf.Tok.PositionFor(loc, false)
+			nm := filepath.Base(add.Filename)
+			msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
+		}
 	}
 	msg = append(msg, "]")
 	return strings.Join(msg, " ")
