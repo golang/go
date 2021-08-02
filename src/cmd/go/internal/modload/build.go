@@ -341,15 +341,14 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 // for modules providing packages named by path and deps. path and deps must
 // name packages that were resolved successfully with LoadPackages.
 func PackageBuildInfo(path string, deps []string) string {
-	if isStandardImportPath(path) || !Enabled() {
+	if !Enabled() {
 		return ""
 	}
-
-	target := mustFindModule(loaded, path, path)
+	target, _ := findModule(loaded, path)
 	mdeps := make(map[module.Version]bool)
 	for _, dep := range deps {
-		if !isStandardImportPath(dep) {
-			mdeps[mustFindModule(loaded, path, dep)] = true
+		if m, ok := findModule(loaded, dep); ok {
+			mdeps[m] = true
 		}
 	}
 	var mods []module.Version
@@ -375,35 +374,14 @@ func PackageBuildInfo(path string, deps []string) string {
 		}
 	}
 
-	writeEntry("mod", target)
+	if target.Path != "" {
+		writeEntry("mod", target)
+	}
 	for _, mod := range mods {
 		writeEntry("dep", mod)
 	}
 
 	return buf.String()
-}
-
-// mustFindModule is like findModule, but it calls base.Fatalf if the
-// module can't be found.
-//
-// TODO(jayconrod): remove this. Callers should use findModule and return
-// errors instead of relying on base.Fatalf.
-func mustFindModule(ld *loader, target, path string) module.Version {
-	pkg, ok := ld.pkgCache.Get(path).(*loadPkg)
-	if ok {
-		if pkg.err != nil {
-			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
-		}
-		return pkg.mod
-	}
-
-	if path == "command-line-arguments" {
-		_ = TODOWorkspaces("support multiple main modules; search by modroot")
-		return MainModules.mustGetSingleMainModule()
-	}
-
-	base.Fatalf("build %v: cannot find module for path %v", target, path)
-	panic("unreachable")
 }
 
 // findModule searches for the module that contains the package at path.
@@ -412,10 +390,6 @@ func mustFindModule(ld *loader, target, path string) module.Version {
 func findModule(ld *loader, path string) (module.Version, bool) {
 	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
 		return pkg.mod, pkg.mod != module.Version{}
-	}
-	if path == "command-line-arguments" {
-		_ = TODOWorkspaces("support multiple main modules; search by modroot")
-		return MainModules.mustGetSingleMainModule(), true
 	}
 	return module.Version{}, false
 }
