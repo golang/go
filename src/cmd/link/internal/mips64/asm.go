@@ -41,16 +41,39 @@ import (
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
 
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
+	return true
+}
+
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
 
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
-	//		sym		uint32
+	//		sym	uint32
 	//		ssym	uint8
 	//		type3	uint8
 	//		type2	uint8
 	//		type	uint8
 	//		addend	int64
+	if r.Type == objabi.R_MIPS_GOTPCREL {
+		out.Write64(uint64(sectoff))
+		elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+		out.Write32(uint32(elfsym))
+		out.Write8(0)
+		out.Write8(uint8(elf.R_MIPS_HI16))
+		out.Write8(uint8(elf.R_MIPS_SUB))
+		out.Write8(uint8(elf.R_MIPS_GPREL16))
+		out.Write64(uint64(r.Xadd))
+
+		out.Write64(uint64(sectoff + 8))
+		out.Write32(uint32(elfsym))
+		out.Write8(0)
+		out.Write8(uint8(elf.R_MIPS_LO16))
+		out.Write8(uint8(elf.R_MIPS_SUB))
+		out.Write8(uint8(elf.R_MIPS_GPREL16))
+		out.Write64(uint64(r.Xadd))
+		return true
+	}
 
 	addend := r.Xadd
 
@@ -88,6 +111,18 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		out.Write8(uint8(elf.R_MIPS_26))
+	case objabi.R_MIPS_CALL16:
+		out.Write8(uint8(elf.R_MIPS_CALL16))
+	case objabi.R_MIPS_JALR:
+		out.Write8(uint8(elf.R_MIPS_JALR))
+	case objabi.R_MIPS_TLS_GD:
+		out.Write8(uint8(elf.R_MIPS_TLS_GD))
+	case objabi.R_MIPS_GOT_DISP:
+		out.Write8(uint8(elf.R_MIPS_GOT_DISP))
+	case objabi.R_MIPS_GOT_PAGE:
+		out.Write8(uint8(elf.R_MIPS_GOT_PAGE))
+	case objabi.R_MIPS_GOT_OFST:
+		out.Write8(uint8(elf.R_MIPS_GOT_OFST))
 	}
 	out.Write64(uint64(addend))
 
@@ -112,8 +147,16 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			objabi.R_ADDRMIPSU,
 			objabi.R_ADDRMIPSTLS,
 			objabi.R_CALLMIPS,
-			objabi.R_JMPMIPS:
+			objabi.R_JMPMIPS,
+			objabi.R_MIPS_TLS_GD,
+			objabi.R_MIPS_CALL16,
+			objabi.R_MIPS_JALR,
+			objabi.R_MIPS_GOT_DISP,
+			objabi.R_MIPS_GOT_PAGE,
+			objabi.R_MIPS_GOT_OFST:
 			return val, 1, true
+		case objabi.R_MIPS_GOTPCREL:
+			return val, 2, true
 		}
 	}
 
@@ -158,12 +201,19 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
 	case objabi.R_ADDRMIPS,
-		objabi.R_ADDRMIPSU:
+		objabi.R_ADDRMIPSU,
+		objabi.R_MIPS_GOT_PAGE,
+		objabi.R_MIPS_GOT_OFST,
+		objabi.R_MIPS_GOT_DISP:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 
 	case objabi.R_ADDRMIPSTLS,
 		objabi.R_CALLMIPS,
-		objabi.R_JMPMIPS:
+		objabi.R_JMPMIPS,
+		objabi.R_MIPS_TLS_GD,
+		objabi.R_MIPS_CALL16,
+		objabi.R_MIPS_JALR,
+		objabi.R_MIPS_GOTPCREL:
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false
