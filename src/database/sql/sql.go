@@ -2002,8 +2002,8 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 // Raw executes f exposing the underlying driver connection for the
 // duration of f. The driverConn must not be used outside of f.
 //
-// Once f returns and err is nil, the Conn will continue to be usable
-// until Conn.Close is called.
+// Once f returns and err is not equal to driver.ErrBadConn, the Conn will
+// continue to be usable until Conn.Close is called.
 func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
 	var dc *driverConn
 	var release releaseConn
