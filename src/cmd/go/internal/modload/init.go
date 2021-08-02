@@ -374,7 +374,6 @@ func Init() {
 	}
 
 	if inWorkspaceMode() {
-
 		_ = TODOWorkspaces("go.work.sum, and also allow modfetch to fall back to individual go.sums")
 		_ = TODOWorkspaces("replaces")
 		var err error
@@ -403,8 +402,7 @@ func Init() {
 		//
 		// See golang.org/issue/32027.
 	} else {
-		_ = TODOWorkspaces("Instead of modfile path, find modfile OR workfile path depending on mode")
-		modfetch.GoSumFile = strings.TrimSuffix(ModFilePath(), ".mod") + ".sum"
+		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
 	}
 }
 
@@ -463,21 +461,8 @@ func Enabled() bool {
 	return modRoots != nil || cfg.ModulesEnabled
 }
 
-// ModRoot returns the root of the main module.
-// It calls base.Fatalf if there is no main module.
-func ModRoot() string {
-	if !HasModRoot() {
-		die()
-	}
-	if inWorkspaceMode() {
-		panic("ModRoot called in workspace mode")
-	}
-	// This is similar to MustGetSingleMainModule but we can't call that
-	// because MainModules may not yet exist when ModRoot is called.
-	if len(modRoots) != 1 {
-		panic("not in workspace mode but there are multiple ModRoots")
-	}
-	return modRoots[0]
+func VendorDir() string {
+	return filepath.Join(MainModules.ModRoot(MainModules.mustGetSingleMainModule()), "vendor")
 }
 
 func inWorkspaceMode() bool {
@@ -495,12 +480,21 @@ func HasModRoot() bool {
 	return modRoots != nil
 }
 
-// ModFilePath returns the effective path of the go.mod file. Normally, this
-// "go.mod" in the directory returned by ModRoot, but the -modfile flag may
-// change its location. ModFilePath calls base.Fatalf if there is no main
+// MustHaveModRoot checks that a main module or main modules are present,
+// and calls base.Fatalf if there are no main modules.
+func MustHaveModRoot() {
+	Init()
+	if !HasModRoot() {
+		die()
+	}
+}
+
+// ModFilePath returns the path that would be used for the go.mod
+// file, if in module mode. ModFilePath calls base.Fatalf if there is no main
 // module, even if -modfile is set.
 func ModFilePath() string {
-	return modFilePath(ModRoot())
+	MustHaveModRoot()
+	return modFilePath(findModuleRoot(base.Cwd()))
 }
 
 func modFilePath(modRoot string) string {
@@ -674,7 +668,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	mainModule := MainModules.mustGetSingleMainModule()
 
 	if cfg.BuildMod == "vendor" {
-		readVendorList()
+		readVendorList(mainModule)
 		index := MainModules.Index(mainModule)
 		modFile := MainModules.ModFile(mainModule)
 		checkVendorConsistency(index, modFile)
@@ -719,7 +713,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	modRoot := base.Cwd()
 	modRoots = []string{modRoot}
 	Init()
-	modFilePath := ModFilePath()
+	modFilePath := modFilePath(modRoot)
 	if _, err := fsys.Stat(modFilePath); err == nil {
 		base.Fatalf("go: %s already exists", modFilePath)
 	}
@@ -1344,6 +1338,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		return
 	}
 	mainModule := MainModules.Versions()[0]
+	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
 	modFile := MainModules.ModFile(mainModule)
 
 	var list []*modfile.Require
@@ -1383,8 +1378,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		}
 		return
 	}
-	gomod := ModFilePath()
-	if _, ok := fsys.OverlayPath(gomod); ok {
+	if _, ok := fsys.OverlayPath(modFilePath); ok {
 		if dirty {
 			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}
@@ -1422,7 +1416,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 
 	errNoChange := errors.New("no update needed")
 
-	err = lockedfile.Transform(ModFilePath(), func(old []byte) ([]byte, error) {
+	err = lockedfile.Transform(modFilePath, func(old []byte) ([]byte, error) {
 		if bytes.Equal(old, new) {
 			// The go.mod file is already equal to new, possibly as the result of some
 			// other process.
