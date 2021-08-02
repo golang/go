@@ -80,10 +80,7 @@ type Flags struct {
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//
-	// Requires wrappers (to do ABI translation), g (because
-	// runtime assembly that's been ported to ABIInternal uses the
-	// G register), reflect (so reflection calls use registers),
-	// and defer (because the runtime doesn't support passing
-	// register arguments to defer/go).
+	// Requires wrappers (to do ABI translation), and reflect (so
+	// reflection calls use registers).
 	RegabiArgs bool
 }
