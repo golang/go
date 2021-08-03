@@ -1809,9 +1809,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	newnam.SetSiggen(true)
 
 	// Except in quirks mode, unified IR creates its own wrappers.
-	// Complain loudly if it missed any.
 	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
-		base.FatalfAt(method.Pos, "missing wrapper for %+v (%+v, %v) / %+v / %+v", rcvr, orig, types.IsDirectIface(orig), method.Sym, newnam)
+		return lsym
 	}
 
 	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
