@@ -79,11 +79,11 @@ var _ *int = new[int]()
 
 func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1}) int
+func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1; x float32}) int
+func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 

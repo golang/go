@@ -136,7 +136,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 
 			check.later(func() {
 				t, isPtr := deref(embeddedTyp)
-				switch t := optype(t).(type) {
+				switch t := under(t).(type) {
 				case *Basic:
 					if t == Typ[Invalid] {
 						// error was reported before
@@ -144,13 +144,15 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 					}
 					// unsafe.Pointer is treated like a regular pointer
 					if t.kind == UnsafePointer {
-						check.errorf(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
+						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
 					}
 				case *Pointer:
-					check.errorf(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+				case *TypeParam:
+					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a (pointer to a) type parameter")
 				case *Interface:
 					if isPtr {
-						check.errorf(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
+						check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
 					}
 				}
 			})
