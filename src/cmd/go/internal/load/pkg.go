@@ -754,6 +754,8 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 		var err error
 		if path == "." {
 			err = ImportErrorf(path, "%s: cannot import current directory", path)
+		} else if build.IsLocalImport(path) {
+			err = ImportErrorf(path, "%s: relative import not supported", path)
 		} else {
 			err = ImportErrorf(path, "local import %q in non-local package", path)
 		}
