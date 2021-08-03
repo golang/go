@@ -45,7 +45,7 @@ func filename(uri URI) (string, error) {
 	if u.Scheme != fileScheme {
 		return "", fmt.Errorf("only file URIs are supported, got %q from %q", u.Scheme, uri)
 	}
-	// If the URI is a Windows URI, we trim the leading "/" and lowercase
+	// If the URI is a Windows URI, we trim the leading "/" and uppercase
 	// the drive letter, which will never be case sensitive.
 	if isWindowsDriveURIPath(u.Path) {
 		u.Path = strings.ToUpper(string(u.Path[1])) + u.Path[2:]
