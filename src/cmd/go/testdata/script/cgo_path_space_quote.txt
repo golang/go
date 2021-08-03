@@ -6,6 +6,7 @@
 
 [short] skip
 [!exec:clang] [!exec:gcc] skip
+[!cgo] skip
 
 env GOENV=$WORK/go.env
 mkdir 'program files'
@@ -20,6 +21,7 @@ go env CC
 stdout 'program files[/\\]which cc" (clang|gcc)$'
 
 go run .
+stdout 1
 
 -- go.mod --
 module test
