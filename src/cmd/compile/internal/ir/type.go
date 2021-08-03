@@ -319,3 +319,17 @@ func TypeNodeAt(pos src.XPos, t *types.Type) Ntype {
 	}
 	return newTypeNode(pos, t)
 }
+
+// A DynamicType represents the target type in a type switch.
+type DynamicType struct {
+	miniExpr
+	X    Node // a *runtime._type for the targeted type
+	ITab Node // for type switches from nonempty interfaces to non-interfaces, this is the itab for that pair.
+}
+
+func NewDynamicType(pos src.XPos, x Node) *DynamicType {
+	n := &DynamicType{X: x}
+	n.pos = pos
+	n.op = ODYNAMICTYPE
+	return n
+}

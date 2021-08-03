@@ -258,7 +258,8 @@ const (
 	OBREAK // break [Label]
 	// OCASE:  case List: Body (List==nil means default)
 	//   For OTYPESW, List is a OTYPE node for the specified type (or OLITERAL
-	//   for nil), and, if a type-switch variable is specified, Rlist is an
+	//   for nil) or an ODYNAMICTYPE indicating a runtime type for generics.
+	//   If a type-switch variable is specified, Var is an
 	//   ONAME for the version of the type-switch variable with the specified
 	//   type.
 	OCASE
@@ -320,8 +321,9 @@ const (
 	OLINKSYMOFFSET // offset within a name
 
 	// opcodes for generics
-	ODYNAMICDOTTYPE
-	ODYNAMICDOTTYPE2
+	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
+	ODYNAMICDOTTYPE2 // x, ok = i.(T) where T is a type parameter (or derived from a type parameter)
+	ODYNAMICTYPE     // a type node for type switches (represents a dynamic target type for a type switch)
 
 	// arch-specific opcodes
 	OTAILCALL    // tail call to another function

@@ -700,6 +700,15 @@ func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssert
 	return n
 }
 
+func (n *DynamicTypeAssertExpr) SetOp(op Op) {
+	switch op {
+	default:
+		panic(n.no("SetOp " + op.String()))
+	case ODYNAMICDOTTYPE, ODYNAMICDOTTYPE2:
+		n.op = op
+	}
+}
+
 // A UnaryExpr is a unary expression Op X,
 // or Op(X) for a builtin function that does not end up being a call.
 type UnaryExpr struct {
