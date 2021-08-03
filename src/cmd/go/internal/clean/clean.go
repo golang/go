@@ -116,7 +116,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	// or no other target (such as a cache) was requested to be cleaned.
 	cleanPkg := len(args) > 0 || cleanI || cleanR
 	if (!modload.Enabled() || modload.HasModRoot()) &&
-		!cleanCache && !cleanModcache && !cleanTestcache {
+		!cleanCache && !cleanModcache && !cleanTestcache && !cleanFuzzcache {
 		cleanPkg = true
 	}
 
