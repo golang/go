@@ -173,6 +173,17 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// the parameterized type.
 	iface = check.subst(pos, iface, smap).(*Interface)
 
+	// if iface is comparable, targ must be comparable
+	// TODO(gri) the error messages needs to be better, here
+	if iface.IsComparable() && !Comparable(targ) {
+		if tpar := asTypeParam(targ); tpar != nil && tpar.Bound().typeSet().IsTop() {
+			check.softErrorf(atPos(pos), _Todo, "%s has no constraints", targ)
+			return false
+		}
+		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy comparable", targ)
+		return false
+	}
+
 	// targ must implement iface (methods)
 	// - check only if we have methods
 	if iface.NumMethods() > 0 {
@@ -188,10 +199,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 			//           (print warning for now)
 			// Old warning:
 			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
-			if m.name == "==" {
-				// We don't want to report "missing method ==".
-				check.softErrorf(atPos(pos), 0, "%s does not satisfy comparable", targ)
-			} else if wrong != nil {
+			if wrong != nil {
 				// TODO(gri) This can still report uninstantiated types which makes the error message
 				//           more difficult to read then necessary.
 				// TODO(rFindley) should this use parentheses rather than ':' for qualification?
