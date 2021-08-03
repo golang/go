@@ -60,23 +60,31 @@ func (t *TypeParam) _SetId(id uint64) {
 	t.id = id
 }
 
-// TODO(rfindley): document the Bound and SetBound methods.
-
-func (t *TypeParam) Bound() *Interface {
-	// we may not have an interface (error reported elsewhere)
-	iface, _ := under(t.bound).(*Interface)
-	if iface == nil {
-		return &emptyInterface
+// Constraint returns the type constraint specified for t.
+func (t *TypeParam) Constraint() Type {
+	// compute the type set if possible (we may not have an interface)
+	if iface, _ := under(t.bound).(*Interface); iface != nil {
+		// use the type bound position if we have one
+		pos := token.NoPos
+		if n, _ := t.bound.(*Named); n != nil {
+			pos = n.obj.pos
+		}
+		computeTypeSet(t.check, pos, iface)
 	}
-	// use the type bound position if we have one
-	pos := token.NoPos
-	if n, _ := t.bound.(*Named); n != nil {
-		pos = n.obj.pos
-	}
-	// TODO(rFindley) switch this to an unexported method on Checker.
-	computeTypeSet(t.check, pos, iface)
-	return iface
+	return t.bound
 }
+
+// Bound returns the underlying type of the type parameter's
+// constraint.
+// Deprecated for external use. Use Constraint instead.
+func (t *TypeParam) Bound() *Interface {
+	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
+		return iface
+	}
+	return &emptyInterface
+}
+
+// TODO(rfindley): document the SetBound methods.
 
 func (t *TypeParam) SetBound(bound Type) {
 	if bound == nil {
