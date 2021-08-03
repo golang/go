@@ -657,6 +657,9 @@ func findImports(pkg string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading %v: %v", name, err)
 		}
+		if info.parsed.Name.Name == "main" {
+			continue
+		}
 		if bytes.Contains(info.header, buildIgnore) {
 			continue
 		}
