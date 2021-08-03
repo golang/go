@@ -393,8 +393,8 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
 	// arguments for which there were structural constraints. The newly inferred non-
-	// nil entries may still contain references to other type parameters. For instance,
-	// for [A any, B interface{type []C}, C interface{type *A}], if A == int
+	// nil entries may still contain references to other type parameters.
+	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
