@@ -48,7 +48,7 @@ func windowsCheckPathCase(path string) error {
 	}
 	for got, want := path, longstr; !isRoot(got) && !isRoot(want); got, want = filepath.Dir(got), filepath.Dir(want) {
 		if g, w := filepath.Base(got), filepath.Base(want); g != w {
-			return fmt.Errorf("case mismatch in path %q: component %q should be %q", path, g, w)
+			return fmt.Errorf("case mismatch in path %q: component %q is listed by Windows as %q", path, g, w)
 		}
 	}
 	return nil

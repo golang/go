@@ -52,7 +52,7 @@ func darwinCheckPathCase(path string) error {
 			break
 		}
 		if g != w {
-			return fmt.Errorf("case mismatch in path %q: component %q should be %q", path, g, w)
+			return fmt.Errorf("case mismatch in path %q: component %q is listed by macOS as %q", path, g, w)
 		}
 	}
 	return nil

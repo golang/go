@@ -727,7 +727,7 @@ func (v *View) updateWorkspaceLocked(ctx context.Context) error {
 
 func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {
 	if err := checkPathCase(folder.Filename()); err != nil {
-		return nil, errors.Errorf("invalid workspace configuration: %w", err)
+		return nil, errors.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
 	}
 	var err error
 	inv := gocommand.Invocation{
