@@ -282,18 +282,22 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		base.Fatalf("unexpected type: %v (%T)", typ, typ)
 
 	case *types2.Basic:
-		if kind := typ.Kind(); types2.Typ[kind] == typ {
+		switch kind := typ.Kind(); {
+		case kind == types2.Invalid:
+			base.Fatalf("unexpected types2.Invalid")
+
+		case types2.Typ[kind] == typ:
 			w.code(typeBasic)
 			w.len(int(kind))
-			break
+
+		default:
+			// Handle "byte" and "rune" as references to their TypeName.
+			obj := types2.Universe.Lookup(typ.Name())
+			assert(obj.Type() == typ)
+
+			w.code(typeNamed)
+			w.obj(obj, nil)
 		}
-
-		// Handle "byte" and "rune" as references to their TypeName.
-		obj := types2.Universe.Lookup(typ.Name())
-		assert(obj.Type() == typ)
-
-		w.code(typeNamed)
-		w.obj(obj, nil)
 
 	case *types2.Named:
 		// Type aliases can refer to uninstantiated generic types, so we
