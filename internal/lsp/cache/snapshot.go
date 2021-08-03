@@ -2042,8 +2042,8 @@ func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 	return !o.saved && c.saved
 }
 
-// shouldInvalidateMetadata reparses a file's package and import declarations to
-// determine if the file requires a metadata reload.
+// shouldInvalidateMetadata reparses the full file's AST to determine
+// if the file requires a metadata reload.
 func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *snapshot, originalFH, currentFH source.FileHandle) (invalidate, pkgNameChanged, importDeleted bool) {
 	if originalFH == nil {
 		return true, false, false
@@ -2055,8 +2055,8 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, newSnapshot *sn
 	// Get the original and current parsed files in order to check package name
 	// and imports. Use the new snapshot to parse to avoid modifying the
 	// current snapshot.
-	original, originalErr := newSnapshot.ParseGo(ctx, originalFH, source.ParseHeader)
-	current, currentErr := newSnapshot.ParseGo(ctx, currentFH, source.ParseHeader)
+	original, originalErr := newSnapshot.ParseGo(ctx, originalFH, source.ParseFull)
+	current, currentErr := newSnapshot.ParseGo(ctx, currentFH, source.ParseFull)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil), false, (currentErr != nil) // we don't know if an import was deleted
 	}

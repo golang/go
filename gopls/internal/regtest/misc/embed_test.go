@@ -22,6 +22,9 @@ import (
 	_ "embed"
 )
 
+// Issue 47436
+func F() {}
+
 //go:embed NONEXISTENT
 var foo string
 `
