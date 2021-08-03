@@ -262,6 +262,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		// Arguments of OADDSTR never escape;
 		// runtime.concatstrings makes sure of that.
 		e.discards(n.List)
+
+	case ir.ODYNAMICTYPE:
+		// Nothing to do - argument is a *runtime._type (+ maybe a *runtime.itab) pointing to static data section
 	}
 }
 

@@ -172,6 +172,10 @@ assignOK:
 			r := r.(*ir.TypeAssertExpr)
 			stmt.SetOp(ir.OAS2DOTTYPE)
 			r.SetOp(ir.ODOTTYPE2)
+		case ir.ODYNAMICDOTTYPE:
+			r := r.(*ir.DynamicTypeAssertExpr)
+			stmt.SetOp(ir.OAS2DOTTYPE)
+			r.SetOp(ir.ODYNAMICDOTTYPE2)
 		default:
 			break assignOK
 		}

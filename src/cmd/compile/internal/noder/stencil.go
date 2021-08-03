@@ -1140,6 +1140,38 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
 			m.SetType(dt.Type())
 			m.SetTypecheck(1)
+		case ir.OCASE:
+			if _, ok := x.(*ir.CommClause); ok {
+				// This is not a type switch. TODO: Should we use an OSWITCH case here instead of OCASE?
+				break
+			}
+			x := x.(*ir.CaseClause)
+			m := m.(*ir.CaseClause)
+			for i, c := range x.List {
+				if c.Op() == ir.OTYPE && c.Type().HasTParam() {
+					// Use a *runtime._type for the dynamic type.
+					ix := findDictType(subst.info, c.Type())
+					assert(ix >= 0)
+					dt := ir.NewDynamicType(c.Pos(), getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen))
+
+					// For type switch from nonemoty interfaces to non-interfaces, we need an itab as well.
+					if _, ok := subst.info.gfInfo.type2switchType[c]; ok {
+						// Type switch from nonempty interface. We need a *runtime.itab
+						// for the dynamic type.
+						ix := -1
+						for i, ic := range subst.info.gfInfo.itabConvs {
+							if ic == c {
+								ix = subst.info.startItabConv + i
+								break
+							}
+						}
+						assert(ix >= 0)
+						dt.ITab = getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
+					}
+					typed(m.List[i].Type(), dt)
+					m.List[i] = dt
+				}
+			}
 		}
 		return m
 	}
@@ -1483,6 +1515,9 @@ func (g *irgen) finalizeSyms() {
 			case ir.OCONVIFACE:
 				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())
 				dsttype = subst.Typ(n.Type())
+			case ir.OTYPE:
+				srctype = subst.Typ(n.Type())
+				dsttype = subst.Typ(info.type2switchType[n])
 			default:
 				base.Fatalf("itab entry with unknown op %s", n.Op())
 			}
@@ -1650,6 +1685,21 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			// the dictionary of the outer function).
 			for _, n1 := range n.(*ir.ClosureExpr).Func.Body {
 				ir.Visit(n1, visitFunc)
+			}
+		}
+		if n.Op() == ir.OSWITCH && n.(*ir.SwitchStmt).Tag != nil && n.(*ir.SwitchStmt).Tag.Op() == ir.OTYPESW && !n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
+			for _, cc := range n.(*ir.SwitchStmt).Cases {
+				for _, c := range cc.List {
+					if c.Op() == ir.OTYPE && c.Type().HasTParam() {
+						// Type switch from a non-empty interface to a noninterface.
+						infoPrint("  Itab for type switch: %v\n", c)
+						info.itabConvs = append(info.itabConvs, c)
+						if info.type2switchType == nil {
+							info.type2switchType = map[ir.Node]*types.Type{}
+						}
+						info.type2switchType[c] = n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type()
+					}
+				}
 			}
 		}
 		addType(&info, n, n.Type())
