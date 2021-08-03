@@ -1006,7 +1006,7 @@ func (l Nodes) Format(s fmt.State, verb rune) {
 
 // Dump prints the message s followed by a debug dump of n.
 func Dump(s string, n Node) {
-	fmt.Printf("%s [%p]%+v\n", s, n, n)
+	fmt.Printf("%s%+v\n", s, n)
 }
 
 // DumpList prints the message s followed by a debug dump of each node in the list.
