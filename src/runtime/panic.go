@@ -372,19 +372,7 @@ func freedefer(d *_defer) {
 		unlock(&sched.deferlock)
 	}
 
-	// These lines used to be simply `*d = _defer{}` but that
-	// started causing a nosplit stack overflow via typedmemmove.
-	d.started = false
-	d.openDefer = false
-	d.sp = 0
-	d.pc = 0
-	d.framepc = 0
-	d.varp = 0
-	d.fd = nil
-	// d._panic and d.fn must be nil already.
-	// If not, we would have called freedeferpanic or freedeferfn above,
-	// both of which throw.
-	d.link = nil
+	*d = _defer{}
 
 	pp.deferpool = append(pp.deferpool, d)
 
