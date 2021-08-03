@@ -16,22 +16,31 @@ import (
 
 // A TypeSet represents the type set of an interface.
 type TypeSet struct {
+	comparable bool // if set, the interface is or embeds comparable
 	// TODO(gri) consider using a set for the methods for faster lookup
 	methods []*Func // all methods of the interface; sorted by unique ID
 	types   Type    // typically a *Union; nil means no type restrictions
 }
 
 // IsTop reports whether type set s is the top type set (corresponding to the empty interface).
-func (s *TypeSet) IsTop() bool { return len(s.methods) == 0 && s.types == nil }
+func (s *TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.types == nil }
 
 // IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *TypeSet) IsMethodSet() bool { return s.types == nil && !s.IsComparable() }
+func (s *TypeSet) IsMethodSet() bool { return !s.comparable && s.types == nil }
 
 // IsComparable reports whether each type in the set is comparable.
 // TODO(gri) this is not correct - there may be s.types values containing non-comparable types
 func (s *TypeSet) IsComparable() bool {
-	_, m := s.LookupMethod(nil, "==")
-	return m != nil
+	if s.types == nil {
+		return s.comparable
+	}
+	tcomparable := s.underIs(func(u Type) bool {
+		return Comparable(u)
+	})
+	if !s.comparable {
+		return tcomparable
+	}
+	return s.comparable && tcomparable
 }
 
 // NumMethods returns the number of methods available.
@@ -54,6 +63,12 @@ func (s *TypeSet) String() string {
 
 	var buf bytes.Buffer
 	buf.WriteByte('{')
+	if s.comparable {
+		buf.WriteString(" comparable")
+		if len(s.methods) > 0 || s.types != nil {
+			buf.WriteByte(';')
+		}
+	}
 	for i, m := range s.methods {
 		if i > 0 {
 			buf.WriteByte(';')
@@ -205,6 +220,9 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
 		switch t := under(typ).(type) {
 		case *Interface:
 			tset := computeTypeSet(check, pos, t)
+			if tset.comparable {
+				ityp.tset.comparable = true
+			}
 			for _, m := range tset.methods {
 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
 

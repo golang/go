@@ -111,7 +111,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 // Empty reports whether t is the empty interface.
 func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
 
-// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+// IsComparable reports whether each type in interface t's type set is comparable.
 func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 
 // IsConstraint reports whether interface t is not just a method set.
