@@ -179,7 +179,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(n.Esc())
-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n).Nname), n.X}
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(n.Esc())
@@ -199,11 +199,11 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	return walkExpr(cfn, init)
 }
 
-// methodValueWrapper returns the DCLFUNC node representing the
+// methodValueWrapper returns the ONAME node representing the
 // wrapper function (*-fm) needed for the given method value. If the
 // wrapper function hasn't already been created yet, it's created and
 // added to typecheck.Target.Decls.
-func methodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
 	if dot.Op() != ir.OMETHVALUE {
 		base.Fatalf("methodValueWrapper: unexpected %v (%v)", dot, dot.Op())
 	}
@@ -214,7 +214,7 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
-		return sym.Def.(*ir.Func)
+		return sym.Def.(*ir.Name)
 	}
 	sym.SetUniq(true)
 
@@ -262,10 +262,10 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
-	sym.Def = fn
+	sym.Def = fn.Nname
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 	ir.CurFunc = savecurfn
 	base.Pos = saveLineNo
 
-	return fn
+	return fn.Nname
 }
