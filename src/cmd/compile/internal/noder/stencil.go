@@ -1181,7 +1181,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// The only dot on a shape type value are methods.
 				if mse.X.Op() == ir.OTYPE {
 					// Method expression T.M
-					m = subst.g.buildClosure2(subst.newf, subst.info, m, x)
+					m = subst.g.buildClosure2(subst, m, x)
 					// No need for transformDot - buildClosure2 has already
 					// transformed to OCALLINTER/ODOTINTER.
 				} else {
@@ -1189,11 +1189,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					//  1) convert x to the bound interface
 					//  2) call M on that interface
 					gsrc := x.(*ir.SelectorExpr).X.Type()
-					dst := gsrc.Bound()
+					bound := gsrc.Bound()
+					dst := bound
 					if dst.HasTParam() {
 						dst = subst.ts.Typ(dst)
 					}
-					mse.X = convertUsingDictionary(subst.info, subst.info.dictParam, m.Pos(), mse.X, x, dst, gsrc)
+					if src.IsInterface() {
+						// If type arg is an interface (unusual case),
+						// we do a type assert to the type bound.
+						mse.X = assertToBound(subst.info, subst.info.dictParam, m.Pos(), mse.X, bound, dst)
+					} else {
+						mse.X = convertUsingDictionary(subst.info, subst.info.dictParam, m.Pos(), mse.X, x, dst, gsrc)
+					}
 					transformDot(mse, false)
 				}
 			} else {
@@ -1554,10 +1561,10 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 						tparam := tmpse.X.Type()
 						assert(tparam.IsTypeParam())
 						recvType := targs[tparam.Index()]
-						if len(recvType.RParams()) == 0 {
+						if recvType.IsInterface() || len(recvType.RParams()) == 0 {
 							// No sub-dictionary entry is
 							// actually needed, since the
-							// typeparam is not an
+							// type arg is not an
 							// instantiated type that
 							// will have generic methods.
 							break
@@ -1686,8 +1693,14 @@ func (g *irgen) finalizeSyms() {
 			default:
 				base.Fatalf("itab entry with unknown op %s", n.Op())
 			}
-			itabLsym := reflectdata.ITabLsym(srctype, dsttype)
-			d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+			if srctype.IsInterface() {
+				// No itab is wanted if src type is an interface. We
+				// will use a type assert instead.
+				d.off = objw.Uintptr(lsym, d.off, 0)
+			} else {
+				itabLsym := reflectdata.ITabLsym(srctype, dsttype)
+				d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+			}
 		}
 
 		objw.Global(lsym, int32(d.off), obj.DUPOK|obj.RODATA)
@@ -1760,6 +1773,17 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			info.tparams[i] = f.Type
 		}
 	}
+
+	for _, t := range info.tparams {
+		b := t.Bound()
+		if b.HasTParam() {
+			// If a type bound is parameterized (unusual case), then we
+			// may need its derived type to do a type assert when doing a
+			// bound call for a type arg that is an interface.
+			addType(&info, nil, b)
+		}
+	}
+
 	for _, n := range gf.Dcl {
 		addType(&info, n, n.Type())
 	}
@@ -1950,6 +1974,15 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
 		return true
 
+	case types.TUNION:
+		for i := 0; i < t.NumTerms(); i++ {
+			tt, _ := t.Term(i)
+			if !parameterizedBy1(tt, params, visited) {
+				return false
+			}
+		}
+		return true
+
 	default:
 		base.Fatalf("bad type kind %+v", t)
 		return true
@@ -2000,15 +2033,32 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
 
 }
 
+// assertToBound returns a new node that converts a node rcvr with interface type to
+// the 'dst' interface type.  bound is the unsubstituted form of dst.
+func assertToBound(info *instInfo, dictVar *ir.Name, pos src.XPos, rcvr ir.Node, bound, dst *types.Type) ir.Node {
+	if bound.HasTParam() {
+		ix := findDictType(info, bound)
+		assert(ix >= 0)
+		rt := getDictionaryType(info, dictVar, pos, ix)
+		rcvr = ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, rcvr, rt)
+		typed(dst, rcvr)
+	} else {
+		rcvr = ir.NewTypeAssertExpr(pos, rcvr, nil)
+		typed(bound, rcvr)
+	}
+	return rcvr
+}
+
 // buildClosure2 makes a closure to implement a method expression m (generic form x)
 // which has a shape type as receiver. If the receiver is exactly a shape (i.e. from
-// a typeparam), then the body of the closure converts the first argument (the
-// receiver) to the interface bound type, and makes an interface call with the
-// remaining arguments.
+// a typeparam), then the body of the closure converts m.X (the receiver) to the
+// interface bound type, and makes an interface call with the remaining arguments.
 //
-// The returned closure is fully substituted and has already has any needed
+// The returned closure is fully substituted and has already had any needed
 // transformations done.
-func (g *irgen) buildClosure2(outer *ir.Func, info *instInfo, m, x ir.Node) ir.Node {
+func (g *irgen) buildClosure2(subst *subster, m, x ir.Node) ir.Node {
+	outer := subst.newf
+	info := subst.info
 	pos := m.Pos()
 	typ := m.Type() // type of the closure
 
@@ -2031,11 +2081,24 @@ func (g *irgen) buildClosure2(outer *ir.Func, info *instInfo, m, x ir.Node) ir.N
 	rcvr := args[0]
 	args = args[1:]
 	assert(m.(*ir.SelectorExpr).X.Type().IsShape())
-	rcvr = convertUsingDictionary(info, dictVar, pos, rcvr, x, x.(*ir.SelectorExpr).X.Type().Bound(), x.(*ir.SelectorExpr).X.Type())
+	gsrc := x.(*ir.SelectorExpr).X.Type()
+	bound := gsrc.Bound()
+	dst := bound
+	if dst.HasTParam() {
+		dst = subst.ts.Typ(bound)
+	}
+	if m.(*ir.SelectorExpr).X.Type().IsInterface() {
+		// If type arg is an interface (unusual case), we do a type assert to
+		// the type bound.
+		rcvr = assertToBound(info, dictVar, pos, rcvr, bound, dst)
+	} else {
+		rcvr = convertUsingDictionary(info, dictVar, pos, rcvr, x, dst, gsrc)
+	}
 	dot := ir.NewSelectorExpr(pos, ir.ODOTINTER, rcvr, x.(*ir.SelectorExpr).Sel)
 	dot.Selection = typecheck.Lookdot1(dot, dot.Sel, dot.X.Type(), dot.X.Type().AllMethods(), 1)
 
-	typed(x.(*ir.SelectorExpr).Selection.Type, dot)
+	// Do a type substitution on the generic bound, in case it is parameterized.
+	typed(subst.ts.Typ(x.(*ir.SelectorExpr).Selection.Type), dot)
 	innerCall = ir.NewCallExpr(pos, ir.OCALLINTER, dot, args)
 	t := m.Type()
 	if t.NumResults() == 0 {

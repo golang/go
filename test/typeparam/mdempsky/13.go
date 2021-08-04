@@ -6,33 +6,79 @@
 
 package main
 
-type Mer interface{ M() }
+// Interface which will be used as a regular interface type and as a type bound.
+type Mer interface{
+	M()
+}
 
-func F[T Mer](expectPanic bool) {
-	defer func() {
-		err := recover()
-		if (err != nil) != expectPanic {
-			print("FAIL: (", err, " != nil) != ", expectPanic, "\n")
-		}
-	}()
+// Interface that is a superset of Mer.
+type Mer2 interface {
+	M()
+	String() string
+}
 
-	var t T
+func F[T Mer](t T) {
 	T.M(t)
+	t.M()
 }
 
 type MyMer int
 
 func (MyMer) M() {}
+func (MyMer) String() string {
+	return "aa"
+}
+
+// Parameterized interface
+type Abs[T any] interface {
+	Abs() T
+}
+
+func G[T Abs[U], U any](t T) {
+	T.Abs(t)
+	t.Abs()
+}
+
+type MyInt int
+func (m MyInt) Abs() MyInt {
+	if m < 0 {
+		return -m
+	}
+	return m
+}
+
+type Abs2 interface {
+	Abs() MyInt
+}
+
 
 func main() {
-	F[Mer](true)
-	F[struct{ Mer }](true)
-	F[*struct{ Mer }](true)
+	mm := MyMer(3)
+	ms := struct{ Mer }{Mer: mm }
 
-	F[MyMer](false)
-	F[*MyMer](true)
-	F[struct{ MyMer }](false)
-	F[struct{ *MyMer }](true)
-	F[*struct{ MyMer }](true)
-	F[*struct{ *MyMer }](true)
+	// Testing F with an interface type arg: Mer and Mer2
+	F[Mer](mm)
+	F[Mer2](mm)
+	F[struct{ Mer }](ms)
+	F[*struct{ Mer }](&ms)
+
+	ms2 := struct { MyMer }{MyMer: mm}
+	ms3 := struct { *MyMer }{MyMer: &mm}
+
+	// Testing F with a concrete type arg
+	F[MyMer](mm)
+	F[*MyMer](&mm)
+	F[struct{ MyMer }](ms2)
+	F[struct{ *MyMer }](ms3)
+	F[*struct{ MyMer }](&ms2)
+	F[*struct{ *MyMer }](&ms3)
+
+	// Testing G with a concrete type args
+	mi := MyInt(-3)
+	G[MyInt,MyInt](mi)
+
+	// Interface Abs[MyInt] holding an mi.
+	intMi := Abs[MyInt](mi)
+	// First type arg here is Abs[MyInt], an interface type.
+	G[Abs[MyInt],MyInt](intMi)
 }
