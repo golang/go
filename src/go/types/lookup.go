@@ -190,7 +190,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				}
 
 			case *TypeParam:
-				if i, m := t.Bound().typeSet().LookupMethod(pkg, name); m != nil {
+				if i, m := t.iface().typeSet().LookupMethod(pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
 					if obj != nil || e.multiples {
