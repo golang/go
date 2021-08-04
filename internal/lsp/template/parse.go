@@ -357,6 +357,10 @@ func (p *Parsed) Range(x, length int) protocol.Range {
 // FromPosition translates a protocol.Position into an offset into the template
 func (p *Parsed) FromPosition(x protocol.Position) int {
 	l, c := int(x.Line), int(x.Character)
+	if l >= len(p.nls) || p.nls[l]+1 >= len(p.buf) {
+		// paranoia to avoid panic. return the largest offset
+		return len(p.buf)
+	}
 	line := p.buf[p.nls[l]+1:]
 	cnt := 0
 	for w := range string(line) {

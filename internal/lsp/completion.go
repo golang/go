@@ -33,7 +33,12 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	case source.Mod:
 		candidates, surrounding = nil, nil
 	case source.Tmpl:
-		candidates, surrounding, err = template.Completion(ctx, snapshot, fh, params.Position, params.Context)
+		var cl *protocol.CompletionList
+		cl, err = template.Completion(ctx, snapshot, fh, params.Position, params.Context)
+		if err != nil {
+			break // use common error handling, candidates==nil
+		}
+		return cl, nil
 	}
 	if err != nil {
 		event.Error(ctx, "no completions found", err, tag.Position.Of(params.Position))
