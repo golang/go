@@ -1157,48 +1157,48 @@ func TestDecodeErrorMultipleTypes(t *testing.T) {
 
 // Issue 24075
 func TestMarshalFloatMap(t *testing.T) {
-	var m = map[float64]string{
-		math.NaN(): "a",
-		math.NaN(): "b",
-		math.NaN(): "c",
+	nan1 := math.NaN()
+	nan2 := math.Float64frombits(math.Float64bits(nan1) ^ 1) // A different NaN in the same class.
+
+	in := map[float64]string{
+		nan1: "a",
+		nan1: "b",
+		nan2: "c",
 	}
 
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
-	err := enc.Encode(m)
-	if err != nil {
-		t.Errorf("Encode() error: %v", err)
+	if err := enc.Encode(in); err != nil {
+		t.Errorf("Encode : %v", err)
 	}
 
-	var result = map[float64]string{}
+	out := map[float64]string{}
 	dec := NewDecoder(&b)
-	err = dec.Decode(&result)
-
-	if err != nil {
-		t.Fatalf("decoder fail: %v", err)
+	if err := dec.Decode(&out); err != nil {
+		t.Fatalf("Decode : %v", err)
 	}
 
-	// NaN cannot compare
-
-	readMap := func(m map[float64]string) ([]uint64, []string) {
-		var (
-			mk = []uint64{}
-			mv = []string{}
-		)
+	type mapEntry struct {
+		keyBits uint64
+		value   string
+	}
+	readMap := func(m map[float64]string) (entries []mapEntry) {
 		for k, v := range m {
-			mk = append(mk, math.Float64bits(k)) // conversion NaN to a uint64
-			mv = append(mv, v)
+			entries = append(entries, mapEntry{math.Float64bits(k), v})
 		}
-		sort.Slice(mk, func(i, j int) bool {
-			return mk[i] < mk[j]
+		sort.Slice(entries, func(i, j int) bool {
+			ei, ej := entries[i], entries[j]
+			if ei.keyBits != ej.keyBits {
+				return ei.keyBits < ej.keyBits
+			}
+			return ei.value < ej.value
 		})
-		sort.Strings(mv)
-		return mk, mv
+		return entries
 	}
-	mk, mv := readMap(m)
-	resultk, resultv := readMap(result)
 
-	if !reflect.DeepEqual(mk, resultk) || !reflect.DeepEqual(mv, resultv) {
-		t.Fatalf("decoder fail: \n %v %v \n %v %v", mk, mv, resultk, resultv)
+	got := readMap(out)
+	want := readMap(in)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
 	}
 }
