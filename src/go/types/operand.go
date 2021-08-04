@@ -255,13 +255,13 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
 		if t, ok := Tu.(*Union); ok {
-			return t.is(func(t Type, tilde bool) bool {
+			return t.is(func(t *term) bool {
 				// TODO(gri) this could probably be more efficient
-				if tilde {
+				if t.tilde {
 					// TODO(gri) We need to check assignability
 					//           for the underlying type of x.
 				}
-				ok, _ := x.assignableTo(check, t, reason)
+				ok, _ := x.assignableTo(check, t.typ, reason)
 				return ok
 			}), _IncompatibleAssign
 		}

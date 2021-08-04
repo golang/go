@@ -303,7 +303,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		}
 
 	case *Union:
-		return w.isParameterizedList(t.types)
+		return w.isParameterizedTermList(t.terms)
 
 	case *Signature:
 		// t.tparams may not be nil if we are looking at a signature
@@ -331,7 +331,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.elem)
 
 	case *Named:
-		return w.isParameterizedList(t.targs)
+		return w.isParameterizedTypeList(t.targs)
 
 	case *TypeParam:
 		// t must be one of w.tparams
@@ -344,9 +344,18 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	return false
 }
 
-func (w *tpWalker) isParameterizedList(list []Type) bool {
+func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 	for _, t := range list {
 		if w.isParameterized(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *tpWalker) isParameterizedTermList(list []*term) bool {
+	for _, t := range list {
+		if w.isParameterized(t.typ) {
 			return true
 		}
 	}
@@ -461,7 +470,8 @@ func (check *Checker) structuralType(constraint Type) Type {
 		if u, _ := types.(*Union); u != nil {
 			if u.NumTerms() == 1 {
 				// TODO(gri) do we need to respect tilde?
-				return u.types[0]
+				t, _ := u.Term(0)
+				return t
 			}
 			return nil
 		}

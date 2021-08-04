@@ -163,14 +163,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			buf.WriteString("⊥")
 			break
 		}
-		for i, e := range t.types {
+		for i, t := range t.terms {
 			if i > 0 {
 				buf.WriteByte('|')
 			}
-			if t.tilde[i] {
+			if t.tilde {
 				buf.WriteByte('~')
 			}
-			writeType(buf, e, qf, visited)
+			writeType(buf, t.typ, qf, visited)
 		}
 
 	case *Interface:

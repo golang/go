@@ -43,6 +43,13 @@ func (s *TypeSet) IsComparable() bool {
 	return s.comparable && tcomparable
 }
 
+// TODO(gri) IsTypeSet is not a great name. Find a better one.
+
+// IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
+func (s *TypeSet) IsTypeSet() bool {
+	return !s.comparable && len(s.methods) == 0
+}
+
 // NumMethods returns the number of methods available.
 func (s *TypeSet) NumMethods() int { return len(s.methods) }
 
