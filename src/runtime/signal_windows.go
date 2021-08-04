@@ -218,11 +218,11 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
 
 	print("PC=", hex(r.ip()), "\n")
-	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
 		if iscgo {
 			print("signal arrived during external code execution\n")
 		}
-		gp = _g_.m.lockedg.ptr()
+		gp = _g_.m.curg
 	}
 	print("\n")
 

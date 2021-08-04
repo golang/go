@@ -536,6 +536,29 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	}
 }
 
+func TestCgoPanicCallback(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "PanicCallback")
+	t.Log(got)
+	want := "panic: runtime error: invalid memory address or nil pointer dereference"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "panic_callback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	want = "PanicCallback"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
+	}
+}
+
 // Test that C code called via cgo can use large Windows thread stacks
 // and call back in to Go without crashing. See issue #20975.
 //
@@ -600,6 +623,28 @@ func TestSegv(t *testing.T) {
 				t.Errorf("expected crash from signal")
 			}
 		})
+	}
+}
+
+func TestAbortInCgo(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		// N.B. On Windows, C abort() causes the program to exit
+		// without going through the runtime at all.
+		t.Skipf("no signals on %s", runtime.GOOS)
+	}
+
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "Abort")
+	t.Log(got)
+	want := "SIGABRT"
+	if !strings.Contains(got, want) {
+		t.Errorf("did not see %q in output", want)
+	}
+	// No runtime errors like "runtime: unknown pc".
+	nowant := "runtime: "
+	if strings.Contains(got, nowant) {
+		t.Errorf("did not see %q in output", want)
 	}
 }
 
