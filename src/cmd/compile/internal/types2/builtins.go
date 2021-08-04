@@ -144,7 +144,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(under(x.typ)); t := typ.(type) {
+		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -180,7 +180,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		case *TypeParam:
 			if t.underIs(func(t Type) bool {
-				switch t := implicitArrayDeref(t).(type) {
+				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -862,10 +862,9 @@ func makeSig(res Type, args ...Type) *Signature {
 	return &Signature{params: params, results: result}
 }
 
-// implicitArrayDeref returns A if typ is of the form *A and A is an array;
+// arrayPtrDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
-//
-func implicitArrayDeref(typ Type) Type {
+func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
 		if a := asArray(p.base); a != nil {
 			return a
