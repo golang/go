@@ -11,11 +11,11 @@ import (
 
 var testTerms = map[string]*term{
 	"∅":       nil,
-	"⊤":       &term{},
-	"int":     &term{false, Typ[Int]},
-	"~int":    &term{true, Typ[Int]},
-	"string":  &term{false, Typ[String]},
-	"~string": &term{true, Typ[String]},
+	"⊤":       {},
+	"int":     {false, Typ[Int]},
+	"~int":    {true, Typ[Int]},
+	"string":  {false, Typ[String]},
+	"~string": {true, Typ[String]},
 	// TODO(gri) add a defined type
 }
 

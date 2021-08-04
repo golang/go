@@ -308,7 +308,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		for _, m := range T.typeSet().methods {
 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
 
-			if f == nil && static {
+			if f == nil {
+				if !static {
+					continue
+				}
 				return m, f
 			}
 
