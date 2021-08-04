@@ -162,7 +162,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type, p
 // A suitable error is reported if the result is false.
 // TODO(gri) This should be a method of interfaces or type sets.
 func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap *substMap) bool {
-	iface := tpar.Bound()
+	iface := tpar.iface()
 	if iface.Empty() {
 		return true // no type bound
 	}
@@ -176,7 +176,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// if iface is comparable, targ must be comparable
 	// TODO(gri) the error messages needs to be better, here
 	if iface.IsComparable() && !Comparable(targ) {
-		if tpar := asTypeParam(targ); tpar != nil && tpar.Bound().typeSet().IsTop() {
+		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsTop() {
 			check.softErrorf(atPos(pos), _Todo, "%s has no constraints", targ)
 			return false
 		}
@@ -222,7 +222,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 	if targ := asTypeParam(targ); targ != nil {
-		targBound := targ.Bound()
+		targBound := targ.iface()
 		if targBound.typeSet().types == nil {
 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 			return false

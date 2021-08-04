@@ -113,7 +113,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	case *Array:
 		return comparable(t.elem, seen)
 	case *TypeParam:
-		return t.Bound().IsComparable()
+		return t.iface().IsComparable()
 	}
 	return false
 }

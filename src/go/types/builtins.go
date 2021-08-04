@@ -826,7 +826,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type and collect possible result types at the same time.
 		var rtypes []Type
 		var tildes []bool
-		if !tp.Bound().is(func(typ Type, tilde bool) bool {
+		if !tp.iface().is(func(typ Type, tilde bool) bool {
 			if r := f(typ); r != nil {
 				rtypes = append(rtypes, r)
 				tildes = append(tildes, tilde)

@@ -56,7 +56,7 @@ func optype(typ Type) Type {
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.
-		if a := t.Bound().typeSet().types; a != nil && a != typ {
+		if a := t.iface().typeSet().types; a != nil && a != typ {
 			// If we have a union with a single entry, ignore
 			// any tilde because under(~t) == under(t).
 			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
