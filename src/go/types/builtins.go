@@ -844,7 +844,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		ptyp := check.NewTypeParam(tpar, &emptyInterface) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 		tsum := newUnion(rtypes, tildes)
-		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
+		ptyp.bound = &Interface{complete: true, tset: &_TypeSet{types: tsum}}
 
 		return ptyp
 	}
