@@ -41,7 +41,7 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 
 	var spn span.Span
 	if e.Pos == "" {
-		spn = parseGoListError(e.Msg, pkg.m.config.Dir)
+		spn = parseGoListError(e.Msg, pkg.m.Config.Dir)
 		// We may not have been able to parse a valid span. Apply the errors to all files.
 		if _, err := spanToRange(pkg, spn); err != nil {
 			var diags []*source.Diagnostic
@@ -56,7 +56,7 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 			return diags, nil
 		}
 	} else {
-		spn = span.ParseInDir(e.Pos, pkg.m.config.Dir)
+		spn = span.ParseInDir(e.Pos, pkg.m.Config.Dir)
 	}
 
 	rng, err := spanToRange(pkg, spn)

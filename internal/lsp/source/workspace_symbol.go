@@ -75,7 +75,7 @@ type symbolizer func(name string, pkg Metadata, m matcherFunc) ([]string, float6
 func fullyQualifiedSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	_, score := dynamicSymbolMatch(name, pkg, matcher)
 	if score > 0 {
-		return []string{pkg.PkgPath(), ".", name}, score
+		return []string{pkg.PackagePath(), ".", name}, score
 	}
 	return nil, 0
 }
@@ -83,14 +83,14 @@ func fullyQualifiedSymbolMatch(name string, pkg Metadata, matcher matcherFunc) (
 func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
 	var score float64
 
-	endsInPkgName := strings.HasSuffix(pkg.PkgPath(), pkg.Name())
+	endsInPkgName := strings.HasSuffix(pkg.PackagePath(), pkg.PackageName())
 
 	// If the package path does not end in the package name, we need to check the
 	// package-qualified symbol as an extra pass first.
 	if !endsInPkgName {
-		pkgQualified := []string{pkg.Name(), ".", name}
+		pkgQualified := []string{pkg.PackageName(), ".", name}
 		idx, score := matcher(pkgQualified)
-		nameStart := len(pkg.Name()) + 1
+		nameStart := len(pkg.PackageName()) + 1
 		if score > 0 {
 			// If our match is contained entirely within the unqualified portion,
 			// just return that.
@@ -103,11 +103,11 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	}
 
 	// Now try matching the fully qualified symbol.
-	fullyQualified := []string{pkg.PkgPath(), ".", name}
+	fullyQualified := []string{pkg.PackagePath(), ".", name}
 	idx, score := matcher(fullyQualified)
 
 	// As above, check if we matched just the unqualified symbol name.
-	nameStart := len(pkg.PkgPath()) + 1
+	nameStart := len(pkg.PackagePath()) + 1
 	if idx >= nameStart {
 		return []string{name}, score
 	}
@@ -116,9 +116,9 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 	// initial pass above, so check if we matched just the package-qualified
 	// name.
 	if endsInPkgName && idx >= 0 {
-		pkgStart := len(pkg.PkgPath()) - len(pkg.Name())
+		pkgStart := len(pkg.PackagePath()) - len(pkg.PackageName())
 		if idx >= pkgStart {
-			return []string{pkg.Name(), ".", name}, score
+			return []string{pkg.PackageName(), ".", name}, score
 		}
 	}
 
@@ -128,7 +128,7 @@ func dynamicSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]strin
 }
 
 func packageSymbolMatch(name string, pkg Metadata, matcher matcherFunc) ([]string, float64) {
-	qualified := []string{pkg.Name(), ".", name}
+	qualified := []string{pkg.PackageName(), ".", name}
 	if _, s := matcher(qualified); s > 0 {
 		return qualified, s
 	}
@@ -458,7 +458,7 @@ func (w *symbolWorker) matchFile(i symbolFile) {
 			kind:      sym.Kind,
 			uri:       i.uri,
 			rng:       sym.Range,
-			container: i.md.PkgPath(),
+			container: i.md.PackagePath(),
 		}
 		w.ss.store(si)
 	}

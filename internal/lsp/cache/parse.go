@@ -107,9 +107,9 @@ type astCacheKey struct {
 
 func (s *snapshot) astCacheData(ctx context.Context, spkg source.Package, pos token.Pos) (*astCacheData, error) {
 	pkg := spkg.(*pkg)
-	pkgHandle := s.getPackage(pkg.m.id, pkg.mode)
+	pkgHandle := s.getPackage(pkg.m.ID, pkg.mode)
 	if pkgHandle == nil {
-		return nil, fmt.Errorf("could not reconstruct package handle for %v", pkg.m.id)
+		return nil, fmt.Errorf("could not reconstruct package handle for %v", pkg.m.ID)
 	}
 	tok := s.FileSet().File(pos)
 	if tok == nil {

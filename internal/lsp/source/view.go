@@ -307,11 +307,11 @@ type TidiedModule struct {
 
 // Metadata represents package metadata retrieved from go/packages.
 type Metadata interface {
-	// Name is the package name.
-	Name() string
+	// PackageName is the package name.
+	PackageName() string
 
-	// PkgPath is the package path.
-	PkgPath() string
+	// PackagePath is the package path.
+	PackagePath() string
 }
 
 // Session represents a single connection from a client.

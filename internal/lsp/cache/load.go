@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"go/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,40 +27,6 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-// metadata holds package metadata extracted from a call to packages.Load.
-type metadata struct {
-	id              packageID
-	pkgPath         packagePath
-	name            packageName
-	goFiles         []span.URI
-	compiledGoFiles []span.URI
-	forTest         packagePath
-	typesSizes      types.Sizes
-	errors          []packages.Error
-	deps            []packageID
-	missingDeps     map[packagePath]struct{}
-	module          *packages.Module
-	depsErrors      []*packagesinternal.PackageError
-
-	// config is the *packages.Config associated with the loaded package.
-	config *packages.Config
-
-	// isIntermediateTestVariant reports whether the given package is an
-	// intermediate test variant, e.g.
-	// "golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]".
-	isIntermediateTestVariant bool
-}
-
-// Name implements the source.Metadata interface.
-func (m *metadata) Name() string {
-	return string(m.name)
-}
-
-// PkgPath implements the source.Metadata interface.
-func (m *metadata) PkgPath() string {
-	return string(m.pkgPath)
-}
-
 // load calls packages.Load for the given scopes, updating package metadata,
 // import graph, and mapped files with the result.
 func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interface{}) (err error) {
@@ -80,7 +45,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 			s.clearShouldLoad(scope)
 		}()
 		switch scope := scope.(type) {
-		case packagePath:
+		case PackagePath:
 			if source.IsCommandLineArguments(string(scope)) {
 				panic("attempted to load command-line-arguments")
 			}
@@ -205,12 +170,12 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		// Set the metadata for this package.
 		s.mu.Lock()
-		m, err := s.setMetadataLocked(ctx, packagePath(pkg.PkgPath), pkg, cfg, query, map[packageID]struct{}{})
+		m, err := s.setMetadataLocked(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, map[PackageID]struct{}{})
 		s.mu.Unlock()
 		if err != nil {
 			return err
 		}
-		if _, err := s.buildPackageHandle(ctx, m.id, s.workspaceParseMode(m.id)); err != nil {
+		if _, err := s.buildPackageHandle(ctx, m.ID, s.workspaceParseMode(m.ID)); err != nil {
 			return err
 		}
 	}
@@ -403,25 +368,25 @@ func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generati
 // setMetadataLocked extracts metadata from pkg and records it in s. It
 // recurses through pkg.Imports to ensure that metadata exists for all
 // dependencies.
-func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, query []string, seen map[packageID]struct{}) (*metadata, error) {
-	id := packageID(pkg.ID)
+func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, pkg *packages.Package, cfg *packages.Config, query []string, seen map[PackageID]struct{}) (*Metadata, error) {
+	id := PackageID(pkg.ID)
 	if source.IsCommandLineArguments(pkg.ID) {
 		suffix := ":" + strings.Join(query, ",")
-		id = packageID(string(id) + suffix)
-		pkgPath = packagePath(string(pkgPath) + suffix)
+		id = PackageID(string(id) + suffix)
+		pkgPath = PackagePath(string(pkgPath) + suffix)
 	}
 	if _, ok := seen[id]; ok {
 		return nil, errors.Errorf("import cycle detected: %q", id)
 	}
 	// Recreate the metadata rather than reusing it to avoid locking.
-	m := &metadata{
-		id:         id,
-		pkgPath:    pkgPath,
-		name:       packageName(pkg.Name),
-		forTest:    packagePath(packagesinternal.GetForTest(pkg)),
-		typesSizes: pkg.TypesSizes,
-		config:     cfg,
-		module:     pkg.Module,
+	m := &Metadata{
+		ID:         id,
+		PkgPath:    pkgPath,
+		Name:       PackageName(pkg.Name),
+		ForTest:    PackagePath(packagesinternal.GetForTest(pkg)),
+		TypesSizes: pkg.TypesSizes,
+		Config:     cfg,
+		Module:     pkg.Module,
 		depsErrors: packagesinternal.GetDepsErrors(pkg),
 	}
 
@@ -432,41 +397,41 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, p
 		if strings.Contains(err.Msg, "expected '") {
 			continue
 		}
-		m.errors = append(m.errors, err)
+		m.Errors = append(m.Errors, err)
 	}
 
 	uris := map[span.URI]struct{}{}
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.URIFromPath(filename)
-		m.compiledGoFiles = append(m.compiledGoFiles, uri)
+		m.CompiledGoFiles = append(m.CompiledGoFiles, uri)
 		uris[uri] = struct{}{}
 	}
 	for _, filename := range pkg.GoFiles {
 		uri := span.URIFromPath(filename)
-		m.goFiles = append(m.goFiles, uri)
+		m.GoFiles = append(m.GoFiles, uri)
 		uris[uri] = struct{}{}
 	}
 	s.updateIDForURIsLocked(id, uris)
 
 	// TODO(rstambler): is this still necessary?
-	copied := map[packageID]struct{}{
+	copied := map[PackageID]struct{}{
 		id: {},
 	}
 	for k, v := range seen {
 		copied[k] = v
 	}
 	for importPath, importPkg := range pkg.Imports {
-		importPkgPath := packagePath(importPath)
-		importID := packageID(importPkg.ID)
+		importPkgPath := PackagePath(importPath)
+		importID := PackageID(importPkg.ID)
 
-		m.deps = append(m.deps, importID)
+		m.Deps = append(m.Deps, importID)
 
 		// Don't remember any imports with significant errors.
 		if importPkgPath != "unsafe" && len(importPkg.CompiledGoFiles) == 0 {
-			if m.missingDeps == nil {
-				m.missingDeps = make(map[packagePath]struct{})
+			if m.MissingDeps == nil {
+				m.MissingDeps = make(map[PackagePath]struct{})
 			}
-			m.missingDeps[importPkgPath] = struct{}{}
+			m.MissingDeps[importPkgPath] = struct{}{}
 			continue
 		}
 		if s.noValidMetadataForIDLocked(importID) {
@@ -479,25 +444,25 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, p
 	// Add the metadata to the cache.
 
 	// If we've already set the metadata for this snapshot, reuse it.
-	if original, ok := s.metadata[m.id]; ok && original.valid {
+	if original, ok := s.metadata[m.ID]; ok && original.Valid {
 		// Since we've just reloaded, clear out shouldLoad.
-		original.shouldLoad = false
-		m = original.metadata
+		original.ShouldLoad = false
+		m = original.Metadata
 	} else {
-		s.metadata[m.id] = &knownMetadata{
-			metadata: m,
-			valid:    true,
+		s.metadata[m.ID] = &KnownMetadata{
+			Metadata: m,
+			Valid:    true,
 		}
 		// Invalidate any packages we may have associated with this metadata.
 		for _, mode := range []source.ParseMode{source.ParseHeader, source.ParseExported, source.ParseFull} {
-			key := packageKey{mode, m.id}
+			key := packageKey{mode, m.ID}
 			delete(s.packages, key)
 		}
 	}
 
 	// Set the workspace packages. If any of the package's files belong to the
 	// view, then the package may be a workspace package.
-	for _, uri := range append(m.compiledGoFiles, m.goFiles...) {
+	for _, uri := range append(m.CompiledGoFiles, m.GoFiles...) {
 		if !s.view.contains(uri) {
 			continue
 		}
@@ -509,16 +474,16 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, p
 		}
 
 		switch {
-		case m.forTest == "":
+		case m.ForTest == "":
 			// A normal package.
-			s.workspacePackages[m.id] = pkgPath
-		case m.forTest == m.pkgPath, m.forTest+"_test" == m.pkgPath:
+			s.workspacePackages[m.ID] = pkgPath
+		case m.ForTest == m.PkgPath, m.ForTest+"_test" == m.PkgPath:
 			// The test variant of some workspace package or its x_test.
 			// To load it, we need to load the non-test variant with -test.
-			s.workspacePackages[m.id] = m.forTest
+			s.workspacePackages[m.ID] = m.ForTest
 		default:
 			// A test variant of some intermediate package. We don't care about it.
-			m.isIntermediateTestVariant = true
+			m.IsIntermediateTestVariant = true
 		}
 	}
 	return m, nil

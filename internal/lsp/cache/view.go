@@ -611,7 +611,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	// If we're loading anything, ensure we also load builtin.
 	// TODO(rstambler): explain the rationale for this.
 	if len(scopes) > 0 {
-		scopes = append(scopes, packagePath("builtin"))
+		scopes = append(scopes, PackagePath("builtin"))
 	}
 	err := s.load(ctx, firstAttempt, scopes...)
 

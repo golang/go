@@ -69,14 +69,14 @@ type snapshot struct {
 
 	// ids maps file URIs to package IDs.
 	// It may be invalidated on calls to go/packages.
-	ids map[span.URI][]packageID
+	ids map[span.URI][]PackageID
 
 	// metadata maps file IDs to their associated metadata.
 	// It may invalidated on calls to go/packages.
-	metadata map[packageID]*knownMetadata
+	metadata map[PackageID]*KnownMetadata
 
 	// importedBy maps package IDs to the list of packages that import them.
-	importedBy map[packageID][]packageID
+	importedBy map[PackageID][]PackageID
 
 	// files maps file URIs to their corresponding FileHandles.
 	// It may invalidated when a file's content changes.
@@ -97,7 +97,7 @@ type snapshot struct {
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
-	workspacePackages map[packageID]packagePath
+	workspacePackages map[PackageID]PackagePath
 
 	// unloadableFiles keeps track of files that we've failed to load.
 	unloadableFiles map[span.URI]struct{}
@@ -126,24 +126,12 @@ type snapshot struct {
 
 type packageKey struct {
 	mode source.ParseMode
-	id   packageID
+	id   PackageID
 }
 
 type actionKey struct {
 	pkg      packageKey
 	analyzer *analysis.Analyzer
-}
-
-// knownMetadata is a wrapper around metadata that tracks its validity.
-type knownMetadata struct {
-	*metadata
-
-	// valid is true if the given metadata is valid.
-	// Invalid metadata can still be used if a metadata reload fails.
-	valid bool
-
-	// shouldLoad is true if the given metadata should be reloaded.
-	shouldLoad bool
 }
 
 func (s *snapshot) ID() uint64 {
@@ -535,7 +523,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	for _, id := range knownIDs {
 		// Filter out any intermediate test variants. We typically aren't
 		// interested in these packages for file= style queries.
-		if m := s.getMetadata(id); m != nil && m.isIntermediateTestVariant {
+		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant {
 			continue
 		}
 		var parseModes []source.ParseMode
@@ -563,7 +551,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	return phs, nil
 }
 
-func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]packageID, error) {
+func (s *snapshot) getOrLoadIDsForURI(ctx context.Context, uri span.URI) ([]PackageID, error) {
 	knownIDs := s.getIDsForURI(uri)
 	reload := len(knownIDs) == 0
 	for _, id := range knownIDs {
@@ -605,11 +593,11 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	ids := make(map[packageID]struct{})
-	s.transitiveReverseDependencies(packageID(id), ids)
+	ids := make(map[PackageID]struct{})
+	s.transitiveReverseDependencies(PackageID(id), ids)
 
 	// Make sure to delete the original package ID from the map.
-	delete(ids, packageID(id))
+	delete(ids, PackageID(id))
 
 	var pkgs []source.Package
 	for id := range ids {
@@ -622,7 +610,7 @@ func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]sou
 	return pkgs, nil
 }
 
-func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source.ParseMode) (*pkg, error) {
+func (s *snapshot) checkedPackage(ctx context.Context, id PackageID, mode source.ParseMode) (*pkg, error) {
 	ph, err := s.buildPackageHandle(ctx, id, mode)
 	if err != nil {
 		return nil, err
@@ -632,13 +620,13 @@ func (s *snapshot) checkedPackage(ctx context.Context, id packageID, mode source
 
 // transitiveReverseDependencies populates the ids map with package IDs
 // belonging to the provided package and its transitive reverse dependencies.
-func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID]struct{}) {
+func (s *snapshot) transitiveReverseDependencies(id PackageID, ids map[PackageID]struct{}) {
 	if _, ok := ids[id]; ok {
 		return
 	}
 	m := s.getMetadata(id)
 	// Only use invalid metadata if we support it.
-	if m == nil || !(m.valid || s.useInvalidMetadata()) {
+	if m == nil || !(m.Valid || s.useInvalidMetadata()) {
 		return
 	}
 	ids[id] = struct{}{}
@@ -682,13 +670,13 @@ func (s *snapshot) getModTidyHandle(uri span.URI) *modTidyHandle {
 	return s.modTidyHandles[uri]
 }
 
-func (s *snapshot) getImportedBy(id packageID) []packageID {
+func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.getImportedByLocked(id)
 }
 
-func (s *snapshot) getImportedByLocked(id packageID) []packageID {
+func (s *snapshot) getImportedByLocked(id PackageID) []PackageID {
 	// If we haven't rebuilt the import graph since creating the snapshot.
 	if len(s.importedBy) == 0 {
 		s.rebuildImportGraph()
@@ -701,13 +689,13 @@ func (s *snapshot) clearAndRebuildImportGraph() {
 	defer s.mu.Unlock()
 
 	// Completely invalidate the original map.
-	s.importedBy = make(map[packageID][]packageID)
+	s.importedBy = make(map[PackageID][]PackageID)
 	s.rebuildImportGraph()
 }
 
 func (s *snapshot) rebuildImportGraph() {
 	for id, m := range s.metadata {
-		for _, importID := range m.deps {
+		for _, importID := range m.Deps {
 			s.importedBy[importID] = append(s.importedBy[importID], id)
 		}
 	}
@@ -726,7 +714,7 @@ func (s *snapshot) addPackageHandle(ph *packageHandle) *packageHandle {
 	return ph
 }
 
-func (s *snapshot) workspacePackageIDs() (ids []packageID) {
+func (s *snapshot) workspacePackageIDs() (ids []PackageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -736,7 +724,7 @@ func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 	return ids
 }
 
-func (s *snapshot) activePackageIDs() (ids []packageID) {
+func (s *snapshot) activePackageIDs() (ids []PackageID) {
 	if s.view.Options().MemoryMode == source.ModeNormal {
 		return s.workspacePackageIDs()
 	}
@@ -744,7 +732,7 @@ func (s *snapshot) activePackageIDs() (ids []packageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	seen := make(map[packageID]bool)
+	seen := make(map[PackageID]bool)
 	for id := range s.workspacePackages {
 		if s.isActiveLocked(id, seen) {
 			ids = append(ids, id)
@@ -753,9 +741,9 @@ func (s *snapshot) activePackageIDs() (ids []packageID) {
 	return ids
 }
 
-func (s *snapshot) isActiveLocked(id packageID, seen map[packageID]bool) (active bool) {
+func (s *snapshot) isActiveLocked(id PackageID, seen map[PackageID]bool) (active bool) {
 	if seen == nil {
-		seen = make(map[packageID]bool)
+		seen = make(map[PackageID]bool)
 	}
 	if seen, ok := seen[id]; ok {
 		return seen
@@ -767,12 +755,12 @@ func (s *snapshot) isActiveLocked(id packageID, seen map[packageID]bool) (active
 	if !ok {
 		return false
 	}
-	for _, cgf := range m.compiledGoFiles {
+	for _, cgf := range m.CompiledGoFiles {
 		if s.isOpenLocked(cgf) {
 			return true
 		}
 	}
-	for _, dep := range m.deps {
+	for _, dep := range m.Deps {
 		if s.isActiveLocked(dep, seen) {
 			return true
 		}
@@ -780,7 +768,7 @@ func (s *snapshot) isActiveLocked(id packageID, seen map[packageID]bool) (active
 	return false
 }
 
-func (s *snapshot) getWorkspacePkgPath(id packageID) packagePath {
+func (s *snapshot) getWorkspacePkgPath(id PackageID) PackagePath {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1073,7 +1061,7 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
-func (s *snapshot) getPackage(id packageID, mode source.ParseMode) *packageHandle {
+func (s *snapshot) getPackage(id PackageID, mode source.ParseMode) *packageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1104,7 +1092,8 @@ func (s *snapshot) addSymbolHandle(sh *symbolHandle) *symbolHandle {
 	s.symbols[uri] = sh
 	return sh
 }
-func (s *snapshot) getActionHandle(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
+
+func (s *snapshot) getActionHandle(id PackageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1125,7 +1114,7 @@ func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 	key := actionKey{
 		analyzer: ah.analyzer,
 		pkg: packageKey{
-			id:   ah.pkg.m.id,
+			id:   ah.pkg.m.ID,
 			mode: ah.pkg.mode,
 		},
 	}
@@ -1136,14 +1125,14 @@ func (s *snapshot) addActionHandle(ah *actionHandle) *actionHandle {
 	return ah
 }
 
-func (s *snapshot) getIDsForURI(uri span.URI) []packageID {
+func (s *snapshot) getIDsForURI(uri span.URI) []PackageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.ids[uri]
 }
 
-func (s *snapshot) getMetadata(id packageID) *knownMetadata {
+func (s *snapshot) getMetadata(id PackageID) *KnownMetadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1155,15 +1144,15 @@ func (s *snapshot) shouldLoad(scope interface{}) bool {
 	defer s.mu.Unlock()
 
 	switch scope := scope.(type) {
-	case packagePath:
-		var meta *knownMetadata
+	case PackagePath:
+		var meta *KnownMetadata
 		for _, m := range s.metadata {
-			if m.pkgPath != scope {
+			if m.PkgPath != scope {
 				continue
 			}
 			meta = m
 		}
-		if meta == nil || meta.shouldLoad {
+		if meta == nil || meta.ShouldLoad {
 			return true
 		}
 		return false
@@ -1175,7 +1164,7 @@ func (s *snapshot) shouldLoad(scope interface{}) bool {
 		}
 		for _, id := range ids {
 			m, ok := s.metadata[id]
-			if !ok || m.shouldLoad {
+			if !ok || m.ShouldLoad {
 				return true
 			}
 		}
@@ -1190,17 +1179,17 @@ func (s *snapshot) clearShouldLoad(scope interface{}) {
 	defer s.mu.Unlock()
 
 	switch scope := scope.(type) {
-	case packagePath:
-		var meta *knownMetadata
+	case PackagePath:
+		var meta *KnownMetadata
 		for _, m := range s.metadata {
-			if m.pkgPath == scope {
+			if m.PkgPath == scope {
 				meta = m
 			}
 		}
 		if meta == nil {
 			return
 		}
-		meta.shouldLoad = false
+		meta.ShouldLoad = false
 	case fileURI:
 		uri := span.URI(scope)
 		ids := s.ids[uri]
@@ -1209,7 +1198,7 @@ func (s *snapshot) clearShouldLoad(scope interface{}) {
 		}
 		for _, id := range ids {
 			if m, ok := s.metadata[id]; ok {
-				m.shouldLoad = false
+				m.ShouldLoad = false
 			}
 		}
 	}
@@ -1223,7 +1212,7 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 		return true
 	}
 	for _, id := range ids {
-		if m, ok := s.metadata[id]; ok && m.valid {
+		if m, ok := s.metadata[id]; ok && m.Valid {
 			return false
 		}
 	}
@@ -1232,15 +1221,15 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 
 // noValidMetadataForID reports whether there is no valid metadata for the
 // given ID.
-func (s *snapshot) noValidMetadataForID(id packageID) bool {
+func (s *snapshot) noValidMetadataForID(id PackageID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.noValidMetadataForIDLocked(id)
 }
 
-func (s *snapshot) noValidMetadataForIDLocked(id packageID) bool {
+func (s *snapshot) noValidMetadataForIDLocked(id PackageID) bool {
 	m := s.metadata[id]
-	return m == nil || !m.valid
+	return m == nil || !m.Valid
 }
 
 // updateIDForURIsLocked adds the given ID to the set of known IDs for the given URI.
@@ -1248,10 +1237,10 @@ func (s *snapshot) noValidMetadataForIDLocked(id packageID) bool {
 // not "command-line-arguments" are preferred, so if a new ID comes in for a
 // URI that previously only had "command-line-arguments", the new ID will
 // replace the "command-line-arguments" ID.
-func (s *snapshot) updateIDForURIsLocked(id packageID, uris map[span.URI]struct{}) {
+func (s *snapshot) updateIDForURIsLocked(id PackageID, uris map[span.URI]struct{}) {
 	for uri := range uris {
 		// Collect the new set of IDs, preserving any valid existing IDs.
-		newIDs := []packageID{id}
+		newIDs := []PackageID{id}
 		for _, existingID := range s.ids[uri] {
 			// Don't set duplicates of the same ID.
 			if existingID == id {
@@ -1265,7 +1254,7 @@ func (s *snapshot) updateIDForURIsLocked(id packageID, uris map[span.URI]struct{
 			}
 			// If the metadata for an existing ID is invalid, and we are
 			// setting metadata for a new, valid ID--don't preserve the old ID.
-			if m, ok := s.metadata[existingID]; !ok || !m.valid {
+			if m, ok := s.metadata[existingID]; !ok || !m.Valid {
 				continue
 			}
 			newIDs = append(newIDs, existingID)
@@ -1277,7 +1266,7 @@ func (s *snapshot) updateIDForURIsLocked(id packageID, uris map[span.URI]struct{
 	}
 }
 
-func (s *snapshot) isWorkspacePackage(id packageID) bool {
+func (s *snapshot) isWorkspacePackage(id PackageID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1363,7 +1352,7 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 		return nil
 	}
 	for _, m := range s.metadata {
-		if m.valid {
+		if m.Valid {
 			return nil
 		}
 	}
@@ -1487,9 +1476,9 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// See which of the workspace packages are missing metadata.
 	s.mu.Lock()
 	missingMetadata := len(s.workspacePackages) == 0 || len(s.metadata) == 0
-	pkgPathSet := map[packagePath]struct{}{}
+	pkgPathSet := map[PackagePath]struct{}{}
 	for id, pkgPath := range s.workspacePackages {
-		if m, ok := s.metadata[id]; ok && m.valid {
+		if m, ok := s.metadata[id]; ok && m.Valid {
 			continue
 		}
 		missingMetadata = true
@@ -1634,7 +1623,7 @@ func checkSnapshotLocked(ctx context.Context, s *snapshot) {
 	// belonging to that workspace package.
 	for wsID := range s.workspacePackages {
 		if m, ok := s.metadata[wsID]; ok {
-			for _, uri := range m.goFiles {
+			for _, uri := range m.GoFiles {
 				found := false
 				for _, id := range s.ids[uri] {
 					if id == wsID {
@@ -1686,15 +1675,15 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		builtin:           s.builtin,
 		initializeOnce:    s.initializeOnce,
 		initializedErr:    s.initializedErr,
-		ids:               make(map[span.URI][]packageID, len(s.ids)),
-		importedBy:        make(map[packageID][]packageID, len(s.importedBy)),
-		metadata:          make(map[packageID]*knownMetadata, len(s.metadata)),
+		ids:               make(map[span.URI][]PackageID, len(s.ids)),
+		importedBy:        make(map[PackageID][]PackageID, len(s.importedBy)),
+		metadata:          make(map[PackageID]*KnownMetadata, len(s.metadata)),
 		packages:          make(map[packageKey]*packageHandle, len(s.packages)),
 		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
 		files:             make(map[span.URI]source.VersionedFileHandle, len(s.files)),
 		goFiles:           make(map[parseKey]*parseGoHandle, len(s.goFiles)),
 		symbols:           make(map[span.URI]*symbolHandle, len(s.symbols)),
-		workspacePackages: make(map[packageID]packagePath, len(s.workspacePackages)),
+		workspacePackages: make(map[PackageID]PackagePath, len(s.workspacePackages)),
 		unloadableFiles:   make(map[span.URI]struct{}, len(s.unloadableFiles)),
 		parseModHandles:   make(map[span.URI]*parseModHandle, len(s.parseModHandles)),
 		modTidyHandles:    make(map[span.URI]*modTidyHandle, len(s.modTidyHandles)),
@@ -1767,7 +1756,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	// directIDs keeps track of package IDs that have directly changed.
 	// It maps id->invalidateMetadata.
-	directIDs := map[packageID]bool{}
+	directIDs := map[PackageID]bool{}
 
 	// Invalidate all package metadata if the workspace module has changed.
 	if workspaceReload {
@@ -1776,7 +1765,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	changedPkgNames := map[packageID]struct{}{}
+	changedPkgNames := map[PackageID]struct{}{}
 	anyImportDeleted := false
 	for uri, change := range changes {
 		// Maybe reinitialize the view if we see a change in the vendor
@@ -1850,7 +1839,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// starting point to compare with.
 	if anyImportDeleted {
 		for id, metadata := range s.metadata {
-			if len(metadata.errors) > 0 {
+			if len(metadata.Errors) > 0 {
 				directIDs[id] = true
 			}
 		}
@@ -1861,9 +1850,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// idsToInvalidate keeps track of transitive reverse dependencies.
 	// If an ID is present in the map, invalidate its types.
 	// If an ID's value is true, invalidate its metadata too.
-	idsToInvalidate := map[packageID]bool{}
-	var addRevDeps func(packageID, bool)
-	addRevDeps = func(id packageID, invalidateMetadata bool) {
+	idsToInvalidate := map[PackageID]bool{}
+	var addRevDeps func(PackageID, bool)
+	addRevDeps = func(id PackageID, invalidateMetadata bool) {
 		current, seen := idsToInvalidate[id]
 		newInvalidateMetadata := current || invalidateMetadata
 
@@ -1903,7 +1892,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// If a file has been deleted, we must delete metadata all packages
 	// containing that file.
 	workspaceModeChanged := s.workspaceMode() != result.workspaceMode()
-	skipID := map[packageID]bool{}
+	skipID := map[PackageID]bool{}
 	for _, c := range changes {
 		if c.exists {
 			continue
@@ -1918,9 +1907,9 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	// Collect all of the IDs that are reachable from the workspace packages.
 	// Any unreachable IDs will have their metadata deleted outright.
-	reachableID := map[packageID]bool{}
-	var addForwardDeps func(packageID)
-	addForwardDeps = func(id packageID) {
+	reachableID := map[PackageID]bool{}
+	var addForwardDeps func(PackageID)
+	addForwardDeps = func(id PackageID) {
 		if reachableID[id] {
 			return
 		}
@@ -1929,7 +1918,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		if !ok {
 			return
 		}
-		for _, depID := range m.deps {
+		for _, depID := range m.Deps {
 			addForwardDeps(depID)
 		}
 	}
@@ -1940,7 +1929,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Copy the URI to package ID mappings, skipping only those URIs whose
 	// metadata will be reloaded in future calls to load.
 	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
-	idsInSnapshot := map[packageID]bool{} // track all known IDs
+	idsInSnapshot := map[PackageID]bool{} // track all known IDs
 	for uri, ids := range s.ids {
 		for _, id := range ids {
 			invalidateMetadata := idsToInvalidate[id]
@@ -1967,10 +1956,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 		invalidateMetadata := idsToInvalidate[k]
 		// Mark invalidated metadata rather than deleting it outright.
-		result.metadata[k] = &knownMetadata{
-			metadata:   v.metadata,
-			valid:      v.valid && !invalidateMetadata,
-			shouldLoad: v.shouldLoad || invalidateMetadata,
+		result.metadata[k] = &KnownMetadata{
+			Metadata:   v.Metadata,
+			Valid:      v.Valid && !invalidateMetadata,
+			ShouldLoad: v.ShouldLoad || invalidateMetadata,
 		}
 	}
 
@@ -1990,11 +1979,11 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// the package is gone and we should no longer try to load it.
 		if m := s.metadata[id]; m != nil {
 			hasFiles := false
-			for _, uri := range s.metadata[id].goFiles {
+			for _, uri := range s.metadata[id].GoFiles {
 				// For internal tests, we need _test files, not just the normal
 				// ones. External tests only have _test files, but we can check
 				// them anyway.
-				if m.forTest != "" && !strings.HasSuffix(string(uri), "_test.go") {
+				if m.ForTest != "" && !strings.HasSuffix(string(uri), "_test.go") {
 					continue
 				}
 				if _, ok := result.files[uri]; ok {
@@ -2034,7 +2023,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// If the snapshot's workspace mode has changed, the packages loaded using
 	// the previous mode are no longer relevant, so clear them out.
 	if workspaceModeChanged {
-		result.workspacePackages = map[packageID]packagePath{}
+		result.workspacePackages = map[PackageID]PackagePath{}
 	}
 
 	// The snapshot may need to be reinitialized.
@@ -2050,7 +2039,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 // seen this URI before, we guess based on files in the same directory. This
 // is of course incorrect in build systems where packages are not organized by
 // directory.
-func guessPackageIDsForURI(uri span.URI, known map[span.URI][]packageID) []packageID {
+func guessPackageIDsForURI(uri span.URI, known map[span.URI][]PackageID) []PackageID {
 	packages := known[uri]
 	if len(packages) > 0 {
 		// We've seen this file before.
@@ -2083,7 +2072,7 @@ func guessPackageIDsForURI(uri span.URI, known map[span.URI][]packageID) []packa
 	}
 
 	// Aggregate all possibly relevant package IDs.
-	var found []packageID
+	var found []PackageID
 	for knownURI, ids := range known {
 		knownDir := filepath.Dir(knownURI.Filename())
 		knownFI, err := getInfo(knownDir)
