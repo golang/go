@@ -20,6 +20,18 @@ func ExampleWriter() {
 	// Output: Hello, world!
 }
 
+func ExampleWriter_AvailableBuffer() {
+	w := bufio.NewWriter(os.Stdout)
+	for _, i := range []int64{1, 2, 3, 4} {
+		b := w.AvailableBuffer()
+		b = strconv.AppendInt(b, i, 10)
+		b = append(b, ' ')
+		w.Write(b)
+	}
+	w.Flush()
+	// Output: 1 2 3 4
+}
+
 // The simplest use of a Scanner, to read standard input as a set of lines.
 func ExampleScanner_lines() {
 	scanner := bufio.NewScanner(os.Stdin)

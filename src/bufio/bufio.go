@@ -633,6 +633,14 @@ func (b *Writer) Flush() error {
 // Available returns how many bytes are unused in the buffer.
 func (b *Writer) Available() int { return len(b.buf) - b.n }
 
+// AvailableBuffer returns an empty buffer with b.Available() capacity.
+// This buffer is intended to be appended to and
+// passed to an immediately succeeding Write call.
+// The buffer is only valid until the next write operation on b.
+func (b *Writer) AvailableBuffer() []byte {
+	return b.buf[b.n:][:0]
+}
+
 // Buffered returns the number of bytes that have been written into the current buffer.
 func (b *Writer) Buffered() int { return b.n }
 

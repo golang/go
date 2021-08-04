@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -605,6 +607,37 @@ func TestWriter(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestWriterAppend(t *testing.T) {
+	got := new(bytes.Buffer)
+	var want []byte
+	rn := rand.New(rand.NewSource(0))
+	w := NewWriterSize(got, 64)
+	for i := 0; i < 100; i++ {
+		// Obtain a buffer to append to.
+		b := w.AvailableBuffer()
+		if w.Available() != cap(b) {
+			t.Fatalf("Available() = %v, want %v", w.Available(), cap(b))
+		}
+
+		// While not recommended, it is valid to append to a shifted buffer.
+		// This forces Write to copy the the input.
+		if rn.Intn(8) == 0 && cap(b) > 0 {
+			b = b[1:1:cap(b)]
+		}
+
+		// Append a random integer of varying width.
+		n := int64(rn.Intn(1 << rn.Intn(30)))
+		want = append(strconv.AppendInt(want, n, 10), ' ')
+		b = append(strconv.AppendInt(b, n, 10), ' ')
+		w.Write(b)
+	}
+	w.Flush()
+
+	if !bytes.Equal(got.Bytes(), want) {
+		t.Errorf("output mismatch:\ngot  %s\nwant %s", got.Bytes(), want)
 	}
 }
 
