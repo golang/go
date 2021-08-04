@@ -947,7 +947,7 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	dupok := 0
-	if tbase.Sym() == nil { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
+	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
 		dupok = obj.DUPOK
 	}
 
@@ -1736,6 +1736,11 @@ func NeedEmit(typ *types.Type) bool {
 	case typ.IsFullyInstantiated():
 		// Instantiated type; possibly instantiated with unique type arguments.
 		// Need to emit to be safe (however, see TODO above).
+		return true
+
+	case typ.HasShape():
+		// Shape type; need to emit even though it lives in the .shape package.
+		// TODO: make sure the linker deduplicates them (see dupok in writeType above).
 		return true
 
 	default:

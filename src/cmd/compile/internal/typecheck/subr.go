@@ -1362,8 +1362,7 @@ func Shapify(t *types.Type) *types.Type {
 		return s
 	}
 
-	sym := Lookup(fmt.Sprintf(".shape%d", snum))
-	snum++
+	sym := shapePkg.Lookup(u.LinkString())
 	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
 	s := types.NewNamed(name)
 	s.SetUnderlying(u)
@@ -1375,6 +1374,6 @@ func Shapify(t *types.Type) *types.Type {
 	return s
 }
 
-var snum int
-
 var shaped = map[*types.Type]*types.Type{}
+
+var shapePkg = types.NewPkg(".shape", ".shape")
