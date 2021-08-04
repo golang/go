@@ -791,7 +791,7 @@ func (a *analysis) genCall(caller *cgnode, instr ssa.CallInstruction) {
 // Some SSA instructions always have singletons points-to sets:
 // 	Alloc, Function, Global, MakeChan, MakeClosure,  MakeInterface,  MakeMap,  MakeSlice.
 // Others may be singletons depending on their operands:
-// 	FreeVar, Const, Convert, FieldAddr, IndexAddr, Slice.
+// 	FreeVar, Const, Convert, FieldAddr, IndexAddr, Slice, SliceToArrayPointer.
 //
 // Idempotent.  Objects are created as needed, possibly via recursion
 // down the SSA value graph, e.g IndexAddr(FieldAddr(Alloc))).
@@ -880,6 +880,11 @@ func (a *analysis) objectNode(cgn *cgnode, v ssa.Value) nodeid {
 			}
 
 		case *ssa.Slice:
+			obj = a.objectNode(cgn, v.X)
+
+		case *ssa.SliceToArrayPointer:
+			// Going from a []T to a *[k]T for some k.
+			// A slice []T is treated as if it were a *T pointer.
 			obj = a.objectNode(cgn, v.X)
 
 		case *ssa.Convert:
@@ -1028,6 +1033,12 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 		a.typeAssert(instr.AssertedType, a.valueNode(instr), a.valueNode(instr.X), true)
 
 	case *ssa.Slice:
+		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
+
+	case *ssa.SliceToArrayPointer:
+		// Going from a []T to a *[k]T (for some k) is a single `dst = src` constraint.
+		// Both []T and *[k]T are modelled as an *IdArrayT where IdArrayT is the identity
+		// node for an array of type T, i.e `type IdArrayT struct{elem T}`.
 		a.copy(a.valueNode(instr), a.valueNode(instr.X), 1)
 
 	case *ssa.If, *ssa.Jump:
