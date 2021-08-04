@@ -159,16 +159,20 @@ func operandString(x *operand, qf Qualifier) string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			var intro string
-			switch {
-			case isGeneric(x.typ):
-				intro = " of generic type "
-			case asTypeParam(x.typ) != nil:
-				intro = " of type parameter type "
-			default:
+			var tpar *TypeParam
+			if isGeneric(x.typ) {
+				intro = " of parameterized type "
+			} else if tpar = asTypeParam(x.typ); tpar != nil {
+				intro = " of type parameter "
+			} else {
 				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
+			if tpar != nil {
+				buf.WriteString(" constrained by ")
+				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+			}
 		} else {
 			buf.WriteString(" with invalid type")
 		}
