@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -314,10 +315,6 @@ func clean(p *load.Package) {
 		}
 	}
 
-	if cfg.BuildN || cfg.BuildX {
-		b.Showcmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
-	}
-
 	toRemove := map[string]bool{}
 	for _, name := range allRemove {
 		toRemove[name] = true
@@ -339,16 +336,24 @@ func clean(p *load.Package) {
 			}
 			continue
 		}
-
-		if cfg.BuildN {
-			continue
+		if cleanFile[name] || cleanExt[filepath.Ext(name)] {
+			toRemove[name] = true
 		}
-
-		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
+	}
+	// issues/33573: record all deleted files
+	if cfg.BuildN || cfg.BuildX {
+		toRemoveList := make([]string, 0, len(toRemove))
+		for name, _ := range toRemove {
+			toRemoveList = append(toRemoveList, name)
+		}
+		sort.Strings(toRemoveList)
+		b.Showcmd(p.Dir, "rm -f %s", strings.Join(toRemoveList, " "))
+	}
+	if !cfg.BuildN {
+		for name, _ := range toRemove {
 			removeFile(filepath.Join(p.Dir, name))
 		}
 	}
-
 	if cleanI && p.Target != "" {
 		if cfg.BuildN || cfg.BuildX {
 			b.Showcmd("", "rm -f %s", p.Target)
