@@ -495,12 +495,12 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 	// Add the metadata to the cache.
 
 	// If we've already set the metadata for this snapshot, reuse it.
-	if original, ok := s.metadata[m.ID]; ok && original.Valid {
+	if original, ok := s.meta.metadata[m.ID]; ok && original.Valid {
 		// Since we've just reloaded, clear out shouldLoad.
 		original.ShouldLoad = false
 		m = original.Metadata
 	} else {
-		s.metadata[m.ID] = &KnownMetadata{
+		s.meta.metadata[m.ID] = &KnownMetadata{
 			Metadata: m,
 			Valid:    true,
 		}
