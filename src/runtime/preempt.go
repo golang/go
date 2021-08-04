@@ -399,7 +399,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return false, 0
 	}
 	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
-	if up != _PCDATA_UnsafePointSafe {
+	if up == _PCDATA_UnsafePointUnsafe {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit
 		// functions (except at calls).
