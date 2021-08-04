@@ -417,6 +417,10 @@ func (e *encoded) inspector(n ast.Node) bool {
 }
 
 func (e *encoded) ident(x *ast.Ident) {
+	if e.ti == nil {
+		e.unkIdent(x)
+		return
+	}
 	def := e.ti.Defs[x]
 	if def != nil {
 		what, mods := e.definitionFor(x)
@@ -498,6 +502,7 @@ func (e *encoded) unkIdent(x *ast.Ident) {
 	case *ast.BinaryExpr, *ast.UnaryExpr, *ast.ParenExpr, *ast.StarExpr,
 		*ast.IncDecStmt, *ast.SliceExpr, *ast.ExprStmt, *ast.IndexExpr,
 		*ast.ReturnStmt,
+		*ast.ForStmt,      // possibly incomplete
 		*ast.IfStmt,       /* condition */
 		*ast.KeyValueExpr: // either key or value
 		tok(tokVariable, nil)

@@ -37,10 +37,11 @@ var (
 )
 
 type Parsed struct {
-	buf   []byte   //contents
-	lines [][]byte // needed?, other than for debugging?
+	buf    []byte   //contents
+	lines  [][]byte // needed?, other than for debugging?
+	elided []int    // offsets where Left was replaced by blanks
 
-	// tokens, computed before trying to parse
+	// tokens are matched Left-Right pairs, computed before trying to parse
 	tokens []Token
 
 	// result of parsing
@@ -50,6 +51,7 @@ type Parsed struct {
 	stack    []parse.Node // used while computing symbols
 
 	// for mapping from offsets in buf to LSP coordinates
+	// See FromPosition() and LineCol()
 	nls      []int // offset of newlines before each line (nls[0]==-1)
 	lastnl   int   // last line seen
 	check    int   // used to decide whether to use lastnl or search through nls
@@ -102,24 +104,24 @@ func parseBuffer(buf []byte) *Parsed {
 	if buf[len(buf)-1] != '\n' {
 		ans.buf = append(buf, '\n')
 	}
-	// at the cost of complexity we could fold this into the allAscii loop
-	ans.lines = bytes.Split(buf, []byte{'\n'})
 	for i, p := range ans.buf {
 		if p == '\n' {
 			ans.nls = append(ans.nls, i)
 		}
 	}
-	ans.setTokens()
-	t, err := template.New("").Parse(string(buf))
+	ans.setTokens() // ans.buf may be a new []byte
+	ans.lines = bytes.Split(ans.buf, []byte{'\n'})
+	t, err := template.New("").Parse(string(ans.buf))
 	if err != nil {
 		funcs := make(template.FuncMap)
 		for t == nil && ans.ParseErr == nil {
+			// in 1.17 it may be possible to avoid getting this error
 			//  template: :2: function "foo" not defined
 			matches := parseErrR.FindStringSubmatch(err.Error())
 			if len(matches) == 2 {
 				// suppress the error by giving it a function with the right name
 				funcs[matches[1]] = func() interface{} { return nil }
-				t, err = template.New("").Funcs(funcs).Parse(string(buf))
+				t, err = template.New("").Funcs(funcs).Parse(string(ans.buf))
 				continue
 			}
 			ans.ParseErr = err // unfixed error
@@ -222,9 +224,7 @@ func (p *Parsed) setTokens() {
 			// If we see (unquoted) Left then the original left is probably the user
 			// typing. Suppress the original left
 			if bytes.HasPrefix(p.buf[n:], Left) {
-				for i := 0; i < len(Left); i++ {
-					p.buf[left+i] = ' '
-				}
+				p.elideAt(left)
 				left = n
 				n += len(Left) - 1 // skip the rest
 			}
@@ -238,12 +238,23 @@ func (p *Parsed) setTokens() {
 	}
 	// this error occurs after typing {{ at the end of the file
 	if state != Start {
-		log.Printf("state is %d", state)
 		// Unclosed Left. remove the Left at left
-		for i := 0; i < len(Left); i++ {
-			p.buf[left+i] = ' '
-		}
+		p.elideAt(left)
 	}
+}
+
+func (p *Parsed) elideAt(left int) {
+	if p.elided == nil {
+		// p.buf is the same buffer that v.Read() returns, so copy it.
+		// (otherwise the next time it's parsed, elided information is lost)
+		b := make([]byte, len(p.buf))
+		copy(b, p.buf)
+		p.buf = b
+	}
+	for i := 0; i < len(Left); i++ {
+		p.buf[left+i] = ' '
+	}
+	p.elided = append(p.elided, left)
 }
 
 // isEscaped reports whether the byte after buf is escaped
@@ -312,7 +323,7 @@ func (p *Parsed) LineCol(x int) (uint32, uint32) {
 		return uint32(i - 1), uint32(count)
 	}
 	if x == len(p.buf)-1 { // trailing \n
-		return uint32(len(p.nls)), 1
+		return uint32(len(p.nls) - 1), 0
 	}
 	// shouldn't happen
 	for i := 1; i < 4; i++ {
