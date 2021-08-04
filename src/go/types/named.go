@@ -125,8 +125,12 @@ func (t *Named) TParams() *TypeParams { return t.load().tparams }
 // SetTParams sets the type parameters of the named type t.
 func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
 
-// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
-func (t *Named) TArgs() []Type { return t.targs }
+// NumTArgs returns the number of type arguments used to instantiate the named
+// type t, or 0 if t is not an instantiated type.
+func (t *Named) NumTArgs() int { return len(t.targs) }
+
+// TArgs returns the i'th type argument of the named type t for 0 <= i < t.NumTArgs().
+func (t *Named) TArg(i int) Type { return t.targs[i] }
 
 // SetTArgs sets the type arguments of the named type t.
 func (t *Named) SetTArgs(args []Type) { t.targs = args }
