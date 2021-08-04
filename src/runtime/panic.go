@@ -338,7 +338,17 @@ func newdefer() *_defer {
 
 // Free the given defer.
 // The defer cannot be used after this call.
+//
+// This is nosplit because the incoming defer is in a perilous state.
+// It's not on any defer list, so stack copying won't adjust stack
+// pointers in it (namely, d.link). Hence, if we were to copy the
+// stack, d could then contain a stale pointer.
+//
+//go:nosplit
 func freedefer(d *_defer) {
+	d.link = nil
+	// After this point we can copy the stack.
+
 	if d._panic != nil {
 		freedeferpanic()
 	}

@@ -957,7 +957,7 @@ type _defer struct {
 	pc        uintptr // pc at time of defer
 	fn        func()  // can be nil for open-coded defers
 	_panic    *_panic // panic that is running defer
-	link      *_defer
+	link      *_defer // next defer on G; can point to either heap or stack!
 
 	// If openDefer is true, the fields below record values about the stack
 	// frame and associated function that has the open-coded defer(s). sp
