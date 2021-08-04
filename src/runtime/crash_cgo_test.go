@@ -526,13 +526,15 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
+	t.Log(got)
 	want := "runtime.sigpanic"
 	if !strings.Contains(got, want) {
-		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
+		t.Errorf("did not see %q in output", want)
 	}
-	nowant := "unexpected return pc"
+	// No runtime errors like "runtime: unexpected return pc".
+	nowant := "runtime: "
 	if strings.Contains(got, nowant) {
-		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
+		t.Errorf("unexpectedly saw %q in output", want)
 	}
 }
 
@@ -619,8 +621,14 @@ func TestSegv(t *testing.T) {
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
 			t.Log(got)
-			if !strings.Contains(got, "SIGSEGV") {
-				t.Errorf("expected crash from signal")
+			want := "SIGSEGV"
+			if !strings.Contains(got, want) {
+				t.Errorf("did not see %q in output", want)
+			}
+			// No runtime errors like "runtime: unknown pc".
+			nowant := "runtime: "
+			if strings.Contains(got, nowant) {
+				t.Errorf("unexpectedly saw %q in output", want)
 			}
 		})
 	}
