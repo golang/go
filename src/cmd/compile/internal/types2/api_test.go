@@ -1567,6 +1567,14 @@ func F(){
 	}
 }
 
+var nopos syntax.Pos
+
+// newDefined creates a new defined type named T with the given underlying type.
+func newDefined(underlying Type) *Named {
+	tname := NewTypeName(nopos, nil, "T", nil)
+	return NewNamed(tname, underlying, nil)
+}
+
 func TestConvertibleTo(t *testing.T) {
 	for _, test := range []struct {
 		v, t Type
