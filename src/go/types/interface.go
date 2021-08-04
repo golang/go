@@ -21,11 +21,11 @@ type Interface struct {
 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
 	complete  bool         // indicates that obj, methods, and embeddeds are set and type set can be computed
 
-	tset *TypeSet // type set described by this interface, computed lazily
+	tset *_TypeSet // type set described by this interface, computed lazily
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *TypeSet { return computeTypeSet(nil, token.NoPos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeTypeSet(nil, token.NoPos, t) }
 
 // is reports whether interface t represents types that all satisfy f.
 func (t *Interface) is(f func(Type, bool) bool) bool {
