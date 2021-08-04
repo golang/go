@@ -322,7 +322,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, f
 			}
 			if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
-				panic("internal error: method with type parameters")
+				panic("method with type parameters")
 			}
 
 			// If the methods have type parameters we don't care whether they
@@ -374,7 +374,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			return m, f
 		}
 		if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
-			panic("internal error: method with type parameters")
+			panic("method with type parameters")
 		}
 
 		// If V is a (instantiated) generic type, its methods are still
