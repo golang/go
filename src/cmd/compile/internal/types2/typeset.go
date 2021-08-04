@@ -25,17 +25,19 @@ type TypeSet struct {
 // IsEmpty reports whether type set s is the empty set.
 func (s *TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 
-// IsTop reports whether type set s is the set of all types (corresponding to the empty interface).
-func (s *TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isTop() }
+// IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+func (s *TypeSet) IsAll() bool {
+	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
+}
 
 // TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
 
 // IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isTop() }
+func (s *TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
 func (s *TypeSet) IsComparable() bool {
-	if s.terms.isTop() {
+	if s.terms.isAll() {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
@@ -67,8 +69,8 @@ func (s *TypeSet) String() string {
 	switch {
 	case s.IsEmpty():
 		return "∅"
-	case s.IsTop():
-		return "⊤"
+	case s.IsAll():
+		return "𝓤"
 	}
 
 	hasMethods := len(s.methods) > 0
@@ -103,7 +105,7 @@ func (s *TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
-func (s *TypeSet) hasTerms() bool             { return !s.terms.isTop() }
+func (s *TypeSet) hasTerms() bool             { return !s.terms.isAll() }
 func (s *TypeSet) structuralType() Type       { return s.terms.structuralType() }
 func (s *TypeSet) includes(t Type) bool       { return s.terms.includes(t) }
 func (s1 *TypeSet) subsetOf(s2 *TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
@@ -156,7 +158,7 @@ func (s *TypeSet) underIs(f func(Type) bool) bool {
 }
 
 // topTypeSet may be used as type set for the empty interface.
-var topTypeSet = TypeSet{terms: topTermlist}
+var topTypeSet = TypeSet{terms: allTermlist}
 
 // computeInterfaceTypeSet may be called with check == nil.
 func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
@@ -195,7 +197,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 	// have valid interfaces. Mark the interface as complete to avoid
 	// infinite recursion if the validType check occurs later for some
 	// reason.
-	ityp.tset = &TypeSet{terms: topTermlist} // TODO(gri) is this sufficient?
+	ityp.tset = &TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
 
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
@@ -256,7 +258,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 	}
 
 	// collect embedded elements
-	var allTerms = topTermlist
+	var allTerms = allTermlist
 	for i, typ := range ityp.embeddeds {
 		// The embedding position is nil for imported interfaces
 		// and also for interface copies after substitution (but

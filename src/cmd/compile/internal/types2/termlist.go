@@ -13,9 +13,9 @@ import "bytes"
 // normal form.
 type termlist []*term
 
-// topTermlist represents the set of all types.
+// allTermlist represents the set of all types.
 // It is in normal form.
-var topTermlist = termlist{new(term)}
+var allTermlist = termlist{new(term)}
 
 // String prints the termlist exactly (without normalization).
 func (xl termlist) String() string {
@@ -45,9 +45,9 @@ func (xl termlist) isEmpty() bool {
 	return true
 }
 
-// isTop reports whether the termlist xl represents the set of all types.
-func (xl termlist) isTop() bool {
-	// If there's a ⊤ (top) term, the entire list is ⊤ (top).
+// isAll reports whether the termlist xl represents the set of all types.
+func (xl termlist) isAll() bool {
+	// If there's a 𝓤 term, the entire list is 𝓤.
 	// If the termlist is in normal form, this requires at most
 	// one iteration.
 	for _, x := range xl {
@@ -74,14 +74,14 @@ func (xl termlist) norm() termlist {
 				continue
 			}
 			if u1, u2 := xi.union(xj); u2 == nil {
-				// If we encounter a ⊤ (top) term, the entire
-				// list is ⊤ (top). Exit early.
+				// If we encounter a 𝓤 term, the entire list is 𝓤.
+				// Exit early.
 				// (Note that this is not just an optimization;
-				// if we continue, we may end up with a ⊤ term
+				// if we continue, we may end up with a 𝓤 term
 				// and other terms and the result would not be
 				// in normal form.)
 				if u1.typ == nil {
-					return topTermlist
+					return allTermlist
 				}
 				xi = u1
 				used[j] = true // xj is now unioned into xi - ignore it in future iterations
@@ -92,11 +92,11 @@ func (xl termlist) norm() termlist {
 	return rl
 }
 
-// If the type set represented by xl is specified by a single (non-⊤) term,
+// If the type set represented by xl is specified by a single (non-𝓤) term,
 // structuralType returns that type. Otherwise it returns nil.
 func (xl termlist) structuralType() Type {
 	if nl := xl.norm(); len(nl) == 1 {
-		return nl[0].typ // if nl.isTop() then typ is nil, which is ok
+		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
 	}
 	return nil
 }
