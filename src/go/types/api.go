@@ -258,8 +258,6 @@ type Info struct {
 	InitOrder []*Initializer
 }
 
-// The Info struct is found in api_notypeparams.go and api_typeparams.go.
-
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
 //
