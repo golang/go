@@ -323,10 +323,10 @@ func sortMethods(list []*Func) {
 
 func assertSortedMethods(list []*Func) {
 	if !debug {
-		panic("internal error: assertSortedMethods called outside debug mode")
+		panic("assertSortedMethods called outside debug mode")
 	}
 	if !sort.IsSorted(byUniqueMethodName(list)) {
-		panic("internal error: methods not sorted")
+		panic("methods not sorted")
 	}
 }
 
