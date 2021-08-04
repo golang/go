@@ -591,6 +591,7 @@ func TestSegv(t *testing.T) {
 	}
 
 	for _, test := range []string{"Segv", "SegvInCgo"} {
+		test := test
 		t.Run(test, func(t *testing.T) {
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
