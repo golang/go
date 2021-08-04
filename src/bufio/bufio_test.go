@@ -1312,8 +1312,19 @@ func TestReaderReset(t *testing.T) {
 	if string(buf) != "foo" {
 		t.Errorf("buf = %q; want foo", buf)
 	}
+
 	r.Reset(strings.NewReader("bar bar"))
 	all, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(all) != "bar bar" {
+		t.Errorf("ReadAll = %q; want bar bar", all)
+	}
+
+	*r = Reader{} // zero out the Reader
+	r.Reset(strings.NewReader("bar bar"))
+	all, err = io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1323,9 +1334,10 @@ func TestReaderReset(t *testing.T) {
 }
 
 func TestWriterReset(t *testing.T) {
-	var buf1, buf2 bytes.Buffer
+	var buf1, buf2, buf3 bytes.Buffer
 	w := NewWriter(&buf1)
 	w.WriteString("foo")
+
 	w.Reset(&buf2) // and not flushed
 	w.WriteString("bar")
 	w.Flush()
@@ -1334,6 +1346,17 @@ func TestWriterReset(t *testing.T) {
 	}
 	if buf2.String() != "bar" {
 		t.Errorf("buf2 = %q; want bar", buf2.String())
+	}
+
+	*w = Writer{}  // zero out the Writer
+	w.Reset(&buf3) // and not flushed
+	w.WriteString("bar")
+	w.Flush()
+	if buf1.String() != "" {
+		t.Errorf("buf1 = %q; want empty", buf1.String())
+	}
+	if buf3.String() != "bar" {
+		t.Errorf("buf3 = %q; want bar", buf3.String())
 	}
 }
 
