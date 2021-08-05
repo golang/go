@@ -303,6 +303,7 @@ func MapIterType(t *types.Type) *types.Type {
 // Generates stub functions as needed.
 func methods(t *types.Type) []*typeSig {
 	if t.HasShape() {
+		// Shape types have no methods.
 		return nil
 	}
 	// method type
@@ -1228,9 +1229,8 @@ func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
 	if t.HasTParam() {
-		// Generic types don't have a runtime type descriptor (but will
-		// have a dictionary)
-		// TODO: also shape type here?
+		// Generic types don't really exist at run-time and have no runtime
+		// type descriptor.  But we do write out shape types.
 		return
 	}
 	if _, ok := signatset[t]; !ok {
@@ -1786,26 +1786,28 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	if forItab && !types.IsDirectIface(rcvr) {
 		rcvr = rcvr.PtrTo()
 	}
-	generic := false
-	if !types.IsInterfaceMethod(method.Type) &&
-		(len(rcvr.RParams()) > 0 ||
-			rcvr.IsPtr() && len(rcvr.Elem().RParams()) > 0) { // TODO: right detection?
-		// Don't need dictionary if we are reaching a method (possibly via
-		// an embedded field) which is an interface method.
-		// TODO: check that we do the right thing when method is an interface method.
-		generic = true
 
-		targs := rcvr.RParams()
-		if rcvr.IsPtr() {
-			targs = rcvr.Elem().RParams()
+	generic := false
+	// We don't need a dictionary if we are reaching a method (possibly via an
+	// embedded field) which is an interface method.
+	if !types.IsInterfaceMethod(method.Type) {
+		rcvr1 := rcvr
+		if rcvr1.IsPtr() {
+			rcvr1 = rcvr.Elem()
 		}
-		// TODO: why do shape-instantiated types exist?
-		for _, t := range targs {
-			if t.HasShape() {
-				base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
+		if len(rcvr1.RParams()) > 0 {
+			// If rcvr has rparams, remember method as generic, which
+			// means we need to add a dictionary to the wrapper.
+			generic = true
+			targs := rcvr1.RParams()
+			for _, t := range targs {
+				if t.HasShape() {
+					base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
+				}
 			}
 		}
 	}
+
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 	if newnam.Siggen() {
@@ -1818,6 +1820,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		return lsym
 	}
 
+	// For generic methods, we need to generate the wrapper even if the receiver
+	// types are identical, because we want to add the dictionary.
 	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
 		return lsym
 	}
@@ -1890,7 +1894,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		if generic {
 			var args []ir.Node
 			var targs []*types.Type
-			if rcvr.IsPtr() { // TODO: correct condition?
+			if rcvr.IsPtr() {
 				targs = rcvr.Elem().RParams()
 			} else {
 				targs = rcvr.RParams()
@@ -1899,10 +1903,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
 				panic("multiple .inst.")
 			}
-			// Temporary fix: the wrapper for an auto-generated
-			// pointer/non-pointer receiver method should share the
-			// same dictionary as the corresponding original
-			// (user-written) method.
+			// The wrapper for an auto-generated pointer/non-pointer
+			// receiver method should share the same dictionary as the
+			// corresponding original (user-written) method.
 			baseOrig := orig
 			if baseOrig.IsPtr() && !method.Type.Recv().Type.IsPtr() {
 				baseOrig = baseOrig.Elem()
@@ -2058,7 +2061,6 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
 	// with respect to GC. That saves on stack scanning work, write barriers, etc.
 	// We can get away with it because dictionaries are global variables.
-	// TODO: use a cast, or is typing directly ok?
 	np.SetType(types.Types[types.TUINTPTR])
 	np.SetTypecheck(1)
 	return np
