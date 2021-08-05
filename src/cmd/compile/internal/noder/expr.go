@@ -125,13 +125,17 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			}
 			if fun.Op() == ir.OFUNCINST {
 				// Replace explicit type args with the full list that
-				// includes the additional inferred type args
+				// includes the additional inferred type args.
+				// Substitute the type args for the type params in
+				// the generic function's type.
 				fun.(*ir.InstExpr).Targs = targs
+				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
+				typed(newt, fun)
 			} else {
 				// Create a function instantiation here, given there
 				// are only inferred type args (e.g. min(5,6), where
 				// min is a generic function). Substitute the type
-				// args for the type params in the uninstantiated function's
+				// args for the type params in the generic function's
 				// type.
 				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
 				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
