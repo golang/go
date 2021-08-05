@@ -83,6 +83,19 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+  <dd>
+    <p><!-- CL 340049 -->
+      The <code>Draw</code> and <code>DrawMask</code> fallback implementations
+      (used when the arguments are not the most common image types) are now
+      faster when those arguments implement the optional
+      <a href="/pkg/image/draw/#RGBA64Image"><code>draw.RGBA64Image</code></a>
+      and <a href="/pkg/image/#RGBA64Image"><code>image.RGBA64Image</code></a>
+      interfaces that were added in Go 1.17.
+    </p>
+  </dd>
+</dl><!-- image/draw -->
+
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 336550 -->
