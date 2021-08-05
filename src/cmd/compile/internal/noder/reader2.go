@@ -283,9 +283,7 @@ func (r *reader2) structType() *types2.Struct {
 func (r *reader2) unionType() *types2.Union {
 	terms := make([]*types2.Term, r.len())
 	for i := range terms {
-		typ := r.typ()
-		tilde := r.bool()
-		terms[i] = types2.NewTerm(tilde, typ)
+		terms[i] = types2.NewTerm(r.bool(), r.typ())
 	}
 	return types2.NewUnion(terms)
 }

@@ -847,8 +847,8 @@ func (r *importReader) typ1() *types.Type {
 		terms := make([]*types.Type, nt)
 		tildes := make([]bool, nt)
 		for i := range terms {
-			terms[i] = r.typ()
 			tildes[i] = r.bool()
+			terms[i] = r.typ()
 		}
 		return types.NewUnion(terms, tildes)
 	}

@@ -397,8 +397,8 @@ func (w *writer) unionType(typ *types2.Union) {
 	w.len(typ.Len())
 	for i := 0; i < typ.Len(); i++ {
 		t := typ.Term(i)
-		w.typ(t.Type())
 		w.bool(t.Tilde())
+		w.typ(t.Type())
 	}
 }
 
