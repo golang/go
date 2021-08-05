@@ -144,8 +144,8 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
-	i9 = y                  // make y escape so the line above has to call convT2E
+	y := interface{}(g18()) // ERROR "live at call to convT: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
+	i9 = y                  // make y escape so the line above has to call convT
 	return x != y
 }
 
@@ -503,7 +503,7 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic(g18())

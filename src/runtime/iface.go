@@ -316,20 +316,30 @@ var (
 // The convXXX functions succeed on a nil input, whereas the assertXXX
 // functions fail on a nil input.
 
-func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+// convT converts a value of type t, which is pointed to by v, to a pointer that can
+// be used as the second word of an interface value.
+func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2E))
+		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
 	}
 	if msanenabled {
-		msanread(elem, t.size)
+		msanread(v, t.size)
 	}
 	x := mallocgc(t.size, t, true)
-	// TODO: We allocate a zeroed object only to overwrite it with actual data.
-	// Figure out how to avoid zeroing. Also below in convT2Eslice, convT2I, convT2Islice.
-	typedmemmove(t, x, elem)
-	e._type = t
-	e.data = x
-	return
+	typedmemmove(t, x, v)
+	return x
+}
+func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
+	// TODO: maybe take size instead of type?
+	if raceenabled {
+		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
+	}
+	if msanenabled {
+		msanread(v, t.size)
+	}
+	x := mallocgc(t.size, t, false)
+	memmove(x, v, t.size)
+	return x
 }
 
 func convT16(val uint16) (x unsafe.Pointer) {
@@ -389,63 +399,16 @@ func convTslice(val []byte) (x unsafe.Pointer) {
 	return
 }
 
-func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Enoptr))
+// convI2I returns the new itab to be used for the destination value
+// when converting a value with itab src to the dst interface.
+func convI2I(dst *interfacetype, src *itab) *itab {
+	if src == nil {
+		return nil
 	}
-	if msanenabled {
-		msanread(elem, t.size)
+	if src.inter == dst {
+		return src
 	}
-	x := mallocgc(t.size, t, false)
-	memmove(x, elem, t.size)
-	e._type = t
-	e.data = x
-	return
-}
-
-func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2I))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	x := mallocgc(t.size, t, true)
-	typedmemmove(t, x, elem)
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
-	t := tab._type
-	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(), abi.FuncPCABIInternal(convT2Inoptr))
-	}
-	if msanenabled {
-		msanread(elem, t.size)
-	}
-	x := mallocgc(t.size, t, false)
-	memmove(x, elem, t.size)
-	i.tab = tab
-	i.data = x
-	return
-}
-
-func convI2I(inter *interfacetype, i iface) (r iface) {
-	tab := i.tab
-	if tab == nil {
-		return
-	}
-	if tab.inter == inter {
-		r.tab = tab
-		r.data = i.data
-		return
-	}
-	r.tab = getitab(inter, tab._type, false)
-	r.data = i.data
-	return
+	return getitab(dst, src._type, false)
 }
 
 func assertI2I(inter *interfacetype, tab *itab) *itab {
