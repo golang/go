@@ -281,13 +281,13 @@ func (r *reader2) structType() *types2.Struct {
 }
 
 func (r *reader2) unionType() *types2.Union {
-	terms := make([]types2.Type, r.len())
-	tildes := make([]bool, len(terms))
+	terms := make([]*types2.Term, r.len())
 	for i := range terms {
-		terms[i] = r.typ()
-		tildes[i] = r.bool()
+		typ := r.typ()
+		tilde := r.bool()
+		terms[i] = types2.NewTerm(tilde, typ)
 	}
-	return types2.NewUnion(terms, tildes)
+	return types2.NewUnion(terms)
 }
 
 func (r *reader2) interfaceType() *types2.Interface {

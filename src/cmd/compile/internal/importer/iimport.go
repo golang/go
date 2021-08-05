@@ -677,13 +677,13 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 			errorf("unexpected instantiation type")
 		}
 		nt := int(r.uint64())
-		terms := make([]types2.Type, nt)
-		tildes := make([]bool, nt)
+		terms := make([]*types2.Term, nt)
 		for i := range terms {
-			terms[i] = r.typ()
-			tildes[i] = r.bool()
+			typ := r.typ()
+			tilde := r.bool()
+			terms[i] = types2.NewTerm(tilde, typ)
 		}
-		return types2.NewUnion(terms, tildes)
+		return types2.NewUnion(terms)
 	}
 }
 

@@ -394,11 +394,11 @@ func (w *writer) structType(typ *types2.Struct) {
 }
 
 func (w *writer) unionType(typ *types2.Union) {
-	w.len(typ.NumTerms())
-	for i := 0; i < typ.NumTerms(); i++ {
-		term, tilde := typ.Term(i)
-		w.typ(term)
-		w.bool(tilde)
+	w.len(typ.Len())
+	for i := 0; i < typ.Len(); i++ {
+		t := typ.Term(i)
+		w.typ(t.Type())
+		w.bool(t.Tilde())
 	}
 }
 
