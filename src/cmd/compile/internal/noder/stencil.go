@@ -8,7 +8,6 @@
 package noder
 
 import (
-	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
@@ -19,7 +18,6 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
-	"strconv"
 )
 
 // Enable extra consistency checks.
@@ -534,220 +532,6 @@ func (g *irgen) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.Nam
 		dict = g.getDictionaryValue(nameNode, targs, isMeth)
 	}
 	return dict, usingSubdict
-}
-
-func addGcType(fl []*types.Field, t *types.Type) []*types.Field {
-	return append(fl, types.NewField(base.Pos, typecheck.Lookup("F"+strconv.Itoa(len(fl))), t))
-}
-
-const INTTYPE = types.TINT64   // XX fix for 32-bit arch
-const UINTTYPE = types.TUINT64 // XX fix for 32-bit arch
-const INTSTRING = "i8"         // XX fix for 32-bit arch
-const UINTSTRING = "u8"        // XX fix for 32-bit arch
-
-// accumGcshape adds fields to fl resulting from the GCshape transformation of
-// type t. The string associated with the GCshape transformation of t is added to
-// buf. fieldSym is the sym of the field associated with type t, if it is in a
-// struct. fieldSym could be used to have special naming for blank fields, etc.
-func accumGcshape(fl []*types.Field, buf *bytes.Buffer, t *types.Type, fieldSym *types.Sym) []*types.Field {
-	// t.Kind() is already the kind of the underlying type, so no need to
-	// reference t.Underlying() to reference the underlying type.
-	assert(t.Kind() == t.Underlying().Kind())
-
-	switch t.Kind() {
-	case types.TINT8:
-		fl = addGcType(fl, types.Types[types.TINT8])
-		buf.WriteString("i1")
-
-	case types.TUINT8:
-		fl = addGcType(fl, types.Types[types.TUINT8])
-		buf.WriteString("u1")
-
-	case types.TINT16:
-		fl = addGcType(fl, types.Types[types.TINT16])
-		buf.WriteString("i2")
-
-	case types.TUINT16:
-		fl = addGcType(fl, types.Types[types.TUINT16])
-		buf.WriteString("u2")
-
-	case types.TINT32:
-		fl = addGcType(fl, types.Types[types.TINT32])
-		buf.WriteString("i4")
-
-	case types.TUINT32:
-		fl = addGcType(fl, types.Types[types.TUINT32])
-		buf.WriteString("u4")
-
-	case types.TINT64:
-		fl = addGcType(fl, types.Types[types.TINT64])
-		buf.WriteString("i8")
-
-	case types.TUINT64:
-		fl = addGcType(fl, types.Types[types.TUINT64])
-		buf.WriteString("u8")
-
-	case types.TINT:
-		fl = addGcType(fl, types.Types[INTTYPE])
-		buf.WriteString(INTSTRING)
-
-	case types.TUINT, types.TUINTPTR:
-		fl = addGcType(fl, types.Types[UINTTYPE])
-		buf.WriteString(UINTSTRING)
-
-	case types.TCOMPLEX64:
-		fl = addGcType(fl, types.Types[types.TFLOAT32])
-		fl = addGcType(fl, types.Types[types.TFLOAT32])
-		buf.WriteString("f4")
-		buf.WriteString("f4")
-
-	case types.TCOMPLEX128:
-		fl = addGcType(fl, types.Types[types.TFLOAT64])
-		fl = addGcType(fl, types.Types[types.TFLOAT64])
-		buf.WriteString("f8")
-		buf.WriteString("f8")
-
-	case types.TFLOAT32:
-		fl = addGcType(fl, types.Types[types.TFLOAT32])
-		buf.WriteString("f4")
-
-	case types.TFLOAT64:
-		fl = addGcType(fl, types.Types[types.TFLOAT64])
-		buf.WriteString("f8")
-
-	case types.TBOOL:
-		fl = addGcType(fl, types.Types[types.TINT8])
-		buf.WriteString("i1")
-
-	case types.TPTR:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("p")
-
-	case types.TFUNC:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("p")
-
-	case types.TSLICE:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		fl = addGcType(fl, types.Types[INTTYPE])
-		fl = addGcType(fl, types.Types[INTTYPE])
-		buf.WriteString("p")
-		buf.WriteString(INTSTRING)
-		buf.WriteString(INTSTRING)
-
-	case types.TARRAY:
-		n := t.NumElem()
-		if n == 1 {
-			fl = accumGcshape(fl, buf, t.Elem(), nil)
-		} else if n > 0 {
-			// Represent an array with more than one element as its
-			// unique type, since it must be treated differently for
-			// regabi.
-			fl = addGcType(fl, t)
-			buf.WriteByte('[')
-			buf.WriteString(strconv.Itoa(int(n)))
-			buf.WriteString("](")
-			var ignore []*types.Field
-			// But to determine its gcshape name, we must call
-			// accumGcShape() on t.Elem().
-			accumGcshape(ignore, buf, t.Elem(), nil)
-			buf.WriteByte(')')
-		}
-
-	case types.TSTRUCT:
-		nfields := t.NumFields()
-		for i, f := range t.Fields().Slice() {
-			fl = accumGcshape(fl, buf, f.Type, f.Sym)
-
-			// Check if we need to add an alignment field.
-			var pad int64
-			if i < nfields-1 {
-				pad = t.Field(i+1).Offset - f.Offset - f.Type.Width
-			} else {
-				pad = t.Width - f.Offset - f.Type.Width
-			}
-			if pad > 0 {
-				// There is padding between fields or at end of
-				// struct. Add an alignment field.
-				fl = addGcType(fl, types.NewArray(types.Types[types.TUINT8], pad))
-				buf.WriteString("a")
-				buf.WriteString(strconv.Itoa(int(pad)))
-			}
-		}
-
-	case types.TCHAN:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("p")
-
-	case types.TMAP:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("p")
-
-	case types.TINTER:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("pp")
-
-	case types.TFORW, types.TANY:
-		assert(false)
-
-	case types.TSTRING:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		fl = addGcType(fl, types.Types[INTTYPE])
-		buf.WriteString("p")
-		buf.WriteString(INTSTRING)
-
-	case types.TUNSAFEPTR:
-		fl = addGcType(fl, types.Types[types.TUNSAFEPTR])
-		buf.WriteString("p")
-
-	default: // Everything TTYPEPARAM and below in list of Kinds
-		assert(false)
-	}
-
-	return fl
-}
-
-// gcshapeType returns the GCshape type and name corresponding to type t.
-func gcshapeType(t *types.Type) (*types.Type, string) {
-	var fl []*types.Field
-	buf := bytes.NewBufferString("")
-
-	// Call CallSize so type sizes and field offsets are available.
-	types.CalcSize(t)
-
-	instType := t.Sym() != nil && t.IsFullyInstantiated()
-	if instType {
-		// We distinguish the gcshape of all top-level instantiated type from
-		// normal concrete types, even if they have the exact same underlying
-		// "shape", because in a function instantiation, any method call on
-		// this type arg will be a generic method call (requiring a
-		// dictionary), rather than a direct method call on the underlying
-		// type (no dictionary). So, we add the instshape prefix to the
-		// normal gcshape name, and will make it a defined type with that
-		// name below.
-		buf.WriteString("instshape-")
-	}
-	fl = accumGcshape(fl, buf, t, nil)
-
-	// TODO: Should gcshapes be in a global package, so we don't have to
-	// duplicate in each package? Or at least in the specified source package
-	// of a function/method instantiation?
-	gcshape := types.NewStruct(types.LocalPkg, fl)
-	gcname := buf.String()
-	if instType {
-		// Lookup or create type with name 'gcname' (with instshape prefix).
-		newsym := t.Sym().Pkg.Lookup(gcname)
-		if newsym.Def != nil {
-			gcshape = newsym.Def.Type()
-		} else {
-			newt := typecheck.NewIncompleteNamedType(t.Pos(), newsym)
-			newt.SetUnderlying(gcshape.Underlying())
-			gcshape = newt
-		}
-	}
-	assert(gcshape.Size() == t.Size())
-	return gcshape, buf.String()
 }
 
 // checkFetchBody checks if a generic body can be fetched, but hasn't been loaded
@@ -1521,131 +1305,135 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
 
 	// Initialize the dictionary, if we haven't yet already.
-	if lsym := sym.Linksym(); len(lsym.P) == 0 {
-		info := g.getGfInfo(gf)
+	lsym := sym.Linksym()
+	if len(lsym.P) > 0 {
+		// We already started creating this dictionary and its lsym.
+		return sym
+	}
 
-		infoPrint("=== Creating dictionary %v\n", sym.Name)
-		off := 0
-		// Emit an entry for each targ (concrete type or gcshape).
-		for _, t := range targs {
-			infoPrint(" * %v\n", t)
-			s := reflectdata.TypeLinksym(t)
-			off = objw.SymPtr(lsym, off, s, 0)
-			markTypeUsed(t, lsym)
-		}
-		subst := typecheck.Tsubster{
-			Tparams: info.tparams,
-			Targs:   targs,
-		}
-		// Emit an entry for each derived type (after substituting targs)
-		for _, t := range info.derivedTypes {
-			ts := subst.Typ(t)
-			infoPrint(" - %v\n", ts)
-			s := reflectdata.TypeLinksym(ts)
-			off = objw.SymPtr(lsym, off, s, 0)
-			markTypeUsed(ts, lsym)
-		}
-		// Emit an entry for each subdictionary (after substituting targs)
-		for _, n := range info.subDictCalls {
-			var sym *types.Sym
-			switch n.Op() {
-			case ir.OCALL:
-				call := n.(*ir.CallExpr)
-				if call.X.Op() == ir.OXDOT {
-					var nameNode *ir.Name
-					se := call.X.(*ir.SelectorExpr)
-					if types.IsInterfaceMethod(se.Selection.Type) {
-						// This is a method call enabled by a type bound.
-						tmpse := ir.NewSelectorExpr(base.Pos, ir.OXDOT, se.X, se.Sel)
-						tmpse = typecheck.AddImplicitDots(tmpse)
-						tparam := tmpse.X.Type()
-						assert(tparam.IsTypeParam())
-						recvType := targs[tparam.Index()]
-						if recvType.IsInterface() || len(recvType.RParams()) == 0 {
-							// No sub-dictionary entry is
-							// actually needed, since the
-							// type arg is not an
-							// instantiated type that
-							// will have generic methods.
-							break
-						}
-						// This is a method call for an
-						// instantiated type, so we need a
-						// sub-dictionary.
-						targs := recvType.RParams()
-						genRecvType := recvType.OrigSym.Def.Type()
-						nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
-						sym = g.getDictionarySym(nameNode, targs, true)
-					} else {
-						// This is the case of a normal
-						// method call on a generic type.
-						nameNode = call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
-						subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
-						s2targs := make([]*types.Type, len(subtargs))
-						for i, t := range subtargs {
-							s2targs[i] = subst.Typ(t)
-						}
-						sym = g.getDictionarySym(nameNode, s2targs, true)
+	info := g.getGfInfo(gf)
+
+	infoPrint("=== Creating dictionary %v\n", sym.Name)
+	off := 0
+	// Emit an entry for each targ (concrete type or gcshape).
+	for _, t := range targs {
+		infoPrint(" * %v\n", t)
+		s := reflectdata.TypeLinksym(t)
+		off = objw.SymPtr(lsym, off, s, 0)
+		markTypeUsed(t, lsym)
+	}
+	subst := typecheck.Tsubster{
+		Tparams: info.tparams,
+		Targs:   targs,
+	}
+	// Emit an entry for each derived type (after substituting targs)
+	for _, t := range info.derivedTypes {
+		ts := subst.Typ(t)
+		infoPrint(" - %v\n", ts)
+		s := reflectdata.TypeLinksym(ts)
+		off = objw.SymPtr(lsym, off, s, 0)
+		markTypeUsed(ts, lsym)
+	}
+	// Emit an entry for each subdictionary (after substituting targs)
+	for _, n := range info.subDictCalls {
+		var sym *types.Sym
+		switch n.Op() {
+		case ir.OCALL:
+			call := n.(*ir.CallExpr)
+			if call.X.Op() == ir.OXDOT {
+				var nameNode *ir.Name
+				se := call.X.(*ir.SelectorExpr)
+				if types.IsInterfaceMethod(se.Selection.Type) {
+					// This is a method call enabled by a type bound.
+					tmpse := ir.NewSelectorExpr(base.Pos, ir.OXDOT, se.X, se.Sel)
+					tmpse = typecheck.AddImplicitDots(tmpse)
+					tparam := tmpse.X.Type()
+					assert(tparam.IsTypeParam())
+					recvType := targs[tparam.Index()]
+					if recvType.IsInterface() || len(recvType.RParams()) == 0 {
+						// No sub-dictionary entry is
+						// actually needed, since the
+						// type arg is not an
+						// instantiated type that
+						// will have generic methods.
+						break
 					}
+					// This is a method call for an
+					// instantiated type, so we need a
+					// sub-dictionary.
+					targs := recvType.RParams()
+					genRecvType := recvType.OrigSym.Def.Type()
+					nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
+					sym = g.getDictionarySym(nameNode, targs, true)
 				} else {
-					inst := call.X.(*ir.InstExpr)
-					var nameNode *ir.Name
-					var meth *ir.SelectorExpr
-					var isMeth bool
-					if meth, isMeth = inst.X.(*ir.SelectorExpr); isMeth {
-						nameNode = meth.Selection.Nname.(*ir.Name)
-					} else {
-						nameNode = inst.X.(*ir.Name)
-					}
-					subtargs := typecheck.TypesOf(inst.Targs)
+					// This is the case of a normal
+					// method call on a generic type.
+					nameNode = call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
+					subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
+					s2targs := make([]*types.Type, len(subtargs))
 					for i, t := range subtargs {
-						subtargs[i] = subst.Typ(t)
+						s2targs[i] = subst.Typ(t)
 					}
-					sym = g.getDictionarySym(nameNode, subtargs, isMeth)
+					sym = g.getDictionarySym(nameNode, s2targs, true)
 				}
-
-			case ir.OFUNCINST:
-				inst := n.(*ir.InstExpr)
-				nameNode := inst.X.(*ir.Name)
+			} else {
+				inst := call.X.(*ir.InstExpr)
+				var nameNode *ir.Name
+				var meth *ir.SelectorExpr
+				var isMeth bool
+				if meth, isMeth = inst.X.(*ir.SelectorExpr); isMeth {
+					nameNode = meth.Selection.Nname.(*ir.Name)
+				} else {
+					nameNode = inst.X.(*ir.Name)
+				}
 				subtargs := typecheck.TypesOf(inst.Targs)
 				for i, t := range subtargs {
 					subtargs[i] = subst.Typ(t)
 				}
-				sym = g.getDictionarySym(nameNode, subtargs, false)
-
-			case ir.OXDOT:
-				selExpr := n.(*ir.SelectorExpr)
-				subtargs := deref(selExpr.X.Type()).RParams()
-				s2targs := make([]*types.Type, len(subtargs))
-				for i, t := range subtargs {
-					s2targs[i] = subst.Typ(t)
-				}
-				nameNode := selExpr.Selection.Nname.(*ir.Name)
-				sym = g.getDictionarySym(nameNode, s2targs, true)
-
-			default:
-				assert(false)
+				sym = g.getDictionarySym(nameNode, subtargs, isMeth)
 			}
 
-			if sym == nil {
-				// Unused sub-dictionary entry, just emit 0.
-				off = objw.Uintptr(lsym, off, 0)
-				infoPrint(" - Unused subdict entry\n")
-			} else {
-				off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
-				infoPrint(" - Subdict %v\n", sym.Name)
+		case ir.OFUNCINST:
+			inst := n.(*ir.InstExpr)
+			nameNode := inst.X.(*ir.Name)
+			subtargs := typecheck.TypesOf(inst.Targs)
+			for i, t := range subtargs {
+				subtargs[i] = subst.Typ(t)
 			}
+			sym = g.getDictionarySym(nameNode, subtargs, false)
+
+		case ir.OXDOT:
+			selExpr := n.(*ir.SelectorExpr)
+			subtargs := deref(selExpr.X.Type()).RParams()
+			s2targs := make([]*types.Type, len(subtargs))
+			for i, t := range subtargs {
+				s2targs[i] = subst.Typ(t)
+			}
+			nameNode := selExpr.Selection.Nname.(*ir.Name)
+			sym = g.getDictionarySym(nameNode, s2targs, true)
+
+		default:
+			assert(false)
 		}
 
-		delay := &delayInfo{
-			gf:    gf,
-			targs: targs,
-			sym:   sym,
-			off:   off,
+		if sym == nil {
+			// Unused sub-dictionary entry, just emit 0.
+			off = objw.Uintptr(lsym, off, 0)
+			infoPrint(" - Unused subdict entry\n")
+		} else {
+			off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+			infoPrint(" - Subdict %v\n", sym.Name)
 		}
-		g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
-		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	}
+
+	delay := &delayInfo{
+		gf:    gf,
+		targs: targs,
+		sym:   sym,
+		off:   off,
+	}
+	g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
+	g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	return sym
 }
 
@@ -1805,11 +1593,6 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 		} else if n.Op() == ir.OXDOT && !n.(*ir.SelectorExpr).Implicit() &&
 			n.(*ir.SelectorExpr).Selection != nil &&
 			len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
-			if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
-				infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
-			} else {
-				infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
-			}
 			if hasTParamTypes(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) {
 				if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
 					infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
@@ -1849,7 +1632,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			info.itabConvs = append(info.itabConvs, n)
 		}
 		if n.Op() == ir.OXDOT && n.(*ir.SelectorExpr).X.Type().IsTypeParam() {
-			infoPrint("  Itab for interface conv: %v\n", n)
+			infoPrint("  Itab for bound call: %v\n", n)
 			info.itabConvs = append(info.itabConvs, n)
 		}
 		if (n.Op() == ir.ODOTTYPE || n.Op() == ir.ODOTTYPE2) && !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
