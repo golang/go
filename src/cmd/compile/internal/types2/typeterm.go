@@ -151,6 +151,9 @@ func (x *term) subsetOf(y *term) bool {
 // disjoint reports whether x ∩ y == ∅.
 // x.typ and y.typ must not be nil.
 func (x *term) disjoint(y *term) bool {
+	if debug && (x.typ == nil || y.typ == nil) {
+		panic("invalid argument(s)")
+	}
 	ux := x.typ
 	if y.tilde {
 		ux = under(ux)
