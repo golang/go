@@ -1166,11 +1166,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		if n.X.Type().IsInterface() {
 			return n
 		}
-		to := n.Type()
-		if n.Op() == ir.OCONVIDATA {
-			to = types.NewInterface(types.LocalPkg, nil)
-		}
-		if _, _, needsaddr := convFuncName(n.X.Type(), to); needsaddr || isStaticCompositeLiteral(n.X) {
+		if _, _, needsaddr := dataWordFuncName(n.X.Type()); needsaddr || isStaticCompositeLiteral(n.X) {
 			// Need a temp if we need to pass the address to the conversion function.
 			// We also process static composite literal node here, making a named static global
 			// whose address we can put directly in an interface (see OCONVIFACE/OCONVIDATA case in walk).
