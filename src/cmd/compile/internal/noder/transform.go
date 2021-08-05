@@ -130,7 +130,8 @@ func transformConvCall(n *ir.CallExpr) ir.Node {
 }
 
 // transformCall transforms a normal function/method call. Corresponds to last half
-// (non-conversion, non-builtin part) of typecheck.tcCall.
+// (non-conversion, non-builtin part) of typecheck.tcCall. This code should work even
+// in the case of OCALL/OFUNCINST.
 func transformCall(n *ir.CallExpr) {
 	// n.Type() can be nil for calls with no return value
 	assert(n.Typecheck() == 1)

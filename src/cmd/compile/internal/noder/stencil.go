@@ -119,6 +119,14 @@ func (g *irgen) stencil() {
 						fmt.Printf("%s in %v at generic function call: %v - %v\n", dictkind, decl, inst.X, call)
 					}
 				}
+
+				// Transform the Call now, which changes OCALL to
+				// OCALLFUNC and does typecheckaste/assignconvfn. Do
+				// it before installing the instantiation, so we are
+				// checking against non-shape param types in
+				// typecheckaste.
+				transformCall(call)
+
 				// Replace the OFUNCINST with a direct reference to the
 				// new stenciled function
 				call.X = st.Nname
@@ -132,9 +140,6 @@ func (g *irgen) stencil() {
 
 				// Add dictionary to argument list.
 				call.Args.Prepend(dictValue)
-				// Transform the Call now, which changes OCALL
-				// to OCALLFUNC and does typecheckaste/assignconvfn.
-				transformCall(call)
 				modified = true
 			}
 			if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH && len(deref(n.(*ir.CallExpr).X.Type().Recv().Type).RParams()) > 0 {
