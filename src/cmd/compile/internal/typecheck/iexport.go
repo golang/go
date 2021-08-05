@@ -1002,9 +1002,9 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		nt := t.NumTerms()
 		w.uint64(uint64(nt))
 		for i := 0; i < nt; i++ {
-			t, b := t.Term(i)
-			w.typ(t)
-			w.bool(b)
+			typ, tilde := t.Term(i)
+			w.bool(tilde)
+			w.typ(typ)
 		}
 
 	default:
