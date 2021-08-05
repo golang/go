@@ -70,7 +70,7 @@ type walker struct {
 
 func (w walker) node(n Node) {
 	if n == nil {
-		panic("invalid syntax tree: nil node")
+		panic("nil node")
 	}
 
 	w.v = w.v.Visit(n)
