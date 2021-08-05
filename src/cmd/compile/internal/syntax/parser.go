@@ -604,7 +604,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 			} else {
 				// x is the array length expression
 				if debug && x == nil {
-					panic("internal error: nil expression")
+					panic("length expression is nil")
 				}
 				d.Type = p.arrayType(pos, x)
 			}
