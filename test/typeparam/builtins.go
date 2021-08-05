@@ -19,19 +19,19 @@ type C3 interface{ chan int | chan float32 }
 type C4 interface{ chan int | chan<- int }
 type C5[T any] interface{ ~chan T | chan<- T }
 
-func _[T C1](ch T) {
+func f1[T C1](ch T) {
 	close(ch)
 }
 
-func _[T C3](ch T) {
+func f2[T C3](ch T) {
 	close(ch)
 }
 
-func _[T C4](ch T) {
+func f3[T C4](ch T) {
 	close(ch)
 }
 
-func _[T C5[X], X any](ch T) {
+func f4[T C5[X], X any](ch T) {
 	close(ch)
 }
 
@@ -45,61 +45,56 @@ type M2 interface {
 type M3 interface{ map[string]int | map[rune]int }
 type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
 
-func _[T M1](m T) {
+func g1[T M1](m T) {
 	delete(m, "foo")
 }
 
-func _[T M2](m T) {
+func g2[T M2](m T) {
 	delete(m, "foo")
 }
 
-func _[T M4[rune, V], V any](m T) {
+func g3[T M4[rune, V], V any](m T) {
 	delete(m, 'k')
 }
 
 // make
 
-type Bmc interface {
-	~map[rune]string | ~chan int
-}
+func m1[
+	S1 interface{ []int },
+	S2 interface{ []int | chan int },
 
-type Bms interface {
-	~map[string]int | ~[]int
-}
+	M1 interface{ map[string]int },
+	M2 interface{ map[string]int | chan int },
 
-type Bcs interface {
-	~chan bool | ~[]float64
-}
+	C1 interface{ chan int },
+	C2 interface{ chan int | chan string },
+]() {
+	type S0 []int
+	_ = make([]int, 10)
+	_ = make(S0, 10)
+	_ = make(S1, 10)
+	_ = make(S1, 10, 20)
 
-type Bss interface {
-	~[]int | ~[]string
-}
+	type M0 map[string]int
+	_ = make(map[string]int)
+	_ = make(M0)
+	_ = make(M1)
+	_ = make(M1, 10)
 
-func _[T Bmc]() {
-	_ = make(T)
-	_ = make(T, 10)
-}
-
-func _[T Bms]() {
-	_ = make(T, 10)
-}
-
-func _[T Bcs]() {
-	_ = make(T, 10)
-}
-
-func _[T Bss]() {
-	_ = make(T, 10)
-	_ = make(T, 10, 20)
+	type C0 chan int
+	_ = make(chan int)
+	_ = make(C0)
+	_ = make(C1)
+	_ = make(C1, 10)
 }
 
 // len/cap
 
 type Slice[T any] interface {
-	type []T
+	[]T
 }
 
-func _[T any, S Slice[T]]() {
+func c1[T any, S Slice[T]]() {
 	x := make(S, 5, 10)
 	_ = len(x)
 	_ = cap(x)
@@ -107,7 +102,7 @@ func _[T any, S Slice[T]]() {
 
 // append
 
-func _[T any, S Slice[T]]() {
+func a1[T any, S Slice[T]]() {
 	x := make(S, 5)
 	y := make(S, 2)
 	var z T
