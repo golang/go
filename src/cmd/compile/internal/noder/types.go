@@ -232,13 +232,13 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		return tp
 
 	case *types2.Union:
-		nt := typ.NumTerms()
+		nt := typ.Len()
 		tlist := make([]*types.Type, nt)
 		tildes := make([]bool, nt)
 		for i := range tlist {
-			term, tilde := typ.Term(i)
-			tlist[i] = g.typ1(term)
-			tildes[i] = tilde
+			t := typ.Term(i)
+			tlist[i] = g.typ1(t.Type())
+			tildes[i] = t.Tilde()
 		}
 		return types.NewUnion(tlist, tildes)
 

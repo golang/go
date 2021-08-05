@@ -797,12 +797,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
-		var rtypes []Type
-		var tildes []bool
+		var terms []*Term
 		if !tp.iface().typeSet().is(func(t *term) bool {
 			if r := f(t.typ); r != nil {
-				rtypes = append(rtypes, r)
-				tildes = append(tildes, t.tilde)
+				terms = append(terms, NewTerm(t.tilde, r))
 				return true
 			}
 			return false
@@ -819,7 +817,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type param is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{newUnion(rtypes, tildes)})) // assigns type to tpar as a side-effect
+		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp
