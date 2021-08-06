@@ -490,7 +490,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 		_, ok = isPrint[strings.ToLower(fn.Name())]
 	}
 	if ok {
-		if fn.Name() == "Errorf" {
+		if fn.FullName() == "fmt.Errorf" {
 			kind = KindErrorf
 		} else if strings.HasSuffix(fn.Name(), "f") {
 			kind = KindPrintf

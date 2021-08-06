@@ -327,14 +327,26 @@ func PrintfTests() {
 	dbg("", 1) // no error "call has arguments but no formatting directive"
 
 	// %w
-	_ = fmt.Errorf("%w", err)
-	_ = fmt.Errorf("%#w", err)
-	_ = fmt.Errorf("%[2]w %[1]s", "x", err)
-	_ = fmt.Errorf("%[2]w %[1]s", e, "x") // want `fmt.Errorf format %\[2\]w has arg "x" of wrong type string`
-	_ = fmt.Errorf("%w", "x")             // want `fmt.Errorf format %w has arg "x" of wrong type string`
-	_ = fmt.Errorf("%w %w", err, err)     // want `fmt.Errorf call has more than one error-wrapping directive %w`
-	fmt.Printf("%w", err)                 // want `fmt.Printf does not support error-wrapping directive %w`
-	Errorf(0, "%w", err)
+	_ = fmt.Errorf("%w", err)               // OK
+	_ = fmt.Errorf("%#w", err)              // OK
+	_ = fmt.Errorf("%[2]w %[1]s", "x", err) // OK
+	_ = fmt.Errorf("%[2]w %[1]s", e, "x")   // want `fmt.Errorf format %\[2\]w has arg "x" of wrong type string`
+	_ = fmt.Errorf("%w", "x")               // want `fmt.Errorf format %w has arg "x" of wrong type string`
+	_ = fmt.Errorf("%w %w", err, err)       // want `fmt.Errorf call has more than one error-wrapping directive %w`
+	fmt.Printf("%w", err)                   // want `fmt.Printf does not support error-wrapping directive %w`
+	var wt *testing.T
+	wt.Errorf("%w", err)          // want `\(\*testing.common\).Errorf does not support error-wrapping directive %w`
+	wt.Errorf("%[1][3]d x", 1, 2) // want `\(\*testing.common\).Errorf format %\[1\]\[ has unknown verb \[`
+	wt.Errorf("%[1]d x", 1, 2)    // OK
+	// Errorf is a printfWrapper, not an errorfWrapper.
+	Errorf(0, "%w", err) // want `a.Errorf does not support error-wrapping directive %w`
+	// %w should work on fmt.Errorf-based wrappers.
+	var es errorfStruct
+	var eis errorfIntStruct
+	var ess errorfStringStruct
+	es.Errorf("%w", err)           // OK
+	eis.Errorf(0, "%w", err)       // OK
+	ess.Errorf("ERROR", "%w", err) // OK
 }
 
 func someString() string { return "X" }
@@ -379,13 +391,36 @@ func printf(format string, args ...interface{}) { // want printf:"printfWrapper"
 
 // Errorf is used by the test for a case in which the first parameter
 // is not a format string.
-func Errorf(i int, format string, args ...interface{}) { // want Errorf:"errorfWrapper"
-	_ = fmt.Errorf(format, args...)
+func Errorf(i int, format string, args ...interface{}) { // want Errorf:"printfWrapper"
+	fmt.Sprintf(format, args...)
 }
 
 // errorf is used by the test for a case in which the function accepts multiple
 // string parameters before variadic arguments
-func errorf(level, format string, args ...interface{}) { // want errorf:"errorfWrapper"
+func errorf(level, format string, args ...interface{}) { // want errorf:"printfWrapper"
+	fmt.Sprintf(format, args...)
+}
+
+type errorfStruct struct{}
+
+// Errorf is used to test %w works on errorf wrappers.
+func (errorfStruct) Errorf(format string, args ...interface{}) { // want Errorf:"errorfWrapper"
+	_ = fmt.Errorf(format, args...)
+}
+
+type errorfStringStruct struct{}
+
+// Errorf is used by the test for a case in which the function accepts multiple
+// string parameters before variadic arguments
+func (errorfStringStruct) Errorf(level, format string, args ...interface{}) { // want Errorf:"errorfWrapper"
+	_ = fmt.Errorf(format, args...)
+}
+
+type errorfIntStruct struct{}
+
+// Errorf is used by the test for a case in which the first parameter
+// is not a format string.
+func (errorfIntStruct) Errorf(i int, format string, args ...interface{}) { // want Errorf:"errorfWrapper"
 	_ = fmt.Errorf(format, args...)
 }
 
