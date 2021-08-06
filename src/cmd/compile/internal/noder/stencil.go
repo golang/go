@@ -161,18 +161,21 @@ func (g *irgen) stencil() {
 					}
 				}
 
+				// Transform the Call now, which changes OCALL
+				// to OCALLFUNC and does typecheckaste/assignconvfn.
+				transformCall(call)
+
 				st := g.getInstantiation(gf, targs, true)
 				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
 				// We have to be using a subdictionary, since this is
 				// a generic method call.
 				assert(usingSubdict)
 
-				call.SetOp(ir.OCALL)
+				// Transform to a function call, by appending the
+				// dictionary and the receiver to the args.
+				call.SetOp(ir.OCALLFUNC)
 				call.X = st.Nname
 				call.Args.Prepend(dictValue, meth.X)
-				// Transform the Call now, which changes OCALL
-				// to OCALLFUNC and does typecheckaste/assignconvfn.
-				transformCall(call)
 				modified = true
 			}
 		})

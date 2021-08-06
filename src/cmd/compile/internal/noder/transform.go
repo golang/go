@@ -365,7 +365,7 @@ assignOK:
 	}
 }
 
-// Corresponds to, but slightly more general than, typecheck.typecheckargs.
+// Corresponds to typecheck.typecheckargs.  Really just deals with multi-value calls.
 func transformArgs(n ir.InitNode) {
 	var list []ir.Node
 	switch n := n.(type) {
@@ -379,76 +379,22 @@ func transformArgs(n ir.InitNode) {
 	case *ir.ReturnStmt:
 		list = n.Results
 	}
-
-	// Look to see if we have any multi-return functions as arguments.
-	extra := 0
-	for _, arg := range list {
-		t := arg.Type()
-		if t.IsFuncArgStruct() {
-			num := t.Fields().Len()
-			if num <= 1 {
-				base.Fatalf("multi-return type with only %d parts", num)
-			}
-			extra += num - 1
-		}
-	}
-	// If not, nothing to do.
-	if extra == 0 {
+	if len(list) != 1 {
 		return
 	}
 
-	// Rewrite f(..., g(), ...) into t1, ..., tN = g(); f(..., t1, ..., tN, ...).
+	t := list[0].Type()
+	if t == nil || !t.IsFuncArgStruct() {
+		return
+	}
 
 	// Save n as n.Orig for fmt.go.
 	if ir.Orig(n) == n {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
-	// If we're outside of function context, then this call will
-	// be executed during the generated init function. However,
-	// init.go hasn't yet created it. Instead, associate the
-	// temporary variables with  InitTodoFunc for now, and init.go
-	// will reassociate them later when it's appropriate.
-	static := ir.CurFunc == nil
-	if static {
-		ir.CurFunc = typecheck.InitTodoFunc
-	}
-
-	// Expand multi-return function calls.
-	// The spec only allows a multi-return function as an argument
-	// if it is the only argument. This code must handle calls to
-	// stenciled generic functions which have extra arguments
-	// (like the dictionary) so it must handle a slightly more general
-	// cases, like f(n, g()) where g is multi-return.
-	newList := make([]ir.Node, 0, len(list)+extra)
-	for _, arg := range list {
-		t := arg.Type()
-		if t.IsFuncArgStruct() {
-			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{arg})
-			for _, f := range t.FieldSlice() {
-				t := typecheck.Temp(f.Type)
-				as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
-				as.Lhs.Append(t)
-				newList = append(newList, t)
-			}
-			transformAssign(as, as.Lhs, as.Rhs)
-			as.SetTypecheck(1)
-			n.PtrInit().Append(as)
-		} else {
-			newList = append(newList, arg)
-		}
-	}
-
-	if static {
-		ir.CurFunc = nil
-	}
-
-	switch n := n.(type) {
-	case *ir.CallExpr:
-		n.Args = newList
-	case *ir.ReturnStmt:
-		n.Results = newList
-	}
+	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+	typecheck.RewriteMultiValueCall(n, list[0])
 }
 
 // assignconvfn converts node n for assignment to type t. Corresponds to
