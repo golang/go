@@ -14,7 +14,7 @@ go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=1s -wantdeadline=false
 go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=100x -wantdeadline=false
 
 -- go.mod --
-module fzz
+module fuzz
 
 go 1.16
 -- fuzz_deadline_test.go --
