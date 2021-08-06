@@ -33,7 +33,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()
 
-	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
+	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	// Don't return references for builtin types.
 	if errors.Is(err, errBuiltin) {
 		return nil, nil

@@ -369,6 +369,13 @@ func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
 	return locations
 }
 
+func (e *Env) Rename(path string, pos fake.Pos, newName string) {
+	e.T.Helper()
+	if err := e.Editor.Rename(e.Ctx, path, pos, newName); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
 // Completion executes a completion request on the server.
 func (e *Env) Completion(path string, pos fake.Pos) *protocol.CompletionList {
 	e.T.Helper()

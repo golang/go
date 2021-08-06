@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/xerrors"
 )
 
@@ -65,7 +66,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 		fset  = s.FileSet()
 	)
 
-	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
+	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	if err != nil {
 		return nil, err
 	}
@@ -213,19 +214,72 @@ var (
 // referenced at the given position. An object will be returned for
 // every package that the file belongs to, in every typechecking mode
 // applicable.
-func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
-	pkgs, err := s.PackagesForFile(ctx, fh.URI(), TypecheckAll)
+func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, pp protocol.Position) ([]qualifiedObject, error) {
+	pkgs, err := s.PackagesForFile(ctx, uri, TypecheckAll)
 	if err != nil {
 		return nil, err
 	}
-	// Check all the packages that the file belongs to.
+	if len(pkgs) == 0 {
+		return nil, errNoObjectFound
+	}
+	pkg := pkgs[0]
+	var offset int
+	pgf, err := pkg.File(uri)
+	if err != nil {
+		return nil, err
+	}
+	spn, err := pgf.Mapper.PointSpan(pp)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := spn.Range(pgf.Mapper.Converter)
+	if err != nil {
+		return nil, err
+	}
+	offset = pgf.Tok.Offset(rng.Start)
+	return qualifiedObjsAtLocation(ctx, s, objSearchKey{uri, offset}, map[objSearchKey]bool{})
+}
+
+type objSearchKey struct {
+	uri    span.URI
+	offset int
+}
+
+// qualifiedObjsAtLocation finds all objects referenced at offset in uri, across
+// all packages in the snapshot.
+func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, seen map[objSearchKey]bool) ([]qualifiedObject, error) {
+	if seen[key] {
+		return nil, nil
+	}
+	seen[key] = true
+
+	// We search for referenced objects starting with all packages containing the
+	// current location, and then repeating the search for every distinct object
+	// location discovered.
+	//
+	// In the common case, there should be at most one additional location to
+	// consider: the definition of the object referenced by the location. But we
+	// try to be comprehensive in case we ever support variations on build
+	// constraints.
+
+	pkgs, err := s.PackagesForFile(ctx, key.uri, TypecheckAll)
+	if err != nil {
+		return nil, err
+	}
+
+	// report objects in the order we encounter them. This ensures that the first
+	// result is at the cursor...
 	var qualifiedObjs []qualifiedObject
+	// ...but avoid duplicates.
+	seenObjs := map[types.Object]bool{}
+
 	for _, searchpkg := range pkgs {
-		astFile, pos, err := getASTFile(searchpkg, fh, pp)
+		pgf, err := searchpkg.File(key.uri)
 		if err != nil {
 			return nil, err
 		}
-		path := pathEnclosingObjNode(astFile, pos)
+		pos := pgf.Tok.Pos(key.offset)
+		path := pathEnclosingObjNode(pgf.File, pos)
 		if path == nil {
 			continue
 		}
@@ -279,6 +333,41 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 				sourcePkg: searchpkg,
 				node:      path[0],
 			})
+			seenObjs[obj] = true
+
+			// If the qualified object is in another file (or more likely, another
+			// package), it's possible that there is another copy of it in a package
+			// that we haven't searched, e.g. a test variant. See golang/go#47564.
+			//
+			// In order to be sure we've considered all packages, call
+			// qualifiedObjsAtLocation recursively for all locations we encounter. We
+			// could probably be more precise here, only continuing the search if obj
+			// is in another package, but this should be good enough to find all
+			// uses.
+
+			pos := obj.Pos()
+			var uri span.URI
+			offset := -1
+			for _, pgf := range pkg.CompiledGoFiles() {
+				if pgf.Tok.Base() <= int(pos) && int(pos) <= pgf.Tok.Base()+pgf.Tok.Size() {
+					offset = pgf.Tok.Offset(pos)
+					uri = pgf.URI
+				}
+			}
+			if offset >= 0 {
+				otherObjs, err := qualifiedObjsAtLocation(ctx, s, objSearchKey{uri, offset}, seen)
+				if err != nil {
+					return nil, err
+				}
+				for _, other := range otherObjs {
+					if !seenObjs[other.obj] {
+						qualifiedObjs = append(qualifiedObjs, other)
+						seenObjs[other.obj] = true
+					}
+				}
+			} else {
+				return nil, fmt.Errorf("missing file for position of %q in %q", obj.Name(), obj.Pkg().Name())
+			}
 		}
 	}
 	// Return an error if no objects were found since callers will assume that
@@ -287,22 +376,6 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 		return nil, errNoObjectFound
 	}
 	return qualifiedObjs, nil
-}
-
-func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, token.Pos, error) {
-	pgf, err := pkg.File(f.URI())
-	if err != nil {
-		return nil, 0, err
-	}
-	spn, err := pgf.Mapper.PointSpan(pos)
-	if err != nil {
-		return nil, 0, err
-	}
-	rng, err := spn.Range(pgf.Mapper.Converter)
-	if err != nil {
-		return nil, 0, err
-	}
-	return pgf.File, rng.Start, nil
 }
 
 // pathEnclosingObjNode returns the AST path to the object-defining

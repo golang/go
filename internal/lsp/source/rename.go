@@ -51,7 +51,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	ctx, done := event.Start(ctx, "source.PrepareRename")
 	defer done()
 
-	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f, pp)
+	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f.URI(), pp)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,7 +94,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	ctx, done := event.Start(ctx, "source.Rename")
 	defer done()
 
-	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
+	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
 	if err != nil {
 		return nil, err
 	}
