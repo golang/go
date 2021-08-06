@@ -1351,6 +1351,54 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
 	}
 }
 
+type readFromWriter struct {
+	buf           []byte
+	writeBytes    int
+	readFromBytes int
+}
+
+func (w *readFromWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	w.writeBytes += len(p)
+	return len(p), nil
+}
+
+func (w *readFromWriter) ReadFrom(r io.Reader) (int64, error) {
+	b, err := io.ReadAll(r)
+	w.buf = append(w.buf, b...)
+	w.readFromBytes += len(b)
+	return int64(len(b)), err
+}
+
+// Test that calling (*Writer).ReadFrom with a partially-filled buffer
+// fills the buffer before switching over to ReadFrom.
+func TestWriterReadFromWithBufferedData(t *testing.T) {
+	const bufsize = 16
+
+	input := createTestInput(64)
+	rfw := &readFromWriter{}
+	w := NewWriterSize(rfw, bufsize)
+
+	const writeSize = 8
+	if n, err := w.Write(input[:writeSize]); n != writeSize || err != nil {
+		t.Errorf("w.Write(%v bytes) = %v, %v; want %v, nil", writeSize, n, err, writeSize)
+	}
+	n, err := w.ReadFrom(bytes.NewReader(input[writeSize:]))
+	if wantn := len(input[writeSize:]); int(n) != wantn || err != nil {
+		t.Errorf("io.Copy(w, %v bytes) = %v, %v; want %v, nil", wantn, n, err, wantn)
+	}
+	if err := w.Flush(); err != nil {
+		t.Errorf("w.Flush() = %v, want nil", err)
+	}
+
+	if got, want := rfw.writeBytes, bufsize; got != want {
+		t.Errorf("wrote %v bytes with Write, want %v", got, want)
+	}
+	if got, want := rfw.readFromBytes, len(input)-bufsize; got != want {
+		t.Errorf("wrote %v bytes with ReadFrom, want %v", got, want)
+	}
+}
+
 func TestReadZero(t *testing.T) {
 	for _, size := range []int{100, 2} {
 		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
