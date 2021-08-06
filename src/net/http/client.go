@@ -166,6 +166,17 @@ func refererForURL(lastReq, newReq *url.URL) string {
 	return referer
 }
 
+// The RoundTripperFunc type is an adapter to allow the use of
+// ordinary functions as RoundTripper. If f is a function
+// with the appropriate signature, RoundTripperFunc(f) is a
+// RoundTripper that calls f.
+type RoundTripperFunc func(*Request) (*Response, error)
+
+// RoundTrip calls f(r).
+func (f RoundTripperFunc) RoundTrip(r *Request) (*Response, error) {
+	return f(r)
+}
+
 // didTimeout is non-nil only if err != nil.
 func (c *Client) send(req *Request, deadline time.Time) (resp *Response, didTimeout func() bool, err error) {
 	if c.Jar != nil {

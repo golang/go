@@ -85,6 +85,28 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestRoundTripperFunc(t *testing.T) {
+	client := Client{
+		Transport: RoundTripperFunc(func(r *Request) (*Response, error) {
+			if r == nil {
+				t.Errorf("Nil request passed")
+			} else {
+				if r.URL == nil || r.URL.String() != "http://some.example.com/path" {
+					t.Errorf("Incorrect forwarded request URL: %v", r.URL)
+				}
+			}
+			return &Response{StatusCode: StatusOK}, nil
+		}),
+	}
+	response, err := client.Get("http://some.example.com/path")
+	if err != nil {
+		t.Errorf("Incorrect error returned: %v", err)
+	}
+	if response == nil || response.StatusCode != StatusOK {
+		t.Errorf("Incorrect response returned %v", response)
+	}
+}
+
 func TestClientHead_h1(t *testing.T) { testClientHead(t, h1Mode) }
 func TestClientHead_h2(t *testing.T) { testClientHead(t, h2Mode) }
 
