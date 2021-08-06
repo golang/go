@@ -441,6 +441,12 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 		depsErrors: packagesinternal.GetDepsErrors(pkg),
 	}
 
+	// Identify intermediate test variants for later filtering. See the
+	// documentation of IsIntermediateTestVariant for more information.
+	if m.ForTest != "" && m.ForTest != m.PkgPath && m.ForTest+"_test" != m.PkgPath {
+		m.IsIntermediateTestVariant = true
+	}
+
 	for _, err := range pkg.Errors {
 		// Filter out parse errors from go list. We'll get them when we
 		// actually parse, and buggy overlay support may generate spurious
@@ -532,9 +538,6 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 			// The test variant of some workspace package or its x_test.
 			// To load it, we need to load the non-test variant with -test.
 			s.workspacePackages[m.ID] = m.ForTest
-		default:
-			// A test variant of some intermediate package. We don't care about it.
-			m.IsIntermediateTestVariant = true
 		}
 	}
 	return m, nil

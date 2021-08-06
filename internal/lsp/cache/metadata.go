@@ -43,6 +43,29 @@ type Metadata struct {
 	// IsIntermediateTestVariant reports whether the given package is an
 	// intermediate test variant, e.g.
 	// "golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]".
+	//
+	// Such test variants arise when an x_test package (in this case source_test)
+	// imports a package (in this case cache) that itself imports the the
+	// non-x_test package (in this case source).
+	//
+	// This is done so that the forward transitive closure of source_test has
+	// only one package for the "golang.org/x/tools/internal/lsp/source" import.
+	// The intermediate test variant exists to hold the test variant import:
+	//
+	// golang.org/x/tools/internal/lsp/source_test [golang.org/x/tools/internal/lsp/source.test]
+	//  | "golang.org/x/tools/internal/lsp/cache" -> golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]
+	//  | "golang.org/x/tools/internal/lsp/source" -> golang.org/x/tools/internal/lsp/source [golang.org/x/tools/internal/lsp/source.test]
+	//  | ...
+	//
+	// golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]
+	//  | "golang.org/x/tools/internal/lsp/source" -> golang.org/x/tools/internal/lsp/source [golang.org/x/tools/internal/lsp/source.test]
+	//  | ...
+	//
+	// We filter these variants out in certain places. For example, there is
+	// generally no reason to run diagnostics or analysis on them.
+	//
+	// TODO(rfindley): this can probably just be a method, since it is derived
+	// from other fields.
 	IsIntermediateTestVariant bool
 }
 
