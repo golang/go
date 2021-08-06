@@ -1885,6 +1885,12 @@ func (t *Type) Index() int {
 	return t.Extra.(*Typeparam).index
 }
 
+// SetIndex sets the index of the type param within its param list.
+func (t *Type) SetIndex(i int) {
+	t.wantEtype(TTYPEPARAM)
+	t.Extra.(*Typeparam).index = i
+}
+
 // SetBound sets the bound of a typeparam.
 func (t *Type) SetBound(bound *Type) {
 	t.wantEtype(TTYPEPARAM)
