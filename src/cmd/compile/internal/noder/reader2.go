@@ -303,9 +303,7 @@ func (r *reader2) interfaceType() *types2.Interface {
 		embeddeds[i] = r.typ()
 	}
 
-	typ := types2.NewInterfaceType(methods, embeddeds)
-	typ.Complete()
-	return typ
+	return types2.NewInterfaceType(methods, embeddeds)
 }
 
 func (r *reader2) signature(recv *types2.Var) *types2.Signature {
