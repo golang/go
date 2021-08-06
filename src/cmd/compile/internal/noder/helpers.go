@@ -171,39 +171,34 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		}
 	}
 
-	if fun.Type().HasTParam() {
+	if fun.Type().HasTParam() || fun.Op() == ir.OXDOT || fun.Op() == ir.OFUNCINST {
 		// If the fun arg is or has a type param, we can't do all the
-		// transformations, since we may not have needed properties yet.
-		// (e.g. number of return values, etc). However, if we do have the
-		// function type (even though it is parameterized), then can add in
-		// any needed CONVIFACE nodes. We can't do anything if fun is a type
-		// param (which is probably described by a structural constraint)
+		// transformations, since we may not have needed properties yet
+		// (e.g. number of return values, etc). The same applies if a fun
+		// which is an XDOT could not be transformed yet because of a generic
+		// type in the X of the selector expression.
+		//
+		// A function instantiation (even if fully concrete) shouldn't be
+		// transformed yet, because we need to add the dictionary during the
+		// transformation.
+		//
+		// However, if we have a function type (even though it is
+		// parameterized), then we can add in any needed CONVIFACE nodes via
+		// typecheckaste(). We need to call transformArgs() to deal first
+		// with the f(g(()) case where g returns multiple return values. We
+		// can't do anything if fun is a type param (which is probably
+		// described by a structural constraint)
 		if fun.Type().Kind() == types.TFUNC {
+			transformArgs(n)
 			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
 		}
 		return typed(typ, n)
 	}
 
-	if fun.Op() == ir.OXDOT {
-		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
-			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
-		}
-		// For methods called in a generic function, don't do any extra
-		// transformations. We will do those later when we create the
-		// instantiated function and have the correct receiver type.
-		typed(typ, n)
-		return n
-	}
-	if fun.Op() != ir.OFUNCINST {
-		// If no type params, do the normal call transformations. This
-		// will convert OCALL to OCALLFUNC.
-		typed(typ, n)
-		transformCall(n)
-		return n
-	}
-
-	// Leave the op as OCALL, which indicates the call still needs typechecking.
+	// If no type params, do the normal call transformations. This
+	// will convert OCALL to OCALLFUNC.
 	typed(typ, n)
+	transformCall(n)
 	return n
 }
 
