@@ -154,6 +154,11 @@ type irgen struct {
 	// dictionary syms which we need to finish, by writing out any itabconv
 	// entries.
 	dictSymsToFinalize []*delayInfo
+
+	// True when we are compiling a top-level generic function or method. Use to
+	// avoid adding closures of generic functions/methods to the target.Decls
+	// list.
+	topFuncIsGeneric bool
 }
 
 type delayInfo struct {
