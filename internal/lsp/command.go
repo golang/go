@@ -73,10 +73,14 @@ type commandFunc func(context.Context, commandDeps) error
 
 func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run commandFunc) (err error) {
 	if cfg.requireSave {
+		var unsaved []string
 		for _, overlay := range c.s.session.Overlays() {
 			if !overlay.Saved() {
-				return errors.New("All files must be saved first")
+				unsaved = append(unsaved, overlay.URI().Filename())
 			}
+		}
+		if len(unsaved) > 0 {
+			return errors.Errorf("All files must be saved first (unsaved: %v).", unsaved)
 		}
 	}
 	var deps commandDeps
