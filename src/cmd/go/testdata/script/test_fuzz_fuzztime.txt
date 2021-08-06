@@ -6,7 +6,7 @@
 # There are no seed values, so 'go test' should finish quickly.
 go test
 
-# Fuzzing should exit 0 when after fuzztime, even if timeout is short.
+# Fuzzing should exit 0 after fuzztime, even if timeout is short.
 go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
 
 # We should see the same behavior when invoking the test binary directly.
@@ -21,9 +21,8 @@ exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s 
 # We count the files to find the number of runs.
 mkdir count
 env GOCACHE=$WORK/tmp
-go test -fuzz=FuzzCount -fuzztime=1000x
-go run count_files.go
-stdout '^1000$'
+go test -fuzz=FuzzCount -fuzztime=1000x -fuzzminimizetime=1x
+go run check_file_count.go 1000
 
 -- go.mod --
 module fuzz
@@ -57,7 +56,7 @@ func FuzzCount(f *testing.F) {
 		n++
 	})
 }
--- count_files.go --
+-- check_file_count.go --
 // +build ignore
 
 package main
@@ -65,6 +64,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -73,5 +73,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Println(len(dir))
+	got := len(dir)
+	want, _ := strconv.Atoi(os.Args[1])
+	if got != want {
+		fmt.Fprintf(os.Stderr, "got %d files; want %d\n", got, want)
+		os.Exit(1)
+	}
 }

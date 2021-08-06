@@ -45,7 +45,8 @@ type CoordinateFuzzingOpts struct {
 
 	// MinimizeLimit is the maximum number of calls to the fuzz function to be
 	// made while minimizing after finding a crash. If zero, there will be
-	// no limit.
+	// no limit. Calls to the fuzz function made when minimizing also count
+	// toward Limit.
 	MinimizeLimit int64
 
 	// parallel is the number of worker processes to run in parallel. If zero,
@@ -91,13 +92,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	if opts.Limit > 0 && int64(opts.Parallel) > opts.Limit {
 		// Don't start more workers than we need.
 		opts.Parallel = int(opts.Limit)
-	}
-	canMinimize := false
-	for _, t := range opts.Types {
-		if isMinimizable(t) {
-			canMinimize = true
-			break
-		}
 	}
 
 	c, err := newCoordinator(opts)
@@ -199,17 +193,19 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 			}
 
 			if result.crasherMsg != "" {
-				if canMinimize && !result.minimized {
+				if c.canMinimize() && !result.minimizeAttempted {
+					if crashMinimizing {
+						// This crash is not minimized, and another crash is being minimized.
+						// Ignore this one and wait for the other one to finish.
+						break
+					}
 					// Found a crasher but haven't yet attempted to minimize it.
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
-					if crashMinimizing {
-						break
-					}
 					crashMinimizing = true
 					inputC = nil
 					fmt.Fprintf(c.opts.Log, "found a crash, minimizing...\n")
-					c.minimizeC <- result
+					c.minimizeC <- c.minimizeInputForResult(result)
 				} else if !crashWritten {
 					// Found a crasher that's either minimized or not minimizable.
 					// Write to corpus and stop.
@@ -402,9 +398,15 @@ type fuzzInput struct {
 	// values from this starting point.
 	entry CorpusEntry
 
-	// countRequested is the number of values to test. If non-zero, the worker
-	// will stop after testing this many values, if it hasn't already stopped.
-	countRequested int64
+	// timeout is the time to spend fuzzing variations of this input,
+	// not including starting or cleaning up.
+	timeout time.Duration
+
+	// limit is the maximum number of calls to the fuzz function the worker may
+	// make. The worker may make fewer calls, for example, if it finds an
+	// error early. If limit is zero, there is no limit on calls to the
+	// fuzz function.
+	limit int64
 
 	// coverageOnly indicates whether this input is for a coverage-only run. If
 	// true, the input should not be fuzzed.
@@ -425,16 +427,16 @@ type fuzzResult struct {
 	// crasherMsg is an error message from a crash. It's "" if no crash was found.
 	crasherMsg string
 
-	// minimized is true if a worker attempted to minimize entry.
-	// Minimization may not have actually been completed.
-	minimized bool
+	// minimizeAttempted is true if the worker attempted to minimize this input.
+	// The worker may or may not have succeeded.
+	minimizeAttempted bool
 
 	// coverageData is set if the worker found new coverage.
 	coverageData []byte
 
-	// countRequested is the number of values the coordinator asked the worker
+	// limit is the number of values the coordinator asked the worker
 	// to test. 0 if there was no limit.
-	countRequested int64
+	limit int64
 
 	// count is the number of values the worker actually tested.
 	count int64
@@ -444,6 +446,25 @@ type fuzzResult struct {
 
 	// entryDuration is the time the worker spent execution an interesting result
 	entryDuration time.Duration
+}
+
+type fuzzMinimizeInput struct {
+	// entry is an interesting value or crasher to minimize.
+	entry CorpusEntry
+
+	// crasherMsg is an error message from a crash. It's "" if no crash was found.
+	// If set, the worker will attempt to find a smaller input that also produces
+	// an error, though not necessarily the same error.
+	crasherMsg string
+
+	// limit is the maximum number of calls to the fuzz function the worker may
+	// make. The worker may make fewer calls, for example, if it can't reproduce
+	// an error. If limit is zero, there is no limit on calls to the fuzz function.
+	limit int64
+
+	// timeout is the time to spend minimizing this input.
+	// A zero timeout means no limit.
+	timeout time.Duration
 }
 
 // coordinator holds channels that workers can use to communicate with
@@ -461,7 +482,7 @@ type coordinator struct {
 
 	// minimizeC is sent values to minimize by the coordinator. Any worker may
 	// receive values from this channel. Workers send results to resultC.
-	minimizeC chan fuzzResult
+	minimizeC chan fuzzMinimizeInput
 
 	// resultC is sent results of fuzzing by workers. The coordinator
 	// receives these. Multiple types of messages are allowed.
@@ -482,8 +503,8 @@ type coordinator struct {
 	// starting up or tearing down.
 	duration time.Duration
 
-	// countWaiting is the number of values the coordinator is currently waiting
-	// for workers to fuzz.
+	// countWaiting is the number of fuzzing executions the coordinator is
+	// waiting on workers to complete.
 	countWaiting int64
 
 	// corpus is a set of interesting values, including the seed corpus and
@@ -494,6 +515,10 @@ type coordinator struct {
 	// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
 	// which corpus value to send next (or generates something new).
 	corpusIndex int
+
+	// typesAreMinimizable is true if one or more of the types of fuzz function's
+	// parameters can be minimized.
+	typesAreMinimizable bool
 
 	// coverageMask aggregates coverage that was found for all inputs in the
 	// corpus. Each byte represents a single basic execution block. Each set bit
@@ -530,10 +555,16 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		opts:          opts,
 		startTime:     time.Now(),
 		inputC:        make(chan fuzzInput),
-		minimizeC:     make(chan fuzzResult),
+		minimizeC:     make(chan fuzzMinimizeInput),
 		resultC:       make(chan fuzzResult),
 		corpus:        corpus,
 		covOnlyInputs: covOnlyInputs,
+	}
+	for _, t := range opts.Types {
+		if isMinimizable(t) {
+			c.typesAreMinimizable = true
+			break
+		}
 	}
 
 	covSize := len(coverage())
@@ -555,9 +586,8 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 }
 
 func (c *coordinator) updateStats(result fuzzResult) {
-	// Adjust total stats.
 	c.count += result.count
-	c.countWaiting -= result.countRequested
+	c.countWaiting -= result.limit
 	c.duration += result.totalDuration
 }
 
@@ -584,6 +614,7 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 		entry:            c.corpus.entries[c.corpusIndex],
 		interestingCount: c.interestingCount,
 		coverageData:     make([]byte, len(c.coverageMask)),
+		timeout:          workerFuzzDuration,
 	}
 	copy(input.coverageData, c.coverageMask)
 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
@@ -596,17 +627,48 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 	}
 
 	if c.opts.Limit > 0 {
-		input.countRequested = c.opts.Limit / int64(c.opts.Parallel)
+		input.limit = c.opts.Limit / int64(c.opts.Parallel)
 		if c.opts.Limit%int64(c.opts.Parallel) > 0 {
-			input.countRequested++
+			input.limit++
 		}
 		remaining := c.opts.Limit - c.count - c.countWaiting
-		if input.countRequested > remaining {
-			input.countRequested = remaining
+		if input.limit > remaining {
+			input.limit = remaining
 		}
-		c.countWaiting += input.countRequested
+		c.countWaiting += input.limit
 	}
 	return input, true
+}
+
+// minimizeInputForResult returns an input for minimization based on the given
+// fuzzing result that either caused a failure or expanded coverage.
+func (c *coordinator) minimizeInputForResult(result fuzzResult) fuzzMinimizeInput {
+	input := fuzzMinimizeInput{
+		entry:      result.entry,
+		crasherMsg: result.crasherMsg,
+	}
+	input.limit = 0
+	if c.opts.MinimizeTimeout > 0 {
+		input.timeout = c.opts.MinimizeTimeout
+	}
+	if c.opts.MinimizeLimit > 0 {
+		input.limit = c.opts.MinimizeLimit
+	} else if c.opts.Limit > 0 {
+		if result.crasherMsg != "" {
+			input.limit = c.opts.Limit
+		} else {
+			input.limit = c.opts.Limit / int64(c.opts.Parallel)
+			if c.opts.Limit%int64(c.opts.Parallel) > 0 {
+				input.limit++
+			}
+		}
+	}
+	remaining := c.opts.Limit - c.count - c.countWaiting
+	if input.limit > remaining {
+		input.limit = remaining
+	}
+	c.countWaiting += input.limit
+	return input
 }
 
 func (c *coordinator) coverageOnlyRun() bool {
@@ -627,6 +689,13 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
 		c.coverageMask[i] |= newCoverage[i]
 	}
 	return newBitCount
+}
+
+// canMinimize returns whether the coordinator should attempt to find smaller
+// inputs that reproduce a crash or new coverage.
+func (c *coordinator) canMinimize() bool {
+	return c.typesAreMinimizable &&
+		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
 }
 
 // readCache creates a combined corpus from seed values and values in the cache

@@ -151,7 +151,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
-			args := fuzzArgs{Limit: input.countRequested, Timeout: workerFuzzDuration, CoverageOnly: input.coverageOnly}
+			args := fuzzArgs{Limit: input.limit, Timeout: input.timeout, CoverageOnly: input.coverageOnly}
 			if interestingCount < input.interestingCount {
 				// The coordinator's coverage data has changed, so send the data
 				// to the client.
@@ -191,11 +191,11 @@ func (w *worker) coordinate(ctx context.Context) error {
 				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
 			}
 			result := fuzzResult{
-				countRequested: input.countRequested,
-				count:          resp.Count,
-				totalDuration:  resp.TotalDuration,
-				entryDuration:  resp.InterestingDuration,
-				entry:          entry,
+				limit:         input.limit,
+				count:         resp.Count,
+				totalDuration: resp.TotalDuration,
+				entryDuration: resp.InterestingDuration,
+				entry:         entry,
 			}
 			if resp.Err != "" {
 				result.crasherMsg = resp.Err
@@ -204,16 +204,20 @@ func (w *worker) coordinate(ctx context.Context) error {
 			}
 			w.coordinator.resultC <- result
 
-		case crasher := <-w.coordinator.minimizeC:
+		case input := <-w.coordinator.minimizeC:
 			// Received input to minimize from coordinator.
-			minRes, err := w.minimize(ctx, crasher)
+			result, err := w.minimize(ctx, input)
 			if err != nil {
 				// Failed to minimize. Send back the original crash.
 				fmt.Fprintln(w.coordinator.opts.Log, err)
-				minRes = crasher
-				minRes.minimized = true
+				result = fuzzResult{
+					entry:             input.entry,
+					crasherMsg:        input.crasherMsg,
+					minimizeAttempted: true,
+					limit:             input.limit,
+				}
 			}
-			w.coordinator.resultC <- minRes
+			w.coordinator.resultC <- result
 		}
 	}
 }
@@ -224,19 +228,23 @@ func (w *worker) coordinate(ctx context.Context) error {
 //
 // TODO: support minimizing inputs that expand coverage in a specific way,
 // for example, by ensuring that an input activates a specific set of counters.
-func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult, err error) {
+func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuzzResult, err error) {
 	if w.coordinator.opts.MinimizeTimeout != 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, w.coordinator.opts.MinimizeTimeout)
 		defer cancel()
 	}
 
-	min = input
-	min.minimized = true
+	min = fuzzResult{
+		entry:             input.entry,
+		crasherMsg:        input.crasherMsg,
+		minimizeAttempted: true,
+		limit:             input.limit,
+	}
 
 	args := minimizeArgs{
-		Limit:   w.coordinator.opts.MinimizeLimit,
-		Timeout: w.coordinator.opts.MinimizeTimeout,
+		Limit:   input.limit,
+		Timeout: input.timeout,
 	}
 	minEntry, resp, err := w.client.minimize(ctx, input.entry, args)
 	if err != nil {
@@ -660,7 +668,14 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 
 	if args.CoverageOnly {
 		fStart := time.Now()
-		ws.fuzzFn(CorpusEntry{Values: vals})
+		err := ws.fuzzFn(CorpusEntry{Values: vals})
+		if err != nil {
+			resp.Err = err.Error()
+			if resp.Err == "" {
+				resp.Err = "fuzz function failed with no output"
+			}
+			return resp
+		}
 		resp.InterestingDuration = time.Since(fStart)
 		resp.CoverageData = coverageSnapshot
 		return resp
