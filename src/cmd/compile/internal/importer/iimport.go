@@ -183,10 +183,6 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 		p.doDecl(localpkg, name)
 	}
 
-	for _, typ := range p.interfaceList {
-		typ.Complete()
-	}
-
 	// record all referenced packages as imports
 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
 	sort.Sort(byPath(list))
