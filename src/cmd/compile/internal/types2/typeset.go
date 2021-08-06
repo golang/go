@@ -268,9 +268,9 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 			pos = (*ityp.embedPos)[i]
 		}
 		var terms termlist
-		switch t := under(typ).(type) {
+		switch u := under(typ).(type) {
 		case *Interface:
-			tset := computeInterfaceTypeSet(check, pos, t)
+			tset := computeInterfaceTypeSet(check, pos, u)
 			if tset.comparable {
 				ityp.tset.comparable = true
 			}
@@ -279,7 +279,10 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 			}
 			terms = tset.terms
 		case *Union:
-			tset := computeUnionTypeSet(check, pos, t)
+			tset := computeUnionTypeSet(check, pos, u)
+			if tset == &invalidTypeSet {
+				continue // ignore invalid unions
+			}
 			terms = tset.terms
 		case *TypeParam:
 			// Embedding stand-alone type parameters is not permitted.
@@ -297,6 +300,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 		}
 		// The type set of an interface is the intersection
 		// of the type sets of all its elements.
+		// Intersection cannot produce longer termlists and
+		// thus cannot overflow.
 		allTerms = allTerms.intersect(terms)
 	}
 	ityp.embedPos = nil // not needed anymore (errors have been reported)
@@ -339,7 +344,13 @@ func (a byUniqueMethodName) Len() int           { return len(a) }
 func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
+// invalidTypeSet is a singleton type set to signal an invalid type set
+// due to an error. It's also a valid empty type set, so consumers of
+// type sets may choose to ignore it.
+var invalidTypeSet TypeSet
+
 // computeUnionTypeSet may be called with check == nil.
+// The result is &invalidTypeSet if the union overflows.
 func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *TypeSet {
 	if utyp.tset != nil {
 		return utyp.tset
@@ -359,11 +370,21 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *TypeSet {
 			// This case is handled during union parsing.
 			unreachable()
 		default:
+			if t.typ == Typ[Invalid] {
+				continue
+			}
 			terms = termlist{(*term)(t)}
 		}
 		// The type set of a union expression is the union
 		// of the type sets of each term.
 		allTerms = allTerms.union(terms)
+		if len(allTerms) > maxTermCount {
+			if check != nil {
+				check.errorf(pos, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+			}
+			utyp.tset = &invalidTypeSet
+			return utyp.tset
+		}
 	}
 	utyp.tset.terms = allTerms
 
