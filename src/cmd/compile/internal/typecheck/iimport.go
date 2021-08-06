@@ -388,8 +388,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 			// this types2-to-types1 translation.
 			return sym.Def.(*ir.Name)
 		}
-		index := int(r.int64())
-		t := types.NewTypeParam(sym, index)
+		// The typeparam index is set at the point where the containing type
+		// param list is imported.
+		t := types.NewTypeParam(sym, 0)
 		// Nname needed to save the pos.
 		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
 		sym.Def = nname
@@ -875,6 +876,9 @@ func (r *importReader) typeList() []*types.Type {
 	ts := make([]*types.Type, n)
 	for i := range ts {
 		ts[i] = r.typ()
+		if ts[i].IsTypeParam() {
+			ts[i].SetIndex(i)
+		}
 	}
 	return ts
 }
@@ -887,6 +891,7 @@ func (r *importReader) tparamList() []*types.Field {
 	fs := make([]*types.Field, n)
 	for i := range fs {
 		typ := r.typ()
+		typ.SetIndex(i)
 		fs[i] = types.NewField(typ.Pos(), typ.Sym(), typ)
 	}
 	return fs
