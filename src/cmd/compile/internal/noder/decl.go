@@ -102,7 +102,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
+	if fn.Type().HasTParam() {
+		g.topFuncIsGeneric = true
+	}
 	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+	g.topFuncIsGeneric = false
 	if fn.Type().HasTParam() && fn.Body != nil {
 		// Set pointers to the dcls/body of a generic function/method in
 		// the Inl struct, so it is marked for export, is available for

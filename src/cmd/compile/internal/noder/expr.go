@@ -465,7 +465,14 @@ func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {
 		cv.SetWalkdef(1)
 	}
 
-	return ir.UseClosure(fn.OClosure, g.target)
+	if g.topFuncIsGeneric {
+		// Don't add any closure inside a generic function/method to the
+		// g.target.Decls list, even though it may not be generic itself.
+		// See issue #47514.
+		return ir.UseClosure(fn.OClosure, nil)
+	} else {
+		return ir.UseClosure(fn.OClosure, g.target)
+	}
 }
 
 func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {
