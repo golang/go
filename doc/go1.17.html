@@ -753,9 +753,9 @@ func Foo() bool {
 
     <p><!-- CL 311572 -->
       The new
-      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
-      and 
-      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
+      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a>
+      and
+      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a>
       structs represent the int16 and byte values that may be null. These can be used as
       destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
       similar to NullString.
@@ -1205,11 +1205,11 @@ func Foo() bool {
 
     <p><!-- CL 300996 -->
       The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
-      The following time formats are now accepted:
+      For example, the following time layouts are now accepted:
       <ul>
-        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
-        <li>Mon Jan _2 14:06:03,120007 2006</li>
-        <li>Mon Jan 2 14:06:03,120007 2006</li>
+        <li>2006-01-02 15:04:05,999999999 -0700 MST</li>
+        <li>Mon Jan _2 15:04:05,000000 2006</li>
+        <li>Monday, January 2 15:04:05,000 2006</li>
       </ul>
     </p>
 
