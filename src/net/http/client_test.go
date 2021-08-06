@@ -2082,3 +2082,47 @@ func (b *issue40382Body) Close() error {
 	}
 	return nil
 }
+
+func TestProbeZeroLengthBody(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	reqc := make(chan struct{})
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(reqc)
+		if _, err := io.Copy(w, r.Body); err != nil {
+			t.Errorf("error copying request body: %v", err)
+		}
+	}))
+	defer cst.close()
+
+	bodyr, bodyw := io.Pipe()
+	var gotBody string
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		req, _ := NewRequest("GET", cst.ts.URL, bodyr)
+		res, err := cst.c.Do(req)
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		gotBody = string(b)
+	}()
+
+	select {
+	case <-reqc:
+		// Request should be sent after trying to probe the request body for 200ms.
+	case <-time.After(60 * time.Second):
+		t.Errorf("request not sent after 60s")
+	}
+
+	// Write the request body and wait for the request to complete.
+	const content = "body"
+	bodyw.Write([]byte(content))
+	bodyw.Close()
+	wg.Wait()
+	if gotBody != content {
+		t.Fatalf("server got body %q, want %q", gotBody, content)
+	}
+}
