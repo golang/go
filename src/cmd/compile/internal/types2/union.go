@@ -43,12 +43,22 @@ func (t *Term) String() string { return (*term)(t).String() }
 // ----------------------------------------------------------------------------
 // Implementation
 
+// Avoid excessive type-checking times due to quadratic termlist operations.
+const maxTermCount = 100
+
+// parseUnion parses the given list of type expressions tlist as a union of
+// those expressions. The result is a Union type, or Typ[Invalid] for some
+// errors.
 func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 	var terms []*Term
 	for _, x := range tlist {
 		tilde, typ := parseTilde(check, x)
 		if len(tlist) == 1 && !tilde {
-			return typ // single type
+			return typ // single type (optimization)
+		}
+		if len(terms) >= maxTermCount {
+			check.errorf(x, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+			return Typ[Invalid]
 		}
 		terms = append(terms, NewTerm(tilde, typ))
 	}
