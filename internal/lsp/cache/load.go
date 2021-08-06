@@ -149,6 +149,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
+	var newMetadata []*Metadata
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
 		// encountered module errors.
@@ -195,17 +196,28 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		// Set the metadata for this package.
 		s.mu.Lock()
-		m, err := s.setMetadataLocked(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, map[PackageID]struct{}{})
+		seen := make(map[PackageID]struct{})
+		m, err := s.setMetadataLocked(ctx, PackagePath(pkg.PkgPath), pkg, cfg, query, seen)
 		s.mu.Unlock()
 		if err != nil {
 			return err
 		}
+		newMetadata = append(newMetadata, m)
+	}
+
+	// Rebuild package data when metadata is updated.
+	s.rebuildPackageData()
+	s.dumpWorkspace("load")
+
+	// Now that the workspace has been rebuilt, verify that we can build package handles.
+	//
+	// TODO(rfindley): what's the point of returning an error here? Probably we
+	// can simply remove this step: The package handle will be rebuilt as needed.
+	for _, m := range newMetadata {
 		if _, err := s.buildPackageHandle(ctx, m.ID, s.workspaceParseMode(m.ID)); err != nil {
 			return err
 		}
 	}
-	// Rebuild the import graph when the metadata is updated.
-	s.clearAndRebuildImportGraph()
 
 	if len(moduleErrs) > 0 {
 		return &moduleErrorMap{moduleErrs}
@@ -468,6 +480,19 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 		m.GoFiles = append(m.GoFiles, uri)
 		uris[uri] = struct{}{}
 	}
+
+	for uri := range uris {
+		// In order for a package to be considered for the workspace, at least one
+		// file must be contained in the workspace and not vendored.
+
+		// The package's files are in this view. It may be a workspace package.
+		// Vendored packages are not likely to be interesting to the user.
+		if !strings.Contains(string(uri), "/vendor/") && s.view.contains(uri) {
+			m.HasWorkspaceFiles = true
+			break
+		}
+	}
+
 	s.updateIDForURIsLocked(id, uris)
 
 	// TODO(rstambler): is this still necessary?
@@ -517,30 +542,65 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath PackagePath, p
 		}
 	}
 
-	// Set the workspace packages. If any of the package's files belong to the
-	// view, then the package may be a workspace package.
-	for _, uri := range append(m.CompiledGoFiles, m.GoFiles...) {
-		if !s.view.contains(uri) {
+	return m, nil
+}
+
+// computeWorkspacePackages computes workspace packages for the given metadata
+// graph.
+func computeWorkspacePackages(meta *metadataGraph) map[PackageID]PackagePath {
+	workspacePackages := make(map[PackageID]PackagePath)
+	for _, m := range meta.metadata {
+		if !m.HasWorkspaceFiles {
+			continue
+		}
+		if m.PkgFilesChanged {
+			// If a package name has changed, it's possible that the package no
+			// longer exists. Leaving it as a workspace package can result in
+			// persistent stale diagnostics.
+			//
+			// If there are still valid files in the package, it will be reloaded.
+			//
+			// There may be more precise heuristics.
 			continue
 		}
 
-		// The package's files are in this view. It may be a workspace package.
-		if strings.Contains(string(uri), "/vendor/") {
-			// Vendored packages are not likely to be interesting to the user.
-			continue
+		if source.IsCommandLineArguments(string(m.ID)) {
+			// If all the files contained in m have a real package, we don't need to
+			// keep m as a workspace package.
+			if allFilesHaveRealPackages(meta, m) {
+				continue
+			}
 		}
 
 		switch {
 		case m.ForTest == "":
 			// A normal package.
-			s.workspacePackages[m.ID] = pkgPath
+			workspacePackages[m.ID] = m.PkgPath
 		case m.ForTest == m.PkgPath, m.ForTest+"_test" == m.PkgPath:
 			// The test variant of some workspace package or its x_test.
 			// To load it, we need to load the non-test variant with -test.
-			s.workspacePackages[m.ID] = m.ForTest
+			workspacePackages[m.ID] = m.ForTest
 		}
 	}
-	return m, nil
+	return workspacePackages
+}
+
+// allFilesHaveRealPackages reports whether all files referenced by m are
+// contained in a "real" package (not command-line-arguments).
+//
+// If m is not a command-line-arguments package, this is trivially true.
+func allFilesHaveRealPackages(g *metadataGraph, m *KnownMetadata) bool {
+	n := len(m.CompiledGoFiles)
+checkURIs:
+	for _, uri := range append(m.CompiledGoFiles[0:n:n], m.GoFiles...) {
+		for _, id := range g.ids[uri] {
+			if !source.IsCommandLineArguments(string(id)) {
+				continue checkURIs
+			}
+		}
+		return false
+	}
+	return true
 }
 
 func isTestMain(pkg *packages.Package, gocache string) bool {

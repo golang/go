@@ -67,6 +67,13 @@ type Metadata struct {
 	// TODO(rfindley): this can probably just be a method, since it is derived
 	// from other fields.
 	IsIntermediateTestVariant bool
+
+	// HasWorkspaceFiles reports whether m contains any files that are considered
+	// part of the workspace.
+	//
+	// TODO(golang/go#48929): this should be a property of the workspace
+	// (the go.work file), not a constant.
+	HasWorkspaceFiles bool
 }
 
 // Name implements the source.Metadata interface.
@@ -92,6 +99,14 @@ type KnownMetadata struct {
 	// Invalid metadata can still be used if a metadata reload fails.
 	Valid bool
 
+	// PkgFilesChanged reports whether the file set of this metadata has
+	// potentially changed.
+	PkgFilesChanged bool
+
 	// ShouldLoad is true if the given metadata should be reloaded.
+	//
+	// Note that ShouldLoad is different from !Valid: when we try to load a
+	// package, we mark ShouldLoad = false regardless of whether the load
+	// succeeded, to prevent endless loads.
 	ShouldLoad bool
 }
