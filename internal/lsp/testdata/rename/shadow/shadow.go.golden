@@ -1,0 +1,48 @@
+-- a-rename --
+renaming this func "A" to "a"	would cause this reference to become shadowed	by this intervening var definition
+-- b-rename --
+package shadow
+
+func _() {
+	a := true
+	b, c, _ := A(), b(), D() //@rename("A", "a"),rename("B", "b"),rename("b", "c"),rename("D", "d")
+	d := false
+	_, _, _, _ = a, b, c, d
+}
+
+func A() int {
+	return 0
+}
+
+func b() int {
+	return 0
+}
+
+func D() int {
+	return 0
+}
+
+-- c-rename --
+renaming this var "b" to "c"	conflicts with var in same block
+-- d-rename --
+package shadow
+
+func _() {
+	a := true
+	b, c, _ := A(), B(), d() //@rename("A", "a"),rename("B", "b"),rename("b", "c"),rename("D", "d")
+	d := false
+	_, _, _, _ = a, b, c, d
+}
+
+func A() int {
+	return 0
+}
+
+func B() int {
+	return 0
+}
+
+func d() int {
+	return 0
+}
+

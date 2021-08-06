@@ -195,7 +195,7 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 			// The name r.to is defined in a superblock.
 			// Is that name referenced from within this block?
 			forEachLexicalRef(pkg, to, func(id *ast.Ident, block *types.Scope) bool {
-				_, obj := lexicalLookup(block, from.Name(), id.Pos())
+				_, obj := block.LookupParent(from.Name(), id.Pos())
 				if obj == from {
 					// super-block conflict
 					r.errorf(from.Pos(), "renaming this %s %q to %q",
@@ -215,10 +215,9 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 	forEachLexicalRef(pkg, from, func(id *ast.Ident, block *types.Scope) bool {
 		// Find the block that defines the found reference.
 		// It may be an ancestor.
-		fromBlock, _ := lexicalLookup(block, from.Name(), id.Pos())
-
+		fromBlock, _ := block.LookupParent(from.Name(), id.Pos())
 		// See what r.to would resolve to in the same scope.
-		toBlock, to := lexicalLookup(block, r.to, id.Pos())
+		toBlock, to := block.LookupParent(r.to, id.Pos())
 		if to != nil {
 			// sub-block conflict
 			if deeper(toBlock, fromBlock) {
@@ -247,26 +246,6 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 			}
 		}
 	}
-}
-
-// lexicalLookup is like (*types.Scope).LookupParent but respects the
-// environment visible at pos.  It assumes the relative position
-// information is correct with each file.
-func lexicalLookup(block *types.Scope, name string, pos token.Pos) (*types.Scope, types.Object) {
-	for b := block; b != nil; b = b.Parent() {
-		obj := b.Lookup(name)
-		// The scope of a package-level object is the entire package,
-		// so ignore pos in that case.
-		// No analogous clause is needed for file-level objects
-		// since no reference can appear before an import decl.
-		if obj == nil || obj.Pkg() == nil {
-			continue
-		}
-		if b == obj.Pkg().Scope() || obj.Pos() < pos {
-			return b, obj
-		}
-	}
-	return nil, nil
 }
 
 // deeper reports whether block x is lexically deeper than y.
