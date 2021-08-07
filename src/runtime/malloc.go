@@ -1319,7 +1319,7 @@ func nextSampleNoFP() uintptr {
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return uintptr(fastrand() % uint32(2*rate))
+		return uintptr(fastrandn(uint32(2 * rate)))
 	}
 	return 0
 }

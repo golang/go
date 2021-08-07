@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 var stop = make(chan bool, 1)
@@ -689,6 +690,27 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
 			}()
 		}
 		wg.Wait()
+	}
+}
+
+func BenchmarkCreateGoroutinesLargeStack(b *testing.B) {
+	c := make(chan bool)
+	var f func(n uintptr)
+	f = func(n uintptr) {
+		if n == 0 {
+			c <- true
+			return
+		}
+		f(n - 1)
+	}
+	for _, sz := range []uintptr{0, 1, 2, 4, 16, 64, 256} {
+		b.Run(fmt.Sprintf("%d", sz), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				go f(sz * 1024 / (3 * unsafe.Sizeof(uintptr(0))))
+				<-c
+			}
+		})
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -1073,6 +1074,7 @@ func newstack() {
 		// Don't double the stack (or we may quickly run out
 		// if this is done repeatedly).
 		newsize = oldsize
+		gp.stackguard0 = gp.stack.lo + _StackGuard
 	}
 
 	if newsize > maxstacksize || newsize > maxstackceiling {
@@ -1083,6 +1085,27 @@ func newstack() {
 		}
 		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		throw("stack overflow")
+	}
+
+	if goexperiment.PredictStackSize {
+		// Record the maximum stack size reached by this goroutine. This is used for
+		// stack size prediction (see gstacksizeupdate).
+		if sz := ceillog2(newsize); sz > gp.highwater {
+			gp.highwater = sz
+		}
+
+		if gp.stackguard0 != gp.stack.lo+_StackGuard {
+			// This happens when the stack grows for the first time, and the G was
+			// created with a custom stack size. When this is true, the G stackguard0
+			// gets set as if the stack was only half the size that was allocated: we
+			// do this to detect goroutines that never outgrow their stacks, as this
+			// means that the prediction of their stack size was too high.
+			// In this case here we just need to adjust the stackguard and resume.
+			// TODO: Check that we have enough space on the stack to avoid a second
+			// call to newstack.
+			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gogo(&gp.sched)
+		}
 	}
 
 	// The goroutine must be executing in order to call newstack,
@@ -1389,4 +1412,14 @@ func (r *stackObjectRecord) ptrdata() uintptr {
 //go:linkname morestackc
 func morestackc() {
 	throw("attempt to execute system stack code on user stack")
+}
+
+// returns ceil(log2(n/_StackMin))
+func ceillog2(n uintptr) (x uint8) {
+	// TODO: avoid the loop
+	for n > _StackMin {
+		x++
+		n >>= 1
+	}
+	return
 }

@@ -460,6 +460,12 @@ type g struct {
 	// for stack shrinking. It's a boolean value, but is updated atomically.
 	parkingOnChan uint8
 
+	// highwater is the highwater mark for the stack size allocated during the lifetime
+	// of this goroutine. It is updated in morestack, and used by gstacksizeupdate to
+	// decide whether the initial stack size was appropriate or not.
+	// The actual value is 2^highwater.
+	highwater uint8
+
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
 	tracking       bool     // whether we're tracking this G for sched latency statistics
@@ -737,6 +743,9 @@ type p struct {
 	// preempt is set to indicate that this P should be enter the
 	// scheduler ASAP (regardless of what G is running on it).
 	preempt bool
+
+	// dynamic initial stack sizing state
+	gstacksize gstacksize
 
 	// Padding is no longer needed. False sharing is now not a worry because p is large enough
 	// that its size class is an integer multiple of the cache line size (for any of our architectures).

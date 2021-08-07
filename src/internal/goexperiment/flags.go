@@ -58,6 +58,7 @@ type Flags struct {
 	FieldTrack        bool
 	PreemptibleLoops  bool
 	StaticLockRanking bool
+	PredictStackSize  bool
 
 	// Unified enables the compiler's unified IR construction
 	// experiment.

@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -3651,6 +3652,9 @@ func goexit0(gp *g) {
 
 	dropg()
 
+	gstacksizeupdate(gp.gopc, gp.highwater)
+	gp.highwater = 0
+
 	if GOARCH == "wasm" { // no threads yet on wasm
 		gfput(_g_.m.p.ptr(), gp)
 		schedule() // never returns
@@ -4243,9 +4247,35 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	acquirem() // disable preemption because it can be holding p in a local var
 
 	_p_ := _g_.m.p.ptr()
-	newg := gfget(_p_)
+
+	var newg *g
+	stackSize := gstacksizepredict(callerpc)
+	if stackSize != _StackMin {
+		// TODO: call gfget and immediately replace the default stack with one
+		// with the predicted size
+	} else {
+		newg = gfget(_p_)
+	}
 	if newg == nil {
-		newg = malg(_StackMin)
+		newg = malg(stackSize)
+		if sz := newg.stack.hi - newg.stack.lo; sz > _FixedStack {
+			// If stack size prediction is enabled and predicts a larger stack
+			// than the minimum one, we set the stackguard as if the stack was
+			// only half the size: we do this to detect goroutines that never
+			// outgrow their initial stacks, as this means that the prediction
+			// was too big.
+			// In this case the highwater will be 0 because newstack is never
+			// called, and gstacksizeupdate will consider the prediction as
+			// "too big".
+			// In newstack we handle this case by simply setting the stackguard
+			// to its correct value and resuming execution.
+			// Note that preemption or other events that mangle stackguard0
+			// will overwrite this special value: this is acceptable, as in this
+			// case the only effect will be that highwater will be 0 even if
+			// newstack was called. As long as this happen rarely it should not
+			// affect the estimation significantly.
+			newg.stackguard0 = newg.stack.lo + sz/2 + _StackGuard
+		}
 		casgstatus(newg, _Gidle, _Gdead)
 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
 	}
@@ -4455,6 +4485,130 @@ func gfpurge(_p_ *p) {
 	sched.gFree.stack.pushAll(stackQ)
 	sched.gFree.n += inc
 	unlock(&sched.gFree.lock)
+}
+
+func gstacksizepredict(pc uintptr) int32 {
+	if !goexperiment.PredictStackSize {
+		return _StackMin
+	}
+	// Disable preemption as the gstacksize table are per-P, and
+	// if we are moved to a different P midway through we may cause
+	// a race.
+	mp := acquirem()
+	size, _ := gstacksizeinit().entryforPC(pc).get()
+	releasem(mp)
+	stack := int32(_StackMin) << size
+	if stack >= _FixedStack {
+		stack /= _FixedStack / _StackMin
+	}
+	return stack
+}
+
+func gstacksizeupdate(pc uintptr, highwater uint8) {
+	if !goexperiment.PredictStackSize {
+		return
+	}
+	// Disable preemption as the gstacksize table are per-P, and
+	// if we are moved to a different P midway through we may cause
+	// a race.
+	mp := acquirem()
+	gstacksizeinit().entryforPC(pc).update(highwater)
+	releasem(mp)
+}
+
+func gstacksizeinit() *gstacksize {
+	// TODO: can we move invalidation to the GC stop-the-world?
+	// TODO: should we use random invalidation instead?
+	// TODO: can we remove invalidation alltogether?
+	cycle := atomic.Load(&work.cycles)
+	_p_ := getg().m.p.ptr()
+	if cycle != _p_.gstacksize.cycle {
+		_p_.gstacksize.cycle = cycle
+		_p_.gstacksize.initseed()
+		for i := range _p_.gstacksize.entries {
+			_p_.gstacksize.entries[i] = 0
+		}
+	}
+	return &_p_.gstacksize
+}
+
+type (
+	gstacksize struct {
+		// gstacksize is the per-P stack size estimation table. Each entry in the
+		// table is a running estimator for the initial stack size of goroutines
+		// started from go statements whose PC hashes to that specific entry.
+		// TODO: if we could enumerate all valid callerpcs and allocate a slot for
+		// each one of them, we could avoid all conflicts among entries and remove
+		// the per-GC resetting
+		entries [32]gstacksizeentry
+		seed    uintptr // seed used for hashing PCs to entries in the table
+		cycle   uint32  // used to detect when the entries and seed need to be reset
+	}
+	gstacksizeentry uint8
+)
+
+func (g *gstacksize) initseed() {
+	if unsafe.Sizeof(g.seed) == 8 {
+		g.seed = uintptr(fastrand()) | (uintptr(fastrand()) << 32)
+	} else {
+		g.seed = uintptr(fastrand())
+	}
+}
+
+func (s *gstacksize) entryforPC(pc uintptr) *gstacksizeentry {
+	var pch uintptr
+	if unsafe.Sizeof(pc) == 8 {
+		pch = memhash64(noescape(unsafe.Pointer(&pc)), s.seed)
+	} else {
+		pch = memhash32(noescape(unsafe.Pointer(&pc)), s.seed)
+	}
+	return &s.entries[pch%uintptr(len(s.entries))]
+}
+
+const freqBits = 4
+
+func (e gstacksizeentry) get() (stacksize, frequency uint8) {
+	return uint8(e) >> freqBits, uint8(e) & ((1 << freqBits) - 1)
+}
+
+func (e *gstacksizeentry) set(stacksize, frequency uint8) {
+	const (
+		maxFreq = 1<<freqBits - 1
+		maxSize = 1<<(8-freqBits) - 1
+	)
+	if stacksize > maxSize || frequency > maxFreq {
+		print("gstacksizeentry.set: stacksize=", stacksize, " frequency=", frequency)
+		throw("invalid stacksize/frequency")
+	}
+	*e = gstacksizeentry((stacksize << freqBits) | frequency)
+}
+
+func (e *gstacksizeentry) update(highwater uint8) {
+	const (
+		maxFreq    = 1<<freqBits - 1
+		maxSize    = 1<<(8-freqBits) - 1
+		updateFreq = 10 // update probability = 1 over updateFreq
+	)
+	cursize, curfreq := e.get()
+	if highwater == cursize || fastrandn(updateFreq) != 0 {
+		return
+	}
+	if highwater < cursize {
+		if curfreq > 0 {
+			curfreq--
+		} else if cursize > 0 {
+			cursize--
+			curfreq = maxFreq / 2
+		}
+	} else /* if highwater > cursize */ {
+		if curfreq < maxFreq {
+			curfreq++
+		} else if cursize < maxSize {
+			cursize++
+			curfreq = maxFreq / 2
+		}
+	}
+	e.set(cursize, curfreq)
 }
 
 // Breakpoint executes a breakpoint trap.
@@ -4816,6 +4970,8 @@ func (pp *p) init(id int32) {
 	// Similarly, we may not go through pidleget before this P starts
 	// running if it is P 0 on startup.
 	idlepMask.clear(id)
+
+	pp.gstacksize.initseed()
 }
 
 // destroy releases all of the resources associated with pp and
