@@ -861,7 +861,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 		case []byte:
 			switch prev.(type) {
 			case []byte:
-				vals[valI] = c
+				vals[valI] = append([]byte{}, c...)
 			case string:
 				vals[valI] = string(c)
 			default:
