@@ -208,7 +208,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 		// TODO(gri) We should delay rtyp expansion to when we actually need the
 		//           receiver; thus all checks here should be delayed to later.
 		rtyp, _ := deref(recv.typ)
-		rtyp = expand(rtyp)
 
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
@@ -216,6 +215,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			var err string
 			switch T := rtyp.(type) {
 			case *Named:
+				T.expand()
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
