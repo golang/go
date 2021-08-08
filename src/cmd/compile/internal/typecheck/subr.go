@@ -1165,7 +1165,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 
 	case types.TINTER:
 		newt = ts.tinter(t)
-		if newt == t {
+		if newt == t && !targsChanged {
 			newt = nil
 		}
 
@@ -1197,6 +1197,24 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
 		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
 		newt = t.Underlying()
+	case types.TUNION:
+		nt := t.NumTerms()
+		newterms := make([]*types.Type, nt)
+		tildes := make([]bool, nt)
+		changed := false
+		for i := 0; i < nt; i++ {
+			term, tilde := t.Term(i)
+			tildes[i] = tilde
+			newterms[i] = ts.Typ(term)
+			if newterms[i] != term {
+				changed = true
+			}
+		}
+		if changed {
+			newt = types.NewUnion(newterms, tildes)
+		}
+	default:
+		panic(fmt.Sprintf("Bad type in (*TSubster).Typ: %v", t.Kind()))
 	}
 	if newt == nil {
 		// Even though there were typeparams in the type, there may be no

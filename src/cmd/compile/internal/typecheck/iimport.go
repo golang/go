@@ -1858,18 +1858,26 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 
 	newfields := make([]*types.Field, baseType.Methods().Len())
 	for i, f := range baseType.Methods().Slice() {
+		if !f.IsMethod() || types.IsInterfaceMethod(f.Type) {
+			// Do a normal substitution if this is a non-method (which
+			// means this must be an interface used as a constraint) or
+			// an interface method.
+			t2 := subst.Typ(f.Type)
+			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+			continue
+		}
 		recvType := f.Type.Recv().Type
 		if recvType.IsPtr() {
 			recvType = recvType.Elem()
 		}
 		// Substitute in the method using the type params used in the
 		// method (not the type params in the definition of the generic type).
-		subst := Tsubster{
+		msubst := Tsubster{
 			Tparams:       recvType.RParams(),
 			Targs:         targs,
 			SubstForwFunc: doInst,
 		}
-		t2 := subst.Typ(f.Type)
+		t2 := msubst.Typ(f.Type)
 		oldsym := f.Nname.Sym()
 		newsym := MakeInstName(oldsym, targs, true)
 		var nname *ir.Name
