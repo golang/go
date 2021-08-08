@@ -227,7 +227,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		// Set g.typs[typ] in case the bound methods reference typ.
 		g.typs[typ] = tp
 
-		bound := g.typ1(typ.Bound())
+		bound := g.typ1(typ.Constraint())
 		tp.SetBound(bound)
 		return tp
 

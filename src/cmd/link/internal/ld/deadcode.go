@@ -408,6 +408,9 @@ func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symId
 // Decode the method of interface type symbol symIdx at offset off.
 func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off int64) methodsig {
 	p := ldr.Data(symIdx)
+	if p == nil {
+		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
+	}
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}

@@ -1912,6 +1912,15 @@ func NewUnion(terms []*Type, tildes []bool) *Type {
 	}
 	t.Extra.(*Union).terms = terms
 	t.Extra.(*Union).tildes = tildes
+	nt := len(terms)
+	for i := 0; i < nt; i++ {
+		if terms[i].HasTParam() {
+			t.SetHasTParam(true)
+		}
+		if terms[i].HasShape() {
+			t.SetHasShape(true)
+		}
+	}
 	return t
 }
 
