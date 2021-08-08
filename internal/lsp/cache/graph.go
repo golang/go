@@ -4,7 +4,12 @@
 
 package cache
 
-import "golang.org/x/tools/internal/span"
+import (
+	"sort"
+
+	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
+)
 
 // A metadataGraph holds information about a transtively closed import graph of
 // Go packages, as obtained from go/packages.
@@ -13,21 +18,122 @@ import "golang.org/x/tools/internal/span"
 // TODO(rfindley): make this type immutable, so that it may be shared across
 // snapshots.
 type metadataGraph struct {
-	// ids maps file URIs to package IDs. A single file may belong to multiple
-	// packages due to tests packages.
-	ids map[span.URI][]PackageID
 
 	// metadata maps package IDs to their associated metadata.
 	metadata map[PackageID]*KnownMetadata
 
 	// importedBy maps package IDs to the list of packages that import them.
 	importedBy map[PackageID][]PackageID
+
+	// ids maps file URIs to package IDs. A single file may belong to multiple
+	// packages due to tests packages.
+	ids map[span.URI][]PackageID
 }
 
 func NewMetadataGraph() *metadataGraph {
 	return &metadataGraph{
-		ids:        make(map[span.URI][]PackageID),
 		metadata:   make(map[PackageID]*KnownMetadata),
 		importedBy: make(map[PackageID][]PackageID),
+		ids:        make(map[span.URI][]PackageID),
+	}
+}
+
+// Clone creates a new metadataGraph, applying the given updates to the
+// receiver.
+func (g *metadataGraph) Clone(updates map[PackageID]*KnownMetadata) *metadataGraph {
+	result := &metadataGraph{metadata: make(map[PackageID]*KnownMetadata, len(g.metadata))}
+	// Copy metadata.
+	for id, m := range g.metadata {
+		result.metadata[id] = m
+	}
+	for id, m := range updates {
+		if m == nil {
+			delete(result.metadata, id)
+		} else {
+			result.metadata[id] = m
+		}
+	}
+	result.build()
+	return result
+}
+
+// build constructs g.importedBy and g.uris from g.metadata.
+func (g *metadataGraph) build() {
+	// Build the import graph.
+	g.importedBy = make(map[PackageID][]PackageID)
+	for id, m := range g.metadata {
+		for _, importID := range m.Deps {
+			g.importedBy[importID] = append(g.importedBy[importID], id)
+		}
+	}
+
+	// Collect file associations.
+	g.ids = make(map[span.URI][]PackageID)
+	for id, m := range g.metadata {
+		uris := map[span.URI]struct{}{}
+		for _, uri := range m.CompiledGoFiles {
+			uris[uri] = struct{}{}
+		}
+		for _, uri := range m.GoFiles {
+			uris[uri] = struct{}{}
+		}
+		for uri := range uris {
+			g.ids[uri] = append(g.ids[uri], id)
+		}
+	}
+
+	// Sort and filter file associations.
+	//
+	// We choose the first non-empty set of package associations out of the
+	// following. For simplicity, call a non-command-line-arguments package a
+	// "real" package.
+	//
+	// 1: valid real packages
+	// 2: a valid command-line-arguments package
+	// 3: invalid real packages
+	// 4: an invalid command-line-arguments package
+	for uri, ids := range g.ids {
+		sort.Slice(ids, func(i, j int) bool {
+			// Sort valid packages first.
+			validi := g.metadata[ids[i]].Valid
+			validj := g.metadata[ids[j]].Valid
+			if validi != validj {
+				return validi
+			}
+
+			cli := source.IsCommandLineArguments(string(ids[i]))
+			clj := source.IsCommandLineArguments(string(ids[j]))
+			if cli && !clj {
+				return false
+			}
+			if !cli && clj {
+				return true
+			}
+			return ids[i] < ids[j]
+		})
+
+		// Choose the best IDs for each URI, according to the following rules:
+		//  - If there are any valid real packages, choose them.
+		//  - Else, choose the first valid command-line-argument package, if it exists.
+		//  - Else, keep using all the invalid metadata.
+		//
+		// TODO(rfindley): it might be better to track all IDs here, and exclude
+		// them later in PackagesForFile, but this is the existing behavior.
+		hasValidMetadata := false
+		for i, id := range ids {
+			m := g.metadata[id]
+			if m.Valid {
+				hasValidMetadata = true
+			} else if hasValidMetadata {
+				g.ids[uri] = ids[:i]
+				break
+			}
+			// If we've seen *anything* prior to command-line arguments package, take
+			// it. Note that ids[0] may itself be command-line-arguments.
+			if i > 0 && source.IsCommandLineArguments(string(id)) {
+				g.ids[uri] = ids[:i]
+				break
+			}
+		}
 	}
 }

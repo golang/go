@@ -716,16 +716,6 @@ func (s *snapshot) getImportedByLocked(id PackageID) []PackageID {
 	return s.meta.importedBy[id]
 }
 
-func (s *snapshot) rebuildPackageData() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Completely invalidate the original map.
-	s.meta.importedBy = make(map[PackageID][]PackageID)
-	s.rebuildImportGraph()
-	s.workspacePackages = computeWorkspacePackages(s.meta)
-}
-
 func (s *snapshot) rebuildImportGraph() {
 	for id, m := range s.meta.metadata {
 		for _, importID := range m.Deps {
@@ -1304,41 +1294,6 @@ func (s *snapshot) noValidMetadataForID(id PackageID) bool {
 func (s *snapshot) noValidMetadataForIDLocked(id PackageID) bool {
 	m := s.meta.metadata[id]
 	return m == nil || !m.Valid
-}
-
-// updateIDForURIsLocked adds the given ID to the set of known IDs for the given URI.
-// Any existing invalid IDs are removed from the set of known IDs. IDs that are
-// not "command-line-arguments" are preferred, so if a new ID comes in for a
-// URI that previously only had "command-line-arguments", the new ID will
-// replace the "command-line-arguments" ID.
-func (s *snapshot) updateIDForURIsLocked(id PackageID, uris map[span.URI]struct{}) {
-	for uri := range uris {
-		// Collect the new set of IDs, preserving any valid existing IDs.
-		newIDs := []PackageID{id}
-		for _, existingID := range s.meta.ids[uri] {
-			// Don't set duplicates of the same ID.
-			if existingID == id {
-				continue
-			}
-			// If the package previously only had a command-line-arguments ID,
-			// delete the command-line-arguments workspace package.
-			if source.IsCommandLineArguments(string(existingID)) {
-				delete(s.workspacePackages, existingID)
-				continue
-			}
-			// If the metadata for an existing ID is invalid, and we are
-			// setting metadata for a new, valid ID--don't preserve the old ID.
-			if m, ok := s.meta.metadata[existingID]; !ok || !m.Valid {
-				continue
-			}
-			newIDs = append(newIDs, existingID)
-		}
-		sort.Slice(newIDs, func(i, j int) bool {
-			return newIDs[i] < newIDs[j]
-		})
-		s.meta.ids[uri] = newIDs
-	}
-	s.dumpWorkspace("updateIDs")
 }
 
 func (s *snapshot) isWorkspacePackage(id PackageID) bool {
@@ -1984,7 +1939,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	// If the workspace mode has changed, we must delete all metadata, as it
 	// is unusable and may produce confusing or incorrect diagnostics.
-	// If a file has been deleted, we must delete metadata all packages
+	// If a file has been deleted, we must delete metadata for all packages
 	// containing that file.
 	workspaceModeChanged := s.workspaceMode() != result.workspaceMode()
 	skipID := map[PackageID]bool{}
