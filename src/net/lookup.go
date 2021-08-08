@@ -442,7 +442,7 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 // The returned service names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
 	return DefaultResolver.LookupSRV(context.Background(), service, proto, name)
 }
@@ -460,7 +460,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // The returned service names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
 	cname, addrs, err := r.lookupSRV(ctx, service, proto, name)
 	if err != nil {
@@ -490,7 +490,7 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
 // The returned mail server names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 //
 // LookupMX uses context.Background internally; to specify the context, use
 // Resolver.LookupMX.
@@ -503,7 +503,7 @@ func LookupMX(name string) ([]*MX, error) {
 // The returned mail server names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 	records, err := r.lookupMX(ctx, name)
 	if err != nil {
@@ -532,7 +532,7 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 // The returned name server names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 //
 // LookupNS uses context.Background internally; to specify the context, use
 // Resolver.LookupNS.
@@ -545,7 +545,7 @@ func LookupNS(name string) ([]*NS, error) {
 // The returned name server names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
-// will be returned alongside the the remaining results, if any.
+// will be returned alongside the remaining results, if any.
 func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
 	records, err := r.lookupNS(ctx, name)
 	if err != nil {
@@ -585,7 +585,7 @@ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error)
 //
 // The returned names are validated to be properly formatted presentation-format
 // domain names. If the response contains invalid names, those records are filtered
-// out and an error will be returned alongside the the remaining results, if any.
+// out and an error will be returned alongside the remaining results, if any.
 //
 // When using the host C library resolver, at most one result will be
 // returned. To bypass the host resolver, use a custom Resolver.
@@ -601,7 +601,7 @@ func LookupAddr(addr string) (names []string, err error) {
 //
 // The returned names are validated to be properly formatted presentation-format
 // domain names. If the response contains invalid names, those records are filtered
-// out and an error will be returned alongside the the remaining results, if any.
+// out and an error will be returned alongside the remaining results, if any.
 func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
 	names, err := r.lookupAddr(ctx, addr)
 	if err != nil {
