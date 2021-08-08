@@ -139,8 +139,9 @@ func (t *Timer) Reset(d Duration) bool {
 	return resetTimer(&t.r, w)
 }
 
+// sendTime sends the current time on c
 func sendTime(c interface{}, seq uintptr) {
-	// Non-blocking send of time on c.
+	// Non-blocking send of current time on c.
 	// Used in NewTimer, it cannot block anyway (buffer).
 	// Used in NewTicker, dropping sends on the floor is
 	// the desired behavior when the reader gets behind,
