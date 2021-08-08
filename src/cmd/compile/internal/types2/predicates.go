@@ -140,10 +140,6 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
-	// types must be expanded for comparison
-	x = expand(x)
-	y = expand(y)
-
 	if x == y {
 		return true
 	}
@@ -306,6 +302,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
+			x.expand()
+			y.expand()
 			// TODO(gri) Why is x == y not sufficient? And if it is,
 			//           we can just return false here because x == y
 			//           is caught in the very beginning of this function.
