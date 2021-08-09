@@ -290,24 +290,14 @@ func (r *importReader) obj(name string) {
 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F':
-		if r.p.exportVersion >= iexportVersionGenerics {
-			numTparams := r.uint64()
-			if numTparams > 0 {
-				errorf("unexpected tparam")
-			}
-		}
 		sig := r.signature(nil)
 
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
-	case 'T':
-		if r.p.exportVersion >= iexportVersionGenerics {
-			numTparams := r.uint64()
-			if numTparams > 0 {
-				errorf("unexpected tparam")
-			}
-		}
+	case 'G':
+		errorf("unexpected parameterized function/method")
 
+	case 'T':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
@@ -327,6 +317,9 @@ func (r *importReader) obj(name string) {
 				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
 			}
 		}
+
+	case 'U':
+		errorf("unexpected parameterized type")
 
 	case 'V':
 		typ := r.typ()

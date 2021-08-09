@@ -305,9 +305,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		r.constExt(n)
 		return n
 
-	case 'F':
+	case 'F', 'G':
 		var tparams []*types.Field
-		if r.p.exportVersion >= iexportVersionGenerics {
+		if tag == 'G' {
 			tparams = r.tparamList()
 		}
 		typ := r.signature(nil, tparams)
@@ -316,9 +316,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		r.funcExt(n)
 		return n
 
-	case 'T':
+	case 'T', 'U':
 		var rparams []*types.Type
-		if r.p.exportVersion >= iexportVersionGenerics {
+		if tag == 'U' {
 			rparams = r.typeList()
 		}
 
@@ -326,7 +326,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		// declaration before recursing.
 		n := importtype(pos, sym)
 		t := n.Type()
-		if rparams != nil {
+		if tag == 'U' {
 			t.SetRParams(rparams)
 		}
 
