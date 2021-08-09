@@ -295,10 +295,14 @@ start:
 
 	// MOV pseudo-instructions
 	MOV	X5, X6					// 13830200
-	MOV	$2047, X5				// 9b02f07f
-	MOV	$-2048, X5				// 9b020080
+	MOV	$2047, X5				// 9302f07f
+	MOV	$-2048, X5				// 93020080
 	MOV	$2048, X5				// b71200009b820280
 	MOV	$-2049, X5				// b7f2ffff9b82f27f
+	MOV	$4096, X5				// b7120000
+	MOV	$2147479552, X5				// b7f2ff7f
+	MOV	$2147483647, X5				// b70200809b82f2ff
+	MOV	$-2147483647, X5			// b70200809b821200
 
 	// Converted to load of symbol (AUIPC + LD)
 	MOV	$4294967296, X5				// 9702000083b20200
