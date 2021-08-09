@@ -1669,6 +1669,9 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 		return nil
 	}
 	ins.rs2 = REG_TMP
+	if low == 0 {
+		return []*instruction{insLUI, ins}
+	}
 	return []*instruction{insLUI, insADDIW, ins}
 }
 
@@ -1768,7 +1771,7 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		}
 
 		// MOV $c, R -> ADD $c, ZERO, R
-		ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, REG_ZERO, obj.REG_NONE, low
+		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
 
 		// LUI is only necessary if the constant does not fit in 12 bits.
 		if high == 0 {
@@ -1778,8 +1781,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		// LUI top20bits(c), R
 		// ADD bottom12bits(c), R, R
 		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-		ins.rs1 = ins.rd
-		inss = []*instruction{insLUI, ins}
+		inss = []*instruction{insLUI}
+		if low != 0 {
+			ins.as, ins.rs1 = AADDIW, ins.rd
+			inss = append(inss, ins)
+		}
 
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
