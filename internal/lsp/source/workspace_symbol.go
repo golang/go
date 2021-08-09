@@ -306,6 +306,7 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 
 	results := make(chan *symbolStore)
 	matcherlen := len(sc.matchers)
+	files := make(map[span.URI]symbolFile)
 
 	for _, v := range views {
 		snapshot, release := v.Snapshot(ctx)
@@ -314,9 +315,12 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 		if err != nil {
 			return nil, err
 		}
-		var work []symbolFile
 
 		for uri, syms := range psyms {
+			// Only scan each file once.
+			if _, ok := files[uri]; ok {
+				continue
+			}
 			mds, err := snapshot.MetadataForFile(ctx, uri)
 			if err != nil {
 				return nil, err
@@ -325,26 +329,30 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 				// TODO: should use the bug reporting API
 				continue
 			}
-			work = append(work, symbolFile{uri, mds[0], syms})
+			files[uri] = symbolFile{uri, mds[0], syms}
 		}
+	}
 
-		// Compute matches concurrently. Each symbolWorker has its own symbolStore,
-		// which we merge at the end.
+	var work []symbolFile
+	for _, f := range files {
+		work = append(work, f)
+	}
 
-		for i, matcher := range sc.matchers {
-			go func(i int, matcher matcherFunc) {
-				w := &symbolWorker{
-					symbolizer: sc.symbolizer,
-					matcher:    matcher,
-					ss:         &symbolStore{},
-					roots:      roots,
-				}
-				for j := i; j < len(work); j += matcherlen {
-					w.matchFile(work[j])
-				}
-				results <- w.ss
-			}(i, matcher)
-		}
+	// Compute matches concurrently. Each symbolWorker has its own symbolStore,
+	// which we merge at the end.
+	for i, matcher := range sc.matchers {
+		go func(i int, matcher matcherFunc) {
+			w := &symbolWorker{
+				symbolizer: sc.symbolizer,
+				matcher:    matcher,
+				ss:         &symbolStore{},
+				roots:      roots,
+			}
+			for j := i; j < len(work); j += matcherlen {
+				w.matchFile(work[j])
+			}
+			results <- w.ss
+		}(i, matcher)
 	}
 
 	for i := 0; i < matcherlen; i++ {
