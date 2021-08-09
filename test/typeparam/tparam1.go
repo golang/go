@@ -24,17 +24,17 @@ type (
 	_[T1, T2 any, T3 any] struct{}
 )
 
-func _[T any]()
-func _[T, T any]() // ERROR "T redeclared"
-func _[T1, T2 any](x T1) T2
+func _[T any]() {}
+func _[T, T any]() {} // ERROR "T redeclared"
+func _[T1, T2 any](x T1) T2 { panic(0) }
 
 // Type parameters are visible from opening [ to end of function.
 type C interface{}
 
-func _[T interface{}]()
-func _[T C]()
-func _[T struct{}]() // ERROR "not an interface"
-func _[T interface{ m() T }]()
+func _[T interface{}]() {}
+func _[T C]() {}
+func _[T struct{}]() {}// ERROR "not an interface"
+func _[T interface{ m() T }]() {}
 func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
 	var _ T1
 }
