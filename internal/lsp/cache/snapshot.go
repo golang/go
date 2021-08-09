@@ -1933,6 +1933,12 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// If a file has been deleted, we must delete metadata for all packages
 	// containing that file.
 	workspaceModeChanged := s.workspaceMode() != result.workspaceMode()
+
+	// Don't keep package metadata for packages that have lost files.
+	//
+	// TODO(rfindley): why not keep invalid metadata in this case? If we
+	// otherwise allow operate on invalid metadata, why not continue to do so,
+	// skipping the missing file?
 	skipID := map[PackageID]bool{}
 	for _, c := range changes {
 		if c.exists {
@@ -1967,41 +1973,23 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		addForwardDeps(id)
 	}
 
-	// Compute which IDs are in the snapshot.
-	//
-	// TODO(rfindley): this step shouldn't be necessary, since we compute skipID
-	// above based on meta.ids.
-	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
-	idsInSnapshot := map[PackageID]bool{} // track all known IDs
-	for _, ids := range s.meta.ids {
-		for _, id := range ids {
-			if skipID[id] || deleteInvalidMetadata && idsToInvalidate[id] {
-				continue
-			}
-			// The ID is not reachable from any workspace package, so it should
-			// be deleted.
-			if !reachableID[id] {
-				continue
-			}
-			idsInSnapshot[id] = true
-		}
-	}
-	// TODO(adonovan): opt: represent PackageID as an index into a process-global
-	// dup-free list of all package names ever seen, then use a bitmap instead of
-	// a hash table for "PackageSet" (e.g. idsInSnapshot).
-
 	// Compute which metadata updates are required. We only need to invalidate
 	// packages directly containing the affected file, and only if it changed in
 	// a relevant way.
 	metadataUpdates := make(map[PackageID]*KnownMetadata)
+	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	for k, v := range s.meta.metadata {
-		if !idsInSnapshot[k] {
-			// Delete metadata for IDs that are no longer reachable from files
-			// in the snapshot.
+		invalidateMetadata := idsToInvalidate[k]
+		if skipID[k] || (invalidateMetadata && deleteInvalidMetadata) {
 			metadataUpdates[k] = nil
 			continue
 		}
-		invalidateMetadata := idsToInvalidate[k]
+		// The ID is not reachable from any workspace package, so it should
+		// be deleted.
+		if !reachableID[k] {
+			metadataUpdates[k] = nil
+			continue
+		}
 		valid := v.Valid && !invalidateMetadata
 		pkgFilesChanged := v.PkgFilesChanged || changedPkgFiles[k]
 		shouldLoad := v.ShouldLoad || invalidateMetadata
