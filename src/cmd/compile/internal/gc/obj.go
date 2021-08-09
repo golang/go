@@ -163,7 +163,7 @@ func dumpdata() {
 	if zerosize > 0 {
 		zero := mappkg.Lookup("zero")
 		ggloblsym(zero.Linksym(), int32(zerosize), obj.DUPOK|obj.RODATA)
-		zero.Linksym().Set(obj.AttrContentAddressable, true)
+		zero.Linksym().Set(obj.AttrStatic, true)
 	}
 
 	addGCLocals()
