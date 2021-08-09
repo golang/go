@@ -80,13 +80,6 @@ func (t *TypeParam) SetConstraint(bound Type) {
 	t.bound = bound
 }
 
-// Bound returns the constraint interface of t.
-// Deprecated. Only here for the compiler.
-// TODO(gri) remove in favor of uses of Constraint.
-func (t *TypeParam) Bound() *Interface {
-	return t.iface()
-}
-
 func (t *TypeParam) Underlying() Type { return t }
 func (t *TypeParam) String() string   { return TypeString(t, nil) }
 
