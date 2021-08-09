@@ -1157,19 +1157,21 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					assert(ix >= 0)
 					dt := ir.NewDynamicType(c.Pos(), getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen))
 
-					// For type switch from nonemoty interfaces to non-interfaces, we need an itab as well.
-					if _, ok := subst.info.gfInfo.type2switchType[c]; ok {
-						// Type switch from nonempty interface. We need a *runtime.itab
-						// for the dynamic type.
-						ix := -1
-						for i, ic := range subst.info.gfInfo.itabConvs {
-							if ic == c {
-								ix = subst.info.startItabConv + i
-								break
+					// For type switch from nonempty interfaces to non-interfaces, we need an itab as well.
+					if !m.List[i].Type().IsInterface() {
+						if _, ok := subst.info.gfInfo.type2switchType[c]; ok {
+							// Type switch from nonempty interface. We need a *runtime.itab
+							// for the dynamic type.
+							ix := -1
+							for i, ic := range subst.info.gfInfo.itabConvs {
+								if ic == c {
+									ix = subst.info.startItabConv + i
+									break
+								}
 							}
+							assert(ix >= 0)
+							dt.ITab = getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
 						}
-						assert(ix >= 0)
-						dt.ITab = getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
 					}
 					typed(m.List[i].Type(), dt)
 					m.List[i] = dt
@@ -1484,6 +1486,8 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 // instantiations have been created.
 func (g *irgen) finalizeSyms() {
 	for _, d := range g.dictSymsToFinalize {
+		infoPrint("=== Finalizing dictionary %s\n", d.sym.Name)
+
 		lsym := d.sym.Linksym()
 		info := g.getGfInfo(d.gf)
 
@@ -1528,9 +1532,11 @@ func (g *irgen) finalizeSyms() {
 				// No itab is wanted if src type is an interface. We
 				// will use a type assert instead.
 				d.off = objw.Uintptr(lsym, d.off, 0)
+				infoPrint(" + Unused itab entry for %v\n", srctype)
 			} else {
 				itabLsym := reflectdata.ITabLsym(srctype, dsttype)
 				d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+				infoPrint(" + Itab for (%v,%v)\n", srctype, dsttype)
 			}
 		}
 
@@ -1694,7 +1700,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			for _, cc := range n.(*ir.SwitchStmt).Cases {
 				for _, c := range cc.List {
 					if c.Op() == ir.OTYPE && c.Type().HasTParam() {
-						// Type switch from a non-empty interface to a noninterface.
+						// Type switch from a non-empty interface - might need an itab.
 						infoPrint("  Itab for type switch: %v\n", c)
 						info.itabConvs = append(info.itabConvs, c)
 						if info.type2switchType == nil {
