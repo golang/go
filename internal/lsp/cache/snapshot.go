@@ -2016,8 +2016,15 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	result.meta = s.meta.Clone(metadataUpdates)
-	result.workspacePackages = computeWorkspacePackages(result.meta)
+	if len(metadataUpdates) > 0 {
+		result.meta = s.meta.Clone(metadataUpdates)
+		result.workspacePackages = computeWorkspacePackages(result.meta)
+	} else {
+		// No metadata changes. Since metadata is only updated by cloning, it is
+		// safe to re-use the existing metadata here.
+		result.meta = s.meta
+		result.workspacePackages = s.workspacePackages
+	}
 
 	// Inherit all of the go.mod-related handles.
 	for _, v := range result.modTidyHandles {
