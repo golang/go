@@ -705,23 +705,7 @@ func (s *snapshot) getModTidyHandle(uri span.URI) *modTidyHandle {
 func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.getImportedByLocked(id)
-}
-
-func (s *snapshot) getImportedByLocked(id PackageID) []PackageID {
-	// If we haven't rebuilt the import graph since creating the snapshot.
-	if len(s.meta.importedBy) == 0 {
-		s.rebuildImportGraph()
-	}
 	return s.meta.importedBy[id]
-}
-
-func (s *snapshot) rebuildImportGraph() {
-	for id, m := range s.meta.metadata {
-		for _, importID := range m.Deps {
-			s.meta.importedBy[importID] = append(s.meta.importedBy[importID], id)
-		}
-	}
 }
 
 func (s *snapshot) addPackageHandle(ph *packageHandle) *packageHandle {
@@ -1705,7 +1689,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		builtin:           s.builtin,
 		initializeOnce:    s.initializeOnce,
 		initializedErr:    s.initializedErr,
-		meta:              NewMetadataGraph(),
 		packages:          make(map[packageKey]*packageHandle, len(s.packages)),
 		actions:           make(map[actionKey]*actionHandle, len(s.actions)),
 		files:             make(map[span.URI]source.VersionedFileHandle, len(s.files)),
@@ -1912,7 +1895,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 			return
 		}
 		idsToInvalidate[id] = newInvalidateMetadata
-		for _, rid := range s.getImportedByLocked(id) {
+		for _, rid := range s.meta.importedBy[id] {
 			addRevDeps(rid, invalidateMetadata)
 		}
 	}
@@ -1976,58 +1959,56 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		addForwardDeps(id)
 	}
 
-	// Copy the URI to package ID mappings, skipping only those URIs whose
-	// metadata will be reloaded in future calls to load.
+	// Compute which IDs are in the snapshot.
+	//
+	// TODO(rfindley): this step shouldn't be necessary, since we compute skipID
+	// above based on meta.ids.
 	deleteInvalidMetadata := forceReloadMetadata || workspaceModeChanged
 	idsInSnapshot := map[PackageID]bool{} // track all known IDs
-	for uri, ids := range s.meta.ids {
-		// Optimization: ids slices are typically numerous, short (<3),
-		// and rarely modified by this loop, so don't allocate copies
-		// until necessary.
-		var resultIDs []PackageID // nil implies equal to ids[:i:i]
-		for i, id := range ids {
+	for _, ids := range s.meta.ids {
+		for _, id := range ids {
 			if skipID[id] || deleteInvalidMetadata && idsToInvalidate[id] {
-				resultIDs = ids[:i:i] // unshare
 				continue
 			}
 			// The ID is not reachable from any workspace package, so it should
 			// be deleted.
 			if !reachableID[id] {
-				resultIDs = ids[:i:i] // unshare
 				continue
 			}
 			idsInSnapshot[id] = true
-			if resultIDs != nil {
-				resultIDs = append(resultIDs, id)
-			}
 		}
-		if resultIDs == nil {
-			resultIDs = ids
-		}
-		result.meta.ids[uri] = resultIDs
 	}
 	// TODO(adonovan): opt: represent PackageID as an index into a process-global
 	// dup-free list of all package names ever seen, then use a bitmap instead of
 	// a hash table for "PackageSet" (e.g. idsInSnapshot).
 
-	// Copy the package metadata. We only need to invalidate packages directly
-	// containing the affected file, and only if it changed in a relevant way.
+	// Compute which metadata updates are required. We only need to invalidate
+	// packages directly containing the affected file, and only if it changed in
+	// a relevant way.
+	metadataUpdates := make(map[PackageID]*KnownMetadata)
 	for k, v := range s.meta.metadata {
 		if !idsInSnapshot[k] {
 			// Delete metadata for IDs that are no longer reachable from files
 			// in the snapshot.
+			metadataUpdates[k] = nil
 			continue
 		}
 		invalidateMetadata := idsToInvalidate[k]
-		// Mark invalidated metadata rather than deleting it outright.
-		result.meta.metadata[k] = &KnownMetadata{
-			Metadata:        v.Metadata,
-			Valid:           v.Valid && !invalidateMetadata,
-			PkgFilesChanged: v.PkgFilesChanged || changedPkgFiles[k],
-			ShouldLoad:      v.ShouldLoad || invalidateMetadata,
+		valid := v.Valid && !invalidateMetadata
+		pkgFilesChanged := v.PkgFilesChanged || changedPkgFiles[k]
+		shouldLoad := v.ShouldLoad || invalidateMetadata
+		if valid != v.Valid || pkgFilesChanged != v.PkgFilesChanged || shouldLoad != v.ShouldLoad {
+			// Mark invalidated metadata rather than deleting it outright.
+			metadataUpdates[k] = &KnownMetadata{
+				Metadata:        v.Metadata,
+				Valid:           valid,
+				PkgFilesChanged: pkgFilesChanged,
+				ShouldLoad:      shouldLoad,
+			}
 		}
 	}
 
+	result.meta = s.meta.Clone(metadataUpdates)
 	result.workspacePackages = computeWorkspacePackages(result.meta)
 
 	// Inherit all of the go.mod-related handles.

@@ -30,14 +30,6 @@ type metadataGraph struct {
 	ids map[span.URI][]PackageID
 }
 
-func NewMetadataGraph() *metadataGraph {
-	return &metadataGraph{
-		metadata:   make(map[PackageID]*KnownMetadata),
-		importedBy: make(map[PackageID][]PackageID),
-		ids:        make(map[span.URI][]PackageID),
-	}
-}
-
 // Clone creates a new metadataGraph, applying the given updates to the
 // receiver.
 func (g *metadataGraph) Clone(updates map[PackageID]*KnownMetadata) *metadataGraph {
