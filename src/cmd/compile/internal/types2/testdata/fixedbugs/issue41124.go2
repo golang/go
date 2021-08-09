@@ -79,9 +79,9 @@ type T3[_, _, _ any] struct{}
 var _ T1[I2 /* ERROR interface contains type constraints */ ]
 var _ T3[int, I2 /* ERROR interface contains type constraints */ , float32]
 
-func f1[_ any]() int
+func f1[_ any]() int { panic(0) }
 var _ = f1[I2 /* ERROR interface contains type constraints */ ]()
-func f3[_, _, _ any]() int
+func f3[_, _, _ any]() int { panic(0) }
 var _ = f3[int, I2 /* ERROR interface contains type constraints */ , float32]()
 
 func _(x interface{}) {
