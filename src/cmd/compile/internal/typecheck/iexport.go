@@ -314,12 +314,7 @@ func WriteExports(out io.Writer, extensions bool) {
 	// Assemble header.
 	var hdr intWriter
 	hdr.WriteByte('i')
-	if base.Flag.G > 0 {
-		hdr.uint64(iexportVersionCurrent)
-	} else {
-		// Use old export format if doing -G=0 (no generics)
-		hdr.uint64(iexportVersionPosCol)
-	}
+	hdr.uint64(iexportVersionCurrent)
 	hdr.uint64(uint64(p.strings.Len()))
 	hdr.uint64(dataLen)
 
@@ -487,7 +482,11 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			}
 
 			// Function.
-			w.tag('F')
+			if n.Type().TParams().NumFields() == 0 {
+				w.tag('F')
+			} else {
+				w.tag('G')
+			}
 			w.pos(n.Pos())
 			// The tparam list of the function type is the
 			// declaration of the type params. So, write out the type
@@ -495,7 +494,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// referenced via their type offset (via typOff) in all
 			// other places in the signature and function that they
 			// are used.
-			if base.Flag.G > 0 {
+			if n.Type().TParams().NumFields() > 0 {
 				w.tparamList(n.Type().TParams().FieldSlice())
 			}
 			w.signature(n.Type())
@@ -544,10 +543,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
 		}
 
 		// Defined type.
-		w.tag('T')
+		if len(n.Type().RParams()) == 0 {
+			w.tag('T')
+		} else {
+			w.tag('U')
+		}
 		w.pos(n.Pos())
 
-		if base.Flag.G > 0 {
+		if len(n.Type().RParams()) > 0 {
 			// Export type parameters, if any, needed for this type
 			w.typeList(n.Type().RParams())
 		}

@@ -308,19 +308,18 @@ func (r *importReader) obj(name string) {
 
 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
 
-	case 'F':
+	case 'F', 'G':
 		var tparams []*types2.TypeName
-		if r.p.exportVersion >= iexportVersionGenerics {
+		if tag == 'G' {
 			tparams = r.tparamList()
 		}
 		sig := r.signature(nil)
 		sig.SetTParams(tparams)
-
 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
 
-	case 'T':
+	case 'T', 'U':
 		var tparams []*types2.TypeName
-		if r.p.exportVersion >= iexportVersionGenerics {
+		if tag == 'U' {
 			tparams = r.tparamList()
 		}
 
@@ -328,7 +327,9 @@ func (r *importReader) obj(name string) {
 		// declaration before recursing.
 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
 		named := types2.NewNamed(obj, nil, nil)
-		named.SetTParams(tparams)
+		if tag == 'U' {
+			named.SetTParams(tparams)
+		}
 		r.declare(obj)
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
