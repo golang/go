@@ -30,7 +30,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/bug"
-	"golang.org/x/tools/internal/lsp/debug/log"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -1638,29 +1637,6 @@ func generationName(v *View, snapshotID uint64) string {
 	return fmt.Sprintf("v%v/%v", v.id, snapshotID)
 }
 
-// checkSnapshotLocked verifies that some invariants are preserved on the
-// snapshot.
-func checkSnapshotLocked(ctx context.Context, s *snapshot) {
-	// Check that every go file for a workspace package is identified as
-	// belonging to that workspace package.
-	for wsID := range s.workspacePackages {
-		if m, ok := s.meta.metadata[wsID]; ok {
-			for _, uri := range m.GoFiles {
-				found := false
-				for _, id := range s.meta.ids[uri] {
-					if id == wsID {
-						found = true
-						break
-					}
-				}
-				if !found {
-					log.Error.Logf(ctx, "workspace package %v not associated with %v", wsID, uri)
-				}
-			}
-		}
-	}
-}
-
 // unappliedChanges is a file source that handles an uncloned snapshot.
 type unappliedChanges struct {
 	originalSnapshot *snapshot
@@ -1683,8 +1659,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	checkSnapshotLocked(ctx, s)
 
 	newGen := s.view.session.cache.store.Generation(generationName(s.view, s.id+1))
 	bgCtx, cancel := context.WithCancel(bgCtx)
