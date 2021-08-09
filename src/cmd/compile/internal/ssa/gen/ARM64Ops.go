@@ -498,13 +498,14 @@ func init() {
 		// auxint = offset into duffzero code to start executing
 		// returns mem
 		// R20 changed as side effect
+		// R16 and R17 may be clobbered by linker trampoline.
 		{
 			name:      "DUFFZERO",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R20")},
-				clobbers: buildReg("R20 R30"),
+				clobbers: buildReg("R16 R17 R20 R30"),
 			},
 			faultOnNilArg0: true,
 		},
@@ -537,13 +538,14 @@ func init() {
 		// auxint = offset into duffcopy code to start executing
 		// returns mem
 		// R20, R21 changed as side effect
+		// R16 and R17 may be clobbered by linker trampoline.
 		{
 			name:      "DUFFCOPY",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
-				clobbers: buildReg("R20 R21 R26 R30"),
+				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -664,7 +666,8 @@ func init() {
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,
 		// but clobbers R30 (LR) because it's a call.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// R16 and R17 may be clobbered by linker trampoline.
+		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

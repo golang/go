@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -192,7 +193,7 @@ func copyMetadata(modPath, pkg, dst, src string) {
 		if modPath == pkg {
 			break
 		}
-		pkg = filepath.Dir(pkg)
+		pkg = path.Dir(pkg)
 		dst = filepath.Dir(dst)
 		src = filepath.Dir(src)
 	}

@@ -1161,10 +1161,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // It does not clobber any general-purpose registers,
 // but may clobber others (e.g., floating point registers)
 // The act of CALLing gcWriteBarrier will clobber R30 (LR).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$200
 	// Save the registers clobbered by the fast path.
-	MOVD	R0, 200(RSP)
-	MOVD	R1, 208(RSP)
+	MOVD	R0, 184(RSP)
+	MOVD	R1, 192(RSP)
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
 	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
@@ -1180,8 +1180,8 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
 	// Is the buffer full? (flags set in CMP above)
 	BEQ	flush
 ret:
-	MOVD	200(RSP), R0
-	MOVD	208(RSP), R1
+	MOVD	184(RSP), R0
+	MOVD	192(RSP), R1
 	// Do the write.
 	MOVD	R3, (R2)
 	RET
@@ -1205,17 +1205,16 @@ flush:
 	MOVD	R13, 96(RSP)
 	MOVD	R14, 104(RSP)
 	MOVD	R15, 112(RSP)
-	MOVD	R16, 120(RSP)
-	MOVD	R17, 128(RSP)
+	// R16, R17 may be clobbered by linker trampoline
 	// R18 is unused.
-	MOVD	R19, 136(RSP)
-	MOVD	R20, 144(RSP)
-	MOVD	R21, 152(RSP)
-	MOVD	R22, 160(RSP)
-	MOVD	R23, 168(RSP)
-	MOVD	R24, 176(RSP)
-	MOVD	R25, 184(RSP)
-	MOVD	R26, 192(RSP)
+	MOVD	R19, 120(RSP)
+	MOVD	R20, 128(RSP)
+	MOVD	R21, 136(RSP)
+	MOVD	R22, 144(RSP)
+	MOVD	R23, 152(RSP)
+	MOVD	R24, 160(RSP)
+	MOVD	R25, 168(RSP)
+	MOVD	R26, 176(RSP)
 	// R27 is temp register.
 	// R28 is g.
 	// R29 is frame pointer (unused).
@@ -1239,16 +1238,14 @@ flush:
 	MOVD	96(RSP), R13
 	MOVD	104(RSP), R14
 	MOVD	112(RSP), R15
-	MOVD	120(RSP), R16
-	MOVD	128(RSP), R17
-	MOVD	136(RSP), R19
-	MOVD	144(RSP), R20
-	MOVD	152(RSP), R21
-	MOVD	160(RSP), R22
-	MOVD	168(RSP), R23
-	MOVD	176(RSP), R24
-	MOVD	184(RSP), R25
-	MOVD	192(RSP), R26
+	MOVD	120(RSP), R19
+	MOVD	128(RSP), R20
+	MOVD	136(RSP), R21
+	MOVD	144(RSP), R22
+	MOVD	152(RSP), R23
+	MOVD	160(RSP), R24
+	MOVD	168(RSP), R25
+	MOVD	176(RSP), R26
 	JMP	ret
 
 // Note: these functions use a special calling convention to save generated code space.
