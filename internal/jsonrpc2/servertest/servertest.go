@@ -68,7 +68,7 @@ type PipeServer struct {
 }
 
 // NewPipeServer returns a test server that can be connected to via io.Pipes.
-func NewPipeServer(ctx context.Context, server jsonrpc2.StreamServer, framer jsonrpc2.Framer) *PipeServer {
+func NewPipeServer(server jsonrpc2.StreamServer, framer jsonrpc2.Framer) *PipeServer {
 	if framer == nil {
 		framer = jsonrpc2.NewRawStream
 	}

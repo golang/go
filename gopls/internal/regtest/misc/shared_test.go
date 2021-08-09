@@ -30,7 +30,8 @@ func runShared(t *testing.T, testFunc func(env1 *Env, env2 *Env)) {
 	WithOptions(Modes(modes)).Run(t, sharedProgram, func(t *testing.T, env1 *Env) {
 		// Create a second test session connected to the same workspace and server
 		// as the first.
-		env2 := NewEnv(env1.Ctx, t, env1.Sandbox, env1.Server, env1.Editor.Config, true)
+		env2, cleanup := NewEnv(env1.Ctx, t, env1.Sandbox, env1.Server, env1.Editor.Config, true)
+		defer cleanup()
 		env2.Await(InitialWorkspaceLoad)
 		testFunc(env1, env2)
 	})

@@ -234,7 +234,7 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 	tests := []struct {
 		name      string
 		mode      Mode
-		getServer func(context.Context, *testing.T, func(*source.Options)) jsonrpc2.StreamServer
+		getServer func(*testing.T, func(*source.Options)) jsonrpc2.StreamServer
 	}{
 		{"singleton", Singleton, singletonServer},
 		{"forwarded", Forwarded, r.forwardedServer},
@@ -301,14 +301,15 @@ func (r *Runner) Run(t *testing.T, files string, test TestFunc, opts ...RunOptio
 			// better solution to ensure that all Go processes started by gopls have
 			// exited before we clean up.
 			r.AddCloser(sandbox)
-			ss := tc.getServer(ctx, t, config.optionsHook)
+			ss := tc.getServer(t, config.optionsHook)
 			framer := jsonrpc2.NewRawStream
 			ls := &loggingFramer{}
 			if !config.skipLogs {
 				framer = ls.framer(jsonrpc2.NewRawStream)
 			}
-			ts := servertest.NewPipeServer(ctx, ss, framer)
-			env := NewEnv(ctx, t, sandbox, ts, config.editor, !config.skipHooks)
+			ts := servertest.NewPipeServer(ss, framer)
+			env, cleanup := NewEnv(ctx, t, sandbox, ts, config.editor, !config.skipHooks)
+			defer cleanup()
 			defer func() {
 				if t.Failed() && r.PrintGoroutinesOnFailure {
 					pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
@@ -406,11 +407,11 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 	fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs for %q\n", testname)
 }
 
-func singletonServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func singletonServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	return lsprpc.NewStreamServer(cache.New(optsHook), false)
 }
 
-func experimentalServer(_ context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func experimentalServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	options := func(o *source.Options) {
 		optsHook(o)
 		o.EnableAllExperiments()
@@ -421,7 +422,7 @@ func experimentalServer(_ context.Context, t *testing.T, optsHook func(*source.O
 	return lsprpc.NewStreamServer(cache.New(options), false)
 }
 
-func (r *Runner) forwardedServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func (r *Runner) forwardedServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	ts := r.getTestServer(optsHook)
 	return newForwarder("tcp", ts.Addr)
 }
@@ -440,7 +441,7 @@ func (r *Runner) getTestServer(optsHook func(*source.Options)) *servertest.TCPSe
 	return r.ts
 }
 
-func (r *Runner) separateProcessServer(ctx context.Context, t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
+func (r *Runner) separateProcessServer(t *testing.T, optsHook func(*source.Options)) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
 	socket := r.getRemoteSocket(t)
