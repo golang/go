@@ -239,6 +239,12 @@ Register naming
   VSn is used for vector-scalar registers. V0-V31 overlap with VS32-VS63. (0-63)
   CTR represents the count register.
   LR represents the link register.
+  CR represents the condition register
+  CRn represents a condition register field. (0-7)
+  CRnLT represents CR bit 0 of CR field n. (0-7)
+  CRnGT represents CR bit 1 of CR field n. (0-7)
+  CRnEQ represents CR bit 2 of CR field n. (0-7)
+  CRnSO represents CR bit 3 of CR field n. (0-7)
 
 */
 package ppc64

@@ -335,7 +335,7 @@ var optab = []Optab{
 	{as: ALDMX, a1: C_SOREG, a6: C_REG, type_: 45, size: 4},                       /* load doubleword monitored, x-form */
 	{as: AMADDHD, a1: C_REG, a2: C_REG, a3: C_REG, a6: C_REG, type_: 83, size: 4}, /* multiply-add high/low doubleword, va-form */
 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
-	{as: ACRAND, a1: C_CREG, a2: C_CREG, a6: C_CREG, type_: 2, size: 4},           /* logical ops for condition register bits xl-form */
+	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
 
 	/* Vector instructions */
 
@@ -855,6 +855,9 @@ func (c *ctxt9) aclassreg(reg int16) int {
 	}
 	if REG_CR0 <= reg && reg <= REG_CR7 || reg == REG_CR {
 		return C_CREG
+	}
+	if REG_CR0LT <= reg && reg <= REG_CR7SO {
+		return C_CRBIT
 	}
 	if REG_SPR0 <= reg && reg <= REG_SPR0+1023 {
 		switch reg {

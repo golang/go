@@ -378,6 +378,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := ppc64.REG_CR0LT; i <= ppc64.REG_CR7SO; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	register["CR"] = ppc64.REG_CR
 	register["XER"] = ppc64.REG_XER
 	register["LR"] = ppc64.REG_LR

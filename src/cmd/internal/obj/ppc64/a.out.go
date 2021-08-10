@@ -79,10 +79,44 @@ const (
 	REG_R30
 	REG_R31
 
+	// CR bits. Use Book 1, chapter 2 naming for bits. Keep aligned to 32
+	REG_CR0LT
+	REG_CR0GT
+	REG_CR0EQ
+	REG_CR0SO
+	REG_CR1LT
+	REG_CR1GT
+	REG_CR1EQ
+	REG_CR1SO
+	REG_CR2LT
+	REG_CR2GT
+	REG_CR2EQ
+	REG_CR2SO
+	REG_CR3LT
+	REG_CR3GT
+	REG_CR3EQ
+	REG_CR3SO
+	REG_CR4LT
+	REG_CR4GT
+	REG_CR4EQ
+	REG_CR4SO
+	REG_CR5LT
+	REG_CR5GT
+	REG_CR5EQ
+	REG_CR5SO
+	REG_CR6LT
+	REG_CR6GT
+	REG_CR6EQ
+	REG_CR6SO
+	REG_CR7LT
+	REG_CR7GT
+	REG_CR7EQ
+	REG_CR7SO
+
 	/* Align FPR and VSR vectors such that when masked with 0x3F they produce
 	   an equivalent VSX register. */
 	/* F0=4160 ... F31=4191 */
-	REG_F0 = obj.RBasePPC64 + iota + 32
+	REG_F0
 	REG_F1
 	REG_F2
 	REG_F3
@@ -358,7 +392,8 @@ const (
 	C_VREG     /* Any vector register */
 	C_VSREGP   /* An even numbered vsx register which can be used as a vsx register pair argument */
 	C_VSREG    /* Any vector-scalar register */
-	C_CREG     /* The condition registor (CR) or a condition register field (CRx) */
+	C_CREG     /* The condition registor (CR) */
+	C_CRBIT    /* A single bit of the CR register (0-31) */
 	C_SPR      /* special processor register */
 	C_ZCON     /* The constant zero */
 	C_U1CON    /* 1 bit unsigned constant */
