@@ -62,6 +62,11 @@ func rconv(r int) string {
 	if REG_CR0 <= r && r <= REG_CR7 {
 		return fmt.Sprintf("CR%d", r-REG_CR0)
 	}
+	if REG_CR0LT <= r && r <= REG_CR7SO {
+		bits := [4]string{"LT", "GT", "EQ", "SO"}
+		crf := (r - REG_CR0LT) / 4
+		return fmt.Sprintf("CR%d%s", crf, bits[r%4])
+	}
 	if r == REG_CR {
 		return "CR"
 	}

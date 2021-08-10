@@ -435,6 +435,7 @@ func TestRegValueAlignment(t *testing.T) {
 		{REG_F0, REG_F31, 63, 0},
 		{REG_SPR0, REG_SPR0 + 1023, 1023, 0},
 		{REG_CR0, REG_CR7, 7, 0},
+		{REG_CR0LT, REG_CR7SO, 31, 0},
 	}
 	for _, t := range testType {
 		tstFunc(t.rstart, t.rend, t.msk, t.rout)
@@ -463,6 +464,7 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_VS2}, C_VSREGP},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR}, C_CREG},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1}, C_CREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1SO}, C_CRBIT},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0}, C_SPR},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 1}, C_XER},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
