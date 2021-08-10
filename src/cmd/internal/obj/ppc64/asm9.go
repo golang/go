@@ -882,6 +882,9 @@ func (c *ctxt9) aclassreg(reg int16) int {
 
 		return C_SPR
 	}
+	if REG_A0 <= reg && reg <= REG_A7 {
+		return C_AREG
+	}
 	if reg == REG_FPSCR {
 		return C_FPSCR
 	}

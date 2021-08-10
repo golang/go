@@ -336,6 +336,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
 	for i := ppc64.REG_VS0; i <= ppc64.REG_VS63; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := ppc64.REG_A0; i <= ppc64.REG_A7; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}

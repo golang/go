@@ -77,6 +77,10 @@ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
 		if 0 <= n && n <= 7 {
 			return ppc64.REG_CR0 + n, true
 		}
+	case "A":
+		if 0 <= n && n <= 8 {
+			return ppc64.REG_A0 + n, true
+		}
 	case "VS":
 		if 0 <= n && n <= 63 {
 			return ppc64.REG_VS0 + n, true
