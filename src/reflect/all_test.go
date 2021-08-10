@@ -4304,6 +4304,9 @@ func TestConvert(t *testing.T) {
 
 		// vout1 represents the in value converted to the in type.
 		v1 := tt.in
+		if !v1.CanConvert(t1) {
+			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t1)
+		}
 		vout1 := v1.Convert(t1)
 		out1 := vout1.Interface()
 		if vout1.Type() != tt.in.Type() || !DeepEqual(out1, tt.in.Interface()) {
@@ -4311,6 +4314,9 @@ func TestConvert(t *testing.T) {
 		}
 
 		// vout2 represents the in value converted to the out type.
+		if !v1.CanConvert(t2) {
+			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t2)
+		}
 		vout2 := v1.Convert(t2)
 		out2 := vout2.Interface()
 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
@@ -4371,7 +4377,10 @@ func TestConvertPanic(t *testing.T) {
 	if !v.Type().ConvertibleTo(pt) {
 		t.Errorf("[]byte should be convertible to *[8]byte")
 	}
-	shouldPanic("reflect: cannot convert slice with length 4 to array pointer with length 8", func() {
+	if v.CanConvert(pt) {
+		t.Errorf("slice with length 4 should not be convertible to *[8]byte")
+	}
+	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
 		_ = v.Convert(pt)
 	})
 }
@@ -6939,19 +6948,6 @@ func TestExported(t *testing.T) {
 		if got := IsExported(typ); got != test.want {
 			t.Errorf("%d: %s exported=%v, want %v", i, typ.Name(), got, test.want)
 		}
-	}
-}
-
-type embed struct {
-	EmbedWithUnexpMeth
-}
-
-func TestNameBytesAreAligned(t *testing.T) {
-	typ := TypeOf(embed{})
-	b := FirstMethodNameBytes(typ)
-	v := uintptr(unsafe.Pointer(b))
-	if v%unsafe.Alignof((*byte)(nil)) != 0 {
-		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
 	}
 }
 

@@ -981,6 +981,12 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 
 // tcUnsafeAdd typechecks an OUNSAFEADD node.
 func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+	if !types.AllowsGoVersion(curpkg(), 1, 17) {
+		base.ErrorfVers("go1.17", "unsafe.Add")
+		n.SetType(nil)
+		return n
+	}
+
 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -997,6 +1003,12 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 
 // tcUnsafeSlice typechecks an OUNSAFESLICE node.
 func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+	if !types.AllowsGoVersion(curpkg(), 1, 17) {
+		base.ErrorfVers("go1.17", "unsafe.Slice")
+		n.SetType(nil)
+		return n
+	}
+
 	n.X = Expr(n.X)
 	n.Y = Expr(n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -1006,7 +1018,14 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
 	t := n.X.Type()
 	if !t.IsPtr() {
 		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
+	} else if t.Elem().NotInHeap() {
+		// TODO(mdempsky): This can be relaxed, but should only affect the
+		// Go runtime itself. End users should only see //go:notinheap
+		// types due to incomplete C structs in cgo, and those types don't
+		// have a meaningful size anyway.
+		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")
 	}
+
 	if !checkunsafeslice(&n.Y) {
 		n.SetType(nil)
 		return n

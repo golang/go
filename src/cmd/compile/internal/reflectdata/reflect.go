@@ -5,6 +5,7 @@
 package reflectdata
 
 import (
+	"encoding/binary"
 	"fmt"
 	"internal/buildcfg"
 	"os"
@@ -473,21 +474,25 @@ func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
 
 // dnameData writes the contents of a reflect.name into s at offset ot.
 func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported bool) int {
-	if len(name) > 1<<16-1 {
-		base.Fatalf("name too long: %s", name)
+	if len(name) >= 1<<29 {
+		base.Fatalf("name too long: %d %s...", len(name), name[:1024])
 	}
-	if len(tag) > 1<<16-1 {
-		base.Fatalf("tag too long: %s", tag)
+	if len(tag) >= 1<<29 {
+		base.Fatalf("tag too long: %d %s...", len(tag), tag[:1024])
 	}
+	var nameLen [binary.MaxVarintLen64]byte
+	nameLenLen := binary.PutUvarint(nameLen[:], uint64(len(name)))
+	var tagLen [binary.MaxVarintLen64]byte
+	tagLenLen := binary.PutUvarint(tagLen[:], uint64(len(tag)))
 
 	// Encode name and tag. See reflect/type.go for details.
 	var bits byte
-	l := 1 + 2 + len(name)
+	l := 1 + nameLenLen + len(name)
 	if exported {
 		bits |= 1 << 0
 	}
 	if len(tag) > 0 {
-		l += 2 + len(tag)
+		l += tagLenLen + len(tag)
 		bits |= 1 << 1
 	}
 	if pkg != nil {
@@ -495,14 +500,12 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
 	}
 	b := make([]byte, l)
 	b[0] = bits
-	b[1] = uint8(len(name) >> 8)
-	b[2] = uint8(len(name))
-	copy(b[3:], name)
+	copy(b[1:], nameLen[:nameLenLen])
+	copy(b[1+nameLenLen:], name)
 	if len(tag) > 0 {
-		tb := b[3+len(name):]
-		tb[0] = uint8(len(tag) >> 8)
-		tb[1] = uint8(len(tag))
-		copy(tb[2:], tag)
+		tb := b[1+nameLenLen+len(name):]
+		copy(tb, tagLen[:tagLenLen])
+		copy(tb[tagLenLen:], tag)
 	}
 
 	ot = int(s.WriteBytes(base.Ctxt, int64(ot), b))
@@ -666,7 +669,7 @@ var kinds = []int{
 // tflag is documented in reflect/type.go.
 //
 // tflag values must be kept in sync with copies in:
-//	cmd/compile/internal/gc/reflect.go
+//	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	reflect/type.go
 //	runtime/type.go
@@ -1109,6 +1112,15 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 		ot = objw.Uint32(lsym, ot, flags)
 		ot = dextratype(lsym, ot, t, 0)
+		if u := t.Underlying(); u != t {
+			// If t is a named map type, also keep the underlying map
+			// type live in the binary. This is important to make sure that
+			// a named map and that same map cast to its underlying type via
+			// reflection, use the same hash function. See issue 37716.
+			r := obj.Addrel(lsym)
+			r.Sym = writeType(u)
+			r.Type = objabi.R_KEEP
+		}
 
 	case types.TPTR:
 		if t.Elem().Kind() == types.TANY {
@@ -1490,8 +1502,8 @@ func (a typesByString) Less(i, j int) bool {
 	// will be equal for the above checks, but different in DWARF output.
 	// Sort by source position to ensure deterministic order.
 	// See issues 27013 and 30202.
-	if a[i].t.Kind() == types.TINTER && a[i].t.Methods().Len() > 0 {
-		return a[i].t.Methods().Index(0).Pos.Before(a[j].t.Methods().Index(0).Pos)
+	if a[i].t.Kind() == types.TINTER && a[i].t.AllMethods().Len() > 0 {
+		return a[i].t.AllMethods().Index(0).Pos.Before(a[j].t.AllMethods().Index(0).Pos)
 	}
 	return false
 }

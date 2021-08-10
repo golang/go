@@ -19,6 +19,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
@@ -723,7 +724,7 @@ func idnaASCII(v string) (string, error) {
 	// version does not.
 	// Note that for correct ASCII IDNs ToASCII will only do considerably more
 	// work, but it will not cause an allocation.
-	if isASCII(v) {
+	if ascii.Is(v) {
 		return v, nil
 	}
 	return idna.Lookup.ToASCII(v)
@@ -948,7 +949,7 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
 func parseBasicAuth(auth string) (username, password string, ok bool) {
 	const prefix = "Basic "
 	// Case insensitive prefix match. See Issue 22736.
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+	if len(auth) < len(prefix) || !ascii.EqualFold(auth[:len(prefix)], prefix) {
 		return
 	}
 	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
@@ -1292,16 +1293,18 @@ func (r *Request) ParseForm() error {
 // its file parts are stored in memory, with the remainder stored on
 // disk in temporary files.
 // ParseMultipartForm calls ParseForm if necessary.
+// If ParseForm returns an error, ParseMultipartForm returns it but also
+// continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
 func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
 		return errors.New("http: multipart handled by MultipartReader")
 	}
+	var parseFormErr error
 	if r.Form == nil {
-		err := r.ParseForm()
-		if err != nil {
-			return err
-		}
+		// Let errors in ParseForm fall through, and just
+		// return it at the end.
+		parseFormErr = r.ParseForm()
 	}
 	if r.MultipartForm != nil {
 		return nil
@@ -1328,7 +1331,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 
 	r.MultipartForm = f
 
-	return nil
+	return parseFormErr
 }
 
 // FormValue returns the first value for the named component of the query.
@@ -1456,5 +1459,5 @@ func requestMethodUsuallyLacksBody(method string) bool {
 // an HTTP/1 connection.
 func (r *Request) requiresHTTP1() bool {
 	return hasToken(r.Header.Get("Connection"), "upgrade") &&
-		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
+		ascii.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }

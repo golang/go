@@ -30,8 +30,11 @@ func main() {
 		assert(len(s) == len(p))
 		assert(cap(s) == len(p))
 
-		// nil pointer
-		mustPanic(func() { _ = unsafe.Slice((*int)(nil), 0) })
+		// nil pointer with zero length returns nil
+		assert(unsafe.Slice((*int)(nil), 0) == nil)
+
+		// nil pointer with positive length panics
+		mustPanic(func() { _ = unsafe.Slice((*int)(nil), 1) })
 
 		// negative length
 		var neg int = -1

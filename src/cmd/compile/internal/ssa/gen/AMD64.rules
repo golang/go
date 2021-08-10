@@ -2216,3 +2216,22 @@
 (MOVOstore [dstOff] {dstSym} ptr (MOVOload [srcOff] {srcSym} (SB) _) mem) && symIsRO(srcSym) =>
   (MOVQstore [dstOff+8] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff)+8, config.ctxt.Arch.ByteOrder))])
     (MOVQstore [dstOff] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff), config.ctxt.Arch.ByteOrder))]) mem))
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+// Match post-lowering calls, memory version.
+(SelectN [0] call:(CALLstatic {sym} s1:(MOVQstoreconst _ [sc] s2:(MOVQstore _ src s3:(MOVQstore _ dst mem)))))
+	&& sc.Val64() >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+	&& isInlinableMemmove(dst, src, sc.Val64(), config)
+	&& clobber(s1, s2, s3, call)
+	=> (Move [sc.Val64()] dst src mem)
+
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVQconst [sz]) mem))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& call.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(call)
+	=> (Move [sz] dst src mem)

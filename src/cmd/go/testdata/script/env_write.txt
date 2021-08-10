@@ -179,3 +179,9 @@ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
 stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
 ! go env -w GOMODCACHE=./test
 stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'
+
+# go env -w checks validity of GOEXPERIMENT
+env GOEXPERIMENT=
+! go env -w GOEXPERIMENT=badexp
+stderr 'unknown GOEXPERIMENT badexp'
+go env -w GOEXPERIMENT=fieldtrack

@@ -3,6 +3,12 @@
 # Build our simple toolexec program.
 go build ./cmd/mytool
 
+# Use an ephemeral build cache so that our toolexec output is not cached
+# for any stale standard-library dependencies.
+#
+# TODO(#27628): This should not be necessary.
+env GOCACHE=$WORK/gocache
+
 # Build the main package with our toolexec program. For each action, it will
 # print the tool's name and the TOOLEXEC_IMPORTPATH value. We expect to compile
 # each package once, and link the main package once.

@@ -97,6 +97,42 @@ func moveDisjointNoOverlap(a *[256]byte) {
 	copy(a[:], a[128:])
 }
 
+// Check arch-specific memmove lowering. See issue 41662 fot details
+
+func moveArchLowering1(b []byte, x *[1]byte) {
+	_ = b[1]
+	// amd64:-".*memmove"
+	// arm64:-".*memmove"
+	copy(b, x[:])
+}
+
+func moveArchLowering2(b []byte, x *[2]byte) {
+	_ = b[2]
+	// amd64:-".*memmove"
+	// arm64:-".*memmove"
+	copy(b, x[:])
+}
+
+func moveArchLowering4(b []byte, x *[4]byte) {
+	_ = b[4]
+	// amd64:-".*memmove"
+	// arm64:-".*memmove"
+	copy(b, x[:])
+}
+
+func moveArchLowering8(b []byte, x *[8]byte) {
+	_ = b[8]
+	// amd64:-".*memmove"
+	// arm64:-".*memmove"
+	copy(b, x[:])
+}
+
+func moveArchLowering16(b []byte, x *[16]byte) {
+	_ = b[16]
+	// amd64:-".*memmove"
+	copy(b, x[:])
+}
+
 // Check that no branches are generated when the pointers are [not] equal.
 
 func ptrEqual() {

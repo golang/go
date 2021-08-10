@@ -102,6 +102,7 @@ The commands are:
 
 - cd dir
   Change to the given directory for future commands.
+  The directory must use slashes as path separator.
 
 - chmod perm path...
   Change the permissions of the files or directories named by the path arguments

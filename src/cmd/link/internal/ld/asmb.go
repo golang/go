@@ -167,7 +167,10 @@ func sizeExtRelocs(ctxt *Link, relsize uint32) {
 		}
 	}
 	filesz := ctxt.Out.Offset() + sz
-	ctxt.Out.Mmap(uint64(filesz))
+	err := ctxt.Out.Mmap(uint64(filesz))
+	if err != nil {
+		Exitf("mapping output file failed: %v", err)
+	}
 }
 
 // relocSectFn wraps the function writing relocations of a section

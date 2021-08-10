@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"reflect"
 	. "runtime"
 	"strings"
 	"testing"
@@ -45,54 +44,6 @@ func TestMemHash64Equality(t *testing.T) {
 		want := MemHash(unsafe.Pointer(&b), seed, 8)
 		if got != want {
 			t.Errorf("MemHash64(%x, %v) = %v; want %v", b, seed, got, want)
-		}
-	}
-}
-
-func TestCompilerVsRuntimeHash(t *testing.T) {
-	// Test to make sure the compiler's hash function and the runtime's hash function agree.
-	// See issue 37716.
-	for _, m := range []interface{}{
-		map[bool]int{},
-		map[int8]int{},
-		map[uint8]int{},
-		map[int16]int{},
-		map[uint16]int{},
-		map[int32]int{},
-		map[uint32]int{},
-		map[int64]int{},
-		map[uint64]int{},
-		map[int]int{},
-		map[uint]int{},
-		map[uintptr]int{},
-		map[*byte]int{},
-		map[chan int]int{},
-		map[unsafe.Pointer]int{},
-		map[float32]int{},
-		map[float64]int{},
-		map[complex64]int{},
-		map[complex128]int{},
-		map[string]int{},
-		//map[interface{}]int{},
-		//map[interface{F()}]int{},
-		map[[8]uint64]int{},
-		map[[8]string]int{},
-		map[struct{ a, b, c, d int32 }]int{}, // Note: tests AMEM128
-		map[struct{ a, b, _, d int32 }]int{},
-		map[struct {
-			a, b int32
-			c    float32
-			d, e [8]byte
-		}]int{},
-		map[struct {
-			a int16
-			b int64
-		}]int{},
-	} {
-		k := reflect.New(reflect.TypeOf(m).Key()).Elem().Interface() // the zero key
-		x, y := MapHashCheck(m, k)
-		if x != y {
-			t.Errorf("hashes did not match (%x vs %x) for map %T", x, y, m)
 		}
 	}
 }

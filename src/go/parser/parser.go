@@ -1302,7 +1302,12 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
 		p.errorExpected(p.pos, "operand")
 		rbrack := p.pos
 		p.next()
-		return &ast.BadExpr{From: x.Pos(), To: rbrack}
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  &ast.BadExpr{From: rbrack, To: rbrack},
+			Rbrack: rbrack,
+		}
 	}
 	p.exprLev++
 

@@ -40,7 +40,8 @@ func check(t *testing.T, file string) {
 			if len(frags) == 1 {
 				continue
 			}
-			re, err := regexp.Compile(string(frags[1]))
+			frag := fmt.Sprintf(":%d:.*%s", i+1, frags[1])
+			re, err := regexp.Compile(frag)
 			if err != nil {
 				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
 				continue

@@ -574,6 +574,10 @@ func parseIPv4(s string) IP {
 		if !ok || n > 0xFF {
 			return nil
 		}
+		if c > 1 && s[0] == '0' {
+			// Reject non-zero components with leading zeroes.
+			return nil
+		}
 		s = s[c:]
 		p[i] = byte(n)
 	}

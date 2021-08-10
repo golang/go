@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/compile/internal/abi"
-	"encoding/binary"
 	"fmt"
 	"go/constant"
 	"html"
@@ -1297,7 +1296,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
 		if f.Sym.IsBlank() {
 			continue
 		}
-		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), abi.FieldOffsetOf(f), addr)
+		offptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(f.Type), f.Offset, addr)
 		s.instrumentFields(f.Type, offptr, kind)
 	}
 }
@@ -3175,7 +3174,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
 		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
-		return s.newValue1(ssa.OpSlicePtrUnchecked, types.Types[types.TINT], v)
+		return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), v)
 
 	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
@@ -5054,19 +5053,23 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		ft := fn.Type()
 		off := t.FieldOff(12) // TODO register args: be sure this isn't a hardcoded param stack offset.
 		args := n.Args
+		i0 := 0
 
 		// Set receiver (for interface calls). Always a pointer.
 		if rcvr != nil {
 			p := s.newValue1I(ssa.OpOffPtr, ft.Recv().Type.PtrTo(), off, addr)
 			s.store(types.Types[types.TUINTPTR], p, rcvr)
+			i0 = 1
 		}
 		// Set receiver (for method calls).
 		if n.Op() == ir.OCALLMETH {
 			base.Fatalf("OCALLMETH missed by walkCall")
 		}
 		// Set other args.
-		for _, f := range ft.Params().Fields().Slice() {
-			s.storeArgWithBase(args[0], f.Type, addr, off+abi.FieldOffsetOf(f))
+		// This code is only used when RegabiDefer is not enabled, and arguments are always
+		// passed on stack.
+		for i, f := range ft.Params().Fields().Slice() {
+			s.storeArgWithBase(args[0], f.Type, addr, off+params.InParam(i+i0).FrameOffset(params))
 			args = args[1:]
 		}
 
@@ -5079,7 +5082,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		if stksize < int64(types.PtrSize) {
 			// We need room for both the call to deferprocStack and the call to
 			// the deferred function.
-			// TODO(register args) Revisit this if/when we pass args in registers.
 			stksize = int64(types.PtrSize)
 		}
 		call.AuxInt = stksize
@@ -6463,7 +6465,8 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
-		s.f.Names = append(s.f.Names, loc)
+		s.f.Names = append(s.f.Names, &loc)
+		s.f.CanonicalLocalSlots[loc] = &loc
 	}
 	s.f.NamedValues[loc] = append(values, v)
 }
@@ -6598,6 +6601,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
 
 	PtrSize := int64(types.PtrSize)
+	uintptrTyp := types.Types[types.TUINTPTR]
 
 	isAggregate := func(t *types.Type) bool {
 		return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice()
@@ -6641,12 +6645,8 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	n := 0
 	writebyte := func(o uint8) { wOff = objw.Uint8(x, wOff, o) }
 
-	// Write one non-aggrgate arg/field/element if there is room.
-	// Returns whether to continue.
-	write1 := func(sz, offset int64) bool {
-		if n >= limit {
-			return false
-		}
+	// Write one non-aggrgate arg/field/element.
+	write1 := func(sz, offset int64) {
 		if offset >= _special {
 			writebyte(_offsetTooLarge)
 		} else {
@@ -6654,7 +6654,6 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			writebyte(uint8(sz))
 		}
 		n++
-		return true
 	}
 
 	// Visit t recursively and write it out.
@@ -6662,10 +6661,12 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 	var visitType func(baseOffset int64, t *types.Type, depth int) bool
 	visitType = func(baseOffset int64, t *types.Type, depth int) bool {
 		if n >= limit {
+			writebyte(_dotdotdot)
 			return false
 		}
 		if !isAggregate(t) {
-			return write1(t.Size(), baseOffset)
+			write1(t.Size(), baseOffset)
+			return true
 		}
 		writebyte(_startAgg)
 		depth++
@@ -6675,58 +6676,47 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 			n++
 			return true
 		}
-		var r bool
 		switch {
 		case t.IsInterface(), t.IsString():
-			r = write1(PtrSize, baseOffset) &&
-				write1(PtrSize, baseOffset+PtrSize)
+			_ = visitType(baseOffset, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize, uintptrTyp, depth)
 		case t.IsSlice():
-			r = write1(PtrSize, baseOffset) &&
-				write1(PtrSize, baseOffset+PtrSize) &&
-				write1(PtrSize, baseOffset+PtrSize*2)
+			_ = visitType(baseOffset, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize, uintptrTyp, depth) &&
+				visitType(baseOffset+PtrSize*2, uintptrTyp, depth)
 		case t.IsComplex():
-			r = write1(t.Size()/2, baseOffset) &&
-				write1(t.Size()/2, baseOffset+t.Size()/2)
+			_ = visitType(baseOffset, types.FloatForComplex(t), depth) &&
+				visitType(baseOffset+t.Size()/2, types.FloatForComplex(t), depth)
 		case t.IsArray():
-			r = true
 			if t.NumElem() == 0 {
 				n++ // {} counts as a component
 				break
 			}
 			for i := int64(0); i < t.NumElem(); i++ {
 				if !visitType(baseOffset, t.Elem(), depth) {
-					r = false
 					break
 				}
 				baseOffset += t.Elem().Size()
 			}
 		case t.IsStruct():
-			r = true
 			if t.NumFields() == 0 {
 				n++ // {} counts as a component
 				break
 			}
 			for _, field := range t.Fields().Slice() {
 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
-					r = false
 					break
 				}
 			}
 		}
-		if !r {
-			writebyte(_dotdotdot)
-		}
 		writebyte(_endAgg)
-		return r
+		return true
 	}
 
-	c := true
 	for _, a := range abiInfo.InParams() {
-		if !c {
-			writebyte(_dotdotdot)
+		if !visitType(a.FrameOffset(abiInfo), a.Type, 0) {
 			break
 		}
-		c = visitType(a.FrameOffset(abiInfo), a.Type, 0)
 	}
 	writebyte(_endSeq)
 	if wOff > maxLen {
@@ -7550,82 +7540,6 @@ func (e *ssafn) StringData(s string) *obj.LSym {
 
 func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
-}
-
-func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	ptrType := types.NewPtr(types.Types[types.TUINT8])
-	lenType := types.Types[types.TINT]
-	// Split this string up into two separate variables.
-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
-	return p, l
-}
-
-func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	n := name.N
-	u := types.Types[types.TUINTPTR]
-	t := types.NewPtr(types.Types[types.TUINT8])
-	// Split this interface up into two separate variables.
-	f := ".itab"
-	if n.Type().IsEmptyInterface() {
-		f = ".type"
-	}
-	c := e.SplitSlot(&name, f, 0, u) // see comment in typebits.Set
-	d := e.SplitSlot(&name, ".data", u.Size(), t)
-	return c, d
-}
-
-func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
-	ptrType := types.NewPtr(name.Type.Elem())
-	lenType := types.Types[types.TINT]
-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
-	c := e.SplitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
-	return p, l, c
-}
-
-func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	s := name.Type.Size() / 2
-	var t *types.Type
-	if s == 8 {
-		t = types.Types[types.TFLOAT64]
-	} else {
-		t = types.Types[types.TFLOAT32]
-	}
-	r := e.SplitSlot(&name, ".real", 0, t)
-	i := e.SplitSlot(&name, ".imag", t.Size(), t)
-	return r, i
-}
-
-func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
-	var t *types.Type
-	if name.Type.IsSigned() {
-		t = types.Types[types.TINT32]
-	} else {
-		t = types.Types[types.TUINT32]
-	}
-	if Arch.LinkArch.ByteOrder == binary.BigEndian {
-		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[types.TUINT32])
-	}
-	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[types.TUINT32])
-}
-
-func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
-	st := name.Type
-	// Note: the _ field may appear several times.  But
-	// have no fear, identically-named but distinct Autos are
-	// ok, albeit maybe confusing for a debugger.
-	return e.SplitSlot(&name, "."+st.FieldName(i), st.FieldOff(i), st.FieldType(i))
-}
-
-func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
-	n := name.N
-	at := name.Type
-	if at.NumElem() != 1 {
-		e.Fatalf(n.Pos(), "bad array size")
-	}
-	et := at.Elem()
-	return e.SplitSlot(&name, "[0]", 0, et)
 }
 
 func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {

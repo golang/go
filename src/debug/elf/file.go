@@ -1164,6 +1164,13 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 			b = dbuf
 		}
 
+		if f.Type == ET_EXEC {
+			// Do not apply relocations to DWARF sections for ET_EXEC binaries.
+			// Relocations should already be applied, and .rela sections may
+			// contain incorrect data.
+			return b, nil
+		}
+
 		for _, r := range f.Sections {
 			if r.Type != SHT_RELA && r.Type != SHT_REL {
 				continue

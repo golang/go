@@ -18,7 +18,7 @@ import (
 )
 
 var cmdGraph = &base.Command{
-	UsageLine: "go mod graph",
+	UsageLine: "go mod graph [-go=version]",
 	Short:     "print module requirement graph",
 	Long: `
 Graph prints the module requirement graph (with replacements applied)
@@ -26,12 +26,21 @@ in text form. Each line in the output has two space-separated fields: a module
 and one of its requirements. Each module is identified as a string of the form
 path@version, except for the main module, which has no @version suffix.
 
+The -go flag causes graph to report the module graph as loaded by the
+given Go version, instead of the version indicated by the 'go' directive
+in the go.mod file.
+
 See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 	`,
 	Run: runGraph,
 }
 
+var (
+	graphGo goVersionFlag
+)
+
 func init() {
+	cmdGraph.Flag.Var(&graphGo, "go", "")
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }
 
@@ -41,7 +50,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
-	mg := modload.LoadModGraph(ctx)
+	mg := modload.LoadModGraph(ctx, graphGo.String())
 
 	w := bufio.NewWriter(os.Stdout)
 	defer w.Flush()

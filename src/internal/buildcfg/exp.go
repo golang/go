@@ -6,7 +6,6 @@ package buildcfg
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -18,20 +17,19 @@ import (
 //
 // (This is not necessarily the set of experiments the compiler itself
 // was built with.)
-var Experiment goexperiment.Flags = parseExperiments()
-
-var regabiSupported = GOARCH == "amd64" && (GOOS == "android" || GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
-
+//
 // experimentBaseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
-var experimentBaseline = goexperiment.Flags{
-	RegabiWrappers: regabiSupported,
-	RegabiG:        regabiSupported,
-	RegabiReflect:  regabiSupported,
-	RegabiDefer:    regabiSupported,
-	RegabiArgs:     regabiSupported,
-}
+var Experiment, experimentBaseline = func() (goexperiment.Flags, goexperiment.Flags) {
+	flags, baseline, err := ParseGOEXPERIMENT(GOOS, GOARCH, envOr("GOEXPERIMENT", defaultGOEXPERIMENT))
+	if err != nil {
+		Error = err
+	}
+	return flags, baseline
+}()
+
+const DefaultGOEXPERIMENT = defaultGOEXPERIMENT
 
 // FramePointerEnabled enables the use of platform conventions for
 // saving frame pointers.
@@ -42,16 +40,29 @@ var experimentBaseline = goexperiment.Flags{
 // Note: must agree with runtime.framepointer_enabled.
 var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 
-func parseExperiments() goexperiment.Flags {
+// ParseGOEXPERIMENT parses a (GOOS, GOARCH, GOEXPERIMENT)
+// configuration tuple and returns the enabled and baseline experiment
+// flag sets.
+//
+// TODO(mdempsky): Move to internal/goexperiment.
+func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment.Flags, err error) {
+	regabiSupported := goarch == "amd64" && (goos == "android" || goos == "linux" || goos == "darwin" || goos == "windows")
+
+	baseline = goexperiment.Flags{
+		RegabiWrappers: regabiSupported,
+		RegabiG:        regabiSupported,
+		RegabiReflect:  regabiSupported,
+		RegabiDefer:    regabiSupported,
+		RegabiArgs:     regabiSupported,
+	}
+
 	// Start with the statically enabled set of experiments.
-	flags := experimentBaseline
+	flags = baseline
 
 	// Pick up any changes to the baseline configuration from the
 	// GOEXPERIMENT environment. This can be set at make.bash time
 	// and overridden at build time.
-	env := envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
-
-	if env != "" {
+	if goexp != "" {
 		// Create a map of known experiment names.
 		names := make(map[string]func(bool))
 		rv := reflect.ValueOf(&flags).Elem()
@@ -74,7 +85,7 @@ func parseExperiments() goexperiment.Flags {
 		}
 
 		// Parse names.
-		for _, f := range strings.Split(env, ",") {
+		for _, f := range strings.Split(goexp, ",") {
 			if f == "" {
 				continue
 			}
@@ -91,15 +102,15 @@ func parseExperiments() goexperiment.Flags {
 			}
 			set, ok := names[f]
 			if !ok {
-				fmt.Printf("unknown experiment %s\n", f)
-				os.Exit(2)
+				err = fmt.Errorf("unknown GOEXPERIMENT %s", f)
+				return
 			}
 			set(val)
 		}
 	}
 
 	// regabi is only supported on amd64.
-	if GOARCH != "amd64" {
+	if goarch != "amd64" {
 		flags.RegabiWrappers = false
 		flags.RegabiG = false
 		flags.RegabiReflect = false
@@ -108,12 +119,12 @@ func parseExperiments() goexperiment.Flags {
 	}
 	// Check regabi dependencies.
 	if flags.RegabiG && !flags.RegabiWrappers {
-		Error = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
+		err = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
 	}
 	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
-		Error = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
 	}
-	return flags
+	return
 }
 
 // expList returns the list of lower-cased experiment names for
@@ -164,4 +175,15 @@ func EnabledExperiments() []string {
 // Disabled experiments appear in the list prefixed by "no".
 func AllExperiments() []string {
 	return expList(&Experiment, nil, true)
+}
+
+// UpdateExperiments updates the Experiment global based on a new GOARCH value.
+// This is only required for cmd/go, which can change GOARCH after
+// program startup due to use of "go env -w".
+func UpdateExperiments(goos, goarch, goexperiment string) {
+	var err error
+	Experiment, experimentBaseline, err = ParseGOEXPERIMENT(goos, goarch, goexperiment)
+	if err != nil {
+		Error = err
+	}
 }

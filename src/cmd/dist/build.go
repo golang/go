@@ -1607,6 +1607,18 @@ var incomplete = map[string]bool{
 	"linux/sparc64": true,
 }
 
+// List of platforms which are first class ports. See golang.org/issue/38874.
+var firstClass = map[string]bool{
+	"darwin/amd64":  true,
+	"darwin/arm64":  true,
+	"linux/386":     true,
+	"linux/amd64":   true,
+	"linux/arm":     true,
+	"linux/arm64":   true,
+	"windows/386":   true,
+	"windows/amd64": true,
+}
+
 func needCC() bool {
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -1743,6 +1755,7 @@ func cmdlist() {
 		GOOS         string
 		GOARCH       string
 		CgoSupported bool
+		FirstClass   bool
 	}
 	var results []jsonResult
 	for _, p := range plats {
@@ -1750,7 +1763,8 @@ func cmdlist() {
 		results = append(results, jsonResult{
 			GOOS:         fields[0],
 			GOARCH:       fields[1],
-			CgoSupported: cgoEnabled[p]})
+			CgoSupported: cgoEnabled[p],
+			FirstClass:   firstClass[p]})
 	}
 	out, err := json.MarshalIndent(results, "", "\t")
 	if err != nil {

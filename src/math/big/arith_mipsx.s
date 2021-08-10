@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !math_big_pure_go,mips !math_big_pure_go,mipsle
+//go:build !math_big_pure_go && (mips || mipsle)
+// +build !math_big_pure_go
+// +build mips mipsle
 
 #include "textflag.h"
 

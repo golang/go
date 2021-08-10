@@ -174,6 +174,9 @@ func compileCallback(fn interface{}, cleanstack bool) uintptr
 // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
 // The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
 func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
@@ -181,6 +184,9 @@ func NewCallback(fn interface{}) uintptr {
 // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
 // This is useful when interoperating with Windows code requiring callbacks.
 // The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+// Only a limited number of callbacks may be created in a single Go process, and any memory allocated
+// for these callbacks is never released.
+// Between NewCallback and NewCallbackCDecl, at least 1024 callbacks can always be created.
 func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
@@ -192,6 +198,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
+//sys	rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) = ntdll.RtlGetNtVersionNumbers
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
@@ -472,7 +479,6 @@ var (
 
 func getStdHandle(h int) (fd Handle) {
 	r, _ := GetStdHandle(h)
-	CloseOnExec(r)
 	return r
 }
 

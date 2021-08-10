@@ -517,7 +517,7 @@ func (ts *testScript) cmdCd(want simpleStatus, args []string) {
 		ts.fatalf("usage: cd dir")
 	}
 
-	dir := args[0]
+	dir := filepath.FromSlash(args[0])
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(ts.cd, dir)
 	}

@@ -1334,13 +1334,13 @@ func UnixMilli(msec int64) Time {
 }
 
 // UnixMicro returns the local Time corresponding to the given Unix time,
-// usec milliseconds since January 1, 1970 UTC.
+// usec microseconds since January 1, 1970 UTC.
 func UnixMicro(usec int64) Time {
 	return Unix(usec/1e6, (usec%1e6)*1e3)
 }
 
 // IsDST reports whether the time in the configured location is in Daylight Savings Time.
-func (t *Time) IsDST() bool {
+func (t Time) IsDST() bool {
 	_, _, _, _, isDST := t.loc.lookup(t.Unix())
 	return isDST
 }

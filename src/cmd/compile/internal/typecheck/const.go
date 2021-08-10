@@ -633,6 +633,17 @@ func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
 	if l.Type() == nil || r.Type() == nil {
 		return l, r
 	}
+
+	if !l.Type().IsInterface() && !r.Type().IsInterface() {
+		// Can't mix bool with non-bool, string with non-string.
+		if l.Type().IsBoolean() != r.Type().IsBoolean() {
+			return l, r
+		}
+		if l.Type().IsString() != r.Type().IsString() {
+			return l, r
+		}
+	}
+
 	if !l.Type().IsUntyped() {
 		r = convlit(r, l.Type())
 		return l, r
@@ -647,17 +658,10 @@ func defaultlit2(l ir.Node, r ir.Node, force bool) (ir.Node, ir.Node) {
 		return l, r
 	}
 
-	// Can't mix bool with non-bool, string with non-string, or nil with anything (untyped).
-	if l.Type().IsBoolean() != r.Type().IsBoolean() {
-		return l, r
-	}
-	if l.Type().IsString() != r.Type().IsString() {
-		return l, r
-	}
+	// Can't mix nil with anything untyped.
 	if ir.IsNil(l) || ir.IsNil(r) {
 		return l, r
 	}
-
 	t := defaultType(mixUntyped(l.Type(), r.Type()))
 	l = convlit(l, t)
 	r = convlit(r, t)
