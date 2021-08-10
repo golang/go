@@ -226,12 +226,13 @@ import (
 // 1: added column details to Pos
 // 2: added information for generic function/types (currently unstable)
 const (
-	iexportVersionGo1_11   = 0
-	iexportVersionPosCol   = 1
-	iexportVersionGenerics = 2
+	iexportVersionGo1_11 = 0
+	iexportVersionPosCol = 1
+	// TODO: before release, change this back to 2.  Kept at previous version
+	// for now (for testing).
+	iexportVersionGenerics = iexportVersionPosCol
 
-	// Start of the unstable series of versions, remove "+ n" before release.
-	iexportVersionCurrent = iexportVersionGenerics + 1
+	iexportVersionCurrent = iexportVersionGenerics
 )
 
 // predeclReserved is the number of type offsets reserved for types

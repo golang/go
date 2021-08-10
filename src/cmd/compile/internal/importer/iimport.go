@@ -43,12 +43,12 @@ func (r *intReader) uint64() uint64 {
 
 // Keep this in sync with constants in iexport.go.
 const (
-	iexportVersionGo1_11   = 0
-	iexportVersionPosCol   = 1
-	iexportVersionGenerics = 2
+	iexportVersionGo1_11 = 0
+	iexportVersionPosCol = 1
+	// TODO: before release, change this back to 2.
+	iexportVersionGenerics = iexportVersionPosCol
 
-	// Start of the unstable series of versions, remove "+ n" before release.
-	iexportVersionCurrent = iexportVersionGenerics + 1
+	iexportVersionCurrent = iexportVersionGenerics
 )
 
 type ident struct {
@@ -99,7 +99,7 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 
 	version = int64(r.uint64())
 	switch version {
-	case currentVersion, iexportVersionPosCol, iexportVersionGo1_11:
+	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
 	default:
 		if version > iexportVersionGenerics {
 			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)

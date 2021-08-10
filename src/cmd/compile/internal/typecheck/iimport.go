@@ -119,7 +119,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 
 	version := ird.uint64()
 	switch version {
-	case iexportVersionCurrent, iexportVersionPosCol, iexportVersionGo1_11:
+	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
 	default:
 		if version > iexportVersionGenerics {
 			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
