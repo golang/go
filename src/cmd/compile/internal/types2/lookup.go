@@ -46,7 +46,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
 	if t := asNamed(T); t != nil {
-		if p, _ := t.Underlying().(*Pointer); p != nil {
+		if p, _ := safeUnderlying(t).(*Pointer); p != nil {
 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
@@ -394,7 +394,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			if len(ftyp.RParams().list()) != len(Vn.targs) {
 				return
 			}
-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs)).(*Signature)
+			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs), nil).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they

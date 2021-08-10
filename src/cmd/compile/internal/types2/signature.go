@@ -153,7 +153,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 					// TODO(gri) should we assume now that bounds always exist?
 					//           (no bound == empty interface)
 					if bound != nil {
-						bound = check.subst(tname.pos, bound, smap)
+						bound = check.subst(tname.pos, bound, smap, nil)
 						tname.typ.(*TypeParam).bound = bound
 					}
 				}
@@ -215,7 +215,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 			var err string
 			switch T := rtyp.(type) {
 			case *Named:
-				T.expand()
+				T.expand(nil)
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
