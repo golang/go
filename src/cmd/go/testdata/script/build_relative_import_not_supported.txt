@@ -1,5 +1,5 @@
 ! go build
-stderr 'main.go:4:2: ./foo: relative import not supported'
+stderr 'main.go:4:2: local import "./foo" not supported in module mode'
 
 -- foo/foo.go --
 package foo
