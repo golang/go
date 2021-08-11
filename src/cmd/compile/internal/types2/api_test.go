@@ -1879,3 +1879,28 @@ func TestInstantiate(t *testing.T) {
 		t.Fatalf("unexpected result type: %s points to %s", res, p)
 	}
 }
+
+func TestInstanceIdentity(t *testing.T) {
+	imports := make(testImporter)
+	conf := Config{Importer: imports}
+	makePkg := func(src string) {
+		f, err := parseSrc("", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		name := f.PkgName.Value
+		pkg, err := conf.Check(name, []*syntax.File{f}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		imports[name] = pkg
+	}
+	makePkg(genericPkg + `lib; type T[P any] struct{}`)
+	makePkg(genericPkg + `a; import "generic_lib"; var A generic_lib.T[int]`)
+	makePkg(genericPkg + `b; import "generic_lib"; var B generic_lib.T[int]`)
+	a := imports["generic_a"].Scope().Lookup("A")
+	b := imports["generic_b"].Scope().Lookup("B")
+	if !Identical(a.Type(), b.Type()) {
+		t.Errorf("mismatching types: a.A: %s, b.B: %s", a.Type(), b.Type())
+	}
+}
