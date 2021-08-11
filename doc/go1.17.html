@@ -488,6 +488,15 @@ func Foo() bool {
   and compare functions by code pointer.
 </p>
 
+<h3 id="link">Linker</h3>
+
+<p><!-- CL 310349 -->
+  When the linker uses external linking mode, which is the default
+  when linking a program that uses cgo, and the linker is invoked
+  with a <code>-I</code> option, the option will now be passed to the
+  external linker as a <code>-Wl,--dynamic-linker</code> option.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="runtime/cgo"><a href="/pkg/runtime/cgo">Cgo</a></h3>
