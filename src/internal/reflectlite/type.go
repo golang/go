@@ -100,12 +100,14 @@ const (
 	Func
 	Interface
 	Map
-	Ptr
+	Pointer
 	Slice
 	String
 	Struct
 	UnsafePointer
 )
+
+const Ptr = Pointer
 
 // tflag is used by an rtype to signal what extra type information is
 // available in the memory directly following the rtype value.
