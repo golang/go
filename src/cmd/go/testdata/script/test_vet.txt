@@ -20,6 +20,17 @@ stdout '\[no test files\]'
 ! go test -vet=all ./vetall/...
 stderr 'using resp before checking for errors'
 
+# Test issue #47309
+! go test -vet=bools,xyz ./vetall/...
+stderr '-vet argument must be a supported analyzer'
+
+# Test with a list of analyzers
+! go test -vet=httpresponse ./vetall/...
+stderr 'using resp before checking for errors'
+
+# Test with a single analyzer
+go test -vet=atomic,bools,nilfunc ./vetall/...
+stdout 'm/vetall.*\[no tests to run\]'
 
 # Test issue #22890
 go test m/vetcycle
