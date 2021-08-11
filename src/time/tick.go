@@ -6,7 +6,7 @@ package time
 
 import "errors"
 
-// A Ticker holds a channel that delivers `ticks` of a clock
+// A Ticker holds a channel that delivers ``ticks'' of a clock
 // at intervals.
 type Ticker struct {
 	C <-chan Time // The channel on which the ticks are delivered.
@@ -14,9 +14,9 @@ type Ticker struct {
 }
 
 // NewTicker returns a new Ticker containing a channel that will send
-// the current time on the channel after each tick. The period of the ticks is
-// specified by the duration argument. The ticker will adjust the time
-// interval or drop ticks to make up for slow receivers.
+// the current time on the channel after each tick. The period of the
+// ticks is specified by the duration argument. The ticker will adjust
+// the time interval or drop ticks to make up for slow receivers.
 // The duration d must be greater than zero; if not, NewTicker will
 // panic. Stop the ticker to release associated resources.
 func NewTicker(d Duration) *Ticker {
