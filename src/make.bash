@@ -203,16 +203,10 @@ if [ "$1" = "--dist-tool" ]; then
 	exit 0
 fi
 
-buildall="-a"
-if [ "$1" = "--no-clean" ]; then
-	buildall=""
-	shift
-fi
-
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
 # Throw ours, built with Go 1.4, away after bootstrap.
-./cmd/dist/dist bootstrap $buildall $vflag $GO_DISTFLAGS "$@"
+./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@"
 rm -f ./cmd/dist/dist
 
 # DO NOT ADD ANY NEW CODE HERE.
