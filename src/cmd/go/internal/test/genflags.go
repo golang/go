@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+
+	"cmd/go/internal/test/internal/genflags"
 )
 
 func main() {
@@ -25,9 +27,18 @@ func main() {
 }
 
 func regenerate() error {
+	vetAnalyzers, err := genflags.VetAnalyzers()
+	if err != nil {
+		return err
+	}
+
 	t := template.Must(template.New("fileTemplate").Parse(fileTemplate))
+	tData := map[string][]string{
+		"testFlags":    testFlags(),
+		"vetAnalyzers": vetAnalyzers,
+	}
 	buf := bytes.NewBuffer(nil)
-	if err := t.Execute(buf, testFlags()); err != nil {
+	if err := t.Execute(buf, tData); err != nil {
 		return err
 	}
 
@@ -85,7 +96,13 @@ package test
 // passFlagToTest contains the flags that should be forwarded to
 // the test binary with the prefix "test.".
 var passFlagToTest = map[string]bool {
-{{- range .}}
+{{- range .testFlags}}
+	"{{.}}": true,
+{{- end }}
+}
+
+var passAnalyzersToVet = map[string]bool {
+{{- range .vetAnalyzers}}
 	"{{.}}": true,
 {{- end }}
 }
