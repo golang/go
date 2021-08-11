@@ -179,6 +179,31 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 	}
 }
 
+// DiscardRune skips the next n UTF-8 encoded runes, returning the number of bytes discarded.
+//
+// If Discard skips fewer than n runes, it also returns an error.
+// If 0 <= n <= b.Buffered(), Discard is guaranteed to succeed without
+// reading from the underlying io.Reader.
+func (b *Reader) DiscardRunes(n int) (discardedBytes int, err error) {
+	if n < 0 {
+		return 0, ErrNegativeCount
+	}
+	if n == 0 {
+		return
+	}
+	for i := 0; i < n; i++ {
+		for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil && b.w-b.r < len(b.buf) {
+			b.fill() // b.w-b.r < len(buf) => buffer is not full
+		}
+
+		_, bytes := utf8.DecodeRune(b.buf[b.r:b.w], true)
+		discardedBytes += bytes
+		b.r += bytes
+	}
+
+	return discardedBytes, nil
+}
+
 // Read reads data into p.
 // It returns the number of bytes read into p.
 // The bytes are taken from at most one Read on the underlying Reader,

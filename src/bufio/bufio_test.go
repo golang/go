@@ -1591,3 +1591,81 @@ func BenchmarkWriterFlush(b *testing.B) {
 		bw.Flush()
 	}
 }
+
+func TestReader_DiscardRunes(t *testing.T) {
+	type args struct {
+		runeLen int
+	}
+	tests := []struct {
+		name        string
+		fields      string
+		args        args
+		wantByteLen int
+		wantErr     bool
+	}{
+		{
+			name:        "中",
+			fields:      "中",
+			args:        struct{ runeLen int }{runeLen: 1},
+			wantByteLen: 3,
+			wantErr:     false,
+		},
+		{
+			name:        "a中",
+			fields:      "a中",
+			args:        struct{ runeLen int }{runeLen: 2},
+			wantByteLen: 4,
+			wantErr:     false,
+		},
+		{
+			name:        "a中b",
+			fields:      "a中b",
+			args:        struct{ runeLen int }{runeLen: 3},
+			wantByteLen: 5,
+			wantErr:     false,
+		},
+		{
+			name:        "multi_chunk_4097",
+			fields:      strings.Repeat("中", 4097),
+			args:        struct{ runeLen int }{runeLen: 4097},
+			wantByteLen: 4097 * 3,
+			wantErr:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := bytes.NewBufferString(tt.fields)
+			b := NewReader(buf)
+			gotByteLen, err := b.DiscardRunes(tt.args.runeLen)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ByteLenOfRune() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotByteLen != tt.wantByteLen {
+				t.Errorf("ByteLenOfRune() gotByteLen = %v, want %v", gotByteLen, tt.wantByteLen)
+			}
+		})
+	}
+}
+
+func BenchmarkDiscardVsRead(b *testing.B) {
+	b.Run("DiscardRunes", func(b *testing.B) {
+		data := strings.Repeat("中", 4097)
+		for i := 0; i < b.N; i++ {
+			buf := bytes.NewBufferString(data)
+			b := NewReader(buf)
+			b.DiscardRunes(4097)
+		}
+	})
+
+	b.Run("readRuneForDiscard", func(b *testing.B) {
+		data := strings.Repeat("中", 4097)
+		for i := 0; i < b.N; i++ {
+			buf := bytes.NewBufferString(data)
+			b := NewReader(buf)
+			for i := 0; i < 4097; i++ {
+				b.ReadRune()
+			}
+		}
+	})
+}
