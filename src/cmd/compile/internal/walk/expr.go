@@ -82,7 +82,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		base.Fatalf("walkExpr: switch 1 unknown op %+v", n.Op())
 		panic("unreachable")
 
-	case ir.ONONAME, ir.OGETG:
+	case ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP:
 		return n
 
 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.OLINKSYMOFFSET:
@@ -136,6 +136,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.TypeAssertExpr)
 		return walkDotType(n, init)
 
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		return walkDynamicDotType(n, init)
+
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
 		return walkLenCap(n, init)
@@ -161,13 +165,13 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return mkcall("gopanic", nil, init, n.X)
 
-	case ir.ORECOVER:
-		return walkRecover(n.(*ir.CallExpr), init)
+	case ir.ORECOVERFP:
+		return walkRecoverFP(n.(*ir.CallExpr), init)
 
 	case ir.OCFUNC:
 		return n
 
-	case ir.OCALLINTER, ir.OCALLFUNC, ir.OCALLMETH:
+	case ir.OCALLINTER, ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
 		return walkCall(n, init)
 
@@ -205,6 +209,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCONVIFACE:
 		n := n.(*ir.ConvExpr)
 		return walkConvInterface(n, init)
+
+	case ir.OCONVIDATA:
+		n := n.(*ir.ConvExpr)
+		return walkConvIData(n, init)
 
 	case ir.OCONV, ir.OCONVNOP:
 		n := n.(*ir.ConvExpr)
@@ -308,8 +316,8 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 	case ir.OCLOSURE:
 		return walkClosure(n.(*ir.ClosureExpr), init)
 
-	case ir.OCALLPART:
-		return walkCallPart(n.(*ir.SelectorExpr), init)
+	case ir.OMETHVALUE:
+		return walkMethodValue(n.(*ir.SelectorExpr), init)
 	}
 
 	// No return! Each case must return (or panic),
@@ -487,9 +495,12 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
 	return r1
 }
 
-// walkCall walks an OCALLFUNC, OCALLINTER, or OCALLMETH node.
+// walkCall walks an OCALLFUNC or OCALLINTER node.
 func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	if n.Op() == ir.OCALLINTER || n.Op() == ir.OCALLMETH {
+	if n.Op() == ir.OCALLMETH {
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+	}
+	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
 		// We expect both interface call reflect.Type.Method and concrete
 		// call reflect.(*rtype).Method.
 		usemethod(n)
@@ -549,20 +560,8 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 	}
 	n.SetWalked(true)
 
-	// If this is a method call t.M(...),
-	// rewrite into a function call T.M(t, ...).
-	// TODO(mdempsky): Do this right after type checking.
 	if n.Op() == ir.OCALLMETH {
-		withRecv := make([]ir.Node, len(n.Args)+1)
-		dot := n.X.(*ir.SelectorExpr)
-		withRecv[0] = dot.X
-		copy(withRecv[1:], n.Args)
-		n.Args = withRecv
-
-		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
-
-		n.SetOp(ir.OCALLFUNC)
-		n.X = typecheck.Expr(dot)
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 	}
 
 	args := n.Args
@@ -668,6 +667,13 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
 		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
 	}
+	return n
+}
+
+// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
+	n.X = walkExpr(n.X, init)
+	n.T = walkExpr(n.T, init)
 	return n
 }
 
@@ -931,42 +937,8 @@ func bounded(n ir.Node, max int64) bool {
 	return false
 }
 
-// usemethod checks interface method calls for uses of reflect.Type.Method.
+// usemethod checks calls for uses of reflect.Type.{Method,MethodByName}.
 func usemethod(n *ir.CallExpr) {
-	t := n.X.Type()
-
-	// Looking for either of:
-	//	Method(int) reflect.Method
-	//	MethodByName(string) (reflect.Method, bool)
-	//
-	// TODO(crawshaw): improve precision of match by working out
-	//                 how to check the method name.
-	if n := t.NumParams(); n != 1 {
-		return
-	}
-	if n := t.NumResults(); n != 1 && n != 2 {
-		return
-	}
-	p0 := t.Params().Field(0)
-	res0 := t.Results().Field(0)
-	var res1 *types.Field
-	if t.NumResults() == 2 {
-		res1 = t.Results().Field(1)
-	}
-
-	if res1 == nil {
-		if p0.Type.Kind() != types.TINT {
-			return
-		}
-	} else {
-		if !p0.Type.IsString() {
-			return
-		}
-		if !res1.Type.IsBoolean() {
-			return
-		}
-	}
-
 	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
 	// Those functions may be alive via the itab, which should not cause all methods
 	// alive. We only want to mark their callers.
@@ -977,10 +949,43 @@ func usemethod(n *ir.CallExpr) {
 		}
 	}
 
-	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
-	//       (including global variables such as numImports - was issue #19028).
-	// Also need to check for reflect package itself (see Issue #38515).
-	if s := res0.Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+	dot, ok := n.X.(*ir.SelectorExpr)
+	if !ok {
+		return
+	}
+
+	// Looking for either direct method calls and interface method calls of:
+	//	reflect.Type.Method       - func(int) reflect.Method
+	//	reflect.Type.MethodByName - func(string) (reflect.Method, bool)
+	var pKind types.Kind
+
+	switch dot.Sel.Name {
+	case "Method":
+		pKind = types.TINT
+	case "MethodByName":
+		pKind = types.TSTRING
+	default:
+		return
+	}
+
+	t := dot.Selection.Type
+	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
+		return
+	}
+	switch t.NumResults() {
+	case 1:
+		// ok
+	case 2:
+		if t.Results().Field(1).Type.Kind() != types.TBOOL {
+			return
+		}
+	default:
+		return
+	}
+
+	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
+	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
+	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
 		ir.CurFunc.SetReflectMethod(true)
 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)

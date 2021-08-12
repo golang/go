@@ -53,8 +53,9 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -315,12 +316,12 @@ func asyncPreempt2() {
 var asyncPreemptStack = ^uintptr(0)
 
 func init() {
-	f := findfunc(funcPC(asyncPreempt))
+	f := findfunc(abi.FuncPCABI0(asyncPreempt))
 	total := funcMaxSPDelta(f)
-	f = findfunc(funcPC(asyncPreempt2))
+	f = findfunc(abi.FuncPCABIInternal(asyncPreempt2))
 	total += funcMaxSPDelta(f)
 	// Add some overhead for return PCs, etc.
-	asyncPreemptStack = uintptr(total) + 8*sys.PtrSize
+	asyncPreemptStack = uintptr(total) + 8*goarch.PtrSize
 	if asyncPreemptStack > _StackLimit {
 		// We need more than the nosplit limit. This isn't
 		// unsafe, but it may limit asynchronous preemption.

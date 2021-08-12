@@ -95,6 +95,8 @@ var independentTestTypes = []testEntry{
 	dup("interface{}"),
 	dup("interface{m()}"),
 	dup(`interface{String() string; m(int) float32}`),
+	dup("interface{int|float32|complex128}"),
+	dup("interface{int|~float32|~complex128}"),
 
 	// TODO(rFindley) uncomment this once this AST is accepted, and add more test
 	// cases.
@@ -143,6 +145,10 @@ func TestTypeString(t *testing.T) {
 }
 
 func TestIncompleteInterfaces(t *testing.T) {
+	if !Debug {
+		t.Skip("requires type checker to be compiled with debug = true")
+	}
+
 	sig := NewSignature(nil, nil, nil, false)
 	m := NewFunc(token.NoPos, nil, "m", sig)
 	for _, test := range []struct {

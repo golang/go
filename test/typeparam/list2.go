@@ -50,7 +50,7 @@ func (e *_Element[T]) Prev() *_Element[T] {
 // The zero value for _List is an empty list ready to use.
 type _List[T any] struct {
 	root _Element[T] // sentinel list element, only &root, root.prev, and root.next are used
-	len  int     // current list length excluding (this) sentinel element
+	len  int         // current list length excluding (this) sentinel element
 }
 
 // Init initializes or clears list l.
@@ -594,8 +594,15 @@ func TestTransform() {
 	checkList(l2, []interface{}{"1", "2"})
 }
 
-
 func main() {
 	TestList()
+	TestExtending()
+	TestRemove()
+	TestIssue4103()
+	TestIssue6349()
+	TestMove()
+	TestZeroList()
+	TestInsertBeforeUnknownMark()
+	TestInsertAfterUnknownMark()
+	TestTransform()
 }
-

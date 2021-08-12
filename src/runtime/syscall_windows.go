@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -73,7 +73,7 @@ type abiDesc struct {
 }
 
 func (p *abiDesc) assignArg(t *_type) {
-	if t.size > sys.PtrSize {
+	if t.size > goarch.PtrSize {
 		// We don't support this right now. In
 		// stdcall/cdecl, 64-bit ints and doubles are
 		// passed as two words (little endian); and
@@ -146,7 +146,7 @@ func (p *abiDesc) assignArg(t *_type) {
 
 	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
 	// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
-	p.srcStackSize += sys.PtrSize
+	p.srcStackSize += goarch.PtrSize
 }
 
 // tryRegAssignArg tries to register-assign a value of type t.
@@ -162,7 +162,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 		return p.assignReg(t.size, offset)
 	case kindInt64, kindUint64:
 		// Only register-assign if the registers are big enough.
-		if sys.PtrSize == 8 {
+		if goarch.PtrSize == 8 {
 			return p.assignReg(t.size, offset)
 		}
 	case kindArray:
@@ -232,10 +232,10 @@ func callbackasmAddr(i int) uintptr {
 		// followed by a branch instruction
 		entrySize = 8
 	}
-	return funcPC(callbackasm) + uintptr(i*entrySize)
+	return abi.FuncPCABI0(callbackasm) + uintptr(i*entrySize)
 }
 
-const callbackMaxFrame = 64 * sys.PtrSize
+const callbackMaxFrame = 64 * goarch.PtrSize
 
 // compileCallback converts a Go function fn into a C function pointer
 // that can be passed to Windows APIs.
@@ -263,13 +263,13 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	}
 	// The Go ABI aligns the result to the word size. src is
 	// already aligned.
-	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, sys.PtrSize)
+	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	abiMap.retOffset = abiMap.dstStackSize
 
 	if len(ft.out()) != 1 {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if ft.out()[0].size != sys.PtrSize {
+	if ft.out()[0].size != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
@@ -282,12 +282,12 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		// Make room for the uintptr-sized result.
 		// If there are argument registers, the return value will
 		// be passed in the first register.
-		abiMap.dstStackSize += sys.PtrSize
+		abiMap.dstStackSize += goarch.PtrSize
 	}
 
 	// TODO(mknyszek): Remove dstSpill from this calculation when we no longer have
 	// caller reserved spill space.
-	frameSize := alignUp(abiMap.dstStackSize, sys.PtrSize)
+	frameSize := alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	frameSize += abiMap.dstSpill
 	if frameSize > callbackMaxFrame {
 		panic("compileCallback: function argument frame too large")
@@ -370,7 +370,7 @@ func callbackWrap(a *callbackArgs) {
 
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize := alignUp(c.abiMap.dstStackSize, sys.PtrSize)
+	frameSize := alignUp(c.abiMap.dstStackSize, goarch.PtrSize)
 	frameSize += c.abiMap.dstSpill
 
 	// Even though this is copying back results, we can pass a nil

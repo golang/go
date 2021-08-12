@@ -93,7 +93,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(check, false)
+	u := newUnifier(false)
 	u.x.init(tparams)
 
 	// Set the type arguments which we know already.
@@ -189,7 +189,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 		// only parameter type it can possibly match against is a *TypeParam.
 		// Thus, only consider untyped arguments for generic parameters that
 		// are not of composite types and which don't have a type inferred yet.
-		if tpar, _ := par.typ.(*_TypeParam); tpar != nil && targs[tpar.index] == nil {
+		if tpar, _ := par.typ.(*TypeParam); tpar != nil && targs[tpar.index] == nil {
 			arg := args[i]
 			targ := Default(arg.typ)
 			// The default type for an untyped nil is untyped nil. We must not
@@ -302,8 +302,8 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 			}
 		}
 
-	case *_Sum:
-		return w.isParameterizedList(t.types)
+	case *Union:
+		return w.isParameterizedTermList(t.terms)
 
 	case *Signature:
 		// t.tparams may not be nil if we are looking at a signature
@@ -316,24 +316,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.params) || w.isParameterized(t.results)
 
 	case *Interface:
-		if t.allMethods != nil {
-			// TODO(rFindley) at some point we should enforce completeness here
-			for _, m := range t.allMethods {
-				if w.isParameterized(m.typ) {
-					return true
-				}
+		tset := t.typeSet()
+		for _, m := range tset.methods {
+			if w.isParameterized(m.typ) {
+				return true
 			}
-			return w.isParameterizedList(unpackType(t.allTypes))
 		}
-
-		return t.iterate(func(t *Interface) bool {
-			for _, m := range t.methods {
-				if w.isParameterized(m.typ) {
-					return true
-				}
-			}
-			return w.isParameterizedList(unpackType(t.types))
-		}, nil)
+		return w.isParameterized(tset.types)
 
 	case *Map:
 		return w.isParameterized(t.key) || w.isParameterized(t.elem)
@@ -342,14 +331,11 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.elem)
 
 	case *Named:
-		return w.isParameterizedList(t.targs)
+		return w.isParameterizedTypeList(t.targs)
 
-	case *_TypeParam:
+	case *TypeParam:
 		// t must be one of w.tparams
 		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
-
-	case *instance:
-		return w.isParameterizedList(t.targs)
 
 	default:
 		unreachable()
@@ -358,9 +344,18 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	return false
 }
 
-func (w *tpWalker) isParameterizedList(list []Type) bool {
+func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 	for _, t := range list {
 		if w.isParameterized(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *tpWalker) isParameterizedTermList(list []*term) bool {
+	for _, t := range list {
+		if w.isParameterized(t.typ) {
 			return true
 		}
 	}
@@ -380,7 +375,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// Setup bidirectional unification between those structural bounds
 	// and the corresponding type arguments (which may be nil!).
-	u := newUnifier(check, false)
+	u := newUnifier(false)
 	u.x.init(tparams)
 	u.y = u.x // type parameters between LHS and RHS of unification are identical
 
@@ -393,7 +388,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// Unify type parameters with their structural constraints, if any.
 	for _, tpar := range tparams {
-		typ := tpar.typ.(*_TypeParam)
+		typ := tpar.typ.(*TypeParam)
 		sbound := check.structuralType(typ.bound)
 		if sbound != nil {
 			if !u.unify(typ, sbound) {
@@ -407,8 +402,8 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
 	// arguments for which there were structural constraints. The newly inferred non-
-	// nil entries may still contain references to other type parameters. For instance,
-	// for [A any, B interface{type []C}, C interface{type *A}], if A == int
+	// nil entries may still contain references to other type parameters.
+	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
@@ -471,12 +466,16 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 // structuralType returns the structural type of a constraint, if any.
 func (check *Checker) structuralType(constraint Type) Type {
 	if iface, _ := under(constraint).(*Interface); iface != nil {
-		check.completeInterface(token.NoPos, iface)
-		types := unpackType(iface.allTypes)
-		if len(types) == 1 {
-			return types[0]
+		types := iface.typeSet().types
+		if u, _ := types.(*Union); u != nil {
+			if u.NumTerms() == 1 {
+				// TODO(gri) do we need to respect tilde?
+				t, _ := u.Term(0)
+				return t
+			}
+			return nil
 		}
-		return nil
+		return types
 	}
-	return constraint
+	return nil
 }

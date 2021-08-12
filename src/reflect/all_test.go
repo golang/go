@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+	"internal/goarch"
 	"io"
 	"math"
 	"math/rand"
@@ -6466,10 +6467,10 @@ func clobber() {
 
 func TestFuncLayout(t *testing.T) {
 	align := func(x uintptr) uintptr {
-		return (x + PtrSize - 1) &^ (PtrSize - 1)
+		return (x + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
 	}
 	var r []byte
-	if PtrSize == 4 {
+	if goarch.PtrSize == 4 {
 		r = []byte{0, 0, 0, 1}
 	} else {
 		r = []byte{0, 0, 1}
@@ -6490,56 +6491,56 @@ func TestFuncLayout(t *testing.T) {
 	tests := []test{
 		{
 			typ:       ValueOf(func(a, b string) string { return "" }).Type(),
-			size:      6 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      6 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1, 0, 1},
 			gc:        []byte{1, 0, 1, 0, 1},
 		},
 		{
 			typ:       ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
-			size:      align(align(3*4) + PtrSize + 2),
-			argsize:   align(3*4) + PtrSize + 2,
-			retOffset: align(align(3*4) + PtrSize + 2),
+			size:      align(align(3*4) + goarch.PtrSize + 2),
+			argsize:   align(3*4) + goarch.PtrSize + 2,
+			retOffset: align(align(3*4) + goarch.PtrSize + 2),
 			stack:     r,
 			gc:        r,
 		},
 		{
 			typ:       ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
-			size:      4 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      4 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1, 1},
 			gc:        []byte{1, 0, 1, 1},
 		},
 		{
 			typ:       ValueOf(func(a S) {}).Type(),
-			size:      4 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      4 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{0, 0, 1, 1},
 			gc:        []byte{0, 0, 1, 1},
 		},
 		{
 			rcvr:      ValueOf((*byte)(nil)).Type(),
 			typ:       ValueOf(func(a uintptr, b *int) {}).Type(),
-			size:      3 * PtrSize,
-			argsize:   3 * PtrSize,
-			retOffset: 3 * PtrSize,
+			size:      3 * goarch.PtrSize,
+			argsize:   3 * goarch.PtrSize,
+			retOffset: 3 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1},
 			gc:        []byte{1, 0, 1},
 		},
 		{
 			typ:       ValueOf(func(a uintptr) {}).Type(),
-			size:      PtrSize,
-			argsize:   PtrSize,
-			retOffset: PtrSize,
+			size:      goarch.PtrSize,
+			argsize:   goarch.PtrSize,
+			retOffset: goarch.PtrSize,
 			stack:     []byte{},
 			gc:        []byte{},
 		},
 		{
 			typ:       ValueOf(func() uintptr { return 0 }).Type(),
-			size:      PtrSize,
+			size:      goarch.PtrSize,
 			argsize:   0,
 			retOffset: 0,
 			stack:     []byte{},
@@ -6548,9 +6549,9 @@ func TestFuncLayout(t *testing.T) {
 		{
 			rcvr:      ValueOf(uintptr(0)).Type(),
 			typ:       ValueOf(func(a uintptr) {}).Type(),
-			size:      2 * PtrSize,
-			argsize:   2 * PtrSize,
-			retOffset: 2 * PtrSize,
+			size:      2 * goarch.PtrSize,
+			argsize:   2 * goarch.PtrSize,
+			retOffset: 2 * goarch.PtrSize,
 			stack:     []byte{1},
 			gc:        []byte{1},
 			// Note: this one is tricky, as the receiver is not a pointer. But we
@@ -6756,7 +6757,7 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
-	hdr := make([]byte, 8/PtrSize)
+	hdr := make([]byte, 8/goarch.PtrSize)
 
 	verifyMapBucket := func(t *testing.T, k, e Type, m interface{}, want []byte) {
 		verifyGCBits(t, MapBucketOf(k, e), want)
@@ -6772,7 +6773,7 @@ func TestGCBits(t *testing.T) {
 		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t, Tint64, Tptr,
 		map[int64]Xptr(nil),
-		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(8, rep(8/goarch.PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalar, Tscalar,
 		map[Xscalar]Xscalar(nil),
@@ -6782,20 +6783,20 @@ func TestGCBits(t *testing.T) {
 		map[[2]Xscalarptr][3]Xptrscalar(nil),
 		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
-		map[[64 / PtrSize]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
-		map[[64/PtrSize + 1]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8, lit(1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
-		map[[64 / PtrSize]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
-		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
+		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
 		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
 }
 

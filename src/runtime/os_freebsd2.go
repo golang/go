@@ -7,14 +7,16 @@
 
 package runtime
 
+import "internal/abi"
+
 //go:nosplit
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_handler = fn
 	sigaction(i, &sa, nil)

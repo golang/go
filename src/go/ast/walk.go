@@ -4,6 +4,8 @@
 
 package ast
 
+import "fmt"
+
 // A Visitor's Visit method is invoked for each node encountered by Walk.
 // If the result visitor w is not nil, Walk visits each of the children
 // of node with the visitor w, followed by a call of w.Visit(nil).
@@ -114,6 +116,12 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
+	case *MultiIndexExpr:
+		Walk(v, n.X)
+		for _, index := range n.Indices {
+			Walk(v, index)
+		}
+
 	case *SliceExpr:
 		Walk(v, n.X)
 		if n.Low != nil {
@@ -161,7 +169,9 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Fields)
 
 	case *FuncType:
-		walkFuncTypeParams(v, n)
+		if n.TParams != nil {
+			Walk(v, n.TParams)
+		}
 		if n.Params != nil {
 			Walk(v, n.Params)
 		}
@@ -316,7 +326,9 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Doc)
 		}
 		Walk(v, n.Name)
-		walkTypeSpecParams(v, n)
+		if n.TParams != nil {
+			Walk(v, n.TParams)
+		}
 		Walk(v, n.Type)
 		if n.Comment != nil {
 			Walk(v, n.Comment)
@@ -363,7 +375,7 @@ func Walk(v Visitor, node Node) {
 		}
 
 	default:
-		walkOtherNodes(v, n)
+		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
 	}
 
 	v.Visit(nil)

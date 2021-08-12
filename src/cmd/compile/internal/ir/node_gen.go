@@ -463,6 +463,62 @@ func (n *Decl) editChildren(edit func(Node) Node) {
 	}
 }
 
+func (n *DynamicType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *DynamicType) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *DynamicType) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.ITab != nil && do(n.ITab) {
+		return true
+	}
+	return false
+}
+func (n *DynamicType) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.ITab != nil {
+		n.ITab = edit(n.ITab).(Node)
+	}
+}
+
+func (n *DynamicTypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *DynamicTypeAssertExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.X != nil && do(n.X) {
+		return true
+	}
+	if n.T != nil && do(n.T) {
+		return true
+	}
+	return false
+}
+func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.X != nil {
+		n.X = edit(n.X).(Node)
+	}
+	if n.T != nil {
+		n.T = edit(n.T).(Node)
+	}
+}
+
 func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
 	c := *n
@@ -945,6 +1001,22 @@ func (n *RangeStmt) editChildren(edit func(Node) Node) {
 	if n.Prealloc != nil {
 		n.Prealloc = edit(n.Prealloc).(*Name)
 	}
+}
+
+func (n *RawOrigExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *RawOrigExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *RawOrigExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	return false
+}
+func (n *RawOrigExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
 }
 
 func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }

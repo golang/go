@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -330,7 +331,6 @@ const (
 	funcID_gogo
 	funcID_gopanic
 	funcID_handleAsyncEvent
-	funcID_jmpdefer
 	funcID_mcall
 	funcID_morestack
 	funcID_mstart
@@ -568,7 +568,7 @@ const debugPcln = false
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
-	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
+	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
 		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
 		if datap.pluginpath != "" {
 			print(", plugin:", datap.pluginpath)
@@ -786,7 +786,7 @@ type pcvalueCacheEnt struct {
 // For now, align to sys.PtrSize and reduce mod the number of entries.
 // In practice, this appears to be fairly randomly and evenly distributed.
 func pcvalueCacheKey(targetpc uintptr) uintptr {
-	return (targetpc / sys.PtrSize) % uintptr(len(pcvalueCache{}.entries))
+	return (targetpc / goarch.PtrSize) % uintptr(len(pcvalueCache{}.entries))
 }
 
 // Returns the PCData value, and the PC where this value starts.
@@ -955,7 +955,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
 
 func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
-	if x&(sys.PtrSize-1) != 0 {
+	if x&(goarch.PtrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
@@ -1014,13 +1014,13 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 		return nil
 	}
 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
-	if sys.PtrSize == 8 && uintptr(p)&4 != 0 {
+	if goarch.PtrSize == 8 && uintptr(p)&4 != 0 {
 		if uintptr(unsafe.Pointer(f._func))&4 != 0 {
 			println("runtime: misaligned func", f._func)
 		}
 		p = add(p, 4)
 	}
-	return *(*unsafe.Pointer)(add(p, uintptr(i)*sys.PtrSize))
+	return *(*unsafe.Pointer)(add(p, uintptr(i)*goarch.PtrSize))
 }
 
 // step advances to the next pc, value pair in the encoded table.

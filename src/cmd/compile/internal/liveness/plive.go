@@ -1082,6 +1082,10 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
 		return
 	}
+	if lv.fn.Wrapper() || lv.fn.Dupok() {
+		// Skip reporting liveness information for compiler-generated wrappers.
+		return
+	}
 	if !(v == nil || v.Op.IsCall()) {
 		// Historically we only printed this information at
 		// calls. Keep doing so.

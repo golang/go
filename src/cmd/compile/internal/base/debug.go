@@ -44,8 +44,11 @@ type DebugFlags struct {
 	Panic                int    `help:"show all compiler panics"`
 	Slice                int    `help:"print information about slice compilation"`
 	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+	SyncFrames           int    `help:"how many writer stack frames to include at sync points in unified export data"`
 	TypeAssert           int    `help:"print information about type assertion inlining"`
 	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
+	Unified              int    `help:"enable unified IR construction"`
+	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
 	WB                   int    `help:"print information about write barriers"`
 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
 

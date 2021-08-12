@@ -20664,7 +20664,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLstatic",
 		auxType:      auxCallOff,
-		argLen:       1,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
@@ -20674,7 +20674,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLclosure",
 		auxType:      auxCallOff,
-		argLen:       3,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
@@ -20688,7 +20688,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLinter",
 		auxType:      auxCallOff,
-		argLen:       2,
+		argLen:       -1,
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
@@ -36400,8 +36400,8 @@ var registersARM64 = [...]Register{
 	{62, arm64.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
-var paramIntRegARM64 = []int8(nil)
-var paramFloatRegARM64 = []int8(nil)
+var paramIntRegARM64 = []int8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+var paramFloatRegARM64 = []int8{31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46}
 var gpRegMaskARM64 = regMask(670826495)
 var fpRegMaskARM64 = regMask(9223372034707292160)
 var specialRegMaskARM64 = regMask(0)

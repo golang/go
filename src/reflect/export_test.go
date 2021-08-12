@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"internal/goarch"
 	"sync"
 	"unsafe"
 )
@@ -21,8 +22,6 @@ func IsRO(v Value) bool {
 }
 
 var CallGC = &callGC
-
-const PtrSize = ptrSize
 
 // FuncLayout calls funcLayout and returns a subset of the results for testing.
 //
@@ -65,7 +64,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	// Expand frame type's GC bitmap into byte-map.
 	ptrs = ft.ptrdata != 0
 	if ptrs {
-		nptrs := ft.ptrdata / ptrSize
+		nptrs := ft.ptrdata / goarch.PtrSize
 		gcdata := ft.gcSlice(0, (nptrs+7)/8)
 		for i := uintptr(0); i < nptrs; i++ {
 			gc = append(gc, gcdata[i/8]>>(i%8)&1)

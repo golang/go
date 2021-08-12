@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package issues
+package go1_17 // don't permit non-interface elements in interfaces
 
 import (
 	"fmt"
-	syn "cmd/compile/internal/syntax"
+	syn "regexp/syntax"
 	t1 "text/template"
 	t2 "html/template"
 )
@@ -329,10 +329,10 @@ func (... /* ERROR can only use ... with final parameter in list */ TT) f()
 func issue28281g() (... /* ERROR can only use ... with final parameter in list */ TT)
 
 // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
-func issue26234a(f *syn.File) {
+func issue26234a(f *syn.Prog) {
 	// The error message below should refer to the actual package name (syntax)
 	// not the local package name (syn).
-	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
+	f.foo /* ERROR f\.foo undefined \(type \*syntax\.Prog has no field or method foo\) */
 }
 
 type T struct {
@@ -357,11 +357,11 @@ func issue35895() {
 	var _ T = 0 // ERROR cannot use 0 \(untyped int constant\) as T
 
 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
-	var _ *syn.File = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.File
+	var _ *syn.Prog = 0 // ERROR cannot use 0 \(untyped int constant\) as \*syntax.Prog
 
 	// Because both t1 and t2 have the same global package name (template),
 	// qualify packages with full path name in this case.
-	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
+	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template */ .Template{}
 }
 
 func issue42989(s uint) {

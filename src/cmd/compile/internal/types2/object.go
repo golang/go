@@ -186,6 +186,45 @@ func (obj *object) sameId(pkg *Package, name string) bool {
 	return pkg.path == obj.pkg.path
 }
 
+// less reports whether object a is ordered before object b.
+//
+// Objects are ordered nil before non-nil, exported before
+// non-exported, then by name, and finally (for non-exported
+// functions) by package height and path.
+func (a *object) less(b *object) bool {
+	if a == b {
+		return false
+	}
+
+	// Nil before non-nil.
+	if a == nil {
+		return true
+	}
+	if b == nil {
+		return false
+	}
+
+	// Exported functions before non-exported.
+	ea := isExported(a.name)
+	eb := isExported(b.name)
+	if ea != eb {
+		return ea
+	}
+
+	// Order by name and then (for non-exported names) by package.
+	if a.name != b.name {
+		return a.name < b.name
+	}
+	if !ea {
+		if a.pkg.height != b.pkg.height {
+			return a.pkg.height < b.pkg.height
+		}
+		return a.pkg.path < b.pkg.path
+	}
+
+	return false
+}
+
 // A PkgName represents an imported Go package.
 // PkgNames don't have a type.
 type PkgName struct {
@@ -235,6 +274,14 @@ type TypeName struct {
 // effect.
 func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName {
 	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
+}
+
+// NewTypeNameLazy returns a new defined type like NewTypeName, but it
+// lazily calls resolve to finish constructing the Named object.
+func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeName, underlying Type, methods []*Func)) *TypeName {
+	obj := NewTypeName(pos, pkg, name, nil)
+	NewNamed(obj, nil, nil).resolve = resolve
+	return obj
 }
 
 // IsAlias reports whether obj is an alias name for a type.
@@ -328,36 +375,6 @@ func (obj *Func) FullName() string {
 
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
-
-// Less reports whether function a is ordered before function b.
-//
-// Functions are ordered exported before non-exported, then by name,
-// and finally (for non-exported functions) by package path.
-//
-// TODO(gri) The compiler also sorts by package height before package
-//           path for non-exported names.
-func (a *Func) less(b *Func) bool {
-	if a == b {
-		return false
-	}
-
-	// Exported functions before non-exported.
-	ea := isExported(a.name)
-	eb := isExported(b.name)
-	if ea != eb {
-		return ea
-	}
-
-	// Order by name and then (for non-exported names) by package.
-	if a.name != b.name {
-		return a.name < b.name
-	}
-	if !ea {
-		return a.pkg.path < b.pkg.path
-	}
-
-	return false
-}
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
@@ -457,6 +474,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		// are the same; see also comment in TypeName.IsAlias).
 		if _, ok := typ.(*Basic); ok {
 			return
+		}
+		if named, _ := typ.(*Named); named != nil && named.TParams().Len() > 0 {
+			writeTParamList(buf, named.TParams().list(), qf, nil)
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")

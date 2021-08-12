@@ -37,14 +37,6 @@ func directClosureCall(n *ir.CallExpr) {
 		return // leave for walkClosure to handle
 	}
 
-	// If wrapGoDefer() in the order phase has flagged this call,
-	// avoid eliminating the closure even if there is a direct call to
-	// (the closure is needed to simplify the register ABI). See
-	// wrapGoDefer for more details.
-	if n.PreserveClosure {
-		return
-	}
-
 	// We are going to insert captured variables before input args.
 	var params []*types.Field
 	var decls []*ir.Name
@@ -122,6 +114,9 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(clo.Esc())
 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
+	for i, value := range clos.List {
+		clos.List[i] = ir.NewStructKeyExpr(base.Pos, typ.Field(i), value)
+	}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -161,7 +156,7 @@ func closureArgs(clo *ir.ClosureExpr) []ir.Node {
 	return args
 }
 
-func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -175,18 +170,16 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		n.X = cheapExpr(n.X, init)
 		n.X = walkExpr(n.X, nil)
 
-		tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
-
-		c := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
-		c.SetTypecheck(1)
-		init.Append(c)
+		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X)
+		check := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
+		init.Append(typecheck.Stmt(check))
 	}
 
-	typ := typecheck.PartialCallType(n)
+	typ := typecheck.MethodValueType(n)
 
 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
 	clos.SetEsc(n.Esc())
-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(n.Esc())
@@ -204,4 +197,75 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	}
 
 	return walkExpr(cfn, init)
+}
+
+// methodValueWrapper returns the ONAME node representing the
+// wrapper function (*-fm) needed for the given method value. If the
+// wrapper function hasn't already been created yet, it's created and
+// added to typecheck.Target.Decls.
+func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
+	if dot.Op() != ir.OMETHVALUE {
+		base.Fatalf("methodValueWrapper: unexpected %v (%v)", dot, dot.Op())
+	}
+
+	t0 := dot.Type()
+	meth := dot.Sel
+	rcvrtype := dot.X.Type()
+	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+
+	if sym.Uniq() {
+		return sym.Def.(*ir.Name)
+	}
+	sym.SetUniq(true)
+
+	savecurfn := ir.CurFunc
+	saveLineNo := base.Pos
+	ir.CurFunc = nil
+
+	// Set line number equal to the line number where the method is declared.
+	if pos := dot.Selection.Pos; pos.IsKnown() {
+		base.Pos = pos
+	}
+	// Note: !dot.Selection.Pos.IsKnown() happens for method expressions where
+	// the method is implicitly declared. The Error method of the
+	// built-in error type is one such method.  We leave the line
+	// number at the use of the method expression in this
+	// case. See issue 29389.
+
+	tfn := ir.NewFuncType(base.Pos, nil,
+		typecheck.NewFuncParams(t0.Params(), true),
+		typecheck.NewFuncParams(t0.Results(), false))
+
+	fn := typecheck.DeclFunc(sym, tfn)
+	fn.SetDupok(true)
+	fn.SetWrapper(true)
+
+	// Declare and initialize variable holding receiver.
+	ptr := ir.NewHiddenParam(base.Pos, fn, typecheck.Lookup(".this"), rcvrtype)
+
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
+	call.Args = ir.ParamNames(tfn.Type())
+	call.IsDDD = tfn.Type().IsVariadic()
+
+	var body ir.Node = call
+	if t0.NumResults() != 0 {
+		ret := ir.NewReturnStmt(base.Pos, nil)
+		ret.Results = []ir.Node{call}
+		body = ret
+	}
+
+	fn.Body = []ir.Node{body}
+	typecheck.FinishFuncBody()
+
+	typecheck.Func(fn)
+	// Need to typecheck the body of the just-generated wrapper.
+	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+	ir.CurFunc = fn
+	typecheck.Stmts(fn.Body)
+	sym.Def = fn.Nname
+	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+	ir.CurFunc = savecurfn
+	base.Pos = saveLineNo
+
+	return fn.Nname
 }
