@@ -5,13 +5,13 @@
 package modload
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	pathpkg "path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -931,14 +931,32 @@ func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
 	return ok, err
 }
 
-func versionHasGoMod(ctx context.Context, m module.Version) (bool, error) {
-	needSum := false
-	root, _, err := fetch(ctx, m, needSum)
+// versionHasGoMod returns whether a version has a go.mod file.
+//
+// versionHasGoMod fetches the go.mod file (possibly a fake) and true if it
+// contains anything other than a module directive with the same path. When a
+// module does not have a real go.mod file, the go command acts as if it had one
+// that only contained a module directive. Normal go.mod files created after
+// 1.12 at least have a go directive.
+//
+// This function is a heuristic, since it's possible to commit a file that would
+// pass this test. However, we only need a heurstic for determining whether
+// +incompatible versions may be "latest", which is what this function is used
+// for.
+//
+// This heuristic is useful for two reasons: first, when using a proxy,
+// this lets us fetch from the .mod endpoint which is much faster than the .zip
+// endpoint. The .mod file is used anyway, even if the .zip file contains a
+// go.mod with different content. Second, if we don't fetch the .zip, then
+// we don't need to verify it in go.sum. This makes 'go list -m -u' faster
+// and simpler.
+func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
+	_, data, err := rawGoModData(m)
 	if err != nil {
 		return false, err
 	}
-	fi, err := os.Stat(filepath.Join(root, "go.mod"))
-	return err == nil && !fi.IsDir(), nil
+	isFake := bytes.Equal(data, modfetch.LegacyGoMod(m.Path))
+	return !isFake, nil
 }
 
 // A versionRepo is a subset of modfetch.Repo that can report information about
