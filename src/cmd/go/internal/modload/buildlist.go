@@ -191,6 +191,19 @@ func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
 	return "", false
 }
 
+// hasRedundantRoot returns true if the root list contains multiple requirements
+// of the same module or a requirement on any version of the main module.
+// Redundant requirements should be pruned, but they may influence version
+// selection.
+func (rs *Requirements) hasRedundantRoot() bool {
+	for i, m := range rs.rootModules {
+		if m.Path == Target.Path || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
+			return true
+		}
+	}
+	return false
+}
+
 // Graph returns the graph of module requirements loaded from the current
 // root modules (as reported by RootModules).
 //
@@ -882,6 +895,12 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 		// and (trivially) version.
 
 		if !rootsUpgraded {
+			if cfg.BuildMod != "mod" {
+				// The only changes to the root set (if any) were to remove duplicates.
+				// The requirements are consistent (if perhaps redundant), so keep the
+				// original rs to preserve its ModuleGraph.
+				return rs, nil
+			}
 			// The root set has converged: every root going into this iteration was
 			// already at its selected version, although we have have removed other
 			// (redundant) roots for the same path.
