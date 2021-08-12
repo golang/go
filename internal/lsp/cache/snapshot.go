@@ -787,13 +787,15 @@ func (s *snapshot) getWorkspacePkgPath(id packageID) packagePath {
 	return s.workspacePackages[id]
 }
 
+const fileExtensions = "go,mod,sum,work,tmpl"
+
 func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
 	// Work-around microsoft/vscode#100870 by making sure that we are,
 	// at least, watching the user's entire workspace. This will still be
 	// applied to every folder in the workspace.
 	patterns := map[string]struct{}{
-		"**/*.{go,mod,sum}": {},
-		"**/*.*tmpl":        {},
+		fmt.Sprintf("**/*.{%s}", fileExtensions): {},
+		"**/*.*tmpl":                             {},
 	}
 	dirs := s.workspace.dirs(ctx, s)
 	for _, dir := range dirs {
@@ -807,7 +809,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		// TODO(rstambler): If microsoft/vscode#3025 is resolved before
 		// microsoft/vscode#101042, we will need a work-around for Windows
 		// drive letter casing.
-		patterns[fmt.Sprintf("%s/**/*.{go,mod,sum,tmpl}", dirName)] = struct{}{}
+		patterns[fmt.Sprintf("%s/**/*.{%s}", dirName, fileExtensions)] = struct{}{}
 	}
 
 	// Some clients do not send notifications for changes to directories that
