@@ -2,18 +2,13 @@
 # 'go mod tidy' should not panic if the main module initially
 # requires an older version of itself.
 
+# A module may require an older version of itself without error. This is
+# inconsistent (the required version is never selected), but we still get
+# a reproducible build list.
+go list -m all
+stdout '^golang.org/issue/46078$'
 
-# A module that explicitly requires an older version of itself should be
-# rejected as inconsistent: we enforce that every explicit requirement is the
-# selected version of its module path, but the selected version of the main
-# module is always itself — not some explicit version.
-
-! go list -m all
-stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
-
-
-# The suggested 'go mod tidy' command should succeed (not crash).
-
+# 'go mod tidy' should fix this (and not crash).
 go mod tidy
 
 

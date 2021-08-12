@@ -312,9 +312,6 @@ func TestLookPath(t *testing.T) {
 	// Run all tests.
 	for i, test := range lookPathTests {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			if i == 16 {
-				t.Skip("golang.org/issue/44379")
-			}
 			dir := filepath.Join(tmp, "d"+strconv.Itoa(i))
 			err := os.Mkdir(dir, 0700)
 			if err != nil {
