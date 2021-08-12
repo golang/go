@@ -1263,6 +1263,7 @@ func (c *completer) lexical(ctx context.Context) error {
 		// Filter it out from completion results to stabilize tests.
 		// TODO(rFindley) update (or remove) our handling for comparable once the
 		//                type parameter API has stabilized.
+		builtinAny        = types.Universe.Lookup("any")
 		builtinComparable = types.Universe.Lookup("comparable")
 	)
 
@@ -1282,7 +1283,7 @@ func (c *completer) lexical(ctx context.Context) error {
 			if declScope != scope {
 				continue // Name was declared in some enclosing scope, or not at all.
 			}
-			if obj == builtinComparable {
+			if obj == builtinComparable || obj == builtinAny {
 				continue
 			}
 
