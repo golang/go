@@ -656,7 +656,6 @@ directory (
 `
 	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
-		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		// Initially, the gopls.mod should cause only the a.com module to be
 		// loaded. Validate this by jumping to a definition in b.com and ensuring
@@ -1078,6 +1077,48 @@ package main
 			// even though there are technically multiple go.mod files in the
 			// worskpace.
 			LogMatching(protocol.Info, ".*valid build configuration = true.*", 1, false),
+		)
+	})
+}
+
+func TestAddGoWork(t *testing.T) {
+	const nomod = `
+-- a/go.mod --
+module a.com
+
+go 1.16
+-- a/main.go --
+package main
+
+func main() {}
+-- b/go.mod --
+module b.com
+
+go 1.16
+-- b/main.go --
+package main
+
+func main() {}
+`
+	WithOptions(
+		Modes(Singleton),
+	).Run(t, nomod, func(t *testing.T, env *Env) {
+		env.OpenFile("a/main.go")
+		env.OpenFile("b/main.go")
+		env.Await(
+			DiagnosticAt("a/main.go", 0, 0),
+			DiagnosticAt("b/main.go", 0, 0),
+		)
+		env.WriteWorkspaceFile("go.work", `go 1.16
+
+directory (
+	a
+	b
+)
+`)
+		env.Await(
+			EmptyDiagnostics("a/main.go"),
+			EmptyDiagnostics("b/main.go"),
 		)
 	})
 }

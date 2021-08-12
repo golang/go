@@ -206,7 +206,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 		return mode
 	}
 	// The workspace module has been disabled by the user.
-	if !options.ExperimentalWorkspaceModule {
+	if s.workspace.moduleSource != goWorkWorkspace && s.workspace.moduleSource != goplsModWorkspace && !options.ExperimentalWorkspaceModule {
 		return mode
 	}
 	mode |= usesWorkspaceModule
