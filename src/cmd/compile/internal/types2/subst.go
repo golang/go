@@ -9,38 +9,27 @@ package types2
 import (
 	"bytes"
 	"cmd/compile/internal/syntax"
-	"fmt"
 )
 
-type substMap struct {
-	// The targs field is currently needed for *Named type substitution.
-	// TODO(gri) rewrite that code, get rid of this field, and make this
-	//           struct just the map (proj)
-	targs []Type
-	proj  map[*TypeParam]Type
-}
+type substMap map[*TypeParam]Type
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
 // If targs[i] is nil, tpars[i] is not substituted.
-func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
+func makeSubstMap(tpars []*TypeName, targs []Type) substMap {
 	assert(len(tpars) == len(targs))
-	proj := make(map[*TypeParam]Type, len(tpars))
+	proj := make(substMap, len(tpars))
 	for i, tpar := range tpars {
 		proj[tpar.typ.(*TypeParam)] = targs[i]
 	}
-	return &substMap{targs, proj}
+	return proj
 }
 
-func (m *substMap) String() string {
-	return fmt.Sprintf("%s", m.proj)
+func (m substMap) empty() bool {
+	return len(m) == 0
 }
 
-func (m *substMap) empty() bool {
-	return len(m.proj) == 0
-}
-
-func (m *substMap) lookup(tpar *TypeParam) Type {
-	if t := m.proj[tpar]; t != nil {
+func (m substMap) lookup(tpar *TypeParam) Type {
+	if t := m[tpar]; t != nil {
 		return t
 	}
 	return tpar
@@ -53,7 +42,7 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
 // from the incoming type.
 //
 // If the given typMap is nil and check is non-nil, check.typMap is used.
-func (check *Checker) subst(pos syntax.Pos, typ Type, smap *substMap, typMap map[string]*Named) Type {
+func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -91,7 +80,7 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap *substMap, typMap map
 
 type subster struct {
 	pos    syntax.Pos
-	smap   *substMap
+	smap   substMap
 	check  *Checker // nil if called via Instantiate
 	typMap map[string]*Named
 }
@@ -199,40 +188,34 @@ func (subst *subster) typ(typ Type) Type {
 			return t // type is not parameterized
 		}
 
-		var new_targs []Type
+		var newTArgs []Type
+		assert(len(t.targs) == t.TParams().Len())
 
-		if len(t.targs) > 0 {
-			// already instantiated
-			dump(">>> %s already instantiated", t)
-			assert(len(t.targs) == t.TParams().Len())
-			// For each (existing) type argument targ, determine if it needs
-			// to be substituted; i.e., if it is or contains a type parameter
-			// that has a type argument for it.
-			for i, targ := range t.targs {
-				dump(">>> %d targ = %s", i, targ)
-				new_targ := subst.typ(targ)
-				if new_targ != targ {
-					dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
-					if new_targs == nil {
-						new_targs = make([]Type, t.TParams().Len())
-						copy(new_targs, t.targs)
-					}
-					new_targs[i] = new_targ
+		// already instantiated
+		dump(">>> %s already instantiated", t)
+		// For each (existing) type argument targ, determine if it needs
+		// to be substituted; i.e., if it is or contains a type parameter
+		// that has a type argument for it.
+		for i, targ := range t.targs {
+			dump(">>> %d targ = %s", i, targ)
+			new_targ := subst.typ(targ)
+			if new_targ != targ {
+				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
+				if newTArgs == nil {
+					newTArgs = make([]Type, t.TParams().Len())
+					copy(newTArgs, t.targs)
 				}
+				newTArgs[i] = new_targ
 			}
+		}
 
-			if new_targs == nil {
-				dump(">>> nothing to substitute in %s", t)
-				return t // nothing to substitute
-			}
-		} else {
-			// not yet instantiated
-			dump(">>> first instantiation of %s", t)
-			new_targs = subst.smap.targs
+		if newTArgs == nil {
+			dump(">>> nothing to substitute in %s", t)
+			return t // nothing to substitute
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := instantiatedHash(t, new_targs)
+		h := instantiatedHash(t, newTArgs)
 		dump(">>> new type hash: %s", h)
 		if named, found := subst.typMap[h]; found {
 			dump(">>> found %s", named)
@@ -243,12 +226,12 @@ func (subst *subster) typ(typ Type) Type {
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
 		t.load()
 		named := subst.check.newNamed(tname, t.orig, t.underlying, t.TParams(), t.methods) // method signatures are updated lazily
-		named.targs = new_targs
+		named.targs = newTArgs
 		subst.typMap[h] = named
 		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
 
 		// do the substitution
-		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
+		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTArgs)
 		named.underlying = subst.typOrNil(t.underlying)
 		dump(">>> underlying: %v", named.underlying)
 		assert(named.underlying != nil)
