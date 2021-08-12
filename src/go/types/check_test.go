@@ -354,6 +354,13 @@ func TestIndexRepresentability(t *testing.T) {
 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
+func TestIssue47243_TypedRHS(t *testing.T) {
+	// The RHS of the shift expression below overflows uint on 32bit platforms,
+	// but this is OK as it is explicitly typed.
+	const src = "package issue47243\n\nvar a uint64; var _ = a << uint64(4294967296)" // uint64(1<<32)
+	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
+}
+
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
