@@ -16,8 +16,16 @@ import (
 // are the same length and contain the same bytes.
 // A nil argument is equivalent to an empty slice.
 func Equal(a, b []byte) bool {
-	// Neither cmd/compile nor gccgo allocates for these string conversions.
-	return string(a) == string(b)
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(b); i++ {
+		// "i >= len(a) ||" is not strictly needed, but gives slightly better performance
+		if i >= len(a) || a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // Compare returns an integer comparing two byte slices lexicographically.
