@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -116,8 +117,8 @@ func getncpu() int32 {
 	}
 
 	maskSize := int(maxcpus+7) / 8
-	if maskSize < sys.PtrSize {
-		maskSize = sys.PtrSize
+	if maskSize < goarch.PtrSize {
+		maskSize = goarch.PtrSize
 	}
 	if maskSize > len(mask) {
 		maskSize = len(mask)
@@ -197,11 +198,11 @@ func thr_start()
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", abi.FuncPCABI0(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	param := thrparam{
-		start_func: funcPC(thr_start),
+		start_func: abi.FuncPCABI0(thr_start),
 		arg:        unsafe.Pointer(mp),
 		stack_base: mp.g0.stack.lo,
 		stack_size: uintptr(stk) - mp.g0.stack.lo,
@@ -236,7 +237,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	// However, newosproc0 is currently unreachable because builds
 	// utilizing c-shared/c-archive force external linking.
 	param := thrparam{
-		start_func: funcPC(fn),
+		start_func: uintptr(fn),
 		arg:        nil,
 		stack_base: uintptr(stack), //+stacksize?
 		stack_size: stacksize,
@@ -391,7 +392,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 

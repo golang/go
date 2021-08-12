@@ -10,7 +10,7 @@ package p
 
 type S struct{}
 
-func (S) m[T any](v T)
+func (S) m[T any](v T) {}
 
 // TODO(gri) Once we collect interface method type parameters
 //           in the parser, we can enable these tests again.

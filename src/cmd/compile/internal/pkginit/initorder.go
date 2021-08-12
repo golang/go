@@ -304,7 +304,7 @@ func (d *initDeps) visit(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		d.inspectList(n.Func.Body)
 
-	case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+	case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		d.foundDep(ir.MethodExprName(n))
 	}
 }

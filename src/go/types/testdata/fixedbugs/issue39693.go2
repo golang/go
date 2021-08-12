@@ -4,11 +4,20 @@
 
 package p
 
-type Number interface {
-	int     /* ERROR int is not an interface */
-	float64 /* ERROR float64 is not an interface */
+type Number1 interface {
+	// embedding non-interface types is permitted
+	int
+	float64
 }
 
-func Add[T Number](a, b T) T {
+func Add[T Number1](a, b T) T {
 	return a /* ERROR not defined */ + b
+}
+
+type Number2 interface {
+	int|float64
+}
+
+func Add2[T Number2](a, b T) T {
+	return a + b
 }

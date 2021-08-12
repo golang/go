@@ -167,22 +167,17 @@ func gcinit() {
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
 }
 
-// Temporary in order to enable register ABI work.
-// TODO(register args): convert back to local chan in gcenabled, passed to "go" stmts.
-var gcenable_setup chan int
-
 // gcenable is called after the bulk of the runtime initialization,
 // just before we're about to start letting user code run.
 // It kicks off the background sweeper goroutine, the background
 // scavenger goroutine, and enables GC.
 func gcenable() {
 	// Kick off sweeping and scavenging.
-	gcenable_setup = make(chan int, 2)
-	go bgsweep()
-	go bgscavenge()
-	<-gcenable_setup
-	<-gcenable_setup
-	gcenable_setup = nil
+	c := make(chan int, 2)
+	go bgsweep(c)
+	go bgscavenge(c)
+	<-c
+	<-c
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
@@ -1563,19 +1558,17 @@ func clearpools() {
 	sched.sudogcache = nil
 	unlock(&sched.sudoglock)
 
-	// Clear central defer pools.
+	// Clear central defer pool.
 	// Leave per-P pools alone, they have strictly bounded size.
 	lock(&sched.deferlock)
-	for i := range sched.deferpool {
-		// disconnect cached list before dropping it on the floor,
-		// so that a dangling ref to one entry does not pin all of them.
-		var d, dlink *_defer
-		for d = sched.deferpool[i]; d != nil; d = dlink {
-			dlink = d.link
-			d.link = nil
-		}
-		sched.deferpool[i] = nil
+	// disconnect cached list before dropping it on the floor,
+	// so that a dangling ref to one entry does not pin all of them.
+	var d, dlink *_defer
+	for d = sched.deferpool; d != nil; d = dlink {
+		dlink = d.link
+		d.link = nil
 	}
+	sched.deferpool = nil
 	unlock(&sched.deferlock)
 }
 

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/goexperiment"
 	"unsafe"
 )
@@ -176,8 +177,6 @@ func cgocallback(fn, frame, ctxt uintptr)
 
 func gogo(buf *gobuf)
 
-//go:noescape
-func jmpdefer(fv *funcval, argp uintptr)
 func asminit()
 func setg(gg *g)
 func breakpoint()
@@ -421,12 +420,5 @@ func sigpanic0()
 // structure that is at least large enough to hold the
 // registers the system supports.
 //
-// Currently it's set to zero because using the actual
-// constant will break every part of the toolchain that
-// uses finalizers or Windows callbacks to call functions
-// The value that is currently commented out there should be
-// the actual value once we're ready to use the register ABI
-// everywhere.
-//
 // Protected by finlock.
-var intArgRegs = abi.IntArgRegs * goexperiment.RegabiArgsInt
+var intArgRegs = abi.IntArgRegs * (goexperiment.RegabiArgsInt | goarch.IsAmd64)

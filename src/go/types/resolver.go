@@ -276,7 +276,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				if name == "init" {
-					check.errorf(d.spec.Name, _InvalidInitDecl, "cannot import package as init - init must be a func")
+					check.errorf(d.spec, _InvalidInitDecl, "cannot import package as init - init must be a func")
 					return
 				}
 
@@ -309,20 +309,24 @@ func (check *Checker) collectObjects() {
 						check.dotImportMap = make(map[dotImportKey]*PkgName)
 					}
 					// merge imported scope with file scope
-					for _, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.elems {
+						// Note: Avoid eager resolve(name, obj) here, so we only
+						// resolve dot-imported objects as needed.
+
 						// A package scope may contain non-exported objects,
 						// do not import them!
-						if obj.Exported() {
+						if token.IsExported(name) {
 							// declare dot-imported object
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
-							if alt := fileScope.Insert(obj); alt != nil {
-								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+							if alt := fileScope.Lookup(name); alt != nil {
+								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", alt.Name())
 								check.reportAltDecl(alt)
 							} else {
-								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
+								fileScope.insert(name, obj)
+								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
 							}
 						}
 					}
@@ -443,8 +447,9 @@ func (check *Checker) collectObjects() {
 
 	// verify that objects in package and file scopes have different names
 	for _, scope := range fileScopes {
-		for _, obj := range scope.elems {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+		for name, obj := range scope.elems {
+			if alt := pkg.scope.Lookup(name); alt != nil {
+				obj = resolve(name, obj)
 				if pkg, ok := obj.(*PkgName); ok {
 					check.errorf(alt, _DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
 					check.reportAltDecl(pkg)
@@ -499,10 +504,12 @@ L: // unpack receiver type
 	}
 
 	// unpack type parameters, if any
-	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
-		rtyp = ptyp.X
+	switch rtyp.(type) {
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(rtyp)
+		rtyp = ix.X
 		if unpackParams {
-			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
+			for _, arg := range ix.Indices {
 				var par *ast.Ident
 				switch arg := arg.(type) {
 				case *ast.Ident:
@@ -510,7 +517,7 @@ L: // unpack receiver type
 				case *ast.BadExpr:
 					// ignore - error already reported by parser
 				case nil:
-					check.invalidAST(ptyp, "parameterized receiver contains nil parameters")
+					check.invalidAST(ix.Orig, "parameterized receiver contains nil parameters")
 				default:
 					check.errorf(arg, _Todo, "receiver type parameter %s must be an identifier", arg)
 				}

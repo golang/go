@@ -28,23 +28,13 @@ import (
 	"cmd/internal/src"
 )
 
-type itabEntry struct {
-	t, itype *types.Type
-	lsym     *obj.LSym // symbol of the itab itself
-
-	// symbols of each method in
-	// the itab, sorted by byte offset;
-	// filled in by CompileITabs
-	entries []*obj.LSym
-}
-
 type ptabEntry struct {
 	s *types.Sym
 	t *types.Type
 }
 
-func CountTabs() (numPTabs, numITabs int) {
-	return len(ptabs), len(itabs)
+func CountPTabs() int {
+	return len(ptabs)
 }
 
 // runtime interface and reflection data structures
@@ -56,7 +46,6 @@ var (
 	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
 	gcsymset = make(map[*types.Type]struct{})
 
-	itabs []itabEntry
 	ptabs []*ir.Name
 )
 
@@ -313,6 +302,10 @@ func MapIterType(t *types.Type) *types.Type {
 // methods returns the methods of the non-interface type t, sorted by name.
 // Generates stub functions as needed.
 func methods(t *types.Type) []*typeSig {
+	if t.HasShape() {
+		// Shape types have no methods.
+		return nil
+	}
 	// method type
 	mt := types.ReceiverBaseType(t)
 
@@ -320,13 +313,6 @@ func methods(t *types.Type) []*typeSig {
 		return nil
 	}
 	typecheck.CalcMethods(mt)
-
-	// type stored in interface word
-	it := t
-
-	if !types.IsDirectIface(it) {
-		it = types.NewPtr(t)
-	}
 
 	// make list of methods for t,
 	// generating code if necessary.
@@ -355,8 +341,8 @@ func methods(t *types.Type) []*typeSig {
 
 		sig := &typeSig{
 			name:  f.Sym,
-			isym:  methodWrapper(it, f),
-			tsym:  methodWrapper(t, f),
+			isym:  methodWrapper(t, f, true),
+			tsym:  methodWrapper(t, f, false),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
 		}
@@ -394,7 +380,7 @@ func imethods(t *types.Type) []*typeSig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		methodWrapper(t, f)
+		methodWrapper(t, f, false)
 	}
 
 	return methods
@@ -735,7 +721,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	}
 
 	exported := false
-	p := t.LongString()
+	p := t.NameString()
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
 	// Use the string "*T"[1:] for "T", so that the two
@@ -799,11 +785,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 // TrackSym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
-	return base.PkgLinksym("go.track", t.ShortString()+"."+f.Sym.Name, obj.ABI0)
+	return base.PkgLinksym("go.track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
 }
 
 func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
-	p := prefix + "." + t.ShortString()
+	p := prefix + "." + t.LinkString()
 	s := types.TypeSymLookup(p)
 
 	// This function is for looking up type-related generated functions
@@ -848,16 +834,28 @@ func TypePtr(t *types.Type) *ir.AddrExpr {
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
 
-func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
-	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
-		base.Fatalf("ITabAddr(%v, %v)", t, itype)
-	}
-	s, existed := ir.Pkgs.Itab.LookupOK(t.ShortString() + "," + itype.ShortString())
+// ITabLsym returns the LSym representing the itab for concreate type typ
+// implementing interface iface.
+func ITabLsym(typ, iface *types.Type) *obj.LSym {
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
+	lsym := s.Linksym()
+
 	if !existed {
-		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+		writeITab(lsym, typ, iface)
+	}
+	return lsym
+}
+
+// ITabAddr returns an expression representing a pointer to the itab
+// for concrete type typ implementing interface iface.
+func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
+	lsym := s.Linksym()
+
+	if !existed {
+		writeITab(lsym, typ, iface)
 	}
 
-	lsym := s.Linksym()
 	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
 	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
 }
@@ -945,25 +943,27 @@ func writeType(t *types.Type) *obj.LSym {
 	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
 		tbase = t.Elem()
 	}
+	if tbase.Kind() == types.TFORW {
+		base.Fatalf("unresolved defined type: %v", tbase)
+	}
+
 	dupok := 0
-	if tbase.Sym() == nil {
+	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
 		dupok = obj.DUPOK
 	}
 
-	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
-		// named types from other files are defined only by those files
-		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
-			if i := typecheck.BaseTypeIndex(t); i >= 0 {
-				lsym.Pkg = tbase.Sym().Pkg.Prefix
-				lsym.SymIdx = int32(i)
-				lsym.Set(obj.AttrIndexed, true)
-			}
-			return lsym
+	if !NeedEmit(tbase) {
+		if i := typecheck.BaseTypeIndex(t); i >= 0 {
+			lsym.Pkg = tbase.Sym().Pkg.Prefix
+			lsym.SymIdx = int32(i)
+			lsym.Set(obj.AttrIndexed, true)
 		}
-		// TODO(mdempsky): Investigate whether this can happen.
-		if tbase.Kind() == types.TFORW {
-			return lsym
-		}
+
+		// TODO(mdempsky): Investigate whether this still happens.
+		// If we know we don't need to emit code for a type,
+		// we should have a link-symbol index for it.
+		// See also TODO in NeedEmit.
+		return lsym
 	}
 
 	ot := 0
@@ -1226,88 +1226,11 @@ func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
 }
 
-// for each itabEntry, gather the methods on
-// the concrete type that implement the interface
-func CompileITabs() {
-	for i := range itabs {
-		tab := &itabs[i]
-		methods := genfun(tab.t, tab.itype)
-		if len(methods) == 0 {
-			continue
-		}
-		tab.entries = methods
-	}
-}
-
-// for the given concrete type and interface
-// type, return the (sorted) set of methods
-// on the concrete type that implement the interface
-func genfun(t, it *types.Type) []*obj.LSym {
-	if t == nil || it == nil {
-		return nil
-	}
-	sigs := imethods(it)
-	methods := methods(t)
-	out := make([]*obj.LSym, 0, len(sigs))
-	// TODO(mdempsky): Short circuit before calling methods(t)?
-	// See discussion on CL 105039.
-	if len(sigs) == 0 {
-		return nil
-	}
-
-	// both sigs and methods are sorted by name,
-	// so we can find the intersect in a single pass
-	for _, m := range methods {
-		if m.name == sigs[0].name {
-			out = append(out, m.isym)
-			sigs = sigs[1:]
-			if len(sigs) == 0 {
-				break
-			}
-		}
-	}
-
-	if len(sigs) != 0 {
-		base.Fatalf("incomplete itab")
-	}
-
-	return out
-}
-
-// ITabSym uses the information gathered in
-// CompileITabs to de-virtualize interface methods.
-// Since this is called by the SSA backend, it shouldn't
-// generate additional Nodes, Syms, etc.
-func ITabSym(it *obj.LSym, offset int64) *obj.LSym {
-	var syms []*obj.LSym
-	if it == nil {
-		return nil
-	}
-
-	for i := range itabs {
-		e := &itabs[i]
-		if e.lsym == it {
-			syms = e.entries
-			break
-		}
-	}
-	if syms == nil {
-		return nil
-	}
-
-	// keep this arithmetic in sync with *itab layout
-	methodnum := int((offset - 2*int64(types.PtrSize) - 8) / int64(types.PtrSize))
-	if methodnum >= len(syms) {
-		return nil
-	}
-	return syms[methodnum]
-}
-
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
 	if t.HasTParam() {
-		// Generic types don't have a runtime type descriptor (but will
-		// have a dictionary)
+		// Generic types don't really exist at run-time and have no runtime
+		// type descriptor.  But we do write out shape types.
 		return
 	}
 	if _, ok := signatset[t]; !ok {
@@ -1349,29 +1272,66 @@ func WriteRuntimeTypes() {
 	}
 }
 
-func WriteTabs() {
-	// process itabs
-	for _, i := range itabs {
-		// dump empty itab symbol into i.sym
-		// type itab struct {
-		//   inter  *interfacetype
-		//   _type  *_type
-		//   hash   uint32
-		//   _      [4]byte
-		//   fun    [1]uintptr // variable sized
-		// }
-		o := objw.SymPtr(i.lsym, 0, writeType(i.itype), 0)
-		o = objw.SymPtr(i.lsym, o, writeType(i.t), 0)
-		o = objw.Uint32(i.lsym, o, types.TypeHash(i.t)) // copy of type hash
-		o += 4                                          // skip unused field
-		for _, fn := range genfun(i.t, i.itype) {
-			o = objw.SymPtrWeak(i.lsym, o, fn, 0) // method pointer for each method
-		}
-		// Nothing writes static itabs, so they are read only.
-		objw.Global(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
-		i.lsym.Set(obj.AttrContentAddressable, true)
+// writeITab writes the itab for concrete type typ implementing
+// interface iface.
+func writeITab(lsym *obj.LSym, typ, iface *types.Type) {
+	// TODO(mdempsky): Fix methodWrapper, geneq, and genhash (and maybe
+	// others) to stop clobbering these.
+	oldpos, oldfn := base.Pos, ir.CurFunc
+	defer func() { base.Pos, ir.CurFunc = oldpos, oldfn }()
+
+	if typ == nil || (typ.IsPtr() && typ.Elem() == nil) || typ.IsUntyped() || iface == nil || !iface.IsInterface() || iface.IsEmptyInterface() {
+		base.Fatalf("writeITab(%v, %v)", typ, iface)
 	}
 
+	sigs := iface.AllMethods().Slice()
+	entries := make([]*obj.LSym, 0, len(sigs))
+
+	// both sigs and methods are sorted by name,
+	// so we can find the intersection in a single pass
+	for _, m := range methods(typ) {
+		if m.name == sigs[0].Sym {
+			entries = append(entries, m.isym)
+			if m.isym == nil {
+				panic("NO ISYM")
+			}
+			sigs = sigs[1:]
+			if len(sigs) == 0 {
+				break
+			}
+		}
+		if sigs[0].Sym.Name == "==" {
+			sigs = sigs[1:]
+			if len(sigs) == 0 {
+				break
+			}
+		}
+	}
+	if len(sigs) != 0 {
+		base.Fatalf("incomplete itab")
+	}
+
+	// dump empty itab symbol into i.sym
+	// type itab struct {
+	//   inter  *interfacetype
+	//   _type  *_type
+	//   hash   uint32
+	//   _      [4]byte
+	//   fun    [1]uintptr // variable sized
+	// }
+	o := objw.SymPtr(lsym, 0, writeType(iface), 0)
+	o = objw.SymPtr(lsym, o, writeType(typ), 0)
+	o = objw.Uint32(lsym, o, types.TypeHash(typ)) // copy of type hash
+	o += 4                                        // skip unused field
+	for _, fn := range entries {
+		o = objw.SymPtrWeak(lsym, o, fn, 0) // method pointer for each method
+	}
+	// Nothing writes static itabs, so they are read only.
+	objw.Global(lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+	lsym.Set(obj.AttrContentAddressable, true)
+}
+
+func WriteTabs() {
 	// process ptabs
 	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
 		ot := 0
@@ -1453,7 +1413,7 @@ func WriteBasicTypes() {
 
 type typeAndStr struct {
 	t       *types.Type
-	short   string
+	short   string // "short" here means NameString
 	regular string
 }
 
@@ -1466,8 +1426,13 @@ func (a typesByString) Less(i, j int) bool {
 	}
 	// When the only difference between the types is whether
 	// they refer to byte or uint8, such as **byte vs **uint8,
-	// the types' ShortStrings can be identical.
+	// the types' NameStrings can be identical.
 	// To preserve deterministic sort ordering, sort these by String().
+	//
+	// TODO(mdempsky): This all seems suspect. Using LinkString would
+	// avoid naming collisions, and there shouldn't be a reason to care
+	// about "byte" vs "uint8": they share the same runtime type
+	// descriptor anyway.
 	if a[i].regular != a[j].regular {
 		return a[i].regular < a[j].regular
 	}
@@ -1741,6 +1706,49 @@ func CollectPTabs() {
 	}
 }
 
+// NeedEmit reports whether typ is a type that we need to emit code
+// for (e.g., runtime type descriptors, method wrappers).
+func NeedEmit(typ *types.Type) bool {
+	// TODO(mdempsky): Export data should keep track of which anonymous
+	// and instantiated types were emitted, so at least downstream
+	// packages can skip re-emitting them.
+	//
+	// Perhaps we can just generalize the linker-symbol indexing to
+	// track the index of arbitrary types, not just defined types, and
+	// use its presence to detect this. The same idea would work for
+	// instantiated generic functions too.
+
+	switch sym := typ.Sym(); {
+	case sym == nil:
+		// Anonymous type; possibly never seen before or ever again.
+		// Need to emit to be safe (however, see TODO above).
+		return true
+
+	case sym.Pkg == types.LocalPkg:
+		// Local defined type; our responsibility.
+		return true
+
+	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == ir.Pkgs.Unsafe):
+		// Package runtime is responsible for including code for builtin
+		// types (predeclared and package unsafe).
+		return true
+
+	case typ.IsFullyInstantiated():
+		// Instantiated type; possibly instantiated with unique type arguments.
+		// Need to emit to be safe (however, see TODO above).
+		return true
+
+	case typ.HasShape():
+		// Shape type; need to emit even though it lives in the .shape package.
+		// TODO: make sure the linker deduplicates them (see dupok in writeType above).
+		return true
+
+	default:
+		// Should have been emitted by an imported package.
+		return false
+	}
+}
+
 // Generate a wrapper function to convert from
 // a receiver of type T to a receiver of type U.
 // That is,
@@ -1761,7 +1769,45 @@ func CollectPTabs() {
 //
 //	rcvr - U
 //	method - M func (t T)(), a TFIELD type struct
-func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+//
+// Also wraps methods on instantiated generic types for use in itab entries.
+// For an instantiated generic type G[int], we generate wrappers like:
+// G[int] pointer shaped:
+//	func (x G[int]) f(arg) {
+//		.inst.G[int].f(dictionary, x, arg)
+// 	}
+// G[int] not pointer shaped:
+//	func (x *G[int]) f(arg) {
+//		.inst.G[int].f(dictionary, *x, arg)
+// 	}
+// These wrappers are always fully stenciled.
+func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSym {
+	orig := rcvr
+	if forItab && !types.IsDirectIface(rcvr) {
+		rcvr = rcvr.PtrTo()
+	}
+
+	generic := false
+	// We don't need a dictionary if we are reaching a method (possibly via an
+	// embedded field) which is an interface method.
+	if !types.IsInterfaceMethod(method.Type) {
+		rcvr1 := rcvr
+		if rcvr1.IsPtr() {
+			rcvr1 = rcvr.Elem()
+		}
+		if len(rcvr1.RParams()) > 0 {
+			// If rcvr has rparams, remember method as generic, which
+			// means we need to add a dictionary to the wrapper.
+			generic = true
+			targs := rcvr1.RParams()
+			for _, t := range targs {
+				if t.HasShape() {
+					base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
+				}
+			}
+		}
+	}
+
 	newnam := ir.MethodSym(rcvr, method.Sym)
 	lsym := newnam.Linksym()
 	if newnam.Siggen() {
@@ -1769,19 +1815,18 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	}
 	newnam.SetSiggen(true)
 
-	if types.Identical(rcvr, method.Type.Recv().Type) {
+	// Except in quirks mode, unified IR creates its own wrappers.
+	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
 		return lsym
 	}
 
-	// Only generate (*T).M wrappers for T.M in T's own package.
-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg {
+	// For generic methods, we need to generate the wrapper even if the receiver
+	// types are identical, because we want to add the dictionary.
+	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
 		return lsym
 	}
 
-	// Only generate I.M wrappers for I in I's own package
-	// but keep doing it for error.Error (was issue #29304).
-	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
+	if !NeedEmit(rcvr) || rcvr.IsPtr() && !NeedEmit(rcvr.Elem()) {
 		return lsym
 	}
 
@@ -1802,9 +1847,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
 	methodrcvr := method.Type.Recv().Type
+	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
 
 	// generate nil pointer check for better error
-	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
+	if indirect {
 		// generating wrapper from *T to T.
 		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
 		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
@@ -1814,7 +1860,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	}
 
 	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
-
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
 	// bad scenario is when a local call is made to the wrapper: the wrapper will
@@ -1826,7 +1871,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	// Disable tailcall for RegabiArgs for now. The IR does not connect the
 	// arguments with the OTAILCALL node, and the arguments are not marshaled
 	// correctly.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs {
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs && !generic {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		left := dot.X // skip final .M
 		if !left.Type().IsPtr() {
@@ -1837,8 +1882,72 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
-		call.Args = ir.ParamNames(tfn.Type())
+		var call *ir.CallExpr
+
+		if generic && dot.X != nthis {
+			// TODO: for now, we don't try to generate dictionary wrappers for
+			// any methods involving embedded fields, because we're not
+			// generating the needed dictionaries in instantiateMethods.
+			generic = false
+		}
+
+		if generic {
+			var args []ir.Node
+			var targs []*types.Type
+			if rcvr.IsPtr() {
+				targs = rcvr.Elem().RParams()
+			} else {
+				targs = rcvr.RParams()
+			}
+			if strings.HasPrefix(ir.MethodSym(orig, method.Sym).Name, ".inst.") {
+				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
+				panic("multiple .inst.")
+			}
+			// The wrapper for an auto-generated pointer/non-pointer
+			// receiver method should share the same dictionary as the
+			// corresponding original (user-written) method.
+			baseOrig := orig
+			if baseOrig.IsPtr() && !method.Type.Recv().Type.IsPtr() {
+				baseOrig = baseOrig.Elem()
+			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
+				baseOrig = types.NewPtr(baseOrig)
+			}
+			args = append(args, getDictionary(ir.MethodSym(baseOrig, method.Sym), targs))
+			if indirect {
+				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
+			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
+				// Case where method call is via a non-pointer
+				// embedded field with a pointer method.
+				args = append(args, typecheck.NodAddrAt(base.Pos, dot.X))
+			} else {
+				args = append(args, dot.X)
+			}
+			args = append(args, ir.ParamNames(tfn.Type())...)
+
+			// Target method uses shaped names.
+			targs2 := make([]*types.Type, len(targs))
+			for i, t := range targs {
+				targs2[i] = typecheck.Shapify(t)
+			}
+			targs = targs2
+
+			sym := typecheck.MakeInstName(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+			if sym.Def == nil {
+				// Currently we make sure that we have all the instantiations
+				// we need by generating them all in ../noder/stencil.go:instantiateMethods
+				// TODO: maybe there's a better, more incremental way to generate
+				// only the instantiations we need?
+				base.Fatalf("instantiation %s not found", sym.Name)
+			}
+			target := ir.AsNode(sym.Def)
+			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
+			// Fill-in the generic method node that was not filled in
+			// in instantiateMethod.
+			method.Nname = fn.Nname
+		} else {
+			call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+			call.Args = ir.ParamNames(tfn.Type())
+		}
 		call.IsDDD = tfn.Type().IsVariadic()
 		if method.Type.NumResults() > 0 {
 			ret := ir.NewReturnStmt(base.Pos, nil)
@@ -1858,13 +1967,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 
-	// Inline calls within (*T).M wrappers. This is safe because we only
-	// generate those wrappers within the same compilation unit as (T).M.
-	// TODO(mdempsky): Investigate why we can't enable this more generally.
-	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
+	if AfterGlobalEscapeAnalysis {
 		inline.InlineCalls(fn)
+		escape.Batch([]*ir.Func{fn}, false)
 	}
-	escape.Batch([]*ir.Func{fn}, false)
 
 	ir.CurFunc = nil
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
@@ -1872,11 +1978,21 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
 	return lsym
 }
 
+// AfterGlobalEscapeAnalysis tracks whether package gc has already
+// performed the main, global escape analysis pass. If so,
+// methodWrapper takes responsibility for escape analyzing any
+// generated wrappers.
+var AfterGlobalEscapeAnalysis bool
+
 var ZeroSize int64
 
 // MarkTypeUsedInInterface marks that type t is converted to an interface.
 // This information is used in the linker in dead method elimination.
 func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+	if t.HasShape() {
+		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
+		base.Fatalf("shape types have no methods %+v", t)
+	}
 	tsym := TypeLinksym(t)
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
@@ -1897,9 +2013,55 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
-	// dot.Xoffset is the method index * PtrSize (the offset of code pointer
+	// dot.Offset() is the method index * PtrSize (the offset of code pointer
 	// in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
 	r.Type = objabi.R_USEIFACEMETHOD
+}
+
+// MarkUsedIfaceMethodIndex marks that that method number ix (in the AllMethods list)
+// of interface type ityp is used, and should be attached to lsym.
+func MarkUsedIfaceMethodIndex(lsym *obj.LSym, ityp *types.Type, ix int) {
+	tsym := TypeLinksym(ityp)
+	r := obj.Addrel(lsym)
+	r.Sym = tsym
+	r.Add = InterfaceMethodOffset(ityp, int64(ix))
+	r.Type = objabi.R_USEIFACEMETHOD
+}
+
+// getDictionary returns the dictionary for the given named generic function
+// or method, with the given type arguments.
+func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
+	if len(targs) == 0 {
+		base.Fatalf("%s should have type arguments", gf.Name)
+	}
+	for _, t := range targs {
+		if t.HasShape() {
+			base.Fatalf("dictionary for %s should only use concrete types: %+v", gf.Name, t)
+		}
+	}
+
+	sym := typecheck.MakeDictName(gf, targs, true)
+
+	// Initialize the dictionary, if we haven't yet already.
+	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
+	}
+
+	// Make a node referencing the dictionary symbol.
+	n := typecheck.NewName(sym)
+	n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
+	n.SetTypecheck(1)
+	n.Class = ir.PEXTERN
+	sym.Def = n
+
+	// Return the address of the dictionary.
+	np := typecheck.NodAddr(n)
+	// Note: treat dictionary pointers as uintptrs, so they aren't pointers
+	// with respect to GC. That saves on stack scanning work, write barriers, etc.
+	// We can get away with it because dictionaries are global variables.
+	np.SetType(types.Types[types.TUINTPTR])
+	np.SetTypecheck(1)
+	return np
 }

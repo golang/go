@@ -63,12 +63,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVV	$runtime·mainPC(SB), R1		// entry
-	ADDV	$-24, R29
-	MOVV	R1, 16(R29)
-	MOVV	R0, 8(R29)
+	ADDV	$-16, R29
+	MOVV	R1, 8(R29)
 	MOVV	R0, 0(R29)
 	JAL	runtime·newproc(SB)
-	ADDV	$24, R29
+	ADDV	$16, R29
 
 	// start this M
 	JAL	runtime·mstart(SB)
@@ -384,22 +383,6 @@ CALLFN(·call1073741824, 1073741824)
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET
-
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 8 bytes to get back to JAL deferreturn
-// 3. JMP to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
-	MOVV	0(R29), R31
-	ADDV	$-8, R31
-
-	MOVV	fv+0(FP), REGCTXT
-	MOVV	argp+8(FP), R29
-	ADDV	$-8, R29
-	NOR	R0, R0	// prevent scheduling
-	MOVV	0(REGCTXT), R4
-	JMP	(R4)
 
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.

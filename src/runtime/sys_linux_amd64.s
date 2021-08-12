@@ -215,13 +215,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 
 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
 
-#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
-#else
-	get_tls(CX)
-	MOVQ	g(CX), AX
-	MOVQ	g_m(AX), BX // BX unchanged by C code.
-#endif
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
 	// Save the old values on stack and restore them on exit,
@@ -236,11 +230,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVQ	CX, m_vdsoPC(BX)
 	MOVQ	DX, m_vdsoSP(BX)
 
-#ifdef GOEXPERIMENT_regabig
 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
-#else
-	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
-#endif
 	JNE	noswitch
 
 	MOVQ	m_g0(BX), DX
@@ -328,9 +318,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	POPQ	BP
 	RET
 
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
 // Called using C ABI.
-TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// Transition from C ABI to Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -348,8 +337,7 @@ TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
 
 // Used instead of sigtramp in programs that use cgo.
 // Arguments from kernel are in DI, SI, DX.
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	// If no traceback function, do usual sigtramp.
 	MOVQ	runtime·cgoTraceback(SB), AX
 	TESTQ	AX, AX
@@ -392,12 +380,12 @@ TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
 	// The first three arguments, and the fifth, are already in registers.
 	// Set the two remaining arguments now.
 	MOVQ	runtime·cgoTraceback(SB), CX
-	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
+	MOVQ	$runtime·sigtramp(SB), R9
 	MOVQ	_cgo_callers(SB), AX
 	JMP	AX
 
 sigtramp:
-	JMP	runtime·sigtramp<ABIInternal>(SB)
+	JMP	runtime·sigtramp(SB)
 
 sigtrampnog:
 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
@@ -428,8 +416,7 @@ sigtrampnog:
 // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
 // The code that cares about the precise instructions used is:
 // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
-// Defined as ABIInternal since it does not use the stack-based Go ABI.
-TEXT runtime·sigreturn<ABIInternal>(SB),NOSPLIT,$0
+TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVQ	$SYS_rt_sigreturn, AX
 	SYSCALL
 	INT $3	// not reached

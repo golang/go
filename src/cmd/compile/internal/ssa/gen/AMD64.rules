@@ -460,7 +460,7 @@
 (IsInBounds idx len) => (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
 (NilCheck ...) => (LoweredNilCheck ...)
-(GetG mem) && !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+(GetG mem) && v.Block.Func.OwnAux.Fn.ABI() != obj.ABIInternal => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)

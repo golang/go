@@ -179,6 +179,8 @@ func CanInline(fn *ir.Func) {
 		Cost: inlineMaxBudget - visitor.budget,
 		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
 		Body: inlcopylist(fn.Body),
+
+		CanDelayResults: canDelayResults(fn),
 	}
 
 	if base.Flag.LowerM > 1 {
@@ -191,60 +193,36 @@ func CanInline(fn *ir.Func) {
 	}
 }
 
-// Inline_Flood marks n's inline body for export and recursively ensures
-// all called functions are marked too.
-func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
-	if n == nil {
-		return
-	}
-	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
-		base.Fatalf("Inline_Flood: unexpected %v, %v, %v", n, n.Op(), n.Class)
-	}
-	fn := n.Func
-	if fn == nil {
-		base.Fatalf("Inline_Flood: missing Func on %v", n)
-	}
-	if fn.Inl == nil {
-		return
-	}
+// canDelayResults reports whether inlined calls to fn can delay
+// declaring the result parameter until the "return" statement.
+func canDelayResults(fn *ir.Func) bool {
+	// We can delay declaring+initializing result parameters if:
+	// (1) there's exactly one "return" statement in the inlined function;
+	// (2) it's not an empty return statement (#44355); and
+	// (3) the result parameters aren't named.
 
-	if fn.ExportInline() {
-		return
-	}
-	fn.SetExportInline(true)
-
-	typecheck.ImportedBody(fn)
-
-	var doFlood func(n ir.Node)
-	doFlood = func(n ir.Node) {
-		switch n.Op() {
-		case ir.OMETHEXPR, ir.ODOTMETH:
-			Inline_Flood(ir.MethodExprName(n), exportsym)
-
-		case ir.ONAME:
-			n := n.(*ir.Name)
-			switch n.Class {
-			case ir.PFUNC:
-				Inline_Flood(n, exportsym)
-				exportsym(n)
-			case ir.PEXTERN:
-				exportsym(n)
+	nreturns := 0
+	ir.VisitList(fn.Body, func(n ir.Node) {
+		if n, ok := n.(*ir.ReturnStmt); ok {
+			nreturns++
+			if len(n.Results) == 0 {
+				nreturns++ // empty return statement (case 2)
 			}
+		}
+	})
 
-		case ir.OCALLPART:
-			// Okay, because we don't yet inline indirect
-			// calls to method values.
-		case ir.OCLOSURE:
-			// VisitList doesn't visit closure bodies, so force a
-			// recursive call to VisitList on the body of the closure.
-			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
+	if nreturns != 1 {
+		return false // not exactly one return statement (case 1)
+	}
+
+	// temporaries for return values.
+	for _, param := range fn.Type().Results().FieldSlice() {
+		if sym := types.OrigSym(param.Sym); sym != nil && !sym.IsBlank() {
+			return false // found a named result parameter (case 3)
 		}
 	}
 
-	// Recursively identify all referenced functions for
-	// reexport. We want to include even non-called functions,
-	// because after inlining they might be callable.
-	ir.VisitList(ir.Nodes(fn.Inl.Body), doFlood)
+	return true
 }
 
 // hairyVisitor visits a function body to determine its inlining
@@ -295,6 +273,19 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 				}
 			}
 		}
+		if n.X.Op() == ir.OMETHEXPR {
+			if meth := ir.MethodExprName(n.X); meth != nil {
+				fn := meth.Func
+				if fn != nil && types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
+					// Special case: explicitly allow
+					// mid-stack inlining of
+					// runtime.heapBits.next even though
+					// it calls slow-path
+					// runtime.heapBits.nextArena.
+					break
+				}
+			}
+		}
 
 		if ir.IsIntrinsicCall(n) {
 			// Treat like any other node.
@@ -309,28 +300,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// Call cost for non-leaf inlining.
 		v.budget -= v.extraCallCost
 
-	// Call is okay if inlinable and we have the budget for the body.
 	case ir.OCALLMETH:
-		n := n.(*ir.CallExpr)
-		t := n.X.Type()
-		if t == nil {
-			base.Fatalf("no function type for [%p] %+v\n", n.X, n.X)
-		}
-		fn := ir.MethodExprName(n.X).Func
-		if types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
-			// Special case: explicitly allow
-			// mid-stack inlining of
-			// runtime.heapBits.next even though
-			// it calls slow-path
-			// runtime.heapBits.nextArena.
-			break
-		}
-		if fn.Inl != nil {
-			v.budget -= fn.Inl.Cost
-			break
-		}
-		// Call cost for non-leaf inlining.
-		v.budget -= v.extraCallCost
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 
 	// Things that are too hairy, irrespective of the budget
 	case ir.OCALL, ir.OCALLINTER:
@@ -445,7 +416,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
 		v.budget++
 
-	case ir.OCALLPART, ir.OSLICELIT:
+	case ir.OMETHVALUE, ir.OSLICELIT:
 		v.budget-- // Hack for toolstash -cmp.
 
 	case ir.OMETHEXPR:
@@ -499,9 +470,6 @@ func inlcopy(n ir.Node) ir.Node {
 			// x.Func.Body for iexport and local inlining.
 			oldfn := x.Func
 			newfn := ir.NewFunc(oldfn.Pos())
-			if oldfn.ClosureCalled() {
-				newfn.SetClosureCalled(true)
-			}
 			m.(*ir.ClosureExpr).Func = newfn
 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
 			// XXX OK to share fn.Type() ??
@@ -544,37 +512,6 @@ func InlineCalls(fn *ir.Func) {
 	ir.CurFunc = savefn
 }
 
-// Turn an OINLCALL into a statement.
-func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
-	n := ir.NewBlockStmt(inlcall.Pos(), nil)
-	n.List = inlcall.Init()
-	n.List.Append(inlcall.Body.Take()...)
-	return n
-}
-
-// Turn an OINLCALL into a single valued expression.
-// The result of inlconv2expr MUST be assigned back to n, e.g.
-// 	n.Left = inlconv2expr(n.Left)
-func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
-	r := n.ReturnVars[0]
-	return ir.InitExpr(append(n.Init(), n.Body...), r)
-}
-
-// Turn the rlist (with the return values) of the OINLCALL in
-// n into an expression list lumping the ninit and body
-// containing the inlined statements on the first list element so
-// order will be preserved. Used in return, oas2func and call
-// statements.
-func inlconv2list(n *ir.InlinedCallExpr) []ir.Node {
-	if n.Op() != ir.OINLCALL || len(n.ReturnVars) == 0 {
-		base.Fatalf("inlconv2list %+v\n", n)
-	}
-
-	s := n.ReturnVars
-	s[0] = ir.InitExpr(append(n.Init(), n.Body...), s[0])
-	return s
-}
-
 // inlnode recurses over the tree to find inlineable calls, which will
 // be turned into OINLCALLs by mkinlcall. When the recursion comes
 // back up will examine left, right, list, rlist, ninit, ntest, nincr,
@@ -597,7 +534,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	case ir.ODEFER, ir.OGO:
 		n := n.(*ir.GoDeferStmt)
 		switch call := n.Call; call.Op() {
-		case ir.OCALLFUNC, ir.OCALLMETH:
+		case ir.OCALLMETH:
+			base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
+		case ir.OCALLFUNC:
 			call := call.(*ir.CallExpr)
 			call.NoInline = true
 		}
@@ -607,11 +546,18 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 	case ir.OCLOSURE:
 		return n
 	case ir.OCALLMETH:
-		// Prevent inlining some reflect.Value methods when using checkptr,
-		// even when package reflect was compiled without it (#35073).
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+	case ir.OCALLFUNC:
 		n := n.(*ir.CallExpr)
-		if s := ir.MethodExprName(n.X).Sym(); base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
-			return n
+		if n.X.Op() == ir.OMETHEXPR {
+			// Prevent inlining some reflect.Value methods when using checkptr,
+			// even when package reflect was compiled without it (#35073).
+			if meth := ir.MethodExprName(n.X); meth != nil {
+				s := meth.Sym()
+				if base.Debug.Checkptr != 0 && types.IsReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+					return n
+				}
+			}
 		}
 	}
 
@@ -619,31 +565,18 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 
 	ir.EditChildren(n, edit)
 
-	if as := n; as.Op() == ir.OAS2FUNC {
-		as := as.(*ir.AssignListStmt)
-		if as.Rhs[0].Op() == ir.OINLCALL {
-			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
-			as.SetOp(ir.OAS2)
-			as.SetTypecheck(0)
-			n = typecheck.Stmt(as)
-		}
-	}
-
 	// with all the branches out of the way, it is now time to
 	// transmogrify this node itself unless inhibited by the
 	// switch at the top of this function.
 	switch n.Op() {
-	case ir.OCALLFUNC, ir.OCALLMETH:
-		n := n.(*ir.CallExpr)
-		if n.NoInline {
-			return n
-		}
-	}
+	case ir.OCALLMETH:
+		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
 
-	var call *ir.CallExpr
-	switch n.Op() {
 	case ir.OCALLFUNC:
-		call = n.(*ir.CallExpr)
+		call := n.(*ir.CallExpr)
+		if call.NoInline {
+			break
+		}
 		if base.Flag.LowerM > 3 {
 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.X)
 		}
@@ -653,37 +586,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
-
-	case ir.OCALLMETH:
-		call = n.(*ir.CallExpr)
-		if base.Flag.LowerM > 3 {
-			fmt.Printf("%v:call to meth %v\n", ir.Line(n), call.X.(*ir.SelectorExpr).Sel)
-		}
-
-		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
-		if call.X.Type() == nil {
-			base.Fatalf("no function type for [%p] %+v\n", call.X, call.X)
-		}
-
-		n = mkinlcall(call, ir.MethodExprName(call.X).Func, maxCost, inlMap, edit)
 	}
 
 	base.Pos = lno
-
-	if n.Op() == ir.OINLCALL {
-		ic := n.(*ir.InlinedCallExpr)
-		switch call.Use {
-		default:
-			ir.Dump("call", call)
-			base.Fatalf("call missing use")
-		case ir.CallUseExpr:
-			n = inlconv2expr(ic)
-		case ir.CallUseStmt:
-			n = inlconv2stmt(ic)
-		case ir.CallUseList:
-			// leave for caller to convert
-		}
-	}
 
 	return n
 }
@@ -740,7 +645,12 @@ var inlgen int
 // when producing output for debugging the compiler itself.
 var SSADumpInline = func(*ir.Func) {}
 
-// If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
+// NewInline allows the inliner implementation to be overridden.
+// If it returns nil, the legacy inliner will handle this call
+// instead.
+var NewInline = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr { return nil }
+
+// If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
 // The returned node's Ninit has the parameter assignments, the Nbody is the
 // inlined function body, and (List, Rlist) contain the (input, output)
@@ -793,38 +703,90 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	defer func() {
 		inlMap[fn] = false
 	}()
-	if base.Debug.TypecheckInl == 0 {
-		typecheck.ImportedBody(fn)
+
+	typecheck.FixVariadicCall(n)
+
+	parent := base.Ctxt.PosTable.Pos(n.Pos()).Base().InliningIndex()
+
+	sym := fn.Linksym()
+	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
+
+	if base.Flag.GenDwarfInl > 0 {
+		if !sym.WasInlined() {
+			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
+			sym.Set(obj.AttrWasInlined, true)
+		}
 	}
 
-	// We have a function node, and it has an inlineable body.
-	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.Nodes(fn.Inl.Body))
-	} else if base.Flag.LowerM != 0 {
+	if base.Flag.LowerM != 0 {
 		fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
 	}
 	if base.Flag.LowerM > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
+	res := NewInline(n, fn, inlIndex)
+	if res == nil {
+		res = oldInline(n, fn, inlIndex)
+	}
+
+	// transitive inlining
+	// might be nice to do this before exporting the body,
+	// but can't emit the body with inlining expanded.
+	// instead we emit the things that the body needs
+	// and each use must redo the inlining.
+	// luckily these are small.
+	ir.EditChildren(res, edit)
+
+	if base.Flag.LowerM > 2 {
+		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(res), res)
+	}
+
+	return res
+}
+
+// CalleeEffects appends any side effects from evaluating callee to init.
+func CalleeEffects(init *ir.Nodes, callee ir.Node) {
+	for {
+		switch callee.Op() {
+		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
+			return // done
+
+		case ir.OCONVNOP:
+			conv := callee.(*ir.ConvExpr)
+			init.Append(ir.TakeInit(conv)...)
+			callee = conv.X
+
+		case ir.OINLCALL:
+			ic := callee.(*ir.InlinedCallExpr)
+			init.Append(ir.TakeInit(ic)...)
+			init.Append(ic.Body.Take()...)
+			callee = ic.SingleResult()
+
+		default:
+			base.FatalfAt(callee.Pos(), "unexpected callee expression: %v", callee)
+		}
+	}
+}
+
+// oldInline creates an InlinedCallExpr to replace the given call
+// expression. fn is the callee function to be inlined. inlIndex is
+// the inlining tree position index, for use with src.NewInliningBase
+// when rewriting positions.
+func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+	if base.Debug.TypecheckInl == 0 {
+		typecheck.ImportedBody(fn)
+	}
+
 	SSADumpInline(fn)
 
-	ninit := n.Init()
+	ninit := call.Init()
 
 	// For normal function calls, the function callee expression
-	// may contain side effects (e.g., added by addinit during
-	// inlconv2expr or inlconv2list). Make sure to preserve these,
+	// may contain side effects. Make sure to preserve these,
 	// if necessary (#42703).
-	if n.Op() == ir.OCALLFUNC {
-		callee := n.X
-		for callee.Op() == ir.OCONVNOP {
-			conv := callee.(*ir.ConvExpr)
-			ninit.Append(ir.TakeInit(conv)...)
-			callee = conv.X
-		}
-		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
-			base.Fatalf("unexpected callee expression: %v", callee)
-		}
+	if call.Op() == ir.OCALLFUNC {
+		CalleeEffects(&ninit, call.X)
 	}
 
 	// Make temp names to use instead of the originals.
@@ -854,25 +816,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	}
 
 	// We can delay declaring+initializing result parameters if:
-	// (1) there's exactly one "return" statement in the inlined function;
-	// (2) it's not an empty return statement (#44355); and
-	// (3) the result parameters aren't named.
-	delayretvars := true
-
-	nreturns := 0
-	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
-		if n, ok := n.(*ir.ReturnStmt); ok {
-			nreturns++
-			if len(n.Results) == 0 {
-				delayretvars = false // empty return statement (case 2)
-			}
-		}
-	})
-
-	if nreturns != 1 {
-		delayretvars = false // not exactly one return statement (case 1)
-	}
-
 	// temporaries for return values.
 	var retvars []ir.Node
 	for i, t := range fn.Type().Results().Fields().Slice() {
@@ -882,7 +825,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			m = inlvar(n)
 			m = typecheck.Expr(m).(*ir.Name)
 			inlvars[n] = m
-			delayretvars = false // found a named result parameter (case 3)
 		} else {
 			// anonymous return values, synthesize names for use in assignment that replaces return
 			m = retvar(t, i)
@@ -905,61 +847,23 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 	// Assign arguments to the parameters' temp names.
 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
 	as.Def = true
-	if n.Op() == ir.OCALLMETH {
-		sel := n.X.(*ir.SelectorExpr)
-		if sel.X == nil {
-			base.Fatalf("method call without receiver: %+v", n)
-		}
-		as.Rhs.Append(sel.X)
+	if call.Op() == ir.OCALLMETH {
+		base.FatalfAt(call.Pos(), "OCALLMETH missed by typecheck")
 	}
-	as.Rhs.Append(n.Args...)
-
-	// For non-dotted calls to variadic functions, we assign the
-	// variadic parameter's temp name separately.
-	var vas *ir.AssignStmt
+	as.Rhs.Append(call.Args...)
 
 	if recv := fn.Type().Recv(); recv != nil {
 		as.Lhs.Append(inlParam(recv, as, inlvars))
 	}
 	for _, param := range fn.Type().Params().Fields().Slice() {
-		// For ordinary parameters or variadic parameters in
-		// dotted calls, just add the variable to the
-		// assignment list, and we're done.
-		if !param.IsDDD() || n.IsDDD {
-			as.Lhs.Append(inlParam(param, as, inlvars))
-			continue
-		}
-
-		// Otherwise, we need to collect the remaining values
-		// to pass as a slice.
-
-		x := len(as.Lhs)
-		for len(as.Lhs) < len(as.Rhs) {
-			as.Lhs.Append(argvar(param.Type, len(as.Lhs)))
-		}
-		varargs := as.Lhs[x:]
-
-		vas = ir.NewAssignStmt(base.Pos, nil, nil)
-		vas.X = inlParam(param, vas, inlvars)
-		if len(varargs) == 0 {
-			vas.Y = typecheck.NodNil()
-			vas.Y.SetType(param.Type)
-		} else {
-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
-			lit.List = varargs
-			vas.Y = lit
-		}
+		as.Lhs.Append(inlParam(param, as, inlvars))
 	}
 
 	if len(as.Rhs) != 0 {
 		ninit.Append(typecheck.Stmt(as))
 	}
 
-	if vas != nil {
-		ninit.Append(typecheck.Stmt(vas))
-	}
-
-	if !delayretvars {
+	if !fn.Inl.CanDelayResults {
 		// Zero the return parameters.
 		for _, n := range retvars {
 			ninit.Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
@@ -972,40 +876,21 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	inlgen++
 
-	parent := -1
-	if b := base.Ctxt.PosTable.Pos(n.Pos()).Base(); b != nil {
-		parent = b.InliningIndex()
-	}
-
-	sym := fn.Linksym()
-	newIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
-
 	// Add an inline mark just before the inlined body.
 	// This mark is inline in the code so that it's a reasonable spot
 	// to put a breakpoint. Not sure if that's really necessary or not
 	// (in which case it could go at the end of the function instead).
 	// Note issue 28603.
-	inlMark := ir.NewInlineMarkStmt(base.Pos, types.BADWIDTH)
-	inlMark.SetPos(n.Pos().WithIsStmt())
-	inlMark.Index = int64(newIndex)
-	ninit.Append(inlMark)
-
-	if base.Flag.GenDwarfInl > 0 {
-		if !sym.WasInlined() {
-			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
-			sym.Set(obj.AttrWasInlined, true)
-		}
-	}
+	ninit.Append(ir.NewInlineMarkStmt(call.Pos().WithIsStmt(), int64(inlIndex)))
 
 	subst := inlsubst{
-		retlabel:     retlabel,
-		retvars:      retvars,
-		delayretvars: delayretvars,
-		inlvars:      inlvars,
-		defnMarker:   ir.NilExpr{},
-		bases:        make(map[*src.PosBase]*src.PosBase),
-		newInlIndex:  newIndex,
-		fn:           fn,
+		retlabel:    retlabel,
+		retvars:     retvars,
+		inlvars:     inlvars,
+		defnMarker:  ir.NilExpr{},
+		bases:       make(map[*src.PosBase]*src.PosBase),
+		newInlIndex: inlIndex,
+		fn:          fn,
 	}
 	subst.edit = subst.node
 
@@ -1026,26 +911,11 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 
 	//dumplist("ninit post", ninit);
 
-	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
-	*call.PtrInit() = ninit
-	call.Body = body
-	call.ReturnVars = retvars
-	call.SetType(n.Type())
-	call.SetTypecheck(1)
-
-	// transitive inlining
-	// might be nice to do this before exporting the body,
-	// but can't emit the body with inlining expanded.
-	// instead we emit the things that the body needs
-	// and each use must redo the inlining.
-	// luckily these are small.
-	ir.EditChildren(call, edit)
-
-	if base.Flag.LowerM > 2 {
-		fmt.Printf("%v: After inlining %+v\n\n", ir.Line(call), call)
-	}
-
-	return call
+	res := ir.NewInlinedCallExpr(base.Pos, body, retvars)
+	res.SetInit(ninit)
+	res.SetType(call.Type())
+	res.SetTypecheck(1)
+	return res
 }
 
 // Every time we expand a function we generate a new set of tmpnames,
@@ -1058,8 +928,10 @@ func inlvar(var_ *ir.Name) *ir.Name {
 
 	n := typecheck.NewName(var_.Sym())
 	n.SetType(var_.Type())
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
+	n.SetAutoTemp(var_.AutoTemp())
 	n.Curfn = ir.CurFunc // the calling function, not the called one
 	n.SetAddrtaken(var_.Addrtaken())
 
@@ -1071,18 +943,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
 func retvar(t *types.Field, i int) *ir.Name {
 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
 	n.SetType(t.Type)
-	n.Class = ir.PAUTO
-	n.SetUsed(true)
-	n.Curfn = ir.CurFunc // the calling function, not the called one
-	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
-	return n
-}
-
-// Synthesize a variable to store the inlined function's arguments
-// when they come from a multiple return call.
-func argvar(t *types.Type, i int) ir.Node {
-	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
-	n.SetType(t.Elem())
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetUsed(true)
 	n.Curfn = ir.CurFunc // the calling function, not the called one
@@ -1098,10 +959,6 @@ type inlsubst struct {
 
 	// Temporary result variables.
 	retvars []ir.Node
-
-	// Whether result variables should be initialized at the
-	// "return" statement.
-	delayretvars bool
 
 	inlvars map[*ir.Name]*ir.Name
 	// defnMarker is used to mark a Node for reassignment.
@@ -1157,17 +1014,21 @@ func (subst *inlsubst) fields(oldt *types.Type) []*types.Field {
 // clovar creates a new ONAME node for a local variable or param of a closure
 // inside a function being inlined.
 func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
-	// TODO(danscales): want to get rid of this shallow copy, with code like the
-	// following, but it is hard to copy all the necessary flags in a maintainable way.
-	// m := ir.NewNameAt(n.Pos(), n.Sym())
-	// m.Class = n.Class
-	// m.SetType(n.Type())
-	// m.SetTypecheck(1)
-	//if n.IsClosureVar() {
-	//	m.SetIsClosureVar(true)
-	//}
-	m := &ir.Name{}
-	*m = *n
+	m := ir.NewNameAt(n.Pos(), n.Sym())
+	m.Class = n.Class
+	m.SetType(n.Type())
+	m.SetTypecheck(1)
+	if n.IsClosureVar() {
+		m.SetIsClosureVar(true)
+	}
+	if n.Addrtaken() {
+		m.SetAddrtaken(true)
+	}
+	if n.Used() {
+		m.SetUsed(true)
+	}
+	m.Defn = n.Defn
+
 	m.Curfn = subst.newclofn
 
 	switch defn := n.Defn.(type) {
@@ -1222,8 +1083,6 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 // closure does the necessary substitions for a ClosureExpr n and returns the new
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
-	m := ir.Copy(n)
-
 	// Prior to the subst edit, set a flag in the inlsubst to
 	// indicated that we don't want to update the source positions in
 	// the new closure. If we do this, it will appear that the closure
@@ -1231,29 +1090,16 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// issue #46234 for more details.
 	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
 	subst.noPosUpdate = true
-	ir.EditChildren(m, subst.edit)
 
 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
 
-	// The following is similar to funcLit
 	oldfn := n.Func
-	newfn := ir.NewFunc(oldfn.Pos())
-	// These three lines are not strictly necessary, but just to be clear
-	// that new function needs to redo typechecking and inlinability.
-	newfn.SetTypecheck(0)
-	newfn.SetInlinabilityChecked(false)
-	newfn.Inl = nil
-	newfn.SetIsHiddenClosure(true)
-	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
-	newfn.Nname.Func = newfn
+	newfn := ir.NewClosureFunc(oldfn.Pos(), true)
+
 	// Ntype can be nil for -G=3 mode.
 	if oldfn.Nname.Ntype != nil {
 		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
 	}
-	newfn.Nname.Defn = newfn
-
-	m.(*ir.ClosureExpr).Func = newfn
-	newfn.OClosure = m.(*ir.ClosureExpr)
 
 	if subst.newclofn != nil {
 		//fmt.Printf("Inlining a closure with a nested closure\n")
@@ -1303,13 +1149,9 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 
 	// Actually create the named function for the closure, now that
 	// the closure is inlined in a specific function.
-	m.SetTypecheck(0)
-	if oldfn.ClosureCalled() {
-		typecheck.Callee(m)
-	} else {
-		typecheck.Expr(m)
-	}
-	return m
+	newclo := newfn.OClosure
+	newclo.SetInit(subst.list(n.Init()))
+	return typecheck.Expr(newclo)
 }
 
 // node recursively copies a node from the saved pristine body of the
@@ -1391,7 +1233,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			}
 			as.Rhs = subst.list(n.Results)
 
-			if subst.delayretvars {
+			if subst.fn.Inl.CanDelayResults {
 				for _, n := range as.Lhs {
 					as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 					n.Name().Defn = as

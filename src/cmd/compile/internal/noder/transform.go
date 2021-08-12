@@ -85,7 +85,15 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 // etc.  Corresponds to typecheck.tcConv.
 func transformConv(n *ir.ConvExpr) ir.Node {
 	t := n.X.Type()
-	op, _ := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	op, why := typecheck.Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	if op == ir.OXXX {
+		// types2 currently ignores pragmas, so a 'notinheap' mismatch is the
+		// one type-related error that it does not catch. This error will be
+		// caught here by Convertop (see two checks near beginning of
+		// Convertop) and reported at the end of noding.
+		base.ErrorfAt(n.Pos(), "cannot convert %L to type %v%s", n.X, n.Type(), why)
+		return n
+	}
 	n.SetOp(op)
 	switch n.Op() {
 	case ir.OCONVNOP:
@@ -122,7 +130,8 @@ func transformConvCall(n *ir.CallExpr) ir.Node {
 }
 
 // transformCall transforms a normal function/method call. Corresponds to last half
-// (non-conversion, non-builtin part) of typecheck.tcCall.
+// (non-conversion, non-builtin part) of typecheck.tcCall. This code should work even
+// in the case of OCALL/OFUNCINST.
 func transformCall(n *ir.CallExpr) {
 	// n.Type() can be nil for calls with no return value
 	assert(n.Typecheck() == 1)
@@ -148,10 +157,11 @@ func transformCall(n *ir.CallExpr) {
 		n.SetOp(ir.OCALLFUNC)
 	}
 
-	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
+	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, false)
+	if l.Op() == ir.ODOTMETH && len(deref(n.X.Type().Recv().Type).RParams()) == 0 {
+		typecheck.FixMethodCall(n)
+	}
 	if t.NumResults() == 1 {
-		n.SetType(l.Type().Results().Field(0).Type)
-
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
 			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
@@ -185,7 +195,7 @@ func transformCompare(n *ir.BinaryExpr) {
 			aop, _ := typecheck.Assignop(lt, rt)
 			if aop != ir.OXXX {
 				types.CalcSize(lt)
-				if rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
+				if lt.HasTParam() || rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, rt, l)
 					l.SetTypecheck(1)
 				}
@@ -198,7 +208,7 @@ func transformCompare(n *ir.BinaryExpr) {
 			aop, _ := typecheck.Assignop(rt, lt)
 			if aop != ir.OXXX {
 				types.CalcSize(rt)
-				if rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
+				if rt.HasTParam() || rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
 					r = ir.NewConvExpr(base.Pos, aop, lt, r)
 					r.SetTypecheck(1)
 				}
@@ -303,6 +313,10 @@ assignOK:
 			r := r.(*ir.TypeAssertExpr)
 			stmt.SetOp(ir.OAS2DOTTYPE)
 			r.SetOp(ir.ODOTTYPE2)
+		case ir.ODYNAMICDOTTYPE:
+			r := r.(*ir.DynamicTypeAssertExpr)
+			stmt.SetOp(ir.OAS2DOTTYPE)
+			r.SetOp(ir.ODYNAMICDOTTYPE2)
 		default:
 			break assignOK
 		}
@@ -323,11 +337,22 @@ assignOK:
 		stmt := stmt.(*ir.AssignListStmt)
 		stmt.SetOp(ir.OAS2FUNC)
 		r := rhs[0].(*ir.CallExpr)
-		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
+		mismatched := false
+		failed := false
 		for i := range lhs {
-			checkLHS(i, rtyp.Field(i).Type)
+			result := rtyp.Field(i).Type
+			checkLHS(i, result)
+
+			if lhs[i].Type() == nil || result == nil {
+				failed = true
+			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
+				mismatched = true
+			}
+		}
+		if mismatched && !failed {
+			typecheck.RewriteMultiValueCall(stmt, r)
 		}
 		return
 	}
@@ -340,12 +365,12 @@ assignOK:
 	}
 }
 
-// Corresponds to typecheck.typecheckargs.
+// Corresponds to typecheck.typecheckargs.  Really just deals with multi-value calls.
 func transformArgs(n ir.InitNode) {
 	var list []ir.Node
 	switch n := n.(type) {
 	default:
-		base.Fatalf("typecheckargs %+v", n.Op())
+		base.Fatalf("transformArgs %+v", n.Op())
 	case *ir.CallExpr:
 		list = n.Args
 		if n.IsDDD {
@@ -363,46 +388,13 @@ func transformArgs(n ir.InitNode) {
 		return
 	}
 
-	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-
 	// Save n as n.Orig for fmt.go.
 	if ir.Orig(n) == n {
 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
 	}
 
-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
-	as.Rhs.Append(list...)
-
-	// If we're outside of function context, then this call will
-	// be executed during the generated init function. However,
-	// init.go hasn't yet created it. Instead, associate the
-	// temporary variables with  InitTodoFunc for now, and init.go
-	// will reassociate them later when it's appropriate.
-	static := ir.CurFunc == nil
-	if static {
-		ir.CurFunc = typecheck.InitTodoFunc
-	}
-	list = nil
-	for _, f := range t.FieldSlice() {
-		t := typecheck.Temp(f.Type)
-		as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
-		as.Lhs.Append(t)
-		list = append(list, t)
-	}
-	if static {
-		ir.CurFunc = nil
-	}
-
-	switch n := n.(type) {
-	case *ir.CallExpr:
-		n.Args = list
-	case *ir.ReturnStmt:
-		n.Results = list
-	}
-
-	transformAssign(as, as.Lhs, as.Rhs)
-	as.SetTypecheck(1)
-	n.PtrInit().Append(as)
+	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+	typecheck.RewriteMultiValueCall(n, list[0])
 }
 
 // assignconvfn converts node n for assignment to type t. Corresponds to
@@ -416,7 +408,10 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 		return n
 	}
 
-	op, _ := typecheck.Assignop(n.Type(), t)
+	op, why := typecheck.Assignop(n.Type(), t)
+	if op == ir.OXXX {
+		base.Fatalf("found illegal assignment %+v -> %+v; %s", n.Type(), t, why)
+	}
 
 	r := ir.NewConvExpr(base.Pos, op, t, n)
 	r.SetTypecheck(1)
@@ -424,8 +419,11 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 	return r
 }
 
-// Corresponds to typecheck.typecheckaste.
-func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes) {
+// Corresponds to typecheck.typecheckaste, but we add an extra flag convifaceOnly
+// only. If convifaceOnly is true, we only do interface conversion. We use this to do
+// early insertion of CONVIFACE nodes during noder2, when the function or args may
+// have typeparams.
+func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes, convifaceOnly bool) {
 	var t *types.Type
 	var i int
 
@@ -444,7 +442,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 			if isddd {
 				n = nl[i]
 				ir.SetPos(n)
-				if n.Type() != nil {
+				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
 					nl[i] = assignconvfn(n, t)
 				}
 				return
@@ -454,7 +452,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 			for ; i < len(nl); i++ {
 				n = nl[i]
 				ir.SetPos(n)
-				if n.Type() != nil {
+				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
 					nl[i] = assignconvfn(n, t.Elem())
 				}
 			}
@@ -463,7 +461,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 
 		n = nl[i]
 		ir.SetPos(n)
-		if n.Type() != nil {
+		if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
 			nl[i] = assignconvfn(n, t)
 		}
 		i++
@@ -485,7 +483,7 @@ func transformReturn(rs *ir.ReturnStmt) {
 		return
 	}
 
-	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl)
+	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl, false)
 }
 
 // transformSelect transforms a select node, creating an assignment list as needed
@@ -537,13 +535,31 @@ func transformAsOp(n *ir.AssignOpStmt) {
 }
 
 // transformDot transforms an OXDOT (or ODOT) or ODOT, ODOTPTR, ODOTMETH,
-// ODOTINTER, or OCALLPART, as appropriate. It adds in extra nodes as needed to
+// ODOTINTER, or OMETHVALUE, as appropriate. It adds in extra nodes as needed to
 // access embedded fields. Corresponds to typecheck.tcDot.
 func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 	assert(n.Type() != nil && n.Typecheck() == 1)
 	if n.Op() == ir.OXDOT {
 		n = typecheck.AddImplicitDots(n)
 		n.SetOp(ir.ODOT)
+
+		// Set the Selection field and typecheck flag for any new ODOT nodes
+		// added by AddImplicitDots(), and also transform to ODOTPTR if
+		// needed. Equivalent to 'n.X = typecheck(n.X, ctxExpr|ctxType)' in
+		// tcDot.
+		for n1 := n; n1.X.Op() == ir.ODOT; {
+			n1 = n1.X.(*ir.SelectorExpr)
+			if !n1.Implicit() {
+				break
+			}
+			t1 := n1.X.Type()
+			if t1.IsPtr() && !t1.Elem().IsInterface() {
+				t1 = t1.Elem()
+				n1.SetOp(ir.ODOTPTR)
+			}
+			typecheck.Lookdot(n1, t1, 0)
+			n1.SetTypecheck(1)
+		}
 	}
 
 	t := n.X.Type()
@@ -561,8 +577,13 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 	assert(f != nil)
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
-		n.SetOp(ir.OCALLPART)
-		n.SetType(typecheck.MethodValueWrapper(n).Type())
+		n.SetOp(ir.OMETHVALUE)
+		if len(n.X.Type().RParams()) > 0 || n.X.Type().IsPtr() && len(n.X.Type().Elem().RParams()) > 0 {
+			// TODO: MethodValueWrapper needed for generics?
+			// Or did we successfully desugar all that at stencil time?
+			return n
+		}
+		n.SetType(typecheck.NewMethodType(n.Type(), nil))
 	}
 	return n
 }
@@ -594,7 +615,11 @@ func transformMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
 
 	s := n.Sel
 	m := typecheck.Lookdot1(n, s, t, ms, 0)
-	assert(m != nil)
+	if !t.HasShape() {
+		// It's OK to not find the method if t is instantiated by shape types,
+		// because we will use the methods on the generic type anyway.
+		assert(m != nil)
+	}
 
 	n.SetOp(ir.OMETHEXPR)
 	n.Selection = m
@@ -911,9 +936,7 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
 
 				f := t.Field(i)
 				n1 = assignconvfn(n1, f.Type)
-				sk := ir.NewStructKeyExpr(base.Pos, f.Sym, n1)
-				sk.Offset = f.Offset
-				ls[i] = sk
+				ls[i] = ir.NewStructKeyExpr(base.Pos, f, n1)
 			}
 			assert(len(ls) >= t.NumFields())
 		} else {
@@ -922,33 +945,26 @@ func transformCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			for i, l := range ls {
 				ir.SetPos(l)
 
-				if l.Op() == ir.OKEY {
-					kv := l.(*ir.KeyExpr)
-					key := kv.Key
+				kv := l.(*ir.KeyExpr)
+				key := kv.Key
 
-					// Sym might have resolved to name in other top-level
-					// package, because of import dot. Redirect to correct sym
-					// before we do the lookup.
-					s := key.Sym()
-					if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
-						s = typecheck.Lookup(s.Name)
-					}
-
-					// An OXDOT uses the Sym field to hold
-					// the field to the right of the dot,
-					// so s will be non-nil, but an OXDOT
-					// is never a valid struct literal key.
-					assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
-
-					l = ir.NewStructKeyExpr(l.Pos(), s, kv.Value)
-					ls[i] = l
+				// Sym might have resolved to name in other top-level
+				// package, because of import dot. Redirect to correct sym
+				// before we do the lookup.
+				s := key.Sym()
+				if id, ok := key.(*ir.Ident); ok && typecheck.DotImportRefs[id] != nil {
+					s = typecheck.Lookup(s.Name)
 				}
 
-				assert(l.Op() == ir.OSTRUCTKEY)
-				l := l.(*ir.StructKeyExpr)
+				// An OXDOT uses the Sym field to hold
+				// the field to the right of the dot,
+				// so s will be non-nil, but an OXDOT
+				// is never a valid struct literal key.
+				assert(!(s == nil || s.Pkg != types.LocalPkg || key.Op() == ir.OXDOT || s.IsBlank()))
 
-				f := typecheck.Lookdot1(nil, l.Field, t, t.Fields(), 0)
-				l.Offset = f.Offset
+				f := typecheck.Lookdot1(nil, s, t, t.Fields(), 0)
+				l := ir.NewStructKeyExpr(l.Pos(), f, kv.Value)
+				ls[i] = l
 
 				l.Value = assignconvfn(l.Value, f.Type)
 			}

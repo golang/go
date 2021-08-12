@@ -76,6 +76,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/abi"
 	"io"
 	"runtime"
 	"sort"
@@ -289,7 +290,7 @@ func (p *Profile) Add(value interface{}, skip int) {
 	stk = stk[:n]
 	if len(stk) == 0 {
 		// The value for skip is too large, and there's no stack trace to record.
-		stk = []uintptr{funcPC(lostProfileEvent)}
+		stk = []uintptr{abi.FuncPCABIInternal(lostProfileEvent)}
 	}
 
 	p.mu.Lock()

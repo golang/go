@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -147,14 +148,14 @@ func lwp_start(uintptr)
 func newosproc(mp *m) {
 	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", abi.FuncPCABI0(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 
 	params := lwpparams{
-		start_func: funcPC(lwp_start),
+		start_func: abi.FuncPCABI0(lwp_start),
 		arg:        unsafe.Pointer(mp),
 		stack:      uintptr(stk),
 		tid1:       nil, // minit will record tid
@@ -226,8 +227,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -278,7 +279,7 @@ func sysargs(argc int32, argv **byte) {
 	// skip NULL separator
 	n++
 
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 

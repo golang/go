@@ -317,6 +317,8 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
+		t.expand()
+
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
 		if t.obj.pkg != check.pkg {
@@ -338,7 +340,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 			// cycle detected
 			for i, tn := range path {
 				if t.obj.pkg != check.pkg {
-					panic("internal error: type cycle via package-external type")
+					panic("type cycle via package-external type")
 				}
 				if tn == t.obj {
 					check.cycleError(path[i:])
@@ -346,12 +348,9 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 					return t.info
 				}
 			}
-			panic("internal error: cycle start not found")
+			panic("cycle start not found")
 		}
 		return t.info
-
-	case *instance:
-		return check.validType(t.expand(), path)
 	}
 
 	return valid
@@ -515,75 +514,6 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	check.initVars(lhs, []syntax.Expr{init}, nopos)
 }
 
-// under returns the expanded underlying type of n0; possibly by following
-// forward chains of named types. If an underlying type is found, resolve
-// the chain by setting the underlying type for each defined type in the
-// chain before returning it. If no underlying type is found or a cycle
-// is detected, the result is Typ[Invalid]. If a cycle is detected and
-// n0.check != nil, the cycle is reported.
-func (n0 *Named) under() Type {
-	u := n0.underlying
-	if u == nil {
-		return Typ[Invalid]
-	}
-
-	// If the underlying type of a defined type is not a defined
-	// type, then that is the desired underlying type.
-	n := asNamed(u)
-	if n == nil {
-		return u // common case
-	}
-
-	// Otherwise, follow the forward chain.
-	seen := map[*Named]int{n0: 0}
-	path := []Object{n0.obj}
-	for {
-		u = n.underlying
-		if u == nil {
-			u = Typ[Invalid]
-			break
-		}
-		n1 := asNamed(u)
-		if n1 == nil {
-			break // end of chain
-		}
-
-		seen[n] = len(seen)
-		path = append(path, n.obj)
-		n = n1
-
-		if i, ok := seen[n]; ok {
-			// cycle
-			// TODO(gri) revert this to a method on Checker. Having a possibly
-			// nil Checker on Named and TypeParam is too subtle.
-			if n0.check != nil {
-				n0.check.cycleError(path[i:])
-			}
-			u = Typ[Invalid]
-			break
-		}
-	}
-
-	for n := range seen {
-		// We should never have to update the underlying type of an imported type;
-		// those underlying types should have been resolved during the import.
-		// Also, doing so would lead to a race condition (was issue #31749).
-		// Do this check always, not just in debug more (it's cheap).
-		if n0.check != nil && n.obj.pkg != n0.check.pkg {
-			panic("internal error: imported type with unresolved underlying type")
-		}
-		n.underlying = u
-	}
-
-	return u
-}
-
-func (n *Named) setUnderlying(typ Type) {
-	if n != nil {
-		n.underlying = typ
-	}
-}
-
 func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named) {
 	assert(obj.typ == nil)
 
@@ -599,8 +529,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		alias = false
 	}
 
+	// alias declaration
 	if alias {
-		// type alias declaration
 		if !check.allowVersion(check.pkg, 1, 9) {
 			if check.conf.CompilerErrorMessages {
 				check.error(tdecl, "type aliases only supported as of -lang=go1.9")
@@ -611,111 +541,94 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 		obj.typ = Typ[Invalid]
 		obj.typ = check.anyType(tdecl.Type)
-
-	} else {
-		// defined type declaration
-
-		named := check.newNamed(obj, nil, nil, nil, nil)
-		def.setUnderlying(named)
-
-		if tdecl.TParamList != nil {
-			check.openScope(tdecl, "type parameters")
-			defer check.closeScope()
-			named.tparams = check.collectTypeParams(tdecl.TParamList)
-		}
-
-		// determine underlying type of named
-		named.fromRHS = check.definedType(tdecl.Type, named)
-
-		// The underlying type of named may be itself a named type that is
-		// incomplete:
-		//
-		//	type (
-		//		A B
-		//		B *C
-		//		C A
-		//	)
-		//
-		// The type of C is the (named) type of A which is incomplete,
-		// and which has as its underlying type the named type B.
-		// Determine the (final, unnamed) underlying type by resolving
-		// any forward chain.
-		// TODO(gri) Investigate if we can just use named.fromRHS here
-		//           and rely on lazy computation of the underlying type.
-		named.underlying = under(named)
-	}
-
-}
-
-func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeName) {
-	// Type parameter lists should not be empty. The parser will
-	// complain but we still may get an incorrect AST: ignore it.
-	if len(list) == 0 {
 		return
 	}
 
-	// Declare type parameters up-front, with empty interface as type bound.
+	// type definition or generic type declaration
+	named := check.newNamed(obj, nil, nil, nil, nil)
+	def.setUnderlying(named)
+
+	if tdecl.TParamList != nil {
+		check.openScope(tdecl, "type parameters")
+		defer check.closeScope()
+		named.tparams = check.collectTypeParams(tdecl.TParamList)
+	}
+
+	// determine underlying type of named
+	named.fromRHS = check.definedType(tdecl.Type, named)
+	assert(named.fromRHS != nil)
+	// The underlying type of named may be itself a named type that is
+	// incomplete:
+	//
+	//	type (
+	//		A B
+	//		B *C
+	//		C A
+	//	)
+	//
+	// The type of C is the (named) type of A which is incomplete,
+	// and which has as its underlying type the named type B.
+	// Determine the (final, unnamed) underlying type by resolving
+	// any forward chain.
+	// TODO(gri) Investigate if we can just use named.fromRHS here
+	//           and rely on lazy computation of the underlying type.
+	named.underlying = under(named)
+
+	// If the RHS is a type parameter, it must be from this type declaration.
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TParams().list(), tpar) < 0 {
+		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
+		named.underlying = Typ[Invalid]
+	}
+}
+
+func (check *Checker) collectTypeParams(list []*syntax.Field) *TypeParams {
+	tparams := make([]*TypeName, len(list))
+
+	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
-	// list (so we can have mutually recursive parameterized interfaces).
-	for _, f := range list {
-		tparams = check.declareTypeParam(tparams, f.Name)
+	// list (so we can have mutually recursive parameterized type bounds).
+	for i, f := range list {
+		tparams[i] = check.declareTypeParam(f.Name)
 	}
 
 	var bound Type
-	for i, j := 0, 0; i < len(list); i = j {
-		f := list[i]
-
-		// determine the range of type parameters list[i:j] with identical type bound
-		// (declared as in (type a, b, c B))
-		j = i + 1
-		for j < len(list) && list[j].Type == f.Type {
-			j++
+	for i, f := range list {
+		// Optimization: Re-use the previous type bound if it hasn't changed.
+		// This also preserves the grouped output of type parameter lists
+		// when printing type strings.
+		if i == 0 || f.Type != list[i-1].Type {
+			bound = check.boundType(f.Type)
 		}
-
-		// this should never be the case, but be careful
-		if f.Type == nil {
-			continue
-		}
-
-		// The predeclared identifier "any" is visible only as a constraint
-		// in a type parameter list. Look for it before general constraint
-		// resolution.
-		if tident, _ := unparen(f.Type).(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
-			bound = universeAny
-		} else {
-			bound = check.typ(f.Type)
-		}
-
-		// type bound must be an interface
-		// TODO(gri) We should delay the interface check because
-		//           we may not have a complete interface yet:
-		//           type C(type T C) interface {}
-		//           (issue #39724).
-		if _, ok := under(bound).(*Interface); ok {
-			// set the type bounds
-			for i < j {
-				tparams[i].typ.(*TypeParam).bound = bound
-				i++
-			}
-		} else if bound != Typ[Invalid] {
-			check.errorf(f.Type, "%s is not an interface", bound)
-		}
+		tparams[i].typ.(*TypeParam).bound = bound
 	}
 
-	return
+	return bindTParams(tparams)
 }
 
-func (check *Checker) declareTypeParam(tparams []*TypeName, name *syntax.Name) []*TypeName {
+func (check *Checker) declareTypeParam(name *syntax.Name) *TypeName {
 	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+	check.NewTypeParam(tpar, nil)                           // assigns type to tpar as a side-effect
 	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
-	tparams = append(tparams, tpar)
+	return tpar
+}
 
-	if check.conf.Trace {
-		check.trace(name.Pos(), "type param = %v", tparams[len(tparams)-1])
+// boundType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must be an interface, including the predeclared type "any".
+func (check *Checker) boundType(e syntax.Expr) Type {
+	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+	// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == universeAny {
+		return universeAny.Type()
 	}
 
-	return tparams
+	bound := check.typ(e)
+	check.later(func() {
+		u := under(bound)
+		if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
+			check.errorf(e, "%s is not an interface", bound)
+		}
+	})
+	return bound
 }
 
 func (check *Checker) collectMethods(obj *TypeName) {
@@ -737,7 +650,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
-		if t, _ := base.underlying.(*Struct); t != nil {
+		if t, _ := base.Underlying().(*Struct); t != nil {
 			for _, fld := range t.fields {
 				if fld.name != "_" {
 					assert(mset.insert(fld) == nil)
@@ -779,6 +692,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		}
 
 		if base != nil {
+			base.load() // TODO(mdempsky): Probably unnecessary.
 			base.methods = append(base.methods, m)
 		}
 	}
@@ -804,6 +718,10 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
 	obj.color_ = saved
+
+	if len(fdecl.TParamList) > 0 && fdecl.Body == nil {
+		check.softErrorf(fdecl, "parameterized function is missing function body")
+	}
 
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)

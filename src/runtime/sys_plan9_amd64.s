@@ -251,3 +251,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	MOVQ	0(SP), AX
 	MOVQ	AX, ret_base+0(FP)
 	RET
+
+// never called on this platform
+TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
+	UNDEF

@@ -329,27 +329,26 @@ func TestTypesInfo(t *testing.T) {
 		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
 
 		// parameterized functions
-		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
-		{genericPkg + `p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
-		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[T₁ interface{}](T₁)`},
-		{genericPkg + `p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
+		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
+		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
+		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
+		{genericPkg + `p3; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
 
 		// type parameters
 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
-		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P₁ interface{}]`},
-		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P₁ interface{}]`},
-		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P₁, Q₂ interface{}]`},
-		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[P₁, Q₂ interface{m()}]`},
+		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[generic_t1.P₁ interface{}]`},
+		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[generic_t2.P₁ interface{}]`},
+		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[generic_t3.P₁, generic_t3.Q₂ interface{}]`},
+		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[broken_t4.P₁, broken_t4.Q₂ interface{m()}]`},
 
 		// instantiated types must be sanitized
 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
 
 		// issue 45096
-		{genericPkg + `issue45096; func _[T interface{ type int8, int16, int32  }](x T) { _ = x < 0 }`, `0`, `T₁`},
+		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32 }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T₁`},
 	}
 
 	for _, test := range tests {
-		ResetId() // avoid renumbering of type parameter ids when adding tests
 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
 		var name string
 		if strings.HasPrefix(test.src, brokenPkg) {
@@ -390,60 +389,60 @@ func TestInferredInfo(t *testing.T) {
 		targs []string
 		sig   string
 	}{
-		{genericPkg + `p0; func f[T any](T); func _() { f(42) }`,
+		{genericPkg + `p0; func f[T any](T) {}; func _() { f(42) }`,
 			`f`,
 			[]string{`int`},
 			`func(int)`,
 		},
-		{genericPkg + `p1; func f[T any](T) T; func _() { f('@') }`,
+		{genericPkg + `p1; func f[T any](T) T { panic(0) }; func _() { f('@') }`,
 			`f`,
 			[]string{`rune`},
 			`func(rune) rune`,
 		},
-		{genericPkg + `p2; func f[T any](...T) T; func _() { f(0i) }`,
+		{genericPkg + `p2; func f[T any](...T) T { panic(0) }; func _() { f(0i) }`,
 			`f`,
 			[]string{`complex128`},
 			`func(...complex128) complex128`,
 		},
-		{genericPkg + `p3; func f[A, B, C any](A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`,
+		{genericPkg + `p3; func f[A, B, C any](A, *B, []C) {}; func _() { f(1.2, new(string), []byte{}) }`,
 			`f`,
 			[]string{`float64`, `string`, `byte`},
 			`func(float64, *string, []byte)`,
 		},
-		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B); func _() { f(1.2, new(byte)) }`,
+		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B) {}; func _() { f(1.2, new(byte)) }`,
 			`f`,
 			[]string{`float64`, `byte`},
 			`func(float64, *byte, ...[]byte)`,
 		},
 
 		// we don't know how to translate these but we can type-check them
-		{genericPkg + `q0; type T struct{}; func (T) m[P any](P); func _(x T) { x.m(42) }`,
+		{genericPkg + `q0; type T struct{}; func (T) m[P any](P) {}; func _(x T) { x.m(42) }`,
 			`x.m`,
 			[]string{`int`},
 			`func(int)`,
 		},
-		{genericPkg + `q1; type T struct{}; func (T) m[P any](P) P; func _(x T) { x.m(42) }`,
+		{genericPkg + `q1; type T struct{}; func (T) m[P any](P) P { panic(0) }; func _(x T) { x.m(42) }`,
 			`x.m`,
 			[]string{`int`},
 			`func(int) int`,
 		},
-		{genericPkg + `q2; type T struct{}; func (T) m[P any](...P) P; func _(x T) { x.m(42) }`,
+		{genericPkg + `q2; type T struct{}; func (T) m[P any](...P) P { panic(0) }; func _(x T) { x.m(42) }`,
 			`x.m`,
 			[]string{`int`},
 			`func(...int) int`,
 		},
-		{genericPkg + `q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C); func _(x T) { x.m(1.2, new(string), []byte{}) }`,
+		{genericPkg + `q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C) {}; func _(x T) { x.m(1.2, new(string), []byte{}) }`,
 			`x.m`,
 			[]string{`float64`, `string`, `byte`},
 			`func(float64, *string, []byte)`,
 		},
-		{genericPkg + `q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B); func _(x T) { x.m(1.2, new(byte)) }`,
+		{genericPkg + `q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B) {}; func _(x T) { x.m(1.2, new(byte)) }`,
 			`x.m`,
 			[]string{`float64`, `byte`},
 			`func(float64, *byte, ...[]byte)`,
 		},
 
-		{genericPkg + `r0; type T[P any] struct{}; func (_ T[P]) m[Q any](Q); func _[P any](x T[P]) { x.m(42) }`,
+		{genericPkg + `r0; type T[P any] struct{}; func (_ T[P]) m[Q any](Q) {}; func _[P any](x T[P]) { x.m(42) }`,
 			`x.m`,
 			[]string{`int`},
 			`func(int)`,
@@ -455,38 +454,38 @@ func TestInferredInfo(t *testing.T) {
 		// 	`func(float64)`,
 		// },
 
-		{genericPkg + `s1; func f[T any, P interface{type *T}](x T); func _(x string) { f(x) }`,
+		{genericPkg + `s1; func f[T any, P interface{~*T}](x T) {}; func _(x string) { f(x) }`,
 			`f`,
 			[]string{`string`, `*string`},
 			`func(x string)`,
 		},
-		{genericPkg + `s2; func f[T any, P interface{type *T}](x []T); func _(x []int) { f(x) }`,
+		{genericPkg + `s2; func f[T any, P interface{~*T}](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `*int`},
 			`func(x []int)`,
 		},
-		{genericPkg + `s3; type C[T any] interface{type chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
+		{genericPkg + `s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `chan<- int`},
 			`func(x []int)`,
 		},
-		{genericPkg + `s4; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
+		{genericPkg + `s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
 			`f`,
 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
 			`func(x []int)`,
 		},
 
-		{genericPkg + `t1; func f[T any, P interface{type *T}]() T; func _() { _ = f[string] }`,
+		{genericPkg + `t1; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = f[string] }`,
 			`f`,
 			[]string{`string`, `*string`},
 			`func() string`,
 		},
-		{genericPkg + `t2; type C[T any] interface{type chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
+		{genericPkg + `t2; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T { return nil }; func _() { _ = f[int] }`,
 			`f`,
 			[]string{`int`, `chan<- int`},
 			`func() []int`,
 		},
-		{genericPkg + `t3; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
+		{genericPkg + `t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
 			`f`,
 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
 			`func() []int`,
@@ -515,7 +514,7 @@ func TestInferredInfo(t *testing.T) {
 				panic(fmt.Sprintf("unexpected call expression type %T", call))
 			}
 			if syntax.String(fun) == test.fun {
-				targs = inf.Targs
+				targs = inf.TArgs
 				sig = inf.Sig
 				break
 			}
@@ -1568,6 +1567,14 @@ func F(){
 	}
 }
 
+var nopos syntax.Pos
+
+// newDefined creates a new defined type named T with the given underlying type.
+func newDefined(underlying Type) *Named {
+	tname := NewTypeName(nopos, nil, "T", nil)
+	return NewNamed(tname, underlying, nil)
+}
+
 func TestConvertibleTo(t *testing.T) {
 	for _, test := range []struct {
 		v, t Type
@@ -1845,5 +1852,30 @@ func f(x T) T { return foo.F(x) }
 				}
 			}
 		}
+	}
+}
+
+func TestInstantiate(t *testing.T) {
+	// eventually we like more tests but this is a start
+	const src = genericPkg + "p; type T[P any] *T[P]"
+	pkg, err := pkgFor(".", src, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// type T should have one type parameter
+	T := pkg.Scope().Lookup("T").Type().(*Named)
+	if n := T.TParams().Len(); n != 1 {
+		t.Fatalf("expected 1 type parameter; found %d", n)
+	}
+
+	// instantiation should succeed (no endless recursion)
+	// even with a nil *Checker
+	var check *Checker
+	res := check.Instantiate(nopos, T, []Type{Typ[Int]}, nil, false)
+
+	// instantiated type should point to itself
+	if res.Underlying().(*Pointer).Elem() != res {
+		t.Fatalf("unexpected result type: %s", res)
 	}
 }

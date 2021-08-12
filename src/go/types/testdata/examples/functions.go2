@@ -98,7 +98,7 @@ func g2b[P, Q any](x P, y Q) {
 // Here's an example of a recursive function call with variadic
 // arguments and type inference inferring the type parameter of
 // the caller (i.e., itself).
-func max[T interface{ type int }](x ...T) T {
+func max[T interface{ ~int }](x ...T) T {
 	var x0 T
 	if len(x) > 0 {
 		x0 = x[0]

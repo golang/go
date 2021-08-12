@@ -25997,7 +25997,7 @@ func rewriteValueARM64_OpSelectN(v *Value) bool {
 			break
 		}
 		call := v_0
-		if call.Op != OpARM64CALLstatic {
+		if call.Op != OpARM64CALLstatic || len(call.Args) != 1 {
 			break
 		}
 		sym := auxToCall(call.Aux)
@@ -26024,6 +26024,34 @@ func rewriteValueARM64_OpSelectN(v *Value) bool {
 		mem := s3.Args[2]
 		dst := s3.Args[1]
 		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(sz)
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
+	// result: (Move [sz] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpARM64CALLstatic || len(call.Args) != 4 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[3]
+		dst := call.Args[0]
+		src := call.Args[1]
+		call_2 := call.Args[2]
+		if call_2.Op != OpARM64MOVDconst {
+			break
+		}
+		sz := auxIntToInt64(call_2.AuxInt)
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
 			break
 		}
 		v.reset(OpMove)

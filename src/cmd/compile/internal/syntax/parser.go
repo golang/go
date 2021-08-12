@@ -604,7 +604,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 			} else {
 				// x is the array length expression
 				if debug && x == nil {
-					panic("internal error: nil expression")
+					panic("length expression is nil")
 				}
 				d.Type = p.arrayType(pos, x)
 			}
@@ -1100,7 +1100,7 @@ loop:
 					complit_ok = true
 				}
 			case *IndexExpr:
-				if p.xnest >= 0 {
+				if p.xnest >= 0 && !isValue(t) {
 					// x is possibly a composite literal type
 					complit_ok = true
 				}
@@ -1125,6 +1125,21 @@ loop:
 	}
 
 	return x
+}
+
+// isValue reports whether x syntactically must be a value (and not a type) expression.
+func isValue(x Expr) bool {
+	switch x := x.(type) {
+	case *BasicLit, *CompositeLit, *FuncLit, *SliceExpr, *AssertExpr, *TypeSwitchGuard, *CallExpr:
+		return true
+	case *Operation:
+		return x.Op != Mul || x.Y != nil // *T may be a type
+	case *ParenExpr:
+		return isValue(x.X)
+	case *IndexExpr:
+		return isValue(x.X) || isValue(x.Index)
+	}
+	return false
 }
 
 // Element = Expression | LiteralValue .
@@ -1442,6 +1457,18 @@ func (p *parser) interfaceType() *InterfaceType {
 					p.syntaxError("expecting type")
 				}
 				return false
+			}
+
+		default:
+			if p.mode&AllowGenerics != 0 {
+				pos := p.pos()
+				if t := p.typeOrNil(); t != nil {
+					f := new(Field)
+					f.pos = pos
+					f.Type = t
+					typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
+					return false
+				}
 			}
 		}
 

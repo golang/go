@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"fmt"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -39,14 +40,14 @@ import (
 // constructs a fresh node.
 //
 // A method value (t.M) is represented by ODOTMETH/ODOTINTER
-// when it is called directly and by OCALLPART otherwise.
+// when it is called directly and by OMETHVALUE otherwise.
 // These are like method expressions, except that for ODOTMETH/ODOTINTER,
 // the method name is stored in Sym instead of Right.
-// Each OCALLPART ends up being implemented as a new
+// Each OMETHVALUE ends up being implemented as a new
 // function, a bit like a closure, with its own ODCLFUNC.
-// The OCALLPART uses n.Func to record the linkage to
+// The OMETHVALUE uses n.Func to record the linkage to
 // the generated ODCLFUNC, but there is no
-// pointer from the Func back to the OCALLPART.
+// pointer from the Func back to the OMETHVALUE.
 type Func struct {
 	miniNode
 	Body Nodes
@@ -166,6 +167,11 @@ type Inline struct {
 	// another package is imported.
 	Dcl  []*Name
 	Body []Node
+
+	// CanDelayResults reports whether it's safe for the inliner to delay
+	// initializing the result parameters until immediately before the
+	// "return" statement.
+	CanDelayResults bool
 }
 
 // A Mark represents a scope boundary.
@@ -196,7 +202,7 @@ const (
 	funcExportInline             // include inline body in export data
 	funcInstrumentBody           // add race/msan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
-	funcClosureCalled            // closure is only immediately called
+	funcClosureCalled            // closure is only immediately called; used by escape analysis
 )
 
 type SymAndPos struct {
@@ -272,6 +278,17 @@ func PkgFuncName(f *Func) string {
 
 var CurFunc *Func
 
+// WithFunc invokes do with CurFunc and base.Pos set to curfn and
+// curfn.Pos(), respectively, and then restores their previous values
+// before returning.
+func WithFunc(curfn *Func, do func()) {
+	oldfn, oldpos := CurFunc, base.Pos
+	defer func() { CurFunc, base.Pos = oldfn, oldpos }()
+
+	CurFunc, base.Pos = curfn, curfn.Pos()
+	do()
+}
+
 func FuncSymName(s *types.Sym) string {
 	return s.Name + "·f"
 }
@@ -279,7 +296,7 @@ func FuncSymName(s *types.Sym) string {
 // MarkFunc marks a node as a function.
 func MarkFunc(n *Name) {
 	if n.Op() != ONAME || n.Class != Pxxx {
-		base.Fatalf("expected ONAME/Pxxx node, got %v", n)
+		base.FatalfAt(n.Pos(), "expected ONAME/Pxxx node, got %v (%v/%v)", n, n.Op(), n.Class)
 	}
 
 	n.Class = PFUNC
@@ -296,8 +313,8 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
 		}
 	}
-	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
-		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
+	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
+		base.ErrorfAt(clo.Pos(), "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
 	}
 }
 
@@ -305,4 +322,110 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 // empty list of captured vars.
 func IsTrivialClosure(clo *ClosureExpr) bool {
 	return len(clo.Func.ClosureVars) == 0
+}
+
+// globClosgen is like Func.Closgen, but for the global scope.
+var globClosgen int32
+
+// closureName generates a new unique name for a closure within outerfn.
+func closureName(outerfn *Func) *types.Sym {
+	pkg := types.LocalPkg
+	outer := "glob."
+	prefix := "func"
+	gen := &globClosgen
+
+	if outerfn != nil {
+		if outerfn.OClosure != nil {
+			prefix = ""
+		}
+
+		pkg = outerfn.Sym().Pkg
+		outer = FuncName(outerfn)
+
+		// There may be multiple functions named "_". In those
+		// cases, we can't use their individual Closgens as it
+		// would lead to name clashes.
+		if !IsBlank(outerfn.Nname) {
+			gen = &outerfn.Closgen
+		}
+	}
+
+	*gen++
+	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
+}
+
+// NewClosureFunc creates a new Func to represent a function literal.
+// If hidden is true, then the closure is marked hidden (i.e., as a
+// function literal contained within another function, rather than a
+// package-scope variable initialization expression).
+func NewClosureFunc(pos src.XPos, hidden bool) *Func {
+	fn := NewFunc(pos)
+	fn.SetIsHiddenClosure(hidden)
+
+	fn.Nname = NewNameAt(pos, BlankNode.Sym())
+	fn.Nname.Func = fn
+	fn.Nname.Defn = fn
+
+	fn.OClosure = NewClosureExpr(pos, fn)
+
+	return fn
+}
+
+// NameClosure generates a unique for the given function literal,
+// which must have appeared within outerfn.
+func NameClosure(clo *ClosureExpr, outerfn *Func) {
+	fn := clo.Func
+	if fn.IsHiddenClosure() != (outerfn != nil) {
+		base.FatalfAt(clo.Pos(), "closure naming inconsistency: hidden %v, but outer %v", fn.IsHiddenClosure(), outerfn)
+	}
+
+	name := fn.Nname
+	if !IsBlank(name) {
+		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
+	}
+
+	name.SetSym(closureName(outerfn))
+	MarkFunc(name)
+}
+
+// UseClosure checks that the ginen function literal has been setup
+// correctly, and then returns it as an expression.
+// It must be called after clo.Func.ClosureVars has been set.
+func UseClosure(clo *ClosureExpr, pkg *Package) Node {
+	fn := clo.Func
+	name := fn.Nname
+
+	if IsBlank(name) {
+		base.FatalfAt(fn.Pos(), "unnamed closure func: %v", fn)
+	}
+	// Caution: clo.Typecheck() is still 0 when UseClosure is called by
+	// tcClosure.
+	if fn.Typecheck() != 1 || name.Typecheck() != 1 {
+		base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
+	}
+	if clo.Type() == nil || name.Type() == nil {
+		base.FatalfAt(fn.Pos(), "missing types: %v", fn)
+	}
+	if !types.Identical(clo.Type(), name.Type()) {
+		base.FatalfAt(fn.Pos(), "mismatched types: %v", fn)
+	}
+
+	if base.Flag.W > 1 {
+		s := fmt.Sprintf("new closure func: %v", fn)
+		Dump(s, fn)
+	}
+
+	if pkg != nil {
+		pkg.Decls = append(pkg.Decls, fn)
+	}
+
+	if false && IsTrivialClosure(clo) {
+		// TODO(mdempsky): Investigate if we can/should optimize this
+		// case. walkClosure already handles it later, but it could be
+		// useful to recognize earlier (e.g., it might allow multiple
+		// inlined calls to a function to share a common trivial closure
+		// func, rather than cloning it for each inlined call).
+	}
+
+	return clo
 }

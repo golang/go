@@ -46,7 +46,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	default:
 		// make argument getter
 		xlist, _ := check.exprList(call.ArgList, false)
-		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
+		arg = func(x *operand, i int) { *x = *xlist[i] }
 		nargs = len(xlist)
 		// evaluate first argument, if present
 		if nargs > 0 {
@@ -144,7 +144,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
+		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -178,9 +178,9 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				mode = value
 			}
 
-		case *Sum:
-			if t.is(func(t Type) bool {
-				switch t := under(t).(type) {
+		case *TypeParam:
+			if t.underIs(func(t Type) bool {
+				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -212,19 +212,23 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Close:
 		// close(c)
-		c := asChan(x.typ)
-		if c == nil {
-			check.errorf(x, invalidArg+"%s is not a channel", x)
+		if !underIs(x.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.errorf(x, invalidOp+"cannot close non-channel %s", x)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.errorf(x, invalidOp+"cannot close receive-only channel %s", x)
+				return false
+			}
+			return true
+		}) {
 			return
 		}
-		if c.dir == RecvOnly {
-			check.errorf(x, invalidArg+"%s must not be a receive-only channel", x)
-			return
-		}
-
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, c))
+			check.recordBuiltinType(call.Fun, makeSig(nil, x.typ))
 		}
 
 	case _Complex:
@@ -281,7 +285,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		// both argument types must be identical
-		if !check.identical(x.typ, y.typ) {
+		if !Identical(x.typ, y.typ) {
 			check.errorf(x, invalidOp+"%v (mismatched types %s and %s)", call, x.typ, y.typ)
 			return
 		}
@@ -332,13 +336,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 		var src Type
-		switch t := optype(y.typ).(type) {
+		switch t := under(y.typ).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
 			}
 		case *Slice:
 			src = t.elem
+		case *TypeParam:
+			check.error(x, "copy on generic operands not yet implemented")
 		}
 
 		if dst == nil || src == nil {
@@ -346,7 +352,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		if !check.identical(dst, src) {
+		if !Identical(dst, src) {
 			check.errorf(x, invalidArg+"arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			return
 		}
@@ -358,25 +364,40 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		x.typ = Typ[Int]
 
 	case _Delete:
-		// delete(m, k)
-		m := asMap(x.typ)
-		if m == nil {
-			check.errorf(x, invalidArg+"%s is not a map", x)
+		// delete(map_, key)
+		// map_ must be a map type or a type parameter describing map types.
+		// The key cannot be a type parameter for now.
+		map_ := x.typ
+		var key Type
+		if !underIs(map_, func(u Type) bool {
+			map_, _ := u.(*Map)
+			if map_ == nil {
+				check.errorf(x, invalidArg+"%s is not a map", x)
+				return false
+			}
+			if key != nil && !Identical(map_.key, key) {
+				check.errorf(x, invalidArg+"maps of %s must have identical key types", x)
+				return false
+			}
+			key = map_.key
+			return true
+		}) {
 			return
 		}
+
 		arg(x, 1) // k
 		if x.mode == invalid {
 			return
 		}
 
-		check.assignment(x, m.key, "argument to delete")
+		check.assignment(x, key, "argument to delete")
 		if x.mode == invalid {
 			return
 		}
 
 		x.mode = novalue
 		if check.Types != nil {
-			check.recordBuiltinType(call.Fun, makeSig(nil, m, m.key))
+			check.recordBuiltinType(call.Fun, makeSig(nil, map_, key))
 		}
 
 	case _Imag, _Real:
@@ -451,39 +472,21 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		min, max := -1, 10
-		var valid func(t Type) bool
-		valid = func(t Type) bool {
-			var m int
-			switch t := optype(t).(type) {
-			case *Slice:
-				m = 2
-			case *Map, *Chan:
-				m = 1
-			case *Sum:
-				return t.is(valid)
-			default:
-				return false
-			}
-			if m > min {
-				min = m
-			}
-			if m+1 < max {
-				max = m + 1
-			}
-			return true
-		}
-
-		if !valid(T) {
+		var min int // minimum number of arguments
+		switch optype(T).(type) {
+		case *Slice:
+			min = 2
+		case *Map, *Chan:
+			min = 1
+		case *top:
+			check.errorf(arg0, invalidArg+"cannot make %s; type parameter has no structural type", arg0)
+			return
+		default:
 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
 			return
 		}
-		if nargs < min || max < nargs {
-			if min == max {
-				check.errorf(call, "%v expects %d arguments; found %d", call, min, nargs)
-			} else {
-				check.errorf(call, "%v expects %d or %d arguments; found %d", call, min, max, nargs)
-			}
+		if nargs < min || min+1 < nargs {
+			check.errorf(call, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
 			return
 		}
 
@@ -603,19 +606,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
-		if asTypeParam(x.typ) != nil {
-			check.errorf(call, invalidOp+"unsafe.Alignof undefined for %s", x)
-			return
-		}
 		check.assignment(x, nil, "argument to unsafe.Alignof")
 		if x.mode == invalid {
 			return
 		}
 
-		x.mode = constant_
-		x.val = constant.MakeInt64(check.conf.alignof(x.typ))
+		if hasVarSize(x.typ) {
+			x.mode = value
+			if check.Types != nil {
+				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+			}
+		} else {
+			x.mode = constant_
+			x.val = constant.MakeInt64(check.conf.alignof(x.typ))
+			// result is constant - no need to record signature
+		}
 		x.typ = Typ[Uintptr]
-		// result is constant - no need to record signature
 
 	case _Offsetof:
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
@@ -635,7 +641,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		base := derefStructPtr(x.typ)
 		sel := selx.Sel.Value
-		obj, index, indirect := check.lookupFieldOrMethod(base, false, check.pkg, sel)
+		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
 		switch obj.(type) {
 		case nil:
 			check.errorf(x, invalidArg+"%s has no single field %s", base, sel)
@@ -653,30 +659,43 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		// TODO(gri) Should we pass x.typ instead of base (and indirect report if derefStructPtr indirected)?
+		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
-		offs := check.conf.offsetof(base, index)
-		x.mode = constant_
-		x.val = constant.MakeInt64(offs)
+		// The field offset is considered a variable even if the field is declared before
+		// the part of the struct which is variable-sized. This makes both the rules
+		// simpler and also permits (or at least doesn't prevent) a compiler from re-
+		// arranging struct fields if it wanted to.
+		if hasVarSize(base) {
+			x.mode = value
+			if check.Types != nil {
+				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
+			}
+		} else {
+			x.mode = constant_
+			x.val = constant.MakeInt64(check.conf.offsetof(base, index))
+			// result is constant - no need to record signature
+		}
 		x.typ = Typ[Uintptr]
-		// result is constant - no need to record signature
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
-		if asTypeParam(x.typ) != nil {
-			check.errorf(call, invalidOp+"unsafe.Sizeof undefined for %s", x)
-			return
-		}
 		check.assignment(x, nil, "argument to unsafe.Sizeof")
 		if x.mode == invalid {
 			return
 		}
 
-		x.mode = constant_
-		x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
+		if hasVarSize(x.typ) {
+			x.mode = value
+			if check.Types != nil {
+				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+			}
+		} else {
+			x.mode = constant_
+			x.val = constant.MakeInt64(check.conf.sizeof(x.typ))
+			// result is constant - no need to record signature
+		}
 		x.typ = Typ[Uintptr]
-		// result is constant - no need to record signature
 
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
@@ -748,6 +767,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	return true
 }
 
+// hasVarSize reports if the size of type t is variable due to type parameters.
+func hasVarSize(t Type) bool {
+	switch t := under(t).(type) {
+	case *Array:
+		return hasVarSize(t.elem)
+	case *Struct:
+		for _, f := range t.fields {
+			if hasVarSize(f.typ) {
+				return true
+			}
+		}
+	case *TypeParam:
+		return true
+	case *Named, *Union, *top:
+		unreachable()
+	}
+	return false
+}
+
 // applyTypeFunc applies f to x. If x is a type parameter,
 // the result is a type parameter constrained by an new
 // interface bound. The type bounds for that interface
@@ -759,10 +797,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp := asTypeParam(x); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
-		var rtypes []Type
-		if !tp.Bound().is(func(x Type) bool {
-			if r := f(x); r != nil {
-				rtypes = append(rtypes, r)
+		var terms []*Term
+		if !tp.iface().typeSet().is(func(t *term) bool {
+			if r := f(t.typ); r != nil {
+				terms = append(terms, NewTerm(t.tilde, r))
 				return true
 			}
 			return false
@@ -775,11 +813,12 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		//           uses of real() where the result is used to
 		//           define type and initialize a variable?
 
-		// construct a suitable new type parameter
-		tpar := NewTypeName(nopos, nil /* = Universe pkg */, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
-		tsum := NewSum(rtypes)
-		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
+		// Construct a suitable new type parameter for the sum type. The
+		// type param is placed in the current package so export/import
+		// works as expected.
+		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
+		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+		ptyp.index = tp.index
 
 		return ptyp
 	}
@@ -803,10 +842,9 @@ func makeSig(res Type, args ...Type) *Signature {
 	return &Signature{params: params, results: result}
 }
 
-// implicitArrayDeref returns A if typ is of the form *A and A is an array;
+// arrayPtrDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
-//
-func implicitArrayDeref(typ Type) Type {
+func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
 		if a := asArray(p.base); a != nil {
 			return a

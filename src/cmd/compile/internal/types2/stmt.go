@@ -14,7 +14,7 @@ import (
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *syntax.BlockStmt, iota constant.Value) {
 	if check.conf.IgnoreFuncBodies {
-		panic("internal error: function body not ignored")
+		panic("function body not ignored")
 	}
 
 	if check.conf.Trace {
@@ -64,7 +64,8 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 func (check *Checker) usage(scope *Scope) {
 	var unused []*Var
-	for _, elem := range scope.elems {
+	for name, elem := range scope.elems {
+		elem = resolve(name, elem)
 		if v, _ := elem.(*Var); v != nil && !v.used {
 			unused = append(unused, v)
 		}
@@ -255,7 +256,7 @@ L:
 			// look for duplicate types for a given value
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
-				if check.identical(v.typ, vt.typ) {
+				if Identical(v.typ, vt.typ) {
 					var err error_
 					err.errorf(&v, "duplicate case %s in expression switch", &v)
 					err.errorf(vt.pos, "previous case")
@@ -281,7 +282,7 @@ L:
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, other := range seen {
-			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
+			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
@@ -351,25 +352,33 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.errorf(&x, "%s %s", &x, msg)
 
 	case *syntax.SendStmt:
-		var ch, x operand
+		var ch, val operand
 		check.expr(&ch, s.Chan)
-		check.expr(&x, s.Value)
-		if ch.mode == invalid || x.mode == invalid {
+		check.expr(&val, s.Value)
+		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-
-		tch := asChan(ch.typ)
-		if tch == nil {
-			check.errorf(s, invalidOp+"cannot send to non-chan type %s", ch.typ)
+		var elem Type
+		if !underIs(ch.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.errorf(s, invalidOp+"cannot send to non-channel %s", &ch)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.errorf(s, invalidOp+"cannot send to receive-only channel %s", &ch)
+				return false
+			}
+			if elem != nil && !Identical(uch.elem, elem) {
+				check.errorf(s, invalidOp+"channels of %s must have the same element type", &ch)
+				return false
+			}
+			elem = uch.elem
+			return true
+		}) {
 			return
 		}
-
-		if tch.dir == RecvOnly {
-			check.errorf(s, invalidOp+"cannot send to receive-only type %s", tch)
-			return
-		}
-
-		check.assignment(&x, tch.elem, "send")
+		check.assignment(&val, elem, "send")
 
 	case *syntax.AssignStmt:
 		lhs := unpackExpr(s.Lhs)
@@ -780,9 +789,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
+		// Ranging over a type parameter is permitted if it has a structural type.
 		typ := optype(x.typ)
 		if _, ok := typ.(*Chan); ok && sValue != nil {
-			// TODO(gri) this also needs to happen for channels in generic variables
 			check.softErrorf(sValue, "range over %s permits only one iteration variable", &x)
 			// ok to continue
 		}
@@ -891,7 +900,7 @@ func isVarName(x syntax.Expr) bool {
 // variables are used or present; this matters if we range over a generic
 // type where not all keys or values are of the same type.
 func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
-	switch typ := typ.(type) {
+	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			return Typ[Int], universeRune, "" // use 'rune' name
@@ -900,10 +909,6 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 		return Typ[Int], typ.elem, ""
 	case *Slice:
 		return Typ[Int], typ.elem, ""
-	case *Pointer:
-		if typ := asArray(typ.base); typ != nil {
-			return Typ[Int], typ.elem, ""
-		}
 	case *Map:
 		return typ.key, typ.elem, ""
 	case *Chan:
@@ -912,32 +917,9 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "receive from send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *Sum:
-		first := true
-		var key, val Type
-		var msg string
-		typ.is(func(t Type) bool {
-			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
-			if k == nil || m != "" {
-				key, val, msg = k, v, m
-				return false
-			}
-			if first {
-				key, val, msg = k, v, m
-				first = false
-				return true
-			}
-			if wantKey && !Identical(key, k) {
-				key, val, msg = nil, nil, "all possible values must have the same key type"
-				return false
-			}
-			if wantVal && !Identical(val, v) {
-				key, val, msg = nil, nil, "all possible values must have the same element type"
-				return false
-			}
-			return true
-		})
-		return key, val, msg
+	case *top:
+		// we have a type parameter with no structural type
+		return nil, nil, "no structural type"
 	}
 	return nil, nil, ""
 }

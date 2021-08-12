@@ -147,12 +147,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVD	$runtime·mainPC(SB), R2		// entry
-	SUB     $24, R15
-	MOVD 	R2, 16(R15)
-	MOVD 	$0, 8(R15)
+	SUB     $16, R15
+	MOVD 	R2, 8(R15)
 	MOVD 	$0, 0(R15)
 	BL	runtime·newproc(SB)
-	ADD	$24, R15
+	ADD	$16, R15
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -480,21 +479,6 @@ TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET
-
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
-// 3. BR to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
-	MOVD	0(R15), R1
-	SUB	$6, R1, LR
-
-	MOVD	fv+0(FP), R12
-	MOVD	argp+8(FP), R15
-	SUB	$8, R15
-	MOVD	0(R12), R3
-	BR	(R3)
 
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.

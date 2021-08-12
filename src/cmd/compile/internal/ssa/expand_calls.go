@@ -215,7 +215,7 @@ func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
 		return false
 	}
 	return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice() ||
-		t.Size() > x.regSize && t.IsInteger()
+		(t.Size() > x.regSize && (t.IsInteger() || (x.f.Config.SoftFloat && t.IsFloat())))
 }
 
 // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
@@ -380,6 +380,12 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		// The OpLoad was created to load the single field of the IData
 		// This case removes that StructSelect.
 		if leafType != selector.Type {
+			if x.f.Config.SoftFloat && selector.Type.IsFloat() {
+				if x.debug {
+					x.Printf("---OpLoad, break\n")
+				}
+				break // softfloat pass will take care of that
+			}
 			x.f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
 		}
 		leaf.copyOf(selector)
@@ -525,11 +531,11 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 
 	case OpComplexReal:
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
-		locs = x.splitSlots(ls, ".real", 0, leafType)
+		locs = x.splitSlots(ls, ".real", 0, selector.Type)
 
 	case OpComplexImag:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+leafType.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
-		locs = x.splitSlots(ls, ".imag", leafType.Width, leafType)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
+		locs = x.splitSlots(ls, ".imag", selector.Type.Width, selector.Type)
 
 	case OpStringLen, OpSliceLen:
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)

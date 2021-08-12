@@ -159,16 +159,20 @@ func operandString(x *operand, qf Qualifier) string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			var intro string
-			switch {
-			case isGeneric(x.typ):
-				intro = " of generic type "
-			case asTypeParam(x.typ) != nil:
-				intro = " of type parameter type "
-			default:
+			var tpar *TypeParam
+			if isGeneric(x.typ) {
+				intro = " of parameterized type "
+			} else if tpar = asTypeParam(x.typ); tpar != nil {
+				intro = " of type parameter "
+			} else {
 				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
+			if tpar != nil {
+				buf.WriteString(" constrained by ")
+				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+			}
 		} else {
 			buf.WriteString(" with invalid type")
 		}
@@ -233,20 +237,35 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	V := x.typ
 
+	const debugAssignableTo = false
+	if debugAssignableTo && check != nil {
+		check.dump("V = %s", V)
+		check.dump("T = %s", T)
+	}
+
 	// x's type is identical to T
-	if check.identical(V, T) {
+	if Identical(V, T) {
 		return true, 0
 	}
 
 	Vu := optype(V)
 	Tu := optype(T)
 
+	if debugAssignableTo && check != nil {
+		check.dump("Vu = %s", Vu)
+		check.dump("Tu = %s", Tu)
+	}
+
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*_Sum); ok {
-			return t.is(func(t Type) bool {
+		if t, ok := Tu.(*Union); ok {
+			return t.is(func(t *term) bool {
 				// TODO(gri) this could probably be more efficient
-				ok, _ := x.assignableTo(check, t, reason)
+				if t.tilde {
+					// TODO(gri) We need to check assignability
+					//           for the underlying type of x.
+				}
+				ok, _ := x.assignableTo(check, t.typ, reason)
 				return ok
 			}), _IncompatibleAssign
 		}
@@ -257,7 +276,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true, 0
 	}
 
@@ -266,7 +285,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
-					if check.identical(m.typ, wrongType.typ) {
+					if Identical(m.typ, wrongType.typ) {
 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
 					} else {
 						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
@@ -285,7 +304,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
+		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
 			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
 		}
 	}

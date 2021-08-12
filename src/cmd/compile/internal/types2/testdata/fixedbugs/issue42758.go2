@@ -17,7 +17,7 @@ func _[T any](x interface{}){
 }
 
 type constraint interface {
-	type int
+	~int
 }
 
 func _[T constraint](x interface{}){
