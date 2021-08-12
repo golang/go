@@ -7,6 +7,6 @@ package p
 import "unsafe"
 
 func _[T any](x T) {
-	_ = unsafe /* ERROR undefined */ .Alignof(x)
-	_ = unsafe /* ERROR undefined */ .Sizeof(x)
+	_ = unsafe.Alignof(x)
+	_ = unsafe.Sizeof(x)
 }

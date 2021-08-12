@@ -8,31 +8,73 @@ package syntax
 
 import "fmt"
 
-// Walk traverses a syntax in pre-order: It starts by calling f(root);
-// root must not be nil. If f returns false (== "continue"), Walk calls
+// Inspect traverses an AST in pre-order: It starts by calling
+// f(node); node must not be nil. If f returns true, Inspect invokes f
+// recursively for each of the non-nil children of node, followed by a
+// call of f(nil).
+//
+// See Walk for caveats about shared nodes.
+func Inspect(root Node, f func(Node) bool) {
+	Walk(root, inspector(f))
+}
+
+type inspector func(Node) bool
+
+func (v inspector) Visit(node Node) Visitor {
+	if v(node) {
+		return v
+	}
+	return nil
+}
+
+// Crawl traverses a syntax in pre-order: It starts by calling f(root);
+// root must not be nil. If f returns false (== "continue"), Crawl calls
 // f recursively for each of the non-nil children of that node; if f
-// returns true (== "stop"), Walk does not traverse the respective node's
+// returns true (== "stop"), Crawl does not traverse the respective node's
 // children.
+//
+// See Walk for caveats about shared nodes.
+//
+// Deprecated: Use Inspect instead.
+func Crawl(root Node, f func(Node) bool) {
+	Inspect(root, func(node Node) bool {
+		return node != nil && !f(node)
+	})
+}
+
+// Walk traverses an AST in pre-order: It starts by calling
+// v.Visit(node); node must not be nil. If the visitor w returned by
+// v.Visit(node) is not nil, Walk is invoked recursively with visitor
+// w for each of the non-nil children of node, followed by a call of
+// w.Visit(nil).
+//
 // Some nodes may be shared among multiple parent nodes (e.g., types in
 // field lists such as type T in "a, b, c T"). Such shared nodes are
 // walked multiple times.
 // TODO(gri) Revisit this design. It may make sense to walk those nodes
 //           only once. A place where this matters is types2.TestResolveIdents.
-func Walk(root Node, f func(Node) bool) {
-	w := walker{f}
-	w.node(root)
+func Walk(root Node, v Visitor) {
+	walker{v}.node(root)
+}
+
+// A Visitor's Visit method is invoked for each node encountered by Walk.
+// If the result visitor w is not nil, Walk visits each of the children
+// of node with the visitor w, followed by a call of w.Visit(nil).
+type Visitor interface {
+	Visit(node Node) (w Visitor)
 }
 
 type walker struct {
-	f func(Node) bool
+	v Visitor
 }
 
-func (w *walker) node(n Node) {
+func (w walker) node(n Node) {
 	if n == nil {
-		panic("invalid syntax tree: nil node")
+		panic("nil node")
 	}
 
-	if w.f(n) {
+	w.v = w.v.Visit(n)
+	if w.v == nil {
 		return
 	}
 
@@ -285,33 +327,35 @@ func (w *walker) node(n Node) {
 	default:
 		panic(fmt.Sprintf("internal error: unknown node type %T", n))
 	}
+
+	w.v.Visit(nil)
 }
 
-func (w *walker) declList(list []Decl) {
+func (w walker) declList(list []Decl) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) exprList(list []Expr) {
+func (w walker) exprList(list []Expr) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) stmtList(list []Stmt) {
+func (w walker) stmtList(list []Stmt) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) nameList(list []*Name) {
+func (w walker) nameList(list []*Name) {
 	for _, n := range list {
 		w.node(n)
 	}
 }
 
-func (w *walker) fieldList(list []*Field) {
+func (w walker) fieldList(list []*Field) {
 	for _, n := range list {
 		w.node(n)
 	}

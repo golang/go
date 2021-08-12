@@ -300,6 +300,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) 
 	ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
 
 	name := ldr.SymName(s)
+	name = mangleABIName(ctxt, ldr, s, name)
 	ctxt.Out.WriteString(name)
 	ctxt.Out.Write8(0)
 

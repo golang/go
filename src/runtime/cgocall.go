@@ -85,6 +85,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -480,7 +481,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if inheap(uintptr(unsafe.Pointer(it))) {
 			panic(errorString(msg))
 		}
-		p = *(*unsafe.Pointer)(add(p, sys.PtrSize))
+		p = *(*unsafe.Pointer)(add(p, goarch.PtrSize))
 		if !cgoIsGoPointer(p) {
 			return
 		}
@@ -560,7 +561,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		}
 		hbits := heapBitsForAddr(base)
 		n := span.elemsize
-		for i = uintptr(0); i < n; i += sys.PtrSize {
+		for i = uintptr(0); i < n; i += goarch.PtrSize {
 			if !hbits.morePointers() {
 				// No more possible pointers.
 				break

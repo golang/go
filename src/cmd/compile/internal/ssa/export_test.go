@@ -39,7 +39,7 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
 		tb.Fatal("testTypes is 64-bit only")
 	}
 	c := &Conf{
-		config: NewConfig(arch, testTypes, ctxt, true),
+		config: NewConfig(arch, testTypes, ctxt, true, false),
 		tb:     tb,
 	}
 	return c

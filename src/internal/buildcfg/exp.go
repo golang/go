@@ -46,13 +46,11 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 //
 // TODO(mdempsky): Move to internal/goexperiment.
 func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment.Flags, err error) {
-	regabiSupported := goarch == "amd64" && (goos == "android" || goos == "linux" || goos == "darwin" || goos == "windows")
+	regabiSupported := goarch == "amd64" || goarch == "arm64"
 
 	baseline = goexperiment.Flags{
 		RegabiWrappers: regabiSupported,
-		RegabiG:        regabiSupported,
 		RegabiReflect:  regabiSupported,
-		RegabiDefer:    regabiSupported,
 		RegabiArgs:     regabiSupported,
 	}
 
@@ -78,9 +76,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 		// do the right thing.
 		names["regabi"] = func(v bool) {
 			flags.RegabiWrappers = v
-			flags.RegabiG = v
 			flags.RegabiReflect = v
-			flags.RegabiDefer = v
 			flags.RegabiArgs = v
 		}
 
@@ -109,20 +105,20 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 		}
 	}
 
-	// regabi is only supported on amd64.
-	if goarch != "amd64" {
-		flags.RegabiWrappers = false
-		flags.RegabiG = false
+	// regabi is always enabled on amd64.
+	if goarch == "amd64" {
+		flags.RegabiWrappers = true
+		flags.RegabiReflect = true
+		flags.RegabiArgs = true
+	}
+	// regabi is only supported on amd64 and arm64.
+	if goarch != "amd64" && goarch != "arm64" {
 		flags.RegabiReflect = false
-		flags.RegabiDefer = false
 		flags.RegabiArgs = false
 	}
 	// Check regabi dependencies.
-	if flags.RegabiG && !flags.RegabiWrappers {
-		err = fmt.Errorf("GOEXPERIMENT regabig requires regabiwrappers")
-	}
-	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiG && flags.RegabiReflect && flags.RegabiDefer) {
-		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabig,regabireflect,regabidefer")
+	if flags.RegabiArgs && !(flags.RegabiWrappers && flags.RegabiReflect) {
+		err = fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect")
 	}
 	return
 }

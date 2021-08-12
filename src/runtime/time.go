@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -819,7 +820,7 @@ func runOneTimer(pp *p, t *timer, now int64) {
 	if raceenabled {
 		ppcur := getg().m.p.ptr()
 		if ppcur.timerRaceCtx == 0 {
-			ppcur.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
+			ppcur.timerRaceCtx = racegostart(abi.FuncPCABIInternal(runtimer) + sys.PCQuantum)
 		}
 		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
 	}

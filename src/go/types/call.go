@@ -16,23 +16,22 @@ import (
 
 // funcInst type-checks a function instantiation inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
-func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
-	xlist := typeparams.UnpackExpr(inst.Index)
-	targs := check.typeList(xlist)
+func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
+	targs := check.typeList(ix.Indices)
 	if targs == nil {
 		x.mode = invalid
-		x.expr = inst
+		x.expr = ix.Orig
 		return
 	}
-	assert(len(targs) == len(xlist))
+	assert(len(targs) == len(ix.Indices))
 
 	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
-	got, want := len(targs), len(sig.tparams)
+	got, want := len(targs), sig.TParams().Len()
 	if got > want {
-		check.errorf(xlist[got-1], _Todo, "got %d type arguments but want %d", got, want)
+		check.errorf(ix.Indices[got-1], _Todo, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
-		x.expr = inst
+		x.expr = ix.Orig
 		return
 	}
 
@@ -40,11 +39,11 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	inferred := false
 
 	if got < want {
-		targs = check.infer(inst, sig.tparams, targs, nil, nil, true)
+		targs = check.infer(ix.Orig, sig.TParams().list(), targs, nil, nil, true)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
-			x.expr = inst
+			x.expr = ix.Orig
 			return
 		}
 		got = len(targs)
@@ -55,34 +54,36 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
 	// determine argument positions (for error reporting)
 	// TODO(rFindley) use a positioner here? instantiate would need to be
 	//                updated accordingly.
-	poslist := make([]token.Pos, len(xlist))
-	for i, x := range xlist {
+	poslist := make([]token.Pos, len(ix.Indices))
+	for i, x := range ix.Indices {
 		poslist[i] = x.Pos()
 	}
 
 	// instantiate function signature
-	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
-	assert(res.tparams == nil) // signature is not generic anymore
+	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
+	assert(res.TParams().Len() == 0) // signature is not generic anymore
 	if inferred {
-		check.recordInferred(inst, targs, res)
+		check.recordInferred(ix.Orig, targs, res)
 	}
 	x.typ = res
 	x.mode = value
-	x.expr = inst
+	x.expr = ix.Orig
 }
 
 func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
-	var inst *ast.IndexExpr
-	if iexpr, _ := call.Fun.(*ast.IndexExpr); iexpr != nil {
-		if check.indexExpr(x, iexpr) {
+	ix := typeparams.UnpackIndexExpr(call.Fun)
+	if ix != nil {
+		if check.indexExpr(x, ix) {
 			// Delay function instantiation to argument checking,
 			// where we combine type and value arguments for type
 			// inference.
 			assert(x.mode == value)
-			inst = iexpr
+		} else {
+			ix = nil
 		}
-		x.expr = iexpr
+		x.expr = call.Fun
 		check.record(x)
+
 	} else {
 		check.exprOrType(x, call.Fun)
 	}
@@ -108,8 +109,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 					break
 				}
 				if t := asInterface(T); t != nil {
-					check.completeInterface(token.NoPos, t)
-					if t._IsConstraint() {
+					if t.IsConstraint() {
 						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
 						break
 					}
@@ -149,21 +149,20 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// evaluate type arguments, if any
 	var targs []Type
-	if inst != nil {
-		xlist := typeparams.UnpackExpr(inst.Index)
-		targs = check.typeList(xlist)
+	if ix != nil {
+		targs = check.typeList(ix.Indices)
 		if targs == nil {
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
 			return statement
 		}
-		assert(len(targs) == len(xlist))
+		assert(len(targs) == len(ix.Indices))
 
 		// check number of type arguments (got) vs number of type parameters (want)
-		got, want := len(targs), len(sig.tparams)
+		got, want := len(targs), sig.TParams().Len()
 		if got > want {
-			check.errorf(xlist[want], _Todo, "got %d type arguments but want %d", got, want)
+			check.errorf(ix.Indices[want], _Todo, "got %d type arguments but want %d", got, want)
 			check.use(call.Args...)
 			x.mode = invalid
 			x.expr = call
@@ -195,7 +194,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// if type inference failed, a parametrized result must be invalidated
 	// (operands cannot have a parametrized type)
-	if x.mode == value && len(sig.tparams) > 0 && isParameterized(sig.tparams, x.typ) {
+	if x.mode == value && sig.TParams().Len() > 0 && isParameterized(sig.TParams().list(), x.typ) {
 		x.mode = invalid
 	}
 
@@ -325,24 +324,24 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	}
 
 	// infer type arguments and instantiate signature if necessary
-	if len(sig.tparams) > 0 {
+	if sig.TParams().Len() > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call, sig.tparams, targs, sigParams, args, true)
+		targs := check.infer(call, sig.TParams().list(), targs, sigParams, args, true)
 		if targs == nil {
 			return // error already reported
 		}
 
 		// compute result signature
-		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
-		assert(rsig.tparams == nil) // signature is not generic anymore
+		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
+		assert(rsig.TParams().Len() == 0) // signature is not generic anymore
 		check.recordInferred(call, targs, rsig)
 
 		// Optimization: Only if the parameter list was adjusted do we
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.tparams, targs)).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.TParams().list(), targs)).(*Tuple)
 		} else {
 			sigParams = rsig.params
 		}
@@ -471,7 +470,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 	check.instantiatedOperand(x)
 
-	obj, index, indirect = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
 		switch {
 		case index != nil:
@@ -483,11 +482,10 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			var why string
 			if tpar := asTypeParam(x.typ); tpar != nil {
 				// Type parameter bounds don't specify fields, so don't mention "field".
-				switch obj := tpar.Bound().obj.(type) {
-				case nil:
+				if tname := tpar.iface().obj; tname != nil {
+					why = check.sprintf("interface %s has no method %s", tname.name, sel)
+				} else {
 					why = check.sprintf("type bound for %s has no method %s", x.typ, sel)
-				case *TypeName:
-					why = check.sprintf("interface %s has no method %s", obj.name, sel)
 				}
 			} else {
 				why = check.sprintf("type %s has no field or method %s", x.typ, sel)
@@ -501,7 +499,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				} else {
 					changeCase = string(unicode.ToUpper(r)) + sel[1:]
 				}
-				if obj, _, _ = check.lookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
+				if obj, _, _ = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, changeCase); obj != nil {
 					why += ", but does have " + changeCase
 				}
 			}
@@ -519,7 +517,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
-		if len(sig.rparams) > 0 {
+		if sig.RParams().Len() > 0 {
 			// For inference to work, we must use the receiver type
 			// matching the receiver in the actual method declaration.
 			// If the method is embedded, the matching receiver is the
@@ -547,7 +545,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// the receiver type arguments here, the receiver must be be otherwise invalid
 			// and an error has been reported elsewhere.
 			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs := check.infer(m, sig.rparams, nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+			targs := check.infer(m, sig.RParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
 			if targs == nil {
 				// We may reach here if there were other errors (see issue #40056).
 				goto Error
@@ -556,7 +554,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
 			// TODO(gri) investigate and provide a correct explanation here
 			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.rparams, targs))
+			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RParams().list(), targs))
 			obj = &copy
 		}
 		// TODO(gri) we also need to do substitution for parameterized interface methods
@@ -575,17 +573,37 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
 
+		sig := m.typ.(*Signature)
+		if sig.recv == nil {
+			check.error(e, _InvalidDeclCycle, "illegal cycle in method declaration")
+			goto Error
+		}
+
 		// the receiver type becomes the type of the first function
 		// argument of the method expression's function type
 		var params []*Var
-		sig := m.typ.(*Signature)
 		if sig.params != nil {
 			params = sig.params.vars
 		}
+		// Be consistent about named/unnamed parameters. This is not needed
+		// for type-checking, but the newly constructed signature may appear
+		// in an error message and then have mixed named/unnamed parameters.
+		// (An alternative would be to not print parameter names in errors,
+		// but it's useful to see them; this is cheap and method expressions
+		// are rare.)
+		name := ""
+		if len(params) > 0 && params[0].name != "" {
+			// name needed
+			name = sig.recv.name
+			if name == "" {
+				name = "_"
+			}
+		}
+		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,
-			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "_", x.typ)}, params...)...),
+			params:   NewTuple(params...),
 			results:  sig.results,
 			variadic: sig.variadic,
 		}

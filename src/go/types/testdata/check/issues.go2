@@ -24,22 +24,20 @@ func _() {
 	eql[io.Reader](nil, nil)
 }
 
-// If we have a receiver of pointer type (below: *T) we must ignore
-// the pointer in the implementation of the method lookup because
-// the type bound of T is an interface and pointer to interface types
-// have no methods and then the lookup would fail.
+// If we have a receiver of pointer to type parameter type (below: *T)
+// we don't have any methods, like for interfaces.
 type C[T any] interface {
     m()
 }
 
 // using type bound C
 func _[T C[T]](x *T) {
-	x.m()
+	x.m  /* ERROR x\.m undefined */ ()
 }
 
 // using an interface literal as bound
 func _[T interface{ m() }](x *T) {
-	x.m()
+	x.m  /* ERROR x\.m undefined */ ()
 }
 
 // In a generic function body all method calls will be pointer method calls.
@@ -64,15 +62,15 @@ func _() {
 // type with a type list constraint, all of the type argument's types in its
 // bound, but at least one (!), must be in the type list of the bound of the
 // corresponding parameterized type's type parameter.
-type T1[P interface{type uint}] struct{}
+type T1[P interface{~uint}] struct{}
 
 func _[P any]() {
-    _ = T1[P /* ERROR P has no type constraints */ ]{}
+    _ = T1[P /* ERROR P has no constraints */ ]{}
 }
 
 // This is the original (simplified) program causing the same issue.
 type Unsigned interface {
-	type uint
+	~uint
 }
 
 type T2[U Unsigned] struct {
@@ -83,8 +81,8 @@ func (u T2[U]) Add1() U {
     return u.s + 1
 }
 
-func NewT2[U any]() T2[U /* ERROR U has no type constraints */ ] {
-    return T2[U /* ERROR U has no type constraints */ ]{}
+func NewT2[U any]() T2[U /* ERROR U has no constraints */ ] {
+    return T2[U /* ERROR U has no constraints */ ]{}
 }
 
 func _() {
@@ -163,7 +161,7 @@ type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
 // predicate disjunction in the implementation was wrong because if a type list
 // contains both an integer and a floating-point type, the type parameter is
 // neither an integer or a floating-point number.
-func convert[T1, T2 interface{type int, uint, float32}](v T1) T2 {
+func convert[T1, T2 interface{~int | ~uint | ~float32}](v T1) T2 {
 	return T2(v)
 }
 
@@ -175,12 +173,12 @@ func _() {
 // both numeric, or both strings. The implementation had the same problem
 // with this check as the conversion issue above (issue #39623).
 
-func issue39623[T interface{type int, string}](x, y T) T {
+func issue39623[T interface{~int | ~string}](x, y T) T {
 	return x + y
 }
 
 // Simplified, from https://go2goplay.golang.org/p/efS6x6s-9NI:
-func Sum[T interface{type int, string}](s []T) (sum T) {
+func Sum[T interface{~int | ~string}](s []T) (sum T) {
 	for _, v := range s {
 		sum += v
 	}
@@ -189,19 +187,19 @@ func Sum[T interface{type int, string}](s []T) (sum T) {
 
 // Assignability of an unnamed pointer type to a type parameter that
 // has a matching underlying type.
-func _[T interface{}, PT interface{type *T}] (x T) PT {
+func _[T interface{}, PT interface{~*T}] (x T) PT {
     return &x
 }
 
 // Indexing of generic types containing type parameters in their type list:
-func at[T interface{ type []E }, E interface{}](x T, i int) E {
+func at[T interface{ ~[]E }, E interface{}](x T, i int) E {
         return x[i]
 }
 
 // A generic type inside a function acts like a named type. Its underlying
 // type is itself, its "operational type" is defined by the type list in
 // the tybe bound, if any.
-func _[T interface{type int}](x T) {
+func _[T interface{~int}](x T) {
 	type myint int
 	var _ int = int(x)
 	var _ T = 42
@@ -210,24 +208,24 @@ func _[T interface{type int}](x T) {
 
 // Indexing a generic type with an array type bound checks length.
 // (Example by mdempsky@.)
-func _[T interface { type [10]int }](x T) {
+func _[T interface { ~[10]int }](x T) {
 	_ = x[9] // ok
 	_ = x[20 /* ERROR out of bounds */ ]
 }
 
 // Pointer indirection of a generic type.
-func _[T interface{ type *int }](p T) int {
+func _[T interface{ ~*int }](p T) int {
 	return *p
 }
 
 // Channel sends and receives on generic types.
-func _[T interface{ type chan int }](ch T) int {
+func _[T interface{ ~chan int }](ch T) int {
 	ch <- 0
 	return <- ch
 }
 
 // Calling of a generic variable.
-func _[T interface{ type func() }](f T) {
+func _[T interface{ ~func() }](f T) {
 	f()
 	go f()
 }
@@ -239,9 +237,9 @@ func _[T interface{ type func() }](f T) {
 // type parameter that was substituted with a defined type.
 // Test case from an (originally) failing example.
 
-type sliceOf[E any] interface{ type []E }
+type sliceOf[E any] interface{ ~[]E }
 
-func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
+func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S
 
 var f           func()
 var cancelSlice []context.CancelFunc

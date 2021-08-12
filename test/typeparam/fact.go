@@ -8,11 +8,11 @@ package main
 
 import "fmt"
 
-func fact[T interface { type int, int64, float64 }](n T) T {
-	if n == T(1) {
-		return T(1)
+func fact[T interface{ ~int | ~int64 | ~float64 }](n T) T {
+	if n == 1 {
+		return 1
 	}
-	return n * fact(n - T(1))
+	return n * fact(n-1)
 }
 
 func main() {

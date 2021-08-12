@@ -1,0 +1,60 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file shows some examples of generic constraint interfaces.
+
+package p
+
+type (
+	// Type lists are processed as unions but an error is reported.
+	// TODO(gri) remove this once the parser doesn't accept type lists anymore.
+	_ interface{
+		type /* ERROR use generalized embedding syntax instead of a type list */ int
+	}
+	_ interface{
+		type /* ERROR use generalized embedding syntax instead of a type list */ int
+		type float32
+	}
+)
+
+type (
+	// Arbitrary types may be embedded like interfaces.
+	_ interface{int}
+	_ interface{~int}
+
+	// Types may be combined into a union.
+	_ interface{int|~string}
+
+	// Union terms must be unique independent of whether they are ~ or not.
+	_ interface{int|int /* ERROR duplicate term int */ }
+	_ interface{int|~ /* ERROR duplicate term int */ int }
+	_ interface{~int|~ /* ERROR duplicate term int */ int }
+
+	// For now we do not permit interfaces with methods in unions.
+	_ interface{~ /* ERROR invalid use of ~ */ interface{}}
+	_ interface{int|interface /* ERROR cannot use .* in union */ { m() }}
+)
+
+type (
+	// Tilde is not permitted on defined types or interfaces.
+	foo int
+	bar interface{}
+	_ interface{foo}
+	_ interface{~ /* ERROR invalid use of ~ */ foo }
+	_ interface{~ /* ERROR invalid use of ~ */ bar }
+)
+
+// Multiple embedded union elements are intersected. The order in which they
+// appear in the interface doesn't matter since intersection is a symmetric
+// operation.
+
+type myInt1 int
+type myInt2 int
+
+func _[T interface{ myInt1|myInt2; ~int }]() T { return T(0) }
+func _[T interface{ ~int; myInt1|myInt2 }]() T { return T(0) }
+
+// Here the intersections are empty - there's no type that's in the type set of T.
+func _[T interface{ myInt1|myInt2; int }]() T { return T(0 /* ERROR cannot convert */ ) }
+func _[T interface{ int; myInt1|myInt2 }]() T { return T(0 /* ERROR cannot convert */ ) }

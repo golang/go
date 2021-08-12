@@ -13,14 +13,9 @@
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 // ABIInternal for performance.
 TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = ptr
 	// BX = n
 	MOVQ	AX, DI	// DI = ptr
-#else
-	MOVQ	ptr+0(FP), DI
-	MOVQ	n+8(FP), BX
-#endif
 	XORQ	AX, AX
 
 	// MOVOU seems always faster than REP STOSQ.
@@ -37,9 +32,6 @@ tail:
 	JE	_8
 	CMPQ	BX, $16
 	JBE	_9through16
-#ifndef GOEXPERIMENT_regabig
-	PXOR	X15, X15
-#endif
 	CMPQ	BX, $32
 	JBE	_17through32
 	CMPQ	BX, $64

@@ -149,12 +149,6 @@ type Frontend interface {
 	// for the parts of that compound type.
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
-	// DerefItab dereferences an itab function
-	// entry, given the symbol of the itab and
-	// the byte offset of the function pointer.
-	// It may return nil.
-	DerefItab(sym *obj.LSym, offset int64) *obj.LSym
-
 	// Line returns a string describing the given position.
 	Line(src.XPos) string
 
@@ -177,7 +171,7 @@ type Frontend interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
 	c.useAvg = true
 	c.useHmul = true
@@ -196,7 +190,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = buildcfg.Experiment.RegabiG
+		c.hasGReg = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -228,6 +222,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
+		c.intParamRegs = paramIntRegARM64
+		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
@@ -324,6 +320,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.optimize = optimize
 	c.useSSE = true
 	c.UseFMA = true
+	c.SoftFloat = softfloat
+	if softfloat {
+		c.floatParamRegs = nil // no FP registers in softfloat mode
+	}
 
 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())

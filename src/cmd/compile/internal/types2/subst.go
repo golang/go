@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements instantiation of generic types
-// through substitution of type parameters by actual
-// types.
+// This file implements type parameter substitution.
 
 package types2
 
@@ -28,12 +26,7 @@ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(map[*TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
-		// We must expand type arguments otherwise *instance
-		// types end up as components in composite types.
-		// TODO(gri) explain why this causes problems, if it does
-		targ := expand(targs[i]) // possibly nil
-		targs[i] = targ
-		proj[tpar.typ.(*TypeParam)] = targ
+		proj[tpar.typ.(*TypeParam)] = targs[i]
 	}
 	return &substMap{targs, proj}
 }
@@ -51,158 +44,6 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
 		return t
 	}
 	return tpar
-}
-
-func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslist []syntax.Pos) (res Type) {
-	if check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
-		check.indent++
-		defer func() {
-			check.indent--
-			var under Type
-			if res != nil {
-				// Calling under() here may lead to endless instantiations.
-				// Test case: type T[P any] T[P]
-				// TODO(gri) investigate if that's a bug or to be expected.
-				under = res.Underlying()
-			}
-			check.trace(pos, "=> %s (under = %s)", res, under)
-		}()
-	}
-
-	assert(len(poslist) <= len(targs))
-
-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
-	var tparams []*TypeName
-	switch t := typ.(type) {
-	case *Named:
-		tparams = t.tparams
-	case *Signature:
-		tparams = t.tparams
-		defer func() {
-			// If we had an unexpected failure somewhere don't panic below when
-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
-			// is returned.
-			if _, ok := res.(*Signature); !ok {
-				return
-			}
-			// If the signature doesn't use its type parameters, subst
-			// will not make a copy. In that case, make a copy now (so
-			// we can set tparams to nil w/o causing side-effects).
-			if t == res {
-				copy := *t
-				res = &copy
-			}
-			// After instantiating a generic signature, it is not generic
-			// anymore; we need to set tparams to nil.
-			res.(*Signature).tparams = nil
-		}()
-
-	default:
-		check.dump("%v: cannot instantiate %v", pos, typ)
-		unreachable() // only defined types and (defined) functions can be generic
-
-	}
-
-	// the number of supplied types must match the number of type parameters
-	if len(targs) != len(tparams) {
-		// TODO(gri) provide better error message
-		check.errorf(pos, "got %d arguments but %d type parameters", len(targs), len(tparams))
-		return Typ[Invalid]
-	}
-
-	if len(tparams) == 0 {
-		return typ // nothing to do (minor optimization)
-	}
-
-	smap := makeSubstMap(tparams, targs)
-
-	// check bounds
-	for i, tname := range tparams {
-		tpar := tname.typ.(*TypeParam)
-		iface := tpar.Bound()
-		if iface.Empty() {
-			continue // no type bound
-		}
-
-		targ := targs[i]
-
-		// best position for error reporting
-		pos := pos
-		if i < len(poslist) {
-			pos = poslist[i]
-		}
-
-		// The type parameter bound is parameterized with the same type parameters
-		// as the instantiated type; before we can use it for bounds checking we
-		// need to instantiate it with the type arguments with which we instantiate
-		// the parameterized type.
-		iface = check.subst(pos, iface, smap).(*Interface)
-
-		// targ must implement iface (methods)
-		// - check only if we have methods
-		check.completeInterface(nopos, iface)
-		if len(iface.allMethods) > 0 {
-			// If the type argument is a pointer to a type parameter, the type argument's
-			// method set is empty.
-			// TODO(gri) is this what we want? (spec question)
-			if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
-				check.errorf(pos, "%s has no methods", targ)
-				break
-			}
-			if m, wrong := check.missingMethod(targ, iface, true); m != nil {
-				// TODO(gri) needs to print updated name to avoid major confusion in error message!
-				//           (print warning for now)
-				// Old warning:
-				// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
-				if m.name == "==" {
-					// We don't want to report "missing method ==".
-					check.softErrorf(pos, "%s does not satisfy comparable", targ)
-				} else if wrong != nil {
-					// TODO(gri) This can still report uninstantiated types which makes the error message
-					//           more difficult to read then necessary.
-					check.softErrorf(pos,
-						"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
-						targ, tpar.bound, wrong, m,
-					)
-				} else {
-					check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
-				}
-				break
-			}
-		}
-
-		// targ's underlying type must also be one of the interface types listed, if any
-		if iface.allTypes == nil {
-			continue // nothing to do
-		}
-
-		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
-		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
-		if targ := asTypeParam(targ); targ != nil {
-			targBound := targ.Bound()
-			if targBound.allTypes == nil {
-				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
-				break
-			}
-			for _, t := range unpack(targBound.allTypes) {
-				if !iface.isSatisfiedBy(t) {
-					// TODO(gri) match this error message with the one below (or vice versa)
-					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
-					break
-				}
-			}
-			break
-		}
-
-		// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
-		if !iface.isSatisfiedBy(targ) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
-			break
-		}
-	}
-
-	return check.subst(pos, typ, smap)
 }
 
 // subst returns the type typ with its type parameters tpars replaced by
@@ -224,15 +65,28 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap *substMap) Type {
 	}
 
 	// general case
-	subst := subster{check, pos, make(map[Type]Type), smap}
+	var subst subster
+	subst.pos = pos
+	subst.smap = smap
+	if check != nil {
+		subst.check = check
+		subst.typMap = check.typMap
+	} else {
+		// If we don't have a *Checker and its global type map,
+		// use a local version. Besides avoiding duplicate work,
+		// the type map prevents infinite recursive substitution
+		// for recursive types (example: type T[P any] *T[P]).
+		subst.typMap = make(map[string]*Named)
+	}
+
 	return subst.typ(typ)
 }
 
 type subster struct {
-	check *Checker
-	pos   syntax.Pos
-	cache map[Type]Type
-	smap  *substMap
+	pos    syntax.Pos
+	smap   *substMap
+	check  *Checker // nil if called via Instantiate
+	typMap map[string]*Named
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -241,7 +95,7 @@ func (subst *subster) typ(typ Type) Type {
 		// Call typOrNil if it's possible that typ is nil.
 		panic("nil typ")
 
-	case *Basic, *bottom, *top:
+	case *Basic, *top:
 		// nothing to do
 
 	case *Array:
@@ -290,29 +144,20 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-	case *Sum:
-		types, copied := subst.typeList(t.types)
+	case *Union:
+		terms, copied := subst.termlist(t.terms)
 		if copied {
-			// Don't do it manually, with a Sum literal: the new
-			// types list may not be unique and NewSum may remove
-			// duplicates.
-			return NewSum(types)
+			// term list substitution may introduce duplicate terms (unlikely but possible).
+			// This is ok; lazy type set computation will determine the actual type set
+			// in normal form.
+			return &Union{terms, nil}
 		}
 
 	case *Interface:
 		methods, mcopied := subst.funcList(t.methods)
-		types := t.types
-		if t.types != nil {
-			types = subst.typ(t.types)
-		}
 		embeddeds, ecopied := subst.typeList(t.embeddeds)
-		if mcopied || types != t.types || ecopied {
-			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
-			if subst.check == nil {
-				panic("internal error: cannot instantiate interfaces yet")
-			}
-			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
-			subst.check.completeInterface(nopos, iface)
+		if mcopied || ecopied {
+			iface := &Interface{methods: methods, embeddeds: embeddeds, complete: t.complete}
 			return iface
 		}
 
@@ -342,7 +187,7 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if t.tparams == nil {
+		if t.TParams().Len() == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
@@ -352,7 +197,7 @@ func (subst *subster) typ(typ Type) Type {
 		if len(t.targs) > 0 {
 			// already instantiated
 			dump(">>> %s already instantiated", t)
-			assert(len(t.targs) == len(t.tparams))
+			assert(len(t.targs) == t.TParams().Len())
 			// For each (existing) type argument targ, determine if it needs
 			// to be substituted; i.e., if it is or contains a type parameter
 			// that has a type argument for it.
@@ -362,7 +207,7 @@ func (subst *subster) typ(typ Type) Type {
 				if new_targ != targ {
 					dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 					if new_targs == nil {
-						new_targs = make([]Type, len(t.tparams))
+						new_targs = make([]Type, t.TParams().Len())
 						copy(new_targs, t.targs)
 					}
 					new_targs[i] = new_targ
@@ -382,36 +227,29 @@ func (subst *subster) typ(typ Type) Type {
 		// before creating a new named type, check if we have this one already
 		h := instantiatedHash(t, new_targs)
 		dump(">>> new type hash: %s", h)
-		if subst.check != nil {
-			if named, found := subst.check.typMap[h]; found {
-				dump(">>> found %s", named)
-				subst.cache[t] = named
-				return named
-			}
+		if named, found := subst.typMap[h]; found {
+			dump(">>> found %s", named)
+			return named
 		}
 
-		// create a new named type and populate caches to avoid endless recursion
+		// create a new named type and populate typMap to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := subst.check.newNamed(tname, t, t.underlying, t.tparams, t.methods) // method signatures are updated lazily
+		named := subst.check.newNamed(tname, t, t.Underlying(), t.TParams(), t.methods) // method signatures are updated lazily
 		named.targs = new_targs
-		if subst.check != nil {
-			subst.check.typMap[h] = named
-		}
-		subst.cache[t] = named
+		subst.typMap[h] = named
+		t.expand() // must happen after typMap update to avoid infinite recursion
 
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
-		named.underlying = subst.typOrNil(t.underlying)
+		named.underlying = subst.typOrNil(t.Underlying())
+		dump(">>> underlying: %v", named.underlying)
+		assert(named.underlying != nil)
 		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
 
 		return named
 
 	case *TypeParam:
 		return subst.smap.lookup(t)
-
-	case *instance:
-		// TODO(gri) can we avoid the expansion here and just substitute the type parameters?
-		return subst.typ(t.expand())
 
 	default:
 		unimplemented()
@@ -420,14 +258,17 @@ func (subst *subster) typ(typ Type) Type {
 	return typ
 }
 
-// TODO(gri) Eventually, this should be more sophisticated.
-//           It won't work correctly for locally declared types.
+var instanceHashing = 0
+
 func instantiatedHash(typ *Named, targs []Type) string {
+	assert(instanceHashing == 0)
+	instanceHashing++
 	var buf bytes.Buffer
 	writeTypeName(&buf, typ.obj, nil)
 	buf.WriteByte('[')
 	writeTypeList(&buf, targs, nil, nil)
 	buf.WriteByte(']')
+	instanceHashing--
 
 	// With respect to the represented type, whether a
 	// type is fully expanded or stored as instance
@@ -541,6 +382,24 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
 				copied = true
 			}
 			out[i] = u
+		}
+	}
+	return
+}
+
+func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+	out = in
+	for i, t := range in {
+		if u := subst.typ(t.typ); u != t.typ {
+			if !copied {
+				// first function that got substituted => allocate new out slice
+				// and copy all functions
+				new := make([]*Term, len(in))
+				copy(new, out)
+				out = new
+				copied = true
+			}
+			out[i] = NewTerm(t.tilde, u)
 		}
 	}
 	return

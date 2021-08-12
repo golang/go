@@ -155,30 +155,40 @@ type _ struct {
 	List /* ERROR List redeclared */ [int]
 }
 
+// Issue #45639: We don't allow this anymore. Keep this code
+//               in case we decide to revisit this decision.
+//
 // It's possible to declare local types whose underlying types
 // are type parameters. As with ordinary type definitions, the
 // types underlying properties are "inherited" but the methods
 // are not.
-func _[T interface{ m(); type int }]() {
-	type L T
-	var x L
+// func _[T interface{ m(); ~int }]() {
+// 	type L T
+// 	var x L
+// 
+// 	// m is not defined on L (it is not "inherited" from
+// 	// its underlying type).
+// 	x.m /* ERROR x.m undefined */ ()
+// 
+// 	// But the properties of T, such that as that it supports
+// 	// the operations of the types given by its type bound,
+// 	// are also the properties of L.
+// 	x++
+// 	_ = x - x
+// 
+// 	// On the other hand, if we define a local alias for T,
+// 	// that alias stands for T as expected.
+// 	type A = T
+// 	var y A
+// 	y.m()
+// 	_ = y < 0
+// }
 
-	// m is not defined on L (it is not "inherited" from
-	// its underlying type).
-	x.m /* ERROR x.m undefined */ ()
-
-	// But the properties of T, such that as that it supports
-	// the operations of the types given by its type bound,
-	// are also the properties of L.
-	x++
-	_ = x - x
-
-	// On the other hand, if we define a local alias for T,
-	// that alias stands for T as expected.
-	type A = T
-	var y A
-	y.m()
-	_ = y < 0
+// It is not permitted to declare a local type whose underlying
+// type is a type parameters not declared by that type declaration.
+func _[T any]() {
+	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
 }
 
 // As a special case, an explicit type argument may be omitted
@@ -206,15 +216,15 @@ type B0 interface {}
 type B1[_ any] interface{}
 type B2[_, _ any] interface{}
 
-func _[T1 B0]()
-func _[T1 B1[T1]]()
-func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
+func _[T1 B0]() {}
+func _[T1 B1[T1]]() {}
+func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
 
-func _[T1, T2 B0]()
-func _[T1 B1[T1], T2 B1[T2]]()
-func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
+func _[T1, T2 B0]() {}
+func _[T1 B1[T1], T2 B1[T2]]() {}
+func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
 
-func _[T1 B0, T2 B1[T2]]() // here B1 applies to T2
+func _[T1 B0, T2 B1[T2]]() {} // here B1 applies to T2
 
 // When the type argument is left away, the type bound is
 // instantiated for each type parameter with that type
@@ -232,11 +242,11 @@ func _[A Adder[A], B Adder[B], C Adder[A]]() {
 // The type of variables (incl. parameters and return values) cannot
 // be an interface with type constraints or be/embed comparable.
 type I interface {
-	type int
+	~int
 }
 
 var (
-	_ interface /* ERROR contains type constraints */ {type int}
+	_ interface /* ERROR contains type constraints */ {~int}
 	_ I /* ERROR contains type constraints */
 )
 
@@ -267,7 +277,7 @@ func _() {
 // (If a type list contains just a single const type, we could
 // allow it, but such type lists don't make much sense in the
 // first place.)
-func _[T interface { type int, float64 }]() {
+func _[T interface{~int|~float64}]() {
 	// not valid
 	const _ = T /* ERROR not constant */ (0)
 	const _ T /* ERROR invalid constant type T */ = 1

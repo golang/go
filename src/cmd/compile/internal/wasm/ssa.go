@@ -24,7 +24,6 @@ func Init(arch *ssagen.ArchInfo) {
 
 	arch.ZeroRange = zeroRange
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue
@@ -126,7 +125,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
 		s.PrepareCall(v)
 		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
-			// add a resume point before call to deferreturn so it can be called again via jmpdefer
+			// The runtime needs to inject jumps to
+			// deferreturn calls using the address in
+			// _func.deferreturn. Hence, the call to
+			// deferreturn must itself be a resumption
+			// point so it gets a target PC.
 			s.Prog(wasm.ARESUMEPOINT)
 		}
 		if v.Op == ssa.OpWasmLoweredClosureCall {

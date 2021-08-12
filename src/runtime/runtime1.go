@@ -6,8 +6,8 @@ package runtime
 
 import (
 	"internal/bytealg"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -55,7 +55,7 @@ var (
 // nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*goarch.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -190,10 +190,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != sys.PtrSize {
+	if unsafe.Sizeof(k) != goarch.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != sys.PtrSize {
+	if unsafe.Sizeof(l) != goarch.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {

@@ -5,8 +5,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -271,7 +271,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
 	var markbuf [1]byte
 	markbuf[0] = ' '
 	minhexdigits = int(unsafe.Sizeof(uintptr(0)) * 2)
-	for i := uintptr(0); p+i < end; i += sys.PtrSize {
+	for i := uintptr(0); p+i < end; i += goarch.PtrSize {
 		if i%16 == 0 {
 			if i != 0 {
 				println()
