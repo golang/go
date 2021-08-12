@@ -205,7 +205,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...interf
 		}
 		// Set the metadata for this package.
 		s.mu.Lock()
-		m, err := s.setMetadataLocked(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
+		m, err := s.setMetadataLocked(ctx, packagePath(pkg.PkgPath), pkg, cfg, query, map[packageID]struct{}{})
 		s.mu.Unlock()
 		if err != nil {
 			return err
@@ -403,8 +403,13 @@ func getWorkspaceDir(ctx context.Context, h *memoize.Handle, g *memoize.Generati
 // setMetadataLocked extracts metadata from pkg and records it in s. It
 // recurses through pkg.Imports to ensure that metadata exists for all
 // dependencies.
-func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
+func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, query []string, seen map[packageID]struct{}) (*metadata, error) {
 	id := packageID(pkg.ID)
+	if source.IsCommandLineArguments(pkg.ID) {
+		suffix := ":" + strings.Join(query, ",")
+		id = packageID(string(id) + suffix)
+		pkgPath = packagePath(string(pkgPath) + suffix)
+	}
 	if _, ok := seen[id]; ok {
 		return nil, errors.Errorf("import cycle detected: %q", id)
 	}
@@ -465,7 +470,7 @@ func (s *snapshot) setMetadataLocked(ctx context.Context, pkgPath packagePath, p
 			continue
 		}
 		if s.noValidMetadataForIDLocked(importID) {
-			if _, err := s.setMetadataLocked(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
+			if _, err := s.setMetadataLocked(ctx, importPkgPath, importPkg, cfg, query, copied); err != nil {
 				event.Error(ctx, "error in dependency", err)
 			}
 		}
