@@ -39,6 +39,11 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	// recursive types have been fully constructed before we call CheckSize.
 	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
 		types.CheckSize(res)
+		if res.IsPtr() {
+			// Pointers always have their size set, even though their element
+			// may not have its size set.
+			types.CheckSize(res.Elem())
+		}
 	}
 	return res
 }
@@ -68,8 +73,10 @@ func instTypeName2(name string, targs []types2.Type) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
+		// Include package names for all types, including typeparams, to
+		// make sure type arguments are uniquely specified.
 		tname := types2.TypeString(targ,
-			func(*types2.Package) string { return "" })
+			func(pkg *types2.Package) string { return pkg.Name() })
 		if strings.Index(tname, ", ") >= 0 {
 			// types2.TypeString puts spaces after a comma in a type
 			// list, but we don't want spaces in our actual type names
@@ -89,50 +96,49 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 	case *types2.Basic:
 		return g.basic(typ)
 	case *types2.Named:
-		if typ.TParams() != nil {
+		// If tparams is set, but targs is not, typ is a base generic
+		// type. typ is appearing as part of the source type of an alias,
+		// since that is the only use of a generic type that doesn't
+		// involve instantiation. We just translate the named type in the
+		// normal way below using g.obj().
+		if typ.TParams() != nil && typ.TArgs() != nil {
 			// typ is an instantiation of a defined (named) generic type.
 			// This instantiation should also be a defined (named) type.
 			// types2 gives us the substituted type in t.Underlying()
 			// The substituted type may or may not still have type
 			// params. We might, for example, be substituting one type
 			// param for another type param.
-
-			if typ.TArgs() == nil {
-				base.Fatalf("In typ0, Targs should be set if TParams is set")
-			}
-
-			// When converted to types.Type, typ must have a name,
-			// based on the names of the type arguments. We need a
-			// name to deal with recursive generic types (and it also
-			// looks better when printing types).
+			//
+			// When converted to types.Type, typ has a unique name,
+			// based on the names of the type arguments.
 			instName := instTypeName2(typ.Obj().Name(), typ.TArgs())
 			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
 			if s.Def != nil {
-				// We have already encountered this instantiation,
-				// so use the type we previously created, since there
+				// We have already encountered this instantiation.
+				// Use the type we previously created, since there
 				// must be exactly one instance of a defined type.
 				return s.Def.Type()
 			}
 
 			// Create a forwarding type first and put it in the g.typs
-			// map, in order to deal with recursive generic types.
-			// Fully set up the extra ntyp information (Def, RParams,
-			// which may set HasTParam) before translating the
-			// underlying type itself, so we handle recursion
-			// correctly, including via method signatures.
-			ntyp := newIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
+			// map, in order to deal with recursive generic types
+			// (including via method signatures).. Set up the extra
+			// ntyp information (Def, RParams, which may set
+			// HasTParam) before translating the underlying type
+			// itself, so we handle recursion correctly.
+			ntyp := typecheck.NewIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
 			g.typs[typ] = ntyp
 
 			// If ntyp still has type params, then we must be
 			// referencing something like 'value[T2]', as when
-			// specifying the generic receiver of a method,
-			// where value was defined as "type value[T any]
-			// ...". Save the type args, which will now be the
-			// new type  of the current type.
+			// specifying the generic receiver of a method, where
+			// value was defined as "type value[T any] ...". Save the
+			// type args, which will now be the new typeparams of the
+			// current type.
 			//
 			// If ntyp does not have type params, we are saving the
-			// concrete types used to instantiate this type. We'll use
-			// these when instantiating the methods of the
+			// non-generic types used to instantiate this type. We'll
+			// use these when instantiating the methods of the
 			// instantiated type.
 			rparams := make([]*types.Type, len(typ.TArgs()))
 			for i, targ := range typ.TArgs() {
@@ -143,6 +149,8 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 
 			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
 			g.fillinMethods(typ, ntyp)
+			// Save the symbol for the base generic type.
+			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
 			return ntyp
 		}
 		obj := g.obj(typ.Obj())
@@ -183,12 +191,9 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		for i := range embeddeds {
 			// TODO(mdempsky): Get embedding position.
 			e := typ.EmbeddedType(i)
-			if t := types2.AsInterface(e); t != nil && t.IsComparable() {
-				// Ignore predefined type 'comparable', since it
-				// doesn't resolve and it doesn't have any
-				// relevant methods.
-				continue
-			}
+
+			// With Go 1.18, an embedded element can be any type, not
+			// just an interface.
 			embeddeds[j] = types.NewField(src.NoXPos, nil, g.typ1(e))
 			j++
 		}
@@ -204,19 +209,38 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
 
 	case *types2.TypeParam:
-		tp := types.NewTypeParam(g.tpkg(typ))
 		// Save the name of the type parameter in the sym of the type.
 		// Include the types2 subscript in the sym name
-		sym := g.pkg(typ.Obj().Pkg()).Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
-		tp.SetSym(sym)
+		pkg := g.tpkg(typ)
+		sym := pkg.Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
+		if sym.Def != nil {
+			// Make sure we use the same type param type for the same
+			// name, whether it is created during types1-import or
+			// this types2-to-types1 translation.
+			return sym.Def.Type()
+		}
+		tp := types.NewTypeParam(sym, typ.Index())
+		nname := ir.NewDeclNameAt(g.pos(typ.Obj().Pos()), ir.OTYPE, sym)
+		sym.Def = nname
+		nname.SetType(tp)
+		tp.SetNod(nname)
 		// Set g.typs[typ] in case the bound methods reference typ.
 		g.typs[typ] = tp
 
-		// TODO(danscales): we don't currently need to use the bounds
-		// anywhere, so eventually we can probably remove.
-		bound := g.typ1(typ.Bound())
-		*tp.Methods() = *bound.Methods()
+		bound := g.typ1(typ.Constraint())
+		tp.SetBound(bound)
 		return tp
+
+	case *types2.Union:
+		nt := typ.Len()
+		tlist := make([]*types.Type, nt)
+		tildes := make([]bool, nt)
+		for i := range tlist {
+			t := typ.Term(i)
+			tlist[i] = g.typ1(t.Type())
+			tildes[i] = t.Tilde()
+		}
+		return types.NewUnion(tlist, tildes)
 
 	case *types2.Tuple:
 		// Tuples are used for the type of a function call (i.e. the
@@ -243,19 +267,23 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 // and for actually generating the methods for instantiated types.
 func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 	if typ.NumMethods() != 0 {
-		targs := make([]ir.Node, len(typ.TArgs()))
+		targs := make([]*types.Type, len(typ.TArgs()))
 		for i, targ := range typ.TArgs() {
-			targs[i] = ir.TypeNode(g.typ1(targ))
+			targs[i] = g.typ1(targ)
 		}
 
 		methods := make([]*types.Field, typ.NumMethods())
 		for i := range methods {
 			m := typ.Method(i)
-			meth := g.obj(m)
-			recvType := types2.AsSignature(m.Type()).Recv().Type()
-			ptr := types2.AsPointer(recvType)
-			if ptr != nil {
-				recvType = ptr.Elem()
+			recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
+			var meth *ir.Name
+			if m.Pkg() != g.self {
+				// Imported methods cannot be loaded by name (what
+				// g.obj() does) - they must be loaded via their
+				// type.
+				meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
+			} else {
+				meth = g.obj(m)
 			}
 			if recvType != types2.Type(typ) {
 				// Unfortunately, meth is the type of the method of the
@@ -276,18 +304,21 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				} else {
 					meth2 = ir.NewNameAt(meth.Pos(), newsym)
 					rparams := types2.AsSignature(m.Type()).RParams()
-					tparams := make([]*types.Field, len(rparams))
-					for i, rparam := range rparams {
-						tparams[i] = types.NewField(src.NoXPos, nil, g.typ1(rparam.Type()))
+					tparams := make([]*types.Type, rparams.Len())
+					for i := range tparams {
+						tparams[i] = g.typ1(rparams.At(i).Type())
 					}
 					assert(len(tparams) == len(targs))
-					subst := &subster{
-						g:       g,
-						tparams: tparams,
-						targs:   targs,
+					ts := typecheck.Tsubster{
+						Tparams: tparams,
+						Targs:   targs,
 					}
 					// Do the substitution of the type
-					meth2.SetType(subst.typ(meth.Type()))
+					meth2.SetType(ts.Typ(meth.Type()))
+					// Add any new fully instantiated types
+					// seen during the substitution to
+					// g.instTypeList.
+					g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
 					newsym.Def = meth2
 				}
 				meth = meth2
@@ -296,7 +327,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 			methods[i].Nname = meth
 		}
 		ntyp.Methods().Set(methods)
-		if !ntyp.HasTParam() {
+		if !ntyp.HasTParam() && !ntyp.HasShape() {
 			// Generate all the methods for a new fully-instantiated type.
 			g.instTypeList = append(g.instTypeList, ntyp)
 		}
@@ -305,9 +336,9 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 
 func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type {
 	tparams2 := sig.TParams()
-	tparams := make([]*types.Field, len(tparams2))
+	tparams := make([]*types.Field, tparams2.Len())
 	for i := range tparams {
-		tp := tparams2[i]
+		tp := tparams2.At(i)
 		tparams[i] = types.NewField(g.pos(tp), g.sym(tp), g.typ1(tp.Type()))
 	}
 
@@ -346,7 +377,7 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
 	return pkg.Lookup(name)
 }
 
-// tpkg returns the package that a function, interface, or struct type
+// tpkg returns the package that a function, interface, struct, or typeparam type
 // expression appeared in.
 //
 // Caveat: For the degenerate types "func()", "interface{}", and
@@ -356,34 +387,37 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
 // particular types is because go/types does *not* report it for
 // them. So in practice this limitation is probably moot.
 func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
-	anyObj := func() types2.Object {
-		switch typ := typ.(type) {
-		case *types2.Signature:
-			if recv := typ.Recv(); recv != nil {
-				return recv
-			}
-			if params := typ.Params(); params.Len() > 0 {
-				return params.At(0)
-			}
-			if results := typ.Results(); results.Len() > 0 {
-				return results.At(0)
-			}
-		case *types2.Struct:
-			if typ.NumFields() > 0 {
-				return typ.Field(0)
-			}
-		case *types2.Interface:
-			if typ.NumExplicitMethods() > 0 {
-				return typ.ExplicitMethod(0)
-			}
-		}
-		return nil
-	}
-
-	if obj := anyObj(); obj != nil {
+	if obj := anyObj(typ); obj != nil {
 		return g.pkg(obj.Pkg())
 	}
 	return types.LocalPkg
+}
+
+// anyObj returns some object accessible from typ, if any.
+func anyObj(typ types2.Type) types2.Object {
+	switch typ := typ.(type) {
+	case *types2.Signature:
+		if recv := typ.Recv(); recv != nil {
+			return recv
+		}
+		if params := typ.Params(); params.Len() > 0 {
+			return params.At(0)
+		}
+		if results := typ.Results(); results.Len() > 0 {
+			return results.At(0)
+		}
+	case *types2.Struct:
+		if typ.NumFields() > 0 {
+			return typ.Field(0)
+		}
+	case *types2.Interface:
+		if typ.NumExplicitMethods() > 0 {
+			return typ.ExplicitMethod(0)
+		}
+	case *types2.TypeParam:
+		return typ.Obj()
+	}
+	return nil
 }
 
 func (g *irgen) basic(typ *types2.Basic) *types.Type {
@@ -429,4 +463,12 @@ var dirs = [...]types.ChanDir{
 	types2.SendRecv: types.Cboth,
 	types2.SendOnly: types.Csend,
 	types2.RecvOnly: types.Crecv,
+}
+
+// deref2 does a single deref of types2 type t, if it is a pointer type.
+func deref2(t types2.Type) types2.Type {
+	if ptr := types2.AsPointer(t); ptr != nil {
+		t = ptr.Elem()
+	}
+	return t
 }

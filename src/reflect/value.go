@@ -6,14 +6,13 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
 	"unsafe"
 )
-
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 
 // Value is the reflection interface to a Go value.
 //
@@ -94,7 +93,7 @@ func (f flag) ro() flag {
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 // if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.size != ptrSize || !v.typ.pointers() {
+	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -533,7 +532,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize = align(frameSize, ptrSize)
+	frameSize = align(frameSize, goarch.PtrSize)
 	frameSize += abi.spill
 
 	// Mark pointers in registers for the return path.
@@ -958,9 +957,6 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 		// 2. Stack -> registers translation.
 		// 3. Registers -> stack translation.
 		// 4. Registers -> registers translation.
-		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
-		// architectures. This is OK for now, but this needs to be fixed
-		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
@@ -986,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
 				case abiStepFloatReg:
-					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
 				default:
 					panic("unexpected method step")
 				}
@@ -1004,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
+					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
 				case abiStepFloatReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
+					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
 				default:
 					panic("unexpected value step")
 				}
@@ -1043,7 +1039,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	methodFrameSize := methodFrameType.size
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	methodFrameSize = align(methodFrameSize, ptrSize)
+	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
 	methodFrameSize += methodABI.spill
 
 	// Mark pointers in registers for the return path.

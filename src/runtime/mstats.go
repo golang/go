@@ -7,8 +7,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -713,7 +713,7 @@ type heapStatsDelta struct {
 
 	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
 	// Only necessary on 32-bit platforms.
-	_ [(sys.PtrSize / 4) % 2]uint32
+	_ [(goarch.PtrSize / 4) % 2]uint32
 }
 
 // merge adds in the deltas from b into a.

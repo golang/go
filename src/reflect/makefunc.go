@@ -52,11 +52,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 	t := typ.common()
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
-	// Indirect Go func value (dummy) to obtain
-	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. https://golang.org/s/go11func.)
-	dummy := makeFuncStub
-	code := **(**uintptr)(unsafe.Pointer(&dummy))
+	code := abi.FuncPCABI0(makeFuncStub)
 
 	// makeFuncImpl contains a stack map for use by the runtime
 	_, _, abi := funcLayout(ftyp, nil)
@@ -111,11 +107,7 @@ func makeMethodValue(op string, v Value) Value {
 	// v.Type returns the actual type of the method value.
 	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
 
-	// Indirect Go func value (dummy) to obtain
-	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. https://golang.org/s/go11func.)
-	dummy := methodValueCall
-	code := **(**uintptr)(unsafe.Pointer(&dummy))
+	code := abi.FuncPCABI0(methodValueCall)
 
 	// methodValue contains a stack map for use by the runtime
 	_, _, abi := funcLayout(ftyp, nil)

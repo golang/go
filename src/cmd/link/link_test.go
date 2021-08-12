@@ -545,14 +545,13 @@ const testFuncAlignSrc = `
 package main
 import (
 	"fmt"
-	"reflect"
 )
 func alignPc()
+var alignPcFnAddr uintptr
 
 func main() {
-	addr := reflect.ValueOf(alignPc).Pointer()
-	if (addr % 512) != 0 {
-		fmt.Printf("expected 512 bytes alignment, got %v\n", addr)
+	if alignPcFnAddr % 512 != 0 {
+		fmt.Printf("expected 512 bytes alignment, got %v\n", alignPcFnAddr)
 	} else {
 		fmt.Printf("PASS")
 	}
@@ -567,6 +566,9 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
 	PCALIGN	$512
 	MOVD	$3, R1
 	RET
+
+GLOBL	·alignPcFnAddr(SB),RODATA,$8
+DATA	·alignPcFnAddr(SB)/8,$·alignPc(SB)
 `
 
 // TestFuncAlign verifies that the address of a function can be aligned

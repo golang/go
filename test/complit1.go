@@ -46,20 +46,20 @@ var (
 	_ = &T{0, 0, "", nil}               // ok
 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP|omit types within composite literal"
+	_ = TP{i: 0, f: 0, s: ""}           // ERROR "invalid composite literal type TP"
 	_ = &Ti{}                           // ERROR "invalid composite literal type Ti|expected.*type for composite literal"
 )
 
 type M map[T]T
 
 var (
-	_ = M{{i:1}: {i:2}}
-	_ = M{T{i:1}: {i:2}}
-	_ = M{{i:1}: T{i:2}}
-	_ = M{T{i:1}: T{i:2}}
+	_ = M{{i: 1}: {i: 2}}
+	_ = M{T{i: 1}: {i: 2}}
+	_ = M{{i: 1}: T{i: 2}}
+	_ = M{T{i: 1}: T{i: 2}}
 )
 
-type S struct { s [1]*M1 }
+type S struct{ s [1]*M1 }
 type M1 map[S]int
-var _ = M1{{s:[1]*M1{&M1{{}:1}}}:2}
 
+var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}

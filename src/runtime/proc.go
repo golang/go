@@ -7,7 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/cpu"
-	"internal/goexperiment"
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -152,7 +152,7 @@ func main() {
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
-	if sys.PtrSize == 8 {
+	if goarch.PtrSize == 8 {
 		maxstacksize = 1000000000
 	} else {
 		maxstacksize = 250000000
@@ -466,18 +466,6 @@ func releaseSudog(s *sudog) {
 	releasem(mp)
 }
 
-// funcPC returns the entry PC of the function f.
-// It assumes that f is a func value. Otherwise the behavior is undefined.
-// CAREFUL: In programs with plugins, funcPC can return different values
-// for the same function (because there are actually multiple copies of
-// the same function in the address space). To be safe, don't use the
-// results of this function in any == expression. It is only safe to
-// use the result as an address at which to start executing code.
-//go:nosplit
-func funcPC(f interface{}) uintptr {
-	return *(*uintptr)(efaceOf(&f).data)
-}
-
 // called from assembly
 func badmcall(fn func(*g)) {
 	throw("runtime: mcall called on m->g0 stack")
@@ -568,7 +556,7 @@ func atomicAllG() (**g, uintptr) {
 
 // atomicAllGIndex returns ptr[i] with the allgptr returned from atomicAllG.
 func atomicAllGIndex(ptr **g, i uintptr) *g {
-	return *(**g)(add(unsafe.Pointer(ptr), i*sys.PtrSize))
+	return *(**g)(add(unsafe.Pointer(ptr), i*goarch.PtrSize))
 }
 
 // forEachG calls fn on every G from allgs.
@@ -2027,7 +2015,7 @@ func oneNewExtraM() {
 	gp := malg(4096)
 	gp.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum
 	gp.sched.sp = gp.stack.hi
-	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
+	gp.sched.sp -= 4 * goarch.PtrSize // extra space in case of reads slightly beyond frame
 	gp.sched.lr = 0
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
@@ -2045,7 +2033,7 @@ func oneNewExtraM() {
 	gp.lockedm.set(mp)
 	gp.goid = int64(atomic.Xadd64(&sched.goidgen, 1))
 	if raceenabled {
-		gp.racectx = racegostart(funcPC(newextram) + sys.PCQuantum)
+		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
@@ -2238,7 +2226,7 @@ func newm1(mp *m) {
 		}
 		ts.g.set(mp.g0)
 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
-		ts.fn = unsafe.Pointer(funcPC(mstart))
+		ts.fn = unsafe.Pointer(abi.FuncPCABI0(mstart))
 		if msanenabled {
 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
 		}
@@ -4232,27 +4220,14 @@ func malg(stacksize int32) *g {
 	return newg
 }
 
-// Create a new g running fn with siz bytes of arguments.
+// Create a new g running fn.
 // Put it on the queue of g's waiting to run.
 // The compiler turns a go statement into a call to this.
-//
-// The stack layout of this call is unusual: it assumes that the
-// arguments to pass to fn are on the stack sequentially immediately
-// after &fn. Hence, they are logically part of newproc's argument
-// frame, even though they don't appear in its signature (and can't
-// because their types differ between call sites).
-//
-// This must be nosplit because this stack layout means there are
-// untyped arguments in newproc's argument frame. Stack copies won't
-// be able to adjust them and stack splits won't be able to copy them.
-//
-//go:nosplit
-func newproc(siz int32, fn *funcval) {
-	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+func newproc(fn *funcval) {
 	gp := getg()
 	pc := getcallerpc()
 	systemstack(func() {
-		newg := newproc1(fn, argp, siz, gp, pc)
+		newg := newproc1(fn, gp, pc)
 
 		_p_ := getg().m.p.ptr()
 		runqput(_p_, newg, true)
@@ -4263,24 +4238,10 @@ func newproc(siz int32, fn *funcval) {
 	})
 }
 
-// Create a new g in state _Grunnable, starting at fn, with narg bytes
-// of arguments starting at argp. callerpc is the address of the go
-// statement that created this. The caller is responsible for adding
-// the new g to the scheduler.
-//
-// This must run on the system stack because it's the continuation of
-// newproc, which cannot split the stack.
-//
-//go:systemstack
-func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerpc uintptr) *g {
-	if goexperiment.RegabiDefer && narg != 0 {
-		// TODO: When we commit to GOEXPERIMENT=regabidefer,
-		// rewrite the comments for newproc and newproc1.
-		// newproc will no longer have a funny stack layout or
-		// need to be nosplit.
-		throw("go with non-empty frame")
-	}
-
+// Create a new g in state _Grunnable, starting at fn. callerpc is the
+// address of the go statement that created this. The caller is responsible
+// for adding the new g to the scheduler.
+func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 	_g_ := getg()
 
 	if fn == nil {
@@ -4288,16 +4249,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		throw("go of nil func value")
 	}
 	acquirem() // disable preemption because it can be holding p in a local var
-	siz := narg
-	siz = (siz + 7) &^ 7
-
-	// We could allocate a larger initial stack if necessary.
-	// Not worth it: this is almost always an error.
-	// 4*PtrSize: extra space added below
-	// PtrSize: caller's LR (arm) or return address (x86, in gostartcall).
-	if siz >= _StackMin-4*sys.PtrSize-sys.PtrSize {
-		throw("newproc: function arguments too large for new goroutine")
-	}
 
 	_p_ := _g_.m.p.ptr()
 	newg := gfget(_p_)
@@ -4314,8 +4265,8 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := 4*sys.PtrSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
-	totalSize += -totalSize & (sys.StackAlign - 1)               // align to StackAlign
+	totalSize := uintptr(4*goarch.PtrSize + sys.MinFrameSize) // extra space in case of reads slightly beyond frame
+	totalSize = alignUp(totalSize, sys.StackAlign)
 	sp := newg.stack.hi - totalSize
 	spArg := sp
 	if usesLR {
@@ -4323,24 +4274,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 		prepGoExitFrame(sp)
 		spArg += sys.MinFrameSize
-	}
-	if narg > 0 {
-		memmove(unsafe.Pointer(spArg), argp, uintptr(narg))
-		// This is a stack-to-stack copy. If write barriers
-		// are enabled and the source stack is grey (the
-		// destination is always black), then perform a
-		// barrier copy. We do this *after* the memmove
-		// because the destination stack may have garbage on
-		// it.
-		if writeBarrier.needed && !_g_.m.curg.gcscandone {
-			f := findfunc(fn.fn)
-			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stkmap.nbit > 0 {
-				// We're in the prologue, so it's always stack map index 0.
-				bv := stackmapdata(stkmap, 0)
-				bulkBarrierBitmap(spArg, spArg, uintptr(bv.n)*sys.PtrSize, 0, bv.bytedata)
-			}
-		}
 	}
 
 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
@@ -4751,16 +4684,16 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			// If all of the above has failed, account it against abstract "System" or "GC".
 			n = 2
 			if inVDSOPage(pc) {
-				pc = funcPC(_VDSO) + sys.PCQuantum
+				pc = abi.FuncPCABIInternal(_VDSO) + sys.PCQuantum
 			} else if pc > firstmoduledata.etext {
 				// "ExternalCode" is better than "etext".
-				pc = funcPC(_ExternalCode) + sys.PCQuantum
+				pc = abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum
 			}
 			stk[0] = pc
 			if mp.preemptoff != "" {
-				stk[1] = funcPC(_GC) + sys.PCQuantum
+				stk[1] = abi.FuncPCABIInternal(_GC) + sys.PCQuantum
 			} else {
-				stk[1] = funcPC(_System) + sys.PCQuantum
+				stk[1] = abi.FuncPCABIInternal(_System) + sys.PCQuantum
 			}
 		}
 	}
@@ -4804,7 +4737,7 @@ func sigprofNonGoPC(pc uintptr) {
 	if prof.hz != 0 {
 		stk := []uintptr{
 			pc,
-			funcPC(_ExternalCode) + sys.PCQuantum,
+			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
 		}
 		cpuprof.addNonGo(stk)
 	}
@@ -4854,9 +4787,7 @@ func (pp *p) init(id int32) {
 	pp.id = id
 	pp.status = _Pgcstop
 	pp.sudogcache = pp.sudogbuf[:0]
-	for i := range pp.deferpool {
-		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
-	}
+	pp.deferpool = pp.deferpoolbuf[:0]
 	pp.wbBuf.reset()
 	if pp.mcache == nil {
 		if id == 0 {
@@ -4933,12 +4864,10 @@ func (pp *p) destroy() {
 		pp.sudogbuf[i] = nil
 	}
 	pp.sudogcache = pp.sudogbuf[:0]
-	for i := range pp.deferpool {
-		for j := range pp.deferpoolbuf[i] {
-			pp.deferpoolbuf[i][j] = nil
-		}
-		pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+	for j := range pp.deferpoolbuf {
+		pp.deferpoolbuf[j] = nil
 	}
+	pp.deferpool = pp.deferpoolbuf[:0]
 	systemstack(func() {
 		for i := 0; i < pp.mspancache.len; i++ {
 			// Safe to call since the world is stopped.
@@ -6463,7 +6392,7 @@ func doInit(t *initTask) {
 		t.state = 1 // initialization in progress
 
 		for i := uintptr(0); i < t.ndeps; i++ {
-			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
+			p := add(unsafe.Pointer(t), (3+i)*goarch.PtrSize)
 			t2 := *(**initTask)(p)
 			doInit(t2)
 		}
@@ -6484,9 +6413,9 @@ func doInit(t *initTask) {
 			before = inittrace
 		}
 
-		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
+		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*goarch.PtrSize)
 		for i := uintptr(0); i < t.nfns; i++ {
-			p := add(firstFunc, i*sys.PtrSize)
+			p := add(firstFunc, i*goarch.PtrSize)
 			f := *(*func())(unsafe.Pointer(&p))
 			f()
 		}
@@ -6496,7 +6425,8 @@ func doInit(t *initTask) {
 			// Load stats non-atomically since tracinit is updated only by this init goroutine.
 			after := inittrace
 
-			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
+			f := *(*func())(unsafe.Pointer(&firstFunc))
+			pkg := funcpkgpath(findfunc(abi.FuncPCABIInternal(f)))
 
 			var sbuf [24]byte
 			print("init ", pkg, " @")

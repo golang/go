@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"internal/abi"
 	"internal/profile"
 	"internal/testenv"
 	"os"
@@ -97,11 +98,11 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 		map2 = mprof.Mapping[1]
 		map2.BuildID, _ = elfBuildID(map2.File)
 	case "js":
-		addr1 = uint64(funcPC(f1))
-		addr2 = uint64(funcPC(f2))
+		addr1 = uint64(abi.FuncPCABIInternal(f1))
+		addr2 = uint64(abi.FuncPCABIInternal(f2))
 	default:
-		addr1 = uint64(funcPC(f1))
-		addr2 = uint64(funcPC(f2))
+		addr1 = uint64(abi.FuncPCABIInternal(f1))
+		addr2 = uint64(abi.FuncPCABIInternal(f2))
 		// Fake mapping - HasFunctions will be true because two PCs from Go
 		// will be fully symbolized.
 		fake := &profile.Mapping{ID: 1, HasFunctions: true}

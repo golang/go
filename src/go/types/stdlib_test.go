@@ -140,8 +140,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			conf := Config{Importer: stdLibImporter}
-			SetGoVersion(&conf, goVersion)
+			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 

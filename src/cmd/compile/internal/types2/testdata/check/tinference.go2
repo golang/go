@@ -8,36 +8,38 @@ import "strconv"
 
 type any interface{}
 
-func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
-func _() {
-	f := f0[string]
-	f("a", "b", "c", "d")
-	f0("a", "b", "c", "d")
-}
+// Embedding stand-alone type parameters is not permitted for now. Disabled.
+// func f0[A any, B interface{~C}, C interface{~D}, D interface{~A}](A, B, C, D)
+// func _() {
+// 	f := f0[string]
+// 	f("a", "b", "c", "d")
+// 	f0("a", "b", "c", "d")
+// }
+// 
+// func f1[A any, B interface{~A}](A, B)
+// func _() {
+// 	f := f1[int]
+// 	f(int(0), int(0))
+// 	f1(int(0), int(0))
+// }
 
-func f1[A any, B interface{type A}](A, B)
-func _() {
-	f := f1[int]
-	f(int(0), int(0))
-	f1(int(0), int(0))
-}
-
-func f2[A any, B interface{type []A}](A, B)
+func f2[A any, B interface{~[]A}](A, B) {}
 func _() {
 	f := f2[byte]
 	f(byte(0), []byte{})
 	f2(byte(0), []byte{})
 }
 
-func f3[A any, B interface{type C}, C interface{type *A}](A, B, C)
-func _() {
-	f := f3[int]
-	var x int
-	f(x, &x, &x)
-	f3(x, &x, &x)
-}
+// Embedding stand-alone type parameters is not permitted for now. Disabled.
+// func f3[A any, B interface{~C}, C interface{~*A}](A, B, C)
+// func _() {
+// 	f := f3[int]
+// 	var x int
+// 	f(x, &x, &x)
+// 	f3(x, &x, &x)
+// }
 
-func f4[A any, B interface{type []C}, C interface{type *A}](A, B, C)
+func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C) {}
 func _() {
 	f := f4[int]
 	var x int
@@ -45,14 +47,14 @@ func _() {
 	f4(x, []*int{}, &x)
 }
 
-func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
+func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A { panic(0) }
 func _() {
 	x := f5(1.2)
 	var _ float64 = x.b
 	var _ float64 = *x.c
 }
 
-func f6[A any, B interface{type struct{f []A}}](B) A
+func f6[A any, B interface{~struct{f []A}}](B) A { panic(0) }
 func _() {
 	x := f6(struct{f []string}{})
 	var _ string = x
@@ -60,11 +62,11 @@ func _() {
 
 // TODO(gri) Need to flag invalid recursive constraints. At the
 // moment these cause infinite recursions and stack overflow.
-// func f7[A interface{type B}, B interface{type A}]()
+// func f7[A interface{type B}, B interface{~A}]()
 
 // More realistic examples
 
-func Double[S interface{ type []E }, E interface{ type int, int8, int16, int32, int64 }](s S) S {
+func Double[S interface{ ~[]E }, E interface{ ~int | ~int8 | ~int16 | ~int32 | ~int64 }](s S) S {
 	r := make(S, len(s))
 	for i, v := range s {
 		r[i] = v + v
@@ -80,7 +82,7 @@ var _ = Double(MySlice{1})
 
 type Setter[B any] interface {
 	Set(string)
-	type *B
+	~*B
 }
 
 func FromStrings[T interface{}, PT Setter[T]](s []string) []T {

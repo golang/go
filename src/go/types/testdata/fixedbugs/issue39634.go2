@@ -31,13 +31,14 @@ type x7[A any] struct{ foo7 }
 func main7() { var _ foo7 = x7[int]{} }
 
 // crash 8
-type foo8[A any] interface { type A }
-func bar8[A foo8[A]](a A) {}
-func main8() {}
+// Embedding stand-alone type parameters is not permitted for now. Disabled.
+// type foo8[A any] interface { ~A }
+// func bar8[A foo8[A]](a A) {}
+// func main8() {}
 
 // crash 9
-type foo9[A any] interface { type foo9 /* ERROR interface contains type constraints */ [A] }
-func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
+type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+func _() { var _ = new(foo9 /* ERROR illegal cycle */ [int]) }
 
 // crash 12
 var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */

@@ -6,11 +6,11 @@ package p
 
 // import "io" // for type assertion tests
 
-// The predeclared identifier "any" is only visible as a constraint
+// The predeclared identifier "any" can only be used as a constraint
 // in a type parameter list.
-var _ any // ERROR undeclared
-func _[_ any /* ok here */ , _ interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
-        var _ any /* ERROR undeclared */
+var _ any // ERROR cannot use any outside constraint position
+func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
+        var _ any /* ERROR constraint */
 }
 
 func identity[T any](x T) T { return x }
@@ -52,22 +52,22 @@ func swapswap[A, B any](a A, b B) (A, B) {
 
 type F[A, B any] func(A, B) (B, A)
 
-func min[T interface{ type int }](x, y T) T {
+func min[T interface{ ~int }](x, y T) T {
         if x < y {
                 return x
         }
         return y
 }
 
-func _[T interface{type int, float32}](x, y T) bool { return x < y }
+func _[T interface{~int | ~float32}](x, y T) bool { return x < y }
 func _[T any](x, y T) bool { return x /* ERROR cannot compare */ < y }
-func _[T interface{type int, float32, bool}](x, y T) bool { return x /* ERROR cannot compare */ < y }
+func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR cannot compare */ < y }
 
 func _[T C1[T]](x, y T) bool { return x /* ERROR cannot compare */ < y }
 func _[T C2[T]](x, y T) bool { return x < y }
 
 type C1[T any] interface{}
-type C2[T any] interface{ type int, float32 }
+type C2[T any] interface{ ~int | ~float32 }
 
 func new[T any]() *T {
         var x T
@@ -79,11 +79,11 @@ var _ *int = new[int]()
 
 func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1}) int
+func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1; x float32}) int
+func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
@@ -95,48 +95,53 @@ var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
 // indexing
 
 func _[T any] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
-func _[T interface{ type int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
-func _[T interface{ type string }] (x T, i int) { _ = x[i] }
-func _[T interface{ type []int }] (x T, i int) { _ = x[i] }
-func _[T interface{ type [10]int, *[20]int, map[int]int }] (x T, i int) { _ = x[i] }
-func _[T interface{ type string, []byte }] (x T, i int) { _ = x[i] }
-func _[T interface{ type []int, [1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
-func _[T interface{ type string, []rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _[T interface{ ~int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _[T interface{ ~string }] (x T, i int) { _ = x[i] }
+func _[T interface{ ~[]int }] (x T, i int) { _ = x[i] }
+func _[T interface{ ~[10]int | ~*[20]int | ~map[int]int }] (x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+func _[T interface{ ~string | ~[]byte }] (x T, i int) { _ = x[i] }
+func _[T interface{ ~[]int | ~[1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _[T interface{ ~string | ~[]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
 
-// indexing with various combinations of map types in type lists (see issue #42616)
-func _[T interface{ type []E, map[int]E }, E any](x T, i int) { _ = x[i] }
-func _[T interface{ type []E }, E any](x T, i int) { _ = &x[i] }
-func _[T interface{ type map[int]E }, E any](x T, i int) { _, _ = x[i] } // comma-ok permitted
-func _[T interface{ type []E, map[int]E }, E any](x T, i int) { _ = &x /* ERROR cannot take address */ [i] }
-func _[T interface{ type []E, map[int]E, map[uint]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // different map element types
-func _[T interface{ type []E, map[string]E }, E any](x T, i int) { _ = x[i /* ERROR cannot use i */ ] }
+// indexing with various combinations of map types in type sets (see issue #42616)
+func _[T interface{ ~[]E | ~map[int]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+func _[T interface{ ~[]E }, E any](x T, i int) { _ = &x[i] }
+func _[T interface{ ~map[int]E }, E any](x T, i int) { _, _ = x[i] } // comma-ok permitted
+func _[T interface{ ~map[int]E }, E any](x T, i int) { _ = &x /* ERROR cannot take address */ [i] }
+func _[T interface{ ~map[int]E | ~map[uint]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // different map element types
+func _[T interface{ ~[]E | ~map[string]E }, E any](x T, i int) { _ = x /* ERROR cannot index */ [i] } // map and non-map types
+
+// indexing with various combinations of array and other types in type sets
+func _[T interface{ [10]int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
+func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
+func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
 
 // slicing
 // TODO(gri) implement this
 
-func _[T interface{ type string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
+func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
 
 // len/cap built-ins
 
 func _[T any](x T) { _ = len(x /* ERROR invalid argument */ ) }
-func _[T interface{ type int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
-func _[T interface{ type string, []byte, int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
-func _[T interface{ type string }](x T) { _ = len(x) }
-func _[T interface{ type [10]int }](x T) { _ = len(x) }
-func _[T interface{ type []byte }](x T) { _ = len(x) }
-func _[T interface{ type map[int]int }](x T) { _ = len(x) }
-func _[T interface{ type chan int }](x T) { _ = len(x) }
-func _[T interface{ type string, []byte, chan int }](x T) { _ = len(x) }
+func _[T interface{ ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~string }](x T) { _ = len(x) }
+func _[T interface{ ~[10]int }](x T) { _ = len(x) }
+func _[T interface{ ~[]byte }](x T) { _ = len(x) }
+func _[T interface{ ~map[int]int }](x T) { _ = len(x) }
+func _[T interface{ ~chan int }](x T) { _ = len(x) }
+func _[T interface{ ~string | ~[]byte | ~chan int }](x T) { _ = len(x) }
 
 func _[T any](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ type int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ type string, []byte, int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ type string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ type [10]int }](x T) { _ = cap(x) }
-func _[T interface{ type []byte }](x T) { _ = cap(x) }
-func _[T interface{ type map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
-func _[T interface{ type chan int }](x T) { _ = cap(x) }
-func _[T interface{ type []byte, chan int }](x T) { _ = cap(x) }
+func _[T interface{ ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~[10]int }](x T) { _ = cap(x) }
+func _[T interface{ ~[]byte }](x T) { _ = cap(x) }
+func _[T interface{ ~map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _[T interface{ ~chan int }](x T) { _ = cap(x) }
+func _[T interface{ ~[]byte | ~chan int }](x T) { _ = cap(x) }
 
 // range iteration
 
@@ -144,7 +149,7 @@ func _[T interface{}](x T) {
         for range x /* ERROR cannot range */ {}
 }
 
-func _[T interface{ type string, []string }](x T) {
+func _[T interface{ ~string | ~[]string }](x T) {
         for range x {}
         for i := range x { _ = i }
         for i, _ := range x { _ = i }
@@ -156,23 +161,23 @@ func _[T interface{ type string, []string }](x T) {
 }
 
 
-func _[T interface{ type string, []rune, map[int]rune }](x T) {
+func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
         for _, e := range x { _ = e }
         for i, e := range x { _ = i; _ = e }
 }
 
-func _[T interface{ type string, []rune, map[string]rune }](x T) {
+func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
         for _, e := range x { _ = e }
         for i, e := range x /* ERROR must have the same key type */ { _ = e }
 }
 
-func _[T interface{ type string, chan int }](x T) {
+func _[T interface{ ~string | ~chan int }](x T) {
         for range x {}
         for i := range x { _ = i }
         for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
 }
 
-func _[T interface{ type string, chan<-int }](x T) {
+func _[T interface{ ~string | ~chan<-int }](x T) {
         for i := range x /* ERROR send-only channel */ { _ = i }
 }
 
@@ -399,7 +404,7 @@ func _[T any](x T) {
 	}
 }
 
-func _[T interface{type int}](x T) {
+func _[T interface{~int}](x T) {
 	_ = x /* ERROR not an interface */ .(int)
 	switch x /* ERROR not an interface */ .(type) {
 	}

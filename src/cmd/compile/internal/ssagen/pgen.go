@@ -114,7 +114,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	sort.Sort(byStackVar(fn.Dcl))
+	// Use sort.Stable instead of sort.Sort so stack layout (and thus
+	// compiler output) is less sensitive to frontend changes that
+	// introduce or remove unused variables.
+	sort.Stable(byStackVar(fn.Dcl))
 
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false

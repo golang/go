@@ -10,8 +10,8 @@ package runtime
 
 import (
 	"internal/cpu"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -497,13 +497,13 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	assertLockHeld(&h.lock)
 
 	if len(h.allspans) >= cap(h.allspans) {
-		n := 64 * 1024 / sys.PtrSize
+		n := 64 * 1024 / goarch.PtrSize
 		if n < cap(h.allspans)*3/2 {
 			n = cap(h.allspans) * 3 / 2
 		}
 		var new []*mspan
 		sp := (*slice)(unsafe.Pointer(&new))
-		sp.array = sysAlloc(uintptr(n)*sys.PtrSize, &memstats.other_sys)
+		sp.array = sysAlloc(uintptr(n)*goarch.PtrSize, &memstats.other_sys)
 		if sp.array == nil {
 			throw("runtime: cannot allocate memory")
 		}
@@ -1822,7 +1822,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 			scanobject(base, gcw)
 			// Mark the finalizer itself, since the
 			// special isn't part of the GC'd heap.
-			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+			scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 			releasem(mp)
 		}
 		return true

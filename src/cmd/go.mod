@@ -1,6 +1,6 @@
 module cmd
 
-go 1.17
+go 1.18
 
 require (
 	github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
@@ -10,6 +10,6 @@ require (
 	golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
-	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
+	golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )

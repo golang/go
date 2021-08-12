@@ -4,8 +4,11 @@
 
 package types
 
-// Identical reports whether t1 and t2 are identical types, following
-// the spec rules. Receiver parameter types are ignored.
+// Identical reports whether t1 and t2 are identical types, following the spec rules.
+// Receiver parameter types are ignored. Named (defined) types are only equal if they
+// are pointer-equal - i.e. there must be a unique types.Type for each specific named
+// type. Also, a type containing a shape type is considered identical to another type
+// (shape or not) if their underlying types are the same, or they are both pointers.
 func Identical(t1, t2 *Type) bool {
 	return identical(t1, t2, true, nil)
 }
@@ -29,6 +32,14 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 		return false
 	}
 	if t1.sym != nil || t2.sym != nil {
+		if t1.HasShape() || t2.HasShape() {
+			switch t1.kind {
+			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TPTR, TUNSAFEPTR:
+				return true
+			}
+			// fall through to unnamed type comparison for complex types.
+			goto cont
+		}
 		// Special case: we keep byte/uint8 and rune/int32
 		// separate for error messages. Treat them as equal.
 		switch t1.kind {
@@ -40,6 +51,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 			return false
 		}
 	}
+cont:
 
 	// Any cyclic type must go through a named type, and if one is
 	// named, it is only identical to the other if they are the

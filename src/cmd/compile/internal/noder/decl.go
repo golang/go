@@ -41,18 +41,25 @@ func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
 }
 
 func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
-	// TODO(mdempsky): Merge with gcimports so we don't have to import
-	// packages twice.
-
 	g.pragmaFlags(decl.Pragma, 0)
 
-	ipkg := importfile(decl)
-	if ipkg == ir.Pkgs.Unsafe {
+	// Get the imported package's path, as resolved already by types2
+	// and gcimporter. This is the same path as would be computed by
+	// parseImportPath.
+	switch pkgNameOf(g.info, decl).Imported().Path() {
+	case "unsafe":
 		p.importedUnsafe = true
-	}
-	if ipkg.Path == "embed" {
+	case "embed":
 		p.importedEmbed = true
 	}
+}
+
+// pkgNameOf returns the PkgName associated with the given ImportDecl.
+func pkgNameOf(info *types2.Info, decl *syntax.ImportDecl) *types2.PkgName {
+	if name := decl.LocalPkgName; name != nil {
+		return info.Defs[name].(*types2.PkgName)
+	}
+	return info.Implicits[decl].(*types2.PkgName)
 }
 
 func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
@@ -95,7 +102,21 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
+	if fn.Type().HasTParam() {
+		g.topFuncIsGeneric = true
+	}
 	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+	g.topFuncIsGeneric = false
+	if fn.Type().HasTParam() && fn.Body != nil {
+		// Set pointers to the dcls/body of a generic function/method in
+		// the Inl struct, so it is marked for export, is available for
+		// stenciling, and works with Inline_Flood().
+		fn.Inl = &ir.Inline{
+			Cost: 1,
+			Dcl:  fn.Dcl,
+			Body: fn.Body,
+		}
+	}
 
 	out.Append(fn)
 }
@@ -104,13 +125,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
-
-		// TODO(mdempsky): This matches how typecheckdef marks aliases for
-		// export, but this won't generalize to exporting function-scoped
-		// type aliases. We should maybe just use n.Alias() instead.
-		if ir.CurFunc == nil {
-			name.Sym().Def = ir.TypeNode(name.Type())
-		}
+		assert(name.Alias()) // should be set by irgen.obj
 
 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
 		return
@@ -154,11 +169,15 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// [mdempsky: Subtleties like these are why I always vehemently
 	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
-	if len(decl.TParamList) > 0 {
-		// Set HasTParam if there are any tparams, even if no tparams are
-		// used in the type itself (e.g., if it is an empty struct, or no
-		// fields in the struct use the tparam).
-		ntyp.SetHasTParam(true)
+
+	tparams := otyp.(*types2.Named).TParams()
+	if n := tparams.Len(); n > 0 {
+		rparams := make([]*types.Type, n)
+		for i := range rparams {
+			rparams[i] = g.typ(tparams.At(i).Type())
+		}
+		// This will set hasTParam flag if any rparams are not concrete types.
+		ntyp.SetRParams(rparams)
 	}
 	types.ResumeCheckSize()
 

@@ -108,13 +108,6 @@ func WriteEmbed(v *ir.Name) {
 	// TODO(mdempsky): User errors should be reported by the frontend.
 
 	commentPos := (*v.Embed)[0].Pos
-	if !types.AllowsGoVersion(types.LocalPkg, 1, 16) {
-		prevPos := base.Pos
-		base.Pos = commentPos
-		base.ErrorfVers("go1.16", "go:embed")
-		base.Pos = prevPos
-		return
-	}
 	if base.Flag.Cfg.Embed.Patterns == nil {
 		base.ErrorfAt(commentPos, "invalid go:embed: build system did not supply embed configuration")
 		return

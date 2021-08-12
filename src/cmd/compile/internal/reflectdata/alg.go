@@ -679,8 +679,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 
 	fn := typecheck.LookupRuntime("memequal")
 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(slen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
@@ -716,8 +715,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
