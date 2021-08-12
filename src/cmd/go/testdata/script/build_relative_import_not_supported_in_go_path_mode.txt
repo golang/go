@@ -1,0 +1,11 @@
+env GO111MODULE=off
+
+! go build
+stderr 'cannot find package "\." in:\n\t.WORK/gopath/src/foo'
+
+-- main.go --
+package main
+
+import _ "./foo"
+
+func main() {}
