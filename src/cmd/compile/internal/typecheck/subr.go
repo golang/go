@@ -900,31 +900,11 @@ func TypesOf(x []ir.Node) []*types.Type {
 	return r
 }
 
-// makeGenericName returns the name of the generic function instantiated
-// with the given types.
-// name is the name of the generic function or method.
-func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string {
+// makeInstName1 returns the name of the generic function instantiated with the
+// given types, which can have type params or shapes, or be concrete types. name is
+// the name of the generic function or method.
+func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
 	b := bytes.NewBufferString("")
-
-	// Determine if the type args are concrete types or new typeparams.
-	hasTParam := false
-	for _, targ := range targs {
-		if hasTParam {
-			assert(targ.HasTParam() || targ.HasShape())
-		} else if targ.HasTParam() || targ.HasShape() {
-			hasTParam = true
-		}
-	}
-
-	// Marker to distinguish generic instantiations from fully stenciled wrapper functions.
-	// Once we move to GC shape implementations, this prefix will not be necessary as the
-	// GC shape naming will distinguish them.
-	// e.g. f[8bytenonpointer] vs. f[int].
-	// For now, we use .inst.f[int] vs. f[int].
-	if !hasTParam {
-		b.WriteString(".inst.")
-	}
-
 	i := strings.Index(name, "[")
 	assert(hasBrackets == (i >= 0))
 	if i >= 0 {
@@ -963,7 +943,7 @@ func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string 
 
 // MakeInstName makes the unique name for a stenciled generic function or method,
 // based on the name of the function fnsym and the targs. It replaces any
-// existing bracket type list in the name. makeInstName asserts that fnsym has
+// existing bracket type list in the name. MakeInstName asserts that fnsym has
 // brackets in its name if and only if hasBrackets is true.
 //
 // Names of declared generic functions have no brackets originally, so hasBrackets
@@ -974,7 +954,7 @@ func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string 
 // The standard naming is something like: 'genFn[int,bool]' for functions and
 // '(*genType[int,bool]).methodName' for methods
 func MakeInstName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
-	return gf.Pkg.Lookup(makeGenericName(gf.Name, targs, hasBrackets))
+	return gf.Pkg.Lookup(makeInstName1(gf.Name, targs, hasBrackets))
 }
 
 func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
@@ -987,8 +967,8 @@ func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.S
 			panic("dictionary should always have concrete type args")
 		}
 	}
-	name := makeGenericName(gf.Name, targs, hasBrackets)
-	name = ".dict." + name[6:]
+	name := makeInstName1(gf.Name, targs, hasBrackets)
+	name = ".dict." + name
 	return gf.Pkg.Lookup(name)
 }
 
@@ -1014,14 +994,14 @@ type Tsubster struct {
 // result is t; otherwise the result is a new type. It deals with recursive types
 // by using TFORW types and finding partially or fully created types via sym.Def.
 func (ts *Tsubster) Typ(t *types.Type) *types.Type {
-	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TFUNC {
+	if !t.HasTParam() && t.Kind() != types.TFUNC {
 		// Note: function types need to be copied regardless, as the
 		// types of closures may contain declarations that need
 		// to be copied. See #45738.
 		return t
 	}
 
-	if t.IsTypeParam() || t.IsShape() {
+	if t.IsTypeParam() {
 		for i, tp := range ts.Tparams {
 			if tp == t {
 				return ts.Targs[i]
