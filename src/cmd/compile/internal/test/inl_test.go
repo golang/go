@@ -122,6 +122,7 @@ func TestIntendedInlining(t *testing.T) {
 			"FullRune",
 			"FullRuneInString",
 			"RuneLen",
+			"AppendRune",
 			"ValidRune",
 		},
 		"reflect": {
