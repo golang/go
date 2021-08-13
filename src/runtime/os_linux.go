@@ -517,3 +517,19 @@ func tgkill(tgid, tid, sig int)
 func signalM(mp *m, sig int) {
 	tgkill(getpid(), int(mp.procid), sig)
 }
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	// Once the profiler for Linux uses timer_create, this function will need to
+	// do more than return true. But so long as the only profiling timer in use
+	// is setitimer, returning true is correct.
+	return true
+}
