@@ -627,6 +627,9 @@ type subster struct {
 	newf     *ir.Func // Func node for the new stenciled function
 	ts       typecheck.Tsubster
 	info     *instInfo // Place to put extra info in the instantiation
+
+	// Map from non-nil, non-ONAME node n to slice of all m, where m.Defn = n
+	defnMap map[ir.Node][]**ir.Name
 }
 
 // genericSubst returns a new function with name newsym. The function is an
@@ -675,6 +678,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 			Targs:   shapes,
 			Vars:    make(map[*ir.Name]*ir.Name),
 		},
+		defnMap: make(map[ir.Node][]**ir.Name),
 	}
 
 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
@@ -726,6 +730,10 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 	// to many->1 shape to concrete mapping.
 	// newf.Body.Prepend(subst.checkDictionary(dictionaryName, shapes)...)
 
+	if len(subst.defnMap) > 0 {
+		base.Fatalf("defnMap is not empty")
+	}
+
 	ir.CurFunc = savef
 	// Add any new, fully instantiated types seen during the substitution to
 	// g.instTypeList.
@@ -764,6 +772,25 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 	m.Func = name.Func
 	subst.ts.Vars[name] = m
 	m.SetTypecheck(1)
+	if name.Defn != nil {
+		if name.Defn.Op() == ir.ONAME {
+			// This is a closure variable, so its Defn is the outer
+			// captured variable, which has already been substituted.
+			m.Defn = subst.node(name.Defn)
+		} else {
+			// The other values of Defn are nodes in the body of the
+			// function, so just remember the mapping so we can set Defn
+			// properly in node() when we create the new body node. We
+			// always call localvar() on all the local variables before
+			// we substitute the body.
+			slice := subst.defnMap[name.Defn]
+			subst.defnMap[name.Defn] = append(slice, &m)
+		}
+	}
+	if name.Outer != nil {
+		m.Outer = subst.node(name.Outer).(*ir.Name)
+	}
+
 	return m
 }
 
@@ -871,6 +898,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			}
 		}
 		m := ir.Copy(x)
+
+		slice, ok := subst.defnMap[x]
+		if ok {
+			// We just copied a non-ONAME node which was the Defn value
+			// of a local variable. Set the Defn value of the copied
+			// local variable to this new Defn node.
+			for _, ptr := range slice {
+				(*ptr).Defn = m
+			}
+			delete(subst.defnMap, x)
+		}
+
 		if _, isExpr := m.(ir.Expr); isExpr {
 			t := x.Type()
 			if t == nil {
@@ -1312,12 +1351,6 @@ func (subst *subster) namelist(l []*ir.Name) []*ir.Name {
 	s := make([]*ir.Name, len(l))
 	for i, n := range l {
 		s[i] = subst.localvar(n)
-		if n.Defn != nil {
-			s[i].Defn = subst.node(n.Defn)
-		}
-		if n.Outer != nil {
-			s[i].Outer = subst.node(n.Outer).(*ir.Name)
-		}
 	}
 	return s
 }
