@@ -55,6 +55,18 @@ func (err Error) FullError() string {
 	return fmt.Sprintf("%s: %s", err.Pos, err.Full)
 }
 
+// An ArgumentError holds an error that is associated with an argument.
+type ArgumentError struct {
+	index int
+	error
+}
+
+// Index returns the positional index of the argument associated with the
+// error.
+func (e ArgumentError) Index() int {
+	return e.index
+}
+
 // An Importer resolves import paths to Packages.
 //
 // CAUTION: This interface does not support the import of locally
