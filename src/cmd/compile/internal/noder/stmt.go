@@ -327,6 +327,8 @@ func (g *irgen) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 		if obj, ok := g.info.Implicits[clause]; ok {
 			cv = g.obj(obj)
 			cv.SetPos(g.makeXPos(clause.Colon))
+			assert(expr.Op() == ir.OTYPESW)
+			cv.Defn = expr
 		}
 		body[i] = ir.NewCaseStmt(g.pos(clause), g.exprList(clause.Cases), g.stmts(clause.Body))
 		body[i].Var = cv
