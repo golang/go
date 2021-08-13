@@ -646,7 +646,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	assert(len(dict.funcs) == nfuncs)
 }
 
-func (w *writer) typeParamNames(tparams *types2.TypeParams) {
+func (w *writer) typeParamNames(tparams *types2.TParamList) {
 	w.sync(syncTypeParamNames)
 
 	ntparams := tparams.Len()
@@ -1861,7 +1861,7 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 }
 
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) *types2.TypeParams {
+func objTypeParams(obj types2.Object) *types2.TParamList {
 	switch obj := obj.(type) {
 	case *types2.Func:
 		sig := obj.Type().(*types2.Signature)
