@@ -444,7 +444,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 		posList[i] = syntax.StartPos(arg)
 	}
 
-	typ := check.Instantiate(x.Pos(), base, targs, posList, true)
+	typ := check.instantiate(x.Pos(), base, targs, posList)
 	def.setUnderlying(typ)
 
 	// make sure we check instantiation works at least once

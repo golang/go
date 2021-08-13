@@ -652,7 +652,9 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected instantiation type")
 		}
-		pos := r.pos()
+		// pos does not matter for instances: they are positioned on the original
+		// type.
+		_ = r.pos()
 		len := r.uint64()
 		targs := make([]types2.Type, len)
 		for i := range targs {
@@ -661,8 +663,8 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		baseType := r.typ()
 		// The imported instantiated type doesn't include any methods, so
 		// we must always use the methods of the base (orig) type.
-		var check *types2.Checker // TODO provide a non-nil *Checker
-		t := check.Instantiate(pos, baseType, targs, nil, false)
+		// TODO provide a non-nil *Checker
+		t, _ := types2.Instantiate(nil, baseType, targs, false)
 		return t
 
 	case unionType:

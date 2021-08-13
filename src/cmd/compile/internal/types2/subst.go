@@ -35,13 +35,12 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 	return tpar
 }
 
-// subst returns the type typ with its type parameters tpars replaced by
-// the corresponding type arguments targs, recursively.
-// subst is functional in the sense that it doesn't modify the incoming
-// type. If a substitution took place, the result type is different from
-// from the incoming type.
+// subst returns the type typ with its type parameters tpars replaced by the
+// corresponding type arguments targs, recursively. subst doesn't modify the
+// incoming type. If a substitution took place, the result type is different
+// from from the incoming type.
 //
-// If the given typMap is nil and check is non-nil, check.typMap is used.
+// If the given typMap is non-nil, it is used in lieu of check.typMap.
 func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
 	if smap.empty() {
 		return typ
