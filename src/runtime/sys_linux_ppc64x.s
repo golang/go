@@ -743,6 +743,9 @@ TEXT cgoSigtramp<>(SB),NOSPLIT,$0
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
 	// We're coming from C code, set up essential register, then call sigprofNonGo.
 	CALL	runtime·reginit(SB)
+	MOVW	R3, FIXED_FRAME+0(R1)	// sig
+	MOVD	R4, FIXED_FRAME+8(R1)	// info
+	MOVD	R5, FIXED_FRAME+16(R1)	// ctx
 	CALL	runtime·sigprofNonGo(SB)
 	RET
 
