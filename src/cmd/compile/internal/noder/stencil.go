@@ -1224,6 +1224,11 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v 
 		}
 		assert(ix >= 0)
 		rt = getDictionaryEntry(pos, dictParam, ix, info.dictLen)
+	} else if v.Type().IsInterface() {
+		ta := ir.NewTypeAssertExpr(pos, v, nil)
+		ta.SetType(dst)
+		ta.SetTypecheck(1)
+		return ta
 	} else {
 		ix := findDictType(info, src)
 		assert(ix >= 0)
