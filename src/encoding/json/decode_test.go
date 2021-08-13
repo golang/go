@@ -1768,6 +1768,7 @@ type NullTest struct {
 	PBool     *bool
 	Map       map[string]string
 	Slice     []string
+	Array     [1]string
 	Interface interface{}
 
 	PRaw    *RawMessage
@@ -1812,6 +1813,7 @@ func TestUnmarshalNulls(t *testing.T) {
 				"PBool": null,
 				"Map": null,
 				"Slice": null,
+				"Array": null,
 				"Interface": null,
 				"PRaw": null,
 				"PTime": null,
@@ -1844,6 +1846,7 @@ func TestUnmarshalNulls(t *testing.T) {
 		PBool:     new(bool),
 		Map:       map[string]string{},
 		Slice:     []string{},
+		Array:     [1]string{"123"},
 		Interface: new(MustNotUnmarshalJSON),
 		PRaw:      new(RawMessage),
 		PTime:     new(time.Time),
@@ -1877,6 +1880,11 @@ func TestUnmarshalNulls(t *testing.T) {
 	if nulls.Slice != nil {
 		t.Errorf("Unmarshal of null did not clear nulls.Slice")
 	}
+
+	if reflect.DeepEqual(nulls.Array, [1]string{}) {
+		t.Errorf("Unmarshal of null did not clear nulls.Array")
+	}
+
 	if nulls.Interface != nil {
 		t.Errorf("Unmarshal of null did not clear nulls.Interface")
 	}
