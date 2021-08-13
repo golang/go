@@ -242,6 +242,9 @@ control the execution of any test:
 	-failfast
 	    Do not start new tests after the first test failure.
 
+	-json
+	    Make the test results available in JSON.
+
 	-list regexp
 	    List tests, benchmarks, or examples matching the regular expression.
 	    No tests, benchmarks or examples will be run. This will only
