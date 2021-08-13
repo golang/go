@@ -907,7 +907,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			break
 		}
 		switch v.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice, reflect.Array:
 			v.Set(reflect.Zero(v.Type()))
 			// otherwise, ignore null for primitives/string
 		}

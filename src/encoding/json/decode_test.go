@@ -1880,11 +1880,9 @@ func TestUnmarshalNulls(t *testing.T) {
 	if nulls.Slice != nil {
 		t.Errorf("Unmarshal of null did not clear nulls.Slice")
 	}
-
-	if reflect.DeepEqual(nulls.Array, [1]string{}) {
+	if !reflect.DeepEqual(nulls.Array, [1]string{}) {
 		t.Errorf("Unmarshal of null did not clear nulls.Array")
 	}
-
 	if nulls.Interface != nil {
 		t.Errorf("Unmarshal of null did not clear nulls.Interface")
 	}
