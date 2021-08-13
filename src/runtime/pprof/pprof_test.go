@@ -79,6 +79,10 @@ func cpuHog2(x int) int {
 	return foo
 }
 
+func cpuHog3(x int) int {
+	return cpuHog0(x, 1e5)
+}
+
 // Return a list of functions that we don't want to ever appear in CPU
 // profiles. For gccgo, that list includes the sigprof handler itself.
 func avoidFunctions() []string {
@@ -105,6 +109,93 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 		cpuHogger(cpuHog2, &salt2, dur)
 		<-c
 	})
+}
+
+func TestCPUProfileMultithreadMagnitude(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("issue 35057 is only confirmed on Linux")
+	}
+
+	// Run a workload in a single goroutine, then run copies of the same
+	// workload in several goroutines. For both the serial and parallel cases,
+	// the CPU time the process measures with its own profiler should match the
+	// total CPU usage that the OS reports.
+	//
+	// We could also check that increases in parallelism (GOMAXPROCS) lead to a
+	// linear increase in the CPU usage reported by both the OS and the
+	// profiler, but without a guarantee of exclusive access to CPU resources
+	// that is likely to be a flaky test.
+
+	// Require the smaller value to be within 10%, or 40% in short mode.
+	maxDiff := 0.10
+	if testing.Short() {
+		maxDiff = 0.40
+	}
+
+	parallelism := runtime.GOMAXPROCS(0)
+
+	var cpuTime1, cpuTimeN time.Duration
+	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {
+		cpuTime1 = diffCPUTime(t, func() {
+			// Consume CPU in one goroutine
+			cpuHogger(cpuHog1, &salt1, dur)
+		})
+
+		cpuTimeN = diffCPUTime(t, func() {
+			// Next, consume CPU in several goroutines
+			var wg sync.WaitGroup
+			var once sync.Once
+			for i := 0; i < parallelism; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var salt = 0
+					cpuHogger(cpuHog3, &salt, dur)
+					once.Do(func() { salt1 = salt })
+				}()
+			}
+			wg.Wait()
+		})
+	})
+
+	for i, unit := range []string{"count", "nanoseconds"} {
+		if have, want := p.SampleType[i].Unit, unit; have != want {
+			t.Errorf("pN SampleType[%d]; %q != %q", i, have, want)
+		}
+	}
+
+	var value1, valueN time.Duration
+	for _, sample := range p.Sample {
+		if stackContains("runtime/pprof.cpuHog1", uintptr(sample.Value[0]), sample.Location, sample.Label) {
+			value1 += time.Duration(sample.Value[1]) * time.Nanosecond
+		}
+		if stackContains("runtime/pprof.cpuHog3", uintptr(sample.Value[0]), sample.Location, sample.Label) {
+			valueN += time.Duration(sample.Value[1]) * time.Nanosecond
+		}
+	}
+
+	compare := func(a, b time.Duration, maxDiff float64) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Logf("compare %s vs %s", a, b)
+			if a <= 0 || b <= 0 {
+				t.Errorf("Expected both time reports to be positive")
+				return
+			}
+
+			if a < b {
+				a, b = b, a
+			}
+
+			diff := float64(a-b) / float64(a)
+			if diff > maxDiff {
+				t.Errorf("CPU usage reports are too different (limit -%.1f%%, got -%.1f%%)", maxDiff*100, diff*100)
+			}
+		}
+	}
+
+	// check that the OS's perspective matches what the Go runtime measures
+	t.Run("serial execution OS vs pprof", compare(cpuTime1, value1, maxDiff))
+	t.Run("parallel execution OS vs pprof", compare(cpuTimeN, valueN, maxDiff))
 }
 
 // containsInlinedCall reports whether the function body for the function f is
@@ -348,6 +439,16 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 	}
 	t.FailNow()
 	return nil
+}
+
+var diffCPUTimeImpl func(f func()) time.Duration
+
+func diffCPUTime(t *testing.T, f func()) time.Duration {
+	if fn := diffCPUTimeImpl; fn != nil {
+		return fn(f)
+	}
+	t.Fatalf("cannot measure CPU time on GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
+	return 0
 }
 
 func contains(slice []string, s string) bool {
