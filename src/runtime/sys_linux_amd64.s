@@ -41,6 +41,9 @@
 #define SYS_futex		202
 #define SYS_sched_getaffinity	204
 #define SYS_epoll_create	213
+#define SYS_timer_create	222
+#define SYS_timer_settime	223
+#define SYS_timer_delete	226
 #define SYS_clock_gettime	228
 #define SYS_exit_group		231
 #define SYS_epoll_ctl		233
@@ -193,6 +196,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
 	MOVQ	old+16(FP), DX
 	MOVL	$SYS_setittimer, AX
 	SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVL	clockid+0(FP), DI
+	MOVQ	sevp+8(FP), SI
+	MOVQ	timerid+16(FP), DX
+	MOVL	$SYS_timer_create, AX
+	SYSCALL
+	MOVL	AX, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVL	timerid+0(FP), DI
+	MOVL	flags+4(FP), SI
+	MOVQ	new+8(FP), DX
+	MOVQ	old+16(FP), R10
+	MOVL	$SYS_timer_settime, AX
+	SYSCALL
+	MOVL	AX, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVL	timerid+0(FP), DI
+	MOVL	$SYS_timer_delete, AX
+	SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-28

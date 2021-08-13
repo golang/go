@@ -41,6 +41,9 @@
 #define SYS_exit_group		5205
 #define SYS_epoll_create	5207
 #define SYS_epoll_ctl		5208
+#define SYS_timer_create	5216
+#define SYS_timer_settime	5217
+#define SYS_timer_delete	5220
 #define SYS_tgkill		5225
 #define SYS_openat		5247
 #define SYS_epoll_pwait		5272
@@ -202,6 +205,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVV	old+16(FP), R6
 	MOVV	$SYS_setitimer, R2
 	SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R4
+	MOVV	sevp+8(FP), R5
+	MOVV	timerid+16(FP), R6
+	MOVV	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVV	new+8(FP), R6
+	MOVV	old+16(FP), R7
+	MOVV	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R4
+	MOVV	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+8(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
