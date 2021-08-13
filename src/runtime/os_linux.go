@@ -529,10 +529,8 @@ func signalM(mp *m, sig int) {
 	tgkill(getpid(), int(mp.procid), sig)
 }
 
-// go118UseTimerCreateProfiler enables the per-thread CPU profiler. Platforms
-// with support for SetCgoTraceback do some signal handling in assembly; do not
-// enable it for them until the changes to those code paths are in place.
-const go118UseTimerCreateProfiler = GOARCH != "amd64" && GOARCH != "ppc64le"
+// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
+const go118UseTimerCreateProfiler = true
 
 // validSIGPROF compares this signal delivery's code against the signal sources
 // that the profiler uses, returning whether the delivery should be processed.

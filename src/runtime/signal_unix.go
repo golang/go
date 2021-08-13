@@ -480,15 +480,26 @@ var sigprofCallersUse uint32
 // and the signal handler collected a stack trace in sigprofCallers.
 // When this is called, sigprofCallersUse will be non-zero.
 // g is nil, and what we can do is very limited.
+//
+// It is called from the signal handling functions written in assembly code that
+// are active for cgo programs, cgoSigtramp and sigprofNonGoWrapper, which have
+// not verified that the SIGPROF delivery corresponds to the best available
+// profiling source for this thread.
+//
 //go:nosplit
 //go:nowritebarrierrec
-func sigprofNonGo() {
+func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if prof.hz != 0 {
-		n := 0
-		for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
-			n++
+		c := &sigctxt{info, ctx}
+		// Some platforms (Linux) have per-thread timers, which we use in
+		// combination with the process-wide timer. Avoid double-counting.
+		if validSIGPROF(nil, c) {
+			n := 0
+			for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
+				n++
+			}
+			cpuprof.addNonGo(sigprofCallers[:n])
 		}
-		cpuprof.addNonGo(sigprofCallers[:n])
 	}
 
 	atomic.Store(&sigprofCallersUse, 0)
