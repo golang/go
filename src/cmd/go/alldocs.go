@@ -2659,7 +2659,8 @@
 // 	    Do not start new tests after the first test failure.
 //
 // 	-json
-// 	    Make the test results available in JSON.
+// 	    Log verbose output and test results in JSON. This presents the
+// 	    same information as the -v flag in a machine-readable format.
 //
 // 	-list regexp
 // 	    List tests, benchmarks, or examples matching the regular expression.
