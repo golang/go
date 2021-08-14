@@ -91,7 +91,17 @@ func tparamsSlice(tparams *types.TypeParams) []*types.TypeName {
 
 // NamedTArgs extracts the (possibly empty) type argument list from named.
 func NamedTArgs(named *types.Named) []types.Type {
-	return named.TArgs()
+	ntargs := named.NumTArgs()
+	if ntargs == 0 {
+		return nil
+	}
+
+	targs := make([]types.Type, ntargs)
+	for i := 0; i < ntargs; i++ {
+		targs[i] = named.TArg(i)
+	}
+
+	return targs
 }
 
 // InitInferred initializes info to record inferred type information.
