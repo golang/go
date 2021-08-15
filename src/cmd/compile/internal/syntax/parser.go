@@ -1049,10 +1049,15 @@ loop:
 			}
 
 			// x[i:...
-			// For better error message, don't use p.want(_Colon) here (issue #47704).
+			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
 			if !p.got(_Colon) {
-				p.syntaxError("expecting : or ]")
-				p.advance(_Colon, _Rbrack)
+				if p.mode&AllowGenerics == 0 {
+					p.syntaxError("expecting : or ]")
+					p.advance(_Colon, _Rbrack)
+				} else {
+					p.syntaxError("expecting comma, : or ]")
+					p.advance(_Comma, _Colon, _Rbrack)
+				}
 			}
 			p.xnest++
 			t := new(SliceExpr)
