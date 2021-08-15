@@ -1945,27 +1945,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		}
 	}
 
-	// Collect all of the IDs that are reachable from the workspace packages.
-	// Any unreachable IDs will have their metadata deleted outright.
-	reachableID := map[PackageID]bool{}
-	var addForwardDeps func(PackageID)
-	addForwardDeps = func(id PackageID) {
-		if reachableID[id] {
-			return
-		}
-		reachableID[id] = true
-		m, ok := s.meta.metadata[id]
-		if !ok {
-			return
-		}
-		for _, depID := range m.Deps {
-			addForwardDeps(depID)
-		}
-	}
-	for id := range s.workspacePackages {
-		addForwardDeps(id)
-	}
-
 	// Compute which metadata updates are required. We only need to invalidate
 	// packages directly containing the affected file, and only if it changed in
 	// a relevant way.
@@ -1974,12 +1953,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	for k, v := range s.meta.metadata {
 		invalidateMetadata := idsToInvalidate[k]
 		if skipID[k] || (invalidateMetadata && deleteInvalidMetadata) {
-			metadataUpdates[k] = nil
-			continue
-		}
-		// The ID is not reachable from any workspace package, so it should
-		// be deleted.
-		if !reachableID[k] {
 			metadataUpdates[k] = nil
 			continue
 		}
