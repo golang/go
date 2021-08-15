@@ -215,7 +215,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	}
 
 	// targ's underlying type must also be one of the interface types listed, if any
-	if iface.typeSet().types == nil {
+	if !iface.typeSet().hasTerms() {
 		return true // nothing to do
 	}
 
@@ -223,24 +223,22 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 	if targ := asTypeParam(targ); targ != nil {
 		targBound := targ.iface()
-		if targBound.typeSet().types == nil {
+		if !targBound.typeSet().hasTerms() {
 			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 			return false
 		}
-		return iface.is(func(typ Type, tilde bool) bool {
-			// TODO(gri) incorporate tilde information!
-			if !iface.isSatisfiedBy(typ) {
-				// TODO(gri) match this error message with the one below (or vice versa)
-				check.softErrorf(atPos(pos), 0, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, typ, iface.typeSet().types)
-				return false
-			}
-			return true
-		})
+		if !targBound.typeSet().subsetOf(iface.typeSet()) {
+			// TODO(gri) need better error message
+			check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s", targ, tpar.bound)
+			return false
+		}
+		return true
 	}
 
 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
-	if !iface.isSatisfiedBy(targ) {
-		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.typeSet().types)
+	if !iface.typeSet().includes(targ) {
+		// TODO(gri) better error message
+		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s", targ, tpar.bound)
 		return false
 	}
 

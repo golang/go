@@ -145,19 +145,18 @@ func (check *Checker) varType(e ast.Expr) Type {
 // ordinaryType reports an error if typ is an interface type containing
 // type lists or is (or embeds) the predeclared type comparable.
 func (check *Checker) ordinaryType(pos positioner, typ Type) {
-	// We don't want to call under() (via asInterface) or complete interfaces
-	// while we are in the middle of type-checking parameter declarations that
-	// might belong to interface methods. Delay this check to the end of
-	// type-checking.
+	// We don't want to call under() (via asInterface) or complete interfaces while we
+	// are in the middle of type-checking parameter declarations that might belong to
+	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
-			tset := computeTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
-			if tset.types != nil {
-				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", tset.types)
-				return
-			}
-			if tset.IsComparable() {
-				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
+			tset := computeInterfaceTypeSet(check, pos.Pos(), t) // TODO(gri) is this the correct position?
+			if !tset.IsMethodSet() {
+				if tset.comparable {
+					check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
+				} else {
+					check.softErrorf(pos, _Todo, "interface contains type constraints")
+				}
 			}
 		}
 	})

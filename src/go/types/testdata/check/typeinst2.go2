@@ -164,13 +164,13 @@ type _ interface {
 // for them to be all in a single list, and we report the error
 // as well.)
 type _ interface {
-	~int|~ /* ERROR duplicate term int */ int
-	~int|int /* ERROR duplicate term int */
-	int|int /* ERROR duplicate term int */
+	~int|~ /* ERROR overlapping terms ~int */ int
+	~int|int /* ERROR overlapping terms int */
+	int|int /* ERROR overlapping terms int */
 }
 
 type _ interface {
-	~struct{f int} | ~struct{g int} | ~ /* ERROR duplicate term */ struct{f int}
+	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct {f int}
 }
 
 // Interface type lists can contain any type, incl. *Named types.

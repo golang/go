@@ -258,7 +258,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Union); ok {
+		if t, _ := under(T).(*TypeParam); t != nil {
 			return t.is(func(t *term) bool {
 				// TODO(gri) this could probably be more efficient
 				if t.tilde {

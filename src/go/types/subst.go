@@ -148,12 +148,12 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Union:
-		terms, copied := subst.termList(t.terms)
+		terms, copied := subst.termlist(t.terms)
 		if copied {
-			// TODO(gri) Remove duplicates that may have crept in after substitution
-			//           (unlikely but possible). This matters for the Identical
-			//           predicate on unions.
-			return &Union{terms}
+			// term list substitution may introduce duplicate terms (unlikely but possible).
+			// This is ok; lazy type set computation will determine the actual type set
+			// in normal form.
+			return &Union{terms, nil}
 		}
 
 	case *Interface:
@@ -394,7 +394,7 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
 	return
 }
 
-func (subst *subster) termList(in []*term) (out []*term, copied bool) {
+func (subst *subster) termlist(in []*term) (out []*term, copied bool) {
 	out = in
 	for i, t := range in {
 		if u := subst.typ(t.typ); u != t.typ {

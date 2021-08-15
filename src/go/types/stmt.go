@@ -917,10 +917,11 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Chan:
 		var msg string
 		if typ.dir == SendOnly {
+			// TODO(rfindley): this error message differs from types2. Reconcile this.
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *Union:
+	case *TypeParam:
 		first := true
 		var key, val Type
 		var msg string

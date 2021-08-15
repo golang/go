@@ -13,7 +13,7 @@ import "bytes"
 // normal form.
 type termlist []*term
 
-// topTermList represents the set of all types.
+// topTermlist represents the set of all types.
 // It is in normal form.
 var topTermlist = termlist{new(term)}
 
