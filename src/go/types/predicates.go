@@ -229,16 +229,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 				identical(x.results, y.results, cmpTags, p)
 		}
 
-	case *Union:
-		// Two union types are identical if they contain the same terms.
-		// The set (list) of types in a union type consists of unique
-		// types - each type appears exactly once. Thus, two union types
-		// must contain the same number of types to have chance of
-		// being equal.
-		if y, ok := y.(*Union); ok {
-			return identicalTerms(x.terms, y.terms)
-		}
-
 	case *Interface:
 		// Two interface types are identical if they describe the same type sets.
 		// With the existing implementation restriction, this simplifies to:
@@ -250,7 +240,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		if y, ok := y.(*Interface); ok {
 			xset := x.typeSet()
 			yset := y.typeSet()
-			if !Identical(xset.types, yset.types) {
+			if !xset.terms.equal(yset.terms) {
 				return false
 			}
 			a := xset.methods

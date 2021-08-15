@@ -44,28 +44,21 @@ func under(t Type) Type {
 // optype returns a type's operational type. Except for
 // type parameters, the operational type is the same
 // as the underlying type (as returned by under). For
-// Type parameters, the operational type is determined
-// by the corresponding type bound's type list. The
-// result may be the bottom or top type, but it is never
-// the incoming type parameter.
+// Type parameters, the operational type is the structural
+// type, if any; otherwise it's the top type.
+// The result is never the incoming type parameter.
 func optype(typ Type) Type {
 	if t := asTypeParam(typ); t != nil {
+		// TODO(gri) review accuracy of this comment
 		// If the optype is typ, return the top type as we have
 		// no information. It also prevents infinite recursion
 		// via the asTypeParam converter function. This can happen
 		// for a type parameter list of the form:
 		// (type T interface { type T }).
 		// See also issue #39680.
-		if a := t.iface().typeSet().types; a != nil && a != typ {
-			// If we have a union with a single entry, ignore
-			// any tilde because under(~t) == under(t).
-			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
-				a, _ = u.Term(0)
-			}
-			if a != typ {
-				// a != typ and a is a type parameter => under(a) != typ, so this is ok
-				return under(a)
-			}
+		if u := t.structuralType(); u != nil {
+			assert(u != typ) // "naked" type parameters cannot be embedded
+			return u
 		}
 		return theTop
 	}

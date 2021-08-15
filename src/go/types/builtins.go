@@ -145,7 +145,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(optype(x.typ)); t := typ.(type) {
+		switch typ = implicitArrayDeref(under(x.typ)); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -179,9 +179,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				mode = value
 			}
 
-		case *Union:
+		case *TypeParam:
 			if t.underIs(func(t Type) bool {
-				switch t := t.(type) {
+				switch t := implicitArrayDeref(t).(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
 						return true
@@ -826,10 +826,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type and collect possible result types at the same time.
 		var rtypes []Type
 		var tildes []bool
-		if !tp.iface().is(func(typ Type, tilde bool) bool {
-			if r := f(typ); r != nil {
+		if !tp.iface().typeSet().is(func(t *term) bool {
+			if r := f(t.typ); r != nil {
 				rtypes = append(rtypes, r)
-				tildes = append(tildes, tilde)
+				tildes = append(tildes, t.tilde)
 				return true
 			}
 			return false
@@ -841,10 +841,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type param is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, &emptyInterface) // assigns type to tpar as a side-effect
+		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{newUnion(rtypes, tildes)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
-		tsum := newUnion(rtypes, tildes)
-		ptyp.bound = &Interface{complete: true, tset: &_TypeSet{types: tsum}}
 
 		return ptyp
 	}
