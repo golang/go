@@ -1049,7 +1049,11 @@ loop:
 			}
 
 			// x[i:...
-			p.want(_Colon)
+			// For better error message, don't use p.want(_Colon) here (issue #47704).
+			if !p.got(_Colon) {
+				p.syntaxError("expecting : or ]")
+				p.advance(_Colon, _Rbrack)
+			}
 			p.xnest++
 			t := new(SliceExpr)
 			t.pos = pos
