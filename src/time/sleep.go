@@ -84,6 +84,7 @@ func (t *Timer) Stop() bool {
 // NewTimer creates a new Timer that will send
 // the current time on its channel after at least duration d.
 func NewTimer(d Duration) *Timer {
+	// Give the channel a 1-element time buffer to hold the current time.
 	c := make(chan Time, 1)
 	t := &Timer{
 		C: c,
@@ -140,10 +141,8 @@ func (t *Timer) Reset(d Duration) bool {
 }
 
 // sendTime does a non-blocking send of the current time on c.
-// Used in NewTimer, it cannot block anyway (buffer).
-// Used in NewTicker, dropping sends on the floor is
-// the desired behavior when the reader gets behind,
-// because the sends are periodic.
+// Used in NewTimer and NewTicker, it will not block the Chan
+// buffer if c is not ready to receive.
 func sendTime(c interface{}, seq uintptr) {
 	select {
 	case c.(chan Time) <- Now():
