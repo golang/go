@@ -64,6 +64,7 @@ var okgoarch = []string{
 	"amd64",
 	"arm",
 	"arm64",
+	"loong64",
 	"mips",
 	"mipsle",
 	"mips64",
@@ -1554,6 +1555,7 @@ var cgoEnabled = map[string]bool{
 	"linux/amd64":     true,
 	"linux/arm":       true,
 	"linux/arm64":     true,
+	"linux/loong64":   true,
 	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
 	"linux/mips":      true,
@@ -1593,6 +1595,7 @@ var cgoEnabled = map[string]bool{
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
 	"linux/sparc64": true,
+	"linux/loong64": true,
 }
 
 // List of platforms which are first class ports. See golang.org/issue/38874.
