@@ -328,6 +328,7 @@ var KnownArch = map[string]bool{
 	"mips64le":    true,
 	"mips64p32":   true,
 	"mips64p32le": true,
+	"loong64":     true,
 	"ppc":         true,
 	"riscv":       true,
 	"riscv64":     true,
