@@ -199,7 +199,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/14449
-	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.RISCV64) {
+	if iscgo && ctxt.Arch.InFamily(sys.Loong64, sys.MIPS64, sys.MIPS, sys.RISCV64) {
 		return true, buildcfg.GOARCH + " does not support internal cgo"
 	}
 	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {

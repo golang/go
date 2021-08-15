@@ -1899,6 +1899,8 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 		if buildcfg.GOOS == "darwin" {
 			return []string{"-arch", "arm64"}
 		}
+	case sys.Loong64:
+		return []string{"-mabi=lp64d"}
 	case sys.MIPS64:
 		return []string{"-mabi=64"}
 	case sys.MIPS:

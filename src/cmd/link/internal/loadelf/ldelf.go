@@ -346,6 +346,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if mach != elf.EM_MIPS || class != elf.ELFCLASS64 {
 			return errorf("elf object but not mips64")
 		}
+	case sys.Loong64:
+		if mach != elf.EM_LOONGARCH || class != elf.ELFCLASS64 {
+			return errorf("elf object but not loong64")
+		}
 
 	case sys.ARM:
 		if e != binary.LittleEndian || mach != elf.EM_ARM || class != elf.ELFCLASS32 {
@@ -956,6 +960,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		ARM     = uint32(sys.ARM)
 		ARM64   = uint32(sys.ARM64)
 		I386    = uint32(sys.I386)
+		LOONG64 = uint32(sys.Loong64)
 		MIPS    = uint32(sys.MIPS)
 		MIPS64  = uint32(sys.MIPS64)
 		PPC64   = uint32(sys.PPC64)
@@ -989,6 +994,15 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
+		return 4, 4, nil
+
+	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
+		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
+		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+		LOONG64 | uint32(elf.R_LARCH_64)<<16,
+		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16:
 		return 4, 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
