@@ -14,46 +14,46 @@ import (
 
 // A Union represents a union of terms embedded in an interface.
 type Union struct {
-	terms []*term   // list of syntactical terms (not a canonicalized termlist)
+	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
 	tset  *_TypeSet // type set described by this union, computed lazily
 }
 
-// NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
-// The lengths of both arguments must match. It is an error to create an empty
-// union; they are syntactically not possible.
-func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
+// NewUnion returns a new Union type with the given terms.
+// It is an error to create an empty union; they are syntactically not possible.
+func NewUnion(terms []*Term) *Union {
+	if len(terms) == 0 {
+		panic("empty union")
+	}
+	return &Union{terms, nil}
+}
 
-func (u *Union) IsEmpty() bool           { return len(u.terms) == 0 }
-func (u *Union) NumTerms() int           { return len(u.terms) }
-func (u *Union) Term(i int) (Type, bool) { t := u.terms[i]; return t.typ, t.tilde }
+func (u *Union) Len() int         { return len(u.terms) }
+func (u *Union) Term(i int) *Term { return u.terms[i] }
 
 func (u *Union) Underlying() Type { return u }
 func (u *Union) String() string   { return TypeString(u, nil) }
 
+// A Term represents a term in a Union.
+type Term term
+
+// NewTerm returns a new union term.
+func NewTerm(tilde bool, typ Type) *Term { return &Term{tilde, typ} }
+
+func (t *Term) Tilde() bool    { return t.tilde }
+func (t *Term) Type() Type     { return t.typ }
+func (t *Term) String() string { return (*term)(t).String() }
+
 // ----------------------------------------------------------------------------
 // Implementation
 
-func newUnion(types []Type, tilde []bool) *Union {
-	assert(len(types) == len(tilde))
-	if len(types) == 0 {
-		panic("empty union")
-	}
-	t := new(Union)
-	t.terms = make([]*term, len(types))
-	for i, typ := range types {
-		t.terms[i] = &term{tilde[i], typ}
-	}
-	return t
-}
-
 func parseUnion(check *Checker, tlist []ast.Expr) Type {
-	var terms []*term
+	var terms []*Term
 	for _, x := range tlist {
 		tilde, typ := parseTilde(check, x)
 		if len(tlist) == 1 && !tilde {
 			return typ // single type
 		}
-		terms = append(terms, &term{tilde, typ})
+		terms = append(terms, NewTerm(tilde, typ))
 	}
 
 	// Check validity of terms.
@@ -128,7 +128,7 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
 // overlappingTerm reports the index of the term x in terms which is
 // overlapping (not disjoint) from y. The result is < 0 if there is no
 // such term.
-func overlappingTerm(terms []*term, y *term) int {
+func overlappingTerm(terms []*Term, y *Term) int {
 	for i, x := range terms {
 		// disjoint requires non-nil, non-top arguments
 		if debug {
@@ -136,7 +136,7 @@ func overlappingTerm(terms []*term, y *term) int {
 				panic("empty or top union term")
 			}
 		}
-		if !x.disjoint(y) {
+		if !(*term)(x).disjoint((*term)(y)) {
 			return i
 		}
 	}
