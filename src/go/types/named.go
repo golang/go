@@ -285,12 +285,3 @@ func (n *Named) expand() {
 		n.instance = nil
 	}
 }
-
-// expand expands uninstantiated named types and leaves all other types alone.
-// expand does not recurse.
-func expand(typ Type) Type {
-	if t, _ := typ.(*Named); t != nil {
-		t.expand()
-	}
-	return typ
-}
