@@ -149,40 +149,109 @@ func _[T interface{}](x T) {
         for range x /* ERROR cannot range */ {}
 }
 
-// Disabled for now until we have clarified semantics of range.
-// TODO(gri) fix this
-//
-// func _[T interface{ ~string | ~[]string }](x T) {
-//         for range x {}
-//         for i := range x { _ = i }
-//         for i, _ := range x { _ = i }
-//         for i, e := range x /* ERROR must have the same element type */ { _ = i }
-//         for _, e := range x /* ERROR must have the same element type */ {}
-//         var e rune
-//         _ = e
-//         for _, (e) = range x /* ERROR must have the same element type */ {}
-// }
-//
-//
-// func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
-//         for _, e := range x { _ = e }
-//         for i, e := range x { _ = i; _ = e }
-// }
-//
-// func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
-//         for _, e := range x { _ = e }
-//         for i, e := range x /* ERROR must have the same key type */ { _ = e }
-// }
-//
-// func _[T interface{ ~string | ~chan int }](x T) {
-//         for range x {}
-//         for i := range x { _ = i }
-//         for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
-// }
-//
-// func _[T interface{ ~string | ~chan<-int }](x T) {
-//         for i := range x /* ERROR send-only channel */ { _ = i }
-// }
+type myString string
+
+func _[
+        B1 interface{ string },
+        B2 interface{ string | myString },
+
+        C1 interface{ chan int },
+        C2 interface{ chan int | <-chan int },
+        C3 interface{ chan<- int },
+
+        S1 interface{ []int },
+        S2 interface{ []int | [10]int },
+
+        A1 interface{ [10]int },
+        A2 interface{ [10]int | []int },
+
+        P1 interface{ *[10]int },
+        P2 interface{ *[10]int | *[]int },
+
+        M1 interface{ map[string]int },
+        M2 interface{ map[string]int | map[string]string },
+]() {
+        var b0 string
+        for range b0 {}
+        for _ = range b0 {}
+        for _, _ = range b0 {}
+
+        var b1 B1
+        for range b1 {}
+        for _ = range b1 {}
+        for _, _ = range b1 {}
+
+        var b2 B2
+        for range b2 /* ERROR cannot range over b2 .* no structural type */ {}
+
+        var c0 chan int
+        for range c0 {}
+        for _ = range c0 {}
+        for _, _ /* ERROR permits only one iteration variable */ = range c0 {}
+
+        var c1 C1
+        for range c1 {}
+        for _ = range c1 {}
+        for _, _ /* ERROR permits only one iteration variable */ = range c1 {}
+
+        var c2 C2
+        for range c2 /* ERROR cannot range over c2 .* no structural type */ {}
+
+        var c3 C3
+        for range c3 /* ERROR receive from send-only channel */ {}
+
+        var s0 []int
+        for range s0 {}
+        for _ = range s0 {}
+        for _, _ = range s0 {}
+
+        var s1 S1
+        for range s1 {}
+        for _ = range s1 {}
+        for _, _ = range s1 {}
+
+        var s2 S2
+        for range s2 /* ERROR cannot range over s2 .* no structural type */ {}
+
+        var a0 []int
+        for range a0 {}
+        for _ = range a0 {}
+        for _, _ = range a0 {}
+
+        var a1 A1
+        for range a1 {}
+        for _ = range a1 {}
+        for _, _ = range a1 {}
+
+        var a2 A2
+        for range a2 /* ERROR cannot range over a2 .* no structural type */ {}
+
+        var p0 *[10]int
+        for range p0 {}
+        for _ = range p0 {}
+        for _, _ = range p0 {}
+
+        var p1 P1
+        for range p1 {}
+        for _ = range p1 {}
+        for _, _ = range p1 {}
+
+        var p2 P2
+        for range p2 /* ERROR cannot range over p2 .* no structural type */ {}
+
+        var m0 map[string]int
+        for range m0 {}
+        for _ = range m0 {}
+        for _, _ = range m0 {}
+
+        var m1 M1
+        for range m1 {}
+        for _ = range m1 {}
+        for _, _ = range m1 {}
+
+        var m2 M2
+        for range m2 /* ERROR cannot range over m2 .* no structural type */ {}
+}
 
 // type inference checks
 
