@@ -82,7 +82,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 
 	// Substitute type arguments for their respective type parameters in params,
 	// if any. Note that nil targs entries are ignored by check.subst.
-	// TODO(gri) Can we avoid this (we're setting known type argumemts below,
+	// TODO(gri) Can we avoid this (we're setting known type arguments below,
 	//           but that doesn't impact the isParameterized check for now).
 	if params.Len() > 0 {
 		smap := makeSubstMap(tparams, targs)

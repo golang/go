@@ -249,23 +249,27 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 	buf.WriteString("[")
 	var prev Type
 	for i, p := range list {
-		// TODO(rFindley) support 'any' sugar here.
-		var b Type = &emptyInterface
-		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
-			b = t.bound
+		// Determine the type parameter and its constraint.
+		// list is expected to hold type parameter names,
+		// but don't crash if that's not the case.
+		tpar, _ := p.typ.(*TypeParam)
+		var bound Type
+		if tpar != nil {
+			bound = tpar.bound // should not be nil but we want to see it if it is
 		}
+
 		if i > 0 {
-			if b != prev {
-				// type bound changed - write previous one before advancing
+			if bound != prev {
+				// bound changed - write previous one before advancing
 				buf.WriteByte(' ')
 				writeType(buf, prev, qf, visited)
 			}
 			buf.WriteString(", ")
 		}
-		prev = b
+		prev = bound
 
-		if t, _ := p.typ.(*TypeParam); t != nil {
-			writeType(buf, t, qf, visited)
+		if tpar != nil {
+			writeType(buf, tpar, qf, visited)
 		} else {
 			buf.WriteString(p.name)
 		}
