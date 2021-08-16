@@ -84,50 +84,41 @@ func _[T M4[K, V], K comparable, V any](m T) {
 
 // make
 
-type Bmc interface {
-	~map[rune]string | ~chan int
-}
+func _[
+	S1 interface{ []int },
+	S2 interface{ []int | chan int },
 
-type Bms interface {
-	~map[string]int | ~[]int
-}
+	M1 interface{ map[string]int },
+	M2 interface{ map[string]int | chan int },
 
-type Bcs interface {
-	~chan bool | ~[]float64
-}
+	C1 interface{ chan int },
+	C2 interface{ chan int | chan string },
+]() {
+	type S0 []int
+	_ = make([]int, 10)
+	_ = make(S0, 10)
+	_ = make(S1, 10)
+	_ = make() /* ERROR not enough arguments */
+	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
+	_ = make(S1, 10, 20)
+	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
+	_ = make(S2 /* ERROR cannot make .* no structural type */ , 10)
 
-type Bss interface {
-	~[]int | ~[]string
-}
+	type M0 map[string]int
+	_ = make(map[string]int)
+	_ = make(M0)
+	_ = make(M1)
+	_ = make(M1, 10)
+	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
+	_ = make(M2 /* ERROR cannot make .* no structural type */ )
 
-func _[T any]() {
-	_ = make(T /* ERROR invalid argument */)
-	_ = make(T /* ERROR invalid argument */, 10)
-	_ = make(T /* ERROR invalid argument */, 10, 20)
-}
-
-func _[T Bmc]() {
-	_ = make(T)
-	_ = make(T, 10)
-	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
-}
-
-func _[T Bms]() {
-	_ = make /* ERROR expects 2 arguments */ (T)
-	_ = make(T, 10)
-	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
-}
-
-func _[T Bcs]() {
-	_ = make /* ERROR expects 2 arguments */ (T)
-	_ = make(T, 10)
-	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
-}
-
-func _[T Bss]() {
-	_ = make /* ERROR expects 2 or 3 arguments */ (T)
-	_ = make(T, 10)
-	_ = make(T, 10, 20)
+	type C0 chan int
+	_ = make(chan int)
+	_ = make(C0)
+	_ = make(C1)
+	_ = make(C1, 10)
+	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
+	_ = make(C2 /* ERROR cannot make .* no structural type */ )
 }
 
 // unsafe.Alignof
