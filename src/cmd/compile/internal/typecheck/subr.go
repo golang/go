@@ -740,9 +740,16 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 
 	if t.IsInterface() || t.IsTypeParam() {
 		if t.IsTypeParam() {
-			// A typeparam satisfies an interface if its type bound
-			// has all the methods of that interface.
-			t = t.Bound()
+			// If t is a simple type parameter T, its type and underlying is the same.
+			// If t is a type definition:'type P[T any] T', its type is P[T] and its
+			// underlying is T. Therefore we use 't.Underlying() != t' to distinguish them.
+			if t.Underlying() != t {
+				CalcMethods(t)
+			} else {
+				// A typeparam satisfies an interface if its type bound
+				// has all the methods of that interface.
+				t = t.Bound()
+			}
 		}
 		i := 0
 		tms := t.AllMethods().Slice()
