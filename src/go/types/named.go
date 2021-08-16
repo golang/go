@@ -262,22 +262,26 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 		// tparams. This is done implicitly by the call to n.TParams, but making it
 		// explicit is harmless: load is idempotent.
 		n.load()
-		if typMap == nil {
-			if n.check != nil {
-				typMap = n.check.typMap
-			} else {
-				// If we're instantiating lazily, we might be outside the scope of a
-				// type-checking pass. In that case we won't have a pre-existing
-				// typMap, but don't want to create a duplicate of the current instance
-				// in the process of expansion.
-				h := instantiatedHash(n.orig, n.targs)
-				typMap = map[string]*Named{h: n}
+		var u Type
+		if n.check.validateTArgLen(n.instance.pos, n.tparams, n.targs) {
+			if typMap == nil {
+				if n.check != nil {
+					typMap = n.check.typMap
+				} else {
+					// If we're instantiating lazily, we might be outside the scope of a
+					// type-checking pass. In that case we won't have a pre-existing
+					// typMap, but don't want to create a duplicate of the current instance
+					// in the process of expansion.
+					h := instantiatedHash(n.orig, n.targs)
+					typMap = map[string]*Named{h: n}
+				}
 			}
+			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs), typMap)
+		} else {
+			u = Typ[Invalid]
 		}
-
-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, typMap)
-		n.underlying = inst
-		n.fromRHS = inst
+		n.underlying = u
+		n.fromRHS = u
 		n.instance = nil
 	}
 	return n

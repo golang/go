@@ -53,7 +53,8 @@ func Instantiate(check *Checker, typ Type, targs []Type, validate bool) (Type, e
 // later in the type checking pass. For Named types the resulting instance will
 // be unexpanded.
 func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos) (res Type) {
-	if check != nil && check.conf.Trace {
+	assert(check != nil)
+	if check.conf.Trace {
 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
 		defer func() {
@@ -69,7 +70,6 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 		}()
 	}
 
-	assert(check != nil)
 	inst := check.instance(pos, typ, targs)
 
 	assert(len(posList) <= len(targs))
