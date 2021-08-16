@@ -170,18 +170,13 @@ func (t *Named) String() string   { return TypeString(t, nil) }
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
-	n0.expand(nil)
-
-	u := n0.load().underlying
-
-	if u == Typ[Invalid] {
-		return u
-	}
+	u := n0.Underlying()
 
 	// If the underlying type of a defined type is not a defined
 	// (incl. instance) type, then that is the desired underlying
 	// type.
-	switch u.(type) {
+	var n1 *Named
+	switch u1 := u.(type) {
 	case nil:
 		return Typ[Invalid]
 	default:
@@ -189,6 +184,7 @@ func (n0 *Named) under() Type {
 		return u
 	case *Named:
 		// handled below
+		n1 = u1
 	}
 
 	if n0.check == nil {
@@ -198,42 +194,32 @@ func (n0 *Named) under() Type {
 	// Invariant: after this point n0 as well as any named types in its
 	// underlying chain should be set up when this function exits.
 	check := n0.check
+	n := n0
 
-	// If we can't expand u at this point, it is invalid.
-	n := asNamed(u)
-	if n == nil {
-		n0.underlying = Typ[Invalid]
-		return n0.underlying
-	}
+	seen := make(map[*Named]int) // types that need their underlying resolved
+	var path []Object            // objects encountered, for cycle reporting
 
-	// Otherwise, follow the forward chain.
-	seen := map[*Named]int{n0: 0}
-	path := []Object{n0.obj}
+loop:
 	for {
-		u = n.load().underlying
-		if u == nil {
-			u = Typ[Invalid]
-			break
-		}
-		var n1 *Named
-		switch u1 := u.(type) {
-		case *Named:
-			u1.expand(nil)
-			n1 = u1
-		}
-		if n1 == nil {
-			break // end of chain
-		}
-
 		seen[n] = len(seen)
 		path = append(path, n.obj)
 		n = n1
-
 		if i, ok := seen[n]; ok {
 			// cycle
 			check.cycleError(path[i:])
 			u = Typ[Invalid]
 			break
+		}
+		u = n.Underlying()
+		switch u1 := u.(type) {
+		case nil:
+			u = Typ[Invalid]
+			break loop
+		default:
+			break loop
+		case *Named:
+			// Continue collecting *Named types in the chain.
+			n1 = u1
 		}
 	}
 
