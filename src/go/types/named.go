@@ -132,9 +132,6 @@ func (t *Named) NumTArgs() int { return len(t.targs) }
 // TArgs returns the i'th type argument of the named type t for 0 <= i < t.NumTArgs().
 func (t *Named) TArg(i int) Type { return t.targs[i] }
 
-// SetTArgs sets the type arguments of the named type t.
-func (t *Named) SetTArgs(args []Type) { t.targs = args }
-
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.load().methods) }
 
