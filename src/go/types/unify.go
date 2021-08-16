@@ -423,11 +423,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
-		// Two named types are identical if their type names originate
-		// in the same type declaration.
-		// if y, ok := y.(*Named); ok {
-		// 	return x.obj == y.obj
-		// }
 		if y, ok := y.(*Named); ok {
 			x.expand(nil)
 			y.expand(nil)
