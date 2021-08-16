@@ -343,6 +343,17 @@ func branchtag(branch string) (tag string, precise bool) {
 
 // findgoversion determines the Go version to use in the version string.
 func findgoversion() string {
+	// If the magic envvar `GOLANG_TOOLCHAIN_REV` is set, use that git
+	// revision. Git checkouts are not reproducible. This allows users
+	// to build a compiler reproducibly from a context by feeding the
+	// appropriate hash to the build system.
+	if rev := os.Getenv("GOLANG_TOOLCHAIN_REV"); rev != "" {
+		if len(rev) > 10 {
+			rev = rev[:10]
+		}
+		return rev
+	}
+
 	// The $GOROOT/VERSION file takes priority, for distributions
 	// without the source repo.
 	path := pathf("%s/VERSION", goroot)
