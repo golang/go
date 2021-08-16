@@ -600,7 +600,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 func (check *Checker) convertUntyped(x *operand, target Type) {
 	newType, val, code := check.implicitTypeAndValue(x, target)
 	if code != 0 {
-		check.invalidConversion(code, x, target.Underlying())
+		check.invalidConversion(code, x, safeUnderlying(target))
 		x.mode = invalid
 		return
 	}

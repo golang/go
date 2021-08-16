@@ -223,7 +223,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 				// Test case: type T[P any] *T[P]
 				// TODO(gri) investigate if that's a bug or to be expected
 				// (see also analogous comment in Checker.instantiate).
-				under = T.Underlying()
+				under = safeUnderlying(T)
 			}
 			if T == under {
 				check.trace(e0.Pos(), "=> %s // %s", T, goTypeName(T))
@@ -411,9 +411,13 @@ func (check *Checker) typeOrNil(e ast.Expr) Type {
 }
 
 func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) Type {
-	base := check.genericType(x, true)
-	if base == Typ[Invalid] {
-		return base // error already reported
+	gtyp := check.genericType(x, true)
+	if gtyp == Typ[Invalid] {
+		return gtyp // error already reported
+	}
+	base, _ := gtyp.(*Named)
+	if base == nil {
+		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
 
 	// evaluate arguments
@@ -429,7 +433,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 		posList[i] = arg.Pos()
 	}
 
-	typ := check.InstantiateLazy(x.Pos(), base, targs, posList, true)
+	typ := check.instantiateLazy(x.Pos(), base, targs, posList, true)
 	def.setUnderlying(typ)
 
 	// make sure we check instantiation works at least once

@@ -317,7 +317,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
-		t.expand()
+		t.expand(check.typMap)
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
 		if t.obj.pkg != check.pkg {
@@ -711,7 +711,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
-		if t, _ := base.Underlying().(*Struct); t != nil {
+		u := safeUnderlying(base) // base should be expanded, but use safeUnderlying to be conservative
+		if t, _ := u.(*Struct); t != nil {
 			for _, fld := range t.fields {
 				if fld.name != "_" {
 					assert(mset.insert(fld) == nil)

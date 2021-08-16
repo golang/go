@@ -28,7 +28,7 @@ func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList
 	var tparams []*TypeName
 	switch t := typ.(type) {
 	case *Named:
-		tparams = t.TParams().list()
+		return check.instantiateLazy(pos, t, targs, posList, verify)
 	case *Signature:
 		tparams = t.TParams().list()
 		defer func() {
@@ -54,14 +54,14 @@ func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
 
-	inst := check.instantiate(pos, typ, tparams, targs, posList)
+	inst := check.instantiate(pos, typ, tparams, targs, posList, nil)
 	if verify && len(tparams) == len(targs) {
 		check.verify(pos, tparams, targs, posList)
 	}
 	return inst
 }
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, posList []token.Pos) (res Type) {
+func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, posList []token.Pos, typMap map[string]*Named) (res Type) {
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
@@ -82,7 +82,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] T[P]
 				// TODO(gri) investigate if that's a bug or to be expected.
-				under = res.Underlying()
+				under = safeUnderlying(res)
 			}
 			check.trace(pos, "=> %s (under = %s)", res, under)
 		}()
@@ -96,22 +96,14 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 		return typ // nothing to do (minor optimization)
 	}
 
-	smap := makeSubstMap(tparams, targs)
-
-	return check.subst(pos, typ, smap)
+	return check.subst(pos, typ, makeSubstMap(tparams, targs), typMap)
 }
 
-// InstantiateLazy is like Instantiate, but avoids actually
-// instantiating the type until needed. typ must be a *Named
-// type.
-func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, posList []token.Pos, verify bool) Type {
-	// Don't use asNamed here: we don't want to expand the base during lazy
-	// instantiation.
-	base := typ.(*Named)
-	if base == nil {
-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
-	}
+// instantiateLazy avoids actually instantiating the type until needed. typ
+// must be a *Named type.
+func (check *Checker) instantiateLazy(pos token.Pos, base *Named, targs []Type, posList []token.Pos, verify bool) Type {
 	if verify && base.TParams().Len() == len(targs) {
+		// TODO: lift the nil check in verify to here.
 		check.later(func() {
 			check.verify(pos, base.tparams.list(), targs, posList)
 		})
@@ -171,7 +163,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// as the instantiated type; before we can use it for bounds checking we
 	// need to instantiate it with the type arguments with which we instantiate
 	// the parameterized type.
-	iface = check.subst(pos, iface, smap).(*Interface)
+	iface = check.subst(pos, iface, smap, nil).(*Interface)
 
 	// if iface is comparable, targ must be comparable
 	// TODO(gri) the error messages needs to be better, here
