@@ -53,15 +53,18 @@ func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList
 		// only types and functions can be generic
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
+	inst := check.instantiate(pos, typ, tparams, targs, nil)
 
-	inst := check.instantiate(pos, typ, tparams, targs, posList, nil)
-	if verify && len(tparams) == len(targs) {
-		check.verify(pos, tparams, targs, posList)
+	if verify {
+		assert(len(posList) <= len(targs))
+		if len(tparams) == len(targs) {
+			check.verify(pos, tparams, targs, posList)
+		}
 	}
 	return inst
 }
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, posList []token.Pos, typMap map[string]*Named) (res Type) {
+func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, targs []Type, typMap map[string]*Named) (res Type) {
 	// the number of supplied types must match the number of type parameters
 	if len(targs) != len(tparams) {
 		// TODO(gri) provide better error message
@@ -88,8 +91,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 		}()
 	}
 
-	assert(len(posList) <= len(targs))
-
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 
 	if len(tparams) == 0 {
@@ -101,14 +102,21 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 
 // instantiateLazy avoids actually instantiating the type until needed. typ
 // must be a *Named type.
-func (check *Checker) instantiateLazy(pos token.Pos, base *Named, targs []Type, posList []token.Pos, verify bool) Type {
-	if verify && base.TParams().Len() == len(targs) {
-		// TODO: lift the nil check in verify to here.
-		check.later(func() {
-			check.verify(pos, base.tparams.list(), targs, posList)
-		})
+func (check *Checker) instantiateLazy(pos token.Pos, orig *Named, targs []Type, posList []token.Pos, verify bool) Type {
+	if verify {
+		if check == nil {
+			// Provide a more useful panic instead of panicking at check.later below.
+			panic("cannot have nil Checker if verifying constraints")
+		}
+		assert(len(posList) <= len(targs))
+		if orig.TParams().Len() == len(targs) {
+			check.later(func() {
+				check.verify(pos, orig.tparams.list(), targs, posList)
+			})
+		}
 	}
-	h := instantiatedHash(base, targs)
+
+	h := instantiatedHash(orig, targs)
 	if check != nil {
 		// typ may already have been instantiated with identical type arguments. In
 		// that case, re-use the existing instance.
@@ -117,10 +125,10 @@ func (check *Checker) instantiateLazy(pos token.Pos, base *Named, targs []Type, 
 		}
 	}
 
-	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
-	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded.
+	tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+	named := check.newNamed(tname, orig, nil, nil, nil) // methods and tparams are set when named is loaded
 	named.targs = targs
-	named.instance = &instance{pos, posList}
+	named.instance = &instance{pos}
 
 	if check != nil {
 		check.typMap[h] = named
@@ -133,7 +141,6 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type, p
 	if check == nil {
 		panic("cannot have nil Checker if verifying constraints")
 	}
-
 	smap := makeSubstMap(tparams, targs)
 	for i, tname := range tparams {
 		// best position for error reporting
