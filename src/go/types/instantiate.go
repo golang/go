@@ -153,7 +153,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type, p
 // parameter tpar (after any of its type parameters have been substituted through smap).
 // A suitable error is reported if the result is false.
 // TODO(gri) This should be a method of interfaces or type sets.
-func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap *substMap) bool {
+func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap substMap) bool {
 	iface := tpar.iface()
 	if iface.Empty() {
 		return true // no type bound
