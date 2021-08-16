@@ -25,12 +25,12 @@ import (
 // Any methods attached to a *Named are simply copied; they are not
 // instantiated.
 func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos, verify bool) (res Type) {
-	var tparams []*TypeName
+	var inst Type
 	switch t := typ.(type) {
 	case *Named:
-		return check.instantiateLazy(pos, t, targs, posList, verify)
+		inst = check.instantiateLazy(pos, t, targs)
 	case *Signature:
-		tparams = t.TParams().list()
+		tparams := t.TParams().list()
 		defer func() {
 			// If we had an unexpected failure somewhere don't panic below when
 			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
@@ -49,18 +49,35 @@ func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList
 			// anymore; we need to set tparams to nil.
 			res.(*Signature).tparams = nil
 		}()
+		inst = check.instantiate(pos, typ, tparams, targs, nil)
 	default:
 		// only types and functions can be generic
 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 	}
-	inst := check.instantiate(pos, typ, tparams, targs, nil)
 
 	if verify {
-		assert(len(posList) <= len(targs))
-		if len(tparams) == len(targs) {
-			check.verify(pos, tparams, targs, posList)
+		if check == nil {
+			panic("cannot have nil Checker if verifying constraints")
 		}
+		assert(len(posList) <= len(targs))
+		check.later(func() {
+			// Collect tparams again because lazily loaded *Named types may not have
+			// had tparams set up above.
+			var tparams []*TypeName
+			switch t := typ.(type) {
+			case *Named:
+				tparams = t.TParams().list()
+			case *Signature:
+				tparams = t.TParams().list()
+			}
+			// Avoid duplicate errors; instantiate will have complained if tparams
+			// and targs do not have the same length.
+			if len(tparams) == len(targs) {
+				check.verify(pos, tparams, targs, posList)
+			}
+		})
 	}
+
 	return inst
 }
 
@@ -102,20 +119,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, tparams []*TypeName, 
 
 // instantiateLazy avoids actually instantiating the type until needed. typ
 // must be a *Named type.
-func (check *Checker) instantiateLazy(pos token.Pos, orig *Named, targs []Type, posList []token.Pos, verify bool) Type {
-	if verify {
-		if check == nil {
-			// Provide a more useful panic instead of panicking at check.later below.
-			panic("cannot have nil Checker if verifying constraints")
-		}
-		assert(len(posList) <= len(targs))
-		if orig.TParams().Len() == len(targs) {
-			check.later(func() {
-				check.verify(pos, orig.tparams.list(), targs, posList)
-			})
-		}
-	}
-
+func (check *Checker) instantiateLazy(pos token.Pos, orig *Named, targs []Type) Type {
 	h := instantiatedHash(orig, targs)
 	if check != nil {
 		// typ may already have been instantiated with identical type arguments. In
@@ -138,9 +142,6 @@ func (check *Checker) instantiateLazy(pos token.Pos, orig *Named, targs []Type, 
 }
 
 func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type, posList []token.Pos) {
-	if check == nil {
-		panic("cannot have nil Checker if verifying constraints")
-	}
 	smap := makeSubstMap(tparams, targs)
 	for i, tname := range tparams {
 		// best position for error reporting
