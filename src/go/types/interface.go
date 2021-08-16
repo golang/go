@@ -96,7 +96,7 @@ func (t *Interface) NumMethods() int { return t.typeSet().NumMethods() }
 func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
 
 // Empty reports whether t is the empty interface.
-func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
+func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 
 // IsComparable reports whether each type in interface t's type set is comparable.
 func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
