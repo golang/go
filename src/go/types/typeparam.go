@@ -77,7 +77,7 @@ func (t *TypeParam) Constraint() Type {
 // SetConstraint sets the type constraint for t.
 func (t *TypeParam) SetConstraint(bound Type) {
 	if bound == nil {
-		panic("types2.TypeParam.SetConstraint: bound must not be nil")
+		panic("nil constraint")
 	}
 	t.bound = bound
 }
@@ -113,7 +113,7 @@ func bindTParams(list []*TypeName) *TypeParams {
 	for i, tp := range list {
 		typ := tp.Type().(*TypeParam)
 		if typ.index >= 0 {
-			panic("internal error: type parameter bound more than once")
+			panic("type parameter bound more than once")
 		}
 		typ.index = i
 	}

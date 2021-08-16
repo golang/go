@@ -339,7 +339,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 			// cycle detected
 			for i, tn := range path {
 				if t.obj.pkg != check.pkg {
-					panic("internal error: type cycle via package-external type")
+					panic("type cycle via package-external type")
 				}
 				if tn == t.obj {
 					check.cycleError(path[i:])
@@ -347,7 +347,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 					return t.info
 				}
 			}
-			panic("internal error: cycle start not found")
+			panic("cycle start not found")
 		}
 		return t.info
 	}
