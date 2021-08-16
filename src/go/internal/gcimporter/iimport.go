@@ -174,6 +174,10 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 		p.doDecl(localpkg, name)
 	}
 
+	for _, typ := range p.interfaceList {
+		typ.Complete()
+	}
+
 	// record all referenced packages as imports
 	list := append(([]*types.Package)(nil), pkgList[1:]...)
 	sort.Sort(byPath(list))
