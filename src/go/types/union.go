@@ -71,8 +71,7 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 	// Note: This is a quadratic algorithm, but unions tend to be short.
 	check.later(func() {
 		for i, t := range terms {
-			typ := expand(t.typ)
-			if typ == Typ[Invalid] {
+			if t.typ == Typ[Invalid] {
 				continue
 			}
 
@@ -88,16 +87,16 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
 				}
 			}
 
-			u := under(typ)
+			u := under(t.typ)
 			f, _ := u.(*Interface)
 			if t.tilde {
 				if f != nil {
-					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", typ)
+					check.errorf(x, _Todo, "invalid use of ~ (%s is an interface)", t.typ)
 					continue // don't report another error for t
 				}
 
-				if !Identical(u, typ) {
-					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", typ, u)
+				if !Identical(u, t.typ) {
+					check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
 					continue // don't report another error for t
 				}
 			}

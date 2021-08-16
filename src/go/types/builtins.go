@@ -47,7 +47,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	default:
 		// make argument getter
 		xlist, _ := check.exprList(call.Args, false)
-		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
+		arg = func(x *operand, i int) { *x = *xlist[i] }
 		nargs = len(xlist)
 		// evaluate first argument, if present
 		if nargs > 0 {

@@ -113,7 +113,10 @@ func asInterface(t Type) *Interface {
 }
 
 func asNamed(t Type) *Named {
-	e, _ := expand(t).(*Named)
+	e, _ := t.(*Named)
+	if e != nil {
+		e.expand()
+	}
 	return e
 }
 
