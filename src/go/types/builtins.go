@@ -481,39 +481,21 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		min, max := -1, 10
-		var valid func(t Type) bool
-		valid = func(t Type) bool {
-			var m int
-			switch t := under(t).(type) {
-			case *Slice:
-				m = 2
-			case *Map, *Chan:
-				m = 1
-			case *TypeParam:
-				return t.underIs(valid)
-			default:
-				return false
-			}
-			if m > min {
-				min = m
-			}
-			if m+1 < max {
-				max = m + 1
-			}
-			return true
-		}
-
-		if !valid(T) {
+		var min int // minimum number of arguments
+		switch optype(T).(type) {
+		case *Slice:
+			min = 2
+		case *Map, *Chan:
+			min = 1
+		case *top:
+			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type parameter has no structural type", arg0)
+			return
+		default:
 			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
 			return
 		}
-		if nargs < min || max < nargs {
-			if min == max {
-				check.errorf(call, _WrongArgCount, "%v expects %d arguments; found %d", call, min, nargs)
-			} else {
-				check.errorf(call, _WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, max, nargs)
-			}
+		if nargs < min || min+1 < nargs {
+			check.invalidOp(call, _WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
 			return
 		}
 
