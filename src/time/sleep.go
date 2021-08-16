@@ -140,7 +140,6 @@ func (t *Timer) Reset(d Duration) bool {
 }
 
 // sendTime does a non-blocking send of the current time on c.
-// This is used by NewTimer and NewTicker.
 func sendTime(c interface{}, seq uintptr) {
 	select {
 	case c.(chan Time) <- Now():
