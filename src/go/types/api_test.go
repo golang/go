@@ -1857,7 +1857,7 @@ func TestInstantiate(t *testing.T) {
 	res := check.Instantiate(token.NoPos, T, []Type{Typ[Int]}, nil, false)
 
 	// instantiated type should point to itself
-	if res.Underlying().(*Pointer).Elem() != res {
-		t.Fatalf("unexpected result type: %s", res)
+	if p := res.Underlying().(*Pointer).Elem(); p != res {
+		t.Fatalf("unexpected result type: %s points to %s", res, p)
 	}
 }

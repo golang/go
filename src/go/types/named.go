@@ -157,7 +157,7 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-func (t *Named) Underlying() Type { return t.load().underlying }
+func (t *Named) Underlying() Type { return t.load().expand(nil).underlying }
 func (t *Named) String() string   { return TypeString(t, nil) }
 
 // ----------------------------------------------------------------------------
@@ -170,9 +170,9 @@ func (t *Named) String() string   { return TypeString(t, nil) }
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
 func (n0 *Named) under() Type {
-	n0.expand()
+	n0.expand(nil)
 
-	u := n0.Underlying()
+	u := n0.load().underlying
 
 	if u == Typ[Invalid] {
 		return u
@@ -210,7 +210,7 @@ func (n0 *Named) under() Type {
 	seen := map[*Named]int{n0: 0}
 	path := []Object{n0.obj}
 	for {
-		u = n.Underlying()
+		u = n.load().underlying
 		if u == nil {
 			u = Typ[Invalid]
 			break
@@ -218,7 +218,7 @@ func (n0 *Named) under() Type {
 		var n1 *Named
 		switch u1 := u.(type) {
 		case *Named:
-			u1.expand()
+			u1.expand(nil)
 			n1 = u1
 		}
 		if n1 == nil {
@@ -268,17 +268,40 @@ type instance struct {
 
 // expand ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
-// TODO(rfindley): expand would be a better name for this method, but conflicts
-// with the existing concept of lazy expansion. Need to reconcile this.
-func (n *Named) expand() {
+func (n *Named) expand(typMap map[string]*Named) *Named {
 	if n.instance != nil {
 		// n must be loaded before instantiation, in order to have accurate
 		// tparams. This is done implicitly by the call to n.TParams, but making it
 		// explicit is harmless: load is idempotent.
 		n.load()
-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList)
+		if typMap == nil {
+			if n.check != nil {
+				typMap = n.check.typMap
+			} else {
+				// If we're instantiating lazily, we might be outside the scope of a
+				// type-checking pass. In that case we won't have a pre-existing
+				// typMap, but don't want to create a duplicate of the current instance
+				// in the process of expansion.
+				h := instantiatedHash(n.orig, n.targs)
+				typMap = map[string]*Named{h: n}
+			}
+		}
+
+		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList, typMap)
 		n.underlying = inst
 		n.fromRHS = inst
 		n.instance = nil
 	}
+	return n
+}
+
+// safeUnderlying returns the underlying of typ without expanding instances, to
+// avoid infinite recursion.
+//
+// TODO(rfindley): eliminate this function or give it a better name.
+func safeUnderlying(typ Type) Type {
+	if t, _ := typ.(*Named); t != nil {
+		return t.load().underlying
+	}
+	return typ.Underlying()
 }

@@ -54,7 +54,9 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
 // subst is functional in the sense that it doesn't modify the incoming
 // type. If a substitution took place, the result type is different from
 // from the incoming type.
-func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
+//
+// If the given typMap is nil and check is non-nil, check.typMap is used.
+func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap, typMap map[string]*Named) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -71,16 +73,21 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
 	var subst subster
 	subst.pos = pos
 	subst.smap = smap
+
 	if check != nil {
 		subst.check = check
-		subst.typMap = check.typMap
-	} else {
+		if typMap == nil {
+			typMap = check.typMap
+		}
+	}
+	if typMap == nil {
 		// If we don't have a *Checker and its global type map,
 		// use a local version. Besides avoiding duplicate work,
 		// the type map prevents infinite recursive substitution
 		// for recursive types (example: type T[P any] *T[P]).
-		subst.typMap = make(map[string]*Named)
+		typMap = make(map[string]*Named)
 	}
+	subst.typMap = typMap
 
 	return subst.typ(typ)
 }
@@ -241,14 +248,15 @@ func (subst *subster) typ(typ Type) Type {
 
 		// create a new named type and populate typMap to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := subst.check.newNamed(tname, t, t.Underlying(), t.TParams(), t.methods) // method signatures are updated lazily
+		t.load()
+		named := subst.check.newNamed(tname, t.orig, t.underlying, t.TParams(), t.methods) // method signatures are updated lazily
 		named.targs = newTargs
 		subst.typMap[h] = named
-		t.expand() // must happen after typMap update to avoid infinite recursion
+		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
 
 		// do the substitution
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTargs)
-		named.underlying = subst.typOrNil(t.Underlying())
+		named.underlying = subst.typOrNil(t.underlying)
 		dump(">>> underlying: %v", named.underlying)
 		assert(named.underlying != nil)
 		named.fromRHS = named.underlying // for cycle detection (Checker.validType)

@@ -86,7 +86,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 	//           but that doesn't impact the isParameterized check for now).
 	if params.Len() > 0 {
 		smap := makeSubstMap(tparams, targs)
-		params = check.subst(token.NoPos, params, smap).(*Tuple)
+		params = check.subst(token.NoPos, params, smap, nil).(*Tuple)
 	}
 
 	// --- 2 ---
@@ -127,7 +127,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, 
 		}
 		smap := makeSubstMap(tparams, targs)
 		// TODO(rFindley): pass a positioner here, rather than arg.Pos().
-		inferred := check.subst(arg.Pos(), tpar, smap)
+		inferred := check.subst(arg.Pos(), tpar, smap, nil)
 		if inferred != tpar {
 			check.errorf(arg, _Todo, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
@@ -422,7 +422,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
 		n := 0
 		for _, index := range dirty {
 			t0 := types[index]
-			if t1 := check.subst(token.NoPos, t0, smap); t1 != t0 {
+			if t1 := check.subst(token.NoPos, t0, smap, nil); t1 != t0 {
 				types[index] = t1
 				dirty[n] = index
 				n++
