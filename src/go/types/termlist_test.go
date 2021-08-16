@@ -11,7 +11,7 @@ import (
 
 // maketl makes a term list from a string of the term list.
 func maketl(s string) termlist {
-	s = strings.Replace(s, " ", "", -1)
+	s = strings.ReplaceAll(s, " ", "")
 	names := strings.Split(s, "∪")
 	r := make(termlist, len(names))
 	for i, n := range names {
@@ -20,9 +20,9 @@ func maketl(s string) termlist {
 	return r
 }
 
-func TestTermlistTop(t *testing.T) {
+func TestTermlistAll(t *testing.T) {
 	if !allTermlist.isAll() {
-		t.Errorf("topTermlist is not top")
+		t.Errorf("allTermlist is not the set of all types")
 	}
 }
 
