@@ -133,7 +133,7 @@ func overlappingTerm(terms []*term, y *term) int {
 		// disjoint requires non-nil, non-top arguments
 		if debug {
 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
-				panic("internal error: empty or top union term")
+				panic("empty or top union term")
 			}
 		}
 		if !x.disjoint(y) {

@@ -15,7 +15,7 @@ import (
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
 	if check.conf.IgnoreFuncBodies {
-		panic("internal error: function body not ignored")
+		panic("function body not ignored")
 	}
 
 	if trace {

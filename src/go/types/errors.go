@@ -68,7 +68,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 		case nil:
 			arg = "<nil>"
 		case operand:
-			panic("internal error: should always pass *operand")
+			panic("got operand instead of *operand")
 		case *operand:
 			arg = operandString(a, check.qualifier)
 		case token.Pos:
@@ -236,7 +236,7 @@ func (s atPos) Pos() token.Pos {
 func spanOf(at positioner) posSpan {
 	switch x := at.(type) {
 	case nil:
-		panic("internal error: nil")
+		panic("nil positioner")
 	case posSpan:
 		return x
 	case ast.Node:

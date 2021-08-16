@@ -38,10 +38,10 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	if variadic {
 		n := params.Len()
 		if n == 0 {
-			panic("types.NewSignature: variadic function must have at least one parameter")
+			panic("variadic function must have at least one parameter")
 		}
 		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
-			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
+			panic("variadic parameter must be of unnamed slice type")
 		}
 	}
 	return &Signature{recv: recv, params: params, results: results, variadic: variadic}

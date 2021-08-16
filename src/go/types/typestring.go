@@ -132,7 +132,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		// Unions only appear as (syntactic) embedded elements
 		// in interfaces and syntactically cannot be empty.
 		if t.NumTerms() == 0 {
-			panic("internal error: empty union")
+			panic("empty union")
 		}
 		for i, t := range t.terms {
 			if i > 0 {
@@ -185,7 +185,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		case RecvOnly:
 			s = "<-chan "
 		default:
-			panic("unreachable")
+			unreachable()
 		}
 		buf.WriteString(s)
 		if parens {
@@ -332,7 +332,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
 					if t := asBasic(typ); t == nil || t.kind != String {
-						panic("internal error: string type expected")
+						panic("expected string type")
 					}
 					writeType(buf, typ, qf, visited)
 					buf.WriteString("...")

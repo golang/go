@@ -259,6 +259,6 @@ func def(obj Object) {
 		}
 	}
 	if scope.Insert(obj) != nil {
-		panic("internal error: double declaration")
+		panic("double declaration of predeclared identifier")
 	}
 }

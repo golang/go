@@ -33,7 +33,7 @@ type Named struct {
 // The underlying type must not be a *Named.
 func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
-		panic("types.NewNamed: underlying type must not be *Named")
+		panic("underlying type must not be *Named")
 	}
 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
 }
@@ -100,7 +100,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 		check.later(func() {
 			switch typ.under().(type) {
 			case *Named:
-				panic("internal error: unexpanded underlying type")
+				panic("unexpanded underlying type")
 			}
 			typ.check = nil
 		})
@@ -144,10 +144,10 @@ func (t *Named) Method(i int) *Func { return t.load().methods[i] }
 // SetUnderlying sets the underlying type and marks t as complete.
 func (t *Named) SetUnderlying(underlying Type) {
 	if underlying == nil {
-		panic("types.Named.SetUnderlying: underlying type must not be nil")
+		panic("underlying type must not be nil")
 	}
 	if _, ok := underlying.(*Named); ok {
-		panic("types.Named.SetUnderlying: underlying type must not be *Named")
+		panic("underlying type must not be *Named")
 	}
 	t.load().underlying = underlying
 }
@@ -195,7 +195,7 @@ func (n0 *Named) under() Type {
 	}
 
 	if n0.check == nil {
-		panic("internal error: Named.check == nil but type is incomplete")
+		panic("Named.check == nil but type is incomplete")
 	}
 
 	// Invariant: after this point n0 as well as any named types in its
@@ -246,7 +246,7 @@ func (n0 *Named) under() Type {
 		// Also, doing so would lead to a race condition (was issue #31749).
 		// Do this check always, not just in debug mode (it's cheap).
 		if n.obj.pkg != check.pkg {
-			panic("internal error: imported type with unresolved underlying type")
+			panic("imported type with unresolved underlying type")
 		}
 		n.underlying = u
 	}
