@@ -40,27 +40,6 @@ func RelativeTo(pkg *Package) Qualifier {
 	}
 }
 
-// If gcCompatibilityMode is set, printing of types is modified
-// to match the representation of some types in the gc compiler:
-//
-//	- byte and rune lose their alias name and simply stand for
-//	  uint8 and int32 respectively
-//	- embedded interfaces get flattened (the embedding info is lost,
-//	  and certain recursive interface types cannot be printed anymore)
-//
-// This makes it easier to compare packages computed with the type-
-// checker vs packages imported from gc export data.
-//
-// Caution: This flag affects all uses of WriteType, globally.
-// It is only provided for testing in conjunction with
-// gc-generated data.
-//
-// This flag is exported in the x/tools/go/types package. We don't
-// need it at the moment in the std repo and so we don't export it
-// anymore. We should eventually try to remove it altogether.
-// TODO(gri) remove this
-var gcCompatibilityMode bool
-
 // TypeString returns the string representation of typ.
 // The Qualifier controls the printing of
 // package-level objects, and may be nil.
@@ -108,15 +87,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			}
 		}
 
-		if gcCompatibilityMode {
-			// forget the alias names
-			switch t.kind {
-			case Byte:
-				t = Typ[Uint8]
-			case Rune:
-				t = Typ[Int32]
-			}
-		}
 		buf.WriteString(t.name)
 
 	case *Array:
@@ -175,66 +145,26 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *Interface:
-		// We write the source-level methods and embedded types rather
-		// than the actual method set since resolved method signatures
-		// may have non-printable cycles if parameters have embedded
-		// interface types that (directly or indirectly) embed the
-		// current interface. For instance, consider the result type
-		// of m:
-		//
-		//     type T interface{
-		//         m() interface{ T }
-		//     }
-		//
 		buf.WriteString("interface{")
 		empty := true
-		if gcCompatibilityMode {
-			// print flattened interface
-			// (useful to compare against gc-generated interfaces)
-			tset := t.typeSet()
-			for i, m := range tset.methods {
-				if i > 0 {
-					buf.WriteString("; ")
-				}
-				buf.WriteString(m.name)
-				writeSignature(buf, m.typ.(*Signature), qf, visited)
-				empty = false
-			}
-			if !empty && tset.hasTerms() {
+		// print explicit interface methods and embedded types
+		for i, m := range t.methods {
+			if i > 0 {
 				buf.WriteString("; ")
 			}
-			first := true
-			tset.is(func(t *term) bool {
-				if !first {
-					buf.WriteByte('|')
-				}
-				first = false
-				if t.tilde {
-					buf.WriteByte('~')
-				}
-				writeType(buf, t.typ, qf, visited)
-				return true
-			})
-		} else {
-			// print explicit interface methods and embedded types
-			for i, m := range t.methods {
-				if i > 0 {
-					buf.WriteString("; ")
-				}
-				buf.WriteString(m.name)
-				writeSignature(buf, m.typ.(*Signature), qf, visited)
-				empty = false
-			}
-			if !empty && len(t.embeddeds) > 0 {
+			buf.WriteString(m.name)
+			writeSignature(buf, m.typ.(*Signature), qf, visited)
+			empty = false
+		}
+		if !empty && len(t.embeddeds) > 0 {
+			buf.WriteString("; ")
+		}
+		for i, typ := range t.embeddeds {
+			if i > 0 {
 				buf.WriteString("; ")
 			}
-			for i, typ := range t.embeddeds {
-				if i > 0 {
-					buf.WriteString("; ")
-				}
-				writeType(buf, typ, qf, visited)
-				empty = false
-			}
+			writeType(buf, typ, qf, visited)
+			empty = false
 		}
 		// print /* incomplete */ if needed to satisfy existing tests
 		// TODO(gri) get rid of this eventually
