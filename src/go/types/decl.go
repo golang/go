@@ -631,7 +631,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	}
 }
 
-func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParams {
+func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
 	var tparams []*TypeName
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter

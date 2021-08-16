@@ -85,28 +85,28 @@ func (t *TypeParam) SetConstraint(bound Type) {
 func (t *TypeParam) Underlying() Type { return t }
 func (t *TypeParam) String() string   { return TypeString(t, nil) }
 
-// TypeParams holds a list of type parameters bound to a type.
-type TypeParams struct{ tparams []*TypeName }
+// TParamList holds a list of type parameters bound to a type.
+type TParamList struct{ tparams []*TypeName }
 
 // Len returns the number of type parameters in the list.
 // It is safe to call on a nil receiver.
-func (tps *TypeParams) Len() int {
+func (tps *TParamList) Len() int {
 	return len(tps.list())
 }
 
 // At returns the i'th type parameter in the list.
-func (tps *TypeParams) At(i int) *TypeName {
+func (tps *TParamList) At(i int) *TypeName {
 	return tps.list()[i]
 }
 
-func (tps *TypeParams) list() []*TypeName {
+func (tps *TParamList) list() []*TypeName {
 	if tps == nil {
 		return nil
 	}
 	return tps.tparams
 }
 
-func bindTParams(list []*TypeName) *TypeParams {
+func bindTParams(list []*TypeName) *TParamList {
 	if len(list) == 0 {
 		return nil
 	}
@@ -117,7 +117,7 @@ func bindTParams(list []*TypeName) *TypeParams {
 		}
 		typ.index = i
 	}
-	return &TypeParams{tparams: list}
+	return &TParamList{tparams: list}
 }
 
 // ----------------------------------------------------------------------------
