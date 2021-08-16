@@ -5,9 +5,15 @@
 package types
 
 import (
+	"go/token"
 	"strings"
 	"testing"
 )
+
+var myInt = func() Type {
+	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
+	return NewNamed(tname, Typ[Int], nil)
+}()
 
 var testTerms = map[string]*term{
 	"∅":       nil,
@@ -16,7 +22,7 @@ var testTerms = map[string]*term{
 	"~int":    {true, Typ[Int]},
 	"string":  {false, Typ[String]},
 	"~string": {true, Typ[String]},
-	// TODO(gri) add a defined type
+	"myInt":   {false, myInt},
 }
 
 func TestTermString(t *testing.T) {
@@ -49,12 +55,16 @@ func TestTermEqual(t *testing.T) {
 		"𝓤 𝓤 T",
 		"int int T",
 		"~int ~int T",
+		"myInt myInt T",
 		"∅ 𝓤 F",
 		"∅ int F",
 		"∅ ~int F",
 		"𝓤 int F",
 		"𝓤 ~int F",
+		"𝓤 myInt F",
 		"int ~int F",
+		"int myInt F",
+		"~int myInt F",
 	} {
 		args := split(test, 3)
 		x := testTerm(args[0])
@@ -77,25 +87,33 @@ func TestTermUnion(t *testing.T) {
 		"∅ 𝓤 𝓤 ∅",
 		"∅ int int ∅",
 		"∅ ~int ~int ∅",
+		"∅ myInt myInt ∅",
 		"𝓤 𝓤 𝓤 ∅",
 		"𝓤 int 𝓤 ∅",
 		"𝓤 ~int 𝓤 ∅",
+		"𝓤 myInt 𝓤 ∅",
 		"int int int ∅",
 		"int ~int ~int ∅",
 		"int string int string",
 		"int ~string int ~string",
+		"int myInt int myInt",
 		"~int ~string ~int ~string",
+		"~int myInt ~int ∅",
 
 		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
 		"𝓤 ∅ 𝓤 ∅",
 		"int ∅ int ∅",
 		"~int ∅ ~int ∅",
+		"myInt ∅ myInt ∅",
 		"int 𝓤 𝓤 ∅",
 		"~int 𝓤 𝓤 ∅",
+		"myInt 𝓤 𝓤 ∅",
 		"~int int ~int ∅",
 		"string int string int",
 		"~string int ~string int",
+		"myInt int myInt int",
 		"~string ~int ~string ~int",
+		"myInt ~int ~int ∅",
 	} {
 		args := split(test, 4)
 		x := testTerm(args[0])
@@ -114,14 +132,18 @@ func TestTermIntersection(t *testing.T) {
 		"∅ 𝓤 ∅",
 		"∅ int ∅",
 		"∅ ~int ∅",
+		"∅ myInt ∅",
 		"𝓤 𝓤 𝓤",
 		"𝓤 int int",
 		"𝓤 ~int ~int",
+		"𝓤 myInt myInt",
 		"int int int",
 		"int ~int int",
 		"int string ∅",
 		"int ~string ∅",
+		"int string ∅",
 		"~int ~string ∅",
+		"~int myInt myInt",
 	} {
 		args := split(test, 3)
 		x := testTerm(args[0])
@@ -144,8 +166,10 @@ func TestTermIncludes(t *testing.T) {
 		"𝓤 int T",
 		"int int T",
 		"~int int T",
+		"~int myInt T",
 		"string int F",
 		"~string int F",
+		"myInt int F",
 	} {
 		args := split(test, 3)
 		x := testTerm(args[0])
@@ -163,12 +187,19 @@ func TestTermSubsetOf(t *testing.T) {
 		"𝓤 𝓤 T",
 		"int int T",
 		"~int ~int T",
+		"myInt myInt T",
 		"∅ 𝓤 T",
 		"∅ int T",
 		"∅ ~int T",
+		"∅ myInt T",
 		"𝓤 int F",
 		"𝓤 ~int F",
+		"𝓤 myInt F",
 		"int ~int T",
+		"int myInt F",
+		"~int myInt F",
+		"myInt int F",
+		"myInt ~int T",
 	} {
 		args := split(test, 3)
 		x := testTerm(args[0])
@@ -187,7 +218,11 @@ func TestTermDisjoint(t *testing.T) {
 		"int ~int F",
 		"int string T",
 		"int ~string T",
+		"int myInt T",
 		"~int ~string T",
+		"~int myInt F",
+		"string myInt T",
+		"~string myInt T",
 	} {
 		args := split(test, 3)
 		x := testTerm(args[0])
