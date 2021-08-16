@@ -783,9 +783,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
+			// Ranging over a type parameter is permitted if it has a structural type.
 			typ := optype(x.typ)
 			if _, ok := typ.(*Chan); ok && s.Value != nil {
-				// TODO(gri) this also needs to happen for channels in generic variables
 				check.softErrorf(atPos(s.Value.Pos()), _InvalidIterVar, "range over %s permits only one iteration variable", &x)
 				// ok to continue
 			}
@@ -899,7 +899,7 @@ func isVarName(x ast.Expr) bool {
 // variables are used or present; this matters if we range over a generic
 // type where not all keys or values are of the same type.
 func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
-	switch typ := typ.(type) {
+	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			return Typ[Int], universeRune, "" // use 'rune' name
@@ -908,45 +908,17 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 		return Typ[Int], typ.elem, ""
 	case *Slice:
 		return Typ[Int], typ.elem, ""
-	case *Pointer:
-		if typ := asArray(typ.base); typ != nil {
-			return Typ[Int], typ.elem, ""
-		}
 	case *Map:
 		return typ.key, typ.elem, ""
 	case *Chan:
 		var msg string
 		if typ.dir == SendOnly {
-			// TODO(rfindley): this error message differs from types2. Reconcile this.
-			msg = "send-only channel"
+			msg = "receive from send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *TypeParam:
-		first := true
-		var key, val Type
-		var msg string
-		typ.underIs(func(t Type) bool {
-			k, v, m := rangeKeyVal(t, wantKey, wantVal)
-			if k == nil || m != "" {
-				key, val, msg = k, v, m
-				return false
-			}
-			if first {
-				key, val, msg = k, v, m
-				first = false
-				return true
-			}
-			if wantKey && !Identical(key, k) {
-				key, val, msg = nil, nil, "all possible values must have the same key type"
-				return false
-			}
-			if wantVal && !Identical(val, v) {
-				key, val, msg = nil, nil, "all possible values must have the same element type"
-				return false
-			}
-			return true
-		})
-		return key, val, msg
+	case *top:
+		// we have a type parameter with no structural type
+		return nil, nil, "no structural type"
 	}
 	return nil, nil, ""
 }
