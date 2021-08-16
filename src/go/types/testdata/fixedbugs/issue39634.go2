@@ -50,7 +50,7 @@ func (G15 /* ERROR generic type .* without instantiation */ ) p()
 
 // crash 16
 type Foo16[T any] r16 /* ERROR not a type */
-func r16[T any]() Foo16[Foo16[T]]
+func r16[T any]() Foo16[Foo16[T]] { panic(0) }
 
 // crash 17
 type Y17 interface{ c() }
@@ -58,7 +58,7 @@ type Z17 interface {
 	c() Y17
 	Y17 /* ERROR duplicate method */
 }
-func F17[T Z17](T)
+func F17[T Z17](T) {}
 
 // crash 18
 type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
@@ -88,5 +88,5 @@ type T26 = interface{ F26[ /* ERROR methods cannot have type parameters */ Z any
 func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
 
 // crash 27
-func e27[T any]() interface{ x27 /* ERROR not a type */ }
+func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
 func x27() { e27 /* ERROR cannot infer T */ () }

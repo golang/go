@@ -15,9 +15,9 @@ func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ER
 
 func identity[T any](x T) T { return x }
 
-func _[_ any](x int) int
-func _[T any](T /* ERROR redeclared */ T)()
-func _[T, T /* ERROR redeclared */ any]()
+func _[_ any](x int) int { panic(0) }
+func _[T any](T /* ERROR redeclared */ T)() {}
+func _[T, T /* ERROR redeclared */ any]() {}
 
 // Constraints (incl. any) may be parenthesized.
 func _[_ (any)]() {}
@@ -77,18 +77,18 @@ func new[T any]() *T {
 var _ = new /* ERROR cannot use generic function new */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
+func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int { panic(0) }
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
+func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int { panic(0) }
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
 
-func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int
+func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int { panic(0) }
 
 var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
 
@@ -257,28 +257,28 @@ func _[
 
 var _ = new /* ERROR cannot infer T */ ()
 
-func f4[A, B, C any](A, B) C
+func f4[A, B, C any](A, B) C { panic(0) }
 
 var _ = f4 /* ERROR cannot infer C */ (1, 2)
 var _ = f4[int, float32, complex128](1, 2)
 
-func f5[A, B, C any](A, []*B, struct{f []C}) int
+func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
 
 var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
 var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
 var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
 
-func f6[A any](A, []A) int
+func f6[A any](A, []A) int { panic(0) }
 
 var _ = f6(0, nil)
 
-func f6nil[A any](A) int
+func f6nil[A any](A) int { panic(0) }
 
 var _ = f6nil /* ERROR cannot infer */ (nil)
 
 // type inference with variadic functions
 
-func f7[T any](...T) T
+func f7[T any](...T) T { panic(0) }
 
 var _ int = f7 /* ERROR cannot infer T */ ()
 var _ int = f7(1)
@@ -291,7 +291,7 @@ var _ = f7(float64(1), 2.3)
 var _ = f7(1, 2.3 /* ERROR does not match */ )
 var _ = f7(1.2, 3 /* ERROR does not match */ )
 
-func f8[A, B any](A, B, ...B) int
+func f8[A, B any](A, B, ...B) int { panic(0) }
 
 var _ = f8(1) /* ERROR not enough arguments */
 var _ = f8(1, 2.3)
@@ -317,7 +317,7 @@ func (T) m3[ /* ERROR methods cannot have type parameters */ P any]() {}
 
 type S1[P any] struct { f P }
 
-func f9[P any](x S1[P])
+func f9[P any](x S1[P]) {}
 
 func _() {
         f9[int](S1[int]{42})
@@ -326,7 +326,7 @@ func _() {
 
 type S2[A, B, C any] struct{}
 
-func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool])
+func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool]) {}
 
 func _[P any]() {
         f10[int, float32, string](S2[int, int, string]{}, S2[int, float32, bool]{})
@@ -337,7 +337,7 @@ func _[P any]() {
 // corner case for type inference
 // (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
 
-func f11[T any]()
+func f11[T any]() {}
 
 func _() {
 	f11[int]()
@@ -345,7 +345,7 @@ func _() {
 
 // the previous example was extracted from
 
-func f12[T interface{m() T}]()
+func f12[T interface{m() T}]() {}
 
 type A[T any] T
 
@@ -373,15 +373,15 @@ func _[T any] (x T) {
 
 type R0 struct{}
 
-func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T)
-func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() // scope of type parameters starts at "func"
+func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
+func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
 
 type R1[A, B any] struct{}
 
 func (_ R1[A, B]) m0(A, B)
-func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T
+func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
 func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
-func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B)
+func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
 
 func _() {
         var r R1[int, string]
