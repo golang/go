@@ -86,7 +86,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				break
 			}
 		}
-
 		buf.WriteString(t.name)
 
 	case *Array:
@@ -147,6 +146,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *Interface:
 		buf.WriteString("interface{")
 		first := true
+		// print explicit interface methods and embedded types
 		for _, m := range t.methods {
 			if !first {
 				buf.WriteString("; ")

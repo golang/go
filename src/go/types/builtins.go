@@ -848,7 +848,6 @@ func makeSig(res Type, args ...Type) *Signature {
 
 // arrayPtrDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
-//
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
 		if a := asArray(p.base); a != nil {
