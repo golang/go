@@ -11,7 +11,7 @@ import (
 
 var testTerms = map[string]*term{
 	"∅":       nil,
-	"⊤":       {},
+	"𝓤":       {},
 	"int":     {false, Typ[Int]},
 	"~int":    {true, Typ[Int]},
 	"string":  {false, Typ[String]},
@@ -46,14 +46,14 @@ func testTerm(name string) *term {
 func TestTermEqual(t *testing.T) {
 	for _, test := range []string{
 		"∅ ∅ T",
-		"⊤ ⊤ T",
+		"𝓤 𝓤 T",
 		"int int T",
 		"~int ~int T",
-		"∅ ⊤ F",
+		"∅ 𝓤 F",
 		"∅ int F",
 		"∅ ~int F",
-		"⊤ int F",
-		"⊤ ~int F",
+		"𝓤 int F",
+		"𝓤 ~int F",
 		"int ~int F",
 	} {
 		args := split(test, 3)
@@ -74,12 +74,12 @@ func TestTermEqual(t *testing.T) {
 func TestTermUnion(t *testing.T) {
 	for _, test := range []string{
 		"∅ ∅ ∅ ∅",
-		"∅ ⊤ ⊤ ∅",
+		"∅ 𝓤 𝓤 ∅",
 		"∅ int int ∅",
 		"∅ ~int ~int ∅",
-		"⊤ ⊤ ⊤ ∅",
-		"⊤ int ⊤ ∅",
-		"⊤ ~int ⊤ ∅",
+		"𝓤 𝓤 𝓤 ∅",
+		"𝓤 int 𝓤 ∅",
+		"𝓤 ~int 𝓤 ∅",
 		"int int int ∅",
 		"int ~int ~int ∅",
 		"int string int string",
@@ -87,11 +87,11 @@ func TestTermUnion(t *testing.T) {
 		"~int ~string ~int ~string",
 
 		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
-		"⊤ ∅ ⊤ ∅",
+		"𝓤 ∅ 𝓤 ∅",
 		"int ∅ int ∅",
 		"~int ∅ ~int ∅",
-		"int ⊤ ⊤ ∅",
-		"~int ⊤ ⊤ ∅",
+		"int 𝓤 𝓤 ∅",
+		"~int 𝓤 𝓤 ∅",
 		"~int int ~int ∅",
 		"string int string int",
 		"~string int ~string int",
@@ -111,12 +111,12 @@ func TestTermUnion(t *testing.T) {
 func TestTermIntersection(t *testing.T) {
 	for _, test := range []string{
 		"∅ ∅ ∅",
-		"∅ ⊤ ∅",
+		"∅ 𝓤 ∅",
 		"∅ int ∅",
 		"∅ ~int ∅",
-		"⊤ ⊤ ⊤",
-		"⊤ int int",
-		"⊤ ~int ~int",
+		"𝓤 𝓤 𝓤",
+		"𝓤 int int",
+		"𝓤 ~int ~int",
 		"int int int",
 		"int ~int int",
 		"int string ∅",
@@ -141,7 +141,7 @@ func TestTermIntersection(t *testing.T) {
 func TestTermIncludes(t *testing.T) {
 	for _, test := range []string{
 		"∅ int F",
-		"⊤ int T",
+		"𝓤 int T",
 		"int int T",
 		"~int int T",
 		"string int F",
@@ -160,14 +160,14 @@ func TestTermIncludes(t *testing.T) {
 func TestTermSubsetOf(t *testing.T) {
 	for _, test := range []string{
 		"∅ ∅ T",
-		"⊤ ⊤ T",
+		"𝓤 𝓤 T",
 		"int int T",
 		"~int ~int T",
-		"∅ ⊤ T",
+		"∅ 𝓤 T",
 		"∅ int T",
 		"∅ ~int T",
-		"⊤ int F",
-		"⊤ ~int F",
+		"𝓤 int F",
+		"𝓤 ~int F",
 		"int ~int T",
 	} {
 		args := split(test, 3)

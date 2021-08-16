@@ -21,7 +21,7 @@ func maketl(s string) termlist {
 }
 
 func TestTermlistTop(t *testing.T) {
-	if !topTermlist.isTop() {
+	if !allTermlist.isAll() {
 		t.Errorf("topTermlist is not top")
 	}
 }
@@ -29,12 +29,12 @@ func TestTermlistTop(t *testing.T) {
 func TestTermlistString(t *testing.T) {
 	for _, want := range []string{
 		"∅",
-		"⊤",
+		"𝓤",
 		"int",
 		"~int",
 		"∅ ∪ ∅",
-		"⊤ ∪ ⊤",
-		"∅ ∪ ⊤ ∪ int",
+		"𝓤 ∪ 𝓤",
+		"∅ ∪ 𝓤 ∪ int",
 	} {
 		if got := maketl(want).String(); got != want {
 			t.Errorf("(%v).String() == %v", want, got)
@@ -46,9 +46,9 @@ func TestTermlistIsEmpty(t *testing.T) {
 	for test, want := range map[string]bool{
 		"∅":         true,
 		"∅ ∪ ∅":     true,
-		"∅ ∪ ∅ ∪ ⊤": false,
-		"⊤":         false,
-		"⊤ ∪ int":   false,
+		"∅ ∪ ∅ ∪ 𝓤": false,
+		"𝓤":         false,
+		"𝓤 ∪ int":   false,
 	} {
 		xl := maketl(test)
 		got := xl.isEmpty()
@@ -58,19 +58,19 @@ func TestTermlistIsEmpty(t *testing.T) {
 	}
 }
 
-func TestTermlistIsTop(t *testing.T) {
+func TestTermlistIsAll(t *testing.T) {
 	for test, want := range map[string]bool{
 		"∅":             false,
 		"∅ ∪ ∅":         false,
 		"int ∪ ~string": false,
-		"∅ ∪ ∅ ∪ ⊤":     true,
-		"⊤":             true,
-		"⊤ ∪ int":       true,
+		"∅ ∪ ∅ ∪ 𝓤":     true,
+		"𝓤":             true,
+		"𝓤 ∪ int":       true,
 	} {
 		xl := maketl(test)
-		got := xl.isTop()
+		got := xl.isAll()
 		if got != want {
-			t.Errorf("(%v).isTop() == %v; want %v", test, got, want)
+			t.Errorf("(%v).isAll() == %v; want %v", test, got, want)
 		}
 	}
 }
@@ -82,10 +82,10 @@ func TestTermlistNorm(t *testing.T) {
 		{"∅", "∅"},
 		{"∅ ∪ ∅", "∅"},
 		{"∅ ∪ int", "int"},
-		{"⊤ ∪ int", "⊤"},
+		{"𝓤 ∪ int", "𝓤"},
 		{"~int ∪ int", "~int"},
 		{"int ∪ ~string ∪ int", "int ∪ ~string"},
-		{"~int ∪ string ∪ ⊤ ∪ ~string ∪ int", "⊤"},
+		{"~int ∪ string ∪ 𝓤 ∪ ~string ∪ int", "𝓤"},
 	} {
 		xl := maketl(test.xl)
 		got := maketl(test.xl).norm()
@@ -106,7 +106,7 @@ func TestTermlistStructuralType(t *testing.T) {
 
 	for test, want := range map[string]string{
 		"∅":                 "nil",
-		"⊤":                 "nil",
+		"𝓤":                 "nil",
 		"int":               "int",
 		"~int":              "int",
 		"~int ∪ string":     "nil",
@@ -128,15 +128,15 @@ func TestTermlistUnion(t *testing.T) {
 	}{
 
 		{"∅", "∅", "∅"},
-		{"∅", "⊤", "⊤"},
+		{"∅", "𝓤", "𝓤"},
 		{"∅", "int", "int"},
-		{"⊤", "~int", "⊤"},
+		{"𝓤", "~int", "𝓤"},
 		{"int", "~int", "~int"},
 		{"int", "string", "int ∪ string"},
 		{"int ∪ string", "~string", "int ∪ ~string"},
 		{"~int ∪ string", "~string ∪ int", "~int ∪ ~string"},
 		{"~int ∪ string ∪ ∅", "~string ∪ int", "~int ∪ ~string"},
-		{"~int ∪ string ∪ ⊤", "~string ∪ int", "⊤"},
+		{"~int ∪ string ∪ 𝓤", "~string ∪ int", "𝓤"},
 	} {
 		xl := maketl(test.xl)
 		yl := maketl(test.yl)
@@ -153,15 +153,15 @@ func TestTermlistIntersect(t *testing.T) {
 	}{
 
 		{"∅", "∅", "∅"},
-		{"∅", "⊤", "∅"},
+		{"∅", "𝓤", "∅"},
 		{"∅", "int", "∅"},
-		{"⊤", "~int", "~int"},
+		{"𝓤", "~int", "~int"},
 		{"int", "~int", "int"},
 		{"int", "string", "∅"},
 		{"int ∪ string", "~string", "string"},
 		{"~int ∪ string", "~string ∪ int", "int ∪ string"},
 		{"~int ∪ string ∪ ∅", "~string ∪ int", "int ∪ string"},
-		{"~int ∪ string ∪ ⊤", "~string ∪ int", "int ∪ ~string"},
+		{"~int ∪ string ∪ 𝓤", "~string ∪ int", "int ∪ ~string"},
 	} {
 		xl := maketl(test.xl)
 		yl := maketl(test.yl)
@@ -178,10 +178,10 @@ func TestTermlistEqual(t *testing.T) {
 		want   bool
 	}{
 		{"∅", "∅", true},
-		{"∅", "⊤", false},
-		{"⊤", "⊤", true},
-		{"⊤ ∪ int", "⊤", true},
-		{"⊤ ∪ int", "string ∪ ⊤", true},
+		{"∅", "𝓤", false},
+		{"𝓤", "𝓤", true},
+		{"𝓤 ∪ int", "𝓤", true},
+		{"𝓤 ∪ int", "string ∪ 𝓤", true},
 		{"int ∪ ~string", "string ∪ int", false},
 		{"int ∪ ~string ∪ ∅", "string ∪ int ∪ ~string", true},
 	} {
@@ -200,14 +200,14 @@ func TestTermlistIncludes(t *testing.T) {
 		want    bool
 	}{
 		{"∅", "int", false},
-		{"⊤", "int", true},
+		{"𝓤", "int", true},
 		{"~int", "int", true},
 		{"int", "string", false},
 		{"~int", "string", false},
 		{"int ∪ string", "string", true},
 		{"~int ∪ string", "int", true},
 		{"~int ∪ string ∪ ∅", "string", true},
-		{"~string ∪ ∅ ∪ ⊤", "int", true},
+		{"~string ∪ ∅ ∪ 𝓤", "int", true},
 	} {
 		xl := maketl(test.xl)
 		yl := testTerm(test.typ).typ
@@ -224,12 +224,12 @@ func TestTermlistSupersetOf(t *testing.T) {
 		want    bool
 	}{
 		{"∅", "∅", true},
-		{"∅", "⊤", false},
+		{"∅", "𝓤", false},
 		{"∅", "int", false},
-		{"⊤", "∅", true},
-		{"⊤", "⊤", true},
-		{"⊤", "int", true},
-		{"⊤", "~int", true},
+		{"𝓤", "∅", true},
+		{"𝓤", "𝓤", true},
+		{"𝓤", "int", true},
+		{"𝓤", "~int", true},
 		{"~int", "int", true},
 		{"~int", "~int", true},
 		{"int", "~int", false},
@@ -239,7 +239,7 @@ func TestTermlistSupersetOf(t *testing.T) {
 		{"int ∪ string", "~string", false},
 		{"~int ∪ string", "int", true},
 		{"~int ∪ string ∪ ∅", "string", true},
-		{"~string ∪ ∅ ∪ ⊤", "int", true},
+		{"~string ∪ ∅ ∪ 𝓤", "int", true},
 	} {
 		xl := maketl(test.xl)
 		y := testTerm(test.typ)
@@ -256,16 +256,16 @@ func TestTermlistSubsetOf(t *testing.T) {
 		want   bool
 	}{
 		{"∅", "∅", true},
-		{"∅", "⊤", true},
-		{"⊤", "∅", false},
-		{"⊤", "⊤", true},
+		{"∅", "𝓤", true},
+		{"𝓤", "∅", false},
+		{"𝓤", "𝓤", true},
 		{"int", "int ∪ string", true},
 		{"~int", "int ∪ string", false},
 		{"~int", "string ∪ string ∪ int ∪ ~int", true},
 		{"int ∪ string", "string", false},
 		{"int ∪ string", "string ∪ int", true},
 		{"int ∪ ~string", "string ∪ int", false},
-		{"int ∪ ~string", "string ∪ int ∪ ⊤", true},
+		{"int ∪ ~string", "string ∪ int ∪ 𝓤", true},
 		{"int ∪ ~string", "string ∪ int ∪ ∅ ∪ string", false},
 	} {
 		xl := maketl(test.xl)

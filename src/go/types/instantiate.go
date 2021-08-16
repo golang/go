@@ -176,7 +176,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	// if iface is comparable, targ must be comparable
 	// TODO(gri) the error messages needs to be better, here
 	if iface.IsComparable() && !Comparable(targ) {
-		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsTop() {
+		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsAll() {
 			check.softErrorf(atPos(pos), _Todo, "%s has no constraints", targ)
 			return false
 		}
