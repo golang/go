@@ -7,7 +7,7 @@ package p
 // Test case from issue.
 
 type Nat interface {
-	type Zero, Succ
+	Zero|Succ
 }
 
 type Zero struct{}
@@ -22,7 +22,7 @@ type I1 interface {
 }
 
 type I2 interface {
-	type int
+	~int
 }
 
 type I3 interface {

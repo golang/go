@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -23,7 +24,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -299,7 +300,7 @@ func copyMetadata(modPath, pkg, dst, src string, copiedFiles map[string]bool) {
 		if modPath == pkg {
 			break
 		}
-		pkg = filepath.Dir(pkg)
+		pkg = path.Dir(pkg)
 		dst = filepath.Dir(dst)
 		src = filepath.Dir(src)
 	}

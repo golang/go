@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http/internal/ascii"
 	"net/url"
 	"reflect"
 	"sort"
@@ -432,8 +433,7 @@ func basicAuth(username, password string) string {
 // An error is returned if there were too many redirects or if there
 // was an HTTP protocol error. A non-2xx response doesn't cause an
 // error. Any returned error will be of type *url.Error. The url.Error
-// value's Timeout method will report true if request timed out or was
-// canceled.
+// value's Timeout method will report true if the request timed out.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -547,7 +547,10 @@ func urlErrorOp(method string) string {
 	if method == "" {
 		return "Get"
 	}
-	return method[:1] + strings.ToLower(method[1:])
+	if lowerMethod, ok := ascii.ToLower(method); ok {
+		return method[:1] + lowerMethod[1:]
+	}
+	return method
 }
 
 // Do sends an HTTP request and returns an HTTP response, following
@@ -585,8 +588,7 @@ func urlErrorOp(method string) string {
 // standard library body types.
 //
 // Any returned error will be of type *url.Error. The url.Error
-// value's Timeout method will report true if request timed out or was
-// canceled.
+// value's Timeout method will report true if the request timed out.
 func (c *Client) Do(req *Request) (*Response, error) {
 	return c.do(req)
 }
@@ -725,7 +727,6 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}
@@ -950,7 +951,7 @@ func (c *Client) CloseIdleConnections() {
 }
 
 // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
-// 1) on Read error or close, the stop func is called.
+// 1) On Read error or close, the stop func is called.
 // 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
 //    marked as net.Error that hit its timeout.
 type cancelTimerBody struct {

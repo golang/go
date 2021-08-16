@@ -90,7 +90,6 @@ cmp go.mod go.mod.postget
 cp go.mod.orig go.mod
 go mod edit -go=1.17 go.mod
 go mod edit -go=1.17 go.mod.tidye
-go mod edit -go=1.17 go.mod.postget
 
 go mod tidy -e
 cmp go.mod go.mod.tidye
@@ -99,7 +98,7 @@ stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provid
 
 go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
 go mod tidy
-cmp go.mod go.mod.postget
+cmp go.mod go.mod.postget-117
 
 
 -- go.mod --
@@ -144,6 +143,21 @@ require (
 	example.net/x v0.1.0
 	example.net/y v0.1.0 // indirect
 )
+-- go.mod.postget-117 --
+module example.net/m
+
+go 1.17
+
+replace (
+	example.net/x v0.1.0 => ./x1
+	example.net/x v0.2.0-pre => ./x2-pre
+	example.net/y v0.1.0 => ./y1
+	example.net/y v0.2.0 => ./y2
+)
+
+require example.net/x v0.1.0
+
+require example.net/y v0.1.0 // indirect
 -- m.go --
 package m
 

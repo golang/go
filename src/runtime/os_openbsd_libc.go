@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm64)
-// +build openbsd,386 openbsd,amd64 openbsd,arm64
+//go:build openbsd && !mips64
+// +build openbsd,!mips64
 
 package runtime
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -48,7 +49,7 @@ func newosproc(mp *m) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err := pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+	err := pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))

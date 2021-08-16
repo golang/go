@@ -8,11 +8,8 @@ stderr '^go: no module declaration in go.mod. To specify the module path:\n\tgo 
 # Test that go mod init in GOPATH doesn't add a module declaration
 # with a path that can't possibly be a module path, because
 # it isn't even a valid import path.
-# The single quote and backtick are the only characters  we don't allow
-# in checkModulePathLax, but is allowed in a Windows file name.
-# TODO(matloob): choose a different character once
-# module.CheckImportPath is laxened and replaces
-# checkModulePathLax.
+# The single quote and backtick are the only characters which are not allowed
+# but are a valid Windows file name.
 cd $WORK/'gopath/src/m''d'
 ! go mod init
 stderr 'cannot determine module path'
@@ -21,7 +18,7 @@ stderr 'cannot determine module path'
 # possibly be a module path, because it isn't even a valid import path
 cd $WORK/gopath/src/badname
 ! go list .
-stderr 'invalid module path'
+stderr 'malformed module path'
 
 # Test that an import path containing an element with a leading dot is valid,
 # but such a module path is not.

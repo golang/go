@@ -7,6 +7,7 @@ package http
 import (
 	"io"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"sort"
 	"strings"
@@ -251,7 +252,7 @@ func hasToken(v, token string) bool {
 		if endPos := sp + len(token); endPos != len(v) && !isTokenBoundary(v[endPos]) {
 			continue
 		}
-		if strings.EqualFold(v[sp:sp+len(token)], token) {
+		if ascii.EqualFold(v[sp:sp+len(token)], token) {
 			return true
 		}
 	}

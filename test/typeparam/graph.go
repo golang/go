@@ -225,7 +225,6 @@ func TestShortestPath() {
 	}
 }
 
-
 func main() {
 	TestShortestPath()
 }

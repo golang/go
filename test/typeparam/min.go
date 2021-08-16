@@ -11,7 +11,7 @@ import (
 )
 
 type Ordered interface {
-	type int, int64, float64
+	~int | ~int64 | ~float64 | ~string
 }
 
 func min[T Ordered](x, y T) T {
@@ -37,5 +37,14 @@ func main() {
 
 	if got := min(3.5, 2.0); got != want {
 		panic(fmt.Sprintf("got %d, want %d", got, want))
+	}
+
+	const want2 = "ay"
+	if got := min[string]("bb", "ay"); got != want2 {
+		panic(fmt.Sprintf("got %d, want %d", got, want2))
+	}
+
+	if got := min("bb", "ay"); got != want2 {
+		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 }

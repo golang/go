@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build mips64 || mips64le
 // +build mips64 mips64le
 
 #include "textflag.h"
@@ -36,7 +37,7 @@ cas_fail:
 
 // bool	cas64(uint64 *ptr, uint64 old, uint64 new)
 // Atomically:
-//	if(*val == *old){
+//	if(*val == old){
 //		*val = new;
 //		return 1;
 //	} else {

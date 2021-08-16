@@ -40,7 +40,7 @@ type elt struct {
 	class int
 }
 
-var tokens = [...]elt{
+var tokens = []elt{
 	// Special tokens
 	{token.COMMENT, "/* a comment */", special},
 	{token.COMMENT, "// a comment \n", special},
@@ -149,6 +149,7 @@ var tokens = [...]elt{
 	{token.RBRACE, "}", operator},
 	{token.SEMICOLON, ";", operator},
 	{token.COLON, ":", operator},
+	{token.TILDE, "~", operator},
 
 	// Keywords
 	{token.BREAK, "break", keyword},
@@ -812,6 +813,8 @@ var errors = []struct {
 	{"//\ufeff", token.COMMENT, 2, "//\ufeff", "illegal byte order mark"},                                // only first BOM is ignored
 	{"'\ufeff" + `'`, token.CHAR, 1, "'\ufeff" + `'`, "illegal byte order mark"},                         // only first BOM is ignored
 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
+	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
+	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
 }
 
 func TestScanErrors(t *testing.T) {

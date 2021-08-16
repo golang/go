@@ -44,7 +44,7 @@ go mod edit -require rsc.io/quote@23179ee
 grep 'rsc.io/quote 23179ee' go.mod
 
 # but other commands fix them
-go mod graph
+go list -m -mod=mod all
 grep 'rsc.io/quote v1.5.1' go.mod
 
 -- go.mod --

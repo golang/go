@@ -18,7 +18,7 @@
 // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
 	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
 	STP	(R19, R20), 16(RSP) // save old R19, R20
 	MOVD	R0, R19	// save libcall pointer
@@ -290,21 +290,21 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R0, RSP
 	B	(R1)
 
-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·exceptionhandler<ABIInternal>(SB), R1
+TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·exceptionhandler(SB), R1
 	B	sigtramp<>(SB)
 
-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·firstcontinuehandler<ABIInternal>(SB), R1
+TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$runtime·firstcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+	MOVD	$runtime·lastcontinuehandler(SB), R1
 	B	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
 
-TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
+TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	NO_LOCAL_POINTERS
 
 	// On entry, the trampoline in zcallback_windows_arm64.s left
@@ -339,7 +339,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
 	MOVD	R0, callbackArgs_result(R13)	// result
 
 	// Call cgocallback, which will call callbackWrap(frame).
-	MOVD	$·callbackWrap(SB), R0	// PC of function to call
+	MOVD	$·callbackWrap<ABIInternal>(SB), R0	// PC of function to call, cgocallback takes an ABIInternal entry-point
 	MOVD	R13, R1	// frame (&callbackArgs{...})
 	MOVD	$0, R2	// context
 	MOVD	R0, (1*8)(RSP)
@@ -356,7 +356,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$96-0
+TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
 	SAVE_R19_TO_R28(-10*8)
 
 	MOVD	m_g0(R0), g

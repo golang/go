@@ -10,17 +10,18 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
+	"encoding/binary"
 	"log"
 )
 
 // Decoding the type.* symbols.	 This has to be in sync with
 // ../../runtime/type.go, or more specifically, with what
-// cmd/compile/internal/gc/reflect.go stuffs in these.
+// cmd/compile/internal/reflectdata/reflect.go stuffs in these.
 
 // tflag is documented in reflect/type.go.
 //
 // tflag values must be kept in sync with copies in:
-//	cmd/compile/internal/gc/reflect.go
+//	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	reflect/type.go
 //	runtime/type.go
@@ -126,8 +127,8 @@ func decodetypeName(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs
 	}
 
 	data := ldr.Data(r)
-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
-	return string(data[3 : 3+namelen])
+	nameLen, nameLenLen := binary.Uvarint(data[1:])
+	return string(data[1+nameLenLen : 1+nameLenLen+int(nameLen)])
 }
 
 func decodetypeFuncInType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {

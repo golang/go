@@ -7,8 +7,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -245,7 +245,7 @@ func markroot(gcw *gcWork, i uint32) {
 //
 //go:nowritebarrier
 func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
-	if rootBlockBytes%(8*sys.PtrSize) != 0 {
+	if rootBlockBytes%(8*goarch.PtrSize) != 0 {
 		// This is necessary to pick byte offsets in ptrmask0.
 		throw("rootBlockBytes must be a multiple of 8*ptrSize")
 	}
@@ -258,7 +258,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 		return
 	}
 	b := b0 + off
-	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*sys.PtrSize))))
+	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*goarch.PtrSize))))
 	n := uintptr(rootBlockBytes)
 	if off+n > n0 {
 		n = n0 - off
@@ -372,7 +372,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 				scanobject(p, gcw)
 
 				// The special itself is a root.
-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 			}
 			unlock(&s.speciallock)
 		}
@@ -737,7 +737,7 @@ func scanstack(gp *g, gcw *gcWork) {
 	// register that gets moved back and forth between the
 	// register and sched.ctxt without a write barrier.
 	if gp.sched.ctxt != nil {
-		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 	}
 
 	// Scan the stack. Accumulate a list of stack objects.
@@ -750,26 +750,23 @@ func scanstack(gp *g, gcw *gcWork) {
 	// Find additional pointers that point into the stack from the heap.
 	// Currently this includes defers and panics. See also function copystack.
 
-	// Find and trace all defer arguments.
-	tracebackdefers(gp, scanframe, nil)
-
 	// Find and trace other pointers in defer records.
 	for d := gp._defer; d != nil; d = d.link {
 		if d.fn != nil {
-			// tracebackdefers above does not scan the func value, which could
-			// be a stack allocated closure. See issue 30453.
-			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			// Scan the func value, which could be a stack allocated closure.
+			// See issue 30453.
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 		if d.link != nil {
 			// The link field of a stack-allocated defer record might point
 			// to a heap-allocated defer record. Keep that heap record live.
-			scanblock(uintptr(unsafe.Pointer(&d.link)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			scanblock(uintptr(unsafe.Pointer(&d.link)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 		// Retain defers records themselves.
 		// Defer records might not be reachable from the G through regular heap
 		// tracing because the defer linked list might weave between the stack and the heap.
 		if d.heap {
-			scanblock(uintptr(unsafe.Pointer(&d)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			scanblock(uintptr(unsafe.Pointer(&d)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 	}
 	if gp._panic != nil {
@@ -913,13 +910,13 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 
 	// Scan local variables if stack frame has been allocated.
 	if locals.n > 0 {
-		size := uintptr(locals.n) * sys.PtrSize
+		size := uintptr(locals.n) * goarch.PtrSize
 		scanblock(frame.varp-size, size, locals.bytedata, gcw, state)
 	}
 
 	// Scan arguments.
 	if args.n > 0 {
-		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw, state)
+		scanblock(frame.argp, uintptr(args.n)*goarch.PtrSize, args.bytedata, gcw, state)
 	}
 
 	// Add all stack objects to the stack object list.
@@ -1172,9 +1169,9 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
-		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
+		bits := uint32(*addb(ptrmask, i/(goarch.PtrSize*8)))
 		if bits == 0 {
-			i += sys.PtrSize * 8
+			i += goarch.PtrSize * 8
 			continue
 		}
 		for j := 0; j < 8 && i < n; j++ {
@@ -1190,7 +1187,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 				}
 			}
 			bits >>= 1
-			i += sys.PtrSize
+			i += goarch.PtrSize
 		}
 	}
 }
@@ -1251,7 +1248,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 	}
 
 	var i uintptr
-	for i = 0; i < n; i, hbits = i+sys.PtrSize, hbits.next() {
+	for i = 0; i < n; i, hbits = i+goarch.PtrSize, hbits.next() {
 		// Load bits once. See CL 22712 and issue 16973 for discussion.
 		bits := hbits.bits()
 		if bits&bitScan == 0 {
@@ -1300,7 +1297,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
 		hexdumpWords(b, b+n, func(p uintptr) byte {
 			if ptrmask != nil {
-				word := (p - b) / sys.PtrSize
+				word := (p - b) / goarch.PtrSize
 				bits := *addb(ptrmask, word/8)
 				if (bits>>(word%8))&1 == 0 {
 					return '$'
@@ -1325,9 +1322,9 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 		printunlock()
 	}
 
-	for i := uintptr(0); i < n; i += sys.PtrSize {
+	for i := uintptr(0); i < n; i += goarch.PtrSize {
 		if ptrmask != nil {
-			word := i / sys.PtrSize
+			word := i / goarch.PtrSize
 			bits := *addb(ptrmask, word/8)
 			if bits == 0 {
 				// Skip 8 words (the loop increment will do the 8th)
@@ -1336,10 +1333,10 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 				// seen this word of ptrmask, so i
 				// must be 8-word-aligned, but check
 				// our reasoning just in case.
-				if i%(sys.PtrSize*8) != 0 {
+				if i%(goarch.PtrSize*8) != 0 {
 					throw("misaligned mask")
 				}
-				i += sys.PtrSize*8 - sys.PtrSize
+				i += goarch.PtrSize*8 - goarch.PtrSize
 				continue
 			}
 			if (bits>>(word%8))&1 == 0 {
@@ -1401,7 +1398,7 @@ func shade(b uintptr) {
 //go:nowritebarrierrec
 func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
-	if obj&(sys.PtrSize-1) != 0 {
+	if obj&(goarch.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
 	}
 	mbits := span.markBitsForIndex(objIndex)
@@ -1473,13 +1470,13 @@ func gcDumpObject(label string, obj, off uintptr) {
 		// We're printing something from a stack frame. We
 		// don't know how big it is, so just show up to an
 		// including off.
-		size = off + sys.PtrSize
+		size = off + goarch.PtrSize
 	}
-	for i := uintptr(0); i < size; i += sys.PtrSize {
+	for i := uintptr(0); i < size; i += goarch.PtrSize {
 		// For big objects, just print the beginning (because
 		// that usually hints at the object's type) and the
 		// fields around off.
-		if !(i < 128*sys.PtrSize || off-16*sys.PtrSize < i && i < off+16*sys.PtrSize) {
+		if !(i < 128*goarch.PtrSize || off-16*goarch.PtrSize < i && i < off+16*goarch.PtrSize) {
 			skipped = true
 			continue
 		}

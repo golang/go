@@ -71,7 +71,7 @@ type Root int
 const (
 	// AutoRoot is the default for most commands. modload.Init will look for
 	// a go.mod file in the current directory or any parent. If none is found,
-	// modules may be disabled (GO111MODULE=on) or commands may run in a
+	// modules may be disabled (GO111MODULE=auto) or commands may run in a
 	// limited module mode.
 	AutoRoot Root = iota
 
@@ -405,14 +405,23 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	if modRoot == "" {
 		Target = module.Version{Path: "command-line-arguments"}
 		targetPrefix = "command-line-arguments"
-		goVersion := latestGoVersion()
+		goVersion := LatestGoVersion()
 		rawGoVersion.Store(Target, goVersion)
 		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
 		return requirements, false
 	}
 
 	gomod := ModFilePath()
-	data, err := lockedfile.Read(gomod)
+	var data []byte
+	var err error
+	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+		// Don't lock go.mod if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(gomodActual)
+	} else {
+		data, err = lockedfile.Read(gomodActual)
+	}
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
@@ -432,23 +441,35 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	initTarget(f.Module.Mod)
 	index = indexModFile(data, f, fixed)
 
-	if err := checkModulePathLax(f.Module.Mod.Path); err != nil {
+	if err := module.CheckImportPath(f.Module.Mod.Path); err != nil {
+		if pathErr, ok := err.(*module.InvalidPathError); ok {
+			pathErr.Kind = "module"
+		}
 		base.Fatalf("go: %v", err)
 	}
 
 	setDefaultBuildMod() // possibly enable automatic vendoring
-	rs = requirementsFromModFile(ctx)
-
+	rs = requirementsFromModFile()
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
 		checkVendorConsistency()
 		rs.initVendor(vendorList)
 	}
+	if rs.hasRedundantRoot() {
+		// If any module path appears more than once in the roots, we know that the
+		// go.mod file needs to be updated even though we have not yet loaded any
+		// transitive dependencies.
+		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
+
 	if index.goVersionV == "" {
 		// TODO(#45551): Do something more principled instead of checking
 		// cfg.CmdName directly here.
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
-			addGoStmt(latestGoVersion())
+			addGoStmt(LatestGoVersion())
 			if go117EnableLazyLoading {
 				// We need to add a 'go' version to the go.mod file, but we must assume
 				// that its existing contents match something between Go 1.11 and 1.16.
@@ -492,7 +513,15 @@ func CreateModFile(ctx context.Context, modPath string) {
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}
-	} else if err := checkModulePathLax(modPath); err != nil {
+	} else if err := module.CheckImportPath(modPath); err != nil {
+		if pathErr, ok := err.(*module.InvalidPathError); ok {
+			pathErr.Kind = "module"
+			// Same as build.IsLocalPath()
+			if pathErr.Path == "." || pathErr.Path == ".." ||
+				strings.HasPrefix(pathErr.Path, "./") || strings.HasPrefix(pathErr.Path, "../") {
+				pathErr.Err = errors.New("is a local import path")
+			}
+		}
 		base.Fatalf("go: %v", err)
 	}
 
@@ -500,7 +529,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	modFile = new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	initTarget(modFile.Module.Mod)
-	addGoStmt(latestGoVersion()) // Add the go directive before converted module requirements.
+	addGoStmt(LatestGoVersion()) // Add the go directive before converted module requirements.
 
 	convertedFrom, err := convertLegacyConfig(modPath)
 	if convertedFrom != "" {
@@ -510,7 +539,12 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFile(ctx))
+	rs := requirementsFromModFile()
+	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	commitRequirements(ctx, modFileGoVersion(), rs)
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
 	// imported all the correct requirements above, we're probably missing
@@ -534,49 +568,6 @@ func CreateModFile(ctx context.Context, modPath string) {
 	if !empty {
 		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
 	}
-}
-
-// checkModulePathLax checks that the path meets some minimum requirements
-// to avoid confusing users or the module cache. The requirements are weaker
-// than those of module.CheckPath to allow room for weakening module path
-// requirements in the future, but strong enough to help users avoid significant
-// problems.
-func checkModulePathLax(p string) error {
-	// TODO(matloob): Replace calls of this function in this CL with calls
-	// to module.CheckImportPath once it's been laxened, if it becomes laxened.
-	// See golang.org/issue/29101 for a discussion about whether to make CheckImportPath
-	// more lax or more strict.
-
-	errorf := func(format string, args ...interface{}) error {
-		return fmt.Errorf("invalid module path %q: %s", p, fmt.Sprintf(format, args...))
-	}
-
-	// Disallow shell characters " ' * < > ? ` | to avoid triggering bugs
-	// with file systems and subcommands. Disallow file path separators : and \
-	// because path separators other than / will confuse the module cache.
-	// See fileNameOK in golang.org/x/mod/module/module.go.
-	shellChars := "`" + `"'*<>?|`
-	fsChars := `\:`
-	if i := strings.IndexAny(p, shellChars); i >= 0 {
-		return errorf("contains disallowed shell character %q", p[i])
-	}
-	if i := strings.IndexAny(p, fsChars); i >= 0 {
-		return errorf("contains disallowed path separator character %q", p[i])
-	}
-
-	// Ensure path.IsAbs and build.IsLocalImport are false, and that the path is
-	// invariant under path.Clean, also to avoid confusing the module cache.
-	if path.IsAbs(p) {
-		return errorf("is an absolute path")
-	}
-	if build.IsLocalImport(p) {
-		return errorf("is a local import path")
-	}
-	if path.Clean(p) != p {
-		return errorf("is not clean")
-	}
-
-	return nil
 }
 
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
@@ -664,9 +655,8 @@ func initTarget(m module.Version) {
 
 // requirementsFromModFile returns the set of non-excluded requirements from
 // the global modFile.
-func requirementsFromModFile(ctx context.Context) *Requirements {
+func requirementsFromModFile() *Requirements {
 	roots := make([]module.Version, 0, len(modFile.Require))
-	mPathCount := map[string]int{Target.Path: 1}
 	direct := map[string]bool{}
 	for _, r := range modFile.Require {
 		if index != nil && index.exclude[r.Mod] {
@@ -679,28 +669,12 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
 		}
 
 		roots = append(roots, r.Mod)
-		mPathCount[r.Mod.Path]++
 		if !r.Indirect {
 			direct[r.Mod.Path] = true
 		}
 	}
 	module.Sort(roots)
 	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
-
-	// If any module path appears more than once in the roots, we know that the
-	// go.mod file needs to be updated even though we have not yet loaded any
-	// transitive dependencies.
-	for _, n := range mPathCount {
-		if n > 1 {
-			var err error
-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil)
-			if err != nil {
-				base.Fatalf("go: %v", err)
-			}
-			break
-		}
-	}
-
 	return rs
 }
 
@@ -712,11 +686,24 @@ func setDefaultBuildMod() {
 		return
 	}
 
-	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
-		// 'get' and 'go mod' commands may update go.mod automatically.
-		// TODO(jayconrod): should this narrower? Should 'go mod download' or
-		// 'go mod graph' update go.mod by default?
+	// TODO(#40775): commands should pass in the module mode as an option
+	// to modload functions instead of relying on an implicit setting
+	// based on command name.
+	switch cfg.CmdName {
+	case "get", "mod download", "mod init", "mod tidy":
+		// These commands are intended to update go.mod and go.sum.
 		cfg.BuildMod = "mod"
+		return
+	case "mod graph", "mod verify", "mod why":
+		// These commands should not update go.mod or go.sum, but they should be
+		// able to fetch modules not in go.sum and should not report errors if
+		// go.mod is inconsistent. They're useful for debugging, and they need
+		// to work in buggy situations.
+		cfg.BuildMod = "mod"
+		allowWriteGoMod = false
+		return
+	case "mod vendor":
+		cfg.BuildMod = "readonly"
 		return
 	}
 	if modRoot == "" {
@@ -793,15 +780,37 @@ func addGoStmt(v string) {
 	rawGoVersion.Store(Target, v)
 }
 
-// latestGoVersion returns the latest version of the Go language supported by
+// LatestGoVersion returns the latest version of the Go language supported by
 // this toolchain, like "1.17".
-func latestGoVersion() string {
+func LatestGoVersion() string {
 	tags := build.Default.ReleaseTags
 	version := tags[len(tags)-1]
 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
-		base.Fatalf("go: unrecognized default version %q", version)
+		base.Fatalf("go: internal error: unrecognized default version %q", version)
 	}
 	return version[2:]
+}
+
+// priorGoVersion returns the Go major release immediately preceding v,
+// or v itself if v is the first Go major release (1.0) or not a supported
+// Go version.
+func priorGoVersion(v string) string {
+	vTag := "go" + v
+	tags := build.Default.ReleaseTags
+	for i, tag := range tags {
+		if tag == vTag {
+			if i == 0 {
+				return v
+			}
+
+			version := tags[i-1]
+			if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+				base.Fatalf("go: internal error: unrecognized version %q", version)
+			}
+			return version[2:]
+		}
+	}
+	return v
 }
 
 var altConfigs = []string{
@@ -918,14 +927,8 @@ func findModulePath(dir string) (string, error) {
 		}
 		if rel := search.InDir(dir, filepath.Join(gpdir, "src")); rel != "" && rel != "." {
 			path := filepath.ToSlash(rel)
-			// TODO(matloob): replace this with module.CheckImportPath
-			// once it's been laxened.
-			// Only checkModulePathLax here. There are some unpublishable
-			// module names that are compatible with checkModulePathLax
-			// but they already work in GOPATH so don't break users
-			// trying to do a build with modules. gorelease will alert users
-			// publishing their modules to fix their paths.
-			if err := checkModulePathLax(path); err != nil {
+			// gorelease will alert users publishing their modules to fix their paths.
+			if err := module.CheckImportPath(path); err != nil {
 				badPathErr = err
 				break
 			}
@@ -1015,9 +1018,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			Indirect: !rs.direct[m.Path],
 		})
 	}
-	modFile.SetRequire(list)
 	if goVersion != "" {
 		modFile.AddGoStmt(goVersion)
+	}
+	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
+		modFile.SetRequire(list)
+	} else {
+		modFile.SetRequireSeparateIndirect(list)
 	}
 	modFile.Cleanup()
 
@@ -1035,6 +1042,13 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
 		if cfg.CmdName != "mod init" {
 			modfetch.WriteGoSum(keepSums(ctx, loaded, rs, addBuildListZipSums))
+		}
+		return
+	}
+	gomod := ModFilePath()
+	if _, ok := fsys.OverlayPath(gomod); ok {
+		if dirty {
+			base.Fatalf("go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
 		}
 		return
 	}
@@ -1138,12 +1152,11 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
 		}
 	}
 
-	if rs.depth == lazy && rs.graph.Load() == nil {
-		// The main module is lazy and we haven't needed to load the module graph so
-		// far. Don't incur the cost of loading it now — since we haven't loaded the
-		// graph, we probably don't have any checksums to contribute to the distant
-		// parts of the graph anyway. Instead, just request sums for the roots that
-		// we know about.
+	if rs.graph.Load() == nil {
+		// The module graph was not loaded, possibly because the main module is lazy
+		// or possibly because we haven't needed to load the graph yet.
+		// Save sums for the root modules (or their replacements), but don't
+		// incur the cost of loading the graph just to find and retain the sums.
 		for _, m := range rs.rootModules {
 			r := resolveReplacement(m)
 			keep[modkey(r)] = true

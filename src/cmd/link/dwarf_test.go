@@ -19,6 +19,36 @@ import (
 	"testing"
 )
 
+// TestMain allows this test binary to run as a -toolexec wrapper for the 'go'
+// command. If LINK_TEST_TOOLEXEC is set, TestMain runs the binary as if it were
+// cmd/link, and otherwise runs the requested tool as a subprocess.
+//
+// This allows the test to verify the behavior of the current contents of the
+// cmd/link package even if the installed cmd/link binary is stale.
+func TestMain(m *testing.M) {
+	if os.Getenv("LINK_TEST_TOOLEXEC") == "" {
+		// Not running as a -toolexec wrapper. Just run the tests.
+		os.Exit(m.Run())
+	}
+
+	if strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe") == "link" {
+		// Running as a -toolexec linker, and the tool is cmd/link.
+		// Substitute this test binary for the linker.
+		os.Args = os.Args[1:]
+		main()
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[1], os.Args[2:]...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
 func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
@@ -29,17 +59,6 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 	t.Parallel()
 
-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list: %v\n%s", err, out)
-	}
-	if string(out) != "false\n" {
-		if strings.HasPrefix(testenv.Builder(), "darwin-") {
-			t.Skipf("cmd/link is spuriously stale on Darwin builders - see #33598")
-		}
-		t.Fatalf("cmd/link is stale - run go install cmd/link")
-	}
-
 	for _, prog := range []string{"testprog", "testprogcgo"} {
 		prog := prog
 		expectDWARF := expectDWARF
@@ -48,11 +67,11 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			if extld == "" {
 				extld = "gcc"
 			}
+			var err error
 			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
 			if err != nil {
 				t.Fatal(err)
 			}
-
 		}
 
 		t.Run(prog, func(t *testing.T) {
@@ -62,15 +81,14 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 			exe := filepath.Join(tmpDir, prog+".exe")
 			dir := "../../runtime/testdata/" + prog
-			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+			cmd := exec.Command(testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-o", exe)
 			if buildmode != "" {
 				cmd.Args = append(cmd.Args, "-buildmode", buildmode)
 			}
 			cmd.Args = append(cmd.Args, dir)
-			if env != nil {
-				cmd.Env = append(os.Environ(), env...)
-				cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
-			}
+			cmd.Env = append(os.Environ(), env...)
+			cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+			cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)

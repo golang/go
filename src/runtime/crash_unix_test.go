@@ -69,7 +69,8 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
 
-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64" {
+	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64") {
+		// This may be ncpu < 2 related...
 		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
 	}
 

@@ -40,14 +40,7 @@ h1 {
 .inlinesrc {
   color: #000066;
 }
-.deadsrc {
-cursor: pointer;
-}
-.deadsrc:hover {
-background-color: #eeeeee;
-}
 .livesrc {
-color: #0000ff;
 cursor: pointer;
 }
 .livesrc:hover {

@@ -1882,6 +1882,10 @@ func (s *regAllocState) placeSpills() {
 		phiRegs[b.ID] = m
 	}
 
+	mustBeFirst := func(op Op) bool {
+		return op.isLoweredGetClosurePtr() || op == OpPhi || op == OpArgIntReg || op == OpArgFloatReg
+	}
+
 	// Start maps block IDs to the list of spills
 	// that go at the start of the block (but after any phis).
 	start := map[ID][]*Value{}
@@ -1971,7 +1975,7 @@ func (s *regAllocState) placeSpills() {
 		// Put the spill in the best block we found.
 		spill.Block = best
 		spill.AddArg(bestArg)
-		if best == v.Block && v.Op != OpPhi {
+		if best == v.Block && !mustBeFirst(v.Op) {
 			// Place immediately after v.
 			after[v.ID] = append(after[v.ID], spill)
 		} else {
@@ -1983,15 +1987,15 @@ func (s *regAllocState) placeSpills() {
 	// Insert spill instructions into the block schedules.
 	var oldSched []*Value
 	for _, b := range s.visitOrder {
-		nphi := 0
+		nfirst := 0
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if !mustBeFirst(v.Op) {
 				break
 			}
-			nphi++
+			nfirst++
 		}
-		oldSched = append(oldSched[:0], b.Values[nphi:]...)
-		b.Values = b.Values[:nphi]
+		oldSched = append(oldSched[:0], b.Values[nfirst:]...)
+		b.Values = b.Values[:nfirst]
 		b.Values = append(b.Values, start[b.ID]...)
 		for _, v := range oldSched {
 			b.Values = append(b.Values, v)

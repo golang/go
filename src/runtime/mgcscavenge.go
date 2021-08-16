@@ -56,6 +56,7 @@
 package runtime
 
 import (
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -90,7 +91,7 @@ const (
 	//
 	// This ratio is used as part of multiplicative factor to help the scavenger account
 	// for the additional costs of using scavenged memory in its pacing.
-	scavengeCostRatio = 0.7 * (sys.GoosDarwin + sys.GoosIos)
+	scavengeCostRatio = 0.7 * (goos.IsDarwin + goos.IsIos)
 
 	// scavengeReservationShards determines the amount of memory the scavenger
 	// should reserve for scavenging at a time. Specifically, the amount of
@@ -249,7 +250,7 @@ func scavengeSleep(ns int64) int64 {
 // The background scavenger maintains the RSS of the application below
 // the line described by the proportional scavenging statistics in
 // the mheap struct.
-func bgscavenge() {
+func bgscavenge(c chan int) {
 	scavenge.g = getg()
 
 	lockInit(&scavenge.lock, lockRankScavenge)
@@ -261,7 +262,7 @@ func bgscavenge() {
 		wakeScavenger()
 	}
 
-	gcenable_setup <- 1
+	c <- 1
 	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 
 	// Exponentially-weighted moving average of the fraction of time this

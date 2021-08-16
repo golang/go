@@ -475,7 +475,7 @@ func (f *peFile) addDWARFSection(name string, size int) *peSection {
 	off := f.stringTable.add(name)
 	h := f.addSection(name, size, size)
 	h.shortName = fmt.Sprintf("/%d", off)
-	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
+	h.characteristics = IMAGE_SCN_ALIGN_1BYTES | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	return h
 }
 

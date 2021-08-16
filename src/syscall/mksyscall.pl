@@ -191,6 +191,10 @@ while(<>) {
 			if (!$libc) {
 				push @args, "0";
 			}
+			if($libc && $arm && @args % 2) {
+				# arm abi specifies 64 bit argument must be 64 bit aligned.
+				push @args, "0"
+			}
 			if($_32bit eq "big-endian") {
 				push @args, "uintptr($name>>32)", "uintptr($name)";
 			} elsif($_32bit eq "little-endian") {

@@ -9,7 +9,7 @@
 // It then calls the Go implementation for that callback.
 #include "textflag.h"
 
-TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$0, R12
 	B	runtime·callbackasm1(SB)
 	MOVD	$1, R12

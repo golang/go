@@ -13,15 +13,15 @@ import (
 )
 
 type Ordered interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		string
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64 |
+		~string
 }
 
 type orderedSlice[Elem Ordered] []Elem
 
-func (s orderedSlice[Elem]) Len() int           { return len(s) }
+func (s orderedSlice[Elem]) Len() int { return len(s) }
 func (s orderedSlice[Elem]) Less(i, j int) bool {
 	if s[i] < s[j] {
 		return true
@@ -32,7 +32,7 @@ func (s orderedSlice[Elem]) Less(i, j int) bool {
 	}
 	return false
 }
-func (s orderedSlice[Elem]) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s orderedSlice[Elem]) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func _OrderedSlice[Elem Ordered](s []Elem) {
 	sort.Sort(orderedSlice[Elem](s))
@@ -68,7 +68,7 @@ func testOrdered[Elem Ordered](name string, s []Elem, sorter func([]Elem)) bool 
 	}
 	for i := len(s1) - 1; i > 0; i-- {
 		if s1[i] < s1[i-1] {
-			fmt.Printf("%s: element %d (%v) < element %d (%v)", name, i, s1[i], i - 1, s1[i - 1])
+			fmt.Printf("%s: element %d (%v) < element %d (%v)", name, i, s1[i], i-1, s1[i-1])
 			ok = false
 		}
 	}

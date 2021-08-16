@@ -25,7 +25,7 @@ import (
 )
 
 var cmdEdit = &base.Command{
-	UsageLine: "go mod edit [editing flags] [go.mod]",
+	UsageLine: "go mod edit [editing flags] [-fmt|-print|-json] [go.mod]",
 	Short:     "edit go.mod from tools or scripts",
 	Long: `
 Edit provides a command-line interface for editing go.mod,
@@ -196,7 +196,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editGo != "" {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
 		}
 	}
 

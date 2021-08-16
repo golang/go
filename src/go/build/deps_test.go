@@ -71,17 +71,19 @@ var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
 	< container/list, container/ring,
-	  internal/cfg, internal/cpu, internal/goexperiment,
+	  internal/cfg, internal/cpu, internal/goarch,
+	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace,
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# These packages depend only on unsafe.
-	unsafe
+	# These packages depend only on internal/goarch and unsafe.
+	internal/goarch, unsafe
 	< internal/abi;
 
 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
-	internal/abi, internal/cpu, internal/goexperiment, unsafe
+	internal/abi, internal/cpu, internal/goarch,
+	internal/goexperiment, internal/goos, unsafe
 	< internal/bytealg
 	< internal/itoa
 	< internal/unsafeheader
@@ -395,6 +397,7 @@ var depsRules = `
 	< crypto
 	< crypto/subtle
 	< crypto/internal/subtle
+	< crypto/elliptic/internal/fiat
 	< crypto/ed25519/internal/edwards25519/field
 	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
@@ -443,7 +446,8 @@ var depsRules = `
 	# HTTP, King of Dependencies.
 
 	FMT
-	< golang.org/x/net/http2/hpack, net/http/internal;
+	< golang.org/x/net/http2/hpack
+	< net/http/internal, net/http/internal/ascii, net/http/internal/testcert;
 
 	FMT, NET, container/list, encoding/binary, log
 	< golang.org/x/text/transform
@@ -461,6 +465,8 @@ var depsRules = `
 	golang.org/x/net/http/httpproxy,
 	golang.org/x/net/http2/hpack,
 	net/http/internal,
+	net/http/internal/ascii,
+	net/http/internal/testcert,
 	net/http/httptrace,
 	mime/multipart,
 	log
@@ -471,7 +477,7 @@ var depsRules = `
 	encoding/json, net/http
 	< expvar;
 
-	net/http
+	net/http, net/http/internal/ascii
 	< net/http/cookiejar, net/http/httputil;
 
 	net/http, flag

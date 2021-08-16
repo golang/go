@@ -16,6 +16,7 @@
 package reflect
 
 import (
+	"internal/goarch"
 	"internal/unsafeheader"
 	"strconv"
 	"sync"
@@ -107,10 +108,14 @@ type Type interface {
 
 	// ConvertibleTo reports whether a value of the type is convertible to type u.
 	// Even if ConvertibleTo returns true, the conversion may still panic.
+	// For example, a slice of type []T is convertible to *[N]T,
+	// but the conversion will panic if its length is less than N.
 	ConvertibleTo(u Type) bool
 
 	// Comparable reports whether values of this type are comparable.
 	// Even if Comparable returns true, the comparison may still panic.
+	// For example, values of interface type are comparable,
+	// but the comparison will panic if their dynamic type is not comparable.
 	Comparable() bool
 
 	// Methods applicable only to some types, depending on Kind.
@@ -224,7 +229,7 @@ type Type interface {
 // See https://golang.org/issue/4876 for more details.
 
 /*
- * These data structures are known to the compiler (../../cmd/internal/gc/reflect.go).
+ * These data structures are known to the compiler (../../cmd/internal/reflectdata/reflect.go).
  * A few are known to ../runtime/type.go to convey to debuggers.
  * They are also known to ../runtime/type.go.
  */
@@ -267,7 +272,7 @@ const (
 // available in the memory directly following the rtype value.
 //
 // tflag values must be kept in sync with copies in:
-//	cmd/compile/internal/gc/reflect.go
+//	cmd/compile/internal/reflectdata/reflect.go
 //	cmd/link/internal/ld/decodesym.go
 //	runtime/type.go
 type tflag uint8
@@ -450,14 +455,11 @@ type structType struct {
 //	1<<1 tag data follows the name
 //	1<<2 pkgPath nameOff follows the name and tag
 //
-// The next two bytes are the data length:
+// Following that, there is a varint-encoded length of the name,
+// followed by the name itself.
 //
-//	 l := uint16(data[1])<<8 | uint16(data[2])
-//
-// Bytes [3:3+l] are the string data.
-//
-// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
-// with the data following.
+// If tag data is present, it also has a varint-encoded length
+// followed by the tag itself.
 //
 // If the import path follows, then 4 bytes at the end of
 // the data form a nameOff. The import path is only set for concrete
@@ -465,6 +467,13 @@ type structType struct {
 //
 // If a name starts with "*", then the exported bit represents
 // whether the pointed to type is exported.
+//
+// Note: this encoding must match here and in:
+//   cmd/compile/internal/reflectdata/reflect.go
+//   runtime/type.go
+//   internal/reflectlite/type.go
+//   cmd/link/internal/ld/decodesym.go
+
 type name struct {
 	bytes *byte
 }
@@ -477,49 +486,70 @@ func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n name) nameLen() int {
-	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
+func (n name) hasTag() bool {
+	return (*n.bytes)&(1<<1) != 0
 }
 
-func (n name) tagLen() int {
-	if *n.data(0, "name flag field")&(1<<1) == 0 {
-		return 0
+// readVarint parses a varint as encoded by encoding/binary.
+// It returns the number of encoded bytes and the encoded value.
+func (n name) readVarint(off int) (int, int) {
+	v := 0
+	for i := 0; ; i++ {
+		x := *n.data(off+i, "read varint")
+		v += int(x&0x7f) << (7 * i)
+		if x&0x80 == 0 {
+			return i + 1, v
+		}
 	}
-	off := 3 + n.nameLen()
-	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
+}
+
+// writeVarint writes n to buf in varint form. Returns the
+// number of bytes written. n must be nonnegative.
+// Writes at most 10 bytes.
+func writeVarint(buf []byte, n int) int {
+	for i := 0; ; i++ {
+		b := byte(n & 0x7f)
+		n >>= 7
+		if n == 0 {
+			buf[i] = b
+			return i + 1
+		}
+		buf[i] = b | 0x80
+	}
 }
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
 		return
 	}
-	b := (*[4]byte)(unsafe.Pointer(n.bytes))
-
+	i, l := n.readVarint(1)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(&b[3])
-	hdr.Len = int(b[1])<<8 | int(b[2])
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
+	hdr.Len = l
+	return
 }
 
 func (n name) tag() (s string) {
-	tl := n.tagLen()
-	if tl == 0 {
+	if !n.hasTag() {
 		return ""
 	}
-	nl := n.nameLen()
+	i, l := n.readVarint(1)
+	i2, l2 := n.readVarint(1 + i + l)
 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
-	hdr.Len = tl
-	return s
+	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
+	hdr.Len = l2
+	return
 }
 
 func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
 		return ""
 	}
-	off := 3 + n.nameLen()
-	if tl := n.tagLen(); tl > 0 {
-		off += 2 + tl
+	i, l := n.readVarint(1)
+	off := 1 + i + l
+	if n.hasTag() {
+		i2, l2 := n.readVarint(off)
+		off += i2 + l2
 	}
 	var nameOff int32
 	// Note that this field may not be aligned in memory,
@@ -530,33 +560,35 @@ func (n name) pkgPath() string {
 }
 
 func newName(n, tag string, exported bool) name {
-	if len(n) > 1<<16-1 {
-		panic("reflect.nameFrom: name too long: " + n)
+	if len(n) >= 1<<29 {
+		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
 	}
-	if len(tag) > 1<<16-1 {
-		panic("reflect.nameFrom: tag too long: " + tag)
+	if len(tag) >= 1<<29 {
+		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
 	}
+	var nameLen [10]byte
+	var tagLen [10]byte
+	nameLenLen := writeVarint(nameLen[:], len(n))
+	tagLenLen := writeVarint(tagLen[:], len(tag))
 
 	var bits byte
-	l := 1 + 2 + len(n)
+	l := 1 + nameLenLen + len(n)
 	if exported {
 		bits |= 1 << 0
 	}
 	if len(tag) > 0 {
-		l += 2 + len(tag)
+		l += tagLenLen + len(tag)
 		bits |= 1 << 1
 	}
 
 	b := make([]byte, l)
 	b[0] = bits
-	b[1] = uint8(len(n) >> 8)
-	b[2] = uint8(len(n))
-	copy(b[3:], n)
+	copy(b[1:], nameLen[:nameLenLen])
+	copy(b[1+nameLenLen:], n)
 	if len(tag) > 0 {
-		tb := b[3+len(n):]
-		tb[0] = uint8(len(tag) >> 8)
-		tb[1] = uint8(len(tag))
-		copy(tb[2:], tag)
+		tb := b[1+nameLenLen+len(n):]
+		copy(tb, tagLen[:tagLenLen])
+		copy(tb[tagLenLen:], tag)
 	}
 
 	return name{bytes: &b[0]}
@@ -1879,7 +1911,7 @@ func MapOf(key, elem Type) Type {
 
 	// Make a map type.
 	// Note: flag values must match those used in the TMAP case
-	// in ../cmd/compile/internal/gc/reflect.go:writeType.
+	// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", false))
@@ -1893,13 +1925,13 @@ func MapOf(key, elem Type) Type {
 	}
 	mt.flags = 0
 	if ktyp.size > maxKeySize {
-		mt.keysize = uint8(ptrSize)
+		mt.keysize = uint8(goarch.PtrSize)
 		mt.flags |= 1 // indirect key
 	} else {
 		mt.keysize = uint8(ktyp.size)
 	}
 	if etyp.size > maxValSize {
-		mt.valuesize = uint8(ptrSize)
+		mt.valuesize = uint8(goarch.PtrSize)
 		mt.flags |= 2 // indirect value
 	} else {
 		mt.valuesize = uint8(etyp.size)
@@ -2200,31 +2232,31 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	var ptrdata uintptr
 	var overflowPad uintptr
 
-	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
+	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + goarch.PtrSize
 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
 	}
 
 	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
-		nptr := (bucketSize*(1+ktyp.size+etyp.size) + ptrSize) / ptrSize
+		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
 		mask := make([]byte, (nptr+7)/8)
-		base := bucketSize / ptrSize
+		base := bucketSize / goarch.PtrSize
 
 		if ktyp.ptrdata != 0 {
 			emitGCMask(mask, base, ktyp, bucketSize)
 		}
-		base += bucketSize * ktyp.size / ptrSize
+		base += bucketSize * ktyp.size / goarch.PtrSize
 
 		if etyp.ptrdata != 0 {
 			emitGCMask(mask, base, etyp, bucketSize)
 		}
-		base += bucketSize * etyp.size / ptrSize
-		base += overflowPad / ptrSize
+		base += bucketSize * etyp.size / goarch.PtrSize
+		base += overflowPad / goarch.PtrSize
 
 		word := base
 		mask[word/8] |= 1 << (word % 8)
 		gcdata = &mask[0]
-		ptrdata = (word + 1) * ptrSize
+		ptrdata = (word + 1) * goarch.PtrSize
 
 		// overflow word must be last
 		if ptrdata != size {
@@ -2233,7 +2265,7 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	}
 
 	b := &rtype{
-		align:   ptrSize,
+		align:   goarch.PtrSize,
 		size:    size,
 		kind:    uint8(Struct),
 		ptrdata: ptrdata,
@@ -2257,8 +2289,8 @@ func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
 	if typ.kind&kindGCProg != 0 {
 		panic("reflect: unexpected GC program")
 	}
-	ptrs := typ.ptrdata / ptrSize
-	words := typ.size / ptrSize
+	ptrs := typ.ptrdata / goarch.PtrSize
+	words := typ.size / goarch.PtrSize
 	mask := typ.gcSlice(0, (ptrs+7)/8)
 	for j := uintptr(0); j < ptrs; j++ {
 		if (mask[j/8]>>(j%8))&1 != 0 {
@@ -2281,7 +2313,7 @@ func appendGCProg(dst []byte, typ *rtype) []byte {
 	}
 
 	// Element is small with pointer mask; use as literal bits.
-	ptrs := typ.ptrdata / ptrSize
+	ptrs := typ.ptrdata / goarch.PtrSize
 	mask := typ.gcSlice(0, (ptrs+7)/8)
 
 	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
@@ -2570,7 +2602,7 @@ func StructOf(fields []StructField) Type {
 		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
 
 		repr = append(repr, (" " + ft.String())...)
-		if f.name.tagLen() > 0 {
+		if f.name.hasTag() {
 			hash = fnv1(hash, []byte(f.name.tag())...)
 			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
 		}
@@ -2728,7 +2760,7 @@ func StructOf(fields []StructField) Type {
 			}
 			// Pad to start of this field with zeros.
 			if ft.offset() > off {
-				n := (ft.offset() - off) / ptrSize
+				n := (ft.offset() - off) / goarch.PtrSize
 				prog = append(prog, 0x01, 0x00) // emit a 0 bit
 				if n > 1 {
 					prog = append(prog, 0x81)      // repeat previous bit
@@ -2810,7 +2842,7 @@ func runtimeStructField(field StructField) (structField, string) {
 
 // typeptrdata returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
-// keep in sync with ../cmd/compile/internal/gc/reflect.go
+// keep in sync with ../cmd/compile/internal/reflectdata/reflect.go
 func typeptrdata(t *rtype) uintptr {
 	switch t.Kind() {
 	case Struct:
@@ -2834,7 +2866,7 @@ func typeptrdata(t *rtype) uintptr {
 	}
 }
 
-// See cmd/compile/internal/gc/reflect.go for derivation of constant.
+// See cmd/compile/internal/reflectdata/reflect.go for derivation of constant.
 const maxPtrmaskBytes = 2048
 
 // ArrayOf returns the array type with the given length and element type.
@@ -2905,11 +2937,11 @@ func ArrayOf(length int, elem Type) Type {
 		array.gcdata = typ.gcdata
 		array.ptrdata = typ.ptrdata
 
-	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*ptrSize:
+	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*goarch.PtrSize:
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into length 1 bits in larger mask.
-		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
+		mask := make([]byte, (array.ptrdata/goarch.PtrSize+7)/8)
 		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
 
@@ -2919,8 +2951,8 @@ func ArrayOf(length int, elem Type) Type {
 		prog := []byte{0, 0, 0, 0} // will be length of prog
 		prog = appendGCProg(prog, typ)
 		// Pad from ptrdata to size.
-		elemPtrs := typ.ptrdata / ptrSize
-		elemWords := typ.size / ptrSize
+		elemPtrs := typ.ptrdata / goarch.PtrSize
+		elemWords := typ.size / goarch.PtrSize
 		if elemPtrs < elemWords {
 			// Emit literal 0 bit, then repeat as needed.
 			prog = append(prog, 0x01, 0x00)
@@ -3032,13 +3064,13 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 
 	// build dummy rtype holding gc program
 	x := &rtype{
-		align: ptrSize,
+		align: goarch.PtrSize,
 		// Don't add spill space here; it's only necessary in
 		// reflectcall's frame, not in the allocated frame.
 		// TODO(mknyszek): Remove this comment when register
 		// spill space in the frame is no longer required.
-		size:    align(abi.retOffset+abi.ret.stackBytes, ptrSize),
-		ptrdata: uintptr(abi.stackPtrs.n) * ptrSize,
+		size:    align(abi.retOffset+abi.ret.stackBytes, goarch.PtrSize),
+		ptrdata: uintptr(abi.stackPtrs.n) * goarch.PtrSize,
 	}
 	if abi.stackPtrs.n > 0 {
 		x.gcdata = &abi.stackPtrs.data[0]
@@ -3093,14 +3125,14 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
 	switch Kind(t.kind & kindMask) {
 	case Chan, Func, Map, Ptr, Slice, String, UnsafePointer:
 		// 1 pointer at start of representation
-		for bv.n < uint32(offset/uintptr(ptrSize)) {
+		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
 			bv.append(0)
 		}
 		bv.append(1)
 
 	case Interface:
 		// 2 pointers
-		for bv.n < uint32(offset/uintptr(ptrSize)) {
+		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
 			bv.append(0)
 		}
 		bv.append(1)

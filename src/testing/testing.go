@@ -233,6 +233,8 @@
 //		os.Exit(m.Run())
 //	}
 //
+// TestMain is a low-level primitive and should not be necessary for casual
+// testing needs, where ordinary test functions suffice.
 package testing
 
 import (
@@ -252,6 +254,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 var initRan bool
@@ -642,6 +646,7 @@ type TB interface {
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
 	Name() string
+	Setenv(key, value string)
 	Skip(args ...interface{})
 	SkipNow()
 	Skipf(format string, args ...interface{})
@@ -675,7 +680,11 @@ type T struct {
 
 func (c *common) private() {}
 
-// Name returns the name of the running test or benchmark.
+// Name returns the name of the running (sub-) test or benchmark.
+//
+// The name will include the name of the test along with the names of
+// any nested sub-tests. If two sibling sub-tests have the same name,
+// Name will append a suffix to guarantee the returned name is unique.
 func (c *common) Name() string {
 	return c.name
 }
@@ -908,11 +917,6 @@ func (c *common) Cleanup(f func()) {
 	c.cleanups = append(c.cleanups, fn)
 }
 
-var tempDirReplacer struct {
-	sync.Once
-	r *strings.Replacer
-}
-
 // TempDir returns a temporary directory for the test to use.
 // The directory is automatically removed by Cleanup when the test and
 // all its subtests complete.
@@ -936,13 +940,26 @@ func (c *common) TempDir() string {
 	if nonExistent {
 		c.Helper()
 
-		// os.MkdirTemp doesn't like path separators in its pattern,
-		// so mangle the name to accommodate subtests.
-		tempDirReplacer.Do(func() {
-			tempDirReplacer.r = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
-		})
-		pattern := tempDirReplacer.r.Replace(c.Name())
-
+		// Drop unusual characters (such as path separators or
+		// characters interacting with globs) from the directory name to
+		// avoid surprising os.MkdirTemp behavior.
+		mapper := func(r rune) rune {
+			if r < utf8.RuneSelf {
+				const allowed = "!#$%&()+,-.=@^_{}~ "
+				if '0' <= r && r <= '9' ||
+					'a' <= r && r <= 'z' ||
+					'A' <= r && r <= 'Z' {
+					return r
+				}
+				if strings.ContainsRune(allowed, r) {
+					return r
+				}
+			} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
+				return r
+			}
+			return -1
+		}
+		pattern := strings.Map(mapper, c.Name())
 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {

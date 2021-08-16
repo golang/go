@@ -152,7 +152,7 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
 // If err is nil, the caller MUST eventually call the unlock function.
 func SideLock() (unlock func(), err error) {
 	if err := checkCacheDir(); err != nil {
-		base.Fatalf("go: %v", err)
+		return nil, err
 	}
 
 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")

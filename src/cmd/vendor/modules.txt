@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+# github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
 ## explicit; go 1.14
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
 ## explicit; go 1.17
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
-# golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a
+# golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
 ## explicit; go 1.17
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -39,7 +39,7 @@ golang.org/x/mod/sumdb/dirhash
 golang.org/x/mod/sumdb/note
 golang.org/x/mod/sumdb/tlog
 golang.org/x/mod/zip
-# golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6
+# golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
@@ -48,7 +48,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20210503060354-a79de5458b56
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/tools v0.1.1-0.20210505014545-7cab0ef2e9a5
+# golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
 ## explicit; go 1.17
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -92,6 +92,7 @@ golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
 golang.org/x/tools/internal/analysisinternal
 golang.org/x/tools/internal/lsp/fuzzy
+golang.org/x/tools/internal/typeparams
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 ## explicit; go 1.11
 golang.org/x/xerrors

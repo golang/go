@@ -11,10 +11,10 @@ import (
 )
 
 type Ordered interface {
-        type int, int8, int16, int32, int64,
-                uint, uint8, uint16, uint32, uint64, uintptr,
-                float32, float64,
-                string
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64 |
+		~string
 }
 
 // _List is a linked list of ordered values of type T.
@@ -34,9 +34,9 @@ func (l *_List[T]) Largest() T {
 }
 
 type OrderedNum interface {
-        type int, int8, int16, int32, int64,
-                uint, uint8, uint16, uint32, uint64, uintptr,
-                float32, float64
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
 }
 
 // _ListNum is a linked _List of ordered numeric values of type T.
@@ -64,40 +64,40 @@ func main() {
 	i2 := &_List[int]{i3, 3}
 	i1 := &_List[int]{i2, 2}
 	if got, want := i1.Largest(), 3; got != want {
-                panic(fmt.Sprintf("got %d, want %d", got, want))
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 
 	b3 := &_List[byte]{nil, byte(1)}
 	b2 := &_List[byte]{b3, byte(3)}
 	b1 := &_List[byte]{b2, byte(2)}
 	if got, want := b1.Largest(), byte(3); got != want {
-                panic(fmt.Sprintf("got %d, want %d", got, want))
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 
 	f3 := &_List[float64]{nil, 13.5}
 	f2 := &_List[float64]{f3, 1.2}
 	f1 := &_List[float64]{f2, 4.5}
 	if got, want := f1.Largest(), 13.5; got != want {
-                panic(fmt.Sprintf("got %f, want %f", got, want))
+		panic(fmt.Sprintf("got %f, want %f", got, want))
 	}
 
 	s3 := &_List[string]{nil, "dd"}
 	s2 := &_List[string]{s3, "aa"}
 	s1 := &_List[string]{s2, "bb"}
 	if got, want := s1.Largest(), "dd"; got != want {
-                panic(fmt.Sprintf("got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 
 	j3 := &_ListNum[int]{nil, 1}
 	j2 := &_ListNum[int]{j3, 32}
 	j1 := &_ListNum[int]{j2, 2}
 	if got, want := j1.ClippedLargest(), 2; got != want {
-                panic(fmt.Sprintf("got %d, want %d", got, want))
+		panic(fmt.Sprintf("got %d, want %d", got, want))
 	}
 	g3 := &_ListNum[float64]{nil, 13.5}
 	g2 := &_ListNum[float64]{g3, 1.2}
 	g1 := &_ListNum[float64]{g2, 4.5}
 	if got, want := g1.ClippedLargest(), 4.5; got != want {
-                panic(fmt.Sprintf("got %f, want %f", got, want))
+		panic(fmt.Sprintf("got %f, want %f", got, want))
 	}
 }

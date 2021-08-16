@@ -21,9 +21,7 @@ var parseIPTests = []struct {
 }{
 	{"127.0.1.2", IPv4(127, 0, 1, 2)},
 	{"127.0.0.1", IPv4(127, 0, 0, 1)},
-	{"127.001.002.003", IPv4(127, 1, 2, 3)},
 	{"::ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
-	{"::ffff:127.001.002.003", IPv4(127, 1, 2, 3)},
 	{"::ffff:7f01:0203", IPv4(127, 1, 2, 3)},
 	{"0:0:0:0:0000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
 	{"0:0:0:0:000000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
@@ -43,6 +41,11 @@ var parseIPTests = []struct {
 	{"fe80::1%911", nil},
 	{"", nil},
 	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
+	{"127.001.002.003", nil},
+	{"::ffff:127.001.002.003", nil},
+	{"123.000.000.000", nil},
+	{"1.2..4", nil},
+	{"0123.0.0.1", nil},
 }
 
 func TestParseIP(t *testing.T) {
@@ -358,6 +361,7 @@ var parseCIDRTests = []struct {
 	{"0.0.-2.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.-2.0/32"}},
 	{"0.0.0.-3/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.-3/32"}},
 	{"0.0.0.0/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.0/-0"}},
+	{"127.000.000.001/32", nil, nil, &ParseError{Type: "CIDR address", Text: "127.000.000.001/32"}},
 	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
 }
 

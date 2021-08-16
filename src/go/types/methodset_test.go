@@ -7,7 +7,6 @@ package types_test
 import (
 	"testing"
 
-	"go/internal/typeparams"
 	. "go/types"
 )
 
@@ -47,12 +46,15 @@ func TestNewMethodSet(t *testing.T) {
 
 	genericTests := map[string][]method{
 		// By convention, look up a in the scope of "g"
-		"type C interface{ f() }; func g[T C](a T){}":                       {{"f", []int{0}, true}},
-		"type C interface{ f() }; func g[T C]() { var a T; _ = a }":         {{"f", []int{0}, true}},
-		"type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
+		"type C interface{ f() }; func g[T C](a T){}":               {{"f", []int{0}, true}},
+		"type C interface{ f() }; func g[T C]() { var a T; _ = a }": {{"f", []int{0}, true}},
 
-		// Issue #45639.
-		"type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
+		// Issue #43621: We don't allow this anymore. Keep this code in case we
+		// decide to revisit this decision.
+		// "type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
+
+		// Issue #45639: We also don't allow this anymore.
+		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
 	}
 
 	check := func(src string, methods []method, generic bool) {
@@ -101,9 +103,7 @@ func TestNewMethodSet(t *testing.T) {
 		check(src, methods, false)
 	}
 
-	if typeparams.Enabled {
-		for src, methods := range genericTests {
-			check(src, methods, true)
-		}
+	for src, methods := range genericTests {
+		check(src, methods, true)
 	}
 }

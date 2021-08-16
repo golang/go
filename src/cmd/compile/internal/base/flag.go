@@ -159,7 +159,11 @@ func ParseFlags() {
 	Flag.LinkShared = &Ctxt.Flag_linkshared
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
+
 	Debug.InlFuncsWithClosures = 1
+	if buildcfg.Experiment.Unified {
+		Debug.Unified = 1
+	}
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 

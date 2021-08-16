@@ -32,9 +32,26 @@ func TestQuery(t *testing.T) {
 	}
 }
 
+// Issue #25192: Test that ParseForm fails but still parses the form when an URL
+// containing a semicolon is provided.
+func TestParseFormSemicolonSeparator(t *testing.T) {
+	for _, method := range []string{"POST", "PATCH", "PUT", "GET"} {
+		req, _ := NewRequest(method, "http://www.google.com/search?q=foo;q=bar&a=1",
+			strings.NewReader("q"))
+		err := req.ParseForm()
+		if err == nil {
+			t.Fatalf(`for method %s, ParseForm expected an error, got success`, method)
+		}
+		wantForm := url.Values{"a": []string{"1"}}
+		if !reflect.DeepEqual(req.Form, wantForm) {
+			t.Fatalf("for method %s, ParseForm expected req.Form = %v, want %v", method, req.Form, wantForm)
+		}
+	}
+}
+
 func TestParseFormQuery(t *testing.T) {
 	req, _ := NewRequest("POST", "http://www.google.com/search?q=foo&q=bar&both=x&prio=1&orphan=nope&empty=not",
-		strings.NewReader("z=post&both=y&prio=2&=nokey&orphan;empty=&"))
+		strings.NewReader("z=post&both=y&prio=2&=nokey&orphan&empty=&"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; param=value")
 
 	if q := req.FormValue("q"); q != "foo" {
@@ -362,6 +379,18 @@ func TestMultipartRequest(t *testing.T) {
 	if err := req.ParseMultipartForm(25); err != nil {
 		t.Fatal("ParseMultipartForm second call:", err)
 	}
+	validateTestMultipartContents(t, req, false)
+}
+
+// Issue #25192: Test that ParseMultipartForm fails but still parses the
+// multi-part form when an URL containing a semicolon is provided.
+func TestParseMultipartFormSemicolonSeparator(t *testing.T) {
+	req := newTestMultipartRequest(t)
+	req.URL = &url.URL{RawQuery: "q=foo;q=bar"}
+	if err := req.ParseMultipartForm(25); err == nil {
+		t.Fatal("ParseMultipartForm expected error due to invalid semicolon, got nil")
+	}
+	defer req.MultipartForm.RemoveAll()
 	validateTestMultipartContents(t, req, false)
 }
 

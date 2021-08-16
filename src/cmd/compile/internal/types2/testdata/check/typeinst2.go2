@@ -85,7 +85,7 @@ type NumericAbs[T any] interface {
 	Abs() T
 }
 
-func AbsDifference[T NumericAbs[T]](x T)
+func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
 
 type OrderedAbs[T any] T
 
@@ -97,7 +97,7 @@ func OrderedAbsDifference[T any](x T) {
 
 // same code, reduced to essence
 
-func g[P interface{ m() P }](x P)
+func g[P interface{ m() P }](x P) { panic(0) }
 
 type T4[P any] P
 
@@ -148,15 +148,15 @@ func _[T any](r R2[T, int], p *R2[string, T]) {
 	p.pm()
 }
 
-// An interface can (explicitly) declare at most one type list.
+// It is ok to have multiple embedded unions.
 type _ interface {
 	m0()
-	type int, string, bool
-	type /* ERROR multiple type lists */ float32, float64
+	~int | ~string | ~bool
+	~float32 | ~float64
 	m1()
 	m2()
-	type /* ERROR multiple type lists */ complex64, complex128
-	type /* ERROR multiple type lists */ rune
+	~complex64 | ~complex128
+	~rune
 }
 
 // Interface type lists may contain each type at most once.
@@ -164,23 +164,24 @@ type _ interface {
 // for them to be all in a single list, and we report the error
 // as well.)
 type _ interface {
-	type int, int /* ERROR duplicate type int */
-	type /* ERROR multiple type lists */ int /* ERROR duplicate type int */
+	~int|~int /* ERROR overlapping terms ~int */
+	~int|int /* ERROR overlapping terms int */
+	int|int /* ERROR overlapping terms int */
 }
 
 type _ interface {
-	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
+	~struct{f int} | ~struct{g int} | ~struct /* ERROR overlapping terms */ {f int}
 }
 
 // Interface type lists can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
-func add1[T interface{type MyInt}](x T) T {
+func add1[T interface{MyInt}](x T) T {
 	return x + 1
 }
 
 type MyString string
-func double[T interface{type MyInt, MyString}](x T) T {
+func double[T interface{MyInt|MyString}](x T) T {
 	return x + x
 }
 
@@ -189,22 +190,22 @@ func double[T interface{type MyInt, MyString}](x T) T {
 // type lists.
 
 type E0 interface {
-	type int, bool, string
+	~int | ~bool | ~string
 }
 
 type E1 interface {
-	type int, float64, string
+	~int | ~float64 | ~string
 }
 
 type E2 interface {
-	type float64
+	~float64
 }
 
 type I0 interface {
 	E0
 }
 
-func f0[T I0]()
+func f0[T I0]() {}
 var _ = f0[int]
 var _ = f0[bool]
 var _ = f0[string]
@@ -215,7 +216,7 @@ type I01 interface {
 	E1
 }
 
-func f01[T I01]()
+func f01[T I01]() {}
 var _ = f01[int]
 var _ = f01[bool /* ERROR does not satisfy I0 */ ]
 var _ = f01[string]
@@ -227,7 +228,7 @@ type I012 interface {
 	E2
 }
 
-func f012[T I012]()
+func f012[T I012]() {}
 var _ = f012[int /* ERROR does not satisfy I012 */ ]
 var _ = f012[bool /* ERROR does not satisfy I012 */ ]
 var _ = f012[string /* ERROR does not satisfy I012 */ ]
@@ -238,7 +239,7 @@ type I12 interface {
 	E2
 }
 
-func f12[T I12]()
+func f12[T I12]() {}
 var _ = f12[int /* ERROR does not satisfy I12 */ ]
 var _ = f12[bool /* ERROR does not satisfy I12 */ ]
 var _ = f12[string /* ERROR does not satisfy I12 */ ]
@@ -246,10 +247,10 @@ var _ = f12[float64]
 
 type I0_ interface {
 	E0
-	type int
+	~int
 }
 
-func f0_[T I0_]()
+func f0_[T I0_]() {}
 var _ = f0_[int]
 var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[string /* ERROR does not satisfy I0_ */ ]

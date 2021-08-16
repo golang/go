@@ -334,7 +334,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		// Don't mmap if we're building for Wasm. Wasm file
 		// layout is very different so filesize is meaningless.
 		if err := ctxt.Out.Mmap(filesize); err != nil {
-			panic(err)
+			Exitf("mapping output file failed: %v", err)
 		}
 	}
 	// asmb will redirect symbols to the output file mmap, and relocations

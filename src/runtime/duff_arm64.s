@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	STP.P	(ZR, ZR), 16(R20)
 	STP.P	(ZR, ZR), 16(R20)
 	STP.P	(ZR, ZR), 16(R20)
@@ -71,7 +71,7 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	STP	(ZR, ZR), (R20)
 	RET
 
-TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
+TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	LDP.P	16(R20), (R26, R27)
 	STP.P	(R26, R27), 16(R21)
 

@@ -172,6 +172,10 @@ assignOK:
 			r := r.(*ir.TypeAssertExpr)
 			stmt.SetOp(ir.OAS2DOTTYPE)
 			r.SetOp(ir.ODOTTYPE2)
+		case ir.ODYNAMICDOTTYPE:
+			r := r.(*ir.DynamicTypeAssertExpr)
+			stmt.SetOp(ir.OAS2DOTTYPE)
+			r.SetOp(ir.ODYNAMICDOTTYPE2)
 		default:
 			break assignOK
 		}
@@ -201,11 +205,22 @@ assignOK:
 		stmt := stmt.(*ir.AssignListStmt)
 		stmt.SetOp(ir.OAS2FUNC)
 		r := rhs[0].(*ir.CallExpr)
-		r.Use = ir.CallUseList
 		rtyp := r.Type()
 
+		mismatched := false
+		failed := false
 		for i := range lhs {
-			assignType(i, rtyp.Field(i).Type)
+			result := rtyp.Field(i).Type
+			assignType(i, result)
+
+			if lhs[i].Type() == nil || result == nil {
+				failed = true
+			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
+				mismatched = true
+			}
+		}
+		if mismatched && !failed {
+			RewriteMultiValueCall(stmt, r)
 		}
 		return
 	}
@@ -223,6 +238,15 @@ func plural(n int) string {
 		return ""
 	}
 	return "s"
+}
+
+// tcCheckNil typechecks an OCHECKNIL node.
+func tcCheckNil(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	if !n.X.Type().IsPtrShaped() {
+		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.X)
+	}
+	return n
 }
 
 // tcFor typechecks an OFOR node.
@@ -641,29 +665,18 @@ func tcSwitchType(n *ir.SwitchStmt) {
 }
 
 type typeSet struct {
-	m map[string][]typeSetEntry
-}
-
-type typeSetEntry struct {
-	pos src.XPos
-	typ *types.Type
+	m map[string]src.XPos
 }
 
 func (s *typeSet) add(pos src.XPos, typ *types.Type) {
 	if s.m == nil {
-		s.m = make(map[string][]typeSetEntry)
+		s.m = make(map[string]src.XPos)
 	}
 
-	// LongString does not uniquely identify types, so we need to
-	// disambiguate collisions with types.Identical.
-	// TODO(mdempsky): Add a method that *is* unique.
-	ls := typ.LongString()
-	prevs := s.m[ls]
-	for _, prev := range prevs {
-		if types.Identical(typ, prev.typ) {
-			base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev.pos))
-			return
-		}
+	ls := typ.LinkString()
+	if prev, ok := s.m[ls]; ok {
+		base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev))
+		return
 	}
-	s.m[ls] = append(prevs, typeSetEntry{pos, typ})
+	s.m[ls] = pos
 }

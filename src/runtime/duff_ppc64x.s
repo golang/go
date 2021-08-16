@@ -2,6 +2,7 @@
 // Run go generate from src/runtime to update.
 // See mkduff.go for comments.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "textflag.h"

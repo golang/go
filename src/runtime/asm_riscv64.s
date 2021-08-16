@@ -57,12 +57,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOV	$runtime·mainPC(SB), T0		// entry
-	ADD	$-24, X2
-	MOV	T0, 16(X2)
-	MOV	ZERO, 8(X2)
+	ADD	$-16, X2
+	MOV	T0, 8(X2)
 	MOV	ZERO, 0(X2)
 	CALL	runtime·newproc(SB)
-	ADD	$24, X2
+	ADD	$16, X2
 
 	// start this M
 	CALL	runtime·mstart(SB)
@@ -247,21 +246,6 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOV	ZERO, gobuf_lr(T0)
 	MOV	ZERO, gobuf_ctxt(T0)
 	MOV	gobuf_pc(T0), T0
-	JALR	ZERO, T0
-
-// func jmpdefer(fv *funcval, argp uintptr)
-// called from deferreturn
-// 1. grab stored return address from the caller's frame
-// 2. sub 8 bytes to get back to JAL deferreturn
-// 3. JMP to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
-	MOV	0(X2), RA
-	ADD	$-8, RA
-
-	MOV	fv+0(FP), CTXT
-	MOV	argp+8(FP), X2
-	ADD	$-8, X2
-	MOV	0(CTXT), T0
 	JALR	ZERO, T0
 
 // func procyield(cycles uint32)

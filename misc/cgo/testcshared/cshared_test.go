@@ -292,10 +292,59 @@ func createHeaders() error {
 		"-installsuffix", "testcshared",
 		"-o", libgoname,
 		filepath.Join(".", "libgo", "libgo.go")}
+	if GOOS == "windows" && strings.HasSuffix(args[6], ".a") {
+		args[6] = strings.TrimSuffix(args[6], ".a") + ".dll"
+	}
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+	}
+	if GOOS == "windows" {
+		// We can't simply pass -Wl,--out-implib, because this relies on having imports from multiple packages,
+		// which results in the linkers output implib getting overwritten at each step. So instead build the
+		// import library the traditional way, using a def file.
+		err = os.WriteFile("libgo.def",
+			[]byte("LIBRARY libgo.dll\nEXPORTS\n\tDidInitRun\n\tDidMainRun\n\tDivu\n\tFromPkg\n\t_cgo_dummy_export\n"),
+			0644)
+		if err != nil {
+			return fmt.Errorf("unable to write def file: %v", err)
+		}
+		out, err = exec.Command(cc[0], append(cc[1:], "-print-prog-name=dlltool")...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
+		}
+		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+
+		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
+		dlltoolContents, err := os.ReadFile(args[0])
+		if err != nil {
+			return fmt.Errorf("unable to read dlltool: %v\n", err)
+		}
+		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+			base, name := filepath.Split(args[0])
+			args[0] = filepath.Join(base, "llvm-dlltool")
+			var machine string
+			switch strings.SplitN(name, "-", 2)[0] {
+			case "i686":
+				machine = "i386"
+			case "x86_64":
+				machine = "i386:x86-64"
+			case "armv7":
+				machine = "arm"
+			case "aarch64":
+				machine = "arm64"
+			}
+			if len(machine) > 0 {
+				args = append(args, "-m", machine)
+			}
+		}
+
+		out, err = exec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("unable to run dlltool to create import library: %v\n%s\n", err, out)
+		}
 	}
 
 	if runtime.GOOS != GOOS && GOOS == "android" {
@@ -400,7 +449,7 @@ func main() {
 	defer f.Close()
 	section := f.Section(".edata")
 	if section == nil {
-		t.Fatalf(".edata section is not present")
+		t.Skip(".edata section is not present")
 	}
 
 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
@@ -749,7 +798,12 @@ func TestGo2C2Go(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
-	run(t, nil, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
+	var env []string
+	if GOOS == "windows" && strings.HasSuffix(lib, ".a") {
+		env = append(env, "CGO_LDFLAGS=-Wl,--out-implib,"+lib, "CGO_LDFLAGS_ALLOW=.*")
+		lib = strings.TrimSuffix(lib, ".a") + ".dll"
+	}
+	run(t, env, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
 
 	cgoCflags := os.Getenv("CGO_CFLAGS")
 	if cgoCflags != "" {

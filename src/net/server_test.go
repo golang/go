@@ -105,13 +105,6 @@ func TestTCPServer(t *testing.T) {
 					if perr := parseDialError(err); perr != nil {
 						t.Error(perr)
 					}
-					if tt.taddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
-						// A suspected kernel bug in macOS 10.12 occasionally results in
-						// "i/o timeout" errors when dialing address ::1. The errors have not
-						// been observed on newer versions of the OS, so we don't plan to work
-						// around them. See https://golang.org/issue/32919.
-						t.Skipf("skipping due to error on known-flaky macOS 10.12 builder: %v", err)
-					}
 					t.Fatal(err)
 				}
 				defer c.Close()

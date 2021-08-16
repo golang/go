@@ -65,7 +65,8 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 func (check *Checker) usage(scope *Scope) {
 	var unused []*Var
-	for _, elem := range scope.elems {
+	for name, elem := range scope.elems {
+		elem = resolve(name, elem)
 		if v, _ := elem.(*Var); v != nil && !v.used {
 			unused = append(unused, v)
 		}
@@ -264,7 +265,7 @@ L:
 			// look for duplicate types for a given value
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
-				if check.identical(v.typ, vt.typ) {
+				if Identical(v.typ, vt.typ) {
 					check.errorf(&v, _DuplicateCase, "duplicate case %s in expression switch", &v)
 					check.error(atPos(vt.pos), _DuplicateCase, "\tprevious case") // secondary error, \t indented
 					continue L
@@ -288,7 +289,7 @@ L:
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, other := range seen {
-			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
+			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
@@ -360,25 +361,33 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.errorf(&x, code, "%s %s", &x, msg)
 
 	case *ast.SendStmt:
-		var ch, x operand
+		var ch, val operand
 		check.expr(&ch, s.Chan)
-		check.expr(&x, s.Value)
-		if ch.mode == invalid || x.mode == invalid {
+		check.expr(&val, s.Value)
+		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-
-		tch := asChan(ch.typ)
-		if tch == nil {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-chan type %s", ch.typ)
+		var elem Type
+		if !underIs(ch.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-channel %s", &ch)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only channel %s", &ch)
+				return false
+			}
+			if elem != nil && !Identical(uch.elem, elem) {
+				check.invalidOp(inNode(s, s.Arrow), _Todo, "channels of %s must have the same element type", &ch)
+				return false
+			}
+			elem = uch.elem
+			return true
+		}) {
 			return
 		}
-
-		if tch.dir == RecvOnly {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only type %s", tch)
-			return
-		}
-
-		check.assignment(&x, tch.elem, "send")
+		check.assignment(&val, elem, "send")
 
 	case *ast.IncDecStmt:
 		var op token.Token
@@ -911,12 +920,12 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 			msg = "send-only channel"
 		}
 		return typ.elem, Typ[Invalid], msg
-	case *_Sum:
+	case *Union:
 		first := true
 		var key, val Type
 		var msg string
-		typ.is(func(t Type) bool {
-			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
+		typ.underIs(func(t Type) bool {
+			k, v, m := rangeKeyVal(t, wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m
 				return false

@@ -72,13 +72,13 @@ func ExampleURL_ResolveReference() {
 }
 
 func ExampleParseQuery() {
-	m, err := url.ParseQuery(`x=1&y=2&y=3;z`)
+	m, err := url.ParseQuery(`x=1&y=2&y=3`)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(toJSON(m))
 	// Output:
-	// {"x":["1"], "y":["2", "3"], "z":[""]}
+	// {"x":["1"], "y":["2", "3"]}
 }
 
 func ExampleURL_EscapedPath() {

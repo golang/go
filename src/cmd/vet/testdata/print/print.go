@@ -491,10 +491,10 @@ type recursiveStringer int
 func (s recursiveStringer) String() string {
 	_ = fmt.Sprintf("%d", s)
 	_ = fmt.Sprintf("%#v", s)
-	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive String method call"
-	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive String method call"
+	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive .*String method call"
+	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive .*String method call"
 	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
-	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to String method"
+	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to .*String method"
 }
 
 type recursivePtrStringer int
@@ -502,7 +502,7 @@ type recursivePtrStringer int
 func (p *recursivePtrStringer) String() string {
 	_ = fmt.Sprintf("%v", *p)
 	_ = fmt.Sprint(&p)     // ok; prints address
-	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
+	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to .*String method"
 }
 
 type BoolFormatter bool
