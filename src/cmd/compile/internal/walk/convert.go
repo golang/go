@@ -41,46 +41,98 @@ func walkConv(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 // walkConvInterface walks an OCONVIFACE node.
 func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+
 	n.X = walkExpr(n.X, init)
 
 	fromType := n.X.Type()
 	toType := n.Type()
-
-	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) { // skip unnamed functions (func _())
+	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) {
+		// skip unnamed functions (func _())
 		reflectdata.MarkTypeUsedInInterface(fromType, ir.CurFunc.LSym)
 	}
 
-	// typeword generates the type word of the interface value.
-	typeword := func() ir.Node {
+	if !fromType.IsInterface() {
+		var typeWord ir.Node
 		if toType.IsEmptyInterface() {
-			return reflectdata.TypePtr(fromType)
+			typeWord = reflectdata.TypePtr(fromType)
+		} else {
+			typeWord = reflectdata.ITabAddr(fromType, toType)
 		}
-		return reflectdata.ITabAddr(fromType, toType)
-	}
-
-	// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
-	if types.IsDirectIface(fromType) {
-		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), n.X)
+		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n.X, init, n.Esc() != ir.EscNone))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
 		return l
 	}
+	if fromType.IsEmptyInterface() {
+		base.Fatalf("OCONVIFACE can't operate on an empty interface")
+	}
 
-	// Optimize convT2{E,I} for many cases in which T is not pointer-shaped,
-	// by using an existing addressable value identical to n.Left
-	// or creating one on the stack.
+	// Evaluate the input interface.
+	c := typecheck.Temp(fromType)
+	init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
+
+	// Grab its parts.
+	itab := ir.NewUnaryExpr(base.Pos, ir.OITAB, c)
+	itab.SetType(types.Types[types.TUINTPTR].PtrTo())
+	itab.SetTypecheck(1)
+	data := ir.NewUnaryExpr(base.Pos, ir.OIDATA, c)
+	data.SetType(types.Types[types.TUINT8].PtrTo()) // Type is generic pointer - we're just passing it through.
+	data.SetTypecheck(1)
+
+	var typeWord ir.Node
+	if toType.IsEmptyInterface() {
+		// Implement interface to empty interface conversion.
+		// res = itab
+		// if res != nil {
+		//    res = res.type
+		// }
+		typeWord = typecheck.Temp(types.NewPtr(types.Types[types.TUINT8]))
+		init.Append(ir.NewAssignStmt(base.Pos, typeWord, itab))
+		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
+		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
+		init.Append(nif)
+	} else {
+		// Must be converting I2I (more specific to less specific interface).
+		// res = convI2I(toType, itab)
+		fn := typecheck.LookupRuntime("convI2I")
+		types.CalcSize(fn.Type())
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
+		call.Args = []ir.Node{reflectdata.TypePtr(toType), itab}
+		typeWord = walkExpr(typecheck.Expr(call), init)
+	}
+
+	// Build the result.
+	// e = iface{typeWord, data}
+	e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, data)
+	e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
+	e.SetTypecheck(1)
+	return e
+}
+
+// Returns the data word (the second word) used to represent n in an interface.
+// n must not be of interface type.
+// esc describes whether the result escapes.
+func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
+	fromType := n.Type()
+
+	// If it's a pointer, it is its own representation.
+	if types.IsDirectIface(fromType) {
+		return n
+	}
+
+	// Try a bunch of cases to avoid an allocation.
 	var value ir.Node
 	switch {
 	case fromType.Size() == 0:
-		// n.Left is zero-sized. Use zerobase.
-		cheapExpr(n.X, init) // Evaluate n.Left for side-effects. See issue 19246.
+		// n is zero-sized. Use zerobase.
+		cheapExpr(n, init) // Evaluate n for side-effects. See issue 19246.
 		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
 	case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
-		// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
-		// and staticuint64s[n.Left * 8 + 7] on big-endian.
-		n.X = cheapExpr(n.X, init)
-		// byteindex widens n.Left so that the multiplication doesn't overflow.
-		index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n.X), ir.NewInt(3))
+		// n is a bool/byte. Use staticuint64s[n * 8] on little-endian
+		// and staticuint64s[n * 8 + 7] on big-endian.
+		n = cheapExpr(n, init)
+		// byteindex widens n so that the multiplication doesn't overflow.
+		index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n), ir.NewInt(3))
 		if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
 			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(7))
 		}
@@ -90,118 +142,71 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
-	case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PEXTERN && n.X.(*ir.Name).Readonly():
-		// n.Left is a readonly global; use it directly.
-		value = n.X
-	case !fromType.IsInterface() && n.Esc() == ir.EscNone && fromType.Width <= 1024:
-		// n.Left does not escape. Use a stack temporary initialized to n.Left.
+	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
+		// n is a readonly global; use it directly.
+		value = n
+	case !escapes && fromType.Width <= 1024:
+		// n does not escape. Use a stack temporary initialized to n.
 		value = typecheck.Temp(fromType)
-		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n.X)))
+		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
 	}
-
 	if value != nil {
-		// Value is identical to n.Left.
-		// Construct the interface directly: {type/itab, &value}.
-		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), typecheck.Expr(typecheck.NodAddr(value)))
-		l.SetType(toType)
-		l.SetTypecheck(n.Typecheck())
-		return l
+		// The interface data word is &value.
+		return typecheck.Expr(typecheck.NodAddr(value))
 	}
 
-	// Implement interface to empty interface conversion.
-	// tmp = i.itab
-	// if tmp != nil {
-	//    tmp = tmp.type
-	// }
-	// e = iface{tmp, i.data}
-	if toType.IsEmptyInterface() && fromType.IsInterface() && !fromType.IsEmptyInterface() {
-		// Evaluate the input interface.
-		c := typecheck.Temp(fromType)
-		init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
+	// Time to do an allocation. We'll call into the runtime for that.
+	fnname, argType, needsaddr := dataWordFuncName(fromType)
+	fn := typecheck.LookupRuntime(fnname)
 
-		// Get the itab out of the interface.
-		tmp := typecheck.Temp(types.NewPtr(types.Types[types.TUINT8]))
-		init.Append(ir.NewAssignStmt(base.Pos, tmp, typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, c))))
-
-		// Get the type out of the itab.
-		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, tmp, typecheck.NodNil())), nil, nil)
-		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, tmp, itabType(tmp))}
-		init.Append(nif)
-
-		// Build the result.
-		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, tmp, ifaceData(n.Pos(), c, types.NewPtr(types.Types[types.TUINT8])))
-		e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
-		e.SetTypecheck(1)
-		return e
-	}
-
-	fnname, argType, needsaddr := convFuncName(fromType, toType)
-
-	if !needsaddr && !fromType.IsInterface() {
-		// Use a specialized conversion routine that only returns a data pointer.
-		// ptr = convT2X(val)
-		// e = iface{typ/tab, ptr}
-		fn := typecheck.LookupRuntime(fnname)
-		types.CalcSize(fromType)
-
-		arg := n.X
+	var args []ir.Node
+	if needsaddr {
+		// Types of large or unknown size are passed by reference.
+		// Orderexpr arranged for n to be a temporary for all
+		// the conversions it could see. Comparison of an interface
+		// with a non-interface, especially in a switch on interface value
+		// with non-interface cases, is not visible to order.stmt, so we
+		// have to fall back on allocating a temp here.
+		if !ir.IsAddressable(n) {
+			n = copyExpr(n, fromType, init)
+		}
+		fn = typecheck.SubstArgTypes(fn, fromType)
+		args = []ir.Node{reflectdata.TypePtr(fromType), typecheck.NodAddr(n)}
+	} else {
+		// Use a specialized conversion routine that takes the type being
+		// converted by value, not by pointer.
+		var arg ir.Node
 		switch {
 		case fromType == argType:
 			// already in the right type, nothing to do
+			arg = n
 		case fromType.Kind() == argType.Kind(),
 			fromType.IsPtrShaped() && argType.IsPtrShaped():
 			// can directly convert (e.g. named type to underlying type, or one pointer to another)
-			arg = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType, arg)
+			// TODO: never happens because pointers are directIface?
+			arg = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType, n)
 		case fromType.IsInteger() && argType.IsInteger():
 			// can directly convert (e.g. int32 to uint32)
-			arg = ir.NewConvExpr(n.Pos(), ir.OCONV, argType, arg)
+			arg = ir.NewConvExpr(n.Pos(), ir.OCONV, argType, n)
 		default:
 			// unsafe cast through memory
-			arg = copyExpr(arg, arg.Type(), init)
+			arg = copyExpr(n, fromType, init)
 			var addr ir.Node = typecheck.NodAddr(arg)
 			addr = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType.PtrTo(), addr)
 			arg = ir.NewStarExpr(n.Pos(), addr)
 			arg.SetType(argType)
 		}
-
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		call.Args = []ir.Node{arg}
-		e := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeword(), safeExpr(walkExpr(typecheck.Expr(call), init), init))
-		e.SetType(toType)
-		e.SetTypecheck(1)
-		return e
+		args = []ir.Node{arg}
 	}
-
-	var tab ir.Node
-	if fromType.IsInterface() {
-		// convI2I
-		tab = reflectdata.TypePtr(toType)
-	} else {
-		// convT2x
-		tab = typeword()
-	}
-
-	v := n.X
-	if needsaddr {
-		// Types of large or unknown size are passed by reference.
-		// Orderexpr arranged for n.Left to be a temporary for all
-		// the conversions it could see. Comparison of an interface
-		// with a non-interface, especially in a switch on interface value
-		// with non-interface cases, is not visible to order.stmt, so we
-		// have to fall back on allocating a temp here.
-		if !ir.IsAddressable(v) {
-			v = copyExpr(v, v.Type(), init)
-		}
-		v = typecheck.NodAddr(v)
-	}
-
-	types.CalcSize(fromType)
-	fn := typecheck.LookupRuntime(fnname)
-	fn = typecheck.SubstArgTypes(fn, fromType, toType)
-	types.CalcSize(fn.Type())
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-	call.Args = []ir.Node{tab, v}
-	return walkExpr(typecheck.Expr(call), init)
+	call.Args = args
+	return safeExpr(walkExpr(typecheck.Expr(call), init), init)
+}
+
+// walkConvIData walks an OCONVIDATA node.
+func walkConvIData(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+	n.X = walkExpr(n.X, init)
+	return dataWord(n.X, init, n.Esc() != ir.EscNone)
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.
@@ -312,50 +317,35 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))
 }
 
-// convFuncName builds the runtime function name for interface conversion.
-// It also returns the argument type that the runtime function takes, and
-// whether the function expects the data by address.
-// Not all names are possible. For example, we never generate convE2E or convE2I.
-func convFuncName(from, to *types.Type) (fnname string, argType *types.Type, needsaddr bool) {
-	tkind := to.Tie()
-	switch from.Tie() {
-	case 'I':
-		if tkind == 'I' {
-			return "convI2I", types.Types[types.TINTER], false
-		}
-	case 'T':
+// dataWordFuncName returns the name of the function used to convert a value of type "from"
+// to the data word of an interface.
+// argType is the type the argument needs to be coerced to.
+// needsaddr reports whether the value should be passed (needaddr==false) or its address (needsaddr==true).
+func dataWordFuncName(from *types.Type) (fnname string, argType *types.Type, needsaddr bool) {
+	if from.IsInterface() {
+		base.Fatalf("can only handle non-interfaces")
+	}
+	switch {
+	case from.Size() == 2 && from.Align == 2:
+		return "convT16", types.Types[types.TUINT16], false
+	case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
+		return "convT32", types.Types[types.TUINT32], false
+	case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
+		return "convT64", types.Types[types.TUINT64], false
+	}
+	if sc := from.SoleComponent(); sc != nil {
 		switch {
-		case from.Size() == 2 && from.Align == 2:
-			return "convT16", types.Types[types.TUINT16], false
-		case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
-			return "convT32", types.Types[types.TUINT32], false
-		case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
-			return "convT64", types.Types[types.TUINT64], false
-		}
-		if sc := from.SoleComponent(); sc != nil {
-			switch {
-			case sc.IsString():
-				return "convTstring", types.Types[types.TSTRING], false
-			case sc.IsSlice():
-				return "convTslice", types.NewSlice(types.Types[types.TUINT8]), false // the element type doesn't matter
-			}
-		}
-
-		switch tkind {
-		case 'E':
-			if !from.HasPointers() {
-				return "convT2Enoptr", types.Types[types.TUNSAFEPTR], true
-			}
-			return "convT2E", types.Types[types.TUNSAFEPTR], true
-		case 'I':
-			if !from.HasPointers() {
-				return "convT2Inoptr", types.Types[types.TUNSAFEPTR], true
-			}
-			return "convT2I", types.Types[types.TUNSAFEPTR], true
+		case sc.IsString():
+			return "convTstring", types.Types[types.TSTRING], false
+		case sc.IsSlice():
+			return "convTslice", types.NewSlice(types.Types[types.TUINT8]), false // the element type doesn't matter
 		}
 	}
-	base.Fatalf("unknown conv func %c2%c", from.Tie(), to.Tie())
-	panic("unreachable")
+
+	if from.HasPointers() {
+		return "convT", types.Types[types.TUNSAFEPTR], true
+	}
+	return "convTnoptr", types.Types[types.TUNSAFEPTR], true
 }
 
 // rtconvfn returns the parameter and result types that will be used by a
@@ -462,7 +452,9 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// TODO(mdempsky): Make stricter. We only need to exempt
 	// reflect.Value.Pointer and reflect.Value.UnsafeAddr.
 	switch n.X.Op() {
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+	case ir.OCALLMETH:
+		base.FatalfAt(n.X.Pos(), "OCALLMETH missed by typecheck")
+	case ir.OCALLFUNC, ir.OCALLINTER:
 		return n
 	}
 
@@ -499,7 +491,7 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	cheap := cheapExpr(n, init)
 
-	slice := typecheck.MakeDotArgs(types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
+	slice := typecheck.MakeDotArgs(base.Pos, types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
 	slice.SetEsc(ir.EscNone)
 
 	init.Append(mkcall("checkptrArithmetic", nil, init, typecheck.ConvNop(cheap, types.Types[types.TUNSAFEPTR]), slice))

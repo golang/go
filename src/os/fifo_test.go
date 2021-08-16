@@ -26,9 +26,6 @@ func TestFifoEOF(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		t.Skip("skipping on Android; mkfifo syscall not available")
-	case "openbsd":
-		// On OpenBSD 6.2 this test just hangs for some reason.
-		t.Skip("skipping on OpenBSD; issue 25877")
 	}
 
 	dir := t.TempDir()

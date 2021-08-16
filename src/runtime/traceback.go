@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/bytealg"
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -21,43 +22,6 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
-// Traceback over the deferred function calls.
-// Report them like calls that have been invoked but not started executing yet.
-func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
-	var frame stkframe
-	for d := gp._defer; d != nil; d = d.link {
-		fn := d.fn
-		if fn == nil {
-			// Defer of nil function. Args don't matter.
-			frame.pc = 0
-			frame.fn = funcInfo{}
-			frame.argp = 0
-			frame.arglen = 0
-			frame.argmap = nil
-		} else {
-			frame.pc = fn.fn
-			f := findfunc(frame.pc)
-			if !f.valid() {
-				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
-				throw("unknown pc")
-			}
-			frame.fn = f
-			frame.argp = uintptr(deferArgs(d))
-			var ok bool
-			frame.arglen, frame.argmap, ok = getArgInfoFast(f, true)
-			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
-			}
-		}
-		frame.continpc = frame.pc
-		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
-			return
-		}
-	}
-}
-
-const sizeofSkipFunction = 256
-
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
@@ -65,9 +29,7 @@ const sizeofSkipFunction = 256
 //
 // The skip argument is only valid with pcbuf != nil and counts the number
 // of logical frames to skip rather than physical frames (with inlining, a
-// PC in pcbuf can represent multiple calls). If a PC is partially skipped
-// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
-// N indicates the number of logical frames to skip in pcbuf[0].
+// PC in pcbuf can represent multiple calls).
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
@@ -130,7 +92,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.lr = 0
 		} else {
 			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
-			frame.sp += sys.PtrSize
+			frame.sp += goarch.PtrSize
 		}
 	}
 
@@ -211,7 +173,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
-				frame.fp += sys.PtrSize
+				frame.fp += goarch.PtrSize
 			}
 		}
 		var flr funcInfo
@@ -219,18 +181,25 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
 			flr = funcInfo{}
-		} else if flag&funcFlag_SPWRITE != 0 {
+		} else if flag&funcFlag_SPWRITE != 0 && (callback == nil || n > 0) {
 			// The function we are in does a write to SP that we don't know
 			// how to encode in the spdelta table. Examples include context
 			// switch routines like runtime.gogo but also any code that switches
 			// to the g0 stack to run host C code. Since we can't reliably unwind
 			// the SP (we might not even be on the stack we think we are),
 			// we stop the traceback here.
+			// This only applies for profiling signals (callback == nil).
+			//
+			// For a GC stack traversal (callback != nil), we should only see
+			// a function when it has voluntarily preempted itself on entry
+			// during the stack growth check. In that case, the function has
+			// not yet had a chance to do any writes to SP and is safe to unwind.
+			// isAsyncSafePoint does not allow assembly functions to be async preempted,
+			// and preemptPark double-checks that SPWRITE functions are not async preempted.
+			// So for GC stack traversal we leave things alone (this if body does not execute for n == 0)
+			// at the bottom frame of the stack. But farther up the stack we'd better not
+			// find any.
 			if callback != nil {
-				// Finding an SPWRITE should only happen for a profiling signal, which can
-				// arrive at any time. For a GC stack traversal (callback != nil),
-				// we shouldn't see this case, and we must be sure to walk the
-				// entire stack or the GC is invalid. So crash.
 				println("traceback: unexpected SPWRITE function", funcname(f))
 				throw("traceback")
 			}
@@ -245,7 +214,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			} else {
 				if frame.lr == 0 {
-					lrPtr = frame.fp - sys.PtrSize
+					lrPtr = frame.fp - goarch.PtrSize
 					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
 				}
 			}
@@ -276,7 +245,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.varp = frame.fp
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.varp -= sys.PtrSize
+			frame.varp -= goarch.PtrSize
 		}
 
 		// For architectures with frame pointers, if there's
@@ -297,7 +266,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// And it happens to end up mimicking the x86 layout.
 		// Other architectures may make different decisions.
 		if frame.varp > frame.sp && framepointer_enabled {
-			frame.varp -= sys.PtrSize
+			frame.varp -= goarch.PtrSize
 		}
 
 		// Derive size of arguments.
@@ -600,7 +569,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		// mask out irrelavant bits
 		if sz < 8 {
 			shift := 64 - sz*8
-			if sys.BigEndian {
+			if goarch.BigEndian {
 				x = x >> shift
 			} else {
 				x = x << shift >> shift
@@ -697,16 +666,16 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// Figure out whether the return values are valid.
 				// Reflect will update this value after it copies
 				// in the return values.
-				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*sys.PtrSize))
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
 			}
 			if mv.fn != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := mv.stack
-			arglen = uintptr(bv.n * sys.PtrSize)
+			arglen = uintptr(bv.n * goarch.PtrSize)
 			if !retValid {
-				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
+				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
 			}
 			argmap = bv
 		}
@@ -1042,8 +1011,8 @@ func tracebackothers(me *g) {
 // for debugging purposes. If the address bad is included in the
 // hexdumped range, it will mark it as well.
 func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
-	const expand = 32 * sys.PtrSize
-	const maxExpand = 256 * sys.PtrSize
+	const expand = 32 * goarch.PtrSize
+	const maxExpand = 256 * goarch.PtrSize
 	// Start around frame.sp.
 	lo, hi := frame.sp, frame.sp
 	// Expand to include frame.fp.

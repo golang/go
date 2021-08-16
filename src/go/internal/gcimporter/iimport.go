@@ -8,6 +8,7 @@
 package gcimporter
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -20,7 +21,7 @@ import (
 )
 
 type intReader struct {
-	*bytes.Reader
+	*bufio.Reader
 	path string
 }
 
@@ -40,6 +41,16 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
+// Keep this in sync with constants in iexport.go.
+const (
+	iexportVersionGo1_11 = 0
+	iexportVersionPosCol = 1
+	// TODO: before release, change this back to 2.
+	iexportVersionGenerics = iexportVersionPosCol
+
+	iexportVersionCurrent = iexportVersionGenerics
+)
+
 const predeclReserved = 32
 
 type itag uint64
@@ -55,14 +66,16 @@ const (
 	signatureType
 	structType
 	interfaceType
+	typeParamType
+	instType
 )
 
 // iImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
-func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
-	const currentVersion = 1
+func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataReader *bufio.Reader, path string) (pkg *types.Package, err error) {
+	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	defer func() {
 		if e := recover(); e != nil {
@@ -74,26 +87,33 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		}
 	}()
 
-	r := &intReader{bytes.NewReader(data), path}
+	r := &intReader{dataReader, path}
 
 	version = int64(r.uint64())
 	switch version {
-	case currentVersion, 0:
+	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		errorf("unknown iexport format version %d", version)
+		if version > iexportVersionGenerics {
+			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+		} else {
+			errorf("unknown iexport format version %d", version)
+		}
 	}
 
 	sLen := int64(r.uint64())
 	dLen := int64(r.uint64())
 
-	whence, _ := r.Seek(0, io.SeekCurrent)
-	stringData := data[whence : whence+sLen]
-	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io.SeekCurrent)
+	data := make([]byte, sLen+dLen)
+	if _, err := io.ReadFull(r, data); err != nil {
+		errorf("cannot read %d bytes of stringData and declData: %s", len(data), err)
+	}
+	stringData := data[:sLen]
+	declData := data[sLen:]
 
 	p := iimporter{
-		ipath:   path,
-		version: int(version),
+		exportVersion: version,
+		ipath:         path,
+		version:       int(version),
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -165,14 +185,13 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
-
-	consumed, _ := r.Seek(0, io.SeekCurrent)
-	return int(consumed), localpkg, nil
+	return localpkg, nil
 }
 
 type iimporter struct {
-	ipath   string
-	version int
+	exportVersion int64
+	ipath         string
+	version       int
 
 	stringData  []byte
 	stringCache map[uint64]string
@@ -275,6 +294,9 @@ func (r *importReader) obj(name string) {
 
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
+	case 'G':
+		errorf("unexpected parameterized function/method")
+
 	case 'T':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
@@ -295,6 +317,9 @@ func (r *importReader) obj(name string) {
 				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
 			}
 		}
+
+	case 'U':
+		errorf("unexpected parameterized type")
 
 	case 'V':
 		typ := r.typ()
@@ -548,6 +573,14 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		typ := types.NewInterfaceType(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
+
+	case typeParamType:
+		errorf("do not handle type param types yet")
+		return nil
+
+	case instType:
+		errorf("do not handle instantiated types yet")
+		return nil
 	}
 }
 

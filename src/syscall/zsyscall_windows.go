@@ -43,6 +43,7 @@ var (
 	modkernel32 = NewLazyDLL(sysdll.Add("kernel32.dll"))
 	modmswsock  = NewLazyDLL(sysdll.Add("mswsock.dll"))
 	modnetapi32 = NewLazyDLL(sysdll.Add("netapi32.dll"))
+	modntdll    = NewLazyDLL(sysdll.Add("ntdll.dll"))
 	modsecur32  = NewLazyDLL(sysdll.Add("secur32.dll"))
 	modshell32  = NewLazyDLL(sysdll.Add("shell32.dll"))
 	moduserenv  = NewLazyDLL(sysdll.Add("userenv.dll"))
@@ -167,6 +168,7 @@ var (
 	procNetApiBufferFree                   = modnetapi32.NewProc("NetApiBufferFree")
 	procNetGetJoinInformation              = modnetapi32.NewProc("NetGetJoinInformation")
 	procNetUserGetInfo                     = modnetapi32.NewProc("NetUserGetInfo")
+	procRtlGetNtVersionNumbers             = modntdll.NewProc("RtlGetNtVersionNumbers")
 	procGetUserNameExW                     = modsecur32.NewProc("GetUserNameExW")
 	procTranslateNameW                     = modsecur32.NewProc("TranslateNameW")
 	procCommandLineToArgvW                 = modshell32.NewProc("CommandLineToArgvW")
@@ -1210,6 +1212,11 @@ func NetUserGetInfo(serverName *uint16, userName *uint16, level uint32, buf **by
 	if r0 != 0 {
 		neterr = Errno(r0)
 	}
+	return
+}
+
+func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) {
+	Syscall(procRtlGetNtVersionNumbers.Addr(), 3, uintptr(unsafe.Pointer(majorVersion)), uintptr(unsafe.Pointer(minorVersion)), uintptr(unsafe.Pointer(buildNumber)))
 	return
 }
 

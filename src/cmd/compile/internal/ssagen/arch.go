@@ -29,8 +29,7 @@ type ArchInfo struct {
 	// at function entry, and it is ok to clobber registers.
 	ZeroRange func(*objw.Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
 
-	Ginsnop      func(*objw.Progs) *obj.Prog
-	Ginsnopdefer func(*objw.Progs) *obj.Prog // special ginsnop for deferreturn
+	Ginsnop func(*objw.Progs) *obj.Prog
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*State, *ssa.Block)
@@ -42,10 +41,10 @@ type ArchInfo struct {
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *State, b, next *ssa.Block)
 
-	// LoadRegResults emits instructions that loads register-assigned results
-	// into registers. They are already in memory (PPARAMOUT nodes).
-	// Used in open-coded defer return path.
-	LoadRegResults func(s *State, f *ssa.Func)
+	// LoadRegResult emits instructions that loads register-assigned result
+	// at n+off (n is PPARAMOUT) to register reg. The result is already in
+	// memory. Used in open-coded defer return path.
+	LoadRegResult func(s *State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
 
 	// SpillArgReg emits instructions that spill reg to n+off.
 	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog

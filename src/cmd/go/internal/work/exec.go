@@ -34,8 +34,8 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/str"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -252,8 +252,15 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 
 		ccExe := b.ccExe()
 		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
-		if ccID, err := b.gccToolID(ccExe[0], "c"); err == nil {
-			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		// Include the C compiler tool ID so that if the C
+		// compiler changes we rebuild the package.
+		// But don't do that for standard library packages like net,
+		// so that the prebuilt .a files from a Go binary install
+		// don't need to be rebuilt with the local compiler.
+		if !p.Standard {
+			if ccID, err := b.gccToolID(ccExe[0], "c"); err == nil {
+				fmt.Fprintf(h, "CC ID=%q\n", ccID)
+			}
 		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()

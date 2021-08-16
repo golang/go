@@ -12,19 +12,29 @@ import (
 	"testing"
 )
 
+// genericParamsForCurve returns the dereferenced CurveParams for
+// the specified curve. This is used to avoid the logic for
+// upgrading a curve to it's specific implementation, forcing
+// usage of the generic implementation. This is only relevant
+// for the P224, P256, and P521 curves.
+func genericParamsForCurve(c Curve) *CurveParams {
+	d := *(c.Params())
+	return &d
+}
+
 func testAllCurves(t *testing.T, f func(*testing.T, Curve)) {
 	tests := []struct {
 		name  string
 		curve Curve
 	}{
 		{"P256", P256()},
-		{"P256/Params", P256().Params()},
+		{"P256/Params", genericParamsForCurve(P256())},
 		{"P224", P224()},
-		{"P224/Params", P224().Params()},
+		{"P224/Params", genericParamsForCurve(P224())},
 		{"P384", P384()},
-		{"P384/Params", P384().Params()},
+		{"P384/Params", genericParamsForCurve(P384())},
 		{"P521", P521()},
-		{"P521/Params", P521().Params()},
+		{"P521/Params", genericParamsForCurve(P521())},
 	}
 	if testing.Short() {
 		tests = tests[:1]

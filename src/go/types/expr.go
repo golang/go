@@ -144,6 +144,14 @@ var op2str2 = [...]string{
 	token.SHL: "shift",
 }
 
+func underIs(typ Type, f func(Type) bool) bool {
+	u := under(typ)
+	if tpar, _ := u.(*TypeParam); tpar != nil {
+		return tpar.underIs(f)
+	}
+	return f(u)
+}
+
 // The unary expression e may be nil. It's passed in for better error messages only.
 func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 	check.expr(x, e.X)
@@ -164,19 +172,29 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
 		return
 
 	case token.ARROW:
-		typ := asChan(x.typ)
-		if typ == nil {
-			check.invalidOp(x, _InvalidReceive, "cannot receive from non-channel %s", x)
-			x.mode = invalid
-			return
-		}
-		if typ.dir == SendOnly {
-			check.invalidOp(x, _InvalidReceive, "cannot receive from send-only channel %s", x)
+		var elem Type
+		if !underIs(x.typ, func(u Type) bool {
+			ch, _ := u.(*Chan)
+			if ch == nil {
+				check.invalidOp(x, _InvalidReceive, "cannot receive from non-channel %s", x)
+				return false
+			}
+			if ch.dir == SendOnly {
+				check.invalidOp(x, _InvalidReceive, "cannot receive from send-only channel %s", x)
+				return false
+			}
+			if elem != nil && !Identical(ch.elem, elem) {
+				check.invalidOp(x, _Todo, "channels of %s must have the same element type", x)
+				return false
+			}
+			elem = ch.elem
+			return true
+		}) {
 			x.mode = invalid
 			return
 		}
 		x.mode = commaok
-		x.typ = typ.elem
+		x.typ = elem
 		check.hasCallOrRecv = true
 		return
 	}
@@ -622,7 +640,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		return x.typ, nil, 0
 	}
 
-	switch t := optype(target).(type) {
+	switch t := under(target).(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			v, code := check.representation(x, t)
@@ -661,8 +679,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		default:
 			return nil, nil, _InvalidUntypedConversion
 		}
-	case *_Sum:
-		ok := t.is(func(t Type) bool {
+	case *TypeParam:
+		ok := t.underIs(func(t Type) bool {
 			target, _, _ := check.implicitTypeAndValue(x, t)
 			return target != nil
 		})
@@ -682,7 +700,6 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			return Typ[UntypedNil], nil, 0
 		}
 		// cannot assign untyped values to non-empty interfaces
-		check.completeInterface(token.NoPos, t)
 		if !t.Empty() {
 			return nil, nil, _InvalidUntypedConversion
 		}
@@ -778,30 +795,46 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	// spec: "The right operand in a shift expression must have integer type
 	// or be an untyped constant representable by a value of type uint."
 
-	// Provide a good error message for negative shift counts.
+	// Check that constants are representable by uint, but do not convert them
+	// (see also issue #47243).
 	if y.mode == constant_ {
+		// Provide a good error message for negative shift counts.
 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
 			check.invalidOp(y, _InvalidShiftCount, "negative shift count %s", y)
 			x.mode = invalid
 			return
 		}
+
+		if isUntyped(y.typ) {
+			// Caution: Check for representability here, rather than in the switch
+			// below, because isInteger includes untyped integers (was bug #43697).
+			check.representable(y, Typ[Uint])
+			if y.mode == invalid {
+				x.mode = invalid
+				return
+			}
+		}
 	}
 
-	// Caution: Check for isUntyped first because isInteger includes untyped
-	//          integers (was bug #43697).
-	if isUntyped(y.typ) {
+	// Check that RHS is otherwise at least of integer type.
+	switch {
+	case isInteger(y.typ):
+		if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+			check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
+			x.mode = invalid
+			return
+		}
+	case isUntyped(y.typ):
+		// This is incorrect, but preserves pre-existing behavior.
+		// See also bug #47410.
 		check.convertUntyped(y, Typ[Uint])
 		if y.mode == invalid {
 			x.mode = invalid
 			return
 		}
-	} else if !isInteger(y.typ) {
+	default:
 		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
-		x.mode = invalid
-		return
-	} else if !isUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
-		check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
 		x.mode = invalid
 		return
 	}
@@ -927,14 +960,28 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		return
 	}
 
-	check.convertUntyped(x, y.typ)
-	if x.mode == invalid {
-		return
+	canMix := func(x, y *operand) bool {
+		if IsInterface(x.typ) || IsInterface(y.typ) {
+			return true
+		}
+		if isBoolean(x.typ) != isBoolean(y.typ) {
+			return false
+		}
+		if isString(x.typ) != isString(y.typ) {
+			return false
+		}
+		return true
 	}
-	check.convertUntyped(&y, x.typ)
-	if y.mode == invalid {
-		x.mode = invalid
-		return
+	if canMix(x, &y) {
+		check.convertUntyped(x, y.typ)
+		if x.mode == invalid {
+			return
+		}
+		check.convertUntyped(&y, x.typ)
+		if y.mode == invalid {
+			x.mode = invalid
+			return
+		}
 	}
 
 	if isComparison(op) {
@@ -942,7 +989,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 		return
 	}
 
-	if !check.identical(x.typ, y.typ) {
+	if !Identical(x.typ, y.typ) {
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
@@ -1138,7 +1185,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
-		switch utyp := optype(base).(type) {
+		switch utyp := under(base).(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
@@ -1268,7 +1315,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					xkey := keyVal(x.val)
 					if asInterface(utyp.key) != nil {
 						for _, vtyp := range visited[xkey] {
-							if check.identical(vtyp, x.typ) {
+							if Identical(vtyp, x.typ) {
 								duplicate = true
 								break
 							}
@@ -1317,9 +1364,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.SelectorExpr:
 		check.selector(x, e)
 
-	case *ast.IndexExpr:
-		if check.indexExpr(x, e) {
-			check.funcInst(x, e)
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(e)
+		if check.indexExpr(x, ix) {
+			check.funcInst(x, ix)
 		}
 		if x.mode == invalid {
 			goto Error
@@ -1368,13 +1416,24 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case typexpr:
 			x.typ = &Pointer{base: x.typ}
 		default:
-			if typ := asPointer(x.typ); typ != nil {
-				x.mode = variable
-				x.typ = typ.base
-			} else {
-				check.invalidOp(x, _InvalidIndirection, "cannot indirect %s", x)
+			var base Type
+			if !underIs(x.typ, func(u Type) bool {
+				p, _ := u.(*Pointer)
+				if p == nil {
+					check.invalidOp(x, _InvalidIndirection, "cannot indirect %s", x)
+					return false
+				}
+				if base != nil && !Identical(p.base, base) {
+					check.invalidOp(x, _Todo, "pointers of %s must have identical base types", x)
+					return false
+				}
+				base = p.base
+				return true
+			}) {
 				goto Error
 			}
+			x.mode = variable
+			x.typ = base
 		}
 
 	case *ast.UnaryExpr:
@@ -1409,12 +1468,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		// types, which are comparatively rare.
 
 	default:
-		if typeparams.IsListExpr(e) {
-			// catch-all for unexpected expression lists
-			check.errorf(e, _Todo, "unexpected list of expressions")
-		} else {
-			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
-		}
+		panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
 	}
 
 	// everything went well
@@ -1459,7 +1513,7 @@ func (check *Checker) typeAssertion(at positioner, x *operand, xtyp *Interface, 
 	}
 	var msg string
 	if wrongType != nil {
-		if check.identical(method.typ, wrongType.typ) {
+		if Identical(method.typ, wrongType.typ) {
 			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
 		} else {
 			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)

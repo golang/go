@@ -259,7 +259,7 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of (type) parameters or struct fields represented by a FieldList.
+// NumFields returns the number of parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
@@ -342,6 +342,15 @@ type (
 		Lbrack token.Pos // position of "["
 		Index  Expr      // index expression
 		Rbrack token.Pos // position of "]"
+	}
+
+	// A MultiIndexExpr node represents an expression followed by multiple
+	// indices.
+	MultiIndexExpr struct {
+		X       Expr      // expression
+		Lbrack  token.Pos // position of "["
+		Indices []Expr    // index expressions
+		Rbrack  token.Pos // position of "]"
 	}
 
 	// A SliceExpr node represents an expression followed by slice indices.
@@ -440,6 +449,14 @@ type (
 
 	// Pointer types are represented via StarExpr nodes.
 
+	// A FuncType node represents a function type.
+	FuncType struct {
+		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+		TParams *FieldList // type parameters; or nil
+		Params  *FieldList // (incoming) parameters; non-nil
+		Results *FieldList // (outgoing) results; or nil
+	}
+
 	// An InterfaceType node represents an interface type.
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
@@ -479,6 +496,7 @@ func (x *CompositeLit) Pos() token.Pos {
 func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
 func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
+func (x *MultiIndexExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
 func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
 func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
@@ -512,6 +530,7 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
 func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
 func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
 func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
+func (x *MultiIndexExpr) End() token.Pos { return x.Rbrack + 1 }
 func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
 func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
 func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
@@ -543,6 +562,7 @@ func (*CompositeLit) exprNode()   {}
 func (*ParenExpr) exprNode()      {}
 func (*SelectorExpr) exprNode()   {}
 func (*IndexExpr) exprNode()      {}
+func (*MultiIndexExpr) exprNode() {}
 func (*SliceExpr) exprNode()      {}
 func (*TypeAssertExpr) exprNode() {}
 func (*CallExpr) exprNode()       {}
@@ -892,6 +912,16 @@ type (
 		Values  []Expr        // initial values; or nil
 		Comment *CommentGroup // line comments; or nil
 	}
+
+	// A TypeSpec node represents a type declaration (TypeSpec production).
+	TypeSpec struct {
+		Doc     *CommentGroup // associated documentation; or nil
+		Name    *Ident        // type name
+		TParams *FieldList    // type parameters; or nil
+		Assign  token.Pos     // position of '=', if any
+		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+		Comment *CommentGroup // line comments; or nil
+	}
 )
 
 // Pos and End implementations for spec nodes.
@@ -972,10 +1002,6 @@ type (
 		//                they are only valid for declared functions
 	}
 )
-
-func (f *FuncDecl) IsMethod() bool {
-	return f.Recv.NumFields() != 0
-}
 
 // Pos and End implementations for declaration nodes.
 

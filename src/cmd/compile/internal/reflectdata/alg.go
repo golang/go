@@ -6,6 +6,7 @@ package reflectdata
 
 import (
 	"fmt"
+	"math/bits"
 	"sort"
 
 	"cmd/compile/internal/base"
@@ -47,6 +48,11 @@ func eqCanPanic(t *types.Type) bool {
 func AlgType(t *types.Type) types.AlgKind {
 	a, _ := types.AlgType(t)
 	if a == types.AMEM {
+		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Width {
+			// For example, we can't treat [2]int16 as an int32 if int32s require
+			// 4-byte alignment. See issue 46283.
+			return a
+		}
 		switch t.Width {
 		case 0:
 			return types.AMEM0
@@ -673,8 +679,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
 
 	fn := typecheck.LookupRuntime("memequal")
 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(slen)}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
@@ -710,8 +715,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
 	sdata.SetTypecheck(1)
 	tdata.SetTypecheck(1)
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
 
 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
@@ -768,6 +772,20 @@ func memrun(t *types.Type, start int) (size int64, next int) {
 		// Also, stop before a blank or non-memory field.
 		if f := t.Field(next); f.Sym.IsBlank() || !isRegularMemory(f.Type) {
 			break
+		}
+		// For issue 46283, don't combine fields if the resulting load would
+		// require a larger alignment than the component fields.
+		if base.Ctxt.Arch.Alignment > 1 {
+			align := t.Alignment()
+			if off := t.Field(start).Offset; off&(align-1) != 0 {
+				// Offset is less aligned than the containing type.
+				// Use offset to determine alignment.
+				align = 1 << uint(bits.TrailingZeros64(uint64(off)))
+			}
+			size := t.Field(next).End() - t.Field(start).Offset
+			if size > align {
+				break
+			}
 		}
 	}
 	return t.Field(next-1).End() - t.Field(start).Offset, next

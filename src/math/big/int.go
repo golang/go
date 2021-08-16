@@ -425,7 +425,7 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	return z.setFromScanner(strings.NewReader(s), base)
 }
 
-// setFromScanner implements SetString given an io.BytesScanner.
+// setFromScanner implements SetString given an io.ByteScanner.
 // For documentation see comments of SetString.
 func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
 	if _, _, err := z.scan(r, base); err != nil {

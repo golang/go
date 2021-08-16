@@ -31,7 +31,7 @@ func (check *Checker) qualifier(pkg *Package) string {
 		if check.pkgPathMap == nil {
 			check.pkgPathMap = make(map[string]map[string]bool)
 			check.seenPkgMap = make(map[*Package]bool)
-			check.markImports(pkg)
+			check.markImports(check.pkg)
 		}
 		// If the same package name was used by multiple packages, display the full path.
 		if len(check.pkgPathMap[pkg.name]) > 1 {

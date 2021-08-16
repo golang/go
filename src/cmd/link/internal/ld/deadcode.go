@@ -65,26 +65,26 @@ func (d *deadcodePass) init() {
 			}
 		}
 		names = append(names, *flagEntrySymbol)
-		// runtime.unreachableMethod is a function that will throw if called.
-		// We redirect unreachable methods to it.
-		names = append(names, "runtime.unreachableMethod")
-		if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
-			// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
-			// (see function buildinfo in data.go). They should normally be reachable from the
-			// runtime. Just make it explicit, in case.
-			names = append(names, "runtime.buildVersion", "runtime.modinfo")
-		}
-		if d.ctxt.BuildMode == BuildModePlugin {
-			names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+	}
+	// runtime.unreachableMethod is a function that will throw if called.
+	// We redirect unreachable methods to it.
+	names = append(names, "runtime.unreachableMethod")
+	if !d.ctxt.linkShared && d.ctxt.BuildMode != BuildModePlugin {
+		// runtime.buildVersion and runtime.modinfo are referenced in .go.buildinfo section
+		// (see function buildinfo in data.go). They should normally be reachable from the
+		// runtime. Just make it explicit, in case.
+		names = append(names, "runtime.buildVersion", "runtime.modinfo")
+	}
+	if d.ctxt.BuildMode == BuildModePlugin {
+		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
 
-			// We don't keep the go.plugin.exports symbol,
-			// but we do keep the symbols it refers to.
-			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
-			if exportsIdx != 0 {
-				relocs := d.ldr.Relocs(exportsIdx)
-				for i := 0; i < relocs.Count(); i++ {
-					d.mark(relocs.At(i).Sym(), 0)
-				}
+		// We don't keep the go.plugin.exports symbol,
+		// but we do keep the symbols it refers to.
+		exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+		if exportsIdx != 0 {
+			relocs := d.ldr.Relocs(exportsIdx)
+			for i := 0; i < relocs.Count(); i++ {
+				d.mark(relocs.At(i).Sym(), 0)
 			}
 		}
 	}
@@ -408,6 +408,9 @@ func (d *deadcodePass) decodeMethodSig(ldr *loader.Loader, arch *sys.Arch, symId
 // Decode the method of interface type symbol symIdx at offset off.
 func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off int64) methodsig {
 	p := ldr.Data(symIdx)
+	if p == nil {
+		panic(fmt.Sprintf("missing symbol %q", ldr.SymName(symIdx)))
+	}
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}

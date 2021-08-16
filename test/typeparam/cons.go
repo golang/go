@@ -12,7 +12,7 @@ import "fmt"
 // argument
 type any interface{}
 
-type _Function[a, b any] interface {
+type Function[a, b any] interface {
 	Apply(x a) b
 }
 
@@ -29,8 +29,8 @@ func (this pos) Apply(x int) bool {
 }
 
 type compose[a, b, c any] struct {
-	f _Function[a, b]
-	g _Function[b, c]
+	f Function[a, b]
+	g Function[b, c]
 }
 
 func (this compose[a, b, c]) Apply(x a) c {
@@ -47,52 +47,52 @@ func (this Int) Equal(that int) bool {
 	return int(this) == that
 }
 
-type _List[a any] interface {
-	Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any
+type List[a any] interface {
+	Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any
 }
 
-type _Nil[a any] struct{
+type Nil[a any] struct {
 }
 
-func (xs _Nil[a]) Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any {
+func (xs Nil[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
 	return casenil.Apply(xs)
 }
 
-type _Cons[a any] struct {
+type Cons[a any] struct {
 	Head a
-	Tail _List[a]
+	Tail List[a]
 }
 
-func (xs _Cons[a]) Match(casenil _Function[_Nil[a], any], casecons _Function[_Cons[a], any]) any {
+func (xs Cons[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
 	return casecons.Apply(xs)
 }
 
-type mapNil[a, b any] struct{
+type mapNil[a, b any] struct {
 }
 
-func (m mapNil[a, b]) Apply(_ _Nil[a]) any {
-	return _Nil[b]{}
+func (m mapNil[a, b]) Apply(_ Nil[a]) any {
+	return Nil[b]{}
 }
 
 type mapCons[a, b any] struct {
-	f _Function[a, b]
+	f Function[a, b]
 }
 
-func (m mapCons[a, b]) Apply(xs _Cons[a]) any {
-	return _Cons[b]{m.f.Apply(xs.Head), _Map[a, b](m.f, xs.Tail)}
+func (m mapCons[a, b]) Apply(xs Cons[a]) any {
+	return Cons[b]{m.f.Apply(xs.Head), Map[a, b](m.f, xs.Tail)}
 }
 
-func _Map[a, b any](f _Function[a, b], xs _List[a]) _List[b] {
-	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(_List[b])
+func Map[a, b any](f Function[a, b], xs List[a]) List[b] {
+	return xs.Match(mapNil[a, b]{}, mapCons[a, b]{f}).(List[b])
 }
 
 func main() {
-	var xs _List[int] = _Cons[int]{3, _Cons[int]{6, _Nil[int]{}}}
-	var ys _List[int] = _Map[int, int](incr{-5}, xs)
-	var xz _List[bool] = _Map[int, bool](pos{}, ys)
-	cs1 := xz.(_Cons[bool])
-	cs2 := cs1.Tail.(_Cons[bool])
-	_, ok := cs2.Tail.(_Nil[bool])
+	var xs List[int] = Cons[int]{3, Cons[int]{6, Nil[int]{}}}
+	var ys List[int] = Map[int, int](incr{-5}, xs)
+	var xz List[bool] = Map[int, bool](pos{}, ys)
+	cs1 := xz.(Cons[bool])
+	cs2 := cs1.Tail.(Cons[bool])
+	_, ok := cs2.Tail.(Nil[bool])
 	if cs1.Head != false || cs2.Head != true || !ok {
 		panic(fmt.Sprintf("got %v, %v, %v, expected false, true, true",
 			cs1.Head, cs2.Head, ok))

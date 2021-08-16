@@ -50,6 +50,9 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
 	case *syscall.SockaddrInet6:
 		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+	default:
+		// No sockaddr, so don't return UDPAddr.
+		addr = nil
 	}
 	return n, addr, err
 }

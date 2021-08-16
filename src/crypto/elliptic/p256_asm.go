@@ -29,9 +29,7 @@ type (
 	}
 )
 
-var (
-	p256 p256Curve
-)
+var p256 p256Curve
 
 func initP256() {
 	// See FIPS 186-3, section D.2.3

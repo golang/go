@@ -5,8 +5,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -505,7 +505,7 @@ const (
 	// tlsSlots is the number of pointer-sized slots reserved for TLS on some platforms,
 	// like Windows.
 	tlsSlots = 6
-	tlsSize  = tlsSlots * sys.PtrSize
+	tlsSize  = tlsSlots * goarch.PtrSize
 )
 
 type m struct {
@@ -613,8 +613,8 @@ type p struct {
 	pcache      pageCache
 	raceprocctx uintptr
 
-	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
-	deferpoolbuf [5][32]*_defer
+	deferpool    []*_defer // pool of available defer structs (see panic.go)
+	deferpoolbuf [32]*_defer
 
 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
 	goidcache    uint64
@@ -681,7 +681,7 @@ type p struct {
 	// timerModifiedEarlier status. Because the timer may have been
 	// modified again, there need not be any timer with this value.
 	// This is updated using atomic functions.
-	// This is 0 if the value is unknown.
+	// This is 0 if there are no timerModifiedEarlier timers.
 	timerModifiedEarliest uint64
 
 	// Per-P GC state
@@ -726,12 +726,6 @@ type p struct {
 	// Number of timers in P's heap.
 	// Modified using atomic instructions.
 	numTimers uint32
-
-	// Number of timerModifiedEarlier timers on P's heap.
-	// This should only be modified while holding timersLock,
-	// or while the timer status is in a transient state
-	// such as timerModifying.
-	adjustTimers uint32
 
 	// Number of timerDeleted timers in P's heap.
 	// Modified using atomic instructions.
@@ -801,9 +795,9 @@ type schedt struct {
 	sudoglock  mutex
 	sudogcache *sudog
 
-	// Central pool of available defer structs of different sizes.
+	// Central pool of available defer structs.
 	deferlock mutex
-	deferpool [5]*_defer
+	deferpool *_defer
 
 	// freem is the list of m's waiting to be freed when their
 	// m.exited is set. Linked through m.freelink.
@@ -895,7 +889,7 @@ type funcinl struct {
 // layout of Itab known to compilers
 // allocated in non-garbage-collected memory
 // Needs to be in sync with
-// ../cmd/compile/internal/gc/reflect.go:/^func.WriteTabs.
+// ../cmd/compile/internal/reflectdata/reflect.go:/^func.WriteTabs.
 type itab struct {
 	inter *interfacetype
 	_type *_type
@@ -930,7 +924,7 @@ func extendRandom(r []byte, n int) {
 			w = 16
 		}
 		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
-		for i := 0; i < sys.PtrSize && n < len(r); i++ {
+		for i := 0; i < goarch.PtrSize && n < len(r); i++ {
 			r[n] = byte(h)
 			n++
 			h >>= 8
@@ -940,25 +934,24 @@ func extendRandom(r []byte, n int) {
 
 // A _defer holds an entry on the list of deferred calls.
 // If you add a field here, add code to clear it in freedefer and deferProcStack
-// This struct must match the code in cmd/compile/internal/gc/reflect.go:deferstruct
-// and cmd/compile/internal/gc/ssa.go:(*state).call.
+// This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
+// and cmd/compile/internal/ssagen/ssa.go:(*state).call.
 // Some defers will be allocated on the stack and some on the heap.
 // All defers are logically part of the stack, so write barriers to
 // initialize them are not required. All defers must be manually scanned,
 // and for heap defers, marked.
 type _defer struct {
-	siz     int32 // includes both arguments and results
 	started bool
 	heap    bool
 	// openDefer indicates that this _defer is for a frame with open-coded
 	// defers. We have only one defer record for the entire frame (which may
 	// currently have 0, 1, or more defers active).
 	openDefer bool
-	sp        uintptr  // sp at time of defer
-	pc        uintptr  // pc at time of defer
-	fn        *funcval // can be nil for open-coded defers
-	_panic    *_panic  // panic that is running defer
-	link      *_defer
+	sp        uintptr // sp at time of defer
+	pc        uintptr // pc at time of defer
+	fn        func()  // can be nil for open-coded defers
+	_panic    *_panic // panic that is running defer
+	link      *_defer // next defer on G; can point to either heap or stack!
 
 	// If openDefer is true, the fields below record values about the stack
 	// frame and associated function that has the open-coded defer(s). sp

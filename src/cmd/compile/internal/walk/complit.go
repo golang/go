@@ -218,11 +218,11 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 	case ir.OSTRUCTLIT:
 		splitnode = func(rn ir.Node) (ir.Node, ir.Node) {
 			r := rn.(*ir.StructKeyExpr)
-			if r.Field.IsBlank() || isBlank {
+			if r.Sym().IsBlank() || isBlank {
 				return ir.BlankNode, r.Value
 			}
 			ir.SetPos(r)
-			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Field), r.Value
+			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Sym()), r.Value
 		}
 	default:
 		base.Fatalf("fixedlit bad op: %v", n.Op())

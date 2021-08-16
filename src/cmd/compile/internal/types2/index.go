@@ -32,7 +32,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 
 	case value:
-		if sig := asSignature(x.typ); sig != nil && len(sig.tparams) > 0 {
+		if sig := asSignature(x.typ); sig != nil && sig.TParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -41,7 +41,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := optype(x.typ).(type) {
+	switch typ := under(x.typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			valid = true
@@ -80,7 +80,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		index := check.singleIndex(e)
 		if index == nil {
 			x.mode = invalid
-			return
+			return false
 		}
 		var key operand
 		check.expr(&key, index)
@@ -89,87 +89,80 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.mode = mapindex
 		x.typ = typ.elem
 		x.expr = e
-		return
+		return false
 
-	case *Sum:
-		// A sum type can be indexed if all of the sum's types
-		// support indexing and have the same index and element
-		// type. Special rules apply for maps in the sum type.
-		var tkey, telem Type // key is for map types only
-		nmaps := 0           // number of map types in sum type
-		if typ.is(func(t Type) bool {
-			var e Type
-			switch t := under(t).(type) {
+	case *TypeParam:
+		// TODO(gri) report detailed failure cause for better error messages
+		var tkey, telem Type // tkey != nil if we have maps
+		if typ.underIs(func(u Type) bool {
+			var key, elem Type
+			alen := int64(-1) // valid if >= 0
+			switch t := u.(type) {
 			case *Basic:
-				if isString(t) {
-					e = universeByte
-				}
-			case *Array:
-				e = t.elem
-			case *Pointer:
-				if t := asArray(t.base); t != nil {
-					e = t.elem
-				}
-			case *Slice:
-				e = t.elem
-			case *Map:
-				// If there are multiple maps in the sum type,
-				// they must have identical key types.
-				// TODO(gri) We may be able to relax this rule
-				// but it becomes complicated very quickly.
-				if tkey != nil && !Identical(t.key, tkey) {
+				if !isString(t) {
 					return false
 				}
-				tkey = t.key
-				e = t.elem
-				nmaps++
-			case *TypeParam:
-				check.errorf(x, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
-			case *instance:
-				panic("unimplemented")
-			}
-			if e == nil || telem != nil && !Identical(e, telem) {
+				elem = universeByte
+			case *Array:
+				elem = t.elem
+				alen = t.len
+			case *Pointer:
+				a, _ := under(t.base).(*Array)
+				if a == nil {
+					return false
+				}
+				elem = a.elem
+				alen = a.len
+			case *Slice:
+				elem = t.elem
+			case *Map:
+				key = t.key
+				elem = t.elem
+			default:
 				return false
 			}
-			telem = e
+			assert(elem != nil)
+			if telem == nil {
+				// first type
+				tkey, telem = key, elem
+				length = alen
+			} else {
+				// all map keys must be identical (incl. all nil)
+				if !Identical(key, tkey) {
+					return false
+				}
+				// all element types must be identical
+				if !Identical(elem, telem) {
+					return false
+				}
+				tkey, telem = key, elem
+				// track the minimal length for arrays
+				if alen >= 0 && alen < length {
+					length = alen
+				}
+			}
 			return true
 		}) {
-			// If there are maps, the index expression must be assignable
-			// to the map key type (as for simple map index expressions).
-			if nmaps > 0 {
+			// For maps, the index expression must be assignable to the map key type.
+			if tkey != nil {
 				index := check.singleIndex(e)
 				if index == nil {
 					x.mode = invalid
-					return
+					return false
 				}
 				var key operand
 				check.expr(&key, index)
 				check.assignment(&key, tkey, "map index")
 				// ok to continue even if indexing failed - map element type is known
-
-				// If there are only maps, we are done.
-				if nmaps == len(typ.types) {
-					x.mode = mapindex
-					x.typ = telem
-					x.expr = e
-					return
-				}
-
-				// Otherwise we have mix of maps and other types. For
-				// now we require that the map key be an integer type.
-				// TODO(gri) This is probably not good enough.
-				valid = isInteger(tkey)
-				// avoid 2nd indexing error if indexing failed above
-				if !valid && key.mode == invalid {
-					x.mode = invalid
-					return
-				}
-				x.mode = value // map index expressions are not addressable
-			} else {
-				// no maps
-				valid = true
-				x.mode = variable
+				x.mode = mapindex
+				x.typ = telem
+				x.expr = e
+				return false
 			}
+
+			// no maps
+			valid = true
+			x.mode = variable
 			x.typ = telem
 		}
 	}
@@ -177,13 +170,13 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	if !valid {
 		check.errorf(x, invalidOp+"cannot index %s", x)
 		x.mode = invalid
-		return
+		return false
 	}
 
 	index := check.singleIndex(e)
 	if index == nil {
 		x.mode = invalid
-		return
+		return false
 	}
 
 	// In pathological (invalid) cases (e.g.: type T1 [][[]T1{}[0][0]]T0)
@@ -206,7 +199,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := optype(x.typ).(type) {
+	switch typ := under(x.typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			if e.Full {
@@ -246,7 +239,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		valid = true
 		// x.typ doesn't change
 
-	case *Sum, *TypeParam:
+	case *TypeParam:
 		check.error(x, "generic slice expressions not yet implemented")
 		x.mode = invalid
 		return

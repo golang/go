@@ -154,7 +154,7 @@ func zeroARM64(w io.Writer) {
 	// ZR: always zero
 	// R20: ptr to memory to be zeroed
 	// On return, R20 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 63; i++ {
 		fmt.Fprintln(w, "\tSTP.P\t(ZR, ZR), 16(R20)")
 	}
@@ -167,7 +167,7 @@ func copyARM64(w io.Writer) {
 	// R21: ptr to destination memory
 	// R26, R27 (aka REGTMP): scratch space
 	// R20 and R21 are updated as a side effect
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 
 	for i := 0; i < 64; i++ {
 		fmt.Fprintln(w, "\tLDP.P\t16(R20), (R26, R27)")
@@ -179,6 +179,7 @@ func copyARM64(w io.Writer) {
 
 func tagsPPC64x(w io.Writer) {
 	fmt.Fprintln(w)
+	fmt.Fprintln(w, "//go:build ppc64 || ppc64le")
 	fmt.Fprintln(w, "// +build ppc64 ppc64le")
 	fmt.Fprintln(w)
 }
@@ -202,6 +203,7 @@ func copyPPC64x(w io.Writer) {
 
 func tagsMIPS64x(w io.Writer) {
 	fmt.Fprintln(w)
+	fmt.Fprintln(w, "//go:build mips64 || mips64le")
 	fmt.Fprintln(w, "// +build mips64 mips64le")
 	fmt.Fprintln(w)
 }

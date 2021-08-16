@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.regabireflect
-// +build goexperiment.regabireflect
+//go:build goexperiment.regabireflect && goexperiment.regabiargs
+// +build goexperiment.regabireflect,goexperiment.regabiargs
 
 package reflect_test
 
@@ -79,7 +79,34 @@ func TestMethodValueCallABI(t *testing.T) {
 		t.Errorf("bad method value call: got %#v, want %#v", r2, a2)
 	}
 	if s.Value != 3 {
-		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 1)
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 3)
+	}
+
+	s, i = makeMethodValue("ValueRegMethodSpillInt")
+	f3 := i.(func(StructFillRegs, int, MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, int))
+	r3a, r3b := f3(a2, 42, MagicLastTypeNameForTestingRegisterABI{})
+	if r3a != a2 {
+		t.Errorf("bad method value call: got %#v, want %#v", r3a, a2)
+	}
+	if r3b != 42 {
+		t.Errorf("bad method value call: got %#v, want %#v", r3b, 42)
+	}
+	if s.Value != 4 {
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 4)
+	}
+
+	s, i = makeMethodValue("ValueRegMethodSpillPtr")
+	f4 := i.(func(StructFillRegs, *byte, MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, *byte))
+	vb := byte(10)
+	r4a, r4b := f4(a2, &vb, MagicLastTypeNameForTestingRegisterABI{})
+	if r4a != a2 {
+		t.Errorf("bad method value call: got %#v, want %#v", r4a, a2)
+	}
+	if r4b != &vb {
+		t.Errorf("bad method value call: got %#v, want %#v", r4b, &vb)
+	}
+	if s.Value != 5 {
+		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 5)
 	}
 }
 
@@ -110,6 +137,20 @@ func (m *StructWithMethods) RegsAndStackCall(s StructFewRegs, a [4]uint64, _ Mag
 func (m *StructWithMethods) SpillStructCall(s StructFillRegs, _ MagicLastTypeNameForTestingRegisterABI) StructFillRegs {
 	m.Value = 3
 	return s
+}
+
+// When called as a method value, i is passed on the stack.
+// When called as a method, i is passed in a register.
+func (m *StructWithMethods) ValueRegMethodSpillInt(s StructFillRegs, i int, _ MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, int) {
+	m.Value = 4
+	return s, i
+}
+
+// When called as a method value, i is passed on the stack.
+// When called as a method, i is passed in a register.
+func (m *StructWithMethods) ValueRegMethodSpillPtr(s StructFillRegs, i *byte, _ MagicLastTypeNameForTestingRegisterABI) (StructFillRegs, *byte) {
+	m.Value = 5
+	return s, i
 }
 
 func TestReflectCallABI(t *testing.T) {

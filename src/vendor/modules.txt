@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
-# golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
+# golang.org/x/net v0.0.0-20210510120150-4163338589ed
 ## explicit; go 1.17
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts
@@ -18,7 +18,7 @@ golang.org/x/net/idna
 golang.org/x/net/lif
 golang.org/x/net/nettest
 golang.org/x/net/route
-# golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6
+# golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 # golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f

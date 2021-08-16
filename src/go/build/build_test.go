@@ -104,7 +104,8 @@ func TestEmptyFolderImport(t *testing.T) {
 }
 
 func TestMultiplePackageImport(t *testing.T) {
-	_, err := Import(".", "testdata/multi", 0)
+	pkg, err := Import(".", "testdata/multi", 0)
+
 	mpe, ok := err.(*MultiplePackageError)
 	if !ok {
 		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
@@ -115,7 +116,20 @@ func TestMultiplePackageImport(t *testing.T) {
 		Files:    []string{"file.go", "file_appengine.go"},
 	}
 	if !reflect.DeepEqual(mpe, want) {
-		t.Errorf("got %#v; want %#v", mpe, want)
+		t.Errorf("err = %#v; want %#v", mpe, want)
+	}
+
+	// TODO(#45999): Since the name is ambiguous, pkg.Name should be left empty.
+	if wantName := "main"; pkg.Name != wantName {
+		t.Errorf("pkg.Name = %q; want %q", pkg.Name, wantName)
+	}
+
+	if wantGoFiles := []string{"file.go", "file_appengine.go"}; !reflect.DeepEqual(pkg.GoFiles, wantGoFiles) {
+		t.Errorf("pkg.GoFiles = %q; want %q", pkg.GoFiles, wantGoFiles)
+	}
+
+	if wantInvalidFiles := []string{"file_appengine.go"}; !reflect.DeepEqual(pkg.InvalidGoFiles, wantInvalidFiles) {
+		t.Errorf("pkg.InvalidGoFiles = %q; want %q", pkg.InvalidGoFiles, wantInvalidFiles)
 	}
 }
 

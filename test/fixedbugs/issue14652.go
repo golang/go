@@ -6,4 +6,4 @@
 
 package p
 
-var x any // ERROR "undefined: any|undefined type .*any.*"
+var x any // ERROR "undefined: any|undefined type .*any.*|cannot use any outside constraint position"

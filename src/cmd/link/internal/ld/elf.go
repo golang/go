@@ -950,6 +950,11 @@ func elfdynhash(ctxt *Link) {
 	}
 
 	s = ldr.CreateSymForUpdate(".dynamic", 0)
+	if ctxt.BuildMode == BuildModePIE {
+		// https://github.com/bminor/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/elf/elf.h#L986
+		const DTFLAGS_1_PIE = 0x08000000
+		Elfwritedynent(ctxt.Arch, s, elf.DT_FLAGS_1, uint64(DTFLAGS_1_PIE))
+	}
 	elfverneed = nfile
 	if elfverneed != 0 {
 		elfWriteDynEntSym(ctxt, s, elf.DT_VERNEED, gnuVersionR.Sym())
@@ -1171,7 +1176,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 		}
 	}
 
-	eaddr := int32(sect.Vaddr + sect.Length)
+	eaddr := sect.Vaddr + sect.Length
 	for _, s := range syms {
 		if !ldr.AttrReachable(s) {
 			continue

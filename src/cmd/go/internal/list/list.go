@@ -23,8 +23,8 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/internal/str"
 )
 
 var CmdList = &base.Command{
@@ -724,8 +724,18 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Record non-identity import mappings in p.ImportMap.
 	for _, p := range pkgs {
-		for i, srcPath := range p.Internal.RawImports {
-			path := p.Imports[i]
+		nRaw := len(p.Internal.RawImports)
+		for i, path := range p.Imports {
+			var srcPath string
+			if i < nRaw {
+				srcPath = p.Internal.RawImports[i]
+			} else {
+				// This path is not within the raw imports, so it must be an import
+				// found only within CompiledGoFiles. Those paths are found in
+				// CompiledImports.
+				srcPath = p.Internal.CompiledImports[i-nRaw]
+			}
+
 			if path != srcPath {
 				if p.ImportMap == nil {
 					p.ImportMap = make(map[string]string)

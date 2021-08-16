@@ -26,9 +26,15 @@ import (
 	. "go/types"
 )
 
+// The cmd/*/internal packages may have been deleted as part of a binary
+// release. Import from source instead.
+//
+// (See https://golang.org/issue/43232 and
+// https://github.com/golang/build/blob/df58bbac082bc87c4a3cdfe336d1ffe60bbaa916/cmd/release/release.go#L533-L545.)
+//
 // Use the same importer for all std lib tests to
 // avoid repeated importing of the same packages.
-var stdLibImporter = importer.Default()
+var stdLibImporter = importer.ForCompiler(token.NewFileSet(), "source", nil)
 
 func TestStdlib(t *testing.T) {
 	testenv.MustHaveGoBuild(t)

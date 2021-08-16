@@ -8,7 +8,7 @@ package x509
 // argument to the latest security_certificates version from
 // https://opensource.apple.com/source/security_certificates/
 // and run "go generate". See https://golang.org/issue/38843.
-//go:generate go run root_ios_gen.go -version 55188.40.9
+//go:generate go run root_ios_gen.go -version 55188.120.1.0.1
 
 import "sync"
 

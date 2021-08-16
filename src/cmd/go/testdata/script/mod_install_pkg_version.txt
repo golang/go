@@ -143,7 +143,7 @@ stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
 
 # If a wildcard matches only non-main packges, we should see a different warning.
 go install example.com/cmd/err...@v1.0.0
-stderr '^go: warning: "example.com/cmd/err\.\.\." matched no main packages$'
+stderr '^go: warning: "example.com/cmd/err\.\.\." matched only non-main packages$'
 
 
 # 'go install pkg@version' should report errors if the module contains

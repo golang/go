@@ -93,7 +93,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	V := x.typ
 	Vu := under(V)
 	Tu := under(T)
-	if check.identicalIgnoreTags(Vu, Tu) {
+	if IdenticalIgnoreTags(Vu, Tu) {
 		return true
 	}
 
@@ -101,7 +101,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if check.identicalIgnoreTags(under(V.base), under(T.base)) {
+			if IdenticalIgnoreTags(under(V.base), under(T.base)) {
 				return true
 			}
 		}
@@ -142,7 +142,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	if s := asSlice(V); s != nil {
 		if p := asPointer(T); p != nil {
 			if a := asArray(p.Elem()); a != nil {
-				if check.identical(s.Elem(), a.Elem()) {
+				if Identical(s.Elem(), a.Elem()) {
 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
 						return true
 					}

@@ -15,7 +15,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -177,8 +177,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if raceenabled {
-		raceWriteObjectPC(typ, dst, getcallerpc(), funcPC(reflect_typedmemmove))
-		raceReadObjectPC(typ, src, getcallerpc(), funcPC(reflect_typedmemmove))
+		raceWriteObjectPC(typ, dst, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
 	}
 	if msanenabled {
 		msanwrite(dst, typ.size)
@@ -197,11 +197,11 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 // off must be a multiple of sys.PtrSize.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.ptrdata > off && size >= sys.PtrSize {
-		if off&(sys.PtrSize-1) != 0 {
+	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
+		if off&(goarch.PtrSize-1) != 0 {
 			panic("reflect: internal error: misaligned offset")
 		}
-		pwsize := alignDown(size, sys.PtrSize)
+		pwsize := alignDown(size, goarch.PtrSize)
 		if poff := typ.ptrdata - off; pwsize > poff {
 			pwsize = poff
 		}
@@ -225,7 +225,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 //
 //go:nosplit
 func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
-	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= sys.PtrSize {
+	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= goarch.PtrSize {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
 	}
 	memmove(dst, src, size)
@@ -254,7 +254,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 	// code and needs its own instrumentation.
 	if raceenabled {
 		callerpc := getcallerpc()
-		pc := funcPC(slicecopy)
+		pc := abi.FuncPCABIInternal(slicecopy)
 		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
 		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
 	}

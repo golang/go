@@ -142,28 +142,15 @@ func (n *BinaryExpr) SetOp(op Op) {
 	}
 }
 
-// A CallUse records how the result of the call is used:
-type CallUse byte
-
-const (
-	_ CallUse = iota
-
-	CallUseExpr // single expression result is used
-	CallUseList // list of results are used
-	CallUseStmt // results not used - call is a statement
-)
-
 // A CallExpr is a function call X(Args).
 type CallExpr struct {
 	miniExpr
 	origNode
-	X               Node
-	Args            Nodes
-	KeepAlive       []*Name // vars to be kept alive until call returns
-	IsDDD           bool
-	Use             CallUse
-	NoInline        bool
-	PreserveClosure bool // disable directClosureCall for this call
+	X         Node
+	Args      Nodes
+	KeepAlive []*Name // vars to be kept alive until call returns
+	IsDDD     bool
+	NoInline  bool
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -181,8 +168,12 @@ func (n *CallExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
-		OAPPEND, ODELETE, OGETG, OMAKE, OPRINT, OPRINTN, ORECOVER:
+	case OAPPEND,
+		OCALL, OCALLFUNC, OCALLINTER, OCALLMETH,
+		ODELETE,
+		OGETG, OGETCALLERPC, OGETCALLERSP,
+		OMAKE, OPRINT, OPRINTN,
+		ORECOVER, ORECOVERFP:
 		n.op = op
 	}
 }
@@ -192,8 +183,10 @@ type ClosureExpr struct {
 	miniExpr
 	Func     *Func `mknode:"-"`
 	Prealloc *Name
+	IsGoWrap bool // whether this is wrapper closure of a go statement
 }
 
+// Deprecated: Use NewClosureFunc instead.
 func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
 	n := &ClosureExpr{Func: fn}
 	n.op = OCLOSURE
@@ -277,7 +270,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
+	case OCONV, OCONVIFACE, OCONVIDATA, OCONVNOP, OBYTES2STR, OBYTES2STRTMP, ORUNES2STR, OSTR2BYTES, OSTR2BYTESTMP, OSTR2RUNES, ORUNESTR, OSLICE2ARRPTR:
 		n.op = op
 	}
 }
@@ -323,26 +316,24 @@ func NewKeyExpr(pos src.XPos, key, value Node) *KeyExpr {
 // A StructKeyExpr is an Field: Value composite literal key.
 type StructKeyExpr struct {
 	miniExpr
-	Field  *types.Sym
-	Value  Node
-	Offset int64
+	Field *types.Field
+	Value Node
 }
 
-func NewStructKeyExpr(pos src.XPos, field *types.Sym, value Node) *StructKeyExpr {
+func NewStructKeyExpr(pos src.XPos, field *types.Field, value Node) *StructKeyExpr {
 	n := &StructKeyExpr{Field: field, Value: value}
 	n.pos = pos
 	n.op = OSTRUCTKEY
-	n.Offset = types.BADWIDTH
 	return n
 }
 
-func (n *StructKeyExpr) Sym() *types.Sym { return n.Field }
+func (n *StructKeyExpr) Sym() *types.Sym { return n.Field.Sym }
 
 // An InlinedCallExpr is an inlined function call.
 type InlinedCallExpr struct {
 	miniExpr
 	Body       Nodes
-	ReturnVars Nodes
+	ReturnVars Nodes // must be side-effect free
 }
 
 func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
@@ -352,6 +343,21 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
 	n.Body = body
 	n.ReturnVars = retvars
 	return n
+}
+
+func (n *InlinedCallExpr) SingleResult() Node {
+	if have := len(n.ReturnVars); have != 1 {
+		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
+	}
+	if !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape() {
+		// If the type of the call is not a shape, but the type of the return value
+		// is a shape, we need to do an implicit conversion, so the real type
+		// of n is maintained.
+		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[0])
+		r.SetTypecheck(1)
+		return r
+	}
+	return n.ReturnVars[0]
 }
 
 // A LogicalExpr is a expression X Op Y where Op is && or ||.
@@ -448,6 +454,20 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
 	t.SetNod(n)
 }
 
+// A RawOrigExpr represents an arbitrary Go expression as a string value.
+// When printed in diagnostics, the string value is written out exactly as-is.
+type RawOrigExpr struct {
+	miniExpr
+	Raw string
+}
+
+func NewRawOrigExpr(pos src.XPos, op Op, raw string) *RawOrigExpr {
+	n := &RawOrigExpr{Raw: raw}
+	n.pos = pos
+	n.op = op
+	return n
+}
+
 // A ResultExpr represents a direct access to a result.
 type ResultExpr struct {
 	miniExpr
@@ -494,10 +514,15 @@ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) 
 // A SelectorExpr is a selector expression X.Sel.
 type SelectorExpr struct {
 	miniExpr
-	X         Node
-	Sel       *types.Sym
+	X Node
+	// Sel is the name of the field or method being selected, without (in the
+	// case of methods) any preceding type specifier. If the field/method is
+	// exported, than the Sym uses the local package regardless of the package
+	// of the containing type.
+	Sel *types.Sym
+	// The actual selected field - may not be filled in until typechecking.
 	Selection *types.Field
-	Prealloc  *Name // preallocated storage for OCALLPART, if any
+	Prealloc  *Name // preallocated storage for OMETHVALUE, if any
 }
 
 func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
@@ -511,7 +536,7 @@ func (n *SelectorExpr) SetOp(op Op) {
 	switch op {
 	default:
 		panic(n.no("SetOp " + op.String()))
-	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OCALLPART, OMETHEXPR:
+	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OMETHVALUE, OMETHEXPR:
 		n.op = op
 	}
 }
@@ -652,6 +677,38 @@ func (n *TypeAssertExpr) SetOp(op Op) {
 	}
 }
 
+// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
+type DynamicTypeAssertExpr struct {
+	miniExpr
+	X Node
+	// N = not an interface
+	// E = empty interface
+	// I = nonempty interface
+	// For E->N, T is a *runtime.type for N
+	// For I->N, T is a *runtime.itab for N+I
+	// For E->I, T is a *runtime.type for I
+	// For I->I, ditto
+	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
+	// For E->E, ditto
+	T Node
+}
+
+func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
+	n := &DynamicTypeAssertExpr{X: x, T: t}
+	n.pos = pos
+	n.op = op
+	return n
+}
+
+func (n *DynamicTypeAssertExpr) SetOp(op Op) {
+	switch op {
+	default:
+		panic(n.no("SetOp " + op.String()))
+	case ODYNAMICDOTTYPE, ODYNAMICDOTTYPE2:
+		n.op = op
+	}
+}
+
 // A UnaryExpr is a unary expression Op X,
 // or Op(X) for a builtin function that does not end up being a call.
 type UnaryExpr struct {
@@ -677,6 +734,11 @@ func (n *UnaryExpr) SetOp(op Op) {
 		n.op = op
 	}
 }
+
+// Probably temporary: using Implicit() flag to mark generic function nodes that
+// are called to make getGfInfo analysis easier in one pre-order pass.
+func (n *InstExpr) Implicit() bool     { return n.flags&miniExprImplicit != 0 }
+func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
 
 // An InstExpr is a generic function or type instantiation.
 type InstExpr struct {
@@ -770,6 +832,11 @@ func StaticValue(n Node) Node {
 	for {
 		if n.Op() == OCONVNOP {
 			n = n.(*ConvExpr).X
+			continue
+		}
+
+		if n.Op() == OINLCALL {
+			n = n.(*InlinedCallExpr).SingleResult()
 			continue
 		}
 
@@ -1071,7 +1138,7 @@ func MethodExprName(n Node) *Name {
 // MethodExprFunc is like MethodExprName, but returns the types.Field instead.
 func MethodExprFunc(n Node) *types.Field {
 	switch n.Op() {
-	case ODOTMETH, OMETHEXPR, OCALLPART:
+	case ODOTMETH, OMETHEXPR, OMETHVALUE:
 		return n.(*SelectorExpr).Selection
 	}
 	base.Fatalf("unexpected node: %v (%v)", n, n.Op())

@@ -1,0 +1,98 @@
+# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
+# default preserve enough checksums for the module to be used by Go 1.16.
+#
+# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
+# 'go' version in the go.mod file to 1.16, without actually updating the
+# requirements to match.
+
+[short] skip
+
+env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+
+# For this module, the dependency providing package
+# example.net/ambiguous/nested/pkg is unambiguous in Go 1.17 (because only one
+# root of the module graph contains the package), whereas it is ambiguous in
+# Go 1.16 (because two different modules contain plausible packages and Go 1.16
+# does not privilege roots above other dependencies).
+#
+# However, the overall build list is identical for both versions.
+
+cp go.mod go.mod.orig
+
+! go mod tidy
+
+stderr '^example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
+
+stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+
+cmp go.mod go.mod.orig
+
+
+# If we run 'go mod tidy -e', we should still save enough checksums to run
+# 'go list -m all' reproducibly with go 1.16, even though we can't list
+# the specific package.
+
+go mod tidy -e
+! stderr '\n\tgo mod tidy'
+cmp go.mod go.mod.orig
+
+go list -m all
+cmp stdout all-m.txt
+
+go list -f $MODFMT example.net/ambiguous/nested/pkg
+stdout '^example.net/ambiguous/nested v0\.1\.0$'
+! stderr .
+
+go mod edit -go=1.16
+go list -m all
+cmp stdout all-m.txt
+
+! go list -f $MODFMT example.net/ambiguous/nested/pkg
+stderr '^ambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0\.1\.0 \(.*\)\n\texample\.net/ambiguous/nested v0\.1\.0 \(.*\)\n'
+
+
+# On the other hand, if we use -compat=1.17, 1.16 can't even load
+# the build list (due to missing checksums).
+
+cp go.mod.orig go.mod
+go mod tidy -compat=1.17
+! stderr .
+go list -m all
+cmp stdout all-m.txt
+
+go mod edit -go=1.16
+! go list -m all
+stderr '^go list -m: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
+
+
+-- go.mod --
+module example.com/m
+
+go 1.17
+
+replace example.net/indirect v0.1.0 => ./indirect
+
+require (
+	example.net/ambiguous/nested v0.1.0 // indirect
+	example.net/indirect v0.1.0
+)
+-- all-m.txt --
+example.com/m
+example.net/ambiguous v0.1.0
+example.net/ambiguous/nested v0.1.0
+example.net/indirect v0.1.0 => ./indirect
+-- m.go --
+package m
+
+import _ "example.net/indirect"
+
+-- indirect/go.mod --
+module example.net/indirect
+
+go 1.17
+
+require example.net/ambiguous v0.1.0
+-- indirect/indirect.go --
+package indirect
+
+import _ "example.net/ambiguous/nested/pkg"

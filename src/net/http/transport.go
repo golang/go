@@ -21,6 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http/httptrace"
+	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -426,6 +427,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed.
+// The schemes "http", "https", and "socks5" are supported.
 // An error is returned if the value is a different form.
 //
 // A nil URL and nil error are returned if no proxy is defined in the
@@ -2185,7 +2187,7 @@ func (pc *persistConn) readLoop() {
 		}
 
 		resp.Body = body
-		if rc.addedGzip && strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		if rc.addedGzip && ascii.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 			resp.Body = &gzipReader{body: body}
 			resp.Header.Del("Content-Encoding")
 			resp.Header.Del("Content-Length")

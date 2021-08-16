@@ -3536,27 +3536,25 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, p.As)
 
 		cond := int(p.From.Reg)
-		if cond < COND_EQ || cond > COND_NV {
+		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
+		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
 			c.ctxt.Diag("invalid condition: %v", p)
 		} else {
 			cond -= COND_EQ
 		}
 
 		r := int(p.Reg)
-		var rf int
-		if r != 0 {
-			if p.From3Type() == obj.TYPE_NONE {
-				/* CINC/CINV/CNEG */
-				rf = r
-				cond ^= 1
-			} else {
-				rf = int(p.GetFrom3().Reg) /* CSEL */
+		var rf int = r
+		if p.From3Type() == obj.TYPE_NONE {
+			/* CINC/CINV/CNEG or CSET/CSETM*/
+			if r == 0 {
+				/* CSET/CSETM */
+				rf = REGZERO
+				r = rf
 			}
-		} else {
-			/* CSET */
-			rf = REGZERO
-			r = rf
 			cond ^= 1
+		} else {
+			rf = int(p.GetFrom3().Reg) /* CSEL */
 		}
 
 		rt := int(p.To.Reg)
@@ -4335,8 +4333,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
+		lsl0 := LSL0_64
 		if isADDWop(p.As) || isANDWop(p.As) {
 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
+			lsl0 = LSL0_32
 		} else {
 			o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
 		}
@@ -4352,7 +4352,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Reg == REGSP || r == REGSP {
 			o2 = c.opxrrr(p, p.As, false)
 			o2 |= REGTMP & 31 << 16
-			o2 |= LSL0_64
+			o2 |= uint32(lsl0)
 		} else {
 			o2 = c.oprrr(p, p.As)
 			o2 |= REGTMP & 31 << 16 /* shift is 0 */

@@ -276,7 +276,7 @@ func Sum256(data []byte) [Size]byte {
 }
 
 // Sum224 returns the SHA224 checksum of the data.
-func Sum224(data []byte) (sum224 [Size224]byte) {
+func Sum224(data []byte) [Size224]byte {
 	if boring.Enabled {
 		h := New224()
 		h.Write(data)
@@ -289,6 +289,6 @@ func Sum224(data []byte) (sum224 [Size224]byte) {
 	d.Reset()
 	d.Write(data)
 	sum := d.checkSum()
-	copy(sum224[:], sum[:Size224])
-	return
+	ap := (*[Size224]byte)(sum[:])
+	return *ap
 }

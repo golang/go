@@ -89,7 +89,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	CMP	R1<<33, R2
 	CMP	R22.SXTX, RSP                    // ffe336eb
 	CMP	$0x22220000, RSP                 // CMP $572653568, RSP   // 5b44a4d2ff633beb
-	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff633b6b
+	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff433b6b
 	CCMN	MI, ZR, R1, $4	                 // e44341ba
 	// MADD Rn,Rm,Ra,Rd
 	MADD	R1, R2, R3, R4                   // 6408019b
@@ -377,6 +377,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x1000100010001000, RSP      // MOVD	$1152939097061330944, RSP   // ff8304b2
 	MOVW	$0x10001000, RSP              // MOVW	$268439552, RSP             // ff830432
 	ADDW	$0x10001000, R1               // ADDW	$268439552, R1              // fb83043221001b0b
+	ADDW	$0x22220000, RSP, R3          // ADDW	$572653568, RSP, R3         // 5b44a452e3433b0b
 
 // move a large constant to a Vd.
 	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
@@ -547,6 +548,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 // shifted or extended register offset.
 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
 	MOVD	(R3)(R6), R5                    // 656866f8
+	MOVD	(R3)(R6*1), R5                  // 656866f8
 	MOVD	(R2)(R6), R4                    // 446866f8
 	MOVWU	(R19)(R20<<2), R20              // 747a74b8
 	MOVD	(R2)(R6<<3), R4                 // 447866f8
@@ -579,6 +581,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
 	MOVB	R8, (R3)(R9.UXTW)               // 68482938
 	MOVB	R10, (R5)(R8)                   // aa682838
+	MOVB	R10, (R5)(R8*1)                 // aa682838
 	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
 	MOVH	R5, (R1)(R2<<1)                 // 25782278
 	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578

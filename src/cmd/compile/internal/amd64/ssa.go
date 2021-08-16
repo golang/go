@@ -823,7 +823,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVOstorezero:
-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -914,7 +914,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpAMD64DUFFZERO:
-		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
@@ -997,22 +997,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Closure pointer is DX.
 		ssagen.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal {
+		if s.ABI == obj.ABIInternal {
 			v.Fatalf("LoweredGetG should not appear in ABIInternal")
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
 	case ssa.OpAMD64CALLstatic:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
 		s.Call(v)
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1304,9 +1308,11 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
 	case ssa.BlockRetJmp:
-		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
+				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1348,20 +1354,15 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	}
 }
 
-func loadRegResults(s *ssagen.State, f *ssa.Func) {
-	for _, o := range f.OwnAux.ABIInfo().OutParams() {
-		n := o.Name.(*ir.Name)
-		rts, offs := o.RegisterTypesAndOffsets()
-		for i := range o.Registers {
-			p := s.Prog(loadByType(rts[i]))
-			p.From.Type = obj.TYPE_MEM
-			p.From.Name = obj.NAME_AUTO
-			p.From.Sym = n.Linksym()
-			p.From.Offset = n.FrameOffset() + offs[i]
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = ssa.ObjRegForAbiReg(o.Registers[i], f.Config)
-		}
-	}
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+	p := s.Prog(loadByType(t))
+	p.From.Type = obj.TYPE_MEM
+	p.From.Name = obj.NAME_AUTO
+	p.From.Sym = n.Linksym()
+	p.From.Offset = n.FrameOffset() + off
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = reg
+	return p
 }
 
 func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {

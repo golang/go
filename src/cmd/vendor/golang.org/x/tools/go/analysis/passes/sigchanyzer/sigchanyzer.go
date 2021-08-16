@@ -59,12 +59,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if chanDecl == nil || len(chanDecl.Args) != 1 {
 			return
 		}
-		chanDecl.Args = append(chanDecl.Args, &ast.BasicLit{
+
+		// Make a copy of the channel's declaration to avoid
+		// mutating the AST. See https://golang.org/issue/46129.
+		chanDeclCopy := &ast.CallExpr{}
+		*chanDeclCopy = *chanDecl
+		chanDeclCopy.Args = append([]ast.Expr(nil), chanDecl.Args...)
+		chanDeclCopy.Args = append(chanDeclCopy.Args, &ast.BasicLit{
 			Kind:  token.INT,
 			Value: "1",
 		})
+
 		var buf bytes.Buffer
-		if err := format.Node(&buf, token.NewFileSet(), chanDecl); err != nil {
+		if err := format.Node(&buf, token.NewFileSet(), chanDeclCopy); err != nil {
 			return
 		}
 		pass.Report(analysis.Diagnostic{

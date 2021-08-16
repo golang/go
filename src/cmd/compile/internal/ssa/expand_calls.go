@@ -215,7 +215,7 @@ func (x *expandState) isAlreadyExpandedAggregateType(t *types.Type) bool {
 		return false
 	}
 	return t.IsStruct() || t.IsArray() || t.IsComplex() || t.IsInterface() || t.IsString() || t.IsSlice() ||
-		t.Size() > x.regSize && t.IsInteger()
+		(t.Size() > x.regSize && (t.IsInteger() || (x.f.Config.SoftFloat && t.IsFloat())))
 }
 
 // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
@@ -243,10 +243,10 @@ func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.
 }
 
 // splitSlots splits one "field" (specified by sfx, offset, and ty) out of the LocalSlots in ls and returns the new LocalSlots this generates.
-func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *types.Type) []LocalSlot {
-	var locs []LocalSlot
+func (x *expandState) splitSlots(ls []*LocalSlot, sfx string, offset int64, ty *types.Type) []*LocalSlot {
+	var locs []*LocalSlot
 	for i := range ls {
-		locs = append(locs, x.f.fe.SplitSlot(&ls[i], sfx, offset, ty))
+		locs = append(locs, x.f.SplitSlot(ls[i], sfx, offset, ty))
 	}
 	return locs
 }
@@ -301,13 +301,13 @@ func (x *expandState) Printf(format string, a ...interface{}) (n int, err error)
 // It emits the code necessary to implement the leaf select operation that leads to the root.
 //
 // TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
-func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []LocalSlot {
+func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []*LocalSlot {
 	if x.debug {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("rewriteSelect(%s; %s; memOff=%d; regOff=%d)\n", leaf.LongString(), selector.LongString(), offset, regOffset)
 	}
-	var locs []LocalSlot
+	var locs []*LocalSlot
 	leafType := leaf.Type
 	if len(selector.Args) > 0 {
 		w := selector.Args[0]
@@ -380,6 +380,12 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		// The OpLoad was created to load the single field of the IData
 		// This case removes that StructSelect.
 		if leafType != selector.Type {
+			if x.f.Config.SoftFloat && selector.Type.IsFloat() {
+				if x.debug {
+					x.Printf("---OpLoad, break\n")
+				}
+				break // softfloat pass will take care of that
+			}
 			x.f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
 		}
 		leaf.copyOf(selector)
@@ -477,7 +483,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 
 	case OpStructSelect:
 		w := selector.Args[0]
-		var ls []LocalSlot
+		var ls []*LocalSlot
 		if w.Type.Kind() != types.TSTRUCT { // IData artifact
 			ls = x.rewriteSelect(leaf, w, offset, regOffset)
 		} else {
@@ -485,7 +491,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 			ls = x.rewriteSelect(leaf, w, offset+w.Type.FieldOff(fldi), regOffset+x.regOffset(w.Type, fldi))
 			if w.Op != OpIData {
 				for _, l := range ls {
-					locs = append(locs, x.f.fe.SplitStruct(l, int(selector.AuxInt)))
+					locs = append(locs, x.f.SplitStruct(l, int(selector.AuxInt)))
 				}
 			}
 		}
@@ -525,11 +531,11 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 
 	case OpComplexReal:
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset, regOffset)
-		locs = x.splitSlots(ls, ".real", 0, leafType)
+		locs = x.splitSlots(ls, ".real", 0, selector.Type)
 
 	case OpComplexImag:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+leafType.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
-		locs = x.splitSlots(ls, ".imag", leafType.Width, leafType)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
+		locs = x.splitSlots(ls, ".imag", selector.Type.Width, selector.Type)
 
 	case OpStringLen, OpSliceLen:
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)
@@ -662,7 +668,7 @@ outer:
 func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t *types.Type, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
 
 	pa := x.prAssignForArg(source)
-	var locs []LocalSlot
+	var locs []*LocalSlot
 	for _, s := range x.namedSelects[source] {
 		locs = append(locs, x.f.Names[s.locIndex])
 	}
@@ -756,12 +762,15 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 	return nil
 }
 
-func (x *expandState) splitSlotsIntoNames(locs []LocalSlot, suffix string, off int64, rt *types.Type, w *Value) {
+func (x *expandState) splitSlotsIntoNames(locs []*LocalSlot, suffix string, off int64, rt *types.Type, w *Value) {
 	wlocs := x.splitSlots(locs, suffix, off, rt)
 	for _, l := range wlocs {
-		x.f.NamedValues[l] = append(x.f.NamedValues[l], w)
+		old, ok := x.f.NamedValues[*l]
+		x.f.NamedValues[*l] = append(old, w)
+		if !ok {
+			x.f.Names = append(x.f.Names, l)
+		}
 	}
-	x.f.Names = append(x.f.Names, wlocs...)
 }
 
 // decomposeLoad is a helper for storeArgOrLoad.
@@ -826,7 +835,7 @@ func (x *expandState) decomposeLoad(pos src.XPos, b *Block, source, mem *Value, 
 // storeOneArg creates a decomposed (one step) arg that is then stored.
 // pos and b locate the store instruction, source is the "base" of the value input,
 // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
-func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []LocalSlot, suffix string, source, mem *Value, t *types.Type, argOffset, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suffix string, source, mem *Value, t *types.Type, argOffset, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
 	if x.debug {
 		x.indent(3)
 		defer x.indent(-3)
@@ -848,7 +857,7 @@ func storeOneLoad(x *expandState, pos src.XPos, b *Block, source, mem *Value, t 
 	return x.storeArgOrLoad(pos, b, w, mem, t, offStore, loadRegOffset, storeRc)
 }
 
-func storeTwoArg(x *expandState, pos src.XPos, b *Block, locs []LocalSlot, suffix1 string, suffix2 string, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+func storeTwoArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suffix1 string, suffix2 string, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
 	mem = storeOneArg(x, pos, b, locs, suffix1, source, mem, t1, offArg, offStore, loadRegOffset, storeRc.next(t1))
 	pos = pos.WithNotStmt()
 	t1Size := t1.Size()
@@ -1168,7 +1177,7 @@ func expandCalls(f *Func) {
 	for i, name := range f.Names {
 		t := name.Type
 		if x.isAlreadyExpandedAggregateType(t) {
-			for j, v := range f.NamedValues[name] {
+			for j, v := range f.NamedValues[*name] {
 				if v.Op == OpSelectN || v.Op == OpArg && x.isAlreadyExpandedAggregateType(v.Type) {
 					ns := x.namedSelects[v]
 					x.namedSelects[v] = append(ns, namedVal{locIndex: i, valIndex: j})
@@ -1477,10 +1486,10 @@ func expandCalls(f *Func) {
 		// Leaf types may have debug locations
 		if !x.isAlreadyExpandedAggregateType(v.Type) {
 			for _, l := range locs {
-				if _, ok := f.NamedValues[l]; !ok {
+				if _, ok := f.NamedValues[*l]; !ok {
 					f.Names = append(f.Names, l)
 				}
-				f.NamedValues[l] = append(f.NamedValues[l], v)
+				f.NamedValues[*l] = append(f.NamedValues[*l], v)
 			}
 			continue
 		}
@@ -1553,7 +1562,7 @@ func expandCalls(f *Func) {
 	// Step 6: elide any copies introduced.
 	// Update named values.
 	for _, name := range f.Names {
-		values := f.NamedValues[name]
+		values := f.NamedValues[*name]
 		for i, v := range values {
 			if v.Op == OpCopy {
 				a := v.Args[0]
@@ -1713,21 +1722,6 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		w = toReplace
 	} else {
 		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
-	}
-	// If we are creating an OpArgIntReg/OpArgFloatReg that
-	// corresponds to an in-param that fits entirely in a register,
-	// then enter it into the name/value table. The LocalSlot
-	// is somewhat fictitious, since there is no incoming live
-	// memory version of the parameter, but we need an entry in
-	// NamedValues in order for ssa debug tracking to include
-	// the value in the tracking analysis.
-	if len(pa.Registers) == 1 {
-		loc := LocalSlot{N: aux.Name, Type: t, Off: 0}
-		values, ok := x.f.NamedValues[loc]
-		if !ok {
-			x.f.Names = append(x.f.Names, loc)
-		}
-		x.f.NamedValues[loc] = append(values, w)
 	}
 	x.commonArgs[key] = w
 	if toReplace != nil {

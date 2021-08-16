@@ -5,6 +5,7 @@
 package moddeps_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"internal/testenv"
@@ -68,7 +69,7 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
+			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
 			cmd.Env = append(os.Environ(), "GO111MODULE=on")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
@@ -123,10 +124,38 @@ func TestAllDependencies(t *testing.T) {
 		t.Skip("skipping because a diff command with support for --recursive and --unified flags is unavailable")
 	}
 
+	// We're going to check the standard modules for tidiness, so we need a usable
+	// GOMODCACHE. If the default directory doesn't exist, use a temporary
+	// directory instead. (That can occur, for example, when running under
+	// run.bash with GO_TEST_SHORT=0: run.bash sets GOPATH=/nonexist-gopath, and
+	// GO_TEST_SHORT=0 causes it to run this portion of the test.)
+	var modcacheEnv []string
+	{
+		out, err := exec.Command(goBin, "env", "GOMODCACHE").Output()
+		if err != nil {
+			t.Fatalf("%s env GOMODCACHE: %v", goBin, err)
+		}
+		modcacheOk := false
+		if gomodcache := string(bytes.TrimSpace(out)); gomodcache != "" {
+			if _, err := os.Stat(gomodcache); err == nil {
+				modcacheOk = true
+			}
+		}
+		if !modcacheOk {
+			modcacheEnv = []string{
+				"GOMODCACHE=" + t.TempDir(),
+				"GOFLAGS=" + os.Getenv("GOFLAGS") + " -modcacherw", // Allow t.TempDir() to clean up subdirectories.
+			}
+		}
+	}
+
 	// Build the bundle binary at the golang.org/x/tools
 	// module version specified in GOROOT/src/cmd/go.mod.
 	bundleDir := t.TempDir()
-	r := runner{Dir: filepath.Join(runtime.GOROOT(), "src/cmd")}
+	r := runner{
+		Dir: filepath.Join(runtime.GOROOT(), "src/cmd"),
+		Env: append(os.Environ(), modcacheEnv...),
+	}
 	r.run(t, goBin, "build", "-mod=readonly", "-o", bundleDir, "golang.org/x/tools/cmd/bundle")
 
 	var gorootCopyDir string
@@ -160,7 +189,7 @@ func TestAllDependencies(t *testing.T) {
 			}
 			r := runner{
 				Dir: filepath.Join(gorootCopyDir, rel),
-				Env: append(os.Environ(),
+				Env: append(append(os.Environ(), modcacheEnv...),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
 					// Explicitly override PWD and clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
@@ -227,7 +256,7 @@ func makeGOROOTCopy(t *testing.T) string {
 		if err != nil {
 			return err
 		}
-		if src == filepath.Join(runtime.GOROOT(), ".git") {
+		if info.IsDir() && src == filepath.Join(runtime.GOROOT(), ".git") {
 			return filepath.SkipDir
 		}
 
@@ -237,9 +266,8 @@ func makeGOROOTCopy(t *testing.T) string {
 		}
 		dst := filepath.Join(gorootCopyDir, rel)
 
-		switch src {
-		case filepath.Join(runtime.GOROOT(), "bin"),
-			filepath.Join(runtime.GOROOT(), "pkg"):
+		if info.IsDir() && (src == filepath.Join(runtime.GOROOT(), "bin") ||
+			src == filepath.Join(runtime.GOROOT(), "pkg")) {
 			// If the OS supports symlinks, use them instead
 			// of copying the bin and pkg directories.
 			if err := os.Symlink(src, dst); err == nil {
@@ -414,7 +442,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
-			if path == filepath.Join(runtime.GOROOT(), "pkg") {
+			if info.IsDir() && path == filepath.Join(runtime.GOROOT(), "pkg") {
 				// GOROOT/pkg contains generated artifacts, not source code.
 				//
 				// In https://golang.org/issue/37929 it was observed to somehow contain
@@ -422,7 +450,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// running time of this test anyway.)
 				return filepath.SkipDir
 			}
-			if strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
 				// _ and . prefixed directories can be used for internal modules
 				// without a vendor directory that don't contribute to the build
 				// but might be used for example as code generators.
@@ -457,8 +485,31 @@ func findGorootModules(t *testing.T) []gorootModule {
 			goroot.modules = append(goroot.modules, m)
 			return nil
 		})
-	})
+		if goroot.err != nil {
+			return
+		}
 
+		// knownGOROOTModules is a hard-coded list of modules that are known to exist in GOROOT.
+		// If findGorootModules doesn't find a module, it won't be covered by tests at all,
+		// so make sure at least these modules are found. See issue 46254. If this list
+		// becomes a nuisance to update, can be replaced with len(goroot.modules) check.
+		knownGOROOTModules := [...]string{
+			"std",
+			"cmd",
+			"misc",
+			"test/bench/go1",
+		}
+		var seen = make(map[string]bool) // Key is module path.
+		for _, m := range goroot.modules {
+			seen[m.Path] = true
+		}
+		for _, m := range knownGOROOTModules {
+			if !seen[m] {
+				goroot.err = fmt.Errorf("findGorootModules didn't find the well-known module %q", m)
+				break
+			}
+		}
+	})
 	if goroot.err != nil {
 		t.Fatal(goroot.err)
 	}

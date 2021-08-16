@@ -470,9 +470,29 @@ TEXT	·f(SB), NOSPLIT|DUPOK, $0-0
 	JMP	0(PC)
 `
 
+const testStrictDupAsmSrc3 = `
+#include "textflag.h"
+GLOBL ·rcon(SB), RODATA|DUPOK, $64
+`
+
+const testStrictDupAsmSrc4 = `
+#include "textflag.h"
+GLOBL ·rcon(SB), RODATA|DUPOK, $32
+`
+
 func TestStrictDup(t *testing.T) {
 	// Check that -strictdups flag works.
 	testenv.MustHaveGoBuild(t)
+
+	asmfiles := []struct {
+		fname   string
+		payload string
+	}{
+		{"a", testStrictDupAsmSrc1},
+		{"b", testStrictDupAsmSrc2},
+		{"c", testStrictDupAsmSrc3},
+		{"d", testStrictDupAsmSrc4},
+	}
 
 	t.Parallel()
 
@@ -483,15 +503,12 @@ func TestStrictDup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src = filepath.Join(tmpdir, "a.s")
-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc1), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-	src = filepath.Join(tmpdir, "b.s")
-	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc2), 0666)
-	if err != nil {
-		t.Fatal(err)
+	for _, af := range asmfiles {
+		src = filepath.Join(tmpdir, af.fname+".s")
+		err = ioutil.WriteFile(src, []byte(af.payload), 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	src = filepath.Join(tmpdir, "go.mod")
 	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
@@ -503,7 +520,7 @@ func TestStrictDup(t *testing.T) {
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Errorf("linking with -strictdups=1 failed: %v", err)
+		t.Errorf("linking with -strictdups=1 failed: %v\n%s", err, string(out))
 	}
 	if !bytes.Contains(out, []byte("mismatched payload")) {
 		t.Errorf("unexpected output:\n%s", out)
@@ -515,7 +532,11 @@ func TestStrictDup(t *testing.T) {
 	if err == nil {
 		t.Errorf("linking with -strictdups=2 did not fail")
 	}
-	if !bytes.Contains(out, []byte("mismatched payload")) {
+	// NB: on amd64 we get the 'new length' error, on arm64 the 'different
+	// contents' error.
+	if !(bytes.Contains(out, []byte("mismatched payload: new length")) ||
+		bytes.Contains(out, []byte("mismatched payload: same length but different contents"))) ||
+		!bytes.Contains(out, []byte("mismatched payload: different sizes")) {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }
@@ -524,14 +545,13 @@ const testFuncAlignSrc = `
 package main
 import (
 	"fmt"
-	"reflect"
 )
 func alignPc()
+var alignPcFnAddr uintptr
 
 func main() {
-	addr := reflect.ValueOf(alignPc).Pointer()
-	if (addr % 512) != 0 {
-		fmt.Printf("expected 512 bytes alignment, got %v\n", addr)
+	if alignPcFnAddr % 512 != 0 {
+		fmt.Printf("expected 512 bytes alignment, got %v\n", alignPcFnAddr)
 	} else {
 		fmt.Printf("PASS")
 	}
@@ -546,6 +566,9 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
 	PCALIGN	$512
 	MOVD	$3, R1
 	RET
+
+GLOBL	·alignPcFnAddr(SB),RODATA,$8
+DATA	·alignPcFnAddr(SB)/8,$·alignPc(SB)
 `
 
 // TestFuncAlign verifies that the address of a function can be aligned
@@ -698,7 +721,7 @@ func TestTrampolineCgo(t *testing.T) {
 	if err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
-	if string(out) != "hello\n" {
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 
@@ -717,7 +740,7 @@ func TestTrampolineCgo(t *testing.T) {
 	if err != nil {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
-	if string(out) != "hello\n" {
+	if string(out) != "hello\n" && string(out) != "hello\r\n" {
 		t.Errorf("unexpected output:\n%s", out)
 	}
 }

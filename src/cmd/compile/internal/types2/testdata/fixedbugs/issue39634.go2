@@ -31,13 +31,14 @@ type x7[A any] struct{ foo7 }
 func main7() { var _ foo7 = x7[int]{} }
 
 // crash 8
-type foo8[A any] interface { type A }
-func bar8[A foo8[A]](a A) {}
-func main8() {}
+// Embedding stand-alone type parameters is not permitted for now. Disabled.
+// type foo8[A any] interface { ~A }
+// func bar8[A foo8[A]](a A) {}
+// func main8() {}
 
 // crash 9
-type foo9[A any] interface { type foo9 /* ERROR interface contains type constraints */ [A] }
-func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
+type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+func _() { var _ = new(foo9 /* ERROR illegal cycle */ [int]) }
 
 // crash 12
 var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
@@ -49,7 +50,7 @@ func (G15 /* ERROR generic type .* without instantiation */ ) p()
 
 // crash 16
 type Foo16[T any] r16 /* ERROR not a type */
-func r16[T any]() Foo16[Foo16[T]]
+func r16[T any]() Foo16[Foo16[T]] { panic(0) }
 
 // crash 17
 type Y17 interface{ c() }
@@ -57,7 +58,7 @@ type Z17 interface {
 	c() Y17
 	Y17 /* ERROR duplicate method */
 }
-func F17[T Z17](T)
+func F17[T Z17](T) {}
 
 // crash 18
 type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
@@ -87,5 +88,5 @@ type T26 = interface{ F26[ /* ERROR cannot have type parameters */ Z any]() }
 func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ /* ERROR missing method */ [] /* ERROR operand */ }
 
 // crash 27
-func e27[T any]() interface{ x27 /* ERROR not a type */ }
+func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
 func x27() { e27( /* ERROR cannot infer T */ ) }

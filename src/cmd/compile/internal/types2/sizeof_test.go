@@ -26,15 +26,14 @@ func TestSizeof(t *testing.T) {
 		{Struct{}, 24, 48},
 		{Pointer{}, 8, 16},
 		{Tuple{}, 12, 24},
-		{Signature{}, 44, 88},
-		{Sum{}, 12, 24},
-		{Interface{}, 60, 120},
+		{Signature{}, 28, 56},
+		{Union{}, 16, 32},
+		{Interface{}, 40, 80},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
-		{Named{}, 68, 136},
+		{Named{}, 80, 152},
 		{TypeParam{}, 28, 48},
-		{instance{}, 52, 96},
-		{bottom{}, 0, 0},
+		{term{}, 12, 24},
 		{top{}, 0, 0},
 
 		// Objects
@@ -48,8 +47,9 @@ func TestSizeof(t *testing.T) {
 		{Nil{}, 56, 88},
 
 		// Misc
-		{Scope{}, 56, 96},
+		{Scope{}, 60, 104},
 		{Package{}, 40, 80},
+		{TypeSet{}, 28, 56},
 	}
 
 	for _, test := range tests {

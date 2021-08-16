@@ -36,7 +36,7 @@ var lookupStaticHostTests = []struct {
 		},
 	},
 	{
-		"testdata/ipv4-hosts", // see golang.org/issue/8996
+		"testdata/ipv4-hosts",
 		[]staticHostEntry{
 			{"localhost", []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"}},
 			{"localhost.localdomain", []string{"127.0.0.3"}},
@@ -102,7 +102,7 @@ var lookupStaticAddrTests = []struct {
 		},
 	},
 	{
-		"testdata/ipv4-hosts", // see golang.org/issue/8996
+		"testdata/ipv4-hosts",
 		[]staticHostEntry{
 			{"127.0.0.1", []string{"localhost"}},
 			{"127.0.0.2", []string{"localhost"}},

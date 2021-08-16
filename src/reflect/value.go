@@ -6,14 +6,13 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
 	"unsafe"
 )
-
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 
 // Value is the reflection interface to a Go value.
 //
@@ -94,7 +93,7 @@ func (f flag) ro() flag {
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 // if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.size != ptrSize || !v.typ.pointers() {
+	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -533,7 +532,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize = align(frameSize, ptrSize)
+	frameSize = align(frameSize, goarch.PtrSize)
 	frameSize += abi.spill
 
 	// Mark pointers in registers for the return path.
@@ -952,25 +951,44 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 			continue
 		}
 
-		// There are three cases to handle in translating each
+		// There are four cases to handle in translating each
 		// argument:
 		// 1. Stack -> stack translation.
-		// 2. Registers -> stack translation.
-		// 3. Registers -> registers translation.
-		// The fourth cases can't happen, because a method value
-		// call uses strictly fewer registers than a method call.
+		// 2. Stack -> registers translation.
+		// 3. Registers -> stack translation.
+		// 4. Registers -> registers translation.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
 		// fewer arguments. Simply copy between the two.
 		if vStep := valueSteps[0]; vStep.kind == abiStepStack {
 			mStep := methodSteps[0]
-			if mStep.kind != abiStepStack || vStep.size != mStep.size {
-				panic("method ABI and value ABI do not align")
+			// Handle stack -> stack translation.
+			if mStep.kind == abiStepStack {
+				if vStep.size != mStep.size {
+					panic("method ABI and value ABI do not align")
+				}
+				typedmemmove(t,
+					add(methodFrame, mStep.stkOff, "precomputed stack offset"),
+					add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+				continue
 			}
-			typedmemmove(t,
-				add(methodFrame, mStep.stkOff, "precomputed stack offset"),
-				add(valueFrame, vStep.stkOff, "precomputed stack offset"))
+			// Handle stack -> register translation.
+			for _, mStep := range methodSteps {
+				from := add(valueFrame, vStep.stkOff+mStep.offset, "precomputed stack offset")
+				switch mStep.kind {
+				case abiStepPointer:
+					// Do the pointer copy directly so we get a write barrier.
+					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
+					fallthrough // We need to make sure this ends up in Ints, too.
+				case abiStepIntReg:
+					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
+				case abiStepFloatReg:
+					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
+				default:
+					panic("unexpected method step")
+				}
+			}
 			continue
 		}
 		// Handle register -> stack translation.
@@ -982,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
+					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
 				case abiStepFloatReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
+					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
 				default:
 					panic("unexpected value step")
 				}
@@ -1021,7 +1039,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	methodFrameSize := methodFrameType.size
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	methodFrameSize = align(methodFrameSize, ptrSize)
+	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
 	methodFrameSize += methodABI.spill
 
 	// Mark pointers in registers for the return path.
@@ -1359,10 +1377,16 @@ func valueInterface(v Value, safe bool) interface{} {
 	return packEface(v)
 }
 
-// InterfaceData returns the interface v's value as a uintptr pair.
+// InterfaceData returns a pair of unspecified uintptr values.
 // It panics if v's Kind is not Interface.
+//
+// In earlier versions of Go, this function returned the interface's
+// value as a uintptr pair. As of Go 1.4, the implementation of
+// interface values precludes any defined use of InterfaceData.
+//
+// Deprecated: The memory representation of interface values is not
+// compatible with InterfaceData.
 func (v Value) InterfaceData() [2]uintptr {
-	// TODO: deprecate this
 	v.mustBe(Interface)
 	// We treat this as a read operation, so we allow
 	// it even for unexported data, because the caller
@@ -2783,6 +2807,26 @@ func (v Value) Convert(t Type) Value {
 	return op(v, t)
 }
 
+// CanConvert reports whether the value v can be converted to type t.
+// If v.CanConvert(t) returns true then v.Convert(t) will not panic.
+func (v Value) CanConvert(t Type) bool {
+	vt := v.Type()
+	if !vt.ConvertibleTo(t) {
+		return false
+	}
+	// Currently the only conversion that is OK in terms of type
+	// but that can panic depending on the value is converting
+	// from slice to pointer-to-array.
+	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+		n := t.Elem().Len()
+		h := (*unsafeheader.Slice)(v.ptr)
+		if n > h.Len {
+			return false
+		}
+	}
+	return true
+}
+
 // convertOp returns the function to convert a value of type src
 // to a value of type dst. If the conversion is illegal, convertOp returns nil.
 func convertOp(dst, src *rtype) func(Value, Type) Value {
@@ -3045,7 +3089,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
 	h := (*unsafeheader.Slice)(v.ptr)
 	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to array pointer with length " + itoa.Itoa(n))
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
 	}
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }

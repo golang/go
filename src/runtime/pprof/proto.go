@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"internal/abi"
 	"io"
 	"os"
 	"runtime"
@@ -20,11 +21,6 @@ import (
 // events are attributed.
 // (The name shows up in the pprof graphs.)
 func lostProfileEvent() { lostProfileEvent() }
-
-// funcPC returns the PC for the func value f.
-func funcPC(f interface{}) uintptr {
-	return *(*[2]*uintptr)(unsafe.Pointer(&f))[1]
-}
 
 // A profileBuilder writes a profile incrementally from a
 // stream of profile samples delivered by the runtime.
@@ -325,7 +321,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 				// gentraceback guarantees that PCs in the
 				// stack can be unconditionally decremented and
 				// still be valid, so we must do the same.
-				uint64(funcPC(lostProfileEvent) + 1),
+				uint64(abi.FuncPCABIInternal(lostProfileEvent) + 1),
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)

@@ -152,6 +152,9 @@ func (s *SymABIs) GenABIWrappers() {
 		// Apply definitions.
 		defABI, hasDefABI := s.defs[symName]
 		if hasDefABI {
+			if len(fn.Body) != 0 {
+				base.ErrorfAt(fn.Pos(), "%v defined in both Go and assembly", fn)
+			}
 			fn.ABI = defABI
 		}
 

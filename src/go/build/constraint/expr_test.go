@@ -216,6 +216,7 @@ var parsePlusBuildExprTests = []struct {
 	{"!!x", tag("ignore")},
 	{"!x", not(tag("x"))},
 	{"!", tag("ignore")},
+	{"", tag("ignore")},
 }
 
 func TestParsePlusBuildExpr(t *testing.T) {
@@ -232,19 +233,22 @@ func TestParsePlusBuildExpr(t *testing.T) {
 var constraintTests = []struct {
 	in  string
 	x   Expr
-	err error
+	err string
 }{
-	{"//+build x y", or(tag("x"), tag("y")), nil},
-	{"// +build x y \n", or(tag("x"), tag("y")), nil},
-	{"// +build x y \n ", nil, errNotConstraint},
-	{"// +build x y \nmore", nil, errNotConstraint},
-	{" //+build x y", nil, errNotConstraint},
+	{"//+build !", tag("ignore"), ""},
+	{"//+build", tag("ignore"), ""},
+	{"//+build x y", or(tag("x"), tag("y")), ""},
+	{"// +build x y \n", or(tag("x"), tag("y")), ""},
+	{"// +build x y \n ", nil, "not a build constraint"},
+	{"// +build x y \nmore", nil, "not a build constraint"},
+	{" //+build x y", nil, "not a build constraint"},
 
-	{"//go:build x && y", and(tag("x"), tag("y")), nil},
-	{"//go:build x && y\n", and(tag("x"), tag("y")), nil},
-	{"//go:build x && y\n ", nil, errNotConstraint},
-	{"//go:build x && y\nmore", nil, errNotConstraint},
-	{" //go:build x && y", nil, errNotConstraint},
+	{"//go:build x && y", and(tag("x"), tag("y")), ""},
+	{"//go:build x && y\n", and(tag("x"), tag("y")), ""},
+	{"//go:build x && y\n ", nil, "not a build constraint"},
+	{"//go:build x && y\nmore", nil, "not a build constraint"},
+	{" //go:build x && y", nil, "not a build constraint"},
+	{"//go:build\n", nil, "unexpected end of expression"},
 }
 
 func TestParse(t *testing.T) {
@@ -252,14 +256,14 @@ func TestParse(t *testing.T) {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			x, err := Parse(tt.in)
 			if err != nil {
-				if tt.err == nil {
+				if tt.err == "" {
 					t.Errorf("Constraint(%q): unexpected error: %v", tt.in, err)
-				} else if tt.err != err {
+				} else if !strings.Contains(err.Error(), tt.err) {
 					t.Errorf("Constraint(%q): error %v, want %v", tt.in, err, tt.err)
 				}
 				return
 			}
-			if tt.err != nil {
+			if tt.err != "" {
 				t.Errorf("Constraint(%q) = %v, want error %v", tt.in, x, tt.err)
 				return
 			}

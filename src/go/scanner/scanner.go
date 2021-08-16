@@ -373,7 +373,7 @@ func (s *Scanner) scanIdentifier() string {
 			continue
 		}
 		s.rdOffset += rdOffset
-		if b < utf8.RuneSelf {
+		if 0 < b && b < utf8.RuneSelf {
 			// Optimization: we've encountered an ASCII character that's not a letter
 			// or number. Avoid the call into s.next() and corresponding set up.
 			//
@@ -969,6 +969,8 @@ scanAgain:
 			}
 		case '|':
 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+		case '~':
+			tok = token.TILDE
 		default:
 			// next reports unexpected BOMs - don't repeat
 			if ch != bom {

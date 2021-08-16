@@ -84,10 +84,15 @@ func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
 
 // Non-empty-interface to non-empty-interface conversion.
-func convI2I(typ *byte, elem any) (ret any)
+func convI2I(typ *byte, itab *uintptr) (ret *uintptr)
 
-// Specialized type-to-interface conversion.
-// These return only a data pointer.
+// Convert non-interface type to the data word of a (empty or nonempty) interface.
+func convT(typ *byte, elem *any) unsafe.Pointer
+
+// Same as convT, for types with no pointers in them.
+func convTnoptr(typ *byte, elem *any) unsafe.Pointer
+
+// Specialized versions of convT for specific types.
 // These functions take concrete types in the runtime. But they may
 // be used for a wider range of types, which have the same memory
 // layout as the parameter type. The compiler converts the
@@ -98,14 +103,6 @@ func convT32(val uint32) unsafe.Pointer
 func convT64(val uint64) unsafe.Pointer
 func convTstring(val string) unsafe.Pointer
 func convTslice(val []uint8) unsafe.Pointer
-
-// Type to empty-interface conversion.
-func convT2E(typ *byte, elem *any) (ret any)
-func convT2Enoptr(typ *byte, elem *any) (ret any)
-
-// Type to non-empty-interface conversion.
-func convT2I(tab *byte, elem *any) (ret any)
-func convT2Inoptr(tab *byte, elem *any) (ret any)
 
 // interface type assertions x.(T)
 func assertE2I(inter *byte, typ *byte) *byte
@@ -183,8 +180,9 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
 func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
 func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
 func growslice(typ *byte, old []any, cap int) (ary []any)
-func unsafeslice(typ *byte, len int)
-func unsafeslice64(typ *byte, len int64)
+func unsafeslice(typ *byte, ptr unsafe.Pointer, len int)
+func unsafeslice64(typ *byte, ptr unsafe.Pointer, len int64)
+func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
 
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
