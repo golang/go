@@ -15,7 +15,7 @@ import (
 type Named struct {
 	check      *Checker
 	info       typeInfo    // for cycle detection
-	obj        *TypeName   // corresponding declared object
+	obj        *TypeName   // corresponding declared object for declared types; placeholder for instantiated types
 	orig       *Named      // original, uninstantiated type
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
@@ -108,8 +108,11 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	return typ
 }
 
-// Obj returns the type name for the named type t.
-func (t *Named) Obj() *TypeName { return t.obj }
+// Obj returns the type name for the declaration defining the named type t. For
+// instantiated types, this is the type name of the base type.
+func (t *Named) Obj() *TypeName {
+	return t.orig.obj // for non-instances this is the same as t.obj
+}
 
 // _Orig returns the original generic type an instantiated type is derived from.
 // If t is not an instantiated type, the result is t.
