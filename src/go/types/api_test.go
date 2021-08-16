@@ -1546,6 +1546,13 @@ func F(){
 	}
 }
 
+// newDefined creates a new defined type named T with the given underlying type.
+// Helper function for use with TestIncompleteInterfaces only.
+func newDefined(underlying Type) *Named {
+	tname := NewTypeName(token.NoPos, nil, "T", nil)
+	return NewNamed(tname, underlying, nil)
+}
+
 func TestConvertibleTo(t *testing.T) {
 	for _, test := range []struct {
 		v, t Type
