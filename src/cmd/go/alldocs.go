@@ -2658,6 +2658,10 @@
 // 	-failfast
 // 	    Do not start new tests after the first test failure.
 //
+// 	-json
+// 	    Log verbose output and test results in JSON. This presents the
+// 	    same information as the -v flag in a machine-readable format.
+//
 // 	-list regexp
 // 	    List tests, benchmarks, or examples matching the regular expression.
 // 	    No tests, benchmarks or examples will be run. This will only
