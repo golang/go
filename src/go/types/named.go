@@ -248,11 +248,10 @@ func (n *Named) setUnderlying(typ Type) {
 
 // instance holds position information for use in lazy instantiation.
 //
-// TODO(rfindley): come up with a better name for this type, now that its usage
-// has changed.
+// TODO(rfindley): instance is probably unnecessary now. See if it can be
+// eliminated.
 type instance struct {
-	pos     token.Pos   // position of type instantiation; for error reporting only
-	posList []token.Pos // position of each targ; for error reporting only
+	pos token.Pos // position of type instantiation; for error reporting only
 }
 
 // expand ensures that the underlying type of n is instantiated.
@@ -276,7 +275,7 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 			}
 		}
 
-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, n.instance.posList, typMap)
+		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, typMap)
 		n.underlying = inst
 		n.fromRHS = inst
 		n.instance = nil
