@@ -20,7 +20,7 @@ type Named struct {
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
 	instance   *instance   // syntactic information for lazy instantiation
-	tparams    *TypeParams // type parameters, or nil
+	tparams    *TParamList // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
@@ -80,7 +80,7 @@ func (t *Named) load() *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParams, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TParamList, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
@@ -120,7 +120,7 @@ func (t *Named) _Orig() *Named { return t.orig }
 
 // TParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() *TypeParams { return t.load().tparams }
+func (t *Named) TParams() *TParamList { return t.load().tparams }
 
 // SetTParams sets the type parameters of the named type t.
 func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
