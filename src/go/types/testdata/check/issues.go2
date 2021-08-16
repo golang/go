@@ -40,13 +40,7 @@ func _[T interface{ m() }](x *T) {
 	x.m  /* ERROR x\.m undefined */ ()
 }
 
-// In a generic function body all method calls will be pointer method calls.
-// If necessary, the function body will insert temporary variables, not seen
-// by the user, in order to get an addressable variable to use to call the method.
-// Thus, assume an argument type for a generic function to be the type of addressable
-// values in the generic function when checking if the argument type satisfies the
-// generic function's type bound.
-func f2[_ interface{ m1(); m2() }]()
+func f2[_ interface{ m1(); m2() }]() {}
 
 type T struct{}
 func (T) m1()
@@ -239,7 +233,7 @@ func _[T interface{ ~func() }](f T) {
 
 type sliceOf[E any] interface{ ~[]E }
 
-func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S
+func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S { panic(0) }
 
 var f           func()
 var cancelSlice []context.CancelFunc
@@ -247,7 +241,7 @@ var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](can
 
 // A generic function must be instantiated with a type, not a value.
 
-func g[T any](T) T
+func g[T any](T) T { panic(0) }
 
 var _ = g[int]
 var _ = g[nil /* ERROR is not a type */ ]

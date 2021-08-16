@@ -85,7 +85,7 @@ type NumericAbs[T any] interface {
 	Abs() T
 }
 
-func AbsDifference[T NumericAbs[T]](x T)
+func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
 
 type OrderedAbs[T any] T
 
@@ -97,7 +97,7 @@ func OrderedAbsDifference[T any](x T) {
 
 // same code, reduced to essence
 
-func g[P interface{ m() P }](x P)
+func g[P interface{ m() P }](x P) { panic(0) }
 
 type T4[P any] P
 
@@ -205,7 +205,7 @@ type I0 interface {
 	E0
 }
 
-func f0[T I0]()
+func f0[T I0]() {}
 var _ = f0[int]
 var _ = f0[bool]
 var _ = f0[string]
@@ -216,7 +216,7 @@ type I01 interface {
 	E1
 }
 
-func f01[T I01]()
+func f01[T I01]() {}
 var _ = f01[int]
 var _ = f01[bool /* ERROR does not satisfy I0 */ ]
 var _ = f01[string]
@@ -228,7 +228,7 @@ type I012 interface {
 	E2
 }
 
-func f012[T I012]()
+func f012[T I012]() {}
 var _ = f012[int /* ERROR does not satisfy I012 */ ]
 var _ = f012[bool /* ERROR does not satisfy I012 */ ]
 var _ = f012[string /* ERROR does not satisfy I012 */ ]
@@ -239,7 +239,7 @@ type I12 interface {
 	E2
 }
 
-func f12[T I12]()
+func f12[T I12]() {}
 var _ = f12[int /* ERROR does not satisfy I12 */ ]
 var _ = f12[bool /* ERROR does not satisfy I12 */ ]
 var _ = f12[string /* ERROR does not satisfy I12 */ ]
@@ -250,7 +250,7 @@ type I0_ interface {
 	~int
 }
 
-func f0_[T I0_]()
+func f0_[T I0_]() {}
 var _ = f0_[int]
 var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[string /* ERROR does not satisfy I0_ */ ]

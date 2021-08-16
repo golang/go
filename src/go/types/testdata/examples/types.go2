@@ -222,15 +222,15 @@ type B0 interface {}
 type B1[_ any] interface{}
 type B2[_, _ any] interface{}
 
-func _[T1 B0]()
-func _[T1 B1[T1]]()
-func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
+func _[T1 B0]() {}
+func _[T1 B1[T1]]() {}
+func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
 
-func _[T1, T2 B0]()
-func _[T1 B1[T1], T2 B1[T2]]()
-func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
+func _[T1, T2 B0]() {}
+func _[T1 B1[T1], T2 B1[T2]]() {}
+func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
 
-func _[T1 B0, T2 B1[T2]]() // here B1 applies to T2
+func _[T1 B0, T2 B1[T2]]() {} // here B1 applies to T2
 
 // When the type argument is left away, the type bound is
 // instantiated for each type parameter with that type
