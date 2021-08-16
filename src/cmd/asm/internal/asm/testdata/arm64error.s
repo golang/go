@@ -419,4 +419,8 @@ TEXT errors(SB),$0
 	ADD	R1>>2, RSP, R3                                   // ERROR "illegal combination"
 	ADDS	R2<<3, R3, RSP                                   // ERROR "unexpected SP reference"
 	CMP	R1<<5, RSP                                       // ERROR "the left shift amount out of range 0 to 4"
+	MOVD.P  y+8(FP), R1                                      // ERROR "illegal combination"
+	MOVD.W  x-8(SP), R1                                      // ERROR "illegal combination"
+	LDP.P   x+8(FP), (R0, R1)                                // ERROR "illegal combination"
+	LDP.W   x+8(SP), (R0, R1)                                // ERROR "illegal combination"
 	RET
