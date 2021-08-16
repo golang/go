@@ -146,33 +146,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Interface:
 		buf.WriteString("interface{")
-		empty := true
-		// print explicit interface methods and embedded types
-		for i, m := range t.methods {
-			if i > 0 {
+		first := true
+		for _, m := range t.methods {
+			if !first {
 				buf.WriteString("; ")
 			}
+			first = false
 			buf.WriteString(m.name)
 			writeSignature(buf, m.typ.(*Signature), qf, visited)
-			empty = false
 		}
-		if !empty && len(t.embeddeds) > 0 {
-			buf.WriteString("; ")
-		}
-		for i, typ := range t.embeddeds {
-			if i > 0 {
+		for _, typ := range t.embeddeds {
+			if !first {
 				buf.WriteString("; ")
 			}
+			first = false
 			writeType(buf, typ, qf, visited)
-			empty = false
-		}
-		// print /* incomplete */ if needed to satisfy existing tests
-		// TODO(gri) get rid of this eventually
-		if debug && t.tset == nil {
-			if !empty {
-				buf.WriteByte(' ')
-			}
-			buf.WriteString("/* incomplete */")
 		}
 		buf.WriteByte('}')
 
