@@ -228,10 +228,15 @@ func (subst *subster) typ(typ Type) Type {
 			return named
 		}
 
-		// create a new named type and populate typMap to avoid endless recursion
+		// Create a new named type and populate typMap to avoid endless recursion.
+		// The position used here is irrelevant because validation only occurs on t
+		// (we don't call validType on named), but we use subst.pos to help with
+		// debugging.
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
 		t.load()
-		named := subst.check.newNamed(tname, t.orig, t.underlying, t.TParams(), t.methods) // method signatures are updated lazily
+		// It's ok to provide a nil *Checker because the newly created type
+		// doesn't need to be (lazily) expanded; it's expanded below.
+		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
 		named.targs = newTArgs
 		subst.typMap[h] = named
 		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
@@ -241,7 +246,7 @@ func (subst *subster) typ(typ Type) Type {
 		named.underlying = subst.typOrNil(t.underlying)
 		dump(">>> underlying: %v", named.underlying)
 		assert(named.underlying != nil)
-		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
+		named.fromRHS = named.underlying // for consistency, though no cycle detection is necessary
 
 		return named
 
