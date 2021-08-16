@@ -133,6 +133,27 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 		inputC = nil
 	}
 
+	// Ensure that any crash we find is written to the corpus, even if an error
+	// or interruption occurs while minimizing it.
+	var crashMinimizing *fuzzResult
+	crashWritten := false
+	defer func() {
+		if crashMinimizing == nil || crashWritten {
+			return
+		}
+		fileName, werr := writeToCorpus(crashMinimizing.entry.Data, opts.CorpusDir)
+		if werr != nil {
+			err = fmt.Errorf("%w\n%v", err, werr)
+			return
+		}
+		if err == nil {
+			err = &crashError{
+				name: filepath.Base(fileName),
+				err:  errors.New(crashMinimizing.crasherMsg),
+			}
+		}
+	}()
+
 	// Start workers.
 	// TODO(jayconrod): do we want to support fuzzing different binaries?
 	dir := "" // same as self
@@ -175,8 +196,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	statTicker := time.NewTicker(3 * time.Second)
 	defer statTicker.Stop()
 	defer c.logStats()
-	crashMinimizing := false
-	crashWritten := false
 
 	for {
 		select {
@@ -194,7 +213,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 
 			if result.crasherMsg != "" {
 				if c.canMinimize() && !result.minimizeAttempted {
-					if crashMinimizing {
+					if crashMinimizing != nil {
 						// This crash is not minimized, and another crash is being minimized.
 						// Ignore this one and wait for the other one to finish.
 						break
@@ -202,7 +221,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// Found a crasher but haven't yet attempted to minimize it.
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
-					crashMinimizing = true
+					crashMinimizing = &result
 					inputC = nil
 					fmt.Fprintf(c.opts.Log, "found a crash, minimizing...\n")
 					c.minimizeC <- c.minimizeInputForResult(result)
@@ -304,7 +323,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					}
 				}
 			}
-			if inputC == nil && !crashMinimizing && !stopping && !c.coverageOnlyRun() {
+			if inputC == nil && crashMinimizing == nil && !stopping && !c.coverageOnlyRun() {
 				// Re-enable inputC if it was disabled earlier because we hit the limit
 				// on the number of inputs to fuzz (nextInput returned false). Workers
 				// can do less work than requested, so after receiving a result above,
