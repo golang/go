@@ -196,11 +196,8 @@ func (w *worker) coordinate(ctx context.Context) error {
 				totalDuration: resp.TotalDuration,
 				entryDuration: resp.InterestingDuration,
 				entry:         entry,
-			}
-			if resp.Err != "" {
-				result.crasherMsg = resp.Err
-			} else if resp.CoverageData != nil {
-				result.coverageData = resp.CoverageData
+				crasherMsg:    resp.Err,
+				coverageData:  resp.CoverageData,
 			}
 			w.coordinator.resultC <- result
 
@@ -208,13 +205,18 @@ func (w *worker) coordinate(ctx context.Context) error {
 			// Received input to minimize from coordinator.
 			result, err := w.minimize(ctx, input)
 			if err != nil {
-				// Failed to minimize. Send back the original crash.
-				fmt.Fprintln(w.coordinator.opts.Log, err)
+				// Error minimizing. Send back the original input. If it didn't cause
+				// an error before, report it as causing an error now.
+				// TODO(fuzz): double-check this is handled correctly when
+				// implementing -keepfuzzing.
 				result = fuzzResult{
 					entry:             input.entry,
 					crasherMsg:        input.crasherMsg,
 					minimizeAttempted: true,
 					limit:             input.limit,
+				}
+				if result.crasherMsg == "" {
+					result.crasherMsg = err.Error()
 				}
 			}
 			w.coordinator.resultC <- result
@@ -223,11 +225,9 @@ func (w *worker) coordinate(ctx context.Context) error {
 }
 
 // minimize tells a worker process to attempt to find a smaller value that
-// causes an error. minimize may restart the worker repeatedly if the error
-// causes (or already caused) the worker process to terminate.
-//
-// TODO: support minimizing inputs that expand coverage in a specific way,
-// for example, by ensuring that an input activates a specific set of counters.
+// either causes an error (if we started minimizing because we found an input
+// that causes an error) or preserves new coverage (if we started minimizing
+// because we found an input that expands coverage).
 func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuzzResult, err error) {
 	if w.coordinator.opts.MinimizeTimeout != 0 {
 		var cancel func()
@@ -261,10 +261,10 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
 	}
 
-	if resp.Err == "" {
-		// Minimization did not find a smaller input that caused a crash.
-		return min, nil
+	if input.crasherMsg != "" && resp.Err == "" && !resp.Success {
+		return fuzzResult{}, fmt.Errorf("attempted to minimize but could not reproduce")
 	}
+
 	min.crasherMsg = resp.Err
 	min.count = resp.Count
 	min.totalDuration = resp.Duration
@@ -498,9 +498,11 @@ type minimizeArgs struct {
 
 // minimizeResponse contains results from workerServer.minimize.
 type minimizeResponse struct {
-	// Err is the error string caused by the value in shared memory.
-	// If Err is empty, minimize was unable to find any shorter values that
-	// caused errors, and the value in shared memory is the original value.
+	// Success is true if the worker found a smaller input, stored in shared
+	// memory, that was "interesting" for the same reason as the original input.
+	Success bool
+
+	// Err is the error string caused by the value in shared memory, if any.
 	Err string
 
 	// Duration is the time spent minimizing, not including starting or cleaning up.
@@ -734,7 +736,7 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 	// Minimize the values in vals, then write to shared memory. We only write
 	// to shared memory after completing minimization. If the worker terminates
 	// unexpectedly before then, the coordinator will use the original input.
-	err = ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit)
+	resp.Success, err = ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit)
 	writeToMem(vals, mem)
 	if err != nil {
 		resp.Err = err.Error()
@@ -748,16 +750,15 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 // mem just in case an unrecoverable error occurs. It uses the context to
 // determine how long to run, stopping once closed. It returns the last error it
 // found.
-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64) error {
+func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64) (success bool, retErr error) {
 	shouldStop := func() bool {
 		return ctx.Err() != nil || (limit > 0 && *count >= limit)
 	}
 	if shouldStop() {
-		return nil
+		return false, nil
 	}
 
 	var valI int
-	var retErr error
 	tryMinimized := func(candidate interface{}) bool {
 		prev := vals[valI]
 		// Set vals[valI] to the candidate after it has been
@@ -822,7 +823,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 
 	for valI = range vals {
 		if shouldStop() {
-			return retErr
+			break
 		}
 		switch v := vals[valI].(type) {
 		case bool:
@@ -869,7 +870,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 			panic("unreachable")
 		}
 	}
-	return retErr
+	return retErr != nil, retErr
 }
 
 func writeToMem(vals []interface{}, mem *sharedMem) {

@@ -16,12 +16,14 @@ import (
 
 func TestMinimizeInput(t *testing.T) {
 	type testcase struct {
+		name     string
 		fn       func(CorpusEntry) error
 		input    []interface{}
 		expected []interface{}
 	}
 	cases := []testcase{
 		{
+			name: "ones_byte",
 			fn: func(e CorpusEntry) error {
 				b := e.Values[0].([]byte)
 				ones := 0
@@ -39,6 +41,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{[]byte{1, 1, 1}},
 		},
 		{
+			name: "ones_string",
 			fn: func(e CorpusEntry) error {
 				b := e.Values[0].(string)
 				ones := 0
@@ -56,6 +59,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{"111"},
 		},
 		{
+			name: "int",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(int)
 				if i > 100 {
@@ -67,6 +71,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{123},
 		},
 		{
+			name: "int8",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(int8)
 				if i > 10 {
@@ -78,6 +83,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{int8(12)},
 		},
 		{
+			name: "int16",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(int16)
 				if i > 10 {
@@ -100,6 +106,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{int32(21)},
 		},
 		{
+			name: "int32",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(uint)
 				if i > 10 {
@@ -111,6 +118,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{uint(12)},
 		},
 		{
+			name: "uint8",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(uint8)
 				if i > 10 {
@@ -122,6 +130,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{uint8(25)},
 		},
 		{
+			name: "uint16",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(uint16)
 				if i > 10 {
@@ -133,6 +142,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{uint16(65)},
 		},
 		{
+			name: "uint32",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(uint32)
 				if i > 10 {
@@ -144,6 +154,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{uint32(42)},
 		},
 		{
+			name: "float32",
 			fn: func(e CorpusEntry) error {
 				if i := e.Values[0].(float32); i == 1.23 {
 					return nil
@@ -154,6 +165,7 @@ func TestMinimizeInput(t *testing.T) {
 			expected: []interface{}{float32(1.2)},
 		},
 		{
+			name: "float64",
 			fn: func(e CorpusEntry) error {
 				if i := e.Values[0].(float64); i == 1.23 {
 					return nil
@@ -168,6 +180,7 @@ func TestMinimizeInput(t *testing.T) {
 	// If we are on a 64 bit platform add int64 and uint64 tests
 	if v := int64(1<<63 - 1); int64(int(v)) == v {
 		cases = append(cases, testcase{
+			name: "int64",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(int64)
 				if i > 10 {
@@ -178,6 +191,7 @@ func TestMinimizeInput(t *testing.T) {
 			input:    []interface{}{int64(1<<63 - 1)},
 			expected: []interface{}{int64(92)},
 		}, testcase{
+			name: "uint64",
 			fn: func(e CorpusEntry) error {
 				i := e.Values[0].(uint64)
 				if i > 10 {
@@ -191,20 +205,27 @@ func TestMinimizeInput(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		ws := &workerServer{
-			fuzzFn: tc.fn,
-		}
-		count := int64(0)
-		vals := tc.input
-		err := ws.minimizeInput(context.Background(), vals, &count, 0)
-		if err == nil {
-			t.Error("minimizeInput didn't fail")
-		}
-		if expected := fmt.Sprintf("bad %v", tc.input[0]); err.Error() != expected {
-			t.Errorf("unexpected error: got %s, want %s", err, expected)
-		}
-		if !reflect.DeepEqual(vals, tc.expected) {
-			t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)
-		}
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ws := &workerServer{
+				fuzzFn: tc.fn,
+			}
+			count := int64(0)
+			vals := tc.input
+			success, err := ws.minimizeInput(context.Background(), vals, &count, 0)
+			if !success {
+				t.Errorf("minimizeInput did not succeed")
+			}
+			if err == nil {
+				t.Error("minimizeInput didn't fail")
+			}
+			if expected := fmt.Sprintf("bad %v", tc.input[0]); err.Error() != expected {
+				t.Errorf("unexpected error: got %s, want %s", err, expected)
+			}
+			if !reflect.DeepEqual(vals, tc.expected) {
+				t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)
+			}
+		})
 	}
 }

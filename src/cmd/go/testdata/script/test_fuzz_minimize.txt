@@ -24,7 +24,7 @@ rm testdata
 ! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x minimizer_test.go
 ! stdout '^ok'
 stdout 'found a crash, minimizing'
-stdout 'fuzzing process terminated unexpectedly while minimizing: exit status 99'
+stdout 'fuzzing process terminated unexpectedly: exit status 99'
 stdout FAIL
 
 # Check that re-running the value causes a crash.
