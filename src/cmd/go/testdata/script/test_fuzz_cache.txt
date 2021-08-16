@@ -35,19 +35,27 @@ go 1.16
 -- y_test.go --
 package y
 
-import "testing"
+import (
+	"io"
+	"testing"
+)
 
 func FuzzY(f *testing.F) {
 	f.Add([]byte("y"))
-	f.Fuzz(func(t *testing.T, b []byte) { Y(b) })
+	f.Fuzz(func(t *testing.T, b []byte) { Y(io.Discard, b) })
 }
 -- y.go --
 package y
 
-import "bytes"
+import (
+	"bytes"
+	"io"
+)
 
-func Y(b []byte) bool {
-	return bytes.Equal(b, []byte("y"))
+func Y(w io.Writer, b []byte) {
+	if !bytes.Equal(b, []byte("y")) {
+		w.Write([]byte("not equal"))
+	}
 }
 -- empty/empty.go --
 package empty

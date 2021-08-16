@@ -831,11 +831,18 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	fuzzFlags := work.FuzzInstrumentFlags()
 	if testFuzz != "" && fuzzFlags != nil {
 		// Don't instrument packages which may affect coverage guidance but are
-		// unlikely to be useful.
+		// unlikely to be useful. Most of these are used by the testing or
+		// internal/fuzz concurrently with fuzzing.
 		var fuzzNoInstrument = map[string]bool{
-			"testing":       true,
+			"context":       true,
 			"internal/fuzz": true,
+			"reflect":       true,
 			"runtime":       true,
+			"sync":          true,
+			"sync/atomic":   true,
+			"syscall":       true,
+			"testing":       true,
+			"time":          true,
 		}
 		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
 			if fuzzNoInstrument[p.ImportPath] {
