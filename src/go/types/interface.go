@@ -104,22 +104,12 @@ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 // IsConstraint reports whether interface t is not just a method set.
 func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
 
-// Complete computes the interface's type set. It must be called by users of
-// NewInterfaceType and NewInterface after the interface's embedded types are
-// fully defined and before using the interface type in any way other than to
-// form other types. The interface must not contain duplicate methods or a
-// panic occurs. Complete returns the receiver.
+// Complete just returns its receiver. There's no other effect.
 //
-// Deprecated: Type sets are now computed lazily, on demand; this function
-//             is only here for backward-compatibility. It does not have to
-//             be called explicitly anymore.
+// Deprecated: Interfaces are now completed on demand; this function is only
+// here for backward-compatibility. It does not have to be called explicitly
+// anymore.
 func (t *Interface) Complete() *Interface {
-	// Some tests are still depending on the state change
-	// (string representation of an Interface not containing an
-	// /* incomplete */ marker) caused by the explicit Complete
-	// call, so we compute the type set eagerly here.
-	t.complete = true
-	t.typeSet()
 	return t
 }
 
