@@ -131,7 +131,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *Union:
 		// Unions only appear as (syntactic) embedded elements
 		// in interfaces and syntactically cannot be empty.
-		if t.NumTerms() == 0 {
+		if t.Len() == 0 {
 			panic("empty union")
 		}
 		for i, t := range t.terms {

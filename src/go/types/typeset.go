@@ -357,7 +357,7 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 			// This case is handled during union parsing.
 			unreachable()
 		default:
-			terms = termlist{t}
+			terms = termlist{(*term)(t)}
 		}
 		// The type set of a union expression is the union
 		// of the type sets of each term.

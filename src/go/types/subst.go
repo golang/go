@@ -394,19 +394,19 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
 	return
 }
 
-func (subst *subster) termlist(in []*term) (out []*term, copied bool) {
+func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
 	out = in
 	for i, t := range in {
 		if u := subst.typ(t.typ); u != t.typ {
 			if !copied {
 				// first function that got substituted => allocate new out slice
 				// and copy all functions
-				new := make([]*term, len(in))
+				new := make([]*Term, len(in))
 				copy(new, out)
 				out = new
 				copied = true
 			}
-			out[i] = &term{t.tilde, u}
+			out[i] = NewTerm(t.tilde, u)
 		}
 	}
 	return
