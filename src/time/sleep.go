@@ -84,8 +84,6 @@ func (t *Timer) Stop() bool {
 // NewTimer creates a new Timer that will send
 // the current time on its channel after at least duration d.
 func NewTimer(d Duration) *Timer {
-	// Give the channel a 1-element time buffer
-	// to hold the current time.
 	c := make(chan Time, 1)
 	t := &Timer{
 		C: c,
