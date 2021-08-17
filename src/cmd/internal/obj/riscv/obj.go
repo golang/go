@@ -250,7 +250,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				ctxt.Diag("unsupported register-register move at %v", p)
 			}
 
-		case obj.TYPE_MEM: // MOV Rs, c(Rd) -> S $c, Rs, Rd
+		case obj.TYPE_MEM:
 			switch p.As {
 			case AMOVBU, AMOVHU, AMOVWU:
 				ctxt.Diag("unsupported unsigned store at %v", p)
@@ -258,26 +258,9 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			}
 			switch p.To.Name {
 			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
-				p.As = movToStore(p.As)
-				p.To.Reg = addrToReg(p.To)
 
 			case obj.NAME_EXTERN, obj.NAME_STATIC:
-				// AUIPC $off_hi, TMP
-				// S $off_lo, TMP, R
-				as := p.As
-				from := p.From
-
-				p.As = AAUIPC
 				p.Mark |= NEED_PCREL_STYPE_RELOC
-				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-				p.Reg = 0
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p = obj.Appendp(p, newprog)
-
-				p.As = movToStore(as)
-				p.From = from
-				p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_TMP, Offset: 0}
 
 			default:
 				ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
@@ -1772,22 +1755,25 @@ func instructionsForLoad(p *obj.Prog, as obj.As, rs int16) []*instruction {
 	return []*instruction{insLUI, insADD, ins}
 }
 
-func instructionsForStore(p *obj.Prog) []*instruction {
+// instructionsForStore returns the machine instructions for a store. The store
+// instruction is specified by as and the target/source register is specified
+// by rd, instead of the obj.Prog.
+func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
 	if p.To.Type != obj.TYPE_MEM {
 		p.Ctxt.Diag("%v requires memory for destination", p)
 		return nil
 	}
 
-	switch p.As {
+	switch as {
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
 	default:
-		p.Ctxt.Diag("%v: unknown store instruction %v", p, p.As)
+		p.Ctxt.Diag("%v: unknown store instruction %v", p, as)
 		return nil
 	}
 
 	// <store> $imm, REG, TO (store $imm+(TO), REG)
 	ins := instructionForProg(p)
-	ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+	ins.as, ins.rd, ins.rs1, ins.rs2 = as, uint32(rd), uint32(p.From.Reg), obj.REG_NONE
 	ins.imm = p.To.Offset
 
 	low, high, err := Split32BitImmediate(ins.imm)
@@ -1888,6 +1874,26 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = []*instruction{insAUIPC, ins}
 		}
 
+	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
+		// Register to memory stores.
+		switch p.As {
+		case AMOVBU, AMOVHU, AMOVWU:
+			// rewriteMOV should have already added an error for these.
+			return nil
+		}
+		switch p.To.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+			// MOV Rs, c(Rd) -> S $c, Rs, Rd
+			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
+
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// AUIPC $off_hi, Rtmp
+			// S $off_lo, Rtmp, Rd
+			insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
+			ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
+			inss = []*instruction{insAUIPC, ins}
+		}
+
 	default:
 		// If we get here with a MOV pseudo-instruction it is going to
 		// remain unhandled. For now we trust rewriteMOV to catch these.
@@ -1947,7 +1953,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		return instructionsForLoad(p, ins.as, p.From.Reg)
 
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
-		return instructionsForStore(p)
+		return instructionsForStore(p, ins.as, p.To.Reg)
 
 	case ALRW, ALRD:
 		// Set aq to use acquire access ordering, which matches Go's memory requirements.
