@@ -1118,6 +1118,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				m = convertUsingDictionary(subst.info, subst.info.dictParam, m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
+			if !x.Type().HasTParam() {
+				break
+			}
 			dt := m.(*ir.TypeAssertExpr)
 			var rt ir.Node
 			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
