@@ -244,7 +244,7 @@ func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
 	return n
 }
 
-// A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
+// An IfStmt is a return statement: if Init; Cond { Body } else { Else }.
 type IfStmt struct {
 	miniStmt
 	Cond   Node

@@ -117,7 +117,7 @@ func (l *location) isName(c ir.Class) bool {
 	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
 }
 
-// An hole represents a context for evaluation a Go
+// A hole represents a context for evaluation of a Go
 // expression. E.g., when evaluating p in "x = **p", we'd have a hole
 // with dst==x and derefs==2.
 type hole struct {
