@@ -74,9 +74,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface or type parameter has no methods.
-	switch under(typ).(type) {
-	case *Interface, *TypeParam:
-		if isPtr {
+	if isPtr {
+		// don't look at under(typ) here - was bug (issue #47747)
+		if _, ok := typ.(*TypeParam); ok {
+			return
+		}
+		if _, ok := under(typ).(*Interface); ok {
 			return
 		}
 	}
