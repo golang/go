@@ -275,7 +275,7 @@ func (n *ConvExpr) SetOp(op Op) {
 	}
 }
 
-// An IndexExpr is an index expression X[Y].
+// An IndexExpr is an index expression X[Index].
 type IndexExpr struct {
 	miniExpr
 	X        Node
