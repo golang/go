@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func defaultTransportDialer() func(context.Context, string, string) (net.Conn, error) {
+func defaultTransportDialContext() func(context.Context, string, string) (net.Conn, error) {
 	dialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,

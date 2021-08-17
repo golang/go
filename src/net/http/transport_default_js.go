@@ -7,8 +7,11 @@
 
 package http
 
-import "net"
+import (
+	"context"
+	"net"
+)
 
-func defaultTransportDialer() *net.Dialer {
+func defaultTransportDialContext() func(context.Context, string, string) (net.Conn, error) {
 	return nil
 }

@@ -46,7 +46,7 @@ const DefaultMaxIdleConnsPerHost = 2
 // $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{
 	Proxy:                 ProxyFromEnvironment,
-	DialContext:           defaultTransportDialer(),
+	DialContext:           defaultTransportDialContext(),
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
