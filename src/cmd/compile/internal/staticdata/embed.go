@@ -73,7 +73,7 @@ func embedKind(typ *types.Type) int {
 	if typ.Kind() == types.TSTRING {
 		return embedString
 	}
-	if typ.Sym() == nil && typ.IsSlice() && typ.Elem().Kind() == types.TUINT8 {
+	if typ.IsSlice() && typ.Elem().Kind() == types.TUINT8 {
 		return embedBytes
 	}
 	return embedUnknown
