@@ -282,6 +282,8 @@ start:
 	MOV	X5, X6					// 13830200
 	MOV	$2047, X5				// 9b02f07f
 	MOV	$-2048, X5				// 9b020080
+	MOV	$2048, X5				// b71200009b820280
+	MOV	$-2049, X5				// b7f2ffff9b82f27f
 
 	// Converted to load of symbol.
 	MOV	$4294967296, X5				// 97020000

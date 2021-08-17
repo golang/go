@@ -305,41 +305,11 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		}
 
 	case obj.TYPE_CONST:
-		// MOV $c, R
-		// If c is small enough, convert to:
-		//   ADD $c, ZERO, R
-		// If not, convert to:
-		//   LUI top20bits(c), R
-		//   ADD bottom12bits(c), R, R
 		if p.As != AMOV {
 			ctxt.Diag("%v: unsupported constant load", p)
 		}
 		if p.To.Type != obj.TYPE_REG {
 			ctxt.Diag("%v: constant load must target register", p)
-		}
-		off := p.From.Offset
-		to := p.To
-
-		low, high, err := Split32BitImmediate(off)
-		if err != nil {
-			ctxt.Diag("%v: constant %d too large: %v", p, off, err)
-		}
-
-		// LUI is only necessary if the offset doesn't fit in 12-bits.
-		needLUI := high != 0
-		if needLUI {
-			p.As = ALUI
-			p.To = to
-			// Pass top 20 bits to LUI.
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
-			p = obj.Appendp(p, newprog)
-		}
-		p.As = AADDIW
-		p.To = to
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
-		p.Reg = REG_ZERO
-		if needLUI {
-			p.Reg = to.Reg
 		}
 
 	case obj.TYPE_ADDR: // MOV $sym+off(SP/SB), R
@@ -1845,6 +1815,28 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	inss := []*instruction{ins}
 
 	switch {
+	case p.From.Type == obj.TYPE_CONST && p.To.Type == obj.TYPE_REG:
+		// Handle constant to register moves.
+		low, high, err := Split32BitImmediate(ins.imm)
+		if err != nil {
+			p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
+			return nil
+		}
+
+		// MOV $c, R -> ADD $c, ZERO, R
+		ins.as, ins.rs1, ins.rs2, ins.imm = AADDIW, REG_ZERO, obj.REG_NONE, low
+
+		// LUI is only necessary if the constant does not fit in 12 bits.
+		if high == 0 {
+			break
+		}
+
+		// LUI top20bits(c), R
+		// ADD bottom12bits(c), R, R
+		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+		ins.rs1 = ins.rd
+		inss = []*instruction{insLUI, ins}
+
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
 		switch p.As {
