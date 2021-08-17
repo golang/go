@@ -387,7 +387,7 @@ func makeSingleStringReplacer(pattern string, value string) *singleStringReplace
 }
 
 func (r *singleStringReplacer) Replace(s string) string {
-	buf := Builder{}
+	var buf Builder
 	i, matched := 0, false
 	for {
 		match := r.finder.next(s[i:])
