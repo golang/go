@@ -185,7 +185,7 @@ type _ struct {
 // }
 
 // It is not permitted to declare a local type whose underlying
-// type is a type parameters not declared by that type declaration.
+// type is a type parameter not declared by that type declaration.
 func _[T any]() {
 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
@@ -286,4 +286,20 @@ func _[T interface{~int|~float64}]() {
 	var _ = T(0)
 	var _ T = 1
 	_ = T(0)
+}
+
+// It is possible to create composite literals of type parameter
+// type as long as it's possible to create a composite literal
+// of the structural type of the type parameter's constraint.
+func _[P interface{ ~[]int }]() P {
+	return P{}
+	return P{1, 2, 3}
+}
+
+func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
+	x := P{}
+	return P{{}}
+	return P{E{}}
+	return P{E{"foo": x}}
+	return P{{"foo": x}, {}}
 }
