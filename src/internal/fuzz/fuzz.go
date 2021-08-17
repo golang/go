@@ -109,7 +109,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	fuzzCtx, cancelWorkers := context.WithCancel(ctx)
 	defer cancelWorkers()
 	doneC := ctx.Done()
-	inputC := c.inputC
 
 	// stop is called when a worker encounters a fatal error.
 	var fuzzErr error
@@ -130,7 +129,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 		stopping = true
 		cancelWorkers()
 		doneC = nil
-		inputC = nil
 	}
 
 	// Ensure that any crash we find is written to the corpus, even if an error
@@ -189,20 +187,36 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	// Do not return until all workers have terminated. We avoid a deadlock by
 	// receiving messages from workers even after ctx is cancelled.
 	activeWorkers := len(workers)
-	input, ok := c.nextInput()
-	if !ok {
-		panic("no input")
-	}
 	statTicker := time.NewTicker(3 * time.Second)
 	defer statTicker.Stop()
 	defer c.logStats()
 
 	for {
+		var inputC chan fuzzInput
+		input, ok := c.peekInput()
+		if ok && crashMinimizing == nil && !stopping {
+			inputC = c.inputC
+		}
+
+		var minimizeC chan fuzzMinimizeInput
+		minimizeInput, ok := c.peekMinimizeInput()
+		if ok && !stopping {
+			minimizeC = c.minimizeC
+		}
+
 		select {
 		case <-doneC:
 			// Interrupted, cancelled, or timed out.
 			// stop sets doneC to nil so we don't busy wait here.
 			stop(ctx.Err())
+
+		case err := <-errC:
+			// A worker terminated, possibly after encountering a fatal error.
+			stop(err)
+			activeWorkers--
+			if activeWorkers == 0 {
+				return fuzzErr
+			}
 
 		case result := <-c.resultC:
 			// Received response from worker.
@@ -222,9 +236,8 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
 					crashMinimizing = &result
-					inputC = nil
 					fmt.Fprintf(c.opts.Log, "found a crash, minimizing...\n")
-					c.minimizeC <- c.minimizeInputForResult(result)
+					c.queueForMinimization(result, nil)
 				} else if !crashWritten {
 					// Found a crasher that's either minimized or not minimizable.
 					// Write to corpus and stop.
@@ -251,53 +264,23 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					stop(err)
 				}
 			} else if result.coverageData != nil {
-				newBitCount := c.updateCoverage(result.coverageData)
-				if newBitCount > 0 && !c.coverageOnlyRun() {
-					// Found an interesting value that expanded coverage.
-					// This is not a crasher, but we should add it to the
-					// on-disk corpus, and prioritize it for future fuzzing.
-					// TODO(jayconrod, katiehockman): Prioritize fuzzing these
-					// values which expanded coverage, perhaps based on the
-					// number of new edges that this result expanded.
-					// TODO(jayconrod, katiehockman): Don't write a value that's already
-					// in the corpus.
-					c.interestingCount++
-					c.corpus.entries = append(c.corpus.entries, result.entry)
-					if opts.CacheDir != "" {
-						if _, err := writeToCorpus(result.entry.Data, opts.CacheDir); err != nil {
-							stop(err)
-						}
-					}
-					if printDebugInfo() {
-						fmt.Fprintf(
-							c.opts.Log,
-							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new bits: %d, total bits: %d, size: %d, exec time: %s\n",
-							time.Since(c.startTime),
-							result.entry.Name,
-							result.entry.Parent,
-							result.entry.Generation,
-							newBitCount,
-							countBits(c.coverageMask),
-							len(result.entry.Data),
-							result.entryDuration,
-						)
-					}
-				} else if c.coverageOnlyRun() {
-					c.covOnlyInputs--
+				if c.coverageOnlyRun() {
 					if printDebugInfo() {
 						fmt.Fprintf(
 							c.opts.Log,
 							"DEBUG processed an initial input, elapsed: %s, id: %s, new bits: %d, size: %d, exec time: %s\n",
 							time.Since(c.startTime),
 							result.entry.Parent,
-							newBitCount,
+							countBits(diffCoverage(c.coverageMask, result.coverageData)),
 							len(result.entry.Data),
 							result.entryDuration,
 						)
 					}
+					c.updateCoverage(result.coverageData)
+					c.covOnlyInputs--
 					if c.covOnlyInputs == 0 {
 						// The coordinator has finished getting a baseline for
-						// coverage. Tell all of the workers to inialize their
+						// coverage. Tell all of the workers to initialize their
 						// baseline coverage data (by setting interestingCount
 						// to 0).
 						c.interestingCount = 0
@@ -311,6 +294,45 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 							)
 						}
 					}
+				} else if keepCoverage := diffCoverage(c.coverageMask, result.coverageData); keepCoverage != nil {
+					// Found a value that expanded coverage.
+					// It's not a crasher, but we may want to add it to the on-disk
+					// corpus and prioritize it for future fuzzing.
+					// TODO(jayconrod, katiehockman): Prioritize fuzzing these
+					// values which expanded coverage, perhaps based on the
+					// number of new edges that this result expanded.
+					// TODO(jayconrod, katiehockman): Don't write a value that's already
+					// in the corpus.
+					if printDebugInfo() {
+						fmt.Fprintf(
+							c.opts.Log,
+							"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new bits: %d, total bits: %d, size: %d, exec time: %s\n",
+							time.Since(c.startTime),
+							result.entry.Name,
+							result.entry.Parent,
+							result.entry.Generation,
+							countBits(keepCoverage),
+							countBits(c.coverageMask),
+							len(result.entry.Data),
+							result.entryDuration,
+						)
+					}
+					if !result.minimizeAttempted && crashMinimizing == nil && c.canMinimize() {
+						// Send back to workers to find a smaller value that preserves
+						// at least one new coverage bit.
+						c.queueForMinimization(result, keepCoverage)
+					} else {
+						// Update the coordinator's coverage mask and save the value.
+						if opts.CacheDir != "" {
+							if _, err := writeToCorpus(result.entry.Data, opts.CacheDir); err != nil {
+								stop(err)
+							}
+						}
+						c.updateCoverage(keepCoverage)
+						c.corpus.entries = append(c.corpus.entries, result.entry)
+						c.inputQueue.enqueue(result.entry)
+						c.interestingCount++
+					}
 				} else {
 					if printDebugInfo() {
 						fmt.Fprintf(
@@ -323,35 +345,14 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					}
 				}
 			}
-			if inputC == nil && crashMinimizing == nil && !stopping && !c.coverageOnlyRun() {
-				// Re-enable inputC if it was disabled earlier because we hit the limit
-				// on the number of inputs to fuzz (nextInput returned false). Workers
-				// can do less work than requested, so after receiving a result above,
-				// we might be below the limit now.
-				if input, ok = c.nextInput(); ok {
-					inputC = c.inputC
-				}
-			}
-
-		case err := <-errC:
-			// A worker terminated, possibly after encountering a fatal error.
-			stop(err)
-			activeWorkers--
-			if activeWorkers == 0 {
-				return fuzzErr
-			}
 
 		case inputC <- input:
-			// Send the next input to any worker.
-			if c.corpusIndex == 0 && c.coverageOnlyRun() {
-				// The coordinator is currently trying to run all of the corpus
-				// entries to gather baseline coverage data, and all of the
-				// inputs have been passed to inputC. Block any more inputs from
-				// being passed to the workers for now.
-				inputC = nil
-			} else if input, ok = c.nextInput(); !ok {
-				inputC = nil
-			}
+			// Sent the next input to a worker.
+			c.sentInput(input)
+
+		case minimizeC <- minimizeInput:
+			// Sent the next input for minimization to a worker.
+			c.sentMinimizeInput(minimizeInput)
 
 		case <-statTicker.C:
 			c.logStats()
@@ -484,6 +485,12 @@ type fuzzMinimizeInput struct {
 	// timeout is the time to spend minimizing this input.
 	// A zero timeout means no limit.
 	timeout time.Duration
+
+	// keepCoverage is a set of coverage bits that entry found that were not in
+	// the coordinator's combined set. When minimizing, the worker should find an
+	// input that preserves at least one of these bits. keepCoverage is nil for
+	// crashing inputs.
+	keepCoverage []byte
 }
 
 // coordinator holds channels that workers can use to communicate with
@@ -515,7 +522,8 @@ type coordinator struct {
 	interestingCount int64
 
 	// covOnlyInputs is the number of entries in the corpus which still need to
-	// be sent to a worker to gather baseline coverage data.
+	// be received from workers when gathering baseline coverage.
+	// See coverageOnlyRun.
 	covOnlyInputs int
 
 	// duration is the time spent fuzzing inside workers, not counting time
@@ -530,14 +538,19 @@ type coordinator struct {
 	// generated values that workers reported as interesting.
 	corpus corpus
 
-	// corpusIndex is the next value to send to workers.
-	// TODO(jayconrod,katiehockman): need a scheduling algorithm that chooses
-	// which corpus value to send next (or generates something new).
-	corpusIndex int
-
 	// typesAreMinimizable is true if one or more of the types of fuzz function's
 	// parameters can be minimized.
 	typesAreMinimizable bool
+
+	// inputQueue is a queue of inputs that workers should try fuzzing. This is
+	// initially populated from the seed corpus and cached inputs. More inputs
+	// may be added as new coverage is discovered.
+	inputQueue queue
+
+	// minimizeQueue is a queue of inputs that caused errors or exposed new
+	// coverage. Workers should attempt to find smaller inputs that do the
+	// same thing.
+	minimizeQueue queue
 
 	// coverageMask aggregates coverage that was found for all inputs in the
 	// corpus. Each byte represents a single basic execution block. Each set bit
@@ -559,7 +572,6 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 	if err != nil {
 		return nil, err
 	}
-	covOnlyInputs := len(corpus.entries)
 	if len(corpus.entries) == 0 {
 		var vals []interface{}
 		for _, t := range opts.Types {
@@ -571,13 +583,12 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		corpus.entries = append(corpus.entries, CorpusEntry{Name: name, Data: data, Values: vals})
 	}
 	c := &coordinator{
-		opts:          opts,
-		startTime:     time.Now(),
-		inputC:        make(chan fuzzInput),
-		minimizeC:     make(chan fuzzMinimizeInput),
-		resultC:       make(chan fuzzResult),
-		corpus:        corpus,
-		covOnlyInputs: covOnlyInputs,
+		opts:      opts,
+		startTime: time.Now(),
+		inputC:    make(chan fuzzInput),
+		minimizeC: make(chan fuzzMinimizeInput),
+		resultC:   make(chan fuzzResult),
+		corpus:    corpus,
 	}
 	for _, t := range opts.Types {
 		if isMinimizable(t) {
@@ -588,17 +599,23 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 
 	covSize := len(coverage())
 	if covSize == 0 {
+		// TODO: improve this warning. This condition happens if the binary was
+		// built without fuzzing instrumtation (e.g., with 'go test -c'), so the
+		// warning may not be true.
 		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
 		c.covOnlyInputs = 0
 	} else {
 		// Set c.coverageData to a clean []byte full of zeros.
 		c.coverageMask = make([]byte, covSize)
-	}
-
-	if c.covOnlyInputs > 0 {
-		// Set c.interestingCount to -1 so the workers know when the coverage
-		// run is finished and can update their local coverage data.
-		c.interestingCount = -1
+		c.covOnlyInputs = len(c.corpus.entries)
+		for _, e := range c.corpus.entries {
+			c.inputQueue.enqueue(e)
+		}
+		if c.covOnlyInputs > 0 {
+			// Set c.interestingCount to -1 so the workers know when the coverage
+			// run is finished and can update their local coverage data.
+			c.interestingCount = -1
+		}
 	}
 
 	return c, nil
@@ -620,28 +637,47 @@ func (c *coordinator) logStats() {
 	}
 }
 
-// nextInput returns the next value that should be sent to workers.
+// peekInput returns the next value that should be sent to workers.
 // If the number of executions is limited, the returned value includes
-// a limit for one worker. If there are no executions left, nextInput returns
+// a limit for one worker. If there are no executions left, peekInput returns
 // a zero value and false.
-func (c *coordinator) nextInput() (fuzzInput, bool) {
+//
+// peekInput doesn't actually remove the input from the queue. The caller
+// must call sentInput after sending the input.
+//
+// If the input queue is empty and the coverage-only run has completed,
+// queue refills it from the corpus.
+func (c *coordinator) peekInput() (fuzzInput, bool) {
 	if c.opts.Limit > 0 && c.count+c.countWaiting >= c.opts.Limit {
-		// Workers already testing all requested inputs.
+		// Already making the maximum number of calls to the fuzz function.
+		// Don't send more inputs right now.
 		return fuzzInput{}, false
 	}
+	if c.inputQueue.len == 0 {
+		if c.covOnlyInputs > 0 {
+			// Wait for coverage-only run to finish before sending more inputs.
+			return fuzzInput{}, false
+		}
+		c.refillInputQueue()
+	}
+
+	entry, ok := c.inputQueue.peek()
+	if !ok {
+		panic("input queue empty after refill")
+	}
 	input := fuzzInput{
-		entry:            c.corpus.entries[c.corpusIndex],
+		entry:            entry.(CorpusEntry),
 		interestingCount: c.interestingCount,
 		coverageData:     make([]byte, len(c.coverageMask)),
 		timeout:          workerFuzzDuration,
 	}
 	copy(input.coverageData, c.coverageMask)
-	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
 
 	if c.coverageOnlyRun() {
-		// This is a coverage-only run, so this input shouldn't be fuzzed,
-		// and shouldn't be included in the count of generated values.
+		// This is a coverage-only run, so this input shouldn't be fuzzed.
+		// It should count toward the limit set by -fuzztime though.
 		input.coverageOnly = true
+		input.limit = 1
 		return input, true
 	}
 
@@ -654,26 +690,60 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
 		if input.limit > remaining {
 			input.limit = remaining
 		}
-		c.countWaiting += input.limit
 	}
 	return input, true
 }
 
-// minimizeInputForResult returns an input for minimization based on the given
-// fuzzing result that either caused a failure or expanded coverage.
-func (c *coordinator) minimizeInputForResult(result fuzzResult) fuzzMinimizeInput {
-	input := fuzzMinimizeInput{
-		entry:      result.entry,
-		crasherMsg: result.crasherMsg,
+// sentInput updates internal counters after an input is sent to c.inputC.
+func (c *coordinator) sentInput(input fuzzInput) {
+	c.inputQueue.dequeue()
+	c.countWaiting += input.limit
+}
+
+// refillInputQueue refills the input queue from the corpus after it becomes
+// empty.
+func (c *coordinator) refillInputQueue() {
+	for _, e := range c.corpus.entries {
+		c.inputQueue.enqueue(e)
 	}
-	input.limit = 0
+}
+
+// queueForMinimization creates a fuzzMinimizeInput from result and adds it
+// to the minimization queue to be sent to workers.
+func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byte) {
+	if result.crasherMsg != "" {
+		c.minimizeQueue.clear()
+	}
+
+	input := fuzzMinimizeInput{
+		entry:        result.entry,
+		crasherMsg:   result.crasherMsg,
+		keepCoverage: keepCoverage,
+	}
+	c.minimizeQueue.enqueue(input)
+}
+
+// peekMinimizeInput returns the next input that should be sent to workers for
+// minimization.
+func (c *coordinator) peekMinimizeInput() (fuzzMinimizeInput, bool) {
+	if c.opts.Limit > 0 && c.count+c.countWaiting >= c.opts.Limit {
+		// Already making the maximum number of calls to the fuzz function.
+		// Don't send more inputs right now.
+		return fuzzMinimizeInput{}, false
+	}
+	v, ok := c.minimizeQueue.peek()
+	if !ok {
+		return fuzzMinimizeInput{}, false
+	}
+	input := v.(fuzzMinimizeInput)
+
 	if c.opts.MinimizeTimeout > 0 {
 		input.timeout = c.opts.MinimizeTimeout
 	}
 	if c.opts.MinimizeLimit > 0 {
 		input.limit = c.opts.MinimizeLimit
 	} else if c.opts.Limit > 0 {
-		if result.crasherMsg != "" {
+		if input.crasherMsg != "" {
 			input.limit = c.opts.Limit
 		} else {
 			input.limit = c.opts.Limit / int64(c.opts.Parallel)
@@ -686,10 +756,27 @@ func (c *coordinator) minimizeInputForResult(result fuzzResult) fuzzMinimizeInpu
 	if input.limit > remaining {
 		input.limit = remaining
 	}
-	c.countWaiting += input.limit
-	return input
+	return input, true
 }
 
+// sentMinimizeInput removes an input from the minimization queue after it's
+// sent to minimizeC.
+func (c *coordinator) sentMinimizeInput(input fuzzMinimizeInput) {
+	c.minimizeQueue.dequeue()
+	c.countWaiting += input.limit
+}
+
+// coverageOnlyRun returns true while the coordinator is gathering baseline
+// coverage data for entries in the corpus.
+//
+// The coordinator starts in this phase. It doesn't store coverage data in the
+// cache with each input because that data would be invalid when counter
+// offsets in the test binary change.
+//
+// When gathering coverage, the coordinator sends each entry to a worker to
+// gather coverage for that entry only, without fuzzing or minimizing. This
+// phase ends when all workers have finished, and the coordinator has a combined
+// coverage map.
 func (c *coordinator) coverageOnlyRun() bool {
 	return c.covOnlyInputs > 0
 }

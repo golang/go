@@ -9,6 +9,7 @@ package fuzz
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -213,7 +214,7 @@ func TestMinimizeInput(t *testing.T) {
 			}
 			count := int64(0)
 			vals := tc.input
-			success, err := ws.minimizeInput(context.Background(), vals, &count, 0)
+			success, err := ws.minimizeInput(context.Background(), vals, &count, 0, nil)
 			if !success {
 				t.Errorf("minimizeInput did not succeed")
 			}
@@ -227,5 +228,28 @@ func TestMinimizeInput(t *testing.T) {
 				t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)
 			}
 		})
+	}
+}
+
+// TestMinimizeInputCoverageError checks that if we're minimizing an interesting
+// input (one that we don't expect to cause an error), and the fuzz function
+// returns an error, minimizing fails, and we return the error quickly.
+func TestMinimizeInputCoverageError(t *testing.T) {
+	errOhNo := errors.New("ohno")
+	ws := &workerServer{fuzzFn: func(e CorpusEntry) error {
+		return errOhNo
+	}}
+	keepCoverage := make([]byte, len(coverageSnapshot))
+	count := int64(0)
+	vals := []interface{}{[]byte(nil)}
+	success, err := ws.minimizeInput(context.Background(), vals, &count, 0, keepCoverage)
+	if success {
+		t.Error("unexpected success")
+	}
+	if err != errOhNo {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("count: got %d, want 1", count)
 	}
 }

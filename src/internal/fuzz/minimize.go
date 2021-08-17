@@ -18,7 +18,7 @@ func isMinimizable(t reflect.Type) bool {
 	return false
 }
 
-func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool) {
 	// First, try to cut the tail.
 	for n := 1024; n != 0; n /= 2 {
 		for len(v) > n {
@@ -26,7 +26,7 @@ func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop fun
 				return
 			}
 			candidate := v[:len(v)-n]
-			if !stillCrashes(candidate) {
+			if !try(candidate) {
 				break
 			}
 			// Set v to the new value to continue iterating.
@@ -43,7 +43,7 @@ func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop fun
 		candidate := tmp[:len(v)-1]
 		copy(candidate[:i], v[:i])
 		copy(candidate[i:], v[i+1:])
-		if !stillCrashes(candidate) {
+		if !try(candidate) {
 			continue
 		}
 		// Update v to delete the value at index i.
@@ -63,7 +63,7 @@ func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop fun
 			}
 			candidate := tmp[:len(v)-j+i]
 			copy(candidate[i:], v[j:])
-			if !stillCrashes(candidate) {
+			if !try(candidate) {
 				continue
 			}
 			// Update v and reset the loop with the new length.
@@ -76,7 +76,7 @@ func minimizeBytes(v []byte, stillCrashes func(interface{}) bool, shouldStop fun
 	return
 }
 
-func minimizeInteger(v uint, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool) {
 	// TODO(rolandshoemaker): another approach could be either unsetting/setting all bits
 	// (depending on signed-ness), or rotating bits? When operating on cast signed integers
 	// this would probably be more complex though.
@@ -88,12 +88,12 @@ func minimizeInteger(v uint, stillCrashes func(interface{}) bool, shouldStop fun
 		// advancing the loop, since there is nothing after this check,
 		// and we don't return early because a smaller value could
 		// re-trigger the crash.
-		stillCrashes(v)
+		try(v)
 	}
 	return
 }
 
-func minimizeFloat(v float64, stillCrashes func(interface{}) bool, shouldStop func() bool) {
+func minimizeFloat(v float64, try func(interface{}) bool, shouldStop func() bool) {
 	if math.IsNaN(v) {
 		return
 	}
@@ -103,7 +103,7 @@ func minimizeFloat(v float64, stillCrashes func(interface{}) bool, shouldStop fu
 			return
 		}
 		minimized = float64(int(v*div)) / div
-		if !stillCrashes(minimized) {
+		if !try(minimized) {
 			// Since we are searching from least precision -> highest precision we
 			// can return early since we've already found the smallest value
 			return
