@@ -35,10 +35,6 @@ import (
 	"golang.org/x/net/http/httpproxy"
 )
 
-// DefaultMaxIdleConnsPerHost is the default value of Transport's
-// MaxIdleConnsPerHost.
-const DefaultMaxIdleConnsPerHost = 2
-
 // DefaultTransport is the default implementation of Transport and is
 // used by DefaultClient. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
@@ -53,6 +49,10 @@ var DefaultTransport RoundTripper = &Transport{
 	TLSHandshakeTimeout:   10 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 }
+
+// DefaultMaxIdleConnsPerHost is the default value of Transport's
+// MaxIdleConnsPerHost.
+const DefaultMaxIdleConnsPerHost = 2
 
 // Transport is an implementation of RoundTripper that supports HTTP,
 // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
