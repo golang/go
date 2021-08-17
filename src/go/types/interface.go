@@ -43,9 +43,12 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
 	return NewInterfaceType(methods, tnames)
 }
 
-// NewInterfaceType returns a new interface for the given methods and embedded types.
-// NewInterfaceType takes ownership of the provided methods and may modify their types
-// by setting missing receivers.
+// NewInterfaceType returns a new interface for the given methods and embedded
+// types. NewInterfaceType takes ownership of the provided methods and may
+// modify their types by setting missing receivers.
+//
+// To avoid race conditions, the interface's type set should be computed before
+// concurrent use of the interface, by explicitly calling Complete.
 func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	if len(methods) == 0 && len(embeddeds) == 0 {
 		return &emptyInterface
@@ -110,16 +113,12 @@ func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
 // form other types. The interface must not contain duplicate methods or a
 // panic occurs. Complete returns the receiver.
 //
-// Deprecated: Type sets are now computed lazily, on demand; this function
-//             is only here for backward-compatibility. It does not have to
-//             be called explicitly anymore.
+// Interface types that have been completed are safe for concurrent use.
 func (t *Interface) Complete() *Interface {
-	// Some tests are still depending on the state change
-	// (string representation of an Interface not containing an
-	// /* incomplete */ marker) caused by the explicit Complete
-	// call, so we compute the type set eagerly here.
-	t.complete = true
-	t.typeSet()
+	if !t.complete {
+		t.complete = true
+	}
+	t.typeSet() // checks if t.tset is already set
 	return t
 }
 
