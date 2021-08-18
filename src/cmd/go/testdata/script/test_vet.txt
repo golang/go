@@ -51,16 +51,15 @@ func Test(t *testing.T) {
 -- p1.go --
 package p
 
-import (
-	"fmt"
-	"net/http"
-)
+import "fmt"
 
 func F() {
 	fmt.Printf("%d") // oops
 }
 -- vetall/p.go --
 package p
+
+import "net/http"
 
 func F() {
 	resp, err := http.Head("example.com")
