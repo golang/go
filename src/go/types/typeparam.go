@@ -60,6 +60,9 @@ func (t *TypeParam) _SetId(id uint64) {
 	t.id = id
 }
 
+// Obj returns the type name for t.
+func (t *TypeParam) Obj() *TypeName { return t.obj }
+
 // Constraint returns the type constraint specified for t.
 func (t *TypeParam) Constraint() Type {
 	// compute the type set if possible (we may not have an interface)
