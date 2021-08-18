@@ -102,7 +102,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
 	// header which will be _at least_ 30 bytes we can safely preallocate
 	// if (data size / 30) >= end.directoryRecords.
-	if (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
+	if end.directorySize < uint64(size) && (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
 		z.File = make([]*File, 0, end.directoryRecords)
 	}
 	z.Comment = end.comment
