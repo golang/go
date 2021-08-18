@@ -7296,4 +7296,11 @@ func TestConvertibleTo(t *testing.T) {
 	if t1.ConvertibleTo(t2) {
 		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
 	}
+
+	t3 := ValueOf([]example1.MyStruct{}).Type()
+	t4 := ValueOf([]example2.MyStruct{}).Type()
+
+	if t3.ConvertibleTo(t4) {
+		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t3, t4)
+	}
 }
