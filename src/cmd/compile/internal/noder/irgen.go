@@ -149,6 +149,9 @@ type irgen struct {
 	// statements yet.
 	exprStmtOK bool
 
+	// types which we need to finish, by doing g.fillinMethods.
+	typesToFinalize []*typeDelayInfo
+
 	// Fully-instantiated generic types whose methods should be instantiated
 	instTypeList []*types.Type
 
@@ -182,6 +185,11 @@ type delayInfo struct {
 	targs []*types.Type
 	sym   *types.Sym
 	off   int
+}
+
+type typeDelayInfo struct {
+	typ  *types2.Named
+	ntyp *types.Type
 }
 
 func (g *irgen) generate(noders []*noder) {
