@@ -97,6 +97,17 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 	if fn.Pragma&ir.Systemstack != 0 && fn.Pragma&ir.Nosplit != 0 {
 		base.ErrorfAt(fn.Pos(), "go:nosplit and go:systemstack cannot be combined")
 	}
+	if fn.Pragma&ir.Nointerface != 0 {
+		// Propagate //go:nointerface from Func.Pragma to Field.Nointerface.
+		// This is a bit roundabout, but this is the earliest point where we've
+		// processed the function's pragma flags, and we've also already created
+		// the Fields to represent the receiver's method set.
+		if recv := fn.Type().Recv(); recv != nil {
+			typ := types.ReceiverBaseType(recv.Type)
+			meth := typecheck.Lookdot1(fn, typecheck.Lookup(decl.Name.Value), typ, typ.Methods(), 0)
+			meth.SetNointerface(true)
+		}
+	}
 
 	if decl.Name.Value == "init" && decl.Recv == nil {
 		g.target.Inits = append(g.target.Inits, fn)
