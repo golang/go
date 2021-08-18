@@ -256,15 +256,19 @@ var RISCV64DWARFRegisters = map[int16]int16{
 
 // Prog.Mark flags.
 const (
+	// USES_REG_TMP indicates that a machine instruction generated from the
+	// corresponding *obj.Prog uses the temporary register.
+	USES_REG_TMP = 1 << iota
+
 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
 	// it is the first instruction in an AUIPC + I-type pair that needs a
 	// R_RISCV_PCREL_ITYPE relocation.
-	NEED_PCREL_ITYPE_RELOC = 1 << 0
+	NEED_PCREL_ITYPE_RELOC
 
 	// NEED_PCREL_STYPE_RELOC is set on AUIPC instructions to indicate that
 	// it is the first instruction in an AUIPC + S-type pair that needs a
 	// R_RISCV_PCREL_STYPE relocation.
-	NEED_PCREL_STYPE_RELOC = 1 << 1
+	NEED_PCREL_STYPE_RELOC
 )
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
