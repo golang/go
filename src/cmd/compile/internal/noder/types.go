@@ -35,6 +35,16 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 	types.DeferCheckSize()
 	res := g.typ1(typ)
 	types.ResumeCheckSize()
+
+	// Finish up any types on typesToFinalize, now that we are at the top of a
+	// fully-defined (possibly recursive) type. fillinMethods could create more
+	// types to finalize.
+	for len(g.typesToFinalize) > 0 {
+		l := len(g.typesToFinalize)
+		info := g.typesToFinalize[l-1]
+		g.typesToFinalize = g.typesToFinalize[:l-1]
+		g.fillinMethods(info.typ, info.ntyp)
+	}
 	return res
 }
 
@@ -151,10 +161,19 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			ntyp.SetRParams(rparams)
 			//fmt.Printf("Saw new type %v %v\n", instName, ntyp.HasTParam())
 
-			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
-			g.fillinMethods(typ, ntyp)
 			// Save the symbol for the base generic type.
 			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
+			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
+			if typ.NumMethods() != 0 {
+				// Save a delayed call to g.fillinMethods() (once
+				// potentially recursive types have been fully
+				// resolved).
+				g.typesToFinalize = append(g.typesToFinalize,
+					&typeDelayInfo{
+						typ:  typ,
+						ntyp: ntyp,
+					})
+			}
 			return ntyp
 		}
 		obj := g.obj(typ.Obj())
@@ -266,76 +285,75 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 	}
 }
 
-// fillinMethods fills in the method name nodes and types for a defined type. This
-// is needed for later typechecking when looking up methods of instantiated types,
-// and for actually generating the methods for instantiated types.
+// fillinMethods fills in the method name nodes and types for a defined type with at
+// least one method. This is needed for later typechecking when looking up methods of
+// instantiated types, and for actually generating the methods for instantiated
+// types.
 func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
-	if typ.NumMethods() != 0 {
-		targs2 := typ.TArgs()
-		targs := make([]*types.Type, targs2.Len())
-		for i := range targs {
-			targs[i] = g.typ1(targs2.At(i))
-		}
+	targs2 := typ.TArgs()
+	targs := make([]*types.Type, targs2.Len())
+	for i := range targs {
+		targs[i] = g.typ1(targs2.At(i))
+	}
 
-		methods := make([]*types.Field, typ.NumMethods())
-		for i := range methods {
-			m := typ.Method(i)
-			recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
-			var meth *ir.Name
-			if m.Pkg() != g.self {
-				// Imported methods cannot be loaded by name (what
-				// g.obj() does) - they must be loaded via their
-				// type.
-				meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
+	methods := make([]*types.Field, typ.NumMethods())
+	for i := range methods {
+		m := typ.Method(i)
+		recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
+		var meth *ir.Name
+		if m.Pkg() != g.self {
+			// Imported methods cannot be loaded by name (what
+			// g.obj() does) - they must be loaded via their
+			// type.
+			meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
+		} else {
+			meth = g.obj(m)
+		}
+		if recvType != types2.Type(typ) {
+			// Unfortunately, meth is the type of the method of the
+			// generic type, so we have to do a substitution to get
+			// the name/type of the method of the instantiated type,
+			// using m.Type().RParams() and typ.TArgs()
+			inst2 := instTypeName2("", typ.TArgs())
+			name := meth.Sym().Name
+			i1 := strings.Index(name, "[")
+			i2 := strings.Index(name[i1:], "]")
+			assert(i1 >= 0 && i2 >= 0)
+			// Generate the name of the instantiated method.
+			name = name[0:i1] + inst2 + name[i1+i2+1:]
+			newsym := meth.Sym().Pkg.Lookup(name)
+			var meth2 *ir.Name
+			if newsym.Def != nil {
+				meth2 = newsym.Def.(*ir.Name)
 			} else {
-				meth = g.obj(m)
-			}
-			if recvType != types2.Type(typ) {
-				// Unfortunately, meth is the type of the method of the
-				// generic type, so we have to do a substitution to get
-				// the name/type of the method of the instantiated type,
-				// using m.Type().RParams() and typ.TArgs()
-				inst2 := instTypeName2("", typ.TArgs())
-				name := meth.Sym().Name
-				i1 := strings.Index(name, "[")
-				i2 := strings.Index(name[i1:], "]")
-				assert(i1 >= 0 && i2 >= 0)
-				// Generate the name of the instantiated method.
-				name = name[0:i1] + inst2 + name[i1+i2+1:]
-				newsym := meth.Sym().Pkg.Lookup(name)
-				var meth2 *ir.Name
-				if newsym.Def != nil {
-					meth2 = newsym.Def.(*ir.Name)
-				} else {
-					meth2 = ir.NewNameAt(meth.Pos(), newsym)
-					rparams := types2.AsSignature(m.Type()).RParams()
-					tparams := make([]*types.Type, rparams.Len())
-					for i := range tparams {
-						tparams[i] = g.typ1(rparams.At(i))
-					}
-					assert(len(tparams) == len(targs))
-					ts := typecheck.Tsubster{
-						Tparams: tparams,
-						Targs:   targs,
-					}
-					// Do the substitution of the type
-					meth2.SetType(ts.Typ(meth.Type()))
-					// Add any new fully instantiated types
-					// seen during the substitution to
-					// g.instTypeList.
-					g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
-					newsym.Def = meth2
+				meth2 = ir.NewNameAt(meth.Pos(), newsym)
+				rparams := types2.AsSignature(m.Type()).RParams()
+				tparams := make([]*types.Type, rparams.Len())
+				for i := range tparams {
+					tparams[i] = g.typ1(rparams.At(i))
 				}
-				meth = meth2
+				assert(len(tparams) == len(targs))
+				ts := typecheck.Tsubster{
+					Tparams: tparams,
+					Targs:   targs,
+				}
+				// Do the substitution of the type
+				meth2.SetType(ts.Typ(meth.Type()))
+				// Add any new fully instantiated types
+				// seen during the substitution to
+				// g.instTypeList.
+				g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
+				newsym.Def = meth2
 			}
-			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
-			methods[i].Nname = meth
+			meth = meth2
 		}
-		ntyp.Methods().Set(methods)
-		if !ntyp.HasTParam() && !ntyp.HasShape() {
-			// Generate all the methods for a new fully-instantiated type.
-			g.instTypeList = append(g.instTypeList, ntyp)
-		}
+		methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
+		methods[i].Nname = meth
+	}
+	ntyp.Methods().Set(methods)
+	if !ntyp.HasTParam() && !ntyp.HasShape() {
+		// Generate all the methods for a new fully-instantiated type.
+		g.instTypeList = append(g.instTypeList, ntyp)
 	}
 }
 

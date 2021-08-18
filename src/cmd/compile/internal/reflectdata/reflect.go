@@ -927,7 +927,7 @@ func formalType(t *types.Type) *types.Type {
 
 func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
-	if t.IsUntyped() {
+	if t.IsUntyped() || t.HasTParam() {
 		base.Fatalf("writeType %v", t)
 	}
 
