@@ -94,9 +94,8 @@ nocgo:
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
-	MOVDU	R0, -8(R1)
 	BL	runtime·newproc(SB)
-	ADD	$(16+FIXED_FRAME), R1
+	ADD	$(8+FIXED_FRAME), R1
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -504,34 +503,6 @@ again:
 	OR	R6, R6, R6	// Set PPR priority back to medium-low
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 8 bytes to get back to either nop or toc reload before deferreturn
-// 3. BR to fn
-// When dynamically linking Go, it is not sufficient to rewind to the BL
-// deferreturn -- we might be jumping between modules and so we need to reset
-// the TOC pointer in r2. To do this, codegen inserts MOVD 24(R1), R2 *before*
-// the BL deferreturn and jmpdefer rewinds to that.
-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
-	MOVD	0(R1), R31
-	SUB     $8, R31
-	MOVD	R31, LR
-
-	MOVD	fv+0(FP), R11
-	MOVD	argp+8(FP), R1
-	SUB	$FIXED_FRAME, R1
-#ifdef GOOS_aix
-	// AIX won't trigger a SIGSEGV if R11 = nil
-	// So it manually triggers it
-	CMP	R0, R11
-	BNE	2(PC)
-	MOVD	R0, 0(R0)
-#endif
-	MOVD	0(R11), R12
-	MOVD	R12, CTR
-	BR	(CTR)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -570,9 +541,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
-	// Moreover, if it's called inside the signal handler, it must not switch
-	// to g0 as it can be in use by another syscall.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVD	g_m(g), R8
 	MOVD	m_gsignal(R8), R6
 	CMP	R6, g

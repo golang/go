@@ -66,7 +66,7 @@ func Float64Val(v constant.Value) float64 {
 
 func AssertValidTypeForConst(t *types.Type, v constant.Value) {
 	if !ValidTypeForConst(t, v) {
-		base.Fatalf("%v does not represent %v", t, v)
+		base.Fatalf("%v (%v) does not represent %v (%v)", t, t.Kind(), v, v.Kind())
 	}
 }
 

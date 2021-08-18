@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
+	"cmd/internal/str"
 )
 
 var CmdEnv = &base.Command{
@@ -104,13 +105,13 @@ func MkEnv() []cfg.EnvVar {
 		env = append(env, cfg.EnvVar{Name: key, Value: val})
 	}
 
-	cc := cfg.DefaultCC(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CC")); len(env) > 0 {
-		cc = env[0]
+	cc := cfg.Getenv("CC")
+	if cc == "" {
+		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
 	}
-	cxx := cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
-	if env := strings.Fields(cfg.Getenv("CXX")); len(env) > 0 {
-		cxx = env[0]
+	cxx := cfg.Getenv("CXX")
+	if cxx == "" {
+		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
 	}
 	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
 	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
@@ -457,10 +458,23 @@ func checkEnvWrite(key, val string) error {
 		if !filepath.IsAbs(val) && val != "" {
 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
 		}
-	// Make sure CC and CXX are absolute paths
-	case "CC", "CXX", "GOMODCACHE":
-		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
-			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+	case "GOMODCACHE":
+		if !filepath.IsAbs(val) && val != "" {
+			return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q", val)
+		}
+	case "CC", "CXX":
+		if val == "" {
+			break
+		}
+		args, err := str.SplitQuotedFields(val)
+		if err != nil {
+			return fmt.Errorf("invalid %s: %v", key, err)
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("%s entry cannot contain only space", key)
+		}
+		if !filepath.IsAbs(args[0]) && args[0] != filepath.Base(args[0]) {
+			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, args[0])
 		}
 	}
 

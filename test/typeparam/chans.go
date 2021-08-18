@@ -183,7 +183,7 @@ func _Ranger[Elem any]() (*_Sender[Elem], *_Receiver[Elem]) {
 		values: c,
 		done:   d,
 	}
-	r := &_Receiver[Elem] {
+	r := &_Receiver[Elem]{
 		values: c,
 		done:   d,
 	}

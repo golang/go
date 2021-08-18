@@ -281,16 +281,7 @@ const (
 	_IncomparableMapKey
 
 	// _InvalidIfaceEmbed occurs when a non-interface type is embedded in an
-	// interface.
-	//
-	// Example:
-	//  type T struct {}
-	//
-	//  func (T) m()
-	//
-	//  type I interface {
-	//  	T
-	//  }
+	// interface (for go 1.17 or earlier).
 	_InvalidIfaceEmbed
 
 	// _InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
@@ -884,7 +875,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + ""
+	//  var _ = 1 + nil
 	_InvalidUntypedConversion
 
 	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument

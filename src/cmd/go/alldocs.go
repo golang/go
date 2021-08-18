@@ -1078,7 +1078,7 @@
 //
 // Usage:
 //
-// 	go mod edit [editing flags] [go.mod]
+// 	go mod edit [editing flags] [-fmt|-print|-json] [go.mod]
 //
 // Edit provides a command-line interface for editing go.mod,
 // for use primarily by tools or scripts. It reads only go.mod;
@@ -1204,7 +1204,7 @@
 //
 // Usage:
 //
-// 	go mod init [module]
+// 	go mod init [module-path]
 //
 // Init initializes and writes a new go.mod file in the current directory, in
 // effect creating a new module rooted at the current directory. The go.mod file
@@ -1405,7 +1405,8 @@
 // used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
 // 'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
 // the documentation for these and other vet tests via "go doc cmd/vet".
-// To disable the running of go vet, use the -vet=off flag.
+// To disable the running of go vet, use the -vet=off flag. To run all
+// checks, use the -vet=all flag.
 //
 // All test output and summary lines are printed to the go command's
 // standard output, even if the test printed them to its own standard
@@ -1446,16 +1447,16 @@
 // The rule for a match in the cache is that the run involves the same
 // test binary and the flags on the command line come entirely from a
 // restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
-// -list, -parallel, -run, -short, and -v. If a run of go test has any test
-// or non-test flags outside this set, the result is not cached. To
-// disable test caching, use any test flag or argument other than the
-// cacheable flags. The idiomatic way to disable test caching explicitly
-// is to use -count=1. Tests that open files within the package's source
-// root (usually $GOPATH) or that consult environment variables only
-// match future runs in which the files and environment variables are unchanged.
-// A cached test result is treated as executing in no time at all,
-// so a successful package test result will be cached and reused
-// regardless of -timeout setting.
+// -list, -parallel, -run, -short, -timeout, -failfast, and -v.
+// If a run of go test has any test or non-test flags outside this set,
+// the result is not cached. To disable test caching, use any test flag
+// or argument other than the cacheable flags. The idiomatic way to disable
+// test caching explicitly is to use -count=1. Tests that open files within
+// the package's source root (usually $GOPATH) or that consult environment
+// variables only match future runs in which the files and environment
+// variables are unchanged. A cached test result is treated as executing
+// in no time at all,so a successful package test result will be cached and
+// reused regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
 //
@@ -2657,6 +2658,10 @@
 //
 // 	-failfast
 // 	    Do not start new tests after the first test failure.
+//
+// 	-json
+// 	    Log verbose output and test results in JSON. This presents the
+// 	    same information as the -v flag in a machine-readable format.
 //
 // 	-list regexp
 // 	    List tests, benchmarks, or examples matching the regular expression.

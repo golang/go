@@ -680,7 +680,11 @@ type T struct {
 
 func (c *common) private() {}
 
-// Name returns the name of the running test or benchmark.
+// Name returns the name of the running (sub-) test or benchmark.
+//
+// The name will include the name of the test along with the names of
+// any nested sub-tests. If two sibling sub-tests have the same name,
+// Name will append a suffix to guarantee the returned name is unique.
 func (c *common) Name() string {
 	return c.name
 }

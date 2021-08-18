@@ -208,6 +208,16 @@ func last(s string, b byte) int {
 	return i
 }
 
+// hasUpperCase tells whether the given string contains at least one upper-case.
+func hasUpperCase(s string) bool {
+	for i := range s {
+		if 'A' <= s[i] && s[i] <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
 // lowerASCIIBytes makes x ASCII lowercase in-place.
 func lowerASCIIBytes(x []byte) {
 	for i, b := range x {

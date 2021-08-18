@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 TEXT errors(SB),$0
-	AND	$1, RSP                                          // ERROR "illegal combination"
+	AND	$1, RSP                                          // ERROR "illegal source register"
 	ANDS	$1, R0, RSP                                      // ERROR "illegal combination"
 	ADDSW	R7->32, R14, R13                                 // ERROR "shift amount out of range 0 to 31"
 	ADD	R1.UXTB<<5, R2, R3                               // ERROR "shift amount out of range 0 to 4"

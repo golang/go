@@ -44,7 +44,7 @@ func ClosureCallArgs3() {
 
 func ClosureCallArgs4() {
 	x := 0
-	_ = func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
+	_ = func(p *int) *int { // ERROR "leaking param: p to result ~r0" "func literal does not escape"
 		return p
 	}(&x)
 }
@@ -111,7 +111,7 @@ func ClosureCallArgs11() {
 
 func ClosureCallArgs12() {
 	x := 0
-	defer func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
+	defer func(p *int) *int { // ERROR "leaking param: p to result ~r0" "func literal does not escape"
 		return p
 	}(&x)
 }
@@ -126,7 +126,7 @@ func ClosureCallArgs13() {
 func ClosureCallArgs14() {
 	x := 0
 	p := &x
-	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
+	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r0 level=1" "func literal does not escape"
 		return *p
 	}(&p)
 }
@@ -145,7 +145,7 @@ func ClosureLeak1(s string) string { // ERROR "s does not escape"
 }
 
 // See #14409 -- returning part of captured var leaks it.
-func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r1 level=1$"
+func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r0 level=1$"
 	return func() string { // ERROR "func literal does not escape"
 		return a[0]
 	}()

@@ -12,10 +12,10 @@ import (
 )
 
 type Numeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		complex64, complex128
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64 |
+		~complex64 | ~complex128
 }
 
 // numericAbs matches numeric types with an Abs method.
@@ -33,14 +33,14 @@ func absDifference[T numericAbs[T]](a, b T) T {
 
 // orderedNumeric matches numeric types that support the < operator.
 type orderedNumeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+		~float32 | ~float64
 }
 
 // Complex matches the two complex types, which do not have a < operator.
 type Complex interface {
-	type complex64, complex128
+	~complex64 | ~complex128
 }
 
 // orderedAbs is a helper type that defines an Abs method for
@@ -48,8 +48,7 @@ type Complex interface {
 type orderedAbs[T orderedNumeric] T
 
 func (a orderedAbs[T]) Abs() orderedAbs[T] {
-	// TODO(danscales): orderedAbs[T] conversion shouldn't be needed
-	if a < orderedAbs[T](0) {
+	if a < 0 {
 		return -a
 	}
 	return a
@@ -62,7 +61,7 @@ type complexAbs[T Complex] T
 func (a complexAbs[T]) Abs() complexAbs[T] {
 	r := float64(real(a))
 	i := float64(imag(a))
-	d := math.Sqrt(r * r + i * i)
+	d := math.Sqrt(r*r + i*i)
 	return complexAbs[T](complex(d, 0))
 }
 
@@ -89,10 +88,10 @@ func main() {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 
-	if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5+0i; got != want {
+	if got, want := complexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
-	if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5+0i; got != want {
+	if got, want := complexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
 	}
 }

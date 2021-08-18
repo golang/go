@@ -6,7 +6,7 @@ package typecheck
 
 import (
 	"fmt"
-	"strconv"
+	"sync"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -363,12 +363,10 @@ func funcargs(nt *ir.FuncType) {
 	}
 
 	// declare the out arguments.
-	gen := len(nt.Params)
-	for _, n := range nt.Results {
+	for i, n := range nt.Results {
 		if n.Sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = LookupNum("~r", gen)
-			gen++
+			n.Sym = LookupNum("~r", i)
 		}
 		if n.Sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
@@ -377,8 +375,7 @@ func funcargs(nt *ir.FuncType) {
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = LookupNum("~b", gen)
-			gen++
+			n.Sym = LookupNum("~b", i)
 		}
 
 		funcarg(n, ir.PPARAMOUT)
@@ -431,6 +428,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, s)
 	s.Def = n
 	n.SetType(t)
+	n.SetTypecheck(1)
 	n.Class = ir.PAUTO
 	n.SetEsc(ir.EscNever)
 	n.Curfn = curfn
@@ -443,15 +441,39 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	return n
 }
 
+var (
+	autotmpnamesmu sync.Mutex
+	autotmpnames   []string
+)
+
 // autotmpname returns the name for an autotmp variable numbered n.
 func autotmpname(n int) string {
-	// Give each tmp a different name so that they can be registerized.
-	// Add a preceding . to avoid clashing with legal names.
-	const prefix = ".autotmp_"
-	// Start with a buffer big enough to hold a large n.
-	b := []byte(prefix + "      ")[:len(prefix)]
-	b = strconv.AppendInt(b, int64(n), 10)
-	return types.InternString(b)
+	autotmpnamesmu.Lock()
+	defer autotmpnamesmu.Unlock()
+
+	// Grow autotmpnames, if needed.
+	if n >= len(autotmpnames) {
+		autotmpnames = append(autotmpnames, make([]string, n+1-len(autotmpnames))...)
+		autotmpnames = autotmpnames[:cap(autotmpnames)]
+	}
+
+	s := autotmpnames[n]
+	if s == "" {
+		// Give each tmp a different name so that they can be registerized.
+		// Add a preceding . to avoid clashing with legal names.
+		prefix := ".autotmp_%d"
+
+		// In quirks mode, pad out the number to stabilize variable
+		// sorting. This ensures autotmps 8 and 9 sort the same way even
+		// if they get renumbered to 9 and 10, respectively.
+		if base.Debug.UnifiedQuirks != 0 {
+			prefix = ".autotmp_%06d"
+		}
+
+		s = fmt.Sprintf(prefix, n)
+		autotmpnames[n] = s
+	}
+	return s
 }
 
 // f is method type, with receiver.

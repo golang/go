@@ -334,6 +334,8 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	EONW	$0x6006000060060, R5                // EONW	$1689262177517664, R5           // 1b0c8052db00a072a5003b4a
 	ORNW	$0x6006000060060, R5                // ORNW	$1689262177517664, R5           // 1b0c8052db00a072a5003b2a
 	BICSW	$0x6006000060060, R5                // BICSW	$1689262177517664, R5           // 1b0c8052db00a072a5003b6a
+	AND	$1, ZR                              // fb0340b2ff031b8a
+	ANDW	$1, ZR                              // fb030032ff031b0a
 	// TODO: this could have better encoding
 	ANDW	$-1, R10                            // 1b0080124a011b0a
 	AND	$8, R0, RSP                         // 1f007d92
@@ -369,9 +371,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
 	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
-	MOVW	$1, ZR
+	MOVW	$1, ZR                        // 3f008052
 	MOVW	$1, R1
-	MOVD	$1, ZR
+	MOVD	$1, ZR                        // 3f0080d2
 	MOVD	$1, R1
 	MOVK	$1, R1
 	MOVD	$0x1000100010001000, RSP      // MOVD	$1152939097061330944, RSP   // ff8304b2
@@ -386,10 +388,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VMOVQ	$0x8040201008040202, $0x7040201008040201, V20         // VMOVQ	$-9205322385119247870, $8088500183983456769, V20
 
 // mov(to/from sp)
-	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // fb074091610b0091
-	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // fb0740917f231c91
-	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // fb08409161070091
-	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // fbfc7f9161ff3f91
+	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // e107409121080091
+	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // ff074091ff231c91
+	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // e108409121040091
+	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // e1fc7f9121fc3f91
 	MOVD	$-0x1(R7), R1                 // MOVD	$-1(R7), R1                 // e10400d1
 	MOVD	$-0x30(R7), R1                // MOVD	$-48(R7), R1                // e1c000d1
 	MOVD	$-0x708(R7), R1               // MOVD	$-1800(R7), R1              // e1201cd1

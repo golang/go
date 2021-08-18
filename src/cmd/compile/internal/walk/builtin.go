@@ -641,16 +641,9 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return walkStmt(typecheck.Stmt(r))
 }
 
-// walkRecover walks an ORECOVER node.
-func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
-	// Call gorecover with the FP of this frame.
-	// FP is equal to caller's SP plus FixedFrameSize().
-	var fp ir.Node = mkcall("getcallersp", types.Types[types.TUINTPTR], init)
-	if off := base.Ctxt.FixedFrameSize(); off != 0 {
-		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(off))
-	}
-	fp = ir.NewConvExpr(fp.Pos(), ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
-	return mkcall("gorecover", nn.Type(), init, fp)
+// walkRecover walks an ORECOVERFP node.
+func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
 }
 
 func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {

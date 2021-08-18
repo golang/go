@@ -1865,23 +1865,6 @@ func (s *regAllocState) regalloc(f *Func) {
 }
 
 func (s *regAllocState) placeSpills() {
-	f := s.f
-
-	// Precompute some useful info.
-	phiRegs := make([]regMask, f.NumBlocks())
-	for _, b := range s.visitOrder {
-		var m regMask
-		for _, v := range b.Values {
-			if v.Op != OpPhi {
-				break
-			}
-			if r, ok := f.getHome(v.ID).(*Register); ok {
-				m |= regMask(1) << uint(r.num)
-			}
-		}
-		phiRegs[b.ID] = m
-	}
-
 	mustBeFirst := func(op Op) bool {
 		return op.isLoweredGetClosurePtr() || op == OpPhi || op == OpArgIntReg || op == OpArgFloatReg
 	}

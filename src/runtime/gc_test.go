@@ -21,6 +21,7 @@ import (
 )
 
 func TestGcSys(t *testing.T) {
+	t.Skip("skipping known-flaky test; golang.org/issue/37331")
 	if os.Getenv("GOGC") == "off" {
 		t.Skip("skipping test; GOGC=off in environment")
 	}

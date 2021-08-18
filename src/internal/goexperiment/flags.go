@@ -59,6 +59,10 @@ type Flags struct {
 	PreemptibleLoops  bool
 	StaticLockRanking bool
 
+	// Unified enables the compiler's unified IR construction
+	// experiment.
+	Unified bool
+
 	// Regabi is split into several sub-experiments that can be
 	// enabled individually. Not all combinations work.
 	// The "regabi" GOEXPERIMENT is an alias for all "working"
@@ -68,26 +72,15 @@ type Flags struct {
 	// ABI0 and ABIInternal functions. Without this, the ABIs are
 	// assumed to be identical so cross-ABI calls are direct.
 	RegabiWrappers bool
-	// RegabiG enables dedicated G and zero registers in
-	// ABIInternal.
-	//
-	// Requires wrappers because it makes the ABIs incompatible.
-	RegabiG bool
 	// RegabiReflect enables the register-passing paths in
 	// reflection calls. This is also gated by intArgRegs in
 	// reflect and runtime (which are disabled by default) so it
 	// can be used in targeted tests.
 	RegabiReflect bool
-	// RegabiDefer enables desugaring defer and go calls
-	// into argument-less closures.
-	RegabiDefer bool
 	// RegabiArgs enables register arguments/results in all
 	// compiled Go functions.
 	//
-	// Requires wrappers (to do ABI translation), g (because
-	// runtime assembly that's been ported to ABIInternal uses the
-	// G register), reflect (so reflection calls use registers),
-	// and defer (because the runtime doesn't support passing
-	// register arguments to defer/go).
+	// Requires wrappers (to do ABI translation), and reflect (so
+	// reflection calls use registers).
 	RegabiArgs bool
 }

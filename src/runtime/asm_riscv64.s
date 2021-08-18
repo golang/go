@@ -57,12 +57,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOV	$runtime·mainPC(SB), T0		// entry
-	ADD	$-24, X2
-	MOV	T0, 16(X2)
-	MOV	ZERO, 8(X2)
+	ADD	$-16, X2
+	MOV	T0, 8(X2)
 	MOV	ZERO, 0(X2)
 	CALL	runtime·newproc(SB)
-	ADD	$24, X2
+	ADD	$16, X2
 
 	// start this M
 	CALL	runtime·mstart(SB)
@@ -82,7 +81,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	RDTIME	A0
+	RDCYCLE	A0
 	MOV	A0, ret+0(FP)
 	RET
 
@@ -249,21 +248,6 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOV	gobuf_pc(T0), T0
 	JALR	ZERO, T0
 
-// func jmpdefer(fv *funcval, argp uintptr)
-// called from deferreturn
-// 1. grab stored return address from the caller's frame
-// 2. sub 8 bytes to get back to JAL deferreturn
-// 3. JMP to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
-	MOV	0(X2), RA
-	ADD	$-8, RA
-
-	MOV	fv+0(FP), CTXT
-	MOV	argp+8(FP), X2
-	ADD	$-8, X2
-	MOV	0(CTXT), T0
-	JALR	ZERO, T0
-
 // func procyield(cycles uint32)
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET
@@ -326,8 +310,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOV	g_m(g), X6
+	MOV	m_gsignal(X6), X7
+	BEQ	X7, g, g0
 	MOV	m_g0(X6), X7
 	BEQ	X7, g, g0
 

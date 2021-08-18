@@ -34,7 +34,6 @@ func Init(arch *ssagen.ArchInfo) {
 
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = ssaMarkMoves
 }
