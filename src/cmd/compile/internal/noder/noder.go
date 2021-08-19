@@ -191,13 +191,23 @@ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
 	base.ErrorfAt(p.makeXPos(pos), format, args...)
 }
 
-// TODO(gri) Can we eliminate fileh in favor of absFilename?
-func fileh(name string) string {
-	return objabi.AbsFile("", name, base.Flag.TrimPath)
-}
-
-func absFilename(name string) string {
-	return objabi.AbsFile(base.Ctxt.Pathname, name, base.Flag.TrimPath)
+// trimFilename returns the "trimmed" filename of b, which is the
+// absolute filename after applying -trimpath processing. This
+// filename form is suitable for use in object files and export data.
+//
+// If b's filename has already been trimmed (i.e., because it was read
+// in from an imported package's export data), then the filename is
+// returned unchanged.
+func trimFilename(b *syntax.PosBase) string {
+	filename := b.Filename()
+	if !b.Trimmed() {
+		dir := ""
+		if b.IsFileBase() {
+			dir = base.Ctxt.Pathname
+		}
+		filename = objabi.AbsFile(dir, filename, base.Flag.TrimPath)
+	}
+	return filename
 }
 
 // noder transforms package syntax's AST into a Node tree.
@@ -1723,7 +1733,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 // (primarily misuse of linker flags), other files are not.
 // See golang.org/issue/23672.
 func isCgoGeneratedFile(pos syntax.Pos) bool {
-	return strings.HasPrefix(filepath.Base(filepath.Clean(fileh(pos.Base().Filename()))), "_cgo_")
+	return strings.HasPrefix(filepath.Base(trimFilename(pos.Base())), "_cgo_")
 }
 
 // safeArg reports whether arg is a "safe" command-line argument,

@@ -146,11 +146,13 @@ func (p *parser) updateBase(pos Pos, tline, tcol uint, text string) {
 	// If we have a column (//line filename:line:col form),
 	// an empty filename means to use the previous filename.
 	filename := text[:i-1] // lop off ":line"
+	trimmed := false
 	if filename == "" && ok2 {
 		filename = p.base.Filename()
+		trimmed = p.base.Trimmed()
 	}
 
-	p.base = NewLineBase(pos, filename, line, col)
+	p.base = NewLineBase(pos, filename, trimmed, line, col)
 }
 
 func commentText(s string) string {

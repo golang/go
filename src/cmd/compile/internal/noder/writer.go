@@ -189,11 +189,7 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
 	w := pw.newWriter(relocPosBase, syncPosBase)
 	w.p.posBasesIdx[b] = w.idx
 
-	// TODO(mdempsky): What exactly does "fileh" do anyway? Is writing
-	// out both of these strings really the right thing to do here?
-	fn := b.Filename()
-	w.string(fn)
-	w.string(fileh(fn))
+	w.string(trimFilename(b))
 
 	if !w.bool(b.IsFileBase()) {
 		w.pos(b)
