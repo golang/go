@@ -351,13 +351,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	return false
 }
 
-func identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
+func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
 	if len(x) != len(y) {
 		return false
 	}
 	for i, x := range x {
 		y := y[i]
-		if !identical(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
+		if !identical(x.bound, y.bound, cmpTags, p) {
 			return false
 		}
 	}

@@ -632,7 +632,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 }
 
 func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
-	var tparams []*TypeName
+	var tparams []*TypeParam
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
 	// list (so we can have mutually recursive parameterized interfaces).
@@ -648,7 +648,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
 		}
 		bound = check.boundType(f.Type)
 		for i := range f.Names {
-			tparams[index+i].typ.(*TypeParam).bound = bound
+			tparams[index+i].bound = bound
 		}
 
 	next:
@@ -658,11 +658,11 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
 	return bindTParams(tparams)
 }
 
-func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
+func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
 	for _, name := range names {
-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, &emptyInterface)               // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+		tpar := check.NewTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
+		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}
 
