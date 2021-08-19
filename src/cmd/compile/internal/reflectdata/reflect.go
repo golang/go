@@ -44,7 +44,7 @@ var (
 	// Tracking which types need runtime type descriptor
 	signatset = make(map[*types.Type]struct{})
 	// Queue of types wait to be generated runtime type descriptor
-	signatslice []*types.Type
+	signatslice []typeAndStr
 
 	gcsymmu  sync.Mutex // protects gcsymset and gcsymslice
 	gcsymset = make(map[*types.Type]struct{})
@@ -1238,21 +1238,16 @@ func NeedRuntimeType(t *types.Type) {
 	}
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
-		signatslice = append(signatslice, t)
+		signatslice = append(signatslice, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
 	}
 }
 
 func WriteRuntimeTypes() {
-	// Process signatset. Use a loop, as writeType adds
-	// entries to signatset while it is being processed.
-	signats := make([]typeAndStr, len(signatslice))
+	// Process signatslice. Use a loop, as writeType adds
+	// entries to signatslice while it is being processed.
 	for len(signatslice) > 0 {
-		signats = signats[:0]
-		// Transfer entries to a slice and sort, for reproducible builds.
-		for _, t := range signatslice {
-			signats = append(signats, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
-		}
-		signatslice = signatslice[:0]
+		signats := signatslice
+		// Sort for reproducible builds.
 		sort.Sort(typesByString(signats))
 		for _, ts := range signats {
 			t := ts.t
@@ -1261,6 +1256,7 @@ func WriteRuntimeTypes() {
 				writeType(types.NewPtr(t))
 			}
 		}
+		signatslice = signatslice[len(signats):]
 	}
 
 	// Emit GC data symbols.
