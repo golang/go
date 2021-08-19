@@ -794,37 +794,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To = q.To
 			p.Reg = q.Reg
 			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-
-		// <store> $imm, REG, TO (store $imm+(TO), REG)
-		case ASD, ASB, ASH, ASW, AFSW, AFSD:
-			low, high, err := Split32BitImmediate(p.To.Offset)
-			if err != nil {
-				ctxt.Diag("%v: constant %d too large", p, p.To.Offset)
-			}
-			if high == 0 {
-				break // no need to split
-			}
-			q := *p
-
-			// LUI $high, TMP
-			// ADD TMP, TO, TMP
-			// <store> $low, REG, TMP
-			p.As = ALUI
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
-			p.Reg = 0
-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-			p.Spadj = 0 // needed if TO is SP
-			p = obj.Appendp(p, newprog)
-
-			p.As = AADD
-			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-			p.Reg = q.To.Reg
-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-			p = obj.Appendp(p, newprog)
-
-			p.As = q.As
-			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: q.From.Reg, Offset: 0}
-			p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_TMP, Offset: low}
 		}
 	}
 
@@ -1817,6 +1786,43 @@ func instructionsForLoad(p *obj.Prog) []*instruction {
 	return []*instruction{insLUI, insADD, ins}
 }
 
+func instructionsForStore(p *obj.Prog) []*instruction {
+	if p.To.Type != obj.TYPE_MEM {
+		p.Ctxt.Diag("%v requires memory for destination", p)
+		return nil
+	}
+
+	switch p.As {
+	case ASW, ASH, ASB, ASD, AFSW, AFSD:
+	default:
+		p.Ctxt.Diag("%v: unknown store instruction %v", p, p.As)
+		return nil
+	}
+
+	// <store> $imm, REG, TO (store $imm+(TO), REG)
+	ins := instructionForProg(p)
+	ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+	ins.imm = p.To.Offset
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm)
+		return nil
+	}
+	if high == 0 {
+		return []*instruction{ins}
+	}
+
+	// LUI $high, TMP
+	// ADD TMP, TO, TMP
+	// <store> $low, REG, TMP
+	insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
+	insADD := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: ins.rd}
+	ins.rd, ins.imm = REG_TMP, low
+
+	return []*instruction{insLUI, insADD, ins}
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
@@ -1940,12 +1946,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		return instructionsForLoad(p)
 
 	case ASW, ASH, ASB, ASD, AFSW, AFSD:
-		if p.To.Type != obj.TYPE_MEM {
-			p.Ctxt.Diag("%v requires memory for destination", p)
-			return nil
-		}
-		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
-		ins.imm = p.To.Offset
+		return instructionsForStore(p)
 
 	case ALRW, ALRD:
 		// Set aq to use acquire access ordering, which matches Go's memory requirements.
