@@ -21,7 +21,7 @@ type Named struct {
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
 	instance   *instance   // syntactic information for lazy instantiation
 	tparams    *TParamList // type parameters, or nil
-	targs      []Type      // type arguments (after instantiation), or nil
+	targs      *TypeList   // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
 	resolve func(*Named) ([]*TypeParam, Type, []*Func)
@@ -46,7 +46,7 @@ func (t *Named) load() *Named {
 	// underlying is set when t is expanded.
 	//
 	// By convention, a type instance is loaded iff its tparams are set.
-	if len(t.targs) > 0 && t.tparams == nil {
+	if t.targs.Len() > 0 && t.tparams == nil {
 		t.orig.load()
 		t.tparams = t.orig.tparams
 		t.methods = t.orig.methods
@@ -128,12 +128,8 @@ func (t *Named) TParams() *TParamList { return t.load().tparams }
 // SetTParams sets the type parameters of the named type t.
 func (t *Named) SetTParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
 
-// NumTArgs returns the number of type arguments used to instantiate the named
-// type t, or 0 if t is not an instantiated type.
-func (t *Named) NumTArgs() int { return len(t.targs) }
-
-// TArgs returns the i'th type argument of the named type t for 0 <= i < t.NumTArgs().
-func (t *Named) TArg(i int) Type { return t.targs[i] }
+// TArgs returns the type arguments used to instantiate the named type t.
+func (t *Named) TArgs() *TypeList { return t.targs }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.load().methods) }
@@ -263,7 +259,7 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 		// explicit is harmless: load is idempotent.
 		n.load()
 		var u Type
-		if n.check.validateTArgLen(n.instance.pos, n.tparams, n.targs) {
+		if n.check.validateTArgLen(n.instance.pos, n.tparams.Len(), n.targs.Len()) {
 			if typMap == nil {
 				if n.check != nil {
 					typMap = n.check.typMap
@@ -272,11 +268,11 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 					// type-checking pass. In that case we won't have a pre-existing
 					// typMap, but don't want to create a duplicate of the current instance
 					// in the process of expansion.
-					h := instantiatedHash(n.orig, n.targs)
+					h := instantiatedHash(n.orig, n.targs.list())
 					typMap = map[string]*Named{h: n}
 				}
 			}
-			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs), typMap)
+			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
 		} else {
 			u = Typ[Invalid]
 		}

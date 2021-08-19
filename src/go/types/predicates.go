@@ -305,22 +305,22 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			x.expand(nil)
 			y.expand(nil)
 
-			// xargs := x.TArgs()
-			// yargs := y.TArgs()
+			xargs := x.TArgs().list()
+			yargs := y.TArgs().list()
 
-			if x.NumTArgs() != y.NumTArgs() {
+			if len(xargs) != len(yargs) {
 				return false
 			}
 
-			if nargs := x.NumTArgs(); nargs > 0 {
+			if nargs := len(xargs); nargs > 0 {
 				// Instances are identical if their original type and type arguments
 				// are identical.
 				if !Identical(x.orig, y.orig) {
 					return false
 				}
 				for i := 0; i < nargs; i++ {
-					xa := x.TArg(i)
-					ya := y.TArg(i)
+					xa := xargs[i]
+					ya := yargs[i]
 					if !Identical(xa, ya) {
 						return false
 					}
