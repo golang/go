@@ -143,7 +143,7 @@ func getMCache() *mcache {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) refill(spc spanClass) {
+func (c *mcache) refill(spc spanClass, needzero bool) {
 	// Return the current cached span to the central lists.
 	s := c.alloc[spc]
 
@@ -159,7 +159,7 @@ func (c *mcache) refill(spc spanClass) {
 	}
 
 	// Get a new cached span from the central lists.
-	s = mheap_.central[spc].mcentral.cacheSpan()
+	s = mheap_.central[spc].mcentral.cacheSpan(needzero)
 	if s == nil {
 		throw("out of memory")
 	}

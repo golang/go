@@ -867,7 +867,7 @@ func nextFreeFast(s *mspan) gclinkptr {
 //
 // Must run in a non-preemptible context since otherwise the owner of
 // c could change.
-func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+func (c *mcache) nextFree(spc spanClass, needzero bool) (v gclinkptr, s *mspan, shouldhelpgc bool) {
 	s = c.alloc[spc]
 	shouldhelpgc = false
 	freeIndex := s.nextFreeIndex()
@@ -877,7 +877,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
 		}
-		c.refill(spc)
+		c.refill(spc, needzero)
 		shouldhelpgc = true
 		s = c.alloc[spc]
 
@@ -1043,7 +1043,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			span = c.alloc[tinySpanClass]
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
+				v, span, shouldhelpgc = c.nextFree(tinySpanClass, false)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -1068,7 +1068,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			span = c.alloc[spc]
 			v := nextFreeFast(span)
 			if v == 0 {
-				v, span, shouldhelpgc = c.nextFree(spc)
+				v, span, shouldhelpgc = c.nextFree(spc, needzero)
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
