@@ -204,7 +204,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		if t.targs != nil {
 			// instantiated type
 			buf.WriteByte('[')
-			writeTypeList(buf, t.targs, qf, visited)
+			writeTypeList(buf, t.targs.list(), qf, visited)
 			buf.WriteByte(']')
 		} else if t.TParams().Len() != 0 {
 			// parameterized type
