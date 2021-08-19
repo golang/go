@@ -109,15 +109,14 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
 	var b *syntax.PosBase
 
 	filename := r.string()
-	_ = r.string() // absolute file name
 
 	if r.bool() {
-		b = syntax.NewFileBase(filename)
+		b = syntax.NewTrimmedFileBase(filename, true)
 	} else {
 		pos := r.pos()
 		line := r.uint()
 		col := r.uint()
-		b = syntax.NewLineBase(pos, filename, line, col)
+		b = syntax.NewLineBase(pos, filename, true, line, col)
 	}
 
 	pr.posBases[idx] = b

@@ -133,13 +133,19 @@ type PosBase struct {
 	pos       Pos
 	filename  string
 	line, col uint32
+	trimmed   bool // whether -trimpath has been applied
 }
 
 // NewFileBase returns a new PosBase for the given filename.
 // A file PosBase's position is relative to itself, with the
 // position being filename:1:1.
 func NewFileBase(filename string) *PosBase {
-	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase}
+	return NewTrimmedFileBase(filename, false)
+}
+
+// NewTrimmedFileBase is like NewFileBase, but allows specifying Trimmed.
+func NewTrimmedFileBase(filename string, trimmed bool) *PosBase {
+	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase, trimmed}
 	base.pos.base = base
 	return base
 }
@@ -149,8 +155,8 @@ func NewFileBase(filename string) *PosBase {
 // the comment containing the line directive. For a directive in a line comment,
 // that position is the beginning of the next line (i.e., the newline character
 // belongs to the line comment).
-func NewLineBase(pos Pos, filename string, line, col uint) *PosBase {
-	return &PosBase{pos, filename, sat32(line), sat32(col)}
+func NewLineBase(pos Pos, filename string, trimmed bool, line, col uint) *PosBase {
+	return &PosBase{pos, filename, sat32(line), sat32(col), trimmed}
 }
 
 func (base *PosBase) IsFileBase() bool {
@@ -186,6 +192,13 @@ func (base *PosBase) Col() uint {
 		return 0
 	}
 	return uint(base.col)
+}
+
+func (base *PosBase) Trimmed() bool {
+	if base == nil {
+		return false
+	}
+	return base.trimmed
 }
 
 func sat32(x uint) uint32 {

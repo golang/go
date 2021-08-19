@@ -194,16 +194,15 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
 	r := pr.newReader(relocPosBase, idx, syncPosBase)
 	var b *src.PosBase
 
-	fn := r.string()
-	absfn := r.string()
+	filename := r.string()
 
 	if r.bool() {
-		b = src.NewFileBase(fn, absfn)
+		b = src.NewFileBase(filename, filename)
 	} else {
 		pos := r.pos0()
 		line := r.uint()
 		col := r.uint()
-		b = src.NewLinePragmaBase(pos, fn, absfn, line, col)
+		b = src.NewLinePragmaBase(pos, filename, filename, line, col)
 	}
 
 	pr.posBases[idx] = b

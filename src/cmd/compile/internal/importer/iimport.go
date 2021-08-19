@@ -257,7 +257,7 @@ func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
 		return posBase
 	}
 	filename := p.stringAt(off)
-	posBase := syntax.NewFileBase(filename)
+	posBase := syntax.NewTrimmedFileBase(filename, true)
 	p.posBaseCache[off] = posBase
 	return posBase
 }
