@@ -10,20 +10,35 @@ start:
 
 	// 2.4: Integer Computational Instructions
 
-	ADDI	$2047, X5, X6				// 1383f27f
-	ADDI	$-2048, X5, X6				// 13830280
 	ADDI	$2047, X5				// 9382f27f
 	ADDI	$-2048, X5				// 93820280
+	ADDI	$2048, X5				// 9382024093820240
+	ADDI	$-2049, X5				// 938202c09382f2bf
+	ADDI	$4094, X5				// 9382f27f9382f27f
+	ADDI	$-4096, X5				// 9382028093820280
+	ADDI	$4095, X5				// b71f00009b8fffffb382f201
+	ADDI	$-4097, X5				// b7ffffff9b8fffffb382f201
+	ADDI	$2047, X5, X6				// 1383f27f
+	ADDI	$-2048, X5, X6				// 13830280
+	ADDI	$2048, X5, X6				// 1383024013030340
+	ADDI	$-2049, X5, X6				// 138302c01303f3bf
+	ADDI	$4094, X5, X6				// 1383f27f1303f37f
+	ADDI	$-4096, X5, X6				// 1383028013030380
+	ADDI	$4095, X5, X6				// b71f00009b8fffff3383f201
+	ADDI	$-4097, X5, X6				// b7ffffff9b8fffff3383f201
 
 	SLTI	$55, X5, X7				// 93a37203
 	SLTIU	$55, X5, X7				// 93b37203
 
 	ANDI	$1, X5, X6				// 13f31200
 	ANDI	$1, X5					// 93f21200
+	ANDI	$2048, X5				// b71f00009b8f0f80b3f2f201
 	ORI	$1, X5, X6				// 13e31200
 	ORI	$1, X5					// 93e21200
+	ORI	$2048, X5				// b71f00009b8f0f80b3e2f201
 	XORI	$1, X5, X6				// 13c31200
 	XORI	$1, X5					// 93c21200
+	XORI	$2048, X5				// b71f00009b8f0f80b3c2f201
 
 	SLLI	$1, X5, X6				// 13931200
 	SLLI	$1, X5					// 93921200
