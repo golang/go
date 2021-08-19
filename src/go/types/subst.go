@@ -18,11 +18,11 @@ type substMap map[*TypeParam]Type
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
 // If targs[i] is nil, tpars[i] is not substituted.
-func makeSubstMap(tpars []*TypeName, targs []Type) substMap {
+func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(substMap, len(tpars))
 	for i, tpar := range tpars {
-		proj[tpar.typ.(*TypeParam)] = targs[i]
+		proj[tpar] = targs[i]
 	}
 	return proj
 }

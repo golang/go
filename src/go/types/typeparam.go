@@ -89,7 +89,7 @@ func (t *TypeParam) Underlying() Type { return t }
 func (t *TypeParam) String() string   { return TypeString(t, nil) }
 
 // TParamList holds a list of type parameters bound to a type.
-type TParamList struct{ tparams []*TypeName }
+type TParamList struct{ tparams []*TypeParam }
 
 // Len returns the number of type parameters in the list.
 // It is safe to call on a nil receiver.
@@ -98,23 +98,22 @@ func (tps *TParamList) Len() int {
 }
 
 // At returns the i'th type parameter in the list.
-func (tps *TParamList) At(i int) *TypeName {
+func (tps *TParamList) At(i int) *TypeParam {
 	return tps.list()[i]
 }
 
-func (tps *TParamList) list() []*TypeName {
+func (tps *TParamList) list() []*TypeParam {
 	if tps == nil {
 		return nil
 	}
 	return tps.tparams
 }
 
-func bindTParams(list []*TypeName) *TParamList {
+func bindTParams(list []*TypeParam) *TParamList {
 	if len(list) == 0 {
 		return nil
 	}
-	for i, tp := range list {
-		typ := tp.Type().(*TypeParam)
+	for i, typ := range list {
 		if typ.index >= 0 {
 			panic("type parameter bound more than once")
 		}

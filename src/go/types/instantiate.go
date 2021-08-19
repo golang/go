@@ -48,7 +48,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
 
 	var err error
 	if validate {
-		var tparams []*TypeName
+		var tparams []*TypeParam
 		switch t := typ.(type) {
 		case *Named:
 			tparams = t.TParams().list()
@@ -90,7 +90,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
 	check.later(func() {
 		// Collect tparams again because lazily loaded *Named types may not have
 		// had tparams set up above.
-		var tparams []*TypeName
+		var tparams []*TypeParam
 		switch t := typ.(type) {
 		case *Named:
 			tparams = t.TParams().list()
@@ -186,11 +186,11 @@ func (check *Checker) validateTArgLen(pos token.Pos, tparams *TParamList, targs 
 	return true
 }
 
-func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type) (int, error) {
+func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
 	smap := makeSubstMap(tparams, targs)
-	for i, tname := range tparams {
+	for i, tpar := range tparams {
 		// stop checking bounds after the first failure
-		if err := check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap); err != nil {
+		if err := check.satisfies(pos, targs[i], tpar, smap); err != nil {
 			return i, err
 		}
 	}

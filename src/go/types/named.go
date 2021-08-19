@@ -24,7 +24,7 @@ type Named struct {
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
-	resolve func(*Named) ([]*TypeName, Type, []*Func)
+	resolve func(*Named) ([]*TypeParam, Type, []*Func)
 	once    sync.Once
 }
 
@@ -126,7 +126,7 @@ func (t *Named) _Orig() *Named { return t.orig }
 func (t *Named) TParams() *TParamList { return t.load().tparams }
 
 // SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
+func (t *Named) SetTParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
 
 // NumTArgs returns the number of type arguments used to instantiate the named
 // type t, or 0 if t is not an instantiated type.
