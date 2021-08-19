@@ -32,6 +32,10 @@ import (
 	"unicode"
 )
 
+// CompilerDefaultGLevel is the -G level used by default when not overridden by a
+// command-line flag
+const CompilerDefaultGLevel = 3
+
 var (
 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
@@ -340,10 +344,15 @@ type test struct {
 }
 
 // initExpectFail initializes t.expectFail based on the build+test
-// configuration. It should only be called for tests known to use
-// types2.
-func (t *test) initExpectFail() {
+// configuration.
+func (t *test) initExpectFail(hasGFlag bool) {
 	if *force {
+		return
+	}
+
+	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
+		// tests should always pass when run w/o types2 (i.e., using the
+		// legacy typechecker, option -G=0).
 		return
 	}
 
@@ -581,14 +590,14 @@ func init() { checkShouldTest() }
 // over and over.
 func (t *test) goGcflags() string {
 	flags := os.Getenv("GO_GCFLAGS")
-	if t.glevel != 0 {
+	if t.glevel != CompilerDefaultGLevel {
 		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
 	}
 	return "-gcflags=all=" + flags
 }
 
 func (t *test) goGcflagsIsEmpty() bool {
-	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == 0
+	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == CompilerDefaultGLevel
 }
 
 var errTimeout = errors.New("command exceeded time limit")
@@ -750,7 +759,7 @@ func (t *test) run() {
 			}
 		}
 
-		if hasGFlag && t.glevel != 0 {
+		if hasGFlag && t.glevel != CompilerDefaultGLevel {
 			// test provides explicit -G flag already; don't run again
 			if *verbose {
 				fmt.Printf("excl\t%s\n", t.goFileName())
@@ -758,13 +767,7 @@ func (t *test) run() {
 			return false
 		}
 
-		if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
-			// tests should always pass when run w/o types2 (i.e., using the
-			// legacy typechecker).
-			return true
-		}
-
-		t.initExpectFail()
+		t.initExpectFail(hasGFlag)
 
 		switch tool {
 		case Build, Run:

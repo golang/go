@@ -140,6 +140,7 @@ type CmdFlags struct {
 
 // ParseFlags parses the command-line flags into Flag.
 func ParseFlags() {
+	Flag.G = 3
 	Flag.I = addImportDir
 
 	Flag.LowerC = 1
