@@ -693,76 +693,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// Split immediates larger than 12-bits.
-	for p := cursym.Func().Text; p != nil; p = p.Link {
-		switch p.As {
-		// <opi> $imm, REG, TO
-		case AADDI, AANDI, AORI, AXORI:
-			// LUI $high, TMP
-			// ADDI $low, TMP, TMP
-			// <op> TMP, REG, TO
-			q := *p
-			low, high, err := Split32BitImmediate(p.From.Offset)
-			if err != nil {
-				ctxt.Diag("%v: constant %d too large", p, p.From.Offset, err)
-			}
-			if high == 0 {
-				break // no need to split
-			}
-
-			// Split into two additions if possible.
-			imm := q.From.Offset
-			const minInt12, maxInt12 = -(1 << 11), (1 << 11) - 1
-			if q.As == AADDI && 2*minInt12 <= imm && imm <= 2*maxInt12 {
-				imm0, imm1 := imm/2, imm-imm/2
-				// ADDI $(imm/2), REG, TO
-				p.Spadj = 0 // needed if TO is SP
-				p.As = AADDI
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm0}
-				p.Reg = q.Reg
-				p.To = q.To
-				p = obj.Appendp(p, newprog)
-				// ADDI $(imm-imm/2), TO, TO
-				p.Spadj = q.Spadj
-				p.As = AADDI
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm1}
-				p.Reg = q.To.Reg
-				p.To = q.To
-				break
-			}
-
-			p.As = ALUI
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
-			p.Reg = 0
-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-			p.Spadj = 0 // needed if TO is SP
-			p = obj.Appendp(p, newprog)
-
-			p.As = AADDIW
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
-			p.Reg = REG_TMP
-			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-			p = obj.Appendp(p, newprog)
-
-			switch q.As {
-			case AADDI:
-				p.As = AADD
-			case AANDI:
-				p.As = AAND
-			case AORI:
-				p.As = AOR
-			case AXORI:
-				p.As = AXOR
-			default:
-				ctxt.Diag("unsupported instruction %v for splitting", q)
-			}
-			p.Spadj = q.Spadj
-			p.To = q.To
-			p.Reg = q.Reg
-			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-		}
-	}
-
 	// Compute instruction addresses.  Once we do that, we need to check for
 	// overextended jumps and branches.  Within each iteration, Pc differences
 	// are always lower bounds (since the program gets monotonically longer,
@@ -1959,6 +1889,51 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// Set aq to use acquire access ordering, which matches Go's memory requirements.
 		ins.funct7 = 2
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+
+	case AADDI, AANDI, AORI, AXORI:
+		// <opi> $imm, REG, TO
+		low, high, err := Split32BitImmediate(ins.imm)
+		if err != nil {
+			p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+			return nil
+		}
+		if high == 0 {
+			break
+		}
+
+		// Split into two additions if possible.
+		if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+			imm0 := ins.imm / 2
+			imm1 := ins.imm - imm0
+
+			// ADDI $(imm/2), REG, TO
+			// ADDI $(imm-imm/2), TO, TO
+			ins.imm = imm0
+			insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
+			inss = append(inss, insADDI)
+			break
+		}
+
+		// LUI $high, TMP
+		// ADDI $low, TMP, TMP
+		// <op> TMP, REG, TO
+		insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
+		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP, imm: low}
+		switch ins.as {
+		case AADDI:
+			ins.as = AADD
+		case AANDI:
+			ins.as = AAND
+		case AORI:
+			ins.as = AOR
+		case AXORI:
+			ins.as = AXOR
+		default:
+			p.Ctxt.Diag("unsupported instruction %v for splitting", p)
+			return nil
+		}
+		ins.rs2 = REG_TMP
+		inss = []*instruction{insLUI, insADDIW, ins}
 
 	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
