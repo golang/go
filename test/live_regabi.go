@@ -1,5 +1,5 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build amd64,goexperiment.regabiargs
+// +build amd64,goexperiment.regabiargs arm64,goexperiment.regabiargs
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
