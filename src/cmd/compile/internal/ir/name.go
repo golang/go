@@ -404,9 +404,7 @@ func CaptureName(pos src.XPos, fn *Func, n *Name) *Name {
 	if n.Op() != ONAME || n.Curfn == nil {
 		return n // okay to use directly
 	}
-	if n.IsClosureVar() && n.Sym().Name != ".dict" {
-		// Note: capturing dictionary closure variables is ok. This makes
-		// sure the generated code is correctly optimized.
+	if n.IsClosureVar() {
 		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
 	}
 
