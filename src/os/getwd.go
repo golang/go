@@ -11,7 +11,7 @@ import (
 )
 
 var getwdCache struct {
-	sync.Mutex
+	sync.RWMutex
 	dir string
 }
 
@@ -55,9 +55,9 @@ func Getwd() (dir string, err error) {
 	}
 
 	// Apply same kludge but to cached dir instead of $PWD.
-	getwdCache.Lock()
+	getwdCache.RLock()
 	dir = getwdCache.dir
-	getwdCache.Unlock()
+	getwdCache.RUnlock()
 	if len(dir) > 0 {
 		d, err := statNolog(dir)
 		if err == nil && SameFile(dot, d) {
