@@ -224,7 +224,6 @@ func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*op
 		// exactly one (possibly invalid or comma-ok) value
 		xlist = []*operand{&x}
 		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
-			x.mode = value
 			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
 			if x.mode == commaerr {
 				x2.typ = universeError
