@@ -6,6 +6,7 @@ package tls
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/internal/boring/fipstls"
 	"crypto/rsa"
 	"crypto/x509"
@@ -85,7 +86,7 @@ func isBoringCertificate(c *x509.Certificate) bool {
 		return true
 	}
 
-	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256.
+	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256, P-384, or P-521.
 	switch k := c.PublicKey.(type) {
 	default:
 		return false
@@ -94,7 +95,7 @@ func isBoringCertificate(c *x509.Certificate) bool {
 			return false
 		}
 	case *ecdsa.PublicKey:
-		if name := k.Curve.Params().Name; name != "P-256" && name != "P-384" {
+		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
 			return false
 		}
 	}
