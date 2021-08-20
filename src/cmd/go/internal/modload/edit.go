@@ -237,6 +237,7 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
 				continue
 			}
 
+			allow(m)
 			for _, r := range summary.require {
 				allow(r)
 			}
