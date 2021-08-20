@@ -303,8 +303,7 @@ package main
 import "fmt"
 
 func main() {
-	var x string
-	fmt.Println(x)
+	fmt.Println(42)
 }
 `
 	WithOptions(
@@ -320,7 +319,7 @@ func main() {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
-				DiagnosticAt("main.go", 6, 12),
+				DiagnosticAt("main.go", 5, 13),
 				ReadDiagnostics("main.go", d),
 			),
 		)
@@ -330,12 +329,12 @@ func main() {
 			if d.Severity != protocol.SeverityInformation {
 				t.Fatalf("unexpected diagnostic severity %v, wanted Information", d.Severity)
 			}
-			if strings.Contains(d.Message, "x escapes") {
+			if strings.Contains(d.Message, "42 escapes") {
 				found = true
 			}
 		}
 		if !found {
-			t.Fatalf(`expected to find diagnostic with message "escape(x escapes to heap)", found none`)
+			t.Fatalf(`expected to find diagnostic with message "escape(42 escapes to heap)", found none`)
 		}
 
 		// Editing a buffer should cause gc_details diagnostics to disappear, since
@@ -346,7 +345,7 @@ func main() {
 		// Saving a buffer should re-format back to the original state, and
 		// re-enable the gc_details diagnostics.
 		env.SaveBuffer("main.go")
-		env.Await(DiagnosticAt("main.go", 6, 12))
+		env.Await(DiagnosticAt("main.go", 5, 13))
 
 		// Toggle the GC details code lens again so now it should be off.
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails)
