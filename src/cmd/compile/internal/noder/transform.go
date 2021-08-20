@@ -578,11 +578,7 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
 
 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && !isCall {
 		n.SetOp(ir.OMETHVALUE)
-		if len(n.X.Type().RParams()) > 0 || n.X.Type().IsPtr() && len(n.X.Type().Elem().RParams()) > 0 {
-			// TODO: MethodValueWrapper needed for generics?
-			// Or did we successfully desugar all that at stencil time?
-			return n
-		}
+		// This converts a method type to a function type. See issue 47775.
 		n.SetType(typecheck.NewMethodType(n.Type(), nil))
 	}
 	return n
