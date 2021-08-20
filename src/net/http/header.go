@@ -196,7 +196,7 @@ func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptra
 	for _, kv := range kvs {
 		if !httpguts.ValidHeaderFieldName(kv.key) {
 			// This could be an error. In the common case of
-			// writing reponse headers, however, we have no good
+			// writing response headers, however, we have no good
 			// way to provide the error back to the server
 			// handler, so just drop invalid headers instead.
 			continue
