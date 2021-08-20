@@ -5,8 +5,10 @@
 package testing
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 	"unicode"
 )
 
@@ -25,10 +27,11 @@ func TestIsSpace(t *T) {
 }
 
 func TestSplitRegexp(t *T) {
-	res := func(s ...string) []string { return s }
+	res := func(s ...string) filterMatch { return simpleMatch(s) }
+	alt := func(m ...filterMatch) filterMatch { return alternationMatch(m) }
 	testCases := []struct {
 		pattern string
-		result  []string
+		result  filterMatch
 	}{
 		// Correct patterns
 		// If a regexp pattern is correct, all split regexps need to be correct
@@ -48,6 +51,8 @@ func TestSplitRegexp(t *T) {
 		{"]/[/]", res("]", "[/]")},
 		{`([)/][(])`, res(`([)/][(])`)},
 		{"[(]/[)]", res("[(]", "[)]")},
+
+		{"A/B|C/D", alt(res("A", "B"), res("C", "D"))},
 
 		// Faulty patterns
 		// Errors in original should produce at least one faulty regexp in results.
@@ -71,10 +76,8 @@ func TestSplitRegexp(t *T) {
 		// needs to have an error as well.
 		if _, err := regexp.Compile(tc.pattern); err != nil {
 			ok := true
-			for _, re := range a {
-				if _, err := regexp.Compile(re); err != nil {
-					ok = false
-				}
+			if err := a.verify("", regexp.MatchString); err != nil {
+				ok = false
 			}
 			if ok {
 				t.Errorf("%s: expected error in any of %q", tc.pattern, a)
@@ -112,6 +115,10 @@ func TestMatcher(t *T) {
 		{"TestFoo", "TestBar", "x", false, false},
 		{"TestFoo/", "TestBar", "x", false, false},
 		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false, false},
+
+		{"A/B|C/D", "TestA", "B", true, false},
+		{"A/B|C/D", "TestC", "D", true, false},
+		{"A/B|C/D", "TestA", "C", false, false},
 
 		// subtests only
 		{"", "TestFoo", "x", true, false},
@@ -183,4 +190,14 @@ func TestNaming(t *T) {
 			t.Errorf("%d:%s: got %q; want %q", i, tc.name, got, tc.want)
 		}
 	}
+}
+
+// GoString returns a string that is more readable than the default, which makes
+// it easier to read test errors.
+func (m alternationMatch) GoString() string {
+	s := make([]string, len(m))
+	for i, m := range m {
+		s[i] = fmt.Sprintf("%#v", m)
+	}
+	return fmt.Sprintf("(%s)", strings.Join(s, " | "))
 }
