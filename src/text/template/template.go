@@ -5,6 +5,7 @@
 package template
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 	"text/template/parse"
@@ -12,8 +13,8 @@ import (
 
 // common holds the information shared by related templates.
 type common struct {
-	tmpl   map[string]*Template // Map from name to defined templates.
-	muTmpl sync.RWMutex         // protects tmpl
+	tmpl   map[string][]*Template // Map from name to defined templates.
+	muTmpl sync.RWMutex           // protects tmpl
 	option option
 	// We use two maps, one for parsing and one for execution.
 	// This separation makes the API cleaner since it doesn't
@@ -70,7 +71,7 @@ func (t *Template) New(name string) *Template {
 func (t *Template) init() {
 	if t.common == nil {
 		c := new(common)
-		c.tmpl = make(map[string]*Template)
+		c.tmpl = make(map[string][]*Template)
 		c.parseFuncs = make(FuncMap)
 		c.execFuncs = make(map[string]reflect.Value)
 		t.common = c
@@ -91,14 +92,16 @@ func (t *Template) Clone() (*Template, error) {
 	}
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
-	for k, v := range t.tmpl {
+	for k, stack := range t.tmpl {
 		if k == t.name {
-			nt.tmpl[t.name] = nt
+			nt.tmpl[t.name] = append(nt.tmpl[t.name], nt) // TODO: double-check this - maybe should just be assigning new slice
 			continue
 		}
 		// The associated templates share nt's common structure.
-		tmpl := v.copy(nt.common)
-		nt.tmpl[k] = tmpl
+		for i := range stack {
+			tmpl := stack[i].copy(nt.common)
+			nt.tmpl[k] = append(nt.tmpl[k], tmpl)
+		}
 	}
 	t.muFuncs.RLock()
 	defer t.muFuncs.RUnlock()
@@ -150,8 +153,8 @@ func (t *Template) Templates() []*Template {
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
 	m := make([]*Template, 0, len(t.tmpl))
-	for _, v := range t.tmpl {
-		m = append(m, v)
+	for _, stack := range t.tmpl {
+		m = append(m, stack[0]) // TODO: runtime assert there is at least one? invariant check
 	}
 	return m
 }
@@ -191,7 +194,24 @@ func (t *Template) Lookup(name string) *Template {
 	}
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
-	return t.tmpl[name]
+	return t.lookup(name, 0)
+}
+
+func (t *Template) LookupWithScope(name string, scope int) *Template {
+	if t.common == nil {
+		return nil
+	}
+	t.muTmpl.RLock()
+	defer t.muTmpl.RUnlock()
+	return t.lookup(name, scope)
+}
+
+func (t *Template) lookup(name string, scope int) *Template {
+	if scope >= len(t.tmpl[name]) {
+		return nil
+	}
+	fmt.Printf("\x1b[1;35mname: %q\tscope: %d\tlen: %d\x1b[0m\n", name, scope, len(t.tmpl[name]))
+	return t.tmpl[name][scope] // TODO: invariant check: at least one
 }
 
 // Parse parses text as a template body for t.
@@ -228,11 +248,15 @@ func (t *Template) associate(new *Template, tree *parse.Tree) bool {
 	if new.common != t.common {
 		panic("internal error: associate not common")
 	}
-	if old := t.tmpl[new.name]; old != nil && parse.IsEmptyTree(tree.Root) && old.Tree != nil {
+	if old := t.lookup(new.name, 0); old != nil && parse.IsEmptyTree(tree.Root) && old.Tree != nil {
 		// If a template by that name exists,
 		// don't replace it with an empty template.
 		return false
 	}
-	t.tmpl[new.name] = new
+	stack := t.tmpl[new.name]
+	stack = append(stack, nil)
+	copy(stack[1:], stack[0:])
+	stack[0] = new
+	t.tmpl[new.name] = stack
 	return true
 }

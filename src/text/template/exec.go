@@ -36,6 +36,7 @@ type state struct {
 	node  parse.Node // current node, for errors
 	vars  []variable // push-down stack of variable values.
 	depth int        // the height of the stack of executing templates.
+	scope map[string]int
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -207,9 +208,10 @@ func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
 		value = reflect.ValueOf(data)
 	}
 	state := &state{
-		tmpl: t,
-		wr:   wr,
-		vars: []variable{{"$", value}},
+		tmpl:  t,
+		wr:    wr,
+		vars:  []variable{{"$", value}},
+		scope: make(map[string]int),
 	}
 	if t.Tree == nil || t.Root == nil {
 		state.errorf("%q is an incomplete or empty template", t.Name())
@@ -230,6 +232,7 @@ func (t *Template) DefinedTemplates() string {
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
 	for name, tmpl := range t.tmpl {
+		tmpl := tmpl[0] // TODO: invariant check - at least one
 		if tmpl.Tree == nil || tmpl.Root == nil {
 			continue
 		}
@@ -400,7 +403,12 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	s.at(t)
-	tmpl := s.tmpl.Lookup(t.Name)
+	scope := s.scope[t.Name]
+	if t.Parent {
+		scope += 1
+	}
+	s.scope[t.Name] = scope
+	tmpl := s.tmpl.LookupWithScope(t.Name, scope)
 	if tmpl == nil {
 		s.errorf("template %q not defined", t.Name)
 	}
@@ -415,6 +423,7 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	// No dynamic scoping: template invocations inherit no variables.
 	newState.vars = []variable{{"$", dot}}
 	newState.walk(dot, tmpl.Root)
+	newState.scope[t.Name] = scope - 1 // TODO: unclear if this makes sense here
 }
 
 // Eval functions evaluate pipelines, commands, and their elements and extract
