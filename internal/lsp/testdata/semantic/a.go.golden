@@ -2,7 +2,7 @@
 /*⇒7,keyword,[]*/package /*⇒14,namespace,[]*/semantictokens /*⇒16,comment,[]*///@ semantic("")
 
 /*⇒6,keyword,[]*/import (
-	_ "encoding/utf8"/*⇐4,namespace,[]*/
+	_ "encoding/utf8"
 	/*⇒3,namespace,[]*/utf "encoding/utf8"
 	"fmt"/*⇐3,namespace,[]*/ /*⇒19,comment,[]*///@ semantic("fmt")
 	. "fmt"
