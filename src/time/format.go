@@ -479,7 +479,7 @@ func (t Time) String() string {
 		}
 		m1, m2 := m2/1e9, m2%1e9
 		m0, m1 := m1/1e9, m1%1e9
-		var buf []byte
+		buf := make([]byte, 0, 24)
 		buf = append(buf, " m="...)
 		buf = append(buf, sign)
 		wid := 0
@@ -498,7 +498,8 @@ func (t Time) String() string {
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	buf := []byte("time.Date(")
+	buf := make([]byte, 0, 70)
+	buf = append(buf, "time.Date("...)
 	buf = appendInt(buf, t.Year(), 0)
 	month := t.Month()
 	if January <= month && month <= December {
