@@ -278,39 +278,15 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			ctxt.Diag("%v: constant load must target register", p)
 		}
 
-	case obj.TYPE_ADDR: // MOV $sym+off(SP/SB), R
+	case obj.TYPE_ADDR:
 		if p.To.Type != obj.TYPE_REG || p.As != AMOV {
 			ctxt.Diag("unsupported addr MOV at %v", p)
 		}
 		switch p.From.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			// AUIPC $off_hi, R
-			// ADDI $off_lo, R
-			to := p.To
-
-			p.As = AAUIPC
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-			p.Reg = 0
-			p.To = to
-			p = obj.Appendp(p, newprog)
-
-			p.As = AADDI
-			p.From = obj.Addr{Type: obj.TYPE_CONST}
-			p.Reg = to.Reg
-			p.To = to
-
-		case obj.NAME_PARAM, obj.NAME_AUTO:
-			p.As = AADDI
-			p.Reg = REG_SP
-			p.From.Type = obj.TYPE_CONST
-
-		case obj.NAME_NONE:
-			p.As = AADDI
-			p.Reg = p.From.Reg
-			p.From.Type = obj.TYPE_CONST
-			p.From.Reg = 0
 
 		default:
 			ctxt.Diag("bad addr MOV from name %v at %v", p.From.Name, p)
@@ -1645,6 +1621,57 @@ func instructionForProg(p *obj.Prog) *instruction {
 	return ins
 }
 
+// instructionsForOpImmediate returns the machine instructions for a immedate
+// operand. The instruction is specified by as and the source register is
+// specified by rs, instead of the obj.Prog.
+func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction {
+	// <opi> $imm, REG, TO
+	ins := instructionForProg(p)
+	ins.as, ins.rs1 = as, uint32(rs)
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
+		return nil
+	}
+	if high == 0 {
+		return []*instruction{ins}
+	}
+
+	// Split into two additions, if possible.
+	if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+		imm0 := ins.imm / 2
+		imm1 := ins.imm - imm0
+
+		// ADDI $(imm/2), REG, TO
+		// ADDI $(imm-imm/2), TO, TO
+		ins.imm = imm0
+		insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
+		return []*instruction{ins, insADDI}
+	}
+
+	// LUI $high, TMP
+	// ADDI $low, TMP, TMP
+	// <op> TMP, REG, TO
+	insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
+	insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP, imm: low}
+	switch ins.as {
+	case AADDI:
+		ins.as = AADD
+	case AANDI:
+		ins.as = AAND
+	case AORI:
+		ins.as = AOR
+	case AXORI:
+		ins.as = AXOR
+	default:
+		p.Ctxt.Diag("unsupported immediate instruction %v for splitting", p)
+		return nil
+	}
+	ins.rs2 = REG_TMP
+	return []*instruction{insLUI, insADDIW, ins}
+}
+
 // instructionsForLoad returns the machine instructions for a load. The load
 // instruction is specified by as and the base/source register is specified
 // by rs, instead of the obj.Prog.
@@ -1797,6 +1824,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// Note that the values for $off_hi and $off_lo are currently
+			// zero and will be assigned during relocation.
+			//
 			// AUIPC $off_hi, Rd
 			// L $off_lo, Rd, Rd
 			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
@@ -1817,10 +1847,31 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// Note that the values for $off_hi and $off_lo are currently
+			// zero and will be assigned during relocation.
+			//
 			// AUIPC $off_hi, Rtmp
 			// S $off_lo, Rtmp, Rd
 			insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
 			ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
+			inss = []*instruction{insAUIPC, ins}
+		}
+
+	case p.From.Type == obj.TYPE_ADDR && p.To.Type == obj.TYPE_REG:
+		// MOV $sym+off(SP/SB), R
+
+		switch p.From.Name {
+		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+			inss = instructionsForOpImmediate(p, AADDI, addrToReg(p.From))
+
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			// Note that the values for $off_hi and $off_lo are currently
+			// zero and will be assigned during relocation.
+			//
+			// AUIPC $off_hi, R
+			// ADDI $off_lo, R
+			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
+			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, ins.rd, obj.REG_NONE, 0
 			inss = []*instruction{insAUIPC, ins}
 		}
 
@@ -1891,49 +1942,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
 
 	case AADDI, AANDI, AORI, AXORI:
-		// <opi> $imm, REG, TO
-		low, high, err := Split32BitImmediate(ins.imm)
-		if err != nil {
-			p.Ctxt.Diag("%v: constant %d too large", p, ins.imm, err)
-			return nil
-		}
-		if high == 0 {
-			break
-		}
-
-		// Split into two additions if possible.
-		if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
-			imm0 := ins.imm / 2
-			imm1 := ins.imm - imm0
-
-			// ADDI $(imm/2), REG, TO
-			// ADDI $(imm-imm/2), TO, TO
-			ins.imm = imm0
-			insADDI := &instruction{as: AADDI, rd: ins.rd, rs1: ins.rd, imm: imm1}
-			inss = append(inss, insADDI)
-			break
-		}
-
-		// LUI $high, TMP
-		// ADDI $low, TMP, TMP
-		// <op> TMP, REG, TO
-		insLUI := &instruction{as: ALUI, rd: REG_TMP, imm: high}
-		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP, imm: low}
-		switch ins.as {
-		case AADDI:
-			ins.as = AADD
-		case AANDI:
-			ins.as = AAND
-		case AORI:
-			ins.as = AOR
-		case AXORI:
-			ins.as = AXOR
-		default:
-			p.Ctxt.Diag("unsupported instruction %v for splitting", p)
-			return nil
-		}
-		ins.rs2 = REG_TMP
-		inss = []*instruction{insLUI, insADDIW, ins}
+		inss = instructionsForOpImmediate(p, ins.as, p.Reg)
 
 	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
