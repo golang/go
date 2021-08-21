@@ -218,64 +218,28 @@ func movToStore(mnemonic obj.As) obj.As {
 	}
 }
 
-// rewriteMOV rewrites MOV pseudo-instructions.
-func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+// markRelocs marks an obj.Prog that specifies a MOV pseudo-instruction and
+// requires relocation.
+func markRelocs(p *obj.Prog) {
 	switch p.As {
 	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-	default:
-		panic(fmt.Sprintf("%+v is not a MOV pseudo-instruction", p.As))
-	}
-
-	switch {
-	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
-
-	case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
-		switch p.From.Name {
-		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
-		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
-		default:
-			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
+		switch {
+		case p.From.Type == obj.TYPE_ADDR && p.To.Type == obj.TYPE_REG:
+			switch p.From.Name {
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
+				p.Mark |= NEED_PCREL_ITYPE_RELOC
+			}
+		case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
+			switch p.From.Name {
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
+				p.Mark |= NEED_PCREL_ITYPE_RELOC
+			}
+		case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
+			switch p.To.Name {
+			case obj.NAME_EXTERN, obj.NAME_STATIC:
+				p.Mark |= NEED_PCREL_STYPE_RELOC
+			}
 		}
-
-	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
-		switch p.As {
-		case AMOVBU, AMOVHU, AMOVWU:
-			ctxt.Diag("unsupported unsigned store at %v", p)
-		}
-		switch p.To.Name {
-		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
-		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			p.Mark |= NEED_PCREL_STYPE_RELOC
-		default:
-			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
-		}
-
-	case p.From.Type == obj.TYPE_CONST:
-		if p.As != AMOV {
-			ctxt.Diag("%v: unsupported constant load", p)
-		}
-		if p.To.Type != obj.TYPE_REG {
-			ctxt.Diag("%v: constant load must target register", p)
-		}
-
-	case p.From.Type == obj.TYPE_ADDR:
-		if p.As != AMOV {
-			ctxt.Diag("%v: unsupported address load", p)
-		}
-		if p.To.Type != obj.TYPE_REG {
-			ctxt.Diag("%v: address load must target register", p)
-		}
-		switch p.From.Name {
-		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
-		case obj.NAME_EXTERN, obj.NAME_STATIC:
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
-		default:
-			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
-		}
-
-	default:
-		ctxt.Diag("unsupported MOV at %v", p)
 	}
 }
 
@@ -641,14 +605,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// Rewrite MOV pseudo-instructions. This cannot be done in
-	// progedit, as SP offsets need to be applied before we split
-	// up some of the Addrs.
 	for p := cursym.Func().Text; p != nil; p = p.Link {
-		switch p.As {
-		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-			rewriteMOV(ctxt, newprog, p)
-		}
+		markRelocs(p)
 	}
 
 	// Compute instruction addresses.  Once we do that, we need to check for
@@ -1746,6 +1704,11 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 	switch {
 	case p.From.Type == obj.TYPE_CONST && p.To.Type == obj.TYPE_REG:
 		// Handle constant to register moves.
+		if p.As != AMOV {
+			p.Ctxt.Diag("%v: unsupported constant load", p)
+			return nil
+		}
+
 		low, high, err := Split32BitImmediate(ins.imm)
 		if err != nil {
 			p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
@@ -1768,6 +1731,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			ins.as, ins.rs1 = AADDIW, ins.rd
 			inss = append(inss, ins)
 		}
+
+	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
+		p.Ctxt.Diag("%v: constant load must target register", p)
+		return nil
 
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
@@ -1820,13 +1787,17 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
 			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), ins.rd, obj.REG_NONE, 0
 			inss = []*instruction{insAUIPC, ins}
+
+		default:
+			p.Ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
+			return nil
 		}
 
 	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
 		// Register to memory stores.
 		switch p.As {
 		case AMOVBU, AMOVHU, AMOVWU:
-			// rewriteMOV should have already added an error for these.
+			p.Ctxt.Diag("%v: unsupported unsigned store", p)
 			return nil
 		}
 		switch p.To.Name {
@@ -1843,11 +1814,18 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
 			ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
 			inss = []*instruction{insAUIPC, ins}
+
+		default:
+			p.Ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
+			return nil
 		}
 
 	case p.From.Type == obj.TYPE_ADDR && p.To.Type == obj.TYPE_REG:
 		// MOV $sym+off(SP/SB), R
-
+		if p.As != AMOV {
+			p.Ctxt.Diag("%v: unsupported address load", p)
+			return nil
+		}
 		switch p.From.Name {
 		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
 			inss = instructionsForOpImmediate(p, AADDI, addrToReg(p.From))
@@ -1861,15 +1839,19 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, ins.rd, obj.REG_NONE, 0
 			inss = []*instruction{insAUIPC, ins}
-		}
 
-	default:
-		// If we get here with a MOV pseudo-instruction it is going to
-		// remain unhandled. For now we trust rewriteMOV to catch these.
-		switch p.As {
-		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+		default:
+			p.Ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
 			return nil
 		}
+
+	case p.From.Type == obj.TYPE_ADDR && p.To.Type != obj.TYPE_REG:
+		p.Ctxt.Diag("%v: address load must target register", p)
+		return nil
+
+	default:
+		p.Ctxt.Diag("%v: unsupported MOV", p)
+		return nil
 	}
 
 	return inss
