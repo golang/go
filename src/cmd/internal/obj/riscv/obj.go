@@ -271,6 +271,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			switch p.As {
 			case AMOVBU, AMOVHU, AMOVWU:
 				ctxt.Diag("unsupported unsigned store at %v", p)
+				return
 			}
 			switch p.To.Name {
 			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
@@ -1795,7 +1796,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
 		// Handle register to register moves.
 		if p.From.Type != obj.TYPE_REG || p.To.Type != obj.TYPE_REG {
-			break
+			return nil
 		}
 		switch p.As {
 		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
