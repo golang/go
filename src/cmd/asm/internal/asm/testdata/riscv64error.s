@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 TEXT errors(SB),$0
-	MOV	$errors(SB), (X5)		// ERROR "unsupported addr MOV"
-	MOV	$8(SP), (X5)			// ERROR "unsupported addr MOV"
-	MOVB	$8(SP), X5			// ERROR "unsupported addr MOV"
-	MOVH	$8(SP), X5			// ERROR "unsupported addr MOV"
-	MOVW	$8(SP), X5			// ERROR "unsupported addr MOV"
-	MOVF	$8(SP), X5			// ERROR "unsupported addr MOV"
+	MOV	$errors(SB), (X5)		// ERROR "address load must target register"
+	MOV	$8(SP), (X5)			// ERROR "address load must target register"
+	MOVB	$8(SP), X5			// ERROR "unsupported address load"
+	MOVH	$8(SP), X5			// ERROR "unsupported address load"
+	MOVW	$8(SP), X5			// ERROR "unsupported address load"
+	MOVF	$8(SP), X5			// ERROR "unsupported address load"
 	MOV	$1234, 0(SP)			// ERROR "constant load must target register"
 	MOV	$1234, 8(SP)			// ERROR "constant load must target register"
 	MOV	$0, 0(SP)			// ERROR "constant load must target register"
