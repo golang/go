@@ -226,51 +226,32 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 		panic(fmt.Sprintf("%+v is not a MOV pseudo-instruction", p.As))
 	}
 
-	switch p.From.Type {
-	case obj.TYPE_MEM:
-		switch p.From.Name {
-		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
-			if p.To.Type != obj.TYPE_REG {
-				ctxt.Diag("unsupported load for %v", p)
-			}
+	switch {
+	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 
+	case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
+		switch p.From.Name {
+		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-
 		default:
 			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
 		}
 
-	case obj.TYPE_REG:
-		switch p.To.Type {
-		case obj.TYPE_REG:
-			switch p.As {
-			case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-			default:
-				ctxt.Diag("unsupported register-register move at %v", p)
-			}
-
-		case obj.TYPE_MEM:
-			switch p.As {
-			case AMOVBU, AMOVHU, AMOVWU:
-				ctxt.Diag("unsupported unsigned store at %v", p)
-				return
-			}
-			switch p.To.Name {
-			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
-
-			case obj.NAME_EXTERN, obj.NAME_STATIC:
-				p.Mark |= NEED_PCREL_STYPE_RELOC
-
-			default:
-				ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
-			}
-
+	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
+		switch p.As {
+		case AMOVBU, AMOVHU, AMOVWU:
+			ctxt.Diag("unsupported unsigned store at %v", p)
+		}
+		switch p.To.Name {
+		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
+		case obj.NAME_EXTERN, obj.NAME_STATIC:
+			p.Mark |= NEED_PCREL_STYPE_RELOC
 		default:
-			ctxt.Diag("unsupported MOV at %v", p)
+			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
 		}
 
-	case obj.TYPE_CONST:
+	case p.From.Type == obj.TYPE_CONST:
 		if p.As != AMOV {
 			ctxt.Diag("%v: unsupported constant load", p)
 		}
@@ -278,18 +259,19 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			ctxt.Diag("%v: constant load must target register", p)
 		}
 
-	case obj.TYPE_ADDR:
-		if p.To.Type != obj.TYPE_REG || p.As != AMOV {
-			ctxt.Diag("unsupported addr MOV at %v", p)
+	case p.From.Type == obj.TYPE_ADDR:
+		if p.As != AMOV {
+			ctxt.Diag("%v: unsupported address load", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("%v: address load must target register", p)
 		}
 		switch p.From.Name {
-		case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
-
+		case obj.NAME_AUTO, obj.NAME_NONE, obj.NAME_PARAM:
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			p.Mark |= NEED_PCREL_ITYPE_RELOC
-
 		default:
-			ctxt.Diag("bad addr MOV from name %v at %v", p.From.Name, p)
+			ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
 		}
 
 	default:
