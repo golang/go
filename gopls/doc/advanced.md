@@ -41,19 +41,18 @@ parameters proposal ([golang/go#43651](https://golang.org/issues/43651)) and
 type set addendum ([golang/go#45346](https://golang.org/issues/45346)).
 
 To enable this support, you need to build gopls with a version of Go that
-supports type parameters: the
-[dev.typeparams branch](https://github.com/golang/go/tree/dev.typeparams). This
-can be done by checking out this branch in the Go repository, or by using
+supports type parameters, currently just tip. This can be done by checking
+out the `master` branch in the Go repository, or by using
 `golang.org/dl/gotip`:
 
 ```
 $ go get golang.org/dl/gotip
-$ gotip download dev.typeparams
+$ gotip download
 ```
 
 For building gopls with type parameter support, it is recommended that you
 build gopls at tip. External APIs are under active development on the
-`dev.typeparams` branch, so building gopls at tip minimizes the chances of
+Go `master` branch, so building gopls at tip minimizes the chances of
 a build failure (though it is still possible). To get enhanced gopls features
 for generic code, build gopls with the `typeparams` build constraint (though
 this increases your chances of a build failure).
@@ -63,11 +62,11 @@ $ GO111MODULE=on gotip get -tags=typeparams golang.org/x/tools/gopls@master gola
 ```
 
 This will build a version of gopls that understands generic code. To actually
-run the generic code you develop, you must also tell the compiler to speak
-generics using the `-G=3` compiler flag. For example
+run the generic code you develop, you must also use the tip version of the Go
+compiler. For example:
 
 ```
-$ gotip run -gcflags=-G=3 .
+$ gotip run .
 ```
 
 [Go project]: https://go.googlesource.com/go
