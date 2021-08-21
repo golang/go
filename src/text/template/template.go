@@ -5,7 +5,6 @@
 package template
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 	"text/template/parse"
@@ -210,7 +209,7 @@ func (t *Template) lookup(name string, scope int) *Template {
 	if scope >= len(t.tmpl[name]) {
 		return nil
 	}
-	fmt.Printf("\x1b[1;35mname: %q\tscope: %d\tlen: %d\x1b[0m\n", name, scope, len(t.tmpl[name]))
+	//fmt.Printf("\x1b[1;35mname: %q\tscope: %d\tlen: %d\x1b[0m\n", name, scope, len(t.tmpl[name]))
 	return t.tmpl[name][scope] // TODO: invariant check: at least one
 }
 

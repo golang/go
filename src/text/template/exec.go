@@ -405,7 +405,7 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	s.at(t)
 	scope := s.scope[t.Name]
 	if t.Parent {
-		scope += 1
+		scope++
 	}
 	s.scope[t.Name] = scope
 	tmpl := s.tmpl.LookupWithScope(t.Name, scope)
@@ -423,7 +423,11 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	// No dynamic scoping: template invocations inherit no variables.
 	newState.vars = []variable{{"$", dot}}
 	newState.walk(dot, tmpl.Root)
-	newState.scope[t.Name] = scope - 1 // TODO: unclear if this makes sense here
+	scope--
+	if scope < 0 { // TODO logical bug
+		scope = 0
+	}
+	newState.scope[t.Name] = scope // TODO: unclear if this makes sense here
 }
 
 // Eval functions evaluate pipelines, commands, and their elements and extract

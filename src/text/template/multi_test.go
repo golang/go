@@ -71,12 +71,12 @@ func TestMultiParse(t *testing.T) {
 			continue
 		}
 		for i, name := range test.names {
-			tmpl, ok := template.tmpl[name]
+			tmpl, ok := template.tmpl[name] // TODO making this pass tests for now, turn into an accessor method
 			if !ok {
 				t.Errorf("%s: can't find template %q", test.name, name)
 				continue
 			}
-			result := tmpl.Root.String()
+			result := tmpl[0].Root.String() // TODO
 			if result != test.results[i] {
 				t.Errorf("%s=(%q): got\n\t%v\nexpected\n\t%v", test.name, test.input, result, test.results[i])
 			}
@@ -234,10 +234,10 @@ func TestClone(t *testing.T) {
 	}
 	// Verify that the clone is self-consistent.
 	for k, v := range clone.tmpl {
-		if k == clone.name && v.tmpl[k] != clone {
+		if k == clone.name && v[0].tmpl[k][0] != clone { // TODO making this pass tests for now
 			t.Error("clone does not contain root")
 		}
-		if v != v.tmpl[v.name] {
+		if v[0] != v[0].tmpl[v[0].name][0] { // TODO making this pass tests for now
 			t.Errorf("clone does not contain self for %q", k)
 		}
 	}
