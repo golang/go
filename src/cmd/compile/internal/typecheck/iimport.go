@@ -8,7 +8,6 @@
 package typecheck
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"go/constant"
@@ -1751,32 +1750,6 @@ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
 }
 
-// InstTypeName creates a name for an instantiated type, based on the name of the
-// generic type and the type args.
-func InstTypeName(name string, targs []*types.Type) string {
-	b := bytes.NewBufferString(name)
-	b.WriteByte('[')
-	for i, targ := range targs {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		// WriteString() does not include the package name for the local
-		// package, but we want it to make sure type arguments (including
-		// type params) are uniquely specified.
-		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
-			b.WriteString(targ.Sym().Pkg.Name)
-			b.WriteByte('.')
-		}
-		// types1 uses "interface {" and types2 uses "interface{" - convert
-		// to consistent types2 format.
-		tstring := targ.String()
-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
-		b.WriteString(tstring)
-	}
-	b.WriteByte(']')
-	return b.String()
-}
-
 // NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
 // that t.nod and sym.Def are set correctly.
 func NewIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
@@ -1879,7 +1852,7 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 		}
 		t2 := msubst.Typ(f.Type)
 		oldsym := f.Nname.Sym()
-		newsym := MakeInstName(oldsym, targs, true)
+		newsym := MakeFuncInstSym(oldsym, targs, true)
 		var nname *ir.Name
 		if newsym.Def != nil {
 			nname = newsym.Def.(*ir.Name)

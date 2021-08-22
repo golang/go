@@ -1897,10 +1897,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			} else {
 				targs = rcvr.RParams()
 			}
-			if strings.HasPrefix(ir.MethodSym(orig, method.Sym).Name, ".inst.") {
-				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
-				panic("multiple .inst.")
-			}
 			// The wrapper for an auto-generated pointer/non-pointer
 			// receiver method should share the same dictionary as the
 			// corresponding original (user-written) method.
@@ -1929,7 +1925,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			}
 			targs = targs2
 
-			sym := typecheck.MakeInstName(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, true)
 			if sym.Def == nil {
 				// Currently we make sure that we have all the instantiations
 				// we need by generating them all in ../noder/stencil.go:instantiateMethods
@@ -2040,7 +2036,7 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 		}
 	}
 
-	sym := typecheck.MakeDictName(gf, targs, true)
+	sym := typecheck.MakeDictSym(gf, targs, true)
 
 	// Initialize the dictionary, if we haven't yet already.
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
