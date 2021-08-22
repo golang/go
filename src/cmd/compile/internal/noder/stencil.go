@@ -1048,6 +1048,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OCLOSURE:
 				transformCall(call)
 
+			case ir.ODEREF, ir.OINDEX, ir.OINDEXMAP, ir.ORECV:
+				// Transform a call that was delayed because of the
+				// use of typeparam inside an expression that required
+				// a pointer dereference, array indexing, map indexing,
+				// or channel receive to compute function value.
+				transformCall(call)
+
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
 				// in stencil() once we have created & attached the
