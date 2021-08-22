@@ -54,14 +54,7 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 	tp := textproto.NewReader(bufio.NewReader(r))
 
 	hdr, err := tp.ReadMIMEHeader()
-	// Header-Only messages
-	if err == io.EOF && len(hdr) > 0 {
-		return &Message{
-			Header: Header(hdr),
-			Body:   tp.R,
-		}, nil
-	}
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
