@@ -362,6 +362,9 @@ func TestTypesInfo(t *testing.T) {
 
 		// issue 45096
 		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T₁`},
+
+		// issue 47895
+		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
 	}
 
 	for _, test := range tests {
