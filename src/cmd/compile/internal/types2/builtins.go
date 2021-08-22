@@ -662,6 +662,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
+		// record the selector expression (was bug - issue #47895)
+		{
+			mode := value
+			if x.mode == variable || indirect {
+				mode = variable
+			}
+			check.record(&operand{mode, selx, obj.Type(), nil, 0})
+		}
+
 		// The field offset is considered a variable even if the field is declared before
 		// the part of the struct which is variable-sized. This makes both the rules
 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
