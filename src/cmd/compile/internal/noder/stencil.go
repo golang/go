@@ -304,6 +304,11 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// of se.Selection, since that will be the type that actually has
 		// the method.
 		recv := deref(se.Selection.Type.Recv().Type)
+		if len(recv.RParams()) == 0 {
+			// The embedded type that actually has the method is not
+			// actually generic, so no need to build a closure.
+			return x
+		}
 		baseType := recv.OrigSym.Def.Type()
 		var gf *ir.Name
 		for _, m := range baseType.Methods().Slice() {
@@ -491,6 +496,9 @@ func (g *irgen) instantiateMethods() {
 		baseSym := typ.OrigSym
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, _ := range typ.Methods().Slice() {
+			if baseType.Methods().Slice()[j].Nointerface() {
+				typ.Methods().Slice()[j].SetNointerface(true)
+			}
 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
 			// Eagerly generate the instantiations and dictionaries that implement these methods.
 			// We don't use the instantiations here, just generate them (and any
