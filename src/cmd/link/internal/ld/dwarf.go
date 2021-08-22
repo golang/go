@@ -1190,7 +1190,7 @@ func (d *dwctxt) writeDirFileTables(unit *sym.CompilationUnit, lsu *loader.Symbo
 		// We can't use something that may be dead-code
 		// eliminated from a binary here. proc.go contains
 		// main and the scheduler, so it's not going anywhere.
-		if i := strings.Index(name, "runtime/proc.go"); i >= 0 {
+		if i := strings.Index(name, "runtime/proc.go"); i >= 0 && unit.Lib.Pkg == "runtime" {
 			d.dwmu.Lock()
 			if gdbscript == "" {
 				k := strings.Index(name, "runtime/proc.go")
