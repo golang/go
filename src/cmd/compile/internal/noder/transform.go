@@ -811,7 +811,10 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
 			return transformRealImag(u1.(*ir.UnaryExpr))
 		case ir.OPANIC:
 			return transformPanic(u1.(*ir.UnaryExpr))
-		case ir.OCLOSE, ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+		case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+			// This corresponds to the EvalConst() call near end of typecheck().
+			return typecheck.EvalConst(u1)
+		case ir.OCLOSE, ir.ONEW:
 			// nothing more to do
 			return u1
 		}
