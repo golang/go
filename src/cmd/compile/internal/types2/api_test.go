@@ -17,10 +17,6 @@ import (
 	. "cmd/compile/internal/types2"
 )
 
-func unimplemented() {
-	panic("unimplemented")
-}
-
 // genericPkg is a source prefix for packages that contain generic code.
 const genericPkg = "package generic_"
 
@@ -1168,8 +1164,6 @@ func (m testImporter) Import(path string) (*Package, error) {
 }
 
 func TestSelection(t *testing.T) {
-	t.Skip("requires fixes around source positions")
-
 	selections := make(map[*syntax.SelectorExpr]*Selection)
 
 	imports := make(testImporter)
@@ -1293,11 +1287,9 @@ func main() {
 	for e, sel := range selections {
 		_ = sel.String() // assertion: must not panic
 
-		unimplemented()
-		_ = e
-		// start := fset.Position(e.Pos()).Offset
-		// end := fset.Position(e.End()).Offset
-		// syntax := mainSrc[start:end] // (all SelectorExprs are in main, not lib)
+		start := indexFor(mainSrc, syntax.StartPos(e))
+		end := indexFor(mainSrc, syntax.EndPos(e))
+		segment := mainSrc[start:end] // (all SelectorExprs are in main, not lib)
 
 		direct := "."
 		if sel.Indirect() {
@@ -1307,13 +1299,11 @@ func main() {
 			sel.String(),
 			fmt.Sprintf("%s%v", direct, sel.Index()),
 		}
-		unimplemented()
-		_ = got
-		// want := wantOut[syntax]
-		// if want != got {
-		// 	t.Errorf("%s: got %q; want %q", syntax, got, want)
-		// }
-		// delete(wantOut, syntax)
+		want := wantOut[segment]
+		if want != got {
+			t.Errorf("%s: got %q; want %q", segment, got, want)
+		}
+		delete(wantOut, segment)
 
 		// We must explicitly assert properties of the
 		// Signature's receiver since it doesn't participate
@@ -1323,17 +1313,29 @@ func main() {
 			got := sig.Recv().Type()
 			want := sel.Recv()
 			if !Identical(got, want) {
-				unimplemented()
-				// t.Errorf("%s: Recv() = %s, want %s", syntax, got, want)
+				t.Errorf("%s: Recv() = %s, want %s", segment, got, want)
 			}
 		} else if sig != nil && sig.Recv() != nil {
 			t.Errorf("%s: signature has receiver %s", sig, sig.Recv().Type())
 		}
 	}
 	// Assert that all wantOut entries were used exactly once.
-	for syntax := range wantOut {
-		t.Errorf("no syntax.Selection found with syntax %q", syntax)
+	for segment := range wantOut {
+		t.Errorf("no syntax.Selection found with syntax %q", segment)
 	}
+}
+
+// indexFor returns the index into s corresponding to the position pos.
+func indexFor(s string, pos syntax.Pos) int {
+	i, line := 0, 1 // string index and corresponding line
+	target := int(pos.Line())
+	for line < target && i < len(s) {
+		if s[i] == '\n' {
+			line++
+		}
+		i++
+	}
+	return i + int(pos.Col()-1) // columns are 1-based
 }
 
 func TestIssue8518(t *testing.T) {
