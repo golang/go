@@ -900,6 +900,35 @@ func TypesOf(x []ir.Node) []*types.Type {
 	return r
 }
 
+// addTargs writes out the targs to buffer b as a comma-separated list enclosed by
+// brackets.
+func addTargs(b *bytes.Buffer, targs []*types.Type) {
+	b.WriteByte('[')
+	for i, targ := range targs {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		// Use NameString(), which includes the package name for the local
+		// package, to make sure that type arguments (including type params),
+		// are uniquely specified.
+		tstring := targ.NameString()
+		// types1 uses "interface {" and types2 uses "interface{" - convert
+		// to consistent types2 format.  Same for "struct {"
+		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
+		tstring = strings.Replace(tstring, "struct {", "struct{", -1)
+		b.WriteString(tstring)
+	}
+	b.WriteString("]")
+}
+
+// InstTypeName creates a name for an instantiated type, based on the name of the
+// generic type and the type args.
+func InstTypeName(name string, targs []*types.Type) string {
+	b := bytes.NewBufferString(name)
+	addTargs(b, targs)
+	return b.String()
+}
+
 // makeInstName1 returns the name of the generic function instantiated with the
 // given types, which can have type params or shapes, or be concrete types. name is
 // the name of the generic function or method.
@@ -912,36 +941,16 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
 	} else {
 		b.WriteString(name)
 	}
-	b.WriteString("[")
-	for i, targ := range targs {
-		if i > 0 {
-			b.WriteString(",")
-		}
-		// WriteString() does not include the package name for the local
-		// package, but we want it for uniqueness.
-		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
-			b.WriteString(targ.Sym().Pkg.Name)
-			b.WriteByte('.')
-		}
-		// types1 uses "interface {" and types2 uses "interface{" - convert
-		// to consistent types2 format.
-		tstring := targ.String()
-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
-		b.WriteString(tstring)
-	}
-	b.WriteString("]")
+	addTargs(b, targs)
 	if i >= 0 {
 		i2 := strings.LastIndex(name[i:], "]")
 		assert(i2 >= 0)
 		b.WriteString(name[i+i2+1:])
 	}
-	if strings.HasPrefix(b.String(), ".inst..inst.") {
-		panic(fmt.Sprintf("multiple .inst. prefix in %s", b.String()))
-	}
 	return b.String()
 }
 
-// MakeInstName makes the unique name for a stenciled generic function or method,
+// MakeFuncInstSym makes the unique sym for a stenciled generic function or method,
 // based on the name of the function fnsym and the targs. It replaces any
 // existing bracket type list in the name. MakeInstName asserts that fnsym has
 // brackets in its name if and only if hasBrackets is true.
@@ -953,11 +962,11 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
 //
 // The standard naming is something like: 'genFn[int,bool]' for functions and
 // '(*genType[int,bool]).methodName' for methods
-func MakeInstName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+func MakeFuncInstSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
 	return gf.Pkg.Lookup(makeInstName1(gf.Name, targs, hasBrackets))
 }
 
-func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
 	for _, targ := range targs {
 		if targ.HasTParam() {
 			fmt.Printf("FUNCTION %s\n", gf.Name)
@@ -1222,7 +1231,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		for i, f := range t.Methods().Slice() {
 			t2 := ts.Typ(f.Type)
 			oldsym := f.Nname.Sym()
-			newsym := MakeInstName(oldsym, ts.Targs, true)
+			newsym := MakeFuncInstSym(oldsym, ts.Targs, true)
 			var nname *ir.Name
 			if newsym.Def != nil {
 				nname = newsym.Def.(*ir.Name)

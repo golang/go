@@ -590,7 +590,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 		shapes = s1
 	}
 
-	sym := typecheck.MakeInstName(nameNode.Sym(), shapes, isMeth)
+	sym := typecheck.MakeFuncInstSym(nameNode.Sym(), shapes, isMeth)
 	info := g.instInfoMap[sym]
 	if info == nil {
 		// If instantiation doesn't exist yet, create it and add
@@ -1372,7 +1372,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 	}
 
 	// Get a symbol representing the dictionary.
-	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
+	sym := typecheck.MakeDictSym(gf.Sym(), targs, isMeth)
 
 	// Initialize the dictionary, if we haven't yet already.
 	lsym := sym.Linksym()
