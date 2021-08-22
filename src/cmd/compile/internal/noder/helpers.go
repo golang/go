@@ -138,10 +138,18 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		//    until arg type known
 		// OAPPEND: transformAppend requires that the arg is a slice
 		// ODELETE: transformDelete requires that the arg is a map
+		// OALIGNOF, OSIZEOF: can be eval'ed to a constant until types known.
 		switch fun.BuiltinOp {
-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
+		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
 			hasTParam := false
 			for _, arg := range args {
+				if fun.BuiltinOp == ir.OOFFSETOF {
+					// It's the type of left operand of the
+					// selection that matters, not the type of
+					// the field itself (which is irrelevant for
+					// offsetof).
+					arg = arg.(*ir.SelectorExpr).X
+				}
 				if arg.Type().HasTParam() {
 					hasTParam = true
 					break
