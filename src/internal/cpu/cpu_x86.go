@@ -61,9 +61,6 @@ func doinit() {
 		{Name: "sse41", Feature: &X86.HasSSE41},
 		{Name: "sse42", Feature: &X86.HasSSE42},
 		{Name: "ssse3", Feature: &X86.HasSSSE3},
-
-		// These capabilities should always be enabled on amd64:
-		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64"},
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)
@@ -74,8 +71,7 @@ func doinit() {
 
 	maxExtendedFunctionInformation, _, _, _ = cpuid(0x80000000, 0)
 
-	_, _, ecx1, edx1 := cpuid(1, 0)
-	X86.HasSSE2 = isSet(edx1, cpuid_SSE2)
+	_, _, ecx1, _ := cpuid(1, 0)
 
 	X86.HasSSE3 = isSet(ecx1, cpuid_SSE3)
 	X86.HasPCLMULQDQ = isSet(ecx1, cpuid_PCLMULQDQ)

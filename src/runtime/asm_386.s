@@ -838,8 +838,9 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	// When no SSE2 support is present do not enforce any serialization
 	// since using CPUID to serialize the instruction stream is
 	// very costly.
-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE	rdtsc
+#ifdef GO386_softfloat
+	JMP	rdtsc  // no fence instructions available
+#endif
 	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
 	JNE	fences
 	// Instruction stream serializing RDTSCP is supported.

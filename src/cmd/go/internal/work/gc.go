@@ -374,6 +374,11 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 		args = append(args, "-compiling-runtime")
 	}
 
+	if cfg.Goarch == "386" {
+		// Define GO386_value from cfg.GO386.
+		args = append(args, "-D", "GO386_"+cfg.GO386)
+	}
+
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
 		// Define GOMIPS_value from cfg.GOMIPS.
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
