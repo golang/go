@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"internal/goos"
 	"math/rand"
 	. "runtime"
 	"testing"
@@ -372,7 +373,9 @@ func TestPageAllocAllocToCache(t *testing.T) {
 			},
 		},
 	}
-	if PageAlloc64Bit != 0 {
+	// Disable these tests on iOS since we have a small address space.
+	// See #46860.
+	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
 		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
 
 		// This test is similar to the one with the same name for
