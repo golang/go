@@ -368,7 +368,7 @@ func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encO
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
 	state.sendZero = true
-	state.encodeInt(int64(mv.Len()))
+	state.encodeUint(uint64(mv.Len()))
 	iter := mv.MapRange()
 	for iter.Next() {
 		encodeReflectValue(state, iter.Key(), keyOp, keyIndir)
