@@ -158,7 +158,11 @@ func expList(exp, base *goexperiment.Flags, all bool) []string {
 // GOEXPERIMENT is exactly what a user would set on the command line
 // to get the set of enabled experiments.
 func GOEXPERIMENT() string {
-	return strings.Join(expList(&Experiment, &experimentBaseline, false), ",")
+	goexp := strings.Join(expList(&Experiment, &experimentBaseline, false), ",")
+	if goexp == "" && DefaultGOEXPERIMENT != "" {
+		goexp = "," // non-empty to override DefaultGOEXPERIMENT
+	}
+	return goexp
 }
 
 // EnabledExperiments returns a list of enabled experiments, as
