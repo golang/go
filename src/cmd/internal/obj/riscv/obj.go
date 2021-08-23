@@ -2019,7 +2019,6 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		ctxt.Retpoline = false // don't keep printing
 	}
 
-	var symcode []uint32
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case AJALR:
@@ -2074,22 +2073,16 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			rel.Type = rt
 		}
 
+		offset := p.Pc
 		for _, ins := range instructionsForProg(p) {
-			ic, err := ins.encode()
-			if err != nil {
-				break
+			if ic, err := ins.encode(); err == nil {
+				cursym.WriteInt(ctxt, offset, ins.length(), int64(ic))
+				offset += int64(ins.length())
 			}
 			if ins.usesRegTmp() {
 				p.Mark |= USES_REG_TMP
 			}
-			symcode = append(symcode, ic)
 		}
-	}
-	cursym.Size = int64(4 * len(symcode))
-
-	cursym.Grow(cursym.Size)
-	for p, i := cursym.P, 0; i < len(symcode); p, i = p[4:], i+1 {
-		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
 	}
 
 	obj.MarkUnsafePoints(ctxt, cursym.Func().Text, newprog, isUnsafePoint, nil)
