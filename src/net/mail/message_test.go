@@ -47,8 +47,8 @@ Version: 1
 `,
 		header: Header{
 			"Feedback-Type": []string{"abuse"},
-			"User-Agent": []string{"SomeGenerator/1.0"},
-			"Version": []string{"1"},
+			"User-Agent":    []string{"SomeGenerator/1.0"},
+			"Version":       []string{"1"},
 		},
 		body: "",
 	},
