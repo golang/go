@@ -552,8 +552,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 				// return an error.
 				if len(mainModulePrefix) > len(pkgNotFoundLongestPrefix) {
 					pkgNotFoundLongestPrefix = mainModulePrefix
-					pkgNotFoundErr = &PackageNotInModuleError{Mod: mainModule, Pattern: pkg}
-
+					pkgNotFoundErr = &PackageNotInModuleError{MainModules: []module.Version{mainModule}, Pattern: pkg}
 				}
 				continue
 			}

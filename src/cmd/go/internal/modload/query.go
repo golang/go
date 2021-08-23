@@ -632,18 +632,16 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 		if modOnly != nil {
 			return nil, modOnly, nil
 		} else if len(mainModuleMatches) != 0 {
-			_ = TODOWorkspaces("add multiple main modules to the error?")
-			return nil, nil, &QueryMatchesMainModuleError{
-				MainModule: mainModuleMatches[0],
-				Pattern:    pattern,
-				Query:      query,
+			return nil, nil, &QueryMatchesMainModulesError{
+				MainModules: mainModuleMatches,
+				Pattern:     pattern,
+				Query:       query,
 			}
 		} else {
-			_ = TODOWorkspaces("This should maybe be PackageNotInModule*s* error with the main modules that are prefixes of base")
 			return nil, nil, &PackageNotInModuleError{
-				Mod:     MainModules.Versions()[0],
-				Query:   query,
-				Pattern: pattern,
+				MainModules: mainModuleMatches,
+				Query:       query,
+				Pattern:     pattern,
 			}
 		}
 	}
@@ -695,7 +693,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	})
 
 	if len(mainModuleMatches) > 0 && len(results) == 0 && modOnly == nil && errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, &QueryMatchesMainModuleError{
+		return nil, nil, &QueryMatchesMainModulesError{
 			Pattern: pattern,
 			Query:   query,
 		}
@@ -893,6 +891,7 @@ func (e *WildcardInFirstElementError) Error() string {
 // code for the versions it knows about, and thus did not have the opportunity
 // to return a non-400 status code to suppress fallback.
 type PackageNotInModuleError struct {
+	MainModules []module.Version
 	Mod         module.Version
 	Replacement module.Version
 	Query       string
@@ -900,11 +899,15 @@ type PackageNotInModuleError struct {
 }
 
 func (e *PackageNotInModuleError) Error() string {
-	if MainModules.Contains(e.Mod.Path) {
-		if strings.Contains(e.Pattern, "...") {
-			return fmt.Sprintf("main module (%s) does not contain packages matching %s", e.Mod.Path, e.Pattern)
+	if len(e.MainModules) > 0 {
+		prefix := "workspace modules do"
+		if len(e.MainModules) == 1 {
+			prefix = fmt.Sprintf("main module (%s) does", e.MainModules[0])
 		}
-		return fmt.Sprintf("main module (%s) does not contain package %s", e.Mod.Path, e.Pattern)
+		if strings.Contains(e.Pattern, "...") {
+			return fmt.Sprintf("%s not contain packages matching %s", prefix, e.Pattern)
+		}
+		return fmt.Sprintf("%s not contain package %s", prefix, e.Pattern)
 	}
 
 	found := ""
@@ -1153,21 +1156,29 @@ func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) 
 	return rev, nil
 }
 
-// A QueryMatchesMainModuleError indicates that a query requests
+// A QueryMatchesMainModulesError indicates that a query requests
 // a version of the main module that cannot be satisfied.
 // (The main module's version cannot be changed.)
-type QueryMatchesMainModuleError struct {
-	MainModule module.Version
-	Pattern    string
-	Query      string
+type QueryMatchesMainModulesError struct {
+	MainModules []module.Version
+	Pattern     string
+	Query       string
 }
 
-func (e *QueryMatchesMainModuleError) Error() string {
+func (e *QueryMatchesMainModulesError) Error() string {
 	if MainModules.Contains(e.Pattern) {
 		return fmt.Sprintf("can't request version %q of the main module (%s)", e.Query, e.Pattern)
 	}
 
-	return fmt.Sprintf("can't request version %q of pattern %q that includes the main module (%s)", e.Query, e.Pattern, e.MainModule.Path)
+	plural := ""
+	mainModulePaths := make([]string, len(e.MainModules))
+	for i := range e.MainModules {
+		mainModulePaths[i] = e.MainModules[i].Path
+	}
+	if len(e.MainModules) > 1 {
+		plural = "s"
+	}
+	return fmt.Sprintf("can't request version %q of pattern %q that includes the main module%s (%s)", e.Query, e.Pattern, plural, strings.Join(mainModulePaths, ", "))
 }
 
 // A QueryUpgradesAllError indicates that a query requests

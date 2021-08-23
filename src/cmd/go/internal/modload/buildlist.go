@@ -139,7 +139,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 		}
 
 		if MainModules.Len() != 1 {
-			panic("There should be exactly one main moudle in Vendor mode.")
+			panic("There should be exactly one main module in Vendor mode.")
 		}
 		mainModule := MainModules.Versions()[0]
 
@@ -284,8 +284,10 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
 	)
 	for _, m := range MainModules.Versions() {
 		// Require all roots from all main modules.
-		_ = TODOWorkspaces("This isn't the correct behavior. " +
-			"Fix this when the requirements struct is updated to reflect the struct of the module graph.")
+		_ = TODOWorkspaces("This flattens a level of the module graph, adding the dependencies " +
+			"of all main modules to a single requirements struct, and losing the information of which " +
+			"main module required which requirement. Rework the requirements struct and change this" +
+			"to reflect the structure of the main modules.")
 		mg.g.Require(m, roots)
 	}
 

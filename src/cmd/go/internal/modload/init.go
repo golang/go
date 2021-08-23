@@ -123,8 +123,6 @@ func (mms *MainModuleSet) Contains(path string) bool {
 }
 
 func (mms *MainModuleSet) ModRoot(m module.Version) string {
-	_ = TODOWorkspaces(" Do we need the Init? The original modRoot calls it. Audit callers.")
-	Init()
 	if mms == nil {
 		return ""
 	}
@@ -143,8 +141,11 @@ func (mms *MainModuleSet) mustGetSingleMainModule() module.Version {
 		panic("internal error: mustGetSingleMainModule called in context with no main modules")
 	}
 	if len(mms.versions) != 1 {
-		_ = TODOWorkspaces("Check if we're in workspace mode before returning the below error.")
-		panic("internal error: mustGetSingleMainModule called in workspace mode")
+		if inWorkspaceMode() {
+			panic("internal error: mustGetSingleMainModule called in workspace mode")
+		} else {
+			panic("internal error: multiple main modules present outside of workspace mode")
+		}
 	}
 	return mms.versions[0]
 }
@@ -156,11 +157,7 @@ func (mms *MainModuleSet) GetSingleIndexOrNil() *modFileIndex {
 	if len(mms.versions) == 0 {
 		return nil
 	}
-	if len(mms.versions) != 1 {
-		_ = TODOWorkspaces("Check if we're in workspace mode before returning the below error.")
-		panic("internal error: mustGetSingleMainModule called in workspace mode")
-	}
-	return mms.indices[mms.versions[0]]
+	return mms.indices[mms.mustGetSingleMainModule()]
 }
 
 func (mms *MainModuleSet) Index(m module.Version) *modFileIndex {
@@ -363,7 +360,9 @@ func Init() {
 	// We're in module mode. Set any global variables that need to be set.
 	cfg.ModulesEnabled = true
 	setDefaultBuildMod()
-	_ = TODOWorkspaces("ensure that buildmod is readonly")
+	_ = TODOWorkspaces("In workspace mode, mod will not be readonly for go mod download," +
+		"verify, graph, and why. Implement support for go mod download and add test cases" +
+		"to ensure verify, graph, and why work properly.")
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) == 0 || list[0] == "" {
 		base.Fatalf("missing $GOPATH")
@@ -374,15 +373,14 @@ func Init() {
 	}
 
 	if inWorkspaceMode() {
-		_ = TODOWorkspaces("go.work.sum, and also allow modfetch to fall back to individual go.sums")
-		_ = TODOWorkspaces("replaces")
 		var err error
 		modRoots, err = loadWorkFile(workFilePath)
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
+		_ = TODOWorkspaces("Support falling back to individual module go.sum " +
+			"files for sums not in the workspace sum file.")
 		modfetch.GoSumFile = workFilePath + ".sum"
-		// TODO(matloob) should workRoot just be workFile?
 	} else if modRoots == nil {
 		// We're in module mode, but not inside a module.
 		//
@@ -539,6 +537,7 @@ func (goModDirtyError) Error() string {
 var errGoModDirty error = goModDirtyError{}
 
 func loadWorkFile(path string) (modRoots []string, err error) {
+	_ = TODOWorkspaces("Clean up and write back the go.work file: add module paths for workspace modules.")
 	workDir := filepath.Dir(path)
 	workData, err := lockedfile.Read(path)
 	if err != nil {
@@ -661,8 +660,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		// We don't need to do anything for vendor or update the mod file so
 		// return early.
 
-		_ = TODOWorkspaces("don't worry about commits for now, but eventually will want to update go.work files")
-		return rs, false
+		return rs, true
 	}
 
 	mainModule := MainModules.mustGetSingleMainModule()
@@ -761,7 +759,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil})
 	addGoStmt(modFile, modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
 
-	convertedFrom, err := convertLegacyConfig(modFile, modPath)
+	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
 	if convertedFrom != "" {
 		fmt.Fprintf(os.Stderr, "go: copying requirements from %s\n", base.ShortPath(convertedFrom))
 	}
@@ -1037,7 +1035,7 @@ func mustHaveCompleteRequirements() bool {
 
 // convertLegacyConfig imports module requirements from a legacy vendoring
 // configuration file, if one is present.
-func convertLegacyConfig(modFile *modfile.File, modPath string) (from string, err error) {
+func convertLegacyConfig(modFile *modfile.File, modRoot string) (from string, err error) {
 	noneSelected := func(path string) (version string) { return "none" }
 	queryPackage := func(path, rev string) (module.Version, error) {
 		pkgMods, modOnly, err := QueryPattern(context.Background(), path, rev, noneSelected, nil)
@@ -1050,10 +1048,7 @@ func convertLegacyConfig(modFile *modfile.File, modPath string) (from string, er
 		return modOnly.Mod, nil
 	}
 	for _, name := range altConfigs {
-		if len(modRoots) != 1 {
-			panic(TODOWorkspaces("what do do here?"))
-		}
-		cfg := filepath.Join(modRoots[0], name)
+		cfg := filepath.Join(modRoot, name)
 		data, err := os.ReadFile(cfg)
 		if err == nil {
 			convert := modconv.Converters[name]
@@ -1166,7 +1161,8 @@ func findWorkspaceFile(dir string) (root string) {
 			break
 		}
 		if d == cfg.GOROOT {
-			_ = TODOWorkspaces("Address how go.work files interact with GOROOT")
+			_ = TODOWorkspaces("If we end up checking in a go.work file to GOROOT/src," +
+				"remove this case.")
 			return "" // As a special case, don't cross GOROOT to find a go.work file.
 		}
 		dir = d
@@ -1345,7 +1341,7 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
 		return
 	}
-	mainModule := MainModules.Versions()[0]
+	mainModule := MainModules.mustGetSingleMainModule()
 	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
 	modFile := MainModules.ModFile(mainModule)
 
@@ -1398,12 +1394,6 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 		base.Fatalf("go: %v", err)
 	}
 	defer func() {
-		if MainModules.Len() != 1 {
-			panic(TODOWorkspaces("There should be exactly one main module when committing reqs"))
-		}
-
-		mainModule := MainModules.Versions()[0]
-
 		// At this point we have determined to make the go.mod file on disk equal to new.
 		MainModules.SetIndex(mainModule, indexModFile(new, modFile, mainModule, false))
 

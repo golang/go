@@ -218,7 +218,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 			Version: m.Version,
 			Main:    true,
 		}
-		_ = TODOWorkspaces("handle rawGoVersion here")
 		if v, ok := rawGoVersion.Load(m); ok {
 			info.GoVersion = v.(string)
 		} else {
