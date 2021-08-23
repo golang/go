@@ -176,7 +176,7 @@ func (c *registerCursor) hasRegs() bool {
 type expandState struct {
 	f                  *Func
 	abi1               *abi.ABIConfig
-	debug              bool
+	debug              int // odd values log lost statement markers, so likely settings are 1 (stmts), 2 (expansion), and 3 (both)
 	canSSAType         func(*types.Type) bool
 	regSize            int64
 	sp                 *Value
@@ -302,7 +302,7 @@ func (x *expandState) Printf(format string, a ...interface{}) (n int, err error)
 //
 // TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
 func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []*LocalSlot {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("rewriteSelect(%s; %s; memOff=%d; regOff=%d)\n", leaf.LongString(), selector.LongString(), offset, regOffset)
@@ -325,7 +325,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		} else {
 			x.f.Fatalf("Unexpected %s type, selector=%s, leaf=%s\n", selector.Op.String(), selector.LongString(), leaf.LongString())
 		}
-		if x.debug {
+		if x.debug > 1 {
 			x.Printf("---%s, break\n", selector.Op.String())
 		}
 	case OpArg:
@@ -335,7 +335,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 			} else {
 				x.f.Fatalf("Unexpected OpArg type, selector=%s, leaf=%s\n", selector.LongString(), leaf.LongString())
 			}
-			if x.debug {
+			if x.debug > 1 {
 				x.Printf("---OpArg, break\n")
 			}
 			break
@@ -381,7 +381,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		// This case removes that StructSelect.
 		if leafType != selector.Type {
 			if x.f.Config.SoftFloat && selector.Type.IsFloat() {
-				if x.debug {
+				if x.debug > 1 {
 					x.Printf("---OpLoad, break\n")
 				}
 				break // softfloat pass will take care of that
@@ -468,7 +468,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 					} else {
 						w := call.Block.NewValue2(leaf.Pos, OpLoad, leafType, off, call)
 						leaf.copyOf(w)
-						if x.debug {
+						if x.debug > 1 {
 							x.Printf("---new %s\n", w.LongString())
 						}
 					}
@@ -687,7 +687,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 			panic(fmt.Errorf("offset %d of requested register %d should be zero, source=%s", offs[loadRegOffset], loadRegOffset, source.LongString()))
 		}
 
-		if x.debug {
+		if x.debug > 1 {
 			x.Printf("decompose arg %s has %d locs\n", source.LongString(), len(locs))
 		}
 
@@ -836,7 +836,7 @@ func (x *expandState) decomposeLoad(pos src.XPos, b *Block, source, mem *Value, 
 // pos and b locate the store instruction, source is the "base" of the value input,
 // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
 func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suffix string, source, mem *Value, t *types.Type, argOffset, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
@@ -877,7 +877,7 @@ func storeTwoLoad(x *expandState, pos src.XPos, b *Block, source, mem *Value, t1
 // stores of non-aggregate types.  It recursively walks up a chain of selectors until it reaches a Load or an Arg.
 // If it does not reach a Load or an Arg, nothing happens; this allows a little freedom in phase ordering.
 func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value, t *types.Type, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("storeArgOrLoad(%s;  %s;  %s; %d; %s)\n", source.LongString(), mem.String(), t.String(), storeOffset, storeRc.String())
@@ -1060,7 +1060,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 		dst := x.offsetFrom(b, storeRc.storeDest, storeOffset, types.NewPtr(t))
 		s = b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, source, mem)
 	}
-	if x.debug {
+	if x.debug > 1 {
 		x.Printf("-->storeArg returns %s, storeRc=%s\n", s.LongString(), storeRc.String())
 	}
 	return s
@@ -1071,14 +1071,13 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 // to account for any parameter stores required.
 // Any of the old Args that have their use count fall to zero are marked OpInvalid.
 func (x *expandState) rewriteArgs(v *Value, firstArg int) {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("rewriteArgs(%s; %d)\n", v.LongString(), firstArg)
 	}
 	// Thread the stores on the memory arg
 	aux := v.Aux.(*AuxCall)
-	pos := v.Pos.WithNotStmt()
 	m0 := v.MemoryArg()
 	mem := m0
 	newArgs := []*Value{}
@@ -1095,7 +1094,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			}
 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
 			// TODO(register args) this will be more complicated with registers in the picture.
-			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, pos)
+			mem = x.rewriteDereference(v.Block, x.sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, a.Pos)
 		} else {
 			var rc registerCursor
 			var result *[]*Value
@@ -1105,11 +1104,11 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			} else {
 				aOffset = aux.OffsetOfArg(auxI)
 			}
-			if x.debug {
+			if x.debug > 1 {
 				x.Printf("...storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
 			}
 			rc.init(aRegs, aux.abiInfo, result, x.sp)
-			mem = x.storeArgOrLoad(pos, v.Block, a, mem, aType, aOffset, 0, rc)
+			mem = x.storeArgOrLoad(a.Pos, v.Block, a, mem, aType, aOffset, 0, rc)
 		}
 	}
 	var preArgStore [2]*Value
@@ -1120,14 +1119,29 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 	v.AddArg(mem)
 	for _, a := range oldArgs {
 		if a.Uses == 0 {
-			if x.debug {
-				x.Printf("...marking %v unused\n", a.LongString())
-			}
-			a.invalidateRecursively()
+			x.invalidateRecursively(a)
 		}
 	}
 
 	return
+}
+
+func (x *expandState) invalidateRecursively(a *Value) {
+	var s string
+	if x.debug > 0 {
+		plus := " "
+		if a.Pos.IsStmt() == src.PosIsStmt {
+			plus = " +"
+		}
+		s = a.String() + plus + a.Pos.LineNumber() + " " + a.LongString()
+		if x.debug > 1 {
+			x.Printf("...marking %v unused\n", s)
+		}
+	}
+	lost := a.invalidateRecursively()
+	if x.debug&1 != 0 && lost { // For odd values of x.debug, do this.
+		x.Printf("Lost statement marker in %s on former %s\n", base.Ctxt.Pkgpath+"."+x.f.Name, s)
+	}
 }
 
 // expandCalls converts LE (Late Expansion) calls that act like they receive value args into a lower-level form
@@ -1148,7 +1162,7 @@ func expandCalls(f *Func) {
 	x := &expandState{
 		f:                  f,
 		abi1:               f.ABI1,
-		debug:              f.pass.debug > 0,
+		debug:              f.pass.debug,
 		canSSAType:         f.fe.CanSSA,
 		regSize:            f.Config.RegSize,
 		sp:                 sp,
@@ -1170,7 +1184,7 @@ func expandCalls(f *Func) {
 		x.loRo, x.hiRo = 0, 1
 	}
 
-	if x.debug {
+	if x.debug > 1 {
 		x.Printf("\nexpandsCalls(%s)\n", f.Name)
 	}
 
@@ -1210,9 +1224,8 @@ func expandCalls(f *Func) {
 			m0 := v.MemoryArg()
 			mem := m0
 			aux := f.OwnAux
-			pos := v.Pos.WithNotStmt()
 			allResults := []*Value{}
-			if x.debug {
+			if x.debug > 1 {
 				x.Printf("multiValueExit rewriting %s\n", v.LongString())
 			}
 			var oldArgs []*Value
@@ -1233,7 +1246,7 @@ func expandCalls(f *Func) {
 						}
 						continue
 					}
-					mem = x.rewriteDereference(v.Block, auxBase, a, mem, auxOffset, auxSize, auxType, pos)
+					mem = x.rewriteDereference(v.Block, auxBase, a, mem, auxOffset, auxSize, auxType, a.Pos)
 				} else {
 					if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
 						addr := a.Args[0] // This is a self-move. // TODO(register args) do what here for registers?
@@ -1257,13 +1270,13 @@ func expandCalls(f *Func) {
 			b.SetControl(v)
 			for _, a := range oldArgs {
 				if a.Uses == 0 {
-					if x.debug {
+					if x.debug > 1 {
 						x.Printf("...marking %v unused\n", a.LongString())
 					}
-					a.invalidateRecursively()
+					x.invalidateRecursively(a)
 				}
 			}
-			if x.debug {
+			if x.debug > 1 {
 				x.Printf("...multiValueExit new result %s\n", v.LongString())
 			}
 			x.indent(-3)
@@ -1317,7 +1330,7 @@ func expandCalls(f *Func) {
 				switch w.Op {
 				case OpStructSelect, OpArraySelect, OpSelectN, OpArg:
 					val2Preds[w] += 1
-					if x.debug {
+					if x.debug > 1 {
 						x.Printf("v2p[%s] = %d\n", w.LongString(), val2Preds[w])
 					}
 				}
@@ -1326,7 +1339,7 @@ func expandCalls(f *Func) {
 			case OpSelectN:
 				if _, ok := val2Preds[v]; !ok {
 					val2Preds[v] = 0
-					if x.debug {
+					if x.debug > 1 {
 						x.Printf("v2p[%s] = %d\n", v.LongString(), val2Preds[v])
 					}
 				}
@@ -1337,7 +1350,7 @@ func expandCalls(f *Func) {
 				}
 				if _, ok := val2Preds[v]; !ok {
 					val2Preds[v] = 0
-					if x.debug {
+					if x.debug > 1 {
 						x.Printf("v2p[%s] = %d\n", v.LongString(), val2Preds[v])
 					}
 				}
@@ -1451,7 +1464,7 @@ func expandCalls(f *Func) {
 		if dupe == nil {
 			x.commonSelectors[sk] = v
 		} else if x.sdom.IsAncestorEq(dupe.Block, v.Block) {
-			if x.debug {
+			if x.debug > 1 {
 				x.Printf("Duplicate, make %s copy of %s\n", v, dupe)
 			}
 			v.copyOf(dupe)
@@ -1467,12 +1480,12 @@ func expandCalls(f *Func) {
 
 	// Rewrite selectors.
 	for i, v := range allOrdered {
-		if x.debug {
+		if x.debug > 1 {
 			b := v.Block
 			x.Printf("allOrdered[%d] = b%d, %s, uses=%d\n", i, b.ID, v.LongString(), v.Uses)
 		}
 		if v.Uses == 0 {
-			v.invalidateRecursively()
+			x.invalidateRecursively(v)
 			continue
 		}
 		if v.Op == OpCopy {
@@ -1583,7 +1596,7 @@ func expandCalls(f *Func) {
 				v.SetArg(i, aa)
 				for a.Uses == 0 {
 					b := a.Args[0]
-					a.invalidateRecursively()
+					x.invalidateRecursively(a)
 					a = b
 				}
 			}
@@ -1619,7 +1632,7 @@ func expandCalls(f *Func) {
 // rewriteArgToMemOrRegs converts OpArg v in-place into the register version of v,
 // if that is appropriate.
 func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("rewriteArgToMemOrRegs(%s)\n", v.LongString())
@@ -1650,7 +1663,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 	default:
 		panic(badVal("Saw unexpanded OpArg", v))
 	}
-	if x.debug {
+	if x.debug > 1 {
 		x.Printf("-->%s\n", v.LongString())
 	}
 	return v
@@ -1660,7 +1673,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 // or rewrites it into a copy of the appropriate OpArgXXX.  The actual OpArgXXX is determined by combining baseArg (an OpArg)
 // with offset, regOffset, and t to determine which portion of it to reference (either all or a part, in memory or in registers).
 func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64, regOffset Abi1RO, t *types.Type, pos src.XPos) *Value {
-	if x.debug {
+	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t.String(), offset, regOffset)
@@ -1696,7 +1709,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		if toReplace != nil {
 			toReplace.copyOf(w)
 		}
-		if x.debug {
+		if x.debug > 1 {
 			x.Printf("-->%s\n", w.LongString())
 		}
 		return w
@@ -1727,7 +1740,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 	if toReplace != nil {
 		toReplace.copyOf(w)
 	}
-	if x.debug {
+	if x.debug > 1 {
 		x.Printf("-->%s\n", w.LongString())
 	}
 	return w
