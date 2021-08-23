@@ -85,7 +85,7 @@ func run(dir string, mode int, cmd ...string) string {
 	// as it runs without fear of mixing the output with some
 	// other command's output. Not buffering lets the output
 	// appear as it is printed instead of once the command exits.
-	// This is most important for the invocation of 'go1.4 build -v bootstrap/...'.
+	// This is most important for the invocation of 'go build -v bootstrap/...'.
 	if mode&(Background|ShowOutput) == ShowOutput {
 		xcmd.Stdout = os.Stdout
 		xcmd.Stderr = os.Stderr
