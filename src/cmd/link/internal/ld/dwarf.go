@@ -187,6 +187,16 @@ func isDwarf64(ctxt *Link) bool {
 	return ctxt.HeadType == objabi.Haix
 }
 
+// https://sourceware.org/gdb/onlinedocs/gdb/dotdebug_005fgdb_005fscripts-section.html
+// Each entry inside .debug_gdb_scripts section begins with a non-null prefix
+// byte that specifies the kind of entry. The following entries are supported:
+const (
+	GdbScriptPythonFileId = 1
+	GdbScriptSchemeFileId = 3
+	GdbScriptPythonTextId = 4
+	GdbScriptSchemeTextId = 6
+)
+
 var gdbscript string
 
 // dwarfSecInfo holds information about a DWARF output section,
@@ -1618,7 +1628,7 @@ func (d *dwctxt) writegdbscript() dwarfSecInfo {
 	gs := d.ldr.CreateSymForUpdate(".debug_gdb_scripts", 0)
 	gs.SetType(sym.SDWARFSECT)
 
-	gs.AddUint8(1) // magic 1 byte?
+	gs.AddUint8(GdbScriptPythonFileId)
 	gs.Addstring(gdbscript)
 	return dwarfSecInfo{syms: []loader.Sym{gs.Sym()}}
 }
