@@ -1823,8 +1823,8 @@ func (ins *instruction) validate(ctxt *obj.Link) {
 	enc.validate(ctxt, ins)
 }
 
-// instructionsForProg returns the machine instructions for an *obj.Prog.
-func instructionsForProg(p *obj.Prog) []*instruction {
+// instructionForProg returns the default *obj.Prog to instruction mapping.
+func instructionForProg(p *obj.Prog) *instruction {
 	ins := &instruction{
 		as:  p.As,
 		rd:  uint32(p.To.Reg),
@@ -1832,49 +1832,21 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		rs2: uint32(p.From.Reg),
 		imm: p.From.Offset,
 	}
-
 	if len(p.RestArgs) == 1 {
 		ins.rs3 = uint32(p.RestArgs[0].Reg)
-	} else if len(p.RestArgs) > 0 {
-		p.Ctxt.Diag("too many source registers")
 	}
+	return ins
+}
 
+// instructionsForMOV returns the machine instructions for an *obj.Prog that
+// uses a MOV pseudo-instruction.
+func instructionsForMOV(p *obj.Prog) []*instruction {
+	ins := instructionForProg(p)
 	inss := []*instruction{ins}
-	switch ins.as {
-	case AJAL, AJALR:
-		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
-		ins.imm = p.To.Offset
 
-	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
-		switch ins.as {
-		case ABEQZ:
-			ins.as, ins.rs1, ins.rs2 = ABEQ, REG_ZERO, uint32(p.From.Reg)
-		case ABGEZ:
-			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
-		case ABGT:
-			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), uint32(p.Reg)
-		case ABGTU:
-			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.From.Reg), uint32(p.Reg)
-		case ABGTZ:
-			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
-		case ABLE:
-			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), uint32(p.Reg)
-		case ABLEU:
-			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.From.Reg), uint32(p.Reg)
-		case ABLEZ:
-			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
-		case ABLTZ:
-			ins.as, ins.rs1, ins.rs2 = ABLT, REG_ZERO, uint32(p.From.Reg)
-		case ABNEZ:
-			ins.as, ins.rs1, ins.rs2 = ABNE, REG_ZERO, uint32(p.From.Reg)
-		}
-		ins.imm = p.To.Offset
-
-	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+	switch {
+	case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_REG:
 		// Handle register to register moves.
-		if p.From.Type != obj.TYPE_REG || p.To.Type != obj.TYPE_REG {
-			return nil
-		}
 		switch p.As {
 		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb
 			ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, uint32(p.From.Reg), obj.REG_NONE, 0
@@ -1907,6 +1879,61 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins2 := &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: ins.imm}
 			inss = append(inss, ins2)
 		}
+
+	default:
+		// If we get here with a MOV pseudo-instruction it is going to
+		// remain unhandled. For now we trust rewriteMOV to catch these.
+		switch p.As {
+		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+			return nil
+		}
+	}
+
+	return inss
+}
+
+// instructionsForProg returns the machine instructions for an *obj.Prog.
+func instructionsForProg(p *obj.Prog) []*instruction {
+	ins := instructionForProg(p)
+	inss := []*instruction{ins}
+
+	if len(p.RestArgs) > 1 {
+		p.Ctxt.Diag("too many source registers")
+		return nil
+	}
+
+	switch ins.as {
+	case AJAL, AJALR:
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.To.Reg), obj.REG_NONE
+		ins.imm = p.To.Offset
+
+	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+		switch ins.as {
+		case ABEQZ:
+			ins.as, ins.rs1, ins.rs2 = ABEQ, REG_ZERO, uint32(p.From.Reg)
+		case ABGEZ:
+			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
+		case ABGT:
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), uint32(p.Reg)
+		case ABGTU:
+			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.From.Reg), uint32(p.Reg)
+		case ABGTZ:
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
+		case ABLE:
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), uint32(p.Reg)
+		case ABLEU:
+			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.From.Reg), uint32(p.Reg)
+		case ABLEZ:
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
+		case ABLTZ:
+			ins.as, ins.rs1, ins.rs2 = ABLT, REG_ZERO, uint32(p.From.Reg)
+		case ABNEZ:
+			ins.as, ins.rs1, ins.rs2 = ABNE, REG_ZERO, uint32(p.From.Reg)
+		}
+		ins.imm = p.To.Offset
+
+	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+		return instructionsForMOV(p)
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
 		if p.From.Type != obj.TYPE_MEM {
