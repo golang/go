@@ -37,6 +37,9 @@ const (
 	cpuid_BMI2 = 1 << 8
 	cpuid_ERMS = 1 << 9
 	cpuid_ADX  = 1 << 19
+
+	// edx bits for CPUID 0x80000001
+	cpuid_RDTSCP = 1 << 27
 )
 
 var maxExtendedFunctionInformation uint32
@@ -53,6 +56,7 @@ func doinit() {
 		{Name: "fma", Feature: &X86.HasFMA},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "popcnt", Feature: &X86.HasPOPCNT},
+		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sse3", Feature: &X86.HasSSE3},
 		{Name: "sse41", Feature: &X86.HasSSE41},
 		{Name: "sse42", Feature: &X86.HasSSE42},
@@ -112,6 +116,16 @@ func doinit() {
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+
+	var maxExtendedInformation uint32
+	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
+
+	if maxExtendedInformation < 0x80000001 {
+		return
+	}
+
+	_, _, _, edxExt1 := cpuid(0x80000001, 0)
+	X86.HasRDTSCP = isSet(edxExt1, cpuid_RDTSCP)
 }
 
 func isSet(hwc uint32, value uint32) bool {
