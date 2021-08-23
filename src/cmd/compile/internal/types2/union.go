@@ -11,8 +11,8 @@ import "cmd/compile/internal/syntax"
 
 // A Union represents a union of terms embedded in an interface.
 type Union struct {
-	terms []*Term  // list of syntactical terms (not a canonicalized termlist)
-	tset  *TypeSet // type set described by this union, computed lazily
+	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
+	tset  *_TypeSet // type set described by this union, computed lazily
 }
 
 // NewUnion returns a new Union type with the given terms.

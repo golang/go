@@ -14,8 +14,8 @@ import (
 // ----------------------------------------------------------------------------
 // API
 
-// A TypeSet represents the type set of an interface.
-type TypeSet struct {
+// A _TypeSet represents the type set of an interface.
+type _TypeSet struct {
 	comparable bool // if set, the interface is or embeds comparable
 	// TODO(gri) consider using a set for the methods for faster lookup
 	methods []*Func  // all methods of the interface; sorted by unique ID
@@ -23,20 +23,20 @@ type TypeSet struct {
 }
 
 // IsEmpty reports whether type set s is the empty set.
-func (s *TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
+func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 
 // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
-func (s *TypeSet) IsAll() bool {
+func (s *_TypeSet) IsAll() bool {
 	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
 }
 
 // TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
 
 // IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
-func (s *TypeSet) IsComparable() bool {
+func (s *_TypeSet) IsComparable() bool {
 	if s.terms.isAll() {
 		return s.comparable
 	}
@@ -48,24 +48,24 @@ func (s *TypeSet) IsComparable() bool {
 // TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
 
 // IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
-func (s *TypeSet) IsTypeSet() bool {
+func (s *_TypeSet) IsTypeSet() bool {
 	return !s.comparable && len(s.methods) == 0
 }
 
 // NumMethods returns the number of methods available.
-func (s *TypeSet) NumMethods() int { return len(s.methods) }
+func (s *_TypeSet) NumMethods() int { return len(s.methods) }
 
 // Method returns the i'th method of type set s for 0 <= i < s.NumMethods().
 // The methods are ordered by their unique ID.
-func (s *TypeSet) Method(i int) *Func { return s.methods[i] }
+func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
 
 // LookupMethod returns the index of and method with matching package and name, or (-1, nil).
-func (s *TypeSet) LookupMethod(pkg *Package, name string) (int, *Func) {
+func (s *_TypeSet) LookupMethod(pkg *Package, name string) (int, *Func) {
 	// TODO(gri) s.methods is sorted - consider binary search
 	return lookupMethod(s.methods, pkg, name)
 }
 
-func (s *TypeSet) String() string {
+func (s *_TypeSet) String() string {
 	switch {
 	case s.IsEmpty():
 		return "∅"
@@ -105,16 +105,16 @@ func (s *TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
-func (s *TypeSet) hasTerms() bool             { return !s.terms.isAll() }
-func (s *TypeSet) structuralType() Type       { return s.terms.structuralType() }
-func (s *TypeSet) includes(t Type) bool       { return s.terms.includes(t) }
-func (s1 *TypeSet) subsetOf(s2 *TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+func (s *_TypeSet) hasTerms() bool              { return !s.terms.isAll() }
+func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
+func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
+func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
 
 // TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
 
 var topTerm = term{false, theTop}
 
-func (s *TypeSet) is(f func(*term) bool) bool {
+func (s *_TypeSet) is(f func(*term) bool) bool {
 	if len(s.terms) == 0 {
 		return false
 	}
@@ -133,7 +133,7 @@ func (s *TypeSet) is(f func(*term) bool) bool {
 	return true
 }
 
-func (s *TypeSet) underIs(f func(Type) bool) bool {
+func (s *_TypeSet) underIs(f func(Type) bool) bool {
 	if len(s.terms) == 0 {
 		return false
 	}
@@ -158,10 +158,10 @@ func (s *TypeSet) underIs(f func(Type) bool) bool {
 }
 
 // topTypeSet may be used as type set for the empty interface.
-var topTypeSet = TypeSet{terms: allTermlist}
+var topTypeSet = _TypeSet{terms: allTermlist}
 
 // computeInterfaceTypeSet may be called with check == nil.
-func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
+func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_TypeSet {
 	if ityp.tset != nil {
 		return ityp.tset
 	}
@@ -197,7 +197,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *T
 	// have valid interfaces. Mark the interface as complete to avoid
 	// infinite recursion if the validType check occurs later for some
 	// reason.
-	ityp.tset = &TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
+	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
 
 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
 	// of a method I.m's Func Object of an interface I is the same as that of
@@ -347,17 +347,17 @@ func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // invalidTypeSet is a singleton type set to signal an invalid type set
 // due to an error. It's also a valid empty type set, so consumers of
 // type sets may choose to ignore it.
-var invalidTypeSet TypeSet
+var invalidTypeSet _TypeSet
 
 // computeUnionTypeSet may be called with check == nil.
 // The result is &invalidTypeSet if the union overflows.
-func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *TypeSet {
+func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet {
 	if utyp.tset != nil {
 		return utyp.tset
 	}
 
 	// avoid infinite recursion (see also computeInterfaceTypeSet)
-	utyp.tset = new(TypeSet)
+	utyp.tset = new(_TypeSet)
 
 	var allTerms termlist
 	for _, t := range utyp.terms {
