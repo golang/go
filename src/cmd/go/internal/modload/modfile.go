@@ -322,7 +322,7 @@ func replacement(mod module.Version, index *modFileIndex) (fromVersion string, t
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
 func Replacement(mod module.Version) (module.Version, string) {
-	_ = TODOWorkspaces("support replaces in the go.work file")
+	_ = TODOWorkspaces("Support replaces in the go.work file.")
 	foundFrom, found, foundModRoot := "", module.Version{}, ""
 	for _, v := range MainModules.Versions() {
 		if index := MainModules.Index(v); index != nil {

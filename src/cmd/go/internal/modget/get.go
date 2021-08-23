@@ -690,7 +690,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 				// However, neither of those behaviors would be consistent with the
 				// plain meaning of the query. To try to reduce confusion, reject the
 				// query explicitly.
-				return errSet(&modload.QueryMatchesMainModuleError{MainModule: v, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{v}, Pattern: q.pattern, Query: q.version})
 			}
 
 			return pathSet{mod: module.Version{Path: q.pattern, Version: "none"}}
@@ -703,7 +703,7 @@ func (r *resolver) queryNone(ctx context.Context, q *query) {
 		}
 		q.pathOnce(curM.Path, func() pathSet {
 			if modload.HasModRoot() && curM.Version == "" && modload.MainModules.Contains(curM.Path) {
-				return errSet(&modload.QueryMatchesMainModuleError{MainModule: curM, Pattern: q.pattern, Query: q.version})
+				return errSet(&modload.QueryMatchesMainModulesError{MainModules: []module.Version{curM}, Pattern: q.pattern, Query: q.version})
 			}
 			return pathSet{mod: module.Version{Path: curM.Path, Version: "none"}}
 		})
@@ -805,10 +805,10 @@ func (r *resolver) queryWildcard(ctx context.Context, q *query) {
 
 			if modload.MainModules.Contains(curM.Path) && !versionOkForMainModule(q.version) {
 				if q.matchesPath(curM.Path) {
-					return errSet(&modload.QueryMatchesMainModuleError{
-						MainModule: curM,
-						Pattern:    q.pattern,
-						Query:      q.version,
+					return errSet(&modload.QueryMatchesMainModulesError{
+						MainModules: []module.Version{curM},
+						Pattern:     q.pattern,
+						Query:       q.version,
 					})
 				}
 
@@ -1760,10 +1760,10 @@ func (r *resolver) resolve(q *query, m module.Version) {
 	}
 
 	if modload.MainModules.Contains(m.Path) && m.Version != "" {
-		reportError(q, &modload.QueryMatchesMainModuleError{
-			MainModule: module.Version{Path: m.Path},
-			Pattern:    q.pattern,
-			Query:      q.version,
+		reportError(q, &modload.QueryMatchesMainModulesError{
+			MainModules: []module.Version{{Path: m.Path}},
+			Pattern:     q.pattern,
+			Query:       q.version,
 		})
 		return
 	}

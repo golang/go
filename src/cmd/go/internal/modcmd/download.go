@@ -97,7 +97,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		modload.LoadModFile(ctx) // to fill MainModules
 
 		if len(modload.MainModules.Versions()) != 1 {
-			panic(modload.TODOWorkspaces("TODO: multiple main modules not supported in Download"))
+			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
 		}
 		mainModule := modload.MainModules.Versions()[0]
 
