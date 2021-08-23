@@ -1579,12 +1579,17 @@ func (g *irgen) finalizeSyms() {
 func (g *irgen) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
 	sym := g.getDictionarySym(gf, targs, isMeth)
 
-	// Make a node referencing the dictionary symbol.
-	n := typecheck.NewName(sym)
-	n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
-	n.SetTypecheck(1)
-	n.Class = ir.PEXTERN
-	sym.Def = n
+	// Make (or reuse) a node referencing the dictionary symbol.
+	var n *ir.Name
+	if sym.Def != nil {
+		n = sym.Def.(*ir.Name)
+	} else {
+		n = typecheck.NewName(sym)
+		n.SetType(types.Types[types.TUINTPTR]) // should probably be [...]uintptr, but doesn't really matter
+		n.SetTypecheck(1)
+		n.Class = ir.PEXTERN
+		sym.Def = n
+	}
 
 	// Return the address of the dictionary.
 	np := typecheck.NodAddr(n)
