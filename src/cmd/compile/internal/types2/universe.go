@@ -99,7 +99,7 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{obj, nil, nil, nil, true, &TypeSet{true, nil, allTermlist}}
+		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
 		NewNamed(obj, ityp, nil)
 		def(obj)
 	}

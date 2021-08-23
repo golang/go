@@ -17,11 +17,11 @@ type Interface struct {
 	embedPos  *[]syntax.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
 	complete  bool          // indicates that all fields (except for tset) are set up
 
-	tset *TypeSet // type set described by this interface, computed lazily
+	tset *_TypeSet // type set described by this interface, computed lazily
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *TypeSet { return computeInterfaceTypeSet(nil, nopos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(nil, nopos, t) }
 
 // emptyInterface represents the empty interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
