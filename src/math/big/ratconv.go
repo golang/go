@@ -323,6 +323,10 @@ func (x *Rat) RatString() string {
 // digits of precision after the radix point. The last digit is rounded to
 // nearest, with halves rounded away from zero.
 func (x *Rat) FloatString(prec int) string {
+	if prec == -1 {
+		return x.FloatString(16)
+	}
+	
 	var buf []byte
 
 	if x.IsInt() {
