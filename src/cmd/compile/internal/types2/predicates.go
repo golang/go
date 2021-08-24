@@ -305,8 +305,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			x.expand(nil)
 			y.expand(nil)
 
-			xargs := x.TArgs()
-			yargs := y.TArgs()
+			xargs := x.TArgs().list()
+			yargs := y.TArgs().list()
 
 			if len(xargs) != len(yargs) {
 				return false

@@ -299,7 +299,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		// Type aliases can refer to uninstantiated generic types, so we
 		// might see len(TParams) != 0 && len(TArgs) == 0 here.
 		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(typ.TParams().Len() == len(typ.TArgs()) || len(typ.TArgs()) == 0)
+		assert(typ.TParams().Len() == typ.TArgs().Len() || typ.TArgs().Len() == 0)
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
@@ -441,10 +441,10 @@ func (w *writer) param(param *types2.Var) {
 
 // @@@ Objects
 
-func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
-	explicitInfos := make([]typeInfo, len(explicits))
-	for i, explicit := range explicits {
-		explicitInfos[i] = w.p.typIdx(explicit, w.dict)
+func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+	explicitInfos := make([]typeInfo, explicits.Len())
+	for i := range explicitInfos {
+		explicitInfos[i] = w.p.typIdx(explicits.At(i), w.dict)
 	}
 	info := objInfo{idx: w.p.objIdx(obj), explicits: explicitInfos}
 
@@ -1212,7 +1212,7 @@ func (w *writer) expr(expr syntax.Expr) {
 	if obj != nil {
 		if isGlobal(obj) {
 			w.code(exprName)
-			w.obj(obj, targs)
+			w.obj(obj, types2.NewTypeList(targs))
 			return
 		}
 
@@ -1321,7 +1321,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 				// As if w.expr(expr.Fun), but using inf.TArgs instead.
 				w.code(exprName)
-				w.obj(obj, inf.TArgs)
+				w.obj(obj, types2.NewTypeList(inf.TArgs))
 			} else {
 				w.expr(expr.Fun)
 			}
@@ -1711,7 +1711,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// TODO(mdempsky): Revisit after #46477 is resolved.
 		if name.IsAlias() {
 			named, ok := name.Type().(*types2.Named)
-			if ok && named.TParams().Len() != 0 && len(named.TArgs()) == 0 {
+			if ok && named.TParams().Len() != 0 && named.TArgs().Len() == 0 {
 				break
 			}
 		}

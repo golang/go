@@ -137,7 +137,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type) (res Type
 
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
-		named.targs = targs
+		named.targs = NewTypeList(targs)
 		named.instance = &instance{pos}
 		if check != nil {
 			check.typMap[h] = named
@@ -145,7 +145,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type) (res Type
 		res = named
 	case *Signature:
 		tparams := t.TParams()
-		if !check.validateTArgLen(pos, tparams, targs) {
+		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
@@ -180,14 +180,14 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type) (res Type
 // validateTArgLen verifies that the length of targs and tparams matches,
 // reporting an error if not. If validation fails and check is nil,
 // validateTArgLen panics.
-func (check *Checker) validateTArgLen(pos syntax.Pos, tparams *TParamList, targs []Type) bool {
-	if len(targs) != tparams.Len() {
+func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool {
+	if ntargs != ntparams {
 		// TODO(gri) provide better error message
 		if check != nil {
-			check.errorf(pos, "got %d arguments but %d type parameters", len(targs), tparams.Len())
+			check.errorf(pos, "got %d arguments but %d type parameters", ntargs, ntparams)
 			return false
 		}
-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), tparams.Len()))
+		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
 	}
 	return true
 }
