@@ -2,48 +2,57 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build typeparams
-// +build typeparams
-
 package typeparams
 
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 )
 
-const Enabled = true
-
-func PackExpr(list []ast.Expr) ast.Expr {
-	switch len(list) {
+func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
+	switch len(exprs) {
 	case 0:
-		// Return an empty ListExpr here, rather than nil, as IndexExpr.Index must
-		// never be nil.
-		// TODO(rFindley) would a BadExpr be more appropriate here?
-		return &ast.ListExpr{}
+		panic("internal error: PackIndexExpr with empty expr slice")
 	case 1:
-		return list[0]
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  exprs[0],
+			Rbrack: rbrack,
+		}
 	default:
-		return &ast.ListExpr{ElemList: list}
+		return &ast.MultiIndexExpr{
+			X:       x,
+			Lbrack:  lbrack,
+			Indices: exprs,
+			Rbrack:  rbrack,
+		}
 	}
 }
 
-// TODO(gri) Should find a more efficient solution that doesn't
-//           require introduction of a new slice for simple
-//           expressions.
-func UnpackExpr(x ast.Expr) []ast.Expr {
-	if x, _ := x.(*ast.ListExpr); x != nil {
-		return x.ElemList
-	}
-	if x != nil {
-		return []ast.Expr{x}
+// IndexExpr wraps an ast.IndexExpr or ast.MultiIndexExpr into the
+// MultiIndexExpr interface.
+//
+// Orig holds the original ast.Expr from which this IndexExpr was derived.
+type IndexExpr struct {
+	Orig ast.Expr // the wrapped expr, which may be distinct from MultiIndexExpr below.
+	*ast.MultiIndexExpr
+}
+
+func UnpackIndexExpr(n ast.Node) *IndexExpr {
+	switch e := n.(type) {
+	case *ast.IndexExpr:
+		return &IndexExpr{e, &ast.MultiIndexExpr{
+			X:       e.X,
+			Lbrack:  e.Lbrack,
+			Indices: []ast.Expr{e.Index},
+			Rbrack:  e.Rbrack,
+		}}
+	case *ast.MultiIndexExpr:
+		return &IndexExpr{e, e}
 	}
 	return nil
-}
-
-func IsListExpr(n ast.Node) bool {
-	_, ok := n.(*ast.ListExpr)
-	return ok
 }
 
 func Get(n ast.Node) *ast.FieldList {

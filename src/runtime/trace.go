@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -85,7 +86,7 @@ const (
 	// and ppc64le.
 	// Tracing won't work reliably for architectures where cputicks is emulated
 	// by nanotime, so the value doesn't matter for those architectures.
-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
+	traceTickDiv = 16 + 48*(goarch.Is386|goarch.IsAmd64)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
@@ -829,7 +830,7 @@ Search:
 
 // newStack allocates a new stack of size n.
 func (tab *traceStackTable) newStack(n int) *traceStack {
-	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
+	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*goarch.PtrSize))
 }
 
 // allFrames returns all of the Frames corresponding to pcs.
@@ -929,7 +930,7 @@ type traceAlloc struct {
 //go:notinheap
 type traceAllocBlock struct {
 	next traceAllocBlockPtr
-	data [64<<10 - sys.PtrSize]byte
+	data [64<<10 - goarch.PtrSize]byte
 }
 
 // TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
@@ -940,7 +941,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = alignUp(n, sys.PtrSize)
+	n = alignUp(n, goarch.PtrSize)
 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
 		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")

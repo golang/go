@@ -159,7 +159,6 @@ const (
 	OCALLFUNC  // X(Args) (function call f(args))
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
-	OCALLPART  // X.Sel (method expression x.Method, not called)
 	OCAP       // cap(X)
 	OCLOSE     // close(X)
 	OCLOSURE   // func Type { Func.Closure.Body } (func literal)
@@ -171,6 +170,7 @@ const (
 	OPTRLIT    // &X (X is composite literal)
 	OCONV      // Type(X) (type conversion)
 	OCONVIFACE // Type(X) (type conversion, to interface)
+	OCONVIDATA // Builds a data word to store X in an interface. Equivalent to IDATA(CONVIFACE(X)). Is an ir.ConvExpr.
 	OCONVNOP   // Type(X) (type conversion, no effect)
 	OCOPY      // copy(X, Y)
 	ODCL       // var X (declares X of type X.Type)
@@ -237,6 +237,7 @@ const (
 	OSLICE3ARR   // X[Low : High : Max] (X is pointer to array)
 	OSLICEHEADER // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
 	ORECOVER     // recover()
+	ORECOVERFP   // recover(Args) w/ explicit FP argument
 	ORECV        // <-X
 	ORUNESTR     // Type(X) (Type is string, X is rune)
 	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
@@ -249,14 +250,16 @@ const (
 	OSIZEOF      // unsafe.Sizeof(X)
 	OUNSAFEADD   // unsafe.Add(X, Y)
 	OUNSAFESLICE // unsafe.Slice(X, Y)
-	OMETHEXPR    // method expression
+	OMETHEXPR    // X(Args) (method expression T.Method(args), first argument is the method receiver)
+	OMETHVALUE   // X.Sel   (method expression t.Method, not called)
 
 	// statements
 	OBLOCK // { List } (block of code)
 	OBREAK // break [Label]
 	// OCASE:  case List: Body (List==nil means default)
 	//   For OTYPESW, List is a OTYPE node for the specified type (or OLITERAL
-	//   for nil), and, if a type-switch variable is specified, Rlist is an
+	//   for nil) or an ODYNAMICTYPE indicating a runtime type for generics.
+	//   If a type-switch variable is specified, Var is an
 	//   ONAME for the version of the type-switch variable with the specified
 	//   type.
 	OCASE
@@ -317,9 +320,16 @@ const (
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 	OLINKSYMOFFSET // offset within a name
 
+	// opcodes for generics
+	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
+	ODYNAMICDOTTYPE2 // x, ok = i.(T) where T is a type parameter (or derived from a type parameter)
+	ODYNAMICTYPE     // a type node for type switches (represents a dynamic target type for a type switch)
+
 	// arch-specific opcodes
-	OTAILCALL // tail call to another function
-	OGETG     // runtime.getg() (read g pointer)
+	OTAILCALL    // tail call to another function
+	OGETG        // runtime.getg() (read g pointer)
+	OGETCALLERPC // runtime.getcallerpc() (continuation PC in caller frame)
+	OGETCALLERSP // runtime.getcallersp() (stack pointer in caller frame)
 
 	OEND
 )
@@ -436,18 +446,19 @@ func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
 	return res
 }
 
-type PragmaFlag int16
+type PragmaFlag uint16
 
 const (
 	// Func pragmas.
-	Nointerface    PragmaFlag = 1 << iota
-	Noescape                  // func parameters don't escape
-	Norace                    // func must not have race detector annotations
-	Nosplit                   // func should not execute on separate stack
-	Noinline                  // func should not be inlined
-	NoCheckPtr                // func should not be instrumented by checkptr
-	CgoUnsafeArgs             // treat a pointer to one arg as a pointer to them all
-	UintptrEscapes            // pointers converted to uintptr escape
+	Nointerface      PragmaFlag = 1 << iota
+	Noescape                    // func parameters don't escape
+	Norace                      // func must not have race detector annotations
+	Nosplit                     // func should not execute on separate stack
+	Noinline                    // func should not be inlined
+	NoCheckPtr                  // func should not be instrumented by checkptr
+	CgoUnsafeArgs               // treat a pointer to one arg as a pointer to them all
+	UintptrKeepAlive            // pointers converted to uintptr must be kept alive (compiler internal only)
+	UintptrEscapes              // pointers converted to uintptr escape
 
 	// Runtime-only func pragmas.
 	// See ../../../../runtime/README.md for detailed descriptions.
@@ -563,7 +574,7 @@ func OuterValue(n Node) Node {
 	for {
 		switch nn := n; nn.Op() {
 		case OXDOT:
-			base.Fatalf("OXDOT in walk")
+			base.FatalfAt(n.Pos(), "OXDOT in walk: %v", n)
 		case ODOT:
 			nn := nn.(*SelectorExpr)
 			n = nn.X

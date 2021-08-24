@@ -698,7 +698,9 @@ func (ctxt *Link) linksetup() {
 		Peinit(ctxt)
 	}
 
-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
+		// When external linking, we are creating an object file. The
+		// absolute address is irrelevant.
 		*FlagTextAddr = 0
 	}
 

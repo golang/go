@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -143,7 +144,7 @@ func initsig(preinit bool) {
 		}
 
 		handlingSig[i] = 1
-		setsig(i, funcPC(sighandler))
+		setsig(i, abi.FuncPCABIInternal(sighandler))
 	}
 }
 
@@ -194,7 +195,7 @@ func sigenable(sig uint32) {
 		<-maskUpdatedChan
 		if atomic.Cas(&handlingSig[sig], 0, 1) {
 			atomic.Storeuintptr(&fwdSig[sig], getsig(sig))
-			setsig(sig, funcPC(sighandler))
+			setsig(sig, abi.FuncPCABIInternal(sighandler))
 		}
 	}
 }
@@ -271,7 +272,7 @@ func setProcessCPUProfiler(hz int32) {
 		// Enable the Go signal handler if not enabled.
 		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
 			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
-			setsig(_SIGPROF, funcPC(sighandler))
+			setsig(_SIGPROF, abi.FuncPCABIInternal(sighandler))
 		}
 
 		var it itimerval
@@ -329,7 +330,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	if wantAsyncPreempt(gp) {
 		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
 			// Adjust the PC and inject a call to asyncPreempt.
-			ctxt.pushCall(funcPC(asyncPreempt), newpc)
+			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
 		}
 	}
 
@@ -843,7 +844,7 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	// We may receive another instance of the signal before we
 	// restore the Go handler, but that is not so bad: we know
 	// that the Go program has been ignoring the signal.
-	setsig(sig, funcPC(sighandler))
+	setsig(sig, abi.FuncPCABIInternal(sighandler))
 }
 
 //go:nosplit

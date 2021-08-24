@@ -674,6 +674,18 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		checkVendorConsistency(index, modFile)
 		rs.initVendor(vendorList)
 	}
+
+	if rs.hasRedundantRoot() {
+		// If any module path appears more than once in the roots, we know that the
+		// go.mod file needs to be updated even though we have not yet loaded any
+		// transitive dependencies.
+		var err error
+		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
+
 	if MainModules.Index(mainModule).goVersionV == "" {
 		// TODO(#45551): Do something more principled instead of checking
 		// cfg.CmdName directly here.
@@ -734,6 +746,13 @@ func CreateModFile(ctx context.Context, modPath string) {
 			}
 		}
 		base.Fatalf("go: %v", err)
+	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
+		if strings.HasPrefix(modPath, "gopkg.in/") {
+			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
+			base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
+		}
+		invalidMajorVersionMsg := fmt.Errorf("major version suffixes must be in the form of /vN and are only allowed for v2 or later:\n\tgo mod init %s", suggestModulePath(modPath))
+		base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
 	}
 
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
@@ -750,7 +769,12 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFiles(ctx, []*modfile.File{modFile}))
+	rs := requirementsFromModFiles(ctx, []*modfile.File{modFile})
+	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	commitRequirements(ctx, modFileGoVersion(), rs)
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
 	// imported all the correct requirements above, we're probably missing
@@ -930,7 +954,6 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 			}
 
 			roots = append(roots, r.Mod)
-			mPathCount[r.Mod.Path]++
 			if !r.Indirect {
 				direct[r.Mod.Path] = true
 			}
@@ -938,21 +961,6 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 	}
 	module.Sort(roots)
 	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
-
-	// If any module path appears more than once in the roots, we know that the
-	// go.mod file needs to be updated even though we have not yet loaded any
-	// transitive dependencies.
-	for _, n := range mPathCount {
-		if n > 1 {
-			var err error
-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
-			if err != nil {
-				base.Fatalf("go: %v", err)
-			}
-			break
-		}
-	}
-
 	return rs
 }
 
@@ -1540,4 +1548,57 @@ const (
 // file is stored in the go.sum file.
 func modkey(m module.Version) module.Version {
 	return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+}
+
+func suggestModulePath(path string) string {
+	var m string
+
+	i := len(path)
+	for i > 0 && ('0' <= path[i-1] && path[i-1] <= '9' || path[i-1] == '.') {
+		i--
+	}
+	url := path[:i]
+	url = strings.TrimSuffix(url, "/v")
+	url = strings.TrimSuffix(url, "/")
+
+	f := func(c rune) bool {
+		return c > '9' || c < '0'
+	}
+	s := strings.FieldsFunc(path[i:], f)
+	if len(s) > 0 {
+		m = s[0]
+	}
+	m = strings.TrimLeft(m, "0")
+	if m == "" || m == "1" {
+		return url + "/v2"
+	}
+
+	return url + "/v" + m
+}
+
+func suggestGopkgIn(path string) string {
+	var m string
+	i := len(path)
+	for i > 0 && (('0' <= path[i-1] && path[i-1] <= '9') || (path[i-1] == '.')) {
+		i--
+	}
+	url := path[:i]
+	url = strings.TrimSuffix(url, ".v")
+	url = strings.TrimSuffix(url, "/v")
+	url = strings.TrimSuffix(url, "/")
+
+	f := func(c rune) bool {
+		return c > '9' || c < '0'
+	}
+	s := strings.FieldsFunc(path, f)
+	if len(s) > 0 {
+		m = s[0]
+	}
+
+	m = strings.TrimLeft(m, "0")
+
+	if m == "" {
+		return url + ".v1"
+	}
+	return url + ".v" + m
 }

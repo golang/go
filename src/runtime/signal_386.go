@@ -8,7 +8,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -42,17 +43,17 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	sp := uintptr(c.esp())
 
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		c.pushCall(funcPC(sigpanic), pc)
+		c.pushCall(abi.FuncPCABIInternal(sigpanic), pc)
 	} else {
 		// Not safe to push the call. Just clobber the frame.
-		c.set_eip(uint32(funcPC(sigpanic)))
+		c.set_eip(uint32(abi.FuncPCABIInternal(sigpanic)))
 	}
 }
 
 func (c *sigctxt) pushCall(targetPC, resumePC uintptr) {
 	// Make it look like we called target at resumePC.
 	sp := uintptr(c.esp())
-	sp -= sys.PtrSize
+	sp -= goarch.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
 	c.set_esp(uint32(sp))
 	c.set_eip(uint32(targetPC))

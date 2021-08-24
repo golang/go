@@ -36,7 +36,7 @@ var X86 struct {
 	HasOSXSAVE   bool
 	HasPCLMULQDQ bool
 	HasPOPCNT    bool
-	HasSSE2      bool
+	HasRDTSCP    bool
 	HasSSE3      bool
 	HasSSSE3     bool
 	HasSSE41     bool

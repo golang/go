@@ -491,19 +491,6 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test go/... cmd/gofmt with type parameters enabled.
-	if !t.compileOnly {
-		t.tests = append(t.tests, distTest{
-			name:    "tyepparams",
-			heading: "go/... and cmd/gofmt tests with tag typeparams",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "go/...")
-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "cmd/gofmt")
-				return nil
-			},
-		})
-	}
-
 	if t.iOS() && !t.compileOnly {
 		t.tests = append(t.tests, distTest{
 			name:    "x509omitbundledroots",

@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // Function collecting autotmps generated during typechecking,
@@ -24,7 +25,6 @@ var inimport bool // set during import
 var TypecheckAllowed bool
 
 var (
-	NeedITab        = func(t, itype *types.Type) {}
 	NeedRuntimeType = func(*types.Type) {}
 )
 
@@ -35,18 +35,10 @@ func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
 func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
 func Stmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
 
-func Call(call *ir.CallExpr) {
-	t := call.X.Type()
-	if t == nil {
-		panic("misuse of Call")
-	}
-	ctx := ctxStmt
-	if t.NumResults() > 0 {
-		ctx = ctxExpr | ctxMultiOK
-	}
-	if typecheck(call, ctx) != call {
-		panic("bad typecheck")
-	}
+func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
+	call := ir.NewCallExpr(pos, ir.OCALL, callee, args)
+	call.IsDDD = dots
+	return typecheck(call, ctxStmt|ctxExpr)
 }
 
 func Callee(n ir.Node) ir.Node {
@@ -59,8 +51,8 @@ func FuncBody(n *ir.Func) {
 	Stmts(n.Body)
 	CheckUnused(n)
 	CheckReturn(n)
-	if base.Errors() > errorsBefore {
-		n.Body = nil // type errors; do not compile
+	if ir.IsBlank(n.Nname) || base.Errors() > errorsBefore {
+		n.Body = nil // blank function or type errors; do not compile
 	}
 }
 
@@ -777,6 +769,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.CallExpr)
 		return tcRecover(n)
 
+	case ir.ORECOVERFP:
+		n := n.(*ir.CallExpr)
+		return tcRecoverFP(n)
+
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeAdd(n)
@@ -787,11 +783,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
-		tcClosure(n, top)
-		if n.Type() == nil {
-			return n
-		}
-		return n
+		return tcClosure(n, top)
 
 	case ir.OITAB:
 		n := n.(*ir.UnaryExpr)
@@ -811,6 +803,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OCFUNC:
 		n := n.(*ir.UnaryExpr)
 		n.X = Expr(n.X)
+		n.SetType(types.Types[types.TUINTPTR])
+		return n
+
+	case ir.OGETCALLERPC, ir.OGETCALLERSP:
+		n := n.(*ir.CallExpr)
+		if len(n.Args) != 0 {
+			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)
+		}
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
@@ -880,6 +880,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
 		return n
+
+	case ir.OCHECKNIL:
+		n := n.(*ir.UnaryExpr)
+		return tcCheckNil(n)
 
 	case ir.OSELECT:
 		tcSelect(n.(*ir.SelectStmt))
@@ -951,12 +955,12 @@ func typecheckargs(n ir.InitNode) {
 	}
 
 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
-	rewriteMultiValueCall(n, list[0])
+	RewriteMultiValueCall(n, list[0])
 }
 
-// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+// RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
 // so the backend wouldn't need to worry about tuple-valued expressions.
-func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	// If we're outside of function context, then this call will
 	// be executed during the generated init function. However,
 	// init.go hasn't yet created it. Instead, associate the
@@ -1912,11 +1916,6 @@ func typecheckdef(n *ir.Name) {
 				if n.Type() == nil {
 					n.SetDiag(true)
 					goto ret
-				}
-				// For package-level type aliases, set n.Sym.Def so we can identify
-				// it as a type alias during export. See also #31959.
-				if n.Curfn == nil {
-					n.Sym().Def = n.Ntype
 				}
 			}
 			break

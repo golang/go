@@ -67,11 +67,11 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		buf.WriteByte('.')
 		buf.WriteString(x.Sel.Name)
 
-	case *ast.IndexExpr:
-		WriteExpr(buf, x.X)
+	case *ast.IndexExpr, *ast.MultiIndexExpr:
+		ix := typeparams.UnpackIndexExpr(x)
+		WriteExpr(buf, ix.X)
 		buf.WriteByte('[')
-		exprs := typeparams.UnpackExpr(x.Index)
-		for i, e := range exprs {
+		for i, e := range ix.Indices {
 			if i > 0 {
 				buf.WriteString(", ")
 			}

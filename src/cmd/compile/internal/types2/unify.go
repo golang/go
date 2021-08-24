@@ -6,7 +6,10 @@
 
 package types2
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 // The unifier maintains two separate sets of type parameters x and y
 // which are used to resolve type parameters in the x and y arguments
@@ -34,7 +37,6 @@ import "bytes"
 // and the respective types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
-	check *Checker
 	exact bool
 	x, y  tparamsList // x and y must initialized via tparamsList.init
 	types []Type      // inferred types, shared by x and y
@@ -45,8 +47,8 @@ type unifier struct {
 // exactly. If exact is not set, a named type's underlying type
 // is considered if unification would fail otherwise, and the
 // direction of channels is ignored.
-func newUnifier(check *Checker, exact bool) *unifier {
-	u := &unifier{check: check, exact: exact}
+func newUnifier(exact bool) *unifier {
+	u := &unifier{exact: exact}
 	u.x.unifier = u
 	u.y.unifier = u
 	return u
@@ -60,7 +62,7 @@ func (u *unifier) unify(x, y Type) bool {
 // A tparamsList describes a list of type parameters and the types inferred for them.
 type tparamsList struct {
 	unifier *unifier
-	tparams []*TypeName
+	tparams []*TypeParam
 	// For each tparams element, there is a corresponding type slot index in indices.
 	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
@@ -75,11 +77,11 @@ type tparamsList struct {
 func (d *tparamsList) String() string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
-	for i, tname := range d.tparams {
+	for i, tpar := range d.tparams {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		writeType(&buf, tname.typ, nil, nil)
+		writeType(&buf, tpar, nil, nil)
 		buf.WriteString(": ")
 		writeType(&buf, d.at(i), nil, nil)
 	}
@@ -90,13 +92,13 @@ func (d *tparamsList) String() string {
 // init initializes d with the given type parameters.
 // The type parameters must be in the order in which they appear in their declaration
 // (this ensures that the tparams indices match the respective type parameter index).
-func (d *tparamsList) init(tparams []*TypeName) {
+func (d *tparamsList) init(tparams []*TypeParam) {
 	if len(tparams) == 0 {
 		return
 	}
 	if debug {
 		for i, tpar := range tparams {
-			assert(i == tpar.typ.(*TypeParam).index)
+			assert(i == tpar.index)
 		}
 	}
 	d.tparams = tparams
@@ -148,10 +150,17 @@ func (u *unifier) join(i, j int) bool {
 // If typ is a type parameter of d, index returns the type parameter index.
 // Otherwise, the result is < 0.
 func (d *tparamsList) index(typ Type) int {
-	if t, ok := typ.(*TypeParam); ok {
-		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
-			return i
-		}
+	if tpar, ok := typ.(*TypeParam); ok {
+		return tparamIndex(d.tparams, tpar)
+	}
+	return -1
+}
+
+// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+// Otherwise, the result is < 0. tpar must not be nil.
+func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+	if i := tpar.index; i < len(list) && list[i] == tpar {
+		return i
 	}
 	return -1
 }
@@ -220,10 +229,6 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
-	// types must be expanded for comparison
-	x = expand(x)
-	y = expand(y)
-
 	if !u.exact {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
@@ -352,25 +357,18 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 				u.nify(x.results, y.results, p)
 		}
 
-	case *Sum:
-		// This should not happen with the current internal use of sum types.
-		panic("type inference across sum types not implemented")
-
 	case *Interface:
 		// Two interface types are identical if they have the same set of methods with
 		// the same names and identical function types. Lower-case method names from
 		// different packages are always different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			// If identical0 is called (indirectly) via an external API entry point
-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
-			// that case, interfaces are expected to be complete and lazy completion
-			// here is not needed.
-			if u.check != nil {
-				u.check.completeInterface(nopos, x)
-				u.check.completeInterface(nopos, y)
+			xset := x.typeSet()
+			yset := y.typeSet()
+			if !xset.terms.equal(yset.terms) {
+				return false
 			}
-			a := x.allMethods
-			b := y.allMethods
+			a := xset.methods
+			b := yset.methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
@@ -428,19 +426,20 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
-		// Two named types are identical if their type names originate
-		// in the same type declaration.
-		// if y, ok := y.(*Named); ok {
-		// 	return x.obj == y.obj
-		// }
 		if y, ok := y.(*Named); ok {
+			x.expand(nil)
+			y.expand(nil)
+
+			xargs := x.targs.list()
+			yargs := y.targs.list()
+
 			// TODO(gri) This is not always correct: two types may have the same names
 			//           in the same package if one of them is nested in a function.
 			//           Extremely unlikely but we need an always correct solution.
 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
-				assert(len(x.targs) == len(y.targs))
-				for i, x := range x.targs {
-					if !u.nify(x, y.targs[i], p) {
+				assert(len(xargs) == len(yargs))
+				for i, x := range xargs {
+					if !u.nify(x, yargs[i], p) {
 						return false
 					}
 				}
@@ -454,15 +453,11 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// are identical if they originate in the same declaration.
 		return x == y
 
-	// case *instance:
-	//	unreachable since types are expanded
-
 	case nil:
 		// avoid a crash in case of nil type
 
 	default:
-		u.check.dump("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams)
-		unreachable()
+		panic(fmt.Sprintf("### u.nify(%s, %s), u.x.tparams = %s", x, y, u.x.tparams))
 	}
 
 	return false

@@ -7,7 +7,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 // The *_trampoline functions convert from the Go calling convention to the C calling convention
 // and then call the underlying libc function. These are defined in sys_openbsd_$ARCH.s.
@@ -15,35 +18,35 @@ import "unsafe"
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_init(attr *pthreadattr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
 }
 func pthread_attr_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_destroy(attr *pthreadattr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_destroy_trampoline)), unsafe.Pointer(&attr))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_destroy_trampoline)), unsafe.Pointer(&attr))
 }
 func pthread_attr_destroy_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
 }
 func pthread_attr_getstacksize_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_attr_setdetachstate(attr *pthreadattr, state int) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
 }
 func pthread_attr_setdetachstate_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
 func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_create_trampoline)), unsafe.Pointer(&attr))
 }
 func pthread_create_trampoline()
 

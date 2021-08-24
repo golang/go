@@ -5,45 +5,15 @@
 package gc
 
 import (
+	"fmt"
+	"go/constant"
+
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
-	"fmt"
-	"go/constant"
 )
-
-func exportf(bout *bio.Writer, format string, args ...interface{}) {
-	fmt.Fprintf(bout, format, args...)
-	if base.Debug.Export != 0 {
-		fmt.Printf(format, args...)
-	}
-}
-
-func dumpexport(bout *bio.Writer) {
-	p := &exporter{marked: make(map[*types.Type]bool)}
-	for _, n := range typecheck.Target.Exports {
-		// Must catch it here rather than Export(), because the type can be
-		// not fully set (still TFORW) when Export() is called.
-		if n.Type() != nil && n.Type().HasTParam() {
-			base.Fatalf("Cannot (yet) export a generic type: %v", n)
-		}
-		p.markObject(n)
-	}
-
-	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
-	exportf(bout, "\n$$B\n") // indicate binary export format
-	off := bout.Offset()
-	typecheck.WriteExports(bout.Writer)
-	size := bout.Offset() - off
-	exportf(bout, "\n$$\n")
-
-	if base.Debug.Export != 0 {
-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, size)
-	}
-}
 
 func dumpasmhdr() {
 	b, err := bio.Create(base.Flag.AsmHdr)
@@ -78,84 +48,4 @@ func dumpasmhdr() {
 	}
 
 	b.Close()
-}
-
-type exporter struct {
-	marked map[*types.Type]bool // types already seen by markType
-}
-
-// markObject visits a reachable object.
-func (p *exporter) markObject(n ir.Node) {
-	if n.Op() == ir.ONAME {
-		n := n.(*ir.Name)
-		if n.Class == ir.PFUNC {
-			inline.Inline_Flood(n, typecheck.Export)
-		}
-	}
-
-	p.markType(n.Type())
-}
-
-// markType recursively visits types reachable from t to identify
-// functions whose inline bodies may be needed.
-func (p *exporter) markType(t *types.Type) {
-	if p.marked[t] {
-		return
-	}
-	p.marked[t] = true
-
-	// If this is a named type, mark all of its associated
-	// methods. Skip interface types because t.Methods contains
-	// only their unexpanded method set (i.e., exclusive of
-	// interface embeddings), and the switch statement below
-	// handles their full method set.
-	if t.Sym() != nil && t.Kind() != types.TINTER {
-		for _, m := range t.Methods().Slice() {
-			if types.IsExported(m.Sym.Name) {
-				p.markObject(ir.AsNode(m.Nname))
-			}
-		}
-	}
-
-	// Recursively mark any types that can be produced given a
-	// value of type t: dereferencing a pointer; indexing or
-	// iterating over an array, slice, or map; receiving from a
-	// channel; accessing a struct field or interface method; or
-	// calling a function.
-	//
-	// Notably, we don't mark function parameter types, because
-	// the user already needs some way to construct values of
-	// those types.
-	switch t.Kind() {
-	case types.TPTR, types.TARRAY, types.TSLICE:
-		p.markType(t.Elem())
-
-	case types.TCHAN:
-		if t.ChanDir().CanRecv() {
-			p.markType(t.Elem())
-		}
-
-	case types.TMAP:
-		p.markType(t.Key())
-		p.markType(t.Elem())
-
-	case types.TSTRUCT:
-		for _, f := range t.FieldSlice() {
-			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
-				p.markType(f.Type)
-			}
-		}
-
-	case types.TFUNC:
-		for _, f := range t.Results().FieldSlice() {
-			p.markType(f.Type)
-		}
-
-	case types.TINTER:
-		for _, f := range t.AllMethods().Slice() {
-			if types.IsExported(f.Sym.Name) {
-				p.markType(f.Type)
-			}
-		}
-	}
 }

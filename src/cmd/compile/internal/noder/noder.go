@@ -5,9 +5,11 @@
 package noder
 
 import (
+	"errors"
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,8 +31,11 @@ import (
 func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "parse")
 
+	// -G=3 and unified expect generics syntax, but -G=0 does not.
+	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
+
 	mode := syntax.CheckBranches
-	if base.Flag.G != 0 {
+	if supportsGenerics && types.AllowsGoVersion(types.LocalPkg, 1, 18) {
 		mode |= syntax.AllowGenerics
 	}
 
@@ -75,6 +80,11 @@ func LoadPackage(filenames []string) {
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
 
+	if base.Debug.Unified != 0 {
+		unified(noders)
+		return
+	}
+
 	if base.Flag.G != 0 {
 		// Use types2 to type-check and possibly generate IR.
 		check2(noders)
@@ -109,25 +119,35 @@ func LoadPackage(filenames []string) {
 	//   We also defer type alias declarations until phase 2
 	//   to avoid cycles like #18640.
 	//   TODO(gri) Remove this again once we have a fix for #25838.
-
-	// Don't use range--typecheck can add closures to Target.Decls.
-	base.Timer.Start("fe", "typecheck", "top1")
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
-			typecheck.Target.Decls[i] = typecheck.Stmt(n)
-		}
-	}
-
+	//
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to Target.Decls.
-	base.Timer.Start("fe", "typecheck", "top2")
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
-			typecheck.Target.Decls[i] = typecheck.Stmt(n)
+	for phase, name := range []string{"top1", "top2"} {
+		base.Timer.Start("fe", "typecheck", name)
+		for i := 0; i < len(typecheck.Target.Decls); i++ {
+			n := typecheck.Target.Decls[i]
+			op := n.Op()
+
+			// Closure function declarations are typechecked as part of the
+			// closure expression.
+			if fn, ok := n.(*ir.Func); ok && fn.OClosure != nil {
+				continue
+			}
+
+			// We don't actually add ir.ODCL nodes to Target.Decls. Make sure of that.
+			if op == ir.ODCL {
+				base.FatalfAt(n.Pos(), "unexpected top declaration: %v", op)
+			}
+
+			// Identify declarations that should be deferred to the second
+			// iteration.
+			late := op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias()
+
+			if late == (phase == 1) {
+				typecheck.Target.Decls[i] = typecheck.Stmt(n)
+			}
 		}
 	}
 
@@ -136,16 +156,15 @@ func LoadPackage(filenames []string) {
 	base.Timer.Start("fe", "typecheck", "func")
 	var fcount int64
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		n := typecheck.Target.Decls[i]
-		if n.Op() == ir.ODCLFUNC {
+		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nbefore typecheck %v", n)
-				ir.Dump(s, n)
+				s := fmt.Sprintf("\nbefore typecheck %v", fn)
+				ir.Dump(s, fn)
 			}
-			typecheck.FuncBody(n.(*ir.Func))
+			typecheck.FuncBody(fn)
 			if base.Flag.W > 1 {
-				s := fmt.Sprintf("\nafter typecheck %v", n)
-				ir.Dump(s, n)
+				s := fmt.Sprintf("\nafter typecheck %v", fn)
+				ir.Dump(s, fn)
 			}
 			fcount++
 		}
@@ -172,13 +191,23 @@ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
 	base.ErrorfAt(p.makeXPos(pos), format, args...)
 }
 
-// TODO(gri) Can we eliminate fileh in favor of absFilename?
-func fileh(name string) string {
-	return objabi.AbsFile("", name, base.Flag.TrimPath)
-}
-
-func absFilename(name string) string {
-	return objabi.AbsFile(base.Ctxt.Pathname, name, base.Flag.TrimPath)
+// trimFilename returns the "trimmed" filename of b, which is the
+// absolute filename after applying -trimpath processing. This
+// filename form is suitable for use in object files and export data.
+//
+// If b's filename has already been trimmed (i.e., because it was read
+// in from an imported package's export data), then the filename is
+// returned unchanged.
+func trimFilename(b *syntax.PosBase) string {
+	filename := b.Filename()
+	if !b.Trimmed() {
+		dir := ""
+		if b.IsFileBase() {
+			dir = base.Ctxt.Pathname
+		}
+		filename = objabi.AbsFile(dir, filename, base.Flag.TrimPath)
+	}
+	return filename
 }
 
 // noder transforms package syntax's AST into a Node tree.
@@ -449,7 +478,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
 type constState struct {
 	group  *syntax.Group
 	typ    ir.Ntype
-	values []ir.Node
+	values syntax.Expr
 	iota   int64
 }
 
@@ -467,16 +496,15 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 	names := p.declNames(ir.OLITERAL, decl.NameList)
 	typ := p.typeExprOrNil(decl.Type)
 
-	var values []ir.Node
 	if decl.Values != nil {
-		values = p.exprList(decl.Values)
-		cs.typ, cs.values = typ, values
+		cs.typ, cs.values = typ, decl.Values
 	} else {
 		if typ != nil {
 			base.Errorf("const declaration cannot have type without expression")
 		}
-		typ, values = cs.typ, cs.values
+		typ = cs.typ
 	}
+	values := p.exprList(cs.values)
 
 	nn := make([]ir.Node, 0, len(names))
 	for i, n := range names {
@@ -484,10 +512,16 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
 			base.Errorf("missing value in const declaration")
 			break
 		}
+
 		v := values[i]
 		if decl.Values == nil {
-			v = ir.DeepCopy(n.Pos(), v)
+			ir.Visit(v, func(v ir.Node) {
+				if ir.HasUniquePos(v) {
+					v.SetPos(n.Pos())
+				}
+			})
 		}
+
 		typecheck.Declare(n, typecheck.DeclContext)
 
 		n.Ntype = typ
@@ -625,6 +659,9 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*ir.Field {
 	for i, param := range params {
 		p.setlineno(param)
 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
+		if i > 0 && params[i].Type == params[i-1].Type {
+			nodes[i].Ntype = nodes[i-1].Ntype
+		}
 	}
 	return nodes
 }
@@ -914,6 +951,9 @@ func (p *noder) structType(expr *syntax.StructType) ir.Node {
 		} else {
 			n = ir.NewField(p.pos(field), p.name(field.Name), p.typeExpr(field.Type), nil)
 		}
+		if i > 0 && expr.FieldList[i].Type == expr.FieldList[i-1].Type {
+			n.Ntype = l[i-1].Ntype
+		}
 		if i < len(expr.TagList) && expr.TagList[i] != nil {
 			n.Note = constant.StringVal(p.basicLit(expr.TagList[i]))
 		}
@@ -977,6 +1017,8 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
 }
 
 func (p *noder) embedded(typ syntax.Expr) *ir.Field {
+	pos := p.pos(syntax.StartPos(typ))
+
 	op, isStar := typ.(*syntax.Operation)
 	if isStar {
 		if op.Op != syntax.Mul || op.Y != nil {
@@ -986,11 +1028,11 @@ func (p *noder) embedded(typ syntax.Expr) *ir.Field {
 	}
 
 	sym := p.packname(typ)
-	n := ir.NewField(p.pos(typ), typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
+	n := ir.NewField(pos, typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
 	n.Embedded = true
 
 	if isStar {
-		n.Ntype = ir.NewStarExpr(p.pos(op), n.Ntype)
+		n.Ntype = ir.NewStarExpr(pos, n.Ntype)
 	}
 	return n
 }
@@ -1691,7 +1733,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 // (primarily misuse of linker flags), other files are not.
 // See golang.org/issue/23672.
 func isCgoGeneratedFile(pos syntax.Pos) bool {
-	return strings.HasPrefix(filepath.Base(filepath.Clean(fileh(pos.Base().Filename()))), "_cgo_")
+	return strings.HasPrefix(filepath.Base(trimFilename(pos.Base())), "_cgo_")
 }
 
 // safeArg reports whether arg is a "safe" command-line argument,
@@ -1780,24 +1822,14 @@ func fakeRecv() *ir.Field {
 }
 
 func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
-	xtype := p.typeExpr(expr.Type)
-
-	fn := ir.NewFunc(p.pos(expr))
-	fn.SetIsHiddenClosure(ir.CurFunc != nil)
-
-	fn.Nname = ir.NewNameAt(p.pos(expr), ir.BlankNode.Sym()) // filled in by tcClosure
-	fn.Nname.Func = fn
-	fn.Nname.Ntype = xtype
-	fn.Nname.Defn = fn
-
-	clo := ir.NewClosureExpr(p.pos(expr), fn)
-	fn.OClosure = clo
+	fn := ir.NewClosureFunc(p.pos(expr), ir.CurFunc != nil)
+	fn.Nname.Ntype = p.typeExpr(expr.Type)
 
 	p.funcBody(fn, expr.Body)
 
 	ir.FinishCaptureNames(base.Pos, ir.CurFunc, fn)
 
-	return clo
+	return fn.OClosure
 }
 
 // A function named init is a special case.
@@ -1841,33 +1873,14 @@ func oldname(s *types.Sym) ir.Node {
 }
 
 func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
-	if pragma.Embeds == nil {
-		return
-	}
-
 	pragmaEmbeds := pragma.Embeds
 	pragma.Embeds = nil
-	pos := makeXPos(pragmaEmbeds[0].Pos)
+	if len(pragmaEmbeds) == 0 {
+		return
+	}
 
-	if !haveEmbed {
-		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
-		return
-	}
-	if len(decl.NameList) > 1 {
-		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
-		return
-	}
-	if decl.Values != nil {
-		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
-		return
-	}
-	if decl.Type == nil {
-		// Should not happen, since Values == nil now.
-		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
-		return
-	}
-	if typecheck.DeclContext != ir.PEXTERN {
-		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
+	if err := checkEmbed(decl, haveEmbed, typecheck.DeclContext != ir.PEXTERN); err != nil {
+		base.ErrorfAt(makeXPos(pragmaEmbeds[0].Pos), "%s", err)
 		return
 	}
 
@@ -1877,4 +1890,25 @@ func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.Va
 	}
 	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
 	name.Embed = &embeds
+}
+
+func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+	switch {
+	case !haveEmbed:
+		return errors.New("go:embed only allowed in Go files that import \"embed\"")
+	case len(decl.NameList) > 1:
+		return errors.New("go:embed cannot apply to multiple vars")
+	case decl.Values != nil:
+		return errors.New("go:embed cannot apply to var with initializer")
+	case decl.Type == nil:
+		// Should not happen, since Values == nil now.
+		return errors.New("go:embed cannot apply to var without type")
+	case withinFunc:
+		return errors.New("go:embed cannot apply to var inside func")
+	case !types.AllowsGoVersion(types.LocalPkg, 1, 16):
+		return fmt.Errorf("go:embed requires go1.16 or later (-lang was set to %s; check go.mod)", base.Flag.Lang)
+
+	default:
+		return nil
+	}
 }

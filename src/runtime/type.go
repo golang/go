@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 // tflag is documented in reflect/type.go.
 //
@@ -262,7 +265,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 	if off == -1 {
 		// -1 is the sentinel value for unreachable code.
 		// See cmd/link/internal/ld/data.go:relocsym.
-		return unsafe.Pointer(funcPC(unreachableMethod))
+		return unsafe.Pointer(abi.FuncPCABIInternal(unreachableMethod))
 	}
 	base := uintptr(unsafe.Pointer(t))
 	var md *moduledata

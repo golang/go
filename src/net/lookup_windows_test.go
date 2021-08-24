@@ -220,14 +220,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	// windows nslookup syntax
 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		pref, _, _ := dtoi(ans[2])
-		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+		mx = append(mx, &MX{absDomainName(ans[3]), uint16(pref)})
 	}
 	return
 }
@@ -241,7 +241,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
 	// golang.org      nameserver = ns1.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
+		ns = append(ns, &NS{absDomainName(ans[2])})
 	}
 	return
 }
@@ -258,7 +258,7 @@ func nslookupCNAME(name string) (cname string, err error) {
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
 		last = ans[2]
 	}
-	return absDomainName([]byte(last)), nil
+	return absDomainName(last), nil
 }
 
 func nslookupTXT(name string) (txt []string, err error) {
@@ -299,7 +299,7 @@ func lookupPTR(name string) (ptr []string, err error) {
 	ptr = make([]string, 0, 10)
 	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		ptr = append(ptr, absDomainName([]byte(ans[1])))
+		ptr = append(ptr, absDomainName(ans[1]))
 	}
 	return
 }

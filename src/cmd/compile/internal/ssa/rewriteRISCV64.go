@@ -356,6 +356,12 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpMul64F:
 		v.Op = OpRISCV64FMULD
 		return true
+	case OpMul64uhilo:
+		v.Op = OpRISCV64LoweredMuluhilo
+		return true
+	case OpMul64uover:
+		v.Op = OpRISCV64LoweredMuluover
+		return true
 	case OpMul8:
 		return rewriteValueRISCV64_OpMul8(v)
 	case OpNeg16:
@@ -6096,6 +6102,18 @@ func rewriteBlockRISCV64(b *Block) bool {
 			b.resetWithControl(BlockRISCV64BEQZ, x)
 			return true
 		}
+		// match: (BEQZ x:(NEG y) yes no)
+		// cond: x.Uses == 1
+		// result: (BEQZ y yes no)
+		for b.Controls[0].Op == OpRISCV64NEG {
+			x := b.Controls[0]
+			y := x.Args[0]
+			if !(x.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BEQZ, y)
+			return true
+		}
 		// match: (BEQZ (SUB x y) yes no)
 		// result: (BEQ x y yes no)
 		for b.Controls[0].Op == OpRISCV64SUB {
@@ -6121,6 +6139,52 @@ func rewriteBlockRISCV64(b *Block) bool {
 			y := v_0.Args[1]
 			x := v_0.Args[0]
 			b.resetWithControl2(BlockRISCV64BGEU, x, y)
+			return true
+		}
+	case BlockRISCV64BGE:
+		// match: (BGE (MOVDconst [0]) cond yes no)
+		// result: (BLEZ cond yes no)
+		for b.Controls[0].Op == OpRISCV64MOVDconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockRISCV64BLEZ, cond)
+			return true
+		}
+		// match: (BGE cond (MOVDconst [0]) yes no)
+		// result: (BGEZ cond yes no)
+		for b.Controls[1].Op == OpRISCV64MOVDconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BGEZ, cond)
+			return true
+		}
+	case BlockRISCV64BLT:
+		// match: (BLT (MOVDconst [0]) cond yes no)
+		// result: (BGTZ cond yes no)
+		for b.Controls[0].Op == OpRISCV64MOVDconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockRISCV64BGTZ, cond)
+			return true
+		}
+		// match: (BLT cond (MOVDconst [0]) yes no)
+		// result: (BLTZ cond yes no)
+		for b.Controls[1].Op == OpRISCV64MOVDconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BLTZ, cond)
 			return true
 		}
 	case BlockRISCV64BNE:
@@ -6161,6 +6225,18 @@ func rewriteBlockRISCV64(b *Block) bool {
 			v_0 := b.Controls[0]
 			x := v_0.Args[0]
 			b.resetWithControl(BlockRISCV64BNEZ, x)
+			return true
+		}
+		// match: (BNEZ x:(NEG y) yes no)
+		// cond: x.Uses == 1
+		// result: (BNEZ y yes no)
+		for b.Controls[0].Op == OpRISCV64NEG {
+			x := b.Controls[0]
+			y := x.Args[0]
+			if !(x.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockRISCV64BNEZ, y)
 			return true
 		}
 		// match: (BNEZ (SUB x y) yes no)

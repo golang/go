@@ -148,7 +148,7 @@ exit status 66
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true
@@ -162,7 +162,7 @@ func main() {
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true
@@ -178,7 +178,7 @@ func main() {
 package main
 func main() {
 	done := make(chan bool)
-	x := 0
+	x := 0; _ = x
 	go func() {
 		x = 42
 		done <- true

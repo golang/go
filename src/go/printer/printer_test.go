@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/parser"
 	"go/token"
 	"io"
@@ -222,9 +221,6 @@ var data = []entry{
 func TestFiles(t *testing.T) {
 	t.Parallel()
 	for _, e := range data {
-		if !typeparams.Enabled && e.mode&allowTypeParams != 0 {
-			continue
-		}
 		source := filepath.Join(dataDir, e.source)
 		golden := filepath.Join(dataDir, e.golden)
 		mode := e.mode

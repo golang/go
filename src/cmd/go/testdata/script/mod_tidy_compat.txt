@@ -20,7 +20,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
 # + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
 #
 # Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
-# (because it is lower than the verison explicitly required by m,
+# (because it is lower than the version explicitly required by m,
 # and the module that requires it — m — specifies 'go 1.17').
 #
 # That go.mod file happens not to affect the final 1.16 module graph anyway,

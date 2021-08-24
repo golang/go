@@ -92,6 +92,10 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 	return symdata
 }
 
+// maxFileSize is the maximum file size permitted by the linker
+// (see issue #9862).
+const maxFileSize = int64(2e9)
+
 // fileStringSym returns a symbol for the contents and the size of file.
 // If readonly is true, the symbol shares storage with any literal string
 // or other file with the same content and is placed in a read-only section.
@@ -133,12 +137,12 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 		}
 		return sym, size, nil
 	}
-	if size > 2e9 {
+	if size > maxFileSize {
 		// ggloblsym takes an int32,
 		// and probably the rest of the toolchain
 		// can't handle such big symbols either.
 		// See golang.org/issue/9862.
-		return nil, 0, fmt.Errorf("file too large")
+		return nil, 0, fmt.Errorf("file too large (%d bytes > %d bytes)", size, maxFileSize)
 	}
 
 	// File is too big to read and keep in memory.
