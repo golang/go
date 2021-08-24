@@ -341,8 +341,11 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	}
 
 	// check arguments
-	for i, a := range args {
-		check.assignment(a, sigParams.vars[i].typ, check.sprintf("argument to %s", call.Fun))
+	if len(args) > 0 {
+		context := check.sprintf("argument to %s", call.Fun)
+		for i, a := range args {
+			check.assignment(a, sigParams.vars[i].typ, context)
+		}
 	}
 
 	return
