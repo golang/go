@@ -13,6 +13,21 @@ import (
 	"fmt"
 )
 
+// An Environment is an opaque type checking environment. It may be used to
+// share identical type instances across type checked packages or calls to
+// Instantiate.
+type Environment struct {
+	// For now, Environment just hides a Checker.
+	// Eventually, we strive to remove the need for a checker.
+	check *Checker
+}
+
+// NewEnvironment returns a new Environment, initialized with the given
+// Checker, or nil.
+func NewEnvironment(check *Checker) *Environment {
+	return &Environment{check}
+}
+
 // Instantiate instantiates the type typ with the given type arguments targs.
 // typ must be a *Named or a *Signature type, and its number of type parameters
 // must match the number of provided type arguments. The result is a new,
@@ -20,8 +35,9 @@ import (
 // *Signature). Any methods attached to a *Named are simply copied; they are
 // not instantiated.
 //
-// If check is non-nil, it will be used to de-dupe the instance against
-// previous instances with the same identity.
+// If env is non-nil, it may be used to de-dupe the instance against previous
+// instances with the same identity. This functionality is implemented for
+// environments with non-nil Checkers.
 //
 // If verify is set and constraint satisfaction fails, the returned error may
 // be of dynamic type ArgumentError indicating which type argument did not
@@ -29,7 +45,11 @@ import (
 //
 // TODO(rfindley): change this function to also return an error if lengths of
 // tparams and targs do not match.
-func Instantiate(check *Checker, typ Type, targs []Type, validate bool) (Type, error) {
+func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
+	var check *Checker
+	if env != nil {
+		check = env.check
+	}
 	inst := check.instance(nopos, typ, targs)
 
 	var err error

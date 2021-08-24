@@ -228,7 +228,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
-			t, _ := types2.Instantiate(r.p.check, name.Type(), targs, false)
+			t, _ := types2.Instantiate(types2.NewEnvironment(r.p.check), name.Type(), targs, false)
 			return t
 		}
 		return name.Type()
