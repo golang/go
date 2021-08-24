@@ -59,8 +59,9 @@ var (
 	// roots are required but MainModules hasn't been initialized yet. Set to
 	// the modRoots of the main modules.
 	// modRoots != nil implies len(modRoots) > 0
-	modRoots []string
-	gopath   string
+	modRoots          []string
+	gopath            string
+	workFileGoVersion string
 )
 
 // Variable set in InitWorkfile
@@ -90,6 +91,8 @@ type MainModuleSet struct {
 	modFiles map[module.Version]*modfile.File
 
 	modContainingCWD module.Version
+
+	workFileGoVersion string
 
 	indexMu sync.Mutex
 	indices map[module.Version]*modFileIndex
@@ -188,6 +191,20 @@ func (mms *MainModuleSet) Len() int {
 // directory.
 func (mms *MainModuleSet) ModContainingCWD() module.Version {
 	return mms.modContainingCWD
+}
+
+// GoVersion returns the go version set on the single module, in module mode,
+// or the go.work file in workspace mode.
+func (mms *MainModuleSet) GoVersion() string {
+	if !inWorkspaceMode() {
+		return modFileGoVersion(mms.ModFile(mms.mustGetSingleMainModule()))
+	}
+	v := mms.workFileGoVersion
+	if v == "" {
+		// Fall back to 1.18 for go.work files.
+		v = "1.18"
+	}
+	return v
 }
 
 var MainModules *MainModuleSet
@@ -374,7 +391,7 @@ func Init() {
 
 	if inWorkspaceMode() {
 		var err error
-		modRoots, err = loadWorkFile(workFilePath)
+		workFileGoVersion, modRoots, err = loadWorkFile(workFilePath)
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
@@ -536,16 +553,19 @@ func (goModDirtyError) Error() string {
 
 var errGoModDirty error = goModDirtyError{}
 
-func loadWorkFile(path string) (modRoots []string, err error) {
+func loadWorkFile(path string) (goVersion string, modRoots []string, err error) {
 	_ = TODOWorkspaces("Clean up and write back the go.work file: add module paths for workspace modules.")
 	workDir := filepath.Dir(path)
 	workData, err := lockedfile.Read(path)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	wf, err := modfile.ParseWork(path, workData, nil)
 	if err != nil {
-		return nil, err
+		return "", nil, err
+	}
+	if wf.Go != nil {
+		goVersion = wf.Go.Version
 	}
 	seen := map[string]bool{}
 	for _, d := range wf.Directory {
@@ -554,12 +574,12 @@ func loadWorkFile(path string) (modRoots []string, err error) {
 			modRoot = filepath.Join(workDir, modRoot)
 		}
 		if seen[modRoot] {
-			return nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
+			return "", nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
 		}
 		seen[modRoot] = true
 		modRoots = append(modRoots, modRoot)
 	}
-	return modRoots, nil
+	return goVersion, modRoots, nil
 }
 
 // LoadModFile sets Target and, if there is a main module, parses the initial
@@ -582,7 +602,7 @@ func loadWorkFile(path string) (modRoots []string, err error) {
 func LoadModFile(ctx context.Context) *Requirements {
 	rs, needCommit := loadModFile(ctx)
 	if needCommit {
-		commitRequirements(ctx, modFileGoVersion(), rs)
+		commitRequirements(ctx, rs)
 	}
 	return rs
 }
@@ -602,7 +622,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	if len(modRoots) == 0 {
 		_ = TODOWorkspaces("Instead of creating a fake module with an empty modroot, make MainModules.Len() == 0 mean that we're in module mode but not inside any module.")
 		mainModule := module.Version{Path: "command-line-arguments"}
-		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil})
+		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "")
 		goVersion := LatestGoVersion()
 		rawGoVersion.Store(mainModule, goVersion)
 		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
@@ -652,7 +672,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		}
 	}
 
-	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices)
+	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFileGoVersion)
 	setDefaultBuildMod() // possibly enable automatic vendoring
 	rs = requirementsFromModFiles(ctx, modFiles)
 
@@ -702,7 +722,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 				}
 			}
 		} else {
-			rawGoVersion.Store(mainModule, modFileGoVersion())
+			rawGoVersion.Store(mainModule, modFileGoVersion(MainModules.ModFile(mainModule)))
 		}
 	}
 
@@ -756,7 +776,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
-	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil})
+	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, "")
 	addGoStmt(modFile, modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
 
 	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
@@ -772,7 +792,7 @@ func CreateModFile(ctx context.Context, modPath string) {
 	if err != nil {
 		base.Fatalf("go: %v", err)
 	}
-	commitRequirements(ctx, modFileGoVersion(), rs)
+	commitRequirements(ctx, rs)
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
 	// imported all the correct requirements above, we're probably missing
@@ -880,7 +900,7 @@ func AllowMissingModuleImports() {
 
 // makeMainModules creates a MainModuleSet and associated variables according to
 // the given main modules.
-func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex) *MainModuleSet {
+func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex, workFileGoVersion string) *MainModuleSet {
 	for _, m := range ms {
 		if m.Version != "" {
 			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
@@ -888,12 +908,13 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 	}
 	modRootContainingCWD := findModuleRoot(base.Cwd())
 	mainModules := &MainModuleSet{
-		versions:    ms[:len(ms):len(ms)],
-		inGorootSrc: map[module.Version]bool{},
-		pathPrefix:  map[module.Version]string{},
-		modRoot:     map[module.Version]string{},
-		modFiles:    map[module.Version]*modfile.File{},
-		indices:     map[module.Version]*modFileIndex{},
+		versions:          ms[:len(ms):len(ms)],
+		inGorootSrc:       map[module.Version]bool{},
+		pathPrefix:        map[module.Version]string{},
+		modRoot:           map[module.Version]string{},
+		modFiles:          map[module.Version]*modfile.File{},
+		indices:           map[module.Version]*modFileIndex{},
+		workFileGoVersion: workFileGoVersion,
 	}
 	for i, m := range ms {
 		mainModules.pathPrefix[m] = m.Path
@@ -958,7 +979,7 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
 		}
 	}
 	module.Sort(roots)
-	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
+	rs := newRequirements(modDepthFromGoVersion(MainModules.GoVersion()), roots, direct)
 	return rs
 }
 
@@ -1315,12 +1336,13 @@ func WriteGoMod(ctx context.Context) {
 	if !allowWriteGoMod {
 		panic("WriteGoMod called while disallowed")
 	}
-	commitRequirements(ctx, modFileGoVersion(), LoadModFile(ctx))
+	commitRequirements(ctx, LoadModFile(ctx))
 }
 
 // commitRequirements writes sets the global requirements variable to rs and
 // writes its contents back to the go.mod file on disk.
-func commitRequirements(ctx context.Context, goVersion string, rs *Requirements) {
+// goVersion, if non-empty, is used to set the version on the go.mod file.
+func commitRequirements(ctx context.Context, rs *Requirements) {
 	requirements = rs
 
 	if !allowWriteGoMod {
@@ -1352,10 +1374,10 @@ func commitRequirements(ctx context.Context, goVersion string, rs *Requirements)
 			Indirect: !rs.direct[m.Path],
 		})
 	}
-	if goVersion != "" {
-		modFile.AddGoStmt(goVersion)
+	if modFile.Go == nil || modFile.Go.Version == "" {
+		modFile.AddGoStmt(modFileGoVersion(modFile))
 	}
-	if semver.Compare("v"+modFileGoVersion(), separateIndirectVersionV) < 0 {
+	if semver.Compare("v"+modFileGoVersion(modFile), separateIndirectVersionV) < 0 {
 		modFile.SetRequire(list)
 	} else {
 		modFile.SetRequireSeparateIndirect(list)

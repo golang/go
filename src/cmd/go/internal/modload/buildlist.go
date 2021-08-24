@@ -461,7 +461,7 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, modFileGoVersion(), rs)
+	commitRequirements(ctx, rs)
 	return mg
 }
 
@@ -527,7 +527,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	if err != nil {
 		return false, err
 	}
-	commitRequirements(ctx, modFileGoVersion(), rs)
+	commitRequirements(ctx, rs)
 	return changed, err
 }
 

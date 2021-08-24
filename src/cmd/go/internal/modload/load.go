@@ -407,11 +407,17 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				base.Fatalf("go: %v", err)
 			}
 		}
+
+		// Update the go.mod file's Go version if necessary.
+		modFile := MainModules.ModFile(MainModules.mustGetSingleMainModule())
+		if ld.GoVersion != "" {
+			modFile.AddGoStmt(ld.GoVersion)
+		}
 	}
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
 	loaded = ld
-	commitRequirements(ctx, loaded.GoVersion, loaded.requirements)
+	commitRequirements(ctx, loaded.requirements)
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -678,7 +684,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			return roots
 		},
 	})
-	commitRequirements(ctx, loaded.GoVersion, loaded.requirements)
+	commitRequirements(ctx, loaded.requirements)
 }
 
 // DirImportPath returns the effective import path for dir,
@@ -960,7 +966,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 
 	if ld.GoVersion == "" {
-		ld.GoVersion = modFileGoVersion()
+		ld.GoVersion = MainModules.GoVersion()
 
 		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
 			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
@@ -1836,7 +1842,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		fmt.Fprintln(os.Stderr)
 
 		goFlag := ""
-		if ld.GoVersion != modFileGoVersion() {
+		if ld.GoVersion != MainModules.GoVersion() {
 			goFlag = " -go=" + ld.GoVersion
 		}
 
