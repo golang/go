@@ -1212,12 +1212,12 @@ func (w *writer) expr(expr syntax.Expr) {
 	if obj != nil {
 		if isGlobal(obj) {
 			w.code(exprName)
-			w.obj(obj, types2.NewTypeList(targs))
+			w.obj(obj, targs)
 			return
 		}
 
 		obj := obj.(*types2.Var)
-		assert(len(targs) == 0)
+		assert(targs.Len() == 0)
 
 		w.code(exprLocal)
 		w.useLocal(expr.Pos(), obj)
@@ -1321,7 +1321,7 @@ func (w *writer) expr(expr syntax.Expr) {
 
 				// As if w.expr(expr.Fun), but using inf.TArgs instead.
 				w.code(exprName)
-				w.obj(obj, types2.NewTypeList(inf.TArgs))
+				w.obj(obj, inf.TArgs)
 			} else {
 				w.expr(expr.Fun)
 			}
@@ -1770,7 +1770,7 @@ func isGlobal(obj types2.Object) bool {
 // lookupObj returns the object that expr refers to, if any. If expr
 // is an explicit instantiation of a generic object, then the type
 // arguments are returned as well.
-func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs []types2.Type) {
+func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs *types2.TypeList) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
 		if inf, ok := info.Inferred[index]; ok {
 			targs = inf.TArgs
@@ -1785,13 +1785,14 @@ func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs []
 				}
 			}
 
-			targs = make([]types2.Type, len(args))
+			list := make([]types2.Type, len(args))
 			for i, arg := range args {
 				tv, ok := info.Types[arg]
 				assert(ok)
 				assert(tv.IsType())
-				targs[i] = tv.Type
+				list[i] = tv.Type
 			}
+			targs = types2.NewTypeList(list)
 		}
 
 		expr = index.X
