@@ -3407,6 +3407,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o4 = os[3]
 
 	case 13: /* addop $vcon, [R], R (64 bit literal); cmp $lcon,R -> addop $lcon,R, ZR */
+		if p.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
@@ -3724,6 +3727,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
 
 	case 28: /* logop $vcon, [R], R (64 bit literal) */
+		if p.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		o := uint32(0)
 		num := uint8(0)
 		cls := oclass(&p.From)
@@ -4354,6 +4360,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		/* reloc ops */
 	case 64: /* movT R,addr -> adrp + add + movT R, (REGTMP) */
+		if p.From.Reg == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v\n", p)
+		}
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
@@ -4585,6 +4594,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		//	add Rtmp, R, Rtmp
 		//	ldp (Rtmp), (R1, R2)
 		r := int(p.From.Reg)
+		if r == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
+		}
 		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
@@ -4601,6 +4613,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 76:
 		//	add $O, R, Rtmp or sub $O, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
+		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
+		}
 		r := int(p.To.Reg)
 		if r == obj.REG_NONE {
 			r = int(o.param)
@@ -4628,6 +4643,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		//	add Rtmp, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
 		r := int(p.To.Reg)
+		if r == REGTMP || p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
+		}
 		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
@@ -4933,6 +4951,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
 
 	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
+		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
+		}
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
