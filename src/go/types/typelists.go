@@ -27,6 +27,14 @@ func (l *TParamList) list() []*TypeParam {
 // TypeList holds a list of types.
 type TypeList struct{ types []Type }
 
+// NewTypeList returns a new TypeList with the types in list.
+func NewTypeList(list []Type) *TypeList {
+	if len(list) == 0 {
+		return nil
+	}
+	return &TypeList{list}
+}
+
 // Len returns the number of types in the list.
 // It is safe to call on a nil receiver.
 func (l *TypeList) Len() int { return len(l.list()) }
