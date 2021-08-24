@@ -57,12 +57,8 @@ const (
 )
 
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
-// in modFile are intepreted, or the latest Go version if modFile is nil.
-func modFileGoVersion() string {
-	_ = TODOWorkspaces("this is obviously wrong.")
-	// Yes we're picking arbitrarily, we'll have to pass through the version
-	// we care about
-	modFile := MainModules.ModFile(MainModules.Versions()[0])
+// in modFile are interpreted, or the latest Go version if modFile is nil.
+func modFileGoVersion(modFile *modfile.File) string {
 	if modFile == nil {
 		return LatestGoVersion()
 	}
