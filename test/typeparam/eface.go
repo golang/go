@@ -53,19 +53,15 @@ func main() {
 		println("test 4 failed")
 	}
 	if h[int](myint(5)) != myint(5) {
-		// TODO: disabled
-		//println("test 5 failed")
+		println("test 5 failed")
 	}
 	if h[int](myint(6)) != interface{ foo() }(myint(6)) {
-		// TODO: disabled
-		//println("test 6 failed")
+		println("test 6 failed")
 	}
 	if i[int](myint(7)) != myint(7) {
-		// TODO: This happens to work, but not for the right reasons.
 		println("test 7 failed")
 	}
 	if i[int](myint(8)) != I[int](myint(8)) {
-		// TODO: disabled
-		//println("test 8 failed")
+		println("test 8 failed")
 	}
 }
