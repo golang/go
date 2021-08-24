@@ -618,7 +618,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	ntparams := tparams.Len()
 	w.len(ntparams)
 	for i := 0; i < ntparams; i++ {
-		w.typ(tparams.At(i).Type().(*types2.TypeParam).Constraint())
+		w.typ(tparams.At(i).Constraint())
 	}
 
 	nderived := len(dict.derived)
@@ -647,7 +647,7 @@ func (w *writer) typeParamNames(tparams *types2.TParamList) {
 
 	ntparams := tparams.Len()
 	for i := 0; i < ntparams; i++ {
-		tparam := tparams.At(i)
+		tparam := tparams.At(i).Obj()
 		w.pos(tparam)
 		w.localIdent(tparam)
 	}
@@ -1479,7 +1479,7 @@ func (c *declCollector) withTParams(obj types2.Object) *declCollector {
 	copy := *c
 	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
 	for i := 0; i < n; i++ {
-		copy.implicits = append(copy.implicits, tparams.At(i))
+		copy.implicits = append(copy.implicits, tparams.At(i).Obj())
 	}
 	return &copy
 }

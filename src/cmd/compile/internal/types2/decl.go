@@ -582,7 +582,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 }
 
 func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
-	tparams := make([]*TypeName, len(list))
+	tparams := make([]*TypeParam, len(list))
 
 	// Declare type parameters up-front.
 	// The scope of type parameters starts at the beginning of the type parameter
@@ -599,16 +599,16 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
 		if i == 0 || f.Type != list[i-1].Type {
 			bound = check.boundType(f.Type)
 		}
-		tparams[i].typ.(*TypeParam).bound = bound
+		tparams[i].bound = bound
 	}
 
 	return bindTParams(tparams)
 }
 
-func (check *Checker) declareTypeParam(name *syntax.Name) *TypeName {
-	tpar := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	check.NewTypeParam(tpar, nil)                           // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
+	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
+	tpar := check.NewTypeParam(tname, nil)                   // assigns type to tname as a side-effect
+	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }
 
