@@ -1163,8 +1163,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		}
 
 	case types.TINTER:
-		newt = ts.tinter(t)
-		if newt == t && !targsChanged {
+		newt = ts.tinter(t, targsChanged)
+		if newt == t {
 			newt = nil
 		}
 
@@ -1324,11 +1324,20 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 }
 
 // tinter substitutes type params in types of the methods of an interface type.
-func (ts *Tsubster) tinter(t *types.Type) *types.Type {
+func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 	if t.Methods().Len() == 0 {
+		if t.HasTParam() {
+			// For an empty interface, we need to return a new type,
+			// since it may now be fully instantiated (HasTParam
+			// becomes false).
+			return types.NewInterface(t.Pkg(), nil)
+		}
 		return t
 	}
 	var newfields []*types.Field
+	if force {
+		newfields = make([]*types.Field, t.Methods().Len())
+	}
 	for i, f := range t.Methods().Slice() {
 		t2 := ts.typ1(f.Type)
 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
