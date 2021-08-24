@@ -1206,10 +1206,10 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 	}
 
 	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || (testBench != "") {
+	if len(pkgArgs) == 0 || testBench != "" || testFuzz != "" {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
-		// or when benchmarking.
+		// or when benchmarking or fuzzing.
 		// No change to stdout.
 	} else {
 		// If we're only running a single package under test or if parallelism is
