@@ -18,26 +18,24 @@ import (
 // TODO(mdempsky): Skip blank declarations? Probably only safe
 // for declarations without pragmas.
 
-func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
-	var res ir.Nodes
+func (g *irgen) decls(res *ir.Nodes, decls []syntax.Decl) {
 	for _, decl := range decls {
 		switch decl := decl.(type) {
 		case *syntax.ConstDecl:
-			g.constDecl(&res, decl)
+			g.constDecl(res, decl)
 		case *syntax.FuncDecl:
-			g.funcDecl(&res, decl)
+			g.funcDecl(res, decl)
 		case *syntax.TypeDecl:
 			if ir.CurFunc == nil {
 				continue // already handled in irgen.generate
 			}
-			g.typeDecl(&res, decl)
+			g.typeDecl(res, decl)
 		case *syntax.VarDecl:
-			g.varDecl(&res, decl)
+			g.varDecl(res, decl)
 		default:
 			g.unhandled("declaration", decl)
 		}
 	}
-	return res
 }
 
 func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
@@ -119,23 +117,25 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
-	if fn.Type().HasTParam() {
-		g.topFuncIsGeneric = true
-	}
-	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
-	g.topFuncIsGeneric = false
-	if fn.Type().HasTParam() && fn.Body != nil {
-		// Set pointers to the dcls/body of a generic function/method in
-		// the Inl struct, so it is marked for export, is available for
-		// stenciling, and works with Inline_Flood().
-		fn.Inl = &ir.Inline{
-			Cost: 1,
-			Dcl:  fn.Dcl,
-			Body: fn.Body,
+	g.later(func() {
+		if fn.Type().HasTParam() {
+			g.topFuncIsGeneric = true
 		}
-	}
+		g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+		g.topFuncIsGeneric = false
+		if fn.Type().HasTParam() && fn.Body != nil {
+			// Set pointers to the dcls/body of a generic function/method in
+			// the Inl struct, so it is marked for export, is available for
+			// stenciling, and works with Inline_Flood().
+			fn.Inl = &ir.Inline{
+				Cost: 1,
+				Dcl:  fn.Dcl,
+				Body: fn.Body,
+			}
+		}
 
-	out.Append(fn)
+		out.Append(fn)
+	})
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
@@ -218,7 +218,6 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 	for i, name := range decl.NameList {
 		names[i], _ = g.def(name)
 	}
-	values := g.exprList(decl.Values)
 
 	if decl.Pragma != nil {
 		pragma := decl.Pragma.(*pragmas)
@@ -227,44 +226,57 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 		g.reportUnused(pragma)
 	}
 
-	var as2 *ir.AssignListStmt
-	if len(values) != 0 && len(names) != len(values) {
-		as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
-	}
+	do := func() {
+		values := g.exprList(decl.Values)
 
-	for i, name := range names {
-		if ir.CurFunc != nil {
-			out.Append(ir.NewDecl(pos, ir.ODCL, name))
+		var as2 *ir.AssignListStmt
+		if len(values) != 0 && len(names) != len(values) {
+			as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
+		}
+
+		for i, name := range names {
+			if ir.CurFunc != nil {
+				out.Append(ir.NewDecl(pos, ir.ODCL, name))
+			}
+			if as2 != nil {
+				as2.Lhs[i] = name
+				name.Defn = as2
+			} else {
+				as := ir.NewAssignStmt(pos, name, nil)
+				if len(values) != 0 {
+					as.Y = values[i]
+					name.Defn = as
+				} else if ir.CurFunc == nil {
+					name.Defn = as
+				}
+				lhs := []ir.Node{as.X}
+				rhs := []ir.Node{}
+				if as.Y != nil {
+					rhs = []ir.Node{as.Y}
+				}
+				transformAssign(as, lhs, rhs)
+				as.X = lhs[0]
+				if as.Y != nil {
+					as.Y = rhs[0]
+				}
+				as.SetTypecheck(1)
+				out.Append(as)
+			}
 		}
 		if as2 != nil {
-			as2.Lhs[i] = name
-			name.Defn = as2
-		} else {
-			as := ir.NewAssignStmt(pos, name, nil)
-			if len(values) != 0 {
-				as.Y = values[i]
-				name.Defn = as
-			} else if ir.CurFunc == nil {
-				name.Defn = as
-			}
-			lhs := []ir.Node{as.X}
-			rhs := []ir.Node{}
-			if as.Y != nil {
-				rhs = []ir.Node{as.Y}
-			}
-			transformAssign(as, lhs, rhs)
-			as.X = lhs[0]
-			if as.Y != nil {
-				as.Y = rhs[0]
-			}
-			as.SetTypecheck(1)
-			out.Append(as)
+			transformAssign(as2, as2.Lhs, as2.Rhs)
+			as2.SetTypecheck(1)
+			out.Append(as2)
 		}
 	}
-	if as2 != nil {
-		transformAssign(as2, as2.Lhs, as2.Rhs)
-		as2.SetTypecheck(1)
-		out.Append(as2)
+
+	// If we're within a function, we need to process the assignment
+	// part of the variable declaration right away. Otherwise, we leave
+	// it to be handled after all top-level declarations are processed.
+	if ir.CurFunc != nil {
+		do()
+	} else {
+		g.later(do)
 	}
 }
 
