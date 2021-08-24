@@ -737,7 +737,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 				return
 			}
 			c := n.(*ir.ConvExpr)
-			if c.X.Type().HasShape() {
+			if c.X.Type().HasShape() && !c.X.Type().IsInterface() {
 				ir.Dump("BAD FUNCTION", newf)
 				ir.Dump("BAD CONVERSION", c)
 				base.Fatalf("converting shape type to interface")
@@ -1135,7 +1135,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			x := x.(*ir.ConvExpr)
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
-			if x.X.Type().HasTParam() {
+			if x.X.Type().HasTParam() || (x.X.Type().IsInterface() && x.Type().HasTParam()) {
 				m = convertUsingDictionary(subst.info, subst.info.dictParam, m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
@@ -1231,8 +1231,51 @@ func findDictType(info *instInfo, t *types.Type) int {
 // CONVIFACE node or XDOT node (for a bound method call) that is causing the
 // conversion.
 func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, gn ir.Node, dst, src *types.Type) ir.Node {
-	assert(src.HasTParam())
+	assert(src.HasTParam() || src.IsInterface() && gn.Type().HasTParam())
 	assert(dst.IsInterface())
+
+	if v.Type().IsInterface() {
+		// Converting from an interface. The shape-ness of the source doesn't really matter, as
+		// we'll be using the concrete type from the first interface word.
+		if dst.IsEmptyInterface() {
+			// Converting I2E. OCONVIFACE does that for us, and doesn't depend
+			// on what the empty interface was instantiated with. No dictionary entry needed.
+			v = ir.NewConvExpr(pos, ir.OCONVIFACE, dst, v)
+			v.SetTypecheck(1)
+			return v
+		}
+		gdst := gn.Type() // pre-stenciled destination type
+		if !gdst.HasTParam() {
+			// Regular OCONVIFACE works if the destination isn't parameterized.
+			v = ir.NewConvExpr(pos, ir.OCONVIFACE, dst, v)
+			v.SetTypecheck(1)
+			return v
+		}
+
+		// We get the destination interface type from the dictionary and the concrete
+		// type from the argument's itab. Call runtime.convI2I to get the new itab.
+		tmp := typecheck.Temp(v.Type())
+		as := ir.NewAssignStmt(pos, tmp, v)
+		as.SetTypecheck(1)
+		itab := ir.NewUnaryExpr(pos, ir.OITAB, tmp)
+		typed(types.Types[types.TUINTPTR].PtrTo(), itab)
+		idata := ir.NewUnaryExpr(pos, ir.OIDATA, tmp)
+		typed(types.Types[types.TUNSAFEPTR], idata)
+
+		fn := typecheck.LookupRuntime("convI2I")
+		fn.SetTypecheck(1)
+		types.CalcSize(fn.Type())
+		call := ir.NewCallExpr(pos, ir.OCALLFUNC, fn, nil)
+		typed(types.Types[types.TUINT8].PtrTo(), call)
+		ix := findDictType(info, gdst)
+		assert(ix >= 0)
+		inter := getDictionaryType(info, dictParam, pos, ix)
+		call.Args = []ir.Node{inter, itab}
+		i := ir.NewBinaryExpr(pos, ir.OEFACE, call, idata)
+		typed(dst, i)
+		i.PtrInit().Append(as)
+		return i
+	}
 
 	var rt ir.Node
 	if !dst.IsEmptyInterface() {
@@ -1248,11 +1291,6 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v 
 		}
 		assert(ix >= 0)
 		rt = getDictionaryEntry(pos, dictParam, ix, info.dictLen)
-	} else if v.Type().IsInterface() {
-		ta := ir.NewTypeAssertExpr(pos, v, nil)
-		ta.SetType(dst)
-		ta.SetTypecheck(1)
-		return ta
 	} else {
 		ix := findDictType(info, src)
 		assert(ix >= 0)
@@ -1261,19 +1299,13 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v 
 	}
 
 	// Figure out what the data field of the interface will be.
-	var data ir.Node
-	if v.Type().IsInterface() {
-		data = ir.NewUnaryExpr(pos, ir.OIDATA, v)
-	} else {
-		data = ir.NewConvExpr(pos, ir.OCONVIDATA, nil, v)
-	}
+	data := ir.NewConvExpr(pos, ir.OCONVIDATA, nil, v)
 	typed(types.Types[types.TUNSAFEPTR], data)
 
 	// Build an interface from the type and data parts.
 	var i ir.Node = ir.NewBinaryExpr(pos, ir.OEFACE, rt, data)
 	typed(dst, i)
 	return i
-
 }
 
 func (subst *subster) namelist(l []*ir.Name) []*ir.Name {
@@ -1557,7 +1589,7 @@ func (g *irgen) finalizeSyms() {
 			default:
 				base.Fatalf("itab entry with unknown op %s", n.Op())
 			}
-			if srctype.IsInterface() {
+			if srctype.IsInterface() || dsttype.IsEmptyInterface() {
 				// No itab is wanted if src type is an interface. We
 				// will use a type assert instead.
 				d.off = objw.Uintptr(lsym, d.off, 0)
