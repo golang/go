@@ -141,6 +141,14 @@ type irgen struct {
 	typs   map[types2.Type]*types.Type
 	marker dwarfgen.ScopeMarker
 
+	// laterFuncs records tasks that need to run after all declarations
+	// are processed.
+	laterFuncs []func()
+
+	// exprStmtOK indicates whether it's safe to generate expressions or
+	// statements yet.
+	exprStmtOK bool
+
 	// Fully-instantiated generic types whose methods should be instantiated
 	instTypeList []*types.Type
 
@@ -165,6 +173,10 @@ type irgen struct {
 	topFuncIsGeneric bool
 }
 
+func (g *irgen) later(fn func()) {
+	g.laterFuncs = append(g.laterFuncs, fn)
+}
+
 type delayInfo struct {
 	gf    *ir.Name
 	targs []*types.Type
@@ -184,7 +196,7 @@ func (g *irgen) generate(noders []*noder) {
 	// At this point, types2 has already handled name resolution and
 	// type checking. We just need to map from its object and type
 	// representations to those currently used by the rest of the
-	// compiler. This happens mostly in 3 passes.
+	// compiler. This happens in a few passes.
 
 	// 1. Process all import declarations. We use the compiler's own
 	// importer for this, rather than types2's gcimporter-derived one,
@@ -233,7 +245,16 @@ Outer:
 
 	// 3. Process all remaining declarations.
 	for _, declList := range declLists {
-		g.target.Decls = append(g.target.Decls, g.decls(declList)...)
+		g.decls((*ir.Nodes)(&g.target.Decls), declList)
+	}
+	g.exprStmtOK = true
+
+	// 4. Run any "later" tasks. Avoid using 'range' so that tasks can
+	// recursively queue further tasks. (Not currently utilized though.)
+	for len(g.laterFuncs) > 0 {
+		fn := g.laterFuncs[0]
+		g.laterFuncs = g.laterFuncs[1:]
+		fn()
 	}
 
 	if base.Flag.W > 1 {
@@ -275,6 +296,8 @@ Outer:
 		}
 	}
 	g.target.Decls = g.target.Decls[:j]
+
+	base.Assertf(len(g.laterFuncs) == 0, "still have %d later funcs", len(g.laterFuncs))
 }
 
 func (g *irgen) unhandled(what string, p poser) {
