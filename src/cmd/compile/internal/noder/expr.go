@@ -116,12 +116,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		// The key for the Inferred map is the CallExpr (if inferring
 		// types required the function arguments) or the IndexExpr below
 		// (if types could be inferred without the function arguments).
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
+		if inferred, ok := g.info.Inferred[expr]; ok && inferred.TArgs.Len() > 0 {
 			// This is the case where inferring types required the
 			// types of the function arguments.
-			targs := make([]ir.Node, len(inferred.TArgs))
-			for i, targ := range inferred.TArgs {
-				targs[i] = ir.TypeNode(g.typ(targ))
+			targs := make([]ir.Node, inferred.TArgs.Len())
+			for i := range targs {
+				targs[i] = ir.TypeNode(g.typ(inferred.TArgs.At(i)))
 			}
 			if fun.Op() == ir.OFUNCINST {
 				// Replace explicit type args with the full list that
@@ -149,13 +149,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	case *syntax.IndexExpr:
 		var targs []ir.Node
 
-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
+		if inferred, ok := g.info.Inferred[expr]; ok && inferred.TArgs.Len() > 0 {
 			// This is the partial type inference case where the types
 			// can be inferred from other type arguments without using
 			// the types of the function arguments.
-			targs = make([]ir.Node, len(inferred.TArgs))
-			for i, targ := range inferred.TArgs {
-				targs[i] = ir.TypeNode(g.typ(targ))
+			targs = make([]ir.Node, inferred.TArgs.Len())
+			for i := range targs {
+				targs[i] = ir.TypeNode(g.typ(inferred.TArgs.At(i)))
 			}
 		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
 			targs = g.exprList(expr.Index)

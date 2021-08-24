@@ -500,7 +500,7 @@ func TestInferredInfo(t *testing.T) {
 		}
 
 		// look for inferred type arguments and signature
-		var targs []Type
+		var targs *TypeList
 		var sig *Signature
 		for call, inf := range info.Inferred {
 			var fun syntax.Expr
@@ -524,11 +524,12 @@ func TestInferredInfo(t *testing.T) {
 		}
 
 		// check that type arguments are correct
-		if len(targs) != len(test.targs) {
-			t.Errorf("package %s: got %d type arguments; want %d", name, len(targs), len(test.targs))
+		if targs.Len() != len(test.targs) {
+			t.Errorf("package %s: got %d type arguments; want %d", name, targs.Len(), len(test.targs))
 			continue
 		}
-		for i, targ := range targs {
+		for i := 0; i < targs.Len(); i++ {
+			targ := targs.At(i)
 			if got := targ.String(); got != test.targs[i] {
 				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
 				continue

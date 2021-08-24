@@ -416,7 +416,7 @@ func (check *Checker) recordInferred(call syntax.Expr, targs []Type, sig *Signat
 	assert(call != nil)
 	assert(sig != nil)
 	if m := check.Inferred; m != nil {
-		m[call] = Inferred{targs, sig}
+		m[call] = Inferred{NewTypeList(targs), sig}
 	}
 }
 
