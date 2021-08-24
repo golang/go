@@ -346,10 +346,10 @@ func (r *importReader) obj(name string) {
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
 				targs := baseType(msig.Recv().Type()).TArgs()
-				if len(targs) > 0 {
-					rparams := make([]*types2.TypeParam, len(targs))
-					for i, targ := range targs {
-						rparams[i] = types2.AsTypeParam(targ)
+				if targs.Len() > 0 {
+					rparams := make([]*types2.TypeParam, targs.Len())
+					for i := range rparams {
+						rparams[i] = types2.AsTypeParam(targs.At(i))
 					}
 					msig.SetRParams(rparams)
 				}

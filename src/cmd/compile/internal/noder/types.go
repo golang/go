@@ -66,10 +66,12 @@ func (g *irgen) typ1(typ types2.Type) *types.Type {
 
 // instTypeName2 creates a name for an instantiated type, base on the type args
 // (given as types2 types).
-func instTypeName2(name string, targs []types2.Type) string {
+func instTypeName2(name string, targs *types2.TypeList) string {
 	b := bytes.NewBufferString(name)
 	b.WriteByte('[')
-	for i, targ := range targs {
+	n := targs.Len()
+	for i := 0; i < n; i++ {
+		targ := targs.At(i)
 		if i > 0 {
 			b.WriteByte(',')
 		}
@@ -140,9 +142,10 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// non-generic types used to instantiate this type. We'll
 			// use these when instantiating the methods of the
 			// instantiated type.
-			rparams := make([]*types.Type, len(typ.TArgs()))
-			for i, targ := range typ.TArgs() {
-				rparams[i] = g.typ1(targ)
+			targs := typ.TArgs()
+			rparams := make([]*types.Type, targs.Len())
+			for i := range rparams {
+				rparams[i] = g.typ1(targs.At(i))
 			}
 			ntyp.SetRParams(rparams)
 			//fmt.Printf("Saw new type %v %v\n", instName, ntyp.HasTParam())
@@ -267,9 +270,10 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 // and for actually generating the methods for instantiated types.
 func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 	if typ.NumMethods() != 0 {
-		targs := make([]*types.Type, len(typ.TArgs()))
-		for i, targ := range typ.TArgs() {
-			targs[i] = g.typ1(targ)
+		targs2 := typ.TArgs()
+		targs := make([]*types.Type, targs2.Len())
+		for i := range targs {
+			targs[i] = g.typ1(targs2.At(i))
 		}
 
 		methods := make([]*types.Field, typ.NumMethods())

@@ -360,9 +360,9 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 				// selinfo.Targs() are the types used to
 				// instantiate the type of receiver
 				targs2 := getTargs(selinfo)
-				targs := make([]ir.Node, len(targs2))
-				for i, targ2 := range targs2 {
-					targs[i] = ir.TypeNode(g.typ(targ2))
+				targs := make([]ir.Node, targs2.Len())
+				for i := range targs {
+					targs[i] = ir.TypeNode(g.typ(targs2.At(i)))
 				}
 
 				// Create function instantiation with the type
@@ -386,7 +386,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 }
 
 // getTargs gets the targs associated with the receiver of a selected method
-func getTargs(selinfo *types2.Selection) []types2.Type {
+func getTargs(selinfo *types2.Selection) *types2.TypeList {
 	r := deref2(selinfo.Recv())
 	n := types2.AsNamed(r)
 	if n == nil {

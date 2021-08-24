@@ -394,10 +394,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// here. Exit early in this case to prevent an assertion
 			// failure in makeSubstMap.
 			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.RParams().list()) != len(Vn.targs) {
+			if len(ftyp.RParams().list()) != Vn.targs.Len() {
 				return
 			}
-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs), nil).(*Signature)
+			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
