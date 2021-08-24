@@ -69,7 +69,7 @@ var (
 
 // DefaultOptions is the options that are used for Gopls execution independent
 // of any externally provided configuration (LSP initialization, command
-// invokation, etc.).
+// invocation, etc.).
 func DefaultOptions() *Options {
 	optionsOnce.Do(func() {
 		var commands []string
@@ -411,7 +411,7 @@ type NavigationOptions struct {
 	// ```json5
 	// "gopls": {
 	// ...
-	//   "symbolStyle": "dynamic",
+	//   "symbolStyle": "Dynamic",
 	// ...
 	// }
 	// ```

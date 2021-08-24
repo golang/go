@@ -341,7 +341,7 @@ var GeneratedAPIJSON = &APIJSON{
 			{
 				Name: "symbolStyle",
 				Type: "enum",
-				Doc:  "symbolStyle controls how symbols are qualified in symbol responses.\n\nExample Usage:\n\n```json5\n\"gopls\": {\n...\n  \"symbolStyle\": \"dynamic\",\n...\n}\n```\n",
+				Doc:  "symbolStyle controls how symbols are qualified in symbol responses.\n\nExample Usage:\n\n```json5\n\"gopls\": {\n...\n  \"symbolStyle\": \"Dynamic\",\n...\n}\n```\n",
 				EnumKeys: EnumKeys{
 					ValueType: "",
 					Keys:      nil,

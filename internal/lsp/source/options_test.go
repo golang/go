@@ -18,7 +18,7 @@ func TestSetOption(t *testing.T) {
 	}{
 		{
 			name:  "symbolStyle",
-			value: "dynamic",
+			value: "Dynamic",
 			check: func(o Options) bool { return o.SymbolStyle == DynamicSymbols },
 		},
 		{

@@ -412,7 +412,7 @@ Example Usage:
 ```json5
 "gopls": {
 ...
-  "symbolStyle": "dynamic",
+  "symbolStyle": "Dynamic",
 ...
 }
 ```
