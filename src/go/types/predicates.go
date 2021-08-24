@@ -312,16 +312,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 				return false
 			}
 
-			if nargs := len(xargs); nargs > 0 {
+			if len(xargs) > 0 {
 				// Instances are identical if their original type and type arguments
 				// are identical.
 				if !Identical(x.orig, y.orig) {
 					return false
 				}
-				for i := 0; i < nargs; i++ {
-					xa := xargs[i]
-					ya := yargs[i]
-					if !Identical(xa, ya) {
+				for i, xa := range xargs {
+					if !Identical(xa, yargs[i]) {
 						return false
 					}
 				}
