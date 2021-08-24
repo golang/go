@@ -561,12 +561,12 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
 //
 // If fuzzing is disabled (-test.fuzz is not set), runFuzzing
 // returns immediately.
-func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
+func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matched int, ok bool) {
 	// TODO(katiehockman,jayconrod): Should we do something special to make sure
 	// we don't print f.Log statements again with runFuzzing, since we already
 	// would have printed them when we ran runFuzzTargets (ie. seed corpus run)?
 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
-		return false, true
+		return false, 0, true
 	}
 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
 	tctx := newTestContext(1, m)
@@ -588,41 +588,39 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) 
 		root.chatty = newChattyPrinter(root.w)
 	}
 	var target *InternalFuzzTarget
-	var f *F
+	var targetName string
 	for i := range fuzzTargets {
-		ft := &fuzzTargets[i]
-		testName, matched, _ := tctx.match.fullName(nil, ft.Name)
-		if !matched {
+		name, ok, _ := tctx.match.fullName(nil, fuzzTargets[i].Name)
+		if !ok {
 			continue
 		}
-		if target != nil {
-			fmt.Fprintln(os.Stderr, "testing: warning: -fuzz matches more than one target, won't fuzz")
-			return false, true
-		}
-		target = ft
-		f = &F{
-			common: common{
-				signal:  make(chan bool),
-				barrier: nil, // T.Parallel has no effect when fuzzing.
-				name:    testName,
-				parent:  &root,
-				level:   root.level + 1,
-				chatty:  root.chatty,
-			},
-			fuzzContext: fctx,
-			testContext: tctx,
-		}
-		f.w = indenter{&f.common}
+		matched++
+		target = &fuzzTargets[i]
+		targetName = name
 	}
-	if target == nil {
-		return false, true
+	if matched != 1 {
+		return false, matched, true
 	}
+
+	f := &F{
+		common: common{
+			signal:  make(chan bool),
+			barrier: nil, // T.Parallel has no effect when fuzzing.
+			name:    targetName,
+			parent:  &root,
+			level:   root.level + 1,
+			chatty:  root.chatty,
+		},
+		fuzzContext: fctx,
+		testContext: tctx,
+	}
+	f.w = indenter{&f.common}
 	if f.chatty != nil {
 		f.chatty.Updatef(f.name, "=== FUZZ  %s\n", f.name)
 	}
 	go fRunner(f, target.Fn)
 	<-f.signal
-	return f.ran, !f.failed
+	return f.ran, matched, !f.failed
 }
 
 // fRunner wraps a call to a fuzz target and ensures that cleanup functions are
