@@ -218,11 +218,11 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 	case ir.OSTRUCTLIT:
 		splitnode = func(rn ir.Node) (ir.Node, ir.Node) {
 			r := rn.(*ir.StructKeyExpr)
-			if r.Field.IsBlank() || isBlank {
+			if r.Sym().IsBlank() || isBlank {
 				return ir.BlankNode, r.Value
 			}
 			ir.SetPos(r)
-			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Field), r.Value
+			return ir.NewSelectorExpr(base.Pos, ir.ODOT, var_, r.Sym()), r.Value
 		}
 	default:
 		base.Fatalf("fixedlit bad op: %v", n.Op())
@@ -440,8 +440,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
 		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
 
-		tk.SetNoalg(true)
-		te.SetNoalg(true)
+		// TODO(#47904): mark tk and te NoAlg here once the
+		// compiler/linker can handle NoAlg types correctly.
 
 		types.CalcSize(tk)
 		types.CalcSize(te)

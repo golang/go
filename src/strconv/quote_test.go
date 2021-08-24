@@ -131,6 +131,7 @@ var quoterunetests = []quoteRuneTest{
 	{'\\', `'\\'`, `'\\'`, `'\\'`},
 	{0xFF, `'ÿ'`, `'\u00ff'`, `'ÿ'`},
 	{0x263a, `'☺'`, `'\u263a'`, `'☺'`},
+	{0xdead, `'�'`, `'\ufffd'`, `'�'`},
 	{0xfffd, `'�'`, `'\ufffd'`, `'�'`},
 	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`, `'\U0010ffff'`},
 	{0x0010ffff + 1, `'�'`, `'\ufffd'`, `'�'`},
@@ -305,6 +306,8 @@ var misquoted = []string{
 	"\"\n\"",
 	"\"\\n\n\"",
 	"'\n'",
+	`"\udead"`,
+	`"\ud83d\ude4f"`,
 }
 
 func TestUnquote(t *testing.T) {

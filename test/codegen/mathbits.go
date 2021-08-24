@@ -710,6 +710,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	// ppc64le:"MULHDU","MULLD"
 	// s390x:"MLGR"
 	// mips64: "MULVU"
+	// riscv64:"MULHU","MUL"
 	return bits.Mul64(x, y)
 }
 

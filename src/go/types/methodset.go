@@ -130,7 +130,7 @@ func NewMethodSet(T Type) *MethodSet {
 				// continue with underlying type, but only if it's not a type parameter
 				// TODO(rFindley): should this use named.under()? Can there be a difference?
 				typ = named.underlying
-				if _, ok := typ.(*_TypeParam); ok {
+				if _, ok := typ.(*TypeParam); ok {
 					continue
 				}
 			}
@@ -157,10 +157,10 @@ func NewMethodSet(T Type) *MethodSet {
 				}
 
 			case *Interface:
-				mset = mset.add(t.allMethods, e.index, true, e.multiples)
+				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
 
-			case *_TypeParam:
-				mset = mset.add(t.Bound().allMethods, e.index, true, e.multiples)
+			case *TypeParam:
+				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
 			}
 		}
 
@@ -190,12 +190,7 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		// It's ok to call consolidateMultiples with a nil *Checker because
-		// MethodSets are not used internally (outside debug mode). When used
-		// externally, interfaces are expected to be completed and then we do
-		// not need a *Checker to complete them when (indirectly) calling
-		// Checker.identical via consolidateMultiples.
-		current = (*Checker)(nil).consolidateMultiples(next)
+		current = consolidateMultiples(next)
 	}
 
 	if len(base) == 0 {

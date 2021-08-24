@@ -40,6 +40,10 @@ func BuildInit() {
 		cfg.BuildPkgdir = p
 	}
 
+	if cfg.BuildP <= 0 {
+		base.Fatalf("go: -p must be a positive integer: %v\n", cfg.BuildP)
+	}
+
 	// Make sure CC, CXX, and FC are absolute paths.
 	for _, key := range []string{"CC", "CXX", "FC"} {
 		value := cfg.Getenv(key)

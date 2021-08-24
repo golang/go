@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -191,8 +192,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = uint32(sigset_all)
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !typeparams || !go1.17
-// +build !typeparams !go1.17
+//go:build !typeparams || !go1.18
+// +build !typeparams !go1.18
 
 package typeparams
 
@@ -18,17 +18,25 @@ import (
 // environment.
 const Enabled = false
 
-// UnpackIndex extracts all index expressions from e. For non-generic code this
-// is always one expression: e.Index, but may be more than one expression for
-// generic type instantiation.
-func UnpackIndex(e *ast.IndexExpr) []ast.Expr {
-	return []ast.Expr{e.Index}
-}
-
-// IsListExpr reports whether n is an *ast.ListExpr, which is a new node type
-// introduced to hold type arguments for generic type instantiation.
-func IsListExpr(n ast.Node) bool {
-	return false
+// GetIndexExprData extracts data from AST nodes that represent index
+// expressions.
+//
+// For an ast.IndexExpr, the resulting IndexExprData will have exactly one
+// index expression. For an ast.MultiIndexExpr (go1.18+), it may have a
+// variable number of index expressions.
+//
+// For nodes that don't represent index expressions, GetIndexExprData returns
+// nil.
+func GetIndexExprData(n ast.Node) *IndexExprData {
+	if e, _ := n.(*ast.IndexExpr); e != nil {
+		return &IndexExprData{
+			X:       e.X,
+			Lbrack:  e.Lbrack,
+			Indices: []ast.Expr{e.Index},
+			Rbrack:  e.Rbrack,
+		}
+	}
+	return nil
 }
 
 // ForTypeDecl extracts the (possibly nil) type parameter node list from n.
@@ -45,11 +53,6 @@ func ForFuncDecl(*ast.FuncDecl) *ast.FieldList {
 // sig.
 func ForSignature(*types.Signature) []*types.TypeName {
 	return nil
-}
-
-// HasTypeSet reports if iface has a type set.
-func HasTypeSet(*types.Interface) bool {
-	return false
 }
 
 // IsComparable reports if iface is the comparable interface.

@@ -6,14 +6,13 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
 	"unsafe"
 )
-
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 
 // Value is the reflection interface to a Go value.
 //
@@ -94,7 +93,7 @@ func (f flag) ro() flag {
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 // if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.size != ptrSize || !v.typ.pointers() {
+	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -509,7 +508,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regArgs.Ints[st.ireg]), offset, st.size)
+					memmove(regArgs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
 				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
@@ -525,7 +524,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("attempted to copy pointer to FP register")
 				}
 				offset := add(v.ptr, st.offset, "precomputed value offset")
-				memmove(unsafe.Pointer(&regArgs.Floats[st.freg]), offset, st.size)
+				memmove(regArgs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
 			default:
 				panic("unknown ABI part kind")
 			}
@@ -533,7 +532,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize = align(frameSize, ptrSize)
+	frameSize = align(frameSize, goarch.PtrSize)
 	frameSize += abi.spill
 
 	// Mark pointers in registers for the return path.
@@ -611,13 +610,13 @@ func (v Value) call(op string, in []Value) []Value {
 				switch st.kind {
 				case abiStepIntReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Ints[st.ireg]), st.size)
+					memmove(offset, regArgs.IntRegArgAddr(st.ireg, st.size), st.size)
 				case abiStepPointer:
 					s := add(s, st.offset, "precomputed value offset")
 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
 				case abiStepFloatReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Floats[st.freg]), st.size)
+					memmove(offset, regArgs.FloatRegArgAddr(st.freg, st.size), st.size)
 				case abiStepStack:
 					panic("register-based return value has stack component")
 				default:
@@ -699,13 +698,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					switch st.kind {
 					case abiStepIntReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Ints[st.ireg]), st.size)
+						memmove(offset, regs.IntRegArgAddr(st.ireg, st.size), st.size)
 					case abiStepPointer:
 						s := add(v.ptr, st.offset, "precomputed value offset")
 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
 					case abiStepFloatReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Floats[st.freg]), st.size)
+						memmove(offset, regs.FloatRegArgAddr(st.freg, st.size), st.size)
 					case abiStepStack:
 						panic("register-based return value has stack component")
 					default:
@@ -785,7 +784,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					// Copy values to "integer registers."
 					if v.flag&flagIndir != 0 {
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(unsafe.Pointer(&regs.Ints[st.ireg]), offset, st.size)
+						memmove(regs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
 					} else {
 						// Only populate the Ints space on the return path.
 						// This is safe because out is kept alive until the
@@ -800,7 +799,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 						panic("attempted to copy pointer to FP register")
 					}
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regs.Floats[st.freg]), offset, st.size)
+					memmove(regs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
 				default:
 					panic("unknown ABI part kind")
 				}
@@ -931,7 +930,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
-		// Only copy the reciever to the stack if the ABI says so.
+		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
 	} else {
@@ -958,9 +957,6 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 		// 2. Stack -> registers translation.
 		// 3. Registers -> stack translation.
 		// 4. Registers -> registers translation.
-		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
-		// architectures. This is OK for now, but this needs to be fixed
-		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
@@ -986,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
 				case abiStepFloatReg:
-					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
 				default:
 					panic("unexpected method step")
 				}
@@ -1004,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
+					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
 				case abiStepFloatReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
+					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
 				default:
 					panic("unexpected value step")
 				}
@@ -1043,7 +1039,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	methodFrameSize := methodFrameType.size
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	methodFrameSize = align(methodFrameSize, ptrSize)
+	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
 	methodFrameSize += methodABI.spill
 
 	// Mark pointers in registers for the return path.

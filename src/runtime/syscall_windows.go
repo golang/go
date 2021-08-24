@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -73,7 +73,7 @@ type abiDesc struct {
 }
 
 func (p *abiDesc) assignArg(t *_type) {
-	if t.size > sys.PtrSize {
+	if t.size > goarch.PtrSize {
 		// We don't support this right now. In
 		// stdcall/cdecl, 64-bit ints and doubles are
 		// passed as two words (little endian); and
@@ -146,7 +146,7 @@ func (p *abiDesc) assignArg(t *_type) {
 
 	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
 	// TODO(rsc): On arm and arm64 do we need to skip the caller's saved LR?
-	p.srcStackSize += sys.PtrSize
+	p.srcStackSize += goarch.PtrSize
 }
 
 // tryRegAssignArg tries to register-assign a value of type t.
@@ -162,7 +162,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 		return p.assignReg(t.size, offset)
 	case kindInt64, kindUint64:
 		// Only register-assign if the registers are big enough.
-		if sys.PtrSize == 8 {
+		if goarch.PtrSize == 8 {
 			return p.assignReg(t.size, offset)
 		}
 	case kindArray:
@@ -232,10 +232,10 @@ func callbackasmAddr(i int) uintptr {
 		// followed by a branch instruction
 		entrySize = 8
 	}
-	return funcPC(callbackasm) + uintptr(i*entrySize)
+	return abi.FuncPCABI0(callbackasm) + uintptr(i*entrySize)
 }
 
-const callbackMaxFrame = 64 * sys.PtrSize
+const callbackMaxFrame = 64 * goarch.PtrSize
 
 // compileCallback converts a Go function fn into a C function pointer
 // that can be passed to Windows APIs.
@@ -263,13 +263,13 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	}
 	// The Go ABI aligns the result to the word size. src is
 	// already aligned.
-	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, sys.PtrSize)
+	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	abiMap.retOffset = abiMap.dstStackSize
 
 	if len(ft.out()) != 1 {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if ft.out()[0].size != sys.PtrSize {
+	if ft.out()[0].size != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
@@ -282,12 +282,12 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		// Make room for the uintptr-sized result.
 		// If there are argument registers, the return value will
 		// be passed in the first register.
-		abiMap.dstStackSize += sys.PtrSize
+		abiMap.dstStackSize += goarch.PtrSize
 	}
 
 	// TODO(mknyszek): Remove dstSpill from this calculation when we no longer have
 	// caller reserved spill space.
-	frameSize := alignUp(abiMap.dstStackSize, sys.PtrSize)
+	frameSize := alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	frameSize += abiMap.dstSpill
 	if frameSize > callbackMaxFrame {
 		panic("compileCallback: function argument frame too large")
@@ -370,7 +370,7 @@ func callbackWrap(a *callbackArgs) {
 
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize := alignUp(c.abiMap.dstStackSize, sys.PtrSize)
+	frameSize := alignUp(c.abiMap.dstStackSize, goarch.PtrSize)
 	frameSize += c.abiMap.dstSpill
 
 	// Even though this is copying back results, we can pass a nil
@@ -468,84 +468,69 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 
 //go:linkname syscall_Syscall syscall.Syscall
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	return c.r1, c.r2, c.err
+	return syscall_SyscallN(fn, a1, a2, a3)
 }
 
 //go:linkname syscall_Syscall6 syscall.Syscall6
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	lockOSThread()
-	defer unlockOSThread()
-	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	return c.r1, c.r2, c.err
+	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6)
 }
 
 //go:linkname syscall_Syscall9 syscall.Syscall9
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	lockOSThread()
-	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	unlockOSThread()
-	return c.r1, c.r2, c.err
+	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
 }
 
 //go:linkname syscall_Syscall12 syscall.Syscall12
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
-	lockOSThread()
-	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	unlockOSThread()
-	return c.r1, c.r2, c.err
+	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
 }
 
 //go:linkname syscall_Syscall15 syscall.Syscall15
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
-	lockOSThread()
-	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
-	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	unlockOSThread()
-	return c.r1, c.r2, c.err
+	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
 }
 
 //go:linkname syscall_Syscall18 syscall.Syscall18
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
+	return syscall_SyscallN(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+}
+
+// maxArgs should be divisible by 2, as Windows stack
+// must be kept 16-byte aligned on syscall entry.
+//
+// Although it only permits maximum 42 parameters, it
+// is arguably large enough.
+const maxArgs = 42
+
+//go:linkname syscall_SyscallN syscall.SyscallN
+//go:nosplit
+func syscall_SyscallN(trap uintptr, args ...uintptr) (r1, r2, err uintptr) {
+	nargs := len(args)
+
+	// asmstdcall expects it can access the first 4 arguments
+	// to load them into registers.
+	var tmp [4]uintptr
+	switch {
+	case nargs < 4:
+		copy(tmp[:], args)
+		args = tmp[:]
+	case nargs > maxArgs:
+		panic("runtime: SyscallN has too many arguments")
+	}
+
 	lockOSThread()
+	defer unlockOSThread()
 	c := &getg().m.syscall
-	c.fn = fn
-	c.n = nargs
-	c.args = uintptr(noescape(unsafe.Pointer(&a1)))
+	c.fn = trap
+	c.n = uintptr(nargs)
+	c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
-	unlockOSThread()
 	return c.r1, c.r2, c.err
 }

@@ -26,6 +26,7 @@ package runtime
 #include <sys/signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 */
 import "C"

@@ -34,11 +34,11 @@ go mod editwork -print -fmt -workfile unformatted
 cmp stdout formatted
 
 -- go.work.want_initial --
-go 1.17
+go 1.18
 
 directory m
 -- go.work.want_directory_n --
-go 1.17
+go 1.18
 
 directory (
 	m
@@ -132,7 +132,7 @@ replace x.1 v1.4.0 => ../z
 	]
 }
 -- unformatted --
-go 1.17
+go 1.18
  directory (
  a
   b
@@ -143,7 +143,7 @@ go 1.17
                             x.1 v1.4.0 => ../z
                             )
 -- formatted --
-go 1.17
+go 1.18
 
 directory (
 	a

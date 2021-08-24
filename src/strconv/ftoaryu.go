@@ -291,7 +291,7 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
 	// Is it allowed to use 'du' as a result?
 	// It is always allowed when it is truncated, but also
 	// if it is exact and the original binary mantissa is even
-	// When disallowed, we can substract 1.
+	// When disallowed, we can subtract 1.
 	uok := !du0 || fracu > 0
 	if du0 && fracu == 0 {
 		uok = mant&1 == 0

@@ -158,6 +158,15 @@ func InitUniverse() {
 	s.Def = n
 	types.CalcSize(types.ErrorType)
 
+	// comparable type (interface)
+	s = types.BuiltinPkg.Lookup("comparable")
+	n = ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
+	types.ComparableType = types.NewNamed(n)
+	types.ComparableType.SetUnderlying(makeComparableInterface())
+	n.SetType(types.ComparableType)
+	s.Def = n
+	types.CalcSize(types.ComparableType)
+
 	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
 
 	// simple aliases
@@ -335,6 +344,12 @@ func makeErrorInterface() *types.Type {
 		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
 	})
 	method := types.NewField(src.NoXPos, Lookup("Error"), sig)
+	return types.NewInterface(types.NoPkg, []*types.Field{method})
+}
+
+func makeComparableInterface() *types.Type {
+	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, nil)
+	method := types.NewField(src.NoXPos, Lookup("=="), sig)
 	return types.NewInterface(types.NoPkg, []*types.Field{method})
 }
 

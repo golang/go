@@ -123,6 +123,7 @@ func init() {
 		gp01     = regInfo{outputs: []regMask{gpMask}}
 		gp11     = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
 		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
+		gp22     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask, gpMask}}
 		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
 		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
@@ -157,6 +158,9 @@ func init() {
 		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true, typ: "Int32"},
 		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64"},
 		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64"},
+		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
+		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
+
 		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
 		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},
 		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},

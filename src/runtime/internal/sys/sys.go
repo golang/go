@@ -5,11 +5,3 @@
 // package sys contains system- and configuration- and architecture-specific
 // constants used by the runtime.
 package sys
-
-// The next line makes 'go generate' write the zgo*.go files with
-// per-OS and per-arch information, including constants
-// named Goos$GOOS and Goarch$GOARCH for every
-// known GOOS and GOARCH. The constant is 1 on the
-// current system, 0 otherwise; multiplying by them is
-// useful for defining GOOS- or GOARCH-specific constants.
-//go:generate go run gengoos.go

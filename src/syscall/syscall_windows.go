@@ -924,6 +924,38 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 	return err
 }
 
+func WSASendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
+func WSASendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
+	rsa, len, err := to.sockaddr()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = EINVAL
+		}
+	}
+	return err
+}
+
 func LoadGetAddrInfo() error {
 	return procGetAddrInfoW.Find()
 }

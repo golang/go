@@ -452,6 +452,11 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 		binary.LittleEndian.PutUint64(tmp[6:14], uint64(r.Add))
 		h.Write(tmp[:])
 		rs := r.Sym
+		if rs == nil {
+			fmt.Printf("symbol: %s\n", s)
+			fmt.Printf("relocation: %#v\n", r)
+			panic("nil symbol target in relocation")
+		}
 		switch rs.PkgIdx {
 		case goobj.PkgIdxHashed64:
 			h.Write([]byte{0})

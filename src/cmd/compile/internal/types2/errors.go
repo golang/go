@@ -88,7 +88,7 @@ func sprintf(qf Qualifier, format string, args ...interface{}) string {
 		case nil:
 			arg = "<nil>"
 		case operand:
-			panic("internal error: should always pass *operand")
+			panic("got operand instead of *operand")
 		case *operand:
 			arg = operandString(a, qf)
 		case syntax.Pos:
@@ -111,7 +111,7 @@ func (check *Checker) qualifier(pkg *Package) string {
 		if check.pkgPathMap == nil {
 			check.pkgPathMap = make(map[string]map[string]bool)
 			check.seenPkgMap = make(map[*Package]bool)
-			check.markImports(pkg)
+			check.markImports(check.pkg)
 		}
 		// If the same package name was used by multiple packages, display the full path.
 		if len(check.pkgPathMap[pkg.name]) > 1 {
@@ -148,7 +148,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
 
 func (check *Checker) report(err *error_) {
 	if err.empty() {
-		panic("internal error: reporting no error")
+		panic("no error to report")
 	}
 	check.err(err.pos(), err.msg(check.qualifier), err.soft)
 }

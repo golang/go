@@ -27,7 +27,7 @@ const (
 	ub1 = true
 	ub2 = 2 < 1
 	ub3 = ui1 == uf1
-	ub4 = true /* ERROR "cannot convert" */ == 0
+	ub4 = true /* ERROR "mismatched types untyped bool and untyped int" */ == 0
 
 	// integer values
 	ui0 = 0

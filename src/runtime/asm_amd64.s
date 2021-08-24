@@ -103,9 +103,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CMPL	AX, $0
 	JE	nocpuinfo
 
-	// Figure out how to serialize RDTSC.
-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
-	// Don't know about the rest, so let's do MFENCE.
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -113,7 +110,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
 	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
 	// Load EAX=1 cpuid flags
@@ -214,9 +210,7 @@ ok:
 	// create a new goroutine to start program
 	MOVQ	$runtime·mainPC(SB), AX		// entry
 	PUSHQ	AX
-	PUSHQ	$0			// arg size
 	CALL	runtime·newproc(SB)
-	POPQ	AX
 	POPQ	AX
 
 	// start this M
@@ -279,7 +273,6 @@ TEXT gogo<>(SB), NOSPLIT, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-#ifdef GOEXPERIMENT_regabiargs
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	AX, DX	// DX = fn
 
@@ -308,38 +301,6 @@ goodm:
 	POPQ	AX
 	JMP	runtime·badmcall2(SB)
 	RET
-#else
-TEXT runtime·mcall(SB), NOSPLIT, $0-8
-	MOVQ	fn+0(FP), DI
-
-	get_tls(CX)
-	MOVQ	g(CX), AX	// save state in g->sched
-	MOVQ	0(SP), BX	// caller's PC
-	MOVQ	BX, (g_sched+gobuf_pc)(AX)
-	LEAQ	fn+0(FP), BX	// caller's SP
-	MOVQ	BX, (g_sched+gobuf_sp)(AX)
-	MOVQ	BP, (g_sched+gobuf_bp)(AX)
-
-	// switch to m->g0 & its stack, call fn
-	MOVQ	g(CX), BX
-	MOVQ	g_m(BX), BX
-	MOVQ	m_g0(BX), SI
-	CMPQ	SI, AX	// if g == m->g0 call badmcall
-	JNE	3(PC)
-	MOVQ	$runtime·badmcall(SB), AX
-	JMP	AX
-	MOVQ	SI, g(CX)	// g = m->g0
-	MOVQ	SI, R14	// set the g register
-	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
-	PUSHQ	AX
-	MOVQ	DI, DX
-	MOVQ	0(DI), DI
-	CALL	DI
-	POPQ	AX
-	MOVQ	$runtime·badmcall2(SB), AX
-	JMP	AX
-	RET
-#endif
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
 // of the G stack. We need to distinguish the routine that
@@ -467,9 +428,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
-#ifdef GOEXPERIMENT_regabireflect
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOVQ AX, 0(R12)
 	MOVQ BX, 8(R12)
 	MOVQ CX, 16(R12)
@@ -497,7 +457,7 @@ TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	RET
 
 // unspillArgs loads args into registers from a *internal/abi.RegArgs in R12.
-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	MOVQ 0(R12), AX
 	MOVQ 8(R12), BX
 	MOVQ 16(R12), CX
@@ -523,15 +483,6 @@ TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
 	MOVQ 176(R12), X13
 	MOVQ 184(R12), X14
 	RET
-#else
-// spillArgs stores return values from registers to a pointer in R12.
-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
-	RET
-
-// unspillArgs loads args into registers from a pointer in R12.
-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
-	RET
-#endif
 
 // reflectcall: call a function with the given argument list
 // func call(stackArgsType *_type, f *FuncVal, stackArgs *byte, stackArgsSize, stackRetOffset, frameSize uint32, regArgs *abi.RegArgs).
@@ -588,7 +539,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	REP;MOVSB;				\
 	/* set up argument registers */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    ·unspillArgs<ABIInternal>(SB);		\
+	CALL    ·unspillArgs(SB);		\
 	/* call function */			\
 	MOVQ	f+8(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
@@ -596,7 +547,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
 	CALL	R12;				\
 	/* copy register return values back */		\
 	MOVQ    regArgs+40(FP), R12;		\
-	CALL    ·spillArgs<ABIInternal>(SB);		\
+	CALL    ·spillArgs(SB);		\
 	MOVLQZX	stackArgsSize+24(FP), CX;		\
 	MOVLQZX	stackRetOffset+28(FP), BX;		\
 	MOVQ	stackArgs+16(FP), DI;		\
@@ -664,31 +615,12 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 	// compile barrier.
 	RET
 
-// func jmpdefer(fv *funcval, argp uintptr)
-// argp is a caller SP.
-// called from deferreturn.
-// 1. pop the caller
-// 2. sub 5 bytes from the callers return
-// 3. jmp to the argument
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
-	MOVQ	fv+0(FP), DX	// fn
-	MOVQ	argp+8(FP), BX	// caller sp
-	LEAQ	-8(BX), SP	// caller sp after CALL
-	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
-	SUBQ	$5, (SP)	// return to CALL again
-	MOVQ	0(DX), BX
-	JMP	BX	// but first run the deferred function
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
 // or else unwinding from systemstack_switch is incorrect.
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R14)
-	MOVQ	g(R14), R14
-#endif
 	MOVQ	$runtime·systemstack_switch(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
@@ -731,22 +663,21 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	get_tls(CX)
-	MOVQ	g(CX), R8
-	CMPQ	R8, $0
-	JEQ	nosave
-	MOVQ	g_m(R8), R8
-	MOVQ	m_g0(R8), SI
 	MOVQ	g(CX), DI
-	CMPQ	SI, DI
+	CMPQ	DI, $0
 	JEQ	nosave
+	MOVQ	g_m(DI), R8
 	MOVQ	m_gsignal(R8), SI
-	CMPQ	SI, DI
+	CMPQ	DI, SI
+	JEQ	nosave
+	MOVQ	m_g0(R8), SI
+	CMPQ	DI, SI
 	JEQ	nosave
 
 	// Switch to system stack.
-	MOVQ	m_g0(R8), SI
 	CALL	gosave_systemstack_switch<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
@@ -993,77 +924,62 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
-	JNE	mfence
-	LFENCE
-	JMP	done
-mfence:
-	MFENCE
+	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
+	JNE	fences
+	// Instruction stream serializing RDTSCP is supported.
+	// RDTSCP is supported by Intel Nehalem (2008) and
+	// AMD K8 Rev. F (2006) and newer.
+	RDTSCP
 done:
-	RDTSC
 	SHLQ	$32, DX
 	ADDQ	DX, AX
 	MOVQ	AX, ret+0(FP)
 	RET
+fences:
+	// MFENCE is instruction stream serializing and flushes the
+	// store buffers on AMD. The serialization semantics of LFENCE on AMD
+	// are dependent on MSR C001_1029 and CPU generation.
+	// LFENCE on Intel does wait for all previous instructions to have executed.
+	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
+	// previous instructions executed and all previous loads and stores to globally visible.
+	// Using MFENCE;LFENCE here aligns the serializing properties without
+	// runtime detection of CPU manufacturer.
+	MFENCE
+	LFENCE
+	RDTSC
+	JMP done
 
 // func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT,$0-32
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = ptr to data
 	// BX = seed
 	// CX = size
-#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVQ	p+0(FP), AX	// ptr to data
-	MOVQ	s+16(FP), CX	// size
-	LEAQ	ret+24(FP), DX
-#endif
 	JMP	aeshashbody<>(SB)
 noaes:
 	JMP	runtime·memhashFallback<ABIInternal>(SB)
 
 // func strhash(p unsafe.Pointer, h uintptr) uintptr
 TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT,$0-24
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = ptr to string struct
 	// BX = seed
-#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-#ifndef GOEXPERIMENT_regabiargs
-	MOVQ	p+0(FP), AX	// ptr to string struct
-#endif
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
-#ifndef GOEXPERIMENT_regabiargs
-	LEAQ	ret+16(FP), DX
-#endif
 	JMP	aeshashbody<>(SB)
 noaes:
 	JMP	runtime·strhashFallback<ABIInternal>(SB)
 
 // AX: data
-#ifdef GOEXPERIMENT_regabiargs
 // BX: hash seed
-#else
-// h+8(FP): hash seed
-#endif
 // CX: length
-#ifdef GOEXPERIMENT_regabiargs
 // At return: AX = return value
-#else
-// DX: address to put return value
-#endif
 TEXT aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	BX, X0				// 64 bits of per-table hash seed
-#else
-	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
-#endif
 	PINSRW	$4, CX, X0			// 16 bits of length
 	PSHUFHW $0, X0, X0			// repeat length 4 times total
 	MOVO	X0, X1				// save unscrambled seed
@@ -1100,11 +1016,7 @@ final1:
 	AESENC	X1, X1	// scramble combo 3 times
 	AESENC	X1, X1
 	AESENC	X1, X1
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X1, AX	// return X1
-#else
-	MOVQ	X1, (DX)
-#endif
 	RET
 
 endofpage:
@@ -1120,11 +1032,7 @@ endofpage:
 aes0:
 	// Return scrambled input seed
 	AESENC	X0, X0
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X0, AX	// return X0
-#else
-	MOVQ	X0, (DX)
-#endif
 	RET
 
 aes16:
@@ -1154,11 +1062,7 @@ aes17to32:
 
 	// combine results
 	PXOR	X3, X2
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X2, AX	// return X2
-#else
-	MOVQ	X2, (DX)
-#endif
 	RET
 
 aes33to64:
@@ -1200,11 +1104,7 @@ aes33to64:
 	PXOR	X6, X4
 	PXOR	X7, X5
 	PXOR	X5, X4
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X4, AX	// return X4
-#else
-	MOVQ	X4, (DX)
-#endif
 	RET
 
 aes65to128:
@@ -1286,15 +1186,9 @@ aes65to128:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X8, AX	// return X8
-#else
-	MOVQ	X8, (DX)
-#endif
 	RET
 
 aes129plus:
@@ -1410,41 +1304,24 @@ aesloop:
 	PXOR	X10, X8
 	PXOR	X11, X9
 	PXOR	X9, X8
-#ifdef GOEXPERIMENT_regabig
 	// X15 must be zero on return
 	PXOR	X15, X15
-#endif
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X8, AX	// return X8
-#else
-	MOVQ	X8, (DX)
-#endif
 	RET
 
 // func memhash32(p unsafe.Pointer, h uintptr) uintptr
 // ABIInternal for performance.
 TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT,$0-24
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = ptr to data
 	// BX = seed
-#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	BX, X0	// X0 = seed
-#else
-	MOVQ	p+0(FP), AX	// ptr to data
-	MOVQ	h+8(FP), X0	// seed
-#endif
 	PINSRD	$2, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X0, AX	// return X0
-#else
-	MOVQ	X0, ret+16(FP)
-#endif
 	RET
 noaes:
 	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
@@ -1452,28 +1329,16 @@ noaes:
 // func memhash64(p unsafe.Pointer, h uintptr) uintptr
 // ABIInternal for performance.
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT,$0-24
-#ifdef GOEXPERIMENT_regabiargs
 	// AX = ptr to data
 	// BX = seed
-#else
-#endif
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	BX, X0	// X0 = seed
-#else
-	MOVQ	p+0(FP), AX	// ptr to data
-	MOVQ	h+8(FP), X0	// seed
-#endif
 	PINSRQ	$1, (AX), X0	// data
 	AESENC	runtime·aeskeysched+0(SB), X0
 	AESENC	runtime·aeskeysched+16(SB), X0
 	AESENC	runtime·aeskeysched+32(SB), X0
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	X0, AX	// return X0
-#else
-	MOVQ	X0, ret+16(FP)
-#endif
 	RET
 noaes:
 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
@@ -1596,10 +1461,10 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 // This function is injected from the signal handler for panicking
 // signals. It is quite painful to set X15 in the signal context,
 // so we do it here.
-TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
-#ifdef GOEXPERIMENT_regabig
+TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 	get_tls(R14)
 	MOVQ	g(R14), R14
+#ifndef GOOS_plan9
 	XORPS	X15, X15
 #endif
 	JMP	·sigpanic<ABIInternal>(SB)
@@ -1619,13 +1484,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
 	MOVQ	R13, 104(SP)
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
-#ifdef GOEXPERIMENT_regabig
 	MOVQ	g_m(R14), R13
-#else
-	get_tls(R13)
-	MOVQ	g(R13), R13
-	MOVQ	g_m(R13), R13
-#endif
 	MOVQ	m_p(R13), R13
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
 	// Increment wbBuf.next position.
@@ -1956,146 +1815,61 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 // The tail call makes these stubs disappear in backtraces.
 // Defined as ABIInternal since they do not use the stack-based Go ABI.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	DX, AX
-#else
-	MOVQ	DX, x+0(FP)
-	MOVQ	BX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	DX, AX
-#else
-	MOVQ	DX, x+0(FP)
-	MOVQ	BX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	DX, AX
-#else
-	MOVQ	DX, x+0(FP)
-	MOVQ	BX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	DX, AX
-#else
-	MOVQ	DX, x+0(FP)
-	MOVQ	BX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, AX
 	MOVQ	DX, BX
-#else
-	MOVQ	CX, x+0(FP)
-	MOVQ	DX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	CX, BX
-#else
-	MOVQ	AX, x+0(FP)
-	MOVQ	CX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	DX, AX
-#else
-	MOVQ	DX, x+0(FP)
-	MOVQ	BX, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
 
 #ifdef GOOS_android

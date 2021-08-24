@@ -13,13 +13,13 @@ import (
 
 // Various implementations of fromStrings().
 
-type _Setter[B any] interface {
+type Setter[B any] interface {
 	Set(string)
 	type *B
 }
 
 // Takes two type parameters where PT = *T
-func fromStrings1[T any, PT _Setter[T]](s []string) []T {
+func fromStrings1[T any, PT Setter[T]](s []string) []T {
 	result := make([]T, len(s))
 	for i, v := range s {
 		// The type of &result[i] is *T which is in the type list
@@ -31,7 +31,7 @@ func fromStrings1[T any, PT _Setter[T]](s []string) []T {
 	return result
 }
 
-func fromStrings1a[T any, PT _Setter[T]](s []string) []PT {
+func fromStrings1a[T any, PT Setter[T]](s []string) []PT {
 	result := make([]PT, len(s))
 	for i, v := range s {
 		// The type new(T) is *T which is in the type list
@@ -44,7 +44,6 @@ func fromStrings1a[T any, PT _Setter[T]](s []string) []PT {
 	return result
 }
 
-
 // Takes one type parameter and a set function
 func fromStrings2[T any](s []string, set func(*T, string)) []T {
 	results := make([]T, len(s))
@@ -54,12 +53,12 @@ func fromStrings2[T any](s []string, set func(*T, string)) []T {
 	return results
 }
 
-type _Setter2 interface {
+type Setter2 interface {
 	Set(string)
 }
 
 // Takes only one type parameter, but causes a panic (see below)
-func fromStrings3[T _Setter2](s []string) []T {
+func fromStrings3[T Setter2](s []string) []T {
 	results := make([]T, len(s))
 	for i, v := range s {
 		// Panics if T is a pointer type because receiver is T(nil).

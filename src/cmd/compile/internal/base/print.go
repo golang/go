@@ -233,6 +233,27 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 	ErrorExit()
 }
 
+// Assert reports "assertion failed" with Fatalf, unless b is true.
+func Assert(b bool) {
+	if !b {
+		Fatalf("assertion failed")
+	}
+}
+
+// Assertf reports a fatal error with Fatalf, unless b is true.
+func Assertf(b bool, format string, args ...interface{}) {
+	if !b {
+		Fatalf(format, args...)
+	}
+}
+
+// AssertfAt reports a fatal error with FatalfAt, unless b is true.
+func AssertfAt(b bool, pos src.XPos, format string, args ...interface{}) {
+	if !b {
+		FatalfAt(pos, format, args...)
+	}
+}
+
 // hcrash crashes the compiler when -h is set, to find out where a message is generated.
 func hcrash() {
 	if Flag.LowerH != 0 {

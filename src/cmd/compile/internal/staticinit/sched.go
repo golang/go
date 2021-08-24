@@ -403,10 +403,10 @@ func (s *Schedule) initplan(n ir.Node) {
 				base.Fatalf("initplan structlit")
 			}
 			a := a.(*ir.StructKeyExpr)
-			if a.Field.IsBlank() {
+			if a.Sym().IsBlank() {
 				continue
 			}
-			s.addvalue(p, a.Offset, a.Value)
+			s.addvalue(p, a.Field.Offset, a.Value)
 		}
 
 	case ir.OMAPLIT:

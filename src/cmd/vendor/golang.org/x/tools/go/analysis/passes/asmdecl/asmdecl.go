@@ -51,6 +51,11 @@ type asmArch struct {
 	bigEndian bool
 	stack     string
 	lr        bool
+	// retRegs is a list of registers for return value in register ABI (ABIInternal).
+	// For now, as we only check whether we write to any result, here we only need to
+	// include the first integer register and first floating-point register. Accessing
+	// any of them counts as writing to result.
+	retRegs []string
 	// calculated during initialization
 	sizes    types.Sizes
 	intSize  int
@@ -79,8 +84,8 @@ type asmVar struct {
 var (
 	asmArch386      = asmArch{name: "386", bigEndian: false, stack: "SP", lr: false}
 	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
-	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true}
-	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false}
+	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true, retRegs: []string{"R0", "F0"}}
+	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false, retRegs: []string{"AX", "X0"}}
 	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
@@ -137,7 +142,7 @@ var (
 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
 	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
-	abiSuff      = re(`^(.+)<ABI.+>$`)
+	abiSuff      = re(`^(.+)<(ABI.+)>$`)
 )
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -185,6 +190,7 @@ Files:
 		var (
 			fn                 *asmFunc
 			fnName             string
+			abi                string
 			localSize, argSize int
 			wroteSP            bool
 			noframe            bool
@@ -195,18 +201,22 @@ Files:
 		flushRet := func() {
 			if fn != nil && fn.vars["ret"] != nil && !haveRetArg && len(retLine) > 0 {
 				v := fn.vars["ret"]
+				resultStr := fmt.Sprintf("%d-byte ret+%d(FP)", v.size, v.off)
+				if abi == "ABIInternal" {
+					resultStr = "result register"
+				}
 				for _, line := range retLine {
-					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %d-byte ret+%d(FP)", arch, fnName, v.size, v.off)
+					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
 				}
 			}
 			retLine = nil
 		}
-		trimABI := func(fnName string) string {
+		trimABI := func(fnName string) (string, string) {
 			m := abiSuff.FindStringSubmatch(fnName)
 			if m != nil {
-				return m[1]
+				return m[1], m[2]
 			}
-			return fnName
+			return fnName, ""
 		}
 		for lineno, line := range lines {
 			lineno++
@@ -273,11 +283,12 @@ Files:
 						// log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
 						fn = nil
 						fnName = ""
+						abi = ""
 						continue
 					}
 				}
 				// Trim off optional ABI selector.
-				fnName := trimABI(fnName)
+				fnName, abi = trimABI(fnName)
 				flag := m[3]
 				fn = knownFunc[fnName][arch]
 				if fn != nil {
@@ -305,6 +316,7 @@ Files:
 				flushRet()
 				fn = nil
 				fnName = ""
+				abi = ""
 				continue
 			}
 
@@ -333,6 +345,15 @@ Files:
 			if arch == "wasm" && strings.Contains(line, "CallImport") {
 				// CallImport is a call out to magic that can write the result.
 				haveRetArg = true
+			}
+
+			if abi == "ABIInternal" && !haveRetArg {
+				for _, reg := range archDef.retRegs {
+					if strings.Contains(line, reg) {
+						haveRetArg = true
+						break
+					}
+				}
 			}
 
 			for _, m := range asmSP.FindAllStringSubmatch(line, -1) {

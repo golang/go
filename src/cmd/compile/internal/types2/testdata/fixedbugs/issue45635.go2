@@ -13,7 +13,7 @@ type N[T any] struct{}
 var _ N[] /* ERROR expecting type */
 
 type I interface {
-	type map[int]int, []int
+	~[]int
 }
 
 func _[T I](i, j int) {
@@ -27,6 +27,5 @@ func _[T I](i, j int) {
 	_ = s[i, j /* ERROR more than one index */ ]
 
 	var t T
-	// TODO(gri) fix multiple error below
-	_ = t[i, j /* ERROR more than one index */ /* ERROR more than one index */ ]
+	_ = t[i, j /* ERROR more than one index */ ]
 }

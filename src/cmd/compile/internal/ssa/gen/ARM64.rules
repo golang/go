@@ -2868,3 +2868,12 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(s1, s2, s3, call)
 	=> (Move [sz] dst src mem)
+
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& call.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(call)
+	=> (Move [sz] dst src mem)

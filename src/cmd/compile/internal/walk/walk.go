@@ -113,8 +113,7 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
 	}
 
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
-	typecheck.Call(call)
+	call := typecheck.Call(base.Pos, fn, va, false).(*ir.CallExpr)
 	call.SetType(t)
 	return walkExpr(call, init).(*ir.CallExpr)
 }
@@ -308,12 +307,12 @@ func mayCall(n ir.Node) bool {
 		default:
 			base.FatalfAt(n.Pos(), "mayCall %+v", n)
 
-		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER,
+		case ir.OCALLFUNC, ir.OCALLINTER,
 			ir.OUNSAFEADD, ir.OUNSAFESLICE:
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
 			return true
@@ -343,7 +342,7 @@ func mayCall(n ir.Node) bool {
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,
 			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
-			ir.OBYTES2STRTMP, ir.OGETG, ir.OSLICEHEADER:
+			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER:
 			// ok: operations that don't require function calls.
 			// Expand as needed.
 		}

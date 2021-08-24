@@ -202,7 +202,7 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
 
 	// amd64:"MOVQ\t[$]-1085102592571150095","IMULQ",-"IDIVQ"
 	// 386:"MOVL\t[$]-252645135","IMULL",-"IDIVL"
-	// arm64:`MOVD`,`SMULH`,-`DIV`
+	// arm64:`SMULH`,-`DIV`
 	// arm:`MOVW`,`MUL`,-`.*udiv`
 	b := n2 / 17 // signed
 
@@ -266,7 +266,7 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 
 	// amd64:"MOVQ\t[$]-1085102592571150095","IMULQ",-"IDIVQ"
 	// 386:"MOVL\t[$]-252645135","IMULL",-"IDIVL"
-	// arm64:`MOVD`,`SMULH`,-`DIV`
+	// arm64:`SMULH`,-`DIV`
 	// arm:`MOVW`,`MUL`,-`.*udiv`
 	b := n2 % 17 // signed
 

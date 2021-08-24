@@ -126,7 +126,7 @@ func (v *Value) Swap(new interface{}) (old interface{}) {
 	}
 }
 
-// CompareAndSwapPointer executes the compare-and-swap operation for the Value.
+// CompareAndSwap executes the compare-and-swap operation for the Value.
 //
 // All calls to CompareAndSwap for a given Value must use values of the same
 // concrete type. CompareAndSwap of an inconsistent type panics, as does

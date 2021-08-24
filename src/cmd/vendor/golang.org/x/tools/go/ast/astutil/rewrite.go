@@ -439,8 +439,10 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
 		}
 
 	default:
-		if typeparams.IsListExpr(n) {
-			a.applyList(n, "ElemList")
+		if ix := typeparams.GetIndexExprData(n); ix != nil {
+			a.apply(n, "X", nil, ix.X)
+			// *ast.IndexExpr was handled above, so n must be an *ast.MultiIndexExpr.
+			a.applyList(n, "Indices")
 		} else {
 			panic(fmt.Sprintf("Apply: unexpected node type %T", n))
 		}

@@ -5,8 +5,9 @@
 package runtime
 
 import (
+	"internal/abi"
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -100,6 +101,9 @@ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)
 
 // From NetBSD's <sys/sysctl.h>
 const (
+	_CTL_KERN   = 1
+	_KERN_OSREV = 3
+
 	_CTL_HW        = 6
 	_HW_NCPU       = 3
 	_HW_PAGESIZE   = 7
@@ -133,6 +137,13 @@ func getPageSize() uintptr {
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
 	if ret >= 0 {
 		return uintptr(out)
+	}
+	return 0
+}
+
+func getOSRev() int {
+	if osrev, ok := sysctlInt([]uint32{_CTL_KERN, _KERN_OSREV}); ok {
+		return int(osrev)
 	}
 	return 0
 }
@@ -215,7 +226,7 @@ func newosproc(mp *m) {
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 
-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
+	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
 
 	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -251,6 +262,7 @@ func osinit() {
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}
+	needSysmonWorkaround = getOSRev() < 902000000 // NetBSD 9.2
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -318,8 +330,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -371,7 +383,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 

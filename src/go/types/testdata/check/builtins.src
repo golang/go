@@ -144,7 +144,7 @@ func close1() {
 	var r <-chan int
 	close() // ERROR not enough arguments
 	close(1, 2) // ERROR too many arguments
-	close(42 /* ERROR not a channel */)
+	close(42 /* ERROR cannot close non-channel */)
 	close(r /* ERROR receive-only channel */)
 	close(c)
 	_ = close /* ERROR used as value */ (c)

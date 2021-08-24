@@ -7,7 +7,6 @@ package walk
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/typecheck"
 )
 
 // The result of walkStmt MUST be assigned back to n, e.g.
@@ -41,7 +40,6 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OAS2MAPR,
 		ir.OCLOSE,
 		ir.OCOPY,
-		ir.OCALLMETH,
 		ir.OCALLINTER,
 		ir.OCALL,
 		ir.OCALLFUNC,
@@ -50,7 +48,7 @@ func walkStmt(n ir.Node) ir.Node {
 		ir.OPRINT,
 		ir.OPRINTN,
 		ir.OPANIC,
-		ir.ORECOVER,
+		ir.ORECOVERFP,
 		ir.OGETG:
 		if n.Typecheck() == 0 {
 			base.Fatalf("missing typecheck: %+v", n)
@@ -187,33 +185,28 @@ func walkFor(n *ir.ForStmt) ir.Node {
 	return n
 }
 
+// validGoDeferCall reports whether call is a valid call to appear in
+// a go or defer statement; that is, whether it's a regular function
+// call without arguments or results.
+func validGoDeferCall(call ir.Node) bool {
+	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC && len(call.KeepAlive) == 0 {
+		sig := call.X.Type()
+		return sig.NumParams()+sig.NumResults() == 0
+	}
+	return false
+}
+
 // walkGoDefer walks an OGO or ODEFER node.
 func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
-	var init ir.Nodes
-	switch call := n.Call; call.Op() {
-	case ir.OPRINT, ir.OPRINTN:
-		call := call.(*ir.CallExpr)
-		n.Call = wrapCall(call, &init)
-
-	case ir.ODELETE:
-		call := call.(*ir.CallExpr)
-		n.Call = wrapCall(call, &init)
-
-	case ir.OCOPY:
-		call := call.(*ir.BinaryExpr)
-		n.Call = walkCopy(call, &init, true)
-
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
-		call := call.(*ir.CallExpr)
-		if len(call.KeepAlive) > 0 {
-			n.Call = wrapCall(call, &init)
-		} else {
-			n.Call = walkExpr(call, &init)
-		}
-
-	default:
-		n.Call = walkExpr(call, &init)
+	if !validGoDeferCall(n.Call) {
+		base.FatalfAt(n.Pos(), "invalid %v call: %v", n.Op(), n.Call)
 	}
+
+	var init ir.Nodes
+
+	call := n.Call.(*ir.CallExpr)
+	call.X = walkExpr(call.X, &init)
+
 	if len(init) > 0 {
 		init.Append(n)
 		return ir.NewBlockStmt(n.Pos(), init)
@@ -227,111 +220,4 @@ func walkIf(n *ir.IfStmt) ir.Node {
 	walkStmtList(n.Body)
 	walkStmtList(n.Else)
 	return n
-}
-
-// Rewrite
-//	go builtin(x, y, z)
-// into
-//	go func(a1, a2, a3) {
-//		builtin(a1, a2, a3)
-//	}(x, y, z)
-// for print, println, and delete.
-//
-// Rewrite
-//	go f(x, y, uintptr(unsafe.Pointer(z)))
-// into
-//	go func(a1, a2, a3) {
-//		f(a1, a2, uintptr(a3))
-//	}(x, y, unsafe.Pointer(z))
-// for function contains unsafe-uintptr arguments.
-
-var wrapCall_prgen int
-
-// The result of wrapCall MUST be assigned back to n, e.g.
-// 	n.Left = wrapCall(n.Left, init)
-func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	if len(n.Init()) != 0 {
-		walkStmtList(n.Init())
-		init.Append(ir.TakeInit(n)...)
-	}
-
-	isBuiltinCall := n.Op() != ir.OCALLFUNC && n.Op() != ir.OCALLMETH && n.Op() != ir.OCALLINTER
-
-	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
-	if !isBuiltinCall && n.IsDDD {
-		undoVariadic(n)
-	}
-
-	wrapArgs := n.Args
-	// If there's a receiver argument, it needs to be passed through the wrapper too.
-	if n.Op() == ir.OCALLMETH || n.Op() == ir.OCALLINTER {
-		recv := n.X.(*ir.SelectorExpr).X
-		wrapArgs = append([]ir.Node{recv}, wrapArgs...)
-	}
-
-	// origArgs keeps track of what argument is uintptr-unsafe/unsafe-uintptr conversion.
-	origArgs := make([]ir.Node, len(wrapArgs))
-	var funcArgs []*ir.Field
-	for i, arg := range wrapArgs {
-		s := typecheck.LookupNum("a", i)
-		if !isBuiltinCall && arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() && arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
-			origArgs[i] = arg
-			arg = arg.(*ir.ConvExpr).X
-			wrapArgs[i] = arg
-		}
-		funcArgs = append(funcArgs, ir.NewField(base.Pos, s, nil, arg.Type()))
-	}
-	t := ir.NewFuncType(base.Pos, nil, funcArgs, nil)
-
-	wrapCall_prgen++
-	sym := typecheck.LookupNum("wrap·", wrapCall_prgen)
-	fn := typecheck.DeclFunc(sym, t)
-
-	args := ir.ParamNames(t.Type())
-	for i, origArg := range origArgs {
-		if origArg == nil {
-			continue
-		}
-		args[i] = ir.NewConvExpr(base.Pos, origArg.Op(), origArg.Type(), args[i])
-	}
-	if n.Op() == ir.OCALLMETH || n.Op() == ir.OCALLINTER {
-		// Move wrapped receiver argument back to its appropriate place.
-		recv := typecheck.Expr(args[0])
-		n.X.(*ir.SelectorExpr).X = recv
-		args = args[1:]
-	}
-	call := ir.NewCallExpr(base.Pos, n.Op(), n.X, args)
-	if !isBuiltinCall {
-		call.SetOp(ir.OCALL)
-		call.IsDDD = n.IsDDD
-	}
-	fn.Body = []ir.Node{call}
-
-	typecheck.FinishFuncBody()
-
-	typecheck.Func(fn)
-	typecheck.Stmts(fn.Body)
-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
-
-	call = ir.NewCallExpr(base.Pos, ir.OCALL, fn.Nname, wrapArgs)
-	return walkExpr(typecheck.Stmt(call), init)
-}
-
-// undoVariadic turns a call to a variadic function of the form
-//
-//      f(a, b, []T{c, d, e}...)
-//
-// back into
-//
-//      f(a, b, c, d, e)
-//
-func undoVariadic(call *ir.CallExpr) {
-	if call.IsDDD {
-		last := len(call.Args) - 1
-		if va := call.Args[last]; va.Op() == ir.OSLICELIT {
-			va := va.(*ir.CompLitExpr)
-			call.Args = append(call.Args[:last], va.List...)
-			call.IsDDD = false
-		}
-	}
 }
