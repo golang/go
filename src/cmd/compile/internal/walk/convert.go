@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 )
 
@@ -58,7 +59,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		} else {
 			typeWord = reflectdata.ITabAddr(fromType, toType)
 		}
-		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n.X, init, n.Esc() != ir.EscNone))
+		l := ir.NewBinaryExpr(base.Pos, ir.OEFACE, typeWord, dataWord(n.Pos(), n.X, init, n.Esc() != ir.EscNone))
 		l.SetType(toType)
 		l.SetTypecheck(n.Typecheck())
 		return l
@@ -75,7 +76,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	itab := ir.NewUnaryExpr(base.Pos, ir.OITAB, c)
 	itab.SetType(types.Types[types.TUINTPTR].PtrTo())
 	itab.SetTypecheck(1)
-	data := ir.NewUnaryExpr(base.Pos, ir.OIDATA, c)
+	data := ir.NewUnaryExpr(n.Pos(), ir.OIDATA, c)
 	data.SetType(types.Types[types.TUINT8].PtrTo()) // Type is generic pointer - we're just passing it through.
 	data.SetTypecheck(1)
 
@@ -112,7 +113,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 // Returns the data word (the second word) used to represent n in an interface.
 // n must not be of interface type.
 // esc describes whether the result escapes.
-func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
+func dataWord(pos src.XPos, n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 	fromType := n.Type()
 
 	// If it's a pointer, it is its own representation.
@@ -184,16 +185,16 @@ func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 			fromType.IsPtrShaped() && argType.IsPtrShaped():
 			// can directly convert (e.g. named type to underlying type, or one pointer to another)
 			// TODO: never happens because pointers are directIface?
-			arg = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType, n)
+			arg = ir.NewConvExpr(pos, ir.OCONVNOP, argType, n)
 		case fromType.IsInteger() && argType.IsInteger():
 			// can directly convert (e.g. int32 to uint32)
-			arg = ir.NewConvExpr(n.Pos(), ir.OCONV, argType, n)
+			arg = ir.NewConvExpr(pos, ir.OCONV, argType, n)
 		default:
 			// unsafe cast through memory
 			arg = copyExpr(n, fromType, init)
 			var addr ir.Node = typecheck.NodAddr(arg)
-			addr = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, argType.PtrTo(), addr)
-			arg = ir.NewStarExpr(n.Pos(), addr)
+			addr = ir.NewConvExpr(pos, ir.OCONVNOP, argType.PtrTo(), addr)
+			arg = ir.NewStarExpr(pos, addr)
 			arg.SetType(argType)
 		}
 		args = []ir.Node{arg}
@@ -206,7 +207,7 @@ func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 // walkConvIData walks an OCONVIDATA node.
 func walkConvIData(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	n.X = walkExpr(n.X, init)
-	return dataWord(n.X, init, n.Esc() != ir.EscNone)
+	return dataWord(n.Pos(), n.X, init, n.Esc() != ir.EscNone)
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.
