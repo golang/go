@@ -260,6 +260,10 @@ const (
 	// corresponding *obj.Prog uses the temporary register.
 	USES_REG_TMP = 1 << iota
 
+	// NEED_CALL_RELOC is set on JAL instructions to indicate that a
+	// R_RISCV_CALL relocation is needed.
+	NEED_CALL_RELOC
+
 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
 	// it is the first instruction in an AUIPC + I-type pair that needs a
 	// R_RISCV_PCREL_ITYPE relocation.
@@ -632,6 +636,10 @@ var unaryDst = map[obj.As]bool{
 
 // Instruction encoding masks.
 const (
+	// JTypeImmMask is a mask including only the immediate portion of
+	// J-type instructions.
+	JTypeImmMask = 0xfffff000
+
 	// ITypeImmMask is a mask including only the immediate portion of
 	// I-type instructions.
 	ITypeImmMask = 0xfff00000
@@ -643,8 +651,4 @@ const (
 	// UTypeImmMask is a mask including only the immediate portion of
 	// U-type instructions.
 	UTypeImmMask = 0xfffff000
-
-	// UJTypeImmMask is a mask including only the immediate portion of
-	// UJ-type instructions.
-	UJTypeImmMask = UTypeImmMask
 )

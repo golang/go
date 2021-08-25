@@ -357,13 +357,12 @@ start:
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
-	// JMP and CALL to symbol are encoded as:
-	//	AUIPC $0, TMP
-	//	JALR $0, TMP
-	// with a R_RISCV_PCREL_ITYPE relocation - the linker resolves the
-	// real address and updates the immediates for both instructions.
-	CALL	asmtest(SB)				// 970f0000
-	JMP	asmtest(SB)				// 970f0000
+	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
+	// respectively), with a R_RISCV_CALL relocation. The linker resolves
+	// the real address and updates the immediate, using a trampoline in
+	// the case where the address is not directly reachable.
+	CALL	asmtest(SB)				// ef000000
+	JMP	asmtest(SB)				// 6f000000
 
 	// Branch pseudo-instructions
 	BEQZ	X5, 2(PC)				// 63840200
