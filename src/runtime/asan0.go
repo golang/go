@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !asan
-// +build !asan
 
 // Dummy ASan support API, used when not built with -asan.
 

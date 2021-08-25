@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && race
-// +build linux,race
 
 package race_test
 

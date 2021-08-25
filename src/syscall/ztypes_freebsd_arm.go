@@ -2,7 +2,6 @@
 // cgo -godefs -- -fsigned-char types_freebsd.go
 
 //go:build arm && freebsd
-// +build arm,freebsd
 
 package syscall
 

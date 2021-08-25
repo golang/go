@@ -24,7 +24,6 @@
 // THE SOFTWARE.
 
 //go:build arm || 386 || mips || mipsle
-// +build arm 386 mips mipsle
 
 package runtime
 

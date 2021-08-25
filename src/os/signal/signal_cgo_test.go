@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (darwin || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo
-// +build darwin dragonfly freebsd linux,!android netbsd openbsd
-// +build cgo
 
 // Note that this test does not work on Solaris: issue #22849.
 // Don't run the test on Android because at least some versions of the

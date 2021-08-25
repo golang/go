@@ -5,8 +5,6 @@
 // The standard Linux sigset type on big-endian 64-bit machines.
 
 //go:build linux && (ppc64 || s390x)
-// +build linux
-// +build ppc64 s390x
 
 package runtime
 

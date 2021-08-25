@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mkpreempt generates the asyncPreempt functions for each
 // architecture.

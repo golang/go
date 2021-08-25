@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // runtime·duffzero is a Duff's device for zeroing memory.
 // The compiler jumps to computed addresses within

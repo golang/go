@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build arm64 && darwin && !ios
-// +build arm64,darwin,!ios
 
 package cpu
 
