@@ -1051,7 +1051,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 	var targsChanged bool
 	var forw *types.Type
 
-	if t.Sym() != nil {
+	if t.Sym() != nil && t.HasTParam() {
+		// Need to test for t.HasTParam() again because of special TFUNC case above.
 		// Translate the type params for this type according to
 		// the tparam/targs mapping from subst.
 		neededTargs = make([]*types.Type, len(t.RParams()))
