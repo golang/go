@@ -35,7 +35,7 @@ func LoadPackage(filenames []string) {
 	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
 
 	mode := syntax.CheckBranches
-	if supportsGenerics && types.AllowsGoVersion(types.LocalPkg, 1, 18) {
+	if supportsGenerics {
 		mode |= syntax.AllowGenerics
 	}
 
