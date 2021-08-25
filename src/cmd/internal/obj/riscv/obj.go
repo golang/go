@@ -51,7 +51,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.Mark |= NEED_PCREL_ITYPE_RELOC
 	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-	p.Reg = 0
+	p.Reg = obj.REG_NONE
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 	p = obj.Appendp(p, newprog)
 
@@ -59,7 +59,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.As = AJALR
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
-	p.Reg = 0
+	p.Reg = obj.REG_NONE
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_TMP
 	p.To.Sym = to.Sym
@@ -72,7 +72,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	// Expand binary instructions to ternary ones.
-	if p.Reg == 0 {
+	if p.Reg == obj.REG_NONE {
 		switch p.As {
 		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
@@ -154,7 +154,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	case AMOV:
 		// Put >32-bit constants in memory and load them.
-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
@@ -449,7 +449,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		ldpanic.As = AMOV
 		ldpanic.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGG, Offset: 4 * int64(ctxt.Arch.PtrSize)} // G.panic
-		ldpanic.Reg = 0
+		ldpanic.Reg = obj.REG_NONE
 		ldpanic.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X11}
 
 		bneadj := obj.Appendp(ldpanic, newprog)
@@ -469,7 +469,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		getargp := obj.Appendp(last, newprog)
 		getargp.As = AMOV
 		getargp.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
-		getargp.Reg = 0
+		getargp.Reg = obj.REG_NONE
 		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
 
 		bneadj.To.SetTarget(getargp)
@@ -496,7 +496,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		setargp := obj.Appendp(adjargp, newprog)
 		setargp.As = AMOV
 		setargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
-		setargp.Reg = 0
+		setargp.Reg = obj.REG_NONE
 		setargp.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_X11, Offset: 0} // Panic.argp
 
 		godone := obj.Appendp(setargp, newprog)
@@ -570,7 +570,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				p.As = AJALR
 				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-				p.Reg = 0
+				p.Reg = obj.REG_NONE
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
 			}
 
@@ -658,7 +658,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.As = AAUIPC
 					p.From = obj.Addr{Type: obj.TYPE_BRANCH, Sym: p.From.Sym}
 					p.From.SetTarget(p.To.Target())
-					p.Reg = 0
+					p.Reg = obj.REG_NONE
 					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 					rescan = true
