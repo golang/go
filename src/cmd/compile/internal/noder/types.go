@@ -118,9 +118,14 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 				return s.Def.Type()
 			}
 
+			// Make sure the base generic type exists in type1 (it may
+			// not yet if we are referecing an imported generic type, as
+			// opposed to a generic type declared in this package).
+			_ = g.obj(typ.Orig().Obj())
+
 			// Create a forwarding type first and put it in the g.typs
 			// map, in order to deal with recursive generic types
-			// (including via method signatures).. Set up the extra
+			// (including via method signatures). Set up the extra
 			// ntyp information (Def, RParams, which may set
 			// HasTParam) before translating the underlying type
 			// itself, so we handle recursion correctly.
