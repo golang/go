@@ -305,21 +305,33 @@ func (f *F) Fuzz(ff interface{}) {
 		types = append(types, t)
 	}
 
-	// Check the corpus provided by f.Add
-	for _, c := range f.corpus {
-		if err := f.fuzzContext.checkCorpus(c.Values, types); err != nil {
-			// TODO: Is there a way to save which line number is associated
-			// with the f.Add call that failed?
+	// Only load the corpus if we need it
+	if f.fuzzContext.runFuzzWorker == nil {
+		// Check the corpus provided by f.Add
+		for _, c := range f.corpus {
+			if err := f.fuzzContext.checkCorpus(c.Values, types); err != nil {
+				// TODO: Is there a way to save which line number is associated
+				// with the f.Add call that failed?
+				f.Fatal(err)
+			}
+		}
+
+		// Load seed corpus
+		c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name), types)
+		if err != nil {
 			f.Fatal(err)
 		}
-	}
 
-	// Load seed corpus
-	c, err := f.fuzzContext.readCorpus(filepath.Join(corpusDir, f.name), types)
-	if err != nil {
-		f.Fatal(err)
+		// If this is the coordinator process, zero the values, since we don't need to hold
+		// onto them.
+		if f.fuzzContext.coordinateFuzzing != nil {
+			for i := range c {
+				c[i].Values = nil
+			}
+		}
+
+		f.corpus = append(f.corpus, c...)
 	}
-	f.corpus = append(f.corpus, c...)
 
 	// run calls fn on a given input, as a subtest with its own T.
 	// run is analogous to T.Run. The test filtering and cleanup works similarly.

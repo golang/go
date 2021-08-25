@@ -1002,7 +1002,11 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	mem.setValue(entryIn.Data)
+	inp, err := CorpusEntryData(entryIn)
+	if err != nil {
+		return CorpusEntry{}, minimizeResponse{}, err
+	}
+	mem.setValue(inp)
 	wc.memMu <- mem
 	defer func() { wc.memMu <- mem }()
 
@@ -1013,10 +1017,6 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	entryOut.Data = mem.valueCopy()
-	entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
-	if err != nil {
-		panic(fmt.Sprintf("workerClient.minimize unmarshaling minimized value: %v", err))
-	}
 	resp.Count = mem.header().count
 
 	return entryOut, resp, callErr
@@ -1032,7 +1032,11 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		return CorpusEntry{}, fuzzResponse{}, errSharedMemClosed
 	}
 	mem.header().count = 0
-	mem.setValue(entryIn.Data)
+	inp, err := CorpusEntryData(entryIn)
+	if err != nil {
+		return CorpusEntry{}, fuzzResponse{}, err
+	}
+	mem.setValue(inp)
 	wc.memMu <- mem
 
 	c := call{Fuzz: &args}
@@ -1044,10 +1048,10 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 	defer func() { wc.memMu <- mem }()
 	resp.Count = mem.header().count
 
-	if !bytes.Equal(entryIn.Data, mem.valueRef()) {
+	if !bytes.Equal(inp, mem.valueRef()) {
 		panic("workerServer.fuzz modified input")
 	}
-	valuesOut, err := unmarshalCorpusFile(entryIn.Data)
+	valuesOut, err := unmarshalCorpusFile(inp)
 	if err != nil {
 		panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
 	}
@@ -1063,7 +1067,6 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		Name:       name,
 		Parent:     entryIn.Name,
 		Data:       dataOut,
-		Values:     valuesOut,
 		Generation: entryIn.Generation + 1,
 	}
 
