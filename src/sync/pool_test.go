@@ -4,7 +4,6 @@
 
 // Pool is no-op under race detector, so all these tests do not work.
 //go:build !race
-// +build !race
 
 package sync_test
 

@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (mips || mipsle || mips64 || mips64le) && linux
-// +build mips mipsle mips64 mips64le
-// +build linux
 
 package runtime
 

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !386 && !amd64 && !arm64 && !ppc64 && !ppc64le && !s390x && !wasm
-// +build !386,!amd64,!arm64,!ppc64,!ppc64le,!s390x,!wasm
 
 package math
 

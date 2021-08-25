@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build faketime && !windows
-// +build faketime,!windows
 
 // Faketime isn't currently supported on Windows. This would require
 // modifying syscall.Write to call syscall.faketimeWrite,

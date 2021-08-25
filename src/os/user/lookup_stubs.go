@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (!cgo && !windows && !plan9) || android || (osusergo && !windows && !plan9)
-// +build !cgo,!windows,!plan9 android osusergo,!windows,!plan9
 
 package user
 

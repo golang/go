@@ -11,7 +11,6 @@
 // https://eprint.iacr.org/2013/816.pdf
 
 //go:build amd64 || arm64
-// +build amd64 arm64
 
 package elliptic
 

@@ -10,7 +10,6 @@
 // point.
 
 //go:build amd64 && linux && !race
-// +build amd64,linux,!race
 
 package runtime_test
 
