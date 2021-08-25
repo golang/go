@@ -92,10 +92,10 @@ func maxSizeTrampolines(ctxt *Link, ldr *loader.Loader, s loader.Sym, isTramp bo
 	panic("unreachable")
 }
 
-// detect too-far jumps in function s, and add trampolines if necessary
-// ARM, PPC64 & PPC64LE support trampoline insertion for internal and external linking
-// On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
-// where necessary.
+// Detect too-far jumps in function s, and add trampolines if necessary.
+// ARM, PPC64, PPC64LE and RISCV64 support trampoline insertion for internal
+// and external linking. On PPC64 and PPC64LE the text sections might be split
+// but will still insert trampolines where necessary.
 func trampoline(ctxt *Link, s loader.Sym) {
 	if thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
@@ -113,7 +113,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		if !ldr.AttrReachable(rs) || ldr.SymType(rs) == sym.Sxxx {
 			continue // something is wrong. skip it here and we'll emit a better error later
 		}
-		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
+
+		// RISC-V is only able to reach +/-1MiB via a JAL instruction,
+		// which we can readily exceed in the same package. As such, we
+		// need to generate trampolines when the address is unknown.
+		if ldr.SymValue(rs) == 0 && !ctxt.Target.IsRISCV64() && ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT {
 			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
 				// Symbols in the same package are laid out together.
 				// Except that if SymPkg(s) == "", it is a host object symbol
@@ -124,7 +128,6 @@ func trampoline(ctxt *Link, s loader.Sym) {
 				continue // runtime packages are laid out together
 			}
 		}
-
 		thearch.Trampoline(ctxt, ldr, ri, rs, s)
 	}
 }

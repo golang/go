@@ -30,41 +30,19 @@ import (
 
 func buildop(ctxt *obj.Link) {}
 
-// jalrToSym replaces p with a set of Progs needed to jump to the Sym in p.
-// lr is the link register to use for the JALR.
-// p must be a CALL, JMP or RET.
-func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *obj.Prog {
-	if p.As != obj.ACALL && p.As != obj.AJMP && p.As != obj.ARET && p.As != obj.ADUFFZERO && p.As != obj.ADUFFCOPY {
-		ctxt.Diag("unexpected Prog in jalrToSym: %v", p)
-		return p
+func jalToSym(ctxt *obj.Link, p *obj.Prog, lr int16) {
+	switch p.As {
+	case obj.ACALL, obj.AJMP, obj.ARET, obj.ADUFFZERO, obj.ADUFFCOPY:
+	default:
+		ctxt.Diag("unexpected Prog in jalToSym: %v", p)
+		return
 	}
 
-	// TODO(jsing): Consider using a single JAL instruction and teaching
-	// the linker to provide trampolines for the case where the destination
-	// offset is too large. This would potentially reduce instructions for
-	// the common case, but would require three instructions to go via the
-	// trampoline.
-
-	to := p.To
-
-	p.As = AAUIPC
-	p.Mark |= NEED_PCREL_ITYPE_RELOC
-	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
-	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
-	p.Reg = obj.REG_NONE
-	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-	p = obj.Appendp(p, newprog)
-
-	// Leave Sym only for the CALL reloc in assemble.
-	p.As = AJALR
+	p.As = AJAL
+	p.Mark |= NEED_CALL_RELOC
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
 	p.Reg = obj.REG_NONE
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_TMP
-	p.To.Sym = to.Sym
-
-	return p
 }
 
 // progedit is called individually for each *obj.Prog. It normalizes instruction
@@ -531,7 +509,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.ACALL, obj.ADUFFZERO, obj.ADUFFCOPY:
 			switch p.To.Type {
 			case obj.TYPE_MEM:
-				jalrToSym(ctxt, p, newprog, REG_LR)
+				jalToSym(ctxt, p, REG_LR)
 			}
 
 		case obj.AJMP:
@@ -539,8 +517,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case obj.TYPE_MEM:
 				switch p.To.Name {
 				case obj.NAME_EXTERN, obj.NAME_STATIC:
-					// JMP to symbol.
-					jalrToSym(ctxt, p, newprog, REG_ZERO)
+					jalToSym(ctxt, p, REG_ZERO)
 				}
 			}
 
@@ -566,7 +543,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if retJMP != nil {
 				p.As = obj.ARET
 				p.To.Sym = retJMP
-				p = jalrToSym(ctxt, p, newprog, REG_ZERO)
+				jalToSym(ctxt, p, REG_ZERO)
 			} else {
 				p.As = AJALR
 				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
@@ -640,8 +617,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					rescan = true
 				}
 			case AJAL:
+				// Linker will handle the intersymbol case and trampolines.
 				if p.To.Target() == nil {
-					panic("intersymbol jumps should be expressed as AUIPC+JALR")
+					break
 				}
 				offset := p.To.Target().Pc - p.Pc
 				if offset < -(1<<20) || (1<<20) <= offset {
@@ -676,12 +654,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// instructions will break everything--don't do it!
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
+		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			case obj.TYPE_MEM:
 				panic("unhandled type")
+			}
+
+		case AJAL:
+			// Linker will handle the intersymbol case and trampolines.
+			if p.To.Target() != nil {
+				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
 			}
 
 		case AAUIPC:
@@ -802,7 +786,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	if to_more != nil {
 		to_more.To.SetTarget(p)
 	}
-	p = jalrToSym(ctxt, p, newprog, REG_X5)
+	jalToSym(ctxt, p, REG_X5)
 
 	// JMP start
 	p = obj.Appendp(p, newprog)
@@ -1187,6 +1171,11 @@ func encodeU(ins *instruction) uint32 {
 	return imm<<12 | rd<<7 | enc.opcode
 }
 
+// encodeJImmediate encodes an immediate for a J-type RISC-V instruction.
+func encodeJImmediate(imm uint32) uint32 {
+	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12
+}
+
 // encodeJ encodes a J-type RISC-V instruction.
 func encodeJ(ins *instruction) uint32 {
 	imm := immI(ins.as, ins.imm, 21)
@@ -1195,7 +1184,7 @@ func encodeJ(ins *instruction) uint32 {
 	if enc == nil {
 		panic("encodeJ: could not encode instruction")
 	}
-	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12 | rd<<7 | enc.opcode
+	return encodeJImmediate(imm) | rd<<7 | enc.opcode
 }
 
 func encodeRawIns(ins *instruction) uint32 {
@@ -1205,6 +1194,16 @@ func encodeRawIns(ins *instruction) uint32 {
 		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
 	}
 	return uint32(ins.imm)
+}
+
+func EncodeJImmediate(imm int64) (int64, error) {
+	if !immIFits(imm, 21) {
+		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
+	}
+	if imm&1 != 0 {
+		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+	}
+	return int64(encodeJImmediate(uint32(imm))), nil
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
@@ -2035,17 +2034,18 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
-		case AJALR:
-			if p.To.Sym != nil {
-				// This is a CALL/JMP. We add a relocation only
-				// for linker stack checking. No actual
-				// relocation is needed.
+		case AJAL:
+			if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
 				rel := obj.Addrel(cursym)
 				rel.Off = int32(p.Pc)
 				rel.Siz = 4
 				rel.Sym = p.To.Sym
 				rel.Add = p.To.Offset
-				rel.Type = objabi.R_CALLRISCV
+				rel.Type = objabi.R_RISCV_CALL
+			}
+		case AJALR:
+			if p.To.Sym != nil {
+				ctxt.Diag("%v: unexpected AJALR with to symbol", p)
 			}
 
 		case AAUIPC, AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
