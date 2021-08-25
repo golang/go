@@ -337,6 +337,9 @@ func (w *writer) Sym(s *LSym) {
 	if s.UsedInIface() {
 		flag2 |= goobj.SymFlagUsedInIface
 	}
+	if s.UsedInEface() {
+		flag2 |= goobj.SymFlagUsedInEface
+	}
 	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
 		flag2 |= goobj.SymFlagItab
 	}

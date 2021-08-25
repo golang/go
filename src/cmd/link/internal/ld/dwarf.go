@@ -2035,6 +2035,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	lineSym := mkSecSym(".debug_line")
 	rangesSym := mkSecSym(".debug_ranges")
 	infoSym := mkSecSym(".debug_info")
+	efacetypesSym := d.ldr.Lookup(".debug_efacetypes", 0)
 
 	// Create the section objects
 	lineSec := dwarfSecInfo{syms: []loader.Sym{lineSym}}
@@ -2042,6 +2043,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 	rangesSec := dwarfSecInfo{syms: []loader.Sym{rangesSym}}
 	frameSec := dwarfSecInfo{syms: []loader.Sym{frameSym}}
 	infoSec := dwarfSecInfo{syms: []loader.Sym{infoSym}}
+	efacetypesSec := dwarfSecInfo{syms: []loader.Sym{efacetypesSym}}
 
 	// Create any new symbols that will be needed during the
 	// parallel portion below.
@@ -2112,6 +2114,9 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
 		dwarfp = append(dwarfp, locSec)
 	}
 	dwarfp = append(dwarfp, rangesSec)
+	if d.linkctxt.efaceTypes {
+		dwarfp = append(dwarfp, efacetypesSec)
+	}
 
 	// Check to make sure we haven't listed any symbols more than once
 	// in the info section. This used to be done by setting and
@@ -2154,7 +2159,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
 		return
 	}
 
-	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
+	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges", "efacetypes"}
 	for _, sec := range secs {
 		shstrtab.Addstring(".debug_" + sec)
 		if ctxt.IsExternal() {

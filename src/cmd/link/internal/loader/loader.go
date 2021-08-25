@@ -219,6 +219,7 @@ type Loader struct {
 	attrLocal            Bitmap // "local" symbols, indexed by global index
 	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by global idx
 	attrUsedInIface      Bitmap // "used in interface" symbols, indexed by global idx
+	attrUsedInEface      Bitmap // "used in empty interface" symbols, indexed by global idx
 	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           Bitmap // shared symbols, indexed by ext sym index
@@ -917,6 +918,20 @@ func (l *Loader) SetAttrUsedInIface(i Sym, v bool) {
 		l.attrUsedInIface.Set(i)
 	} else {
 		l.attrUsedInIface.Unset(i)
+	}
+}
+
+// AttrUsedInIface returns true for a type symbol that is used in
+// an empty interface.
+func (l *Loader) AttrUsedInEface(i Sym) bool {
+	return l.attrUsedInEface.Has(i)
+}
+
+func (l *Loader) SetAttrUsedInEface(i Sym, v bool) {
+	if v {
+		l.attrUsedInEface.Set(i)
+	} else {
+		l.attrUsedInEface.Unset(i)
 	}
 }
 
@@ -1856,6 +1871,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
 		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
 		l.attrUsedInIface = growBitmap(reqLen, l.attrUsedInIface)
+		l.attrUsedInEface = growBitmap(reqLen, l.attrUsedInEface)
 	}
 	l.growExtAttrBitmaps()
 }
@@ -2190,6 +2206,9 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		if osym.UsedInIface() {
 			l.SetAttrUsedInIface(gi, true)
 		}
+		if osym.UsedInEface() {
+			l.SetAttrUsedInEface(gi, true)
+		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
 			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
@@ -2259,6 +2278,9 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		if osym.UsedInIface() {
 			l.SetAttrUsedInIface(gi, true)
 		}
+		if osym.UsedInEface() {
+			l.SetAttrUsedInEface(gi, true)
+		}
 	}
 
 	// referenced packages
@@ -2279,6 +2301,9 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		gi := l.resolve(r, rf.Sym())
 		if rf.Flag2()&goobj.SymFlagUsedInIface != 0 {
 			l.SetAttrUsedInIface(gi, true)
+		}
+		if rf.Flag2()&goobj.SymFlagUsedInEface != 0 {
+			l.SetAttrUsedInEface(gi, true)
 		}
 	}
 }

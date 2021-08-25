@@ -693,6 +693,10 @@ const (
 	// Used by the linker to determine what methods can be pruned.
 	AttrUsedInIface
 
+	// Only applied on type descriptor symbols, UsedInEface indicates this type is
+	// converted to an empty interface.
+	AttrUsedInEface
+
 	// ContentAddressable indicates this is a content-addressable symbol.
 	AttrContentAddressable
 
@@ -725,6 +729,7 @@ func (a *Attribute) Static() bool             { return a.load()&AttrStatic != 0 
 func (a *Attribute) WasInlined() bool         { return a.load()&AttrWasInlined != 0 }
 func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0 }
 func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
+func (a *Attribute) UsedInEface() bool        { return a.load()&AttrUsedInEface != 0 }
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 

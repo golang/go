@@ -305,6 +305,7 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagUsedInEface
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +334,7 @@ func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
 func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+func (s *Sym) UsedInEface() bool   { return s.Flag2()&SymFlagUsedInEface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 
