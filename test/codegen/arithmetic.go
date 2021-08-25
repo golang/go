@@ -84,6 +84,30 @@ func NegAddFromConstNeg(a int) int {
 	return c
 }
 
+func SubSubNegSimplify(a, b int) int {
+	// amd64:"NEGQ"
+	r := (a - b) - a
+	return r
+}
+
+func SubAddSimplify(a, b int) int {
+	// amd64:-"SUBQ",-"ADDQ"
+	r := a + (b - a)
+	return r
+}
+
+func SubAddNegSimplify(a, b int) int {
+	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
+	r := a - (b + a)
+	return r
+}
+
+func AddAddSubSimplify(a, b, c int) int {
+	// amd64:-"SUBQ"
+	r := a + (b + (c - a))
+	return r
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
