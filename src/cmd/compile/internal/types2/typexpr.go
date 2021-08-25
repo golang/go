@@ -151,7 +151,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
-			if !tset.IsMethodSet() {
+			if tset.IsConstraint() {
 				if tset.comparable {
 					check.softErrorf(pos, "interface is (or embeds) comparable")
 				} else {
