@@ -830,10 +830,10 @@ func signExtend(val int64, bit uint) int64 {
 // generate a full 32-bit constant.
 func Split32BitImmediate(imm int64) (low, high int64, err error) {
 	if !immIFits(imm, 32) {
-		return 0, 0, fmt.Errorf("immediate does not fit in 32-bits: %d", imm)
+		return 0, 0, fmt.Errorf("immediate does not fit in 32 bits: %d", imm)
 	}
 
-	// Nothing special needs to be done if the immediate fits in 12-bits.
+	// Nothing special needs to be done if the immediate fits in 12 bits.
 	if immIFits(imm, 12) {
 		return imm, 0, nil
 	}
@@ -906,14 +906,14 @@ func immIFits(x int64, nbits uint) bool {
 // immI extracts the signed integer of the specified size from an immediate.
 func immI(as obj.As, imm int64, nbits uint) uint32 {
 	if !immIFits(imm, nbits) {
-		panic(fmt.Sprintf("%v\tsigned immediate %d cannot fit in %d bits", as, imm, nbits))
+		panic(fmt.Sprintf("%v: signed immediate %d cannot fit in %d bits", as, imm, nbits))
 	}
 	return uint32(imm)
 }
 
 func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
 	if !immIFits(imm, nbits) {
-		ctxt.Diag("%v\tsigned immediate cannot be larger than %d bits but got %d", as, nbits, imm)
+		ctxt.Diag("%v: signed immediate %d cannot be larger than %d bits", as, imm, nbits)
 	}
 }
 
@@ -923,13 +923,13 @@ func wantReg(ctxt *obj.Link, as obj.As, pos string, descr string, r, min, max ui
 		if r != obj.REG_NONE {
 			suffix = fmt.Sprintf(" but got non-%s register %s", descr, RegName(int(r)))
 		}
-		ctxt.Diag("%v\texpected %s register in %s position%s", as, descr, pos, suffix)
+		ctxt.Diag("%v: expected %s register in %s position%s", as, descr, pos, suffix)
 	}
 }
 
 func wantNoneReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
 	if r != obj.REG_NONE {
-		ctxt.Diag("%v\texpected no register in %s but got register %s", as, pos, RegName(int(r)))
+		ctxt.Diag("%v: expected no register in %s but got register %s", as, pos, RegName(int(r)))
 	}
 }
 
@@ -946,7 +946,7 @@ func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
 // wantEvenOffset checks that the offset is a multiple of two.
 func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
 	if offset%1 != 0 {
-		ctxt.Diag("%v\tjump offset %v must be even", as, offset)
+		ctxt.Diag("%v: jump offset %d must be a multiple of two", as, offset)
 	}
 }
 
@@ -1061,7 +1061,7 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
 	if ins.imm < 0 || 1<<32 <= ins.imm {
-		ctxt.Diag("%v\timmediate in raw position cannot be larger than 32 bits but got %d", ins.as, ins.imm)
+		ctxt.Diag("%v: immediate %d in raw position cannot be larger than 32 bits", ins.as, ins.imm)
 	}
 }
 

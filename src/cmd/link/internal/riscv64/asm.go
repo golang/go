@@ -192,7 +192,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		// Generate AUIPC and second instruction immediates.
 		low, high, err := riscv.Split32BitImmediate(off)
 		if err != nil {
-			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32-bits: %d", off)
+			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32 bits: %d", off)
 		}
 
 		auipcImm, err := riscv.EncodeUImmediate(high)
