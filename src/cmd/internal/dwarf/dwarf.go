@@ -50,6 +50,7 @@ type Var struct {
 	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
 	IsReturnValue bool
 	IsInlFormal   bool
+	DictIndex     uint16 // index of the dictionary entry describing the type of this variable
 	StackOffset   int32
 	// This package can't use the ssa package, so it can't mention ssa.FuncDebug,
 	// so indirect through a closure.
@@ -97,6 +98,8 @@ type FnState struct {
 	Scopes        []Scope
 	InlCalls      InlCalls
 	UseBASEntries bool
+
+	dictIndexToOffset []int64
 }
 
 func EnableLogging(doit bool) {
@@ -315,6 +318,7 @@ const (
 	DW_AT_go_runtime_type   = 0x2904
 
 	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
+	DW_AT_go_dict_index   = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
 
 	DW_AT_internal_location = 253 // params and locals; not emitted
 )
@@ -362,6 +366,7 @@ const (
 	DW_ABRV_STRINGTYPE
 	DW_ABRV_STRUCTTYPE
 	DW_ABRV_TYPEDECL
+	DW_ABRV_DICT_INDEX
 	DW_NABRV
 )
 
@@ -882,6 +887,17 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_type, DW_FORM_ref_addr},
 		},
 	},
+
+	/* DICT_INDEX */
+	{
+		DW_TAG_typedef,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_go_dict_index, DW_FORM_udata},
+		},
+	},
 }
 
 // GetAbbrev returns the contents of the .debug_abbrev section.
@@ -1196,6 +1212,9 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
 		sort.Sort(byChildIndex(pruned.Vars))
 		scopes[k] = pruned
 	}
+
+	s.dictIndexToOffset = putparamtypes(ctxt, s, scopes, fnabbrev)
+
 	var encbuf [20]byte
 	if putscope(ctxt, s, scopes, 0, fnabbrev, encbuf[:0]) < int32(len(scopes)) {
 		return errors.New("multiple toplevel scopes")
@@ -1451,6 +1470,47 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	return nil
 }
 
+// putparamtypes writes typedef DIEs for any parametric types that are used by this function.
+func putparamtypes(ctxt Context, s *FnState, scopes []Scope, fnabbrev int) []int64 {
+	if fnabbrev == DW_ABRV_FUNCTION_CONCRETE {
+		return nil
+	}
+
+	maxDictIndex := uint16(0)
+
+	for i := range scopes {
+		for _, v := range scopes[i].Vars {
+			if v.DictIndex > maxDictIndex {
+				maxDictIndex = v.DictIndex
+			}
+		}
+	}
+
+	if maxDictIndex == 0 {
+		return nil
+	}
+
+	dictIndexToOffset := make([]int64, maxDictIndex)
+
+	for i := range scopes {
+		for _, v := range scopes[i].Vars {
+			if v.DictIndex == 0 || dictIndexToOffset[v.DictIndex-1] != 0 {
+				continue
+			}
+
+			dictIndexToOffset[v.DictIndex-1] = ctxt.CurrentOffset(s.Info)
+
+			Uleb128put(ctxt, s.Info, int64(DW_ABRV_DICT_INDEX))
+			n := fmt.Sprintf(".param%d", v.DictIndex-1)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+			putattr(ctxt, s.Info, DW_ABRV_DICT_INDEX, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DictIndex-1), nil)
+		}
+	}
+
+	return dictIndexToOffset
+}
+
 func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev int, encbuf []byte) int32 {
 
 	if logDwarf {
@@ -1624,7 +1684,12 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
 			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
 		}
 		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
-		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+		if v.DictIndex > 0 && s.dictIndexToOffset != nil && s.dictIndexToOffset[v.DictIndex-1] != 0 {
+			// If the type of this variable is parametric use the entry emitted by putparamtypes
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, s.dictIndexToOffset[v.DictIndex-1], s.Info)
+		} else {
+			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+		}
 	}
 
 	if abbrevUsesLoclist(abbrev) {
