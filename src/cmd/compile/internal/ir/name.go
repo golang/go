@@ -40,6 +40,7 @@ type Name struct {
 	Class     Class      // uint8
 	pragma    PragmaFlag // int16
 	flags     bitset16
+	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
 	sym       *types.Sym
 	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
 	Offset_   int64

@@ -779,6 +779,7 @@ func (subst *subster) localvar(name *ir.Name) *ir.Name {
 	m.Func = name.Func
 	subst.ts.Vars[name] = m
 	m.SetTypecheck(1)
+	m.DictIndex = name.DictIndex
 	if name.Defn != nil {
 		if name.Defn.Op() == ir.ONAME {
 			// This is a closure variable, so its Defn is the outer
@@ -1268,14 +1269,18 @@ func (subst *subster) node(n ir.Node) ir.Node {
 // function info.gfInfo. This will indicate the dictionary entry with the
 // correct concrete type for the associated instantiated function.
 func findDictType(info *instInfo, t *types.Type) int {
-	for i, dt := range info.gfInfo.tparams {
+	return info.gfInfo.findDictType(t)
+}
+
+func (gfInfo *gfInfo) findDictType(t *types.Type) int {
+	for i, dt := range gfInfo.tparams {
 		if dt == t {
 			return i
 		}
 	}
-	for i, dt := range info.gfInfo.derivedTypes {
+	for i, dt := range gfInfo.derivedTypes {
 		if types.Identical(dt, t) {
-			return i + len(info.gfInfo.tparams)
+			return i + len(gfInfo.tparams)
 		}
 	}
 	return -1
@@ -1736,6 +1741,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 
 	for _, n := range gf.Dcl {
 		addType(&info, n, n.Type())
+		n.DictIndex = uint16(info.findDictType(n.Type()) + 1)
 	}
 
 	if infoPrintMode {
@@ -1805,8 +1811,12 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
 			// Visit the closure body and add all relevant entries to the
 			// dictionary of the outer function (closure will just use
 			// the dictionary of the outer function).
-			for _, n1 := range n.(*ir.ClosureExpr).Func.Body {
+			cfunc := n.(*ir.ClosureExpr).Func
+			for _, n1 := range cfunc.Body {
 				ir.Visit(n1, visitFunc)
+			}
+			for _, n := range cfunc.Dcl {
+				n.DictIndex = uint16(info.findDictType(n.Type()) + 1)
 			}
 		}
 		if n.Op() == ir.OSWITCH && n.(*ir.SwitchStmt).Tag != nil && n.(*ir.SwitchStmt).Tag.Op() == ir.OTYPESW && !n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
