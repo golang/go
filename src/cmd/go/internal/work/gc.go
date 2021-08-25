@@ -75,7 +75,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 
 	pkgpath := pkgPath(a)
-	gcargs := []string{"-p", pkgpath}
+	gcflags := []string{"-p", pkgpath}
 	if p.Module != nil {
 		v := p.Module.GoVersion
 		if v == "" {
@@ -94,11 +94,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			v = "1.16"
 		}
 		if allowedVersion(v) {
-			gcargs = append(gcargs, "-lang=go"+v)
+			gcflags = append(gcflags, "-lang=go"+v)
 		}
 	}
 	if p.Standard {
-		gcargs = append(gcargs, "-std")
+		gcflags = append(gcflags, "-std")
 	}
 	_, compilingRuntime := runtimePackages[p.ImportPath]
 	compilingRuntime = compilingRuntime && p.Standard
@@ -106,7 +106,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		// runtime compiles with a special gc flag to check for
 		// memory allocations that are invalid in the runtime package,
 		// and to implement some special compiler pragmas.
-		gcargs = append(gcargs, "-+")
+		gcflags = append(gcflags, "-+")
 	}
 
 	// If we're giving the compiler the entire package (no C etc files), tell it that,
@@ -125,25 +125,25 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 	if extFiles == 0 {
-		gcargs = append(gcargs, "-complete")
+		gcflags = append(gcflags, "-complete")
 	}
 	if cfg.BuildContext.InstallSuffix != "" {
-		gcargs = append(gcargs, "-installsuffix", cfg.BuildContext.InstallSuffix)
+		gcflags = append(gcflags, "-installsuffix", cfg.BuildContext.InstallSuffix)
 	}
 	if a.buildID != "" {
-		gcargs = append(gcargs, "-buildid", a.buildID)
+		gcflags = append(gcflags, "-buildid", a.buildID)
 	}
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
-		gcargs = append(gcargs, "-dwarf=false")
+		gcflags = append(gcflags, "-dwarf=false")
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		gcargs = append(gcargs, "-goversion", runtimeVersion)
+		gcflags = append(gcflags, "-goversion", runtimeVersion)
 	}
 	if symabis != "" {
-		gcargs = append(gcargs, "-symabis", symabis)
+		gcflags = append(gcflags, "-symabis", symabis)
 	}
 
-	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+	gcflags = append(gcflags, str.StringList(forcedGcflags, p.Internal.Gcflags)...)
 	if compilingRuntime {
 		// Remove -N, if present.
 		// It is not possible to build the runtime with no optimizations,
@@ -157,7 +157,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags}
 	if p.Internal.LocalPrefix != "" {
 		// Workaround #43883.
 		args = append(args, "-D", p.Internal.LocalPrefix)
