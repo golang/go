@@ -722,14 +722,17 @@ func setup() {
 			types.NewField(nxp, fname("len"), ui),
 			types.NewField(nxp, fname("cap"), ui),
 		})
+		types.CalcStructSize(synthSlice)
 		synthString = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("data"), unsp),
 			types.NewField(nxp, fname("len"), ui),
 		})
+		types.CalcStructSize(synthString)
 		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
 			types.NewField(nxp, fname("f1"), unsp),
 			types.NewField(nxp, fname("f2"), unsp),
 		})
+		types.CalcStructSize(synthIface)
 	})
 }
 
