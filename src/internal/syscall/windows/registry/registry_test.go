@@ -35,7 +35,11 @@ func TestReadSubKeyNames(t *testing.T) {
 	}
 	defer k.Close()
 
-	names, err := k.ReadSubKeyNames()
+	var names []string
+	err = k.ReadSubKeyNames(func(s string) error {
+		names = append(names, s)
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

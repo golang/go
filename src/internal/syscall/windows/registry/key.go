@@ -87,9 +87,9 @@ func OpenKey(k Key, path string, access uint32) (Key, error) {
 	return Key(subkey), nil
 }
 
-// ReadSubKeyNames returns the names of subkeys of key k.
-func (k Key) ReadSubKeyNames() ([]string, error) {
-	names := make([]string, 0)
+// ReadSubKeyNames iterates over the names of subkeys of key k. Callback function fn receives each iterated subkey name.
+// If fn returns non-nil error, iteration is terminated and that error is returned.
+func (k Key) ReadSubKeyNames(fn func(string) error) error {
 	// Registry key size limit is 255 bytes and described there:
 	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
 	buf := make([]uint16, 256) //plus extra room for terminating zero byte
@@ -110,11 +110,15 @@ loopItems:
 			if err == _ERROR_NO_MORE_ITEMS {
 				break loopItems
 			}
-			return names, err
+			return err
 		}
-		names = append(names, syscall.UTF16ToString(buf[:l]))
+
+		// Callback with key name string
+		if err := fn(syscall.UTF16ToString(buf[:l])); err != nil{
+			return err
+		}
 	}
-	return names, nil
+	return nil
 }
 
 // CreateKey creates a key named path under open key k.

@@ -13,10 +13,15 @@ func init() {
 }
 
 func initMimeWindows() {
-	names, err := registry.CLASSES_ROOT.ReadSubKeyNames()
+	var names []string
+	err := registry.CLASSES_ROOT.ReadSubKeyNames(func(s string) error {
+		names = append(names, s)
+		return nil
+	})
 	if err != nil {
 		return
 	}
+
 	for _, name := range names {
 		if len(name) < 2 || name[0] != '.' { // looking for extensions only
 			continue

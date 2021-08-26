@@ -67,7 +67,11 @@ func toEnglishName(stdname, dstname string) (string, error) {
 	}
 	defer k.Close()
 
-	names, err := k.ReadSubKeyNames()
+	var names []string
+	err = k.ReadSubKeyNames(func(s string) error {
+		names = append(names, s)
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
