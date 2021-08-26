@@ -30,21 +30,11 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 // typ converts a types2.Type to a types.Type, including caching of previously
 // translated types.
 func (g *irgen) typ(typ types2.Type) *types.Type {
+	// Defer the CheckSize calls until we have fully-defined a
+	// (possibly-recursive) top-level type.
+	types.DeferCheckSize()
 	res := g.typ1(typ)
-
-	// Calculate the size for all concrete types seen by the frontend. The old
-	// typechecker calls CheckSize() a lot, and we want to eliminate calling
-	// it eventually, so we should do it here instead. We only call it for
-	// top-level types (i.e. we do it here rather in typ1), to make sure that
-	// recursive types have been fully constructed before we call CheckSize.
-	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
-		types.CheckSize(res)
-		if res.IsPtr() {
-			// Pointers always have their size set, even though their element
-			// may not have its size set.
-			types.CheckSize(res.Elem())
-		}
-	}
+	types.ResumeCheckSize()
 	return res
 }
 
@@ -59,6 +49,12 @@ func (g *irgen) typ1(typ types2.Type) *types.Type {
 	res, ok := g.typs[typ]
 	if !ok {
 		res = g.typ0(typ)
+		// Calculate the size for all concrete types seen by the frontend.
+		// This is the replacement for the CheckSize() calls in the types1
+		// typechecker. These will be deferred until the top-level g.typ().
+		if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
+			types.CheckSize(res)
+		}
 		g.typs[typ] = res
 	}
 	return res

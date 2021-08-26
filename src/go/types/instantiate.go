@@ -131,7 +131,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
 
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
-		named.targs = &TypeList{targs}
+		named.targs = NewTypeList(targs)
 		named.instance = &instance{pos}
 		if check != nil {
 			check.typMap[h] = named

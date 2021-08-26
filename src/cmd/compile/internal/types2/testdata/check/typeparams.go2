@@ -304,8 +304,8 @@ var _ = f8[int, float64](0, 0, nil...) // test case for #18268
 // init functions cannot have type parameters
 
 func init() {}
-func init[/* ERROR func init must have no type parameters */ _ any]() {}
-func init[/* ERROR func init must have no type parameters */ P any]() {}
+func init[_ /* ERROR func init must have no type parameters */ any]() {}
+func init[P /* ERROR func init must have no type parameters */ any]() {}
 
 type T struct {}
 

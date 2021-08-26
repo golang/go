@@ -514,11 +514,26 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	check.initVars(lhs, []syntax.Expr{init}, nopos)
 }
 
+// isImportedConstraint reports whether typ is an imported type constraint.
+func (check *Checker) isImportedConstraint(typ Type) bool {
+	named, _ := typ.(*Named)
+	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
+		return false
+	}
+	u, _ := named.under().(*Interface)
+	return u != nil && u.IsConstraint()
+}
+
 func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named) {
 	assert(obj.typ == nil)
 
+	var rhs Type
 	check.later(func() {
 		check.validType(obj.typ, nil)
+		// If typ is local, an error was already reported where typ is specified/defined.
+		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+			check.errorf(tdecl.Type.Pos(), "using type constraint %s requires go1.18 or later", rhs)
+		}
 	})
 
 	alias := tdecl.Alias
@@ -540,7 +555,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		obj.typ = Typ[Invalid]
-		obj.typ = check.anyType(tdecl.Type)
+		rhs = check.anyType(tdecl.Type)
+		obj.typ = rhs
 		return
 	}
 
@@ -555,8 +571,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	}
 
 	// determine underlying type of named
-	named.fromRHS = check.definedType(tdecl.Type, named)
-	assert(named.fromRHS != nil)
+	rhs = check.definedType(tdecl.Type, named)
+	assert(rhs != nil)
+	named.fromRHS = rhs
 	// The underlying type of named may be itself a named type that is
 	// incomplete:
 	//

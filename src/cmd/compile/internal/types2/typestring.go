@@ -195,7 +195,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *Named:
-		if t.instance != nil {
+		if t.instPos != nil {
 			buf.WriteByte(instanceMarker)
 		}
 		writeTypeName(buf, t.obj, qf)
@@ -279,6 +279,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeParam, qf Qualifier, visited
 
 func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
 	if obj == nil {
+		assert(instanceHashing == 0) // we need an object for instance hashing
 		buf.WriteString("<Named w/o object>")
 		return
 	}

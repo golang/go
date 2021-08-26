@@ -824,7 +824,7 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 	n.High = walkExpr(n.High, init)
 	n.Max = walkExpr(n.Max, init)
 	if checkSlice {
-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n.Max)
+		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n)
 	}
 
 	if n.Op().IsSlice3() {

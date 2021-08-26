@@ -233,7 +233,7 @@ func (subst *subster) typ(typ Type) Type {
 		// It's ok to provide a nil *Checker because the newly created type
 		// doesn't need to be (lazily) expanded; it's expanded below.
 		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
-		named.targs = &TypeList{newTArgs}
+		named.targs = NewTypeList(newTArgs)
 		subst.typMap[h] = named
 		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
 
