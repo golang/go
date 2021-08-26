@@ -75,7 +75,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
 func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos) (res Type) {
 	assert(check != nil)
 	if check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
+		check.trace(pos, "-- instantiating %s with %s", typ, NewTypeList(targs))
 		check.indent++
 		defer func() {
 			check.indent--
