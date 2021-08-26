@@ -22,7 +22,7 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
 	case g.self:
 		return types.LocalPkg
 	case types2.Unsafe:
-		return ir.Pkgs.Unsafe
+		return types.UnsafePkg
 	}
 	return types.NewPkg(pkg.Path(), pkg.Name())
 }
@@ -206,7 +206,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		methods := make([]*types.Field, typ.NumExplicitMethods())
 		for i := range methods {
 			m := typ.ExplicitMethod(i)
-			mtyp := g.signature(typecheck.FakeRecv(), m.Type().(*types2.Signature))
+			mtyp := g.signature(types.FakeRecv(), m.Type().(*types2.Signature))
 			methods[i] = types.NewField(g.pos(m), g.selector(m), mtyp)
 		}
 

@@ -23,6 +23,9 @@ var BuiltinPkg *Pkg
 // LocalPkg is the package being compiled.
 var LocalPkg *Pkg
 
+// UnsafePkg is package unsafe.
+var UnsafePkg *Pkg
+
 // BlankSym is the blank (_) symbol.
 var BlankSym *Sym
 

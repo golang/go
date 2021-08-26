@@ -428,7 +428,7 @@ func (r *reader) interfaceType() *types.Type {
 		pos := r.pos()
 		pkg, sym := r.selector()
 		tpkg = pkg
-		mtyp := r.signature(pkg, typecheck.FakeRecv())
+		mtyp := r.signature(pkg, types.FakeRecv())
 		methods[i] = types.NewField(pos, sym, mtyp)
 	}
 	for i := range embeddeds {
@@ -540,7 +540,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 	if tag == objStub {
 		assert(!sym.IsBlank())
 		switch sym.Pkg {
-		case types.BuiltinPkg, ir.Pkgs.Unsafe:
+		case types.BuiltinPkg, types.UnsafePkg:
 			return sym.Def.(ir.Node)
 		}
 		if pri, ok := objReader[sym]; ok {

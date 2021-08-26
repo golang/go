@@ -1738,6 +1738,10 @@ func FakeRecvType() *Type {
 	return recvType
 }
 
+func FakeRecv() *Field {
+	return NewField(src.NoXPos, nil, FakeRecvType())
+}
+
 var (
 	// TSSA types. HasPointers assumes these are pointer-free.
 	TypeInvalid   = newSSA("invalid")
