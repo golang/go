@@ -14,7 +14,9 @@ import (
 	"fmt"
 )
 
-type value[T comparable] struct {
+type C comparable
+
+type value[T C] struct {
 	val T
 }
 
