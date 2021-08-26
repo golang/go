@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"math/bits"
 	"sort"
 )
 
@@ -3353,32 +3354,30 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
 
 	case 67: /* mcrf crfD,crfS */
-		if p.From.Type != obj.TYPE_REG || p.From.Reg < REG_CR0 || REG_CR7 < p.From.Reg || p.To.Type != obj.TYPE_REG || p.To.Reg < REG_CR0 || REG_CR7 < p.To.Reg {
-			c.ctxt.Diag("illegal CR field number\n%v", p)
+		if p.From.Reg == REG_CR || p.To.Reg == REG_CR {
+			c.ctxt.Diag("CR argument must be a conditional register field (CR0-CR7)\n%v", p)
 		}
 		o1 = AOP_RRR(OP_MCRF, ((uint32(p.To.Reg) & 7) << 2), ((uint32(p.From.Reg) & 7) << 2), 0)
 
 	case 68: /* mfcr rD; mfocrf CRM,rD */
-		if p.From.Type == obj.TYPE_REG && REG_CR0 <= p.From.Reg && p.From.Reg <= REG_CR7 {
-			v := int32(1 << uint(7-(p.To.Reg&7)))                                 /* CR(n) */
-			o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) | 1<<20 | uint32(v)<<12 /* new form, mfocrf */
-		} else {
-			o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) /* old form, whole register */
+		o1 = AOP_RRR(OP_MFCR, uint32(p.To.Reg), 0, 0) /*  form, whole register */
+		if p.From.Reg != REG_CR {
+			v := uint32(1) << uint(7-(p.From.Reg&7)) /* CR(n) */
+			o1 |= 1<<20 | v<<12                      /* new form, mfocrf */
 		}
 
-	case 69: /* mtcrf CRM,rS */
-		var v int32
-		if p.From3Type() != obj.TYPE_NONE {
-			if p.To.Reg != 0 {
-				c.ctxt.Diag("can't use both mask and CR(n)\n%v", p)
-			}
-			v = c.regoff(p.GetFrom3()) & 0xff
-		} else {
-			if p.To.Reg == 0 {
-				v = 0xff /* CR */
-			} else {
-				v = 1 << uint(7-(p.To.Reg&7)) /* CR(n) */
-			}
+	case 69: /* mtcrf CRM,rS, mtocrf CRx,rS */
+		var v uint32
+		if p.To.Reg == REG_CR {
+			v = 0xff
+		} else if p.To.Offset != 0 { // MOVFL gpr, constant
+			v = uint32(p.To.Offset)
+		} else { // p.To.Reg == REG_CRx
+			v = 1 << uint(7-(p.To.Reg&7))
+		}
+		// Use mtocrf form if only one CR field moved.
+		if bits.OnesCount32(v) == 1 {
+			v |= 1 << 8
 		}
 
 		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | uint32(v)<<12
