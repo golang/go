@@ -107,6 +107,14 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	ComparableType.SetUnderlying(makeComparableInterface())
 	ResumeCheckSize()
 
+	// any type (interface)
+	if base.Flag.G > 0 {
+		DeferCheckSize()
+		AnyType = defBasic(TFORW, BuiltinPkg, "any")
+		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}))
+		ResumeCheckSize()
+	}
+
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
 
 	Types[TBLANK] = newType(TBLANK)

@@ -566,6 +566,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// for predeclared objects).
 			underlying = types.ErrorType
 		}
+		if underlying == types.ComparableType.Underlying() {
+			// Do same for ComparableType as for ErrorType.
+			underlying = types.ComparableType
+		}
+		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
+			// Do same for AnyType as for ErrorType.
+			underlying = types.AnyType
+		}
 		w.typ(underlying)
 
 		t := n.Type()

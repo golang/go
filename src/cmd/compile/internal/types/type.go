@@ -119,6 +119,8 @@ var (
 	ErrorType *Type
 	// Predeclared comparable interface type.
 	ComparableType *Type
+	// Predeclared any interface type.
+	AnyType *Type
 
 	// Types to represent untyped string and boolean constants.
 	UntypedString = newType(TSTRING)
