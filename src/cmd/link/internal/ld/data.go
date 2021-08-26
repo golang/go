@@ -436,6 +436,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if weak && !ldr.AttrReachable(rs) {
 				continue
 			}
+			if ldr.SymSect(rs) == nil {
+				st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
+				continue
+			}
+
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
 			if ldr.SymSect(rs).Name == ".text" {
