@@ -378,7 +378,7 @@ func (sc *slotCanonicalizer) lookup(ls LocalSlot) (SlKeyIdx, bool) {
 		split, _ = sc.lookup(*ls.SplitOf)
 	}
 	k := slotKey{
-		name: ls.N, offset: ls.Off, width: ls.Type.Width,
+		name: ls.N, offset: ls.Off, width: ls.Type.Size(),
 		splitOf: split, splitOffset: ls.SplitOffset,
 	}
 	if idx, ok := sc.slmap[k]; ok {
@@ -1649,7 +1649,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			}
 			if len(inp.Registers) > 1 {
 				list = append(list, dwarf.DW_OP_piece)
-				ts := rtypes[k].Width
+				ts := rtypes[k].Size()
 				list = dwarf.AppendUleb128(list, uint64(ts))
 				if padding[k] > 0 {
 					if loggingEnabled {

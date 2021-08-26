@@ -57,8 +57,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 		return ap
 	}
 
-	if a.Type().Width != b.Type().Width {
-		return a.Type().Width > b.Type().Width
+	if a.Type().Size() != b.Type().Size() {
+		return a.Type().Size() > b.Type().Size()
 	}
 
 	return a.Sym().Name < b.Sym().Name
@@ -147,7 +147,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 
 		types.CalcSize(n.Type())
-		w := n.Type().Width
+		w := n.Type().Size()
 		if w >= types.MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
@@ -159,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
+		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true

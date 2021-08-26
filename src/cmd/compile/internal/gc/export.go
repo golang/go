@@ -38,7 +38,7 @@ func dumpasmhdr() {
 			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
 				break
 			}
-			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Width))
+			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Size()))
 			for _, f := range t.Fields().Slice() {
 				if !f.Sym.IsBlank() {
 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym().Name, f.Sym.Name, int(f.Offset))

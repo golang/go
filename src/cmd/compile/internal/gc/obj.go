@@ -274,7 +274,7 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type().Width, flags)
+	base.Ctxt.Globl(s, nam.Type().Size(), flags)
 	if nam.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}

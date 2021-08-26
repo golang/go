@@ -145,7 +145,7 @@ func dataWord(n ir.Node, init *ir.Nodes, escapes bool) ir.Node {
 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
 		// n is a readonly global; use it directly.
 		value = n
-	case !escapes && fromType.Width <= 1024:
+	case !escapes && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
 		value = typecheck.Temp(fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
@@ -326,11 +326,11 @@ func dataWordFuncName(from *types.Type) (fnname string, argType *types.Type, nee
 		base.Fatalf("can only handle non-interfaces")
 	}
 	switch {
-	case from.Size() == 2 && from.Align == 2:
+	case from.Size() == 2 && uint8(from.Alignment()) == 2:
 		return "convT16", types.Types[types.TUINT16], false
-	case from.Size() == 4 && from.Align == 4 && !from.HasPointers():
+	case from.Size() == 4 && uint8(from.Alignment()) == 4 && !from.HasPointers():
 		return "convT32", types.Types[types.TUINT32], false
-	case from.Size() == 8 && from.Align == types.Types[types.TUINT64].Align && !from.HasPointers():
+	case from.Size() == 8 && uint8(from.Alignment()) == uint8(types.Types[types.TUINT64].Alignment()) && !from.HasPointers():
 		return "convT64", types.Types[types.TUINT64], false
 	}
 	if sc := from.SoleComponent(); sc != nil {

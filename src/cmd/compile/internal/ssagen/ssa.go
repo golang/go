@@ -2483,8 +2483,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 		types.CalcSize(from)
 		types.CalcSize(to)
-		if from.Width != to.Width {
-			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
+		if from.Size() != to.Size() {
+			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Size(), to, to.Size())
 			return nil
 		}
 		if etypesign(from.Kind()) != etypesign(to.Kind()) {
@@ -5262,7 +5262,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
 // TypeOK reports whether variables of type t are SSA-able.
 func TypeOK(t *types.Type) bool {
 	types.CalcSize(t)
-	if t.Width > int64(4*types.PtrSize) {
+	if t.Size() > int64(4*types.PtrSize) {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
@@ -5752,7 +5752,7 @@ func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) 
 	//
 	// Where mask(x) is 0 if x==0 and -1 if x>0 and stride is the width
 	// of the element type.
-	stride := s.constInt(types.Types[types.TINT], ptr.Type.Elem().Width)
+	stride := s.constInt(types.Types[types.TINT], ptr.Type.Elem().Size())
 
 	// The delta is the number of bytes to offset ptr by.
 	delta := s.newValue2(mulOp, types.Types[types.TINT], i, stride)
@@ -5960,7 +5960,7 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 		s.vars[n] = s.load(lenType, x)
 	case ir.OCAP:
 		// capacity is stored in the second word for chan
-		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Width, x)
+		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Size(), x)
 		s.vars[n] = s.load(lenType, sw)
 	default:
 		s.Fatalf("op must be OLEN or OCAP")
