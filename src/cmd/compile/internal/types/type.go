@@ -178,7 +178,7 @@ type Type struct {
 	}
 
 	sym    *Sym  // symbol containing name, for named types
-	Vargen int32 // unique name for OTYPE/ONAME
+	vargen int32 // unique name for OTYPE/ONAME
 
 	kind  Kind  // kind of type
 	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
@@ -1221,8 +1221,8 @@ func (t *Type) cmp(x *Type) Cmp {
 
 	if x.sym != nil {
 		// Syms non-nil, if vargens match then equal.
-		if t.Vargen != x.Vargen {
-			return cmpForNe(t.Vargen < x.Vargen)
+		if t.vargen != x.vargen {
+			return cmpForNe(t.vargen < x.vargen)
 		}
 		return CMPeq
 	}
@@ -1766,6 +1766,25 @@ func (t *Type) Obj() Object {
 		return t.nod
 	}
 	return nil
+}
+
+// typeGen tracks the number of function-scoped defined types that
+// have been declared. It's used to generate unique linker symbols for
+// their runtime type descriptors.
+var typeGen int32
+
+// SetVargen assigns a unique generation number to type t, which must
+// be a defined type declared within function scope. The generation
+// number is used to distinguish it from other similarly spelled
+// defined types from the same package.
+//
+// TODO(mdempsky): Come up with a better solution.
+func (t *Type) SetVargen() {
+	base.Assertf(t.Sym() != nil, "SetVargen on anonymous type %v", t)
+	base.Assertf(t.vargen == 0, "type %v already has Vargen %v", t, t.vargen)
+
+	typeGen++
+	t.vargen = typeGen
 }
 
 // SetUnderlying sets the underlying type. SetUnderlying automatically updates any
