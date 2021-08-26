@@ -98,7 +98,7 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 
 // IsConstraint reports whether interface t is not just a method set.
-func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
+func (t *Interface) IsConstraint() bool { return t.typeSet().IsConstraint() }
 
 func (t *Interface) Underlying() Type { return t }
 func (t *Interface) String() string   { return TypeString(t, nil) }

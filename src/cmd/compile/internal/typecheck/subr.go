@@ -1003,6 +1003,15 @@ type Tsubster struct {
 // result is t; otherwise the result is a new type. It deals with recursive types
 // by using TFORW types and finding partially or fully created types via sym.Def.
 func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+	// Defer the CheckSize calls until we have fully-defined
+	// (possibly-recursive) top-level type.
+	types.DeferCheckSize()
+	r := ts.typ1(t)
+	types.ResumeCheckSize()
+	return r
+}
+
+func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 	if !t.HasTParam() && t.Kind() != types.TFUNC {
 		// Note: function types need to be copied regardless, as the
 		// types of closures may contain declarations that need
@@ -1042,12 +1051,13 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 	var targsChanged bool
 	var forw *types.Type
 
-	if t.Sym() != nil {
+	if t.Sym() != nil && t.HasTParam() {
+		// Need to test for t.HasTParam() again because of special TFUNC case above.
 		// Translate the type params for this type according to
 		// the tparam/targs mapping from subst.
 		neededTargs = make([]*types.Type, len(t.RParams()))
 		for i, rparam := range t.RParams() {
-			neededTargs[i] = ts.Typ(rparam)
+			neededTargs[i] = ts.typ1(rparam)
 			if !types.Identical(neededTargs[i], rparam) {
 				targsChanged = true
 			}
@@ -1085,26 +1095,26 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		}
 		// Substitute the underlying typeparam (e.g. T in P[T], see
 		// the example describing type P[T] above).
-		newt = ts.Typ(t.Underlying())
+		newt = ts.typ1(t.Underlying())
 		assert(newt != t)
 
 	case types.TARRAY:
 		elem := t.Elem()
-		newelem := ts.Typ(elem)
+		newelem := ts.typ1(elem)
 		if newelem != elem || targsChanged {
 			newt = types.NewArray(newelem, t.NumElem())
 		}
 
 	case types.TPTR:
 		elem := t.Elem()
-		newelem := ts.Typ(elem)
+		newelem := ts.typ1(elem)
 		if newelem != elem || targsChanged {
 			newt = types.NewPtr(newelem)
 		}
 
 	case types.TSLICE:
 		elem := t.Elem()
-		newelem := ts.Typ(elem)
+		newelem := ts.typ1(elem)
 		if newelem != elem || targsChanged {
 			newt = types.NewSlice(newelem)
 		}
@@ -1159,22 +1169,17 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		}
 
 	case types.TMAP:
-		newkey := ts.Typ(t.Key())
-		newval := ts.Typ(t.Elem())
+		newkey := ts.typ1(t.Key())
+		newval := ts.typ1(t.Elem())
 		if newkey != t.Key() || newval != t.Elem() || targsChanged {
 			newt = types.NewMap(newkey, newval)
 		}
 
 	case types.TCHAN:
 		elem := t.Elem()
-		newelem := ts.Typ(elem)
+		newelem := ts.typ1(elem)
 		if newelem != elem || targsChanged {
 			newt = types.NewChan(newelem, t.ChanDir())
-			if !newt.HasTParam() {
-				// TODO(danscales): not sure why I have to do this
-				// only for channels.....
-				types.CheckSize(newt)
-			}
 		}
 	case types.TFORW:
 		if ts.SubstForwFunc != nil {
@@ -1194,7 +1199,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		for i := 0; i < nt; i++ {
 			term, tilde := t.Term(i)
 			tildes[i] = tilde
-			newterms[i] = ts.Typ(term)
+			newterms[i] = ts.typ1(term)
 			if newterms[i] != term {
 				changed = true
 			}
@@ -1212,16 +1217,16 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		return t
 	}
 
-	if t.Sym() == nil && t.Kind() != types.TINTER {
-		// Not a named type or interface type, so there was no forwarding type
-		// and there are no methods to substitute.
-		assert(t.Methods().Len() == 0)
-		return newt
-	}
-
 	if forw != nil {
 		forw.SetUnderlying(newt)
 		newt = forw
+	}
+
+	if !newt.HasTParam() {
+		// Calculate the size of any new types created. These will be
+		// deferred until the top-level ts.Typ() or g.typ() (if this is
+		// called from g.fillinMethods()).
+		types.CheckSize(newt)
 	}
 
 	if t.Kind() != types.TINTER && t.Methods().Len() > 0 {
@@ -1229,7 +1234,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 		var newfields []*types.Field
 		newfields = make([]*types.Field, t.Methods().Len())
 		for i, f := range t.Methods().Slice() {
-			t2 := ts.Typ(f.Type)
+			t2 := ts.typ1(f.Type)
 			oldsym := f.Nname.Sym()
 			newsym := MakeFuncInstSym(oldsym, ts.Targs, true)
 			var nname *ir.Name
@@ -1272,7 +1277,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 		newfields = make([]*types.Field, t.NumFields())
 	}
 	for i, f := range t.Fields().Slice() {
-		t2 := ts.Typ(f.Type)
+		t2 := ts.typ1(f.Type)
 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
 			newfields = make([]*types.Field, t.NumFields())
 			for j := 0; j < i; j++ {
@@ -1325,7 +1330,7 @@ func (ts *Tsubster) tinter(t *types.Type) *types.Type {
 	}
 	var newfields []*types.Field
 	for i, f := range t.Methods().Slice() {
-		t2 := ts.Typ(f.Type)
+		t2 := ts.typ1(f.Type)
 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
 			newfields = make([]*types.Field, t.Methods().Len())
 			for j := 0; j < i; j++ {

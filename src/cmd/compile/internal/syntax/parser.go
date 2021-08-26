@@ -1840,7 +1840,11 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 	}
 
 	f := new(Field)
-	f.pos = p.pos()
+	if name != nil {
+		f.pos = name.pos
+	} else {
+		f.pos = p.pos()
+	}
 
 	if p.tok == _Name || name != nil {
 		if name == nil {

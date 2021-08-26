@@ -30,10 +30,8 @@ func (s *_TypeSet) IsAll() bool {
 	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
 }
 
-// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
-
-// IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+// IsConstraint reports whether type set s is not just a set of methods.
+func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
 func (s *_TypeSet) IsComparable() bool {
@@ -79,26 +77,24 @@ func (s *_TypeSet) String() string {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	if s.comparable {
-		buf.WriteString(" comparable")
+		buf.WriteString("comparable")
 		if hasMethods || hasTerms {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
 	}
 	for i, m := range s.methods {
 		if i > 0 {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
-		buf.WriteByte(' ')
 		buf.WriteString(m.String())
 	}
 	if hasMethods && hasTerms {
-		buf.WriteByte(';')
+		buf.WriteString("; ")
 	}
 	if hasTerms {
 		buf.WriteString(s.terms.String())
 	}
-	buf.WriteString(" }") // there was at least one method or term
-
+	buf.WriteString("}")
 	return buf.String()
 }
 
@@ -271,6 +267,11 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		switch u := under(typ).(type) {
 		case *Interface:
 			tset := computeInterfaceTypeSet(check, pos, u)
+			// If typ is local, an error was already reported where typ is specified/defined.
+			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(pos, "embedding constraint interface %s requires go1.18 or later", typ)
+				continue
+			}
 			if tset.comparable {
 				ityp.tset.comparable = true
 			}
@@ -279,6 +280,10 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			terms = tset.terms
 		case *Union:
+			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(pos, "embedding interface element %s requires go1.18 or later", u)
+				continue
+			}
 			tset := computeUnionTypeSet(check, pos, u)
 			if tset == &invalidTypeSet {
 				continue // ignore invalid unions
@@ -293,7 +298,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(pos, "%s is not an interface", typ)
+				check.errorf(pos, "embedding non-interface type %s requires go1.18 or later", typ)
 				continue
 			}
 			terms = termlist{{false, typ}}

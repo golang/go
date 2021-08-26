@@ -732,21 +732,15 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
 
 	if doubleCheck {
-		okConvs := map[ir.Node]bool{}
 		ir.Visit(newf, func(n ir.Node) {
-			if n.Op() == ir.OIDATA {
-				// IDATA(OCONVIFACE(x)) is ok, as we don't use the type of x.
-				// TODO: use some other op besides OCONVIFACE. ONEW might work
-				// (with appropriate direct vs. indirect interface cases).
-				okConvs[n.(*ir.UnaryExpr).X] = true
+			if n.Op() != ir.OCONVIFACE {
+				return
 			}
-			if n.Op() == ir.OCONVIFACE && !okConvs[n] {
-				c := n.(*ir.ConvExpr)
-				if c.X.Type().HasShape() {
-					ir.Dump("BAD FUNCTION", newf)
-					ir.Dump("BAD CONVERSION", c)
-					base.Fatalf("converting shape type to interface")
-				}
+			c := n.(*ir.ConvExpr)
+			if c.X.Type().HasShape() {
+				ir.Dump("BAD FUNCTION", newf)
+				ir.Dump("BAD CONVERSION", c)
+				base.Fatalf("converting shape type to interface")
 			}
 		})
 	}
@@ -1052,6 +1046,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				}
 
 			case ir.OCLOSURE:
+				transformCall(call)
+
+			case ir.ODEREF, ir.OINDEX, ir.OINDEXMAP, ir.ORECV:
+				// Transform a call that was delayed because of the
+				// use of typeparam inside an expression that required
+				// a pointer dereference, array indexing, map indexing,
+				// or channel receive to compute function value.
 				transformCall(call)
 
 			case ir.OFUNCINST:

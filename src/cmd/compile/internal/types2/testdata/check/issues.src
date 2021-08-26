@@ -79,11 +79,11 @@ func issue9473(a []int, b ...int) {
 // Check that embedding a non-interface type in an interface results in a good error message.
 func issue10979() {
 	type _ interface {
-		int /* ERROR int is not an interface */
+		int /* ERROR non-interface type int */
 	}
 	type T struct{}
 	type _ interface {
-		T /* ERROR T is not an interface */
+		T /* ERROR non-interface type T */
 	}
 	type _ interface {
 		nosuchtype /* ERROR undeclared name: nosuchtype */
@@ -280,7 +280,7 @@ type issue25301b /* ERROR cycle */ = interface {
 }
 
 type issue25301c interface {
-	notE // ERROR struct\{\} is not an interface
+	notE // ERROR non-interface type struct\{\}
 }
 
 type notE = struct{}

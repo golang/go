@@ -119,8 +119,15 @@ func TestLookupGroup(t *testing.T) {
 	}
 }
 
+func checkGroupList(t *testing.T) {
+	t.Helper()
+	if !groupListImplemented {
+		t.Skip("user: group list not implemented; skipping test")
+	}
+}
+
 func TestGroupIds(t *testing.T) {
-	checkGroup(t)
+	checkGroupList(t)
 	if runtime.GOOS == "aix" {
 		t.Skip("skipping GroupIds, see golang.org/issue/30563")
 	}

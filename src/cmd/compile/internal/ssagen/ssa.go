@@ -3090,6 +3090,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			k = s.expr(n.Max)
 		}
 		p, l, c := s.slice(v, i, j, k, n.Bounded())
+		if n.CheckPtrCall != nil {
+			s.stmt(n.CheckPtrCall)
+		}
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 
 	case ir.OSLICESTR:

@@ -570,10 +570,11 @@ func (*SelectorExpr) CanBeNtype() {}
 // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
 type SliceExpr struct {
 	miniExpr
-	X    Node
-	Low  Node
-	High Node
-	Max  Node
+	X            Node
+	Low          Node
+	High         Node
+	Max          Node
+	CheckPtrCall *CallExpr
 }
 
 func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {
