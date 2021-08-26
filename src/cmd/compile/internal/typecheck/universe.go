@@ -329,14 +329,6 @@ func InitUniverse() {
 	// special
 	okfor[ir.OCAP] = okforcap[:]
 	okfor[ir.OLEN] = okforlen[:]
-
-	// comparison
-	iscmp[ir.OLT] = true
-	iscmp[ir.OGT] = true
-	iscmp[ir.OGE] = true
-	iscmp[ir.OLE] = true
-	iscmp[ir.OEQ] = true
-	iscmp[ir.ONE] = true
 }
 
 func makeErrorInterface() *types.Type {
