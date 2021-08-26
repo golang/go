@@ -562,6 +562,14 @@ func CalcStructSize(s *Type) {
 	s.Width = calcStructOffset(s, s, 0, 1) // sets align
 }
 
+// RecalcSize is like CalcSize, but recalculates t's size even if it
+// has already been calculated before. It does not recalculate other
+// types.
+func RecalcSize(t *Type) {
+	t.Align = 0
+	CalcSize(t)
+}
+
 // when a type's width should be known, we call CheckSize
 // to compute it.  during a declaration like
 //
