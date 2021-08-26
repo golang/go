@@ -314,13 +314,6 @@ func checkembeddedtype(t *types.Type) {
 	}
 }
 
-// TODO(mdempsky): Move to package types.
-func FakeRecv() *types.Field {
-	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
-}
-
-var fakeRecvField = FakeRecv
-
 var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
 
 type funcStackEnt struct {

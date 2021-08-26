@@ -607,7 +607,7 @@ func (r *importReader) exoticType() *types.Type {
 	case exoticTypeRecv:
 		var rcvr *types.Field
 		if r.bool() { // isFakeRecv
-			rcvr = fakeRecvField()
+			rcvr = types.FakeRecv()
 		} else {
 			rcvr = r.exoticParam()
 		}
@@ -793,7 +793,7 @@ func (r *importReader) typ1() *types.Type {
 		for i := range methods {
 			pos := r.pos()
 			sym := r.selector()
-			typ := r.signature(fakeRecvField(), nil)
+			typ := r.signature(types.FakeRecv(), nil)
 
 			methods[i] = types.NewField(pos, sym, typ)
 		}
