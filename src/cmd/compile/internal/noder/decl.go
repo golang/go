@@ -154,8 +154,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	name, obj := g.def(decl.Name)
 	ntyp, otyp := name.Type(), obj.Type()
 	if ir.CurFunc != nil {
-		typecheck.TypeGen++
-		ntyp.Vargen = typecheck.TypeGen
+		ntyp.SetVargen()
 	}
 
 	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)

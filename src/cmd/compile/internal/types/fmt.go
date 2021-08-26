@@ -361,8 +361,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		// output too. It seems like it should, but that mode is currently
 		// used in string representation used by reflection, which is
 		// user-visible and doesn't expect this.
-		if mode == fmtTypeID && t.Vargen != 0 {
-			fmt.Fprintf(b, "·%d", t.Vargen)
+		if mode == fmtTypeID && t.vargen != 0 {
+			fmt.Fprintf(b, "·%d", t.vargen)
 		}
 		return
 	}
