@@ -526,7 +526,7 @@ func CalcSize(t *Type) {
 		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
 		w = calcStructOffset(t1, t1.Params(), w, RegSize)
 		w = calcStructOffset(t1, t1.Results(), w, RegSize)
-		t1.Extra.(*Func).Argwid = w
+		t1.extra.(*Func).Argwid = w
 		if w%int64(RegSize) != 0 {
 			base.Warn("bad type %v %d\n", t1, w)
 		}

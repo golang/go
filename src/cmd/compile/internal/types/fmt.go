@@ -298,7 +298,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 		return
 	}
 	if t.Kind() == TSSA {
-		b.WriteString(t.Extra.(string))
+		b.WriteString(t.extra.(string))
 		return
 	}
 	if t.Kind() == TTUPLE {
@@ -309,7 +309,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	}
 
 	if t.Kind() == TRESULTS {
-		tys := t.Extra.(*Results).Types
+		tys := t.extra.(*Results).Types
 		for i, et := range tys {
 			if i > 0 {
 				b.WriteByte(',')
