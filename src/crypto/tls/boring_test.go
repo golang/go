@@ -264,7 +264,7 @@ func TestBoringClientHello(t *testing.T) {
 	clientConfig.CipherSuites = allCipherSuites()
 	clientConfig.CurvePreferences = defaultCurvePreferences
 
-	go Client(c, testConfig).Handshake()
+	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)
 	msg, err := srv.readHandshake()
 	if err != nil {
