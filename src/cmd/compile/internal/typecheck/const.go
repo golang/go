@@ -874,9 +874,9 @@ func evalunsafe(n ir.Node) int64 {
 		}
 		types.CalcSize(tr)
 		if n.Op() == ir.OALIGNOF {
-			return int64(tr.Align)
+			return tr.Alignment()
 		}
-		return tr.Width
+		return tr.Size()
 
 	case ir.OOFFSETOF:
 		// must be a selector.

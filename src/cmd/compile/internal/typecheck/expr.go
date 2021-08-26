@@ -110,7 +110,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(l.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || l.Type().Size() >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, r.Type(), l)
 					l.SetTypecheck(1)
 				}
@@ -129,7 +129,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 				}
 
 				types.CalcSize(r.Type())
-				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Width >= 1<<16 {
+				if r.Type().IsInterface() == l.Type().IsInterface() || r.Type().Size() >= 1<<16 {
 					r = ir.NewConvExpr(base.Pos, aop, l.Type(), r)
 					r.SetTypecheck(1)
 				}

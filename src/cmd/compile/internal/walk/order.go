@@ -297,7 +297,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		// Unsafe cast through memory.
 		// We'll need to do a load with type kt. Create a temporary of type kt to
 		// ensure sufficient alignment. nt may be under-aligned.
-		if kt.Align < nt.Align {
+		if uint8(kt.Alignment()) < uint8(nt.Alignment()) {
 			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
 		}
 		tmp := o.newTemp(kt, true)

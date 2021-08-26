@@ -158,8 +158,8 @@ type Type struct {
 	// TTYPEPARAM:  *Typeparam
 	extra interface{}
 
-	// Width is the width of this Type in bytes.
-	Width int64 // valid if Align > 0
+	// width is the width of this Type in bytes.
+	width int64 // valid if Align > 0
 
 	// list of base methods (excluding embedding)
 	methods Fields
@@ -181,7 +181,7 @@ type Type struct {
 	vargen int32 // unique name for OTYPE/ONAME
 
 	kind  Kind  // kind of type
-	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
+	align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
 
 	flags bitset8
 
@@ -521,7 +521,7 @@ func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
 
 // End returns the offset of the first byte immediately after this field.
 func (f *Field) End() int64 {
-	return f.Offset + f.Type.Width
+	return f.Offset + f.Type.width
 }
 
 // IsMethod reports whether f represents a method rather than a struct field.
@@ -584,7 +584,7 @@ func (f *Fields) Append(s ...*Field) {
 func New(et Kind) *Type {
 	t := &Type{
 		kind:  et,
-		Width: BADWIDTH,
+		width: BADWIDTH,
 	}
 	t.underlying = t
 	// TODO(josharian): lazily initialize some of these?
@@ -748,8 +748,8 @@ func NewPtr(elem *Type) *Type {
 
 	t := New(TPTR)
 	t.extra = Ptr{Elem: elem}
-	t.Width = int64(PtrSize)
-	t.Align = uint8(PtrSize)
+	t.width = int64(PtrSize)
+	t.align = uint8(PtrSize)
 	if NewPtrCacheEnabled {
 		elem.cache.ptr = t
 	}
@@ -1084,7 +1084,7 @@ func (t *Type) SetInterface(methods []*Field) {
 }
 
 func (t *Type) WidthCalculated() bool {
-	return t.Align > 0
+	return t.align > 0
 }
 
 // ArgWidth returns the total aligned argument size for a function.
@@ -1102,12 +1102,12 @@ func (t *Type) Size() int64 {
 		return 0
 	}
 	CalcSize(t)
-	return t.Width
+	return t.width
 }
 
 func (t *Type) Alignment() int64 {
 	CalcSize(t)
-	return int64(t.Align)
+	return int64(t.align)
 }
 
 func (t *Type) SimpleString() string {
@@ -1805,8 +1805,8 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	// TODO(mdempsky): Fix Type rekinding.
 	t.kind = underlying.kind
 	t.extra = underlying.extra
-	t.Width = underlying.Width
-	t.Align = underlying.Align
+	t.width = underlying.width
+	t.align = underlying.align
 	t.underlying = underlying.underlying
 
 	if underlying.NotInHeap() {

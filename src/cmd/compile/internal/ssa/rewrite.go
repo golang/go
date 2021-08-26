@@ -1253,7 +1253,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
-		return x.Type.Width == 4
+		return x.Type.Size() == 4
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1277,7 +1277,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
 	case OpArg:
-		return x.Type.Width == 2
+		return x.Type.Size() == 2
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1301,7 +1301,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
 	case OpArg:
-		return x.Type.Width == 1
+		return x.Type.Size() == 1
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.

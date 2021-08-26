@@ -205,7 +205,7 @@ var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
 	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Width > 128 {
+	if t.Elem().Size() > 128 {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {

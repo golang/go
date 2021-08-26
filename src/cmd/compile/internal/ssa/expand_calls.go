@@ -534,8 +534,8 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, 
 		locs = x.splitSlots(ls, ".real", 0, selector.Type)
 
 	case OpComplexImag:
-		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Width, regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
-		locs = x.splitSlots(ls, ".imag", selector.Type.Width, selector.Type)
+		ls := x.rewriteSelect(leaf, selector.Args[0], offset+selector.Type.Size(), regOffset+RO_complex_imag) // result is FloatNN, width of result is offset of imaginary part.
+		locs = x.splitSlots(ls, ".imag", selector.Type.Size(), selector.Type)
 
 	case OpStringLen, OpSliceLen:
 		ls := x.rewriteSelect(leaf, selector.Args[0], offset+x.ptrSize, regOffset+RO_slice_len)
@@ -616,7 +616,7 @@ outer:
 			}
 			return path
 		case types.TINT64, types.TUINT64:
-			if container.Width == x.regSize {
+			if container.Size() == x.regSize {
 				return path
 			}
 			if offset == x.hiOffset {
@@ -682,7 +682,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 			for i := 0; i < len(rts); i++ {
 				rt := rts[i]
 				off := offs[i]
-				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Width, rt.Align)
+				fmt.Printf("rt=%s, off=%d, rt.Width=%d, rt.Align=%d\n", rt.String(), off, rt.Size(), uint8(rt.Alignment()))
 			}
 			panic(fmt.Errorf("offset %d of requested register %d should be zero, source=%s", offs[loadRegOffset], loadRegOffset, source.LongString()))
 		}
@@ -694,7 +694,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 		for i := loadRegOffset; i < last; i++ {
 			rt := rts[i]
 			off := offs[i]
-			w := x.commonArgs[selKey{source, off, rt.Width, rt}]
+			w := x.commonArgs[selKey{source, off, rt.Size(), rt}]
 			if w == nil {
 				w = x.newArgToMemOrRegs(source, w, off, i, rt, pos)
 				suffix := x.pathTo(source.Type, rt, off)
@@ -705,7 +705,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 			if t.IsPtrShaped() {
 				// Preserve the original store type. This ensures pointer type
 				// properties aren't discarded (e.g, notinheap).
-				if rt.Width != t.Width || len(pa.Registers) != 1 || i != loadRegOffset {
+				if rt.Size() != t.Size() || len(pa.Registers) != 1 || i != loadRegOffset {
 					b.Func.Fatalf("incompatible store type %v and %v, i=%d", t, rt, i)
 				}
 				rt = t
@@ -736,7 +736,7 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
 		}
 		return mem
 	case types.TINT64, types.TUINT64:
-		if t.Width == x.regSize {
+		if t.Size() == x.regSize {
 			break
 		}
 		tHi, tLo := x.intPairTypes(t.Kind())
@@ -810,7 +810,7 @@ func (x *expandState) decomposeLoad(pos src.XPos, b *Block, source, mem *Value, 
 		}
 		return mem
 	case types.TINT64, types.TUINT64:
-		if t.Width == x.regSize {
+		if t.Size() == x.regSize {
 			break
 		}
 		tHi, tLo := x.intPairTypes(t.Kind())
@@ -842,7 +842,7 @@ func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suff
 		x.Printf("storeOneArg(%s;  %s;  %s; aO=%d; sO=%d; lrO=%d; %s)\n", source.LongString(), mem.String(), t.String(), argOffset, storeOffset, loadRegOffset, storeRc.String())
 	}
 
-	w := x.commonArgs[selKey{source, argOffset, t.Width, t}]
+	w := x.commonArgs[selKey{source, argOffset, t.Size(), t}]
 	if w == nil {
 		w = x.newArgToMemOrRegs(source, w, argOffset, loadRegOffset, t, pos)
 		x.splitSlotsIntoNames(locs, suffix, argOffset, t, w)
@@ -923,7 +923,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 
 	case OpComplexMake:
 		tPart := x.typs.Float32
-		wPart := t.Width / 2
+		wPart := t.Size() / 2
 		if wPart == 8 {
 			tPart = x.typs.Float64
 		}
@@ -952,7 +952,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 	switch t.Kind() {
 	case types.TARRAY:
 		elt := t.Elem()
-		if source.Type != t && t.NumElem() == 1 && elt.Width == t.Width && t.Width == x.regSize {
+		if source.Type != t && t.NumElem() == 1 && elt.Size() == t.Size() && t.Size() == x.regSize {
 			t = removeTrivialWrapperTypes(t)
 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
@@ -960,14 +960,14 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 		eltRO := x.regWidth(elt)
 		for i := int64(0); i < t.NumElem(); i++ {
 			sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
-			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Width, loadRegOffset, storeRc.at(t, 0))
+			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Size(), loadRegOffset, storeRc.at(t, 0))
 			loadRegOffset += eltRO
 			pos = pos.WithNotStmt()
 		}
 		return mem
 
 	case types.TSTRUCT:
-		if source.Type != t && t.NumFields() == 1 && t.Field(0).Type.Width == t.Width && t.Width == x.regSize {
+		if source.Type != t && t.NumFields() == 1 && t.Field(0).Type.Size() == t.Size() && t.Size() == x.regSize {
 			// This peculiar test deals with accesses to immediate interface data.
 			// It works okay because everything is the same size.
 			// Example code that triggers this can be found in go/constant/value.go, function ToComplex
@@ -1001,7 +1001,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 		return mem
 
 	case types.TINT64, types.TUINT64:
-		if t.Width == x.regSize {
+		if t.Size() == x.regSize {
 			break
 		}
 		tHi, tLo := x.intPairTypes(t.Kind())
@@ -1422,7 +1422,7 @@ func expandCalls(f *Func) {
 		if typ.IsMemory() {
 			continue // handled elsewhere, not an indexable result
 		}
-		size := typ.Width
+		size := typ.Size()
 		offset := int64(0)
 		switch v.Op {
 		case OpStructSelect:
@@ -1534,7 +1534,7 @@ func expandCalls(f *Func) {
 		case OpArgIntReg:
 			i := v.AuxInt
 			if w := IArg[i]; w != nil {
-				if w.Type.Width != v.Type.Width {
+				if w.Type.Size() != v.Type.Size() {
 					f.Fatalf("incompatible OpArgIntReg [%d]: %s and %s", i, v.LongString(), w.LongString())
 				}
 				if w.Type.IsUnsafePtr() && !v.Type.IsUnsafePtr() {
@@ -1549,7 +1549,7 @@ func expandCalls(f *Func) {
 		case OpArgFloatReg:
 			i := v.AuxInt
 			if w := FArg[i]; w != nil {
-				if w.Type.Width != v.Type.Width {
+				if w.Type.Size() != v.Type.Size() {
 					f.Fatalf("incompatible OpArgFloatReg [%d]: %v and %v", i, v, w)
 				}
 				v.copyOf(w)
@@ -1634,7 +1634,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 		}
 	case 1:
 		t := v.Type
-		key := selKey{v, 0, t.Width, t}
+		key := selKey{v, 0, t.Size(), t}
 		w := x.commonArgs[key]
 		if w != nil {
 			v.copyOf(w)
@@ -1665,7 +1665,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		defer x.indent(-3)
 		x.Printf("newArgToMemOrRegs(base=%s; toReplace=%s; t=%s; memOff=%d; regOff=%d)\n", baseArg.String(), toReplace.LongString(), t.String(), offset, regOffset)
 	}
-	key := selKey{baseArg, offset, t.Width, t}
+	key := selKey{baseArg, offset, t.Size(), t}
 	w := x.commonArgs[key]
 	if w != nil {
 		if toReplace != nil {

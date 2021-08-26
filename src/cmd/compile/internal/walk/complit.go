@@ -277,7 +277,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 		return false
 	}
 
-	return n.Type().Elem().Width == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Width
+	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
 }
 
 func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
@@ -650,7 +650,7 @@ func genAsStatic(as *ir.AssignStmt) {
 
 	switch r := as.Y; r.Op() {
 	case ir.OLITERAL:
-		staticdata.InitConst(name, offset, r, int(r.Type().Width))
+		staticdata.InitConst(name, offset, r, int(r.Type().Size()))
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.SelectorExpr)
