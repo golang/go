@@ -94,7 +94,6 @@ func InitUniverse() {
 	types.BlankSym = s
 	s.Block = -100
 	s.Def = NewName(s)
-	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 	ir.BlankNode = ir.AsNode(s.Def)
 	ir.BlankNode.SetTypecheck(1)
@@ -102,10 +101,8 @@ func InitUniverse() {
 	s = types.BuiltinPkg.Lookup("_")
 	s.Block = -100
 	s.Def = NewName(s)
-	types.Types[types.TBLANK] = types.New(types.TBLANK)
 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
 
-	types.Types[types.TNIL] = types.New(types.TNIL)
 	s = types.BuiltinPkg.Lookup("nil")
 	nnil := NodNil()
 	nnil.(*ir.NilExpr).SetSym(s)

@@ -57,11 +57,11 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 		SimType[et] = et
 	}
 
-	Types[TANY] = New(TANY)
+	Types[TANY] = newType(TANY)
 	Types[TINTER] = NewInterface(LocalPkg, nil)
 
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
-		typ := New(kind)
+		typ := newType(kind)
 		obj := defTypeName(pkg.Lookup(name), typ)
 		typ.sym = obj.Sym()
 		typ.nod = obj
@@ -108,6 +108,9 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	ResumeCheckSize()
 
 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
+
+	Types[TBLANK] = newType(TBLANK)
+	Types[TNIL] = newType(TNIL)
 
 	// simple aliases
 	SimType[TMAP] = TPTR
