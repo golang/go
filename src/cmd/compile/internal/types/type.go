@@ -198,7 +198,7 @@ type Type struct {
 	// For an instantiated generic type, the symbol for the base generic type.
 	// This backpointer is useful, because the base type is the type that has
 	// the method bodies.
-	OrigSym *Sym
+	origSym *Sym
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -245,8 +245,8 @@ func (t *Type) SetSym(sym *Sym) { t.sym = sym }
 
 // OrigSym returns the name of the original generic type that t is an
 // instantiation of, if any.
-func (t *Type) OrigSym_() *Sym      { return t.OrigSym }
-func (t *Type) SetOrigSym(sym *Sym) { t.OrigSym = sym }
+func (t *Type) OrigSym() *Sym       { return t.origSym }
+func (t *Type) SetOrigSym(sym *Sym) { t.origSym = sym }
 
 // Underlying returns the underlying type of type t.
 func (t *Type) Underlying() *Type { return t.underlying }

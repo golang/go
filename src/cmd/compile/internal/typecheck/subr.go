@@ -1081,8 +1081,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		forw.SetRParams(neededTargs)
 		// Copy the OrigSym from the re-instantiated type (which is the sym of
 		// the base generic type).
-		assert(t.OrigSym != nil)
-		forw.OrigSym = t.OrigSym
+		assert(t.OrigSym() != nil)
+		forw.SetOrigSym(t.OrigSym())
 	}
 
 	var newt *types.Type

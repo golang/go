@@ -222,9 +222,9 @@ func (p *crawler) markInlBody(n *ir.Name) {
 // for export), so its methods will be available for inlining if needed.
 func (p *crawler) checkGenericType(t *types.Type) {
 	if t != nil && t.HasTParam() {
-		if t.OrigSym != nil {
+		if t.OrigSym() != nil {
 			// Convert to the base generic type.
-			t = t.OrigSym.Def.Type()
+			t = t.OrigSym().Def.Type()
 		}
 		p.markType(t)
 	}
