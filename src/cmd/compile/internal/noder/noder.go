@@ -384,7 +384,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return
 	}
 
-	if ipkg == ir.Pkgs.Unsafe {
+	if ipkg == types.UnsafePkg {
 		p.importedUnsafe = true
 	}
 	if ipkg.Path == "embed" {

@@ -927,7 +927,7 @@ func formalType(t *types.Type) *types.Type {
 
 func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
-	if t.IsUntyped() {
+	if t.IsUntyped() || t.HasTParam() {
 		base.Fatalf("writeType %v", t)
 	}
 
@@ -1726,7 +1726,7 @@ func NeedEmit(typ *types.Type) bool {
 		// Local defined type; our responsibility.
 		return true
 
-	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == ir.Pkgs.Unsafe):
+	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == types.UnsafePkg):
 		// Package runtime is responsible for including code for builtin
 		// types (predeclared and package unsafe).
 		return true

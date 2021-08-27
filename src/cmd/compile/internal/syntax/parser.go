@@ -1924,16 +1924,13 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 	}
 
 	// distribute parameter types (len(list) > 0)
-	if named == 0 {
+	if named == 0 && !requireNames {
 		// all unnamed => found names are named types
 		for _, par := range list {
 			if typ := par.Name; typ != nil {
 				par.Type = typ
 				par.Name = nil
 			}
-		}
-		if requireNames {
-			p.syntaxErrorAt(list[0].Type.Pos(), "type parameters must be named")
 		}
 	} else if named != len(list) {
 		// some named => all must have names and types

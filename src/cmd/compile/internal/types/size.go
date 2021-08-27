@@ -526,7 +526,7 @@ func CalcSize(t *Type) {
 		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
 		w = calcStructOffset(t1, t1.Params(), w, RegSize)
 		w = calcStructOffset(t1, t1.Results(), w, RegSize)
-		t1.Extra.(*Func).Argwid = w
+		t1.extra.(*Func).Argwid = w
 		if w%int64(RegSize) != 0 {
 			base.Warn("bad type %v %d\n", t1, w)
 		}
@@ -560,6 +560,14 @@ func CalcSize(t *Type) {
 // even if size calculation is otherwise disabled.
 func CalcStructSize(s *Type) {
 	s.Width = calcStructOffset(s, s, 0, 1) // sets align
+}
+
+// RecalcSize is like CalcSize, but recalculates t's size even if it
+// has already been calculated before. It does not recalculate other
+// types.
+func RecalcSize(t *Type) {
+	t.Align = 0
+	CalcSize(t)
 }
 
 // when a type's width should be known, we call CheckSize

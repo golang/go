@@ -198,7 +198,7 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
 		return nil
 	}
 
-	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
+	if pkg != types.UnsafePkg && pkg.Height >= myheight {
 		myheight = pkg.Height + 1
 	}
 	return pkg
@@ -231,7 +231,7 @@ func readImportFile(path string, target *ir.Package, check *types2.Checker, pack
 	}
 
 	if path == "unsafe" {
-		pkg1, pkg2 = ir.Pkgs.Unsafe, types2.Unsafe
+		pkg1, pkg2 = types.UnsafePkg, types2.Unsafe
 
 		// TODO(mdempsky): Investigate if this actually matters. Why would
 		// the linker or runtime care whether a package imported unsafe?

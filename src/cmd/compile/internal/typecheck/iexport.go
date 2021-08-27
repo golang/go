@@ -430,7 +430,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == types.UnsafePkg {
 		return
 	}
 
@@ -905,7 +905,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// type orderedAbs[T any] T
 	if t.IsTypeParam() && t.Underlying() == t {
 		assert(base.Flag.G > 0)
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 		// Write out the first use of a type param as a qualified ident.
@@ -916,7 +916,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	}
 
 	if s != nil {
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
