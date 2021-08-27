@@ -709,17 +709,16 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 		// cfg.CmdName directly here.
 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
 			addGoStmt(MainModules.ModFile(mainModule), mainModule, LatestGoVersion())
-			if go117EnableLazyLoading {
-				// We need to add a 'go' version to the go.mod file, but we must assume
-				// that its existing contents match something between Go 1.11 and 1.16.
-				// Go 1.11 through 1.16 have eager requirements, but the latest Go
-				// version uses lazy requirements instead — so we need to cnvert the
-				// requirements to be lazy.
-				var err error
-				rs, err = convertDepth(ctx, rs, lazy)
-				if err != nil {
-					base.Fatalf("go: %v", err)
-				}
+
+			// We need to add a 'go' version to the go.mod file, but we must assume
+			// that its existing contents match something between Go 1.11 and 1.16.
+			// Go 1.11 through 1.16 have eager requirements, but the latest Go
+			// version uses lazy requirements instead — so we need to convert the
+			// requirements to be lazy.
+			var err error
+			rs, err = convertDepth(ctx, rs, lazy)
+			if err != nil {
+				base.Fatalf("go: %v", err)
 			}
 		} else {
 			rawGoVersion.Store(mainModule, modFileGoVersion(MainModules.ModFile(mainModule)))

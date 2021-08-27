@@ -45,11 +45,6 @@ const (
 )
 
 const (
-	// go117EnableLazyLoading toggles whether lazy-loading code paths should be
-	// active. It will be removed once the lazy loading implementation is stable
-	// and well-tested.
-	go117EnableLazyLoading = true
-
 	// go1117LazyTODO is a constant that exists only until lazy loading is
 	// implemented. Its use indicates a condition that will need to change if the
 	// main module is lazy.
@@ -103,9 +98,6 @@ const (
 )
 
 func modDepthFromGoVersion(goVersion string) modDepth {
-	if !go117EnableLazyLoading {
-		return eager
-	}
 	if semver.Compare("v"+goVersion, lazyLoadingVersionV) < 0 {
 		return eager
 	}
