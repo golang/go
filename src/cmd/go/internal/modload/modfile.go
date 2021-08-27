@@ -44,13 +44,6 @@ const (
 	separateIndirectVersionV = "v1.17"
 )
 
-const (
-	// go1117LazyTODO is a constant that exists only until lazy loading is
-	// implemented. Its use indicates a condition that will need to change if the
-	// main module is lazy.
-	go117LazyTODO = false
-)
-
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
 // in modFile are interpreted, or the latest Go version if modFile is nil.
 func modFileGoVersion(modFile *modfile.File) string {
