@@ -667,6 +667,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 	}
 
 	if args.CoverageOnly {
+		mem.header().count++
 		fStart := time.Now()
 		err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err != nil {
