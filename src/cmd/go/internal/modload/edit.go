@@ -253,12 +253,10 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
 		// common versions among multiple upgrades.
 		upgradeGraph, err := readModGraph(ctx, eager, eagerUpgrades)
 		if err != nil {
-			if go117LazyTODO {
-				// Compute the requirement path from a module path in tryUpgrade to the
-				// error, and the requirement path (if any) from rs.rootModules to the
-				// tryUpgrade module path. Return a *mvs.BuildListError showing the
-				// concatenation of the paths (with an upgrade in the middle).
-			}
+			// Compute the requirement path from a module path in tryUpgrade to the
+			// error, and the requirement path (if any) from rs.rootModules to the
+			// tryUpgrade module path. Return a *mvs.BuildListError showing the
+			// concatenation of the paths (with an upgrade in the middle).
 			return err
 		}
 
