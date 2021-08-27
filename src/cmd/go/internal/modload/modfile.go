@@ -56,11 +56,9 @@ const (
 	go117LazyTODO = false
 )
 
-var modFile *modfile.File
-
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
-// in modFile are intepreted, or the latest Go version if modFile is nil.
-func modFileGoVersion() string {
+// in modFile are interpreted, or the latest Go version if modFile is nil.
+func modFileGoVersion(modFile *modfile.File) string {
 	if modFile == nil {
 		return LatestGoVersion()
 	}
@@ -91,9 +89,6 @@ type modFileIndex struct {
 	highestReplaced map[string]string // highest replaced version of each module path; empty string for wildcard-only replacements
 	exclude         map[module.Version]bool
 }
-
-// index is the index of the go.mod file as of when it was last read or written.
-var index *modFileIndex
 
 type requireMeta struct {
 	indirect bool
@@ -137,8 +132,10 @@ var ErrDisallowed = errors.New("disallowed module version")
 // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
 // excluded by the main module's go.mod file.
 func CheckExclusions(ctx context.Context, m module.Version) error {
-	if index != nil && index.exclude[m] {
-		return module.VersionError(m, errExcluded)
+	for _, mainModule := range MainModules.Versions() {
+		if index := MainModules.Index(mainModule); index != nil && index.exclude[m] {
+			return module.VersionError(m, errExcluded)
+		}
 	}
 	return nil
 }
@@ -170,7 +167,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
 		// Cannot be retracted.
 		return nil
 	}
-	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+	if repl, _ := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
 		// All versions of the module were replaced.
 		// Don't load retractions, since we'd just load the replacement.
 		return nil
@@ -187,11 +184,11 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
 	// We load the raw file here: the go.mod file may have a different module
 	// path that we expect if the module or its repository was renamed.
 	// We still want to apply retractions to other aliases of the module.
-	rm, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+	rm, replacedFrom, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
 	if err != nil {
 		return err
 	}
-	summary, err := rawGoModSummary(rm)
+	summary, err := rawGoModSummary(rm, replacedFrom)
 	if err != nil {
 		return err
 	}
@@ -289,51 +286,72 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
 		// Don't look up deprecation.
 		return "", nil
 	}
-	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+	if repl, _ := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
 		// All versions of the module were replaced.
 		// We'll look up deprecation separately for the replacement.
 		return "", nil
 	}
 
-	latest, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+	latest, replacedFrom, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
 	if err != nil {
 		return "", err
 	}
-	summary, err := rawGoModSummary(latest)
+	summary, err := rawGoModSummary(latest, replacedFrom)
 	if err != nil {
 		return "", err
 	}
 	return summary.deprecated, nil
 }
 
-// Replacement returns the replacement for mod, if any, from go.mod.
+func replacement(mod module.Version, index *modFileIndex) (fromVersion string, to module.Version, ok bool) {
+	if r, ok := index.replace[mod]; ok {
+		return mod.Version, r, true
+	}
+	if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
+		return "", r, true
+	}
+	return "", module.Version{}, false
+}
+
+// Replacement returns the replacement for mod, if any, and and the module root
+// directory of the main module containing the replace directive.
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
-func Replacement(mod module.Version) module.Version {
-	if index != nil {
-		if r, ok := index.replace[mod]; ok {
-			return r
-		}
-		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
-			return r
+func Replacement(mod module.Version) (module.Version, string) {
+	_ = TODOWorkspaces("Support replaces in the go.work file.")
+	foundFrom, found, foundModRoot := "", module.Version{}, ""
+	for _, v := range MainModules.Versions() {
+		if index := MainModules.Index(v); index != nil {
+			if from, r, ok := replacement(mod, index); ok {
+				modRoot := MainModules.ModRoot(v)
+				if foundModRoot != "" && foundFrom != from && found != r {
+					_ = TODOWorkspaces("once the go.work file supports replaces, recommend them as a way to override conflicts")
+					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
+						mod, modFilePath(foundModRoot), modFilePath(modRoot))
+					return found, foundModRoot
+				}
+				found, foundModRoot = r, modRoot
+			}
 		}
 	}
-	return module.Version{}
+	return found, foundModRoot
 }
 
 // resolveReplacement returns the module actually used to load the source code
 // for m: either m itself, or the replacement for m (iff m is replaced).
-func resolveReplacement(m module.Version) module.Version {
-	if r := Replacement(m); r.Path != "" {
-		return r
+// It also returns the modroot of the module providing the replacement if
+// one was found.
+func resolveReplacement(m module.Version) (module.Version, string) {
+	if r, replacedFrom := Replacement(m); r.Path != "" {
+		return r, replacedFrom
 	}
-	return m
+	return m, ""
 }
 
 // indexModFile rebuilds the index of modFile.
 // If modFile has been changed since it was first read,
 // modFile.Cleanup must be called before indexModFile.
-func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileIndex {
+func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsFix bool) *modFileIndex {
 	i := new(modFileIndex)
 	i.data = data
 	i.dataNeedsFix = needsFix
@@ -345,12 +363,12 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 
 	i.goVersionV = ""
 	if modFile.Go == nil {
-		rawGoVersion.Store(Target, "")
+		rawGoVersion.Store(mod, "")
 	} else {
 		// We're going to use the semver package to compare Go versions, so go ahead
 		// and add the "v" prefix it expects once instead of every time.
 		i.goVersionV = "v" + modFile.Go.Version
-		rawGoVersion.Store(Target, modFile.Go.Version)
+		rawGoVersion.Store(mod, modFile.Go.Version)
 	}
 
 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
@@ -490,8 +508,8 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
-	if m == Target {
-		panic("internal error: goModSummary called on the Target module")
+	if m.Version == "" && MainModules.Contains(m.Path) {
+		panic("internal error: goModSummary called on a main module")
 	}
 
 	if cfg.BuildMod == "vendor" {
@@ -506,7 +524,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 
 		// For every module other than the target,
 		// return the full list of modules from modules.txt.
-		readVendorList()
+		readVendorList(MainModules.mustGetSingleMainModule())
 
 		// We don't know what versions the vendored module actually relies on,
 		// so assume that it requires everything.
@@ -514,15 +532,15 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		return summary, nil
 	}
 
-	actual := resolveReplacement(m)
-	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
+	actual, replacedFrom := resolveReplacement(m)
+	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
 		if !modfetch.HaveSum(key) {
 			suggestion := fmt.Sprintf("; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
 	}
-	summary, err := rawGoModSummary(actual)
+	summary, err := rawGoModSummary(actual, replacedFrom)
 	if err != nil {
 		return nil, err
 	}
@@ -553,27 +571,29 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		}
 	}
 
-	if index != nil && len(index.exclude) > 0 {
-		// Drop any requirements on excluded versions.
-		// Don't modify the cached summary though, since we might need the raw
-		// summary separately.
-		haveExcludedReqs := false
-		for _, r := range summary.require {
-			if index.exclude[r] {
-				haveExcludedReqs = true
-				break
-			}
-		}
-		if haveExcludedReqs {
-			s := new(modFileSummary)
-			*s = *summary
-			s.require = make([]module.Version, 0, len(summary.require))
+	for _, mainModule := range MainModules.Versions() {
+		if index := MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
+			// Drop any requirements on excluded versions.
+			// Don't modify the cached summary though, since we might need the raw
+			// summary separately.
+			haveExcludedReqs := false
 			for _, r := range summary.require {
-				if !index.exclude[r] {
-					s.require = append(s.require, r)
+				if index.exclude[r] {
+					haveExcludedReqs = true
+					break
 				}
 			}
-			summary = s
+			if haveExcludedReqs {
+				s := new(modFileSummary)
+				*s = *summary
+				s.require = make([]module.Version, 0, len(summary.require))
+				for _, r := range summary.require {
+					if !index.exclude[r] {
+						s.require = append(s.require, r)
+					}
+				}
+				summary = s
+			}
 		}
 	}
 	return summary, nil
@@ -584,18 +604,23 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // its dependencies.
 //
 // rawGoModSummary cannot be used on the Target module.
-func rawGoModSummary(m module.Version) (*modFileSummary, error) {
-	if m == Target {
+
+func rawGoModSummary(m module.Version, replacedFrom string) (*modFileSummary, error) {
+	if m.Path == "" && MainModules.Contains(m.Path) {
 		panic("internal error: rawGoModSummary called on the Target module")
 	}
 
+	type key struct {
+		m            module.Version
+		replacedFrom string
+	}
 	type cached struct {
 		summary *modFileSummary
 		err     error
 	}
-	c := rawGoModSummaryCache.Do(m, func() interface{} {
+	c := rawGoModSummaryCache.Do(key{m, replacedFrom}, func() interface{} {
 		summary := new(modFileSummary)
-		name, data, err := rawGoModData(m)
+		name, data, err := rawGoModData(m, replacedFrom)
 		if err != nil {
 			return cached{nil, err}
 		}
@@ -645,12 +670,15 @@ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
 //
 // Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
 // Use rawGoModSummary instead unless you specifically need these bytes.
-func rawGoModData(m module.Version) (name string, data []byte, err error) {
+func rawGoModData(m module.Version, replacedFrom string) (name string, data []byte, err error) {
 	if m.Version == "" {
 		// m is a replacement module with only a file path.
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(ModRoot(), dir)
+			if replacedFrom == "" {
+				panic(fmt.Errorf("missing module root of main module providing replacement with relative path: %v", dir))
+			}
+			dir = filepath.Join(replacedFrom, dir)
 		}
 		name = filepath.Join(dir, "go.mod")
 		if gomodActual, ok := fsys.OverlayPath(name); ok {
@@ -685,19 +713,20 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 //
 // If the queried latest version is replaced,
 // queryLatestVersionIgnoringRetractions returns the replacement.
-func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
+func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, replacedFrom string, err error) {
 	type entry struct {
-		latest module.Version
-		err    error
+		latest       module.Version
+		replacedFrom string // if latest is a replacement
+		err          error
 	}
 	e := latestVersionIgnoringRetractionsCache.Do(path, func() interface{} {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 
-		if repl := Replacement(module.Version{Path: path}); repl.Path != "" {
+		if repl, replFrom := Replacement(module.Version{Path: path}); repl.Path != "" {
 			// All versions of the module were replaced.
 			// No need to query.
-			return &entry{latest: repl}
+			return &entry{latest: repl, replacedFrom: replFrom}
 		}
 
 		// Find the latest version of the module.
@@ -709,12 +738,12 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 			return &entry{err: err}
 		}
 		latest := module.Version{Path: path, Version: rev.Version}
-		if repl := resolveReplacement(latest); repl.Path != "" {
-			latest = repl
+		if repl, replFrom := resolveReplacement(latest); repl.Path != "" {
+			latest, replacedFrom = repl, replFrom
 		}
-		return &entry{latest: latest}
+		return &entry{latest: latest, replacedFrom: replacedFrom}
 	}).(*entry)
-	return e.latest, e.err
+	return e.latest, e.replacedFrom, e.err
 }
 
 var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result

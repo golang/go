@@ -251,7 +251,7 @@ stdout 'using example.com/version v1.0.1'
 # outside std.
 go run ./stdonly/stdonly.go
 stdout 'path is command-line-arguments$'
-stdout 'main is command-line-arguments \(devel\)'
+stdout 'main is  $'
 
 # 'go generate' should work with file arguments.
 [exec:touch] go generate ./needmod/needmod.go
