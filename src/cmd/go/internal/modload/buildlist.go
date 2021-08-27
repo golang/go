@@ -40,7 +40,7 @@ type Requirements struct {
 	depth modDepth
 
 	// rootModules is the set of module versions explicitly required by the main
-	// module, sorted and capped to length. It may contain duplicates, and may
+	// modules, sorted and capped to length. It may contain duplicates, and may
 	// contain multiple versions for a given module path.
 	rootModules    []module.Version
 	maxRootVersion map[string]string
@@ -99,8 +99,8 @@ var requirements *Requirements
 // *Requirements before any other method.
 func newRequirements(depth modDepth, rootModules []module.Version, direct map[string]bool) *Requirements {
 	for i, m := range rootModules {
-		if m == Target {
-			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is Target", i))
+		if m.Version == "" && MainModules.Contains(m.Path) {
+			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is a main module", i))
 		}
 		if m.Path == "" || m.Version == "" {
 			panic(fmt.Sprintf("bad requirement: rootModules[%v] = %v", i, m))
@@ -135,8 +135,13 @@ func newRequirements(depth modDepth, rootModules []module.Version, direct map[st
 func (rs *Requirements) initVendor(vendorList []module.Version) {
 	rs.graphOnce.Do(func() {
 		mg := &ModuleGraph{
-			g: mvs.NewGraph(cmpVersion, []module.Version{Target}),
+			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
 		}
+
+		if MainModules.Len() != 1 {
+			panic("There should be exactly one main module in Vendor mode.")
+		}
+		mainModule := MainModules.Versions()[0]
 
 		if rs.depth == lazy {
 			// The roots of a lazy module should already include every module in the
@@ -158,7 +163,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			// Now we can treat the rest of the module graph as effectively “pruned
 			// out”, like a more aggressive version of lazy loading: in vendor mode,
 			// the root requirements *are* the complete module graph.
-			mg.g.Require(Target, rs.rootModules)
+			mg.g.Require(mainModule, rs.rootModules)
 		} else {
 			// The transitive requirements of the main module are not in general available
 			// from the vendor directory, and we don't actually know how we got from
@@ -170,7 +175,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			// graph, but still distinguishes between direct and indirect
 			// dependencies.
 			vendorMod := module.Version{Path: "vendor/modules.txt", Version: ""}
-			mg.g.Require(Target, append(rs.rootModules, vendorMod))
+			mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
 			mg.g.Require(vendorMod, vendorList)
 		}
 
@@ -182,8 +187,8 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 // path, or the zero module.Version and ok=false if the module is not a root
 // dependency.
 func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
-	if path == Target.Path {
-		return Target.Version, true
+	if MainModules.Contains(path) {
+		return "", true
 	}
 	if v, ok := rs.maxRootVersion[path]; ok {
 		return v, true
@@ -197,7 +202,7 @@ func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
 // selection.
 func (rs *Requirements) hasRedundantRoot() bool {
 	for i, m := range rs.rootModules {
-		if m.Path == Target.Path || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
+		if MainModules.Contains(m.Path) || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
 			return true
 		}
 	}
@@ -274,10 +279,17 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
 		mu       sync.Mutex // guards mg.g and hasError during loading
 		hasError bool
 		mg       = &ModuleGraph{
-			g: mvs.NewGraph(cmpVersion, []module.Version{Target}),
+			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
 		}
 	)
-	mg.g.Require(Target, roots)
+	for _, m := range MainModules.Versions() {
+		// Require all roots from all main modules.
+		_ = TODOWorkspaces("This flattens a level of the module graph, adding the dependencies " +
+			"of all main modules to a single requirements struct, and losing the information of which " +
+			"main module required which requirement. Rework the requirements struct and change this" +
+			"to reflect the structure of the main modules.")
+		mg.g.Require(m, roots)
+	}
 
 	var (
 		loadQueue    = par.NewQueue(runtime.GOMAXPROCS(0))
@@ -404,10 +416,12 @@ func (mg *ModuleGraph) findError() error {
 }
 
 func (mg *ModuleGraph) allRootsSelected() bool {
-	roots, _ := mg.g.RequiredBy(Target)
-	for _, m := range roots {
-		if mg.Selected(m.Path) != m.Version {
-			return false
+	for _, mm := range MainModules.Versions() {
+		roots, _ := mg.g.RequiredBy(mm)
+		for _, m := range roots {
+			if mg.Selected(m.Path) != m.Version {
+				return false
+			}
 		}
 	}
 	return true
@@ -447,7 +461,7 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, modFileGoVersion(), rs)
+	commitRequirements(ctx, rs)
 	return mg
 }
 
@@ -513,7 +527,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	if err != nil {
 		return false, err
 	}
-	commitRequirements(ctx, modFileGoVersion(), rs)
+	commitRequirements(ctx, rs)
 	return changed, err
 }
 
@@ -546,10 +560,11 @@ type Conflict struct {
 // both retain the same versions of all packages in pkgs and satisfy the
 // lazy loading invariants (if applicable).
 func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
+	mainModule := MainModules.mustGetSingleMainModule()
 	if rs.depth == eager {
-		return tidyEagerRoots(ctx, rs.direct, pkgs)
+		return tidyEagerRoots(ctx, mainModule, rs.direct, pkgs)
 	}
-	return tidyLazyRoots(ctx, rs.direct, pkgs)
+	return tidyLazyRoots(ctx, mainModule, rs.direct, pkgs)
 }
 
 func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
@@ -574,10 +589,10 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 // To ensure that the loading process eventually converges, the caller should
 // add any needed roots from the tidy root set (without removing existing untidy
 // roots) until the set of roots has converged.
-func tidyLazyRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
+func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
 	var (
 		roots        []module.Version
-		pathIncluded = map[string]bool{Target.Path: true}
+		pathIncluded = map[string]bool{mainModule.Path: true}
 	)
 	// We start by adding roots for every package in "all".
 	//
@@ -807,7 +822,7 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 			// We've added or upgraded one or more roots, so load the full module
 			// graph so that we can update those roots to be consistent with other
 			// requirements.
-			if cfg.BuildMod != "mod" {
+			if mustHaveCompleteRequirements() {
 				// Our changes to the roots may have moved dependencies into or out of
 				// the lazy-loading horizon, which could in turn change the selected
 				// versions of other modules. (Unlike for eager modules, for lazy
@@ -855,7 +870,9 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
 		roots = make([]module.Version, 0, len(rs.rootModules))
 		rootsUpgraded = false
 		inRootPaths := make(map[string]bool, len(rs.rootModules)+1)
-		inRootPaths[Target.Path] = true
+		for _, mm := range MainModules.Versions() {
+			inRootPaths[mm.Path] = true
+		}
 		for _, m := range rs.rootModules {
 			if inRootPaths[m.Path] {
 				// This root specifies a redundant path. We already retained the
@@ -958,7 +975,7 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
 // tidyEagerRoots returns a minimal set of root requirements that maintains the
 // selected version of every module that provided a package in pkgs, and
 // includes the selected version of every such module in direct as a root.
-func tidyEagerRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
+func tidyEagerRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
 	var (
 		keep     []module.Version
 		keptPath = map[string]bool{}
@@ -981,7 +998,7 @@ func tidyEagerRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg
 		}
 	}
 
-	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
+	min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
 	if err != nil {
 		return nil, err
 	}
@@ -1011,7 +1028,7 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
 		return rs, err
 	}
 
-	if cfg.BuildMod != "mod" {
+	if mustHaveCompleteRequirements() {
 		// Instead of actually updating the requirements, just check that no updates
 		// are needed.
 		if rs == nil {
@@ -1070,7 +1087,7 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
 	// This is only for convenience and clarity for end users: in an eager module,
 	// the choice of explicit vs. implicit dependency has no impact on MVS
 	// selection (for itself or any other module).
-	keep := append(mg.BuildList()[1:], add...)
+	keep := append(mg.BuildList()[MainModules.Len():], add...)
 	for _, m := range keep {
 		if direct[m.Path] && !inRootPaths[m.Path] {
 			rootPaths = append(rootPaths, m.Path)
@@ -1078,16 +1095,25 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
 		}
 	}
 
-	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
-	if err != nil {
-		return rs, err
+	// TODO(matloob): Make roots into a map.
+	var roots []module.Version
+	for _, mainModule := range MainModules.Versions() {
+		min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
+		if err != nil {
+			return rs, err
+		}
+		roots = append(roots, min...)
 	}
-	if rs.depth == eager && reflect.DeepEqual(min, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+	if MainModules.Len() > 1 {
+		module.Sort(roots)
+	}
+	if rs.depth == eager && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
 		// The root set is unchanged and rs was already eager, so keep rs to
 		// preserve its cached ModuleGraph (if any).
 		return rs, nil
 	}
-	return newRequirements(eager, min, direct), nil
+
+	return newRequirements(eager, roots, direct), nil
 }
 
 // convertDepth returns a version of rs with the given depth.
@@ -1117,5 +1143,5 @@ func convertDepth(ctx context.Context, rs *Requirements, depth modDepth) (*Requi
 	if err != nil {
 		return rs, err
 	}
-	return newRequirements(lazy, mg.BuildList()[1:], rs.direct), nil
+	return newRequirements(lazy, mg.BuildList()[MainModules.Len():], rs.direct), nil
 }

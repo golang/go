@@ -74,7 +74,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 
-	vdir := filepath.Join(modload.ModRoot(), "vendor")
+	vdir := filepath.Join(modload.VendorDir())
 	if err := os.RemoveAll(vdir); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
@@ -82,7 +82,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
 		m := modload.PackageModule(pkg)
-		if m.Path == "" || m == modload.Target {
+		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
 			continue
 		}
 		modpkgs[m] = append(modpkgs[m], pkg)
@@ -128,7 +128,8 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	for _, m := range vendorMods {
-		line := moduleLine(m, modload.Replacement(m))
+		replacement, _ := modload.Replacement(m)
+		line := moduleLine(m, replacement)
 		io.WriteString(w, line)
 
 		goVersion := ""

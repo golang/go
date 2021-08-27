@@ -72,14 +72,18 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
 	}
 
 	if err == nil {
-		commitRequirements(ctx, modFileGoVersion(), rs)
+		commitRequirements(ctx, rs)
 	}
 	return mods, err
 }
 
 func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	if len(args) == 0 {
-		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, nil
+		var ms []*modinfo.ModulePublic
+		for _, m := range MainModules.Versions() {
+			ms = append(ms, moduleInfo(ctx, rs, m, mode))
+		}
+		return rs, ms, nil
 	}
 
 	needFullGraph := false
