@@ -247,7 +247,7 @@ func TestABIUtilsSliceString(t *testing.T) {
 	//      p6 int64, p6 []intr32) (r1 string, r2 int64, r3 string, r4 []int32)
 	i32 := types.Types[types.TINT32]
 	sli32 := types.NewSlice(i32)
-	str := types.New(types.TSTRING)
+	str := types.Types[types.TSTRING]
 	i8 := types.Types[types.TINT8]
 	i64 := types.Types[types.TINT64]
 	ft := mkFuncType(nil, []*types.Type{sli32, i8, sli32, i8, str, i8, i64, sli32},
