@@ -394,6 +394,11 @@ func xgetgoarm() string {
 		// windows/arm only works with ARMv7 executables.
 		return "7"
 	}
+	if goos == "netbsd" {
+		// NetBSD go/arm supports only earmv6hf or earmv7hf
+		// Any armv5 (or before) devices cannot work.
+		return "6"
+	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
 		return "5"
