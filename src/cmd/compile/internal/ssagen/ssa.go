@@ -96,6 +96,7 @@ func InitConfig() {
 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
 	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
 	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
+	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
 	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
 	ir.Syms.Deferreturn = typecheck.LookupRuntimeFunc("deferreturn")
@@ -366,6 +367,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
+	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
 
 	fe := ssafn{
 		curfn: fn,
@@ -709,6 +711,31 @@ func (s *state) newObject(typ *types.Type) *ssa.Value {
 	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, s.reflectType(typ))[0]
 }
 
+func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value) {
+	if !n.Type().IsPtr() {
+		s.Fatalf("expected pointer type: %v", n.Type())
+	}
+	elem := n.Type().Elem()
+	if count != nil {
+		if !elem.IsArray() {
+			s.Fatalf("expected array type: %v", elem)
+		}
+		elem = elem.Elem()
+	}
+	size := elem.Size()
+	// Casting from larger type to smaller one is ok, so for smallest type, do nothing.
+	if elem.Alignment() == 1 && (size == 0 || size == 1 || count == nil) {
+		return
+	}
+	if count == nil {
+		count = s.constInt(types.Types[types.TUINTPTR], 1)
+	}
+	if count.Type.Size() != s.config.PtrSize {
+		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
+	}
+	s.rtcall(ir.Syms.CheckPtrAlignment, true, nil, v, s.reflectType(elem), count)
+}
+
 // reflectType returns an SSA value representing a pointer to typ's
 // reflection type descriptor.
 func (s *state) reflectType(typ *types.Type) *ssa.Value {
@@ -861,10 +888,11 @@ type state struct {
 	// Used to deduplicate panic calls.
 	panics map[funcLine]*ssa.Block
 
-	cgoUnsafeArgs bool
-	hasdefer      bool // whether the function contains a defer statement
-	softFloat     bool
-	hasOpenDefers bool // whether we are doing open-coded defers
+	cgoUnsafeArgs   bool
+	hasdefer        bool // whether the function contains a defer statement
+	softFloat       bool
+	hasOpenDefers   bool // whether we are doing open-coded defers
+	checkPtrEnabled bool // whether to insert checkptr instrumentation
 
 	// If doing open-coded defers, list of info about the defer calls in
 	// scanning order. Hence, at exit we should run these defers in reverse
@@ -2494,6 +2522,10 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n ir.Node) *ssa.Value {
+	return s.exprCheckPtr(n, true)
+}
+
+func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 	if ir.HasUniquePos(n) {
 		// ONAMEs and named OLITERALs have the line number
 		// of the decl, not the use. See issue 14742.
@@ -2641,6 +2673,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 		// unsafe.Pointer <--> *T
 		if to.IsUnsafePtr() && from.IsPtrShaped() || from.IsUnsafePtr() && to.IsPtrShaped() {
+			if s.checkPtrEnabled && checkPtrOK && to.IsPtr() && from.IsUnsafePtr() {
+				s.checkPtrAlignment(n, v, nil)
+			}
 			return v
 		}
 
@@ -3081,7 +3116,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
-		v := s.expr(n.X)
+		check := s.checkPtrEnabled && n.Op() == ir.OSLICE3ARR && n.X.Op() == ir.OCONVNOP && n.X.(*ir.ConvExpr).X.Type().IsUnsafePtr()
+		v := s.exprCheckPtr(n.X, !check)
 		var i, j, k *ssa.Value
 		if n.Low != nil {
 			i = s.expr(n.Low)
@@ -3093,8 +3129,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 			k = s.expr(n.Max)
 		}
 		p, l, c := s.slice(v, i, j, k, n.Bounded())
-		if n.CheckPtrCall != nil {
-			s.stmt(n.CheckPtrCall)
+		if check {
+			// Emit checkptr instrumentation after bound check to prevent false positive, see #46938.
+			s.checkPtrAlignment(n.X.(*ir.ConvExpr), v, s.conv(n.Max, k, k.Type, types.Types[types.TUINTPTR]))
 		}
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 
