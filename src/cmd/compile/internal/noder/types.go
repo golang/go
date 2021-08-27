@@ -162,7 +162,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			//fmt.Printf("Saw new type %v %v\n", instName, ntyp.HasTParam())
 
 			// Save the symbol for the base generic type.
-			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
+			ntyp.SetOrigSym(g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name()))
 			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
 			if typ.NumMethods() != 0 {
 				// Save a delayed call to g.fillinMethods() (once

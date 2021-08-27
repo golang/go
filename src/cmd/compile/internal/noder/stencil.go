@@ -151,7 +151,7 @@ func (g *irgen) stencil() {
 				targs := deref(meth.Type().Recv().Type).RParams()
 
 				t := meth.X.Type()
-				baseSym := deref(t).OrigSym
+				baseSym := deref(t).OrigSym()
 				baseType := baseSym.Def.(*ir.Name).Type()
 				var gf *ir.Name
 				for _, m := range baseType.Methods().Slice() {
@@ -309,7 +309,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 			// actually generic, so no need to build a closure.
 			return x
 		}
-		baseType := recv.OrigSym.Def.Type()
+		baseType := recv.OrigSym().Def.Type()
 		var gf *ir.Name
 		for _, m := range baseType.Methods().Slice() {
 			if se.Sel == m.Sym {
@@ -493,7 +493,7 @@ func (g *irgen) instantiateMethods() {
 		typecheck.NeedRuntimeType(typ)
 		// Lookup the method on the base generic type, since methods may
 		// not be set on imported instantiated types.
-		baseSym := typ.OrigSym
+		baseSym := typ.OrigSym()
 		baseType := baseSym.Def.(*ir.Name).Type()
 		for j, _ := range typ.Methods().Slice() {
 			if baseType.Methods().Slice()[j].Nointerface() {
@@ -1465,7 +1465,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 					// instantiated type, so we need a
 					// sub-dictionary.
 					targs := recvType.RParams()
-					genRecvType := recvType.OrigSym.Def.Type()
+					genRecvType := recvType.OrigSym().Def.Type()
 					nameNode = typecheck.Lookdot1(call.X, se.Sel, genRecvType, genRecvType.Methods(), 1).Nname.(*ir.Name)
 					sym = g.getDictionarySym(nameNode, targs, true)
 				} else {
