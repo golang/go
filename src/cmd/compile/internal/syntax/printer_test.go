@@ -18,11 +18,7 @@ func TestPrint(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	// provide a no-op error handler so parsing doesn't stop after first error
-	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
 
 	if ast != nil {
 		Fprint(testOut(), ast, LineForm)

@@ -903,7 +903,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 		ir.EditChildren(m, edit)
 
 		m.SetTypecheck(1)
-		if typecheck.IsCmp(x.Op()) {
+		if x.Op().IsCmp() {
 			transformCompare(m.(*ir.BinaryExpr))
 		} else {
 			switch x.Op() {

@@ -84,7 +84,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
-	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
+	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
 
 	// Pseudo-package that contains the compiler's builtin
 	// declarations for package runtime. These are declared in a
