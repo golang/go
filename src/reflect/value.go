@@ -1515,15 +1515,21 @@ func (v Value) MapIndex(key Value) Value {
 	// considered unexported. This is consistent with the
 	// behavior for structs, which allow read but not write
 	// of unexported fields.
-	key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
 
-	var k unsafe.Pointer
-	if key.flag&flagIndir != 0 {
-		k = key.ptr
+	var e unsafe.Pointer
+	if key.kind() == String && tt.key.Kind() == String {
+		k := *(*string)(key.ptr)
+		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
-		k = unsafe.Pointer(&key.ptr)
+		key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
+		var k unsafe.Pointer
+		if key.flag&flagIndir != 0 {
+			k = key.ptr
+		} else {
+			k = unsafe.Pointer(&key.ptr)
+		}
+		e = mapaccess(v.typ, v.pointer(), k)
 	}
-	e := mapaccess(v.typ, v.pointer(), k)
 	if e == nil {
 		return Value{}
 	}
@@ -2121,6 +2127,25 @@ func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBeExported()
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
+
+	if key.kind() == String && tt.key.Kind() == String {
+		k := *(*string)(key.ptr)
+		if elem.typ == nil {
+			mapdelete_faststr(v.typ, v.pointer(), k)
+			return
+		}
+		elem.mustBeExported()
+		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+		var e unsafe.Pointer
+		if elem.flag&flagIndir != 0 {
+			e = elem.ptr
+		} else {
+			e = unsafe.Pointer(&elem.ptr)
+		}
+		mapassign_faststr(v.typ, v.pointer(), k, e)
+		return
+	}
+
 	key = key.assignTo("reflect.Value.SetMapIndex", tt.key, nil)
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
@@ -3253,10 +3278,19 @@ func makemap(t *rtype, cap int) (m unsafe.Pointer)
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
 
 //go:noescape
+func mapaccess_faststr(t *rtype, m unsafe.Pointer, key string) (val unsafe.Pointer)
+
+//go:noescape
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
 
 //go:noescape
+func mapassign_faststr(t *rtype, m unsafe.Pointer, key string, val unsafe.Pointer)
+
+//go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
+
+//go:noescape
+func mapdelete_faststr(t *rtype, m unsafe.Pointer, key string)
 
 //go:noescape
 func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter)
