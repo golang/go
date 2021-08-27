@@ -243,6 +243,11 @@ func (t *Type) Kind() Kind { return t.kind }
 func (t *Type) Sym() *Sym       { return t.sym }
 func (t *Type) SetSym(sym *Sym) { t.sym = sym }
 
+// OrigSym returns the name of the original generic type that t is an
+// instantiation of, if any.
+func (t *Type) OrigSym_() *Sym      { return t.OrigSym }
+func (t *Type) SetOrigSym(sym *Sym) { t.OrigSym = sym }
+
 // Underlying returns the underlying type of type t.
 func (t *Type) Underlying() *Type { return t.underlying }
 
