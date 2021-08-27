@@ -1,0 +1,9 @@
+-1:adm:adm:bootes
+0:none:adm:
+1:tor:tor:
+2:glenda:glenda:
+9999:noworld::
+10000:sys::
+10001:upas:upas:
+10002:bootes:bootes:
+test:test::

@@ -1,0 +1,24 @@
+##
+# Group Database
+#
+# Note that this file is consulted directly only when the system is running
+# in single-user mode.  At other times this information is provided by
+# Open Directory.
+#
+# See the opendirectoryd(8) man page for additional information about
+# Open Directory.
+##
+nobody:x:-2:
+nogroup:x:-1:
+wheel:x:0:root
+daemon:x:1:root
+kmem:x:2:root
+sys:x:3:root
+operator:x:5:root
+mail:x:6:_teamsserver
+tty:x:4:root
+bin:x:7:
+procview:x:8:root
+procmod:x:9:root
+owner:x:10:
+everyone:x:12:

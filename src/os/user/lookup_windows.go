@@ -346,6 +346,10 @@ func lookupGroup(groupname string) (*Group, error) {
 	return &Group{Name: groupname, Gid: sid}, nil
 }
 
+func isNotGroup(t uint32) bool {
+	return t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias
+}
+
 func lookupGroupId(gid string) (*Group, error) {
 	sid, err := syscall.StringToSid(gid)
 	if err != nil {
@@ -355,7 +359,7 @@ func lookupGroupId(gid string) (*Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t != syscall.SidTypeGroup && t != syscall.SidTypeWellKnownGroup && t != syscall.SidTypeAlias {
+	if isNotGroup(t) {
 		return nil, fmt.Errorf("lookupGroupId: should be group account type, not %d", t)
 	}
 	return &Group{Name: groupname, Gid: gid}, nil
