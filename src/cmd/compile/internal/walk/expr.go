@@ -807,15 +807,7 @@ func walkSend(n *ir.SendStmt, init *ir.Nodes) ir.Node {
 
 // walkSlice walks an OSLICE, OSLICEARR, OSLICESTR, OSLICE3, or OSLICE3ARR node.
 func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
-
-	checkSlice := ir.ShouldCheckPtr(ir.CurFunc, 1) && n.Op() == ir.OSLICE3ARR && n.X.Op() == ir.OCONVNOP && n.X.(*ir.ConvExpr).X.Type().IsUnsafePtr()
-	if checkSlice {
-		conv := n.X.(*ir.ConvExpr)
-		conv.X = walkExpr(conv.X, init)
-	} else {
-		n.X = walkExpr(n.X, init)
-	}
-
+	n.X = walkExpr(n.X, init)
 	n.Low = walkExpr(n.Low, init)
 	if n.Low != nil && ir.IsZero(n.Low) {
 		// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
@@ -823,9 +815,6 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
 	}
 	n.High = walkExpr(n.High, init)
 	n.Max = walkExpr(n.Max, init)
-	if checkSlice {
-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n)
-	}
 
 	if n.Op().IsSlice3() {
 		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
