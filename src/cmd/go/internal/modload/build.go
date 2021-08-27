@@ -80,7 +80,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		v  string
 		ok bool
 	)
-	if rs.depth == lazy {
+	if rs.pruning == pruned {
 		v, ok = rs.rootSelected(path)
 	}
 	if !ok {
