@@ -33,6 +33,9 @@ helperfuncs_test.go:45: 5
 helperfuncs_test.go:21: 6
 helperfuncs_test.go:44: 7
 helperfuncs_test.go:56: 8
+--- FAIL: Test/sub2 (?s)
+helperfuncs_test.go:71: 11
+helperfuncs_test.go:75: recover 12
 helperfuncs_test.go:64: 9
 helperfuncs_test.go:60: 10
 `
@@ -68,38 +71,6 @@ func TestTBHelperParallel(t *T) {
 	want := "helperfuncs_test.go:21: parallel"
 	if got := strings.TrimSpace(lines[1]); got != want {
 		t.Errorf("got output line %q; want %q", got, want)
-	}
-}
-
-func TestTBHelperLineNumer(t *T) {
-	var buf bytes.Buffer
-	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
-	t1 := &T{
-		common: common{
-			signal: make(chan bool),
-			w:      &buf,
-		},
-		context: ctx,
-	}
-	t1.Run("Test", func(t *T) {
-		helperA := func(t *T) {
-			t.Helper()
-			t.Run("subtest", func(t *T) {
-				t.Helper()
-				t.Fatal("fatal error message")
-			})
-		}
-		helperA(t)
-	})
-
-	want := "helper_test.go:92: fatal error message"
-	got := ""
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	if len(lines) > 0 {
-		got = strings.TrimSpace(lines[len(lines)-1])
-	}
-	if got != want {
-		t.Errorf("got output:\n\n%v\nwant:\n\n%v", got, want)
 	}
 }
 
