@@ -1060,7 +1060,7 @@ func (t *Type) SetFields(fields []*Field) {
 	// Rather than try to track and invalidate those,
 	// enforce that SetFields cannot be called once
 	// t's width has been calculated.
-	if t.WidthCalculated() {
+	if t.widthCalculated() {
 		base.Fatalf("SetFields of %v: width previously calculated", t)
 	}
 	t.wantEtype(TSTRUCT)
@@ -1082,10 +1082,6 @@ func (t *Type) SetFields(fields []*Field) {
 func (t *Type) SetInterface(methods []*Field) {
 	t.wantEtype(TINTER)
 	t.Methods().Set(methods)
-}
-
-func (t *Type) WidthCalculated() bool {
-	return t.align > 0
 }
 
 // ArgWidth returns the total aligned argument size for a function.

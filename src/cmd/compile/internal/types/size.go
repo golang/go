@@ -357,7 +357,7 @@ func CalcSize(t *Type) {
 		return
 	}
 
-	if t.WidthCalculated() {
+	if t.widthCalculated() {
 		return
 	}
 
@@ -568,6 +568,10 @@ func CalcStructSize(s *Type) {
 func RecalcSize(t *Type) {
 	t.align = 0
 	CalcSize(t)
+}
+
+func (t *Type) widthCalculated() bool {
+	return t.align > 0
 }
 
 // when a type's width should be known, we call CheckSize
