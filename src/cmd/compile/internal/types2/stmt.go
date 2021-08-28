@@ -264,15 +264,29 @@ L:
 	}
 }
 
+// isNil reports whether the expression e denotes the predeclared value nil.
+func (check *Checker) isNil(e syntax.Expr) bool {
+	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
+	if name, _ := unparen(e).(*syntax.Name); name != nil {
+		_, ok := check.lookup(name.Value).(*Nil)
+		return ok
+	}
+	return false
+}
+
 func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
+	var dummy operand
 L:
 	for _, e := range types {
-		T = check.typOrNil(e)
-		if T == Typ[Invalid] {
-			continue L
-		}
-		if T != nil {
-			check.ordinaryType(e.Pos(), T)
+		// The spec allows the value nil instead of a type.
+		if check.isNil(e) {
+			T = nil
+			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+		} else {
+			T = check.varType(e)
+			if T == Typ[Invalid] {
+				continue L
+			}
 		}
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
