@@ -59,9 +59,7 @@ func (l *TypeList) String() string {
 		return "[]"
 	}
 	var buf bytes.Buffer
-	buf.WriteByte('[')
-	writeTypeList(&buf, l.types, nil, nil)
-	buf.WriteByte(']')
+	newTypeWriter(&buf, nil).typeList(l.types)
 	return buf.String()
 }
 
