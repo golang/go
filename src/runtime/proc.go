@@ -4237,7 +4237,7 @@ func gfput(_p_ *p, gp *g) {
 
 	stksize := gp.stack.hi - gp.stack.lo
 
-	if stksize != _FixedStack {
+	if stksize != uintptr(startingStackSize) {
 		// non-standard stack size - free it.
 		stackfree(gp.stack)
 		gp.stack.lo = 0
@@ -4299,10 +4299,21 @@ retry:
 		return nil
 	}
 	_p_.gFree.n--
-	if gp.stack.lo == 0 {
-		// Stack was deallocated in gfput. Allocate a new one.
+	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
+		// Deallocate old stack. We kept it in gfput because it was the
+		// right size when the goroutine was put on the free list, but
+		// the right size has changed since then.
 		systemstack(func() {
-			gp.stack = stackalloc(_FixedStack)
+			stackfree(gp.stack)
+			gp.stack.lo = 0
+			gp.stack.hi = 0
+			gp.stackguard0 = 0
+		})
+	}
+	if gp.stack.lo == 0 {
+		// Stack was deallocated in gfput or just above. Allocate a new one.
+		systemstack(func() {
+			gp.stack = stackalloc(startingStackSize)
 		})
 		gp.stackguard0 = gp.stack.lo + _StackGuard
 	} else {
