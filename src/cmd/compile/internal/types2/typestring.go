@@ -207,7 +207,7 @@ func (w *typeWriter) typ(typ Type) {
 		// types. Write them to aid debugging, but don't write
 		// them when we need an instance hash: whether a type
 		// is fully expanded or not doesn't matter for identity.
-		if instanceHashing == 0 && t.instPos != nil {
+		if typeHashing == 0 && t.instPos != nil {
 			w.byte(instanceMarker)
 		}
 		w.typeName(t.obj)
@@ -291,7 +291,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 
 func (w *typeWriter) typeName(obj *TypeName) {
 	if obj == nil {
-		assert(instanceHashing == 0) // we need an object for instance hashing
+		assert(typeHashing == 0) // we need an object for type hashing
 		w.string("<Named w/o object>")
 		return
 	}
@@ -300,17 +300,18 @@ func (w *typeWriter) typeName(obj *TypeName) {
 	}
 	w.string(obj.name)
 
-	if instanceHashing != 0 {
+	if typeHashing != 0 {
 		// For local defined types, use the (original!) TypeName's scope
 		// numbers to disambiguate.
-		typ := obj.typ.(*Named)
-		// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
-		//           and whether the loop can iterate more than twice.
-		//           (It seems somehow connected to instance types.)
-		for typ.orig != typ {
-			typ = typ.orig
+		if typ, _ := obj.typ.(*Named); typ != nil {
+			// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
+			//           and whether the loop can iterate more than twice.
+			//           (It seems somehow connected to instance types.)
+			for typ.orig != typ {
+				typ = typ.orig
+			}
+			w.writeScopeNumbers(typ.obj.parent)
 		}
-		w.writeScopeNumbers(typ.obj.parent)
 	}
 }
 
@@ -332,7 +333,8 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 			if i > 0 {
 				w.string(", ")
 			}
-			if v.name != "" {
+			// parameter names are ignored for type identity and thus type hashes
+			if typeHashing == 0 && v.name != "" {
 				w.string(v.name)
 				w.byte(' ')
 			}
@@ -380,8 +382,8 @@ func (w *typeWriter) signature(sig *Signature) {
 	}
 
 	w.byte(' ')
-	if n == 1 && sig.results.vars[0].name == "" {
-		// single unnamed result
+	if n == 1 && (typeHashing != 0 || sig.results.vars[0].name == "") {
+		// single unnamed result (if typeHashing, name must be ignored)
 		w.typ(sig.results.vars[0].typ)
 		return
 	}
