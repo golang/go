@@ -146,10 +146,11 @@ const (
 	stdFracSecond0                                 // ".0", ".00", ... , trailing zeros included
 	stdFracSecond9                                 // ".9", ".99", ..., trailing zeros omitted
 
-	stdNeedDate  = 1 << 8             // need month, day, year
-	stdNeedClock = 2 << 8             // need hour, minute, second
-	stdArgShift  = 16                 // extra argument in high bits, above low stdArgShift
-	stdMask      = 1<<stdArgShift - 1 // mask out argument
+	stdNeedDate       = 1 << 8             // need month, day, year
+	stdNeedClock      = 2 << 8             // need hour, minute, second
+	stdArgShift       = 16                 // extra argument in high bits, above low stdArgShift
+	stdSeparatorShift = 28                 // extra argument in high 4 bits for fractional second separators
+	stdMask           = 1<<stdArgShift - 1 // mask out argument
 )
 
 // std0x records the std values for "01", "02", ..., "06".
@@ -289,11 +290,11 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 				}
 				// String of digits must end here - only fractional second is all digits.
 				if !isDigit(layout, j) {
-					std := stdFracSecond0
+					code := stdFracSecond0
 					if layout[i+1] == '9' {
-						std = stdFracSecond9
+						code = stdFracSecond9
 					}
-					std |= (j - (i + 1)) << stdArgShift
+					std := stdFracSecond(code, j-(i+1), c)
 					return layout[0:i], std, layout[j:]
 				}
 			}
@@ -430,9 +431,36 @@ func atoi(s string) (x int, err error) {
 	return x, nil
 }
 
+// The "std" value passed to formatNano contains two packed fields: the number of
+// digits after the decimal and the separator character (period or comma).
+// These functions pack and unpack that variable.
+func stdFracSecond(code, n, c int) int {
+	// Use 0xfff to make the failure case even more absurd.
+	if c == '.' {
+		return code | ((n & 0xfff) << stdArgShift)
+	}
+	return code | ((n & 0xfff) << stdArgShift) | 1<<stdSeparatorShift
+}
+
+func digitsLen(std int) int {
+	return (std >> stdArgShift) & 0xfff
+}
+
+func separator(std int) byte {
+	if (std >> stdSeparatorShift) == 0 {
+		return '.'
+	}
+	return ','
+}
+
 // formatNano appends a fractional second, as nanoseconds, to b
 // and returns the result.
-func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
+func formatNano(b []byte, nanosec uint, std int) []byte {
+	var (
+		n         = digitsLen(std)
+		separator = separator(std)
+		trim      = std&stdMask == stdFracSecond9
+	)
 	u := nanosec
 	var buf [9]byte
 	for start := len(buf); start > 0; {
@@ -452,7 +480,7 @@ func formatNano(b []byte, nanosec uint, n int, trim bool) []byte {
 			return b
 		}
 	}
-	b = append(b, '.')
+	b = append(b, separator)
 	return append(b, buf[:n]...)
 }
 
@@ -732,7 +760,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 			b = appendInt(b, zone/60, 2)
 			b = appendInt(b, zone%60, 2)
 		case stdFracSecond0, stdFracSecond9:
-			b = formatNano(b, uint(t.Nanosecond()), std>>stdArgShift, std&stdMask == stdFracSecond9)
+			b = formatNano(b, uint(t.Nanosecond()), std)
 		}
 	}
 	return b
@@ -1164,7 +1192,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		case stdFracSecond0:
 			// stdFracSecond0 requires the exact number of digits as specified in
 			// the layout.
-			ndigit := 1 + (std >> stdArgShift)
+			ndigit := 1 + digitsLen(std)
 			if len(value) < ndigit {
 				err = errBad
 				break
