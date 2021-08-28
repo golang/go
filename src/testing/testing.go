@@ -483,6 +483,9 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 	var firstFrame, prevFrame, frame runtime.Frame
 	for more := true; more; prevFrame = frame {
 		frame, more = frames.Next()
+		if frame.Function == "runtime.gopanic" {
+			continue
+		}
 		if frame.Function == c.cleanupName {
 			frames = runtime.CallersFrames(c.cleanupPc)
 			continue
