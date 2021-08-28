@@ -885,6 +885,8 @@ top:
 		goto top
 	}
 
+	gcComputeStartingStackSize()
+
 	// Disable assists and background workers. We must do
 	// this before waking blocked assists.
 	atomic.Store(&gcBlackenEnabled, 0)
@@ -1111,7 +1113,7 @@ func gcMarkTermination() {
 		print(" ms cpu, ",
 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
 			gcController.heapGoal()>>20, " MB goal, ",
-			gcController.stackScan>>20, " MB stacks, ",
+			atomic.Load64(&gcController.maxStackScan)>>20, " MB stacks, ",
 			gcController.globalsScan>>20, " MB globals, ",
 			work.maxprocs, " P")
 		if work.userForced {

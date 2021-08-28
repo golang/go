@@ -597,6 +597,39 @@ func BenchmarkStackCopyWithStkobj(b *testing.B) {
 	}
 }
 
+func BenchmarkIssue18138(b *testing.B) {
+	// Channel with N "can run a goroutine" tokens
+	const N = 10
+	c := make(chan []byte, N)
+	for i := 0; i < N; i++ {
+		c <- make([]byte, 1)
+	}
+
+	for i := 0; i < b.N; i++ {
+		<-c // get token
+		go func() {
+			useStackPtrs(1000, false) // uses ~1MB max
+			m := make([]byte, 8192)   // make GC trigger occasionally
+			c <- m                    // return token
+		}()
+	}
+}
+
+func useStackPtrs(n int, b bool) {
+	if b {
+		// This code contributes to the stack frame size, and hence to the
+		// stack copying cost. But since b is always false, it costs no
+		// execution time (not even the zeroing of a).
+		var a [128]*int // 1KB of pointers
+		a[n] = &n
+		n = *a[0]
+	}
+	if n == 0 {
+		return
+	}
+	useStackPtrs(n-1, b)
+}
+
 type structWithMethod struct{}
 
 func (s structWithMethod) caller() string {

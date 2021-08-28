@@ -102,6 +102,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/gc/pauses:seconds
 		Distribution individual GC-related stop-the-world pause latencies.
 
+	/gc/stack/starting-size:bytes
+		The stack size of new goroutines.
+
 	/memory/classes/heap/free:bytes
 		Memory that is completely free and eligible to be returned to
 		the underlying system, but has not been. This metric is the

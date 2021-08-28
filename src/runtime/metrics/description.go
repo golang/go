@@ -141,6 +141,12 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
+		Name:        "/gc/stack/starting-size:bytes",
+		Description: "The stack size of new goroutines.",
+		Kind:        KindUint64,
+		Cumulative:  false,
+	},
+	{
 		Name: "/memory/classes/heap/free:bytes",
 		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
 			"but has not been. This metric is the runtime's estimate of free address space that is backed by " +
