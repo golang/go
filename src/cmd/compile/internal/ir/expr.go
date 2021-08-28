@@ -574,7 +574,7 @@ type SliceExpr struct {
 	Low          Node
 	High         Node
 	Max          Node
-	CheckPtrCall *CallExpr
+	CheckPtrCall *CallExpr `mknode:"-"`
 }
 
 func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {
