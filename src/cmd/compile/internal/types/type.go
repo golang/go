@@ -1680,19 +1680,6 @@ func (t *Type) HasPointers() bool {
 	return PtrDataSize(t) > 0
 }
 
-// Tie returns 'T' if t is a concrete type,
-// 'I' if t is an interface type, and 'E' if t is an empty interface type.
-// It is used to build calls to the conv* and assert* runtime routines.
-func (t *Type) Tie() byte {
-	if t.IsEmptyInterface() {
-		return 'E'
-	}
-	if t.IsInterface() {
-		return 'I'
-	}
-	return 'T'
-}
-
 var recvType *Type
 
 // FakeRecvType returns the singleton type used for interface method receivers.
