@@ -1681,43 +1681,7 @@ func (t *Type) IsUntyped() bool {
 // HasPointers reports whether t contains a heap pointer.
 // Note that this function ignores pointers to go:notinheap types.
 func (t *Type) HasPointers() bool {
-	switch t.kind {
-	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
-		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
-		return false
-
-	case TARRAY:
-		if t.NumElem() == 0 { // empty array has no pointers
-			return false
-		}
-		return t.Elem().HasPointers()
-
-	case TSTRUCT:
-		for _, t1 := range t.Fields().Slice() {
-			if t1.Type.HasPointers() {
-				return true
-			}
-		}
-		return false
-
-	case TPTR, TSLICE:
-		return !t.Elem().NotInHeap()
-
-	case TTUPLE:
-		ttup := t.extra.(*Tuple)
-		return ttup.first.HasPointers() || ttup.second.HasPointers()
-
-	case TRESULTS:
-		types := t.extra.(*Results).Types
-		for _, et := range types {
-			if et.HasPointers() {
-				return true
-			}
-		}
-		return false
-	}
-
-	return true
+	return PtrDataSize(t) > 0
 }
 
 // Tie returns 'T' if t is a concrete type,

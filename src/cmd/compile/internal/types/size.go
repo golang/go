@@ -630,17 +630,23 @@ func ResumeCheckSize() {
 
 // PtrDataSize returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
+//
+// PtrDataSize is only defined for actual Go types. It's an error to
+// use it on compiler-internal types (e.g., TSSA, TRESULTS).
 func PtrDataSize(t *Type) int64 {
-	if !t.HasPointers() {
-		return 0
-	}
-
 	switch t.Kind() {
-	case TPTR,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
+	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
+		TUINT32, TINT64, TUINT64, TINT, TUINT,
+		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
+		return 0
+
+	case TPTR:
+		if t.Elem().NotInHeap() {
+			return 0
+		}
+		return int64(PtrSize)
+
+	case TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		return int64(PtrSize)
 
 	case TSTRING:
@@ -654,24 +660,32 @@ func PtrDataSize(t *Type) int64 {
 		return 2 * int64(PtrSize)
 
 	case TSLICE:
+		if t.Elem().NotInHeap() {
+			return 0
+		}
 		// struct { byte *array; uintgo len; uintgo cap; }
 		return int64(PtrSize)
 
 	case TARRAY:
-		// haspointers already eliminated t.NumElem() == 0.
-		return (t.NumElem()-1)*t.Elem().width + PtrDataSize(t.Elem())
+		if t.NumElem() == 0 {
+			return 0
+		}
+		// t.NumElem() > 0
+		size := PtrDataSize(t.Elem())
+		if size == 0 {
+			return 0
+		}
+		return (t.NumElem()-1)*t.Elem().Size() + size
 
 	case TSTRUCT:
-		// Find the last field that has pointers.
-		var lastPtrField *Field
+		// Find the last field that has pointers, if any.
 		fs := t.Fields().Slice()
 		for i := len(fs) - 1; i >= 0; i-- {
-			if fs[i].Type.HasPointers() {
-				lastPtrField = fs[i]
-				break
+			if size := PtrDataSize(fs[i].Type); size > 0 {
+				return fs[i].Offset + size
 			}
 		}
-		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
+		return 0
 
 	default:
 		base.Fatalf("PtrDataSize: unexpected type, %v", t)

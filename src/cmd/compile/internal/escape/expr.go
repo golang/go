@@ -30,7 +30,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		base.Pos = lno
 	}()
 
-	if k.derefs >= 0 && !n.Type().HasPointers() {
+	if k.derefs >= 0 && !n.Type().IsUntyped() && !n.Type().HasPointers() {
 		k.dst = &e.blankLoc
 	}
 
