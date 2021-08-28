@@ -398,30 +398,6 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	return typ
 }
 
-// typeOrNil type-checks the type expression (or nil value) e
-// and returns the type of e, or nil. If e is a type, it must
-// not be an (uninstantiated) generic type.
-// If e is neither a type nor nil, typeOrNil returns Typ[Invalid].
-// TODO(gri) should we also disallow non-var types?
-func (check *Checker) typOrNil(e syntax.Expr) Type {
-	var x operand
-	check.rawExpr(&x, e, nil)
-	switch x.mode {
-	case invalid:
-		// ignore - error reported before
-	case novalue:
-		check.errorf(&x, "%s used as type", &x)
-	case typexpr:
-		check.instantiatedOperand(&x)
-		return x.typ
-	case nilvalue:
-		return nil
-	default:
-		check.errorf(&x, "%s is not a type", &x)
-	}
-	return Typ[Invalid]
-}
-
 func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
 	gtyp := check.genericType(x, true)
 	if gtyp == Typ[Invalid] {
