@@ -27,12 +27,6 @@ type TypeObject interface {
 	TypeDefn() *Type // for "type T Defn", returns Defn
 }
 
-// A VarObject is an Object representing a function argument, variable, or struct field.
-type VarObject interface {
-	Object
-	RecordFrameOffset(int64) // save frame offset
-}
-
 //go:generate stringer -type Kind -trimprefix T type.go
 
 // Kind describes a kind of type.
@@ -1726,7 +1720,7 @@ var (
 // type should be set later via SetUnderlying(). References to the type are
 // maintained until the type is filled in, so those references can be updated when
 // the type is complete.
-func NewNamed(obj Object) *Type {
+func NewNamed(obj TypeObject) *Type {
 	t := newType(TFORW)
 	t.sym = obj.Sym()
 	t.nod = obj
