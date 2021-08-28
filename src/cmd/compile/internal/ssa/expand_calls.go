@@ -24,7 +24,7 @@ type selKey struct {
 type Abi1RO uint8 // An offset within a parameter's slice of register indices, for abi1.
 
 func isBlockMultiValueExit(b *Block) bool {
-	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && len(b.Controls) > 0 && b.Controls[0].Op == OpMakeResult
+	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == OpMakeResult
 }
 
 func badVal(s string, v *Value) error {
