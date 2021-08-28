@@ -2387,6 +2387,175 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
 	return x
 }
 
+func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
+	if ft.IsBoolean() && tt.IsKind(types.TUINT8) {
+		// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
+		return s.newValue1(ssa.OpCopy, tt, v)
+	}
+	if ft.IsInteger() && tt.IsInteger() {
+		var op ssa.Op
+		if tt.Size() == ft.Size() {
+			op = ssa.OpCopy
+		} else if tt.Size() < ft.Size() {
+			// truncation
+			switch 10*ft.Size() + tt.Size() {
+			case 21:
+				op = ssa.OpTrunc16to8
+			case 41:
+				op = ssa.OpTrunc32to8
+			case 42:
+				op = ssa.OpTrunc32to16
+			case 81:
+				op = ssa.OpTrunc64to8
+			case 82:
+				op = ssa.OpTrunc64to16
+			case 84:
+				op = ssa.OpTrunc64to32
+			default:
+				s.Fatalf("weird integer truncation %v -> %v", ft, tt)
+			}
+		} else if ft.IsSigned() {
+			// sign extension
+			switch 10*ft.Size() + tt.Size() {
+			case 12:
+				op = ssa.OpSignExt8to16
+			case 14:
+				op = ssa.OpSignExt8to32
+			case 18:
+				op = ssa.OpSignExt8to64
+			case 24:
+				op = ssa.OpSignExt16to32
+			case 28:
+				op = ssa.OpSignExt16to64
+			case 48:
+				op = ssa.OpSignExt32to64
+			default:
+				s.Fatalf("bad integer sign extension %v -> %v", ft, tt)
+			}
+		} else {
+			// zero extension
+			switch 10*ft.Size() + tt.Size() {
+			case 12:
+				op = ssa.OpZeroExt8to16
+			case 14:
+				op = ssa.OpZeroExt8to32
+			case 18:
+				op = ssa.OpZeroExt8to64
+			case 24:
+				op = ssa.OpZeroExt16to32
+			case 28:
+				op = ssa.OpZeroExt16to64
+			case 48:
+				op = ssa.OpZeroExt32to64
+			default:
+				s.Fatalf("weird integer sign extension %v -> %v", ft, tt)
+			}
+		}
+		return s.newValue1(op, tt, v)
+	}
+
+	if ft.IsFloat() || tt.IsFloat() {
+		conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+		if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
+			if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+				conv = conv1
+			}
+		}
+		if Arch.LinkArch.Family == sys.ARM64 || Arch.LinkArch.Family == sys.Wasm || Arch.LinkArch.Family == sys.S390X || s.softFloat {
+			if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+				conv = conv1
+			}
+		}
+
+		if Arch.LinkArch.Family == sys.MIPS && !s.softFloat {
+			if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
+				// tt is float32 or float64, and ft is also unsigned
+				if tt.Size() == 4 {
+					return s.uint32Tofloat32(n, v, ft, tt)
+				}
+				if tt.Size() == 8 {
+					return s.uint32Tofloat64(n, v, ft, tt)
+				}
+			} else if tt.Size() == 4 && tt.IsInteger() && !tt.IsSigned() {
+				// ft is float32 or float64, and tt is unsigned integer
+				if ft.Size() == 4 {
+					return s.float32ToUint32(n, v, ft, tt)
+				}
+				if ft.Size() == 8 {
+					return s.float64ToUint32(n, v, ft, tt)
+				}
+			}
+		}
+
+		if !ok {
+			s.Fatalf("weird float conversion %v -> %v", ft, tt)
+		}
+		op1, op2, it := conv.op1, conv.op2, conv.intermediateType
+
+		if op1 != ssa.OpInvalid && op2 != ssa.OpInvalid {
+			// normal case, not tripping over unsigned 64
+			if op1 == ssa.OpCopy {
+				if op2 == ssa.OpCopy {
+					return v
+				}
+				return s.newValueOrSfCall1(op2, tt, v)
+			}
+			if op2 == ssa.OpCopy {
+				return s.newValueOrSfCall1(op1, tt, v)
+			}
+			return s.newValueOrSfCall1(op2, tt, s.newValueOrSfCall1(op1, types.Types[it], v))
+		}
+		// Tricky 64-bit unsigned cases.
+		if ft.IsInteger() {
+			// tt is float32 or float64, and ft is also unsigned
+			if tt.Size() == 4 {
+				return s.uint64Tofloat32(n, v, ft, tt)
+			}
+			if tt.Size() == 8 {
+				return s.uint64Tofloat64(n, v, ft, tt)
+			}
+			s.Fatalf("weird unsigned integer to float conversion %v -> %v", ft, tt)
+		}
+		// ft is float32 or float64, and tt is unsigned integer
+		if ft.Size() == 4 {
+			return s.float32ToUint64(n, v, ft, tt)
+		}
+		if ft.Size() == 8 {
+			return s.float64ToUint64(n, v, ft, tt)
+		}
+		s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
+		return nil
+	}
+
+	if ft.IsComplex() && tt.IsComplex() {
+		var op ssa.Op
+		if ft.Size() == tt.Size() {
+			switch ft.Size() {
+			case 8:
+				op = ssa.OpRound32F
+			case 16:
+				op = ssa.OpRound64F
+			default:
+				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+			}
+		} else if ft.Size() == 8 && tt.Size() == 16 {
+			op = ssa.OpCvt32Fto64F
+		} else if ft.Size() == 16 && tt.Size() == 8 {
+			op = ssa.OpCvt64Fto32F
+		} else {
+			s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+		}
+		ftp := types.FloatForComplex(ft)
+		ttp := types.FloatForComplex(tt)
+		return s.newValue2(ssa.OpComplexMake, tt,
+			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, v)),
+			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, v)))
+	}
+
+	s.Fatalf("unhandled OCONV %s -> %s", ft.Kind(), tt.Kind())
+	return nil
+}
+
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n ir.Node) *ssa.Value {
 	if ir.HasUniquePos(n) {
@@ -2574,174 +2743,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 	case ir.OCONV:
 		n := n.(*ir.ConvExpr)
 		x := s.expr(n.X)
-		ft := n.X.Type() // from type
-		tt := n.Type()   // to type
-		if ft.IsBoolean() && tt.IsKind(types.TUINT8) {
-			// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
-			return s.newValue1(ssa.OpCopy, n.Type(), x)
-		}
-		if ft.IsInteger() && tt.IsInteger() {
-			var op ssa.Op
-			if tt.Size() == ft.Size() {
-				op = ssa.OpCopy
-			} else if tt.Size() < ft.Size() {
-				// truncation
-				switch 10*ft.Size() + tt.Size() {
-				case 21:
-					op = ssa.OpTrunc16to8
-				case 41:
-					op = ssa.OpTrunc32to8
-				case 42:
-					op = ssa.OpTrunc32to16
-				case 81:
-					op = ssa.OpTrunc64to8
-				case 82:
-					op = ssa.OpTrunc64to16
-				case 84:
-					op = ssa.OpTrunc64to32
-				default:
-					s.Fatalf("weird integer truncation %v -> %v", ft, tt)
-				}
-			} else if ft.IsSigned() {
-				// sign extension
-				switch 10*ft.Size() + tt.Size() {
-				case 12:
-					op = ssa.OpSignExt8to16
-				case 14:
-					op = ssa.OpSignExt8to32
-				case 18:
-					op = ssa.OpSignExt8to64
-				case 24:
-					op = ssa.OpSignExt16to32
-				case 28:
-					op = ssa.OpSignExt16to64
-				case 48:
-					op = ssa.OpSignExt32to64
-				default:
-					s.Fatalf("bad integer sign extension %v -> %v", ft, tt)
-				}
-			} else {
-				// zero extension
-				switch 10*ft.Size() + tt.Size() {
-				case 12:
-					op = ssa.OpZeroExt8to16
-				case 14:
-					op = ssa.OpZeroExt8to32
-				case 18:
-					op = ssa.OpZeroExt8to64
-				case 24:
-					op = ssa.OpZeroExt16to32
-				case 28:
-					op = ssa.OpZeroExt16to64
-				case 48:
-					op = ssa.OpZeroExt32to64
-				default:
-					s.Fatalf("weird integer sign extension %v -> %v", ft, tt)
-				}
-			}
-			return s.newValue1(op, n.Type(), x)
-		}
-
-		if ft.IsFloat() || tt.IsFloat() {
-			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
-				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
-					conv = conv1
-				}
-			}
-			if Arch.LinkArch.Family == sys.ARM64 || Arch.LinkArch.Family == sys.Wasm || Arch.LinkArch.Family == sys.S390X || s.softFloat {
-				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
-					conv = conv1
-				}
-			}
-
-			if Arch.LinkArch.Family == sys.MIPS && !s.softFloat {
-				if ft.Size() == 4 && ft.IsInteger() && !ft.IsSigned() {
-					// tt is float32 or float64, and ft is also unsigned
-					if tt.Size() == 4 {
-						return s.uint32Tofloat32(n, x, ft, tt)
-					}
-					if tt.Size() == 8 {
-						return s.uint32Tofloat64(n, x, ft, tt)
-					}
-				} else if tt.Size() == 4 && tt.IsInteger() && !tt.IsSigned() {
-					// ft is float32 or float64, and tt is unsigned integer
-					if ft.Size() == 4 {
-						return s.float32ToUint32(n, x, ft, tt)
-					}
-					if ft.Size() == 8 {
-						return s.float64ToUint32(n, x, ft, tt)
-					}
-				}
-			}
-
-			if !ok {
-				s.Fatalf("weird float conversion %v -> %v", ft, tt)
-			}
-			op1, op2, it := conv.op1, conv.op2, conv.intermediateType
-
-			if op1 != ssa.OpInvalid && op2 != ssa.OpInvalid {
-				// normal case, not tripping over unsigned 64
-				if op1 == ssa.OpCopy {
-					if op2 == ssa.OpCopy {
-						return x
-					}
-					return s.newValueOrSfCall1(op2, n.Type(), x)
-				}
-				if op2 == ssa.OpCopy {
-					return s.newValueOrSfCall1(op1, n.Type(), x)
-				}
-				return s.newValueOrSfCall1(op2, n.Type(), s.newValueOrSfCall1(op1, types.Types[it], x))
-			}
-			// Tricky 64-bit unsigned cases.
-			if ft.IsInteger() {
-				// tt is float32 or float64, and ft is also unsigned
-				if tt.Size() == 4 {
-					return s.uint64Tofloat32(n, x, ft, tt)
-				}
-				if tt.Size() == 8 {
-					return s.uint64Tofloat64(n, x, ft, tt)
-				}
-				s.Fatalf("weird unsigned integer to float conversion %v -> %v", ft, tt)
-			}
-			// ft is float32 or float64, and tt is unsigned integer
-			if ft.Size() == 4 {
-				return s.float32ToUint64(n, x, ft, tt)
-			}
-			if ft.Size() == 8 {
-				return s.float64ToUint64(n, x, ft, tt)
-			}
-			s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
-			return nil
-		}
-
-		if ft.IsComplex() && tt.IsComplex() {
-			var op ssa.Op
-			if ft.Size() == tt.Size() {
-				switch ft.Size() {
-				case 8:
-					op = ssa.OpRound32F
-				case 16:
-					op = ssa.OpRound64F
-				default:
-					s.Fatalf("weird complex conversion %v -> %v", ft, tt)
-				}
-			} else if ft.Size() == 8 && tt.Size() == 16 {
-				op = ssa.OpCvt32Fto64F
-			} else if ft.Size() == 16 && tt.Size() == 8 {
-				op = ssa.OpCvt64Fto32F
-			} else {
-				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
-			}
-			ftp := types.FloatForComplex(ft)
-			ttp := types.FloatForComplex(tt)
-			return s.newValue2(ssa.OpComplexMake, tt,
-				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
-				s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
-		}
-
-		s.Fatalf("unhandled OCONV %s -> %s", n.X.Type().Kind(), n.Type().Kind())
-		return nil
+		return s.conv(n, x, n.X.Type(), n.Type())
 
 	case ir.ODOTTYPE:
 		n := n.(*ir.TypeAssertExpr)
