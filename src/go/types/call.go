@@ -470,7 +470,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		goto Error
 	}
 
-	check.instantiatedOperand(x)
+	if x.mode == typexpr {
+		x.typ = check.varType(e.X)
+	}
 
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
@@ -743,13 +745,5 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 		if v != nil {
 			v.used = v_used // restore v.used
 		}
-	}
-}
-
-// instantiatedOperand reports an error of x is an uninstantiated (generic) type and sets x.typ to Typ[Invalid].
-func (check *Checker) instantiatedOperand(x *operand) {
-	if x.mode == typexpr && isGeneric(x.typ) {
-		check.errorf(x, _Todo, "cannot use generic type %s without instantiation", x.typ)
-		x.typ = Typ[Invalid]
 	}
 }
