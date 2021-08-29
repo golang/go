@@ -550,10 +550,7 @@
 	;                                  \
 	ADDL  y3, h                        // h = t1 + S0 + MAJ					// --
 
-TEXT ·block(SB), 0, $536-32
-	CMPB ·useAVX2(SB), $1
-	JE   avx2
-
+TEXT ·blockAMD64(SB), 0, $536-32
 	MOVQ p_base+8(FP), SI
 	MOVQ p_len+16(FP), DX
 	SHRQ $6, DX
@@ -668,7 +665,7 @@ loop:
 end:
 	RET
 
-avx2:
+TEXT ·blockAVX2(SB), 0, $536-32
 	MOVQ dig+0(FP), CTX          // d.h[8]
 	MOVQ p_base+8(FP), INP
 	MOVQ p_len+16(FP), NUM_BYTES
