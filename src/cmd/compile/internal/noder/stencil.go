@@ -1095,6 +1095,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// or channel receive to compute function value.
 				transformCall(call)
 
+			case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.ODYNAMICDOTTYPE:
+				transformCall(call)
+
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
 				// in stencil() once we have created & attached the
