@@ -1498,3 +1498,237 @@ DATA BSWAP_SHUFB_CTL<>+0x14(SB)/4,$0x04050607
 DATA BSWAP_SHUFB_CTL<>+0x18(SB)/4,$0x08090a0b
 DATA BSWAP_SHUFB_CTL<>+0x1c(SB)/4,$0x0c0d0e0f
 GLOBL BSWAP_SHUFB_CTL<>(SB),RODATA,$32
+
+// SHA1 implementation using the SHA extension. Implemented using the
+// reference implementation found at:
+// https://software.intel.com/content/www/us/en/develop/articles/intel-sha-extensions.html
+
+// Setup register aliases to easier follow the algorithm.
+#define ABCD      X0
+#define E0        X1
+#define E1        X2
+#define SHUF_MASK X3
+#define MSG0      X4
+#define MSG1      X5
+#define MSG2      X6
+#define MSG3      X7
+#define ABCD_SAVE X8
+#define E_SAVE    X9
+
+TEXT ·blockSHA(SB),NOSPLIT,$0-32
+	MOVQ		dig+0(FP), CX
+	MOVQ		p_base+8(FP), SI
+	MOVQ		p_len+16(FP), DX
+	SHRQ		$6, DX
+	SHLQ		$6, DX
+	LEAQ		(SI)(DX*1), DI
+
+	// Load first 128 bits into xmm register.
+	MOVOU		(CX), ABCD
+
+	// Byte shuffle for correct 32 bit dword order. The order
+	// the algorithm expects is that the 32 bit value A lives
+	// in the lowest 32 bits & D in the highest. This inverse
+	// from how they are laid out in memory so we need to reverse
+	// the order of each 32 bit word.
+	PSHUFD		$0x1b, ABCD, ABCD
+
+	// Zero out E0 since we only set 32 bits of it and the rest
+	// needs to be zero. E0 needs to be set in the highest 32
+	// bites of the XMM register.
+	PXOR		E0, E0
+	PINSRD		$3, 16(CX), E0
+
+	// Load the shuffle mask. This is separate from the AVX2 form
+	// since we need this in a different 32 bit order and this
+	// avoid having to use a PSHUFD here which would be needed
+	// if BSWAP_SHUFB_CTL was reused here.
+	MOVO		BSWAP_SHUF_MASK<>(SB), SHUF_MASK
+
+	// Skip if we accidentally have a zero sized block.
+	CMPQ		SI,	DI
+	JEQ			end
+
+loop:
+
+	// Save working variables.
+	MOVO		ABCD, ABCD_SAVE
+	MOVO		E0, E_SAVE
+
+	// Rounds 0 - 3.
+	MOVOU		(SI), MSG0
+	PSHUFB		SHUF_MASK, MSG0
+	PADDD		MSG0, E0
+	MOVO		ABCD, E1
+	SHA1RNDS4	$0, E0, ABCD
+
+	// Rounds 4 - 7.
+	MOVOU   	16(SI), MSG1
+	PSHUFB		SHUF_MASK, MSG1
+	SHA1NEXTE	MSG1, E1
+	MOVOA		ABCD, E0
+	SHA1RNDS4	$0, E1, ABCD
+	SHA1MSG1	MSG1, MSG0
+
+	// Rounds 8 - 11.
+	MOVOU 		32(SI), MSG2
+	PSHUFB		SHUF_MASK, MSG2
+	SHA1NEXTE	MSG2, E0
+	MOVOA		ABCD, E1
+	SHA1RNDS4	$0, E0, ABCD
+	SHA1MSG1	MSG2, MSG1
+	PXOR		MSG2, MSG0
+
+	// Rounds 12 - 15.
+	MOVOU		48(SI), MSG3
+	PSHUFB		SHUF_MASK, MSG3
+	SHA1NEXTE	MSG3, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG3, MSG0
+	SHA1RNDS4	$0, E1, ABCD
+	SHA1MSG1	MSG3, MSG2
+	PXOR		MSG3, MSG1
+
+	// Rounds 16 - 19.
+	SHA1NEXTE	MSG0, E0
+	MOVOA		ABCD, E1
+	SHA1MSG2	MSG0, MSG1
+	SHA1RNDS4	$0, E0, ABCD
+	SHA1MSG1	MSG0, MSG3
+	PXOR		MSG0, MSG2
+
+	// Rounds 20 - 23.
+	SHA1NEXTE	MSG1, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG1, MSG2
+	SHA1RNDS4	$1, E1, ABCD
+	SHA1MSG1	MSG1, MSG0
+	PXOR		MSG1, MSG3
+
+	// Rounds 24 - 27.
+	SHA1NEXTE	MSG2, E0
+	MOVOA		ABCD, E1
+	SHA1MSG2	MSG2, MSG3
+	SHA1RNDS4	$1, E0, ABCD
+	SHA1MSG1	MSG2, MSG1
+	PXOR		MSG2, MSG0
+
+	// Rounds 28 - 31.
+	SHA1NEXTE	MSG3, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG3, MSG0
+	SHA1RNDS4	$1, E1, ABCD
+	SHA1MSG1	MSG3, MSG2
+	PXOR		MSG3, MSG1
+
+	// Rounds 32 - 35.
+	SHA1NEXTE	MSG0, E0
+	MOVOA		ABCD, E1
+	SHA1MSG2	MSG0, MSG1
+	SHA1RNDS4	$1, E0, ABCD
+	SHA1MSG1	MSG0, MSG3
+	PXOR		MSG0, MSG2
+
+	// Rounds 36 - 39.
+	SHA1NEXTE	MSG1, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG1, MSG2
+	SHA1RNDS4	$1, E1, ABCD
+	SHA1MSG1	MSG1, MSG0
+	PXOR		MSG1, MSG3
+
+	// Rounds 40 - 43.
+	SHA1NEXTE	MSG2, E0
+	MOVOA		ABCD, E1
+	SHA1MSG2	MSG2, MSG3
+	SHA1RNDS4	$2, E0, ABCD
+	SHA1MSG1	MSG2, MSG1
+	PXOR		MSG2, MSG0
+
+	// Rounds 44 - 47.
+	SHA1NEXTE	MSG3, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG3, MSG0
+	SHA1RNDS4	$2, E1, ABCD
+	SHA1MSG1	MSG3, MSG2
+	PXOR		MSG3, MSG1
+
+	// Rounds 48 - 51.
+	SHA1NEXTE	MSG0, E0
+	MOVOA		ABCD, E1
+	SHA1MSG2	MSG0, MSG1
+	SHA1RNDS4	$2, E0, ABCD
+	SHA1MSG1	MSG0, MSG3
+	PXOR		MSG0, MSG2
+
+	// Rounds 52 - 55.
+	SHA1NEXTE	MSG1, E1
+	MOVOA		ABCD, E0
+	SHA1MSG2	MSG1, MSG2
+	SHA1RNDS4	$2, E1, ABCD
+	SHA1MSG1	MSG1, MSG0
+	PXOR		MSG1, MSG3
+
+	// Rounds 56 - 59.
+	SHA1NEXTE	MSG2, E0
+	MOVO		ABCD, E1
+	SHA1MSG2	MSG2, MSG3
+	SHA1RNDS4	$2, E0, ABCD
+	SHA1MSG1	MSG2, MSG1
+	PXOR		MSG2, MSG0
+
+	// Rounds 60 - 63.
+	SHA1NEXTE	MSG3, E1
+	MOVO		ABCD, E0
+	SHA1MSG2	MSG3, MSG0
+	SHA1RNDS4	$3, E1, ABCD
+	SHA1MSG1	MSG3, MSG2
+	PXOR		MSG3, MSG1
+
+	// Rounds 64 - 67.
+	SHA1NEXTE	MSG0, E0
+	MOVO		ABCD, E1
+	SHA1MSG2	MSG0, MSG1
+	SHA1RNDS4	$3, E0, ABCD
+	SHA1MSG1	MSG0, MSG3
+	PXOR		MSG0, MSG2
+
+	// Rounds 68 - 71.
+	SHA1NEXTE	MSG1, E1
+	MOVO		ABCD, E0
+	SHA1MSG2	MSG1, MSG2
+	SHA1RNDS4	$3, E1, ABCD
+	PXOR		MSG1, MSG3
+
+	// Rounds 72 - 75.
+	SHA1NEXTE	MSG2, E0
+	MOVO		ABCD, E1
+	SHA1MSG2	MSG2, MSG3
+	SHA1RNDS4	$3, E0, ABCD
+
+	// Rounds 76 - 79.
+	SHA1NEXTE	MSG3, E1
+	MOVO		ABCD, E0
+	SHA1RNDS4	$3, E1, ABCD
+
+	// Complete block.
+	SHA1NEXTE	E_SAVE, E0
+	PADDD		ABCD_SAVE, ABCD
+
+	// Check if we need to process another block.
+	ADDQ		$64, SI
+	CMPQ		SI, DI
+	JB			loop
+
+	// Update digest.
+	PSHUFD		$0x1b, ABCD, ABCD
+	MOVOU		ABCD, (CX)
+	PEXTRD		$3, E0, 16(CX)
+end:
+	RET
+
+DATA BSWAP_SHUF_MASK<>+0x00(SB)/4,$0x0c0d0e0f
+DATA BSWAP_SHUF_MASK<>+0x04(SB)/4,$0x08090a0b
+DATA BSWAP_SHUF_MASK<>+0x08(SB)/4,$0x04050607
+DATA BSWAP_SHUF_MASK<>+0x0c(SB)/4,$0x00010203
+GLOBL BSWAP_SHUF_MASK<>(SB),RODATA,$16
