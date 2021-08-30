@@ -270,7 +270,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		if types2.AsInterface(recvType.Underlying()) != nil {
 			fieldType := n.X.Type()
 			for _, ix := range index[:len(index)-1] {
-				fieldType = fieldType.Field(ix).Type
+				fieldType = deref(fieldType).Field(ix).Type
 			}
 			if fieldType.Kind() == types.TTYPEPARAM {
 				n.Selection = fieldType.Bound().AllMethods().Index(last)
