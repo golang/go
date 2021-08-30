@@ -822,7 +822,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux2(&p.To, v, sc.Off64())
-	case ssa.OpAMD64MOVOstorezero:
+	case ssa.OpAMD64MOVOstoreconst:
+		sc := v.AuxValAndOff()
+		if sc.Val() != 0 {
+			v.Fatalf("MOVO for non zero constants not implemented: %s", v.LongString())
+		}
+
 		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
@@ -832,7 +837,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x86.REG_X15
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		ssagen.AddAux(&p.To, v)
+		ssagen.AddAux2(&p.To, v, sc.Off64())
+
 	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
