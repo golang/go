@@ -9,4 +9,6 @@ package md5
 
 const haveAsm = false
 
-var block = blockGeneric
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}
