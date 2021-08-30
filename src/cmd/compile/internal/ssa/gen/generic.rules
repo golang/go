@@ -500,6 +500,9 @@
 (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 
+(Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+
 // constant floating point comparisons
 (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
 (Eq64F   (Const64F [c]) (Const64F [d])) => (ConstBool [c == d])
