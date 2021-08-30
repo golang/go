@@ -962,7 +962,6 @@ const (
 	OpAMD64MOVQstore
 	OpAMD64MOVOload
 	OpAMD64MOVOstore
-	OpAMD64MOVOstorezero
 	OpAMD64MOVBloadidx1
 	OpAMD64MOVWloadidx1
 	OpAMD64MOVWloadidx2
@@ -983,6 +982,7 @@ const (
 	OpAMD64MOVWstoreconst
 	OpAMD64MOVLstoreconst
 	OpAMD64MOVQstoreconst
+	OpAMD64MOVOstoreconst
 	OpAMD64MOVBstoreconstidx1
 	OpAMD64MOVWstoreconstidx1
 	OpAMD64MOVWstoreconstidx2
@@ -12626,19 +12626,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "MOVOstorezero",
-		auxType:        auxSymOff,
-		argLen:         2,
-		faultOnNilArg0: true,
-		symEffect:      SymWrite,
-		asm:            x86.AMOVUPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
-			},
-		},
-	},
-	{
 		name:        "MOVBloadidx1",
 		auxType:     auxSymOff,
 		argLen:      3,
@@ -12948,6 +12935,19 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
 		asm:            x86.AMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "MOVOstoreconst",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
