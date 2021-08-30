@@ -5,6 +5,8 @@
 package ppc64
 
 import (
+	"bytes"
+	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -34,6 +36,131 @@ PCALIGN $8
 ADD $4, R8
 RET
 `
+
+var platformEnvs = [][]string{
+	{"GOOS=aix", "GOARCH=ppc64"},
+	{"GOOS=linux", "GOARCH=ppc64"},
+	{"GOOS=linux", "GOARCH=ppc64le"},
+}
+
+// TestLarge generates a very large file to verify that large
+// program builds successfully, and branches which exceed the
+// range of BC are rewritten to reach.
+func TestLarge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skip in short mode")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	dir, err := ioutil.TempDir("", "testlarge")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// A few interesting test cases for long conditional branch fixups
+	tests := []struct {
+		jmpinsn     string
+		backpattern []string
+		fwdpattern  []string
+	}{
+		// Test the interesting cases of conditional branch rewrites for too-far targets. Simple conditional
+		// branches can be made to reach with one JMP insertion, compound conditionals require two.
+		//
+		// TODO: BI is interpreted as a register (the R???x/R0 should be $x)
+		// beq <-> bne conversion (insert one jump)
+		{"BEQ",
+			[]string{``,
+				`0x20030 131120\s\(.*\)\tBC\t\$4,\sR\?\?\?2,\s131128`,
+				`0x20034 131124\s\(.*\)\tJMP\t0`},
+			[]string{``,
+				`0x0000 00000\s\(.*\)\tBC\t\$4,\sR\?\?\?2,\s8`,
+				`0x0004 00004\s\(.*\)\tJMP\t131128`},
+		},
+		{"BNE",
+			[]string{``,
+				`0x20030 131120\s\(.*\)\tBC\t\$12,\sR\?\?\?2,\s131128`,
+				`0x20034 131124\s\(.*\)\tJMP\t0`},
+			[]string{``,
+				`0x0000 00000\s\(.*\)\tBC\t\$12,\sR\?\?\?2,\s8`,
+				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+		// bdnz (BC 16,0,tgt) <-> bdz (BC 18,0,+4) conversion (insert one jump)
+		{"BC 16,0,",
+			[]string{``,
+				`0x20030 131120\s\(.*\)\tBC\t\$18,\s131128`,
+				`0x20034 131124\s\(.*\)\tJMP\t0`},
+			[]string{``,
+				`0x0000 00000\s\(.*\)\tBC\t\$18,\s8`,
+				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+		{"BC 18,0,",
+			[]string{``,
+				`0x20030 131120\s\(.*\)\tBC\t\$16,\s131128`,
+				`0x20034 131124\s\(.*\)\tJMP\t0`},
+			[]string{``,
+				`0x0000 00000\s\(.*\)\tBC\t\$16,\s8`,
+				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+		// bdnzt (BC 8,0,tgt) <-> bdnzt (BC 8,0,+4) conversion (insert two jumps)
+		{"BC 8,0,",
+			[]string{``,
+				`0x20034 131124\s\(.*\)\tBC\t\$8,\sR0,\s131132`,
+				`0x20038 131128\s\(.*\)\tJMP\t131136`,
+				`0x2003c 131132\s\(.*\)\tJMP\t0\n`},
+			[]string{``,
+				`0x0000 00000\s\(.*\)\tBC\t\$8,\sR0,\s8`,
+				`0x0004 00004\s\(.*\)\tJMP\t12`,
+				`0x0008 00008\s\(.*\)\tJMP\t131136\n`}},
+	}
+
+	for _, test := range tests {
+		// generate a very large function
+		buf := bytes.NewBuffer(make([]byte, 0, 7000000))
+		gen(buf, test.jmpinsn)
+
+		tmpfile := filepath.Join(dir, "x.s")
+		err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
+		if err != nil {
+			t.Fatalf("can't write output: %v\n", err)
+		}
+
+		// Test on all supported ppc64 platforms
+		for _, platenv := range platformEnvs {
+			cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+			cmd.Env = append(os.Environ(), platenv...)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("Assemble failed (%v): %v, output: %s", platenv, err, out)
+			}
+			matched, err := regexp.MatchString(strings.Join(test.fwdpattern, "\n\t*"), string(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !matched {
+				t.Errorf("Failed to detect long foward BC fixup in (%v):%s\n", platenv, out)
+			}
+			matched, err = regexp.MatchString(strings.Join(test.backpattern, "\n\t*"), string(out))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !matched {
+				t.Errorf("Failed to detect long backward BC fixup in (%v):%s\n", platenv, out)
+			}
+		}
+	}
+}
+
+// gen generates a very large program with a very long forward and backwards conditional branch.
+func gen(buf *bytes.Buffer, jmpinsn string) {
+	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
+	fmt.Fprintln(buf, "label_start:")
+	fmt.Fprintln(buf, jmpinsn, "label_end")
+	for i := 0; i < (1<<15 + 10); i++ {
+		fmt.Fprintln(buf, "MOVD R0, R1")
+	}
+	fmt.Fprintln(buf, jmpinsn, "label_start")
+	fmt.Fprintln(buf, "label_end:")
+	fmt.Fprintln(buf, "MOVD R0, R1")
+	fmt.Fprintln(buf, "RET")
+}
 
 // TestPCalign generates two asm files containing the
 // PCALIGN directive, to verify correct values are and
