@@ -295,7 +295,13 @@ func (r *reader) doPkg() *types.Pkg {
 // @@@ Types
 
 func (r *reader) typ() *types.Type {
-	return r.p.typIdx(r.typInfo(), r.dict)
+	return r.typWrapped(true)
+}
+
+// typWrapped is like typ, but allows suppressing generation of
+// unnecessary wrappers as a compile-time optimization.
+func (r *reader) typWrapped(wrapped bool) *types.Type {
+	return r.p.typIdx(r.typInfo(), r.dict, wrapped)
 }
 
 func (r *reader) typInfo() typeInfo {
@@ -306,7 +312,7 @@ func (r *reader) typInfo() typeInfo {
 	return typeInfo{idx: r.reloc(relocType), derived: false}
 }
 
-func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) *types.Type {
+func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *types.Type {
 	idx := info.idx
 	var where **types.Type
 	if info.derived {
@@ -370,7 +376,13 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) *types.Type {
 		return prev
 	}
 
-	*where = typ
+	if wrapped {
+		// Only cache if we're adding wrappers, so that other callers that
+		// find a cached type know it was wrapped.
+		*where = typ
+
+		r.needWrapper(typ)
+	}
 
 	if !typ.IsUntyped() {
 		types.CheckSize(typ)
@@ -438,7 +450,7 @@ func (r *reader) interfaceType() *types.Type {
 	if len(fields) == 0 {
 		return types.Types[types.TINTER] // empty interface
 	}
-	return r.needWrapper(types.NewInterface(tpkg, fields))
+	return types.NewInterface(tpkg, fields)
 }
 
 func (r *reader) structType() *types.Type {
@@ -459,7 +471,7 @@ func (r *reader) structType() *types.Type {
 		}
 		fields[i] = f
 	}
-	return r.needWrapper(types.NewStruct(tpkg, fields))
+	return types.NewStruct(tpkg, fields)
 }
 
 func (r *reader) signature(tpkg *types.Pkg, recv *types.Field) *types.Type {
@@ -507,7 +519,7 @@ func (r *reader) obj() ir.Node {
 			fn := r.dict.funcs[idx]
 			targs := make([]*types.Type, len(fn.explicits))
 			for i, targ := range fn.explicits {
-				targs[i] = r.p.typIdx(targ, r.dict)
+				targs[i] = r.p.typIdx(targ, r.dict, true)
 			}
 
 			obj = r.p.objIdx(fn.idx, nil, targs)
@@ -625,7 +637,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		// We need to defer CheckSize until we've called SetUnderlying to
 		// handle recursive types.
 		types.DeferCheckSize()
-		typ.SetUnderlying(r.typ())
+		typ.SetUnderlying(r.typWrapped(false))
 		types.ResumeCheckSize()
 
 		methods := make([]*types.Field, r.len())
@@ -636,9 +648,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 			typ.Methods().Set(methods)
 		}
 
-		if !typ.IsPtr() {
-			r.needWrapper(typ)
-		}
+		r.needWrapper(typ)
 
 		return name
 
@@ -1537,7 +1547,19 @@ func (r *reader) expr() (res ir.Node) {
 		x := r.expr()
 		pos := r.pos()
 		_, sym := r.selector()
-		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym))
+		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+		if n.Op() == ir.OMETHVALUE {
+			wrapper := methodValueWrapper{
+				rcvr:   n.X.Type(),
+				method: n.Selection,
+			}
+			if r.importedDef() {
+				haveMethodValueWrappers = append(haveMethodValueWrappers, wrapper)
+			} else {
+				needMethodValueWrappers = append(needMethodValueWrappers, wrapper)
+			}
+		}
+		return n
 
 	case exprIndex:
 		x := r.expr()
@@ -2128,11 +2150,36 @@ var needWrapperTypes []*types.Type
 // method wrappers, because we found the type in an imported package.
 var haveWrapperTypes []*types.Type
 
-func (r *reader) needWrapper(typ *types.Type) *types.Type {
+// needMethodValueWrappers lists methods for which we may need to
+// generate method value wrappers.
+var needMethodValueWrappers []methodValueWrapper
+
+// haveMethodValueWrappers lists methods for which we know we already
+// have method value wrappers, because we found it in an imported
+// package.
+var haveMethodValueWrappers []methodValueWrapper
+
+type methodValueWrapper struct {
+	rcvr   *types.Type
+	method *types.Field
+}
+
+func (r *reader) needWrapper(typ *types.Type) {
 	if typ.IsPtr() {
-		base.Fatalf("bad pointer type: %v", typ)
+		return
 	}
 
+	// If a type was found in an imported package, then we can assume
+	// that package (or one of its transitive dependencies) already
+	// generated method wrappers for it.
+	if r.importedDef() {
+		haveWrapperTypes = append(haveWrapperTypes, typ)
+	} else {
+		needWrapperTypes = append(needWrapperTypes, typ)
+	}
+}
+
+func (r *reader) importedDef() bool {
 	// If a type was found in an imported package, then we can assume
 	// that package (or one of its transitive dependencies) already
 	// generated method wrappers for it.
@@ -2144,13 +2191,7 @@ func (r *reader) needWrapper(typ *types.Type) *types.Type {
 	// TODO(mdempsky): Distinguish when a generic function or type was
 	// instantiated in an imported package so that we can add types to
 	// haveWrapperTypes instead.
-	if r.p != localPkgReader && !r.hasTypeParams() {
-		haveWrapperTypes = append(haveWrapperTypes, typ)
-	} else {
-		needWrapperTypes = append(needWrapperTypes, typ)
-	}
-
-	return typ
+	return r.p != localPkgReader && !r.hasTypeParams()
 }
 
 func (r *reader) wrapTypes(target *ir.Package) {
@@ -2158,37 +2199,43 @@ func (r *reader) wrapTypes(target *ir.Package) {
 	r.needWrapper(types.ErrorType)
 
 	seen := make(map[string]*types.Type)
-	addType := func(typ *types.Type) bool {
-		if typ.Sym() != nil {
-			return true
-		}
-
-		key := typ.LinkString()
-		if prev := seen[key]; prev != nil {
-			if !types.Identical(typ, prev) {
-				base.Fatalf("collision: types %v and %v have short string %q", typ, prev, key)
-			}
-			return false
-		}
-
-		seen[key] = typ
-		return true
-	}
 
 	for _, typ := range haveWrapperTypes {
-		addType(typ)
+		r.wrapType(typ, target, seen, false)
 	}
 	haveWrapperTypes = nil
 
 	for _, typ := range needWrapperTypes {
-		if addType(typ) {
-			r.wrapType(typ, target)
-		}
+		r.wrapType(typ, target, seen, true)
 	}
 	needWrapperTypes = nil
+
+	for _, wrapper := range haveMethodValueWrappers {
+		r.methodValueWrapper(wrapper.rcvr, wrapper.method, target, false)
+	}
+	haveMethodValueWrappers = nil
+
+	for _, wrapper := range needMethodValueWrappers {
+		r.methodValueWrapper(wrapper.rcvr, wrapper.method, target, true)
+	}
+	needMethodValueWrappers = nil
 }
 
-func (r *reader) wrapType(typ *types.Type, target *ir.Package) {
+func (r *reader) wrapType(typ *types.Type, target *ir.Package, seen map[string]*types.Type, needed bool) {
+	key := typ.LinkString()
+	if prev := seen[key]; prev != nil {
+		if !types.Identical(typ, prev) {
+			base.Fatalf("collision: types %v and %v have link string %q", typ, prev, key)
+		}
+		return
+	}
+	seen[key] = typ
+
+	if !needed {
+		// Only called to add to 'seen'.
+		return
+	}
+
 	if !typ.IsInterface() {
 		typecheck.CalcMethods(typ)
 	}
@@ -2196,8 +2243,6 @@ func (r *reader) wrapType(typ *types.Type, target *ir.Package) {
 		if meth.Sym.IsBlank() || !meth.IsMethod() {
 			base.FatalfAt(meth.Pos, "invalid method: %v", meth)
 		}
-
-		r.methodValueWrapper(typ, meth, target)
 
 		r.methodWrapper(0, typ, meth, target)
 
@@ -2221,7 +2266,7 @@ func (r *reader) methodWrapper(derefs int, tbase *types.Type, method *types.Fiel
 	}
 
 	sym := ir.MethodSym(wrapper, method.Sym)
-	assert(!sym.Siggen())
+	base.Assertf(!sym.Siggen(), "already generated wrapper %v", sym)
 	sym.SetSiggen(true)
 
 	wrappee := method.Type.Recv().Type
@@ -2257,17 +2302,11 @@ func (r *reader) methodWrapper(derefs int, tbase *types.Type, method *types.Fiel
 	r.finishWrapperFunc(fn, target)
 }
 
-func (r *reader) methodValueWrapper(tbase *types.Type, method *types.Field, target *ir.Package) {
-	recvType := tbase
-	if !tbase.IsInterface() {
-		recvType = method.Type.Recv().Type
-		if !types.Identical(tbase, types.ReceiverBaseType(recvType)) {
-			return
-		}
-	}
-
+func (r *reader) methodValueWrapper(recvType *types.Type, method *types.Field, target *ir.Package, needed bool) {
 	sym := ir.MethodSymSuffix(recvType, method.Sym, "-fm")
-	assert(!sym.Uniq())
+	if sym.Uniq() {
+		return
+	}
 	sym.SetUniq(true)
 
 	// TODO(mdempsky): Use method.Pos instead?
@@ -2279,7 +2318,7 @@ func (r *reader) methodValueWrapper(tbase *types.Type, method *types.Field, targ
 	// Declare and initialize variable holding receiver.
 	recv := ir.NewHiddenParam(pos, fn, typecheck.Lookup(".this"), recvType)
 
-	if !reflectdata.NeedEmit(tbase) {
+	if !needed {
 		typecheck.Func(fn)
 		return
 	}
