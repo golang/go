@@ -122,7 +122,7 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
 		x = op.X
 		tilde = true
 	}
-	typ = check.anyType(x)
+	typ = check.typ(x)
 	// embedding stand-alone type parameters is not permitted (issue #47127).
 	if _, ok := under(typ).(*TypeParam); ok {
 		check.error(x, "cannot embed a type parameter")
