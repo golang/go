@@ -195,18 +195,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// because it generates itabs for initializing global variables.
 	ssagen.InitConfig()
 
-	// Build init task.
-	if initTask := pkginit.Task(); initTask != nil {
-		typecheck.Export(initTask)
-	}
+	// Create "init" function for package-scope variable initialization
+	// statements, if any.
+	//
+	// Note: This needs to happen early, before any optimizations. The
+	// Go spec defines a precise order than initialization should be
+	// carried out in, and even mundane optimizations like dead code
+	// removal can skew the results (e.g., #43444).
+	pkginit.MakeInit()
 
 	// Stability quirk: sort top-level declarations, so we're not
 	// sensitive to the order that functions are added. In particular,
 	// the order that noder+typecheck add function closures is very
 	// subtle, and not important to reproduce.
-	//
-	// Note: This needs to happen after pkginit.Task, otherwise it risks
-	// changing the order in which top-level variables are initialized.
 	if base.Debug.UnifiedQuirks != 0 {
 		s := typecheck.Target.Decls
 		sort.SliceStable(s, func(i, j int) bool {
@@ -252,6 +253,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 	}
 	ir.CurFunc = nil
+
+	// Build init task, if needed.
+	if initTask := pkginit.Task(); initTask != nil {
+		typecheck.Export(initTask)
+	}
 
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.
