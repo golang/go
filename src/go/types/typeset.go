@@ -28,10 +28,8 @@ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
 func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
 
-// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
-
-// IsMethodSet reports whether the type set s is described by a single set of methods.
-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+// IsConstraint reports whether type set s is not just a set of methods.
+func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
 func (s *_TypeSet) IsComparable() bool {
