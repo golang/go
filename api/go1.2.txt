@@ -1,3 +1,4 @@
+//测试
 pkg archive/zip, func RegisterCompressor(uint16, Compressor)
 pkg archive/zip, func RegisterDecompressor(uint16, Decompressor)
 pkg archive/zip, method (*File) DataOffset() (int64, error)
