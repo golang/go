@@ -1408,12 +1408,14 @@ func (r *importReader) node() ir.Node {
 				}
 			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
 				n.Selection = r.exoticField()
-			case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
+			case ir.OMETHEXPR:
+				n = typecheckMethodExpr(n).(*ir.SelectorExpr)
+			case ir.ODOTMETH, ir.OMETHVALUE:
 				// These require a Lookup to link to the correct declaration.
 				rcvrType := expr.Type()
 				typ := n.Type()
 				n.Selection = Lookdot(n, rcvrType, 1)
-				if op == ir.OMETHVALUE || op == ir.OMETHEXPR {
+				if op == ir.OMETHVALUE {
 					// Lookdot clobbers the opcode and type, undo that.
 					n.SetOp(op)
 					n.SetType(typ)
