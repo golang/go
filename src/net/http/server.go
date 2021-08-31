@@ -3610,3 +3610,12 @@ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
 	}
 	return false
 }
+
+// MaxBytesHandler returns a Handler that runs h with its ResponseWriter and Request.Body wrapped by a MaxBytesReader.
+func MaxBytesHandler(h Handler, n int64) Handler {
+	return HandlerFunc(func(w ResponseWriter, r *Request) {
+		r2 := *r
+		r2.Body = MaxBytesReader(w, r.Body, n)
+		h.ServeHTTP(w, &r2)
+	})
+}
