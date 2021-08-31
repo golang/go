@@ -127,7 +127,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv := asNamed(check.genericType(rname, false)); recv != nil {
+				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
 					recvTParams = recv.TParams().list()
 				}
 			}
@@ -201,6 +201,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			switch T := rtyp.(type) {
 			case *Named:
 				T.expand(nil)
+				// The receiver type may be an instantiated type referred to
+				// by an alias (which cannot have receiver parameters for now).
+				if T.TArgs() != nil && sig.RParams() == nil {
+					check.errorf(atPos(recv.pos), _Todo, "cannot define methods on instantiated type %s", recv.typ)
+					break
+				}
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
