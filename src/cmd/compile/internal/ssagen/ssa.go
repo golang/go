@@ -3014,7 +3014,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
 					z := s.constInt(types.Types[types.TINT], 0)
 					s.boundsCheck(z, z, ssa.BoundsIndex, false)
 					// The return value won't be live, return junk.
-					return s.newValue0(ssa.OpUnknown, n.Type())
+					// But not quite junk, in case bounds checks are turned off. See issue 48092.
+					return s.zeroVal(n.Type())
 				}
 				len := s.constInt(types.Types[types.TINT], bound)
 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
