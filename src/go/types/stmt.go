@@ -696,7 +696,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
 			return
 		}
-		check.ordinaryType(&x, xtyp)
 
 		check.multipleDefaults(s.Body.List)
 
