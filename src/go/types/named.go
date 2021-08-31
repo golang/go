@@ -17,7 +17,7 @@ type Named struct {
 	orig       *Named      // original, uninstantiated type
 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
-	instance   *instance   // syntactic information for lazy instantiation
+	instPos    *token.Pos  // position information for lazy instantiation, or nil
 	tparams    *TParamList // type parameters, or nil
 	targs      *TypeList   // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
@@ -240,24 +240,16 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
-// instance holds position information for use in lazy instantiation.
-//
-// TODO(rfindley): instance is probably unnecessary now. See if it can be
-// eliminated.
-type instance struct {
-	pos token.Pos // position of type instantiation; for error reporting only
-}
-
 // expand ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
 func (n *Named) expand(typMap map[string]*Named) *Named {
-	if n.instance != nil {
+	if n.instPos != nil {
 		// n must be loaded before instantiation, in order to have accurate
 		// tparams. This is done implicitly by the call to n.TParams, but making it
 		// explicit is harmless: load is idempotent.
 		n.load()
 		var u Type
-		if n.check.validateTArgLen(n.instance.pos, n.tparams.Len(), n.targs.Len()) {
+		if n.check.validateTArgLen(*n.instPos, n.tparams.Len(), n.targs.Len()) {
 			if typMap == nil {
 				if n.check != nil {
 					typMap = n.check.typMap
@@ -270,13 +262,13 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 					typMap = map[string]*Named{h: n}
 				}
 			}
-			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
+			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
 		} else {
 			u = Typ[Invalid]
 		}
 		n.underlying = u
 		n.fromRHS = u
-		n.instance = nil
+		n.instPos = nil
 	}
 	return n
 }
