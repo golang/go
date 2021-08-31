@@ -121,8 +121,8 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
 	case *Named:
 		h := typeHash(t, targs)
 		if check != nil {
-			// typ may already have been instantiated with identical type arguments. In
-			// that case, re-use the existing instance.
+			// typ may already have been instantiated with identical type arguments.
+			// In that case, re-use the existing instance.
 			if named := check.typMap[h]; named != nil {
 				return named
 			}
@@ -135,6 +135,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
 			check.typMap[h] = named
 		}
 		return named
+
 	case *Signature:
 		tparams := t.TParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
