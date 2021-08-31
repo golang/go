@@ -129,7 +129,8 @@ type ComplexType complex64
 // result of append, often in the variable holding the slice itself:
 //	slice = append(slice, elem1, elem2)
 //	slice = append(slice, anotherSlice...)
-// As a special case, it is legal to append a string to a byte slice, like this:
+// As with all variadic functions, a slice can be passed as elems by exploding it
+// using the ... syntax. You can use this to append a string to a byte slice:
 //	slice = append([]byte("hello "), "world"...)
 func append(slice []Type, elems ...Type) []Type
 
