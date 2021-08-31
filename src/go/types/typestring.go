@@ -204,7 +204,11 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *Named:
-		if t.instPos != nil {
+		// Instance markers indicate unexpanded instantiated
+		// types. Write them to aid debugging, but don't write
+		// them when we need an instance hash: whether a type
+		// is fully expanded or not doesn't matter for identity.
+		if instanceHashing == 0 && t.instPos != nil {
 			w.byte(instanceMarker)
 		}
 		w.typeName(t.obj)

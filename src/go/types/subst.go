@@ -259,28 +259,23 @@ func (subst *subster) typ(typ Type) Type {
 var instanceHashing = 0
 
 func instantiatedHash(typ *Named, targs []Type) string {
+	var buf bytes.Buffer
+
 	assert(instanceHashing == 0)
 	instanceHashing++
-	var buf bytes.Buffer
 	w := newTypeWriter(&buf, nil)
 	w.typeName(typ.obj)
 	w.typeList(targs)
 	instanceHashing--
 
-	// With respect to the represented type, whether a
-	// type is fully expanded or stored as instance
-	// does not matter - they are the same types.
-	// Remove the instanceMarkers printed for instances.
-	res := buf.Bytes()
-	i := 0
-	for _, b := range res {
-		if b != instanceMarker {
-			res[i] = b
-			i++
+	if debug {
+		// there should be no instance markers in type hashes
+		for _, b := range buf.Bytes() {
+			assert(b != instanceMarker)
 		}
 	}
 
-	return string(res[:i])
+	return buf.String()
 }
 
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
