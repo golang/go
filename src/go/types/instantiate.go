@@ -119,7 +119,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
 func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
 	switch t := typ.(type) {
 	case *Named:
-		h := instantiatedHash(t, targs)
+		h := typeHash(t, targs)
 		if check != nil {
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
