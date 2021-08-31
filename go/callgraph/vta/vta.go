@@ -62,10 +62,13 @@ import (
 )
 
 // CallGraph uses the VTA algorithm to compute call graph for all functions
-// f such that f:true is in `funcs`. VTA refines the results of 'initial'
-// callgraph and uses it to establish interprocedural data flow. VTA is
-// sound if 'initial` is sound modulo reflection and unsage. The resulting
-// callgraph does not have a root node.
+// f:true in funcs. VTA refines the results of initial call graph and uses it
+// to establish interprocedural type flow. The resulting graph does not have
+// a root node.
+//
+// CallGraph does not make any assumptions on initial types global variables
+// and function/method inputs can have. CallGraph is then sound, modulo use of
+// reflection and unsafe, if the initial call graph is sound.
 func CallGraph(funcs map[*ssa.Function]bool, initial *callgraph.Graph) *callgraph.Graph {
 	vtaG, canon := typePropGraph(funcs, initial)
 	types := propagate(vtaG, canon)
