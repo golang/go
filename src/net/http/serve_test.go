@@ -6682,3 +6682,63 @@ func testQuerySemicolon(t *testing.T, query string, wantX string, allowSemicolon
 		}
 	}
 }
+
+func TestMaxBytesHandler(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	for _, maxSize := range []int64{100, 1_000, 1_000_000} {
+		for _, requestSize := range []int64{100, 1_000, 1_000_000} {
+			t.Run(fmt.Sprintf("max size %d request size %d", maxSize, requestSize),
+				func(t *testing.T) {
+					testMaxBytesHandler(t, maxSize, requestSize)
+				})
+		}
+	}
+}
+
+func testMaxBytesHandler(t *testing.T, maxSize, requestSize int64) {
+	var (
+		handlerN   int64
+		handlerErr error
+	)
+	echo := HandlerFunc(func(w ResponseWriter, r *Request) {
+		var buf bytes.Buffer
+		handlerN, handlerErr = io.Copy(&buf, r.Body)
+		io.Copy(w, &buf)
+	})
+
+	ts := httptest.NewServer(MaxBytesHandler(echo, maxSize))
+	defer ts.Close()
+
+	c := ts.Client()
+	var buf strings.Builder
+	body := strings.NewReader(strings.Repeat("a", int(requestSize)))
+	res, err := c.Post(ts.URL, "text/plain", body)
+	if err != nil {
+		t.Errorf("unexpected connection error: %v", err)
+	} else {
+		_, err = io.Copy(&buf, res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Errorf("unexpected read error: %v", err)
+		}
+	}
+	if handlerN > maxSize {
+		t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
+	}
+	if requestSize > maxSize && handlerErr == nil {
+		t.Error("expected error on handler side; got nil")
+	}
+	if requestSize <= maxSize {
+		if handlerErr != nil {
+			t.Errorf("%d expected nil error on handler side; got %v", requestSize, handlerErr)
+		}
+		if handlerN != requestSize {
+			t.Errorf("expected request of size %d; got %d", requestSize, handlerN)
+		}
+	}
+	if buf.Len() != int(handlerN) {
+		t.Errorf("expected echo of size %d; got %d", handlerN, buf.Len())
+	}
+}
