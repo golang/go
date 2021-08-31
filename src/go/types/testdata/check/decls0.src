@@ -146,7 +146,7 @@ type (
 		m1(I5)
 	}
 	I6 interface {
-		S0 /* ERROR "not an interface" */
+		S0 /* ERROR "non-interface type S0" */
 	}
 	I7 interface {
 		I1

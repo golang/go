@@ -36,14 +36,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		return
 	case universeAny, universeComparable:
+		// complain if necessary but keep going
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
-			return
-		}
-		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
-		if obj == universeAny {
-			check.error(e, _Todo, "cannot use any outside constraint position")
-			return
+			check.softErrorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
+		} else if obj == universeAny {
+			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+			check.softErrorf(e, _Todo, "cannot use any outside constraint position")
 		}
 	}
 	check.recordUse(e, obj)
@@ -273,6 +271,9 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.IndexExpr, *ast.MultiIndexExpr:
 		ix := typeparams.UnpackIndexExpr(e)
+		if !check.allowVersion(check.pkg, 1, 18) {
+			check.softErrorf(inNode(e, ix.Lbrack), _Todo, "type instantiation requires go1.18 or later")
+		}
 		// TODO(rfindley): type instantiation should require go1.18
 		return check.instantiatedType(ix.X, ix.Indices, def)
 

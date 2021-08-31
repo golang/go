@@ -41,7 +41,7 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // subst returns the type typ with its type parameters tpars replaced by the
 // corresponding type arguments targs, recursively. subst is pure in the sense
 // that it doesn't modify the incoming type. If a substitution took place, the
-// result type is different from from the incoming type.
+// result type is different from the incoming type.
 //
 // If the given typMap is non-nil, it is used in lieu of check.typMap.
 func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
