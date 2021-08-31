@@ -38,12 +38,15 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
 		}
 		return
 	case universeAny, universeComparable:
-		// complain if necessary but keep going
+		// complain if necessary
 		if !check.allowVersion(check.pkg, 1, 18) {
-			check.softErrorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
-		} else if obj == universeAny {
+			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
+			return // avoid follow-on errors
+		}
+		if obj == universeAny {
 			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
 			check.softErrorf(e, "cannot use any outside constraint position")
+			// ok to continue
 		}
 	}
 	check.recordUse(e, obj)
@@ -156,15 +159,6 @@ func (check *Checker) varType(e syntax.Expr) Type {
 		}
 	})
 
-	return typ
-}
-
-// anyType type-checks the type expression e and returns its type, or Typ[Invalid].
-// The type may be generic or instantiated.
-func (check *Checker) anyType(e syntax.Expr) Type {
-	typ := check.typInternal(e, nil)
-	assert(isTyped(typ))
-	check.recordTypeAndValue(e, typexpr, typ, nil)
 	return typ
 }
 
