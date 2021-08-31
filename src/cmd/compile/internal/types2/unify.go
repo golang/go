@@ -434,6 +434,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 			xargs := x.targs.list()
 			yargs := y.targs.list()
 
+			// TODO(gri) This is not always correct: two types may have the same names
+			//           in the same package if one of them is nested in a function.
+			//           Extremely unlikely but we need an always correct solution.
 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
 				assert(len(xargs) == len(yargs))
 				for i, x := range xargs {

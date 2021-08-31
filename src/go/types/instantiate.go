@@ -116,8 +116,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type) {
-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
 	switch t := typ.(type) {
 	case *Named:
 		h := instantiatedHash(t, targs)
@@ -128,7 +127,6 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
 				return named
 			}
 		}
-
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
 		named.targs = NewTypeList(targs)
@@ -136,7 +134,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
 		if check != nil {
 			check.typMap[h] = named
 		}
-		res = named
+		return named
 	case *Signature:
 		tparams := t.TParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
@@ -145,30 +143,21 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
 		if tparams.Len() == 0 {
 			return typ // nothing to do (minor optimization)
 		}
-		defer func() {
-			// If we had an unexpected failure somewhere don't panic below when
-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
-			// is returned.
-			if _, ok := res.(*Signature); !ok {
-				return
-			}
-			// If the signature doesn't use its type parameters, subst
-			// will not make a copy. In that case, make a copy now (so
-			// we can set tparams to nil w/o causing side-effects).
-			if t == res {
-				copy := *t
-				res = &copy
-			}
-			// After instantiating a generic signature, it is not generic
-			// anymore; we need to set tparams to nil.
-			res.(*Signature).tparams = nil
-		}()
-		res = check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil)
-	default:
-		// only types and functions can be generic
-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil).(*Signature)
+		// If the signature doesn't use its type parameters, subst
+		// will not make a copy. In that case, make a copy now (so
+		// we can set tparams to nil w/o causing side-effects).
+		if sig == t {
+			copy := *sig
+			sig = &copy
+		}
+		// After instantiating a generic signature, it is not generic
+		// anymore; we need to set tparams to nil.
+		sig.tparams = nil
+		return sig
 	}
-	return res
+	// only types and functions can be generic
+	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 }
 
 // validateTArgLen verifies that the length of targs and tparams matches,

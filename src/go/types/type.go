@@ -34,7 +34,6 @@ func (t *top) String() string   { return TypeString(t, nil) }
 // under must only be called when a type is known
 // to be fully set up.
 func under(t Type) Type {
-	// TODO(gri) is this correct for *Union?
 	if n := asNamed(t); n != nil {
 		return n.under()
 	}
