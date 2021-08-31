@@ -134,22 +134,17 @@ func (check *Checker) typ(e syntax.Expr) Type {
 }
 
 // varType type-checks the type expression e and returns its type, or Typ[Invalid].
-// The type must not be an (uninstantiated) generic type and it must be ordinary
-// (see ordinaryType).
+// The type must not be an (uninstantiated) generic type and it must not be a
+// constraint interface.
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
-	check.ordinaryType(syntax.StartPos(e), typ)
-	return typ
-}
 
-// ordinaryType reports an error if typ is an interface type containing
-// type lists or is (or embeds) the predeclared type comparable.
-func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 	// We don't want to call under() (via asInterface) or complete interfaces while we
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
+			pos := syntax.StartPos(e)
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
 			if tset.IsConstraint() {
 				if tset.comparable {
@@ -160,6 +155,8 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
 			}
 		}
 	})
+
+	return typ
 }
 
 // anyType type-checks the type expression e and returns its type, or Typ[Invalid].
