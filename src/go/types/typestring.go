@@ -56,6 +56,14 @@ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
 	newTypeWriter(buf, qf).typ(typ)
 }
 
+// WriteSignature writes the representation of the signature sig to buf,
+// without a leading "func" keyword.
+// The Qualifier controls the printing of
+// package-level objects, and may be nil.
+func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+	newTypeWriter(buf, qf).signature(sig)
+}
+
 // instanceMarker is the prefix for an instantiated type in unexpanded form.
 const instanceMarker = '#'
 
@@ -77,10 +85,16 @@ func newTypeHasher(buf *bytes.Buffer) *typeWriter {
 func (w *typeWriter) byte(b byte)                               { w.buf.WriteByte(b) }
 func (w *typeWriter) string(s string)                           { w.buf.WriteString(s) }
 func (w *typeWriter) writef(format string, args ...interface{}) { fmt.Fprintf(w.buf, format, args...) }
+func (w *typeWriter) error(msg string) {
+	if w.hash {
+		panic(msg)
+	}
+	w.string("<" + msg + ">")
+}
 
 func (w *typeWriter) typ(typ Type) {
 	if w.seen[typ] {
-		w.writef("○%T", goTypeName(typ)) // cycle to typ
+		w.error("cycle to " + goTypeName(typ))
 		return
 	}
 	w.seen[typ] = true
@@ -88,7 +102,7 @@ func (w *typeWriter) typ(typ Type) {
 
 	switch t := typ.(type) {
 	case nil:
-		w.string("<nil>")
+		w.error("nil")
 
 	case *Basic:
 		// exported basic types go into package unsafe
@@ -144,7 +158,8 @@ func (w *typeWriter) typ(typ Type) {
 		// Unions only appear as (syntactic) embedded elements
 		// in interfaces and syntactically cannot be empty.
 		if t.Len() == 0 {
-			panic("empty union")
+			w.error("empty union")
+			break
 		}
 		for i, t := range t.terms {
 			if i > 0 {
@@ -197,7 +212,7 @@ func (w *typeWriter) typ(typ Type) {
 		case RecvOnly:
 			s = "<-chan "
 		default:
-			unreachable()
+			w.error("unknown channel direction")
 		}
 		w.string(s)
 		if parens {
@@ -226,21 +241,21 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *TypeParam:
-		s := "?"
-		if t.obj != nil {
-			// Optionally write out package for typeparams (like Named).
-			// TODO(danscales): this is required for import/export, so
-			// we maybe need a separate function that won't be changed
-			// for debugging purposes.
-			if t.obj.pkg != nil {
-				writePackage(w.buf, t.obj.pkg, w.qf)
-			}
-			s = t.obj.name
+		if t.obj == nil {
+			w.error("unnamed type parameter")
+			break
 		}
-		w.string(s + subscript(t.id))
+		// Optionally write out package for typeparams (like Named).
+		// TODO(danscales): this is required for import/export, so
+		// we maybe need a separate function that won't be changed
+		// for debugging purposes.
+		if t.obj.pkg != nil {
+			writePackage(w.buf, t.obj.pkg, w.qf)
+		}
+		w.string(t.obj.name + subscript(t.id))
 
 	case *top:
-		w.string("⊤")
+		w.error("⊤")
 
 	default:
 		// For externally defined implementations of Type.
@@ -267,26 +282,20 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 		// Determine the type parameter and its constraint.
 		// list is expected to hold type parameter names,
 		// but don't crash if that's not the case.
-		var bound Type
-		if tpar != nil {
-			bound = tpar.bound // should not be nil but we want to see it if it is
+		if tpar == nil {
+			w.error("nil type parameter")
+			continue
 		}
-
 		if i > 0 {
-			if bound != prev {
+			if tpar.bound != prev {
 				// bound changed - write previous one before advancing
 				w.byte(' ')
 				w.typ(prev)
 			}
 			w.string(", ")
 		}
-		prev = bound
-
-		if tpar != nil {
-			w.typ(tpar)
-		} else {
-			w.string(tpar.obj.name)
-		}
+		prev = tpar.bound
+		w.typ(tpar)
 	}
 	if prev != nil {
 		w.byte(' ')
@@ -296,11 +305,6 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 }
 
 func (w *typeWriter) typeName(obj *TypeName) {
-	if obj == nil {
-		assert(!w.hash) // we need an object for type hashing
-		w.string("<Named w/o object>")
-		return
-	}
 	if obj.pkg != nil {
 		writePackage(w.buf, obj.pkg, w.qf)
 	}
@@ -353,7 +357,8 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
 					if t := asBasic(typ); t == nil || t.kind != String {
-						panic("expected string type")
+						w.error("expected string type")
+						continue
 					}
 					w.typ(typ)
 					w.string("...")
@@ -364,14 +369,6 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 		}
 	}
 	w.byte(')')
-}
-
-// WriteSignature writes the representation of the signature sig to buf,
-// without a leading "func" keyword.
-// The Qualifier controls the printing of
-// package-level objects, and may be nil.
-func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
-	newTypeWriter(buf, qf).signature(sig)
 }
 
 func (w *typeWriter) signature(sig *Signature) {

@@ -212,7 +212,6 @@ func (w *typeWriter) typ(typ Type) {
 			s = "<-chan "
 		default:
 			w.error("unknown channel direction")
-			break
 		}
 		w.string(s)
 		if parens {
