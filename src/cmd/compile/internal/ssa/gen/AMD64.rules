@@ -2021,54 +2021,6 @@
   && clobber(x1, x2, mem2)
   => (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
 
-(MOVQload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVQload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVLload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVWload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVBload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-
-(MOVQstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVQstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-
-(MOVOstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVOstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVQstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVLstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVWstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVBstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-
-(MOVQload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVQload  [off1+off2] {sym} ptr mem)
-(MOVLload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVLload  [off1+off2] {sym} ptr mem)
-(MOVWload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVWload  [off1+off2] {sym} ptr mem)
-(MOVBload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVBload  [off1+off2] {sym} ptr mem)
-(MOVQstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVQstore  [off1+off2] {sym} ptr val mem)
-(MOVLstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVLstore  [off1+off2] {sym} ptr val mem)
-(MOVWstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVWstore  [off1+off2] {sym} ptr val mem)
-(MOVBstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVBstore  [off1+off2] {sym} ptr val mem)
-(MOVQstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVQstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVLstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVLstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVWstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVBstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVOstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVOstoreconst [sc.addOffset32(off)] {s} ptr mem)
-
 // Merge load and op
 // TODO: add indexed variants?
 ((ADD|SUB|AND|OR|XOR)Q x l:(MOVQload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|AND|OR|XOR)Qload x [off] {sym} ptr mem)
