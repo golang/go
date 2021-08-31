@@ -1692,6 +1692,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		isBuiltin := n.BuiltinOp != ir.OXXX
 		w.bool(isBuiltin)
 		if isBuiltin {
+			w.bool(n.Sym().Pkg == types.UnsafePkg)
 			w.string(n.Sym().Name)
 			break
 		}
