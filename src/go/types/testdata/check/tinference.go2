@@ -63,9 +63,7 @@ func _() {
 	var _ string = x
 }
 
-// TODO(gri) Need to flag invalid recursive constraints. At the
-// moment these cause infinite recursions and stack overflow.
-// func f7[A interface{type B}, B interface{~A}]()
+func f7[A interface{*B}, B interface{~*A}]() {}
 
 // More realistic examples
 

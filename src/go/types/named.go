@@ -9,8 +9,6 @@ import (
 	"sync"
 )
 
-// TODO(rfindley) Clean up Named struct below; specifically the fromRHS field (can we use underlying?).
-
 // A Named represents a named (defined) type.
 type Named struct {
 	check      *Checker

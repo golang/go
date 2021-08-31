@@ -145,12 +145,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					// bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the
 					// current context.
-					// TODO(gri) should we assume now that bounds always exist?
-					//           (no bound == empty interface)
-					if bound != nil {
-						bound = check.subst(tpar.obj.pos, bound, smap, nil)
-						tpar.bound = bound
-					}
+					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
 				}
 			}
 		}
