@@ -1269,7 +1269,11 @@ func (r *importReader) node() ir.Node {
 	case ir.ONAME:
 		isBuiltin := r.bool()
 		if isBuiltin {
-			return types.BuiltinPkg.Lookup(r.string()).Def.(*ir.Name)
+			pkg := types.BuiltinPkg
+			if r.bool() {
+				pkg = types.UnsafePkg
+			}
+			return pkg.Lookup(r.string()).Def.(*ir.Name)
 		}
 		return r.localName()
 
