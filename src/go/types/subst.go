@@ -262,10 +262,9 @@ func instantiatedHash(typ *Named, targs []Type) string {
 	assert(instanceHashing == 0)
 	instanceHashing++
 	var buf bytes.Buffer
-	writeTypeName(&buf, typ.obj, nil)
-	buf.WriteByte('[')
-	writeTypeList(&buf, targs, nil, nil)
-	buf.WriteByte(']')
+	w := newTypeWriter(&buf, nil)
+	w.typeName(typ.obj)
+	w.typeList(targs)
 	instanceHashing--
 
 	// With respect to the represented type, whether a
