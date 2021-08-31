@@ -284,12 +284,6 @@ func instantiatedHash(typ *Named, targs []Type) string {
 	return string(res[:i])
 }
 
-func typeListString(list []Type) string {
-	var buf bytes.Buffer
-	writeTypeList(&buf, list, nil, nil)
-	return buf.String()
-}
-
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
 // A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
 // where an array/slice element is accessed before it is set up.
