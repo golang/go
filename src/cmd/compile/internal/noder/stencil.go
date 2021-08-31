@@ -966,6 +966,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					// of zeroing assignment of a dcl (rhs[0] is nil).
 					lhs, rhs := []ir.Node{as.X}, []ir.Node{as.Y}
 					transformAssign(as, lhs, rhs)
+					as.X, as.Y = lhs[0], rhs[0]
 				}
 
 			case ir.OASOP:
