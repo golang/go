@@ -5,7 +5,6 @@
 package typeparams
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 )
@@ -53,26 +52,4 @@ func UnpackIndexExpr(n ast.Node) *IndexExpr {
 		return &IndexExpr{e, e}
 	}
 	return nil
-}
-
-func Get(n ast.Node) *ast.FieldList {
-	switch n := n.(type) {
-	case *ast.TypeSpec:
-		return n.TParams
-	case *ast.FuncType:
-		return n.TParams
-	default:
-		panic(fmt.Sprintf("node type %T has no type parameters", n))
-	}
-}
-
-func Set(n ast.Node, params *ast.FieldList) {
-	switch n := n.(type) {
-	case *ast.TypeSpec:
-		n.TParams = params
-	case *ast.FuncType:
-		n.TParams = params
-	default:
-		panic(fmt.Sprintf("node type %T has no type parameters", n))
-	}
 }
