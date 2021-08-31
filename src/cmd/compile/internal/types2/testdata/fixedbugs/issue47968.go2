@@ -8,7 +8,7 @@ type T[P any] struct{}
 
 func (T[P]) m1()
 
-type A1 = T
+type A1 = T // ERROR cannot use generic type
 
 func (A1[P]) m2() {}
 

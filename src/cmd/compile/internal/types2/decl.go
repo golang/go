@@ -555,7 +555,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		}
 
 		obj.typ = Typ[Invalid]
-		rhs = check.anyType(tdecl.Type)
+		rhs = check.varType(tdecl.Type)
 		obj.typ = rhs
 		return
 	}
