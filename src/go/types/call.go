@@ -17,6 +17,10 @@ import (
 // funcInst type-checks a function instantiation inst and returns the result in x.
 // The operand x must be the evaluation of inst.X and its type must be a signature.
 func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
+	if !check.allowVersion(check.pkg, 1, 18) {
+		check.softErrorf(inNode(ix.Orig, ix.Lbrack), _Todo, "function instantiation requires go1.18 or later")
+	}
+
 	targs := check.typeList(ix.Indices)
 	if targs == nil {
 		x.mode = invalid
@@ -324,6 +328,15 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// infer type arguments and instantiate signature if necessary
 	if sig.TParams().Len() > 0 {
+		if !check.allowVersion(check.pkg, 1, 18) {
+			switch call.Fun.(type) {
+			case *ast.IndexExpr, *ast.MultiIndexExpr:
+				ix := typeparams.UnpackIndexExpr(call.Fun)
+				check.softErrorf(inNode(call.Fun, ix.Lbrack), _Todo, "function instantiation requires go1.18 or later")
+			default:
+				check.softErrorf(inNode(call, call.Lparen), _Todo, "implicit function instantiation requires go1.18 or later")
+			}
+		}
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
 		targs := check.infer(call, sig.TParams().list(), targs, sigParams, args, true)
