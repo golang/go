@@ -256,8 +256,6 @@ func (subst *subster) typ(typ Type) Type {
 	return typ
 }
 
-var typeHashing = 0
-
 // typeHash returns a string representation of typ, which can be used as an exact
 // type hash: types that are identical produce identical string representations.
 // If typ is a *Named type and targs is not empty, typ is printed as if it were
@@ -266,19 +264,16 @@ func typeHash(typ Type, targs []Type) string {
 	assert(typ != nil)
 	var buf bytes.Buffer
 
-	assert(typeHashing == 0)
-	typeHashing++
-	w := newTypeWriter(&buf, nil)
+	h := newTypeHasher(&buf)
 	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
 		// Don't use WriteType because we need to use the provided targs
 		// and not any targs that might already be with the *Named type.
-		w.typeName(named.obj)
-		w.typeList(targs)
+		h.typeName(named.obj)
+		h.typeList(targs)
 	} else {
 		assert(targs == nil)
-		w.typ(typ)
+		h.typ(typ)
 	}
-	typeHashing--
 
 	if debug {
 		// there should be no instance markers in type hashes

@@ -63,10 +63,15 @@ type typeWriter struct {
 	buf  *bytes.Buffer
 	seen map[Type]bool
 	qf   Qualifier
+	hash bool
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf}
+	return &typeWriter{buf, make(map[Type]bool), qf, false}
+}
+
+func newTypeHasher(buf *bytes.Buffer) *typeWriter {
+	return &typeWriter{buf, make(map[Type]bool), nil, true}
 }
 
 func (w *typeWriter) byte(b byte)                               { w.buf.WriteByte(b) }
@@ -208,7 +213,7 @@ func (w *typeWriter) typ(typ Type) {
 		// types. Write them to aid debugging, but don't write
 		// them when we need an instance hash: whether a type
 		// is fully expanded or not doesn't matter for identity.
-		if typeHashing == 0 && t.instPos != nil {
+		if !w.hash && t.instPos != nil {
 			w.byte(instanceMarker)
 		}
 		w.typeName(t.obj)
@@ -292,7 +297,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 
 func (w *typeWriter) typeName(obj *TypeName) {
 	if obj == nil {
-		assert(typeHashing == 0) // we need an object for type hashing
+		assert(!w.hash) // we need an object for type hashing
 		w.string("<Named w/o object>")
 		return
 	}
@@ -301,7 +306,7 @@ func (w *typeWriter) typeName(obj *TypeName) {
 	}
 	w.string(obj.name)
 
-	if typeHashing != 0 {
+	if w.hash {
 		// For local defined types, use the (original!) TypeName's scope
 		// numbers to disambiguate.
 		if typ, _ := obj.typ.(*Named); typ != nil {
@@ -335,7 +340,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 				w.string(", ")
 			}
 			// parameter names are ignored for type identity and thus type hashes
-			if typeHashing == 0 && v.name != "" {
+			if !w.hash && v.name != "" {
 				w.string(v.name)
 				w.byte(' ')
 			}
@@ -383,8 +388,8 @@ func (w *typeWriter) signature(sig *Signature) {
 	}
 
 	w.byte(' ')
-	if n == 1 && (typeHashing != 0 || sig.results.vars[0].name == "") {
-		// single unnamed result (if typeHashing, name must be ignored)
+	if n == 1 && (w.hash || sig.results.vars[0].name == "") {
+		// single unnamed result (if type hashing, name must be ignored)
 		w.typ(sig.results.vars[0].typ)
 		return
 	}
