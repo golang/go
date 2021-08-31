@@ -75,26 +75,24 @@ func (s *_TypeSet) String() string {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	if s.comparable {
-		buf.WriteString(" comparable")
+		buf.WriteString("comparable")
 		if hasMethods || hasTerms {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
 	}
 	for i, m := range s.methods {
 		if i > 0 {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
-		buf.WriteByte(' ')
 		buf.WriteString(m.String())
 	}
 	if hasMethods && hasTerms {
-		buf.WriteByte(';')
+		buf.WriteString("; ")
 	}
 	if hasTerms {
 		buf.WriteString(s.terms.String())
 	}
-	buf.WriteString(" }") // there was at least one method or term
-
+	buf.WriteString("}")
 	return buf.String()
 }
 
