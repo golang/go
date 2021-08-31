@@ -751,7 +751,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.errorf(&x, "%s is not an interface type", &x)
 		return
 	}
-	check.ordinaryType(x.Pos(), xtyp)
 
 	check.multipleSwitchDefaults(s.Body)
 
