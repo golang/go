@@ -6,7 +6,6 @@ package types
 
 import (
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -195,8 +194,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// a receiver specification.)
 		if sig.tparams != nil {
 			var at positioner = f.Type
-			if tparams := typeparams.Get(f.Type); tparams != nil {
-				at = tparams
+			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TParams != nil {
+				at = ftyp.TParams
 			}
 			check.errorf(at, _Todo, "methods cannot have type parameters")
 		}
