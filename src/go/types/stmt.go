@@ -302,7 +302,7 @@ L:
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
-					Ts = T.String()
+					Ts = TypeString(T, check.qualifier)
 				}
 				check.errorf(e, _DuplicateCase, "duplicate case %s in type switch", Ts)
 				check.error(other, _DuplicateCase, "\tprevious case") // secondary error, \t indented
@@ -316,6 +316,47 @@ L:
 	}
 	return
 }
+
+// TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+//
+// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[string]ast.Expr) (T Type) {
+// 	var dummy operand
+// L:
+// 	for _, e := range types {
+// 		// The spec allows the value nil instead of a type.
+// 		var hash string
+// 		if check.isNil(e) {
+// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			T = nil
+// 			hash = "<nil>" // avoid collision with a type named nil
+// 		} else {
+// 			T = check.varType(e)
+// 			if T == Typ[Invalid] {
+// 				continue L
+// 			}
+// 			hash = typeHash(T, nil)
+// 		}
+// 		// look for duplicate types
+// 		if other := seen[hash]; other != nil {
+// 			// talk about "case" rather than "type" because of nil case
+// 			Ts := "nil"
+// 			if T != nil {
+// 				Ts = TypeString(T, check.qualifier)
+// 			}
+// 			var err error_
+// 			err.errorf(e, "duplicate case %s in type switch", Ts)
+// 			err.errorf(other, "previous case")
+// 			check.report(&err)
+// 			continue L
+// 		}
+// 		seen[hash] = e
+// 		if T != nil {
+// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 		}
+// 	}
+// 	return
+// }
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {

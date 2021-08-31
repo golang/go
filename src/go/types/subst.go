@@ -217,7 +217,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := instantiatedHash(t, newTArgs)
+		h := typeHash(t, newTArgs)
 		dump(">>> new type hash: %s", h)
 		if named, found := subst.typMap[h]; found {
 			dump(">>> found %s", named)
@@ -256,17 +256,29 @@ func (subst *subster) typ(typ Type) Type {
 	return typ
 }
 
-var instanceHashing = 0
+var typeHashing = 0
 
-func instantiatedHash(typ *Named, targs []Type) string {
+// typeHash returns a string representation of typ, which can be used as an exact
+// type hash: types that are identical produce identical string representations.
+// If typ is a *Named type and targs is not empty, typ is printed as if it were
+// instantiated with targs.
+func typeHash(typ Type, targs []Type) string {
+	assert(typ != nil)
 	var buf bytes.Buffer
 
-	assert(instanceHashing == 0)
-	instanceHashing++
+	assert(typeHashing == 0)
+	typeHashing++
 	w := newTypeWriter(&buf, nil)
-	w.typeName(typ.obj)
-	w.typeList(targs)
-	instanceHashing--
+	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+		// Don't use WriteType because we need to use the provided targs
+		// and not any targs that might already be with the *Named type.
+		w.typeName(named.obj)
+		w.typeList(targs)
+	} else {
+		assert(targs == nil)
+		w.typ(typ)
+	}
+	typeHashing--
 
 	if debug {
 		// there should be no instance markers in type hashes

@@ -258,7 +258,7 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 					// type-checking pass. In that case we won't have a pre-existing
 					// typMap, but don't want to create a duplicate of the current instance
 					// in the process of expansion.
-					h := instantiatedHash(n.orig, n.targs.list())
+					h := typeHash(n.orig, n.targs.list())
 					typMap = map[string]*Named{h: n}
 				}
 			}
