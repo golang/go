@@ -170,7 +170,7 @@ func (check *Checker) closeScope() {
 func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
 	var x operand
 	var msg string
-	switch check.rawExpr(&x, call, nil) {
+	switch check.rawExpr(&x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 	case expression:
@@ -386,7 +386,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil)
+		kind := check.rawExpr(&x, s.X, nil, false)
 		var msg string
 		switch x.mode {
 		default:

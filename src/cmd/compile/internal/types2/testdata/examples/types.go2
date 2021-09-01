@@ -102,6 +102,7 @@ func _() {
 
 // Generic types cannot be used without instantiation.
 var _ T // ERROR cannot use generic type T
+var _ = T /* ERROR cannot use generic type T */ (0)
 
 // In type context, generic (parameterized) types cannot be parenthesized before
 // being instantiated. See also NOTES entry from 12/4/2019.
