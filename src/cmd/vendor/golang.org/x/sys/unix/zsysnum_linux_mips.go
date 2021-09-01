@@ -424,4 +424,8 @@ const (
 	SYS_PROCESS_MADVISE              = 4440
 	SYS_EPOLL_PWAIT2                 = 4441
 	SYS_MOUNT_SETATTR                = 4442
+	SYS_QUOTACTL_FD                  = 4443
+	SYS_LANDLOCK_CREATE_RULESET      = 4444
+	SYS_LANDLOCK_ADD_RULE            = 4445
+	SYS_LANDLOCK_RESTRICT_SELF       = 4446
 )
