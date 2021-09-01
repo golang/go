@@ -138,11 +138,6 @@ func unified(noders []*noder) {
 	}
 	todoBodies = nil
 
-	if !quirksMode() {
-		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
-		r.wrapTypes(target)
-	}
-
 	// Check that nothing snuck past typechecking.
 	for _, n := range target.Decls {
 		if n.Typecheck() == 0 {

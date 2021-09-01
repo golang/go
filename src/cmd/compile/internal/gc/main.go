@@ -245,6 +245,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Flag.LowerL != 0 {
 		inline.InlinePackage()
 	}
+	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
 	// Devirtualize.
 	for _, n := range typecheck.Target.Decls {
