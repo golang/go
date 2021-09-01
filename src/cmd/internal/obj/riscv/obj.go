@@ -774,6 +774,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break // no need to split
 			}
 
+			// Split into two additions if possible.
+			imm := q.From.Offset
+			const minInt12, maxInt12 = -(1 << 11), (1 << 11) - 1
+			if q.As == AADDI && 2*minInt12 <= imm && imm <= 2*maxInt12 {
+				imm0, imm1 := imm/2, imm-imm/2
+				// ADDI $(imm/2), REG, TO
+				p.Spadj = 0 // needed if TO is SP
+				p.As = AADDI
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm0}
+				p.Reg = q.Reg
+				p.To = q.To
+				p = obj.Appendp(p, newprog)
+				// ADDI $(imm-imm/2), TO, TO
+				p.Spadj = q.Spadj
+				p.As = AADDI
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm1}
+				p.Reg = q.To.Reg
+				p.To = q.To
+				break
+			}
+
 			p.As = ALUI
 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
 			p.Reg = 0

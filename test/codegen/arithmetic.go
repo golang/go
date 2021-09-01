@@ -575,3 +575,11 @@ func constantFold3(i, j int) int {
 	r := (5 * i) * (6 * j)
 	return r
 }
+
+func addConst(i int64) (int64, int64) {
+	// riscv64:`ADDI`,-`LUI`
+	a := i + 3001
+	// riscv64:`LUI`,`ADDIW`
+	b := i + 5009
+	return a, b
+}
