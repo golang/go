@@ -4519,6 +4519,15 @@ func (sc *http2serverConn) serve() {
 		case res := <-sc.wroteFrameCh:
 			sc.wroteFrame(res)
 		case res := <-sc.readFrameCh:
+			// Process any written frames before reading new frames from the client since a
+			// written frame could have triggered a new stream to be started.
+			if sc.writingFrameAsync {
+				select {
+				case wroteRes := <-sc.wroteFrameCh:
+					sc.wroteFrame(wroteRes)
+				default:
+				}
+			}
 			if !sc.processFrameFromReader(res) {
 				return
 			}
