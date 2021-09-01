@@ -138,7 +138,6 @@ func TestVersionHandling(t *testing.T) {
 	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
-	// Disable test until we put in the new export version.
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
