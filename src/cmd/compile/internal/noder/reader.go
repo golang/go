@@ -149,7 +149,7 @@ type readerDict struct {
 	funcsObj []ir.Node
 }
 
-func (r *reader) setType(n ir.Node, typ *types.Type) {
+func setType(n ir.Node, typ *types.Type) {
 	n.SetType(typ)
 	n.SetTypecheck(1)
 
@@ -159,7 +159,7 @@ func (r *reader) setType(n ir.Node, typ *types.Type) {
 	}
 }
 
-func (r *reader) setValue(name *ir.Name, val constant.Value) {
+func setValue(name *ir.Name, val constant.Value) {
 	name.SetVal(val)
 	name.Defn = nil
 }
@@ -602,15 +602,15 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case objAlias:
 		name := do(ir.OTYPE, false)
-		r.setType(name, r.typ())
+		setType(name, r.typ())
 		name.SetAlias(true)
 		return name
 
 	case objConst:
 		name := do(ir.OLITERAL, false)
 		typ, val := r.value()
-		r.setType(name, typ)
-		r.setValue(name, val)
+		setType(name, typ)
+		setValue(name, val)
 		return name
 
 	case objFunc:
@@ -618,7 +618,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 			sym = renameinit()
 		}
 		name := do(ir.ONAME, true)
-		r.setType(name, r.signature(sym.Pkg, nil))
+		setType(name, r.signature(sym.Pkg, nil))
 
 		name.Func = ir.NewFunc(r.pos())
 		name.Func.Nname = name
@@ -629,7 +629,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 	case objType:
 		name := do(ir.OTYPE, true)
 		typ := types.NewNamed(name)
-		r.setType(name, typ)
+		setType(name, typ)
 
 		// Important: We need to do this before SetUnderlying.
 		r.ext.typeExt(name)
@@ -654,7 +654,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case objVar:
 		name := do(ir.ONAME, false)
-		r.setType(name, r.typ())
+		setType(name, r.typ())
 		r.ext.varExt(name)
 		return name
 	}
@@ -754,7 +754,7 @@ func (r *reader) method() *types.Field {
 	fnsym := sym
 	fnsym = ir.MethodSym(recv.Type, fnsym)
 	name := ir.NewNameAt(pos, fnsym)
-	r.setType(name, typ)
+	setType(name, typ)
 
 	name.Func = ir.NewFunc(r.pos())
 	name.Func.Nname = name
@@ -996,7 +996,7 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
 	}
 
 	name := ir.NewNameAt(r.updatePos(param.Pos), sym)
-	r.setType(name, param.Type)
+	setType(name, param.Type)
 	r.addLocal(name, ctxt)
 
 	if r.inlCall == nil {
@@ -1276,7 +1276,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 
 		name := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.BlankNode.Sym())
 		name.SetAlias(true)
-		r.setType(name, types.Types[types.TINT])
+		setType(name, types.Types[types.TINT])
 
 		n := ir.NewDecl(src.NoXPos, ir.ODCLTYPE, name)
 		n.SetTypecheck(1)
@@ -1297,7 +1297,7 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
 			name := ir.NewNameAt(pos, sym)
 			lhs[i] = name
 			names = append(names, name)
-			r.setType(name, typ)
+			setType(name, typ)
 			r.addLocal(name, ir.PAUTO)
 			continue
 		}
@@ -1438,7 +1438,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
 			typ := r.typ()
 
 			name := ir.NewNameAt(pos, tswitch.Tag.Sym())
-			r.setType(name, typ)
+			setType(name, typ)
 			r.addLocal(name, ir.PAUTO)
 			clause.Var = name
 			name.Defn = tswitch
@@ -1701,12 +1701,12 @@ func (r *reader) funcLit() ir.Node {
 	clo := fn.OClosure
 	ir.NameClosure(clo, r.curfn)
 
-	r.setType(fn.Nname, xtype2)
+	setType(fn.Nname, xtype2)
 	if quirksMode() {
 		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
 	}
 	typecheck.Func(fn)
-	r.setType(clo, fn.Type())
+	setType(clo, fn.Type())
 
 	fn.ClosureVars = make([]*ir.Name, 0, r.len())
 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
@@ -1910,7 +1910,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
 	tmpfn.Closgen = callerfn.Closgen
 	defer func() { callerfn.Closgen = tmpfn.Closgen }()
 
-	r.setType(tmpfn.Nname, fn.Type())
+	setType(tmpfn.Nname, fn.Type())
 	r.curfn = tmpfn
 
 	r.inlCaller = callerfn
@@ -2098,7 +2098,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
 
 	{
 		r := pri.asReader(relocBody, syncFuncBody)
-		r.setType(tmpfn.Nname, fn.Type())
+		setType(tmpfn.Nname, fn.Type())
 
 		// Don't change parameter's Sym/Nname fields.
 		r.funarghack = true
@@ -2194,34 +2194,39 @@ func (r *reader) importedDef() bool {
 	return r.p != localPkgReader && !r.hasTypeParams()
 }
 
-func (r *reader) wrapTypes(target *ir.Package) {
+func MakeWrappers(target *ir.Package) {
+	// Only unified IR in non-quirks mode emits its own wrappers.
+	if base.Debug.Unified == 0 || quirksMode() {
+		return
+	}
+
 	// always generate a wrapper for error.Error (#29304)
-	r.needWrapper(types.ErrorType)
+	needWrapperTypes = append(needWrapperTypes, types.ErrorType)
 
 	seen := make(map[string]*types.Type)
 
 	for _, typ := range haveWrapperTypes {
-		r.wrapType(typ, target, seen, false)
+		wrapType(typ, target, seen, false)
 	}
 	haveWrapperTypes = nil
 
 	for _, typ := range needWrapperTypes {
-		r.wrapType(typ, target, seen, true)
+		wrapType(typ, target, seen, true)
 	}
 	needWrapperTypes = nil
 
 	for _, wrapper := range haveMethodValueWrappers {
-		r.methodValueWrapper(wrapper.rcvr, wrapper.method, target, false)
+		wrapMethodValue(wrapper.rcvr, wrapper.method, target, false)
 	}
 	haveMethodValueWrappers = nil
 
 	for _, wrapper := range needMethodValueWrappers {
-		r.methodValueWrapper(wrapper.rcvr, wrapper.method, target, true)
+		wrapMethodValue(wrapper.rcvr, wrapper.method, target, true)
 	}
 	needMethodValueWrappers = nil
 }
 
-func (r *reader) wrapType(typ *types.Type, target *ir.Package, seen map[string]*types.Type, needed bool) {
+func wrapType(typ *types.Type, target *ir.Package, seen map[string]*types.Type, needed bool) {
 	key := typ.LinkString()
 	if prev := seen[key]; prev != nil {
 		if !types.Identical(typ, prev) {
@@ -2244,22 +2249,22 @@ func (r *reader) wrapType(typ *types.Type, target *ir.Package, seen map[string]*
 			base.FatalfAt(meth.Pos, "invalid method: %v", meth)
 		}
 
-		r.methodWrapper(0, typ, meth, target)
+		methodWrapper(0, typ, meth, target)
 
 		// For non-interface types, we also want *T wrappers.
 		if !typ.IsInterface() {
-			r.methodWrapper(1, typ, meth, target)
+			methodWrapper(1, typ, meth, target)
 
 			// For not-in-heap types, *T is a scalar, not pointer shaped,
 			// so the interface wrappers use **T.
 			if typ.NotInHeap() {
-				r.methodWrapper(2, typ, meth, target)
+				methodWrapper(2, typ, meth, target)
 			}
 		}
 	}
 }
 
-func (r *reader) methodWrapper(derefs int, tbase *types.Type, method *types.Field, target *ir.Package) {
+func methodWrapper(derefs int, tbase *types.Type, method *types.Field, target *ir.Package) {
 	wrapper := tbase
 	for i := 0; i < derefs; i++ {
 		wrapper = types.NewPtr(wrapper)
@@ -2279,7 +2284,7 @@ func (r *reader) methodWrapper(derefs int, tbase *types.Type, method *types.Fiel
 	// TODO(mdempsky): Use method.Pos instead?
 	pos := base.AutogeneratedPos
 
-	fn := r.newWrapperFunc(pos, sym, wrapper, method)
+	fn := newWrapperFunc(pos, sym, wrapper, method)
 
 	var recv ir.Node = fn.Nname.Type().Recv().Nname.(*ir.Name)
 
@@ -2299,10 +2304,10 @@ func (r *reader) methodWrapper(derefs int, tbase *types.Type, method *types.Fiel
 
 	addTailCall(pos, fn, recv, method)
 
-	r.finishWrapperFunc(fn, target)
+	finishWrapperFunc(fn, target)
 }
 
-func (r *reader) methodValueWrapper(recvType *types.Type, method *types.Field, target *ir.Package, needed bool) {
+func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Package, needed bool) {
 	sym := ir.MethodSymSuffix(recvType, method.Sym, "-fm")
 	if sym.Uniq() {
 		return
@@ -2312,7 +2317,7 @@ func (r *reader) methodValueWrapper(recvType *types.Type, method *types.Field, t
 	// TODO(mdempsky): Use method.Pos instead?
 	pos := base.AutogeneratedPos
 
-	fn := r.newWrapperFunc(pos, sym, nil, method)
+	fn := newWrapperFunc(pos, sym, nil, method)
 	sym.Def = fn.Nname
 
 	// Declare and initialize variable holding receiver.
@@ -2325,10 +2330,10 @@ func (r *reader) methodValueWrapper(recvType *types.Type, method *types.Field, t
 
 	addTailCall(pos, fn, recv, method)
 
-	r.finishWrapperFunc(fn, target)
+	finishWrapperFunc(fn, target)
 }
 
-func (r *reader) newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
+func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
 	fn := ir.NewFunc(pos)
 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
 
@@ -2339,14 +2344,14 @@ func (r *reader) newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Typ
 	fn.Nname = name
 
 	sig := newWrapperType(wrapper, method)
-	r.setType(name, sig)
+	setType(name, sig)
 
 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
 	defParams := func(class ir.Class, params *types.Type) {
 		for _, param := range params.FieldSlice() {
 			name := ir.NewNameAt(param.Pos, param.Sym)
 			name.Class = class
-			r.setType(name, param.Type)
+			setType(name, param.Type)
 
 			name.Curfn = fn
 			fn.Dcl = append(fn.Dcl, name)
@@ -2362,12 +2367,16 @@ func (r *reader) newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Typ
 	return fn
 }
 
-func (r *reader) finishWrapperFunc(fn *ir.Func, target *ir.Package) {
+func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
 	typecheck.Func(fn)
 
 	ir.WithFunc(fn, func() {
 		typecheck.Stmts(fn.Body)
 	})
+
+	// We generate wrappers after the global inlining pass,
+	// so we're responsible for applying inlining ourselves here.
+	inline.InlineCalls(fn)
 
 	target.Decls = append(target.Decls, fn)
 }
