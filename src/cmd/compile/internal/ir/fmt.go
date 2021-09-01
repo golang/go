@@ -1147,6 +1147,7 @@ func dumpNodeHeader(w io.Writer, n Node) {
 			}
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
+			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
 		}
 	}
