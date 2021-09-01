@@ -1189,7 +1189,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		}
 	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
-		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
+		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128, types.TUNSAFEPTR:
 		newt = t.Underlying()
 	case types.TUNION:
 		nt := t.NumTerms()

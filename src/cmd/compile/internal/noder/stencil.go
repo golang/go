@@ -1917,7 +1917,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 
 	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
 		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
-		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128:
+		types.TUINTPTR, types.TBOOL, types.TSTRING, types.TFLOAT32, types.TFLOAT64, types.TCOMPLEX64, types.TCOMPLEX128, types.TUNSAFEPTR:
 		return true
 
 	case types.TUNION:
