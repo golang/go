@@ -272,12 +272,6 @@ Outer:
 		}
 	}
 
-	// Check for unusual case where noder2 encounters a type error that types2
-	// doesn't check for (e.g. notinheap incompatibility).
-	base.ExitIfErrors()
-
-	typecheck.DeclareUniverse()
-
 	for _, p := range noders {
 		// Process linkname and cgo pragmas.
 		p.processPragmas()
@@ -289,6 +283,22 @@ Outer:
 			return false
 		})
 	}
+
+	if base.Flag.Complete {
+		for _, n := range g.target.Decls {
+			if fn, ok := n.(*ir.Func); ok {
+				if fn.Body == nil && fn.Nname.Sym().Linkname == "" {
+					base.ErrorfAt(fn.Pos(), "missing function body")
+				}
+			}
+		}
+	}
+
+	// Check for unusual case where noder2 encounters a type error that types2
+	// doesn't check for (e.g. notinheap incompatibility).
+	base.ExitIfErrors()
+
+	typecheck.DeclareUniverse()
 
 	// Create any needed stencils of generic functions
 	g.stencil()

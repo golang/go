@@ -113,6 +113,10 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		}
 	}
 
+	if decl.Body != nil && fn.Pragma&ir.Noescape != 0 {
+		base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
+	}
+
 	if decl.Name.Value == "init" && decl.Recv == nil {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
