@@ -920,6 +920,12 @@ func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
 	bodyReader[fn] = pri
 
+	if fn.Nname.Defn == nil {
+		// Don't read in function body for imported functions.
+		// See comment in funcExt.
+		return
+	}
+
 	if r.curfn == nil {
 		todoBodies = append(todoBodies, fn)
 		return
