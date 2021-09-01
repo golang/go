@@ -171,7 +171,7 @@ func Pipe2(p []int, flags int) (err error) {
 
 // Getrlimit prefers the prlimit64 system call. See issue 38604.
 func Getrlimit(resource int, rlim *Rlimit) error {
-	err := prlimit(0, resource, nil, rlim)
+	err := Prlimit(0, resource, nil, rlim)
 	if err != ENOSYS {
 		return err
 	}
@@ -180,7 +180,7 @@ func Getrlimit(resource int, rlim *Rlimit) error {
 
 // Setrlimit prefers the prlimit64 system call. See issue 38604.
 func Setrlimit(resource int, rlim *Rlimit) error {
-	err := prlimit(0, resource, rlim, nil)
+	err := Prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
 	}
@@ -205,6 +205,10 @@ func (msghdr *Msghdr) SetIovlen(length int) {
 
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
+}
+
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint64(length)
 }
 
 func InotifyInit() (fd int, err error) {
