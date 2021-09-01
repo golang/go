@@ -127,6 +127,10 @@ func goStmtFun(goStmt *ast.GoStmt) ast.Node {
 	switch goStmt.Call.Fun.(type) {
 	case *ast.Ident:
 		id := goStmt.Call.Fun.(*ast.Ident)
+		// TODO(cuonglm): improve this once golang/go#48141 resolved.
+		if id.Obj == nil {
+			break
+		}
 		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
 			return funDecl
 		}

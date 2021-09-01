@@ -53,6 +53,8 @@ func f(t *testing.T, _ string) {
 	t.Fatal("TestFailed")
 }
 
+func g() {}
+
 func TestBadFatalIssue47470(t *testing.T) {
 	go f(t, "failed test 1") // want "call to .+T.+Fatal from a non-test goroutine"
 
@@ -271,4 +273,8 @@ func TestWithCustomType(t *testing.T) {
 			}()
 		}(i)
 	}
+}
+
+func TestIssue48124(t *testing.T) {
+	go h()
 }
