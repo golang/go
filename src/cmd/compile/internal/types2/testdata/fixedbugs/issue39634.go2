@@ -85,7 +85,7 @@ var x T25 /* ERROR without instantiation */ .m1
 
 // crash 26
 type T26 = interface{ F26[ /* ERROR cannot have type parameters */ Z any]() }
-func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ /* ERROR missing method */ [] /* ERROR operand */ }
+func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ [] /* ERROR operand */ }
 
 // crash 27
 func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }

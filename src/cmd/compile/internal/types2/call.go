@@ -83,8 +83,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		x.expr = iexpr
 		check.record(x)
 	} else {
-		check.exprOrType(x, call.Fun)
+		check.exprOrType(x, call.Fun, true)
 	}
+	// x.typ may be generic
 
 	switch x.mode {
 	case invalid:
@@ -94,6 +95,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	case typexpr:
 		// conversion
+		check.nonGeneric(x)
+		if x.mode == invalid {
+			return conversion
+		}
 		T := x.typ
 		x.mode = invalid
 		switch n := len(call.ArgList); n {
@@ -122,6 +127,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		return conversion
 
 	case builtin:
+		// no need to check for non-genericity here
 		id := x.id
 		if !check.builtin(x, call, id) {
 			x.mode = invalid
@@ -135,6 +141,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// ordinary function/method call
+	// signature may be generic
 	cgocall := x.mode == cgofunc
 
 	sig := asSignature(x.typ)
@@ -474,13 +481,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 		}
 	}
 
-	check.exprOrType(x, e.X)
+	check.exprOrType(x, e.X, false)
 	if x.mode == invalid {
 		goto Error
-	}
-
-	if x.mode == typexpr {
-		x.typ = check.varType(e.X)
 	}
 
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
@@ -683,7 +686,7 @@ func (check *Checker) use(arg ...syntax.Expr) {
 			check.use(l.ElemList...)
 			continue
 		}
-		check.rawExpr(&x, e, nil)
+		check.rawExpr(&x, e, nil, false)
 	}
 }
 
@@ -714,7 +717,7 @@ func (check *Checker) useLHS(arg ...syntax.Expr) {
 				}
 			}
 		}
-		check.rawExpr(&x, e, nil)
+		check.rawExpr(&x, e, nil, false)
 		if v != nil {
 			v.used = v_used // restore v.used
 		}

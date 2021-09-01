@@ -15,7 +15,8 @@ import (
 // In that case x represents the uninstantiated function value and
 // it is the caller's responsibility to instantiate the function.
 func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst bool) {
-	check.exprOrType(x, e.X)
+	check.exprOrType(x, e.X, true)
+	// x may be generic
 
 	switch x.mode {
 	case invalid:
@@ -25,6 +26,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	case typexpr:
 		// type instantiation
 		x.mode = invalid
+		// TODO(gri) here we re-evaluate e.X - try to avoid this
 		x.typ = check.varType(e)
 		if x.typ != Typ[Invalid] {
 			x.mode = typexpr
@@ -36,6 +38,12 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 			// function instantiation
 			return true
 		}
+	}
+
+	// x should not be generic at this point, but be safe and check
+	check.nonGeneric(x)
+	if x.mode == invalid {
+		return false
 	}
 
 	// ordinary index expression
