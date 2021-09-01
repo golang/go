@@ -147,6 +147,10 @@ func (r *reader2) doPkg() *types2.Package {
 	if path == "builtin" {
 		return nil // universe
 	}
+	if path == "unsafe" {
+		// TODO(mdempsky): This should be in r.p.imports.
+		return types2.Unsafe
+	}
 	if path == "" {
 		path = r.p.pkgPath
 	}
@@ -362,7 +366,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 	tag := codeObj(rname.code(syncCodeObj))
 
 	if tag == objStub {
-		assert(objPkg == nil)
+		assert(objPkg == nil || objPkg == types2.Unsafe)
 		return objPkg, objName
 	}
 
