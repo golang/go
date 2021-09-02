@@ -192,8 +192,8 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
 
 // raiseLimitsForUpgrades increases the module versions in maxVersions to the
 // versions that would be needed to allow each of the modules in tryUpgrade
-// (individually) and all of the modules in mustSelect (simultaneously) to be
-// added as roots.
+// (individually or in any combination) and all of the modules in mustSelect
+// (simultaneously) to be added as roots.
 //
 // Versions not present in maxVersion are unrestricted, and it is assumed that
 // they will not be promoted to root requirements (and thus will not contribute
@@ -215,17 +215,41 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
 		}
 	}
 
-	var unprunedUpgrades []module.Version
+	var (
+		unprunedUpgrades []module.Version
+		isPrunedRootPath map[string]bool
+	)
 	if pruning == unpruned {
 		unprunedUpgrades = tryUpgrade
 	} else {
+		isPrunedRootPath = make(map[string]bool, len(maxVersion))
+		for p := range maxVersion {
+			isPrunedRootPath[p] = true
+		}
 		for _, m := range tryUpgrade {
-			if MainModules.Contains(m.Path) {
-				// The main module versions are already considered to be higher than any possible m, so we
-				// won't be upgrading to it anyway and there is no point scanning its
-				// dependencies.
-				continue
+			isPrunedRootPath[m.Path] = true
+		}
+		for _, m := range mustSelect {
+			isPrunedRootPath[m.Path] = true
+		}
+
+		allowedRoot := map[module.Version]bool{}
+
+		var allowRoot func(m module.Version) error
+		allowRoot = func(m module.Version) error {
+			if allowedRoot[m] {
+				return nil
 			}
+			allowedRoot[m] = true
+
+			if MainModules.Contains(m.Path) {
+				// The main module versions are already considered to be higher than any
+				// possible m, so m cannot be selected as a root and there is no point
+				// scanning its dependencies.
+				return nil
+			}
+
+			allow(m)
 
 			summary, err := goModSummary(m)
 			if err != nil {
@@ -236,13 +260,27 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
 				// graph, rather than loading the (potentially-overlapping) subgraph for
 				// each upgrade individually.
 				unprunedUpgrades = append(unprunedUpgrades, m)
-				continue
+				return nil
 			}
-
-			allow(m)
 			for _, r := range summary.require {
-				allow(r)
+				if isPrunedRootPath[r.Path] {
+					// r could become a root as the result of an upgrade or downgrade,
+					// in which case its dependencies will not be pruned out.
+					// We need to allow those dependencies to be upgraded too.
+					if err := allowRoot(r); err != nil {
+						return err
+					}
+				} else {
+					// r will not become a root, so its dependencies don't matter.
+					// Allow only r itself.
+					allow(r)
+				}
 			}
+			return nil
+		}
+
+		for _, m := range tryUpgrade {
+			allowRoot(m)
 		}
 	}
 
@@ -269,16 +307,41 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
 		}
 	}
 
-	if len(mustSelect) > 0 {
-		mustGraph, err := readModGraph(ctx, pruning, mustSelect)
+	// Explicitly allow any (transitive) upgrades implied by mustSelect.
+	nextRoots := append([]module.Version(nil), mustSelect...)
+	for nextRoots != nil {
+		module.Sort(nextRoots)
+		rs := newRequirements(pruning, nextRoots, nil)
+		nextRoots = nil
+
+		rs, mustGraph, err := expandGraph(ctx, rs)
 		if err != nil {
 			return err
 		}
 
 		for _, r := range mustGraph.BuildList() {
-			// Some module in mustSelect requires r, so we must allow at least r.Version
-			// unless it conflicts with an entry in mustSelect.
+			// Some module in mustSelect requires r, so we must allow at least
+			// r.Version (unless it conflicts with another entry in mustSelect, in
+			// which case we will error out either way).
 			allow(r)
+
+			if isPrunedRootPath[r.Path] {
+				if v, ok := rs.rootSelected(r.Path); ok && r.Version == v {
+					// r is already a root, so its requirements are already included in
+					// the build list.
+					continue
+				}
+
+				// The dependencies in mustSelect may upgrade (or downgrade) an existing
+				// root to match r, which will remain as a root. However, since r is not
+				// a root of rs, its dependencies have been pruned out of this build
+				// list. We need to add it back explicitly so that we allow any
+				// transitive upgrades that r will pull in.
+				if nextRoots == nil {
+					nextRoots = rs.rootModules // already capped
+				}
+				nextRoots = append(nextRoots, r)
+			}
 		}
 	}
 
