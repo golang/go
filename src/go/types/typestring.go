@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -71,22 +72,23 @@ type typeWriter struct {
 	buf  *bytes.Buffer
 	seen map[Type]bool
 	qf   Qualifier
-	hash bool
+	env  *Environment // if non-nil, we are type hashing
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, false}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil}
 }
 
-func newTypeHasher(buf *bytes.Buffer) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), nil, true}
+func newTypeHasher(buf *bytes.Buffer, env *Environment) *typeWriter {
+	assert(env != nil)
+	return &typeWriter{buf, make(map[Type]bool), nil, env}
 }
 
 func (w *typeWriter) byte(b byte)                               { w.buf.WriteByte(b) }
 func (w *typeWriter) string(s string)                           { w.buf.WriteString(s) }
 func (w *typeWriter) writef(format string, args ...interface{}) { fmt.Fprintf(w.buf, format, args...) }
 func (w *typeWriter) error(msg string) {
-	if w.hash {
+	if w.env != nil {
 		panic(msg)
 	}
 	w.string("<" + msg + ">")
@@ -228,14 +230,15 @@ func (w *typeWriter) typ(typ Type) {
 		// types. Write them to aid debugging, but don't write
 		// them when we need an instance hash: whether a type
 		// is fully expanded or not doesn't matter for identity.
-		if !w.hash && t.instPos != nil {
+		if w.env == nil && t.instPos != nil {
 			w.byte(instanceMarker)
 		}
+		w.typePrefix(t)
 		w.typeName(t.obj)
 		if t.targs != nil {
 			// instantiated type
 			w.typeList(t.targs.list())
-		} else if !w.hash && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
+		} else if w.env == nil && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
 			// parameterized type
 			w.tParamList(t.TParams().list())
 		}
@@ -261,6 +264,15 @@ func (w *typeWriter) typ(typ Type) {
 		// For externally defined implementations of Type.
 		// Note: In this case cycles won't be caught.
 		w.string(t.String())
+	}
+}
+
+// If w.env is non-nil, typePrefix writes a unique prefix for the named type t
+// based on the types already observed by w.env. If w.env is nil, it does
+// nothing.
+func (w *typeWriter) typePrefix(t *Named) {
+	if w.env != nil {
+		w.string(strconv.Itoa(w.env.idForType(t)))
 	}
 }
 
@@ -309,31 +321,6 @@ func (w *typeWriter) typeName(obj *TypeName) {
 		writePackage(w.buf, obj.pkg, w.qf)
 	}
 	w.string(obj.name)
-
-	if w.hash {
-		// For local defined types, use the (original!) TypeName's scope
-		// numbers to disambiguate.
-		if typ, _ := obj.typ.(*Named); typ != nil {
-			// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
-			//           and whether the loop can iterate more than twice.
-			//           (It seems somehow connected to instance types.)
-			for typ.orig != typ {
-				typ = typ.orig
-			}
-			w.writeScopeNumbers(typ.obj.parent)
-		}
-	}
-}
-
-// writeScopeNumbers writes the number sequence for this scope to buf
-// in the form ".i.j.k" where i, j, k, etc. stand for scope numbers.
-// If a scope is nil or has no parent (such as a package scope), nothing
-// is written.
-func (w *typeWriter) writeScopeNumbers(s *Scope) {
-	if s != nil && s.number > 0 {
-		w.writeScopeNumbers(s.parent)
-		w.writef(".%d", s.number)
-	}
 }
 
 func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
@@ -344,7 +331,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 				w.string(", ")
 			}
 			// parameter names are ignored for type identity and thus type hashes
-			if !w.hash && v.name != "" {
+			if w.env == nil && v.name != "" {
 				w.string(v.name)
 				w.byte(' ')
 			}
@@ -385,7 +372,7 @@ func (w *typeWriter) signature(sig *Signature) {
 	}
 
 	w.byte(' ')
-	if n == 1 && (w.hash || sig.results.vars[0].name == "") {
+	if n == 1 && (w.env != nil || sig.results.vars[0].name == "") {
 		// single unnamed result (if type hashing, name must be ignored)
 		w.typ(sig.results.vars[0].typ)
 		return
