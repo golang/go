@@ -759,7 +759,8 @@ func (t *test) run() {
 			}
 		}
 
-		if hasGFlag && t.glevel != CompilerDefaultGLevel {
+		// In unified IR mode, run the test regardless of explicit -G flag.
+		if !unifiedEnabled && hasGFlag && t.glevel != CompilerDefaultGLevel {
 			// test provides explicit -G flag already; don't run again
 			if *verbose {
 				fmt.Printf("excl\t%s\n", t.goFileName())
