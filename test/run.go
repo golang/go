@@ -85,12 +85,12 @@ var unifiedEnabled, defaultGLevels = func() (bool, string) {
 	// won't need to disable tests for it anymore anyway.
 	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
 
-	// Normal test runs should test with both -G=0 and -G=3 for types2
-	// coverage. But the unified experiment always uses types2, so
-	// testing with -G=3 is redundant.
-	glevels := "0,3"
-	if enabled {
-		glevels = "0"
+	// Test both -G=0 and -G=3 on the longtest builders, to make sure we
+	// don't accidentally break -G=0 mode until we're ready to remove it
+	// completely. But elsewhere, testing -G=3 alone should be enough.
+	glevels := "3"
+	if strings.Contains(os.Getenv("GO_BUILDER_NAME"), "longtest") {
+		glevels = "0,3"
 	}
 
 	return enabled, glevels
