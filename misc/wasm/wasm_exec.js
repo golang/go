@@ -568,6 +568,13 @@
 				offset += 8;
 			});
 
+			// The linker guarantees global data starts from at least wasmMinDataAddr.
+			// Keep in sync with cmd/link/internal/ld/data.go:wasmMinDataAddr.
+			const wasmMinDataAddr = 4096 + 4096;
+			if (offset >= wasmMinDataAddr) {
+				throw new Error("command line too long");
+			}
+
 			this._inst.exports.run(argc, argv);
 			if (this.exited) {
 				this._resolveExitPromise();
