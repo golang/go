@@ -147,10 +147,6 @@ func (r *reader2) doPkg() *types2.Package {
 	if path == "builtin" {
 		return nil // universe
 	}
-	if path == "unsafe" {
-		// TODO(mdempsky): This should be in r.p.imports.
-		return types2.Unsafe
-	}
 	if path == "" {
 		path = r.p.pkgPath
 	}
