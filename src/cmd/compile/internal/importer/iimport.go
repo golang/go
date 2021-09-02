@@ -327,9 +327,7 @@ func (r *importReader) obj(name string) {
 		// declaration before recursing.
 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
 		named := types2.NewNamed(obj, nil, nil)
-		if tag == 'U' {
-			named.SetTParams(tparams)
-		}
+		named.SetTParams(tparams)
 		r.declare(obj)
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
