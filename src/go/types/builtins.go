@@ -772,7 +772,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var t operand
 		x1 := x
 		for _, arg := range call.Args {
-			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%v: %s", x1.Pos(), x1)
 			x1 = &t // use incoming x only for first argument
 		}

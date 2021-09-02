@@ -1059,8 +1059,10 @@ const (
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
 // If hint != nil, it is the type of a composite literal element.
+// If allowGeneric is set, the operand type may be an uninstantiated
+// parameterized type or function value.
 //
-func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
+func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
 	if trace {
 		check.trace(e.Pos(), "expr %s", e)
 		check.indent++
@@ -1071,9 +1073,38 @@ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type) exprKind {
 	}
 
 	kind := check.exprInternal(x, e, hint)
+
+	if !allowGeneric {
+		check.nonGeneric(x)
+	}
+
 	check.record(x)
 
 	return kind
+}
+
+// If x is a generic function or type, nonGeneric reports an error and invalidates x.mode and x.typ.
+// Otherwise it leaves x alone.
+func (check *Checker) nonGeneric(x *operand) {
+	if x.mode == invalid || x.mode == novalue {
+		return
+	}
+	var what string
+	switch t := x.typ.(type) {
+	case *Named:
+		if isGeneric(t) {
+			what = "type"
+		}
+	case *Signature:
+		if t.tparams != nil {
+			what = "function"
+		}
+	}
+	if what != "" {
+		check.errorf(x.expr, _Todo, "cannot use generic %s %s without instantiation", what, x.expr)
+		x.mode = invalid
+		x.typ = Typ[Invalid]
+	}
 }
 
 // exprInternal contains the core of type checking of expressions.
@@ -1354,7 +1385,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		x.typ = typ
 
 	case *ast.ParenExpr:
-		kind := check.rawExpr(x, e.X, nil)
+		kind := check.rawExpr(x, e.X, nil, false)
 		x.expr = e
 		return kind
 
@@ -1405,7 +1436,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		return check.callExpr(x, e)
 
 	case *ast.StarExpr:
-		check.exprOrType(x, e.X)
+		check.exprOrType(x, e.X, false)
 		switch x.mode {
 		case invalid:
 			goto Error
@@ -1525,14 +1556,14 @@ func (check *Checker) typeAssertion(at positioner, x *operand, xtyp *Interface, 
 // If an error occurred, x.mode is set to invalid.
 //
 func (check *Checker) expr(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil)
+	check.rawExpr(x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
 
 // multiExpr is like expr but the result may also be a multi-value.
 func (check *Checker) multiExpr(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil)
+	check.rawExpr(x, e, nil, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 }
 
@@ -1542,16 +1573,18 @@ func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 //
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
-	check.rawExpr(x, e, hint)
+	check.rawExpr(x, e, hint, false)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.
+// If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
+// value.
 // If an error occurred, x.mode is set to invalid.
 //
-func (check *Checker) exprOrType(x *operand, e ast.Expr) {
-	check.rawExpr(x, e, nil)
+func (check *Checker) exprOrType(x *operand, e ast.Expr, allowGeneric bool) {
+	check.rawExpr(x, e, nil, allowGeneric)
 	check.exclude(x, 1<<novalue)
 	check.singleValue(x)
 }
