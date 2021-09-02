@@ -35,7 +35,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 
 	// typechecking
 	importer := gcimports{
-		packages: make(map[string]*types2.Package),
+		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
 	}
 	conf := types2.Config{
 		GoVersion:             base.Flag.Lang,
