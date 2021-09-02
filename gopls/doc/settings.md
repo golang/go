@@ -70,7 +70,7 @@ Include only project_a: `-` (exclude everything), `+project_a`
 
 Include only project_a, but not node_modules inside it: `-`, `+project_a`, `-project_a/node_modules`
 
-Default: `[]`.
+Default: `["-node_modules"]`.
 
 #### **memoryMode** *enum*
 

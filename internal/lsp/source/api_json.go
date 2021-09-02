@@ -40,7 +40,7 @@ var GeneratedAPIJSON = &APIJSON{
 					Keys:      nil,
 				},
 				EnumValues: nil,
-				Default:    "[]",
+				Default:    "[\"-node_modules\"]",
 				Status:     "",
 				Hierarchy:  "build",
 			},

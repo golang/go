@@ -109,6 +109,7 @@ func DefaultOptions() *Options {
 					ExpandWorkspaceToModule:     true,
 					ExperimentalPackageCacheKey: true,
 					MemoryMode:                  ModeNormal,
+					DirectoryFilters:            []string{"-node_modules"},
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
