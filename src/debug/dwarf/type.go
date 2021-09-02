@@ -516,7 +516,10 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		}).Basic()
 		t.Name = name
 		t.BitSize, _ = e.Val(AttrBitSize).(int64)
-		t.BitOffset, _ = e.Val(AttrBitOffset).(int64)
+		haveBitOffset := false
+		if t.BitOffset, haveBitOffset = e.Val(AttrBitOffset).(int64); !haveBitOffset {
+			t.BitOffset, _ = e.Val(AttrDataBitOffset).(int64)
+		}
 
 	case TagClassType, TagStructType, TagUnionType:
 		// Structure, union, or class type.  (DWARF v2 §5.5)
@@ -578,7 +581,9 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 			haveBitOffset := false
 			f.Name, _ = kid.Val(AttrName).(string)
 			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
-			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
+			if f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64); !haveBitOffset {
+				f.BitOffset, haveBitOffset = kid.Val(AttrDataBitOffset).(int64)
+			}
 			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
 			t.Field = append(t.Field, f)
 
