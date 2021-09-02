@@ -571,8 +571,8 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 // CreateFromVCS creates a module zip file for module m from the contents of a
 // VCS repository stored locally. The zip content is written to w.
 //
-// repo must be an absolute path to the base of the repository, such as
-// "/Users/some-user/my-repo".
+// repoRoot must be an absolute path to the base of the repository, such as
+// "/Users/some-user/some-repo".
 //
 // revision is the revision of the repository to create the zip from. Examples
 // include HEAD or SHA sums for git repositories.
@@ -580,30 +580,43 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 // subdir must be the relative path from the base of the repository, such as
 // "sub/dir". To create a zip from the base of the repository, pass an empty
 // string.
-func CreateFromVCS(w io.Writer, m module.Version, repo, revision, subdir string) (err error) {
+//
+// If CreateFromVCS returns ErrUnrecognizedVCS, consider falling back to
+// CreateFromDir.
+func CreateFromVCS(w io.Writer, m module.Version, repoRoot, revision, subdir string) (err error) {
 	defer func() {
 		if zerr, ok := err.(*zipError); ok {
-			zerr.path = repo
+			zerr.path = repoRoot
 		} else if err != nil {
-			err = &zipError{verb: "create zip from version control system", path: repo, err: err}
+			err = &zipError{verb: "create zip from version control system", path: repoRoot, err: err}
 		}
 	}()
 
 	var filesToCreate []File
 
 	switch {
-	case isGitRepo(repo):
-		files, err := filesInGitRepo(repo, revision, subdir)
+	case isGitRepo(repoRoot):
+		files, err := filesInGitRepo(repoRoot, revision, subdir)
 		if err != nil {
 			return err
 		}
 
 		filesToCreate = files
 	default:
-		return fmt.Errorf("%q does not use a recognised version control system", repo)
+		return &UnrecognizedVCSError{RepoRoot: repoRoot}
 	}
 
 	return Create(w, m, filesToCreate)
+}
+
+// UnrecognizedVCSError indicates that no recognized version control system was
+// found in the given directory.
+type UnrecognizedVCSError struct {
+	RepoRoot string
+}
+
+func (e *UnrecognizedVCSError) Error() string {
+	return fmt.Sprintf("could not find a recognized version control system at %q", e.RepoRoot)
 }
 
 // filterGitIgnored filters out any files that are git ignored in the directory.
