@@ -19,7 +19,7 @@ type MySlice []int
 type MyFloatSlice []float64
 
 type _SliceOf[E any] interface {
-	type []E
+	~[]E
 }
 
 func _DoubleElems[S _SliceOf[E], E Number](s S) S {

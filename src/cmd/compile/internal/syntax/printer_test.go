@@ -90,7 +90,7 @@ var stringTests = []string{
 
 func TestPrintString(t *testing.T) {
 	for _, want := range stringTests {
-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeLists)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -210,7 +210,7 @@ var exprTests = [][2]string{
 func TestShortString(t *testing.T) {
 	for _, test := range exprTests {
 		src := "package p; var _ = " + test[0]
-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
+		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics|AllowTypeLists)
 		if err != nil {
 			t.Errorf("%s: %s", test[0], err)
 			continue
