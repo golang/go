@@ -341,10 +341,11 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					if printDebugInfo() {
 						fmt.Fprintf(
 							c.opts.Log,
-							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s\n",
+							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s, minimized: %t\n",
 							time.Since(c.startTime),
 							result.entry.Name,
 							result.entry.Parent,
+							result.minimizeAttempted,
 						)
 					}
 				}
