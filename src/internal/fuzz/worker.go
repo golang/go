@@ -1017,6 +1017,11 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
 	entryOut.Data = mem.valueCopy()
+	h := sha256.Sum256(entryOut.Data)
+	name := fmt.Sprintf("%x", h[:4])
+	entryOut.Name = name
+	entryOut.Parent = entryIn.Parent
+	entryOut.Generation = entryIn.Generation
 	resp.Count = mem.header().count
 
 	return entryOut, resp, callErr
