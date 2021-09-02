@@ -995,6 +995,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OSEND:
 				transformSend(m.(*ir.SendStmt))
 
+			case ir.OSELECT:
+				transformSelect(m.(*ir.SelectStmt))
+
 			}
 		}
 
