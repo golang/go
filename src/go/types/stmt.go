@@ -174,7 +174,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	var code errorCode
-	switch check.rawExpr(&x, call, nil) {
+	switch check.rawExpr(&x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 		code = _InvalidDefer
@@ -391,7 +391,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil)
+		kind := check.rawExpr(&x, s.X, nil, false)
 		var msg string
 		var code errorCode
 		switch x.mode {
