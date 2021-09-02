@@ -84,13 +84,13 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		// to know the types of the left and right sides in various cases.
 		delay := false
 		for _, e := range lhs {
-			if e.Typecheck() == 3 {
+			if e.Type().HasTParam() || e.Typecheck() == 3 {
 				delay = true
 				break
 			}
 		}
 		for _, e := range rhs {
-			if e.Typecheck() == 3 {
+			if e.Type().HasTParam() || e.Typecheck() == 3 {
 				delay = true
 				break
 			}
@@ -145,8 +145,20 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return g.forStmt(stmt)
 	case *syntax.SelectStmt:
 		n := g.selectStmt(stmt)
-		transformSelect(n.(*ir.SelectStmt))
-		n.SetTypecheck(1)
+
+		delay := false
+		for _, ncase := range n.(*ir.SelectStmt).Cases {
+			if ncase.Comm != nil && ncase.Comm.Typecheck() == 3 {
+				delay = true
+				break
+			}
+		}
+		if delay {
+			n.SetTypecheck(3)
+		} else {
+			transformSelect(n.(*ir.SelectStmt))
+			n.SetTypecheck(1)
+		}
 		return n
 	case *syntax.SwitchStmt:
 		return g.switchStmt(stmt)
