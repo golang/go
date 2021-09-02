@@ -775,7 +775,9 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 	// to shared memory after completing minimization. If the worker terminates
 	// unexpectedly before then, the coordinator will use the original input.
 	resp.Success, err = ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit, args.KeepCoverage)
-	writeToMem(vals, mem)
+	if resp.Success {
+		writeToMem(vals, mem)
+	}
 	if err != nil {
 		resp.Err = err.Error()
 	} else if resp.Success {
@@ -1008,7 +1010,6 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	}
 	mem.setValue(inp)
 	wc.memMu <- mem
-	defer func() { wc.memMu <- mem }()
 
 	c := call{Minimize: &args}
 	callErr := wc.callLocked(ctx, c, &resp)
@@ -1016,13 +1017,24 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	if !ok {
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
-	entryOut.Data = mem.valueCopy()
-	h := sha256.Sum256(entryOut.Data)
-	name := fmt.Sprintf("%x", h[:4])
-	entryOut.Name = name
-	entryOut.Parent = entryIn.Parent
-	entryOut.Generation = entryIn.Generation
+	defer func() { wc.memMu <- mem }()
 	resp.Count = mem.header().count
+	if resp.Success {
+		entryOut.Data = mem.valueCopy()
+		entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
+		h := sha256.Sum256(entryOut.Data)
+		name := fmt.Sprintf("%x", h[:4])
+		entryOut.Name = name
+		entryOut.Parent = entryIn.Parent
+		entryOut.Generation = entryIn.Generation
+		if err != nil {
+			panic(fmt.Sprintf("workerClient.minimize unmarshaling minimized value: %v", err))
+		}
+	} else {
+		// Did not minimize, but the original input may still be interesting,
+		// for example, if there was an error.
+		entryOut = entryIn
+	}
 
 	return entryOut, resp, callErr
 }
@@ -1056,23 +1068,27 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 	if !bytes.Equal(inp, mem.valueRef()) {
 		panic("workerServer.fuzz modified input")
 	}
-	valuesOut, err := unmarshalCorpusFile(inp)
-	if err != nil {
-		panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
-	}
-	wc.m.r.restore(mem.header().randState, mem.header().randInc)
-	for i := int64(0); i < mem.header().count; i++ {
-		wc.m.mutate(valuesOut, cap(mem.valueRef()))
-	}
-	dataOut := marshalCorpusFile(valuesOut...)
+	needEntryOut := callErr != nil || resp.Err != "" ||
+		(!args.CoverageOnly && resp.CoverageData != nil)
+	if needEntryOut {
+		valuesOut, err := unmarshalCorpusFile(inp)
+		if err != nil {
+			panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
+		}
+		wc.m.r.restore(mem.header().randState, mem.header().randInc)
+		for i := int64(0); i < mem.header().count; i++ {
+			wc.m.mutate(valuesOut, cap(mem.valueRef()))
+		}
+		dataOut := marshalCorpusFile(valuesOut...)
 
-	h := sha256.Sum256(dataOut)
-	name := fmt.Sprintf("%x", h[:4])
-	entryOut = CorpusEntry{
-		Name:       name,
-		Parent:     entryIn.Name,
-		Data:       dataOut,
-		Generation: entryIn.Generation + 1,
+		h := sha256.Sum256(dataOut)
+		name := fmt.Sprintf("%x", h[:4])
+		entryOut = CorpusEntry{
+			Name:       name,
+			Parent:     entryIn.Name,
+			Data:       dataOut,
+			Generation: entryIn.Generation + 1,
+		}
 	}
 
 	return entryOut, resp, callErr
