@@ -325,8 +325,10 @@ const (
 	DW_ABRV_COMPUNIT
 	DW_ABRV_COMPUNIT_TEXTLESS
 	DW_ABRV_FUNCTION
+	DW_ABRV_WRAPPER
 	DW_ABRV_FUNCTION_ABSTRACT
 	DW_ABRV_FUNCTION_CONCRETE
+	DW_ABRV_WRAPPER_CONCRETE
 	DW_ABRV_INLINED_SUBROUTINE
 	DW_ABRV_INLINED_SUBROUTINE_RANGES
 	DW_ABRV_VARIABLE
@@ -455,6 +457,19 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		},
 	},
 
+	/* WRAPPER */
+	{
+		DW_TAG_subprogram,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_frame_base, DW_FORM_block1},
+			{DW_AT_trampoline, DW_FORM_flag},
+		},
+	},
+
 	/* FUNCTION_ABSTRACT */
 	{
 		DW_TAG_subprogram,
@@ -475,6 +490,19 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_frame_base, DW_FORM_block1},
+		},
+	},
+
+	/* WRAPPER_CONCRETE */
+	{
+		DW_TAG_subprogram,
+		DW_CHILDREN_yes,
+		[]dwAttrForm{
+			{DW_AT_abstract_origin, DW_FORM_ref_addr},
+			{DW_AT_low_pc, DW_FORM_addr},
+			{DW_AT_high_pc, DW_FORM_addr},
+			{DW_AT_frame_base, DW_FORM_block1},
+			{DW_AT_trampoline, DW_FORM_flag},
 		},
 	},
 
@@ -1329,11 +1357,14 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 // for the function (which holds location-independent attributes such
 // as name, type), then the remainder of the attributes are specific
 // to this instance (location, frame base, etc).
-func PutConcreteFunc(ctxt Context, s *FnState) error {
+func PutConcreteFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if logDwarf {
 		ctxt.Logf("PutConcreteFunc(%v)\n", s.Info)
 	}
 	abbrev := DW_ABRV_FUNCTION_CONCRETE
+	if isWrapper {
+		abbrev = DW_ABRV_WRAPPER_CONCRETE
+	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	// Abstract origin.
@@ -1345,6 +1376,10 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 
 	// cfa / frame base
 	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+
+	if isWrapper {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+	}
 
 	// Scopes
 	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
@@ -1368,11 +1403,14 @@ func PutConcreteFunc(ctxt Context, s *FnState) error {
 // when its containing package was compiled (hence there is no need to
 // emit an abstract version for it to use as a base for inlined
 // routine records).
-func PutDefaultFunc(ctxt Context, s *FnState) error {
+func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 	if logDwarf {
 		ctxt.Logf("PutDefaultFunc(%v)\n", s.Info)
 	}
 	abbrev := DW_ABRV_FUNCTION
+	if isWrapper {
+		abbrev = DW_ABRV_WRAPPER
+	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
 
 	// Expand '"".' to import path.
@@ -1385,13 +1423,16 @@ func PutDefaultFunc(ctxt Context, s *FnState) error {
 	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
 	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
-	ctxt.AddFileRef(s.Info, s.Filesym)
-
-	var ev int64
-	if s.External {
-		ev = 1
+	if isWrapper {
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+	} else {
+		ctxt.AddFileRef(s.Info, s.Filesym)
+		var ev int64
+		if s.External {
+			ev = 1
+		}
+		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 	}
-	putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
 
 	// Scopes
 	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
@@ -1489,10 +1530,10 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
 	// Determine whether to use a concrete variable or regular variable DIE.
 	concrete := true
 	switch fnabbrev {
-	case DW_ABRV_FUNCTION:
+	case DW_ABRV_FUNCTION, DW_ABRV_WRAPPER:
 		concrete = false
 		break
-	case DW_ABRV_FUNCTION_CONCRETE:
+	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_WRAPPER_CONCRETE:
 		// If we're emitting a concrete subprogram DIE and the variable
 		// in question is not part of the corresponding abstract function DIE,
 		// then use the default (non-concrete) abbrev for this param.
