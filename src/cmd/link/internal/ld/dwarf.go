@@ -1890,6 +1890,8 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	// global variables. For each global of this sort, locate
 	// the corresponding compiler-generated DIE symbol and tack
 	// it onto the list associated with the unit.
+	// Also looks for dictionary symbols and generates DIE symbols for each
+	// type they reference.
 	for idx := loader.Sym(1); idx < loader.Sym(d.ldr.NDef()); idx++ {
 		if !d.ldr.AttrReachable(idx) ||
 			d.ldr.AttrNotInSymbolTable(idx) ||
@@ -1903,9 +1905,21 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		default:
 			continue
 		}
-		// Skip things with no type
+		// Skip things with no type, unless it's a dictionary
 		gt := d.ldr.SymGoType(idx)
 		if gt == 0 {
+			if t == sym.SRODATA {
+				if d.ldr.IsDict(idx) {
+					// This is a dictionary, make sure that all types referenced by this dictionary are reachable
+					relocs := d.ldr.Relocs(idx)
+					for i := 0; i < relocs.Count(); i++ {
+						reloc := relocs.At(i)
+						if reloc.Type() == objabi.R_USEIFACE {
+							d.defgotype(reloc.Sym())
+						}
+					}
+				}
+			}
 			continue
 		}
 		// Skip file local symbols (this includes static tmps, stack

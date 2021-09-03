@@ -1479,6 +1479,7 @@ func markTypeUsed(t *types.Type, lsym *obj.LSym) {
 	} else {
 		// TODO: This is somewhat overkill, we really only need it
 		// for types that are put into interfaces.
+		// Note: this relocation is also used in cmd/link/internal/ld/dwarf.go
 		reflectdata.MarkTypeUsedInInterface(t, lsym)
 	}
 }
