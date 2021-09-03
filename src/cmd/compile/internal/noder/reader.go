@@ -927,6 +927,11 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
+// todoBodiesDone signals that we constructed all function in todoBodies.
+// This is necessary to prevent reader.addBody adds thing to todoBodies
+// when nested inlining happens.
+var todoBodiesDone = false
+
 func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
 	bodyReader[fn] = pri
@@ -937,7 +942,7 @@ func (r *reader) addBody(fn *ir.Func) {
 		return
 	}
 
-	if r.curfn == nil {
+	if r.curfn == nil && !todoBodiesDone {
 		todoBodies = append(todoBodies, fn)
 		return
 	}

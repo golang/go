@@ -136,6 +136,7 @@ func unified(noders []*noder) {
 		}
 	}
 	todoBodies = nil
+	todoBodiesDone = true
 
 	// Check that nothing snuck past typechecking.
 	for _, n := range target.Decls {
