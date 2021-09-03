@@ -677,7 +677,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
 func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
 	for _, name := range names {
 		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		tpar := check.NewTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
+		tpar := check.newTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}
