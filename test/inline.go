@@ -290,3 +290,57 @@ func conv2(v uint64) uint64 { // ERROR "can inline conv2"
 func conv1(v uint64) uint64 { // ERROR "can inline conv1"
 	return uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(uint64(v)))))))))))
 }
+
+// Inline into FORs
+func func_with_cost_88() {
+	x := 200
+	for i := 0; i < x; i++ {
+		if i%2 == 0 {
+			runtime.GC()
+		} else {
+			i += 2
+			x += 1
+		}
+	}
+}
+
+func func_with_fors() {
+	func_with_cost_88()
+
+	for i := 0; i < 100; i++ {
+		func_with_cost_88() // ERROR "inlining call to func_with_cost_88"
+	}
+
+	func_with_cost_88()
+	func_with_cost_88()
+
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			func_with_cost_88() // ERROR "inlining call to func_with_cost_88"
+		}
+	}
+
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			func_with_cost_88() // ERROR "inlining call to func_with_cost_88"
+			func_with_cost_88() // ERROR "inlining call to func_with_cost_88"
+			func_with_cost_88() // ERROR "inlining call to func_with_cost_88"
+		}
+	}
+
+	for i := 0; i < 100; i++ {
+		for j := 0; j < 100; j++ {
+			// Calls can't be inlined, since the outher FOR is a "big" one.
+			func_with_cost_88()
+			func_with_cost_88()
+			func_with_cost_88()
+			func_with_cost_88()
+			for j := 0; j < 100; j++ {
+				func_with_cost_88()
+				func_with_cost_88()
+			}
+		}
+	}
+
+	func_with_cost_88()
+}
