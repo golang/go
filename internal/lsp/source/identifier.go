@@ -78,7 +78,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckAll)
+	pkgs, err := snapshot.PackagesForFile(ctx, fh.URI(), TypecheckAll, false)
 	if err != nil {
 		return nil, err
 	}

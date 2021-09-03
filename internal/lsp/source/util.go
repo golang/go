@@ -282,9 +282,7 @@ func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pos token.Pos) (
 		return nil, errors.Errorf("no file for pos %v", pos)
 	}
 	uri := span.URIFromPath(tok.Name())
-	// Search all packages: some callers may be working with packages not
-	// type-checked in workspace mode.
-	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckAll)
+	pkgs, err := snapshot.PackagesForFile(ctx, uri, TypecheckAll, true)
 	if err != nil {
 		return nil, err
 	}

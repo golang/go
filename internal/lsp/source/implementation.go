@@ -215,7 +215,7 @@ var (
 // every package that the file belongs to, in every typechecking mode
 // applicable.
 func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, pp protocol.Position) ([]qualifiedObject, error) {
-	pkgs, err := s.PackagesForFile(ctx, uri, TypecheckAll)
+	pkgs, err := s.PackagesForFile(ctx, uri, TypecheckAll, false)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, 
 	// try to be comprehensive in case we ever support variations on build
 	// constraints.
 
-	pkgs, err := s.PackagesForFile(ctx, key.uri, TypecheckAll)
+	pkgs, err := s.PackagesForFile(ctx, key.uri, TypecheckAll, false)
 	if err != nil {
 		return nil, err
 	}

@@ -137,7 +137,7 @@ type Snapshot interface {
 
 	// PackagesForFile returns the packages that this file belongs to, checked
 	// in mode.
-	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode) ([]Package, error)
+	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode, includeTestVariants bool) ([]Package, error)
 
 	// PackageForFile returns a single package that this file belongs to,
 	// checked in mode and filtered by the package policy.

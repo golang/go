@@ -453,10 +453,10 @@ func hashUnsavedOverlays(files map[span.URI]source.VersionedFileHandle) string {
 	return hashContents([]byte(strings.Join(unsaved, "")))
 }
 
-func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode) ([]source.Package, error) {
+func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
-	phs, err := s.packageHandlesForFile(ctx, uri, mode)
+	phs, err := s.packageHandlesForFile(ctx, uri, mode, includeTestVariants)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +474,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
-	phs, err := s.packageHandlesForFile(ctx, uri, mode)
+	phs, err := s.packageHandlesForFile(ctx, uri, mode, false)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +503,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 	return ph.check(ctx, s)
 }
 
-func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode) ([]*packageHandle, error) {
+func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]*packageHandle, error) {
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the
 	// metadata. If there are no IDs for the file, then we should also reload.
@@ -523,7 +523,7 @@ func (s *snapshot) packageHandlesForFile(ctx context.Context, uri span.URI, mode
 	for _, id := range knownIDs {
 		// Filter out any intermediate test variants. We typically aren't
 		// interested in these packages for file= style queries.
-		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant {
+		if m := s.getMetadata(id); m != nil && m.IsIntermediateTestVariant && !includeTestVariants {
 			continue
 		}
 		var parseModes []source.ParseMode
