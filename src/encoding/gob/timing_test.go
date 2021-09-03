@@ -279,7 +279,13 @@ func BenchmarkDecodeStringSlice(b *testing.B) {
 	}
 	benchmarkDecodeSlice(b, a)
 }
-
+func BenchmarkDecodeStringsSlice(b *testing.B) {
+	a := make([][]string, 1000)
+	for i := range a {
+		a[i] = []string{"now is the time"}
+	}
+	benchmarkDecodeSlice(b, a)
+}
 func BenchmarkDecodeBytesSlice(b *testing.B) {
 	a := make([][]byte, 1000)
 	for i := range a {
