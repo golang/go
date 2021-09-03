@@ -290,7 +290,7 @@ type (
 	Ident struct {
 		NamePos token.Pos // identifier position
 		Name    string    // identifier name
-		Obj     *Object   // denoted object; or nil
+		Obj     *Object   // denoted object; or nil if the referenced declaration is not found in the parsed scope
 	}
 
 	// An Ellipsis node stands for the "..." type in a
