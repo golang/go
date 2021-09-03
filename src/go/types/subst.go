@@ -6,10 +6,7 @@
 
 package types
 
-import (
-	"bytes"
-	"go/token"
-)
+import "go/token"
 
 // TODO(rFindley) decide error codes for the errors in this file, and check
 //                if error spans can be improved
@@ -254,37 +251,6 @@ func (subst *subster) typ(typ Type) Type {
 	}
 
 	return typ
-}
-
-// typeHash returns a string representation of typ, which can be used as an exact
-// type hash: types that are identical produce identical string representations.
-// If typ is a *Named type and targs is not empty, typ is printed as if it were
-// instantiated with targs.
-func (env *Environment) typeHash(typ Type, targs []Type) string {
-	assert(env != nil)
-	assert(typ != nil)
-	var buf bytes.Buffer
-
-	h := newTypeHasher(&buf, env)
-	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
-		// Don't use WriteType because we need to use the provided targs
-		// and not any targs that might already be with the *Named type.
-		h.typePrefix(named)
-		h.typeName(named.obj)
-		h.typeList(targs)
-	} else {
-		assert(targs == nil)
-		h.typ(typ)
-	}
-
-	if debug {
-		// there should be no instance markers in type hashes
-		for _, b := range buf.Bytes() {
-			assert(b != instanceMarker)
-		}
-	}
-
-	return buf.String()
 }
 
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].

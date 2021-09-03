@@ -4,7 +4,10 @@
 
 package types
 
-import "sync"
+import (
+	"bytes"
+	"sync"
+)
 
 // An Environment is an opaque type checking environment. It may be used to
 // share identical type instances across type-checked packages or calls to
@@ -26,7 +29,36 @@ func NewEnvironment() *Environment {
 	}
 }
 
-// TODO(rfindley): move Environment.typeHash here.
+// typeHash returns a string representation of typ, which can be used as an exact
+// type hash: types that are identical produce identical string representations.
+// If typ is a *Named type and targs is not empty, typ is printed as if it were
+// instantiated with targs.
+func (env *Environment) typeHash(typ Type, targs []Type) string {
+	assert(env != nil)
+	assert(typ != nil)
+	var buf bytes.Buffer
+
+	h := newTypeHasher(&buf, env)
+	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+		// Don't use WriteType because we need to use the provided targs
+		// and not any targs that might already be with the *Named type.
+		h.typePrefix(named)
+		h.typeName(named.obj)
+		h.typeList(targs)
+	} else {
+		assert(targs == nil)
+		h.typ(typ)
+	}
+
+	if debug {
+		// there should be no instance markers in type hashes
+		for _, b := range buf.Bytes() {
+			assert(b != instanceMarker)
+		}
+	}
+
+	return buf.String()
+}
 
 // typeForHash returns the recorded type for the type hash h, if it exists.
 // If no type exists for h and n is non-nil, n is recorded for h.
