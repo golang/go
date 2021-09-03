@@ -634,29 +634,10 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	var indices []*modFileIndex
 	for _, modroot := range modRoots {
 		gomod := modFilePath(modroot)
-		var data []byte
-		var err error
-		if gomodActual, ok := fsys.OverlayPath(gomod); ok {
-			// Don't lock go.mod if it's part of the overlay.
-			// On Plan 9, locking requires chmod, and we don't want to modify any file
-			// in the overlay. See #44700.
-			data, err = os.ReadFile(gomodActual)
-		} else {
-			data, err = lockedfile.Read(gomodActual)
-		}
+		var fixed bool
+		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
 		if err != nil {
 			base.Fatalf("go: %v", err)
-		}
-
-		var fixed bool
-		f, err := modfile.Parse(gomod, data, fixVersion(ctx, &fixed))
-		if err != nil {
-			// Errors returned by modfile.Parse begin with file:line.
-			base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
-		}
-		if f.Module == nil {
-			// No module declaration. Must add module path.
-			base.Fatalf("go: no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
 		}
 
 		modFiles = append(modFiles, f)
@@ -819,7 +800,9 @@ func CreateModFile(ctx context.Context, modPath string) {
 
 // CreateWorkFile initializes a new workspace by creating a go.work file.
 func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
-	_ = TODOWorkspaces("Report an error if the file already exists.")
+	if _, err := fsys.Stat(workFile); err == nil {
+		base.Fatalf("go: %s already exists", workFile)
+	}
 
 	goV := LatestGoVersion() // Use current Go version by default
 	workF := new(modfile.WorkFile)
@@ -827,12 +810,18 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
 	workF.AddGoStmt(goV)
 
 	for _, dir := range modDirs {
-		_ = TODOWorkspaces("Add the module path of the module.")
-		workF.AddDirectory(dir, "")
+		_, f, err := ReadModFile(filepath.Join(dir, "go.mod"), nil)
+		if err != nil {
+			if os.IsNotExist(err) {
+				base.Fatalf("go: creating workspace file: no go.mod file exists in directory %v", dir)
+			}
+			base.Fatalf("go: error parsing go.mod in directory %s: %v", dir, err)
+		}
+		workF.AddDirectory(ToDirectoryPath(dir), f.Module.Mod.Path)
 	}
 
 	data := modfile.Format(workF.Syntax)
-	lockedfile.Write(workFile, bytes.NewReader(data), 0644)
+	lockedfile.Write(workFile, bytes.NewReader(data), 0666)
 }
 
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.

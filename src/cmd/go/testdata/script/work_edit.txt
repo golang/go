@@ -33,32 +33,36 @@ cmp stdout go.work.want_json
 go mod editwork -print -fmt -workfile unformatted
 cmp stdout formatted
 
+-- m/go.mod --
+module m
+
+go 1.18
 -- go.work.want_initial --
 go 1.18
 
-directory m
+directory ./m
 -- go.work.want_directory_n --
 go 1.18
 
 directory (
-	m
-	n
+	./m
+	./n
 )
 -- go.work.want_go_118 --
 go 1.18
 
 directory (
-	m
-	n
+	./m
+	./n
 )
 -- go.work.want_dropdirectory_m --
 go 1.18
 
-directory n
+directory ./n
 -- go.work.want_add_replaces --
 go 1.18
 
-directory n
+directory ./n
 
 replace (
 	x.1 v1.3.0 => y.1 v1.4.0
@@ -69,9 +73,9 @@ go 1.18
 
 directory (
 	../a
+	./c
+	./n
 	/b
-	c
-	n
 )
 
 replace (
@@ -83,7 +87,7 @@ go 1.18
 
 directory (
 	../a
-	c
+	./c
 )
 
 replace (
@@ -95,7 +99,7 @@ go 1.18
 
 directory (
 	../a
-	c
+	./c
 )
 
 replace x.1 v1.3.0 => y.1 v1.4.0
@@ -104,7 +108,7 @@ go 1.19
 
 directory (
 	../a
-	b
+	./b
 )
 
 replace x.1 v1.4.0 => ../z
@@ -116,7 +120,7 @@ replace x.1 v1.4.0 => ../z
 			"DiskPath": "../a"
 		},
 		{
-			"DiskPath": "b"
+			"DiskPath": "./b"
 		}
 	],
 	"Replace": [
