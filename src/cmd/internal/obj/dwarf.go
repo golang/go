@@ -378,9 +378,9 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 		if err != nil {
 			ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 		}
-		err = dwarf.PutConcreteFunc(dwctxt, fnstate)
+		err = dwarf.PutConcreteFunc(dwctxt, fnstate, s.Wrapper())
 	} else {
-		err = dwarf.PutDefaultFunc(dwctxt, fnstate)
+		err = dwarf.PutDefaultFunc(dwctxt, fnstate, s.Wrapper())
 	}
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
