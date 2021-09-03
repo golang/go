@@ -47,6 +47,34 @@ const (
 	separateIndirectVersionV = "v1.17"
 )
 
+// ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+// overlay, locks the file while reading, and applies fix, if applicable.
+func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
+	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+		// Don't lock go.mod if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(gomodActual)
+	} else {
+		data, err = lockedfile.Read(gomodActual)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	f, err = modfile.Parse(gomod, data, fix)
+	if err != nil {
+		// Errors returned by modfile.Parse begin with file:line.
+		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
+	}
+	if f.Module == nil {
+		// No module declaration. Must add module path.
+		return nil, nil, errors.New("no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+	}
+
+	return data, f, err
+}
+
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
 // in modFile are interpreted, or the latest Go version if modFile is nil.
 func modFileGoVersion(modFile *modfile.File) string {
@@ -739,3 +767,15 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 }
 
 var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result
+
+// ToDirectoryPath adds a prefix if necessary so that path in unambiguously
+// an absolute path or a relative path starting with a '.' or '..'
+// path component.
+func ToDirectoryPath(path string) string {
+	if modfile.IsDirectoryPath(path) {
+		return path
+	}
+	// The path is not a relative path or an absolute path, so make it relative
+	// to the current directory.
+	return "./" + filepath.ToSlash(filepath.Clean(path))
+}

@@ -1,3 +1,6 @@
+! go mod initwork doesnotexist
+stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+
 go mod initwork ./a ./b
 cmp go.work go.work.want
 

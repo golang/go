@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/mod/modfile"
@@ -191,7 +192,13 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 // flagEditworkDirectory implements the -directory flag.
 func flagEditworkDirectory(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
-		if err := f.AddDirectory(arg, ""); err != nil {
+		_, mf, err := modload.ReadModFile(filepath.Join(arg, "go.mod"), nil)
+		modulePath := ""
+		if err == nil {
+			modulePath = mf.Module.Mod.Path
+		}
+		f.AddDirectory(modload.ToDirectoryPath(arg), modulePath)
+		if err := f.AddDirectory(modload.ToDirectoryPath(arg), ""); err != nil {
 			base.Fatalf("go mod: -directory=%s: %v", arg, err)
 		}
 	})
@@ -200,7 +207,7 @@ func flagEditworkDirectory(arg string) {
 // flagEditworkDropDirectory implements the -dropdirectory flag.
 func flagEditworkDropDirectory(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
-		if err := f.DropDirectory(arg); err != nil {
+		if err := f.DropDirectory(modload.ToDirectoryPath(arg)); err != nil {
 			base.Fatalf("go mod: -dropdirectory=%s: %v", arg, err)
 		}
 	})
