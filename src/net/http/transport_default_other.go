@@ -10,13 +10,8 @@ package http
 import (
 	"context"
 	"net"
-	"time"
 )
 
-func defaultTransportDialContext() func(context.Context, string, string) (net.Conn, error) {
-	dialer := &net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
+func defaultTransportDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
 	return dialer.DialContext
 }
