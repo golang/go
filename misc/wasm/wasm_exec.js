@@ -28,10 +28,12 @@
 	}
 
 	if (!global.fs && global.require) {
-		const fs = require("fs");
-		if (typeof fs === "object" && fs !== null && Object.keys(fs).length !== 0) {
-			global.fs = fs;
-		}
+		try {
+			const fs = require("fs");
+			if (typeof fs === "object" && fs !== null && Object.keys(fs).length !== 0) {
+				global.fs = fs;
+			}
+		} catch(e) {}
 	}
 
 	const enosys = () => {
