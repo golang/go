@@ -286,14 +286,28 @@ func (v Value) Bool() bool {
 }
 
 // Bytes returns v's underlying value.
-// It panics if v's underlying value is not a slice of bytes.
+// It panics if v's underlying value is not a slice of bytes or
+// an addressable array of bytes.
 func (v Value) Bytes() []byte {
-	v.mustBe(Slice)
-	if v.typ.Elem().Kind() != Uint8 {
-		panic("reflect.Value.Bytes of non-byte slice")
+	switch v.kind() {
+	case Slice:
+		if v.typ.Elem().Kind() != Uint8 {
+			panic("reflect.Value.Bytes of non-byte slice")
+		}
+		// Slice is always bigger than a word; assume flagIndir.
+		return *(*[]byte)(v.ptr)
+	case Array:
+		if v.typ.Elem().Kind() != Uint8 {
+			panic("reflect.Value.Bytes of non-byte array")
+		}
+		if !v.CanAddr() {
+			panic("reflect.Value.Bytes of unaddressable byte array")
+		}
+		p := (*byte)(v.ptr)
+		n := int((*arrayType)(unsafe.Pointer(v.typ)).len)
+		return unsafe.Slice(p, n)
 	}
-	// Slice is always bigger than a word; assume flagIndir.
-	return *(*[]byte)(v.ptr)
+	panic(&ValueError{"reflect.Value.Bytes", v.kind()})
 }
 
 // runes returns v's underlying value.
