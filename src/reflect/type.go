@@ -12,7 +12,7 @@
 // for that type.
 //
 // See "The Laws of Reflection" for an introduction to reflection in Go:
-// https://golang.org/doc/articles/laws_of_reflection.html
+// https://go.dev/blog/laws-of-reflection
 package reflect
 
 import (
@@ -1605,7 +1605,7 @@ func implements(T, V *rtype) bool {
 
 // specialChannelAssignability reports whether a value x of channel type V
 // can be directly assigned (using memmove) to another channel type T.
-// https://golang.org/doc/go_spec.html#Assignability
+// https://golang.org/ref/spec#Assignability
 // T and V must be both of Chan kind.
 func specialChannelAssignability(T, V *rtype) bool {
 	// Special case:
@@ -1617,7 +1617,7 @@ func specialChannelAssignability(T, V *rtype) bool {
 
 // directlyAssignable reports whether a value x of type V can be directly
 // assigned (using memmove) to a value of type T.
-// https://golang.org/doc/go_spec.html#Assignability
+// https://golang.org/ref/spec#Assignability
 // Ignoring the interface rules (implemented elsewhere)
 // and the ideal constant rules (no ideal constants at run time).
 func directlyAssignable(T, V *rtype) bool {
@@ -1863,7 +1863,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 			// typ is recv chan, need parentheses as "<-" associates with leftmost
 			// chan possible, see:
 			// * https://golang.org/ref/spec#Channel_types
-			// * https://github.com/golang/go/issues/39897
+			// * https://golang.org/issues/39897
 			s = "chan (" + typeStr + ")"
 		} else {
 			s = "chan " + typeStr

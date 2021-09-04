@@ -29,14 +29,14 @@ not be referenced from Go code; static functions are permitted.
 
 See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples. See
 "C? Go? Cgo!" for an introduction to using cgo:
-https://golang.org/doc/articles/c_go_cgo.html.
+https://go.dev/blog/cgo.
 
 CFLAGS, CPPFLAGS, CXXFLAGS, FFLAGS and LDFLAGS may be defined with pseudo
 #cgo directives within these comments to tweak the behavior of the C, C++
 or Fortran compiler. Values defined in multiple directives are concatenated
 together. The directive can include a list of build constraints limiting its
 effect to systems satisfying one of the constraints
-(see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+(see https://pkg.go.dev/go/build#hdr-Build_Constraints for details about the constraint syntax).
 For example:
 
 	// #cgo CFLAGS: -DPNG_DEBUG=1
@@ -128,7 +128,7 @@ build constraint "cgo" if cgo is enabled. The special import "C"
 implies the "cgo" build constraint, as though the file also said
 "// +build cgo".  Therefore, if cgo is disabled, files that import
 "C" will not be built by the go tool. (For more about build constraints
-see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
+see https://pkg.go.dev/go/build#hdr-Build_Constraints).
 
 When cross-compiling, you must specify a C cross-compiler for cgo to
 use. You can do this by setting the generic CC_FOR_TARGET or the

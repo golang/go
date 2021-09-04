@@ -19,7 +19,7 @@ A collection is triggered when the ratio of freshly allocated data to live data
 remaining after the previous collection reaches this percentage. The default
 is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
 The runtime/debug package's SetGCPercent function allows changing this
-percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
+percentage at run time. See https://pkg.go.dev/runtime/debug#SetGCPercent.
 
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
@@ -154,7 +154,7 @@ the GOMAXPROCS limit. This package's GOMAXPROCS function queries and changes
 the limit.
 
 The GORACE variable configures the race detector, for programs built using -race.
-See https://golang.org/doc/articles/race_detector.html for details.
+See https://golang.org/doc/articles/race_detector for details.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
@@ -179,7 +179,7 @@ See https://golang.org/pkg/runtime/debug/#SetTraceback.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
-(see https://golang.org/cmd/go and https://golang.org/pkg/go/build).
+(see https://pkg.go.dev/cmd/go and https://pkg.go.dev/go/build).
 GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
 constants or functions in this package, but they do not influence the execution
 of the run-time system.

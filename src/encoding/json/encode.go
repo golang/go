@@ -7,7 +7,7 @@
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
-// https://golang.org/doc/articles/json_and_go.html
+// https://go.dev/blog/json
 package json
 
 import (
@@ -651,7 +651,7 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 // isValidNumber reports whether s is a valid JSON number literal.
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
-	// See https://tools.ietf.org/html/rfc7159#section-6
+	// See https://datatracker.ietf.org/doc/html/rfc7159#section-6
 	// and https://www.json.org/img/number.png
 
 	if s == "" {
