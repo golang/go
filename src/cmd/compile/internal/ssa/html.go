@@ -1221,7 +1221,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) endBlock(b *Block) {
+func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")
