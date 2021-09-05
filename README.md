@@ -28,6 +28,14 @@ operating system and architecture, visit
 https://golang.org/doc/install/source
 for source installation instructions.
 
+### Documentation & Tutorials
+
+Official documentation of Go language can be found at https://golang.org/doc/ .
+
+### Go Standard Library
+
+A list of standard Go packages can be found at https://pkg.go.dev/std .
+
 ### Contributing
 
 Go is the work of thousands of contributors. We appreciate your help!
