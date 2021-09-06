@@ -124,6 +124,12 @@ func sbfx6(x int32) int32 {
 	return (x << 3) >> 4 // arm64:"SBFX\t[$]1, R[0-9]+, [$]28",-"LSL",-"ASR"
 }
 
+// merge sbfx and sign-extension into sbfx.
+func sbfx7(x int32) int64 {
+	c := x + 5
+	return int64(c >> 20) // arm64"SBFX\t[$]20, R[0-9]+, [$]12",-"MOVW\tR[0-9]+, R[0-9]+"
+}
+
 // ubfiz
 func ubfiz1(x uint64) uint64 {
 	// arm64:"UBFIZ\t[$]3, R[0-9]+, [$]12",-"LSL",-"AND"
@@ -235,6 +241,16 @@ func ubfx11(x uint64) uint64 {
 	// arm64:"UBFX\t[$]1, R[0-9]+, [$]19",-"LSL",-"LSR"
 	// s390x:"RISBGZ\t[$]45, [$]63, [$]63, ",-"SLD",-"SRD",-"AND"
 	return ((x & 0xfffff) << 3) >> 4
+}
+
+// merge ubfx and zero-extension into ubfx.
+func ubfx12(x uint64) bool {
+	midr := x + 10
+	part_num := uint16((midr >> 4) & 0xfff)
+	if part_num == 0xd0c { // arm64:"UBFX\t[$]4, R[0-9]+, [$]12",-"MOVHU\tR[0-9]+, R[0-9]+"
+		return true
+	}
+	return false
 }
 
 // Check that we don't emit comparisons for constant shifts.
