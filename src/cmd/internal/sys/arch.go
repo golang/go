@@ -16,13 +16,13 @@ const (
 	ARM
 	ARM64
 	I386
+	Loong64
 	MIPS
 	MIPS64
 	PPC64
 	RISCV64
 	S390X
 	Wasm
-	Loong64
 )
 
 // Arch represents an individual architecture.
@@ -98,6 +98,16 @@ var ArchARM64 = &Arch{
 	RegSize:   8,
 	MinLC:     4,
 	Alignment: 1,
+}
+
+var ArchLoong64 = &Arch{
+	Name:      "loong64",
+	Family:    Loong64,
+	ByteOrder: binary.LittleEndian,
+	PtrSize:   8,
+	RegSize:   8,
+	MinLC:     4,
+	Alignment: 8, // Unaligned accesses are not guaranteed to be fast
 }
 
 var ArchMIPS = &Arch{
@@ -190,21 +200,12 @@ var ArchWasm = &Arch{
 	Alignment: 1,
 }
 
-var ArchLoong64 = &Arch{
-	Name:      "loong64",
-	Family:    Loong64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 8, // Unaligned accesses are not guaranteed to be fast
-}
-
 var Archs = [...]*Arch{
 	Arch386,
 	ArchAMD64,
 	ArchARM,
 	ArchARM64,
+	ArchLoong64,
 	ArchMIPS,
 	ArchMIPSLE,
 	ArchMIPS64,
@@ -214,5 +215,4 @@ var Archs = [...]*Arch{
 	ArchRISCV64,
 	ArchS390X,
 	ArchWasm,
-	ArchLoong64,
 }
