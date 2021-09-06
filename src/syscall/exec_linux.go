@@ -448,13 +448,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
 		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
-		if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-			_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
-			if err1 != 0 {
-				goto childerror
-			}
-			RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-		} else if err1 != 0 {
+		if err1 != 0 {
 			goto childerror
 		}
 		pipe = nextfd
@@ -466,13 +460,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 				nextfd++
 			}
 			_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
-			if _SYS_dup != SYS_DUP3 && err1 == ENOSYS {
-				_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
-				if err1 != 0 {
-					goto childerror
-				}
-				RawSyscall(fcntl64Syscall, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
-			} else if err1 != 0 {
+			if err1 != 0 {
 				goto childerror
 			}
 			fd[i] = nextfd
@@ -497,7 +485,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
+		_, _, err1 = RawSyscall(SYS_DUP3, uintptr(fd[i]), uintptr(i), 0)
 		if err1 != 0 {
 			goto childerror
 		}
