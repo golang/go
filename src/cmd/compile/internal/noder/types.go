@@ -321,10 +321,6 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				}
 				// Do the substitution of the type
 				meth2.SetType(ts.Typ(meth.Type()))
-				// Add any new fully instantiated types
-				// seen during the substitution to
-				// g.instTypeList.
-				g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
 				newsym.Def = meth2
 			}
 			meth = meth2
@@ -335,7 +331,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 	ntyp.Methods().Set(methods)
 	if !ntyp.HasTParam() && !ntyp.HasShape() {
 		// Generate all the methods for a new fully-instantiated type.
-		g.instTypeList = append(g.instTypeList, ntyp)
+		typecheck.NeedInstType(ntyp)
 	}
 }
 
