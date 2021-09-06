@@ -1834,6 +1834,10 @@
 (SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [armBFAuxInt(rc, 32-rc)] x)
 (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
 (SRAconst [rc] (MOVBreg x)) && rc < 8 => (SBFX [armBFAuxInt(rc, 8-rc)] x)
+// merge sbfx and sign-extension into sbfx
+(MOVWreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (SBFX [bfc] x)
+(MOVHreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (SBFX [bfc] x)
+(MOVBreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (SBFX [bfc] x)
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
@@ -1879,6 +1883,11 @@
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
 // (x << lc) >> rc
 (SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+
+// merge ubfx and zerso-extension into ubfx
+(MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
+(MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
+(MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
