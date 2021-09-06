@@ -5,7 +5,6 @@
 package noder
 
 import (
-	"bytes"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
@@ -72,29 +71,12 @@ func (g *irgen) typ1(typ types2.Type) *types.Type {
 
 // instTypeName2 creates a name for an instantiated type, base on the type args
 // (given as types2 types).
-func instTypeName2(name string, targs *types2.TypeList) string {
-	b := bytes.NewBufferString(name)
-	b.WriteByte('[')
-	n := targs.Len()
-	for i := 0; i < n; i++ {
-		targ := targs.At(i)
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		// Include package names for all types, including typeparams, to
-		// make sure type arguments are uniquely specified.
-		tname := types2.TypeString(targ,
-			func(pkg *types2.Package) string { return pkg.Name() })
-		if strings.Index(tname, ", ") >= 0 {
-			// types2.TypeString puts spaces after a comma in a type
-			// list, but we don't want spaces in our actual type names
-			// and method/function names derived from them.
-			tname = strings.Replace(tname, ", ", ",", -1)
-		}
-		b.WriteString(tname)
+func (g *irgen) instTypeName2(name string, targs *types2.TypeList) string {
+	rparams := make([]*types.Type, targs.Len())
+	for i := range rparams {
+		rparams[i] = g.typ(targs.At(i))
 	}
-	b.WriteByte(']')
-	return b.String()
+	return typecheck.InstTypeName(name, rparams)
 }
 
 // typ0 converts a types2.Type to a types.Type, but doesn't do the caching check
@@ -119,7 +101,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			//
 			// When converted to types.Type, typ has a unique name,
 			// based on the names of the type arguments.
-			instName := instTypeName2(typ.Obj().Name(), typ.TArgs())
+			instName := g.instTypeName2(typ.Obj().Name(), typ.TArgs())
 			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
 			if s.Def != nil {
 				// We have already encountered this instantiation.
@@ -314,7 +296,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 			// generic type, so we have to do a substitution to get
 			// the name/type of the method of the instantiated type,
 			// using m.Type().RParams() and typ.TArgs()
-			inst2 := instTypeName2("", typ.TArgs())
+			inst2 := g.instTypeName2("", typ.TArgs())
 			name := meth.Sym().Name
 			i1 := strings.Index(name, "[")
 			i2 := strings.Index(name[i1:], "]")
