@@ -1827,6 +1827,10 @@
 (MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
 (MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
 (MOVBreg (SLLconst [lc] x)) && lc < 8 => (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
+// int64(x) << lc
+(SLLconst [lc] (MOVWreg x))  => (SBFIZ [armBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHreg x))  => (SBFIZ [armBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBreg x))  => (SBFIZ [armBFAuxInt(lc, min(8, 64-lc))] x)
 
 // sbfx
 // (x << lc) >> rc

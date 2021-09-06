@@ -99,6 +99,18 @@ func sbfiz5(x int32) int32 {
 	return (x << 4) >> 3
 }
 
+func sbfiz5(x int32) int64 {
+	return int64(x+1) << 40 // arm64:"SBFIZ\t[$]40, R[0-9]+, [$]24",-"LSL"
+}
+
+func sbfiz6(x int16) int64 {
+	return int64(x+1) << 3 // arm64:"SBFIZ\t[$]3, R[0-9]+, [$]16",-"LSL"
+}
+
+func sbfiz7(x int8) int64 {
+	return int64(x+1) << 62 // arm64:"SBFIZ\t[$]62, R[0-9]+, [$]2",-"LSL"
+}
+
 // sbfx
 func sbfx1(x int64) int64 {
 	return (x << 3) >> 4 // arm64:"SBFX\t[$]1, R[0-9]+, [$]60",-"LSL",-"ASR"
