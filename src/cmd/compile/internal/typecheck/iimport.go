@@ -1871,4 +1871,8 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 		newfields[i].Nname = nname
 	}
 	t.Methods().Set(newfields)
+	if !t.HasTParam() && t.Kind() != types.TINTER && t.Methods().Len() > 0 {
+		// Generate all the methods for a new fully-instantiated type.
+		NeedInstType(t)
+	}
 }

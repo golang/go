@@ -992,6 +992,22 @@ func assert(p bool) {
 	base.Assert(p)
 }
 
+// List of newly fully-instantiated types who should have their methods generated.
+var instTypeList []*types.Type
+
+// NeedInstType adds a new fully-instantied type to instTypeList.
+func NeedInstType(t *types.Type) {
+	instTypeList = append(instTypeList, t)
+}
+
+// GetInstTypeList returns the current contents of instTypeList, and sets
+// instTypeList to nil.
+func GetInstTypeList() []*types.Type {
+	r := instTypeList
+	instTypeList = nil
+	return r
+}
+
 // General type substituter, for replacing typeparams with type args.
 type Tsubster struct {
 	Tparams []*types.Type
@@ -999,8 +1015,6 @@ type Tsubster struct {
 	// If non-nil, the substitution map from name nodes in the generic function to the
 	// name nodes in the new stenciled function.
 	Vars map[*ir.Name]*ir.Name
-	// New fully-instantiated generic types whose methods should be instantiated.
-	InstTypeList []*types.Type
 	// If non-nil, function to substitute an incomplete (TFORW) type.
 	SubstForwFunc func(*types.Type) *types.Type
 }
@@ -1258,7 +1272,8 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		newt.Methods().Set(newfields)
 		if !newt.HasTParam() && !newt.HasShape() {
 			// Generate all the methods for a new fully-instantiated type.
-			ts.InstTypeList = append(ts.InstTypeList, newt)
+
+			NeedInstType(newt)
 		}
 	}
 	return newt

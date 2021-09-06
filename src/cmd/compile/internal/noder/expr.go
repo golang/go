@@ -237,7 +237,6 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
 		Targs:   targs1,
 	}
 	newt := ts.Typ(typ)
-	g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
 	return newt
 }
 

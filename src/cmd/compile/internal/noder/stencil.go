@@ -481,39 +481,43 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 }
 
 // instantiateMethods instantiates all the methods (and associated dictionaries) of
-// all fully-instantiated generic types that have been added to g.instTypeList.
+// all fully-instantiated generic types that have been added to typecheck.instTypeList.
+// It continues until no more types are added to typecheck.instTypeList.
 func (g *irgen) instantiateMethods() {
-	for i := 0; i < len(g.instTypeList); i++ {
-		typ := g.instTypeList[i]
-		assert(!typ.HasShape())
-		// Mark runtime type as needed, since this ensures that the
-		// compiler puts out the needed DWARF symbols, when this
-		// instantiated type has a different package from the local
-		// package.
-		typecheck.NeedRuntimeType(typ)
-		// Lookup the method on the base generic type, since methods may
-		// not be set on imported instantiated types.
-		baseSym := typ.OrigSym()
-		baseType := baseSym.Def.(*ir.Name).Type()
-		for j, _ := range typ.Methods().Slice() {
-			if baseType.Methods().Slice()[j].Nointerface() {
-				typ.Methods().Slice()[j].SetNointerface(true)
+	for {
+		instTypeList := typecheck.GetInstTypeList()
+		if len(instTypeList) == 0 {
+			break
+		}
+		for _, typ := range instTypeList {
+			assert(!typ.HasShape())
+			// Mark runtime type as needed, since this ensures that the
+			// compiler puts out the needed DWARF symbols, when this
+			// instantiated type has a different package from the local
+			// package.
+			typecheck.NeedRuntimeType(typ)
+			// Lookup the method on the base generic type, since methods may
+			// not be set on imported instantiated types.
+			baseSym := typ.OrigSym()
+			baseType := baseSym.Def.(*ir.Name).Type()
+			for j, _ := range typ.Methods().Slice() {
+				if baseType.Methods().Slice()[j].Nointerface() {
+					typ.Methods().Slice()[j].SetNointerface(true)
+				}
+				baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+				// Eagerly generate the instantiations and dictionaries that implement these methods.
+				// We don't use the instantiations here, just generate them (and any
+				// further instantiations those generate, etc.).
+				// Note that we don't set the Func for any methods on instantiated
+				// types. Their signatures don't match so that would be confusing.
+				// Direct method calls go directly to the instantiations, implemented above.
+				// Indirect method calls use wrappers generated in reflectcall. Those wrappers
+				// will use these instantiations if they are needed (for interface tables or reflection).
+				_ = g.getInstantiation(baseNname, typ.RParams(), true)
+				_ = g.getDictionarySym(baseNname, typ.RParams(), true)
 			}
-			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
-			// Eagerly generate the instantiations and dictionaries that implement these methods.
-			// We don't use the instantiations here, just generate them (and any
-			// further instantiations those generate, etc.).
-			// Note that we don't set the Func for any methods on instantiated
-			// types. Their signatures don't match so that would be confusing.
-			// Direct method calls go directly to the instantiations, implemented above.
-			// Indirect method calls use wrappers generated in reflectcall. Those wrappers
-			// will use these instantiations if they are needed (for interface tables or reflection).
-			_ = g.getInstantiation(baseNname, typ.RParams(), true)
-			_ = g.getDictionarySym(baseNname, typ.RParams(), true)
 		}
 	}
-	g.instTypeList = nil
-
 }
 
 // getInstNameNode returns the name node for the method or function being instantiated, and a bool which is true if a method is being instantiated.
@@ -735,9 +739,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 	}
 
 	ir.CurFunc = savef
-	// Add any new, fully instantiated types seen during the substitution to
-	// g.instTypeList.
-	g.instTypeList = append(g.instTypeList, subst.ts.InstTypeList...)
 
 	if doubleCheck {
 		ir.Visit(newf, func(n ir.Node) {
@@ -1573,7 +1574,6 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 		off:   off,
 	}
 	g.dictSymsToFinalize = append(g.dictSymsToFinalize, delay)
-	g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	return sym
 }
 
@@ -1640,8 +1640,6 @@ func (g *irgen) finalizeSyms() {
 
 		objw.Global(lsym, int32(d.off), obj.DUPOK|obj.RODATA)
 		infoPrint("=== Finalized dictionary %s\n", d.sym.Name)
-
-		g.instTypeList = append(g.instTypeList, subst.InstTypeList...)
 	}
 	g.dictSymsToFinalize = nil
 }

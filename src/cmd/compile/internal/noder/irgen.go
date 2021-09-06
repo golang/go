@@ -152,9 +152,6 @@ type irgen struct {
 	// types which we need to finish, by doing g.fillinMethods.
 	typesToFinalize []*typeDelayInfo
 
-	// Fully-instantiated generic types whose methods should be instantiated
-	instTypeList []*types.Type
-
 	dnum int // for generating unique dictionary variables
 
 	// Map from generic function to information about its type params, derived
