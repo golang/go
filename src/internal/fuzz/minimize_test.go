@@ -53,7 +53,7 @@ func TestMinimizeInput(t *testing.T) {
 				} else {
 					return fmt.Errorf("bad %v", e.Values[0])
 				}
-				if int(b[len(b)-1]) == len(b) {
+				if b[1] == 2 {
 					return fmt.Errorf("bad %v", e.Values[0])
 				}
 				return nil
