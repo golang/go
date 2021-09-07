@@ -95,16 +95,12 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
 		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
 	case ir.OADD:
 		n := ir.NewBinaryExpr(pos, op, x, y)
-		if x.Type().HasTParam() || y.Type().HasTParam() {
-			// Delay transformAdd() if either arg has a type param,
-			// since it needs to know the exact types to decide whether
-			// to transform OADD to OADDSTR.
-			n.SetType(typ)
-			n.SetTypecheck(3)
-			return n
-		}
 		typed(typ, n)
-		return transformAdd(n)
+		r := ir.Node(n)
+		if !delayTransform() {
+			r = transformAdd(n)
+		}
+		return r
 	default:
 		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
 	}
@@ -201,22 +197,10 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 
 func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
 	n := ir.NewBinaryExpr(pos, op, x, y)
-	if x.Type().HasTParam() || y.Type().HasTParam() {
-		xIsInt := x.Type().IsInterface()
-		yIsInt := y.Type().IsInterface()
-		if !(xIsInt && !yIsInt || !xIsInt && yIsInt) {
-			// If either arg is a type param, then we can still do the
-			// transformCompare() if we know that one arg is an interface
-			// and the other is not. Otherwise, we delay
-			// transformCompare(), since it needs to know the exact types
-			// to decide on any needed conversions.
-			n.SetType(typ)
-			n.SetTypecheck(3)
-			return n
-		}
-	}
 	typed(typ, n)
-	transformCompare(n)
+	if !delayTransform() {
+		transformCompare(n)
+	}
 	return n
 }
 
@@ -288,15 +272,11 @@ func method(typ *types.Type, index int) *types.Field {
 
 func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
 	n := ir.NewIndexExpr(pos, x, index)
-	if x.Type().HasTParam() {
-		// transformIndex needs to know exact type
-		n.SetType(typ)
-		n.SetTypecheck(3)
-		return n
-	}
 	typed(typ, n)
-	// transformIndex will modify n.Type() for OINDEXMAP.
-	transformIndex(n)
+	if !delayTransform() {
+		// transformIndex will modify n.Type() for OINDEXMAP.
+		transformIndex(n)
+	}
 	return n
 }
 
@@ -306,14 +286,10 @@ func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
 		op = ir.OSLICE3
 	}
 	n := ir.NewSliceExpr(pos, op, x, low, high, max)
-	if x.Type().HasTParam() {
-		// transformSlice needs to know if x.Type() is a string or an array or a slice.
-		n.SetType(typ)
-		n.SetTypecheck(3)
-		return n
-	}
 	typed(typ, n)
-	transformSlice(n)
+	if !delayTransform() {
+		transformSlice(n)
+	}
 	return n
 }
 
@@ -354,4 +330,10 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
 		bl = typecheck.DefaultLit(bl, x.Type())
 	}
 	return ir.NewAssignOpStmt(pos, op, x, bl)
+}
+
+// delayTransform returns true if we should delay all transforms, because we are
+// creating the nodes for a generic function/method.
+func delayTransform() bool {
+	return ir.CurFunc != nil && ir.CurFunc.Type().HasTParam()
 }
