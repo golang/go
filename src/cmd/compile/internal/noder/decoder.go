@@ -255,7 +255,8 @@ func (r *decoder) strings() []string {
 	return res
 }
 
-func (r *decoder) rawValue() constant.Value {
+func (r *decoder) value() constant.Value {
+	r.sync(syncValue)
 	isComplex := r.bool()
 	val := r.scalar()
 	if isComplex {
