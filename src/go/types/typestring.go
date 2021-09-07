@@ -235,7 +235,7 @@ func (w *typeWriter) typ(typ Type) {
 		if t.targs != nil {
 			// instantiated type
 			w.typeList(t.targs.list())
-		} else if t.TParams().Len() != 0 {
+		} else if !w.hash && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
 			// parameterized type
 			w.tParamList(t.TParams().list())
 		}
