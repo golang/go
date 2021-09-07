@@ -4431,6 +4431,14 @@ var gFloat32 float32
 const snan uint32 = 0x7f800001
 
 func TestConvertNaNs(t *testing.T) {
+	// Test to see if a store followed by a load of a signaling NaN
+	// maintains the signaling bit. (This used to fail on the 387 port.)
+	gFloat32 = math.Float32frombits(snan)
+	runtime.Gosched() // make sure we don't optimize the store/load away
+	if got := math.Float32bits(gFloat32); got != snan {
+		t.Errorf("store/load of sNaN not faithful, got %x want %x", got, snan)
+	}
+	// Test reflect's conversion between float32s. See issue 36400.
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
