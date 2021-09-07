@@ -542,7 +542,8 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 
 	case *types2.Const:
 		w.pos(obj)
-		w.value(obj.Type(), obj.Val())
+		w.typ(obj.Type())
+		w.value(obj.Val())
 		return objConst
 
 	case *types2.Func:
@@ -596,12 +597,6 @@ func (w *writer) typExpr(expr syntax.Expr) {
 	assert(ok)
 	assert(tv.IsType())
 	w.typ(tv.Type)
-}
-
-func (w *writer) value(typ types2.Type, val constant.Value) {
-	w.sync(syncValue)
-	w.typ(typ)
-	w.rawValue(val)
 }
 
 // objDict writes the dictionary needed for reading the given object.
@@ -1199,7 +1194,8 @@ func (w *writer) expr(expr syntax.Expr) {
 
 			w.code(exprConst)
 			w.pos(pos)
-			w.value(tv.Type, tv.Value)
+			w.typ(tv.Type)
+			w.value(tv.Value)
 
 			// TODO(mdempsky): These details are only important for backend
 			// diagnostics. Explore writing them out separately.

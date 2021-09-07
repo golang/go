@@ -626,7 +626,8 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case objConst:
 		name := do(ir.OLITERAL, false)
-		typ, val := r.value()
+		typ := r.typ()
+		val := FixValue(typ, r.value())
 		setType(name, typ)
 		setValue(name, val)
 		return name
@@ -753,12 +754,6 @@ func (r *reader) typeParamNames() {
 		r.pos()
 		r.localIdent()
 	}
-}
-
-func (r *reader) value() (*types.Type, constant.Value) {
-	r.sync(syncValue)
-	typ := r.typ()
-	return typ, FixValue(typ, r.rawValue())
 }
 
 func (r *reader) method() *types.Field {
@@ -1556,7 +1551,8 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprConst:
 		pos := r.pos()
-		typ, val := r.value()
+		typ := r.typ()
+		val := FixValue(typ, r.value())
 		op := r.op()
 		orig := r.string()
 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))

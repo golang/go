@@ -7,8 +7,6 @@
 package noder
 
 import (
-	"go/constant"
-
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
@@ -388,7 +386,8 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 
 		case objConst:
 			pos := r.pos()
-			typ, val := r.value()
+			typ := r.typ()
+			val := r.value()
 			return types2.NewConst(pos, objPkg, objName, typ, val)
 
 		case objFunc:
@@ -426,11 +425,6 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 	})
 
 	return objPkg, objName
-}
-
-func (r *reader2) value() (types2.Type, constant.Value) {
-	r.sync(syncValue)
-	return r.typ(), r.rawValue()
 }
 
 func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
