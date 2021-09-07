@@ -2487,11 +2487,12 @@ func grow(s Value, extra int) (Value, int, int) {
 	if m == 0 {
 		m = extra
 	} else {
+		const threshold = 256
 		for m < i1 {
-			if i0 < 1024 {
+			if i0 < threshold {
 				m += m
 			} else {
-				m += m / 4
+				m += (m + 3*threshold) / 4
 			}
 		}
 	}
