@@ -43,7 +43,12 @@ func readPackage2(check *types2.Checker, imports map[string]*types2.Package, inp
 	r.bool() // has init
 
 	for i, n := 0, r.len(); i < n; i++ {
-		r.obj()
+		// As if r.obj(), but avoiding the Scope.Lookup call,
+		// to avoid eager loading of imports.
+		r.sync(syncObject)
+		assert(!r.bool())
+		r.p.objIdx(r.reloc(relocObj))
+		assert(r.len() == 0)
 	}
 
 	r.sync(syncEOF)
