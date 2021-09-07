@@ -50,13 +50,9 @@ func TestMinimizeInput(t *testing.T) {
 				}
 				if len(b) == 2 && b[0] == 1 && b[1] == 2 {
 					return nil
-				} else {
-					return fmt.Errorf("bad %v", e.Values[0])
 				}
-				if b[1] == 2 {
-					return fmt.Errorf("bad %v", e.Values[0])
-				}
-				return nil
+
+				return fmt.Errorf("bad %v", e.Values[0])
 			},
 			input:    []interface{}{[]byte{1, 2, 3, 4, 5}},
 			expected: []interface{}{[]byte{2, 3}},
