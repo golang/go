@@ -4428,8 +4428,9 @@ func TestConvertPanic(t *testing.T) {
 
 var gFloat32 float32
 
+const snan uint32 = 0x7f800001
+
 func TestConvertNaNs(t *testing.T) {
-	const snan uint32 = 0x7f800001
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
