@@ -1428,7 +1428,7 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
 //
 // Deprecated: use PointerTo. PtrTo is the old spelling.
-// The two functions behaves identically.
+// The two functions behave identically.
 func PtrTo(t Type) Type { return PointerTo(t) }
 
 // PointerTo returns the pointer type with element t.
