@@ -398,10 +398,14 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		n := n.(*ir.IfStmt)
 		if ir.IsConst(n.Cond, constant.Bool) {
 			// This if and the condition cost nothing.
-			// TODO(rsc): It seems strange that we visit the dead branch.
-			return doList(n.Init(), v.do) ||
-				doList(n.Body, v.do) ||
-				doList(n.Else, v.do)
+			if doList(n.Init(), v.do) {
+				return true
+			}
+			if ir.BoolVal(n.Cond) {
+				return doList(n.Body, v.do)
+			} else {
+				return doList(n.Else, v.do)
+			}
 		}
 
 	case ir.ONAME:
