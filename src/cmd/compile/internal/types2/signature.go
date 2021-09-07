@@ -157,7 +157,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	}
 
 	if tparams != nil {
-		sig.tparams = check.collectTypeParams(tparams)
+		check.collectTypeParams(&sig.tparams, tparams)
 		// Always type-check method type parameters but complain if they are not enabled.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)

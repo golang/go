@@ -567,7 +567,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	if tdecl.TParamList != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()
-		named.tparams = check.collectTypeParams(tdecl.TParamList)
+		check.collectTypeParams(&named.tparams, tdecl.TParamList)
 	}
 
 	// determine underlying type of named
@@ -598,7 +598,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	}
 }
 
-func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
+func (check *Checker) collectTypeParams(dst **TParamList, list []*syntax.Field) {
 	tparams := make([]*TypeParam, len(list))
 
 	// Declare type parameters up-front.
@@ -607,6 +607,11 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
 	for i, f := range list {
 		tparams[i] = check.declareTypeParam(f.Name)
 	}
+
+	// Set the type parameters before collecting the type constraints because
+	// the parameterized type may be used by the constraints (issue #47887).
+	// Example: type T[P T[P]] interface{}
+	*dst = bindTParams(tparams)
 
 	var bound Type
 	for i, f := range list {
@@ -618,13 +623,17 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
 		}
 		tparams[i].bound = bound
 	}
-
-	return bindTParams(tparams)
 }
 
 func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
+	// Use Typ[Invalid] for the type constraint to ensure that a type
+	// is present even if the actual constraint has not been assigned
+	// yet.
+	// TODO(gri) Need to systematically review all uses of type parameter
+	//           constraints to make sure we don't rely on them if they
+	//           are not properly set yet.
 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	tpar := check.NewTypeParam(tname, nil)                   // assigns type to tname as a side-effect
+	tpar := check.NewTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
 	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }
