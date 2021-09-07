@@ -185,13 +185,17 @@ func growslice(et *_type, old slice, cap int) slice {
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if old.cap < 1024 {
+		const threshold = 256
+		if old.cap < threshold {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
 			// and prevent an infinite loop.
 			for 0 < newcap && newcap < cap {
-				newcap += newcap / 4
+				// Transition from growing 2x for small slices
+				// to growing 1.25x for large slices. This formula
+				// gives a smooth-ish transition between the two.
+				newcap += (newcap + 3*threshold) / 4
 			}
 			// Set newcap to the requested cap when
 			// the newcap calculation overflowed.
