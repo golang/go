@@ -1229,7 +1229,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		newt = forw
 	}
 
-	if !newt.HasTParam() {
+	if !newt.HasTParam() && !newt.IsFuncArgStruct() {
 		// Calculate the size of any new types created. These will be
 		// deferred until the top-level ts.Typ() or g.typ() (if this is
 		// called from g.fillinMethods()).
@@ -1324,7 +1324,9 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 		}
 	}
 	if newfields != nil {
-		return types.NewStruct(t.Pkg(), newfields)
+		news := types.NewStruct(t.Pkg(), newfields)
+		news.StructType().Funarg = t.StructType().Funarg
+		return news
 	}
 	return t
 
