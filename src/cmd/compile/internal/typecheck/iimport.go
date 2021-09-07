@@ -1757,7 +1757,10 @@ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
 }
 
 // NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
-// that t.nod and sym.Def are set correctly.
+// that t.nod and sym.Def are set correctly. If there are any RParams for the type,
+// they should be set soon after creating the TFORW type, before creating the
+// underlying type. That ensures that the HasTParam and HasShape flags will be set
+// properly, in case this type is part of some mutually recursive type.
 func NewIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
 	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
 	forw := types.NewNamed(name)

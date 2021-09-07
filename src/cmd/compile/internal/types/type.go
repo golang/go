@@ -643,6 +643,9 @@ func NewSlice(elem *Type) *Type {
 		if t.Elem() != elem {
 			base.Fatalf("elem mismatch")
 		}
+		if elem.HasTParam() != t.HasTParam() || elem.HasShape() != t.HasShape() {
+			base.Fatalf("Incorrect HasTParam/HasShape flag for cached slice type")
+		}
 		return t
 	}
 
@@ -735,14 +738,8 @@ func NewPtr(elem *Type) *Type {
 		if t.Elem() != elem {
 			base.Fatalf("NewPtr: elem mismatch")
 		}
-		if elem.HasTParam() {
-			// Extra check when reusing the cache, since the elem
-			// might have still been undetermined (i.e. a TFORW type)
-			// when this entry was cached.
-			t.SetHasTParam(true)
-		}
-		if elem.HasShape() {
-			t.SetHasShape(true)
+		if elem.HasTParam() != t.HasTParam() || elem.HasShape() != t.HasShape() {
+			base.Fatalf("Incorrect HasTParam/HasShape flag for cached pointer type")
 		}
 		return t
 	}
