@@ -195,7 +195,7 @@ func transformCompare(n *ir.BinaryExpr) {
 			aop, _ := typecheck.Assignop(lt, rt)
 			if aop != ir.OXXX {
 				types.CalcSize(lt)
-				if lt.HasTParam() || rt.IsInterface() == lt.IsInterface() || lt.Size() >= 1<<16 {
+				if lt.HasShape() || rt.IsInterface() == lt.IsInterface() || lt.Size() >= 1<<16 {
 					l = ir.NewConvExpr(base.Pos, aop, rt, l)
 					l.SetTypecheck(1)
 				}
