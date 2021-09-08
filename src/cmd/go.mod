@@ -3,7 +3,7 @@ module cmd
 go 1.18
 
 require (
-	github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a
+	github.com/google/pprof v0.0.0-20210827144239-02619b876842
 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
 	golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
