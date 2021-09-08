@@ -71,7 +71,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.env)
+	inst := check.instance(pos, typ, targs, check.conf.Environment)
 
 	assert(len(posList) <= len(targs))
 	check.later(func() {
