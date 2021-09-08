@@ -182,13 +182,13 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if t.TParams().Len() == 0 {
+		if t.TypeParams().Len() == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
 		var newTArgs []Type
-		assert(t.targs.Len() == t.TParams().Len())
+		assert(t.targs.Len() == t.TypeParams().Len())
 
 		// already instantiated
 		dump(">>> %s already instantiated", t)
@@ -201,7 +201,7 @@ func (subst *subster) typ(typ Type) Type {
 			if new_targ != targ {
 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 				if newTArgs == nil {
-					newTArgs = make([]Type, t.TParams().Len())
+					newTArgs = make([]Type, t.TypeParams().Len())
 					copy(newTArgs, t.targs.list())
 				}
 				newTArgs[i] = new_targ

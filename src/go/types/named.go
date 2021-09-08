@@ -12,15 +12,15 @@ import (
 // A Named represents a named (defined) type.
 type Named struct {
 	check      *Checker
-	info       typeInfo    // for cycle detection
-	obj        *TypeName   // corresponding declared object for declared types; placeholder for instantiated types
-	orig       *Named      // original, uninstantiated type
-	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
-	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
-	instPos    *token.Pos  // position information for lazy instantiation, or nil
-	tparams    *TParamList // type parameters, or nil
-	targs      *TypeList   // type arguments (after instantiation), or nil
-	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+	info       typeInfo       // for cycle detection
+	obj        *TypeName      // corresponding declared object for declared types; placeholder for instantiated types
+	orig       *Named         // original, uninstantiated type
+	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
+	instPos    *token.Pos     // position information for lazy instantiation, or nil
+	tparams    *TypeParamList // type parameters, or nil
+	targs      *TypeList      // type arguments (after instantiation), or nil
+	methods    []*Func        // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 
 	resolve func(*Named) ([]*TypeParam, Type, []*Func)
 	once    sync.Once
@@ -58,10 +58,10 @@ func (t *Named) load() *Named {
 		// (necessary because types2 expects the receiver type for methods
 		// on defined interface types to be the Named rather than the
 		// underlying Interface), maybe it should just handle calling
-		// SetTParams, SetUnderlying, and AddMethod instead?  Those
+		// SetTypeParams, SetUnderlying, and AddMethod instead?  Those
 		// methods would need to support reentrant calls though.  It would
 		// also make the API more future-proof towards further extensions
-		// (like SetTParams).
+		// (like SetTypeParams).
 
 		tparams, underlying, methods := t.resolve(t)
 
@@ -78,7 +78,7 @@ func (t *Named) load() *Named {
 }
 
 // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TParamList, methods []*Func) *Named {
+func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParamList, methods []*Func) *Named {
 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
 	if typ.orig == nil {
 		typ.orig = typ
@@ -119,15 +119,15 @@ func (t *Named) _Orig() *Named { return t.orig }
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
 
-// TParams returns the type parameters of the named type t, or nil.
+// TypeParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) parameterized type even if it is instantiated.
-func (t *Named) TParams() *TParamList { return t.load().tparams }
+func (t *Named) TypeParams() *TypeParamList { return t.load().tparams }
 
-// SetTParams sets the type parameters of the named type t.
-func (t *Named) SetTParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
+// SetTypeParams sets the type parameters of the named type t.
+func (t *Named) SetTypeParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
 
-// TArgs returns the type arguments used to instantiate the named type t.
-func (t *Named) TArgs() *TypeList { return t.targs }
+// TypeArgs returns the type arguments used to instantiate the named type t.
+func (t *Named) TypeArgs() *TypeList { return t.targs }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.load().methods) }
@@ -245,8 +245,8 @@ func (n *Named) setUnderlying(typ Type) {
 func (n *Named) expand(env *Environment) *Named {
 	if n.instPos != nil {
 		// n must be loaded before instantiation, in order to have accurate
-		// tparams. This is done implicitly by the call to n.TParams, but making it
-		// explicit is harmless: load is idempotent.
+		// tparams. This is done implicitly by the call to n.TypeParams, but making
+		// it explicit is harmless: load is idempotent.
 		n.load()
 		var u Type
 		if n.check.validateTArgLen(*n.instPos, n.tparams.Len(), n.targs.Len()) {
@@ -268,7 +268,7 @@ func (n *Named) expand(env *Environment) *Named {
 				// shouldn't return that instance from expand.
 				env.typeForHash(h, n)
 			}
-			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), env)
+			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TypeParams().list(), n.targs.list()), env)
 		} else {
 			u = Typ[Invalid]
 		}

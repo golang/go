@@ -319,10 +319,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
-			if ftyp.TParams().Len() != mtyp.TParams().Len() {
+			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 				return m, f
 			}
-			if ftyp.TParams().Len() > 0 {
+			if ftyp.TypeParams().Len() > 0 {
 				panic("method with type parameters")
 			}
 
@@ -332,7 +332,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := newUnifier(true)
-			u.x.init(ftyp.TParams().list())
+			u.x.init(ftyp.TypeParams().list())
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -371,10 +371,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
 		mtyp := m.typ.(*Signature)
-		if ftyp.TParams().Len() != mtyp.TParams().Len() {
+		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 			return m, f
 		}
-		if ftyp.TParams().Len() > 0 {
+		if ftyp.TypeParams().Len() > 0 {
 			panic("method with type parameters")
 		}
 
@@ -385,7 +385,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
-		if Vn != nil && Vn.TParams().Len() > 0 {
+		if Vn != nil && Vn.TypeParams().Len() > 0 {
 			// Be careful: The number of type arguments may not match
 			// the number of receiver parameters. If so, an error was
 			// reported earlier but the length discrepancy is still
