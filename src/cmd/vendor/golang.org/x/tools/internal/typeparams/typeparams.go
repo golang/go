@@ -78,20 +78,31 @@ func ForNamed(named *types.Named) []*types.TypeName {
 	return tparamsSlice(named.TParams())
 }
 
-func tparamsSlice(tparams *types.TypeParams) []*types.TypeName {
-	if tparams.Len() == 0 {
+func tparamsSlice(tparams *types.TParamList) []*types.TypeName {
+	length := tparams.Len()
+	if length == 0 {
 		return nil
 	}
-	result := make([]*types.TypeName, tparams.Len())
-	for i := 0; i < tparams.Len(); i++ {
-		result[i] = tparams.At(i)
+
+	result := make([]*types.TypeName, length)
+	for i := 0; i < length; i++ {
+		result[i] = tparams.At(i).Obj()
 	}
+
 	return result
 }
 
 // NamedTArgs extracts the (possibly empty) type argument list from named.
 func NamedTArgs(named *types.Named) []types.Type {
-	return named.TArgs()
+	targs := named.TArgs()
+	numArgs := targs.Len()
+
+	typs := make([]types.Type, numArgs)
+	for i := 0; i < numArgs; i++ {
+		typs[i] = targs.At(i)
+	}
+
+	return typs
 }
 
 // InitInferred initializes info to record inferred type information.
@@ -111,5 +122,13 @@ func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature) 
 		return nil, nil
 	}
 	inf := info.Inferred[e]
-	return inf.TArgs, inf.Sig
+
+	length := inf.TArgs.Len()
+
+	typs := make([]types.Type, length)
+	for i := 0; i < length; i++ {
+		typs[i] = inf.TArgs.At(i)
+	}
+
+	return typs, inf.Sig
 }
