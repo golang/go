@@ -663,11 +663,21 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 
 	index := 0
 	var bound Type
+	var bounds []Type
+	var posns []positioner // bound positions
 	for _, f := range list.List {
 		if f.Type == nil {
 			goto next
 		}
-		bound = check.boundType(f.Type)
+		// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
+		if name, _ := unparen(f.Type).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == universeAny {
+			bound = universeAny.Type()
+		} else {
+			bound = check.typ(f.Type)
+		}
+		bounds = append(bounds, bound)
+		posns = append(posns, f.Type)
 		for i := range f.Names {
 			tparams[index+i].bound = bound
 		}
@@ -675,6 +685,15 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	next:
 		index += len(f.Names)
 	}
+
+	check.later(func() {
+		for i, bound := range bounds {
+			u := under(bound)
+			if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
+				check.errorf(posns[i], _Todo, "%s is not an interface", bound)
+			}
+		}
+	})
 }
 
 func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
@@ -696,25 +715,6 @@ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident
 	}
 
 	return tparams
-}
-
-// boundType type-checks the type expression e and returns its type, or Typ[Invalid].
-// The type must be an interface, including the predeclared type "any".
-func (check *Checker) boundType(e ast.Expr) Type {
-	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
-	// If we allow "any" for general use, this if-statement can be removed (issue #33232).
-	if name, _ := unparen(e).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == universeAny {
-		return universeAny.Type()
-	}
-
-	bound := check.typ(e)
-	check.later(func() {
-		u := under(bound)
-		if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
-			check.errorf(e, _Todo, "%s is not an interface", bound)
-		}
-	})
-	return bound
 }
 
 func (check *Checker) collectMethods(obj *TypeName) {
