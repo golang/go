@@ -305,7 +305,7 @@ func (r *importReader) obj(name string) {
 			tparams = r.tparamList()
 		}
 		sig := r.signature(nil)
-		sig.SetTParams(tparams)
+		sig.SetTypeParams(tparams)
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T', 'U':
@@ -317,7 +317,7 @@ func (r *importReader) obj(name string) {
 		// declaration before recursing.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
 		named := types.NewNamed(obj, nil, nil)
-		named.SetTParams(tparams)
+		named.SetTypeParams(tparams)
 		r.declare(obj)
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
@@ -333,7 +333,7 @@ func (r *importReader) obj(name string) {
 				// If the receiver has any targs, set those as the
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
-				targs := baseType(msig.Recv().Type()).TArgs()
+				targs := baseType(msig.Recv().Type()).TypeArgs()
 				if targs.Len() > 0 {
 					rparams := make([]*types.TypeParam, targs.Len())
 					for i := range rparams {

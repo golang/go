@@ -238,9 +238,9 @@ func (w *typeWriter) typ(typ Type) {
 		if t.targs != nil {
 			// instantiated type
 			w.typeList(t.targs.list())
-		} else if w.env == nil && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
+		} else if w.env == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
 			// parameterized type
-			w.tParamList(t.TParams().list())
+			w.tParamList(t.TypeParams().list())
 		}
 
 	case *TypeParam:
@@ -359,8 +359,8 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 }
 
 func (w *typeWriter) signature(sig *Signature) {
-	if sig.TParams().Len() != 0 {
-		w.tParamList(sig.TParams().list())
+	if sig.TypeParams().Len() != 0 {
+		w.tParamList(sig.TypeParams().list())
 	}
 
 	w.tuple(sig.params, sig.variadic)

@@ -38,9 +38,9 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
 		var tparams []*TypeParam
 		switch t := typ.(type) {
 		case *Named:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		case *Signature:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		}
 		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs); err != nil {
 			return inst, ArgumentError{i, err}
@@ -80,9 +80,9 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
 		var tparams []*TypeParam
 		switch t := typ.(type) {
 		case *Named:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		case *Signature:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		}
 		// Avoid duplicate errors; instantiate will have complained if tparams
 		// and targs do not have the same length.
@@ -127,7 +127,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Envir
 		return named
 
 	case *Signature:
-		tparams := t.TParams()
+		tparams := t.TypeParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
