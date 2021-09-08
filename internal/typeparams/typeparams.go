@@ -44,13 +44,13 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 
 // ForTypeDecl extracts the (possibly nil) type parameter node list from n.
 func ForTypeDecl(n *ast.TypeSpec) *ast.FieldList {
-	return n.TParams
+	return n.TypeParams
 }
 
 // ForFuncDecl extracts the (possibly nil) type parameter node list from n.
 func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
 	if n.Type != nil {
-		return n.Type.TParams
+		return n.Type.TypeParams
 	}
 	return nil
 }
@@ -58,7 +58,7 @@ func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
 // ForSignature extracts the (possibly empty) type parameter object list from
 // sig.
 func ForSignature(sig *types.Signature) []*types.TypeName {
-	return tparamsSlice(sig.TParams())
+	return tparamsSlice(sig.TypeParams())
 }
 
 // IsComparable reports if iface is the comparable interface.
@@ -75,10 +75,10 @@ func IsConstraint(iface *types.Interface) bool {
 // ForNamed extracts the (possibly empty) type parameter object list from
 // named.
 func ForNamed(named *types.Named) []*types.TypeName {
-	return tparamsSlice(named.TParams())
+	return tparamsSlice(named.TypeParams())
 }
 
-func tparamsSlice(tparams *types.TParamList) []*types.TypeName {
+func tparamsSlice(tparams *types.TypeParamList) []*types.TypeName {
 	length := tparams.Len()
 	if length == 0 {
 		return nil
@@ -94,7 +94,7 @@ func tparamsSlice(tparams *types.TParamList) []*types.TypeName {
 
 // NamedTArgs extracts the (possibly empty) type argument list from named.
 func NamedTArgs(named *types.Named) []types.Type {
-	targs := named.TArgs()
+	targs := named.TypeArgs()
 	numArgs := targs.Len()
 
 	typs := make([]types.Type, numArgs)
