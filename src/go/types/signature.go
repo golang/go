@@ -151,13 +151,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		}
 	}
 
-	if ftyp.TParams != nil {
-		sig.tparams = check.collectTypeParams(ftyp.TParams)
+	if ftyp.TypeParams != nil {
+		sig.tparams = check.collectTypeParams(ftyp.TypeParams)
 		// Always type-check method type parameters but complain that they are not allowed.
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
+			check.errorf(ftyp.TypeParams, _Todo, "methods cannot have type parameters")
 		}
 	}
 

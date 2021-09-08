@@ -454,10 +454,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 				// at the identifier in the TypeSpec and ends at the end of the innermost
 				// containing block.
 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
-				if spec.TParams != nil {
+				if spec.TypeParams != nil {
 					r.openScope(spec.Pos())
 					defer r.closeScope()
-					r.walkTParams(spec.TParams)
+					r.walkTParams(spec.TypeParams)
 				}
 				ast.Walk(r, spec.Type)
 			}
@@ -473,8 +473,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 
 		// Type parameters are walked normally: they can reference each other, and
 		// can be referenced by normal parameters.
-		if n.Type.TParams != nil {
-			r.walkTParams(n.Type.TParams)
+		if n.Type.TypeParams != nil {
+			r.walkTParams(n.Type.TypeParams)
 			// TODO(rFindley): need to address receiver type parameters.
 		}
 
@@ -499,7 +499,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 }
 
 func (r *resolver) walkFuncType(typ *ast.FuncType) {
-	// typ.TParams must be walked separately for FuncDecls.
+	// typ.TypeParams must be walked separately for FuncDecls.
 	r.resolveList(typ.Params)
 	r.resolveList(typ.Results)
 	r.declareList(typ.Params, ast.Var)

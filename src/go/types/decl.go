@@ -589,7 +589,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	})
 
 	alias := tdecl.Assign.IsValid()
-	if alias && tdecl.TParams.NumFields() != 0 {
+	if alias && tdecl.TypeParams.NumFields() != 0 {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
 		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
@@ -612,10 +612,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	named := check.newNamed(obj, nil, nil, nil, nil)
 	def.setUnderlying(named)
 
-	if tdecl.TParams != nil {
+	if tdecl.TypeParams != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()
-		named.tparams = check.collectTypeParams(tdecl.TParams)
+		named.tparams = check.collectTypeParams(tdecl.TypeParams)
 	}
 
 	// determine underlying type of named
@@ -791,7 +791,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	obj.color_ = saved
 
-	if fdecl.Type.TParams.NumFields() > 0 && fdecl.Body == nil {
+	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
 		check.softErrorf(fdecl.Name, _Todo, "parameterized function is missing function body")
 	}
 

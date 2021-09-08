@@ -973,10 +973,10 @@ func (p *parser) parseMethodSpec() *ast.Field {
 				results := p.parseResult()
 				idents = []*ast.Ident{ident}
 				typ = &ast.FuncType{
-					Func:    token.NoPos,
-					TParams: tparams,
-					Params:  params,
-					Results: results,
+					Func:       token.NoPos,
+					TypeParams: tparams,
+					Params:     params,
+					Results:    results,
 				}
 			} else {
 				// embedded instantiated type
@@ -2509,7 +2509,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, closeTok token.Token) {
 	list := p.parseParameterList(name0, closeTok, p.parseParamDecl, true)
 	closePos := p.expect(closeTok)
-	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
 	// Type alias cannot have type parameters. Accept them for robustness but complain.
 	if p.tok == token.ASSIGN {
 		p.error(p.pos, "generic type cannot be alias")
@@ -2639,10 +2639,10 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 		Recv: recv,
 		Name: ident,
 		Type: &ast.FuncType{
-			Func:    pos,
-			TParams: tparams,
-			Params:  params,
-			Results: results,
+			Func:       pos,
+			TypeParams: tparams,
+			Params:     params,
+			Results:    results,
 		},
 		Body: body,
 	}
