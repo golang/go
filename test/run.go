@@ -780,11 +780,13 @@ func (t *test) run() {
 			}
 
 		default:
-			// we don't know how to add -G for this test yet
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
+			if t.glevel != CompilerDefaultGLevel {
+				// we don't know how to add -G for this test yet
+				if *verbose {
+					fmt.Printf("excl\t%s\n", t.goFileName())
+				}
+				return false
 			}
-			return false
 		}
 
 		return true
