@@ -23,8 +23,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -145,7 +145,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
 	p := (*[2]uintptr)(unsafe.Pointer(b.next))
 	p[0] = old
 	p[1] = new
-	b.next += 2 * sys.PtrSize
+	b.next += 2 * goarch.PtrSize
 	return b.next != b.end
 }
 

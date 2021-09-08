@@ -95,7 +95,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -107,7 +107,7 @@ const stackTraceDebug = false
 //go:notinheap
 type stackWorkBuf struct {
 	stackWorkBufHdr
-	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / sys.PtrSize]uintptr
+	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / goarch.PtrSize]uintptr
 }
 
 // Header declaration must come after the buf declaration above, because of issue #14620.

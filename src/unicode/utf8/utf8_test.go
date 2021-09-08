@@ -127,6 +127,17 @@ func TestEncodeRune(t *testing.T) {
 	}
 }
 
+func TestAppendRune(t *testing.T) {
+	for _, m := range utf8map {
+		if buf := AppendRune(nil, m.r); string(buf) != m.str {
+			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, m.str)
+		}
+		if buf := AppendRune([]byte("init"), m.r); string(buf) != "init"+m.str {
+			t.Errorf("AppendRune(nil, %#04x) = %s, want %s", m.r, buf, "init"+m.str)
+		}
+	}
+}
+
 func TestDecodeRune(t *testing.T) {
 	for _, m := range utf8map {
 		b := []byte(m.str)
@@ -580,6 +591,20 @@ func BenchmarkEncodeJapaneseRune(b *testing.B) {
 	buf := make([]byte, UTFMax)
 	for i := 0; i < b.N; i++ {
 		EncodeRune(buf, '本')
+	}
+}
+
+func BenchmarkAppendASCIIRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], 'a')
+	}
+}
+
+func BenchmarkAppendJapaneseRune(b *testing.B) {
+	buf := make([]byte, UTFMax)
+	for i := 0; i < b.N; i++ {
+		AppendRune(buf[:0], '本')
 	}
 }
 

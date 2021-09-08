@@ -500,6 +500,9 @@
 (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 
+(Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+
 // constant floating point comparisons
 (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
 (Eq64F   (Const64F [c]) (Const64F [d])) => (ConstBool [c == d])
@@ -590,6 +593,10 @@
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) => y
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) y) => x
+(Sub(64|32|16|8) (Sub(64|32|16|8) x y) x) => (Neg(64|32|16|8) y)
+(Sub(64|32|16|8) x (Add(64|32|16|8) x y)) => (Neg(64|32|16|8) y)
+(Add(64|32|16|8) x (Sub(64|32|16|8) y x)) => y
+(Add(64|32|16|8) x (Add(64|32|16|8) y (Sub(64|32|16|8) z x))) => (Add(64|32|16|8) y z)
 
 // basic phi simplifications
 (Phi (Const8  [c]) (Const8  [c])) => (Const8  [c])

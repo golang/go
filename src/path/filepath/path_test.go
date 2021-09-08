@@ -791,6 +791,8 @@ var winisabstests = []IsAbsTest{
 	{`c:a\b`, false},
 	{`c:\a\b`, true},
 	{`c:/a/b`, true},
+	{`\\host\share`, true},
+	{`\\host\share\`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }
@@ -1469,11 +1471,16 @@ func TestEvalSymlinksAboveRoot(t *testing.T) {
 	// Try different numbers of "..".
 	for _, i := range []int{c, c + 1, c + 2} {
 		check := strings.Join([]string{evalTmpDir, strings.Join(dd[:i], string(os.PathSeparator)), evalTmpDir[len(vol)+1:], "b", "file"}, string(os.PathSeparator))
-		if resolved, err := filepath.EvalSymlinks(check); err != nil {
+		resolved, err := filepath.EvalSymlinks(check)
+		switch {
+		case runtime.GOOS == "darwin" && errors.Is(err, fs.ErrNotExist):
+			// On darwin, the temp dir is sometimes cleaned up mid-test (issue 37910).
+			testenv.SkipFlaky(t, 37910)
+		case err != nil:
 			t.Errorf("EvalSymlinks(%q) failed: %v", check, err)
-		} else if !strings.HasSuffix(resolved, wantSuffix) {
+		case !strings.HasSuffix(resolved, wantSuffix):
 			t.Errorf("EvalSymlinks(%q) = %q does not end with %q", check, resolved, wantSuffix)
-		} else {
+		default:
 			t.Logf("EvalSymlinks(%q) = %q", check, resolved)
 		}
 	}

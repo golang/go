@@ -149,16 +149,9 @@ func (ctxt *Link) setArchSyms() {
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
 
-		// NB: note the +2 below for DotTOC2 compared to the +1 for
-		// DocTOC. This is because loadlibfull() creates an additional
-		// syms version during conversion of loader.Sym symbols to
-		// *sym.Symbol symbols. Symbols that are assigned this final
-		// version are not going to have TOC references, so it should
-		// be ok for them to inherit an invalid .TOC. symbol.
-		// TODO: revisit the +2, now that loadlibfull is gone.
-		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+2)
+		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+1)
 		for i := 0; i <= ctxt.MaxVersion(); i++ {
-			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
+			if i >= sym.SymVerABICount && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
 			ctxt.mkArchSymVec(".TOC.", i, ctxt.DotTOC)
@@ -464,23 +457,24 @@ func loadinternal(ctxt *Link, name string) *sym.Library {
 }
 
 // extld returns the current external linker.
-func (ctxt *Link) extld() string {
-	if *flagExtld == "" {
-		*flagExtld = "gcc"
+func (ctxt *Link) extld() []string {
+	if len(flagExtld) == 0 {
+		flagExtld = []string{"gcc"}
 	}
-	return *flagExtld
+	return flagExtld
 }
 
 // findLibPathCmd uses cmd command to find gcc library libname.
 // It returns library full path if found, or "none" if not found.
 func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
 	extld := ctxt.extld()
-	args := hostlinkArchArgs(ctxt.Arch)
+	name, args := extld[0], extld[1:]
+	args = append(args, hostlinkArchArgs(ctxt.Arch)...)
 	args = append(args, cmd)
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%s %v\n", extld, args)
 	}
-	out, err := exec.Command(extld, args...).Output()
+	out, err := exec.Command(name, args...).Output()
 	if err != nil {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("not using a %s file because compiler failed\n%v\n%s\n", libname, err, out)
@@ -697,7 +691,9 @@ func (ctxt *Link) linksetup() {
 		Peinit(ctxt)
 	}
 
-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
+		// When external linking, we are creating an object file. The
+		// absolute address is irrelevant.
 		*FlagTextAddr = 0
 	}
 
@@ -1240,7 +1236,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	var argv []string
-	argv = append(argv, ctxt.extld())
+	argv = append(argv, ctxt.extld()...)
 	argv = append(argv, hostlinkArchArgs(ctxt.Arch)...)
 
 	if *FlagS || debug_s {
@@ -1401,7 +1397,9 @@ func (ctxt *Link) hostlink() {
 			// If gold is not installed, gcc will silently switch
 			// back to ld.bfd. So we parse the version information
 			// and provide a useful error if gold is missing.
-			cmd := exec.Command(*flagExtld, "-fuse-ld=gold", "-Wl,--version")
+			name, args := flagExtld[0], flagExtld[1:]
+			args = append(args, "-fuse-ld=gold", "-Wl,--version")
+			cmd := exec.Command(name, args...)
 			if out, err := cmd.CombinedOutput(); err == nil {
 				if !bytes.Contains(out, []byte("GNU gold")) {
 					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
@@ -1414,7 +1412,9 @@ func (ctxt *Link) hostlink() {
 		altLinker = "bfd"
 
 		// Provide a useful error if ld.bfd is missing.
-		cmd := exec.Command(*flagExtld, "-fuse-ld=bfd", "-Wl,--version")
+		name, args := flagExtld[0], flagExtld[1:]
+		args = append(args, "-fuse-ld=bfd", "-Wl,--version")
+		cmd := exec.Command(name, args...)
 		if out, err := cmd.CombinedOutput(); err == nil {
 			if !bytes.Contains(out, []byte("GNU ld")) {
 				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
@@ -1482,10 +1482,11 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, "/lib/crt0_64.o")
 
 		extld := ctxt.extld()
+		name, args := extld[0], extld[1:]
 		// Get starting files.
 		getPathFile := func(file string) string {
-			args := []string{"-maix64", "--print-file-name=" + file}
-			out, err := exec.Command(extld, args...).CombinedOutput()
+			args := append(args, "-maix64", "--print-file-name="+file)
+			out, err := exec.Command(name, args...).CombinedOutput()
 			if err != nil {
 				log.Fatalf("running %s failed: %v\n%s", extld, err, out)
 			}
@@ -1567,14 +1568,18 @@ func (ctxt *Link) hostlink() {
 		}
 	}
 
-	for _, p := range strings.Fields(*flagExtldflags) {
+	for _, p := range flagExtldflags {
 		argv = append(argv, p)
 		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
 		// Determine which linker we're using. Add in the extldflags in
 		// case used has specified "-fuse-ld=...".
-		cmd := exec.Command(*flagExtld, *flagExtldflags, "-Wl,--version")
+		extld := ctxt.extld()
+		name, args := extld[0], extld[1:]
+		args = append(args, flagExtldflags...)
+		args = append(args, "-Wl,--version")
+		cmd := exec.Command(name, args...)
 		usingLLD := false
 		if out, err := cmd.CombinedOutput(); err == nil {
 			if bytes.Contains(out, []byte("LLD ")) {
@@ -1718,8 +1723,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	flags := hostlinkArchArgs(arch)
 	keep := false
 	skip := false
-	extldflags := strings.Fields(*flagExtldflags)
-	for _, f := range append(extldflags, ldflag...) {
+	for _, f := range append(flagExtldflags, ldflag...) {
 		if keep {
 			flags = append(flags, f)
 			keep = false

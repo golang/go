@@ -91,10 +91,18 @@ func main() {
 
 	// issue 26745
 	_ = func(i int) int {
-		return C.i + 1 // ERROR HERE: 14
+		// typecheck reports at column 14 ('+'), but types2 reports at
+		// column 10 ('C').
+		// TODO(mdempsky): Investigate why, and see if types2 can be
+		// updated to match typecheck behavior.
+		return C.i + 1 // ERROR HERE: \b(10|14)\b
 	}
 	_ = func(i int) {
-		C.fi(i) // ERROR HERE: 7
+		// typecheck reports at column 7 ('('), but types2 reports at
+		// column 8 ('i'). The types2 position is more correct, but
+		// updating typecheck here is fundamentally challenging because of
+		// IR limitations.
+		C.fi(i) // ERROR HERE: \b(7|8)\b
 	}
 
 	C.fi = C.fi // ERROR HERE

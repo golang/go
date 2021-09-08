@@ -5,9 +5,9 @@
 package p
 
 type T[P any] P
-type A = T
+type A = T  // ERROR cannot use generic type
 var x A[int]
-var _ A /* ERROR cannot use generic type */
+var _ A
 
 type B = T[int]
 var y B = x
@@ -16,5 +16,5 @@ var _ B /* ERROR not a generic type */ [int]
 // test case from issue
 
 type Vector[T any] []T
-type VectorAlias = Vector
+type VectorAlias = Vector // ERROR cannot use generic type
 var v Vector[int]

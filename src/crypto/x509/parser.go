@@ -214,16 +214,16 @@ func parseValidity(der cryptobyte.String) (time.Time, time.Time, error) {
 func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
 	var ext pkix.Extension
 	if !der.ReadASN1ObjectIdentifier(&ext.Id) {
-		return ext, errors.New("x509: malformed extention OID field")
+		return ext, errors.New("x509: malformed extension OID field")
 	}
 	if der.PeekASN1Tag(cryptobyte_asn1.BOOLEAN) {
 		if !der.ReadASN1Boolean(&ext.Critical) {
-			return ext, errors.New("x509: malformed extention critical field")
+			return ext, errors.New("x509: malformed extension critical field")
 		}
 	}
 	var val cryptobyte.String
 	if !der.ReadASN1(&val, cryptobyte_asn1.OCTET_STRING) {
-		return ext, errors.New("x509: malformed extention value field")
+		return ext, errors.New("x509: malformed extension value field")
 	}
 	ext.Value = val
 	return ext, nil
@@ -734,10 +734,12 @@ func processExtensions(out *Certificate) error {
 				if !val.ReadASN1(&akid, cryptobyte_asn1.SEQUENCE) {
 					return errors.New("x509: invalid authority key identifier")
 				}
-				if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
-					return errors.New("x509: invalid authority key identifier")
+				if akid.PeekASN1Tag(cryptobyte_asn1.Tag(0).ContextSpecific()) {
+					if !akid.ReadASN1(&akid, cryptobyte_asn1.Tag(0).ContextSpecific()) {
+						return errors.New("x509: invalid authority key identifier")
+					}
+					out.AuthorityKeyId = akid
 				}
-				out.AuthorityKeyId = akid
 			case 37:
 				out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(e.Value)
 				if err != nil {

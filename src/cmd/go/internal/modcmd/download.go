@@ -66,6 +66,7 @@ func init() {
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	base.AddModCommonFlags(&cmdDownload.Flag)
+	base.AddWorkfileFlag(&cmdDownload.Flag)
 }
 
 type moduleJSON struct {
@@ -81,6 +82,8 @@ type moduleJSON struct {
 }
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
 	if !modload.HasModRoot() && len(args) == 0 {
@@ -91,12 +94,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		args = []string{"all"}
 	}
 	if modload.HasModRoot() {
-		modload.LoadModFile(ctx) // to fill Target
-		targetAtUpgrade := modload.Target.Path + "@upgrade"
-		targetAtPatch := modload.Target.Path + "@patch"
+		modload.LoadModFile(ctx) // to fill MainModules
+
+		if len(modload.MainModules.Versions()) != 1 {
+			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
+		}
+		mainModule := modload.MainModules.Versions()[0]
+
+		targetAtUpgrade := mainModule.Path + "@upgrade"
+		targetAtPatch := mainModule.Path + "@patch"
 		for _, arg := range args {
 			switch arg {
-			case modload.Target.Path, targetAtUpgrade, targetAtPatch:
+			case mainModule.Path, targetAtUpgrade, targetAtPatch:
 				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
 			}
 		}

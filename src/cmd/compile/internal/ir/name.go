@@ -51,6 +51,8 @@ type Name struct {
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable.
 	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
+	// For a range variable, the range statement (ORANGE)
+	// For a recv variable in a case of a select statement, the receive assignment (OSELRECV2)
 	// For the name of a function, points to corresponding Func node.
 	Defn Node
 
@@ -358,39 +360,74 @@ func (n *Name) Byval() bool {
 	return n.Canonical().flags&nameByval != 0
 }
 
+// NewClosureVar returns a new closure variable for fn to refer to
+// outer variable n.
+func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
+	c := NewNameAt(pos, n.Sym())
+	c.Curfn = fn
+	c.Class = PAUTOHEAP
+	c.SetIsClosureVar(true)
+	c.Defn = n.Canonical()
+	c.Outer = n
+
+	c.SetType(n.Type())
+	c.SetTypecheck(n.Typecheck())
+
+	fn.ClosureVars = append(fn.ClosureVars, c)
+
+	return c
+}
+
+// NewHiddenParam returns a new hidden parameter for fn with the given
+// name and type.
+func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Name {
+	if fn.OClosure != nil {
+		base.FatalfAt(fn.Pos(), "cannot add hidden parameters to closures")
+	}
+
+	fn.SetNeedctxt(true)
+
+	// Create a fake parameter, disassociated from any real function, to
+	// pretend to capture.
+	fake := NewNameAt(pos, sym)
+	fake.Class = PPARAM
+	fake.SetType(typ)
+	fake.SetByval(true)
+
+	return NewClosureVar(pos, fn, fake)
+}
+
 // CaptureName returns a Name suitable for referring to n from within function
 // fn or from the package block if fn is nil. If n is a free variable declared
-// within a function that encloses fn, then CaptureName returns a closure
-// variable that refers to n and adds it to fn.ClosureVars. Otherwise, it simply
-// returns n.
+// within a function that encloses fn, then CaptureName returns the closure
+// variable that refers to n within fn, creating it if necessary.
+// Otherwise, it simply returns n.
 func CaptureName(pos src.XPos, fn *Func, n *Name) *Name {
+	if n.Op() != ONAME || n.Curfn == nil {
+		return n // okay to use directly
+	}
 	if n.IsClosureVar() {
 		base.FatalfAt(pos, "misuse of CaptureName on closure variable: %v", n)
 	}
-	if n.Op() != ONAME || n.Curfn == nil || n.Curfn == fn {
-		return n // okay to use directly
+
+	c := n.Innermost
+	if c == nil {
+		c = n
 	}
+	if c.Curfn == fn {
+		return c
+	}
+
 	if fn == nil {
 		base.FatalfAt(pos, "package-block reference to %v, declared in %v", n, n.Curfn)
 	}
 
-	c := n.Innermost
-	if c != nil && c.Curfn == fn {
-		return c
-	}
-
 	// Do not have a closure var for the active closure yet; make one.
-	c = NewNameAt(pos, n.Sym())
-	c.Curfn = fn
-	c.Class = PAUTOHEAP
-	c.SetIsClosureVar(true)
-	c.Defn = n
+	c = NewClosureVar(pos, fn, c)
 
 	// Link into list of active closure variables.
 	// Popped from list in FinishCaptureNames.
-	c.Outer = n.Innermost
 	n.Innermost = c
-	fn.ClosureVars = append(fn.ClosureVars, c)
 
 	return c
 }

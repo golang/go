@@ -642,6 +642,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var otxt int64
 	var q *obj.Prog
+	var out [6]uint32
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
@@ -653,22 +654,74 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if (o.type_ == 16 || o.type_ == 17) && p.To.Target() != nil {
 				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
-					q = c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = ABR
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(p.To.Target())
-					p.To.SetTarget(q)
-					q = c.newprog()
-					q.Link = p.Link
-					p.Link = q
-					q.As = ABR
-					q.To.Type = obj.TYPE_BRANCH
-					q.To.SetTarget(q.Link.Link)
+					// Assemble the instruction with a target not too far to figure out BI and BO fields.
+					// If only the CTR or BI (the CR bit) are tested, the conditional branch can be inverted,
+					// and only one extra branch is needed to reach the target.
+					tgt := p.To.Target()
+					p.To.SetTarget(p.Link)
+					c.asmout(p, o, out[:])
+					p.To.SetTarget(tgt)
 
-					//addnop(p->link);
-					//addnop(p);
+					bo := int64(out[0]>>21) & 31
+					bi := int16((out[0] >> 16) & 31)
+					invertible := false
+
+					if bo&0x14 == 0x14 {
+						// A conditional branch that is unconditionally taken. This cannot be inverted.
+					} else if bo&0x10 == 0x10 {
+						// A branch based on the value of CTR. Invert the CTR comparison against zero bit.
+						bo ^= 0x2
+						invertible = true
+					} else if bo&0x04 == 0x04 {
+						// A branch based on CR bit. Invert the BI comparison bit.
+						bo ^= 0x8
+						invertible = true
+					}
+
+					if invertible {
+						// Rewrite
+						//     BC bo,...,far_away_target
+						//     NEXT_INSN
+						// to:
+						//     BC invert(bo),next_insn
+						//     JMP far_away_target
+						//   next_insn:
+						//     NEXT_INSN
+						p.As = ABC
+						p.From = obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: bo}
+						q = c.newprog()
+						q.As = ABR
+						q.To.Type = obj.TYPE_BRANCH
+						q.To.SetTarget(p.To.Target())
+						q.Link = p.Link
+						p.To.SetTarget(p.Link)
+						p.Link = q
+						p.Reg = bi // TODO: This is a hack since BI bits are not enumerated as registers
+					} else {
+						// Rewrite
+						//     BC ...,far_away_target
+						//     NEXT_INSN
+						// to
+						//     BC ...,tmp
+						//     JMP next_insn
+						//   tmp:
+						//     JMP far_away_target
+						//   next_insn:
+						//     NEXT_INSN
+						q = c.newprog()
+						q.Link = p.Link
+						p.Link = q
+						q.As = ABR
+						q.To.Type = obj.TYPE_BRANCH
+						q.To.SetTarget(p.To.Target())
+						p.To.SetTarget(q)
+						q = c.newprog()
+						q.Link = p.Link
+						p.Link = q
+						q.As = ABR
+						q.To.Type = obj.TYPE_BRANCH
+						q.To.SetTarget(q.Link.Link)
+					}
 					bflag = 1
 				}
 			}
@@ -706,7 +759,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	bp := c.cursym.P
 	var i int32
-	var out [6]uint32
 	for p := c.cursym.Func().Text.Link; p != nil; p = p.Link {
 		c.pc = p.Pc
 		o = c.oplook(p)

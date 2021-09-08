@@ -634,7 +634,7 @@ var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
 	}
 	imp := importHelper{pkg: a, fallback: importer.Default()}
 
-	checkFiles(t, nil, "", []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
-	checkFiles(t, nil, "", []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
-	checkFiles(t, nil, "", []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
+	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
 }

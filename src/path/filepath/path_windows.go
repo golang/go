@@ -45,6 +45,10 @@ func IsAbs(path string) (b bool) {
 	if l == 0 {
 		return false
 	}
+	// If the volume name starts with a double slash, this is a UNC path.
+	if isSlash(path[0]) && isSlash(path[1]) {
+		return true
+	}
 	path = path[l:]
 	if path == "" {
 		return false

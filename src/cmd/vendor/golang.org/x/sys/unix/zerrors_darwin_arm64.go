@@ -1206,6 +1206,7 @@ const (
 	RTF_DONE                          = 0x40
 	RTF_DYNAMIC                       = 0x10
 	RTF_GATEWAY                       = 0x2
+	RTF_GLOBAL                        = 0x40000000
 	RTF_HOST                          = 0x4
 	RTF_IFREF                         = 0x4000000
 	RTF_IFSCOPE                       = 0x1000000
@@ -1262,6 +1263,11 @@ const (
 	SCM_RIGHTS                        = 0x1
 	SCM_TIMESTAMP                     = 0x2
 	SCM_TIMESTAMP_MONOTONIC           = 0x4
+	SEEK_CUR                          = 0x1
+	SEEK_DATA                         = 0x4
+	SEEK_END                          = 0x2
+	SEEK_HOLE                         = 0x3
+	SEEK_SET                          = 0x0
 	SHUT_RD                           = 0x0
 	SHUT_RDWR                         = 0x2
 	SHUT_WR                           = 0x1

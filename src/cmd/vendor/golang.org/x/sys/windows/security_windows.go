@@ -889,6 +889,7 @@ type WTS_SESSION_INFO struct {
 //sys WTSQueryUserToken(session uint32, token *Token) (err error) = wtsapi32.WTSQueryUserToken
 //sys WTSEnumerateSessions(handle Handle, reserved uint32, version uint32, sessions **WTS_SESSION_INFO, count *uint32) (err error) = wtsapi32.WTSEnumerateSessionsW
 //sys WTSFreeMemory(ptr uintptr) = wtsapi32.WTSFreeMemory
+//sys WTSGetActiveConsoleSessionId() (sessionID uint32)
 
 type ACL struct {
 	aclRevision byte

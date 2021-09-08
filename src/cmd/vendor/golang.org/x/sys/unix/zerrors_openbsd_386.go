@@ -1020,7 +1020,10 @@ const (
 	RLIMIT_CPU                        = 0x0
 	RLIMIT_DATA                       = 0x2
 	RLIMIT_FSIZE                      = 0x1
+	RLIMIT_MEMLOCK                    = 0x6
 	RLIMIT_NOFILE                     = 0x8
+	RLIMIT_NPROC                      = 0x7
+	RLIMIT_RSS                        = 0x5
 	RLIMIT_STACK                      = 0x3
 	RLIM_INFINITY                     = 0x7fffffffffffffff
 	RTAX_AUTHOR                       = 0x6

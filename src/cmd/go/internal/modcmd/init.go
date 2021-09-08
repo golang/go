@@ -13,7 +13,7 @@ import (
 )
 
 var cmdInit = &base.Command{
-	UsageLine: "go mod init [module]",
+	UsageLine: "go mod init [module-path]",
 	Short:     "initialize new module in current directory",
 	Long: `
 Init initializes and writes a new go.mod file in the current directory, in

@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"unsafe"
 )
 
@@ -343,7 +344,7 @@ func racereadrangepc1(addr, size, pc uintptr)
 func racewriterangepc1(addr, size, pc uintptr)
 func racecallbackthunk(uintptr)
 
-// racecall allows calling an arbitrary function f from C race runtime
+// racecall allows calling an arbitrary function fn from C race runtime
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
@@ -361,7 +362,7 @@ func raceinit() (gctx, pctx uintptr) {
 		throw("raceinit: race build must use cgo")
 	}
 
-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
+	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)

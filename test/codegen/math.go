@@ -125,7 +125,23 @@ func fma(x, y, z float64) float64 {
 	// s390x:"FMADD"
 	// ppc64:"FMADD"
 	// ppc64le:"FMADD"
+	// riscv64:"FMADDD"
 	return math.FMA(x, y, z)
+}
+
+func fms(x, y, z float64) float64 {
+	// riscv64:"FMSUBD"
+	return math.FMA(x, y, -z)
+}
+
+func fnma(x, y, z float64) float64 {
+	// riscv64:"FNMADDD"
+	return math.FMA(-x, y, z)
+}
+
+func fnms(x, y, z float64) float64 {
+	// riscv64:"FNMSUBD"
+	return math.FMA(x, -y, -z)
 }
 
 func fromFloat64(f64 float64) uint64 {

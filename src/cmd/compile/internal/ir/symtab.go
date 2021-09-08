@@ -68,5 +68,4 @@ var Pkgs struct {
 	Go      *types.Pkg
 	Itab    *types.Pkg
 	Runtime *types.Pkg
-	Unsafe  *types.Pkg
 }

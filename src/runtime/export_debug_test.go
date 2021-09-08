@@ -9,7 +9,7 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -115,7 +115,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 			return false
 		}
 		// Push current PC on the stack.
-		rsp := ctxt.rsp() - sys.PtrSize
+		rsp := ctxt.rsp() - goarch.PtrSize
 		*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
 		ctxt.set_rsp(rsp)
 		// Write the argument frame size.
@@ -125,7 +125,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 		h.savedFP = *h.savedRegs.fpstate
 		h.savedRegs.fpstate = nil
 		// Set PC to debugCallV2.
-		ctxt.set_rip(uint64(funcPC(debugCallV2)))
+		ctxt.set_rip(uint64(abi.FuncPCABIInternal(debugCallV2)))
 		// Call injected. Switch to the debugCall protocol.
 		testSigtrap = h.handleF
 	case _Grunnable:
@@ -166,7 +166,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 			storeRegArgs(ctxt.regs(), h.regArgs)
 		}
 		// Push return PC.
-		sp -= sys.PtrSize
+		sp -= goarch.PtrSize
 		ctxt.set_rsp(sp)
 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.rip()
 		// Set PC to call and context register.
@@ -182,7 +182,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 	case 2:
 		// Function panicked. Copy panic out.
 		sp := ctxt.rsp()
-		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*sys.PtrSize)
+		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*goarch.PtrSize)
 	case 8:
 		// Call isn't safe. Get the reason.
 		sp := ctxt.rsp()

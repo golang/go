@@ -83,8 +83,7 @@
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.
-// It can only be used with global variables at package scope,
-// not with local variables.
+// It can only be used with variables at package scope, not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line

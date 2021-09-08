@@ -329,18 +329,13 @@ const (
 	BI_OVF = 3
 )
 
-// Values for the BO field.  Add the branch type to
-// the likely bits, if a likely setting is known.
-// If branch likely or unlikely is not known, don't set it.
-// e.g. branch on cr+likely = 15
+// Common values for the BO field.
 
 const (
-	BO_BCTR     = 16 // branch on ctr value
-	BO_BCR      = 12 // branch on cr value
-	BO_BCRBCTR  = 8  // branch on ctr and cr value
-	BO_NOTBCR   = 4  // branch on not cr value
-	BO_UNLIKELY = 2  // value for unlikely
-	BO_LIKELY   = 3  // value for likely
+	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+	BO_BCR     = 12 // branch on cr value
+	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
+	BO_NOTBCR  = 4  // branch on not cr value
 )
 
 // Bit settings from the CR

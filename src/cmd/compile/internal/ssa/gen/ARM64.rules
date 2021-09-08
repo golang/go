@@ -1827,6 +1827,10 @@
 (MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
 (MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
 (MOVBreg (SLLconst [lc] x)) && lc < 8 => (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
+// int64(x) << lc
+(SLLconst [lc] (MOVWreg x))  => (SBFIZ [armBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHreg x))  => (SBFIZ [armBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBreg x))  => (SBFIZ [armBFAuxInt(lc, min(8, 64-lc))] x)
 
 // sbfx
 // (x << lc) >> rc
@@ -1834,6 +1838,10 @@
 (SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [armBFAuxInt(rc, 32-rc)] x)
 (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
 (SRAconst [rc] (MOVBreg x)) && rc < 8 => (SBFX [armBFAuxInt(rc, 8-rc)] x)
+// merge sbfx and sign-extension into sbfx
+(MOVWreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (SBFX [bfc] x)
+(MOVHreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (SBFX [bfc] x)
+(MOVBreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (SBFX [bfc] x)
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
@@ -1879,6 +1887,11 @@
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
 // (x << lc) >> rc
 (SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+
+// merge ubfx and zerso-extension into ubfx
+(MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
+(MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
+(MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
@@ -2860,6 +2873,10 @@
 (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 
+// Prefetch instructions (aux is option: 0 - PLDL1KEEP; 1 - PLDL1STRM)
+(PrefetchCache addr mem)         => (PRFM [0] addr mem)
+(PrefetchCacheStreamed addr mem) => (PRFM [1] addr mem)
+
 // Arch-specific inlining for small or disjoint runtime.memmove
 (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
 	&& sz >= 0
@@ -2867,4 +2884,13 @@
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(s1, s2, s3, call)
+	=> (Move [sz] dst src mem)
+
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+	&& sz >= 0
+	&& isSameCall(sym, "runtime.memmove")
+	&& call.Uses == 1
+	&& isInlinableMemmove(dst, src, sz, config)
+	&& clobber(call)
 	=> (Move [sz] dst src mem)

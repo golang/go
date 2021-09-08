@@ -376,7 +376,7 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(value.Type(), n, n))
 	} else {
-		value.Set(value.Slice(0, n))
+		value.SetLen(n)
 	}
 	if _, err := state.b.Read(value.Bytes()); err != nil {
 		errorf("error decoding []byte: %s", err)
@@ -625,7 +625,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 	if value.Cap() < n {
 		value.Set(reflect.MakeSlice(typ, n, n))
 	} else {
-		value.Set(value.Slice(0, n))
+		value.SetLen(n)
 	}
 	dec.decodeArrayHelper(state, value, elemOp, n, ovfl, helper)
 }

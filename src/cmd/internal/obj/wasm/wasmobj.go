@@ -129,8 +129,6 @@ var (
 	morestackNoCtxt *obj.LSym
 	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
-	deferreturn     *obj.LSym
-	jmpdefer        *obj.LSym
 )
 
 const (
@@ -143,10 +141,6 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
-	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
-	// jmpdefer is defined in assembly as ABI0. The compiler will
-	// generate a direct ABI0 call from Go, so look for that.
-	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABI0)
 }
 
 func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -423,12 +417,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				pcAfterCall-- // sigpanic expects to be called without advancing the pc
 			}
 
-			// jmpdefer manipulates the return address on the stack so deferreturn gets called repeatedly.
-			// Model this in WebAssembly with a loop.
-			if call.To.Sym == deferreturn {
-				p = appendp(p, ALoop)
-			}
-
 			// SP -= 8
 			p = appendp(p, AGet, regAddr(REG_SP))
 			p = appendp(p, AI32Const, constAddr(8))
@@ -479,15 +467,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			// jmpdefer removes the frame of deferreturn from the Go stack.
-			// However, its WebAssembly function still returns normally,
-			// so we need to return from deferreturn without removing its
-			// stack frame (no RET), because the frame is already gone.
-			if call.To.Sym == jmpdefer {
-				p = appendp(p, AReturn)
-				break
-			}
-
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
@@ -498,21 +477,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				// unwinding WebAssembly stack to switch goroutine, return 1
 				p = appendp(p, ABrIf)
 				unwindExitBranches = append(unwindExitBranches, p)
-			}
-
-			// jump to before the call if jmpdefer has reset the return address to the call's PC
-			if call.To.Sym == deferreturn {
-				// get PC_B from -8(SP)
-				p = appendp(p, AGet, regAddr(REG_SP))
-				p = appendp(p, AI32Const, constAddr(8))
-				p = appendp(p, AI32Sub)
-				p = appendp(p, AI32Load16U, constAddr(0))
-				p = appendp(p, ATee, regAddr(REG_PC_B))
-
-				p = appendp(p, AI32Const, constAddr(call.Pc))
-				p = appendp(p, AI32Eq)
-				p = appendp(p, ABrIf, constAddr(0))
-				p = appendp(p, AEnd) // end of Loop
 			}
 
 		case obj.ARET, ARETUNWIND:

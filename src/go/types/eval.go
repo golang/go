@@ -35,9 +35,10 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
 	return info.Types[node], err
 }
 
-// CheckExpr type checks the expression expr as if it had appeared at
-// position pos of package pkg. Type information about the expression
-// is recorded in info.
+// CheckExpr type checks the expression expr as if it had appeared at position
+// pos of package pkg. Type information about the expression is recorded in
+// info. The expression may be an uninstantiated parameterized function or
+// type.
 //
 // If pkg == nil, the Universe scope is used and the provided
 // position pos is ignored. If pkg != nil, and pos is invalid,
@@ -91,8 +92,8 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 
 	// evaluate node
 	var x operand
-	check.rawExpr(&x, expr, nil)
-	check.processDelayed(0) // incl. all functions
+	check.rawExpr(&x, expr, nil, true) // allow generic expressions
+	check.processDelayed(0)            // incl. all functions
 	check.recordUntyped()
 
 	return nil

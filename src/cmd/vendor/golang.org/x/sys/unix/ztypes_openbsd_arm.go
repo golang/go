@@ -439,8 +439,10 @@ type Winsize struct {
 
 const (
 	AT_FDCWD            = -0x64
-	AT_SYMLINK_FOLLOW   = 0x4
+	AT_EACCESS          = 0x1
 	AT_SYMLINK_NOFOLLOW = 0x2
+	AT_SYMLINK_FOLLOW   = 0x4
+	AT_REMOVEDIR        = 0x8
 )
 
 type PollFd struct {

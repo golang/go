@@ -23,8 +23,8 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/internal/str"
 )
 
 var CmdList = &base.Command{
@@ -316,6 +316,7 @@ For more about modules, see https://golang.org/ref/mod.
 func init() {
 	CmdList.Run = runList // break init cycle
 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	base.AddWorkfileFlag(&CmdList.Flag)
 }
 
 var (
@@ -336,6 +337,8 @@ var (
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if *listFmt != "" && *listJson == true {
 		base.Fatalf("go list -f cannot be used with -json")
 	}

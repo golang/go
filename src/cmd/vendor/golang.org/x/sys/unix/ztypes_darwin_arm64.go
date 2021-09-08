@@ -535,3 +535,107 @@ type CtlInfo struct {
 	Id   uint32
 	Name [96]byte
 }
+
+const SizeofKinfoProc = 0x288
+
+type Eproc struct {
+	Paddr   uintptr
+	Sess    uintptr
+	Pcred   Pcred
+	Ucred   Ucred
+	Vm      Vmspace
+	Ppid    int32
+	Pgid    int32
+	Jobc    int16
+	Tdev    int32
+	Tpgid   int32
+	Tsess   uintptr
+	Wmesg   [8]int8
+	Xsize   int32
+	Xrssize int16
+	Xccount int16
+	Xswrss  int16
+	Flag    int32
+	Login   [12]int8
+	Spare   [4]int32
+	_       [4]byte
+}
+
+type ExternProc struct {
+	P_starttime Timeval
+	P_vmspace   *Vmspace
+	P_sigacts   uintptr
+	P_flag      int32
+	P_stat      int8
+	P_pid       int32
+	P_oppid     int32
+	P_dupfd     int32
+	User_stack  *int8
+	Exit_thread *byte
+	P_debugger  int32
+	Sigwait     int32
+	P_estcpu    uint32
+	P_cpticks   int32
+	P_pctcpu    uint32
+	P_wchan     *byte
+	P_wmesg     *int8
+	P_swtime    uint32
+	P_slptime   uint32
+	P_realtimer Itimerval
+	P_rtime     Timeval
+	P_uticks    uint64
+	P_sticks    uint64
+	P_iticks    uint64
+	P_traceflag int32
+	P_tracep    uintptr
+	P_siglist   int32
+	P_textvp    uintptr
+	P_holdcnt   int32
+	P_sigmask   uint32
+	P_sigignore uint32
+	P_sigcatch  uint32
+	P_priority  uint8
+	P_usrpri    uint8
+	P_nice      int8
+	P_comm      [17]int8
+	P_pgrp      uintptr
+	P_addr      uintptr
+	P_xstat     uint16
+	P_acflag    uint16
+	P_ru        *Rusage
+}
+
+type Itimerval struct {
+	Interval Timeval
+	Value    Timeval
+}
+
+type KinfoProc struct {
+	Proc  ExternProc
+	Eproc Eproc
+}
+
+type Vmspace struct {
+	Dummy  int32
+	Dummy2 *int8
+	Dummy3 [5]int32
+	Dummy4 [3]*int8
+}
+
+type Pcred struct {
+	Pc_lock  [72]int8
+	Pc_ucred uintptr
+	P_ruid   uint32
+	P_svuid  uint32
+	P_rgid   uint32
+	P_svgid  uint32
+	P_refcnt int32
+	_        [4]byte
+}
+
+type Ucred struct {
+	Ref     int32
+	Uid     uint32
+	Ngroups int16
+	Groups  [16]uint32
+}

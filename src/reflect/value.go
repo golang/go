@@ -6,14 +6,13 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/itoa"
 	"internal/unsafeheader"
 	"math"
 	"runtime"
 	"unsafe"
 )
-
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
 
 // Value is the reflection interface to a Go value.
 //
@@ -94,7 +93,7 @@ func (f flag) ro() flag {
 // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
 // if v.Kind() == Ptr, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.size != ptrSize || !v.typ.pointers() {
+	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -509,7 +508,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regArgs.Ints[st.ireg]), offset, st.size)
+					memmove(regArgs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
 				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
@@ -525,7 +524,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("attempted to copy pointer to FP register")
 				}
 				offset := add(v.ptr, st.offset, "precomputed value offset")
-				memmove(unsafe.Pointer(&regArgs.Floats[st.freg]), offset, st.size)
+				memmove(regArgs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
 			default:
 				panic("unknown ABI part kind")
 			}
@@ -533,7 +532,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	frameSize = align(frameSize, ptrSize)
+	frameSize = align(frameSize, goarch.PtrSize)
 	frameSize += abi.spill
 
 	// Mark pointers in registers for the return path.
@@ -611,13 +610,13 @@ func (v Value) call(op string, in []Value) []Value {
 				switch st.kind {
 				case abiStepIntReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Ints[st.ireg]), st.size)
+					memmove(offset, regArgs.IntRegArgAddr(st.ireg, st.size), st.size)
 				case abiStepPointer:
 					s := add(s, st.offset, "precomputed value offset")
 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
 				case abiStepFloatReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Floats[st.freg]), st.size)
+					memmove(offset, regArgs.FloatRegArgAddr(st.freg, st.size), st.size)
 				case abiStepStack:
 					panic("register-based return value has stack component")
 				default:
@@ -699,13 +698,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					switch st.kind {
 					case abiStepIntReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Ints[st.ireg]), st.size)
+						memmove(offset, regs.IntRegArgAddr(st.ireg, st.size), st.size)
 					case abiStepPointer:
 						s := add(v.ptr, st.offset, "precomputed value offset")
 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
 					case abiStepFloatReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Floats[st.freg]), st.size)
+						memmove(offset, regs.FloatRegArgAddr(st.freg, st.size), st.size)
 					case abiStepStack:
 						panic("register-based return value has stack component")
 					default:
@@ -785,7 +784,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					// Copy values to "integer registers."
 					if v.flag&flagIndir != 0 {
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(unsafe.Pointer(&regs.Ints[st.ireg]), offset, st.size)
+						memmove(regs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
 					} else {
 						// Only populate the Ints space on the return path.
 						// This is safe because out is kept alive until the
@@ -800,7 +799,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 						panic("attempted to copy pointer to FP register")
 					}
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regs.Floats[st.freg]), offset, st.size)
+					memmove(regs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
 				default:
 					panic("unknown ABI part kind")
 				}
@@ -931,7 +930,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
-		// Only copy the reciever to the stack if the ABI says so.
+		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
 	} else {
@@ -958,9 +957,6 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 		// 2. Stack -> registers translation.
 		// 3. Registers -> stack translation.
 		// 4. Registers -> registers translation.
-		// TODO(mknyszek): Cases 2 and 3 below only work on little endian
-		// architectures. This is OK for now, but this needs to be fixed
-		// before supporting the register ABI on big endian architectures.
 
 		// If the value ABI passes the value on the stack,
 		// then the method ABI does too, because it has strictly
@@ -986,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(unsafe.Pointer(&methodRegs.Ints[mStep.ireg]), from, mStep.size)
+					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
 				case abiStepFloatReg:
-					memmove(unsafe.Pointer(&methodRegs.Floats[mStep.freg]), from, mStep.size)
+					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
 				default:
 					panic("unexpected method step")
 				}
@@ -1004,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
+					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
 				case abiStepFloatReg:
-					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
+					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
 				default:
 					panic("unexpected value step")
 				}
@@ -1043,7 +1039,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	methodFrameSize := methodFrameType.size
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
-	methodFrameSize = align(methodFrameSize, ptrSize)
+	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
 	methodFrameSize += methodABI.spill
 
 	// Mark pointers in registers for the return path.
@@ -1553,11 +1549,12 @@ func (v Value) MapKeys() []Value {
 	if m != nil {
 		mlen = maplen(m)
 	}
-	it := mapiterinit(v.typ, m)
+	var it hiter
+	mapiterinit(v.typ, m, &it)
 	a := make([]Value, mlen)
 	var i int
 	for i = 0; i < len(a); i++ {
-		key := mapiterkey(it)
+		key := mapiterkey(&it)
 		if key == nil {
 			// Someone deleted an entry from the map since we
 			// called maplen above. It's a data race, but nothing
@@ -1565,59 +1562,154 @@ func (v Value) MapKeys() []Value {
 			break
 		}
 		a[i] = copyVal(keyType, fl, key)
-		mapiternext(it)
+		mapiternext(&it)
 	}
 	return a[:i]
+}
+
+// hiter's structure matches runtime.hiter's structure.
+// Having a clone here allows us to embed a map iterator
+// inside type MapIter so that MapIters can be re-used
+// without doing any allocations.
+type hiter struct {
+	key         unsafe.Pointer
+	elem        unsafe.Pointer
+	t           unsafe.Pointer
+	h           unsafe.Pointer
+	buckets     unsafe.Pointer
+	bptr        unsafe.Pointer
+	overflow    *[]unsafe.Pointer
+	oldoverflow *[]unsafe.Pointer
+	startBucket uintptr
+	offset      uint8
+	wrapped     bool
+	B           uint8
+	i           uint8
+	bucket      uintptr
+	checkBucket uintptr
+}
+
+func (h hiter) initialized() bool {
+	return h.t != nil
 }
 
 // A MapIter is an iterator for ranging over a map.
 // See Value.MapRange.
 type MapIter struct {
-	m  Value
-	it unsafe.Pointer
+	m     Value
+	hiter hiter
 }
 
-// Key returns the key of the iterator's current map entry.
-func (it *MapIter) Key() Value {
-	if it.it == nil {
+// Key returns the key of iter's current map entry.
+func (iter *MapIter) Key() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Key called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
 		panic("MapIter.Key called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	ktype := t.key
-	return copyVal(ktype, it.m.flag.ro()|flag(ktype.Kind()), mapiterkey(it.it))
+	return copyVal(ktype, iter.m.flag.ro()|flag(ktype.Kind()), iterkey)
 }
 
-// Value returns the value of the iterator's current map entry.
-func (it *MapIter) Value() Value {
-	if it.it == nil {
+// SetKey assigns dst to the key of iter's current map entry.
+// It is equivalent to dst.Set(i.Key()), but it avoids allocating a new Value.
+// As in Go, the key must be assignable to dst's type.
+func (iter *MapIter) SetKey(dst Value) {
+	if !iter.hiter.initialized() {
+		panic("MapIter.SetKey called before Next")
+	}
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
+		panic("MapIter.SetKey called on exhausted iterator")
+	}
+
+	dst.mustBeAssignable()
+	var target unsafe.Pointer
+	if dst.kind() == Interface {
+		target = dst.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	ktype := t.key
+
+	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind())}
+	key = key.assignTo("reflect.MapIter.SetKey", dst.typ, target)
+	typedmemmove(dst.typ, dst.ptr, key.ptr)
+}
+
+// Value returns the value of iter's current map entry.
+func (iter *MapIter) Value() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Value called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
 		panic("MapIter.Value called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
+	return copyVal(vtype, iter.m.flag.ro()|flag(vtype.Kind()), iterelem)
+}
+
+// SetValue assigns dst to the value of iter's current map entry.
+// It is equivalent to dst.Set(i.Value()), but it avoids allocating a new Value.
+// As in Go, the value must be assignable to dst's type.
+func (iter *MapIter) SetValue(dst Value) {
+	if !iter.hiter.initialized() {
+		panic("MapIter.SetValue called before Next")
+	}
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
+		panic("MapIter.SetValue called on exhausted iterator")
+	}
+
+	dst.mustBeAssignable()
+	var target unsafe.Pointer
+	if dst.kind() == Interface {
+		target = dst.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	vtype := t.elem
+
+	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind())}
+	elem = elem.assignTo("reflect.MapIter.SetValue", dst.typ, target)
+	typedmemmove(dst.typ, dst.ptr, elem.ptr)
 }
 
 // Next advances the map iterator and reports whether there is another
-// entry. It returns false when the iterator is exhausted; subsequent
+// entry. It returns false when iter is exhausted; subsequent
 // calls to Key, Value, or Next will panic.
-func (it *MapIter) Next() bool {
-	if it.it == nil {
-		it.it = mapiterinit(it.m.typ, it.m.pointer())
+func (iter *MapIter) Next() bool {
+	if !iter.m.IsValid() {
+		panic("MapIter.Next called on an iterator that does not have an associated map Value")
+	}
+	if !iter.hiter.initialized() {
+		mapiterinit(iter.m.typ, iter.m.pointer(), &iter.hiter)
 	} else {
-		if mapiterkey(it.it) == nil {
+		if mapiterkey(&iter.hiter) == nil {
 			panic("MapIter.Next called on exhausted iterator")
 		}
-		mapiternext(it.it)
+		mapiternext(&iter.hiter)
 	}
-	return mapiterkey(it.it) != nil
+	return mapiterkey(&iter.hiter) != nil
+}
+
+// Reset modifies iter to iterate over v.
+// It panics if v's Kind is not Map and v is not the zero Value.
+// Reset(Value{}) causes iter to not to refer to any map,
+// which may allow the previously iterated-over map to be garbage collected.
+func (iter *MapIter) Reset(v Value) {
+	if v.IsValid() {
+		v.mustBe(Map)
+	}
+	iter.m = v
+	iter.hiter = hiter{}
 }
 
 // MapRange returns a range iterator for a map.
@@ -2811,6 +2903,26 @@ func (v Value) Convert(t Type) Value {
 	return op(v, t)
 }
 
+// CanConvert reports whether the value v can be converted to type t.
+// If v.CanConvert(t) returns true then v.Convert(t) will not panic.
+func (v Value) CanConvert(t Type) bool {
+	vt := v.Type()
+	if !vt.ConvertibleTo(t) {
+		return false
+	}
+	// Currently the only conversion that is OK in terms of type
+	// but that can panic depending on the value is converting
+	// from slice to pointer-to-array.
+	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+		n := t.Elem().Len()
+		h := (*unsafeheader.Slice)(v.ptr)
+		if n > h.Len {
+			return false
+		}
+	}
+	return true
+}
+
 // convertOp returns the function to convert a value of type src
 // to a value of type dst. If the conversion is illegal, convertOp returns nil.
 func convertOp(dst, src *rtype) func(Value, Type) Value {
@@ -3146,19 +3258,17 @@ func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
 //go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
 
-// m escapes into the return value, but the caller of mapiterinit
-// doesn't let the return value escape.
 //go:noescape
-func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
+func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter)
 
 //go:noescape
-func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+func mapiterkey(it *hiter) (key unsafe.Pointer)
 
 //go:noescape
-func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
+func mapiterelem(it *hiter) (elem unsafe.Pointer)
 
 //go:noescape
-func mapiternext(it unsafe.Pointer)
+func mapiternext(it *hiter)
 
 //go:noescape
 func maplen(m unsafe.Pointer) int

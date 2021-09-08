@@ -24,6 +24,8 @@ import (
 	"unicode/utf8"
 )
 
+//go:generate stringer -type Kind
+
 // Kind specifies the kind of value represented by a Value.
 type Kind int
 

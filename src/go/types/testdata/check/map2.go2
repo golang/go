@@ -114,7 +114,7 @@ func (it *Iterator[K, V]) Next() (K, V, bool) {
 
 // chans
 
-func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T])
+func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T]) { panic(0) }
 
 // A sender is used to send values to a Receiver.
 type chans_Sender[T any] struct {

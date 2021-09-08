@@ -16,6 +16,7 @@ const (
 	ARM
 	ARM64
 	I386
+	Loong64
 	MIPS
 	MIPS64
 	PPC64
@@ -97,6 +98,16 @@ var ArchARM64 = &Arch{
 	RegSize:   8,
 	MinLC:     4,
 	Alignment: 1,
+}
+
+var ArchLoong64 = &Arch{
+	Name:      "loong64",
+	Family:    Loong64,
+	ByteOrder: binary.LittleEndian,
+	PtrSize:   8,
+	RegSize:   8,
+	MinLC:     4,
+	Alignment: 8, // Unaligned accesses are not guaranteed to be fast
 }
 
 var ArchMIPS = &Arch{
@@ -194,6 +205,7 @@ var Archs = [...]*Arch{
 	ArchAMD64,
 	ArchARM,
 	ArchARM64,
+	ArchLoong64,
 	ArchMIPS,
 	ArchMIPSLE,
 	ArchMIPS64,

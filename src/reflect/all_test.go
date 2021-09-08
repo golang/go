@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"go/token"
+	"internal/goarch"
 	"io"
 	"math"
 	"math/rand"
@@ -332,6 +333,46 @@ func TestSetValue(t *testing.T) {
 		if s != tt.s {
 			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s)
 		}
+	}
+}
+
+func TestMapIterSet(t *testing.T) {
+	m := make(map[string]interface{}, len(valueTests))
+	for _, tt := range valueTests {
+		m[tt.s] = tt.i
+	}
+	v := ValueOf(m)
+
+	k := New(v.Type().Key()).Elem()
+	e := New(v.Type().Elem()).Elem()
+
+	iter := v.MapRange()
+	for iter.Next() {
+		iter.SetKey(k)
+		iter.SetValue(e)
+		want := m[k.String()]
+		got := e.Interface()
+		if got != want {
+			t.Errorf("%q: want (%T) %v, got (%T) %v", k.String(), want, want, got, got)
+		}
+		if setkey, key := valueToString(k), valueToString(iter.Key()); setkey != key {
+			t.Errorf("MapIter.Key() = %q, MapIter.SetKey() = %q", key, setkey)
+		}
+		if setval, val := valueToString(e), valueToString(iter.Value()); setval != val {
+			t.Errorf("MapIter.Value() = %q, MapIter.SetValue() = %q", val, setval)
+		}
+	}
+
+	got := int(testing.AllocsPerRun(10, func() {
+		iter := v.MapRange()
+		for iter.Next() {
+			iter.SetKey(k)
+			iter.SetValue(e)
+		}
+	}))
+	// Making a *MapIter allocates. This should be the only allocation.
+	if got != 1 {
+		t.Errorf("wanted 1 alloc, got %d", got)
 	}
 }
 
@@ -4304,6 +4345,9 @@ func TestConvert(t *testing.T) {
 
 		// vout1 represents the in value converted to the in type.
 		v1 := tt.in
+		if !v1.CanConvert(t1) {
+			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t1)
+		}
 		vout1 := v1.Convert(t1)
 		out1 := vout1.Interface()
 		if vout1.Type() != tt.in.Type() || !DeepEqual(out1, tt.in.Interface()) {
@@ -4311,6 +4355,9 @@ func TestConvert(t *testing.T) {
 		}
 
 		// vout2 represents the in value converted to the out type.
+		if !v1.CanConvert(t2) {
+			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t2)
+		}
 		vout2 := v1.Convert(t2)
 		out2 := vout2.Interface()
 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
@@ -4371,6 +4418,9 @@ func TestConvertPanic(t *testing.T) {
 	if !v.Type().ConvertibleTo(pt) {
 		t.Errorf("[]byte should be convertible to *[8]byte")
 	}
+	if v.CanConvert(pt) {
+		t.Errorf("slice with length 4 should not be convertible to *[8]byte")
+	}
 	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
 		_ = v.Convert(pt)
 	})
@@ -4378,8 +4428,17 @@ func TestConvertPanic(t *testing.T) {
 
 var gFloat32 float32
 
+const snan uint32 = 0x7f800001
+
 func TestConvertNaNs(t *testing.T) {
-	const snan uint32 = 0x7f800001
+	// Test to see if a store followed by a load of a signaling NaN
+	// maintains the signaling bit. (This used to fail on the 387 port.)
+	gFloat32 = math.Float32frombits(snan)
+	runtime.Gosched() // make sure we don't optimize the store/load away
+	if got := math.Float32bits(gFloat32); got != snan {
+		t.Errorf("store/load of sNaN not faithful, got %x want %x", got, snan)
+	}
+	// Test reflect's conversion between float32s. See issue 36400.
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
@@ -6457,10 +6516,10 @@ func clobber() {
 
 func TestFuncLayout(t *testing.T) {
 	align := func(x uintptr) uintptr {
-		return (x + PtrSize - 1) &^ (PtrSize - 1)
+		return (x + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
 	}
 	var r []byte
-	if PtrSize == 4 {
+	if goarch.PtrSize == 4 {
 		r = []byte{0, 0, 0, 1}
 	} else {
 		r = []byte{0, 0, 1}
@@ -6481,56 +6540,56 @@ func TestFuncLayout(t *testing.T) {
 	tests := []test{
 		{
 			typ:       ValueOf(func(a, b string) string { return "" }).Type(),
-			size:      6 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      6 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1, 0, 1},
 			gc:        []byte{1, 0, 1, 0, 1},
 		},
 		{
 			typ:       ValueOf(func(a, b, c uint32, p *byte, d uint16) {}).Type(),
-			size:      align(align(3*4) + PtrSize + 2),
-			argsize:   align(3*4) + PtrSize + 2,
-			retOffset: align(align(3*4) + PtrSize + 2),
+			size:      align(align(3*4) + goarch.PtrSize + 2),
+			argsize:   align(3*4) + goarch.PtrSize + 2,
+			retOffset: align(align(3*4) + goarch.PtrSize + 2),
 			stack:     r,
 			gc:        r,
 		},
 		{
 			typ:       ValueOf(func(a map[int]int, b uintptr, c interface{}) {}).Type(),
-			size:      4 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      4 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1, 1},
 			gc:        []byte{1, 0, 1, 1},
 		},
 		{
 			typ:       ValueOf(func(a S) {}).Type(),
-			size:      4 * PtrSize,
-			argsize:   4 * PtrSize,
-			retOffset: 4 * PtrSize,
+			size:      4 * goarch.PtrSize,
+			argsize:   4 * goarch.PtrSize,
+			retOffset: 4 * goarch.PtrSize,
 			stack:     []byte{0, 0, 1, 1},
 			gc:        []byte{0, 0, 1, 1},
 		},
 		{
 			rcvr:      ValueOf((*byte)(nil)).Type(),
 			typ:       ValueOf(func(a uintptr, b *int) {}).Type(),
-			size:      3 * PtrSize,
-			argsize:   3 * PtrSize,
-			retOffset: 3 * PtrSize,
+			size:      3 * goarch.PtrSize,
+			argsize:   3 * goarch.PtrSize,
+			retOffset: 3 * goarch.PtrSize,
 			stack:     []byte{1, 0, 1},
 			gc:        []byte{1, 0, 1},
 		},
 		{
 			typ:       ValueOf(func(a uintptr) {}).Type(),
-			size:      PtrSize,
-			argsize:   PtrSize,
-			retOffset: PtrSize,
+			size:      goarch.PtrSize,
+			argsize:   goarch.PtrSize,
+			retOffset: goarch.PtrSize,
 			stack:     []byte{},
 			gc:        []byte{},
 		},
 		{
 			typ:       ValueOf(func() uintptr { return 0 }).Type(),
-			size:      PtrSize,
+			size:      goarch.PtrSize,
 			argsize:   0,
 			retOffset: 0,
 			stack:     []byte{},
@@ -6539,9 +6598,9 @@ func TestFuncLayout(t *testing.T) {
 		{
 			rcvr:      ValueOf(uintptr(0)).Type(),
 			typ:       ValueOf(func(a uintptr) {}).Type(),
-			size:      2 * PtrSize,
-			argsize:   2 * PtrSize,
-			retOffset: 2 * PtrSize,
+			size:      2 * goarch.PtrSize,
+			argsize:   2 * goarch.PtrSize,
+			retOffset: 2 * goarch.PtrSize,
 			stack:     []byte{1},
 			gc:        []byte{1},
 			// Note: this one is tricky, as the receiver is not a pointer. But we
@@ -6747,7 +6806,7 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
 
-	hdr := make([]byte, 8/PtrSize)
+	hdr := make([]byte, 8/goarch.PtrSize)
 
 	verifyMapBucket := func(t *testing.T, k, e Type, m interface{}, want []byte) {
 		verifyGCBits(t, MapBucketOf(k, e), want)
@@ -6763,7 +6822,7 @@ func TestGCBits(t *testing.T) {
 		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t, Tint64, Tptr,
 		map[int64]Xptr(nil),
-		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
+		join(hdr, rep(8, rep(8/goarch.PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalar, Tscalar,
 		map[Xscalar]Xscalar(nil),
@@ -6773,20 +6832,20 @@ func TestGCBits(t *testing.T) {
 		map[[2]Xscalarptr][3]Xptrscalar(nil),
 		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
-		map[[64 / PtrSize]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize, Tptrscalar),
-		map[[64/PtrSize + 1]Xscalarptr][64 / PtrSize]Xptrscalar(nil),
-		join(hdr, rep(8, lit(1)), rep(8*64/PtrSize, lit(1, 0)), lit(1)))
+		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+		join(hdr, rep(8, lit(1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
-		map[[64 / PtrSize]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
-		join(hdr, rep(8*64/PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
+		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
-		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
-		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
+		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
 		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
 }
 
@@ -7173,6 +7232,72 @@ func TestMapIterNilMap(t *testing.T) {
 	}
 }
 
+func TestMapIterReset(t *testing.T) {
+	iter := new(MapIter)
+
+	// Use of zero iterator should panic.
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Error("Next did not panic")
+	}()
+
+	// Reset to new Map should work.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter.Reset(ValueOf(m))
+	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+
+	// Reset to Zero value should work, but iterating over it should panic.
+	iter.Reset(Value{})
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Error("Next did not panic")
+	}()
+
+	// Reset to a different Map with different types should work.
+	m2 := map[int]string{1: "one", 2: "two", 3: "three"}
+	iter.Reset(ValueOf(m2))
+	if got, want := iterateToString(iter), `[1: one, 2: two, 3: three]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+
+	// Check that Reset, Next, and SetKey/SetValue play nicely together.
+	m3 := map[uint64]uint64{
+		1 << 0: 1 << 1,
+		1 << 1: 1 << 2,
+		1 << 2: 1 << 3,
+	}
+	kv := New(TypeOf(uint64(0))).Elem()
+	for i := 0; i < 5; i++ {
+		var seenk, seenv uint64
+		iter.Reset(ValueOf(m3))
+		for iter.Next() {
+			iter.SetKey(kv)
+			seenk ^= kv.Uint()
+			iter.SetValue(kv)
+			seenv ^= kv.Uint()
+		}
+		if seenk != 0b111 {
+			t.Errorf("iteration yielded keys %b, want %b", seenk, 0b111)
+		}
+		if seenv != 0b1110 {
+			t.Errorf("iteration yielded values %b, want %b", seenv, 0b1110)
+		}
+	}
+
+	// Reset should not allocate.
+	n := int(testing.AllocsPerRun(10, func() {
+		iter.Reset(ValueOf(m2))
+		iter.Reset(Value{})
+	}))
+	if n > 0 {
+		t.Errorf("MapIter.Reset allocated %d times", n)
+	}
+}
+
 func TestMapIterSafety(t *testing.T) {
 	// Using a zero MapIter causes a panic, but not a crash.
 	func() {
@@ -7285,5 +7410,12 @@ func TestConvertibleTo(t *testing.T) {
 	// Shouldn't raise stack overflow
 	if t1.ConvertibleTo(t2) {
 		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
+	}
+
+	t3 := ValueOf([]example1.MyStruct{}).Type()
+	t4 := ValueOf([]example2.MyStruct{}).Type()
+
+	if t3.ConvertibleTo(t4) {
+		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t3, t4)
 	}
 }

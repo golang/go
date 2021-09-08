@@ -378,7 +378,7 @@ func (sc *slotCanonicalizer) lookup(ls LocalSlot) (SlKeyIdx, bool) {
 		split, _ = sc.lookup(*ls.SplitOf)
 	}
 	k := slotKey{
-		name: ls.N, offset: ls.Off, width: ls.Type.Width,
+		name: ls.N, offset: ls.Off, width: ls.Type.Size(),
 		splitOf: split, splitOffset: ls.SplitOffset,
 	}
 	if idx, ok := sc.slmap[k]; ok {
@@ -1115,8 +1115,14 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 			continue
 		}
 
+		mustBeFirst := func(v *Value) bool {
+			return v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() ||
+				v.Op == OpArgIntReg || v.Op == OpArgFloatReg
+		}
+
 		zeroWidthPending := false
-		apcChangedSize := 0 // size of changedVars for leading Args, Phi, ClosurePtr
+		blockPrologComplete := false // set to true at first non-zero-width op
+		apcChangedSize := 0          // size of changedVars for leading Args, Phi, ClosurePtr
 		// expect to see values in pattern (apc)* (zerowidth|real)*
 		for _, v := range b.Values {
 			slots := state.valueNames[v.ID]
@@ -1125,16 +1131,16 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 
 			if opcodeTable[v.Op].zeroWidth {
 				if changed {
-					if hasAnyArgOp(v) || v.Op == OpPhi || v.Op.isLoweredGetClosurePtr() {
+					if mustBeFirst(v) || v.Op == OpArg {
 						// These ranges begin at true beginning of block, not after first instruction
-						if zeroWidthPending {
-							panic(fmt.Errorf("Unexpected op '%s' mixed with OpArg/OpPhi/OpLoweredGetClosurePtr at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
+						if blockPrologComplete && mustBeFirst(v) {
+							panic(fmt.Errorf("Unexpected placement of op '%s' appearing after non-pseudo-op at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
 						}
 						apcChangedSize = len(state.changedVars.contents())
+						// Other zero-width ops must wait on a "real" op.
+						zeroWidthPending = true
 						continue
 					}
-					// Other zero-width ops must wait on a "real" op.
-					zeroWidthPending = true
 				}
 				continue
 			}
@@ -1145,6 +1151,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 			// Not zero-width; i.e., a "real" instruction.
 
 			zeroWidthPending = false
+			blockPrologComplete = true
 			for i, varID := range state.changedVars.contents() {
 				if i < apcChangedSize { // buffered true start-of-block changes
 					state.updateVar(VarID(varID), v.Block, BlockStart)
@@ -1642,7 +1649,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 			}
 			if len(inp.Registers) > 1 {
 				list = append(list, dwarf.DW_OP_piece)
-				ts := rtypes[k].Width
+				ts := rtypes[k].Size()
 				list = dwarf.AppendUleb128(list, uint64(ts))
 				if padding[k] > 0 {
 					if loggingEnabled {

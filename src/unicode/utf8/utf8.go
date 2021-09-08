@@ -369,6 +369,32 @@ func EncodeRune(p []byte, r rune) int {
 	}
 }
 
+// AppendRune appends the UTF-8 encoding of r to the end of p and
+// returns the extended buffer. If the rune is out of range,
+// it appends the encoding of RuneError.
+func AppendRune(p []byte, r rune) []byte {
+	// This function is inlineable for fast handling of ASCII.
+	if uint32(r) <= rune1Max {
+		return append(p, byte(r))
+	}
+	return appendRuneNonASCII(p, r)
+}
+
+func appendRuneNonASCII(p []byte, r rune) []byte {
+	// Negative values are erroneous. Making it unsigned addresses the problem.
+	switch i := uint32(r); {
+	case i <= rune2Max:
+		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
+	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
+		r = RuneError
+		fallthrough
+	case i <= rune3Max:
+		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	default:
+		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+	}
+}
+
 // RuneCount returns the number of runes in p. Erroneous and short
 // encodings are treated as single runes of width 1 byte.
 func RuneCount(p []byte) int {

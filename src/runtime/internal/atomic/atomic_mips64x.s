@@ -37,7 +37,7 @@ cas_fail:
 
 // bool	cas64(uint64 *ptr, uint64 old, uint64 new)
 // Atomically:
-//	if(*val == *old){
+//	if(*val == old){
 //		*val = new;
 //		return 1;
 //	} else {

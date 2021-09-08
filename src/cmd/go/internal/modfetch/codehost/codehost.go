@@ -21,7 +21,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 )
 
 // Downloaded size limits.

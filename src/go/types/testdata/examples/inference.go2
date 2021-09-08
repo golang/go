@@ -7,10 +7,10 @@
 package p
 
 type Ordered interface {
-	type int, float64, string
+	~int|~float64|~string
 }
 
-func min[T Ordered](x, y T) T
+func min[T Ordered](x, y T) T { panic(0) }
 
 func _() {
 	// min can be called with explicit instantiation.
@@ -37,7 +37,7 @@ func _() {
 	_ = min("foo", "bar")
 }
 
-func mixed[T1, T2, T3 any](T1, T2, T3)
+func mixed[T1, T2, T3 any](T1, T2, T3) {}
 
 func _() {
 	// mixed can be called with explicit instantiation.
@@ -54,7 +54,7 @@ func _() {
 	mixed[int, string](1.1 /* ERROR cannot use 1.1 */ , "", false)
 }
 
-func related1[Slice interface{type []Elem}, Elem any](s Slice, e Elem)
+func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem) {}
 
 func _() {
 	// related1 can be called with explicit instantiation.
@@ -78,7 +78,7 @@ func _() {
 	related1(si, "foo" /* ERROR cannot use "foo" */ )
 }
 
-func related2[Elem any, Slice interface{type []Elem}](e Elem, s Slice)
+func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
 
 func _() {
 	// related2 can be called with explicit instantiation.

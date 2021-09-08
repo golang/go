@@ -286,12 +286,7 @@ func fileNameOK(r rune) bool {
 		if '0' <= r && r <= '9' || 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' {
 			return true
 		}
-		for i := 0; i < len(allowed); i++ {
-			if rune(allowed[i]) == r {
-				return true
-			}
-		}
-		return false
+		return strings.ContainsRune(allowed, r)
 	}
 	// It may be OK to add more ASCII punctuation here, but only carefully.
 	// For example Windows disallows < > \, and macOS disallows :, so we must not allow those.

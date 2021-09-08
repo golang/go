@@ -10,10 +10,10 @@ func main() {
 
 type N[T any] struct{}
 
-var _ N /* ERROR "0 arguments but 1 type parameters" */ []
+var _ N [] // ERROR expected type argument list
 
 type I interface {
-	type map[int]int, []int
+	~[]int
 }
 
 func _[T I](i, j int) {
@@ -27,6 +27,5 @@ func _[T I](i, j int) {
 	_ = s[i, j /* ERROR "more than one index" */ ]
 
 	var t T
-	// TODO(rFindley) Fix the duplicate error below.
-	_ = t[i, j /* ERROR "more than one index" */ /* ERROR "more than one index" */ ]
+	_ = t[i, j /* ERROR "more than one index" */ ]
 }

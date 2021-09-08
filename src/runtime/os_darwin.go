@@ -369,7 +369,7 @@ func setsig(i uint32, fn uintptr) {
 	var sa usigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = ^uint32(0)
-	if fn == funcPC(sighandler) { // funcPC(sighandler) matches the callers in signal_unix.go
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {
 			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {

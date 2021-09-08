@@ -53,6 +53,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -192,8 +193,10 @@ func CheckFiles(files []File) (CheckedFiles, error) {
 }
 
 // checkFiles implements CheckFiles and also returns lists of valid files and
-// their sizes, corresponding to cf.Valid. These lists are used in Crewate to
-// avoid repeated calls to File.Lstat.
+// their sizes, corresponding to cf.Valid. It omits files in submodules, files
+// in vendored packages, symlinked files, and various other unwanted files.
+//
+// The lists returned are used in Create to avoid repeated calls to File.Lstat.
 func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []int64) {
 	errPaths := make(map[string]struct{})
 	addError := func(path string, omitted bool, err error) {
@@ -254,10 +257,12 @@ func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []
 			continue
 		}
 		if isVendoredPackage(p) {
+			// Skip files in vendored packages.
 			addError(p, true, errVendored)
 			continue
 		}
 		if inSubmodule(p) {
+			// Skip submodule files.
 			addError(p, true, errSubmoduleFile)
 			continue
 		}
@@ -551,7 +556,7 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 		if zerr, ok := err.(*zipError); ok {
 			zerr.path = dir
 		} else if err != nil {
-			err = &zipError{verb: "create zip", path: dir, err: err}
+			err = &zipError{verb: "create zip from directory", path: dir, err: err}
 		}
 	}()
 
@@ -563,6 +568,129 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 	return Create(w, m, files)
 }
 
+// CreateFromVCS creates a module zip file for module m from the contents of a
+// VCS repository stored locally. The zip content is written to w.
+//
+// repoRoot must be an absolute path to the base of the repository, such as
+// "/Users/some-user/some-repo".
+//
+// revision is the revision of the repository to create the zip from. Examples
+// include HEAD or SHA sums for git repositories.
+//
+// subdir must be the relative path from the base of the repository, such as
+// "sub/dir". To create a zip from the base of the repository, pass an empty
+// string.
+//
+// If CreateFromVCS returns ErrUnrecognizedVCS, consider falling back to
+// CreateFromDir.
+func CreateFromVCS(w io.Writer, m module.Version, repoRoot, revision, subdir string) (err error) {
+	defer func() {
+		if zerr, ok := err.(*zipError); ok {
+			zerr.path = repoRoot
+		} else if err != nil {
+			err = &zipError{verb: "create zip from version control system", path: repoRoot, err: err}
+		}
+	}()
+
+	var filesToCreate []File
+
+	switch {
+	case isGitRepo(repoRoot):
+		files, err := filesInGitRepo(repoRoot, revision, subdir)
+		if err != nil {
+			return err
+		}
+
+		filesToCreate = files
+	default:
+		return &UnrecognizedVCSError{RepoRoot: repoRoot}
+	}
+
+	return Create(w, m, filesToCreate)
+}
+
+// UnrecognizedVCSError indicates that no recognized version control system was
+// found in the given directory.
+type UnrecognizedVCSError struct {
+	RepoRoot string
+}
+
+func (e *UnrecognizedVCSError) Error() string {
+	return fmt.Sprintf("could not find a recognized version control system at %q", e.RepoRoot)
+}
+
+// filterGitIgnored filters out any files that are git ignored in the directory.
+func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
+	stderr := bytes.Buffer{}
+	stdout := bytes.Buffer{}
+
+	// Incredibly, git produces different archives depending on whether
+	// it is running on a Windows system or not, in an attempt to normalize
+	// text file line endings. Setting -c core.autocrlf=input means only
+	// translate files on the way into the repo, not on the way out (archive).
+	// The -c core.eol=lf should be unnecessary but set it anyway.
+	//
+	// Note: We use git archive to understand which files are actually included,
+	// ignoring things like .gitignore'd files. We could also use other
+	// techniques like git ls-files, but this approach most closely matches what
+	// the Go command does, which is beneficial.
+	//
+	// Note: some of this code copied from https://go.googlesource.com/go/+/refs/tags/go1.16.5/src/cmd/go/internal/modfetch/codehost/git.go#826.
+	cmd := exec.Command("git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", rev)
+	if subdir != "" {
+		cmd.Args = append(cmd.Args, subdir)
+	}
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("error running `git archive`: %w, %s", err, stderr.String())
+	}
+
+	rawReader := bytes.NewReader(stdout.Bytes())
+	zipReader, err := zip.NewReader(rawReader, int64(stdout.Len()))
+	if err != nil {
+		return nil, err
+	}
+
+	var fs []File
+	for _, zf := range zipReader.File {
+		if !strings.HasPrefix(zf.Name, subdir) || strings.HasSuffix(zf.Name, "/") {
+			continue
+		}
+
+		n := strings.TrimPrefix(zf.Name, subdir)
+		if n == "" {
+			continue
+		}
+		n = strings.TrimPrefix(n, string(filepath.Separator))
+
+		fs = append(fs, zipFile{
+			name: n,
+			f:    zf,
+		})
+	}
+
+	return fs, nil
+}
+
+// isGitRepo reports whether the given directory is a git repo.
+func isGitRepo(dir string) bool {
+	stdout := &bytes.Buffer{}
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = dir
+	cmd.Stdout = stdout
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	gitDir := strings.TrimSpace(string(stdout.Bytes()))
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(dir, gitDir)
+	}
+	wantDir := filepath.Join(dir, ".git")
+	return wantDir == gitDir
+}
+
 type dirFile struct {
 	filePath, slashPath string
 	info                os.FileInfo
@@ -571,6 +699,15 @@ type dirFile struct {
 func (f dirFile) Path() string                 { return f.slashPath }
 func (f dirFile) Lstat() (os.FileInfo, error)  { return f.info, nil }
 func (f dirFile) Open() (io.ReadCloser, error) { return os.Open(f.filePath) }
+
+type zipFile struct {
+	name string
+	f    *zip.File
+}
+
+func (f zipFile) Path() string                 { return f.name }
+func (f zipFile) Lstat() (os.FileInfo, error)  { return f.f.FileInfo(), nil }
+func (f zipFile) Open() (io.ReadCloser, error) { return f.f.Open() }
 
 // isVendoredPackage attempts to report whether the given filename is contained
 // in a package whose import path contains (but does not end with) the component
