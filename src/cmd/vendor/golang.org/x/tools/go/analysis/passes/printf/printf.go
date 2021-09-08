@@ -490,7 +490,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 		_, ok = isPrint[strings.ToLower(fn.Name())]
 	}
 	if ok {
-		if fn.Name() == "Errorf" {
+		if fn.FullName() == "fmt.Errorf" {
 			kind = KindErrorf
 		} else if strings.HasSuffix(fn.Name(), "f") {
 			kind = KindPrintf
@@ -590,11 +590,8 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		}
 		if state.verb == 'w' {
 			switch kind {
-			case KindNone, KindPrint:
+			case KindNone, KindPrint, KindPrintf:
 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
-				return
-			case KindPrintf:
-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported for functions backed by fmt.Errorf", state.name)
 				return
 			}
 			if anyW {
