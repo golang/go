@@ -31,8 +31,8 @@ const header = `// Copyright 2020 The Go Authors. All rights reserved.
 
 // For more information, see
 // https://www.iana.org/time-zones
-// ftp://ftp.iana.org/tz/code/tz-link.htm
-// http://tools.ietf.org/html/rfc6557
+// ftp://ftp.iana.org/tz/code/tz-link.html
+// https://datatracker.ietf.org/doc/html/rfc6557
 
 package tzdata
 

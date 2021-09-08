@@ -20,9 +20,6 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types2_test
 
 import (
@@ -103,7 +100,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 
 	var mode syntax.Mode
 	if strings.HasSuffix(filenames[0], ".go2") {
-		mode |= syntax.AllowGenerics
+		mode |= syntax.AllowGenerics | syntax.AllowTypeLists
 	}
 	// parse files and collect parser errors
 	files, errlist := parseFiles(t, filenames, mode)

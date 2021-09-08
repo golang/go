@@ -196,6 +196,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 // methods with receiver base type names.
 func (check *Checker) collectObjects() {
 	pkg := check.pkg
+	pkg.height = 0
 
 	// pkgImports is the set of packages already imported by any package file seen
 	// so far. Used to avoid duplicate entries in pkg.imports. Allocate and populate
@@ -253,6 +254,15 @@ func (check *Checker) collectObjects() {
 					continue
 				}
 
+				if imp == Unsafe {
+					// typecheck ignores imports of package unsafe for
+					// calculating height.
+					// TODO(mdempsky): Revisit this. This seems fine, but I
+					// don't remember explicitly considering this case.
+				} else if h := imp.height + 1; h > pkg.height {
+					pkg.height = h
+				}
+
 				// local name overrides imported package name
 				name := imp.name
 				if s.LocalPkgName != nil {
@@ -265,7 +275,7 @@ func (check *Checker) collectObjects() {
 				}
 
 				if name == "init" {
-					check.error(s.LocalPkgName, "cannot import package as init - init must be a func")
+					check.error(s, "cannot import package as init - init must be a func")
 					continue
 				}
 
@@ -298,22 +308,26 @@ func (check *Checker) collectObjects() {
 						check.dotImportMap = make(map[dotImportKey]*PkgName)
 					}
 					// merge imported scope with file scope
-					for _, obj := range imp.scope.elems {
+					for name, obj := range imp.scope.elems {
+						// Note: Avoid eager resolve(name, obj) here, so we only
+						// resolve dot-imported objects as needed.
+
 						// A package scope may contain non-exported objects,
 						// do not import them!
-						if obj.Exported() {
+						if isExported(name) {
 							// declare dot-imported object
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
 							// concurrently. See issue #32154.)
-							if alt := fileScope.Insert(obj); alt != nil {
+							if alt := fileScope.Lookup(name); alt != nil {
 								var err error_
-								err.errorf(s.LocalPkgName, "%s redeclared in this block", obj.Name())
+								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
 								err.recordAltDecl(alt)
 								check.report(&err)
 							} else {
-								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
+								fileScope.insert(name, obj)
+								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
 							}
 						}
 					}
@@ -398,52 +412,60 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) {
+					check.softErrorf(s.TParamList[0], "type parameters require go1.18 or later")
+				}
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
 			case *syntax.FuncDecl:
-				d := s // TODO(gri) get rid of this
-				name := d.Name.Value
-				obj := NewFunc(d.Name.Pos(), pkg, name, nil)
-				if d.Recv == nil {
+				name := s.Name.Value
+				obj := NewFunc(s.Name.Pos(), pkg, name, nil)
+				hasTParamError := false // avoid duplicate type parameter errors
+				if s.Recv == nil {
 					// regular function
 					if name == "init" || name == "main" && pkg.name == "main" {
-						if d.TParamList != nil {
-							check.softErrorf(d, "func %s must have no type parameters", name)
+						if len(s.TParamList) != 0 {
+							check.softErrorf(s.TParamList[0], "func %s must have no type parameters", name)
+							hasTParamError = true
 						}
-						if t := d.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
-							check.softErrorf(d, "func %s must have no arguments and no return values", name)
+						if t := s.Type; len(t.ParamList) != 0 || len(t.ResultList) != 0 {
+							check.softErrorf(s, "func %s must have no arguments and no return values", name)
 						}
 					}
 					// don't declare init functions in the package scope - they are invisible
 					if name == "init" {
 						obj.parent = pkg.scope
-						check.recordDef(d.Name, obj)
+						check.recordDef(s.Name, obj)
 						// init functions must have a body
-						if d.Body == nil {
+						if s.Body == nil {
 							// TODO(gri) make this error message consistent with the others above
 							check.softErrorf(obj.pos, "missing function body")
 						}
 					} else {
-						check.declare(pkg.scope, d.Name, obj, nopos)
+						check.declare(pkg.scope, s.Name, obj, nopos)
 					}
 				} else {
 					// method
 					// d.Recv != nil
-					if !acceptMethodTypeParams && len(d.TParamList) != 0 {
+					if !acceptMethodTypeParams && len(s.TParamList) != 0 {
 						//check.error(d.TParamList.Pos(), invalidAST + "method must have no type parameters")
-						check.error(d, invalidAST+"method must have no type parameters")
+						check.error(s.TParamList[0], invalidAST+"method must have no type parameters")
+						hasTParamError = true
 					}
-					ptr, recv, _ := check.unpackRecv(d.Recv.Type, false)
+					ptr, recv, _ := check.unpackRecv(s.Recv.Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
 					// of them. They will still be type-checked with all the other functions.)
 					if recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
-					check.recordDef(d.Name, obj)
+					check.recordDef(s.Name, obj)
 				}
-				info := &declInfo{file: fileScope, fdecl: d}
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+					check.softErrorf(s.TParamList[0], "type parameters require go1.18 or later")
+				}
+				info := &declInfo{file: fileScope, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -459,8 +481,9 @@ func (check *Checker) collectObjects() {
 
 	// verify that objects in package and file scopes have different names
 	for _, scope := range fileScopes {
-		for _, obj := range scope.elems {
-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
+		for name, obj := range scope.elems {
+			if alt := pkg.scope.Lookup(name); alt != nil {
+				obj = resolve(name, obj)
 				var err error_
 				if pkg, ok := obj.(*PkgName); ok {
 					err.errorf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())

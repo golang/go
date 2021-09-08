@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
+	"cmd/internal/str"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
 	"flag"
@@ -53,6 +54,8 @@ var (
 
 func init() {
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
+	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
 }
 
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
@@ -72,8 +75,8 @@ var (
 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
 	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
 
-	flagExtld      = flag.String("extld", "", "use `linker` when linking in external mode")
-	flagExtldflags = flag.String("extldflags", "", "pass `flags` to external linker")
+	flagExtld      str.QuotedStringListFlag
+	flagExtldflags str.QuotedStringListFlag
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")

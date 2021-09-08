@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
@@ -103,7 +104,7 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 
 func dumpCompilerObj(bout *bio.Writer) {
 	printObjHeader(bout)
-	dumpexport(bout)
+	noder.WriteExports(bout)
 }
 
 func dumpdata() {
@@ -116,7 +117,7 @@ func dumpdata() {
 	addsignats(typecheck.Target.Externs)
 	reflectdata.WriteRuntimeTypes()
 	reflectdata.WriteTabs()
-	numPTabs, numITabs := reflectdata.CountTabs()
+	numPTabs := reflectdata.CountPTabs()
 	reflectdata.WriteImportStrings()
 	reflectdata.WriteBasicTypes()
 	dumpembeds()
@@ -148,7 +149,7 @@ func dumpdata() {
 	if reflectdata.ZeroSize > 0 {
 		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
-		zero.Set(obj.AttrContentAddressable, true)
+		zero.Set(obj.AttrStatic, true)
 	}
 
 	staticdata.WriteFuncSyms()
@@ -157,12 +158,9 @@ func dumpdata() {
 	if numExports != len(typecheck.Target.Exports) {
 		base.Fatalf("Target.Exports changed after compile functions loop")
 	}
-	newNumPTabs, newNumITabs := reflectdata.CountTabs()
+	newNumPTabs := reflectdata.CountPTabs()
 	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
-	}
-	if newNumITabs != numITabs {
-		base.Fatalf("itabs changed after compile functions loop")
 	}
 }
 
@@ -276,7 +274,7 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type().Width, flags)
+	base.Ctxt.Globl(s, nam.Type().Size(), flags)
 	if nam.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}

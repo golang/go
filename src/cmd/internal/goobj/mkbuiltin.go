@@ -151,7 +151,9 @@ var fextras = [...]extra{
 	{"sigpanic", 1},
 
 	// compiler backend inserted calls
-	{"gcWriteBarrier", 0}, // asm function, ABI0
+	{"gcWriteBarrier", 1},
+	{"duffzero", 1},
+	{"duffcopy", 1},
 
 	// assembler backend inserted calls
 	{"morestack", 0},        // asm function, ABI0

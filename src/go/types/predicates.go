@@ -6,15 +6,11 @@
 
 package types
 
-import (
-	"go/token"
-)
-
 // isNamed reports whether typ has a name.
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
 	switch typ.(type) {
-	case *Basic, *Named, *_TypeParam, *instance:
+	case *Basic, *Named, *TypeParam:
 		return true
 	}
 	return false
@@ -25,15 +21,15 @@ func isNamed(typ Type) bool {
 func isGeneric(typ Type) bool {
 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
-	return named != nil && named.obj != nil && named.tparams != nil && named.targs == nil
+	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := optype(typ).(type) {
+	switch t := under(typ).(type) {
 	case *Basic:
 		return t.info&what != 0
-	case *_Sum:
-		return t.is(func(typ Type) bool { return is(typ, what) })
+	case *TypeParam:
+		return t.underIs(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
 }
@@ -61,9 +57,6 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 func isTyped(typ Type) bool {
 	// isTyped is called with types that are not fully
 	// set up. Must not call asBasic()!
-	// A *Named or *instance type is always typed, so
-	// we only need to check if we have a true *Basic
-	// type.
 	t, _ := typ.(*Basic)
 	return t == nil || t.info&IsUntyped == 0
 }
@@ -100,19 +93,7 @@ func comparable(T Type, seen map[Type]bool) bool {
 	}
 	seen[T] = true
 
-	// If T is a type parameter not constrained by any type
-	// list (i.e., it's underlying type is the top type),
-	// T is comparable if it has the == method. Otherwise,
-	// the underlying type "wins". For instance
-	//
-	//     interface{ comparable; type []byte }
-	//
-	// is not comparable because []byte is not comparable.
-	if t := asTypeParam(T); t != nil && optype(t) == theTop {
-		return t.Bound()._IsComparable()
-	}
-
-	switch t := optype(T).(type) {
+	switch t := under(T).(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -128,40 +109,23 @@ func comparable(T Type, seen map[Type]bool) bool {
 		return true
 	case *Array:
 		return comparable(t.elem, seen)
-	case *_Sum:
-		pred := func(t Type) bool {
-			return comparable(t, seen)
-		}
-		return t.is(pred)
-	case *_TypeParam:
-		return t.Bound()._IsComparable()
+	case *TypeParam:
+		return t.iface().IsComparable()
 	}
 	return false
 }
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := optype(typ).(type) {
+	switch t := under(typ).(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
-	case *_Sum:
-		return t.is(hasNil)
+	case *TypeParam:
+		return t.underIs(hasNil)
 	}
 	return false
-}
-
-// identical reports whether x and y are identical types.
-// Receivers of Signature types are ignored.
-func (check *Checker) identical(x, y Type) bool {
-	return check.identical0(x, y, true, nil)
-}
-
-// identicalIgnoreTags reports whether x and y are identical types if tags are ignored.
-// Receivers of Signature types are ignored.
-func (check *Checker) identicalIgnoreTags(x, y Type) bool {
-	return check.identical0(x, y, false, nil)
 }
 
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
@@ -175,11 +139,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 }
 
 // For changes to this code the corresponding changes should be made to unifier.nify.
-func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
-	// types must be expanded for comparison
-	x = expandf(x)
-	y = expandf(y)
-
+func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 	if x == y {
 		return true
 	}
@@ -199,13 +159,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		if y, ok := y.(*Array); ok {
 			// If one or both array lengths are unknown (< 0) due to some error,
 			// assume they are the same to avoid spurious follow-on errors.
-			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p)
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return check.identical0(x.elem, y.elem, cmpTags, p)
+			return identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Struct:
@@ -220,7 +180,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!check.identical0(f.typ, g.typ, cmpTags, p) {
+						!identical(f.typ, g.typ, cmpTags, p) {
 						return false
 					}
 				}
@@ -231,7 +191,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return check.identical0(x.base, y.base, cmpTags, p)
+			return identical(x.base, y.base, cmpTags, p)
 		}
 
 	case *Tuple:
@@ -242,7 +202,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 				if x != nil {
 					for i, v := range x.vars {
 						w := y.vars[i]
-						if !check.identical0(v.typ, w.typ, cmpTags, p) {
+						if !identical(v.typ, w.typ, cmpTags, p) {
 							return false
 						}
 					}
@@ -260,49 +220,27 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// parameter names.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				check.identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
-				check.identical0(x.params, y.params, cmpTags, p) &&
-				check.identical0(x.results, y.results, cmpTags, p)
-		}
-
-	case *_Sum:
-		// Two sum types are identical if they contain the same types.
-		// (Sum types always consist of at least two types. Also, the
-		// the set (list) of types in a sum type consists of unique
-		// types - each type appears exactly once. Thus, two sum types
-		// must contain the same number of types to have chance of
-		// being equal.
-		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
-			// Every type in x.types must be in y.types.
-			// Quadratic algorithm, but probably good enough for now.
-			// TODO(gri) we need a fast quick type ID/hash for all types.
-		L:
-			for _, x := range x.types {
-				for _, y := range y.types {
-					if Identical(x, y) {
-						continue L // x is in y.types
-					}
-				}
-				return false // x is not in y.types
-			}
-			return true
+				identicalTParams(x.TypeParams().list(), y.TypeParams().list(), cmpTags, p) &&
+				identical(x.params, y.params, cmpTags, p) &&
+				identical(x.results, y.results, cmpTags, p)
 		}
 
 	case *Interface:
+		// Two interface types are identical if they describe the same type sets.
+		// With the existing implementation restriction, this simplifies to:
+		//
 		// Two interface types are identical if they have the same set of methods with
-		// the same names and identical function types. Lower-case method names from
-		// different packages are always different. The order of the methods is irrelevant.
+		// the same names and identical function types, and if any type restrictions
+		// are the same. Lower-case method names from different packages are always
+		// different. The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
-			// If identical0 is called (indirectly) via an external API entry point
-			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
-			// that case, interfaces are expected to be complete and lazy completion
-			// here is not needed.
-			if check != nil {
-				check.completeInterface(token.NoPos, x)
-				check.completeInterface(token.NoPos, y)
+			xset := x.typeSet()
+			yset := y.typeSet()
+			if !xset.terms.equal(yset.terms) {
+				return false
 			}
-			a := x.allMethods
-			b := y.allMethods
+			a := xset.methods
+			b := yset.methods
 			if len(a) == len(b) {
 				// Interface types are the only types where cycles can occur
 				// that are not "terminated" via named types; and such cycles
@@ -339,7 +277,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 				}
 				for i, f := range a {
 					g := b[i]
-					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q) {
+					if f.Id() != g.Id() || !identical(f.typ, g.typ, cmpTags, q) {
 						return false
 					}
 				}
@@ -350,36 +288,56 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return check.identical0(x.key, y.key, cmpTags, p) && check.identical0(x.elem, y.elem, cmpTags, p)
+			return identical(x.key, y.key, cmpTags, p) && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p)
+			return x.dir == y.dir && identical(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Named:
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
+			x.expand(nil)
+			y.expand(nil)
+
+			xargs := x.TypeArgs().list()
+			yargs := y.TypeArgs().list()
+
+			if len(xargs) != len(yargs) {
+				return false
+			}
+
+			if len(xargs) > 0 {
+				// Instances are identical if their original type and type arguments
+				// are identical.
+				if !Identical(x.orig, y.orig) {
+					return false
+				}
+				for i, xa := range xargs {
+					if !Identical(xa, yargs[i]) {
+						return false
+					}
+				}
+				return true
+			}
+
 			// TODO(gri) Why is x == y not sufficient? And if it is,
 			//           we can just return false here because x == y
 			//           is caught in the very beginning of this function.
 			return x.obj == y.obj
 		}
 
-	case *_TypeParam:
+	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
 
-	// case *instance:
-	//	unreachable since types are expanded
-
-	case *bottom, *top:
-		// Either both types are theBottom, or both are theTop in which
-		// case the initial x == y check will have caught them. Otherwise
-		// they are not identical.
+	case *top:
+		// Either both types are theTop in which case the initial x == y check
+		// will have caught them. Otherwise they are not identical.
 
 	case nil:
 		// avoid a crash in case of nil type
@@ -391,13 +349,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 	return false
 }
 
-func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
+func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
 	if len(x) != len(y) {
 		return false
 	}
 	for i, x := range x {
 		y := y[i]
-		if !check.identical0(x.typ.(*_TypeParam).bound, y.typ.(*_TypeParam).bound, cmpTags, p) {
+		if !identical(x.bound, y.bound, cmpTags, p) {
 			return false
 		}
 	}

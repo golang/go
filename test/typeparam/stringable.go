@@ -16,11 +16,11 @@ type Stringer interface {
 	String() string
 }
 
-// stringableList is a slice of some type, where the type
+// StringableList is a slice of some type, where the type
 // must have a String method.
-type stringableList[T Stringer] []T
+type StringableList[T Stringer] []T
 
-func (s stringableList[T]) String() string {
+func (s StringableList[T]) String() string {
 	var sb strings.Builder
 	for i, v := range s {
 		if i > 0 {
@@ -38,9 +38,9 @@ func (a myint) String() string {
 }
 
 func main() {
-	v := stringableList[myint]{ myint(1), myint(2) }
+	v := StringableList[myint]{myint(1), myint(2)}
 
 	if got, want := v.String(), "1, 2"; got != want {
-                panic(fmt.Sprintf("got %s, want %s", got, want))
+		panic(fmt.Sprintf("got %s, want %s", got, want))
 	}
 }

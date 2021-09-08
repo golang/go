@@ -77,9 +77,9 @@ import "errors"
 // The formats  and 002 are space-padded and zero-padded
 // three-character day of year; there is no unpadded day of year format.
 //
-// A decimal point followed by one or more zeros represents a fractional
-// second, printed to the given number of decimal places.
-// Either a comma or decimal point followed by one or more nines represents
+// A comma or decimal point followed by one or more zeros represents
+// a fractional second, printed to the given number of decimal places.
+// A comma or decimal point followed by one or more nines represents
 // a fractional second, printed to the given number of decimal places, with
 // trailing zeros removed.
 // For example "15:04:05,000" or "15:04:05.000" formats or parses with
@@ -479,7 +479,7 @@ func (t Time) String() string {
 		}
 		m1, m2 := m2/1e9, m2%1e9
 		m0, m1 := m1/1e9, m1%1e9
-		var buf []byte
+		buf := make([]byte, 0, 24)
 		buf = append(buf, " m="...)
 		buf = append(buf, sign)
 		wid := 0
@@ -498,7 +498,8 @@ func (t Time) String() string {
 // GoString implements fmt.GoStringer and formats t to be printed in Go source
 // code.
 func (t Time) GoString() string {
-	buf := []byte("time.Date(")
+	buf := make([]byte, 0, 70)
+	buf = append(buf, "time.Date("...)
 	buf = appendInt(buf, t.Year(), 0)
 	month := t.Month()
 	if January <= month && month <= December {

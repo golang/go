@@ -1,0 +1,34 @@
+# When finding the latest version of a module, we should not download version
+# contents. Previously, we downloaded .zip files to determine whether a real
+# .mod file was present in order to decide whether +incompatible versions
+# could be "latest".
+#
+# Verifies #47377.
+
+# rsc.io/breaker has two versions, neither of which has a .mod file.
+go list -m -versions rsc.io/breaker
+stdout '^rsc.io/breaker v1.0.0 v2.0.0\+incompatible$'
+go mod download rsc.io/breaker@v1.0.0
+! grep '^go' $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v1.0.0.mod
+go mod download rsc.io/breaker@v2.0.0+incompatible
+! grep '^go' $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v2.0.0+incompatible.mod
+
+# Delete downloaded .zip files.
+go clean -modcache
+
+# Check for updates.
+go list -m -u rsc.io/breaker
+stdout '^rsc.io/breaker v1.0.0 \[v2.0.0\+incompatible\]$'
+
+# We should not have downloaded zips.
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v1.0.0.zip
+! exists $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v2.0.0+incompatible.zip
+
+-- go.mod --
+module m
+
+go 1.16
+
+require rsc.io/breaker v1.0.0
+-- go.sum --
+rsc.io/breaker v1.0.0/go.mod h1:s5yxDXvD88U1/ESC23I2FK3Lkv4YIKaB1ij/Hbm805g=

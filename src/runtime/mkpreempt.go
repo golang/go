@@ -128,8 +128,7 @@ func header(arch string) {
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
-	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
-	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
+	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
 }
 
 func p(f string, args ...interface{}) {
@@ -201,6 +200,8 @@ func gen386() {
 		l.add("MOVL", reg, 4)
 	}
 
+	softfloat := "GO386_softfloat"
+
 	// Save SSE state only if supported.
 	lSSE := layout{stack: l.stack, sp: "SP"}
 	for i := 0; i < 8; i++ {
@@ -210,13 +211,13 @@ func gen386() {
 	p("ADJSP $%d", lSSE.stack)
 	p("NOP SP")
 	l.save()
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
+	p("#ifndef %s", softfloat)
 	lSSE.save()
-	label("nosse:")
+	p("#endif")
 	p("CALL ·asyncPreempt2(SB)")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
+	p("#ifndef %s", softfloat)
 	lSSE.restore()
-	label("nosse2:")
+	p("#endif")
 	l.restore()
 	p("ADJSP $%d", -lSSE.stack)
 

@@ -177,3 +177,11 @@ func TestExcludedReader(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyID(t *testing.T) {
+	r := strings.NewReader("aha!")
+	matches, hash, err := FindAndHash(r, "", 1000)
+	if matches != nil || hash != ([32]byte{}) || err == nil || !strings.Contains(err.Error(), "no id") {
+		t.Errorf("FindAndHash: want nil, [32]byte{}, no id specified, got %v, %v, %v", matches, hash, err)
+	}
+}

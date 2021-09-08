@@ -165,7 +165,7 @@ func IsPaddedField(t *Type, i int) bool {
 	if !t.IsStruct() {
 		base.Fatalf("IsPaddedField called non-struct %v", t)
 	}
-	end := t.Width
+	end := t.width
 	if i+1 < t.NumFields() {
 		end = t.Field(i + 1).Offset
 	}

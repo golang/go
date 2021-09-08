@@ -20,9 +20,12 @@ import (
 	"strconv"
 )
 
+// These may be set to false in init() for a particular platform and/or
+// build flags to let the tests know to skip tests of some features.
 var (
-	userImplemented  = true // set to false by lookup_stubs.go's init
-	groupImplemented = true // set to false by lookup_stubs.go's init
+	userImplemented      = true
+	groupImplemented     = true
+	groupListImplemented = true
 )
 
 // User represents a user account.

@@ -18,13 +18,15 @@ import (
 	"strings"
 )
 
-const groupFile = "/etc/group"
-const userFile = "/etc/passwd"
+const (
+	groupFile = "/etc/group"
+	userFile  = "/etc/passwd"
+)
 
 var colon = []byte{':'}
 
 func init() {
-	groupImplemented = false
+	groupListImplemented = false
 }
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.

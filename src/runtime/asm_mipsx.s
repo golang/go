@@ -64,12 +64,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVW	$runtime·mainPC(SB), R1	// entry
-	ADDU	$-12, R29
-	MOVW	R1, 8(R29)
-	MOVW	R0, 4(R29)
+	ADDU	$-8, R29
+	MOVW	R1, 4(R29)
 	MOVW	R0, 0(R29)
 	JAL	runtime·newproc(SB)
-	ADDU	$12, R29
+	ADDU	$8, R29
 
 	// start this M
 	JAL	runtime·mstart(SB)
@@ -383,22 +382,6 @@ CALLFN(·call1073741824, 1073741824)
 TEXT runtime·procyield(SB),NOSPLIT,$0-4
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 8 bytes to get back to JAL deferreturn
-// 3. JMP to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
-	MOVW	0(R29), R31
-	ADDU	$-8, R31
-
-	MOVW	fv+0(FP), REGCTXT
-	MOVW	argp+4(FP), R29
-	ADDU	$-4, R29
-	NOR	R0, R0	// prevent scheduling
-	MOVW	0(REGCTXT), R4
-	JMP	(R4)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -430,8 +413,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVW	g_m(g), R5
+	MOVW	m_gsignal(R5), R6
+	BEQ	R6, g, g0
 	MOVW	m_g0(R5), R6
 	BEQ	R6, g, g0
 

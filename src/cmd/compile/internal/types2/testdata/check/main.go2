@@ -4,4 +4,4 @@
 
 package main
 
-func /* ERROR "func main must have no type parameters" */ main[T any]() {}
+func main [T /* ERROR "func main must have no type parameters" */ any]() {}

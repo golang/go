@@ -7,7 +7,6 @@ package parser
 import (
 	"fmt"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -455,10 +454,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 				// at the identifier in the TypeSpec and ends at the end of the innermost
 				// containing block.
 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
-				if tparams := typeparams.Get(spec); tparams != nil {
+				if spec.TypeParams != nil {
 					r.openScope(spec.Pos())
 					defer r.closeScope()
-					r.walkTParams(tparams)
+					r.walkTParams(spec.TypeParams)
 				}
 				ast.Walk(r, spec.Type)
 			}
@@ -474,8 +473,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 
 		// Type parameters are walked normally: they can reference each other, and
 		// can be referenced by normal parameters.
-		if tparams := typeparams.Get(n.Type); tparams != nil {
-			r.walkTParams(tparams)
+		if n.Type.TypeParams != nil {
+			r.walkTParams(n.Type.TypeParams)
 			// TODO(rFindley): need to address receiver type parameters.
 		}
 
@@ -500,7 +499,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 }
 
 func (r *resolver) walkFuncType(typ *ast.FuncType) {
-	// typ.TParams must be walked separately for FuncDecls.
+	// typ.TypeParams must be walked separately for FuncDecls.
 	r.resolveList(typ.Params)
 	r.resolveList(typ.Results)
 	r.declareList(typ.Params, ast.Var)
@@ -539,9 +538,6 @@ func (r *resolver) walkFieldList(list *ast.FieldList, kind ast.ObjKind) {
 // that they may be resolved in the constraint expressions held in the field
 // Type.
 func (r *resolver) walkTParams(list *ast.FieldList) {
-	if list == nil {
-		return
-	}
 	r.declareList(list, ast.Typ)
 	r.resolveList(list)
 }

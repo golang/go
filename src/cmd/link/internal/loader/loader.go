@@ -459,6 +459,15 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
+		// Fix for issue #47185 -- given two dupok symbols with
+		// different sizes, favor symbol with larger size. See
+		// also issue #46653.
+		szdup := l.SymSize(oldi)
+		sz := int64(r.Sym(li).Siz())
+		if szdup < sz {
+			// new symbol overwrites old symbol.
+			l.objSyms[oldi] = objSym{r.objidx, li}
+		}
 		return oldi
 	}
 	oldr, oldli := l.toLocal(oldi)
@@ -2200,7 +2209,6 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	// Index 0 is invalid for symbols.
 	l.objSyms = make([]objSym, 1, symSize)
 
-	l.npkgsyms = l.NSym()
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, hashed64Size),
@@ -2210,6 +2218,7 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, pkgDef)
 	}
+	l.npkgsyms = l.NSym()
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
 		st.preloadSyms(o.r, hashedDef)

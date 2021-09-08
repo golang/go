@@ -23,8 +23,10 @@ See 'go help modules' for an overview of module functionality.
 	Commands: []*base.Command{
 		cmdDownload,
 		cmdEdit,
+		cmdEditwork,
 		cmdGraph,
 		cmdInit,
+		cmdInitwork,
 		cmdTidy,
 		cmdVendor,
 		cmdVerify,

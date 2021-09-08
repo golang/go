@@ -83,7 +83,7 @@ var (
 
 // Constant expression initializations
 var (
-	v1 = 1 /* ERROR "cannot convert" */ + "foo"
+	v1 = 1 /* ERROR "mismatched types untyped int and untyped string" */ + "foo"
 	v2 = c + 255
 	v3 = c + 256 /* ERROR "overflows" */
 	v4 = r + 2147483647

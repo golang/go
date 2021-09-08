@@ -12,20 +12,7 @@ func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
 	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
-	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
-	// might not be implemented.
-	if e == syscall.ENOSYS {
-		// See ../syscall/exec.go for description of lock.
-		syscall.ForkLock.RLock()
-		e = syscall.Pipe(p[0:])
-		if e != nil {
-			syscall.ForkLock.RUnlock()
-			return nil, nil, NewSyscallError("pipe", e)
-		}
-		syscall.CloseOnExec(p[0])
-		syscall.CloseOnExec(p[1])
-		syscall.ForkLock.RUnlock()
-	} else if e != nil {
+	if e != nil {
 		return nil, nil, NewSyscallError("pipe2", e)
 	}
 

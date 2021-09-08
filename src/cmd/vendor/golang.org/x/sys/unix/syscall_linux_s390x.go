@@ -129,6 +129,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
 
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint64(length)
+}
+
 // Linux on s390x uses the old mmap interface, which requires arguments to be passed in a struct.
 // mmap2 also requires arguments to be passed in a struct; it is currently not exposed in <asm/unistd.h>.
 func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {

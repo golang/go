@@ -27,12 +27,7 @@ func TestSelf(t *testing.T) {
 	conf := Config{Importer: importer.Default()}
 	_, err = conf.Check("go/types", fset, files, nil)
 	if err != nil {
-		// Importing go/constant doesn't work in the
-		// build dashboard environment. Don't report an error
-		// for now so that the build remains green.
-		// TODO(gri) fix this
-		t.Log(err) // replace w/ t.Fatal eventually
-		return
+		t.Fatal(err)
 	}
 }
 

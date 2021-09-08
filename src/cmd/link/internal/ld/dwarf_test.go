@@ -101,8 +101,11 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	}
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
-	if b, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("build: %s\n", b)
+	b, err := cmd.CombinedOutput()
+	if len(b) != 0 {
+		t.Logf("## build output:\n%s", b)
+	}
+	if err != nil {
 		t.Fatalf("build error: %v", err)
 	}
 

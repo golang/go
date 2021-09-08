@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -1150,5 +1152,53 @@ func TestDecodeErrorMultipleTypes(t *testing.T) {
 		t.Errorf("decode: expected duplicate type error, got nil")
 	} else if !strings.Contains(err.Error(), "duplicate type") {
 		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
+	}
+}
+
+// Issue 24075
+func TestMarshalFloatMap(t *testing.T) {
+	nan1 := math.NaN()
+	nan2 := math.Float64frombits(math.Float64bits(nan1) ^ 1) // A different NaN in the same class.
+
+	in := map[float64]string{
+		nan1: "a",
+		nan1: "b",
+		nan2: "c",
+	}
+
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+	if err := enc.Encode(in); err != nil {
+		t.Errorf("Encode : %v", err)
+	}
+
+	out := map[float64]string{}
+	dec := NewDecoder(&b)
+	if err := dec.Decode(&out); err != nil {
+		t.Fatalf("Decode : %v", err)
+	}
+
+	type mapEntry struct {
+		keyBits uint64
+		value   string
+	}
+	readMap := func(m map[float64]string) (entries []mapEntry) {
+		for k, v := range m {
+			entries = append(entries, mapEntry{math.Float64bits(k), v})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			ei, ej := entries[i], entries[j]
+			if ei.keyBits != ej.keyBits {
+				return ei.keyBits < ej.keyBits
+			}
+			return ei.value < ej.value
+		})
+		return entries
+	}
+
+	got := readMap(out)
+	want := readMap(in)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
 	}
 }

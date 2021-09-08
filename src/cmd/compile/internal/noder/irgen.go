@@ -18,9 +18,9 @@ import (
 	"cmd/internal/src"
 )
 
-// check2 type checks a Go package using types2, and then generates IR
-// using the results.
-func check2(noders []*noder) {
+// checkFiles configures and runs the types2 checker on the given
+// parsed source files and then returns the result.
+func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
@@ -34,20 +34,22 @@ func check2(noders []*noder) {
 	}
 
 	// typechecking
+	importer := gcimports{
+		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
+	}
 	conf := types2.Config{
 		GoVersion:             base.Flag.Lang,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+		AllowTypeLists:        true, // remove this line once all tests use type set syntax
 		Error: func(err error) {
 			terr := err.(types2.Error)
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
 		},
-		Importer: &gcimports{
-			packages: make(map[string]*types2.Package),
-		},
-		Sizes: &gcSizes{},
+		Importer: &importer,
+		Sizes:    &gcSizes{},
 	}
-	info := types2.Info{
+	info := &types2.Info{
 		Types:      make(map[syntax.Expr]types2.TypeAndValue),
 		Defs:       make(map[*syntax.Name]types2.Object),
 		Uses:       make(map[*syntax.Name]types2.Object),
@@ -57,12 +59,24 @@ func check2(noders []*noder) {
 		Inferred:   make(map[syntax.Expr]types2.Inferred),
 		// expand as needed
 	}
-	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
-	files = nil
+
+	pkg := types2.NewPackage(base.Ctxt.Pkgpath, "")
+	importer.check = types2.NewChecker(&conf, pkg, info)
+	err := importer.check.Files(files)
+
 	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
 	}
+
+	return m, pkg, info
+}
+
+// check2 type checks a Go package using types2, and then generates IR
+// using the results.
+func check2(noders []*noder) {
+	m, pkg, info := checkFiles(noders)
+
 	if base.Flag.G < 2 {
 		os.Exit(0)
 	}
@@ -70,7 +84,7 @@ func check2(noders []*noder) {
 	g := irgen{
 		target: typecheck.Target,
 		self:   pkg,
-		info:   &info,
+		info:   info,
 		posMap: m,
 		objs:   make(map[types2.Object]*ir.Name),
 		typs:   make(map[types2.Type]*types.Type),
@@ -80,6 +94,41 @@ func check2(noders []*noder) {
 	if base.Flag.G < 3 {
 		os.Exit(0)
 	}
+}
+
+// gfInfo is information gathered on a generic function.
+type gfInfo struct {
+	tparams      []*types.Type
+	derivedTypes []*types.Type
+	// Nodes in generic function that requires a subdictionary. Includes
+	// method and function calls (OCALL), function values (OFUNCINST), method
+	// values/expressions (OXDOT).
+	subDictCalls []ir.Node
+	// Nodes in generic functions that are a conversion from a typeparam/derived
+	// type to a specific interface.
+	itabConvs []ir.Node
+	// For type switches on nonempty interfaces, a map from OTYPE entries of
+	// HasTParam type, to the interface type we're switching from.
+	// TODO: what if the type we're switching from is a shape type?
+	type2switchType map[ir.Node]*types.Type
+}
+
+// instInfo is information gathered on an gcshape (or fully concrete)
+// instantiation of a function.
+type instInfo struct {
+	fun       *ir.Func // The instantiated function (with body)
+	dictParam *ir.Name // The node inside fun that refers to the dictionary param
+
+	gf     *ir.Name // The associated generic function
+	gfInfo *gfInfo
+
+	startSubDict  int // Start of dict entries for subdictionaries
+	startItabConv int // Start of dict entries for itab conversions
+	dictLen       int // Total number of entries in dictionary
+
+	// Map from nodes in instantiated fun (OCALL, OCALLMETHOD, OFUNCINST, and
+	// OMETHEXPR) to the associated dictionary entry for a sub-dictionary
+	dictEntryMap map[ir.Node]int
 }
 
 type irgen struct {
@@ -92,12 +141,57 @@ type irgen struct {
 	typs   map[types2.Type]*types.Type
 	marker dwarfgen.ScopeMarker
 
-	// Fully-instantiated generic types whose methods should be instantiated
-	instTypeList []*types.Type
+	// laterFuncs records tasks that need to run after all declarations
+	// are processed.
+	laterFuncs []func()
+
+	// exprStmtOK indicates whether it's safe to generate expressions or
+	// statements yet.
+	exprStmtOK bool
+
+	// types which we need to finish, by doing g.fillinMethods.
+	typesToFinalize []*typeDelayInfo
+
+	dnum int // for generating unique dictionary variables
+
+	// Map from generic function to information about its type params, derived
+	// types, and subdictionaries.
+	gfInfoMap map[*types.Sym]*gfInfo
+
+	// Map from a name of function that been instantiated to information about
+	// its instantiated function, associated generic function/method, and the
+	// mapping from IR nodes to dictionary entries.
+	instInfoMap map[*types.Sym]*instInfo
+
+	// dictionary syms which we need to finish, by writing out any itabconv
+	// entries.
+	dictSymsToFinalize []*delayInfo
+
+	// True when we are compiling a top-level generic function or method. Use to
+	// avoid adding closures of generic functions/methods to the target.Decls
+	// list.
+	topFuncIsGeneric bool
+}
+
+func (g *irgen) later(fn func()) {
+	g.laterFuncs = append(g.laterFuncs, fn)
+}
+
+type delayInfo struct {
+	gf    *ir.Name
+	targs []*types.Type
+	sym   *types.Sym
+	off   int
+}
+
+type typeDelayInfo struct {
+	typ  *types2.Named
+	ntyp *types.Type
 }
 
 func (g *irgen) generate(noders []*noder) {
 	types.LocalPkg.Name = g.self.Name()
+	types.LocalPkg.Height = g.self.Height()
 	typecheck.TypecheckAllowed = true
 
 	// Prevent size calculations until we set the underlying type
@@ -107,7 +201,7 @@ func (g *irgen) generate(noders []*noder) {
 	// At this point, types2 has already handled name resolution and
 	// type checking. We just need to map from its object and type
 	// representations to those currently used by the rest of the
-	// compiler. This happens mostly in 3 passes.
+	// compiler. This happens in a few passes.
 
 	// 1. Process all import declarations. We use the compiler's own
 	// importer for this, rather than types2's gcimporter-derived one,
@@ -132,7 +226,6 @@ Outer:
 			}
 		}
 	}
-	types.LocalPkg.Height = myheight
 
 	// 2. Process all package-block type declarations. As with imports,
 	// we need to make sure all types are properly instantiated before
@@ -157,7 +250,16 @@ Outer:
 
 	// 3. Process all remaining declarations.
 	for _, declList := range declLists {
-		g.target.Decls = append(g.target.Decls, g.decls(declList)...)
+		g.decls((*ir.Nodes)(&g.target.Decls), declList)
+	}
+	g.exprStmtOK = true
+
+	// 4. Run any "later" tasks. Avoid using 'range' so that tasks can
+	// recursively queue further tasks. (Not currently utilized though.)
+	for len(g.laterFuncs) > 0 {
+		fn := g.laterFuncs[0]
+		g.laterFuncs = g.laterFuncs[1:]
+		fn()
 	}
 
 	if base.Flag.W > 1 {
@@ -167,26 +269,40 @@ Outer:
 		}
 	}
 
-	typecheck.DeclareUniverse()
-
 	for _, p := range noders {
 		// Process linkname and cgo pragmas.
 		p.processPragmas()
 
 		// Double check for any type-checking inconsistencies. This can be
 		// removed once we're confident in IR generation results.
-		syntax.Walk(p.file, func(n syntax.Node) bool {
+		syntax.Crawl(p.file, func(n syntax.Node) bool {
 			g.validate(n)
 			return false
 		})
 	}
 
+	if base.Flag.Complete {
+		for _, n := range g.target.Decls {
+			if fn, ok := n.(*ir.Func); ok {
+				if fn.Body == nil && fn.Nname.Sym().Linkname == "" {
+					base.ErrorfAt(fn.Pos(), "missing function body")
+				}
+			}
+		}
+	}
+
+	// Check for unusual case where noder2 encounters a type error that types2
+	// doesn't check for (e.g. notinheap incompatibility).
+	base.ExitIfErrors()
+
+	typecheck.DeclareUniverse()
+
 	// Create any needed stencils of generic functions
 	g.stencil()
 
-	// For now, remove all generic functions from g.target.Decl, since they
-	// have been used for stenciling, but don't compile. TODO: We will
-	// eventually export any exportable generic functions.
+	// Remove all generic functions from g.target.Decl, since they have been
+	// used for stenciling, but don't compile. Generic functions will already
+	// have been marked for export as appropriate.
 	j := 0
 	for i, decl := range g.target.Decls {
 		if decl.Op() != ir.ODCLFUNC || !decl.Type().HasTParam() {
@@ -195,6 +311,8 @@ Outer:
 		}
 	}
 	g.target.Decls = g.target.Decls[:j]
+
+	base.Assertf(len(g.laterFuncs) == 0, "still have %d later funcs", len(g.laterFuncs))
 }
 
 func (g *irgen) unhandled(what string, p poser) {

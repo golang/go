@@ -18,7 +18,9 @@ const (
 )
 
 func init() {
+	userImplemented = false
 	groupImplemented = false
+	groupListImplemented = false
 }
 
 func current() (*User, error) {

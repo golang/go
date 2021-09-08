@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Jun 22, 2021",
+	"Subtitle": "Version of Aug 23, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -490,8 +490,8 @@ After a backslash, certain single-character escapes represent special values:
 \n   U+000A line feed or newline
 \r   U+000D carriage return
 \t   U+0009 horizontal tab
-\v   U+000b vertical tab
-\\   U+005c backslash
+\v   U+000B vertical tab
+\\   U+005C backslash
 \'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
@@ -3000,6 +3000,18 @@ method value; the saved copy is then used as the receiver in any calls,
 which may be executed later.
 </p>
 
+<pre>
+type S struct { *T }
+type T int
+func (t T) M() { print(t) }
+
+t := new(T)
+s := S{T: t}
+f := t.M                    // receiver *t is evaluated and stored in f
+g := s.M                    // receiver *(s.T) is evaluated and stored in g
+*t = 42                     // does not affect stored receivers in f and g
+</pre>
+
 <p>
 The type <code>T</code> may be an interface or non-interface type.
 </p>
@@ -4329,12 +4341,16 @@ a <a href="#Run_time_panics">run-time panic</a> occurs.
 <pre>
 s := make([]byte, 2, 4)
 s0 := (*[0]byte)(s)      // s0 != nil
+s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
 s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
 s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 
 var t []string
 t0 := (*[0]string)(t)    // t0 == nil
-t1 := (*[1]string)(t)    // panics: len([1]string) > len(s)
+t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+
+u := make([]byte, 0)
+u0 := (*[0]byte)(u)      // u0 != nil
 </pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
@@ -6782,7 +6798,8 @@ The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</cod
 
 <p>
 The function <code>Slice</code> returns a slice whose underlying array starts at <code>ptr</code>
-and whose length and capacity are <code>len</code>:
+and whose length and capacity are <code>len</code>.
+<code>Slice(ptr, len)</code> is equivalent to
 </p>
 
 <pre>
@@ -6790,10 +6807,17 @@ and whose length and capacity are <code>len</code>:
 </pre>
 
 <p>
+except that, as a special case, if <code>ptr</code>
+is <code>nil</code> and <code>len</code> is zero,
+<code>Slice</code> returns <code>nil</code>.
+</p>
+
+<p>
 The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
-If <code>ptr</code> is <code>nil</code> or <code>len</code> is negative at run time,
+At run time, if <code>len</code> is negative,
+or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 

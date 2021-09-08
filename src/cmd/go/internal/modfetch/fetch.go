@@ -22,6 +22,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
@@ -416,7 +417,18 @@ func initGoSum() (bool, error) {
 
 	goSum.m = make(map[module.Version][]string)
 	goSum.status = make(map[modSum]modSumStatus)
-	data, err := lockedfile.Read(GoSumFile)
+	var (
+		data []byte
+		err  error
+	)
+	if actualSumFile, ok := fsys.OverlayPath(GoSumFile); ok {
+		// Don't lock go.sum if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(actualSumFile)
+	} else {
+		data, err = lockedfile.Read(GoSumFile)
+	}
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
@@ -681,19 +693,21 @@ func isValidSum(data []byte) bool {
 	return true
 }
 
+var ErrGoSumDirty = errors.New("updates to go.sum needed, disabled by -mod=readonly")
+
 // WriteGoSum writes the go.sum file if it needs to be updated.
 //
 // keep is used to check whether a newly added sum should be saved in go.sum.
 // It should have entries for both module content sums and go.mod sums
 // (version ends with "/go.mod"). Existing sums will be preserved unless they
 // have been marked for deletion with TrimGoSum.
-func WriteGoSum(keep map[module.Version]bool) {
+func WriteGoSum(keep map[module.Version]bool, readonly bool) error {
 	goSum.mu.Lock()
 	defer goSum.mu.Unlock()
 
 	// If we haven't read the go.sum file yet, don't bother writing it.
 	if !goSum.enabled {
-		return
+		return nil
 	}
 
 	// Check whether we need to add sums for which keep[m] is true or remove
@@ -711,10 +725,13 @@ Outer:
 		}
 	}
 	if !dirty {
-		return
+		return nil
 	}
-	if cfg.BuildMod == "readonly" {
-		base.Fatalf("go: updates to go.sum needed, disabled by -mod=readonly")
+	if readonly {
+		return ErrGoSumDirty
+	}
+	if _, ok := fsys.OverlayPath(GoSumFile); ok {
+		base.Fatalf("go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay")
 	}
 
 	// Make a best-effort attempt to acquire the side lock, only to exclude
@@ -759,11 +776,12 @@ Outer:
 	})
 
 	if err != nil {
-		base.Fatalf("go: updating go.sum: %v", err)
+		return fmt.Errorf("updating go.sum: %w", err)
 	}
 
 	goSum.status = make(map[modSum]modSumStatus)
 	goSum.overwrite = false
+	return nil
 }
 
 // TrimGoSum trims go.sum to contain only the modules needed for reproducible

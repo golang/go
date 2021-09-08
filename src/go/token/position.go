@@ -540,7 +540,7 @@ func searchInts(a []int, x int) int {
 	// TODO(gri): Remove this when compilers have caught up.
 	i, j := 0, len(a)
 	for i < j {
-		h := i + (j-i)>>1 // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
 		// i ≤ h < j
 		if a[h] <= x {
 			i = h + 1

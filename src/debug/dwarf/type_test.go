@@ -228,3 +228,54 @@ func TestUnsupportedTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestBitOffsetsELF(t *testing.T) { testBitOffsets(t, elfData(t, "testdata/typedef.elf")) }
+
+func TestBitOffsetsMachO(t *testing.T) {
+	testBitOffsets(t, machoData(t, "testdata/typedef.macho"))
+}
+
+func TestBitOffsetsMachO4(t *testing.T) {
+	testBitOffsets(t, machoData(t, "testdata/typedef.macho4"))
+}
+
+func TestBitOffsetsELFDwarf4(t *testing.T) {
+	testBitOffsets(t, elfData(t, "testdata/typedef.elf4"))
+}
+
+func testBitOffsets(t *testing.T, d *Data) {
+	r := d.Reader()
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+
+		if e.Tag == TagStructType {
+			typ, err := d.Type(e.Offset)
+			if err != nil {
+				t.Fatal("d.Type:", err)
+			}
+
+			t1 := typ.(*StructType)
+
+			for _, field := range t1.Field {
+				// We're only testing for bitfields
+				if field.BitSize == 0 {
+					continue
+				}
+
+				// Ensure BitOffset is not zero
+				if field.BitOffset == 0 {
+					t.Errorf("bit offset of field %s in %s %s is not set", field.Name, t1.Kind, t1.StructName)
+				}
+			}
+		}
+		if e.Tag != TagCompileUnit {
+			r.SkipChildren()
+		}
+	}
+}

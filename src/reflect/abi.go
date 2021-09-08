@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"internal/abi"
+	"internal/goarch"
 	"internal/goexperiment"
 	"unsafe"
 )
@@ -167,7 +168,7 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
 	a.valueStart = append(a.valueStart, len(a.steps))
 	var ok, ptr bool
 	if ifaceIndir(rcvr) || rcvr.pointers() {
-		ok = a.assignIntN(0, ptrSize, 1, 0b1)
+		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b1)
 		ptr = true
 	} else {
 		// TODO(mknyszek): Is this case even possible?
@@ -176,11 +177,11 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
 		// in the reflect package which only conditionally added
 		// a pointer bit to the reflect.(Value).Call stack frame's
 		// GC bitmap.
-		ok = a.assignIntN(0, ptrSize, 1, 0b0)
+		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b0)
 		ptr = false
 	}
 	if !ok {
-		a.stackAssign(ptrSize, ptrSize)
+		a.stackAssign(goarch.PtrSize, goarch.PtrSize)
 		return &a.steps[len(a.steps)-1], ptr
 	}
 	return nil, ptr
@@ -202,7 +203,7 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
 		return a.assignIntN(offset, t.size, 1, 0b0)
 	case Int64, Uint64:
-		switch ptrSize {
+		switch goarch.PtrSize {
 		case 4:
 			return a.assignIntN(offset, 4, 2, 0b0)
 		case 8:
@@ -215,11 +216,11 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 	case Complex128:
 		return a.assignFloatN(offset, 8, 2)
 	case String:
-		return a.assignIntN(offset, ptrSize, 2, 0b01)
+		return a.assignIntN(offset, goarch.PtrSize, 2, 0b01)
 	case Interface:
-		return a.assignIntN(offset, ptrSize, 2, 0b10)
+		return a.assignIntN(offset, goarch.PtrSize, 2, 0b10)
 	case Slice:
-		return a.assignIntN(offset, ptrSize, 3, 0b001)
+		return a.assignIntN(offset, goarch.PtrSize, 3, 0b001)
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
 		switch tt.len {
@@ -262,7 +263,7 @@ func (a *abiSeq) assignIntN(offset, size uintptr, n int, ptrMap uint8) bool {
 	if n > 8 || n < 0 {
 		panic("invalid n")
 	}
-	if ptrMap != 0 && size != ptrSize {
+	if ptrMap != 0 && size != goarch.PtrSize {
 		panic("non-empty pointer map passed for non-pointer-size values")
 	}
 	if a.iregs+n > intArgRegs {
@@ -413,7 +414,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 				stackPtrs.append(0)
 			}
 		} else {
-			spill += ptrSize
+			spill += goarch.PtrSize
 		}
 	}
 	for i, arg := range t.in() {
@@ -430,12 +431,12 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 			}
 		}
 	}
-	spill = align(spill, ptrSize)
+	spill = align(spill, goarch.PtrSize)
 
 	// From the input parameters alone, we now know
 	// the stackCallArgsSize and retOffset.
 	stackCallArgsSize := in.stackBytes
-	retOffset := align(in.stackBytes, ptrSize)
+	retOffset := align(in.stackBytes, goarch.PtrSize)
 
 	// Compute the stack frame pointer bitmap and register
 	// pointer bitmap for return values.

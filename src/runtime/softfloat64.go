@@ -562,36 +562,38 @@ func f64toint64(x uint64) int64 {
 	return val
 }
 
-func f64touint64(x float64) uint64 {
-	if x < float64(1<<63) {
-		return uint64(int64(x))
+func f64touint64(x uint64) uint64 {
+	var m uint64 = 0x43e0000000000000 // float64 1<<63
+	if fgt64(m, x) {
+		return uint64(f64toint64(x))
 	}
-	y := x - float64(1<<63)
-	z := uint64(int64(y))
+	y := fadd64(x, -m)
+	z := uint64(f64toint64(y))
 	return z | (1 << 63)
 }
 
-func f32touint64(x float32) uint64 {
-	if x < float32(1<<63) {
-		return uint64(int64(x))
+func f32touint64(x uint32) uint64 {
+	var m uint32 = 0x5f000000 // float32 1<<63
+	if fgt32(m, x) {
+		return uint64(f32toint64(x))
 	}
-	y := x - float32(1<<63)
-	z := uint64(int64(y))
+	y := fadd32(x, -m)
+	z := uint64(f32toint64(y))
 	return z | (1 << 63)
 }
 
-func fuint64to64(x uint64) float64 {
+func fuint64to64(x uint64) uint64 {
 	if int64(x) >= 0 {
-		return float64(int64(x))
+		return fint64to64(int64(x))
 	}
-	// See ../cmd/compile/internal/gc/ssa.go:uint64Tofloat
+	// See ../cmd/compile/internal/ssagen/ssa.go:uint64Tofloat
 	y := x & 1
 	z := x >> 1
 	z = z | y
-	r := float64(int64(z))
-	return r + r
+	r := fint64to64(int64(z))
+	return fadd64(r, r)
 }
 
-func fuint64to32(x uint64) float32 {
-	return float32(fuint64to64(x))
+func fuint64to32(x uint64) uint32 {
+	return f64to32(fuint64to64(x))
 }

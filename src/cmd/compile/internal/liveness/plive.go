@@ -274,7 +274,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		}
 	}
 
-	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
+	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Size() > int64(types.PtrSize) {
 		// Only aggregate-typed arguments that are not address-taken can be
 		// partially live.
 		lv.partLiveArgs[n] = true
@@ -1082,6 +1082,10 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
 		return
 	}
+	if lv.fn.Wrapper() || lv.fn.Dupok() {
+		// Skip reporting liveness information for compiler-generated wrappers.
+		return
+	}
 	if !(v == nil || v.Op.IsCall()) {
 		// Historically we only printed this information at
 		// calls. Keep doing so.
@@ -1440,7 +1444,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		off = objw.Uint32(x, off, uint32(frameOffset))
 
 		t := v.Type()
-		sz := t.Width
+		sz := t.Size()
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}

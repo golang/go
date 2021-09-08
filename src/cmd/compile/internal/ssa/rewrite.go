@@ -745,27 +745,21 @@ func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
 
-// de-virtualize an InterCall
-// 'sym' is the symbol for the itab
-func devirt(v *Value, aux Aux, sym Sym, offset int64) *AuxCall {
-	f := v.Block.Func
-	n, ok := sym.(*obj.LSym)
-	if !ok {
+// loadLSymOffset simulates reading a word at an offset into a
+// read-only symbol's runtime memory. If it would read a pointer to
+// another symbol, that symbol is returned. Otherwise, it returns nil.
+func loadLSymOffset(lsym *obj.LSym, offset int64) *obj.LSym {
+	if lsym.Type != objabi.SRODATA {
 		return nil
 	}
-	lsym := f.fe.DerefItab(n, offset)
-	if f.pass.debug > 0 {
-		if lsym != nil {
-			f.Warnl(v.Pos, "de-virtualizing call")
-		} else {
-			f.Warnl(v.Pos, "couldn't de-virtualize call")
+
+	for _, r := range lsym.R {
+		if int64(r.Off) == offset && r.Type&^objabi.R_WEAK == objabi.R_ADDR && r.Add == 0 {
+			return r.Sym
 		}
 	}
-	if lsym == nil {
-		return nil
-	}
-	va := aux.(*AuxCall)
-	return StaticAuxCall(lsym, va.abiInfo)
+
+	return nil
 }
 
 // de-virtualize an InterLECall
@@ -776,17 +770,13 @@ func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
 		return nil
 	}
 
-	f := v.Block.Func
-	lsym := f.fe.DerefItab(n, offset)
-	if f.pass.debug > 0 {
+	lsym := loadLSymOffset(n, offset)
+	if f := v.Block.Func; f.pass.debug > 0 {
 		if lsym != nil {
 			f.Warnl(v.Pos, "de-virtualizing call")
 		} else {
 			f.Warnl(v.Pos, "couldn't de-virtualize call")
 		}
-	}
-	if lsym == nil {
-		return nil
 	}
 	return lsym
 }
@@ -1263,7 +1253,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
-		return x.Type.Width == 4
+		return x.Type.Size() == 4
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1287,7 +1277,7 @@ func zeroUpper48Bits(x *Value, depth int) bool {
 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
 		return true
 	case OpArg:
-		return x.Type.Width == 2
+		return x.Type.Size() == 2
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
@@ -1311,7 +1301,7 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
 	case OpArg:
-		return x.Type.Width == 1
+		return x.Type.Size() == 1
 	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
