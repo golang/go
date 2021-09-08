@@ -106,7 +106,6 @@ func unified(noders []*noder) {
 	readPackage(localPkgReader, types.LocalPkg)
 
 	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
-	r.ext = r
 	r.pkgInit(types.LocalPkg, target)
 
 	// Type-check any top-level assignments. We ignore non-assignments
@@ -190,7 +189,6 @@ func writePkgStub(noders []*noder) string {
 
 	{
 		w := privateRootWriter
-		w.ext = w
 		w.pkgInit(noders)
 		w.flush()
 	}
