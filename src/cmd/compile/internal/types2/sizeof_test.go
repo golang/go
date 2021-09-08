@@ -28,7 +28,7 @@ func TestSizeof(t *testing.T) {
 		{Tuple{}, 12, 24},
 		{Signature{}, 28, 56},
 		{Union{}, 16, 32},
-		{Interface{}, 40, 80},
+		{Interface{}, 44, 88},
 		{Map{}, 16, 32},
 		{Chan{}, 12, 24},
 		{Named{}, 72, 136},
