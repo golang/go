@@ -154,6 +154,66 @@ func fnma(x, y, z float64) float64 {
 	return math.FMA(x, -y, -z)
 }
 
+func isPosInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return math.IsInf(x, 1)
+}
+
+func isPosInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x == math.Inf(1)
+}
+
+func isPosInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x > math.MaxFloat64
+}
+
+func isNotPosInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return !math.IsInf(x, 1)
+}
+
+func isNotPosInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x != math.Inf(1)
+}
+
+func isNotPosInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x <= math.MaxFloat64
+}
+
+func isNegInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return math.IsInf(x, -1)
+}
+
+func isNegInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x == math.Inf(-1)
+}
+
+func isNegInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x < -math.MaxFloat64
+}
+
+func isNotNegInf(x float64) bool {
+	// riscv64:"FCLASSD"
+	return !math.IsInf(x, -1)
+}
+
+func isNotNegInfEq(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x != math.Inf(-1)
+}
+
+func isNotNegInfCmp(x float64) bool {
+	// riscv64:"FCLASSD"
+	return x >= -math.MaxFloat64
+}
+
 func fromFloat64(f64 float64) uint64 {
 	// amd64:"MOVQ\tX.*, [^X].*"
 	// arm64:"FMOVD\tF.*, R.*"

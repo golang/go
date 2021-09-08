@@ -497,6 +497,27 @@ func init() {
 		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED"},                                                                               // arg0 <= arg1
 		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"},             // min(arg0, arg1)
 		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"},             // max(arg0, arg1)
+
+		// Floating point classify (in the F and D extensions).
+		//
+		// The FCLASS instructions will always set exactly one bit in the output
+		// register, all other bits will be cleared.
+		//
+		//   Bit | Class
+		//   ====+=============================
+		//     0 | -∞
+		//     1 | a negative normal number
+		//     2 | a negative subnormal number
+		//     3 | -0
+		//     4 | +0
+		//     5 | a positive subnormal number
+		//     6 | a positive normal number
+		//     7 | +∞
+		//     8 | qNaN
+		//     9 | sNaN
+		//   ====+=============================
+		{name: "FCLASSS", argLength: 1, reg: fpgp, asm: "FCLASSS", typ: "Int64"}, // classify float32
+		{name: "FCLASSD", argLength: 1, reg: fpgp, asm: "FCLASSD", typ: "Int64"}, // classify float64
 	}
 
 	RISCV64blocks := []blockData{
