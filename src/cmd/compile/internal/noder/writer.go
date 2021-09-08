@@ -75,14 +75,6 @@ type writer struct {
 
 	encoder
 
-	// For writing out object descriptions, ext points to the extension
-	// writer for where we can write the compiler's private extension
-	// details for the object.
-	//
-	// TODO(mdempsky): This is a little hacky, but works easiest with
-	// the way things are currently.
-	ext *writer
-
 	// TODO(mdempsky): We should be able to prune localsIdx whenever a
 	// scope closes, and then maybe we can just use the same map for
 	// storing the TypeParams too (as their TypeName instead).
@@ -504,21 +496,21 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 	}
 
 	w := pw.newWriter(relocObj, syncObject1)
-	w.ext = pw.newWriter(relocObjExt, syncObject1)
+	wext := pw.newWriter(relocObjExt, syncObject1)
 	wname := pw.newWriter(relocName, syncObject1)
 	wdict := pw.newWriter(relocObjDict, syncObject1)
 
 	pw.globalsIdx[obj] = w.idx // break cycles
-	assert(w.ext.idx == w.idx)
+	assert(wext.idx == w.idx)
 	assert(wname.idx == w.idx)
 	assert(wdict.idx == w.idx)
 
 	w.dict = dict
-	w.ext.dict = dict
+	wext.dict = dict
 
-	code := w.doObj(obj)
+	code := w.doObj(wext, obj)
 	w.flush()
-	w.ext.flush()
+	wext.flush()
 
 	wname.qualifiedIdent(obj)
 	wname.code(code)
@@ -530,7 +522,7 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 	return w.idx
 }
 
-func (w *writer) doObj(obj types2.Object) codeObj {
+func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
 	if obj.Pkg() != w.p.curpkg {
 		return objStub
 	}
@@ -555,7 +547,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		w.typeParamNames(sig.TypeParams())
 		w.signature(sig)
 		w.pos(decl)
-		w.ext.funcExt(obj)
+		wext.funcExt(obj)
 		return objFunc
 
 	case *types2.TypeName:
@@ -573,12 +565,12 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 
 		w.pos(obj)
 		w.typeParamNames(named.TypeParams())
-		w.ext.typeExt(obj)
+		wext.typeExt(obj)
 		w.typExpr(decl.Type)
 
 		w.len(named.NumMethods())
 		for i := 0; i < named.NumMethods(); i++ {
-			w.method(named.Method(i))
+			w.method(wext, named.Method(i))
 		}
 
 		return objType
@@ -586,7 +578,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 	case *types2.Var:
 		w.pos(obj)
 		w.typ(obj.Type())
-		w.ext.varExt(obj)
+		wext.varExt(obj)
 		return objVar
 	}
 }
@@ -648,7 +640,7 @@ func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
 	}
 }
 
-func (w *writer) method(meth *types2.Func) {
+func (w *writer) method(wext *writer, meth *types2.Func) {
 	decl, ok := w.p.funDecls[meth]
 	assert(ok)
 	sig := meth.Type().(*types2.Signature)
@@ -661,7 +653,7 @@ func (w *writer) method(meth *types2.Func) {
 	w.signature(sig)
 
 	w.pos(decl) // XXX: Hack to workaround linker limitations.
-	w.ext.funcExt(meth)
+	wext.funcExt(meth)
 }
 
 // qualifiedIdent writes out the name of an object declared at package
