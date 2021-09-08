@@ -132,6 +132,10 @@ a {
   align-items: center;
   justify-content: center;
 }
+.menu-name a {
+  text-decoration: none;
+  color: #212121;
+}
 .submenu {
   display: none;
   z-index: 1;
@@ -367,6 +371,12 @@ table tr td {
           {{if .UserConfig}}<span class="menu-delete-btn" data-config={{.Name}}>🗙</span>{{end}}
         </a>
       {{end}}
+    </div>
+  </div>
+
+  <div id="download" class="menu-item">
+    <div class="menu-name">
+      <a href="./download">Download</a>
     </div>
   </div>
 

@@ -127,6 +127,11 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
 			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
 			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
+			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/vnd.google.protobuf+gzip")
+				w.Header().Set("Content-Disposition", "attachment;filename=profile.pb.gz")
+				p.Write(w)
+			}),
 		},
 	}
 
