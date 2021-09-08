@@ -513,7 +513,7 @@ L: // unpack receiver type
 
 	// unpack type parameters, if any
 	switch rtyp.(type) {
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(rtyp)
 		rtyp = ix.X
 		if unpackParams {

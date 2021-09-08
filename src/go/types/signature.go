@@ -326,7 +326,7 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			new.X = X
 			return &new
 		}
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(x)
 		var newIndexes []ast.Expr
 		for i, index := range ix.Indices {

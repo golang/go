@@ -258,7 +258,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			check.errorf(&x, _NotAType, "%s is not a type", &x)
 		}
 
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if !check.allowVersion(check.pkg, 1, 18) {
 			check.softErrorf(inNode(e, ix.Lbrack), _Todo, "type instantiation requires go1.18 or later")
