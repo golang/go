@@ -160,6 +160,21 @@ stdout ok
 ! stdout FAIL
 ! stdout 'fatal here'
 
+# Test pass with testdata and f.Add seed corpus
+go test -run FuzzPassString corpustesting/fuzz_testdata_corpus_test.go
+stdout ok
+! stdout FAIL
+
+# Fuzzing pass with testdata and f.Add seed corpus (skip running tests first)
+go test -run=None -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+stdout ok
+! stdout FAIL
+
+# Fuzzing pass with testdata and f.Add seed corpus
+go test -run=FuzzPassString -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+stdout ok
+! stdout FAIL
+
 # Test panic with malformed seed corpus
 ! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
 ! stdout ^ok
@@ -413,6 +428,11 @@ func FuzzPass(f *testing.F) {
     fuzzFn(f)
 }
 
+func FuzzPassString(f *testing.F) {
+    f.Add("some seed corpus")
+    f.Fuzz(func(*testing.T, string) {})
+}
+
 func FuzzPanic(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
@@ -431,6 +451,9 @@ go test fuzz v1
 -- corpustesting/testdata/corpus/FuzzPass/1 --
 go test fuzz v1
 []byte("00000")
+-- corpustesting/testdata/corpus/FuzzPassString/1 --
+go test fuzz v1
+string("hello")
 -- corpustesting/testdata/corpus/FuzzPanic/1 --
 malformed
 -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
