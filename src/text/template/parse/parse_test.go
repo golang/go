@@ -236,6 +236,8 @@ var parseTests = []parseTest{
 		`{{template "x"}}`},
 	{"template with arg", "{{template `x` .Y}}", noError,
 		`{{template "x" .Y}}`},
+	{"template with parent", "{{template parent .}}", noError,
+		`{{template parent .}}`},
 	{"with", "{{with .X}}hello{{end}}", noError,
 		`{{with .X}}"hello"{{end}}`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,

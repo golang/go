@@ -956,7 +956,11 @@ func (t *TemplateNode) String() string {
 
 func (t *TemplateNode) writeTo(sb *strings.Builder) {
 	sb.WriteString("{{template ")
-	sb.WriteString(strconv.Quote(t.Name))
+	if t.Parent {
+		sb.WriteString("parent")
+	} else {
+		sb.WriteString(strconv.Quote(t.Name))
+	}
 	if t.Pipe != nil {
 		sb.WriteByte(' ')
 		t.Pipe.writeTo(sb)

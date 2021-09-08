@@ -29,7 +29,6 @@ func ExampleTemplate_parent() {
 
 	const index_html = `{{define "content"}}<h1>Welcome!</h1>{{end}}`
 	index := template.Must(template.Must(base.Clone()).New("index.html").Parse(index_html))
-
 	{
 		err := index.ExecuteTemplate(os.Stdout, "base.html", nil)
 		if err != nil {
@@ -40,7 +39,6 @@ func ExampleTemplate_parent() {
 	const about_html = `{{define "title"}}{{template parent .}} - About{{end}}
 {{define "content"}}<h1>About us</h1>{{end}}`
 	about := template.Must(template.Must(base.Clone()).New("about.html").Parse(about_html))
-
 	{
 		err := about.ExecuteTemplate(os.Stdout, "base.html", nil)
 		if err != nil {

@@ -160,7 +160,7 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
 // errorf formats the error and terminates processing.
 func (t *Tree) errorf(format string, args ...interface{}) {
 	t.Root = nil
-	format = fmt.Sprintf("\x1b[1;33mPAULDEV\x1b[0m template: %s:%d: %s", t.ParseName, t.token[0].line, format)
+	format = fmt.Sprintf("template: %s:%d: %s", t.ParseName, t.token[0].line, format)
 	panic(fmt.Errorf(format, args...))
 }
 
@@ -580,7 +580,7 @@ func (t *Tree) blockControl() Node {
 	block.add()
 	block.stopParse()
 
-	return t.newTemplate(token.pos, token.line, name, false, pipe) // TODO: support parent?
+	return t.newTemplate(token.pos, token.line, name, false, pipe)
 }
 
 // Template:
@@ -595,16 +595,15 @@ func (t *Tree) templateControl() Node {
 		parent bool
 	)
 	if token.typ == itemParent {
-		// If we encounter the `parent` keyword, then we assume the current
-		// definition we're in the midst of is an overriding of a previously
-		// defined template, and the author's intent is to execute that
-		// "parent" template as part of the "child".
+		// If we encounter the `parent` keyword, then we assume the template we're
+		// in the midst currently defining is overriding a previously defined
+		// template, and that the template author's intent is to execute that
+		// "parent" template as part of this "child" template.
 		//
-		// We know the name of the template currently being defined
-		// (overridden), so we augment the name with a flag to indicate to the
-		// execution step that it should lookup the "parent" template with that
-		// name.
-		//fmt.Printf("\x1b[1;31mTEMPLATE NAME: %q\x1b[0m\n", t.Name)
+		// We know the name of the template currently being defined (i.e., the one
+		// overriding a previous definition), so we set a flag to indicate to
+		// template execution that it should lookup the "parent" template with the
+		// same name.
 		name = t.Name
 		parent = true
 	} else {
