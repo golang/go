@@ -86,9 +86,11 @@ an older Go version causes irreconcilable CI failures, we may drop support for
 that Go version in CI if it is 3 or 4 Go versions old.
 
 `gopls` currently only supports the `go` command, so if you are using a
-different build system, `gopls` will not work well. Bazel support is currently
-blocked on
-[bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512).
+different build system, `gopls` will not work well. Bazel is not officially
+supported, but Bazel support is in development (see
+[bazelbuild/rules_go#512](https://github.com/bazelbuild/rules_go/issues/512)).
+You can follow [these instructions](https://github.com/bazelbuild/rules_go/wiki/Editor-setup)
+to configure your `gopls` to work with Bazel.
 
 ## Additional information
 
