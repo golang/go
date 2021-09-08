@@ -14,6 +14,7 @@ import (
 
 // An Interface represents an interface type.
 type Interface struct {
+	check     *Checker     // for error reporting; nil once type set is computed
 	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func      // ordered list of explicitly declared methods
 	embeddeds []Type       // ordered list of explicitly embedded elements
@@ -24,7 +25,7 @@ type Interface struct {
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(nil, token.NoPos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
 
 // emptyInterface represents the empty (completed) interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
@@ -220,7 +221,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// All methods and embedded elements for this interface are collected;
-	// i.e., this interface is may be used in a type set computation.
+	// i.e., this interface may be used in a type set computation.
 	ityp.complete = true
 
 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
@@ -236,7 +237,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	// Compute type set with a non-nil *Checker as soon as possible
 	// to report any errors. Subsequent uses of type sets will use
 	// this computed type set and won't need to pass in a *Checker.
-	check.later(func() { computeInterfaceTypeSet(check, iface.Pos(), ityp) })
+	//
+	// Pin the checker to the interface type in the interim, in case the type set
+	// must be used before delayed funcs are processed (see issue #48234).
+	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
+	ityp.check = check
+	check.later(func() {
+		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+		ityp.check = nil
+	})
 }
 
 func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
