@@ -299,16 +299,16 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		// Type aliases can refer to uninstantiated generic types, so we
 		// might see len(TParams) != 0 && len(TArgs) == 0 here.
 		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(typ.TParams().Len() == typ.TArgs().Len() || typ.TArgs().Len() == 0)
+		assert(typ.TypeParams().Len() == typ.TypeArgs().Len() || typ.TypeArgs().Len() == 0)
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
-		for orig.TArgs() != nil {
+		for orig.TypeArgs() != nil {
 			orig = orig.Orig()
 		}
 
 		w.code(typeNamed)
-		w.obj(orig.Obj(), typ.TArgs())
+		w.obj(orig.Obj(), typ.TypeArgs())
 
 	case *types2.TypeParam:
 		index := func() int {
@@ -345,7 +345,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.typ(typ.Elem())
 
 	case *types2.Signature:
-		assert(typ.TParams() == nil)
+		assert(typ.TypeParams() == nil)
 		w.code(typeSignature)
 		w.signature(typ)
 
@@ -405,7 +405,7 @@ func (w *writer) interfaceType(typ *types2.Interface) {
 	for i := 0; i < typ.NumExplicitMethods(); i++ {
 		m := typ.ExplicitMethod(i)
 		sig := m.Type().(*types2.Signature)
-		assert(sig.TParams() == nil)
+		assert(sig.TypeParams() == nil)
 
 		w.pos(m)
 		w.selector(m)
@@ -551,7 +551,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		sig := obj.Type().(*types2.Signature)
 
 		w.pos(obj)
-		w.typeParamNames(sig.TParams())
+		w.typeParamNames(sig.TypeParams())
 		w.signature(sig)
 		w.pos(decl)
 		w.ext.funcExt(obj)
@@ -568,10 +568,10 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		}
 
 		named := obj.Type().(*types2.Named)
-		assert(named.TArgs() == nil)
+		assert(named.TypeArgs() == nil)
 
 		w.pos(obj)
-		w.typeParamNames(named.TParams())
+		w.typeParamNames(named.TypeParams())
 		w.ext.typeExt(obj)
 		w.typExpr(decl.Type)
 
@@ -642,7 +642,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	assert(len(dict.funcs) == nfuncs)
 }
 
-func (w *writer) typeParamNames(tparams *types2.TParamList) {
+func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
 	w.sync(syncTypeParamNames)
 
 	ntparams := tparams.Len()
@@ -1677,7 +1677,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		obj := w.p.info.Defs[decl.Name].(*types2.Func)
 		sig := obj.Type().(*types2.Signature)
 
-		if sig.RParams() != nil || sig.TParams() != nil {
+		if sig.RParams() != nil || sig.TypeParams() != nil {
 			break // skip generic functions
 		}
 
@@ -1711,7 +1711,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// TODO(mdempsky): Revisit after #46477 is resolved.
 		if name.IsAlias() {
 			named, ok := name.Type().(*types2.Named)
-			if ok && named.TParams().Len() != 0 && named.TArgs().Len() == 0 {
+			if ok && named.TypeParams().Len() != 0 && named.TypeArgs().Len() == 0 {
 				break
 			}
 		}
@@ -1858,17 +1858,17 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 }
 
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) *types2.TParamList {
+func objTypeParams(obj types2.Object) *types2.TypeParamList {
 	switch obj := obj.(type) {
 	case *types2.Func:
 		sig := obj.Type().(*types2.Signature)
 		if sig.Recv() != nil {
 			return sig.RParams()
 		}
-		return sig.TParams()
+		return sig.TypeParams()
 	case *types2.TypeName:
 		if !obj.IsAlias() {
-			return obj.Type().(*types2.Named).TParams()
+			return obj.Type().(*types2.Named).TypeParams()
 		}
 	}
 	return nil
