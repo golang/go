@@ -176,7 +176,7 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		return e.Sel
 	case *ast.IndexExpr:
 		return embeddedFieldIdent(e.X)
-	case *ast.MultiIndexExpr:
+	case *ast.IndexListExpr:
 		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field

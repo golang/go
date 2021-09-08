@@ -116,7 +116,7 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
-	case *MultiIndexExpr:
+	case *IndexListExpr:
 		Walk(v, n.X)
 		for _, index := range n.Indices {
 			Walk(v, index)

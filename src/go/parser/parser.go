@@ -1570,7 +1570,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 		panic("unreachable")
 	case *ast.SelectorExpr:
 	case *ast.IndexExpr:
-	case *ast.MultiIndexExpr:
+	case *ast.IndexListExpr:
 	case *ast.SliceExpr:
 	case *ast.TypeAssertExpr:
 		// If t.Type == nil we have a type assertion of the form
@@ -1660,7 +1660,7 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
 					return
 				}
 				// x is possibly a composite literal type
-			case *ast.IndexExpr, *ast.MultiIndexExpr:
+			case *ast.IndexExpr, *ast.IndexListExpr:
 				if p.exprLev < 0 {
 					return
 				}
