@@ -615,7 +615,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	if tdecl.TypeParams != nil {
 		check.openScope(tdecl, "type parameters")
 		defer check.closeScope()
-		named.tparams = check.collectTypeParams(tdecl.TypeParams)
+		check.collectTypeParams(&named.tparams, tdecl.TypeParams)
 	}
 
 	// determine underlying type of named
@@ -647,7 +647,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	}
 }
 
-func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParamList {
+func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList) {
 	var tparams []*TypeParam
 	// Declare type parameters up-front, with empty interface as type bound.
 	// The scope of type parameters starts at the beginning of the type parameter
@@ -655,6 +655,11 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParamList {
 	for _, f := range list.List {
 		tparams = check.declareTypeParams(tparams, f.Names)
 	}
+
+	// Set the type parameters before collecting the type constraints because
+	// the parameterized type may be used by the constraints (issue #47887).
+	// Example: type T[P T[P]] interface{}
+	*dst = bindTParams(tparams)
 
 	index := 0
 	var bound Type
@@ -670,14 +675,18 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TypeParamList {
 	next:
 		index += len(f.Names)
 	}
-
-	return bindTParams(tparams)
 }
 
 func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
+	// Use Typ[Invalid] for the type constraint to ensure that a type
+	// is present even if the actual constraint has not been assigned
+	// yet.
+	// TODO(gri) Need to systematically review all uses of type parameter
+	//           constraints to make sure we don't rely on them if they
+	//           are not properly set yet.
 	for _, name := range names {
 		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		tpar := check.newTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
+		tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}
