@@ -134,6 +134,9 @@ type mheap struct {
 	// This is accessed atomically.
 	reclaimCredit uintptr
 
+	//add 64 bytes padding to seperate the data into different cacheline to fix HITM issue across CPU sockets
+	_ [8]uint64
+
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual
 	// address space.
