@@ -22,7 +22,7 @@ const Enabled = true
 // expressions.
 //
 // For an ast.IndexExpr, the resulting IndexExprData will have exactly one
-// index expression. For an ast.MultiIndexExpr (go1.18+), it may have a
+// index expression. For an ast.IndexListExpr (go1.18+), it may have a
 // variable number of index expressions.
 //
 // For nodes that don't represent index expressions, GetIndexExprData returns
@@ -36,7 +36,7 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 			Indices: []ast.Expr{e.Index},
 			Rbrack:  e.Rbrack,
 		}
-	case *ast.MultiIndexExpr:
+	case *ast.IndexListExpr:
 		return (*IndexExprData)(e)
 	}
 	return nil
