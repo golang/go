@@ -648,7 +648,7 @@ func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
 	//           constraints to make sure we don't rely on them if they
 	//           are not properly set yet.
 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	tpar := check.NewTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
+	tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
 	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }

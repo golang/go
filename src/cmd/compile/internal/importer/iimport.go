@@ -365,7 +365,7 @@ func (r *importReader) obj(name string) {
 		}
 		name0, sub := parseSubscript(name)
 		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
-		t := (*types2.Checker)(nil).NewTypeParam(tn, nil)
+		t := types2.NewTypeParam(tn, nil)
 		if sub == 0 {
 			errorf("missing subscript")
 		}
