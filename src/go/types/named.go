@@ -254,7 +254,7 @@ func (n *Named) expand(env *Environment) *Named {
 			// in subst) feels overly complicated. Can we simplify?
 			if env == nil {
 				if n.check != nil {
-					env = n.check.env
+					env = n.check.conf.Environment
 				} else {
 					// If we're instantiating lazily, we might be outside the scope of a
 					// type-checking pass. In that case we won't have a pre-existing

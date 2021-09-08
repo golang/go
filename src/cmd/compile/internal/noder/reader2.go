@@ -18,7 +18,7 @@ import (
 type pkgReader2 struct {
 	pkgDecoder
 
-	check   *types2.Checker
+	env     *types2.Environment
 	imports map[string]*types2.Package
 
 	posBases []*syntax.PosBase
@@ -26,11 +26,11 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(check *types2.Checker, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+func readPackage2(env *types2.Environment, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
 	pr := pkgReader2{
 		pkgDecoder: input,
 
-		check:   check,
+		env:     env,
 		imports: imports,
 
 		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
@@ -233,9 +233,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
-			// TODO(mdempsky) should use a single shared environment here
-			//                (before, this used a shared checker)
-			t, _ := types2.Instantiate(types2.NewEnvironment(), name.Type(), targs, false)
+			t, _ := types2.Instantiate(r.p.env, name.Type(), targs, false)
 			return t
 		}
 		return name.Type()

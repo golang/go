@@ -62,7 +62,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
 	if check != nil {
 		subst.check = check
 		if env == nil {
-			env = check.env
+			env = check.conf.Environment
 		}
 	}
 	if env == nil {
