@@ -8,6 +8,7 @@
 package types
 
 import (
+	"fmt"
 	"go/token"
 	"strings"
 )
@@ -404,6 +405,34 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type, report bool) (t
 		}
 	}
 
+	// The data structure of each (provided or inferred) type represents a graph, where
+	// each node corresponds to a type and each (directed) vertice points to a component
+	// type. The substitution process described above repeatedly replaces type parameter
+	// nodes in these graphs with the graphs of the types the type parameters stand for,
+	// which creates a new (possibly bigger) graph for each type.
+	// The substitution process will not stop if the replacement graph for a type parameter
+	// also contains that type parameter.
+	// For instance, for [A interface{ *A }], without any type argument provided for A,
+	// unification produces the type list [*A]. Substituting A in *A with the value for
+	// A will lead to infinite expansion by producing [**A], [****A], [********A], etc.,
+	// because the graph A -> *A has a cycle through A.
+	// Generally, cycles may occur across multiple type parameters and inferred types
+	// (for instance, consider [P interface{ *Q }, Q interface{ func(P) }]).
+	// We eliminate cycles by walking the graphs for all type parameters. If a cycle
+	// through a type parameter is detected, cycleFinder nils out the respectice type
+	// which kills the cycle; this also means that the respective type could not be
+	// inferred.
+	//
+	// TODO(gri) If useful, we could report the respective cycle as an error. We don't
+	//           do this now because type inference will fail anyway, and furthermore,
+	//           constraints with cycles of this kind cannot currently be satisfied by
+	//           any user-suplied type. But should that change, reporting an error
+	//           would be wrong.
+	w := cycleFinder{tparams, types, make(map[Type]bool)}
+	for _, t := range tparams {
+		w.typ(t) // t != nil
+	}
+
 	// dirty tracks the indices of all types that may still contain type parameters.
 	// We know that nil type entries and entries corresponding to provided (non-nil)
 	// type arguments are clean, so exclude them from the start.
@@ -451,4 +480,99 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type, report bool) (t
 	}
 
 	return
+}
+
+type cycleFinder struct {
+	tparams []*TypeParam
+	types   []Type
+	seen    map[Type]bool
+}
+
+func (w *cycleFinder) typ(typ Type) {
+	if w.seen[typ] {
+		// We have seen typ before. If it is one of the type parameters
+		// in tparams, iterative substitution will lead to infinite expansion.
+		// Nil out the corresponding type which effectively kills the cycle.
+		if tpar, _ := typ.(*TypeParam); tpar != nil {
+			if i := tparamIndex(w.tparams, tpar); i >= 0 {
+				// cycle through tpar
+				w.types[i] = nil
+			}
+		}
+		// If we don't have one of our type parameters, the cycle is due
+		// to an ordinary recursive type and we can just stop walking it.
+		return
+	}
+	w.seen[typ] = true
+	defer delete(w.seen, typ)
+
+	switch t := typ.(type) {
+	case *Basic, *top:
+		// nothing to do
+
+	case *Array:
+		w.typ(t.elem)
+
+	case *Slice:
+		w.typ(t.elem)
+
+	case *Struct:
+		w.varList(t.fields)
+
+	case *Pointer:
+		w.typ(t.base)
+
+	// case *Tuple:
+	//      This case should not occur because tuples only appear
+	//      in signatures where they are handled explicitly.
+
+	case *Signature:
+		// There are no "method types" so we should never see a recv.
+		assert(t.recv == nil)
+		if t.params != nil {
+			w.varList(t.params.vars)
+		}
+		if t.results != nil {
+			w.varList(t.results.vars)
+		}
+
+	case *Union:
+		for _, t := range t.terms {
+			w.typ(t.typ)
+		}
+
+	case *Interface:
+		for _, m := range t.methods {
+			w.typ(m.typ)
+		}
+		for _, t := range t.embeddeds {
+			w.typ(t)
+		}
+
+	case *Map:
+		w.typ(t.key)
+		w.typ(t.elem)
+
+	case *Chan:
+		w.typ(t.elem)
+
+	case *Named:
+		for _, tpar := range t.TypeArgs().list() {
+			w.typ(tpar)
+		}
+
+	case *TypeParam:
+		if i := tparamIndex(w.tparams, t); i >= 0 && w.types[i] != nil {
+			w.typ(w.types[i])
+		}
+
+	default:
+		panic(fmt.Sprintf("unexpected %T", typ))
+	}
+}
+
+func (w *cycleFinder) varList(list []*Var) {
+	for _, v := range list {
+		w.typ(v.typ)
+	}
 }
