@@ -67,6 +67,13 @@ func TestSplicePipePool(t *testing.T) {
 		}
 		select {
 		case <-expiredTime.C:
+			t.Logf("descriptors to check: %v", fds)
+			for _, fd := range fds {
+				_, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), syscall.F_GETPIPE_SZ, 0)
+				if errno == 0 {
+					t.Errorf("descriptor %d still open", fd)
+				}
+			}
 			t.Fatal("at least one pipe is still open")
 		default:
 		}
