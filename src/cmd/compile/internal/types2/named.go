@@ -242,7 +242,7 @@ func (n *Named) setUnderlying(typ Type) {
 
 // expand ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
-func (n *Named) expand(typMap map[string]*Named) *Named {
+func (n *Named) expand(env *Environment) *Named {
 	if n.instPos != nil {
 		// n must be loaded before instantiation, in order to have accurate
 		// tparams. This is done implicitly by the call to n.TParams, but making it
@@ -250,19 +250,25 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
 		n.load()
 		var u Type
 		if n.check.validateTArgLen(*n.instPos, n.tparams.Len(), n.targs.Len()) {
-			if typMap == nil {
+			// TODO(rfindley): handling an optional Checker and Environment here (and
+			// in subst) feels overly complicated. Can we simplify?
+			if env == nil {
 				if n.check != nil {
-					typMap = n.check.typMap
+					env = n.check.env
 				} else {
 					// If we're instantiating lazily, we might be outside the scope of a
 					// type-checking pass. In that case we won't have a pre-existing
-					// typMap, but don't want to create a duplicate of the current instance
-					// in the process of expansion.
-					h := typeHash(n.orig, n.targs.list())
-					typMap = map[string]*Named{h: n}
+					// environment, but don't want to create a duplicate of the current
+					// instance in the process of expansion.
+					env = NewEnvironment()
 				}
+				h := env.typeHash(n.orig, n.targs.list())
+				// add the instance to the environment to avoid infinite recursion.
+				// addInstance may return a different, existing instance, but we
+				// shouldn't return that instance from expand.
+				env.typeForHash(h, n)
 			}
-			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
+			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), env)
 		} else {
 			u = Typ[Invalid]
 		}
