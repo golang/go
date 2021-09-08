@@ -576,9 +576,9 @@ type coordinator struct {
 }
 
 func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
-	// Make sure all of the seed corpus has marshalled data.
+	// Make sure all of the seed corpus given by f.Add has marshalled data.
 	for i := range opts.Seed {
-		if opts.Seed[i].Data == nil {
+		if opts.Seed[i].Data == nil && opts.Seed[i].Values != nil {
 			opts.Seed[i].Data = marshalCorpusFile(opts.Seed[i].Values...)
 		}
 	}
