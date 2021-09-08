@@ -29,7 +29,7 @@ type TypeParam struct {
 func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
-// or Signature type by calling SetTParams. Setting a type parameter on more
+// or Signature type by calling SetTypeParams. Setting a type parameter on more
 // than one type will result in a panic.
 //
 // The constraint argument can be nil, and set later via SetConstraint.

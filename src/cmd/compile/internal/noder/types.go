@@ -91,7 +91,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		// since that is the only use of a generic type that doesn't
 		// involve instantiation. We just translate the named type in the
 		// normal way below using g.obj().
-		if typ.TParams() != nil && typ.TArgs() != nil {
+		if typ.TypeParams() != nil && typ.TypeArgs() != nil {
 			// typ is an instantiation of a defined (named) generic type.
 			// This instantiation should also be a defined (named) type.
 			// types2 gives us the substituted type in t.Underlying()
@@ -101,7 +101,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			//
 			// When converted to types.Type, typ has a unique name,
 			// based on the names of the type arguments.
-			instName := g.instTypeName2(typ.Obj().Name(), typ.TArgs())
+			instName := g.instTypeName2(typ.Obj().Name(), typ.TypeArgs())
 			s := g.pkg(typ.Obj().Pkg()).Lookup(instName)
 			if s.Def != nil {
 				// We have already encountered this instantiation.
@@ -135,7 +135,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// non-generic types used to instantiate this type. We'll
 			// use these when instantiating the methods of the
 			// instantiated type.
-			targs := typ.TArgs()
+			targs := typ.TypeArgs()
 			rparams := make([]*types.Type, targs.Len())
 			for i := range rparams {
 				rparams[i] = g.typ1(targs.At(i))
@@ -272,7 +272,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 // instantiated types, and for actually generating the methods for instantiated
 // types.
 func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
-	targs2 := typ.TArgs()
+	targs2 := typ.TypeArgs()
 	targs := make([]*types.Type, targs2.Len())
 	for i := range targs {
 		targs[i] = g.typ1(targs2.At(i))
@@ -296,7 +296,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 			// generic type, so we have to do a substitution to get
 			// the name/type of the method of the instantiated type,
 			// using m.Type().RParams() and typ.TArgs()
-			inst2 := g.instTypeName2("", typ.TArgs())
+			inst2 := g.instTypeName2("", typ.TypeArgs())
 			name := meth.Sym().Name
 			i1 := strings.Index(name, "[")
 			i2 := strings.Index(name[i1:], "]")
@@ -336,7 +336,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 }
 
 func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type {
-	tparams2 := sig.TParams()
+	tparams2 := sig.TypeParams()
 	tparams := make([]*types.Field, tparams2.Len())
 	for i := range tparams {
 		tp := tparams2.At(i).Obj()

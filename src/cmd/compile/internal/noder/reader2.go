@@ -397,7 +397,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 			pos := r.pos()
 			tparams := r.typeParamNames()
 			sig := r.signature(nil)
-			sig.SetTParams(tparams)
+			sig.SetTypeParams(tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case objType:

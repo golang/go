@@ -190,7 +190,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
 
-	tparams := otyp.(*types2.Named).TParams()
+	tparams := otyp.(*types2.Named).TypeParams()
 	if n := tparams.Len(); n > 0 {
 		rparams := make([]*types.Type, n)
 		for i := range rparams {
