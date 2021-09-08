@@ -381,8 +381,8 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
-				if d.spec.TParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
-					check.softErrorf(d.spec.TParams.List[0], _Todo, "type parameters require go1.18 or later")
+				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+					check.softErrorf(d.spec.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
 				}
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
@@ -401,8 +401,8 @@ func (check *Checker) collectObjects() {
 						if name == "main" {
 							code = _InvalidMainDecl
 						}
-						if d.decl.Type.TParams.NumFields() != 0 {
-							check.softErrorf(d.decl.Type.TParams.List[0], code, "func %s must have no type parameters", name)
+						if d.decl.Type.TypeParams.NumFields() != 0 {
+							check.softErrorf(d.decl.Type.TypeParams.List[0], code, "func %s must have no type parameters", name)
 							hasTParamError = true
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
@@ -439,8 +439,8 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
-				if d.decl.Type.TParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
-					check.softErrorf(d.decl.Type.TParams.List[0], _Todo, "type parameters require go1.18 or later")
+				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+					check.softErrorf(d.decl.Type.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
 				}
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the

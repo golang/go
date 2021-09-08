@@ -194,8 +194,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// a receiver specification.)
 		if sig.tparams != nil {
 			var at positioner = f.Type
-			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TParams != nil {
-				at = ftyp.TParams
+			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
+				at = ftyp.TypeParams
 			}
 			check.errorf(at, _Todo, "methods cannot have type parameters")
 		}
