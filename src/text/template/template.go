@@ -12,8 +12,11 @@ import (
 
 // common holds the information shared by related templates.
 type common struct {
-	tmpl   map[string][]*Template // Map from name to defined templates.
-	muTmpl sync.RWMutex           // protects tmpl
+	// Map from name to defined templates. There is a slice of templates,
+	// because there are generations of previously defined templates with the
+	// same name.
+	tmpl   map[string][]*Template
+	muTmpl sync.RWMutex // protects tmpl
 	option option
 	// We use two maps, one for parsing and one for execution.
 	// This separation makes the API cleaner since it doesn't
@@ -91,14 +94,14 @@ func (t *Template) Clone() (*Template, error) {
 	}
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
-	for k, stack := range t.tmpl {
+	for k, generations := range t.tmpl {
 		if k == t.name {
-			nt.tmpl[t.name] = append(nt.tmpl[t.name], nt) // TODO: double-check this - maybe should just be assigning new slice
+			nt.tmpl[t.name] = append(nt.tmpl[t.name], nt)
 			continue
 		}
 		// The associated templates share nt's common structure.
-		for i := range stack {
-			tmpl := stack[i].copy(nt.common)
+		for i := range generations {
+			tmpl := generations[i].copy(nt.common)
 			nt.tmpl[k] = append(nt.tmpl[k], tmpl)
 		}
 	}
@@ -152,8 +155,8 @@ func (t *Template) Templates() []*Template {
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
 	m := make([]*Template, 0, len(t.tmpl))
-	for _, stack := range t.tmpl {
-		m = append(m, stack[0]) // TODO: runtime assert there is at least one? invariant check
+	for _, generations := range t.tmpl {
+		m = append(m, generations[0])
 	}
 	return m
 }
@@ -196,20 +199,20 @@ func (t *Template) Lookup(name string) *Template {
 	return t.lookup(name, 0)
 }
 
-func (t *Template) LookupWithScope(name string, scope int) *Template {
+func (t *Template) LookupByLevel(name string, level int) *Template {
 	if t.common == nil {
 		return nil
 	}
 	t.muTmpl.RLock()
 	defer t.muTmpl.RUnlock()
-	return t.lookup(name, scope)
+	return t.lookup(name, level)
 }
 
-func (t *Template) lookup(name string, scope int) *Template {
-	if scope >= len(t.tmpl[name]) {
+func (t *Template) lookup(name string, level int) *Template {
+	if level < 0 || level >= len(t.tmpl[name]) {
 		return nil
 	}
-	return t.tmpl[name][scope] // TODO: invariant check: at least one
+	return t.tmpl[name][level]
 }
 
 // Parse parses text as a template body for t.
@@ -251,10 +254,17 @@ func (t *Template) associate(new *Template, tree *parse.Tree) bool {
 		// don't replace it with an empty template.
 		return false
 	}
-	stack := t.tmpl[new.name]
-	stack = append(stack, nil)
-	copy(stack[1:], stack[0:])
-	stack[0] = new
-	t.tmpl[new.name] = stack
+
+	// associating a template with the name of an existing one retains a
+	// reference to the original, pushing the new one to the front of a slice
+	// of previously defined templates, so that previously defined templates by
+	// that name can be accessed by indexing into the slice, each successive
+	// level being an older generation.
+	generations := t.tmpl[new.name]
+	generations = append(generations, nil)
+	copy(generations[1:], generations[0:])
+	generations[0] = new
+	t.tmpl[new.name] = generations
+
 	return true
 }
