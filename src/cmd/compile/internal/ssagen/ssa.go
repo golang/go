@@ -6703,7 +6703,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	var progToValue map[*obj.Prog]*ssa.Value
 	var progToBlock map[*obj.Prog]*ssa.Block
 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
-	if f.PrintOrHtmlSSA {
+	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
+	if gatherPrintInfo {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
@@ -6814,7 +6815,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				valueToProgAfter[v.ID] = s.pp.Next
 			}
 
-			if f.PrintOrHtmlSSA {
+			if gatherPrintInfo {
 				for ; x != s.pp.Next; x = x.Link {
 					progToValue[x] = v
 				}
@@ -6844,7 +6845,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		x := s.pp.Next
 		s.SetPos(b.Pos)
 		Arch.SSAGenBlock(&s, b, next)
-		if f.PrintOrHtmlSSA {
+		if gatherPrintInfo {
 			for ; x != s.pp.Next; x = x.Link {
 				progToBlock[x] = b
 			}
@@ -7022,6 +7023,54 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		buf.WriteString("</dl>")
 		buf.WriteString("</code>")
 		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
+	}
+	if ssa.GenssaDump[f.Name] {
+		fi := f.DumpFileForPhase("genssa")
+		if fi != nil {
+
+			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
+			inliningDiffers := func(a, b []src.Pos) bool {
+				if len(a) != len(b) {
+					return true
+				}
+				for i := range a {
+					if a[i].Filename() != b[i].Filename() {
+						return true
+					}
+					if i > 0 && a[i].Line() != b[i].Line() {
+						return true
+					}
+				}
+				return false
+			}
+
+			var allPosOld []src.Pos
+			var allPos []src.Pos
+
+			for p := pp.Text; p != nil; p = p.Link {
+				if p.Pos.IsKnown() {
+					allPos = p.AllPos(allPos)
+					if inliningDiffers(allPos, allPosOld) {
+						for i := len(allPos) - 1; i >= 0; i-- {
+							pos := allPos[i]
+							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
+						}
+						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.
+					}
+				}
+
+				var s string
+				if v, ok := progToValue[p]; ok {
+					s = v.String()
+				} else if b, ok := progToBlock[p]; ok {
+					s = b.String()
+				} else {
+					s = "   " // most value and branch strings are 2-3 characters long
+				}
+				fmt.Fprintf(fi, " %-6s\t%.5d %s\t%s\n", s, p.Pc, ssa.StmtString(p.Pos), p.InstructionString())
+			}
+			fi.Close()
+		}
 	}
 
 	defframe(&s, e, f)
