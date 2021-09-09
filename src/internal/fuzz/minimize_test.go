@@ -8,6 +8,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -40,6 +41,36 @@ func TestMinimizeInput(t *testing.T) {
 			},
 			input:    []interface{}{[]byte{0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 			expected: []interface{}{[]byte{1, 1, 1}},
+		},
+		{
+			name: "single_bytes",
+			fn: func(e CorpusEntry) error {
+				b := e.Values[0].([]byte)
+				if len(b) < 2 {
+					return nil
+				}
+				if len(b) == 2 && b[0] == 1 && b[1] == 2 {
+					return nil
+				}
+				return fmt.Errorf("bad %v", e.Values[0])
+			},
+			input:    []interface{}{[]byte{1, 2, 3, 4, 5}},
+			expected: []interface{}{[]byte{2, 3}},
+		},
+		{
+			name: "set_of_bytes",
+			fn: func(e CorpusEntry) error {
+				b := e.Values[0].([]byte)
+				if len(b) < 3 {
+					return nil
+				}
+				if bytes.Equal(b, []byte{0, 1, 2, 3, 4, 5}) || bytes.Equal(b, []byte{0, 4, 5}) {
+					return fmt.Errorf("bad %v", e.Values[0])
+				}
+				return nil
+			},
+			input:    []interface{}{[]byte{0, 1, 2, 3, 4, 5}},
+			expected: []interface{}{[]byte{0, 4, 5}},
 		},
 		{
 			name: "ones_string",
@@ -219,10 +250,10 @@ func TestMinimizeInput(t *testing.T) {
 				t.Errorf("minimizeInput did not succeed")
 			}
 			if err == nil {
-				t.Error("minimizeInput didn't fail")
+				t.Fatal("minimizeInput didn't provide an error")
 			}
-			if expected := fmt.Sprintf("bad %v", tc.input[0]); err.Error() != expected {
-				t.Errorf("unexpected error: got %s, want %s", err, expected)
+			if expected := fmt.Sprintf("bad %v", tc.expected[0]); err.Error() != expected {
+				t.Errorf("unexpected error: got %q, want %q", err, expected)
 			}
 			if !reflect.DeepEqual(vals, tc.expected) {
 				t.Errorf("unexpected results: got %v, want %v", vals, tc.expected)
