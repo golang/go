@@ -276,7 +276,9 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 }
 
 // tokstring returns the English word for selected punctuation tokens
-// for more readable error messages.
+// for more readable error messages. Use tokstring (not tok.String())
+// for user-facing (error) messages; use tok.String() for debugging
+// output.
 func tokstring(tok token) string {
 	switch tok {
 	case _Comma:
@@ -1839,7 +1841,7 @@ func (p *parser) embeddedTerm() Expr {
 }
 
 // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
-func (p *parser) paramDeclOrNil(name *Name) *Field {
+func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 	if trace {
 		defer p.trace("paramDecl")()
 	}
@@ -1893,8 +1895,8 @@ func (p *parser) paramDeclOrNil(name *Name) *Field {
 		return f
 	}
 
-	p.syntaxError("expecting )")
-	p.advance(_Comma, _Rparen)
+	p.syntaxError("expecting " + tokstring(follow))
+	p.advance(_Comma, follow)
 	return nil
 }
 
@@ -1911,7 +1913,7 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 	var named int // number of parameters that have an explicit name and type
 	var typed int // number of parameters that have an explicit type
 	end := p.list(_Comma, close, func() bool {
-		par := p.paramDeclOrNil(name)
+		par := p.paramDeclOrNil(name, close)
 		name = nil // 1st name was consumed if present
 		if par != nil {
 			if debug && par.Name == nil && par.Type == nil {
@@ -2211,7 +2213,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if p.got(_Var) {
-			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
+			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", tokstring(keyword)))
 		}
 		init = p.simpleStmt(nil, keyword)
 		// If we have a range clause, we are done (can only happen for keyword == _For).
