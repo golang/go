@@ -559,7 +559,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	}
 
 	nprec := OpPrec[n.Op()]
-	if n.Op() == OTYPE && n.Type().IsPtr() {
+	if n.Op() == OTYPE && n.Type() != nil && n.Type().IsPtr() {
 		nprec = OpPrec[ODEREF]
 	}
 
