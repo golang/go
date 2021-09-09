@@ -1177,6 +1177,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 		case ir.OCONVIFACE:
 			x := x.(*ir.ConvExpr)
+			if m.Type().IsEmptyInterface() && m.(*ir.ConvExpr).X.Type().IsEmptyInterface() {
+				// Was T->interface{}, after stenciling it is now interface{}->interface{}.
+				// No longer need the conversion. See issue 48276.
+				m.(*ir.ConvExpr).SetOp(ir.OCONVNOP)
+				break
+			}
 			// Note: x's argument is still typed as a type parameter.
 			// m's argument now has an instantiated type.
 			if x.X.Type().HasTParam() || (x.X.Type().IsInterface() && x.Type().HasTParam()) {
