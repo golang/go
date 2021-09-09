@@ -114,10 +114,8 @@ func siteCallees(c ssa.CallInstruction, callgraph *callgraph.Graph) []*ssa.Funct
 	}
 
 	for _, edge := range node.Out {
-		callee := edge.Callee.Func
-		// Skip synthetic functions wrapped around source functions.
-		if edge.Site == c && callee.Synthetic == "" {
-			matches = append(matches, callee)
+		if edge.Site == c {
+			matches = append(matches, edge.Callee.Func)
 		}
 	}
 	return matches

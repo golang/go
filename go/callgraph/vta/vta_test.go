@@ -19,6 +19,7 @@ func TestVTACallGraph(t *testing.T) {
 		"testdata/callgraph_interfaces.go",
 		"testdata/callgraph_pointers.go",
 		"testdata/callgraph_collections.go",
+		"testdata/callgraph_fields.go",
 	} {
 		t.Run(file, func(t *testing.T) {
 			prog, want, err := testProg(file)

@@ -37,7 +37,13 @@ func Baz(x B, h func() I, i I) I {
 //   t4 = h()
 //   return t4
 
+// Local(t2) has seemingly duplicates of successors. This
+// happens in stringification of type propagation graph.
+// Due to CHA, we analyze A.foo and *A.foo as well as B.foo
+// and *B.foo, which have similar bodies and hence similar
+// type flow that gets merged together during stringification.
+
 // WANT:
-// Local(t2) -> Local(ai), Local(bi)
+// Local(t2) -> Local(ai), Local(ai), Local(bi), Local(bi)
 // Constant(testdata.I) -> Local(t4)
 // Local(t1) -> Local(t2)
