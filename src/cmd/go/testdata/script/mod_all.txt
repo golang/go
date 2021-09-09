@@ -202,9 +202,9 @@ go mod edit -go=1.17 u/go.mod
 go mod edit -go=1.17 w/go.mod
 go mod edit -go=1.17 x/go.mod
 go mod edit -go=1.17
-cp go.mod go.mod.orig
+cmp go.mod go.mod.beforetidy
 go mod tidy
-cmp go.mod go.mod.orig
+cmp go.mod go.mod.aftertidy
 
 # With lazy loading, 'go list all' with neither -mod=vendor nor -test should
 # match -mod=vendor without -test in 1.15.
@@ -466,3 +466,66 @@ module example.com/x
 go 1.15
 -- x/x.go --
 package x
+-- go.mod.beforetidy --
+module example.com/main
+
+// Note: this go.mod file initially specifies go 1.15,
+// but includes some redundant roots so that it
+// also already obeys the 1.17 lazy loading invariants.
+go 1.17
+
+require (
+	example.com/a v0.1.0
+	example.com/b v0.1.0 // indirect
+	example.com/q v0.1.0
+	example.com/r v0.1.0 // indirect
+	example.com/t v0.1.0
+	example.com/u v0.1.0 // indirect
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c
+	example.com/d v0.1.0 => ./d
+	example.com/q v0.1.0 => ./q
+	example.com/r v0.1.0 => ./r
+	example.com/s v0.1.0 => ./s
+	example.com/t v0.1.0 => ./t
+	example.com/u v0.1.0 => ./u
+	example.com/w v0.1.0 => ./w
+	example.com/x v0.1.0 => ./x
+)
+-- go.mod.aftertidy --
+module example.com/main
+
+// Note: this go.mod file initially specifies go 1.15,
+// but includes some redundant roots so that it
+// also already obeys the 1.17 lazy loading invariants.
+go 1.17
+
+require (
+	example.com/a v0.1.0
+	example.com/q v0.1.0
+	example.com/t v0.1.0
+)
+
+require (
+	example.com/b v0.1.0 // indirect
+	example.com/r v0.1.0 // indirect
+	example.com/u v0.1.0 // indirect
+)
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b
+	example.com/c v0.1.0 => ./c
+	example.com/d v0.1.0 => ./d
+	example.com/q v0.1.0 => ./q
+	example.com/r v0.1.0 => ./r
+	example.com/s v0.1.0 => ./s
+	example.com/t v0.1.0 => ./t
+	example.com/u v0.1.0 => ./u
+	example.com/w v0.1.0 => ./w
+	example.com/x v0.1.0 => ./x
+)
