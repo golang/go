@@ -557,6 +557,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"implementmissing\"",
+							Doc:     "suggested fixes for \"undeclared name: %s\" on a function call\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: %s\" that happen for a function call. For example:\n\tfunc m() {\n\t  a(1)\n\t}\nwill turn into\n\tfunc m() {\n\t  a(1)\n\t}\n\n\tfunc a(i int) {}\n",
+							Default: "false",
+						},
+						{
 							Name:    "\"nonewvars\"",
 							Doc:     "suggested fixes for \"no new vars on left side of :=\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no new vars on left side of :=\". For example:\n\tz := 1\n\tz := 2\nwill turn into\n\tz := 1\n\tz = 2\n",
 							Default: "true",
@@ -1123,6 +1128,11 @@ var GeneratedAPIJSON = &APIJSON{
 			Name:    "fillreturns",
 			Doc:     "suggested fixes for \"wrong number of return values (want %d, got %d)\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"wrong number of return values (want %d, got %d)\". For example:\n\tfunc m() (int, string, *bool, error) {\n\t\treturn\n\t}\nwill turn into\n\tfunc m() (int, string, *bool, error) {\n\t\treturn 0, \"\", nil, nil\n\t}\n\nThis functionality is similar to https://github.com/sqs/goreturns.\n",
 			Default: true,
+		},
+		{
+			Name:    "implementmissing",
+			Doc:     "suggested fixes for \"undeclared name: %s\" on a function call\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: %s\" that happen for a function call. For example:\n\tfunc m() {\n\t  a(1)\n\t}\nwill turn into\n\tfunc m() {\n\t  a(1)\n\t}\n\n\tfunc a(i int) {}\n",
+			Default: false,
 		},
 		{
 			Name:    "nonewvars",

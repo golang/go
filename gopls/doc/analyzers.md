@@ -573,6 +573,25 @@ This functionality is similar to https://github.com/sqs/goreturns.
 
 **Enabled by default.**
 
+## **implementmissing**
+
+suggested fixes for "undeclared name: %s" on a function call
+
+This checker provides suggested fixes for type errors of the
+type "undeclared name: %s" that happen for a function call. For example:
+	func m() {
+	  a(1)
+	}
+will turn into
+	func m() {
+	  a(1)
+	}
+
+	func a(i int) {}
+
+
+**Disabled by default. Enable it by setting `"analyses": {"implementmissing": true}`.**
+
 ## **nonewvars**
 
 suggested fixes for "no new vars on left side of :="

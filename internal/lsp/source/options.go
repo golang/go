@@ -49,6 +49,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/internal/lsp/analysis/fillreturns"
 	"golang.org/x/tools/internal/lsp/analysis/fillstruct"
+	"golang.org/x/tools/internal/lsp/analysis/implementmissing"
 	"golang.org/x/tools/internal/lsp/analysis/nonewvars"
 	"golang.org/x/tools/internal/lsp/analysis/noresultvalues"
 	"golang.org/x/tools/internal/lsp/analysis/simplifycompositelit"
@@ -754,6 +755,9 @@ func (o *Options) enableAllExperimentMaps() {
 	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
 		o.Analyses[unusedparams.Analyzer.Name] = true
 	}
+	if _, ok := o.Analyses[implementmissing.Analyzer.Name]; !ok {
+		o.Analyses[implementmissing.Analyzer.Name] = true
+	}
 }
 
 func (o *Options) set(name string, value interface{}, seen map[string]struct{}) OptionResult {
@@ -1170,6 +1174,11 @@ func typeErrorAnalyzers() map[string]*Analyzer {
 			Analyzer:   fillreturns.Analyzer,
 			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
 			Enabled:    true,
+		},
+		implementmissing.Analyzer.Name: {
+			Analyzer:   implementmissing.Analyzer,
+			ActionKind: []protocol.CodeActionKind{protocol.SourceFixAll, protocol.QuickFix},
+			Enabled:    false,
 		},
 		nonewvars.Analyzer.Name: {
 			Analyzer: nonewvars.Analyzer,
