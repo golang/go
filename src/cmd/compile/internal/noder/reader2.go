@@ -492,7 +492,7 @@ func (r *reader2) method() *types2.Func {
 
 	rparams := r.typeParamNames()
 	sig := r.signature(r.param())
-	sig.SetRParams(rparams)
+	sig.SetRecvTypeParams(rparams)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
 	return types2.NewFunc(pos, pkg, name, sig)

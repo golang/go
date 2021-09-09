@@ -535,7 +535,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 		// the signature accordingly.
 		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
-		if sig.RParams().Len() > 0 {
+		if sig.RecvTypeParams().Len() > 0 {
 			// For inference to work, we must use the receiver type
 			// matching the receiver in the actual method declaration.
 			// If the method is embedded, the matching receiver is the
@@ -564,7 +564,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			// the receiver type arguments here, the receiver must be be otherwise invalid
 			// and an error has been reported elsewhere.
 			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs := check.infer(m.pos, sig.RParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+			targs := check.infer(m.pos, sig.RecvTypeParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
 			//check.dump("### inferred targs = %s", targs)
 			if targs == nil {
 				// We may reach here if there were other errors (see issue #40056).
@@ -574,7 +574,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
 			// TODO(gri) investigate and provide a correct explanation here
 			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RParams().list(), targs), nil)
+			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RecvTypeParams().list(), targs), nil)
 			obj = &copy
 		}
 		// TODO(gri) we also need to do substitution for parameterized interface methods

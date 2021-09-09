@@ -392,10 +392,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// here. Exit early in this case to prevent an assertion
 			// failure in makeSubstMap.
 			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.RParams().list()) != Vn.targs.Len() {
+			if len(ftyp.RecvTypeParams().list()) != Vn.targs.Len() {
 				return
 			}
-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
+			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RecvTypeParams().list(), Vn.targs.list()), nil).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
@@ -404,7 +404,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(true)
-		u.x.init(ftyp.RParams().list())
+		u.x.init(ftyp.RecvTypeParams().list())
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}
