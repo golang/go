@@ -302,9 +302,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
 		if y, ok := y.(*Named); ok {
-			x.expand(nil)
-			y.expand(nil)
-
 			xargs := x.TypeArgs().list()
 			yargs := y.TypeArgs().list()
 
