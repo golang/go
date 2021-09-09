@@ -2188,6 +2188,8 @@ var g3Failures = setOf(
 
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 
+	"typeparam/issue46461b.go", // -G=3 fails when type parameters refer back to the parameterized type itself
+
 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
 )
 
