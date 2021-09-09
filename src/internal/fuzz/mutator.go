@@ -88,9 +88,7 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 	case float64:
 		vals[i] = m.mutateFloat(v, math.MaxFloat64)
 	case bool:
-		if m.rand(2) == 1 {
-			vals[i] = !v // 50% chance of flipping the bool
-		}
+		vals[i] = !v
 	case rune: // int32
 		vals[i] = rune(m.mutateInt(int64(v), math.MaxInt32))
 	case byte: // uint8
