@@ -810,6 +810,8 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		return errors.New("tls: client didn't provide a certificate")
 	}
 
+	c.peerCertificates = certs
+
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
 		opts := x509.VerifyOptions{
 			Roots:         c.config.ClientCAs,
@@ -831,7 +833,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		c.verifiedChains = chains
 	}
 
-	c.peerCertificates = certs
 	c.ocspResponse = certificate.OCSPStaple
 	c.scts = certificate.SignedCertificateTimestamps
 
