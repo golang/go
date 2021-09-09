@@ -349,7 +349,7 @@ func (r *importReader) obj(name string) {
 					for i := range rparams {
 						rparams[i] = types2.AsTypeParam(targs.At(i))
 					}
-					msig.SetRParams(rparams)
+					msig.SetRecvTypeParams(rparams)
 				}
 
 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))

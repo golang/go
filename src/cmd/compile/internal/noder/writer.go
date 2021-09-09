@@ -648,7 +648,7 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
 	w.sync(syncMethod)
 	w.pos(meth)
 	w.selector(meth)
-	w.typeParamNames(sig.RParams())
+	w.typeParamNames(sig.RecvTypeParams())
 	w.param(sig.Recv())
 	w.signature(sig)
 
@@ -1665,7 +1665,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		obj := w.p.info.Defs[decl.Name].(*types2.Func)
 		sig := obj.Type().(*types2.Signature)
 
-		if sig.RParams() != nil || sig.TypeParams() != nil {
+		if sig.RecvTypeParams() != nil || sig.TypeParams() != nil {
 			break // skip generic functions
 		}
 
@@ -1851,7 +1851,7 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
 	case *types2.Func:
 		sig := obj.Type().(*types2.Signature)
 		if sig.Recv() != nil {
-			return sig.RParams()
+			return sig.RecvTypeParams()
 		}
 		return sig.TypeParams()
 	case *types2.TypeName:

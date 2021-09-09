@@ -309,7 +309,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				meth2 = newsym.Def.(*ir.Name)
 			} else {
 				meth2 = ir.NewNameAt(meth.Pos(), newsym)
-				rparams := types2.AsSignature(m.Type()).RParams()
+				rparams := types2.AsSignature(m.Type()).RecvTypeParams()
 				tparams := make([]*types.Type, rparams.Len())
 				for i := range tparams {
 					tparams[i] = g.typ1(rparams.At(i))
