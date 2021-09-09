@@ -73,6 +73,7 @@ func abs(x, y float64) {
 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FABS\t"
 	// ppc64le:"FABS\t"
+	// riscv64:"FABSD\t"
 	// wasm:"F64Abs"
 	// arm/6:"ABSD\t"
 	sink64[0] = math.Abs(x)
@@ -96,6 +97,7 @@ func copysign(a, b, c float64) {
 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	// wasm:"F64Copysign"
 	sink64[0] = math.Copysign(a, b)
 
@@ -103,6 +105,7 @@ func copysign(a, b, c float64) {
 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	// arm64:"ORR", -"AND"
 	sink64[1] = math.Copysign(c, -1)
 
@@ -115,6 +118,7 @@ func copysign(a, b, c float64) {
 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
 	// ppc64:"FCPSGN"
 	// ppc64le:"FCPSGN"
+	// riscv64:"FSGNJD"
 	sink64[3] = math.Copysign(-1, c)
 }
 

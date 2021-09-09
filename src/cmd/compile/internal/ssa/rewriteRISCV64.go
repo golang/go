@@ -8,6 +8,9 @@ import "cmd/compile/internal/types"
 
 func rewriteValueRISCV64(v *Value) bool {
 	switch v.Op {
+	case OpAbs:
+		v.Op = OpRISCV64FABSD
+		return true
 	case OpAdd16:
 		v.Op = OpRISCV64ADD
 		return true
@@ -133,6 +136,9 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpConstNil(v)
 	case OpConvert:
 		v.Op = OpRISCV64MOVconvert
+		return true
+	case OpCopysign:
+		v.Op = OpRISCV64FSGNJD
 		return true
 	case OpCvt32Fto32:
 		v.Op = OpRISCV64FCVTWS
