@@ -342,7 +342,6 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, p
 			var spec ast.Spec
 			for _, s := range node.Specs {
 				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				// TODO(rstambler): Investigate this further and adjust if needed.
 				if InRange(tok2, s.Pos()) && InRange(tok2, s.End()) && tok2.Offset(s.Pos()) <= offset && offset <= tok2.Offset(s.End()) {
 					spec = s
 					break
