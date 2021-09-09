@@ -1908,8 +1908,9 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 		defer p.trace("paramList")()
 	}
 
-	var named int // number of parameters that have an explicit name and type/bound
-	p.list(_Comma, close, func() bool {
+	var named int // number of parameters that have an explicit name and type
+	var typed int // number of parameters that have an explicit type
+	end := p.list(_Comma, close, func() bool {
 		par := p.paramDeclOrNil(name)
 		name = nil // 1st name was consumed if present
 		if par != nil {
@@ -1918,6 +1919,9 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 			}
 			if par.Name != nil && par.Type != nil {
 				named++
+			}
+			if par.Type != nil {
+				typed++
 			}
 			list = append(list, par)
 		}
@@ -1939,10 +1943,11 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 		}
 	} else if named != len(list) {
 		// some named => all must have names and types
-		var pos Pos // left-most error position (or unknown)
-		var typ Expr
+		var pos Pos  // left-most error position (or unknown)
+		var typ Expr // current type (from right to left)
 		for i := len(list) - 1; i >= 0; i-- {
-			if par := list[i]; par.Type != nil {
+			par := list[i]
+			if par.Type != nil {
 				typ = par.Type
 				if par.Name == nil {
 					pos = typ.Pos()
@@ -1961,7 +1966,12 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 		if pos.IsKnown() {
 			var msg string
 			if requireNames {
-				msg = "type parameters must be named"
+				if named == typed {
+					pos = end // position error at closing ]
+					msg = "missing type constraint"
+				} else {
+					msg = "type parameters must be named"
+				}
 			} else {
 				msg = "mixed named and unnamed parameters"
 			}
