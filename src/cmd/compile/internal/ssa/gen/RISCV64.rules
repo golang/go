@@ -96,6 +96,10 @@
 (Sqrt ...) => (FSQRTD ...)
 (Sqrt32 ...) => (FSQRTS ...)
 
+(Copysign ...) => (FSGNJD ...)
+
+(Abs ...) => (FABSD ...)
+
 (FMA ...) => (FMADDD ...)
 
 // Sign and zero extension.

@@ -1998,6 +1998,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.as = ASLTU
 		ins.rs1 = REG_ZERO
 
+	case AFABSS:
+		// FABSS rs, rd -> FSGNJXS rs, rs, rd
+		ins.as = AFSGNJXS
+		ins.rs1 = uint32(p.From.Reg)
+
+	case AFABSD:
+		// FABSD rs, rd -> FSGNJXD rs, rs, rd
+		ins.as = AFSGNJXD
+		ins.rs1 = uint32(p.From.Reg)
+
 	case AFNEGS:
 		// FNEGS rs, rd -> FSGNJNS rs, rs, rd
 		ins.as = AFSGNJNS
