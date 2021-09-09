@@ -34,6 +34,13 @@ func main() {
 	)
 }
 
+type arr [2]int
+
+func f() {
+	s := []int{1, 2, 3, 4}
+	_ = *(*arr)(s)
+}
+
 func wantPanic(fn func(), s string) {
 	defer func() {
 		err := recover()

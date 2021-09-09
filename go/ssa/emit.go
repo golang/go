@@ -231,7 +231,7 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	// Conversion from slice to array pointer?
 	if slice, ok := ut_src.(*types.Slice); ok {
 		if ptr, ok := ut_dst.(*types.Pointer); ok {
-			if arr, ok := ptr.Elem().(*types.Array); ok && types.Identical(slice.Elem(), arr.Elem()) {
+			if arr, ok := ptr.Elem().Underlying().(*types.Array); ok && types.Identical(slice.Elem(), arr.Elem()) {
 				c := &SliceToArrayPointer{X: val}
 				c.setType(ut_dst)
 				return f.emit(c)
