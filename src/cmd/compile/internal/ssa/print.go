@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"bytes"
+	"cmd/internal/src"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -83,13 +84,26 @@ func (p stringFuncPrinter) endBlock(b *Block, reachable bool) {
 	fmt.Fprintln(p.w, "    "+b.LongString())
 }
 
+func StmtString(p src.XPos) string {
+	linenumber := "(?) "
+	if p.IsKnown() {
+		pfx := ""
+		if p.IsStmt() == src.PosIsStmt {
+			pfx = "+"
+		}
+		if p.IsStmt() == src.PosNotStmt {
+			pfx = "-"
+		}
+		linenumber = fmt.Sprintf("(%s%d) ", pfx, p.Line())
+	}
+	return linenumber
+}
+
 func (p stringFuncPrinter) value(v *Value, live bool) {
 	if !p.printDead && !live {
 		return
 	}
-	fmt.Fprint(p.w, "    ")
-	//fmt.Fprint(p.w, v.Block.Func.fe.Pos(v.Pos))
-	//fmt.Fprint(p.w, ": ")
+	fmt.Fprintf(p.w, "    %s", StmtString(v.Pos))
 	fmt.Fprint(p.w, v.LongString())
 	if !live {
 		fmt.Fprint(p.w, " DEAD")
