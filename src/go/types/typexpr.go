@@ -412,6 +412,14 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e ast.Expr) int64 {
+	// If e is an undeclared identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing constraint.
+	// Provide a better error message than just "undeclared name: X".
+	if name, _ := e.(*ast.Ident); name != nil && check.lookup(name.Name) == nil {
+		check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
+		return -1
+	}
+
 	var x operand
 	check.expr(&x, e)
 	if x.mode != constant_ {
@@ -420,6 +428,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		}
 		return -1
 	}
+
 	if isUntyped(x.typ) || isInteger(x.typ) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
 			if representableConst(val, check, Typ[Int], nil) {
@@ -431,6 +440,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 			}
 		}
 	}
+
 	check.errorf(&x, _InvalidArrayLen, "array length %s must be integer", &x)
 	return -1
 }
