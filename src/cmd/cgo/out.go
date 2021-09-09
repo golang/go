@@ -1458,10 +1458,10 @@ const gccProlog = `
   (have a negative array count) and an inscrutable error will come
   out of the compiler and hopefully mention "name".
 */
-#define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2+1];
+#define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2UL+1UL];
 
 /* Check at compile time that the sizes we use match our expectations. */
-#define __cgo_size_assert(t, n) __cgo_compile_assert_eq(sizeof(t), n, _cgo_sizeof_##t##_is_not_##n)
+#define __cgo_size_assert(t, n) __cgo_compile_assert_eq(sizeof(t), (size_t)n, _cgo_sizeof_##t##_is_not_##n)
 
 __cgo_size_assert(char, 1)
 __cgo_size_assert(short, 2)
