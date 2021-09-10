@@ -28,7 +28,7 @@ func initFuzzFlags() {
 var (
 	matchFuzz        *string
 	fuzzDuration     durationOrCountFlag
-	minimizeDuration = durationOrCountFlag{d: 60 * time.Second}
+	minimizeDuration = durationOrCountFlag{d: 60 * time.Second, allowZero: true}
 	fuzzCacheDir     *string
 	isFuzzWorker     *bool
 
