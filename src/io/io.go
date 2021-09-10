@@ -113,11 +113,12 @@ type Closer interface {
 // SeekCurrent means relative to the current offset, and
 // SeekEnd means relative to the end.
 // Seek returns the new offset relative to the start of the
-// file and an error, if any.
+// file or an error, if any.
 //
 // Seeking to an offset before the start of the file is an error.
-// Seeking to any positive offset is legal, but the behavior of subsequent
-// I/O operations on the underlying object is implementation-dependent.
+// Seeking to any positive offset may be allowed, but if the new offset exceeds
+// the size of the underlying object the behavior of subsequent I/O operations
+// is implementation-dependent.
 type Seeker interface {
 	Seek(offset int64, whence int) (int64, error)
 }
