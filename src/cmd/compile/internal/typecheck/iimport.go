@@ -316,16 +316,12 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		return n
 
 	case 'T', 'U':
-		var rparams []*types.Type
-		if tag == 'U' {
-			rparams = r.typeList()
-		}
-
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		n := importtype(pos, sym)
 		t := n.Type()
 		if tag == 'U' {
+			rparams := r.typeList()
 			t.SetRParams(rparams)
 		}
 
