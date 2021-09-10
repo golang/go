@@ -1312,6 +1312,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			newfields[i].Embedded = f.Embedded
+			newfields[i].Note = f.Note
 			if f.IsDDD() {
 				newfields[i].SetIsDDD(true)
 			}
