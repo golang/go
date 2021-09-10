@@ -1,0 +1,153 @@
+[short] skip
+[!cgo] skip
+
+# Set up fresh GOCACHE
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# 1. unset GOROOT_FINAL, Build a simple binary with cgo by origin go.
+# The DW_AT_comp_dir of runtime/cgo should have a prefix with origin goroot.
+env GOROOT_FINAL=
+# If using "go run", it is no debuginfo in binary. So use "go build".
+# And we can check the stderr to judge if the cache of "runtime/cgo"
+# was used or not.
+go build -o binary.exe
+exec ./binary.exe $TESTGO_GOROOT
+stdout 'cgo DW_AT_comp_dir is right in binary'
+
+
+# 2. GOROOT_FINAL will be changed, the runtime/cgo will be rebuild.
+env GOROOT_FINAL=$WORK/gorootfinal
+go build -x -o binary.exe
+stderr '(clang|gcc)( |\.exe).*gcc_.*\.c'
+exec ./binary.exe $GOROOT_FINAL
+stdout 'cgo DW_AT_comp_dir is right in binary'
+
+
+[!symlink] skip
+
+# Symlink the compiler to another path
+env GOROOT=$WORK/goroot
+symlink $GOROOT -> $TESTGO_GOROOT
+
+# 3. GOROOT_FINAL is same with 2, build with the other go
+# the runtime/cgo will not be rebuild.
+go build -x -o binary.exe
+! stderr '(clang|gcc)( |\.exe).*gcc_.*\.c'
+exec ./binary.exe $GOROOT_FINAL
+stdout 'cgo DW_AT_comp_dir is right in binary'
+
+
+# 4. unset GOROOT_FINAL, build with the other go
+# the runtime/cgo will be rebuild.
+env GOROOT_FINAL=
+go build -x -o binary.exe
+stderr '(clang|gcc)( |\.exe).*gcc_.*\.c'
+exec ./binary.exe $GOROOT
+stdout 'cgo DW_AT_comp_dir is right in binary'
+
+-- go.mod --
+module main
+
+go 1.18
+-- main.go --
+package main
+
+import "C"
+import (
+	"debug/dwarf"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+var _ C.int
+
+func main() {
+	dwarfData, err := readDWARF(os.Args[0])
+	if err != nil {
+		log.Fatal(err)
+	}
+	goroot := filepath.Join(os.Args[1], "src")
+	dwarfReader := dwarfData.Reader()
+	cgopackage := filepath.Join("runtime", "cgo")
+	var hascgo bool
+	for {
+		e, err := dwarfReader.Next()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+		field := e.AttrField(dwarf.AttrCompDir)
+		if field == nil {
+			continue
+		}
+		compdir := field.Val.(string)
+		if strings.HasSuffix(compdir, cgopackage) {
+			hascgo = true
+			if !strings.HasPrefix(compdir, goroot) {
+				fmt.Printf("cgo DW_AT_comp_dir %s contains incorrect path in binary.\n", compdir)
+				return
+			}
+		}
+	}
+	if hascgo {
+		fmt.Println("cgo DW_AT_comp_dir is right in binary")
+	} else {
+		fmt.Println("binary does not contain cgo")
+	}
+}
+-- read_darwin.go --
+package main
+
+import (
+	"debug/dwarf"
+	"debug/macho"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	machoFile, err := macho.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer machoFile.Close()
+	return machoFile.DWARF()
+}
+-- read_elf.go --
+// +build android dragonfly freebsd illumos linux netbsd openbsd solaris
+
+package main
+
+import (
+	"debug/dwarf"
+	"debug/elf"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	elfFile, err := elf.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer elfFile.Close()
+	return elfFile.DWARF()
+}
+-- read_windows.go --
+package main
+
+import (
+	"debug/dwarf"
+	"debug/pe"
+)
+
+func readDWARF(exePath string) (*dwarf.Data, error) {
+	peFile, err := pe.Open(exePath)
+	if err != nil {
+		return nil, err
+	}
+	defer peFile.Close()
+	return peFile.DWARF()
+}
