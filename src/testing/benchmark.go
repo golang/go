@@ -36,8 +36,9 @@ var (
 )
 
 type durationOrCountFlag struct {
-	d time.Duration
-	n int
+	d         time.Duration
+	n         int
+	allowZero bool
 }
 
 func (f *durationOrCountFlag) String() string {
@@ -50,14 +51,14 @@ func (f *durationOrCountFlag) String() string {
 func (f *durationOrCountFlag) Set(s string) error {
 	if strings.HasSuffix(s, "x") {
 		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
-		if err != nil || n <= 0 {
+		if err != nil || n < 0 || (!f.allowZero && n == 0) {
 			return fmt.Errorf("invalid count")
 		}
 		*f = durationOrCountFlag{n: int(n)}
 		return nil
 	}
 	d, err := time.ParseDuration(s)
-	if err != nil || d <= 0 {
+	if err != nil || d < 0 || (!f.allowZero && d == 0) {
 		return fmt.Errorf("invalid duration")
 	}
 	*f = durationOrCountFlag{d: d}

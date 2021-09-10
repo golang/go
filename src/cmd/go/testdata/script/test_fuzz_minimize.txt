@@ -6,6 +6,32 @@
 # We clean the fuzz cache during this test. Don't clean the user's cache.
 env GOCACHE=$WORK/gocache
 
+# Test that fuzzminimizetime can be zero seconds
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=0s minimizer_test.go
+! stdout '^ok'
+stdout 'contains a non-zero byte'
+stdout FAIL
+
+# Test that fuzzminimizetime can be zero times
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=0x minimizer_test.go
+! stdout '^ok'
+stdout 'contains a non-zero byte'
+stdout FAIL
+
+# Test that fuzzminimizetime cannot be negative seconds
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1ms minimizer_test.go
+! stdout '^ok'
+! stdout 'contains a non-zero byte'
+stdout 'invalid duration'
+stdout FAIL
+
+# Test that fuzzminimizetime cannot be negative times
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1x minimizer_test.go
+! stdout '^ok'
+! stdout 'contains a non-zero byte'
+stdout 'invalid count'
+stdout FAIL
+
 # Test that minimization is working for recoverable errors.
 ! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x minimizer_test.go
 ! stdout '^ok'
