@@ -163,6 +163,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Trim the newline at the end of the file
+	got = bytes.TrimSpace(got)
+
 	// Make sure that there were exactly 100 bytes written to the corpus entry
 	prefix := []byte("[]byte(")
 	i := bytes.Index(got, prefix)

@@ -66,16 +66,21 @@ byte('☃')`,
 		},
 		{
 			in: `go test fuzz v1
+string("has final newline")
+`,
+			ok: true, // has final newline
+		},
+		{
+			in: `go test fuzz v1
 string("extra")
 []byte("spacing")  
     `,
-			ok: true,
+			ok: true, // extra spaces in the final newline
 		},
 		{
 			in: `go test fuzz v1
 float64(0)
-float32(0)
-`,
+float32(0)`,
 			ok: true, // will be an integer literal since there is no decimal
 		},
 		{
@@ -114,9 +119,12 @@ float32(2.5)`,
 			if err != nil {
 				t.Fatalf("marshal unexpected error: %v", err)
 			}
-			want := strings.TrimSpace(test.in)
-			if want != string(newB) {
-				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", want, newB)
+			if newB[len(newB)-1] != '\n' {
+				t.Error("didn't write final newline to corpus file")
+			}
+			before, after := strings.TrimSpace(test.in), strings.TrimSpace(string(newB))
+			if before != after {
+				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", before, after)
 			}
 		})
 	}
