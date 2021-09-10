@@ -14,7 +14,7 @@ go test -c
 exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
 
 # Timeout should not cause inputs to be written as crashers.
-! exists testdata/corpus
+! exists testdata/fuzz
 
 # When we use fuzztime with an "x" suffix, it runs a specific number of times.
 # This fuzz function creates a file with a unique name ($pid.$count) on each run.

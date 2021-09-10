@@ -14,89 +14,89 @@ go test
 
 # Running the fuzzer should find a crashing input quickly.
 ! go test -fuzz=FuzzWithBug -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithBug[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzWithBug
 
 # Now, the failing bytes should have been added to the seed corpus for
 # the target, and should fail when run without fuzzing.
 ! go test
-stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
 stdout 'this input caused a crash!'
 
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
 ! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithFail[/\\]'
 go run check_testdata.go FuzzWithFail
 
 ! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithLogFail[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithLogFail[/\\]'
 stdout 'logged something'
 go run check_testdata.go FuzzWithLogFail
 
 ! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithErrorf[/\\]'
 stdout 'errorf was called here'
 go run check_testdata.go FuzzWithErrorf
 
 ! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithFatalf[/\\]'
 stdout 'fatalf was called here'
 go run check_testdata.go FuzzWithFatalf
 
 ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithBadExit[/\\]'
 stdout 'unexpectedly'
 go run check_testdata.go FuzzWithBadExit
 
 # Running the fuzzer should find a crashing input quickly for fuzzing two types.
 ! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithTwoTypes[/\\]'
 stdout 'these inputs caused a crash!'
 go run check_testdata.go FuzzWithTwoTypes
 
 # Running the fuzzer should find a crashing input quickly for an integer.
 ! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzInt[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzInt
 
 ! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzUint[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzUint[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzUint
 
 # Running the fuzzer should find a crashing input quickly for a bool.
 ! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzBool[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzBool[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzBool
 
 # Running the fuzzer should find a crashing input quickly for a float.
 ! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzFloat[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzFloat[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzFloat
 
 # Running the fuzzer should find a crashing input quickly for a byte.
 ! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzByte[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzByte[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzByte
 
 # Running the fuzzer should find a crashing input quickly for a rune.
 ! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzRune[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzRune[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzRune
 
 # Running the fuzzer should find a crashing input quickly for a string.
 ! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x -fuzzminimizetime=1000x
-stdout 'testdata[/\\]corpus[/\\]FuzzString[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzString[/\\]'
 stdout 'this input caused a crash!'
 go run check_testdata.go FuzzString
 
@@ -263,7 +263,7 @@ import (
 
 func main() {
 	target := os.Args[1]
-	dir := filepath.Join("testdata/corpus", target)
+	dir := filepath.Join("testdata/fuzz", target)
 
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {

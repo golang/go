@@ -13,7 +13,7 @@ go test -run=FuzzSeed
 # TODO(jayconrod): check for the string "after T.Parallel". It's not printed
 # by 'go test', so we can't distinguish that crasher from some other panic.
 ! go test -run=FuzzMutate -fuzz=FuzzMutate
-exists testdata/corpus/FuzzMutate
+exists testdata/fuzz/FuzzMutate
 
 -- go.mod --
 module fuzz_parallel

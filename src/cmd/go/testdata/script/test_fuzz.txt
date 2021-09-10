@@ -445,20 +445,20 @@ func FuzzWrongType(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
--- corpustesting/testdata/corpus/FuzzFail/1 --
+-- corpustesting/testdata/fuzz/FuzzFail/1 --
 go test fuzz v1
 []byte("12345")
--- corpustesting/testdata/corpus/FuzzPass/1 --
+-- corpustesting/testdata/fuzz/FuzzPass/1 --
 go test fuzz v1
 []byte("00000")
--- corpustesting/testdata/corpus/FuzzPassString/1 --
+-- corpustesting/testdata/fuzz/FuzzPassString/1 --
 go test fuzz v1
 string("hello")
--- corpustesting/testdata/corpus/FuzzPanic/1 --
+-- corpustesting/testdata/fuzz/FuzzPanic/1 --
 malformed
--- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
+-- corpustesting/testdata/fuzz/FuzzInNestedDir/anotherdir/1 --
 go test fuzz v1
 []byte("12345")
--- corpustesting/testdata/corpus/FuzzWrongType/1 --
+-- corpustesting/testdata/fuzz/FuzzWrongType/1 --
 go test fuzz v1
 int("00000")
