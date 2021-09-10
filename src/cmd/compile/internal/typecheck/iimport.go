@@ -1166,10 +1166,26 @@ func (r *importReader) stmtList() []ir.Node {
 		if n.Op() == ir.OBLOCK {
 			n := n.(*ir.BlockStmt)
 			list = append(list, n.List...)
-		} else {
-			list = append(list, n)
+			continue
 		}
-
+		if len(list) > 0 {
+			// check for an optional label that can only immediately
+			// precede a for/range/select/switch statement.
+			if last := list[len(list)-1]; last.Op() == ir.OLABEL {
+				label := last.(*ir.LabelStmt).Label
+				switch n.Op() {
+				case ir.OFOR:
+					n.(*ir.ForStmt).Label = label
+				case ir.ORANGE:
+					n.(*ir.RangeStmt).Label = label
+				case ir.OSELECT:
+					n.(*ir.SelectStmt).Label = label
+				case ir.OSWITCH:
+					n.(*ir.SwitchStmt).Label = label
+				}
+			}
+		}
+		list = append(list, n)
 	}
 	return list
 }
