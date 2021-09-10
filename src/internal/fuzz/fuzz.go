@@ -40,13 +40,16 @@ type CoordinateFuzzingOpts struct {
 	Limit int64
 
 	// MinimizeTimeout is the amount of wall clock time to spend minimizing
-	// after discovering a crasher. If zero, there will be no time limit.
+	// after discovering a crasher. If zero, there will be no time limit. If
+	// MinimizeTimeout and MinimizeLimit are both zero, then minimization will
+	// be disabled.
 	MinimizeTimeout time.Duration
 
 	// MinimizeLimit is the maximum number of calls to the fuzz function to be
-	// made while minimizing after finding a crash. If zero, there will be
-	// no limit. Calls to the fuzz function made when minimizing also count
-	// toward Limit.
+	// made while minimizing after finding a crash. If zero, there will be no
+	// limit. Calls to the fuzz function made when minimizing also count toward
+	// Limit. If MinimizeTimeout and MinimizeLimit are both zero, then
+	// minimization will be disabled.
 	MinimizeLimit int64
 
 	// parallel is the number of worker processes to run in parallel. If zero,
@@ -552,9 +555,10 @@ type coordinator struct {
 	// generated values that workers reported as interesting.
 	corpus corpus
 
-	// typesAreMinimizable is true if one or more of the types of fuzz function's
-	// parameters can be minimized.
-	typesAreMinimizable bool
+	// minimizationAllowed is true if one or more of the types of fuzz
+	// function's parameters can be minimized, and either the limit or duration
+	// for minimization is non-zero.
+	minimizationAllowed bool
 
 	// inputQueue is a queue of inputs that workers should try fuzzing. This is
 	// initially populated from the seed corpus and cached inputs. More inputs
@@ -604,10 +608,12 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		resultC:   make(chan fuzzResult),
 		corpus:    corpus,
 	}
-	for _, t := range opts.Types {
-		if isMinimizable(t) {
-			c.typesAreMinimizable = true
-			break
+	if opts.MinimizeLimit > 0 || opts.MinimizeTimeout > 0 {
+		for _, t := range opts.Types {
+			if isMinimizable(t) {
+				c.minimizationAllowed = true
+				break
+			}
 		}
 	}
 
@@ -736,7 +742,7 @@ func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byt
 // peekMinimizeInput returns the next input that should be sent to workers for
 // minimization.
 func (c *coordinator) peekMinimizeInput() (fuzzMinimizeInput, bool) {
-	if c.opts.Limit > 0 && c.count+c.countWaiting >= c.opts.Limit {
+	if !c.canMinimize() {
 		// Already making the maximum number of calls to the fuzz function.
 		// Don't send more inputs right now.
 		return fuzzMinimizeInput{}, false
@@ -810,7 +816,7 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
 // canMinimize returns whether the coordinator should attempt to find smaller
 // inputs that reproduce a crash or new coverage.
 func (c *coordinator) canMinimize() bool {
-	return c.typesAreMinimizable &&
+	return c.minimizationAllowed &&
 		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
 }
 
