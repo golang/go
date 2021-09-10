@@ -532,54 +532,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
 		check.objDecl(m, nil)
-		// If m has a parameterized receiver type, infer the type arguments from
-		// the actual receiver provided and then substitute the type parameters in
-		// the signature accordingly.
-		// TODO(gri) factor this code out
-		sig := m.typ.(*Signature)
-		if sig.RecvTypeParams().Len() > 0 {
-			// For inference to work, we must use the receiver type
-			// matching the receiver in the actual method declaration.
-			// If the method is embedded, the matching receiver is the
-			// embedded struct or interface that declared the method.
-			// Traverse the embedding to find that type (issue #44688).
-			recv := x.typ
-			for i := 0; i < len(index)-1; i++ {
-				// The embedded type is either a struct or a pointer to
-				// a struct except for the last one (which we don't need).
-				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
-			}
-
-			// The method may have a pointer receiver, but the actually provided receiver
-			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
-			// only care about inferring receiver type parameters; to make the inference
-			// work, match up pointer-ness of receiver and argument.
-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
-				if ptrRecv {
-					recv = NewPointer(recv)
-				} else {
-					recv = recv.(*Pointer).base
-				}
-			}
-			// Disable reporting of errors during inference below. If we're unable to infer
-			// the receiver type arguments here, the receiver must be be otherwise invalid
-			// and an error has been reported elsewhere.
-			arg := operand{mode: variable, expr: x.expr, typ: recv}
-			targs := check.infer(m, sig.RecvTypeParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
-			if targs == nil {
-				// We may reach here if there were other errors (see issue #40056).
-				goto Error
-			}
-			// Don't modify m. Instead - for now - make a copy of m and use that instead.
-			// (If we modify m, some tests will fail; possibly because the m is in use.)
-			// TODO(gri) investigate and provide a correct explanation here
-			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RecvTypeParams().list(), targs), nil)
-			obj = &copy
-		}
-		// TODO(gri) we also need to do substitution for parameterized interface methods
-		//           (this breaks code in testdata/linalg.go2 at the moment)
-		//           12/20/2019: Is this TODO still correct?
 	}
 
 	if x.mode == typexpr {

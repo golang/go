@@ -70,3 +70,42 @@ func TestInstantiateNonEquality(t *testing.T) {
 		t.Errorf("instance from pkg1 (%s) is identical to instance from pkg2 (%s)", res1, res2)
 	}
 }
+
+func TestMethodInstantiation(t *testing.T) {
+	const prefix = genericPkg + `p
+
+type T[P any] struct{}
+
+var X T[int]
+
+`
+	tests := []struct {
+		decl string
+		want string
+	}{
+		{"func (r T[P]) m() P", "func (T[int]).m() int"},
+		{"func (r T[P]) m(P)", "func (T[int]).m(int)"},
+		{"func (r T[P]) m() func() P", "func (T[int]).m() func() int"},
+		{"func (r T[P]) m() T[P]", "func (T[int]).m() T[int]"},
+		{"func (r T[P]) m(T[P])", "func (T[int]).m(T[int])"},
+		{"func (r T[P]) m(T[P], P, string)", "func (T[int]).m(T[int], int, string)"},
+		{"func (r T[P]) m(T[P], T[string], T[int])", "func (T[int]).m(T[int], T[string], T[int])"},
+	}
+
+	for _, test := range tests {
+		src := prefix + test.decl
+		pkg, err := pkgFor(".", src, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		typ := pkg.Scope().Lookup("X").Type().(*Named)
+		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+		m, _ := obj.(*Func)
+		if m == nil {
+			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+		}
+		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
+			t.Errorf("instantiated %q, want %q", got, test.want)
+		}
+	}
+}
