@@ -2006,6 +2006,9 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	}
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
+	if ityp.HasShape() {
+		base.Fatalf("marking method of shape type used %+v %s", ityp, dot.Sel.Name)
+	}
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
