@@ -28,6 +28,7 @@ import (
 //
 // Constraint type inference is used after each step to expand the set of type arguments.
 //
+// TODO(rfindley): remove the report parameter: is no longer needed.
 func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
 	if debug {
 		defer func() {
