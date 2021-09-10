@@ -132,7 +132,9 @@ func transformConvCall(n *ir.CallExpr) ir.Node {
 // transformCall transforms a normal function/method call. Corresponds to last half
 // (non-conversion, non-builtin part) of typecheck.tcCall. This code should work even
 // in the case of OCALL/OFUNCINST.
-func transformCall(n *ir.CallExpr) {
+// The dict parameter is used for OCALLINTER nodes to ensure that the called method
+// is retained by the linker.
+func transformCall(n *ir.CallExpr, dict *ir.Name) {
 	// n.Type() can be nil for calls with no return value
 	assert(n.Typecheck() == 1)
 	transformArgs(n)
@@ -142,6 +144,17 @@ func transformCall(n *ir.CallExpr) {
 	switch l.Op() {
 	case ir.ODOTINTER:
 		n.SetOp(ir.OCALLINTER)
+		if n.X.(*ir.SelectorExpr).X.Type().HasShape() {
+			if dict == nil {
+				base.Fatalf("calls on shape interfaces need a dictionary reference")
+			}
+			dict.SetAddrtaken(true)
+			// KeepAlive isn't exactly the right thing here, as we only
+			// need to keep the dictionary live in the linker-deadcode
+			// sense, not the at-runtime sense. But the at-runtime sense
+			// is stronger, so it works. See issue 48047.
+			n.KeepAlive = append(n.KeepAlive, dict)
+		}
 
 	case ir.ODOTMETH:
 		l := l.(*ir.SelectorExpr)

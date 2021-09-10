@@ -124,7 +124,7 @@ func (g *irgen) stencil() {
 				// it before installing the instantiation, so we are
 				// checking against non-shape param types in
 				// typecheckaste.
-				transformCall(call)
+				transformCall(call, nil)
 
 				// Replace the OFUNCINST with a direct reference to the
 				// new stenciled function
@@ -162,7 +162,7 @@ func (g *irgen) stencil() {
 
 				// Transform the Call now, which changes OCALL
 				// to OCALLFUNC and does typecheckaste/assignconvfn.
-				transformCall(call)
+				transformCall(call, nil)
 
 				st := g.getInstantiation(gf, targs, true).fun
 				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
@@ -258,7 +258,7 @@ func (g *irgen) stencil() {
 	assert(l == len(g.instInfoMap))
 }
 
-// buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR
+// buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR/OMETHVALUE
 // of generic type. outer is the containing function (or nil if closure is
 // in a global assignment instead of a function).
 func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
@@ -1053,14 +1053,14 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				transformDot(call.X.(*ir.SelectorExpr), true)
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.ODOT, ir.ODOTPTR:
 				// An OXDOT for a generic receiver was resolved to
 				// an access to a field which has a function
 				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.ONAME:
 				name := call.X.Name()
@@ -1077,24 +1077,24 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
 					// structural constraint) which is now resolved.
-					transformCall(call)
+					transformCall(call, subst.info.dictParam)
 				}
 
 			case ir.OCLOSURE:
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.ODEREF, ir.OINDEX, ir.OINDEXMAP, ir.ORECV:
 				// Transform a call that was delayed because of the
 				// use of typeparam inside an expression that required
 				// a pointer dereference, array indexing, map indexing,
 				// or channel receive to compute function value.
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.OCONVNOP:
-				transformCall(call)
+				transformCall(call, subst.info.dictParam)
 
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
@@ -1239,7 +1239,7 @@ func (g *irgen) dictPass(info *instInfo) {
 					m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 					transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
 				}
-				transformCall(m.(*ir.CallExpr))
+				transformCall(m.(*ir.CallExpr), info.dictParam)
 			}
 
 		case ir.OCONVIFACE:
