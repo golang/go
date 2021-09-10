@@ -613,11 +613,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 
 	covSize := len(coverage())
 	if covSize == 0 {
-		// TODO: improve this warning. This condition happens if the binary was
-		// built without fuzzing instrumtation (e.g., with 'go test -c'), so the
-		// warning may not be true.
-		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
-		c.covOnlyInputs = 0
+		fmt.Fprintf(c.opts.Log, "warning: the test binary was not built with coverage instrumentation, so fuzzing will run without coverage guidance and may be inefficient\n")
 	} else {
 		// Set c.coverageData to a clean []byte full of zeros.
 		c.coverageMask = make([]byte, covSize)
