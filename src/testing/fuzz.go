@@ -34,7 +34,7 @@ var (
 
 	// corpusDir is the parent directory of the target's seed corpus within
 	// the package.
-	corpusDir = "testdata/corpus"
+	corpusDir = "testdata/fuzz"
 )
 
 // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an internal error.
@@ -419,7 +419,7 @@ func (f *F) Fuzz(ff interface{}) {
 			fmt.Fprintf(f.w, "%v\n", err)
 			if crashErr, ok := err.(fuzzCrashError); ok {
 				crashName := crashErr.CrashName()
-				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join("testdata/corpus", f.name, crashName))
+				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join(corpusDir, f.name, crashName))
 				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.importPath(), f.name, crashName)
 			}
 		}

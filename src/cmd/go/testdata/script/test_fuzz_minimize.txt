@@ -39,7 +39,7 @@ go clean -fuzzcache
 # crash will still be logged and written to testdata.
 ! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
 ! stdout '^ok'
-stdout 'testdata[/\\]corpus[/\\]FuzzMinimizerRecoverable[/\\]'
+stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerRecoverable[/\\]'
 ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
 stdout FAIL
 
@@ -121,7 +121,7 @@ func main() {
 	}
 
 	// Open the file in testdata (there should only be one)
-	dir := fmt.Sprintf("testdata/corpus/%s", target)
+	dir := fmt.Sprintf("testdata/fuzz/%s", target)
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

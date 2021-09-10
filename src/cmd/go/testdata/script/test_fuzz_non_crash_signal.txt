@@ -15,7 +15,7 @@ stdout 'fuzzing process terminated by unexpected signal; no crash will be record
 # FuzzCrash sends itself a signal that looks like a crash.
 # We should save a crasher.
 ! go test -fuzz=FuzzCrash
-exists testdata/corpus/FuzzCrash
+exists testdata/fuzz/FuzzCrash
 stdout 'fuzzing process terminated unexpectedly'
 
 -- go.mod --
