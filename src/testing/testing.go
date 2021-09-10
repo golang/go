@@ -143,8 +143,11 @@
 // https://golang.org/cmd/go/#hdr-Testing_flags.
 //
 // For a description of fuzzing, see golang.org/s/draft-fuzzing-design.
+// TODO(#48255): write and link to documentation that will be helpful to users
+// who are unfamiliar with fuzzing.
 //
 // A sample fuzz target looks like this:
+//
 //     func FuzzBytesCmp(f *testing.F) {
 //         f.Fuzz(func(t *testing.T, a, b []byte) {
 //             if bytes.HasPrefix(a, b) && !bytes.Contains(a, b) {
@@ -582,8 +585,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
-	// TODO(jayconrod,katiehockman): Consider refactoring the logging logic.
-	// If more helper PCs have been added since we last did the conversion
 	if c.helperNames == nil {
 		c.helperNames = make(map[string]struct{})
 		for pc := range c.helperPCs {
@@ -663,11 +664,8 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
 // isFuzzing returns whether the current context, or any of the parent contexts,
 // are a fuzzing target
 func (c *common) isFuzzing() bool {
-	if c.fuzzing {
-		return true
-	}
-	for parent := c.parent; parent != nil; parent = parent.parent {
-		if parent.fuzzing {
+	for com := c; com != nil; com = com.parent {
+		if com.fuzzing {
 			return true
 		}
 	}
@@ -1228,9 +1226,24 @@ func tRunner(t *T, fn func(t *T)) {
 			t.Errorf("race detected during execution of test")
 		}
 
-		// If the test panicked, print any test output before dying.
+		// Check if the test panicked or Goexited inappropriately.
+		//
+		// If this happens in a normal test, print output but continue panicking.
+		// tRunner is called in its own goroutine, so this terminates the process.
+		//
+		// If this happens while fuzzing, recover from the panic and treat it like a
+		// normal failure. It's important that the process keeps running in order to
+		// find short inputs that cause panics.
 		err := recover()
 		signal := true
+
+		if err != nil && t.isFuzzing() {
+			t.Errorf("panic: %s\n%s\n", err, string(debug.Stack()))
+			t.mu.Lock()
+			t.finished = true
+			t.mu.Unlock()
+			err = nil
+		}
 
 		t.mu.RLock()
 		finished := t.finished
@@ -1249,15 +1262,15 @@ func tRunner(t *T, fn func(t *T)) {
 				}
 			}
 		}
+
 		// Use a deferred call to ensure that we report that the test is
 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
 		didPanic := false
 		defer func() {
-			isFuzzing := t.common.isFuzzing()
-			if didPanic && !isFuzzing {
+			if didPanic {
 				return
 			}
-			if err != nil && !isFuzzing {
+			if err != nil {
 				panic(err)
 			}
 			// Only report that the test is complete if it doesn't panic,
@@ -1283,12 +1296,6 @@ func tRunner(t *T, fn func(t *T)) {
 				}
 			}
 			didPanic = true
-			if t.common.fuzzing {
-				for root := &t.common; root.parent != nil; root = root.parent {
-					fmt.Fprintf(root.parent.w, "panic: %s\n%s\n", err, string(debug.Stack()))
-				}
-				return
-			}
 			panic(err)
 		}
 		if err != nil {
@@ -1325,7 +1332,7 @@ func tRunner(t *T, fn func(t *T)) {
 		t.report() // Report after all subtests have finished.
 
 		// Do not lock t.done to allow race detector to detect race in case
-		// the user does not appropriately synchronizes a goroutine.
+		// the user does not appropriately synchronize a goroutine.
 		t.done = true
 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
@@ -1571,7 +1578,7 @@ func (m *M) Run() (code int) {
 		return
 	}
 	if *matchFuzz != "" && *fuzzCacheDir == "" {
-		fmt.Fprintln(os.Stderr, "testing: internal error: -test.fuzzcachedir must be set if -test.fuzz is set")
+		fmt.Fprintln(os.Stderr, "testing: -test.fuzzcachedir must be set if -test.fuzz is set")
 		flag.Usage()
 		m.exitCode = 2
 		return
@@ -1606,9 +1613,11 @@ func (m *M) Run() (code int) {
 
 	m.before()
 	defer m.after()
+
+	// Run tests, examples, and benchmarks unless this is a fuzz worker process.
+	// Workers start after this is done by their parent process, and they should
+	// not repeat this work.
 	if !*isFuzzWorker {
-		// The fuzzing coordinator will already run all tests, examples,
-		// and benchmarks. Don't make the workers do redundant work.
 		deadline := m.startAlarm()
 		haveExamples = len(m.examples) > 0
 		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
