@@ -238,9 +238,6 @@ func TestImportTypeparamTests(t *testing.T) {
 func sanitizeObjectString(s string) string {
 	var runes []rune
 	for _, r := range s {
-		if r == '#' {
-			continue // trim instance markers
-		}
 		if '₀' <= r && r < '₀'+10 {
 			continue // trim type parameter subscripts
 		}
