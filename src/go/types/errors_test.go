@@ -15,7 +15,6 @@ func TestStripAnnotations(t *testing.T) {
 		{"foo", "foo"},
 		{"foo₀", "foo"},
 		{"foo(T₀)", "foo(T)"},
-		{"#foo(T₀)", "foo(T)"},
 	} {
 		got := stripAnnotations(test.in)
 		if got != test.want {

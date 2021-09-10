@@ -8,9 +8,6 @@ package types
 
 import "go/token"
 
-// TODO(rFindley) decide error codes for the errors in this file, and check
-//                if error spans can be improved
-
 type substMap map[*TypeParam]Type
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
