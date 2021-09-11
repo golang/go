@@ -425,7 +425,6 @@ const (
 	internalToUnix int64 = -unixToInternal
 
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-	internalToWall int64 = -wallToInternal
 )
 
 // IsZero reports whether t represents the zero time instant,
