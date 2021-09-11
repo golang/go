@@ -178,6 +178,7 @@ func gcenable() {
 	go bgscavenge(c)
 	<-c
 	<-c
+	close(c)
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
