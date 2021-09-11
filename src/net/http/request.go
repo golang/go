@@ -341,6 +341,15 @@ func (r *Request) Context() context.Context {
 	return context.Background()
 }
 
+// SetContext sets the request's context value without clone r.
+// The provided ctx must be non-nil.
+func (r *Request) SetContext(ctx context.Context) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	r.ctx = ctx
+}
+
 // WithContext returns a shallow copy of r with its context changed
 // to ctx. The provided ctx must be non-nil.
 //
