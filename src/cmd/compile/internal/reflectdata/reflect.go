@@ -7,7 +7,6 @@ package reflectdata
 import (
 	"encoding/binary"
 	"fmt"
-	"internal/buildcfg"
 	"os"
 	"sort"
 	"strings"
@@ -1869,15 +1868,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// Disable tailcall for RegabiArgs for now. The IR does not connect the
 	// arguments with the OTAILCALL node, and the arguments are not marshaled
 	// correctly.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs && !generic {
-		// generate tail call: adjust pointer receiver and jump to embedded method.
-		left := dot.X // skip final .M
-		if !left.Type().IsPtr() {
-			left = typecheck.NodAddr(left)
-		}
-		as := ir.NewAssignStmt(base.Pos, nthis, typecheck.ConvNop(left, rcvr))
-		fn.Body.Append(as)
-		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+		call.Args = ir.ParamNames(tfn.Type())
+		call.IsDDD = tfn.Type().IsVariadic()
+		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		var call *ir.CallExpr

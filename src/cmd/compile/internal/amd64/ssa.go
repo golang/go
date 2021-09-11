@@ -1008,7 +1008,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		r := v.Reg()
 		getgFromTLS(s, r)
-	case ssa.OpAMD64CALLstatic:
+	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
 			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
@@ -1016,6 +1016,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
+		}
+		if v.Op == ssa.OpAMD64CALLtail {
+			s.TailCall(v)
+			break
 		}
 		s.Call(v)
 		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
@@ -1314,22 +1318,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
-			// zeroing X15 when entering ABIInternal from ABI0
-			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
-				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
-			}
-			// set G register from TLS
-			getgFromTLS(s, x86.REG_R14)
-		}
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockAMD64EQF:
 		s.CombJump(b, next, &eqfJumps)

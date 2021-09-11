@@ -180,7 +180,8 @@ func (e *escape) stmt(n ir.Node) {
 		e.goDeferStmt(n)
 
 	case ir.OTAILCALL:
-		// TODO(mdempsky): Treat like a normal call? esc.go used to just ignore it.
+		n := n.(*ir.TailCallStmt)
+		e.call(nil, n.Call)
 	}
 }
 

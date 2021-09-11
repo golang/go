@@ -1042,6 +1042,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpARM64SUB
 		return true
+	case OpTailCall:
+		v.Op = OpARM64CALLtail
+		return true
 	case OpTrunc:
 		v.Op = OpARM64FRINTZD
 		return true

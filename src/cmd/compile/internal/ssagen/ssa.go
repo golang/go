@@ -1696,9 +1696,11 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
-		b := s.exit()
-		b.Kind = ssa.BlockRetJmp // override BlockRet
-		b.Aux = callTargetLSym(n.Target)
+		s.callResult(n.Call, callTail)
+		call := s.mem()
+		b := s.endBlock()
+		b.Kind = ssa.BlockRetJmp // could use BlockExit. BlockRetJmp is mostly for clarity.
+		b.SetControl(call)
 
 	case ir.OCONTINUE, ir.OBREAK:
 		n := n.(*ir.BranchStmt)
@@ -3645,6 +3647,7 @@ const (
 	callDefer
 	callDeferStack
 	callGo
+	callTail
 )
 
 type sfRtCallDef struct {
@@ -4911,13 +4914,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		}
 	}
 
-	if k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+	if k != callNormal && k != callTail && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 
 	switch n.Op() {
 	case ir.OCALLFUNC:
-		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+		if (k == callNormal || k == callTail) && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
 			fn := fn.(*ir.Name)
 			callee = fn
 			if buildcfg.Experiment.RegabiArgs {
@@ -4971,7 +4974,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	stksize := params.ArgWidth() // includes receiver, args, and results
 
 	res := n.X.Type().Results()
-	if k == callNormal {
+	if k == callNormal || k == callTail {
 		for _, p := range params.OutParams() {
 			ACResults = append(ACResults, p.Type)
 		}
@@ -5018,7 +5021,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		// These are written in SP-offset order.
 		argStart := base.Ctxt.FixedFrameSize()
 		// Defer/go args.
-		if k != callNormal {
+		if k != callNormal && k != callTail {
 			// Write closure (arg to newproc/deferproc).
 			ACArgs = append(ACArgs, types.Types[types.TUINTPTR]) // not argExtra
 			callArgs = append(callArgs, closure)
@@ -5068,6 +5071,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		case callee != nil:
 			aux := ssa.StaticAuxCall(callTargetLSym(callee), params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+			if k == callTail {
+				call.Op = ssa.OpTailLECall
+				stksize = 0 // Tail call does not use stack. We reuse caller's frame.
+			}
 		default:
 			s.Fatalf("bad call type %v %v", n.Op(), n)
 		}
@@ -7396,6 +7403,14 @@ func (s *State) Call(v *ssa.Value) *obj.Prog {
 		}
 		p.To.Reg = v.Args[0].Reg()
 	}
+	return p
+}
+
+// TailCall returns a new tail call instruction for the SSA value v.
+// It is like Call, but for a tail call.
+func (s *State) TailCall(v *ssa.Value) *obj.Prog {
+	p := s.Call(v)
+	p.As = obj.ARET
 	return p
 }
 

@@ -382,18 +382,16 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	}
 
 	var tail ir.Node
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+	call.Args = ir.ParamNames(tfn.Type())
+	call.IsDDD = tfn.Type().IsVariadic()
+	tail = call
 	if tailcall {
-		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
-	} else {
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.Args = ir.ParamNames(tfn.Type())
-		call.IsDDD = tfn.Type().IsVariadic()
-		tail = call
-		if tfn.Type().NumResults() > 0 {
-			n := ir.NewReturnStmt(base.Pos, nil)
-			n.Results = []ir.Node{call}
-			tail = n
-		}
+		tail = ir.NewTailCallStmt(base.Pos, call)
+	} else if tfn.Type().NumResults() > 0 {
+		n := ir.NewReturnStmt(base.Pos, nil)
+		n.Results = []ir.Node{call}
+		tail = n
 	}
 	fn.Body.Append(tail)
 
