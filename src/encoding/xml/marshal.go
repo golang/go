@@ -494,6 +494,10 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	}
 	if start.Name.Local == "" {
 		name := typ.Name()
+		if i := strings.IndexByte(name, '['); i >= 0 {
+			// Truncate generic instantiation name. See issue 48318.
+			name = name[:i]
+		}
 		if name == "" {
 			return &UnsupportedTypeError{typ}
 		}
