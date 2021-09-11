@@ -386,7 +386,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OTAILCALL:
 		n := n.(*TailCallStmt)
-		fmt.Fprintf(s, "tailcall %v", n.Target)
+		fmt.Fprintf(s, "tailcall %v", n.Call)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)

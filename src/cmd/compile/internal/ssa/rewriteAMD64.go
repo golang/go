@@ -1103,6 +1103,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpAMD64SUBQ
 		return true
+	case OpTailCall:
+		v.Op = OpAMD64CALLtail
+		return true
 	case OpTrunc:
 		return rewriteValueAMD64_OpTrunc(v)
 	case OpTrunc16to8:

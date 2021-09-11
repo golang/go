@@ -639,6 +639,9 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpRISCV64SUB
 		return true
+	case OpTailCall:
+		v.Op = OpRISCV64CALLtail
+		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
 		return true

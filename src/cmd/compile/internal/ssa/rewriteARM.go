@@ -855,6 +855,9 @@ func rewriteValueARM(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpARMSUB
 		return true
+	case OpTailCall:
+		v.Op = OpARMCALLtail
+		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
 		return true

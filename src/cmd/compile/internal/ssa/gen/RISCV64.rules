@@ -546,6 +546,7 @@
 (StaticCall  ...) => (CALLstatic  ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
+(TailCall ...) => (CALLtail ...)
 
 // Atomic Intrinsics
 (AtomicLoad8   ...) => (LoweredAtomicLoad8  ...)

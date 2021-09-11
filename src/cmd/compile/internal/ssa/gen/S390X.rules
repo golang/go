@@ -434,6 +434,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Miscellaneous
 (IsNonNil p) => (LOCGR {s390x.NotEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPconst p [0]))

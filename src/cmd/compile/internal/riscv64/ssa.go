@@ -413,6 +413,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64CALLstatic, ssa.OpRISCV64CALLclosure, ssa.OpRISCV64CALLinter:
 		s.Call(v)
+	case ssa.OpRISCV64CALLtail:
+		s.TailCall(v)
 	case ssa.OpRISCV64LoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -725,14 +727,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 	case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BNEZ,
 		ssa.BlockRISCV64BLT, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BGEZ,
 		ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
