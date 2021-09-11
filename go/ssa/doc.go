@@ -59,7 +59,6 @@
 //   *ChangeType           ✔               ✔
 //   *Const                ✔
 //   *Convert              ✔               ✔
-//   *SliceToArrayPointer  ✔               ✔
 //   *DebugRef                             ✔
 //   *Defer                                ✔
 //   *Extract              ✔               ✔
@@ -91,6 +90,7 @@
 //   *Select               ✔               ✔
 //   *Send                                 ✔
 //   *Slice                ✔               ✔
+//   *SliceToArrayPointer  ✔               ✔
 //   *Store                                ✔
 //   *Type                                                 ✔ (type)
 //   *TypeAssert           ✔               ✔
