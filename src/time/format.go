@@ -101,6 +101,7 @@ const (
 	RFC3339     = "2006-01-02T15:04:05Z07:00"
 	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
 	Kitchen     = "3:04PM"
+	Kitchen24   = "15:04"
 	// Handy time stamps.
 	Stamp      = "Jan _2 15:04:05"
 	StampMilli = "Jan _2 15:04:05.000"
