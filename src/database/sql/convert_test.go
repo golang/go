@@ -51,9 +51,6 @@ var (
 	scanbytes  []byte
 	scanraw    RawBytes
 	scanint    int
-	scanint8   int8
-	scanint16  int16
-	scanint32  int32
 	scanuint8  uint8
 	scanuint16 uint16
 	scanbool   bool
