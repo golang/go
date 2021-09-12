@@ -6,6 +6,8 @@
 
 package types
 
+import "go/token"
+
 // isNamed reports whether typ has a name.
 // isNamed may be called with types that are not fully set up.
 func isNamed(typ Type) bool {
@@ -223,6 +225,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 				identicalTParams(x.TypeParams().list(), y.TypeParams().list(), cmpTags, p) &&
 				identical(x.params, y.params, cmpTags, p) &&
 				identical(x.results, y.results, cmpTags, p)
+		}
+
+	case *Union:
+		if y, _ := y.(*Union); y != nil {
+			xset := computeUnionTypeSet(nil, token.NoPos, x)
+			yset := computeUnionTypeSet(nil, token.NoPos, y)
+			return xset.terms.equal(yset.terms)
 		}
 
 	case *Interface:
