@@ -155,7 +155,7 @@ const (
 	tokInterface tokenType = "interface"
 	tokParameter tokenType = "parameter"
 	tokVariable  tokenType = "variable"
-	tokMember    tokenType = "member"
+	tokMethod    tokenType = "method"
 	tokFunction  tokenType = "function"
 	tokKeyword   tokenType = "keyword"
 	tokComment   tokenType = "comment"
@@ -598,7 +598,7 @@ func (e *encoded) unkIdent(x *ast.Ident) {
 			_, okit := e.stack[n-2].(*ast.InterfaceType)
 			_, okfl := e.stack[n-1].(*ast.FieldList)
 			if okit && okfl {
-				tok(tokMember, def)
+				tok(tokMethod, def)
 				return
 			}
 		}
@@ -645,7 +645,7 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 			if x.Name == "_" {
 				return "", nil // not really a variable
 			}
-			return "variable", mods
+			return tokVariable, mods
 		case *ast.GenDecl:
 			if isDeprecated(y.Doc) {
 				mods = append(mods, "deprecated")
@@ -661,7 +661,7 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 					mods = append(mods, "deprecated")
 				}
 				if y.Recv != nil {
-					return tokMember, mods
+					return tokMethod, mods
 				}
 				return tokFunction, mods
 			}
@@ -671,8 +671,10 @@ func (e *encoded) definitionFor(x *ast.Ident) (tokenType, []string) {
 			}
 			// if x < ... < FieldList < FuncType < FuncDecl, this is a param
 			return tokParameter, mods
+		case *ast.FuncType:
+			return tokParameter, mods
 		case *ast.InterfaceType:
-			return tokMember, mods
+			return tokMethod, mods
 		case *ast.TypeSpec:
 			// GenDecl/Typespec/FuncType/FieldList/Field/Ident
 			// (type A func(b uint64)) (err error)
@@ -878,7 +880,7 @@ var (
 	semanticTypes = [...]string{
 		"namespace", "type", "class", "enum", "interface",
 		"struct", "typeParameter", "parameter", "variable", "property", "enumMember",
-		"event", "function", "member", "macro", "keyword", "modifier", "comment",
+		"event", "function", "method", "macro", "keyword", "modifier", "comment",
 		"string", "number", "regexp", "operator",
 	}
 	semanticModifiers = [...]string{

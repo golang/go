@@ -31,12 +31,12 @@
 }
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/B /*⇒9,keyword,[]*/interface {
 	/*⇒1,type,[]*/A
-	/*⇒3,member,[definition]*/sad(/*⇒3,type,[defaultLibrary]*/int) /*⇒4,type,[defaultLibrary]*/bool
+	/*⇒3,method,[definition]*/sad(/*⇒3,type,[defaultLibrary]*/int) /*⇒4,type,[defaultLibrary]*/bool
 }
 
 /*⇒4,keyword,[]*/type /*⇒1,type,[definition]*/F /*⇒3,type,[defaultLibrary]*/int
 
-/*⇒4,keyword,[]*/func (/*⇒1,variable,[]*/a /*⇒1,operator,[]*/*/*⇒1,type,[]*/A) /*⇒1,member,[definition]*/f() /*⇒4,type,[defaultLibrary]*/bool {
+/*⇒4,keyword,[]*/func (/*⇒1,variable,[]*/a /*⇒1,operator,[]*/*/*⇒1,type,[]*/A) /*⇒1,method,[definition]*/f() /*⇒4,type,[defaultLibrary]*/bool {
 	/*⇒3,keyword,[]*/var /*⇒1,variable,[definition]*/z /*⇒6,type,[defaultLibrary]*/string
 	/*⇒1,variable,[definition]*/x /*⇒2,operator,[]*/:= /*⇒5,string,[]*/"foo"
 	/*⇒1,variable,[]*/a(/*⇒1,variable,[]*/x)

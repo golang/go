@@ -16,7 +16,7 @@ don't make intuitive sense (although `async documentation` has a certain appeal)
 
 The 22 semantic tokens are `namespace`, `type`, `class`, `enum`, `interface`,
 		`struct`, `typeParameter`, `parameter`, `variable`, `property`, `enumMember`,
-		`event`, `function`, `member`, `macro`, `keyword`, `modifier`, `comment`,
+		`event`, `function`, `method`, `macro`, `keyword`, `modifier`, `comment`,
 		`string`, `number`, `regexp`, `operator`.
 
 The 10 modifiers are `declaration`, `definition`, `readonly`, `static`,
@@ -72,7 +72,7 @@ alias, it would be marked. Otherwise the last component of the import path is ma
 1. __`type`__ Objects of type ```types.TypeName``` are marked `type`.
 If they are also ```types.Basic```
 the modifier is `defaultLibrary`. (And in ```type B struct{C}```, ```B``` has modifier `definition`.)
-1. __`parameter`__ The formal arguments in ```ast.FuncDecl``` nodes are marked `parameter`.
+1. __`parameter`__ The formal arguments in ```ast.FuncDecl``` and ```ast.FuncType``` nodes are marked `parameter`.
 1. __`variable`__  Identifiers in the
 scope of ```const``` are modified with `readonly`. ```nil``` is usually a `variable` modified with both
 `readonly` and `defaultLibrary`. (```nil``` is a predefined identifier; the user can redefine it,
@@ -80,8 +80,8 @@ in which case it would just be a variable, or whatever.) Identifiers of type ```
 not surprisingly, marked `variable`. Identifiers being defined (node ```ast.GenDecl```) are modified
 by `definition` and, if appropriate, `readonly`. Receivers (in method declarations) are
 `variable`.
-1. __`member`__ Members are marked at their definition (```func (x foo) bar() {}```) or declaration
-in an ```interface```. Members are not marked where they are used.
+1. __`method`__ Methods are marked at their definition (```func (x foo) bar() {}```) or declaration
+in an ```interface```. Methods are not marked where they are used.
 In ```x.bar()```, ```x``` will be marked
 either as a `namespace` if it is a package name, or as a `variable` if it is an interface value,
 so distinguishing ```bar``` seemed superfluous.
