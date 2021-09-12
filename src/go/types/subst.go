@@ -52,24 +52,12 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
 	}
 
 	// general case
-	var subst subster
-	subst.pos = pos
-	subst.smap = smap
-
-	if check != nil {
-		subst.check = check
-		if env == nil {
-			env = check.conf.Environment
-		}
+	subst := subster{
+		pos:   pos,
+		smap:  smap,
+		check: check,
+		env:   check.bestEnv(env),
 	}
-	if env == nil {
-		// If we don't have a *Checker and its global type map,
-		// use a local version. Besides avoiding duplicate work,
-		// the type map prevents infinite recursive substitution
-		// for recursive types (example: type T[P any] *T[P]).
-		env = NewEnvironment()
-	}
-	subst.env = env
 	return subst.typ(typ)
 }
 
@@ -227,19 +215,14 @@ func (subst *subster) typ(typ Type) Type {
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		named := subst.check.instance(subst.pos, t.orig, newTArgs, subst.env).(*Named)
-		// TODO(rfindley): we probably don't need to resolve here. Investigate if
-		// this can be removed.
-		named.resolve(subst.env)
-		assert(named.underlying != nil)
+		t.orig.resolve(subst.env)
+		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
 
 		// Note that if we were to expose substitution more generally (not just in
 		// the context of a declaration), we'd have to substitute in
 		// named.underlying as well.
 		//
 		// But this is unnecessary for now.
-
-		return named
 
 	case *TypeParam:
 		return subst.smap.lookup(t)
