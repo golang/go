@@ -189,17 +189,6 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 		// A function instantiation (even if fully concrete) shouldn't be
 		// transformed yet, because we need to add the dictionary during the
 		// transformation.
-		//
-		// However, if we have a function type (even though it is
-		// parameterized), then we can add in any needed CONVIFACE nodes via
-		// typecheckaste(). We need to call transformArgs() to deal first
-		// with the f(g(()) case where g returns multiple return values. We
-		// can't do anything if fun is a type param (which is probably
-		// described by a structural constraint)
-		if fun.Type().Kind() == types.TFUNC {
-			transformArgs(n)
-			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
-		}
 		return typed(typ, n)
 	}
 

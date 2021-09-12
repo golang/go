@@ -157,7 +157,7 @@ func transformCall(n *ir.CallExpr) {
 		n.SetOp(ir.OCALLFUNC)
 	}
 
-	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, false)
+	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
 	if l.Op() == ir.ODOTMETH && len(deref(n.X.Type().Recv().Type).RParams()) == 0 {
 		typecheck.FixMethodCall(n)
 	}
@@ -365,59 +365,6 @@ assignOK:
 	}
 }
 
-// Version of transformAssign that can run on generic code that adds CONVIFACE calls
-// as needed (and rewrites multi-value calls).
-func earlyTransformAssign(stmt ir.Node, lhs, rhs []ir.Node) {
-	cr := len(rhs)
-	if len(rhs) == 1 {
-		if rtyp := rhs[0].Type(); rtyp != nil && rtyp.IsFuncArgStruct() {
-			cr = rtyp.NumFields()
-		}
-	}
-
-	// x,y,z = f()
-	_, isCallExpr := rhs[0].(*ir.CallExpr)
-	if isCallExpr && cr > len(rhs) {
-		stmt := stmt.(*ir.AssignListStmt)
-		stmt.SetOp(ir.OAS2FUNC)
-		r := rhs[0].(*ir.CallExpr)
-		rtyp := r.Type()
-
-		mismatched := false
-		failed := false
-		for i := range lhs {
-			result := rtyp.Field(i).Type
-
-			if lhs[i].Type() == nil || result == nil {
-				failed = true
-			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
-				mismatched = true
-			}
-		}
-		if mismatched && !failed {
-			typecheck.RewriteMultiValueCall(stmt, r)
-		}
-		return
-	}
-
-	// x, ok = y
-	if len(lhs) != len(rhs) {
-		assert(len(lhs) == 2 && len(rhs) == 1)
-		// TODO(danscales): deal with case where x or ok is an interface
-		// type. We want to add CONVIFACE now, but that is tricky, because
-		// the rhs may be AS2MAPR, AS2RECV, etc. which has two result values,
-		// and that is not rewritten until the order phase (o.stmt, as2ok).
-		return
-	}
-
-	// Check for interface conversion on each assignment
-	for i, r := range rhs {
-		if lhs[i].Type() != nil && lhs[i].Type().IsInterface() {
-			rhs[i] = assignconvfn(r, lhs[i].Type())
-		}
-	}
-}
-
 // Corresponds to typecheck.typecheckargs.  Really just deals with multi-value calls.
 func transformArgs(n ir.InitNode) {
 	var list []ir.Node
@@ -457,11 +404,11 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 		return n
 	}
 
-	if types.Identical(n.Type(), t) {
+	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 
-	op, why := typecheck.Assignop(n.Type(), t)
+	op, why := Assignop(n.Type(), t)
 	if op == ir.OXXX {
 		base.Fatalf("found illegal assignment %+v -> %+v; %s", n.Type(), t, why)
 	}
@@ -472,11 +419,26 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 	return r
 }
 
+func Assignop(src, dst *types.Type) (ir.Op, string) {
+	if src == dst {
+		return ir.OCONVNOP, ""
+	}
+	if src == nil || dst == nil || src.Kind() == types.TFORW || dst.Kind() == types.TFORW || src.Underlying() == nil || dst.Underlying() == nil {
+		return ir.OXXX, ""
+	}
+
+	// 1. src type is identical to dst.
+	if types.IdenticalStrict(src, dst) {
+		return ir.OCONVNOP, ""
+	}
+	return typecheck.Assignop1(src, dst)
+}
+
 // Corresponds to typecheck.typecheckaste, but we add an extra flag convifaceOnly
 // only. If convifaceOnly is true, we only do interface conversion. We use this to do
 // early insertion of CONVIFACE nodes during noder2, when the function or args may
 // have typeparams.
-func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes, convifaceOnly bool) {
+func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes) {
 	var t *types.Type
 	var i int
 
@@ -495,7 +457,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 			if isddd {
 				n = nl[i]
 				ir.SetPos(n)
-				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+				if n.Type() != nil {
 					nl[i] = assignconvfn(n, t)
 				}
 				return
@@ -505,7 +467,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 			for ; i < len(nl); i++ {
 				n = nl[i]
 				ir.SetPos(n)
-				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+				if n.Type() != nil {
 					nl[i] = assignconvfn(n, t.Elem())
 				}
 			}
@@ -514,7 +476,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
 
 		n = nl[i]
 		ir.SetPos(n)
-		if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+		if n.Type() != nil {
 			nl[i] = assignconvfn(n, t)
 		}
 		i++
@@ -536,7 +498,7 @@ func transformReturn(rs *ir.ReturnStmt) {
 		return
 	}
 
-	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl, false)
+	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl)
 }
 
 // transformSelect transforms a select node, creating an assignment list as needed
