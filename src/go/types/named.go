@@ -219,6 +219,21 @@ func (n *Named) setUnderlying(typ Type) {
 	}
 }
 
+// bestEnv returns the best available environment. In order of preference:
+// - the given env, if non-nil
+// - the Checker env, if check is non-nil
+// - a new environment
+func (check *Checker) bestEnv(env *Environment) *Environment {
+	if env != nil {
+		return env
+	}
+	if check != nil {
+		assert(check.conf.Environment != nil)
+		return check.conf.Environment
+	}
+	return NewEnvironment()
+}
+
 // expandNamed ensures that the underlying type of n is instantiated.
 // The underlying type will be Typ[Invalid] if there was an error.
 func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
@@ -227,24 +242,15 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
 	check := n.check
 
 	if check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
-		// TODO(rfindley): handling an optional Checker and Environment here (and
-		// in subst) feels overly complicated. Can we simplify?
-		if env == nil {
-			if check != nil {
-				env = check.conf.Environment
-			} else {
-				// If we're instantiating lazily, we might be outside the scope of a
-				// type-checking pass. In that case we won't have a pre-existing
-				// environment, but don't want to create a duplicate of the current
-				// instance in the process of expansion.
-				env = NewEnvironment()
-			}
-			h := env.typeHash(n.orig, n.targs.list())
-			// ensure that an instance is recorded for h to avoid infinite recursion.
-			env.typeForHash(h, n)
-		}
+		// We must always have an env, to avoid infinite recursion.
+		env = check.bestEnv(env)
+		h := env.typeHash(n.orig, n.targs.list())
+		// ensure that an instance is recorded for h to avoid infinite recursion.
+		env.typeForHash(h, n)
+
 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
 		underlying = n.check.subst(instPos, n.orig.underlying, smap, env)
+
 		for i := 0; i < n.orig.NumMethods(); i++ {
 			origm := n.orig.Method(i)
 
