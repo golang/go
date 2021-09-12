@@ -352,7 +352,10 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 	if types.Identical(src, dst) {
 		return ir.OCONVNOP, ""
 	}
+	return Assignop1(src, dst)
+}
 
+func Assignop1(src, dst *types.Type) (ir.Op, string) {
 	// 2. src and dst have identical underlying types and
 	//   a. either src or dst is not a named type, or
 	//   b. both are empty interface types, or

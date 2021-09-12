@@ -250,44 +250,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		// only be fully transformed once it has an instantiated type.
 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
 		typed(g.typ(typ), n)
-
-		// Fill in n.Selection for a generic method reference or a bound
-		// interface method, even though we won't use it directly, since it
-		// is useful for analysis. Specifically do not fill in for fields or
-		// other interfaces methods (method call on an interface value), so
-		// n.Selection being non-nil means a method reference for a generic
-		// type or a method reference due to a bound.
-		obj2 := g.info.Selections[expr].Obj()
-		sig := types2.AsSignature(obj2.Type())
-		if sig == nil || sig.Recv() == nil {
-			return n
-		}
-		index := g.info.Selections[expr].Index()
-		last := index[len(index)-1]
-		// recvType is the receiver of the method being called.  Because of the
-		// way methods are imported, g.obj(obj2) doesn't work across
-		// packages, so we have to lookup the method via the receiver type.
-		recvType := deref2(sig.Recv().Type())
-		if types2.AsInterface(recvType.Underlying()) != nil {
-			fieldType := n.X.Type()
-			for _, ix := range index[:len(index)-1] {
-				fieldType = deref(fieldType).Field(ix).Type
-			}
-			if fieldType.Kind() == types.TTYPEPARAM {
-				n.Selection = fieldType.Bound().AllMethods().Index(last)
-				//fmt.Printf(">>>>> %v: Bound call %v\n", base.FmtPos(pos), n.Sel)
-			} else {
-				assert(fieldType.Kind() == types.TINTER)
-				//fmt.Printf(">>>>> %v: Interface call %v\n", base.FmtPos(pos), n.Sel)
-			}
-			return n
-		}
-
-		recvObj := types2.AsNamed(recvType).Obj()
-		recv := g.pkg(recvObj.Pkg()).Lookup(recvObj.Name()).Def
-		n.Selection = recv.Type().Methods().Index(last)
-		//fmt.Printf(">>>>> %v: Method call %v\n", base.FmtPos(pos), n.Sel)
-
 		return n
 	}
 
