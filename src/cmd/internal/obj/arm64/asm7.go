@@ -1058,7 +1058,16 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	/*
 	 * lay out the code, emitting code and data relocations.
 	 */
-	c.cursym.Grow(c.cursym.Size)
+	// To reduce the amount of inline transitions between code and data for ARM64,
+	// we align functions by NOPs instead of regular zeroing (like it's done for other architectures).
+	// The less amount of inline transitions, the less mapping symbols are placed in a binary and the
+	// smaller this binary will be.
+	// See ld/symtab.go - genElfMappingSymbols
+	if c.cursym.Func().LiteralPoolOffset == 0 {
+		c.alignWithNops(c.cursym, c.cursym.Size)
+	} else {
+		c.cursym.Grow(c.cursym.Size)
+	}
 	bp := c.cursym.P
 	psz := int32(0)
 	var i int
@@ -1107,6 +1116,15 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
+// alignWithNops aligns function content up to lsiz by using NOP instructions.
+func (c *ctxt7) alignWithNops(sym *obj.LSym, lsiz int64) {
+	noopPos := len(sym.P)
+	sym.Grow(lsiz)
+	for ; noopPos < int(sym.Size); noopPos += 4 {
+		c.ctxt.Arch.ByteOrder.PutUint32(sym.P[noopPos:], OP_NOOP)
+	}
+}
+
 // isUnsafePoint returns whether p is an unsafe point.
 func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
 	// If p explicitly uses REGTMP, it's unsafe to preempt, because the
@@ -1150,6 +1168,7 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
 			if c.ctxt.Debugvlog && skip == 1 {
 				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
 			}
+			c.cursym.Func().LiteralPoolOffset = uint32(p.Pc + 8)
 			q := c.newprog()
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH

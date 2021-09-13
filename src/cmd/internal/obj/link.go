@@ -488,6 +488,10 @@ type FuncInfo struct {
 	ArgInfo            *LSym // argument info for traceback
 
 	FuncInfoSym *LSym
+
+	// This field is filled when a literal pool is created while compiling for ARM64.
+	// See asm7.go - flushpool.
+	LiteralPoolOffset uint32
 }
 
 // NewFuncInfo allocates and returns a FuncInfo for LSym.

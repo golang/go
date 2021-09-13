@@ -17,6 +17,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"encoding/json"
 	"fmt"
 )
@@ -162,6 +163,8 @@ func dumpdata() {
 	if newNumPTabs != numPTabs {
 		base.Fatalf("ptabs changed after compile functions loop")
 	}
+
+	addLiteralPoolOffsets()
 }
 
 func dumpLinkerObj(bout *bio.Writer) {
@@ -259,6 +262,37 @@ func addGCLocals() {
 		if x := fn.ArgInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
+		}
+	}
+}
+
+// addLiteralPoolOffsets creates a special symbol "_literalPoolOffsets" which
+// does not have a type so it does not appear in an executable. Instead it's used by
+// the linker to recreate information about function literal pool offsets so it's
+// able to insert special mapping symbols "$x" and "$d" both required by ARM64 ELF standard.
+//
+// https://github.com/ARM-software/abi-aa/blob/2020q4/aaelf64/aaelf64.rst#mapping-symbols
+func addLiteralPoolOffsets() {
+	if base.Ctxt.Arch.Family != sys.ARM64 {
+		return
+	}
+
+	poolOffsets := base.Ctxt.Lookup(base.Ctxt.Pkgpath + "._literalPoolOffsets")
+	poolOffsets.Set(obj.AttrDuplicateOK, true)
+
+	base.Ctxt.Data = append(base.Ctxt.Data, poolOffsets)
+
+	// This symbol does not have content and it consists only of relocations
+	for _, s := range base.Ctxt.Text {
+		if s.Func().LiteralPoolOffset != 0 {
+			// Not a real relocation is created here. We just need to know
+			// a symbol which contains a literal pool and an offset for it,
+			// then a real pool location is calculated as value + add on the linker stage.
+			// See ld/symtab.go - genElfMappingSymbols
+			r := obj.Addrel(poolOffsets)
+			r.Sym = s
+			r.Add = int64(s.Func().LiteralPoolOffset)
+			poolOffsets.Size += 8
 		}
 	}
 }
