@@ -970,7 +970,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		ld.GoVersion = MainModules.GoVersion()
 
 		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
+			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
 	}
@@ -1142,7 +1142,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// If that is not the case, there is a bug in the loading loop above.
 			for _, m := range rs.rootModules {
 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-					ld.errorf("go mod tidy: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
 					base.ExitIfErrors()
 				}
 			}
@@ -1884,7 +1884,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 	mg, err := rs.Graph(ctx)
 	if err != nil {
-		ld.errorf("go mod tidy: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
+		ld.errorf("go: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
 		suggestFixes()
 		return
 	}

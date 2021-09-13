@@ -59,7 +59,7 @@ func init() {
 
 func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) != 0 {
-		base.Fatalf("go mod vendor: vendor takes no arguments")
+		base.Fatalf("go: 'go mod vendor' accepts no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
@@ -76,7 +76,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 
 	vdir := filepath.Join(modload.VendorDir())
 	if err := os.RemoveAll(vdir); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	modpkgs := make(map[module.Version][]string)
@@ -178,11 +178,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if err := os.MkdirAll(vdir, 0777); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 
 	if err := os.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 }
 
@@ -250,7 +250,7 @@ func vendorPkg(vdir, pkg string) {
 	embedPatterns := str.StringList(bp.EmbedPatterns, bp.TestEmbedPatterns, bp.XTestEmbedPatterns)
 	embeds, err := load.ResolveEmbed(bp.Dir, embedPatterns)
 	if err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	for _, embed := range embeds {
 		embedDst := filepath.Join(dst, embed)
@@ -261,21 +261,21 @@ func vendorPkg(vdir, pkg string) {
 		// Copy the file as is done by copyDir below.
 		r, err := os.Open(filepath.Join(src, embed))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		w, err := os.Create(embedDst)
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if _, err := io.Copy(w, r); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		r.Close()
 		if err := w.Close(); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 	}
 }
@@ -354,7 +354,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 	if strings.HasSuffix(info.Name(), ".go") {
 		f, err := fsys.Open(filepath.Join(dir, info.Name()))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		defer f.Close()
 
@@ -376,10 +376,10 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
 func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, copiedFiles map[string]bool) {
 	files, err := os.ReadDir(src)
 	if err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	if err := os.MkdirAll(dst, 0777); err != nil {
-		base.Fatalf("go mod vendor: %v", err)
+		base.Fatalf("go: %v", err)
 	}
 	for _, file := range files {
 		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
@@ -388,20 +388,20 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
 		copiedFiles[file.Name()] = true
 		r, err := os.Open(filepath.Join(src, file.Name()))
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		dstPath := filepath.Join(dst, file.Name())
 		copiedFiles[dstPath] = true
 		w, err := os.Create(dstPath)
 		if err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		if _, err := io.Copy(w, r); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 		r.Close()
 		if err := w.Close(); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 	}
 }

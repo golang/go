@@ -284,21 +284,21 @@ func reportError(q *query, err error) {
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
 		if q.rawVersion == "" {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 
 		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
 		if versionRE.MatchString(errStr) {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 	}
 
 	if qs := q.String(); qs != "" {
-		base.Errorf("go get %s: %s", qs, errStr)
+		base.Errorf("go: %s: %s", qs, errStr)
 	} else {
-		base.Errorf("go get: %s", errStr)
+		base.Errorf("go: %s", errStr)
 	}
 }
 

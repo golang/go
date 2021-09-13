@@ -656,7 +656,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	b.Init()
 
 	if cfg.BuildI {
-		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
+		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
 		cfg.BuildV = testV
 
 		deps := make(map[string]bool)

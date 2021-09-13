@@ -40,15 +40,15 @@ stdout '^v1.0.0 $'
 
 # -mod=vendor should cause 'go list' flags that look up versions to fail.
 ! go list -mod=vendor -versions -m x
-stderr '^go list -m: can''t determine available versions using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
+stderr '^go: can''t determine available versions using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
 ! go list -mod=vendor -u -m x
-stderr '^go list -m: can''t determine available upgrades using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
+stderr '^go: can''t determine available upgrades using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)$'
 
 # 'go list -mod=vendor -m' on a transitive dependency that does not
 # provide vendored packages should give a helpful error rather than
 # 'not a known dependency'.
 ! go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m diamondright
-stderr 'go list -m: module diamondright: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
+stderr 'go: module diamondright: can''t resolve module using the vendor directory\n\t\(Use -mod=mod or -mod=readonly to bypass.\)'
 
 # 'go list -mod=mod' should report packages outside the import graph,
 # but 'go list -mod=vendor' should error out for them.

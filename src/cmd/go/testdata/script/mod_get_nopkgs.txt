@@ -16,7 +16,7 @@ go get -d example.net/emptysubdir/... # control case
 
 ! go get -d example.net/emptysubdir/subdir/...
 ! stderr 'matched no packages'
-stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
+stderr '^go: example\.net/emptysubdir/subdir/\.\.\.: module example\.net/emptysubdir/subdir: reading http://.*: 404 Not Found\n\tserver response: 404 page not found\n\z'
 
 # It doesn't make sense to 'go get' a path in the standard library,
 # since the standard library necessarily can't have unresolved imports.
@@ -27,7 +27,7 @@ stderr '^go get example\.net/emptysubdir/subdir/\.\.\.: module example\.net/empt
 # which isn't ideal either.
 
 ! go get -d builtin/...  # in GOROOT/src, but contains no packages
-stderr '^go get builtin/...: malformed module path "builtin": missing dot in first path element$'
+stderr '^go: builtin/...: malformed module path "builtin": missing dot in first path element$'
 
 -- go.mod --
 module example.net/emptysubdir

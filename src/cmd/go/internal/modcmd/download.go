@@ -87,7 +87,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
 	if !modload.HasModRoot() && len(args) == 0 {
-		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
+		base.Fatalf("go: no modules specified (see 'go help mod download')")
 	}
 	haveExplicitArgs := len(args) > 0
 	if !haveExplicitArgs {
@@ -106,7 +106,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, arg := range args {
 			switch arg {
 			case mainModule.Path, targetAtUpgrade, targetAtPatch:
-				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
+				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
 			}
 		}
 	}
@@ -192,7 +192,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("go mod download: %v", err)
+				base.Fatalf("go: %v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -202,7 +202,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("go mod download: %v", m.Error)
+				base.Errorf("go: %v", m.Error)
 			}
 		}
 		base.ExitIfErrors()
@@ -222,6 +222,6 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// (after we've written the checksums for the modules that were downloaded
 	// successfully).
 	if infosErr != nil {
-		base.Errorf("go mod download: %v", infosErr)
+		base.Errorf("go: %v", infosErr)
 	}
 }

@@ -4,8 +4,8 @@
 go list -m all
 ! stdout golang.org/x/text
 go get -d rsc.io/quote@v1.5.2
-stderr '^go get: added rsc.io/quote v1.5.2$'
-stderr '^go get: upgraded rsc.io/sampler v1.0.0 => v1.3.0$'
+stderr '^go: added rsc.io/quote v1.5.2$'
+stderr '^go: upgraded rsc.io/sampler v1.0.0 => v1.3.0$'
 ! stderr '^go get.*golang.org/x/text'
 go list -m all
 stdout golang.org/x/text
@@ -15,8 +15,8 @@ cmp go.mod go.mod.upgrade
 # and for changed explicit dependencies. 'go get' does not print messages
 # for changed indirect dependencies.
 go get -d rsc.io/sampler@none
-stderr '^go get: downgraded rsc.io/quote v1.5.2 => v1.3.0$'
-stderr '^go get: removed rsc.io/sampler v1.3.0$'
+stderr '^go: downgraded rsc.io/quote v1.5.2 => v1.3.0$'
+stderr '^go: removed rsc.io/sampler v1.3.0$'
 ! stderr '^go get.*golang.org/x/text'
 cmp go.mod go.mod.downgrade
 
@@ -24,8 +24,8 @@ cmp go.mod go.mod.downgrade
 # for explicit dependencies removed as a consequence.
 cp go.mod.usequote go.mod
 go get -d rsc.io/quote@v1.5.1
-stderr '^go get: downgraded rsc.io/quote v1.5.2 => v1.5.1$'
-stderr '^go get: removed usequote v0.0.0$'
+stderr '^go: downgraded rsc.io/quote v1.5.2 => v1.5.1$'
+stderr '^go: removed usequote v0.0.0$'
 
 -- go.mod --
 module m

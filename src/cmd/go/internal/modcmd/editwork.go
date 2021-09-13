@@ -118,15 +118,15 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 			len(workedits) > 0
 
 	if !anyFlags {
-		base.Fatalf("go mod edit: no flags specified (see 'go help mod edit').")
+		base.Fatalf("go: no flags specified (see 'go help mod edit').")
 	}
 
 	if *editworkJSON && *editworkPrint {
-		base.Fatalf("go mod edit: cannot use both -json and -print")
+		base.Fatalf("go: cannot use both -json and -print")
 	}
 
 	if len(args) > 1 {
-		base.Fatalf("go mod edit: too many arguments")
+		base.Fatalf("go: 'go mod editwork' accepts at most one argument")
 	}
 	var gowork string
 	if len(args) == 1 {
@@ -199,7 +199,7 @@ func flagEditworkDirectory(arg string) {
 		}
 		f.AddDirectory(modload.ToDirectoryPath(arg), modulePath)
 		if err := f.AddDirectory(modload.ToDirectoryPath(arg), ""); err != nil {
-			base.Fatalf("go mod: -directory=%s: %v", arg, err)
+			base.Fatalf("go: -directory=%s: %v", arg, err)
 		}
 	})
 }
@@ -208,7 +208,7 @@ func flagEditworkDirectory(arg string) {
 func flagEditworkDropDirectory(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.DropDirectory(modload.ToDirectoryPath(arg)); err != nil {
-			base.Fatalf("go mod: -dropdirectory=%s: %v", arg, err)
+			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
 		}
 	})
 }
@@ -217,27 +217,27 @@ func flagEditworkDropDirectory(arg string) {
 func flagEditworkReplace(arg string) {
 	var i int
 	if i = strings.Index(arg, "="); i < 0 {
-		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
+		base.Fatalf("go: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
 	}
 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	if strings.HasPrefix(new, ">") {
-		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
+		base.Fatalf("go: -replace=%s: separator between old and new is =, not =>", arg)
 	}
 	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
 	if err != nil {
-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+		base.Fatalf("go: -replace=%s: %v", arg, err)
 	}
 	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
 	if err != nil {
-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+		base.Fatalf("go: -replace=%s: %v", arg, err)
 	}
 	if newPath == new && !modfile.IsDirectoryPath(new) {
-		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
+		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
 	}
 
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
-			base.Fatalf("go mod: -replace=%s: %v", arg, err)
+			base.Fatalf("go: -replace=%s: %v", arg, err)
 		}
 	})
 }
@@ -246,11 +246,11 @@ func flagEditworkReplace(arg string) {
 func flagEditworkDropReplace(arg string) {
 	path, version, err := parsePathVersionOptional("old", arg, true)
 	if err != nil {
-		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 	}
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.DropReplace(path, version); err != nil {
-			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 		}
 	})
 }

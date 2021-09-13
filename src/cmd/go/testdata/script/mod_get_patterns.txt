@@ -10,11 +10,11 @@ grep 'require rsc.io/quote' go.mod
 
 cp go.mod.orig go.mod
 ! go get -d rsc.io/quote/x...
-stderr 'go get: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x...'
+stderr 'go: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x...'
 ! grep 'require rsc.io/quote' go.mod
 
 ! go get -d rsc.io/quote/x/...
-stderr 'go get: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x/...'
+stderr 'go: module rsc.io/quote@upgrade found \(v1.5.2\), but does not contain packages matching rsc.io/quote/x/...'
 ! grep 'require rsc.io/quote' go.mod
 
 # If a pattern matches no packages within a module, the module should not

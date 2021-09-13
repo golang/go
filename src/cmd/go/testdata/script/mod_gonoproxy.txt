@@ -27,13 +27,13 @@ stdout '^golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
 # When GOPROXY is not empty but contains no entries, an error should be reported.
 env GOPROXY=','
 ! go get -d golang.org/x/text
-stderr '^go get golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
+stderr '^go: golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
 
 # When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
 env GONOPROXY=*/fortune
 env GOPROXY=off
 ! go get -d golang.org/x/text
-stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
+stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
 
 # GONOPROXY bypasses proxy
 [!net] skip

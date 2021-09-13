@@ -62,8 +62,14 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 		// a reasonable use case. For example, imagine GOFLAGS=-v to
 		// turn "verbose mode" on for all Go commands, which should not
 		// break "go version".
-		if (!base.InGOFLAGS("-m") && *versionM) || (!base.InGOFLAGS("-v") && *versionV) {
-			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+		var argOnlyFlag string
+		if !base.InGOFLAGS("-m") && *versionM {
+			argOnlyFlag = "-m"
+		} else if !base.InGOFLAGS("-v") && *versionV {
+			argOnlyFlag = "-v"
+		}
+		if argOnlyFlag != "" {
+			fmt.Fprintf(os.Stderr, "go: 'go version' only accepts %s flag with arguments\n", argOnlyFlag)
 			base.SetExitStatus(2)
 			return
 		}

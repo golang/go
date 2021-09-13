@@ -103,7 +103,7 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
 			continue
 		}
 		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
-			base.Errorf("go vet %s: no Go files in %s", p.ImportPath, p.Dir)
+			base.Errorf("go: can't vet %s: no Go files in %s", p.ImportPath, p.Dir)
 			continue
 		}
 		if len(ptest.GoFiles) > 0 || len(ptest.CgoFiles) > 0 {

@@ -12,7 +12,7 @@ stdout '^example.net/a v0.1.0 '
 # from attempting to resolve a new module whose path is a prefix of the pattern.
 
 ! go get -d -u=patch example.../b@upgrade
-stderr '^go get: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
+stderr '^go: no modules to query for example\.\.\./b@upgrade because first path element contains a wildcard$'
 
 
 # Patching . causes a patch to example.net/a, which introduces a new match
