@@ -59,7 +59,7 @@ package b
 import "example.com/q"
 
 func TestB() {
-	q.PrintVersion
+	q.PrintVersion()
 }
 -- p/go.mod --
 module example.com/p
