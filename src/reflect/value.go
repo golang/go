@@ -2940,8 +2940,7 @@ func (v Value) CanConvert(t Type) bool {
 	// from slice to pointer-to-array.
 	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
 		n := t.Elem().Len()
-		h := (*unsafeheader.Slice)(v.ptr)
-		if n > h.Len {
+		if n > v.Len() {
 			return false
 		}
 	}
@@ -3208,10 +3207,10 @@ func cvtStringRunes(v Value, t Type) Value {
 // convertOp: []T -> *[N]T
 func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
-	h := (*unsafeheader.Slice)(v.ptr)
-	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
 	}
+	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
