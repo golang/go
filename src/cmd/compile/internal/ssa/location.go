@@ -91,8 +91,8 @@ func (t LocPair) String() string {
 type LocResults []Location
 
 func (t LocResults) String() string {
-	s := "<"
-	a := ""
+	s := ""
+	a := "<"
 	for _, r := range t {
 		a += s
 		s = ","
