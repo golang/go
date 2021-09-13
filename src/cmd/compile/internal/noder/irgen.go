@@ -97,39 +97,42 @@ func check2(noders []*noder) {
 	}
 }
 
-// gfInfo is information gathered on a generic function.
-type gfInfo struct {
-	tparams      []*types.Type
+// dictInfo is the dictionary format for an instantiation of a generic function with
+// particular shapes. shapeParams, derivedTypes, subDictCalls, and itabConvs describe
+// the actual dictionary entries in order, and the remaining fields are other info
+// needed in doing dictionary processing during compilation.
+type dictInfo struct {
+	// Types substituted for the type parameters, which are shape types.
+	shapeParams []*types.Type
+	// All types derived from those typeparams used in the instantiation.
 	derivedTypes []*types.Type
-	// Nodes in generic function that requires a subdictionary. Includes
+	// Nodes in the instantiation that requires a subdictionary. Includes
 	// method and function calls (OCALL), function values (OFUNCINST), method
 	// values/expressions (OXDOT).
 	subDictCalls []ir.Node
-	// Nodes in generic functions that are a conversion from a typeparam/derived
+	// Nodes in the instantiation that are a conversion from a typeparam/derived
 	// type to a specific interface.
 	itabConvs []ir.Node
+
+	// Mapping from each shape type that substitutes a type param, to its
+	// type bound (which is also substitued with shapes if it is parameterized)
+	shapeToBound map[*types.Type]*types.Type
+
 	// For type switches on nonempty interfaces, a map from OTYPE entries of
-	// HasTParam type, to the interface type we're switching from.
-	// TODO: what if the type we're switching from is a shape type?
+	// HasShape type, to the interface type we're switching from.
 	type2switchType map[ir.Node]*types.Type
-}
-
-// instInfo is information gathered on an gcshape (or fully concrete)
-// instantiation of a function.
-type instInfo struct {
-	fun       *ir.Func // The instantiated function (with body)
-	dictParam *ir.Name // The node inside fun that refers to the dictionary param
-
-	gf     *ir.Name // The associated generic function
-	gfInfo *gfInfo
 
 	startSubDict  int // Start of dict entries for subdictionaries
 	startItabConv int // Start of dict entries for itab conversions
 	dictLen       int // Total number of entries in dictionary
+}
 
-	// Map from nodes in instantiated fun (OCALL, OCALLMETHOD, OFUNCINST, and
-	// OMETHEXPR) to the associated dictionary entry for a sub-dictionary
-	dictEntryMap map[ir.Node]int
+// instInfo is information gathered on an shape instantiation of a function.
+type instInfo struct {
+	fun       *ir.Func // The instantiated function (with body)
+	dictParam *ir.Name // The node inside fun that refers to the dictionary param
+
+	dictInfo *dictInfo
 }
 
 type irgen struct {
@@ -155,13 +158,8 @@ type irgen struct {
 
 	dnum int // for generating unique dictionary variables
 
-	// Map from generic function to information about its type params, derived
-	// types, and subdictionaries.
-	gfInfoMap map[*types.Sym]*gfInfo
-
 	// Map from a name of function that been instantiated to information about
-	// its instantiated function, associated generic function/method, and the
-	// mapping from IR nodes to dictionary entries.
+	// its instantiated function (including dictionary format).
 	instInfoMap map[*types.Sym]*instInfo
 
 	// dictionary syms which we need to finish, by writing out any itabconv
@@ -179,10 +177,11 @@ func (g *irgen) later(fn func()) {
 }
 
 type delayInfo struct {
-	gf    *ir.Name
-	targs []*types.Type
-	sym   *types.Sym
-	off   int
+	gf     *ir.Name
+	targs  []*types.Type
+	sym    *types.Sym
+	off    int
+	isMeth bool
 }
 
 type typeDelayInfo struct {
