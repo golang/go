@@ -70,7 +70,7 @@ import (
 var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
-	< container/list, container/ring,
+	< constraints, container/list, container/ring,
 	  internal/cfg, internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace,
