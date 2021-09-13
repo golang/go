@@ -98,10 +98,6 @@ func (w *worker) cleanup() error {
 // those inputs to the worker process, then passes the results back to
 // the coordinator.
 func (w *worker) coordinate(ctx context.Context) error {
-	// interestingCount starts at -1, like the coordinator does, so that the
-	// worker client's coverage data is updated after a coverage-only run.
-	interestingCount := int64(-1)
-
 	// Main event loop.
 	for {
 		// Start or restart the worker if it's not running.
@@ -151,11 +147,11 @@ func (w *worker) coordinate(ctx context.Context) error {
 
 		case input := <-w.coordinator.inputC:
 			// Received input from coordinator.
-			args := fuzzArgs{Limit: input.limit, Timeout: input.timeout, CoverageOnly: input.coverageOnly}
-			if interestingCount < input.interestingCount {
-				// The coordinator's coverage data has changed, so send the data
-				// to the client.
-				args.CoverageData = input.coverageData
+			args := fuzzArgs{
+				Limit:        input.limit,
+				Timeout:      input.timeout,
+				Warmup:       input.warmup,
+				CoverageData: input.coverageData,
 			}
 			entry, resp, err := w.client.fuzz(ctx, input.entry, args)
 			if err != nil {
@@ -544,9 +540,10 @@ type fuzzArgs struct {
 	// than Duration. 0 indicates no limit.
 	Limit int64
 
-	// CoverageOnly indicates whether this is a coverage-only run (ie. fuzzing
-	// should not occur).
-	CoverageOnly bool
+	// Warmup indicates whether this is part of a warmup run, meaning that
+	// fuzzing should not occur. If coverageEnabled is true, then coverage data
+	// should be reported.
+	Warmup bool
 
 	// CoverageData is the coverage data. If set, the worker should update its
 	// local coverage data prior to fuzzing.
@@ -713,14 +710,16 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 		return dur, nil, ""
 	}
 
-	if args.CoverageOnly {
+	if args.Warmup {
 		dur, _, errMsg := fuzzOnce(CorpusEntry{Values: vals})
 		if errMsg != "" {
 			resp.Err = errMsg
 			return resp
 		}
 		resp.InterestingDuration = dur
-		resp.CoverageData = coverageSnapshot
+		if coverageEnabled {
+			resp.CoverageData = coverageSnapshot
+		}
 		return resp
 	}
 
@@ -742,6 +741,10 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 				// run the same values once more to deflake.
 				if !shouldStop() {
 					dur, cov, errMsg = fuzzOnce(entry)
+					if errMsg != "" {
+						resp.Err = errMsg
+						return resp
+					}
 				}
 				if cov != nil {
 					resp.CoverageData = cov
@@ -1069,15 +1072,18 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		panic("workerServer.fuzz modified input")
 	}
 	needEntryOut := callErr != nil || resp.Err != "" ||
-		(!args.CoverageOnly && resp.CoverageData != nil)
+		(!args.Warmup && resp.CoverageData != nil)
 	if needEntryOut {
 		valuesOut, err := unmarshalCorpusFile(inp)
 		if err != nil {
 			panic(fmt.Sprintf("unmarshaling fuzz input value after call: %v", err))
 		}
 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
-		for i := int64(0); i < mem.header().count; i++ {
-			wc.m.mutate(valuesOut, cap(mem.valueRef()))
+		if !args.Warmup {
+			// Only mutate the valuesOut if fuzzing actually occurred.
+			for i := int64(0); i < mem.header().count; i++ {
+				wc.m.mutate(valuesOut, cap(mem.valueRef()))
+			}
 		}
 		dataOut := marshalCorpusFile(valuesOut...)
 
@@ -1088,6 +1094,11 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 			Parent:     entryIn.Name,
 			Data:       dataOut,
 			Generation: entryIn.Generation + 1,
+		}
+		if args.Warmup {
+			// The bytes weren't mutated, so if entryIn was a seed corpus value,
+			// then entryOut is too.
+			entryOut.IsSeed = entryIn.IsSeed
 		}
 	}
 

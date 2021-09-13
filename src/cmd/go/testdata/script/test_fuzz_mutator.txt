@@ -78,6 +78,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -111,34 +112,11 @@ func main() {
 }
 
 func checkCoordLog(r io.Reader) error {
-	scan := bufio.NewScanner(r)
-	var sawASeed, sawBSeed bool
-	for scan.Scan() {
-		line := scan.Text()
-		switch {
-		case line == `FuzzA "seed"`:
-			if sawASeed {
-				return fmt.Errorf("coordinator: tested FuzzA seed multiple times")
-			}
-			sawASeed = true
-
-		case line == `FuzzB "seed"`:
-			if sawBSeed {
-				return fmt.Errorf("coordinator: tested FuzzB seed multiple times")
-			}
-			sawBSeed = true
-
-		default:
-			return fmt.Errorf("coordinator: tested something other than seeds: %s", line)
-		}
-	}
-	if err := scan.Err(); err != nil {
+	b, err := io.ReadAll(r)
+	if err != nil {
 		return err
 	}
-	if !sawASeed {
-		return fmt.Errorf("coordinator: did not test FuzzA seed")
-	}
-	if !sawBSeed {
+	if string(bytes.TrimSpace(b)) != `FuzzB "seed"` {
 		return fmt.Errorf("coordinator: did not test FuzzB seed")
 	}
 	return nil
