@@ -263,19 +263,19 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	case "", "upgrade", "patch":
 		// ok
 	default:
-		base.Fatalf("go get: unknown upgrade flag -u=%s", getU.rawVersion)
+		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
 	if *getF {
-		fmt.Fprintf(os.Stderr, "go get: -f flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
 	}
 	if *getFix {
-		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
+		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
 	}
 	if *getM {
-		base.Fatalf("go get: -m flag is no longer supported; consider -d to skip building packages")
+		base.Fatalf("go: -m flag is no longer supported; consider -d to skip building packages")
 	}
 	if *getInsecure {
-		base.Fatalf("go get: -insecure flag is no longer supported; use GOINSECURE instead")
+		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
 	// Do not allow any updating of go.mod until we've applied
@@ -397,7 +397,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 		if haveExternalExe {
-			fmt.Fprint(os.Stderr, "go get: installing executables with 'go get' in module mode is deprecated.")
+			fmt.Fprint(os.Stderr, "go: installing executables with 'go get' in module mode is deprecated.")
 			var altMsg string
 			if modload.HasModRoot() {
 				altMsg = `
@@ -442,7 +442,7 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
 	for _, arg := range search.CleanPatterns(rawArgs) {
 		q, err := newQuery(arg)
 		if err != nil {
-			base.Errorf("go get: %v", err)
+			base.Errorf("go: %v", err)
 			continue
 		}
 
@@ -457,11 +457,11 @@ func parseArgs(ctx context.Context, rawArgs []string) []*query {
 		// if the argument has no version and either has no slash or refers to an existing file.
 		if strings.HasSuffix(q.raw, ".go") && q.rawVersion == "" {
 			if !strings.Contains(q.raw, "/") {
-				base.Errorf("go get %s: arguments must be package or module paths", q.raw)
+				base.Errorf("go: %s: arguments must be package or module paths", q.raw)
 				continue
 			}
 			if fi, err := os.Stat(q.raw); err == nil && !fi.IsDir() {
-				base.Errorf("go get: %s exists as a file, but 'go get' requires package arguments", q.raw)
+				base.Errorf("go: %s exists as a file, but 'go get' requires package arguments", q.raw)
 				continue
 			}
 		}
@@ -743,7 +743,7 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
 
 			if len(match.Pkgs) == 0 {
 				if q.raw == "" || q.raw == "." {
-					return errSet(fmt.Errorf("no package in current directory"))
+					return errSet(fmt.Errorf("no package to get in current directory"))
 				}
 				if !q.isWildcard() {
 					modload.MustHaveModRoot()
@@ -1342,7 +1342,7 @@ func (r *resolver) applyUpgrades(ctx context.Context, upgrades []pathSet) (chang
 	var tentative []module.Version
 	for _, cs := range upgrades {
 		if cs.err != nil {
-			base.Errorf("go get: %v", cs.err)
+			base.Errorf("go: %v", cs.err)
 			continue
 		}
 
@@ -1735,13 +1735,13 @@ func (r *resolver) reportChanges(oldReqs, newReqs []module.Version) {
 	})
 	for _, c := range sortedChanges {
 		if c.old == "" {
-			fmt.Fprintf(os.Stderr, "go get: added %s %s\n", c.path, c.new)
+			fmt.Fprintf(os.Stderr, "go: added %s %s\n", c.path, c.new)
 		} else if c.new == "none" || c.new == "" {
-			fmt.Fprintf(os.Stderr, "go get: removed %s %s\n", c.path, c.old)
+			fmt.Fprintf(os.Stderr, "go: removed %s %s\n", c.path, c.old)
 		} else if semver.Compare(c.new, c.old) > 0 {
-			fmt.Fprintf(os.Stderr, "go get: upgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: upgraded %s %s => %s\n", c.path, c.old, c.new)
 		} else {
-			fmt.Fprintf(os.Stderr, "go get: downgraded %s %s => %s\n", c.path, c.old, c.new)
+			fmt.Fprintf(os.Stderr, "go: downgraded %s %s => %s\n", c.path, c.old, c.new)
 		}
 	}
 
@@ -1800,7 +1800,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 	if err != nil {
 		var constraint *modload.ConstraintError
 		if !errors.As(err, &constraint) {
-			base.Errorf("go get: %v", err)
+			base.Errorf("go: %v", err)
 			return false
 		}
 
@@ -1812,7 +1812,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 			return rv.reason.ResolvedString(module.Version{Path: m.Path, Version: rv.version})
 		}
 		for _, c := range constraint.Conflicts {
-			base.Errorf("go get: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
+			base.Errorf("go: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
 		}
 		return false
 	}

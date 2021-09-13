@@ -294,14 +294,14 @@ func (b *Builder) Init() {
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
-		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+		fmt.Fprintf(os.Stderr, "go: %v\n", err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
 
 	for _, tag := range cfg.BuildContext.BuildTags {
 		if strings.Contains(tag, ",") {
-			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+			fmt.Fprintf(os.Stderr, "go: -tags space-separated list contains comma\n")
 			base.SetExitStatus(2)
 			base.Exit()
 		}

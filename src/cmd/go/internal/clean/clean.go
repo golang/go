@@ -144,7 +144,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 						// This also mimics what os.RemoveAll(dir) would do.
 						if err := os.RemoveAll(d); err != nil && !printedErrors {
 							printedErrors = true
-							base.Errorf("go clean -cache: %v", err)
+							base.Errorf("go: %v", err)
 						}
 					}
 				}
@@ -157,7 +157,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			if !cfg.BuildN {
 				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
 					printedErrors = true
-					base.Errorf("go clean -cache: %v", err)
+					base.Errorf("go: %v", err)
 				}
 			}
 		}
@@ -187,7 +187,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 			}
 			if err != nil {
 				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
-					base.Errorf("go clean -testcache: %v", err)
+					base.Errorf("go: %v", err)
 				}
 			}
 		}
@@ -195,14 +195,14 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 
 	if cleanModcache {
 		if cfg.GOMODCACHE == "" {
-			base.Fatalf("go clean -modcache: no module cache")
+			base.Fatalf("go: cannot clean -modcache without a module cache")
 		}
 		if cfg.BuildN || cfg.BuildX {
 			b.Showcmd("", "rm -rf %s", cfg.GOMODCACHE)
 		}
 		if !cfg.BuildN {
 			if err := modfetch.RemoveAll(cfg.GOMODCACHE); err != nil {
-				base.Errorf("go clean -modcache: %v", err)
+				base.Errorf("go: %v", err)
 			}
 		}
 	}
@@ -245,7 +245,7 @@ func clean(p *load.Package) {
 	}
 	dirs, err := os.ReadDir(p.Dir)
 	if err != nil {
-		base.Errorf("go clean %s: %v", p.Dir, err)
+		base.Errorf("go: %s: %v", p.Dir, err)
 		return
 	}
 
@@ -334,7 +334,7 @@ func clean(p *load.Package) {
 					}
 				}
 				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Errorf("go clean: %v", err)
+					base.Errorf("go: %v", err)
 				}
 			}
 			continue
@@ -386,5 +386,5 @@ func removeFile(f string) {
 			return
 		}
 	}
-	base.Errorf("go clean: %v", err)
+	base.Errorf("go: %v", err)
 }

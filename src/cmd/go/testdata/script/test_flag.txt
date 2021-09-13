@@ -9,13 +9,13 @@ go test -count=1 -custom -args -v=7
 # However, it should be an error to use custom flags when -i or -c are used,
 # since we know for sure that no test binary will run at all.
 ! go test -i -custom
-stderr '^go test: unknown flag -custom cannot be used with -i$'
+stderr '^go: unknown flag -custom cannot be used with -i$'
 ! go test -c -custom
-stderr '^go test: unknown flag -custom cannot be used with -c$'
+stderr '^go: unknown flag -custom cannot be used with -c$'
 
 # The same should apply even if -c or -i come after a custom flag.
 ! go test -custom -c
-stderr '^go test: unknown flag -custom cannot be used with -c$'
+stderr '^go: unknown flag -custom cannot be used with -c$'
 
 -- go.mod --
 module m
