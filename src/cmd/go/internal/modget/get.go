@@ -281,7 +281,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
 	// what was requested.
-	modload.DisallowWriteGoMod()
+	modload.ExplicitWriteGoMod = true
 
 	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
@@ -423,9 +423,9 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile())
 
-	modload.AllowWriteGoMod()
-	modload.WriteGoMod(ctx)
-	modload.DisallowWriteGoMod()
+	if err := modload.WriteGoMod(ctx); err != nil {
+		base.Fatalf("go: %v", err)
+	}
 
 	newReqs := reqsFromGoMod(modload.ModFile())
 	r.reportChanges(oldReqs, newReqs)
