@@ -702,14 +702,17 @@
 //
 // - All arguments must refer to packages in the same module at the same version.
 //
+// - Package path arguments must refer to main packages. Pattern arguments
+// will only match main packages.
+//
 // - No module is considered the "main" module. If the module containing
 // packages named on the command line has a go.mod file, it must not contain
 // directives (replace and exclude) that would cause it to be interpreted
 // differently than if it were the main module. The module must not require
 // a higher version of itself.
 //
-// - Package path arguments must refer to main packages. Pattern arguments
-// will only match main packages.
+// - Vendor directories are not used in any module. (Vendor directories are not
+// included in the module zip files downloaded by 'go install'.)
 //
 // If the arguments don't have version suffixes, "go install" may run in
 // module-aware mode or GOPATH mode, depending on the GO111MODULE environment
