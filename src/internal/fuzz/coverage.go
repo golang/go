@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"fmt"
 	"internal/unsafeheader"
 	"math/bits"
 	"unsafe"
@@ -54,6 +55,9 @@ func SnapshotCoverage() {
 // diffCoverage returns a set of bits set in snapshot but not in base.
 // If there are no new bits set, diffCoverage returns nil.
 func diffCoverage(base, snapshot []byte) []byte {
+	if len(base) != len(snapshot) {
+		panic(fmt.Sprintf("the number of coverage bits changed: before=%d, after=%d", len(base), len(snapshot)))
+	}
 	found := false
 	for i := range snapshot {
 		if snapshot[i]&^base[i] != 0 {
@@ -100,9 +104,12 @@ func countBits(cov []byte) int {
 	return n
 }
 
-var coverageSnapshot = make([]byte, len(coverage()))
+var (
+	coverageEnabled  = len(coverage()) > 0
+	coverageSnapshot = make([]byte, len(coverage()))
 
-// _counters and _ecounters mark the start and end, respectively, of where
-// the 8-bit coverage counters reside in memory. They're known to cmd/link,
-// which specially assigns their addresses for this purpose.
-var _counters, _ecounters [0]byte
+	// _counters and _ecounters mark the start and end, respectively, of where
+	// the 8-bit coverage counters reside in memory. They're known to cmd/link,
+	// which specially assigns their addresses for this purpose.
+	_counters, _ecounters [0]byte
+)

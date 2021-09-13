@@ -84,6 +84,7 @@ type corpusEntry = struct {
 	Data       []byte
 	Values     []interface{}
 	Generation int
+	IsSeed     bool
 }
 
 // Cleanup registers a function to be called after the fuzz function has been
@@ -258,7 +259,7 @@ func (f *F) Add(args ...interface{}) {
 		}
 		values = append(values, args[i])
 	}
-	f.corpus = append(f.corpus, corpusEntry{Values: values, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
+	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
 }
 
 // supportedTypes represents all of the supported types which can be fuzzed.
@@ -344,11 +345,11 @@ func (f *F) Fuzz(ff interface{}) {
 		if err != nil {
 			f.Fatal(err)
 		}
-
-		// If this is the coordinator process, zero the values, since we don't need
-		// to hold onto them.
-		if f.fuzzContext.mode == fuzzCoordinator {
-			for i := range c {
+		for i := range c {
+			c[i].IsSeed = true // these are all seed corpus values
+			if f.fuzzContext.mode == fuzzCoordinator {
+				// If this is the coordinator process, zero the values, since we don't need
+				// to hold onto them.
 				c[i].Values = nil
 			}
 		}
@@ -550,6 +551,10 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
 	m := newMatcher(deps.MatchString, *match, "-test.run")
 	tctx := newTestContext(*parallel, m)
 	tctx.deadline = deadline
+	var mFuzz *matcher
+	if *matchFuzz != "" {
+		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+	}
 	fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
 	root := common{w: os.Stdout} // gather output in one place
 	if Verbose() {
@@ -562,6 +567,13 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
 		testName, matched, _ := tctx.match.fullName(nil, ft.Name)
 		if !matched {
 			continue
+		}
+		if mFuzz != nil {
+			if _, fuzzMatched, _ := mFuzz.fullName(nil, ft.Name); fuzzMatched {
+				// If this target will be fuzzed, then don't run the seed corpus
+				// right now. That will happen later.
+				continue
+			}
 		}
 		f := &F{
 			common: common{
