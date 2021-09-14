@@ -284,8 +284,6 @@ type importReader struct {
 	prevColumn int64
 }
 
-// obj reads import declaration for an object. It may not read
-// the entire declaration, e.g, for recursive type.
 func (r *importReader) obj(name string) {
 	tag := r.byte()
 	pos := r.pos()
