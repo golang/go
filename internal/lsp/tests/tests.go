@@ -47,7 +47,7 @@ var summaryFile = "summary.txt"
 
 func init() {
 	if typeparams.Enabled {
-		summaryFile = "summary_generics.txt"
+		summaryFile = "summary_go1.18.txt"
 	}
 }
 

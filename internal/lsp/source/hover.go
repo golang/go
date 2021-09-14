@@ -406,7 +406,7 @@ func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
 func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signature) string {
 	// If the signature type was inferred, prefer the preferred signature with a
 	// comment showing the generic signature.
-	if sig, _ := obj.Type().(*types.Signature); sig != nil && len(typeparams.ForSignature(sig)) > 0 && inferred != nil {
+	if sig, _ := obj.Type().(*types.Signature); sig != nil && typeparams.ForSignature(sig).Len() > 0 && inferred != nil {
 		obj2 := types.NewFunc(obj.Pos(), obj.Pkg(), obj.Name(), inferred)
 		str := types.ObjectString(obj2, qf)
 		// Try to avoid overly long lines.
