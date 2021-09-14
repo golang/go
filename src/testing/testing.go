@@ -1635,7 +1635,7 @@ func (m *M) Run() (code int) {
 	}
 
 	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
-	if !*isFuzzWorker && !fuzzingOk {
+	if !fuzzingOk {
 		fmt.Println("FAIL")
 		if *isFuzzWorker {
 			m.exitCode = fuzzWorkerExitCode
