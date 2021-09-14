@@ -30,11 +30,10 @@ stdout '^ok.*no tests to run'
 ! stdout 'no targets to fuzz'
 
 # Matches more than one fuzz target for fuzzing.
-go test -fuzz Fuzz -fuzztime 1x multiple_fuzz_test.go
-# The tests should run, but not be fuzzed
+! go test -fuzz Fuzz -fuzztime 1x multiple_fuzz_test.go
 ! stdout 'no tests to run'
 ! stdout 'no targets to fuzz'
-stdout ok
+stdout FAIL
 stdout 'will not fuzz, -fuzz matches more than one target'
 
 -- standalone_fuzz_test.go --
