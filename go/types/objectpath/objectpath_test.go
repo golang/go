@@ -6,6 +6,7 @@ package objectpath_test
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
@@ -55,6 +56,50 @@ type T struct{x, y int}
 
 `},
 	}
+	paths := []pathTest{
+		// Good paths
+		{"b", "C", "const b.C a.Int", ""},
+		{"b", "F", "func b.F(a int, b int, c int, d a.T)", ""},
+		{"b", "F.PA0", "var a int", ""},
+		{"b", "F.PA1", "var b int", ""},
+		{"b", "F.PA2", "var c int", ""},
+		{"b", "F.PA3", "var d a.T", ""},
+		{"b", "T", "type b.T struct{A int; b int; a.T}", ""},
+		{"b", "T.O", "type b.T struct{A int; b int; a.T}", ""},
+		{"b", "T.UF0", "field A int", ""},
+		{"b", "T.UF1", "field b int", ""},
+		{"b", "T.UF2", "field T a.T", ""},
+		{"b", "U.UF2", "field T a.T", ""}, // U.U... are aliases for T.U...
+		{"b", "A", "type b.A = struct{x int}", ""},
+		{"b", "A.F0", "field x int", ""},
+		{"b", "V", "var b.V []*a.T", ""},
+		{"b", "M", "type b.M map[struct{x int}]struct{y int}", ""},
+		{"b", "M.UKF0", "field x int", ""},
+		{"b", "M.UEF0", "field y int", ""},
+		{"b", "T.M0", "func (b.T).M() *interface{f()}", ""}, // concrete method
+		{"b", "T.M0.RA0", "var  *interface{f()}", ""},       // parameter
+		{"b", "T.M0.RA0.EM0", "func (interface).f()", ""},   // interface method
+		{"b", "unexportedType", "type b.unexportedType struct{}", ""},
+		{"a", "T", "type a.T struct{x int; y int}", ""},
+		{"a", "T.UF0", "field x int", ""},
+
+		// Bad paths
+		{"b", "", "", "empty path"},
+		{"b", "missing", "", `package b does not contain "missing"`},
+		{"b", "F.U", "", "invalid path: ends with 'U', want [AFMO]"},
+		{"b", "F.PA3.O", "", "path denotes type a.T struct{x int; y int}, which belongs to a different package"},
+		{"b", "F.PA!", "", `invalid path: bad numeric operand "" for code 'A'`},
+		{"b", "F.PA3.UF0", "", "path denotes field x int, which belongs to a different package"},
+		{"b", "F.PA3.UF5", "", "field index 5 out of range [0-2)"},
+		{"b", "V.EE", "", "invalid path: ends with 'E', want [AFMO]"},
+		{"b", "F..O", "", "invalid path: unexpected '.' in type context"},
+		{"b", "T.OO", "", "invalid path: code 'O' in object context"},
+		{"b", "T.EO", "", "cannot apply 'E' to b.T (got *types.Named, want pointer, slice, array, chan or map)"},
+		{"b", "A.O", "", "cannot apply 'O' to struct{x int} (got *types.Struct, want named or type param)"},
+		{"b", "A.UF0", "", "cannot apply 'U' to struct{x int} (got *types.Struct, want named)"},
+		{"b", "M.UPO", "", "cannot apply 'P' to map[struct{x int}]struct{y int} (got *types.Map, want signature)"},
+		{"b", "C.O", "", "path denotes type a.Int int, which belongs to a different package"},
+	}
 	conf := loader.Config{Build: buildutil.FakeContext(pkgs)}
 	conf.Import("a")
 	conf.Import("b")
@@ -62,9 +107,45 @@ type T struct{x, y int}
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := prog.Imported["a"].Pkg
-	b := prog.Imported["b"].Pkg
 
+	for _, test := range paths {
+		if err := testPath(prog, test); err != nil {
+			t.Error(err)
+		}
+	}
+
+	// bad objects
+	bInfo := prog.Imported["b"]
+	for _, test := range []struct {
+		obj     types.Object
+		wantErr string
+	}{
+		{types.Universe.Lookup("nil"), "predeclared nil has no path"},
+		{types.Universe.Lookup("len"), "predeclared builtin len has no path"},
+		{types.Universe.Lookup("int"), "predeclared type int has no path"},
+		{bInfo.Implicits[bInfo.Files[0].Imports[0]], "no path for package a"}, // import "a"
+		{bInfo.Pkg.Scope().Lookup("unexportedFunc"), "no path for non-exported func b.unexportedFunc()"},
+	} {
+		path, err := objectpath.For(test.obj)
+		if err == nil {
+			t.Errorf("Object(%s) = %q, want error", test.obj, path)
+			continue
+		}
+		if err.Error() != test.wantErr {
+			t.Errorf("Object(%s) error was %q, want %q", test.obj, err, test.wantErr)
+			continue
+		}
+	}
+}
+
+type pathTest struct {
+	pkg     string
+	path    objectpath.Path
+	wantobj string
+	wantErr string
+}
+
+func testPath(prog *loader.Program, test pathTest) error {
 	// We test objectpath by enumerating a set of paths
 	// and ensuring that Path(pkg, Object(pkg, path)) == path.
 	//
@@ -80,133 +161,63 @@ type T struct{x, y int}
 	// The downside is that the test depends on the path encoding.
 	// The upside is that the test exercises the encoding.
 
-	// good paths
-	for _, test := range []struct {
-		pkg     *types.Package
-		path    objectpath.Path
-		wantobj string
-	}{
-		{b, "C", "const b.C a.Int"},
-		{b, "F", "func b.F(a int, b int, c int, d a.T)"},
-		{b, "F.PA0", "var a int"},
-		{b, "F.PA1", "var b int"},
-		{b, "F.PA2", "var c int"},
-		{b, "F.PA3", "var d a.T"},
-		{b, "T", "type b.T struct{A int; b int; a.T}"},
-		{b, "T.O", "type b.T struct{A int; b int; a.T}"},
-		{b, "T.UF0", "field A int"},
-		{b, "T.UF1", "field b int"},
-		{b, "T.UF2", "field T a.T"},
-		{b, "U.UF2", "field T a.T"}, // U.U... are aliases for T.U...
-		{b, "A", "type b.A = struct{x int}"},
-		{b, "A.F0", "field x int"},
-		{b, "V", "var b.V []*a.T"},
-		{b, "M", "type b.M map[struct{x int}]struct{y int}"},
-		{b, "M.UKF0", "field x int"},
-		{b, "M.UEF0", "field y int"},
-		{b, "T.M0", "func (b.T).M() *interface{f()}"}, // concrete method
-		{b, "T.M0.RA0", "var  *interface{f()}"},       // parameter
-		{b, "T.M0.RA0.EM0", "func (interface).f()"},   // interface method
-		{b, "unexportedType", "type b.unexportedType struct{}"},
-		{a, "T", "type a.T struct{x int; y int}"},
-		{a, "T.UF0", "field x int"},
-	} {
-		// check path -> object
-		obj, err := objectpath.Object(test.pkg, test.path)
-		if err != nil {
-			t.Errorf("Object(%s, %q) failed: %v",
-				test.pkg.Path(), test.path, err)
-			continue
+	pkg := prog.Imported[test.pkg].Pkg
+	// check path -> object
+	obj, err := objectpath.Object(pkg, test.path)
+	if (test.wantErr != "") != (err != nil) {
+		return fmt.Errorf("Object(%s, %q) returned error %q, want %q", pkg.Path(), test.path, err, test.wantErr)
+	}
+	if test.wantErr != "" {
+		if got := stripSubscripts(err.Error()); got != test.wantErr {
+			return fmt.Errorf("Object(%s, %q) error was %q, want %q",
+				pkg.Path(), test.path, got, test.wantErr)
 		}
-		if obj.String() != test.wantobj {
-			t.Errorf("Object(%s, %q) = %v, want %s",
-				test.pkg.Path(), test.path, obj, test.wantobj)
-			continue
-		}
-		if obj.Pkg() != test.pkg {
-			t.Errorf("Object(%s, %q) = %v, which belongs to package %s",
-				test.pkg.Path(), test.path, obj, obj.Pkg().Path())
-			continue
-		}
+		return nil
+	}
+	// Inv: err == nil
 
-		// check object -> path
-		path2, err := objectpath.For(obj)
-		if err != nil {
-			t.Errorf("For(%v) failed: %v, want %q", obj, err, test.path)
-			continue
-		}
-		// We do not require that test.path == path2. Aliases are legal.
-		// But we do require that Object(path2) finds the same object.
-		obj2, err := objectpath.Object(test.pkg, path2)
-		if err != nil {
-			t.Errorf("Object(%s, %q) failed: %v (roundtrip from %q)",
-				test.pkg.Path(), path2, err, test.path)
-			continue
-		}
-		if obj2 != obj {
-			t.Errorf("Object(%s, For(obj)) != obj: got %s, obj is %s (path1=%q, path2=%q)",
-				test.pkg.Path(), obj2, obj, test.path, path2)
-			continue
-		}
+	if objString := stripSubscripts(obj.String()); objString != test.wantobj {
+		return fmt.Errorf("Object(%s, %q) = %s, want %s", pkg.Path(), test.path, objString, test.wantobj)
+	}
+	if obj.Pkg() != pkg {
+		return fmt.Errorf("Object(%s, %q) = %v, which belongs to package %s",
+			pkg.Path(), test.path, obj, obj.Pkg().Path())
 	}
 
-	// bad paths (all relative to package b)
-	for _, test := range []struct {
-		pkg     *types.Package
-		path    objectpath.Path
-		wantErr string
-	}{
-		{b, "", "empty path"},
-		{b, "missing", `package b does not contain "missing"`},
-		{b, "F.U", "invalid path: ends with 'U', want [AFMO]"},
-		{b, "F.PA3.O", "path denotes type a.T struct{x int; y int}, which belongs to a different package"},
-		{b, "F.PA!", `invalid path: bad numeric operand "" for code 'A'`},
-		{b, "F.PA3.UF0", "path denotes field x int, which belongs to a different package"},
-		{b, "F.PA3.UF5", "field index 5 out of range [0-2)"},
-		{b, "V.EE", "invalid path: ends with 'E', want [AFMO]"},
-		{b, "F..O", "invalid path: unexpected '.' in type context"},
-		{b, "T.OO", "invalid path: code 'O' in object context"},
-		{b, "T.EO", "cannot apply 'E' to b.T (got *types.Named, want pointer, slice, array, chan or map)"},
-		{b, "A.O", "cannot apply 'O' to struct{x int} (got struct{x int}, want named)"},
-		{b, "A.UF0", "cannot apply 'U' to struct{x int} (got struct{x int}, want named)"},
-		{b, "M.UPO", "cannot apply 'P' to map[struct{x int}]struct{y int} (got *types.Map, want signature)"},
-		{b, "C.O", "path denotes type a.Int int, which belongs to a different package"},
-	} {
-		obj, err := objectpath.Object(test.pkg, test.path)
-		if err == nil {
-			t.Errorf("Object(%s, %q) = %s, want error",
-				test.pkg.Path(), test.path, obj)
-			continue
-		}
-		if err.Error() != test.wantErr {
-			t.Errorf("Object(%s, %q) error was %q, want %q",
-				test.pkg.Path(), test.path, err, test.wantErr)
-			continue
-		}
+	// check object -> path
+	path2, err := objectpath.For(obj)
+	if err != nil {
+		return fmt.Errorf("For(%v) failed: %v, want %q", obj, err, test.path)
 	}
+	// We do not require that test.path == path2. Aliases are legal.
+	// But we do require that Object(path2) finds the same object.
+	obj2, err := objectpath.Object(pkg, path2)
+	if err != nil {
+		return fmt.Errorf("Object(%s, %q) failed: %v (roundtrip from %q)", pkg.Path(), path2, err, test.path)
+	}
+	if obj2 != obj {
+		return fmt.Errorf("Object(%s, For(obj)) != obj: got %s, obj is %s (path1=%q, path2=%q)", pkg.Path(), obj2, obj, test.path, path2)
+	}
+	return nil
+}
 
-	// bad objects
-	bInfo := prog.Imported["b"]
-	for _, test := range []struct {
-		obj     types.Object
-		wantErr string
-	}{
-		{types.Universe.Lookup("nil"), "predeclared nil has no path"},
-		{types.Universe.Lookup("len"), "predeclared builtin len has no path"},
-		{types.Universe.Lookup("int"), "predeclared type int has no path"},
-		{bInfo.Info.Implicits[bInfo.Files[0].Imports[0]], "no path for package a"}, // import "a"
-		{b.Scope().Lookup("unexportedFunc"), "no path for non-exported func b.unexportedFunc()"},
-	} {
-		path, err := objectpath.For(test.obj)
-		if err == nil {
-			t.Errorf("Object(%s) = %q, want error", test.obj, path)
-			continue
+// stripSubscripts removes type parameter id subscripts.
+//
+// TODO(rfindley): remove this function once subscripts are removed from the
+// type parameter type string.
+func stripSubscripts(s string) string {
+	var runes []rune
+	for _, r := range s {
+		// For debugging/uniqueness purposes, TypeString on a type parameter adds a
+		// subscript corresponding to the type parameter's unique id. This is going
+		// to be removed, but in the meantime we skip the subscript runes to get a
+		// deterministic output.
+		if '₀' <= r && r < '₀'+10 {
+			continue // trim type parameter subscripts
 		}
-		if err.Error() != test.wantErr {
-			t.Errorf("Object(%s) error was %q, want %q", test.obj, err, test.wantErr)
-			continue
-		}
+		runes = append(runes, r)
 	}
+	return string(runes)
 }
 
 // TestSourceAndExportData uses objectpath to compute a correspondence
