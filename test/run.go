@@ -2184,8 +2184,6 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
-
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
 )
 
