@@ -1645,6 +1645,48 @@ func TestIdentical_issue15173(t *testing.T) {
 	}
 }
 
+func TestIdenticalUnions(t *testing.T) {
+	tname := NewTypeName(nopos, nil, "myInt", nil)
+	myInt := NewNamed(tname, Typ[Int], nil)
+	tmap := map[string]*Term{
+		"int":     NewTerm(false, Typ[Int]),
+		"~int":    NewTerm(true, Typ[Int]),
+		"string":  NewTerm(false, Typ[String]),
+		"~string": NewTerm(true, Typ[String]),
+		"myInt":   NewTerm(false, myInt),
+	}
+	makeUnion := func(s string) *Union {
+		parts := strings.Split(s, "|")
+		var terms []*Term
+		for _, p := range parts {
+			term := tmap[p]
+			if term == nil {
+				t.Fatalf("missing term %q", p)
+			}
+			terms = append(terms, term)
+		}
+		return NewUnion(terms)
+	}
+	for _, test := range []struct {
+		x, y string
+		want bool
+	}{
+		// These tests are just sanity checks. The tests for type sets and
+		// interfaces provide much more test coverage.
+		{"int|~int", "~int", true},
+		{"myInt|~int", "~int", true},
+		{"int|string", "string|int", true},
+		{"int|int|string", "string|int", true},
+		{"myInt|string", "int|string", false},
+	} {
+		x := makeUnion(test.x)
+		y := makeUnion(test.y)
+		if got := Identical(x, y); got != test.want {
+			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
+		}
+	}
+}
+
 func TestIssue15305(t *testing.T) {
 	const src = "package p; func f() int16; var _ = f(undef)"
 	f, err := parseSrc("issue15305.go", src)
