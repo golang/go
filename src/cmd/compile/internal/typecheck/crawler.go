@@ -44,12 +44,13 @@ func (p *crawler) markObject(n *ir.Name) {
 	p.markType(n.Type())
 }
 
-// markType recursively visits types reachable from t to identify
-// functions whose inline bodies may be needed.
+// markType recursively visits types reachable from t to identify functions whose
+// inline bodies may be needed. For instantiated generic types, it visits the base
+// generic type, which has the relevant methods.
 func (p *crawler) markType(t *types.Type) {
-	if t.IsInstantiatedGeneric() {
-		// Re-instantiated types don't add anything new, so don't follow them.
-		return
+	if t.OrigSym() != nil {
+		// Convert to the base generic type.
+		t = t.OrigSym().Def.Type()
 	}
 	if p.marked[t] {
 		return
@@ -92,6 +93,9 @@ func (p *crawler) markType(t *types.Type) {
 		p.markType(t.Elem())
 
 	case types.TSTRUCT:
+		if t.IsFuncArgStruct() {
+			break
+		}
 		for _, f := range t.FieldSlice() {
 			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
 				p.markType(f.Type)
@@ -129,9 +133,9 @@ func (p *crawler) markEmbed(t *types.Type) {
 		t = t.Elem()
 	}
 
-	if t.IsInstantiatedGeneric() {
-		// Re-instantiated types don't add anything new, so don't follow them.
-		return
+	if t.OrigSym() != nil {
+		// Convert to the base generic type.
+		t = t.OrigSym().Def.Type()
 	}
 
 	if p.embedded[t] {
@@ -185,6 +189,15 @@ func (p *crawler) markInlBody(n *ir.Name) {
 
 	var doFlood func(n ir.Node)
 	doFlood = func(n ir.Node) {
+		t := n.Type()
+		if t != nil && (t.HasTParam() || t.IsFullyInstantiated()) {
+			// Ensure that we call markType() on any base generic type
+			// that is written to the export file (even if not explicitly
+			// marked for export), so we will call markInlBody on its
+			// methods, and the methods will be available for
+			// instantiation if needed.
+			p.markType(t)
+		}
 		switch n.Op() {
 		case ir.OMETHEXPR, ir.ODOTMETH:
 			p.markInlBody(ir.MethodExprName(n))
@@ -198,9 +211,6 @@ func (p *crawler) markInlBody(n *ir.Name) {
 			case ir.PEXTERN:
 				Export(n)
 			}
-			p.checkGenericType(n.Type())
-		case ir.OTYPE:
-			p.checkGenericType(n.Type())
 		case ir.OMETHVALUE:
 			// Okay, because we don't yet inline indirect
 			// calls to method values.
@@ -215,17 +225,4 @@ func (p *crawler) markInlBody(n *ir.Name) {
 	// reexport. We want to include even non-called functions,
 	// because after inlining they might be callable.
 	ir.VisitList(fn.Inl.Body, doFlood)
-}
-
-// checkGenerictype ensures that we call markType() on any base generic type that
-// is written to the export file (even if not explicitly marked
-// for export), so its methods will be available for inlining if needed.
-func (p *crawler) checkGenericType(t *types.Type) {
-	if t != nil && t.HasTParam() {
-		if t.OrigSym() != nil {
-			// Convert to the base generic type.
-			t = t.OrigSym().Def.Type()
-		}
-		p.markType(t)
-	}
 }
