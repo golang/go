@@ -108,7 +108,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Envi
 	case *Named:
 		var h string
 		if env != nil {
-			h = env.typeHash(t, targs)
+			h = env.TypeHash(t, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
 			if named := env.typeForHash(h, nil); named != nil {
