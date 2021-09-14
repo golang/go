@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func readExportFile(filename string) ([]byte, error) {
@@ -63,6 +64,7 @@ func iexport(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
 }
 
 func TestIExportData_stdlib(t *testing.T) {
+	testenv.SkipAfterGo1Point(t, 17)
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo standard library is inaccessible")
 	}
