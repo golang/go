@@ -1634,14 +1634,7 @@ func (m *M) Run() (code int) {
 		}
 	}
 
-	fuzzingRan, fuzzingMatched, fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
-	if *matchFuzz != "" && !fuzzingRan {
-		if fuzzingMatched == 0 {
-			fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
-		} else {
-			fmt.Fprintln(os.Stderr, "testing: warning: will not fuzz, -fuzz matches more than one target")
-		}
-	}
+	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
 	if !*isFuzzWorker && !fuzzingOk {
 		fmt.Println("FAIL")
 		if *isFuzzWorker {

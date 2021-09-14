@@ -593,12 +593,12 @@ func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline ti
 //
 // If fuzzing is disabled (-test.fuzz is not set), runFuzzing
 // returns immediately.
-func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matched int, ok bool) {
+func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ok bool) {
 	// TODO(katiehockman,jayconrod): Should we do something special to make sure
 	// we don't print f.Log statements again with runFuzzing, since we already
 	// would have printed them when we ran runFuzzTargets (ie. seed corpus run)?
 	if len(fuzzTargets) == 0 || *matchFuzz == "" {
-		return false, 0, true
+		return true
 	}
 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
 	tctx := newTestContext(1, m)
@@ -617,17 +617,23 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matc
 	}
 	var target *InternalFuzzTarget
 	var targetName string
+	var matched []string
 	for i := range fuzzTargets {
 		name, ok, _ := tctx.match.fullName(nil, fuzzTargets[i].Name)
 		if !ok {
 			continue
 		}
-		matched++
+		matched = append(matched, name)
 		target = &fuzzTargets[i]
 		targetName = name
 	}
-	if matched != 1 {
-		return false, matched, true
+	if len(matched) == 0 {
+		fmt.Fprintln(os.Stderr, "testing: warning: no targets to fuzz")
+		return true
+	}
+	if len(matched) > 1 {
+		fmt.Fprintf(os.Stderr, "testing: will not fuzz, -fuzz matches more than one target: %v\n", matched)
+		return false
 	}
 
 	f := &F{
@@ -649,7 +655,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran bool, matc
 	}
 	go fRunner(f, target.Fn)
 	<-f.signal
-	return f.ran, matched, !f.failed
+	return !f.failed
 }
 
 // fRunner wraps a call to a fuzz target and ensures that cleanup functions are
