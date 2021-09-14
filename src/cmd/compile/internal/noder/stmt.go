@@ -37,7 +37,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 	case *syntax.BlockStmt:
 		return ir.NewBlockStmt(g.pos(stmt), g.blockStmt(stmt))
 	case *syntax.ExprStmt:
-		return g.expr(stmt.X)
+		return wrapname(g.pos(stmt.X), g.expr(stmt.X))
 	case *syntax.SendStmt:
 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
 		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {

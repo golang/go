@@ -390,9 +390,10 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 			} else {
 				key = g.expr(elem.Key)
 			}
-			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
+			value := wrapname(g.pos(elem.Value), g.expr(elem.Value))
+			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, value)
 		default:
-			exprs[i] = g.expr(elem)
+			exprs[i] = wrapname(g.pos(elem), g.expr(elem))
 		}
 	}
 

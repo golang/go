@@ -404,6 +404,10 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 		return n
 	}
 
+	if n.Op() == ir.OPAREN {
+		n = n.(*ir.ParenExpr).X
+	}
+
 	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
