@@ -680,10 +680,10 @@ func schedinit() {
 	moduledataverify()
 	stackinit()
 	mallocinit()
+	cpuinit()      // must run before alginit
+	alginit()      // maps, hash, fastrand must not be used before this call
 	fastrandinit() // must run before mcommoninit
 	mcommoninit(_g_.m, -1)
-	cpuinit()       // must run before alginit
-	alginit()       // maps must not be used before this call
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
@@ -787,11 +787,8 @@ func mcommoninit(mp *m, id int64) {
 		mp.id = mReserveID()
 	}
 
-	mp.fastrand[0] = uint32(int64Hash(uint64(mp.id), fastrandseed))
-	mp.fastrand[1] = uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
-	if mp.fastrand[0]|mp.fastrand[1] == 0 {
-		mp.fastrand[1] = 1
-	}
+	// cputicks is not very random in startup virtual machine
+	mp.fastrand = uint64(int64Hash(uint64(mp.id), fastrandseed^uintptr(cputicks())))
 
 	mpreinit(mp)
 	if mp.gsignal != nil {
