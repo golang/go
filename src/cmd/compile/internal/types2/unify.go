@@ -428,9 +428,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 
 	case *Named:
 		if y, ok := y.(*Named); ok {
-			x.expand(nil)
-			y.expand(nil)
-
 			xargs := x.targs.list()
 			yargs := y.targs.list()
 
