@@ -1706,6 +1706,10 @@ func NewNamed(obj TypeObject) *Type {
 	t := newType(TFORW)
 	t.sym = obj.Sym()
 	t.nod = obj
+	if t.sym.Pkg == ShapePkg {
+		t.SetIsShape(true)
+		t.SetHasShape(true)
+	}
 	return t
 }
 
@@ -2182,3 +2186,5 @@ var (
 )
 
 var SimType [NTYPE]Kind
+
+var ShapePkg = NewPkg(".shape", ".shape")
