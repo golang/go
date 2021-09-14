@@ -1414,9 +1414,15 @@ func Shapify(t *types.Type) *types.Type {
 		return s
 	}
 
-	sym := shapePkg.Lookup(u.LinkString())
+	sym := types.ShapePkg.Lookup(u.LinkString())
+	if sym.Def != nil {
+		// Use any existing type with the same name
+		shaped[u] = sym.Def.Type()
+		return shaped[u]
+	}
 	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
 	s := types.NewNamed(name)
+	sym.Def = name
 	s.SetUnderlying(u)
 	s.SetIsShape(true)
 	s.SetHasShape(true)
@@ -1427,5 +1433,3 @@ func Shapify(t *types.Type) *types.Type {
 }
 
 var shaped = map[*types.Type]*types.Type{}
-
-var shapePkg = types.NewPkg(".shape", ".shape")
