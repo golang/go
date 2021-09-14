@@ -239,7 +239,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
 					crashMinimizing = &result
-					fmt.Fprintf(c.opts.Log, "found a crash, minimizing...\n")
+					fmt.Fprintf(c.opts.Log, "fuzz: found a %d-byte crash input; minimizing...\n", len(result.entry.Data))
 					c.queueForMinimization(result, nil)
 				} else if !crashWritten {
 					// Found a crasher that's either minimized or not minimizable.
@@ -256,7 +256,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						fmt.Fprintf(
 							c.opts.Log,
 							"DEBUG new crasher, elapsed: %s, id: %s, parent: %s, gen: %d, size: %d, exec time: %s\n",
-							time.Since(c.startTime),
+							c.elapsed(),
 							fileName,
 							result.entry.Parent,
 							result.entry.Generation,
@@ -272,7 +272,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						fmt.Fprintf(
 							c.opts.Log,
 							"DEBUG processed an initial input, elapsed: %s, id: %s, new bits: %d, size: %d, exec time: %s\n",
-							time.Since(c.startTime),
+							c.elapsed(),
 							result.entry.Parent,
 							countBits(diffCoverage(c.coverageMask, result.coverageData)),
 							len(result.entry.Data),
@@ -291,7 +291,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 							fmt.Fprintf(
 								c.opts.Log,
 								"DEBUG finished processing input corpus, elapsed: %s, entries: %d, initial coverage bits: %d\n",
-								time.Since(c.startTime),
+								c.elapsed(),
 								len(c.corpus.entries),
 								countBits(c.coverageMask),
 							)
@@ -329,7 +329,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 							fmt.Fprintf(
 								c.opts.Log,
 								"DEBUG new interesting input, elapsed: %s, id: %s, parent: %s, gen: %d, new bits: %d, total bits: %d, size: %d, exec time: %s\n",
-								time.Since(c.startTime),
+								c.elapsed(),
 								result.entry.Name,
 								result.entry.Parent,
 								result.entry.Generation,
@@ -345,7 +345,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						fmt.Fprintf(
 							c.opts.Log,
 							"DEBUG worker reported interesting input that doesn't expand coverage, elapsed: %s, id: %s, parent: %s, minimized: %t\n",
-							time.Since(c.startTime),
+							c.elapsed(),
 							result.entry.Name,
 							result.entry.Parent,
 							result.minimizeAttempted,
@@ -644,12 +644,12 @@ func (c *coordinator) updateStats(result fuzzResult) {
 }
 
 func (c *coordinator) logStats() {
-	elapsed := time.Since(c.startTime)
+	elapsed := c.elapsed()
 	if c.coverageOnlyRun() {
-		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %.1fs, workers: %d, left: %d\n", elapsed.Seconds(), c.opts.Parallel, c.covOnlyInputs)
+		fmt.Fprintf(c.opts.Log, "gathering baseline coverage, elapsed: %s, workers: %d, left: %d\n", elapsed, c.opts.Parallel, c.covOnlyInputs)
 	} else {
-		rate := float64(c.count) / elapsed.Seconds()
-		fmt.Fprintf(c.opts.Log, "fuzzing, elapsed: %.1fs, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed.Seconds(), c.count, rate, c.opts.Parallel, c.interestingCount)
+		rate := float64(c.count) / time.Since(c.startTime).Seconds() // be more precise here
+		fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), workers: %d, interesting: %d\n", elapsed, c.count, rate, c.opts.Parallel, c.interestingCount)
 	}
 }
 
@@ -818,6 +818,10 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
 func (c *coordinator) canMinimize() bool {
 	return c.minimizationAllowed &&
 		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
+}
+
+func (c *coordinator) elapsed() time.Duration {
+	return time.Since(c.startTime).Round(1 * time.Second)
 }
 
 // readCache creates a combined corpus from seed values and values in the cache
