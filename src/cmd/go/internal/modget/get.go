@@ -37,7 +37,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/imports"
-	"cmd/go/internal/load"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/par"
@@ -50,14 +49,14 @@ import (
 )
 
 var CmdGet = &base.Command{
-	// Note: -d -u are listed explicitly because they are the most common get flags.
+	// Note: flags below are listed explicitly because they're the most common.
 	// Do not send CLs removing them because they're covered by [get flags].
-	UsageLine: "go get [-d] [-t] [-u] [-v] [build flags] [packages]",
+	UsageLine: "go get [-t] [-u] [-v] [build flags] [packages]",
 	Short:     "add dependencies to current module and install them",
 	Long: `
 Get resolves its command-line arguments to packages at specific module versions,
-updates go.mod to require those versions, downloads source code into the
-module cache, then builds and installs the named packages.
+updates go.mod to require those versions, and downloads source code into the
+module cache.
 
 To add a dependency for a package or upgrade it to its latest version:
 
@@ -73,9 +72,11 @@ To remove a dependency on a module and downgrade modules that require it:
 
 See https://golang.org/ref/mod#go-get for details.
 
-The 'go install' command may be used to build and install packages. When a
-version is specified, 'go install' runs in module-aware mode and ignores
-the go.mod file in the current directory. For example:
+In earlier versions of Go, 'go get' was used to build and install packages.
+Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
+may be used to build and install commands instead. When a version is specified,
+'go install' runs in module-aware mode and ignores the go.mod file in the
+current directory. For example:
 
 	go install example.com/pkg@v1.2.3
 	go install example.com/pkg@latest
@@ -97,16 +98,6 @@ but changes the default to select patch releases.
 
 When the -t and -u flags are used together, get will update
 test dependencies as well.
-
-The -d flag instructs get not to build or install packages. get will only
-update go.mod and download source code needed to build packages.
-
-Building and installing packages with get is deprecated. In a future release,
-the -d flag will be enabled by default, and 'go get' will be only be used to
-adjust dependencies of the current module. To install a package using
-dependencies from the current module, use 'go install'. To install a package
-ignoring the current module, use 'go install' with an @version suffix like
-"@latest" after each argument.
 
 For more about modules, see https://golang.org/ref/mod.
 
@@ -218,7 +209,7 @@ variable for future go command invocations.
 }
 
 var (
-	getD        = CmdGet.Flag.Bool("d", false, "")
+	getD        = CmdGet.Flag.Bool("d", true, "")
 	getF        = CmdGet.Flag.Bool("f", false, "")
 	getFix      = CmdGet.Flag.Bool("fix", false, "")
 	getM        = CmdGet.Flag.Bool("m", false, "")
@@ -265,6 +256,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	default:
 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
 	}
+	// TODO(#43684): in the future (Go 1.20), warn that -d is a no-op.
+	if !*getD {
+		base.Fatalf("go: -d flag may not be disabled")
+	}
 	if *getF {
 		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
 	}
@@ -272,7 +267,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
 	}
 	if *getM {
-		base.Fatalf("go: -m flag is no longer supported; consider -d to skip building packages")
+		base.Fatalf("go: -m flag is no longer supported")
 	}
 	if *getInsecure {
 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
@@ -355,66 +350,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	r.checkPackageProblems(ctx, pkgPatterns)
-
-	// We've already downloaded modules (and identified direct and indirect
-	// dependencies) by loading packages in findAndUpgradeImports.
-	// So if -d is set, we're done after the module work.
-	//
-	// Otherwise, we need to build and install the packages matched by
-	// command line arguments.
-	// Note that 'go get -u' without arguments is equivalent to
-	// 'go get -u .', so we'll typically build the package in the current
-	// directory.
-	if !*getD && len(pkgPatterns) > 0 {
-		work.BuildInit()
-
-		pkgOpts := load.PackageOpts{ModResolveTests: *getT}
-		var pkgs []*load.Package
-		for _, pkg := range load.PackagesAndErrors(ctx, pkgOpts, pkgPatterns) {
-			if pkg.Error != nil {
-				var noGo *load.NoGoError
-				if errors.As(pkg.Error.Err, &noGo) {
-					if m := modload.PackageModule(pkg.ImportPath); m.Path == pkg.ImportPath {
-						// pkg is at the root of a module, and doesn't exist with the current
-						// build tags. Probably the user just wanted to change the version of
-						// that module — not also build the package — so suppress the error.
-						// (See https://golang.org/issue/33526.)
-						continue
-					}
-				}
-			}
-			pkgs = append(pkgs, pkg)
-		}
-		load.CheckPackageErrors(pkgs)
-
-		haveExternalExe := false
-		for _, pkg := range pkgs {
-			if pkg.Name == "main" && pkg.Module != nil {
-				if !modload.MainModules.Contains(pkg.Module.Path) {
-					haveExternalExe = true
-					break
-				}
-			}
-		}
-		if haveExternalExe {
-			fmt.Fprint(os.Stderr, "go: installing executables with 'go get' in module mode is deprecated.")
-			var altMsg string
-			if modload.HasModRoot() {
-				altMsg = `
-	To adjust and download dependencies of the current module, use 'go get -d'.
-	To install using requirements of the current module, use 'go install'.
-	To install ignoring the current module, use 'go install' with a version,
-	like 'go install example.com/cmd@latest'.
-`
-			} else {
-				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
-			}
-			fmt.Fprint(os.Stderr, altMsg)
-			fmt.Fprintf(os.Stderr, "\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n\tor run 'go help get' or 'go help install'.\n")
-		}
-
-		work.InstallPackages(ctx, pkgPatterns, pkgs)
-	}
 
 	if !modload.HasModRoot() {
 		return

@@ -613,11 +613,11 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
+// 	go get [-t] [-u] [-v] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
-// updates go.mod to require those versions, downloads source code into the
-// module cache, then builds and installs the named packages.
+// updates go.mod to require those versions, and downloads source code into the
+// module cache.
 //
 // To add a dependency for a package or upgrade it to its latest version:
 //
@@ -633,9 +633,11 @@
 //
 // See https://golang.org/ref/mod#go-get for details.
 //
-// The 'go install' command may be used to build and install packages. When a
-// version is specified, 'go install' runs in module-aware mode and ignores
-// the go.mod file in the current directory. For example:
+// In earlier versions of Go, 'go get' was used to build and install packages.
+// Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
+// may be used to build and install commands instead. When a version is specified,
+// 'go install' runs in module-aware mode and ignores the go.mod file in the
+// current directory. For example:
 //
 // 	go install example.com/pkg@v1.2.3
 // 	go install example.com/pkg@latest
@@ -657,16 +659,6 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
-//
-// The -d flag instructs get not to build or install packages. get will only
-// update go.mod and download source code needed to build packages.
-//
-// Building and installing packages with get is deprecated. In a future release,
-// the -d flag will be enabled by default, and 'go get' will be only be used to
-// adjust dependencies of the current module. To install a package using
-// dependencies from the current module, use 'go install'. To install a package
-// ignoring the current module, use 'go install' with an @version suffix like
-// "@latest" after each argument.
 //
 // For more about modules, see https://golang.org/ref/mod.
 //
