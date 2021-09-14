@@ -74,7 +74,7 @@ import "errors"
 // for compatibility with fixed-width Unix time formats. A leading zero represents
 // a zero-padded value.
 //
-// The formats  and 002 are space-padded and zero-padded
+// The formats __2 and 002 are space-padded and zero-padded
 // three-character day of year; there is no unpadded day of year format.
 //
 // A comma or decimal point followed by one or more zeros represents
