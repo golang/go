@@ -5,6 +5,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -97,5 +98,20 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
 				m.mutate([]interface{}{t}, workerSharedMemSize)
 			}
 		})
+	}
+}
+
+func TestStringImmutability(t *testing.T) {
+	v := []interface{}{"hello"}
+	m := newMutator()
+	m.mutate(v, 1024)
+	original := v[0].(string)
+	originalCopy := make([]byte, len(original))
+	copy(originalCopy, []byte(original))
+	for i := 0; i < 25; i++ {
+		m.mutate(v, 1024)
+	}
+	if !bytes.Equal([]byte(original), originalCopy) {
+		t.Fatalf("string was mutated: got %x, want %x", []byte(original), originalCopy)
 	}
 }

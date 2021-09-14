@@ -106,12 +106,7 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
 			copy(m.scratch, v)
 		}
 		m.mutateBytes(&m.scratch)
-		var s string
-		shdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
-		bhdr := (*reflect.SliceHeader)(unsafe.Pointer(&m.scratch))
-		shdr.Data = bhdr.Data
-		shdr.Len = bhdr.Len
-		vals[i] = s
+		vals[i] = string(m.scratch)
 	case []byte:
 		if len(v) > maxPerVal {
 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))

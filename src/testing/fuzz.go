@@ -293,7 +293,10 @@ var supportedTypes = map[reflect.Type]bool{
 // f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
 //
 // This function should be fast, deterministic, and stateless.
-// None of the pointers to any input data should be retained between executions.
+//
+// No mutatable input arguments, or pointers to them, should be retained between
+// executions of the fuzz function, as the memory backing them may be mutated
+// during a subsequent invocation.
 //
 // This is a terminal function which will terminate the currently running fuzz
 // target by calling runtime.Goexit.
