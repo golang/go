@@ -5,6 +5,7 @@ package types2
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 )
 
@@ -28,11 +29,11 @@ func NewEnvironment() *Environment {
 	}
 }
 
-// typeHash returns a string representation of typ, which can be used as an exact
+// TypeHash returns a string representation of typ, which can be used as an exact
 // type hash: types that are identical produce identical string representations.
 // If typ is a *Named type and targs is not empty, typ is printed as if it were
-// instantiated with targs.
-func (env *Environment) typeHash(typ Type, targs []Type) string {
+// instantiated with targs. The result is guaranteed to not contain blanks (" ").
+func (env *Environment) TypeHash(typ Type, targs []Type) string {
 	assert(env != nil)
 	assert(typ != nil)
 	var buf bytes.Buffer
@@ -56,7 +57,7 @@ func (env *Environment) typeHash(typ Type, targs []Type) string {
 		}
 	}
 
-	return buf.String()
+	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
 }
 
 // typeForHash returns the recorded type for the type hash h, if it exists.

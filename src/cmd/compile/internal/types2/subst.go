@@ -211,7 +211,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := subst.env.typeHash(t.orig, newTArgs)
+		h := subst.env.TypeHash(t.orig, newTArgs)
 		dump(">>> new type hash: %s", h)
 		if named := subst.env.typeForHash(h, nil); named != nil {
 			dump(">>> found %s", named)

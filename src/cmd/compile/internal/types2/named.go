@@ -262,7 +262,7 @@ func (n *Named) expand(env *Environment) *Named {
 					// instance in the process of expansion.
 					env = NewEnvironment()
 				}
-				h := env.typeHash(n.orig, n.targs.list())
+				h := env.TypeHash(n.orig, n.targs.list())
 				// add the instance to the environment to avoid infinite recursion.
 				// addInstance may return a different, existing instance, but we
 				// shouldn't return that instance from expand.
