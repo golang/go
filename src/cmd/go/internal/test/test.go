@@ -208,7 +208,7 @@ control the execution of any test:
 	    (for example, -benchtime 100x).
 
 	-count n
-	    Run each test and benchmark n times (default 1).
+	    Run each test and benchmark n times (default 1 unless cached).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
 	    Examples are always run once.
 
