@@ -23,14 +23,14 @@ stdout FAIL
 # Test that fuzzminimizetime can be zero seconds, and minimization is disabled
 ! go test -fuzz=FuzzMinimizeZeroDurationSet -run=FuzzMinimizeZeroDurationSet -fuzztime=10000x -fuzzminimizetime=0s minimizer_test.go
 ! stdout '^ok'
-! stdout 'found a crash, minimizing...'
+! stdout 'minimizing'
 stdout 'there was an Error'
 stdout FAIL
 
 # Test that fuzzminimizetime can be zero times, and minimization is disabled
 ! go test -fuzz=FuzzMinimizeZeroLimitSet -run=FuzzMinimizeZeroLimitSet -fuzztime=10000x -fuzzminimizetime=0x minimizer_test.go
 ! stdout '^ok'
-! stdout 'found a crash, minimizing...'
+! stdout 'minimizing'
 stdout 'there was an Error'
 stdout FAIL
 
@@ -51,7 +51,7 @@ rm testdata
 # Test that minimization is working for non-recoverable errors.
 ! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x minimizer_test.go
 ! stdout '^ok'
-stdout 'found a crash, minimizing'
+stdout 'minimizing'
 stdout 'fuzzing process terminated unexpectedly: exit status 99'
 stdout FAIL
 
