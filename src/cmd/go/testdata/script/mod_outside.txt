@@ -223,30 +223,6 @@ go fmt needmod/needmod.go
 
 # The remainder of the test checks dependencies by linking and running binaries.
 
-# 'go get' of a binary without a go.mod should install the requested version,
-# resolving outside dependencies to the latest available versions.
-go get example.com/printversion@v0.1.0
-exec ../bin/printversion
-stdout 'path is example.com/printversion'
-stdout 'main is example.com/printversion v0.1.0'
-stdout 'using example.com/version v1.1.0'
-
-# 'go get' of a versioned binary should build and install the latest version
-# using its minimal required modules, ignoring replacements and exclusions.
-go get example.com/printversion
-exec ../bin/printversion
-stdout 'path is example.com/printversion'
-stdout 'main is example.com/printversion v1.0.0'
-stdout 'using example.com/version v1.0.0'
-
-# 'go get -u=patch' should patch dependencies before installing,
-# again ignoring replacements and exclusions.
-go get -u=patch example.com/printversion@v1.0.0
-exec ../bin/printversion
-stdout 'path is example.com/printversion'
-stdout 'main is example.com/printversion v1.0.0'
-stdout 'using example.com/version v1.0.1'
-
 # 'go run' should work with file arguments if they don't import anything
 # outside std.
 go run ./stdonly/stdonly.go
