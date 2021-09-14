@@ -538,7 +538,7 @@ type m struct {
 	printlock     int8
 	incgo         bool   // m is executing a cgo call
 	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
-	fastrand      [2]uint32
+	fastrand      uint64
 	needextram    bool
 	traceback     uint8
 	ncgocall      uint64      // number of cgo calls in total
