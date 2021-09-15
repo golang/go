@@ -29,6 +29,7 @@ const useConstraintTypeInference = true
 //
 // Constraint type inference is used after each step to expand the set of type arguments.
 //
+// TODO(gri): remove the report parameter: is no longer needed.
 func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
 	if debug {
 		defer func() {

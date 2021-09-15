@@ -41,7 +41,7 @@ func TestSizeof(t *testing.T) {
 		{Const{}, 64, 104},
 		{TypeName{}, 56, 88},
 		{Var{}, 60, 96},
-		{Func{}, 60, 96},
+		{Func{}, 64, 104},
 		{Label{}, 60, 96},
 		{Builtin{}, 60, 96},
 		{Nil{}, 56, 88},
