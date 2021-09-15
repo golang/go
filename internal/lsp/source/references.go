@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -68,7 +69,11 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 		seen       = make(map[token.Pos]bool)
 	)
 
-	filename := snapshot.FileSet().Position(qos[0].obj.Pos()).Filename
+	pos := qos[0].obj.Pos()
+	if pos == token.NoPos {
+		return nil, fmt.Errorf("no position for %s", qos[0].obj)
+	}
+	filename := snapshot.FileSet().Position(pos).Filename
 	pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
 	if err != nil {
 		return nil, err
