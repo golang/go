@@ -309,6 +309,12 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
 
 	smap := makeSubstMap(origSig.RecvTypeParams().list(), rtyp.targs.list())
 	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
+	if sig == origSig {
+		// No substitution occurred, but we still need to create a copy to hold the
+		// instantiated receiver.
+		copy := *origSig
+		sig = &copy
+	}
 	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
 
 	m.typ = sig

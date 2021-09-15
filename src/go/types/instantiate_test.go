@@ -6,6 +6,7 @@ package types_test
 
 import (
 	. "go/types"
+	"strings"
 	"testing"
 )
 
@@ -108,4 +109,46 @@ var X T[int]
 			t.Errorf("instantiated %q, want %q", got, test.want)
 		}
 	}
+}
+
+func TestImmutableSignatures(t *testing.T) {
+	const src = genericPkg + `p
+
+type T[P any] struct{}
+
+func (T[P]) m() {}
+
+var _ T[int]
+`
+	pkg, err := pkgFor(".", src, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	typ := pkg.Scope().Lookup("T").Type().(*Named)
+	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+	if obj == nil {
+		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
+	}
+
+	// Verify that the original method is not mutated by instantiating T (this
+	// bug manifested when subst did not return a new signature).
+	want := "func (T[P]).m()"
+	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
+		t.Errorf("instantiated %q, want %q", got, want)
+	}
+}
+
+// Copied from errors.go.
+func stripAnnotations(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		// strip #'s and subscript digits
+		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() < len(s) {
+		return b.String()
+	}
+	return s
 }
