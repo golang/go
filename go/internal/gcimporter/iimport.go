@@ -74,7 +74,7 @@ const (
 	structType
 	interfaceType
 	typeParamType
-	instType
+	instanceType
 	unionType
 )
 
@@ -709,7 +709,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		r.p.doDecl(pkg, name)
 		return r.p.tparamIndex[id]
 
-	case instType:
+	case instanceType:
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected instantiation type")
 		}
