@@ -671,6 +671,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
+	if testFuzz != "" && len(pkgs) != 1 {
+		base.Fatalf("cannot use -fuzz flag with multiple packages")
+	}
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
