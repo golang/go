@@ -1169,6 +1169,21 @@ func (v Value) Elem() Value {
 	case Ptr:
 		ptr := v.ptr
 		if v.flag&flagIndir != 0 {
+			if ifaceIndir(v.typ) {
+				// This is a pointer to a not-in-heap object. ptr points to a uintptr
+				// in the heap. That uintptr is the address of a not-in-heap object.
+				// In general, pointers to not-in-heap objects can be total junk.
+				// But Elem() is asking to dereference it, so the user has asserted
+				// that at least it is a valid pointer (not just an integer stored in
+				// a pointer slot). So let's check, to make sure that it isn't a pointer
+				// that the runtime will crash on if it sees it during GC or write barriers.
+				// Since it is a not-in-heap pointer, all pointers to the heap are
+				// forbidden! That makes the test pretty easy.
+				// See issue 48399.
+				if !verifyNotInHeapPtr(*(*uintptr)(ptr)) {
+					panic("reflect: reflect.Value.Elem on an invalid notinheap pointer")
+				}
+			}
 			ptr = *(*unsafe.Pointer)(ptr)
 		}
 		// The returned value's address is v's value.
@@ -3405,6 +3420,8 @@ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 
 //go:noescape
 func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+
+func verifyNotInHeapPtr(p uintptr) bool
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that
