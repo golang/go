@@ -53,12 +53,10 @@ $ gotip download
 For building gopls with type parameter support, it is recommended that you
 build gopls at tip. External APIs are under active development on the
 Go `master` branch, so building gopls at tip minimizes the chances of
-a build failure (though it is still possible). To get enhanced gopls features
-for generic code, build gopls with the `typeparams` build constraint (though
-this increases your chances of a build failure).
+a build failure.
 
 ```
-$ GO111MODULE=on gotip get -tags=typeparams golang.org/x/tools/gopls@master golang.org/x/tools@master
+$ GO111MODULE=on gotip get golang.org/x/tools/gopls@master golang.org/x/tools@master
 ```
 
 This will build a version of gopls that understands generic code. To actually
