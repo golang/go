@@ -11,6 +11,8 @@ import "math"
 var sink64 [8]float64
 
 func approx(x float64) {
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]2"
 	// s390x:"FIDBR\t[$]6"
 	// arm64:"FRINTPD"
 	// ppc64:"FRIP"
@@ -18,6 +20,8 @@ func approx(x float64) {
 	// wasm:"F64Ceil"
 	sink64[0] = math.Ceil(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]1"
 	// s390x:"FIDBR\t[$]7"
 	// arm64:"FRINTMD"
 	// ppc64:"FRIM"
@@ -31,6 +35,8 @@ func approx(x float64) {
 	// ppc64le:"FRIN"
 	sink64[2] = math.Round(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]3"
 	// s390x:"FIDBR\t[$]5"
 	// arm64:"FRINTZD"
 	// ppc64:"FRIZ"
@@ -38,6 +44,8 @@ func approx(x float64) {
 	// wasm:"F64Trunc"
 	sink64[3] = math.Trunc(x)
 
+	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
+	// amd64:"ROUNDSD\t[$]0"
 	// s390x:"FIDBR\t[$]4"
 	// arm64:"FRINTND"
 	// wasm:"F64Nearest"
@@ -123,6 +131,7 @@ func copysign(a, b, c float64) {
 }
 
 func fma(x, y, z float64) float64 {
+	// amd64/v3:-".*x86HasFMA"
 	// amd64:"VFMADD231SD"
 	// arm/6:"FMULAD"
 	// arm64:"FMADDD"
