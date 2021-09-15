@@ -210,10 +210,10 @@ control the execution of any test:
 	    (for example, -benchtime 100x).
 
 	-count n
-	    Run each test, benchmark, and fuzz targets' seed corpora n times
-	    (default 1).
+	    Run each test, benchmark, and fuzz seed n times (default 1).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
-	    Examples are always run once.
+	    Examples are always run once. -count does not apply to
+	    fuzz targets matched by -fuzz.
 
 	-cover
 	    Enable coverage analysis.
@@ -242,14 +242,18 @@ control the execution of any test:
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
 	    fuzz targets should be executed. The default is the current value
-	    of GOMAXPROCS.
+	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
 
 	-failfast
 	    Do not start new tests after the first test failure.
 
-	-fuzz name
-	    Run the fuzz target with the given regexp. Must match exactly one fuzz
-	    target. This is an experimental feature.
+	-fuzz regexp
+	    Run the fuzz target matching the regular expression. When specified,
+	    the command line argument must match exactly one package, and regexp
+	    must match exactly one fuzz target within that package. After tests,
+	    benchmarks, seed corpora of other fuzz targets, and examples have
+	    completed, the matching target will be fuzzed. See the Fuzzing section
+	    of the testing package documentation for details.
 
 	-fuzztime t
 	    Run enough iterations of the fuzz test to take t, specified as a
@@ -262,9 +266,6 @@ control the execution of any test:
 	    Log verbose output and test results in JSON. This presents the
 	    same information as the -v flag in a machine-readable format.
 
-	-keepfuzzing
-	    Keep running the fuzz target if a crasher is found.
-
 	-list regexp
 	    List tests, benchmarks, fuzz targets, or examples matching the regular
 	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
@@ -275,10 +276,13 @@ control the execution of any test:
 	    Allow parallel execution of test functions that call t.Parallel, and
 	    f.Fuzz functions that call t.Parallel when running the seed corpus.
 	    The value of this flag is the maximum number of tests to run
-	    simultaneously. While fuzzing, the value of this flag is the
-	    maximum number of workers to run the fuzz function simultaneously,
-	    regardless of whether t.Parallel has been called; by default, it is set
-	    to the value of GOMAXPROCS.
+	    simultaneously.
+	    While fuzzing, the value of this flag is the maximum number of
+	    subprocesses that may call the fuzz function simultaneously, regardless of
+	    whether T.Parallel is called.
+	    By default, -parallel is set to the value of GOMAXPROCS.
+	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
+	    performance due to CPU contention, especially when fuzzing.
 	    Note that -parallel only applies within a single test binary.
 	    The 'go test' command may run tests for different packages
 	    in parallel as well, according to the setting of the -p flag
@@ -504,28 +508,6 @@ example function, at least one other function, type, variable, or constant
 declaration, and no fuzz targets or test or benchmark functions.
 
 See the documentation of the testing package for more information.
-`,
-}
-
-var HelpFuzz = &base.Command{
-	UsageLine: "fuzz",
-	Short:     "fuzzing",
-	Long: `
-By default, go test will build and run the fuzz targets using the target's seed
-corpus only. Any generated corpora in $GOCACHE that were previously written by
-the fuzzing engine will not be run by default.
-
-When -fuzz is set, the binary will be instrumented for coverage. After all
-tests, examples, benchmark functions, and the seed corpora for all fuzz targets
-have been run, go test will begin to fuzz the specified fuzz target.
-Note that this feature is experimental.
-
--run can be used for testing a single seed corpus entry for a fuzz target. The
-regular expression value of -run can be in the form $target/$name, where $target
-is the name of the fuzz target, and $name is the name of the file (ignoring file
-extensions) to run. For example, -run=FuzzFoo/497b6f87.
-
-See https://golang.org/s/draft-fuzzing-design for more details.
 `,
 }
 

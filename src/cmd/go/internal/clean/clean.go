@@ -75,7 +75,9 @@ The -modcache flag causes clean to remove the entire module
 download cache, including unpacked source code of versioned
 dependencies.
 
-The -fuzzcache flag causes clean to remove values used for fuzz testing.
+The -fuzzcache flag causes clean to remove files stored in the Go build
+cache for fuzz testing. Files stored in source testdata directories
+are left in place.
 
 For more about build flags, see 'go help build'.
 
