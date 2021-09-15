@@ -2106,6 +2106,9 @@ type typeConv struct {
 	// Type names X for which there exists an XGetTypeID function with type func() CFTypeID.
 	getTypeIDs map[string]bool
 
+	// badStructs contains C structs that should be marked NotInHeap.
+	notInHeapStructs map[string]bool
+
 	// Predeclared types.
 	bool                                   ast.Expr
 	byte                                   ast.Expr // denotes padding
@@ -2117,6 +2120,7 @@ type typeConv struct {
 	string                                 ast.Expr
 	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
 	goVoidPtr                              ast.Expr // unsafe.Pointer or *byte
+	goVoidPtrNoHeap                        ast.Expr // *_Ctype_void_notinheap, like goVoidPtr but marked NotInHeap
 
 	ptrSize int64
 	intSize int64
@@ -2140,6 +2144,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.m = make(map[string]*Type)
 	c.ptrs = make(map[string][]*Type)
 	c.getTypeIDs = make(map[string]bool)
+	c.notInHeapStructs = make(map[string]bool)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
 	c.int8 = c.Ident("int8")
@@ -2158,6 +2163,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
 	c.goVoid = c.Ident("_Ctype_void")
+	c.goVoidPtrNoHeap = c.Ident("*_Ctype_void_notinheap")
 
 	// Normally cgo translates void* to unsafe.Pointer,
 	// but for historical reasons -godefs uses *byte instead.
@@ -2538,6 +2544,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
 			}
 			tt.Go = g
+			tt.NotInHeap = c.notInHeapStructs[tag]
 			typedef[name.Name] = &tt
 		}
 
@@ -2579,6 +2586,30 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			if oldType := typedef[name.Name]; oldType != nil {
 				oldType.Go = sub.Go
 				oldType.BadPointer = true
+			}
+		}
+		if c.badVoidPointerTypedef(dt) {
+			// Treat this typedef as a pointer to a NotInHeap void.
+			s := *sub
+			s.Go = c.goVoidPtrNoHeap
+			sub = &s
+			// Make sure we update any previously computed type.
+			if oldType := typedef[name.Name]; oldType != nil {
+				oldType.Go = sub.Go
+			}
+		}
+		// Check for non-pointer "struct <tag>{...}; typedef struct <tag> *<name>"
+		// typedefs that should be marked NotInHeap.
+		if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+			if strct, ok := ptr.Type.(*dwarf.StructType); ok {
+				if c.badStructPointerTypedef(dt.Name, strct) {
+					c.notInHeapStructs[strct.StructName] = true
+					// Make sure we update any previously computed type.
+					name := "_Ctype_struct_" + strct.StructName
+					if oldType := typedef[name]; oldType != nil {
+						oldType.NotInHeap = true
+					}
+				}
 			}
 		}
 		t.Go = name
@@ -3130,6 +3161,48 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 		return true
 	}
 	return false
+}
+
+// badVoidPointerTypedef is like badPointerTypeDef, but for "void *" typedefs that should be NotInHeap.
+func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
+	// Match the Windows HANDLE type (#42018).
+	if goos != "windows" || dt.Name != "HANDLE" {
+		return false
+	}
+	// Check that the typedef is "typedef void *<name>".
+	if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+		if _, ok := ptr.Type.(*dwarf.VoidType); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
+func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
+	// Windows handle types can all potentially contain non-pointers.
+	// badVoidPointerTypedef handles the "void *" HANDLE type, but other
+	// handles are defined as
+	//
+	// struct <name>__{int unused;}; typedef struct <name>__ *name;
+	//
+	// by the DECLARE_HANDLE macro in STRICT mode. The macro is declared in
+	// the Windows ntdef.h header,
+	//
+	// https://github.com/tpn/winsdk-10/blob/master/Include/10.0.16299.0/shared/ntdef.h#L779
+	if goos != "windows" {
+		return false
+	}
+	if len(dt.Field) != 1 {
+		return false
+	}
+	if dt.StructName != name+"__" {
+		return false
+	}
+	if f := dt.Field[0]; f.Name != "unused" || f.Type.Common().Name != "int" {
+		return false
+	}
+	return true
 }
 
 // baseBadPointerTypedef reports whether the base of a chain of typedefs is a bad typedef
