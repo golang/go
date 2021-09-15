@@ -278,9 +278,21 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 
 // NewTypeNameLazy returns a new defined type like NewTypeName, but it
 // lazily calls resolve to finish constructing the Named object.
-func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
+func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
-	NewNamed(obj, nil, nil).resolve = resolve
+
+	resolve := func(_ *Environment, t *Named) (*TypeParamList, Type, []*Func) {
+		tparams, underlying, methods := load(t)
+
+		switch underlying.(type) {
+		case nil, *Named:
+			panic(fmt.Sprintf("invalid underlying type %T", t.underlying))
+		}
+
+		return bindTParams(tparams), underlying, methods
+	}
+
+	NewNamed(obj, nil, nil).resolver = resolve
 	return obj
 }
 
