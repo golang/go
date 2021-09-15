@@ -144,6 +144,9 @@ const (
 	// Force a stack movement. Used for debugging.
 	// 0xfffffeed in hex.
 	stackForceMove = uintptrMask & -275
+
+	// stackPoisonMin is the lowest allowed stack poison value.
+	stackPoisonMin = uintptrMask & -4096
 )
 
 // Global pool of spans that have free stacks.
