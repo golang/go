@@ -50,13 +50,6 @@ func (env *Environment) TypeHash(typ Type, targs []Type) string {
 		h.typ(typ)
 	}
 
-	if debug {
-		// there should be no instance markers in type hashes
-		for _, b := range buf.Bytes() {
-			assert(b != instanceMarker)
-		}
-	}
-
 	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
 }
 
