@@ -125,8 +125,7 @@ func (subst *subster) typ(typ Type) Type {
 		if recv != t.recv || params != t.params || results != t.results {
 			return &Signature{
 				rparams: t.rparams,
-				// TODO(gri) Why can't we nil out tparams here, rather than in
-				//           instantiate above?
+				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
 				tparams:  t.tparams,
 				scope:    t.scope,
 				recv:     recv,

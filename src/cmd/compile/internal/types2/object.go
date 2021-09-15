@@ -363,7 +363,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
-	hasPtrRecv bool // only valid for methods that don't have a type yet
+	instRecv   *Named // if non-nil, the receiver type for an incomplete instance method
+	hasPtrRecv bool   // only valid for methods that don't have a type yet
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -374,7 +375,7 @@ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, nil, false}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

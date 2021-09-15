@@ -42,7 +42,9 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
 		l := len(g.typesToFinalize)
 		info := g.typesToFinalize[l-1]
 		g.typesToFinalize = g.typesToFinalize[:l-1]
+		types.DeferCheckSize()
 		g.fillinMethods(info.typ, info.ntyp)
+		types.ResumeCheckSize()
 	}
 	return res
 }
@@ -283,15 +285,20 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 		m := typ.Method(i)
 		recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
 		var meth *ir.Name
+		imported := false
 		if m.Pkg() != g.self {
 			// Imported methods cannot be loaded by name (what
 			// g.obj() does) - they must be loaded via their
 			// type.
 			meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
+			// XXX Because Obj() returns the object of the base generic
+			// type, we have to still do the method translation below.
+			imported = true
 		} else {
 			meth = g.obj(m)
 		}
-		if recvType != types2.Type(typ) {
+		assert(recvType == types2.Type(typ))
+		if imported {
 			// Unfortunately, meth is the type of the method of the
 			// generic type, so we have to do a substitution to get
 			// the name/type of the method of the instantiated type,
