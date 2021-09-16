@@ -211,17 +211,6 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		finfo.parents = parents[:len(parents)-1]
 	}
 
-	// If the field type has an XMLName field, the names must match
-	// so that the behavior of both marshaling and unmarshaling
-	// is straightforward and unambiguous.
-	if finfo.flags&fElement != 0 {
-		ftyp := f.Type
-		xmlname := lookupXMLName(ftyp)
-		if xmlname != nil && xmlname.name != finfo.name {
-			return nil, fmt.Errorf("xml: name %q in tag of %s.%s conflicts with name %q in %s.XMLName",
-				finfo.name, typ, f.Name, xmlname.name, ftyp)
-		}
-	}
 	return finfo, nil
 }
 

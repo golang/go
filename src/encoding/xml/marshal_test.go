@@ -2490,3 +2490,34 @@ func TestInvalidXMLName(t *testing.T) {
 		t.Errorf("error %q does not contain %q", err, want)
 	}
 }
+
+func TestMismatchedTagNames(t *testing.T) {
+	type InnerStruct struct {
+		XMLName Name   `xml:"innerStruct"`
+		Name    string `xml:"name"`
+	}
+
+	type Outer struct {
+		XMLName Name         `xml:"outer"`
+		Inner   *InnerStruct `xml:"inner"`
+	}
+
+	dec := NewDecoder(strings.NewReader(`<?xml version="1.0"?>
+<outer>
+    <inner>
+        <name>foo</name>
+    </inner>
+</outer>"`))
+
+	holder := &Outer{}
+	if err := dec.Decode(holder); err != nil {
+		t.Errorf("Unexpected error: %q", err)
+	}
+	if holder == nil {
+		t.Error("Holder should be non-nil")
+	} else if holder.Inner == nil {
+		t.Error("Inner should be non-nil")
+	} else if holder.Inner.Name != "foo" {
+		t.Errorf("Expected name to be %q, but was %q", "foo", holder.Inner.Name)
+	}
+}
