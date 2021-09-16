@@ -2017,7 +2017,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 		return d, ints, floats, strs
 	}
 	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE, XCOFF object", gccTmp())
-	panic("not reached")
+	panic("unreachable")
 }
 
 // gccDefines runs gcc -E -dM -xc - over the C program stdin

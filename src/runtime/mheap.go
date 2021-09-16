@@ -1924,7 +1924,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		// The creator frees these.
 	default:
 		throw("bad special kind")
-		panic("not reached")
+		panic("unreachable")
 	}
 }
 

@@ -960,7 +960,7 @@ func removeOneCPU(mask uintptr) (uintptr, error) {
 		}
 
 	}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func resumeChildThread(kernel32 *syscall.DLL, childpid int) error {

@@ -39,7 +39,7 @@ func whatis(x interface{}) string {
 	case nil:
 		return fmt.Sprint("nil ", xx)
 	}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func whatis1(x interface{}) string {
@@ -58,7 +58,7 @@ func whatis1(x interface{}) string {
 	case nil:
 		return fmt.Sprint("nil ", xx)
 	}
-	panic("not reached")
+	panic("unreachable")
 }
 
 func check(x interface{}, s string) {

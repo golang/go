@@ -923,7 +923,7 @@ func (st *state) operatorName(inExpression bool) (AST, int) {
 		return &Operator{Name: op.name}, op.args
 	} else {
 		st.failEarlier("unrecognized operator code", 2)
-		panic("not reached")
+		panic("unreachable")
 	}
 }
 
@@ -1079,7 +1079,7 @@ func (st *state) specialName() AST {
 			return &Special{Prefix: "TLS wrapper function for ", Val: n}
 		default:
 			st.fail("unrecognized special T name code")
-			panic("not reached")
+			panic("unreachable")
 		}
 	} else {
 		st.checkChar('G')
@@ -1122,7 +1122,7 @@ func (st *state) specialName() AST {
 			return st.javaResource()
 		default:
 			st.fail("unrecognized special G name code")
-			panic("not reached")
+			panic("unreachable")
 		}
 	}
 }
@@ -2180,7 +2180,7 @@ func (st *state) expression() AST {
 
 		default:
 			st.fail(fmt.Sprintf("unsupported number of operator arguments: %d", args))
-			panic("not reached")
+			panic("unreachable")
 		}
 	}
 }

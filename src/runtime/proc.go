@@ -931,7 +931,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	}
 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
 	throw("castogscanstatus")
-	panic("not reached")
+	panic("unreachable")
 }
 
 // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
