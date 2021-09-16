@@ -1,0 +1,37 @@
+-- suggestedfix_stub_embedded_8_27 --
+package stub
+
+import (
+	"io"
+	"sort"
+)
+
+var _ embeddedInterface = (*embeddedConcrete)(nil) //@suggestedfix("(", "refactor.rewrite")
+
+type embeddedConcrete struct{}
+
+// Len implements embeddedInterface
+func (*embeddedConcrete) Len() int {
+	panic("unimplemented")
+}
+
+// Less implements embeddedInterface
+func (*embeddedConcrete) Less(i int, j int) bool {
+	panic("unimplemented")
+}
+
+// Swap implements embeddedInterface
+func (*embeddedConcrete) Swap(i int, j int) {
+	panic("unimplemented")
+}
+
+// Read implements embeddedInterface
+func (*embeddedConcrete) Read(p []byte) (n int, err error) {
+	panic("unimplemented")
+}
+
+type embeddedInterface interface {
+	sort.Interface
+	io.Reader
+}
+

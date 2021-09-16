@@ -1,0 +1,16 @@
+-- suggestedfix_stub_stdlib_7_19 --
+package stub
+
+import (
+	"io"
+)
+
+var _ io.Writer = writer{} //@suggestedfix("w", "refactor.rewrite")
+
+type writer struct{}
+
+// Write implements io.Writer
+func (writer) Write(p []byte) (n int, err error) {
+	panic("unimplemented")
+}
+

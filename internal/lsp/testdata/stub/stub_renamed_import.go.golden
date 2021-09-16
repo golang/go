@@ -1,0 +1,18 @@
+-- suggestedfix_stub_renamed_import_8_23 --
+package stub
+
+import (
+	"compress/zlib"
+	myio "io"
+)
+
+var _ zlib.Resetter = &myIO{} //@suggestedfix("&", "refactor.rewrite")
+var _ myio.Reader
+
+type myIO struct{}
+
+// Reset implements zlib.Resetter
+func (*myIO) Reset(r myio.Reader, dict []byte) error {
+	panic("unimplemented")
+}
+

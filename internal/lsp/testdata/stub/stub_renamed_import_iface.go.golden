@@ -1,0 +1,22 @@
+-- suggestedfix_stub_renamed_import_iface_11_25 --
+package stub
+
+import (
+	"bytes"
+	renamed_context "context"
+	"golang.org/x/tools/internal/lsp/stub/other"
+)
+
+// This file tests that if an interface
+// method references an import from its own package
+// that the concrete type does not yet import, and that import happens
+// to be renamed, then we prefer the renaming of the interface.
+var _ other.Interface = &otherInterfaceImpl{} //@suggestedfix("&otherInterfaceImpl", "refactor.rewrite")
+
+type otherInterfaceImpl struct{}
+
+// Get implements other.Interface
+func (*otherInterfaceImpl) Get(renamed_context.Context) *bytes.Buffer {
+	panic("unimplemented")
+}
+

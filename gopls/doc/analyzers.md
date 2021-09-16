@@ -655,4 +655,13 @@ SuggestedFix function below.
 
 **Enabled by default.**
 
+## **stubmethods**
+
+stub methods analyzer
+
+This analyzer generates method stubs for concrete types
+in order to implement a target interface
+
+**Enabled by default.**
+
 <!-- END Analyzers: DO NOT MANUALLY EDIT THIS SECTION -->

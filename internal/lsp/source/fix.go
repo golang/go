@@ -32,6 +32,7 @@ type (
 
 const (
 	FillStruct      = "fill_struct"
+	StubMethods     = "stub_methods"
 	UndeclaredName  = "undeclared_name"
 	ExtractVariable = "extract_variable"
 	ExtractFunction = "extract_function"
@@ -45,6 +46,7 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 	ExtractVariable: singleFile(extractVariable),
 	ExtractFunction: singleFile(extractFunction),
 	ExtractMethod:   singleFile(extractMethod),
+	StubMethods:     stubSuggestedFixFunc,
 }
 
 // singleFile calls analyzers that expect inputs for a single file

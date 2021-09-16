@@ -433,6 +433,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
 							Default: "true",
 						},
+						{
+							Name:    "\"stubmethods\"",
+							Doc:     "stub methods analyzer\n\nThis analyzer generates method stubs for concrete types\nin order to implement a target interface",
+							Default: "true",
+						},
 					},
 				},
 				Default:   "{}",
@@ -944,6 +949,11 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "fillstruct",
 			Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
+			Default: true,
+		},
+		{
+			Name:    "stubmethods",
+			Doc:     "stub methods analyzer\n\nThis analyzer generates method stubs for concrete types\nin order to implement a target interface",
 			Default: true,
 		},
 	},

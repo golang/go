@@ -1,0 +1,18 @@
+-- suggestedfix_stub_function_return_8_9 --
+package stub
+
+import (
+	"io"
+)
+
+func newCloser() io.Closer {
+	return closer{} //@suggestedfix("c", "refactor.rewrite")
+}
+
+type closer struct{}
+
+// Close implements io.Closer
+func (closer) Close() error {
+	panic("unimplemented")
+}
+

@@ -1,0 +1,18 @@
+-- suggestedfix_stub_assign_multivars_8_13 --
+package stub
+
+import "io"
+
+func main() {
+	var br io.ByteWriter
+	var i int
+	i, br = 1, &multiByteWriter{} //@suggestedfix("&", "refactor.rewrite")
+}
+
+type multiByteWriter struct{}
+
+// WriteByte implements io.ByteWriter
+func (*multiByteWriter) WriteByte(c byte) error {
+	panic("unimplemented")
+}
+
