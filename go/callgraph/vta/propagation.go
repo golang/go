@@ -118,12 +118,6 @@ func (ptm propTypeMap) propTypes(n node) map[propType]bool {
 // reaching the node. `canon` is used for type uniqueness.
 func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 	nodeToScc, sccID := scc(graph)
-	// Initialize sccToTypes to avoid repeated check
-	// for initialization later.
-	sccToTypes := make(map[int]map[propType]bool, sccID)
-	for i := 0; i <= sccID; i++ {
-		sccToTypes[i] = make(map[propType]bool)
-	}
 
 	// We also need the reverse map, from ids to SCCs.
 	sccs := make(map[int][]node, sccID)
@@ -131,14 +125,18 @@ func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 		sccs[id] = append(sccs[id], n)
 	}
 
+	// Initialize sccToTypes to avoid repeated check
+	// for initialization later.
+	sccToTypes := make(map[int]map[propType]bool, sccID)
+	for i := 0; i <= sccID; i++ {
+		sccToTypes[i] = nodeTypes(sccs[i], canon)
+	}
+
 	for i := len(sccs) - 1; i >= 0; i-- {
-		nodes := sccs[i]
-		// Save the types induced by the nodes of the SCC.
-		mergeTypes(sccToTypes[i], nodeTypes(nodes, canon))
-		nextSccs := make(map[int]bool)
-		for _, node := range nodes {
+		nextSccs := make(map[int]struct{})
+		for _, node := range sccs[i] {
 			for succ := range graph[node] {
-				nextSccs[nodeToScc[succ]] = true
+				nextSccs[nodeToScc[succ]] = struct{}{}
 			}
 		}
 		// Propagate types to all successor SCCs.
@@ -146,7 +144,6 @@ func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 			mergeTypes(sccToTypes[nextScc], sccToTypes[i])
 		}
 	}
-
 	return propTypeMap{nodeToScc: nodeToScc, sccToTypes: sccToTypes}
 }
 
