@@ -1142,14 +1142,16 @@ type contextReader struct {
 	r   io.Reader
 }
 
-func (cr *contextReader) Read(b []byte) (n int, err error) {
-	if err := cr.ctx.Err(); err != nil {
-		return 0, err
+func (cr *contextReader) Read(b []byte) (int, error) {
+	if ctxErr := cr.ctx.Err(); ctxErr != nil {
+		return 0, ctxErr
 	}
 	done := make(chan struct{})
 
 	// This goroutine may stay blocked after Read returns because the underlying
 	// read is blocked.
+	var n int
+	var err error
 	go func() {
 		n, err = cr.r.Read(b)
 		close(done)
