@@ -942,45 +942,17 @@ func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
 }
 
 // CheckCorpus verifies that the types in vals match the expected types
-// provided. If not, attempt to convert them. If that's not possible, return an
-// error.
+// provided.
 func CheckCorpus(vals []interface{}, types []reflect.Type) error {
 	if len(vals) != len(types) {
-		return fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
+		return fmt.Errorf("wrong number of values in corpus entry: %d, want %d", len(vals), len(types))
 	}
 	for i := range types {
-		orig := reflect.ValueOf(vals[i])
-		origType := orig.Type()
-		wantType := types[i]
-		if origType == wantType {
-			continue // already the same type
+		if reflect.TypeOf(vals[i]) != types[i] {
+			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", vals, types)
 		}
-		// Attempt to convert the corpus value to the expected type
-		if !origType.ConvertibleTo(wantType) {
-			return fmt.Errorf("cannot convert %v to %v", origType, wantType)
-		}
-		convertedVal, ok := convertToType(orig, wantType)
-		if !ok {
-			return fmt.Errorf("error converting %v to %v", origType, wantType)
-		}
-		// TODO: Check that the value didn't change.
-		// e.g. val went from int64(-1) -> uint(0) -> int64(0) which should fail
-
-		// Updates vals to use the newly converted value of the expected type.
-		vals[i] = convertedVal.Interface()
 	}
 	return nil
-}
-
-func convertToType(orig reflect.Value, t reflect.Type) (converted reflect.Value, ok bool) {
-	// Convert might panic even if ConvertibleTo returns true, so catch
-	// that panic and return false.
-	defer func() {
-		if r := recover(); r != nil {
-			ok = false
-		}
-	}()
-	return orig.Convert(t), true
 }
 
 // writeToCorpus atomically writes the given bytes to a new file in testdata.
