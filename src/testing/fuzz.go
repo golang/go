@@ -250,7 +250,7 @@ func (f *F) TempDir() string {
 
 // Add will add the arguments to the seed corpus for the fuzz target. This will
 // be a no-op if called after or within the Fuzz function. The args must match
-// or be convertible to those in the Fuzz function.
+// those in the Fuzz function.
 func (f *F) Add(args ...interface{}) {
 	var values []interface{}
 	for i := range args {
