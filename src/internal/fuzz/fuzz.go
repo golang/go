@@ -641,6 +641,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 	}
 
 	if len(c.corpus.entries) == 0 {
+		fmt.Fprintf(c.opts.Log, "warning: starting with empty corpus\n")
 		var vals []interface{}
 		for _, t := range opts.Types {
 			vals = append(vals, zeroValue(t))
