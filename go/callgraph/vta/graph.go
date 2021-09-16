@@ -190,6 +190,25 @@ func (l nestedPtrInterface) String() string {
 	return fmt.Sprintf("PtrInterface(%v)", l.typ)
 }
 
+// nestedPtrFunction node represents all references and dereferences of locals
+// and globals that have a nested pointer to function type. We merge such
+// constructs into a single node for simplicity and without much precision
+// sacrifice as such variables are rare in practice. Both a and b would be
+// represented as the same PtrFunction(func()) node in:
+//   var a *func()
+//   var b **func()
+type nestedPtrFunction struct {
+	typ types.Type
+}
+
+func (p nestedPtrFunction) Type() types.Type {
+	return p.typ
+}
+
+func (p nestedPtrFunction) String() string {
+	return fmt.Sprintf("PtrFunction(%v)", p.typ)
+}
+
 // panicArg models types of all arguments passed to panic.
 type panicArg struct{}
 
@@ -615,11 +634,15 @@ func (b *builder) addInFlowEdge(s, d node) {
 
 // Creates const, pointer, global, func, and local nodes based on register instructions.
 func (b *builder) nodeFromVal(val ssa.Value) node {
-	if p, ok := val.Type().(*types.Pointer); ok && !isInterface(p.Elem()) {
+	if p, ok := val.Type().(*types.Pointer); ok && !isInterface(p.Elem()) && !isFunction(p.Elem()) {
 		// Nested pointer to interfaces are modeled as a special
 		// nestedPtrInterface node.
 		if i := interfaceUnderPtr(p.Elem()); i != nil {
 			return nestedPtrInterface{typ: i}
+		}
+		// The same goes for nested function types.
+		if f := functionUnderPtr(p.Elem()); f != nil {
+			return nestedPtrFunction{typ: f}
 		}
 		return pointer{typ: p}
 	}
@@ -665,6 +688,8 @@ func (b *builder) representative(n node) node {
 		return channelElem{typ: t}
 	case nestedPtrInterface:
 		return nestedPtrInterface{typ: t}
+	case nestedPtrFunction:
+		return nestedPtrFunction{typ: t}
 	case field:
 		return field{StructType: canonicalize(i.StructType, &b.canon), index: i.index}
 	case indexedLocal:

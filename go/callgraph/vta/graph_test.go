@@ -43,6 +43,8 @@ func TestNodeInterface(t *testing.T) {
 	pint := types.NewPointer(bint)
 	i := types.NewInterface(nil, nil)
 
+	voidFunc := main.Signature.Underlying()
+
 	for _, test := range []struct {
 		n node
 		s string
@@ -59,8 +61,9 @@ func TestNodeInterface(t *testing.T) {
 		{global{val: gl}, "Global(gl)", gl.Type()},
 		{local{val: reg}, "Local(t0)", bint},
 		{indexedLocal{val: reg, typ: X, index: 0}, "Local(t0[0])", X},
-		{function{f: main}, "Function(main)", main.Signature.Underlying()},
+		{function{f: main}, "Function(main)", voidFunc},
 		{nestedPtrInterface{typ: i}, "PtrInterface(interface{})", i},
+		{nestedPtrFunction{typ: voidFunc}, "PtrFunction(func())", voidFunc},
 		{panicArg{}, "Panic", nil},
 		{recoverReturn{}, "Recover", nil},
 	} {
@@ -181,6 +184,7 @@ func TestVTAGraphConstruction(t *testing.T) {
 		"testdata/maps.go",
 		"testdata/ranges.go",
 		"testdata/closures.go",
+		"testdata/function_alias.go",
 		"testdata/static_calls.go",
 		"testdata/dynamic_calls.go",
 		"testdata/returns.go",
