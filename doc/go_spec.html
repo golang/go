@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Sep 14, 2021",
+	"Subtitle": "Version of Sep 16, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -3614,7 +3614,7 @@ var i = 1&lt;&lt;s                   // 1 has type int
 var j int32 = 1&lt;&lt;s             // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)           // 1 has type uint64; k == 1&lt;&lt;33
 var m int = 1.0&lt;&lt;s             // 1.0 has type int; m == 1&lt;&lt;33
-var n = 1.0&lt;&lt;s == j            // 1.0 has type int; n == true
+var n = 1.0&lt;&lt;s == j            // 1.0 has type int32; n == true
 var o = 1&lt;&lt;s == 2&lt;&lt;s           // 1 and 2 have type int; o == false
 var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
 var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
