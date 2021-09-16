@@ -1098,6 +1098,17 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 			if a.MemoryArg() != m0 {
 				x.f.Fatalf("Op...LECall and OpDereference have mismatched mem, %s and %s", v.LongString(), a.LongString())
 			}
+			if v.Op == OpTailLECall {
+				// It's common for a tail call passing the same arguments (e.g. method wrapper),
+				// so this would be a self copy. Detect this and optimize it out.
+				a0 := a.Args[0]
+				if a0.Op == OpLocalAddr {
+					n := a0.Aux.(*ir.Name)
+					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+						continue
+					}
+				}
+			}
 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
 			// TODO(register args) this will be more complicated with registers in the picture.
 			mem = x.rewriteDereference(v.Block, sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, a.Pos)
@@ -1109,6 +1120,14 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				result = &newArgs
 			} else {
 				aOffset = aux.OffsetOfArg(auxI)
+			}
+			if v.Op == OpTailLECall && a.Op == OpArg && a.AuxInt == 0 {
+				// It's common for a tail call passing the same arguments (e.g. method wrapper),
+				// so this would be a self copy. Detect this and optimize it out.
+				n := a.Aux.(*ir.Name)
+				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+					continue
+				}
 			}
 			if x.debug > 1 {
 				x.Printf("...storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
