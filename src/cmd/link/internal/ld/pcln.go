@@ -51,7 +51,7 @@ type pclntab struct {
 }
 
 // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
-// It is the caller's responsibility to save they symbol in state.
+// It is the caller's responsibility to save the symbol in state.
 func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f generatorFunc) loader.Sym {
 	size = Rnd(size, int64(ctxt.Arch.PtrSize))
 	state.size += size
@@ -521,7 +521,7 @@ type pclnSetUint func(*loader.SymbolBuilder, *sys.Arch, int64, uint64) int64
 //
 // Because of timing in the linker, generating this table takes two passes.
 // The first pass is executed early in the link, and it creates any needed
-// relocations to layout the data. The pieces that need relocations are:
+// relocations to lay out the data. The pieces that need relocations are:
 //   1) the PC->func table.
 //   2) The entry points in the func objects.
 //   3) The funcdata.

@@ -374,11 +374,11 @@ type pcHeader struct {
 	minLC          uint8   // min instruction size
 	ptrSize        uint8   // size of a ptr in bytes
 	nfunc          int     // number of functions in the module
-	nfiles         uint    // number of entries in the file tab.
+	nfiles         uint    // number of entries in the file tab
 	funcnameOffset uintptr // offset to the funcnametab variable from pcHeader
 	cuOffset       uintptr // offset to the cutab variable from pcHeader
 	filetabOffset  uintptr // offset to the filetab variable from pcHeader
-	pctabOffset    uintptr // offset to the pctab varible from pcHeader
+	pctabOffset    uintptr // offset to the pctab variable from pcHeader
 	pclnOffset     uintptr // offset to the pclntab variable from pcHeader
 }
 
