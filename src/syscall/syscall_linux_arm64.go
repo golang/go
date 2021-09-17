@@ -42,7 +42,6 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
 //sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
-//sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
