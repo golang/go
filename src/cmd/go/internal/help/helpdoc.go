@@ -593,7 +593,7 @@ Architecture-specific environment variables:
 		For GOARCH=386, how to implement floating point instructions.
 		Valid values are sse2 (default), softfloat.
 	GOAMD64
-		For GOARCH=GOAMD64, the microarchitecture level for which to compile.
+		For GOARCH=amd64, the microarchitecture level for which to compile.
 		Valid values are v1 (default), v2, v3, v4.
 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
 	GOMIPS
