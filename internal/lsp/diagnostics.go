@@ -439,6 +439,10 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	if err != nil {
 		return nil
 	}
+	// If the file no longer has a name ending in .go, this diagnostic is wrong
+	if filepath.Ext(fh.URI().Filename()) != ".go" {
+		return nil
+	}
 	// TODO(rstambler): We should be able to parse the build tags in the
 	// file and show a more specific error message. For now, put the diagnostic
 	// on the package declaration.
