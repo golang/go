@@ -6,9 +6,7 @@
 // * Use SLTI and SLTIU for comparisons to constants, instead of SLT/SLTU with constants in registers
 // * Use the zero register instead of moving 0 into a register.
 // * Add rules to avoid generating a temp bool value for (If (SLT[U] ...) ...).
-// * Optimize left and right shift by simplifying SLTIU, Neg, and ADD for constants.
 // * Arrange for non-trivial Zero and Move lowerings to use aligned loads and stores.
-// * Eliminate zero immediate shifts, adds, etc.
 // * Avoid using Neq32 for writeBarrier.enabled checks.
 
 // Lowering arithmetic
@@ -229,7 +227,7 @@
 (Rsh64x32 <t> x y) => (SRA <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
 (Rsh64x64 <t> x y) => (SRA <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
 
-// rotates
+// Rotates.
 (RotateLeft8  <t> x (MOVDconst [c])) => (Or8  (Lsh8x64  <t> x (MOVDconst [c&7]))  (Rsh8Ux64  <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 <t> x (MOVDconst [c])) => (Or32 (Lsh32x64 <t> x (MOVDconst [c&31])) (Rsh32Ux64 <t> x (MOVDconst [-c&31])))
@@ -707,19 +705,39 @@
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
 
 // Subtraction of zero.
-(SUB x (MOVDconst [0])) => x
-
-// Subtraction of zero with sign extension.
+(SUB  x (MOVDconst [0])) => x
 (SUBW x (MOVDconst [0])) => (ADDIW [0] x)
 
 // Subtraction from zero.
-(SUB (MOVDconst [0]) x) => (NEG x)
-
-// Subtraction from zero with sign extension.
+(SUB  (MOVDconst [0]) x) => (NEG x)
 (SUBW (MOVDconst [0]) x) => (NEGW x)
 
-// Addition of zero.
+// Addition of zero or two constants.
 (ADDI [0] x) => x
+(ADDI [x] (MOVDconst [y])) && is32Bit(x + y) => (MOVDconst [x + y])
+
+// ANDI with all zeros, all ones or two constants.
+(ANDI [0]  x) => (MOVDconst [0])
+(ANDI [-1] x) => x
+(ANDI [x] (MOVDconst [y])) => (MOVDconst [x & y])
+
+// ORI with all zeroes, all ones or two constants.
+(ORI [0]  x) => x
+(ORI [-1] x) => (MOVDconst [-1])
+(ORI [x] (MOVDconst [y])) => (MOVDconst [x | y])
+
+// Negation of a constant.
+(NEG  (MOVDconst [x])) => (MOVDconst [-x])
+(NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
+
+// Shift of a constant.
+(SLLI [x] (MOVDconst [y])) && is32Bit(y << x) => (MOVDconst [y << x])
+(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> x)])
+(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> x])
+
+// SLTI/SLTIU with constants.
+(SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
+(SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
 
 // Merge negation into fused multiply-add and multiply-subtract.
 //

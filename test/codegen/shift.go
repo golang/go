@@ -11,47 +11,47 @@ package codegen
 // ------------------ //
 
 func lshConst64x64(v int64) int64 {
-	// riscv64:"SLL","AND","SLTIU"
+	// riscv64:"SLLI",-"AND",-"SLTIU"
 	return v << uint64(33)
 }
 
 func rshConst64Ux64(v uint64) uint64 {
-	// riscv64:"SRL","AND","SLTIU"
+	// riscv64:"SRLI",-"AND",-"SLTIU"
 	return v >> uint64(33)
 }
 
 func rshConst64x64(v int64) int64 {
-	// riscv64:"SRA","OR","SLTIU"
+	// riscv64:"SRAI",-"OR",-"SLTIU"
 	return v >> uint64(33)
 }
 
 func lshConst32x64(v int32) int32 {
-	// riscv64:"SLL","AND","SLTIU"
+	// riscv64:"SLLI",-"AND",-"SLTIU"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
-	// riscv64:"SRL","AND","SLTIU"
+	// riscv64:"SRLI",-"AND",-"SLTIU"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
-	// riscv64:"SRA","OR","SLTIU"
+	// riscv64:"SRAI",-"OR",-"SLTIU"
 	return v >> uint64(29)
 }
 
 func lshConst64x32(v int64) int64 {
-	// riscv64:"SLL","AND","SLTIU"
+	// riscv64:"SLLI",-"AND",-"SLTIU"
 	return v << uint32(33)
 }
 
 func rshConst64Ux32(v uint64) uint64 {
-	// riscv64:"SRL","AND","SLTIU"
+	// riscv64:"SRLI",-"AND",-"SLTIU"
 	return v >> uint32(33)
 }
 
 func rshConst64x32(v int64) int64 {
-	// riscv64:"SRA","OR","SLTIU"
+	// riscv64:"SRAI",-"OR",-"SLTIU"
 	return v >> uint32(33)
 }
 
