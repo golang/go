@@ -109,7 +109,7 @@ type CmdFlags struct {
 	Live               CountFlag    "help:\"debug liveness analysis\""
 	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
 	MemProfile         string       "help:\"write memory profile to `file`\""
-	MemProfileRate     int64        "help:\"set runtime.MemProfileRate to `rate`\""
+	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
 	MutexProfile       string       "help:\"write mutex profile to `file`\""
 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
@@ -330,6 +330,8 @@ func registerFlags() {
 		case funcType:
 			f := v.Field(i).Interface().(func(string))
 			objabi.Flagfn1(name, help, f)
+		default:
+			panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
 		}
 	}
 }
