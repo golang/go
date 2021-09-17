@@ -1,7 +1,6 @@
 # The Go Programming Language
 
-Go is an open source programming language that makes it easy to build simple,
-reliable, and efficient software.
+Go is an open source programming language that makes it easy to build simple, reliable, and efficient software.
 
 ![Gopher image](https://golang.org/doc/gopher/fiveyears.jpg)
 *Gopher image by [Renee French][rf], licensed under [Creative Commons 3.0 Attributions license][cc3-by].*
@@ -9,29 +8,22 @@ reliable, and efficient software.
 Our canonical Git repository is located at https://go.googlesource.com/go.
 There is a mirror of the repository at https://github.com/golang/go.
 
-Unless otherwise noted, the Go source files are distributed under the
-BSD-style license found in the LICENSE file.
+Unless otherwise noted, the Go source files are distributed under the BSD-style license found in the LICENSE file.
 
-### Download and Install
+## Download and Install
 
-#### Binary Distributions
+### Binary Distributions
 
-Official binary distributions are available at https://golang.org/dl/.
+1. Official binary distributions are available at https://golang.org/dl/.
+2. After downloading a binary release, visit https://golang.org/doc/install for installation instructions.
 
-After downloading a binary release, visit https://golang.org/doc/install
-for installation instructions.
+### Install From Source
 
-#### Install From Source
+If a binary distribution is not available for your combination of operating system and architecture, visit https://golang.org/doc/install/source for source installation instructions.
 
-If a binary distribution is not available for your combination of
-operating system and architecture, visit
-https://golang.org/doc/install/source
-for source installation instructions.
+## Contributing
 
-### Contributing
-
-Go is the work of thousands of contributors. We appreciate your help!
-
+Go is the work of thousands of contributors. We appreciate your help!  
 To contribute, please read the contribution guidelines at https://golang.org/doc/contribute.html.
 
 Note that the Go project uses the issue tracker for bug reports and
