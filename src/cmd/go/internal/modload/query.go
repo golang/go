@@ -513,7 +513,7 @@ func QueryPackages(ctx context.Context, pattern, query string, current func(stri
 	pkgMods, modOnly, err := QueryPattern(ctx, pattern, query, current, allowed)
 
 	if len(pkgMods) == 0 && err == nil {
-		replacement, _ := Replacement(modOnly.Mod)
+		replacement := Replacement(modOnly.Mod)
 		return nil, &PackageNotInModuleError{
 			Mod:         modOnly.Mod,
 			Replacement: replacement,
@@ -669,7 +669,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 				if err := firstError(m); err != nil {
 					return r, err
 				}
-				replacement, _ := Replacement(r.Mod)
+				replacement := Replacement(r.Mod)
 				return r, &PackageNotInModuleError{
 					Mod:         r.Mod,
 					Replacement: replacement,
@@ -969,7 +969,7 @@ func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
 // we don't need to verify it in go.sum. This makes 'go list -m -u' faster
 // and simpler.
 func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
-	_, data, err := rawGoModData(m, "")
+	_, data, err := rawGoModData(m)
 	if err != nil {
 		return false, err
 	}
@@ -996,15 +996,10 @@ func lookupRepo(proxy, path string) (repo versionRepo, err error) {
 		repo = emptyRepo{path: path, err: err}
 	}
 
-	// TODO(#45713): Join all the highestReplaced fields into a single value.
-	for _, mm := range MainModules.Versions() {
-		index := MainModules.Index(mm)
-		if index == nil {
-			continue
-		}
-		if _, ok := index.highestReplaced[path]; ok {
-			return &replacementRepo{repo: repo}, nil
-		}
+	if MainModules == nil {
+		return repo, err
+	} else if _, ok := MainModules.HighestReplaced()[path]; ok {
+		return &replacementRepo{repo: repo}, nil
 	}
 
 	return repo, err
@@ -1098,7 +1093,7 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
 		}
 	}
 
-	if r, _ := Replacement(module.Version{Path: path, Version: v}); r.Path == "" {
+	if r := Replacement(module.Version{Path: path, Version: v}); r.Path == "" {
 		return info, err
 	}
 	return rr.replacementStat(v)
@@ -1108,24 +1103,7 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
 	info, err := rr.repo.Latest()
 	path := rr.ModulePath()
 
-	highestReplaced, found := "", false
-	for _, mm := range MainModules.Versions() {
-		if index := MainModules.Index(mm); index != nil {
-			if v, ok := index.highestReplaced[path]; ok {
-				if !found {
-					highestReplaced, found = v, true
-					continue
-				}
-				if semver.Compare(v, highestReplaced) > 0 {
-					highestReplaced = v
-				}
-			}
-		}
-	}
-
-	if found {
-		v := highestReplaced
-
+	if v, ok := MainModules.HighestReplaced()[path]; ok {
 		if v == "" {
 			// The only replacement is a wildcard that doesn't specify a version, so
 			// synthesize a pseudo-version with an appropriate major version and a
