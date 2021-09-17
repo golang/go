@@ -152,8 +152,11 @@ func ExtraEnvVars() []cfg.EnvVar {
 	} else if modload.Enabled() {
 		gomod = os.DevNull
 	}
+	modload.InitWorkfile()
+	gowork := modload.WorkFilePath()
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
+		{Name: "GOWORK", Value: gowork},
 	}
 }
 
@@ -431,7 +434,7 @@ func getOrigEnv(key string) string {
 
 func checkEnvWrite(key, val string) error {
 	switch key {
-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR", "GOVERSION":
+	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
 		return fmt.Errorf("%s cannot be modified", key)
 	case "GOENV":
 		return fmt.Errorf("%s can only be set using the OS environment", key)
