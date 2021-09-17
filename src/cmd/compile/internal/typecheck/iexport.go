@@ -1456,10 +1456,23 @@ func (w *exportWriter) node(n ir.Node) {
 	}
 }
 
-// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
-// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
+func isNonEmptyAssign(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OAS:
+		if n.(*ir.AssignStmt).Y != nil {
+			return true
+		}
+	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+		return true
+	}
+	return false
+}
+
+// Caution: stmt will emit more than one node for statement nodes n that have a
+// non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
+// section (such as in "if", "for", etc.).
 func (w *exportWriter) stmt(n ir.Node) {
-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) {
+	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) {
 		// can't use stmtList here since we don't want the final OEND
 		for _, n := range n.Init() {
 			w.stmt(n)
@@ -1495,8 +1508,10 @@ func (w *exportWriter) stmt(n ir.Node) {
 		if n.Y != nil {
 			w.op(ir.OAS)
 			w.pos(n.Pos())
+			w.stmtList(n.Init())
 			w.expr(n.X)
 			w.expr(n.Y)
+			w.bool(n.Def)
 		}
 
 	case ir.OASOP:
@@ -1517,8 +1532,10 @@ func (w *exportWriter) stmt(n ir.Node) {
 			w.op(ir.OAS2)
 		}
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -2065,8 +2082,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.AssignListStmt)
 		w.op(ir.OSELRECV2)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	default:
 		base.Fatalf("cannot export %v (%d) node\n"+

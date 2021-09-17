@@ -941,6 +941,12 @@ func (o *orderState) stmt(n ir.Node) {
 					if colas {
 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
 							init = init[1:]
+
+							// iimport may have added a default initialization assignment,
+							// due to how it handles ODCL statements.
+							if len(init) > 0 && init[0].Op() == ir.OAS && init[0].(*ir.AssignStmt).X == n {
+								init = init[1:]
+							}
 						}
 						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 						ncas.PtrInit().Append(dcl)
