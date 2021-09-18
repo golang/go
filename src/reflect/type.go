@@ -2666,8 +2666,8 @@ func StructOf(fields []StructField) Type {
 			{Name: "M", Type: ArrayOf(len(methods), TypeOf(methods[0]))},
 		}))
 
-		typ = (*structType)(unsafe.Pointer(tt.Elem().Field(0).UnsafeAddr()))
-		ut = (*uncommonType)(unsafe.Pointer(tt.Elem().Field(1).UnsafeAddr()))
+		typ = (*structType)(tt.Elem().Field(0).Addr().UnsafePointer())
+		ut = (*uncommonType)(tt.Elem().Field(1).Addr().UnsafePointer())
 
 		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
 	}

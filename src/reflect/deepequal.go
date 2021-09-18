@@ -102,7 +102,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
-		if v1.Pointer() == v2.Pointer() {
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
 		// Special case for []byte, which is common.
@@ -121,7 +121,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
 	case Ptr:
-		if v1.Pointer() == v2.Pointer() {
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
@@ -139,7 +139,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
-		if v1.Pointer() == v2.Pointer() {
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
 		for _, k := range v1.MapKeys() {
