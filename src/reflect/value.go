@@ -2473,7 +2473,7 @@ func (v Value) Uint() uint64 {
 // which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
 // and make an exception.
 
-// UnsafeAddr returns a pointer to v's data.
+// UnsafeAddr returns a pointer to v's data, as a uintptr.
 // It is for advanced clients that also import the "unsafe" package.
 // It panics if v is not addressable.
 func (v Value) UnsafeAddr() uintptr {
