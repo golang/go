@@ -283,7 +283,7 @@ func (a *Addr) SetConst(v int64) {
 // Each Prog is charged to a specific source line in the debug information,
 // specified by Pos.Line().
 // Every Prog has a Ctxt field that defines its context.
-// For performance reasons, Progs usually are usually bulk allocated, cached, and reused;
+// For performance reasons, Progs are usually bulk allocated, cached, and reused;
 // those bulk allocators should always be used, rather than new(Prog).
 //
 // The other fields not yet mentioned are for use by the back ends and should
