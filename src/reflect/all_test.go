@@ -3223,11 +3223,11 @@ func (*outer) M() {}
 
 func TestNestedMethods(t *testing.T) {
 	typ := TypeOf((*outer)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*outer).M).Pointer() {
+	if typ.NumMethod() != 1 || typ.Method(0).Func.UnsafePointer() != ValueOf((*outer).M).UnsafePointer() {
 		t.Errorf("Wrong method table for outer: (M=%p)", (*outer).M)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
+			t.Errorf("\t%d: %s %p\n", i, m.Name, m.Func.UnsafePointer())
 		}
 	}
 }
@@ -3266,11 +3266,11 @@ func (i *InnerInt) M() int {
 
 func TestEmbeddedMethods(t *testing.T) {
 	typ := TypeOf((*OuterInt)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*OuterInt).M).Pointer() {
+	if typ.NumMethod() != 1 || typ.Method(0).Func.UnsafePointer() != ValueOf((*OuterInt).M).UnsafePointer() {
 		t.Errorf("Wrong method table for OuterInt: (m=%p)", (*OuterInt).M)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
-			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
+			t.Errorf("\t%d: %s %p\n", i, m.Name, m.Func.UnsafePointer())
 		}
 	}
 
@@ -3528,11 +3528,11 @@ func TestSlice(t *testing.T) {
 
 	rv := ValueOf(&xs).Elem()
 	rv = rv.Slice(3, 4)
-	ptr2 := rv.Pointer()
+	ptr2 := rv.UnsafePointer()
 	rv = rv.Slice(5, 5)
-	ptr3 := rv.Pointer()
+	ptr3 := rv.UnsafePointer()
 	if ptr3 != ptr2 {
-		t.Errorf("xs.Slice(3,4).Slice3(5,5).Pointer() = %#x, want %#x", ptr3, ptr2)
+		t.Errorf("xs.Slice(3,4).Slice3(5,5).UnsafePointer() = %p, want %p", ptr3, ptr2)
 	}
 }
 
@@ -3575,11 +3575,11 @@ func TestSlice3(t *testing.T) {
 
 	rv = ValueOf(&xs).Elem()
 	rv = rv.Slice3(3, 5, 7)
-	ptr2 := rv.Pointer()
+	ptr2 := rv.UnsafePointer()
 	rv = rv.Slice3(4, 4, 4)
-	ptr3 := rv.Pointer()
+	ptr3 := rv.UnsafePointer()
 	if ptr3 != ptr2 {
-		t.Errorf("xs.Slice3(3,5,7).Slice3(4,4,4).Pointer() = %#x, want %#x", ptr3, ptr2)
+		t.Errorf("xs.Slice3(3,5,7).Slice3(4,4,4).UnsafePointer() = %p, want %p", ptr3, ptr2)
 	}
 }
 
@@ -6818,7 +6818,7 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
 	// repeat a bitmap for a small array or executing a repeat in
 	// a GC program.
 	val := MakeSlice(typ, 0, cap)
-	data := NewAt(ArrayOf(cap, typ), unsafe.Pointer(val.Pointer()))
+	data := NewAt(ArrayOf(cap, typ), val.UnsafePointer())
 	heapBits := GCBits(data.Interface())
 	// Repeat the bitmap for the slice size, trimming scalars in
 	// the last element.
