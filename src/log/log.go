@@ -15,12 +15,12 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -43,20 +43,61 @@ const (
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
 	Lmsgprefix                    // move the "prefix" from the beginning of the line to before the message
+	Llevel                        // logger level
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
+
+type Level uint32
+
+// These are the different logger levels. You can set the logger level
+// on your instance of logger
+const (
+	PanicLevel Level = iota
+	FatalLevel
+	ErrorLevel
+	WarnLevel
+	InfoLevel
+	DebugLevel
+	TraceLevel
+)
+
+// Print methods do not have any log level, but they are considered as INFO by default.
+// This is the level text for the print methods.
+const defaultLogLevelText = "INFO"
+
+// These are level texts corresponding to logger levels.
+var levelText = map[Level]string{
+	PanicLevel: "PANIC",
+	FatalLevel: "FATAL",
+	ErrorLevel: "ERROR",
+	WarnLevel:  "WARN",
+	InfoLevel:  "INFO",
+	DebugLevel: "DEBUG",
+	TraceLevel: "TRACE",
+}
+
+// LevelText returns a text for the logger level. It returns the empty
+// string if the level is unknown.
+func LevelText(code Level) string {
+	return levelText[code]
+}
 
 // A Logger represents an active logging object that generates lines of
 // output to an io.Writer. Each logging operation makes a single call to
 // the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu        sync.Mutex // ensures atomic writes; protects the following fields
-	prefix    string     // prefix on each line to identify the logger (but see Lmsgprefix)
-	flag      int        // properties
-	out       io.Writer  // destination for output
-	buf       []byte     // for accumulating text to write
-	isDiscard int32      // atomic boolean: whether out == io.Discard
+	mu          sync.Mutex      // ensures atomic writes; protects the following fields
+	prefix      string          // prefix on each line to identify the logger (but see Lmsgprefix)
+	flag        int             // properties
+	out         io.Writer       // destination for output
+	buf         []byte          // for accumulating text to write
+	level       Level           // logger level
+	ctx         context.Context // logger context
+	formatter   LoggerFormatter // logger formatter to format the log output
+	formatterMu sync.Mutex      // protects the formatter
+	rootLogger  *Logger         // root logger for logger
+	entryPool   sync.Pool       // entry pool
 }
 
 // New creates a new Logger. The out variable sets the
@@ -65,23 +106,45 @@ type Logger struct {
 // after the log header if the Lmsgprefix flag is provided.
 // The flag argument defines the logging properties.
 func New(out io.Writer, prefix string, flag int) *Logger {
-	l := &Logger{out: out, prefix: prefix, flag: flag}
-	if out == io.Discard {
-		l.isDiscard = 1
+	return &Logger{out: out, prefix: prefix, flag: flag, level: DebugLevel}
+}
+
+// GetLogger returns a new Logger with a root logger and a different prefix.
+// The logger will write the same output destination as the root logger.
+// However, it has got a separate context and a logger level that can be configured.
+func (l *Logger) GetLogger(prefix string) *Logger {
+	rootLogger := l.RootLogger()
+
+	if rootLogger == nil {
+		rootLogger = l
 	}
-	return l
+
+	return &Logger{prefix: prefix, rootLogger: rootLogger, level: DebugLevel}
+}
+
+// RootLogger returns the root logger for the logger.
+func (l *Logger) RootLogger() *Logger {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.rootLogger
+}
+
+// WithContext creates an entry from the logger and adds a context to it.
+func (l *Logger) WithContext(ctx context.Context) *Entry {
+	entry := l.newEntry()
+	entry.context = ctx
+	return entry
 }
 
 // SetOutput sets the output destination for the logger.
+// If the logger has got a root logger, the output destination will not be set
+// because the output destination of the root logger is used.
 func (l *Logger) SetOutput(w io.Writer) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.out = w
-	isDiscard := int32(0)
-	if w == io.Discard {
-		isDiscard = 1
+	if l.rootLogger == nil {
+		l.out = w
 	}
-	atomic.StoreInt32(&l.isDiscard, isDiscard)
 }
 
 var std = New(os.Stderr, "", LstdFlags)
@@ -109,17 +172,18 @@ func itoa(buf *[]byte, i int, wid int) {
 // formatHeader writes log header to buf in following order:
 //   * l.prefix (if it's not blank and Lmsgprefix is unset),
 //   * date and/or time (if corresponding flags are provided),
+//	 * log level (if corresponding flags are provided)
 //   * file and line number (if corresponding flags are provided),
 //   * l.prefix (if it's not blank and Lmsgprefix is set).
-func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
-	if l.flag&Lmsgprefix == 0 {
+func (l *Logger) formatHeader(flag int, buf *[]byte, t time.Time, file string, line int, level ...Level) {
+	if flag&Lmsgprefix == 0 {
 		*buf = append(*buf, l.prefix...)
 	}
-	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
-		if l.flag&LUTC != 0 {
+	if flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+		if flag&LUTC != 0 {
 			t = t.UTC()
 		}
-		if l.flag&Ldate != 0 {
+		if flag&Ldate != 0 {
 			year, month, day := t.Date()
 			itoa(buf, year, 4)
 			*buf = append(*buf, '/')
@@ -128,22 +192,29 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 			itoa(buf, day, 2)
 			*buf = append(*buf, ' ')
 		}
-		if l.flag&(Ltime|Lmicroseconds) != 0 {
+		if flag&(Ltime|Lmicroseconds) != 0 {
 			hour, min, sec := t.Clock()
 			itoa(buf, hour, 2)
 			*buf = append(*buf, ':')
 			itoa(buf, min, 2)
 			*buf = append(*buf, ':')
 			itoa(buf, sec, 2)
-			if l.flag&Lmicroseconds != 0 {
+			if flag&Lmicroseconds != 0 {
 				*buf = append(*buf, '.')
 				itoa(buf, t.Nanosecond()/1e3, 6)
 			}
 			*buf = append(*buf, ' ')
 		}
 	}
-	if l.flag&(Lshortfile|Llongfile) != 0 {
-		if l.flag&Lshortfile != 0 {
+	if flag&Llevel != 0 {
+		if level == nil {
+			*buf = append(*buf, fmt.Sprintf("%-5s ", defaultLogLevelText)...)
+		} else {
+			*buf = append(*buf, fmt.Sprintf("%-5s ", levelText[level[0]])...)
+		}
+	}
+	if flag&(Lshortfile|Llongfile) != 0 {
+		if flag&Lshortfile != 0 {
 			short := file
 			for i := len(file) - 1; i > 0; i-- {
 				if file[i] == '/' {
@@ -158,7 +229,7 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 		itoa(buf, line, -1)
 		*buf = append(*buf, ": "...)
 	}
-	if l.flag&Lmsgprefix != 0 {
+	if flag&Lmsgprefix != 0 {
 		*buf = append(*buf, l.prefix...)
 	}
 }
@@ -168,14 +239,79 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 // Logger. A newline is appended if the last character of s is not
 // already a newline. Calldepth is used to recover the PC and is
 // provided for generality, although at the moment on all pre-defined
-// paths it will be 2.
-func (l *Logger) Output(calldepth int, s string) error {
+// paths it will be 2. Level is the log level for the output.
+// If any formatter is configured for the logger, it will be used to format
+// the output.
+func (l *Logger) Output(calldepth int, s string, level ...Level) error {
+	var formatter LoggerFormatter
+
+	l.mu.Lock()
+	if l.rootLogger != nil {
+		l.rootLogger.formatterMu.Lock()
+		formatter = l.rootLogger.formatter
+		l.rootLogger.formatterMu.Unlock()
+	}
+	if formatter == nil {
+		formatter = l.formatter
+	}
+	l.mu.Unlock()
+
+	if formatter != nil {
+		entry := l.newEntry()
+		entry.calldepth = calldepth + 1
+		entry.message = s
+		entry.logger = l
+		entry.context = nil
+
+		if level != nil {
+			entry.level = &level[0]
+		} else {
+			entry.level = nil
+		}
+
+		serialized, err := formatter.Format(entry)
+
+		if err == nil && serialized != nil {
+			if l.rootLogger != nil {
+				l.rootLogger.mu.Lock()
+				_, err = l.rootLogger.out.Write(serialized)
+				l.rootLogger.mu.Unlock()
+			} else {
+				l.mu.Lock()
+				_, err = l.out.Write(serialized)
+				l.mu.Unlock()
+			}
+		}
+
+		l.releaseEntry(entry)
+		return err
+	}
+
 	now := time.Now() // get this early.
 	var file string
 	var line int
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.flag&(Lshortfile|Llongfile) != 0 {
+
+	var flag int
+
+	if l.rootLogger != nil {
+		l.rootLogger.mu.Lock()
+		flag = l.rootLogger.flag
+		l.rootLogger.mu.Unlock()
+	} else {
+		flag = l.flag
+	}
+
+	if flag&Llevel != 0 {
+		if level == nil && l.level < InfoLevel {
+			return nil
+		} else if level != nil && l.level < level[0] {
+			return nil
+		}
+	}
+
+	if flag&(Lshortfile|Llongfile) != 0 {
 		// Release lock while getting caller info - it's expensive.
 		l.mu.Unlock()
 		var ok bool
@@ -187,95 +323,186 @@ func (l *Logger) Output(calldepth int, s string) error {
 		l.mu.Lock()
 	}
 	l.buf = l.buf[:0]
-	l.formatHeader(&l.buf, now, file, line)
+	l.formatHeader(flag, &l.buf, now, file, line, level...)
 	l.buf = append(l.buf, s...)
 	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
-	_, err := l.out.Write(l.buf)
+
+	var err error
+	if l.rootLogger != nil {
+		l.rootLogger.mu.Lock()
+		_, err = l.rootLogger.out.Write(l.buf)
+		l.rootLogger.mu.Unlock()
+	} else {
+		_, err = l.out.Write(l.buf)
+	}
 	return err
 }
 
 // Printf calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...interface{}) {
-	if atomic.LoadInt32(&l.isDiscard) != 0 {
-		return
-	}
 	l.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Print calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
-func (l *Logger) Print(v ...interface{}) {
-	if atomic.LoadInt32(&l.isDiscard) != 0 {
-		return
-	}
-	l.Output(2, fmt.Sprint(v...))
-}
+func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
 
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
-func (l *Logger) Println(v ...interface{}) {
-	if atomic.LoadInt32(&l.isDiscard) != 0 {
-		return
-	}
-	l.Output(2, fmt.Sprintln(v...))
-}
+func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
-	l.Output(2, fmt.Sprint(v...))
+	l.Output(2, fmt.Sprint(v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.Output(2, fmt.Sprintf(format, v...))
+	l.Output(2, fmt.Sprintf(format, v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
 func (l *Logger) Fatalln(v ...interface{}) {
-	l.Output(2, fmt.Sprintln(v...))
+	l.Output(2, fmt.Sprintln(v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
 func (l *Logger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	l.Output(2, s)
+	l.Output(2, s, PanicLevel)
 	panic(s)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
 func (l *Logger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	l.Output(2, s)
+	l.Output(2, s, PanicLevel)
 	panic(s)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
 func (l *Logger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	l.Output(2, s)
+	l.Output(2, s, PanicLevel)
 	panic(s)
+}
+
+// Error is equivalent to Print() and logs the message at level Error.
+func (l *Logger) Error(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s, ErrorLevel)
+}
+
+// Errorf is equivalent to Printf() and logs the message at level Error.
+func (l *Logger) Errorf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s, ErrorLevel)
+}
+
+// Errorln is equivalent to Println() and logs the message at level Error.
+func (l *Logger) Errorln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...), ErrorLevel)
+}
+
+// Warn is equivalent to Print() and logs the message at level Warning.
+func (l *Logger) Warn(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s, WarnLevel)
+}
+
+// Warnf is equivalent to Printf() and logs the message at level Warning.
+func (l *Logger) Warnf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s, WarnLevel)
+}
+
+// Warnln is equivalent to Println() and logs the message at level Warning.
+func (l *Logger) Warnln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...), WarnLevel)
+}
+
+// Info is equivalent to Print() and logs the message at level Info.
+func (l *Logger) Info(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s, InfoLevel)
+}
+
+// Infof is equivalent to Printf() and logs the message at level Info.
+func (l *Logger) Infof(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s, InfoLevel)
+}
+
+// Infoln is equivalent to Println() and logs the message at level Info.
+func (l *Logger) Infoln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...), InfoLevel)
+}
+
+// Debug is equivalent to Print() and logs the message at level Debug.
+func (l *Logger) Debug(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s, DebugLevel)
+}
+
+// Debugf is equivalent to Printf() and logs the message at level Debug.
+func (l *Logger) Debugf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s, DebugLevel)
+}
+
+// Debugln is equivalent to Println() and logs the message at level Debug.
+func (l *Logger) Debugln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...), DebugLevel)
+}
+
+// Trace is equivalent to Print() and logs the message at level Trace.
+func (l *Logger) Trace(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	l.Output(2, s, TraceLevel)
+}
+
+// Tracef is equivalent to Printf() and logs the message at level Trace.
+func (l *Logger) Tracef(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	l.Output(2, s, TraceLevel)
+}
+
+// Traceln is equivalent to Println() and logs the message at level Trace.
+func (l *Logger) Traceln(v ...interface{}) {
+	l.Output(2, fmt.Sprintln(v...), TraceLevel)
 }
 
 // Flags returns the output flags for the logger.
 // The flag bits are Ldate, Ltime, and so on.
+// If the logger has got a root logger, the output flags of the root
+// logger are returned.
 func (l *Logger) Flags() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.rootLogger != nil {
+		l.rootLogger.mu.Lock()
+		defer l.rootLogger.mu.Unlock()
+		return l.rootLogger.flag
+	}
 	return l.flag
 }
 
 // SetFlags sets the output flags for the logger.
 // The flag bits are Ldate, Ltime, and so on.
+// If the logger has got a root logger, the output flags will not be set
+// because the output flags of the root logger is used.
 func (l *Logger) SetFlags(flag int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.flag = flag
+	if l.rootLogger == nil {
+		l.flag = flag
+	}
 }
 
 // Prefix returns the output prefix for the logger.
@@ -292,16 +519,114 @@ func (l *Logger) SetPrefix(prefix string) {
 	l.prefix = prefix
 }
 
+// LoggerLevel returns the log level for the logger.
+func (l *Logger) LoggerLevel() Level {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.level
+}
+
+// SetLoggerLevel sets the log level for the logger.
+func (l *Logger) SetLoggerLevel(level Level) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.level = level
+}
+
+// Context returns the context for the logger.
+func (l *Logger) Context() context.Context {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.ctx
+}
+
+// SetContext sets the context for the logger.
+func (l *Logger) SetContext(ctx context.Context) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.ctx = ctx
+}
+
+// Formatter returns the formatter for the logger.
+// If the logger has got a root logger, the formatter of the root
+// logger is returned.
+func (l *Logger) Formatter() LoggerFormatter {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.rootLogger != nil {
+		l.rootLogger.formatterMu.Lock()
+		defer l.rootLogger.formatterMu.Unlock()
+		return l.rootLogger.formatter
+	}
+
+	l.formatterMu.Lock()
+	defer l.formatterMu.Unlock()
+	return l.formatter
+}
+
+// SetFormatter sets the formatter for the logger.
+// If the logger has got a root logger, the formatter will not be set
+// because the formatter of the root logger is used.
+func (l *Logger) SetFormatter(formatter LoggerFormatter) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.rootLogger == nil {
+		l.formatterMu.Lock()
+		defer l.formatterMu.Unlock()
+		l.formatter = formatter
+	}
+}
+
 // Writer returns the output destination for the logger.
+// If the logger has got a root logger, the output destination
+// of the root logger is returned.
 func (l *Logger) Writer() io.Writer {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.rootLogger != nil {
+		return l.rootLogger.Writer()
+	}
 	return l.out
+}
+
+// newEntry either gets an entry from the pool or creates a new entry.
+func (l *Logger) newEntry() *Entry {
+	entry, ok := l.entryPool.Get().(*Entry)
+	if ok {
+		return entry
+	}
+	return NewEntry(l)
+}
+
+// releaseEntry puts the entry into the pool.
+func (l *Logger) releaseEntry(entry *Entry) {
+	l.entryPool.Put(entry)
+}
+
+// GetLogger returns a new Logger whose root logger is the standard logger.
+// The logger will write the same output destination as the standard logger.
+// However, it has got a separate context and a logger level that can be configured.
+func GetLogger(prefix string) *Logger {
+	return std.GetLogger(prefix)
+}
+
+// RootLogger returns the root logger of the standard logger.
+func RootLogger() *Logger {
+	return std.RootLogger()
+}
+
+// WithContext creates an entry from the standard logger and adds a context to it.
+func WithContext(ctx context.Context) *Entry {
+	return std.WithContext(ctx)
 }
 
 // SetOutput sets the output destination for the standard logger.
 func SetOutput(w io.Writer) {
-	std.SetOutput(w)
+	std.mu.Lock()
+	defer std.mu.Unlock()
+	std.out = w
 }
 
 // Flags returns the output flags for the standard logger.
@@ -326,6 +651,36 @@ func SetPrefix(prefix string) {
 	std.SetPrefix(prefix)
 }
 
+// LoggerLevel returns the logger level for the standard logger.
+func LoggerLevel() Level {
+	return std.LoggerLevel()
+}
+
+// SetLoggerLevel sets the logger level for the standard logger.
+func SetLoggerLevel(level Level) {
+	std.SetLoggerLevel(level)
+}
+
+// Context returns the context for the standard logger.
+func Context() context.Context {
+	return std.Context()
+}
+
+// SetContext sets the context for the standard logger.
+func SetContext(ctx context.Context) {
+	std.SetContext(ctx)
+}
+
+// Formatter returns the logger formatter for the standard logger.
+func Formatter() LoggerFormatter {
+	return std.Formatter()
+}
+
+// SetFormatter sets the logger formatter for the standard logger.
+func SetFormatter(formatter LoggerFormatter) {
+	std.SetFormatter(formatter)
+}
+
 // Writer returns the output destination for the standard logger.
 func Writer() io.Writer {
 	return std.Writer()
@@ -336,67 +691,148 @@ func Writer() io.Writer {
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
 func Print(v ...interface{}) {
-	if atomic.LoadInt32(&std.isDiscard) != 0 {
-		return
-	}
 	std.Output(2, fmt.Sprint(v...))
 }
 
 // Printf calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Printf.
 func Printf(format string, v ...interface{}) {
-	if atomic.LoadInt32(&std.isDiscard) != 0 {
-		return
-	}
 	std.Output(2, fmt.Sprintf(format, v...))
 }
 
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
 func Println(v ...interface{}) {
-	if atomic.LoadInt32(&std.isDiscard) != 0 {
-		return
-	}
 	std.Output(2, fmt.Sprintln(v...))
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	std.Output(2, fmt.Sprint(v...))
+	std.Output(2, fmt.Sprint(v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
-	std.Output(2, fmt.Sprintf(format, v...))
+	std.Output(2, fmt.Sprintf(format, v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func Fatalln(v ...interface{}) {
-	std.Output(2, fmt.Sprintln(v...))
+	std.Output(2, fmt.Sprintln(v...), FatalLevel)
 	os.Exit(1)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	std.Output(2, s)
+	std.Output(2, s, PanicLevel)
 	panic(s)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	std.Output(2, s)
+	std.Output(2, s, PanicLevel)
 	panic(s)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	std.Output(2, s)
+	std.Output(2, s, PanicLevel)
 	panic(s)
+}
+
+// Error logs a message at level Error on the standard logger.
+func Error(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s, ErrorLevel)
+}
+
+// Errorf logs a message at level Error on the standard logger.
+func Errorf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s, ErrorLevel)
+}
+
+// Errorln logs a message at level Error on the standard logger.
+func Errorln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s, ErrorLevel)
+}
+
+// Warn logs a message at level Warning on the standard logger.
+func Warn(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s, WarnLevel)
+}
+
+// Warnf logs a message at level Warning on the standard logger.
+func Warnf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s, WarnLevel)
+}
+
+// Warnln logs a message at level Warning on the standard logger.
+func Warnln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s, WarnLevel)
+}
+
+// Info logs a message at level Info on the standard logger.
+func Info(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s, InfoLevel)
+}
+
+// Infof logs a message at level Info on the standard logger.
+func Infof(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s, InfoLevel)
+}
+
+// Infoln logs a message at level Info on the standard logger.
+func Infoln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s, InfoLevel)
+}
+
+// Debug logs a message at level Debug on the standard logger.
+func Debug(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s, DebugLevel)
+}
+
+// Debugf logs a message at level Debug on the standard logger.
+func Debugf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s, DebugLevel)
+}
+
+// Debugln logs a message at level Debug on the standard logger.
+func Debugln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s, DebugLevel)
+}
+
+// Trace logs a message at level Trace on the standard logger.
+func Trace(v ...interface{}) {
+	s := fmt.Sprint(v...)
+	std.Output(2, s, TraceLevel)
+}
+
+// Tracef logs a message at level Trace on the standard logger.
+func Tracef(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	std.Output(2, s, TraceLevel)
+}
+
+// Traceln logs a message at level Trace on the standard logger.
+func Traceln(v ...interface{}) {
+	s := fmt.Sprintln(v...)
+	std.Output(2, s, TraceLevel)
 }
 
 // Output writes the output for a logging event. The string s contains
@@ -405,7 +841,9 @@ func Panicln(v ...interface{}) {
 // already a newline. Calldepth is the count of the number of
 // frames to skip when computing the file name and line number
 // if Llongfile or Lshortfile is set; a value of 1 will print the details
-// for the caller of Output.
-func Output(calldepth int, s string) error {
-	return std.Output(calldepth+1, s) // +1 for this frame.
+// for the caller of Output. Level is the log level for the output.
+// If any formatter is configured for the logger, it will be used to format
+// the output.
+func Output(calldepth int, s string, level ...Level) error {
+	return std.Output(calldepth+1, s, level...) // +1 for this frame.
 }
