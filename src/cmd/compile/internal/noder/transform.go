@@ -412,7 +412,7 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 		return n
 	}
 
-	op, why := Assignop(n.Type(), t)
+	op, why := typecheck.Assignop(n.Type(), t)
 	if op == ir.OXXX {
 		base.Fatalf("found illegal assignment %+v -> %+v; %s", n.Type(), t, why)
 	}
@@ -421,21 +421,6 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
 	r.SetTypecheck(1)
 	r.SetImplicit(true)
 	return r
-}
-
-func Assignop(src, dst *types.Type) (ir.Op, string) {
-	if src == dst {
-		return ir.OCONVNOP, ""
-	}
-	if src == nil || dst == nil || src.Kind() == types.TFORW || dst.Kind() == types.TFORW || src.Underlying() == nil || dst.Underlying() == nil {
-		return ir.OXXX, ""
-	}
-
-	// 1. src type is identical to dst.
-	if types.IdenticalStrict(src, dst) {
-		return ir.OCONVNOP, ""
-	}
-	return typecheck.Assignop1(src, dst)
 }
 
 // Corresponds to typecheck.typecheckaste, but we add an extra flag convifaceOnly
