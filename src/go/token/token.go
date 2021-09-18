@@ -283,19 +283,10 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords map[string]Token
-
-func init() {
-	keywords = make(map[string]Token)
-	for i := keyword_beg + 1; i < keyword_end; i++ {
-		keywords[tokens[i]] = i
-	}
-}
-
 // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
 //
 func Lookup(ident string) Token {
-	if tok, is_keyword := keywords[ident]; is_keyword {
+	if tok, ok := isKeyword(ident); ok {
 		return tok
 	}
 	return IDENT
@@ -330,9 +321,68 @@ func IsExported(name string) bool {
 // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
 //
 func IsKeyword(name string) bool {
-	// TODO: opt: use a perfect hash function instead of a global map.
-	_, ok := keywords[name]
+	_, ok := isKeyword(name)
 	return ok
+}
+
+var (
+	keywords      [24][2]string
+	keywordsToken [24][2]uint8
+)
+
+func init() {
+	if keyword_beg != Token(uint8(keyword_beg)) || keyword_end != Token(uint8(keyword_end)) {
+		panic("expect token to be in range [0, 255]")
+	}
+	for tok := keyword_beg + 1; tok < keyword_end; tok++ {
+		index := keywordsIndex(tokens[tok])
+		if index < 0 || index >= len(keywords) {
+			panic("unexpected index")
+		}
+		if keywords[index][0] == "" {
+			keywords[index][0] = tokens[tok]
+			keywordsToken[index][0] = uint8(tok)
+			continue
+		}
+		if keywords[index][1] == "" {
+			keywords[index][1] = tokens[tok]
+			keywordsToken[index][1] = uint8(tok)
+			continue
+		}
+		panic("unexpected index")
+	}
+}
+
+func keywordsIndex(name string) int {
+	return int(name[1] ^ name[0] ^ uint8(len(name)))
+}
+
+func isKeyword(name string) (Token, bool) {
+	// TODO: opt: use a perfect hash function instead of the global keywords.
+	const (
+		minKeywordLen = len("if")
+		maxKeywordLen = len("fallthrough")
+	)
+	if len(name) < minKeywordLen || len(name) > maxKeywordLen {
+		return ILLEGAL, false
+	}
+	index := keywordsIndex(name)
+	if index >= len(keywords) {
+		return ILLEGAL, false
+	}
+	if keywords[index][0] == "" {
+		return ILLEGAL, false
+	}
+	if keywords[index][0] == name {
+		return Token(keywordsToken[index][0]), true
+	}
+	if keywords[index][1] == "" {
+		return ILLEGAL, false
+	}
+	if keywords[index][1] == name {
+		return Token(keywordsToken[index][1]), true
+	}
+	return ILLEGAL, false
 }
 
 // IsIdentifier reports whether name is a Go identifier, that is, a non-empty
