@@ -1567,6 +1567,10 @@ func rotateLeft32(v, rotate int64) int64 {
 	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
 }
 
+func rotateRight64(v, rotate int64) int64 {
+	return int64(bits.RotateLeft64(uint64(v), int(-rotate)))
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
 func armBFAuxInt(lsb, width int64) arm64BitField {
 	if lsb < 0 || lsb > 63 {
