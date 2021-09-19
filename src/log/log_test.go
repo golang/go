@@ -21,9 +21,10 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(61|63):` // must update if the calls to l.Printf / l.Print below move
+	Rline         = `(63|65):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+	Rlevel        = `(PANIC|FATAL|ERROR|WARN |INFO |DEBUG|TRACE)`
 )
 
 type tester struct {
@@ -44,11 +45,12 @@ var tests = []tester{
 	{Llongfile, "", Rlongfile + " "},
 	{Lshortfile, "", Rshortfile + " "},
 	{Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
+	{Llevel, "", Rlevel + " "},
 	// everything at once:
-	{Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
-	{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
-	{Ldate | Ltime | Lmicroseconds | Llongfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " XXX"},
-	{Ldate | Ltime | Lmicroseconds | Lshortfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " XXX"},
+	{Ldate | Ltime | Lmicroseconds | Llongfile | Llevel, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlevel + " " + Rlongfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Lshortfile | Llevel, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlevel + " " + Rshortfile + " "},
+	{Ldate | Ltime | Lmicroseconds | Llongfile | Lmsgprefix | Llevel, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlevel + " " + Rlongfile + " XXX"},
+	{Ldate | Ltime | Lmicroseconds | Lshortfile | Lmsgprefix | Llevel, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlevel + " " + Rshortfile + " XXX"},
 }
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
@@ -223,4 +225,56 @@ func BenchmarkPrintlnNoFlags(b *testing.B) {
 		buf.Reset()
 		l.Println(testString)
 	}
+}
+
+func TestLevelFlag(t *testing.T) {
+	var b bytes.Buffer
+	l := New(&b, "", LstdFlags)
+	l.SetFlags(Llevel)
+	l.SetLoggerLevel(DebugLevel)
+
+	l.Debug("hello")
+	want := fmt.Sprintf("DEBUG hello\n")
+	got := b.String()
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
+	b.Reset()
+
+	// trace log will not be printed because the logger level is set to Debug
+	l.Trace("hello")
+	want = fmt.Sprintf("")
+	got = b.String()
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
+	b.Reset()
+
+	l.Info("hello")
+	want = fmt.Sprintf("INFO hello\n")
+	got = b.String()
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
+	b.Reset()
+
+	l.Error("hello")
+	want = fmt.Sprintf("ERROR hello\n")
+	got = b.String()
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
+	b.Reset()
+
+	l.Warn("hello")
+	want = fmt.Sprintf("WARN  hello\n")
+	got = b.String()
+	if got == want {
+		return
+	}
+	t.Errorf("got %q; want %q", got, want)
 }
