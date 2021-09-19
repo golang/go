@@ -199,9 +199,9 @@ func (e *Entry) Output(calldepth int, s string, level ...Level) error {
 
 	e.logger.mu.Lock()
 	if e.logger.rootLogger != nil {
-		e.logger.rootLogger.formatterMu.Lock()
+		e.logger.rootLogger.mu.Lock()
 		formatter = e.logger.rootLogger.formatter
-		e.logger.rootLogger.formatterMu.Unlock()
+		e.logger.rootLogger.mu.Unlock()
 	}
 	if formatter == nil {
 		formatter = e.logger.formatter

@@ -88,18 +88,17 @@ func LevelText(code Level) string {
 // the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu          sync.Mutex      // ensures atomic writes; protects the following fields
-	prefix      string          // prefix on each line to identify the logger (but see Lmsgprefix)
-	flag        int             // properties
-	out         io.Writer       // destination for output
-	buf         []byte          // for accumulating text to write
-	isDiscard   int32           // atomic boolean: whether out == io.Discard
-	level       Level           // logger level
-	ctx         context.Context // logger context
-	formatter   LoggerFormatter // logger formatter to format the log output
-	formatterMu sync.Mutex      // protects the formatter
-	rootLogger  *Logger         // root logger for logger
-	entryPool   sync.Pool       // entry pool
+	mu         sync.Mutex      // ensures atomic writes; protects the following fields
+	prefix     string          // prefix on each line to identify the logger (but see Lmsgprefix)
+	flag       int             // properties
+	out        io.Writer       // destination for output
+	buf        []byte          // for accumulating text to write
+	isDiscard  int32           // atomic boolean: whether out == io.Discard
+	level      Level           // logger level
+	ctx        context.Context // logger context
+	formatter  LoggerFormatter // logger formatter to format the log output
+	rootLogger *Logger         // root logger for logger
+	entryPool  sync.Pool       // entry pool
 }
 
 // New creates a new Logger. The out variable sets the
@@ -258,9 +257,9 @@ func (l *Logger) Output(calldepth int, s string, level ...Level) error {
 
 	l.mu.Lock()
 	if l.rootLogger != nil {
-		l.rootLogger.formatterMu.Lock()
+		l.rootLogger.mu.Lock()
 		formatter = l.rootLogger.formatter
-		l.rootLogger.formatterMu.Unlock()
+		l.rootLogger.mu.Unlock()
 	}
 	if formatter == nil {
 		formatter = l.formatter
@@ -283,15 +282,15 @@ func (l *Logger) Output(calldepth int, s string, level ...Level) error {
 		serialized, err := formatter.Format(entry)
 
 		if err == nil && serialized != nil {
+			l.mu.Lock()
 			if l.rootLogger != nil {
 				l.rootLogger.mu.Lock()
 				_, err = l.rootLogger.out.Write(serialized)
 				l.rootLogger.mu.Unlock()
 			} else {
-				l.mu.Lock()
 				_, err = l.out.Write(serialized)
-				l.mu.Unlock()
 			}
+			l.mu.Unlock()
 		}
 
 		l.releaseEntry(entry)
@@ -579,13 +578,11 @@ func (l *Logger) Formatter() LoggerFormatter {
 	defer l.mu.Unlock()
 
 	if l.rootLogger != nil {
-		l.rootLogger.formatterMu.Lock()
-		defer l.rootLogger.formatterMu.Unlock()
+		l.rootLogger.mu.Lock()
+		defer l.rootLogger.mu.Unlock()
 		return l.rootLogger.formatter
 	}
 
-	l.formatterMu.Lock()
-	defer l.formatterMu.Unlock()
 	return l.formatter
 }
 
@@ -597,8 +594,6 @@ func (l *Logger) SetFormatter(formatter LoggerFormatter) {
 	defer l.mu.Unlock()
 
 	if l.rootLogger == nil {
-		l.formatterMu.Lock()
-		defer l.formatterMu.Unlock()
 		l.formatter = formatter
 	}
 }
