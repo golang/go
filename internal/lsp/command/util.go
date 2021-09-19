@@ -25,7 +25,7 @@ func (c Command) ID() string {
 //
 // Example usage:
 //
-//   jsonArgs, err := EncodeArgs(1, "hello", true, StructuredArg{42, 12.6})
+//   jsonArgs, err := MarshalArgs(1, "hello", true, StructuredArg{42, 12.6})
 //
 func MarshalArgs(args ...interface{}) ([]json.RawMessage, error) {
 	var out []json.RawMessage
