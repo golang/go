@@ -508,6 +508,8 @@
 (TST x (MOVWconst [c])) => (TSTconst [c] x)
 (TEQ x (MOVWconst [c])) => (TEQconst [c] x)
 
+(SRR x (MOVWconst [c])) => (SRRconst x [c&31])
+
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 (CMP x y) && canonLessThan(x,y) => (InvertFlags (CMP y x))
 
@@ -1136,7 +1138,6 @@
 ( ORshiftRL [c] (SLLconst x [32-c]) x) => (SRRconst [   c] x)
 (XORshiftRL [c] (SLLconst x [32-c]) x) => (SRRconst [   c] x)
 
-(RotateLeft32 x (MOVWconst [c])) => (SRRconst [-c&31] x)
 (RotateLeft16 <t> x (MOVWconst [c])) => (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
 (RotateLeft8 <t> x (MOVWconst [c])) => (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
 (RotateLeft32 x y) => (SRR x (RSBconst [0] <y.Type> y))

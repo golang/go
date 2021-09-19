@@ -338,6 +338,8 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpARMSRL(v)
 	case OpARMSRLconst:
 		return rewriteValueARM_OpARMSRLconst(v)
+	case OpARMSRR:
+		return rewriteValueARM_OpARMSRR(v)
 	case OpARMSUB:
 		return rewriteValueARM_OpARMSUB(v)
 	case OpARMSUBD:
@@ -10523,6 +10525,24 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpARMSRR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (SRR x (MOVWconst [c]))
+	// result: (SRRconst x [c&31])
+	for {
+		x := v_0
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		v.reset(OpARMSRRconst)
+		v.AuxInt = int32ToAuxInt(c & 31)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueARM_OpARMSUB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -14904,19 +14924,6 @@ func rewriteValueARM_OpRotateLeft32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (RotateLeft32 x (MOVWconst [c]))
-	// result: (SRRconst [-c&31] x)
-	for {
-		x := v_0
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := auxIntToInt32(v_1.AuxInt)
-		v.reset(OpARMSRRconst)
-		v.AuxInt = int32ToAuxInt(-c & 31)
-		v.AddArg(x)
-		return true
-	}
 	// match: (RotateLeft32 x y)
 	// result: (SRR x (RSBconst [0] <y.Type> y))
 	for {
