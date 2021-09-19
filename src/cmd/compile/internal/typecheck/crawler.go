@@ -10,10 +10,12 @@ import (
 	"cmd/compile/internal/types"
 )
 
-// crawlExports crawls the type/object graph rooted at the given list
-// of exported objects. Any functions that are found to be potentially
-// callable by importers are marked with ExportInline so that
-// iexport.go knows to re-export their inline body.
+// crawlExports crawls the type/object graph rooted at the given list of exported
+// objects. It descends through all parts of types and follows any methods on defined
+// types. Any functions that are found to be potentially callable by importers are
+// marked with ExportInline, so that iexport.go knows to re-export their inline body.
+// Also, any function or global referenced by a function marked by ExportInline() is
+// marked for export (whether its name is exported or not).
 func crawlExports(exports []*ir.Name) {
 	p := crawler{
 		marked:   make(map[*types.Type]bool),
@@ -29,7 +31,7 @@ type crawler struct {
 	embedded map[*types.Type]bool // types already seen by markEmbed
 }
 
-// markObject visits a reachable object.
+// markObject visits a reachable object (function, method, global type, or global variable)
 func (p *crawler) markObject(n *ir.Name) {
 	if n.Op() == ir.ONAME && n.Class == ir.PFUNC {
 		p.markInlBody(n)
@@ -97,7 +99,12 @@ func (p *crawler) markType(t *types.Type) {
 			break
 		}
 		for _, f := range t.FieldSlice() {
-			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
+			// Mark the type of a unexported field if it is a
+			// fully-instantiated type, since we create and instantiate
+			// the methods of any fully-instantiated type that we see
+			// during import (see end of typecheck.substInstType).
+			if types.IsExported(f.Sym.Name) || f.Embedded != 0 ||
+				isPtrFullyInstantiated(f.Type) {
 				p.markType(f.Type)
 			}
 		}
@@ -108,8 +115,6 @@ func (p *crawler) markType(t *types.Type) {
 		}
 
 	case types.TINTER:
-		// TODO(danscales) - will have to deal with the types in interface
-		// elements here when implemented in types2 and represented in types1.
 		for _, f := range t.AllMethods().Slice() {
 			if types.IsExported(f.Sym.Name) {
 				p.markType(f.Type)
@@ -225,4 +230,11 @@ func (p *crawler) markInlBody(n *ir.Name) {
 	// reexport. We want to include even non-called functions,
 	// because after inlining they might be callable.
 	ir.VisitList(fn.Inl.Body, doFlood)
+}
+
+// isPtrFullyInstantiated returns true if t is a fully-instantiated type, or it is a
+// pointer to a fully-instantiated type.
+func isPtrFullyInstantiated(t *types.Type) bool {
+	return t.IsPtr() && t.Elem().IsFullyInstantiated() ||
+		t.IsFullyInstantiated()
 }
