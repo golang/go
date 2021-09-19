@@ -1363,6 +1363,7 @@
 (XOR x (MVN y)) => (EON x y)
 (OR  x (MVN y)) => (ORN x y)
 (MVN (XOR x y)) => (EON x y)
+(NEG (NEG x)) => x
 
 (CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
 (CSEL [cc] (MOVDconst [0]) (MOVDconst [-1]) flag) => (CSETM [arm64Negate(cc)] flag)

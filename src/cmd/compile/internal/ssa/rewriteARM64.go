@@ -15691,6 +15691,16 @@ func rewriteValueARM64_OpARM64NEG(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (NEG (NEG x))
+	// result: x
+	for {
+		if v_0.Op != OpARM64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	// match: (NEG (MOVDconst [c]))
 	// result: (MOVDconst [-c])
 	for {
