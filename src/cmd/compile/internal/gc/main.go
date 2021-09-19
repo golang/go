@@ -244,6 +244,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
 		inline.InlinePackage()
+		// If any new fully-instantiated types were referenced during
+		// inlining, we need to create needed instantiations.
+		if len(typecheck.GetInstTypeList()) > 0 {
+			noder.BuildInstantiations(false)
+		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

@@ -158,16 +158,6 @@ type irgen struct {
 	// types which we need to finish, by doing g.fillinMethods.
 	typesToFinalize []*typeDelayInfo
 
-	dnum int // for generating unique dictionary variables
-
-	// Map from a name of function that been instantiated to information about
-	// its instantiated function (including dictionary format).
-	instInfoMap map[*types.Sym]*instInfo
-
-	// dictionary syms which we need to finish, by writing out any itabconv
-	// entries.
-	dictSymsToFinalize []*delayInfo
-
 	// True when we are compiling a top-level generic function or method. Use to
 	// avoid adding closures of generic functions/methods to the target.Decls
 	// list.
@@ -178,6 +168,23 @@ type irgen struct {
 	// can be sure they match up correctly between types2-to-types1 translation
 	// and types1 importing.
 	curDecl string
+}
+
+// genInst has the information for creating needed instantiations and modifying
+// functions to use instantiations.
+type genInst struct {
+	dnum int // for generating unique dictionary variables
+
+	// Map from the names of all instantiations to information about the
+	// instantiations.
+	instInfoMap map[*types.Sym]*instInfo
+
+	// Dictionary syms which we need to finish, by writing out any itabconv
+	// entries.
+	dictSymsToFinalize []*delayInfo
+
+	// New instantiations created during this round of buildInstantiations().
+	newInsts []ir.Node
 }
 
 func (g *irgen) later(fn func()) {
@@ -308,8 +315,9 @@ Outer:
 
 	typecheck.DeclareUniverse()
 
-	// Create any needed stencils of generic functions
-	g.stencil()
+	// Create any needed instantiations of generic functions and transform
+	// existing and new functions to use those instantiations.
+	BuildInstantiations(true)
 
 	// Remove all generic functions from g.target.Decl, since they have been
 	// used for stenciling, but don't compile. Generic functions will already

@@ -1007,17 +1007,20 @@ func assert(p bool) {
 // List of newly fully-instantiated types who should have their methods generated.
 var instTypeList []*types.Type
 
-// NeedInstType adds a new fully-instantied type to instTypeList.
+// NeedInstType adds a new fully-instantiated type to instTypeList.
 func NeedInstType(t *types.Type) {
 	instTypeList = append(instTypeList, t)
 }
 
-// GetInstTypeList returns the current contents of instTypeList, and sets
-// instTypeList to nil.
+// GetInstTypeList returns the current contents of instTypeList.
 func GetInstTypeList() []*types.Type {
 	r := instTypeList
-	instTypeList = nil
 	return r
+}
+
+// ClearInstTypeList clears the contents of instTypeList.
+func ClearInstTypeList() {
+	instTypeList = nil
 }
 
 // General type substituter, for replacing typeparams with type args.
