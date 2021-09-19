@@ -302,6 +302,7 @@ func init() {
 		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "MVNshiftRL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "MVNshiftRA", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "MVNshiftRO", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "NEGshiftLL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "NEGshiftRL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "NEGshiftRA", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
@@ -314,21 +315,27 @@ func init() {
 		{name: "ANDshiftLL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "ANDshiftRL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ANDshiftRA", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ANDshiftRO", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "ORshiftLL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "ORshiftRL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ORshiftRA", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORshiftRO", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
 		{name: "XORshiftLL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "XORshiftRL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "XORshiftRA", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "XORshiftRO", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
 		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "BICshiftRO", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "EONshiftLL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "EONshiftRL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "EONshiftRA", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "EONshiftRO", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "ORNshiftLL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
 		{name: "ORNshiftRL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "ORNshiftRA", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORNshiftRO", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftLL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRA", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
@@ -338,6 +345,7 @@ func init() {
 		{name: "TSTshiftLL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1<<auxInt) compare to 0, auxInt should be in the range 0 to 63.
 		{name: "TSTshiftRL", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "TSTshiftRA", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1>>auxInt) compare to 0, signed shift, auxInt should be in the range 0 to 63.
+		{name: "TSTshiftRO", argLength: 2, reg: gp2flags, asm: "TST", aux: "Int64", typ: "Flags"}, // (arg0 & arg1 ROR auxInt) compare to 0, signed shift, auxInt should be in the range 0 to 63.
 
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
