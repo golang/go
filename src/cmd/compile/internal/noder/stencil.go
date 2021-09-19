@@ -9,6 +9,7 @@ package noder
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
@@ -37,207 +38,54 @@ func infoPrint(format string, a ...interface{}) {
 	}
 }
 
-// stencil scans functions for instantiated generic function calls and creates the
-// required instantiations for simple generic functions. It also creates
-// instantiated methods for all fully-instantiated generic types that have been
-// encountered already or new ones that are encountered during the stenciling
-// process.
-func (g *irgen) stencil() {
-	g.instInfoMap = make(map[*types.Sym]*instInfo)
+var geninst genInst
 
+func BuildInstantiations(preinliningMainScan bool) {
+	if geninst.instInfoMap == nil {
+		geninst.instInfoMap = make(map[*types.Sym]*instInfo)
+	}
+	geninst.buildInstantiations(preinliningMainScan)
+}
+
+// buildInstantiations scans functions for generic function calls and methods, and
+// creates the required instantiations. It also creates instantiated methods for all
+// fully-instantiated generic types that have been encountered already or new ones
+// that are encountered during the instantiation process. If preinliningMainScan is
+// true, it scans all declarations in typecheck.Target.Decls first, before scanning
+// any new instantiations created. If preinliningMainScan is false, we do not scan
+// any existing decls - we only scan method instantiations for any new
+// fully-instantiated types that we saw during inlining.
+func (g *genInst) buildInstantiations(preinliningMainScan bool) {
 	// Instantiate the methods of instantiated generic types that we have seen so far.
 	g.instantiateMethods()
 
-	// Don't use range(g.target.Decls) - we also want to process any new instantiated
-	// functions that are created during this loop, in order to handle generic
-	// functions calling other generic functions.
-	for i := 0; i < len(g.target.Decls); i++ {
-		decl := g.target.Decls[i]
-
-		// Look for function instantiations in bodies of non-generic
-		// functions or in global assignments (ignore global type and
-		// constant declarations).
-		switch decl.Op() {
-		case ir.ODCLFUNC:
-			if decl.Type().HasTParam() {
-				// Skip any generic functions
-				continue
-			}
-			// transformCall() below depends on CurFunc being set.
-			ir.CurFunc = decl.(*ir.Func)
-
-		case ir.OAS, ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV, ir.OASOP:
-			// These are all the various kinds of global assignments,
-			// whose right-hand-sides might contain a function
-			// instantiation.
-
-		default:
-			// The other possible ops at the top level are ODCLCONST
-			// and ODCLTYPE, which don't have any function
-			// instantiations.
-			continue
+	if preinliningMainScan {
+		n := len(typecheck.Target.Decls)
+		for i := 0; i < n; i++ {
+			g.scanForGenCalls(typecheck.Target.Decls[i])
 		}
+	}
 
-		// For all non-generic code, search for any function calls using
-		// generic function instantiations. Then create the needed
-		// instantiated function if it hasn't been created yet, and change
-		// to calling that function directly.
-		modified := false
-		closureRequired := false
-		// declInfo will be non-nil exactly if we are scanning an instantiated function
-		declInfo := g.instInfoMap[decl.Sym()]
-
-		ir.Visit(decl, func(n ir.Node) {
-			if n.Op() == ir.OFUNCINST {
-				// generic F, not immediately called
-				closureRequired = true
-			}
-			if (n.Op() == ir.OMETHEXPR || n.Op() == ir.OMETHVALUE) && len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
-				// T.M or x.M, where T or x is generic, but not immediately
-				// called. Not necessary if the method selected is
-				// actually for an embedded interface field.
-				closureRequired = true
-			}
-			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
-				// We have found a function call using a generic function
-				// instantiation.
-				call := n.(*ir.CallExpr)
-				inst := call.X.(*ir.InstExpr)
-				nameNode, isMeth := g.getInstNameNode(inst)
-				targs := typecheck.TypesOf(inst.Targs)
-				st := g.getInstantiation(nameNode, targs, isMeth).fun
-				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, nameNode, targs, isMeth)
-				if infoPrintMode {
-					dictkind := "Main dictionary"
-					if usingSubdict {
-						dictkind = "Sub-dictionary"
-					}
-					if inst.X.Op() == ir.OMETHVALUE {
-						fmt.Printf("%s in %v at generic method call: %v - %v\n", dictkind, decl, inst.X, call)
-					} else {
-						fmt.Printf("%s in %v at generic function call: %v - %v\n", dictkind, decl, inst.X, call)
-					}
-				}
-
-				// Transform the Call now, which changes OCALL to
-				// OCALLFUNC and does typecheckaste/assignconvfn. Do
-				// it before installing the instantiation, so we are
-				// checking against non-shape param types in
-				// typecheckaste.
-				transformCall(call, nil)
-
-				// Replace the OFUNCINST with a direct reference to the
-				// new stenciled function
-				call.X = st.Nname
-				if inst.X.Op() == ir.OMETHVALUE {
-					// When we create an instantiation of a method
-					// call, we make it a function. So, move the
-					// receiver to be the first arg of the function
-					// call.
-					call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
-				}
-
-				// Add dictionary to argument list.
-				call.Args.Prepend(dictValue)
-				modified = true
-			}
-			if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH && len(deref(n.(*ir.CallExpr).X.Type().Recv().Type).RParams()) > 0 {
-				// Method call on a generic type, which was instantiated by stenciling.
-				// Method calls on explicitly instantiated types will have an OFUNCINST
-				// and are handled above.
-				call := n.(*ir.CallExpr)
-				meth := call.X.(*ir.SelectorExpr)
-				targs := deref(meth.Type().Recv().Type).RParams()
-
-				t := meth.X.Type()
-				baseSym := deref(t).OrigSym()
-				baseType := baseSym.Def.(*ir.Name).Type()
-				var gf *ir.Name
-				for _, m := range baseType.Methods().Slice() {
-					if meth.Sel == m.Sym {
-						gf = m.Nname.(*ir.Name)
-						break
-					}
-				}
-
-				// Transform the Call now, which changes OCALL
-				// to OCALLFUNC and does typecheckaste/assignconvfn.
-				transformCall(call, nil)
-
-				st := g.getInstantiation(gf, targs, true).fun
-				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
-				// We have to be using a subdictionary, since this is
-				// a generic method call.
-				assert(usingSubdict)
-
-				// Transform to a function call, by appending the
-				// dictionary and the receiver to the args.
-				call.SetOp(ir.OCALLFUNC)
-				call.X = st.Nname
-				call.Args.Prepend(dictValue, meth.X)
-				modified = true
-			}
-		})
-
-		// If we found a reference to a generic instantiation that wasn't an
-		// immediate call, then traverse the nodes of decl again (with
-		// EditChildren rather than Visit), where we actually change the
-		// reference to the instantiation to a closure that captures the
-		// dictionary, then does a direct call.
-		// EditChildren is more expensive than Visit, so we only do this
-		// in the infrequent case of an OFUNCINST without a corresponding
-		// call.
-		if closureRequired {
-			modified = true
-			var edit func(ir.Node) ir.Node
-			var outer *ir.Func
-			if f, ok := decl.(*ir.Func); ok {
-				outer = f
-			}
-			edit = func(x ir.Node) ir.Node {
-				if x.Op() == ir.OFUNCINST {
-					child := x.(*ir.InstExpr).X
-					if child.Op() == ir.OMETHEXPR || child.Op() == ir.OMETHVALUE {
-						// Call EditChildren on child (x.X),
-						// not x, so that we don't do
-						// buildClosure() on the
-						// METHEXPR/METHVALUE nodes as well.
-						ir.EditChildren(child, edit)
-						return g.buildClosure(outer, x)
-					}
-				}
-				ir.EditChildren(x, edit)
-				switch {
-				case x.Op() == ir.OFUNCINST:
-					return g.buildClosure(outer, x)
-				case (x.Op() == ir.OMETHEXPR || x.Op() == ir.OMETHVALUE) &&
-					len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0 &&
-					!types.IsInterfaceMethod(x.(*ir.SelectorExpr).Selection.Type):
-					return g.buildClosure(outer, x)
-				}
-				return x
-			}
-			edit(decl)
-		}
-		if base.Flag.W > 1 && modified {
-			ir.Dump(fmt.Sprintf("\nmodified %v", decl), decl)
-		}
-		ir.CurFunc = nil
-		// We may have seen new fully-instantiated generic types while
-		// instantiating any needed functions/methods in the above
-		// function. If so, instantiate all the methods of those types
-		// (which will then lead to more function/methods to scan in the loop).
-		g.instantiateMethods()
+	// Scan all new instantiations created due to g.instantiateMethods() and the
+	// scan of current decls (if done). This loop purposely runs until no new
+	// instantiations are created.
+	for i := 0; i < len(g.newInsts); i++ {
+		g.scanForGenCalls(g.newInsts[i])
 	}
 
 	g.finalizeSyms()
 
 	// All the instantiations and dictionaries have been created. Now go through
-	// each instantiation and transform the various operations that need to make
+	// each new instantiation and transform the various operations that need to make
 	// use of their dictionary.
-	l := len(g.instInfoMap)
-	for _, info := range g.instInfoMap {
+	l := len(g.newInsts)
+	for _, fun := range g.newInsts {
+		info := g.instInfoMap[fun.Sym()]
 		g.dictPass(info)
+		if !preinliningMainScan {
+			// Prepare for the round of inlining below.
+			inline.CanInline(fun.(*ir.Func))
+		}
 		if doubleCheck {
 			ir.Visit(info.fun, func(n ir.Node) {
 				if n.Op() != ir.OCONVIFACE {
@@ -255,13 +103,198 @@ func (g *irgen) stencil() {
 			ir.Dump(fmt.Sprintf("\ndictpass %v", info.fun), info.fun)
 		}
 	}
-	assert(l == len(g.instInfoMap))
+	if !preinliningMainScan {
+		// Extra round of inlining for the new instantiations (only if
+		// preinliningMainScan is false, which means we have already done the
+		// main round of inlining)
+		for _, fun := range g.newInsts {
+			inline.InlineCalls(fun.(*ir.Func))
+		}
+	}
+	assert(l == len(g.newInsts))
+	g.newInsts = nil
+}
+
+// scanForGenCalls scans a single function (or global assignment), looking for
+// references to generic functions/methods. At each such reference, it creates any
+// required instantiation and transforms the reference.
+func (g *genInst) scanForGenCalls(decl ir.Node) {
+	switch decl.Op() {
+	case ir.ODCLFUNC:
+		if decl.Type().HasTParam() {
+			// Skip any generic functions
+			return
+		}
+		// transformCall() below depends on CurFunc being set.
+		ir.CurFunc = decl.(*ir.Func)
+
+	case ir.OAS, ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV, ir.OASOP:
+		// These are all the various kinds of global assignments,
+		// whose right-hand-sides might contain a function
+		// instantiation.
+
+	default:
+		// The other possible ops at the top level are ODCLCONST
+		// and ODCLTYPE, which don't have any function
+		// instantiations.
+		return
+	}
+
+	// Search for any function references using generic function/methods. Then
+	// create the needed instantiated function if it hasn't been created yet, and
+	// change to calling that function directly.
+	modified := false
+	closureRequired := false
+	// declInfo will be non-nil exactly if we are scanning an instantiated function
+	declInfo := g.instInfoMap[decl.Sym()]
+
+	ir.Visit(decl, func(n ir.Node) {
+		if n.Op() == ir.OFUNCINST {
+			// generic F, not immediately called
+			closureRequired = true
+		}
+		if (n.Op() == ir.OMETHEXPR || n.Op() == ir.OMETHVALUE) && len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
+			// T.M or x.M, where T or x is generic, but not immediately
+			// called. Not necessary if the method selected is
+			// actually for an embedded interface field.
+			closureRequired = true
+		}
+		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
+			// We have found a function call using a generic function
+			// instantiation.
+			call := n.(*ir.CallExpr)
+			inst := call.X.(*ir.InstExpr)
+			nameNode, isMeth := g.getInstNameNode(inst)
+			targs := typecheck.TypesOf(inst.Targs)
+			st := g.getInstantiation(nameNode, targs, isMeth).fun
+			dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, nameNode, targs, isMeth)
+			if infoPrintMode {
+				dictkind := "Main dictionary"
+				if usingSubdict {
+					dictkind = "Sub-dictionary"
+				}
+				if inst.X.Op() == ir.OMETHVALUE {
+					fmt.Printf("%s in %v at generic method call: %v - %v\n", dictkind, decl, inst.X, call)
+				} else {
+					fmt.Printf("%s in %v at generic function call: %v - %v\n", dictkind, decl, inst.X, call)
+				}
+			}
+
+			// Transform the Call now, which changes OCALL to
+			// OCALLFUNC and does typecheckaste/assignconvfn. Do
+			// it before installing the instantiation, so we are
+			// checking against non-shape param types in
+			// typecheckaste.
+			transformCall(call, nil)
+
+			// Replace the OFUNCINST with a direct reference to the
+			// new stenciled function
+			call.X = st.Nname
+			if inst.X.Op() == ir.OMETHVALUE {
+				// When we create an instantiation of a method
+				// call, we make it a function. So, move the
+				// receiver to be the first arg of the function
+				// call.
+				call.Args.Prepend(inst.X.(*ir.SelectorExpr).X)
+			}
+
+			// Add dictionary to argument list.
+			call.Args.Prepend(dictValue)
+			modified = true
+		}
+		if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH && len(deref(n.(*ir.CallExpr).X.Type().Recv().Type).RParams()) > 0 {
+			// Method call on a generic type, which was instantiated by stenciling.
+			// Method calls on explicitly instantiated types will have an OFUNCINST
+			// and are handled above.
+			call := n.(*ir.CallExpr)
+			meth := call.X.(*ir.SelectorExpr)
+			targs := deref(meth.Type().Recv().Type).RParams()
+
+			t := meth.X.Type()
+			baseSym := deref(t).OrigSym()
+			baseType := baseSym.Def.(*ir.Name).Type()
+			var gf *ir.Name
+			for _, m := range baseType.Methods().Slice() {
+				if meth.Sel == m.Sym {
+					gf = m.Nname.(*ir.Name)
+					break
+				}
+			}
+
+			// Transform the Call now, which changes OCALL
+			// to OCALLFUNC and does typecheckaste/assignconvfn.
+			transformCall(call, nil)
+
+			st := g.getInstantiation(gf, targs, true).fun
+			dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
+			// We have to be using a subdictionary, since this is
+			// a generic method call.
+			assert(usingSubdict)
+
+			// Transform to a function call, by appending the
+			// dictionary and the receiver to the args.
+			call.SetOp(ir.OCALLFUNC)
+			call.X = st.Nname
+			call.Args.Prepend(dictValue, meth.X)
+			modified = true
+		}
+	})
+
+	// If we found a reference to a generic instantiation that wasn't an
+	// immediate call, then traverse the nodes of decl again (with
+	// EditChildren rather than Visit), where we actually change the
+	// reference to the instantiation to a closure that captures the
+	// dictionary, then does a direct call.
+	// EditChildren is more expensive than Visit, so we only do this
+	// in the infrequent case of an OFUNCINST without a corresponding
+	// call.
+	if closureRequired {
+		modified = true
+		var edit func(ir.Node) ir.Node
+		var outer *ir.Func
+		if f, ok := decl.(*ir.Func); ok {
+			outer = f
+		}
+		edit = func(x ir.Node) ir.Node {
+			if x.Op() == ir.OFUNCINST {
+				child := x.(*ir.InstExpr).X
+				if child.Op() == ir.OMETHEXPR || child.Op() == ir.OMETHVALUE {
+					// Call EditChildren on child (x.X),
+					// not x, so that we don't do
+					// buildClosure() on the
+					// METHEXPR/METHVALUE nodes as well.
+					ir.EditChildren(child, edit)
+					return g.buildClosure(outer, x)
+				}
+			}
+			ir.EditChildren(x, edit)
+			switch {
+			case x.Op() == ir.OFUNCINST:
+				return g.buildClosure(outer, x)
+			case (x.Op() == ir.OMETHEXPR || x.Op() == ir.OMETHVALUE) &&
+				len(deref(x.(*ir.SelectorExpr).X.Type()).RParams()) > 0 &&
+				!types.IsInterfaceMethod(x.(*ir.SelectorExpr).Selection.Type):
+				return g.buildClosure(outer, x)
+			}
+			return x
+		}
+		edit(decl)
+	}
+	if base.Flag.W > 1 && modified {
+		ir.Dump(fmt.Sprintf("\nmodified %v", decl), decl)
+	}
+	ir.CurFunc = nil
+	// We may have seen new fully-instantiated generic types while
+	// instantiating any needed functions/methods in the above
+	// function. If so, instantiate all the methods of those types
+	// (which will then lead to more function/methods to scan in the loop).
+	g.instantiateMethods()
 }
 
 // buildClosure makes a closure to implement x, a OFUNCINST or OMETHEXPR/OMETHVALUE
 // of generic type. outer is the containing function (or nil if closure is
 // in a global assignment instead of a function).
-func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	pos := x.Pos()
 	var target *ir.Func   // target instantiated function/method
 	var dictValue ir.Node // dictionary to use
@@ -423,8 +456,8 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		rcvrVar.Defn = rcvrAssign
 		if outer == nil {
 			rcvrVar.Class = ir.PEXTERN
-			g.target.Decls = append(g.target.Decls, rcvrAssign)
-			g.target.Externs = append(g.target.Externs, rcvrVar)
+			typecheck.Target.Decls = append(typecheck.Target.Decls, rcvrAssign)
+			typecheck.Target.Externs = append(typecheck.Target.Externs, rcvrVar)
 		} else {
 			rcvrVar.Class = ir.PAUTO
 			rcvrVar.Curfn = outer
@@ -496,7 +529,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	ir.FinishCaptureNames(pos, outer, fn)
 
 	// Make a closure referencing our new internal function.
-	c := ir.UseClosure(fn.OClosure, g.target)
+	c := ir.UseClosure(fn.OClosure, typecheck.Target)
 	var init []ir.Node
 	if outer != nil {
 		init = append(init, dictAssign)
@@ -510,12 +543,13 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 // instantiateMethods instantiates all the methods (and associated dictionaries) of
 // all fully-instantiated generic types that have been added to typecheck.instTypeList.
 // It continues until no more types are added to typecheck.instTypeList.
-func (g *irgen) instantiateMethods() {
+func (g *genInst) instantiateMethods() {
 	for {
 		instTypeList := typecheck.GetInstTypeList()
 		if len(instTypeList) == 0 {
 			break
 		}
+		typecheck.ClearInstTypeList()
 		for _, typ := range instTypeList {
 			assert(!typ.HasShape())
 			// Mark runtime type as needed, since this ensures that the
@@ -548,7 +582,7 @@ func (g *irgen) instantiateMethods() {
 }
 
 // getInstNameNode returns the name node for the method or function being instantiated, and a bool which is true if a method is being instantiated.
-func (g *irgen) getInstNameNode(inst *ir.InstExpr) (*ir.Name, bool) {
+func (g *genInst) getInstNameNode(inst *ir.InstExpr) (*ir.Name, bool) {
 	if meth, ok := inst.X.(*ir.SelectorExpr); ok {
 		return meth.Selection.Nname.(*ir.Name), true
 	} else {
@@ -561,7 +595,7 @@ func (g *irgen) getInstNameNode(inst *ir.InstExpr) (*ir.Name, bool) {
 // or main/static dictionary, as needed, and also returns a boolean indicating if a
 // sub-dictionary was accessed. nameNode is the particular function or method being
 // called/referenced, and targs are the type arguments.
-func (g *irgen) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.Name, targs []*types.Type, isMeth bool) (ir.Node, bool) {
+func (g *genInst) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.Name, targs []*types.Type, isMeth bool) (ir.Node, bool) {
 	var dict ir.Node
 	usingSubdict := false
 	if declInfo != nil {
@@ -603,7 +637,7 @@ func checkFetchBody(nameNode *ir.Name) {
 // getInstantiation gets the instantiantion and dictionary of the function or method nameNode
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
-func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
+func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
 	checkFetchBody(nameNode)
 
 	// Convert any non-shape type arguments to their shape, so we can reduce the
@@ -645,7 +679,8 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 		// This ensures that the linker drops duplicates of this instantiation.
 		// All just works!
 		st.SetDupok(true)
-		g.target.Decls = append(g.target.Decls, st)
+		typecheck.Target.Decls = append(typecheck.Target.Decls, st)
+		g.newInsts = append(g.newInsts, st)
 	}
 	return info
 }
@@ -653,7 +688,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 // Struct containing info needed for doing the substitution as we create the
 // instantiation of a generic function with specified type arguments.
 type subster struct {
-	g        *irgen
+	g        *genInst
 	isMethod bool     // If a method is being instantiated
 	newf     *ir.Func // Func node for the new stenciled function
 	ts       typecheck.Tsubster
@@ -669,7 +704,7 @@ type subster struct {
 // function type where the receiver becomes the first parameter. For either a generic
 // method or function, a dictionary parameter is the added as the very first
 // parameter. genericSubst fills in info.dictParam and info.tparamToBound.
-func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
 	var tparams []*types.Type
 	if isMethod {
 		// Get the type params from the method receiver (after skipping
@@ -1170,7 +1205,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			subst.newf = saveNewf
 			ir.CurFunc = saveNewf
 
-			m = ir.UseClosure(newfn.OClosure, subst.g.target)
+			m = ir.UseClosure(newfn.OClosure, typecheck.Target)
+			subst.g.newInsts = append(subst.g.newInsts, m.(*ir.ClosureExpr).Func)
 			m.(*ir.ClosureExpr).SetInit(subst.list(x.Init()))
 
 		}
@@ -1182,7 +1218,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 
 // dictPass takes a function instantiation and does the transformations on the
 // operations that need to make use of the dictionary param.
-func (g *irgen) dictPass(info *instInfo) {
+func (g *genInst) dictPass(info *instInfo) {
 	savef := ir.CurFunc
 	ir.CurFunc = info.fun
 
@@ -1503,7 +1539,7 @@ func markTypeUsed(t *types.Type, lsym *obj.LSym) {
 
 // getDictionarySym returns the dictionary for the named generic function gf, which
 // is instantiated with the type arguments targs.
-func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
+func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) *types.Sym {
 	if len(targs) == 0 {
 		base.Fatalf("%s should have type arguments", gf.Sym().Name)
 	}
@@ -1678,7 +1714,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool) 
 // dictionaries and method instantiations to be complete, so, to avoid recursive
 // dependencies, we finalize the itab lsyms only after all dictionaries syms and
 // instantiations have been created.
-func (g *irgen) finalizeSyms() {
+func (g *genInst) finalizeSyms() {
 	for _, d := range g.dictSymsToFinalize {
 		infoPrint("=== Finalizing dictionary %s\n", d.sym.Name)
 
@@ -1744,7 +1780,7 @@ func (g *irgen) finalizeSyms() {
 	g.dictSymsToFinalize = nil
 }
 
-func (g *irgen) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
+func (g *genInst) getDictionaryValue(gf *ir.Name, targs []*types.Type, isMeth bool) ir.Node {
 	sym := g.getDictionarySym(gf, targs, isMeth)
 
 	// Make (or reuse) a node referencing the dictionary symbol.
@@ -1792,7 +1828,7 @@ func hasShapeTypes(targs []*types.Type) bool {
 
 // getInstInfo get the dictionary format for a function instantiation- type params, derived
 // types, and needed subdictionaries and itabs.
-func (g *irgen) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instInfo) {
+func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instInfo) {
 	info := instInfo.dictInfo
 	info.shapeParams = shapes
 
@@ -2100,7 +2136,7 @@ func assertToBound(info *instInfo, dictVar *ir.Name, pos src.XPos, rcvr ir.Node,
 //
 // The returned closure is fully substituted and has already had any needed
 // transformations done.
-func (g *irgen) buildClosure2(info *instInfo, m ir.Node) ir.Node {
+func (g *genInst) buildClosure2(info *instInfo, m ir.Node) ir.Node {
 	outer := info.fun
 	pos := m.Pos()
 	typ := m.Type() // type of the closure
@@ -2155,5 +2191,5 @@ func (g *irgen) buildClosure2(info *instInfo, m ir.Node) ir.Node {
 	ir.FinishCaptureNames(pos, outer, fn)
 
 	// Do final checks on closure and return it.
-	return ir.UseClosure(fn.OClosure, g.target)
+	return ir.UseClosure(fn.OClosure, typecheck.Target)
 }
