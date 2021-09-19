@@ -34,8 +34,15 @@ func rot64(x uint64) uint64 {
 	// ppc64le:"ROTL\t[$]9"
 	a += x<<9 ^ x>>55
 
-	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, "
+	// amd64:"ROLQ\t[$]10"
+	// arm64:"ROR\t[$]54"
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]10, "
+	// ppc64:"ROTL\t[$]10"
+	// ppc64le:"ROTL\t[$]10"
 	// arm64:"ROR\t[$]57" // TODO this is not great line numbering, but then again, the instruction did appear
+	// s390x:"RISBGZ\t[$]0, [$]63, [$]7, " // TODO ditto
+	a += bits.RotateLeft64(x, 10)
+
 	return a
 }
 
@@ -64,8 +71,16 @@ func rot32(x uint32) uint32 {
 	// ppc64le:"ROTLW\t[$]9"
 	a += x<<9 ^ x>>23
 
-	// s390x:"RLL\t[$]7"
+	// amd64:"ROLL\t[$]10"
+	// arm:"MOVW\tR\\d+@>22"
+	// arm64:"RORW\t[$]22"
+	// s390x:"RLL\t[$]10"
+	// ppc64:"ROTLW\t[$]10"
+	// ppc64le:"ROTLW\t[$]10"
 	// arm64:"RORW\t[$]25" // TODO this is not great line numbering, but then again, the instruction did appear
+	// s390x:"RLL\t[$]7" // TODO ditto
+	a += bits.RotateLeft32(x, 10)
+
 	return a
 }
 
