@@ -1515,7 +1515,7 @@ func (r *importReader) node() ir.Node {
 		if go117ExportTypes {
 			n.SetOp(op)
 		}
-		*n.PtrInit() = init
+		n.SetInit(init)
 		n.IsDDD = r.bool()
 		if go117ExportTypes {
 			n.SetType(r.exoticType())
@@ -1660,26 +1660,28 @@ func (r *importReader) node() ir.Node {
 	case ir.OIF:
 		pos, init := r.pos(), r.stmtList()
 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.OFOR:
 		pos, init := r.pos(), r.stmtList()
 		cond, post := r.exprsOrNil()
 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.ORANGE:
-		pos := r.pos()
+		pos, init := r.pos(), r.stmtList()
 		k, v := r.exprsOrNil()
-		return ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
+		n := ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
+		n.SetInit(init)
+		return n
 
 	case ir.OSELECT:
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewSelectStmt(pos, r.commList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.OSWITCH:
@@ -1687,7 +1689,7 @@ func (r *importReader) node() ir.Node {
 		init := r.stmtList()
 		x, _ := r.exprsOrNil()
 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	// case OCASE:

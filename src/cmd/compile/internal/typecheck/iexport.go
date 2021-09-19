@@ -1472,7 +1472,7 @@ func isNonEmptyAssign(n ir.Node) bool {
 // non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
 // section (such as in "if", "for", etc.).
 func (w *exportWriter) stmt(n ir.Node) {
-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) {
+	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) && n.Op() != ir.ORANGE {
 		// can't use stmtList here since we don't want the final OEND
 		for _, n := range n.Init() {
 			w.stmt(n)
@@ -1573,6 +1573,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.RangeStmt)
 		w.op(ir.ORANGE)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprsOrNil(n.Key, n.Value)
 		w.expr(n.X)
 		w.stmtList(n.Body)
