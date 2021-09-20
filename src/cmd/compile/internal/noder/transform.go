@@ -431,9 +431,18 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 		return ir.OXXX, ""
 	}
 
-	// 1. src type is identical to dst.
-	if types.IdenticalStrict(src, dst) {
-		return ir.OCONVNOP, ""
+	// 1. src type is identical to dst (taking shapes into account)
+	if types.Identical(src, dst) {
+		// We already know from assignconvfn above that IdenticalStrict(src,
+		// dst) is false, so the types are not exactly the same and one of
+		// src or dst is a shape. If dst is an interface (which means src is
+		// an interface too), we need a real OCONVIFACE op; otherwise we need a
+		// OCONVNOP. See issue #48453.
+		if dst.IsInterface() {
+			return ir.OCONVIFACE, ""
+		} else {
+			return ir.OCONVNOP, ""
+		}
 	}
 	return typecheck.Assignop1(src, dst)
 }
