@@ -18,8 +18,9 @@ func TestConfigFlags(t *testing.T) {
 	if goamd64() != 4 {
 		t.Errorf("Wrong parsing of GOAMD64=v4")
 	}
+	Error = nil
 	os.Setenv("GOAMD64", "1")
-	if goamd64() != 1 {
+	if goamd64(); Error == nil {
 		t.Errorf("Wrong parsing of GOAMD64=1")
 	}
 }
