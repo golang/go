@@ -61,9 +61,6 @@ var (
 func defaultContext() build.Context {
 	ctxt := build.Default
 
-	// TODO(#47037): remove this tag before merging to master.
-	ctxt.BuildTags = []string{"gofuzzbeta"}
-
 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
 
 	ctxt.GOROOT = findGOROOT()
