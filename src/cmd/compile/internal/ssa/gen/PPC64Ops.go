@@ -705,15 +705,17 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:            "PPC64",
-		pkg:             "cmd/internal/obj/ppc64",
-		genfile:         "../../ppc64/ssa.go",
-		ops:             ops,
-		blocks:          blocks,
-		regnames:        regNamesPPC64,
-		gpregmask:       gp,
-		fpregmask:       fp,
-		framepointerreg: int8(num["SP"]),
-		linkreg:         -1, // not used
+		name:               "PPC64",
+		pkg:                "cmd/internal/obj/ppc64",
+		genfile:            "../../ppc64/ssa.go",
+		ops:                ops,
+		blocks:             blocks,
+		regnames:           regNamesPPC64,
+		ParamIntRegNames:   "R3 R4 R5 R6 R7 R8 R9 R10 R14 R15 R16 R17",
+		ParamFloatRegNames: "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12",
+		gpregmask:          gp,
+		fpregmask:          fp,
+		framepointerreg:    -1,
+		linkreg:            -1, // not used
 	})
 }
