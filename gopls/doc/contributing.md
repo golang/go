@@ -102,10 +102,8 @@ best-effort, and test failures may be skipped rather than fixed.
 
 Kokoro runs are triggered by the `Run-TryBot=1` label, just like TryBots, but
 unlike TryBots they do not automatically re-run if the "gopls-CI" result is
-removed in Gerrit. In order to force a new run, you must upload a new patch
-set. (Technically, Googlers can force a new run on an existing patch-set via an
-internal Kokoro dashboard, but unfortunately this ability can't be made more
-generally available).
+removed in Gerrit. To force a re-run of the Kokoro CI on a CL containing the
+`Run-TryBot=1` label, you can reply in Gerrit with the comment "kokoro rerun".
 
 ## Debugging
 
