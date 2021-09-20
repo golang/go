@@ -46,6 +46,9 @@ func ForFuncDecl(*ast.FuncDecl) *ast.FieldList {
 // this Go version. Its methods panic on use.
 type TypeParam struct{ types.Type }
 
+func (*TypeParam) Constraint() types.Type { unsupported(); return nil }
+func (*TypeParam) Obj() *types.TypeName   { unsupported(); return nil }
+
 // TypeParamList is a placeholder for an empty type parameter list.
 type TypeParamList struct{}
 
@@ -118,14 +121,24 @@ func SetForNamed(_ *types.Named, tparams []*TypeParam) {
 	}
 }
 
-// NamedTypeArgs extracts the (possibly empty) type argument list from named.
-func NamedTypeArgs(*types.Named) []types.Type {
+// NamedTypeArgs returns nil.
+func NamedTypeArgs(*types.Named) *TypeList {
 	return nil
+}
+
+// NamedTypeOrigin is the identity method at this Go version.
+func NamedTypeOrigin(named *types.Named) types.Type {
+	return named
 }
 
 // Term is a placeholder type, as type parameters are not supported at this Go
 // version. Its methods panic on use.
-type Term struct{ types.Type }
+type Term struct{}
+
+func (*Term) Tilde() bool            { unsupported(); return false }
+func (*Term) Type() types.Type       { unsupported(); return nil }
+func (*Term) String() string         { unsupported(); return "" }
+func (*Term) Underlying() types.Type { unsupported(); return nil }
 
 // NewTerm is unsupported at this Go version, and panics.
 func NewTerm(tilde bool, typ types.Type) *Term {
@@ -136,6 +149,9 @@ func NewTerm(tilde bool, typ types.Type) *Term {
 // Union is a placeholder type, as type parameters are not supported at this Go
 // version. Its methods panic on use.
 type Union struct{ types.Type }
+
+func (*Union) Len() int         { return 0 }
+func (*Union) Term(i int) *Term { unsupported(); return nil }
 
 // NewUnion is unsupported at this Go version, and panics.
 func NewUnion(terms []*Term) *Union {

@@ -98,15 +98,17 @@ func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data 
 func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data []byte, bundle bool, path string) (pkgs []*types.Package, err error) {
 	const currentVersion = 1
 	version := int64(-1)
-	defer func() {
-		if e := recover(); e != nil {
-			if version > currentVersion {
-				err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
-			} else {
-				err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
+	if !debug {
+		defer func() {
+			if e := recover(); e != nil {
+				if version > currentVersion {
+					err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
+				} else {
+					err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	r := &intReader{bytes.NewReader(data), path}
 
@@ -381,10 +383,14 @@ func (r *importReader) obj(name string) {
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
 				targs := typeparams.NamedTypeArgs(baseType(msig.Recv().Type()))
-				if len(targs) > 0 {
-					rparams := make([]*typeparams.TypeParam, len(targs))
+				if targs.Len() > 0 {
+					rparams := make([]*typeparams.TypeParam, targs.Len())
 					for i := range rparams {
-						rparams[i], _ = targs[i].(*typeparams.TypeParam)
+						// TODO(rfindley): this is less tolerant than the standard library
+						// go/internal/gcimporter, which calls under(...) and is tolerant
+						// of nil rparams. Bring them in sync by making the standard
+						// library importer stricter.
+						rparams[i] = targs.At(i).(*typeparams.TypeParam)
 					}
 					typeparams.SetRecvTypeParams(msig, rparams)
 				}
@@ -404,7 +410,7 @@ func (r *importReader) obj(name string) {
 		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
 		t := typeparams.NewTypeParam(tn, nil)
 		if sub == 0 {
-			errorf("missing subscript")
+			errorf("name %q missing subscript", name)
 		}
 
 		// TODO(rfindley): can we use a different, stable ID?
@@ -575,7 +581,7 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
 }
 
 func (r *importReader) pos() token.Pos {
-	if r.p.version >= 1 {
+	if r.p.exportVersion >= iexportVersionPosCol {
 		r.posv1()
 	} else {
 		r.posv0()

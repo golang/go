@@ -110,17 +110,14 @@ func SetForNamed(n *types.Named, tparams []*TypeParam) {
 	n.SetTypeParams(tparams)
 }
 
-// NamedTypeArgs extracts the (possibly empty) type argument list from named.
-func NamedTypeArgs(named *types.Named) []types.Type {
-	targs := named.TypeArgs()
-	numArgs := targs.Len()
+// NamedTypeArgs returns named.TypeArgs().
+func NamedTypeArgs(named *types.Named) *TypeList {
+	return named.TypeArgs()
+}
 
-	typs := make([]types.Type, numArgs)
-	for i := 0; i < numArgs; i++ {
-		typs[i] = targs.At(i)
-	}
-
-	return typs
+// NamedTypeOrigin returns named.Orig().
+func NamedTypeOrigin(named *types.Named) types.Type {
+	return named.Origin()
 }
 
 // Term is an alias for types.Term.

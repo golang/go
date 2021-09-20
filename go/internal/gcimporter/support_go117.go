@@ -9,6 +9,8 @@ package gcimporter
 
 import "go/types"
 
+const iexportVersion = iexportVersionGo1_11
+
 func additionalPredeclared() []types.Type {
 	return nil
 }

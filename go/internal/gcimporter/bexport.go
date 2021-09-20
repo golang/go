@@ -92,16 +92,18 @@ func internalErrorf(format string, args ...interface{}) error {
 // BExportData returns binary export data for pkg.
 // If no file set is provided, position info will be missing.
 func BExportData(fset *token.FileSet, pkg *types.Package) (b []byte, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			if ierr, ok := e.(internalError); ok {
-				err = ierr
-				return
+	if !debug {
+		defer func() {
+			if e := recover(); e != nil {
+				if ierr, ok := e.(internalError); ok {
+					err = ierr
+					return
+				}
+				// Not an internal error; panic again.
+				panic(e)
 			}
-			// Not an internal error; panic again.
-			panic(e)
-		}
-	}()
+		}()
+	}
 
 	p := exporter{
 		fset:          fset,

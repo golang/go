@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 var isRace = false
@@ -230,8 +231,13 @@ func equalType(x, y types.Type) error {
 		}
 	case *types.Named:
 		y := y.(*types.Named)
-		if x.String() != y.String() {
+		xOrig := typeparams.NamedTypeOrigin(x)
+		yOrig := typeparams.NamedTypeOrigin(y)
+		if sanitizeName(xOrig.String()) != sanitizeName(yOrig.String()) {
 			return fmt.Errorf("unequal named types: %s vs %s", x, y)
+		}
+		if err := equalTypeArgs(typeparams.NamedTypeArgs(x), typeparams.NamedTypeArgs(y)); err != nil {
+			return fmt.Errorf("type arguments: %s", err)
 		}
 	case *types.Pointer:
 		y := y.(*types.Pointer)
@@ -261,6 +267,12 @@ func equalType(x, y types.Type) error {
 			// if err := equalType(x.Recv().Type(), y.Recv().Type()); err != nil {
 			// 	return fmt.Errorf("receiver: %s", err)
 			// }
+		}
+		if err := equalTypeParams(typeparams.ForSignature(x), typeparams.ForSignature(y)); err != nil {
+			return fmt.Errorf("type params: %s", err)
+		}
+		if err := equalTypeParams(typeparams.RecvTypeParams(x), typeparams.RecvTypeParams(y)); err != nil {
+			return fmt.Errorf("recv type params: %s", err)
 		}
 	case *types.Slice:
 		y := y.(*types.Slice)
@@ -297,8 +309,61 @@ func equalType(x, y types.Type) error {
 				return fmt.Errorf("tuple element %d: %s", i, err)
 			}
 		}
+	case *typeparams.TypeParam:
+		y := y.(*typeparams.TypeParam)
+		if sanitizeName(x.String()) != sanitizeName(y.String()) {
+			return fmt.Errorf("unequal named types: %s vs %s", x, y)
+		}
+		// For now, just compare constraints by type string to short-circuit
+		// cycles.
+		xc := sanitizeName(x.Constraint().String())
+		yc := sanitizeName(y.Constraint().String())
+		if xc != yc {
+			return fmt.Errorf("unequal constraints: %s vs %s", xc, yc)
+		}
+
+	default:
+		panic(fmt.Sprintf("unexpected %T type", x))
 	}
 	return nil
+}
+
+func equalTypeArgs(x, y *typeparams.TypeList) error {
+	if x.Len() != y.Len() {
+		return fmt.Errorf("unequal lengths: %d vs %d", x.Len(), y.Len())
+	}
+	for i := 0; i < x.Len(); i++ {
+		if err := equalType(x.At(i), y.At(i)); err != nil {
+			return fmt.Errorf("type %d: %s", i, err)
+		}
+	}
+	return nil
+}
+
+func equalTypeParams(x, y *typeparams.TypeParamList) error {
+	if x.Len() != y.Len() {
+		return fmt.Errorf("unequal lengths: %d vs %d", x.Len(), y.Len())
+	}
+	for i := 0; i < x.Len(); i++ {
+		if err := equalType(x.At(i), y.At(i)); err != nil {
+			return fmt.Errorf("type parameter %d: %s", i, err)
+		}
+	}
+	return nil
+}
+
+// sanitizeName removes type parameter debugging markers from an object
+// or type string, to normalize it for comparison.
+// TODO(rfindley): remove once this is no longer necessary.
+func sanitizeName(name string) string {
+	var runes []rune
+	for _, r := range name {
+		if '₀' <= r && r < '₀'+10 {
+			continue // trim type parameter subscripts
+		}
+		runes = append(runes, r)
+	}
+	return string(runes)
 }
 
 // TestVeryLongFile tests the position of an import object declared in
