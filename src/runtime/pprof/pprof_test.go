@@ -1361,6 +1361,73 @@ func TestLabelRace(t *testing.T) {
 	})
 }
 
+func TestLabelSystemstack(t *testing.T) {
+	// See http://golang.org/cl/351751.
+	prof := testCPUProfile(t, stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions(), func(dur time.Duration) {
+		Do(context.Background(), Labels("key", "value"), func(context.Context) {
+			var wg sync.WaitGroup
+			stop := make(chan struct{})
+			for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					labelHog(stop)
+				}()
+			}
+
+			time.Sleep(dur)
+			close(stop)
+			wg.Wait()
+		})
+	})
+
+	var withLabel, withoutLabel int64
+	for _, s := range prof.Sample {
+		var systemstack, labelHog bool
+		for _, loc := range s.Location {
+			for _, l := range loc.Line {
+				switch l.Function.Name {
+				case "runtime.systemstack":
+					systemstack = true
+				case "runtime/pprof.labelHog":
+					labelHog = true
+				}
+			}
+		}
+
+		if systemstack && labelHog {
+			if s.Label != nil && contains(s.Label["key"], "value") {
+				withLabel += s.Value[0]
+			} else {
+				withoutLabel += s.Value[0]
+			}
+		}
+	}
+
+	// ratio on 2019 Intel MBP before/after CL 351751 for n=30 runs:
+	// before: mean=0.013 stddev=0.013 min=0.000 max=0.039
+	// after : mean=0.996 stddev=0.007 min=0.967 max=1.000
+	//
+	// TODO: Figure out why some samples still contain labelHog without labels.
+	// Once fixed this test case can be simplified to just check that all samples
+	// containing labelHog() have the label, and no other samples do.
+	ratio := float64(withLabel) / float64((withLabel + withoutLabel))
+	if ratio < 0.9 {
+		t.Fatalf("only %.1f%% of labelHog(systemstack()) samples have label", ratio*100)
+	}
+}
+
+func labelHog(stop chan struct{}) {
+	for i := 0; ; i++ {
+		select {
+		case <-stop:
+			return
+		default:
+			fmt.Fprintf(io.Discard, "%d", i)
+		}
+	}
+}
+
 // Check that there is no deadlock when the program receives SIGPROF while in
 // 64bit atomics' critical section. Used to happen on mips{,le}. See #20146.
 func TestAtomicLoadStore64(t *testing.T) {
