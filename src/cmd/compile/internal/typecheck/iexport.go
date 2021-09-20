@@ -255,7 +255,7 @@ const (
 	structType
 	interfaceType
 	typeParamType
-	instType
+	instanceType // Instantiation of a generic type
 	unionType
 )
 
@@ -893,7 +893,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		if strings.Index(s.Name, "[") < 0 {
 			base.Fatalf("incorrect name for instantiated type")
 		}
-		w.startType(instType)
+		w.startType(instanceType)
 		w.pos(t.Pos())
 		// Export the type arguments for the instantiated type. The
 		// instantiated type could be in a method header (e.g. "func (v

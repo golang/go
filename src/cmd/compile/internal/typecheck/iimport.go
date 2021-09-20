@@ -821,7 +821,7 @@ func (r *importReader) typ1() *types.Type {
 		}
 		return n.Type()
 
-	case instType:
+	case instanceType:
 		if r.p.exportVersion < iexportVersionGenerics {
 			base.Fatalf("unexpected instantiation type")
 		}
