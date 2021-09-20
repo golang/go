@@ -4711,7 +4711,14 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 
 	if prof.hz != 0 {
-		cpuprof.add(gp, stk[:n])
+		// Note: it can happen on Windows that we interrupted a system thread
+		// with no g, so gp could nil. The other nil checks are done out of
+		// caution, but not expected to be nil in practice.
+		var tagPtr *unsafe.Pointer
+		if gp != nil && gp.m != nil && gp.m.curg != nil {
+			tagPtr = &gp.m.curg.labels
+		}
+		cpuprof.add(tagPtr, stk[:n])
 	}
 	getg().m.mallocing--
 }
