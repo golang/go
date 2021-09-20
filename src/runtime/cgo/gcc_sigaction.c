@@ -49,13 +49,13 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 		sigemptyset(&act.sa_mask);
 		for (i = 0; i < 8 * sizeof(goact->mask); i++) {
 			if (goact->mask & ((uint64_t)(1)<<i)) {
-				sigaddset(&act.sa_mask, i+1);
+				sigaddset(&act.sa_mask, (int)(i+1));
 			}
 		}
-		act.sa_flags = goact->flags & ~SA_RESTORER;
+		act.sa_flags = (int)(goact->flags & ~(uint64_t)SA_RESTORER);
 	}
 
-	ret = sigaction(signum, goact ? &act : NULL, oldgoact ? &oldact : NULL);
+	ret = sigaction((int)signum, goact ? &act : NULL, oldgoact ? &oldact : NULL);
 	if (ret == -1) {
 		// runtime.rt_sigaction expects _cgo_sigaction to return errno on error.
 		_cgo_tsan_release();
@@ -70,11 +70,11 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
 		}
 		oldgoact->mask = 0;
 		for (i = 0; i < 8 * sizeof(oldgoact->mask); i++) {
-			if (sigismember(&oldact.sa_mask, i+1) == 1) {
+			if (sigismember(&oldact.sa_mask, (int)(i+1)) == 1) {
 				oldgoact->mask |= (uint64_t)(1)<<i;
 			}
 		}
-		oldgoact->flags = oldact.sa_flags;
+		oldgoact->flags = (uint64_t)oldact.sa_flags;
 	}
 
 	_cgo_tsan_release();

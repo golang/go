@@ -112,29 +112,6 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sysnb pipe() (p1 int, p2 int, err error)
-
-func Pipe(p []int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	p[0], p[1], err = pipe()
-	return
-}
-
 //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
 
 func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {

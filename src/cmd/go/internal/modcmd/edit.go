@@ -171,15 +171,15 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 			len(edits) > 0
 
 	if !anyFlags {
-		base.Fatalf("go mod edit: no flags specified (see 'go help mod edit').")
+		base.Fatalf("go: no flags specified (see 'go help mod edit').")
 	}
 
 	if *editJSON && *editPrint {
-		base.Fatalf("go mod edit: cannot use both -json and -print")
+		base.Fatalf("go: cannot use both -json and -print")
 	}
 
 	if len(args) > 1 {
-		base.Fatalf("go mod edit: too many arguments")
+		base.Fatalf("go: too many arguments")
 	}
 	var gomod string
 	if len(args) == 1 {
@@ -190,7 +190,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editModule != "" {
 		if err := module.CheckImportPath(*editModule); err != nil {
-			base.Fatalf("go mod: invalid -module: %v", err)
+			base.Fatalf("go: invalid -module: %v", err)
 		}
 	}
 
@@ -264,15 +264,15 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 func parsePathVersion(flag, arg string) (path, version string) {
 	i := strings.Index(arg, "@")
 	if i < 0 {
-		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
+		base.Fatalf("go: -%s=%s: need path@version", flag, arg)
 	}
 	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	if err := module.CheckImportPath(path); err != nil {
-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 
 	if !allowedVersionArg(version) {
-		base.Fatalf("go mod: -%s=%s: invalid version %q", flag, arg, version)
+		base.Fatalf("go: -%s=%s: invalid version %q", flag, arg, version)
 	}
 
 	return path, version
@@ -281,11 +281,11 @@ func parsePathVersion(flag, arg string) (path, version string) {
 // parsePath parses -flag=arg expecting arg to be path (not path@version).
 func parsePath(flag, arg string) (path string) {
 	if strings.Contains(arg, "@") {
-		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
+		base.Fatalf("go: -%s=%s: need just path, not path@version", flag, arg)
 	}
 	path = arg
 	if err := module.CheckImportPath(path); err != nil {
-		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
+		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 	return path
 }
@@ -350,7 +350,7 @@ func flagRequire(arg string) {
 	path, version := parsePathVersion("require", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.AddRequire(path, version); err != nil {
-			base.Fatalf("go mod: -require=%s: %v", arg, err)
+			base.Fatalf("go: -require=%s: %v", arg, err)
 		}
 	})
 }
@@ -360,7 +360,7 @@ func flagDropRequire(arg string) {
 	path := parsePath("droprequire", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.DropRequire(path); err != nil {
-			base.Fatalf("go mod: -droprequire=%s: %v", arg, err)
+			base.Fatalf("go: -droprequire=%s: %v", arg, err)
 		}
 	})
 }
@@ -370,7 +370,7 @@ func flagExclude(arg string) {
 	path, version := parsePathVersion("exclude", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.AddExclude(path, version); err != nil {
-			base.Fatalf("go mod: -exclude=%s: %v", arg, err)
+			base.Fatalf("go: -exclude=%s: %v", arg, err)
 		}
 	})
 }
@@ -380,7 +380,7 @@ func flagDropExclude(arg string) {
 	path, version := parsePathVersion("dropexclude", arg)
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.DropExclude(path, version); err != nil {
-			base.Fatalf("go mod: -dropexclude=%s: %v", arg, err)
+			base.Fatalf("go: -dropexclude=%s: %v", arg, err)
 		}
 	})
 }
@@ -389,27 +389,27 @@ func flagDropExclude(arg string) {
 func flagReplace(arg string) {
 	var i int
 	if i = strings.Index(arg, "="); i < 0 {
-		base.Fatalf("go mod: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
+		base.Fatalf("go: -replace=%s: need old[@v]=new[@w] (missing =)", arg)
 	}
 	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	if strings.HasPrefix(new, ">") {
-		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
+		base.Fatalf("go: -replace=%s: separator between old and new is =, not =>", arg)
 	}
 	oldPath, oldVersion, err := parsePathVersionOptional("old", old, false)
 	if err != nil {
-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+		base.Fatalf("go: -replace=%s: %v", arg, err)
 	}
 	newPath, newVersion, err := parsePathVersionOptional("new", new, true)
 	if err != nil {
-		base.Fatalf("go mod: -replace=%s: %v", arg, err)
+		base.Fatalf("go: -replace=%s: %v", arg, err)
 	}
 	if newPath == new && !modfile.IsDirectoryPath(new) {
-		base.Fatalf("go mod: -replace=%s: unversioned new path must be local directory", arg)
+		base.Fatalf("go: -replace=%s: unversioned new path must be local directory", arg)
 	}
 
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.AddReplace(oldPath, oldVersion, newPath, newVersion); err != nil {
-			base.Fatalf("go mod: -replace=%s: %v", arg, err)
+			base.Fatalf("go: -replace=%s: %v", arg, err)
 		}
 	})
 }
@@ -418,11 +418,11 @@ func flagReplace(arg string) {
 func flagDropReplace(arg string) {
 	path, version, err := parsePathVersionOptional("old", arg, true)
 	if err != nil {
-		base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+		base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 	}
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.DropReplace(path, version); err != nil {
-			base.Fatalf("go mod: -dropreplace=%s: %v", arg, err)
+			base.Fatalf("go: -dropreplace=%s: %v", arg, err)
 		}
 	})
 }
@@ -431,11 +431,11 @@ func flagDropReplace(arg string) {
 func flagRetract(arg string) {
 	vi, err := parseVersionInterval(arg)
 	if err != nil {
-		base.Fatalf("go mod: -retract=%s: %v", arg, err)
+		base.Fatalf("go: -retract=%s: %v", arg, err)
 	}
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.AddRetract(vi, ""); err != nil {
-			base.Fatalf("go mod: -retract=%s: %v", arg, err)
+			base.Fatalf("go: -retract=%s: %v", arg, err)
 		}
 	})
 }
@@ -444,11 +444,11 @@ func flagRetract(arg string) {
 func flagDropRetract(arg string) {
 	vi, err := parseVersionInterval(arg)
 	if err != nil {
-		base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+		base.Fatalf("go: -dropretract=%s: %v", arg, err)
 	}
 	edits = append(edits, func(f *modfile.File) {
 		if err := f.DropRetract(vi); err != nil {
-			base.Fatalf("go mod: -dropretract=%s: %v", arg, err)
+			base.Fatalf("go: -dropretract=%s: %v", arg, err)
 		}
 	})
 }

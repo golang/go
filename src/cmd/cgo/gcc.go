@@ -3030,6 +3030,31 @@ func upper(s string) string {
 // so that all fields are exported.
 func godefsFields(fld []*ast.Field) {
 	prefix := fieldPrefix(fld)
+
+	// Issue 48396: check for duplicate field names.
+	if prefix != "" {
+		names := make(map[string]bool)
+	fldLoop:
+		for _, f := range fld {
+			for _, n := range f.Names {
+				name := n.Name
+				if name == "_" {
+					continue
+				}
+				if name != prefix {
+					name = strings.TrimPrefix(n.Name, prefix)
+				}
+				name = upper(name)
+				if names[name] {
+					// Field name conflict: don't remove prefix.
+					prefix = ""
+					break fldLoop
+				}
+				names[name] = true
+			}
+		}
+	}
+
 	npad := 0
 	for _, f := range fld {
 		for _, n := range f.Names {

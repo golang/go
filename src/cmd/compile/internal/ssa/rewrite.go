@@ -36,6 +36,8 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 	if debug > 1 {
 		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
 	}
+	var iters int
+	var states map[string]bool
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -145,6 +147,30 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 		}
 		if !change {
 			break
+		}
+		iters++
+		if iters > 1000 || debug >= 2 {
+			// We've done a suspiciously large number of rewrites (or we're in debug mode).
+			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
+			// and the maximum value encountered during make.bash is 12.
+			// Start checking for cycles. (This is too expensive to do routinely.)
+			if states == nil {
+				states = make(map[string]bool)
+			}
+			h := f.rewriteHash()
+			if _, ok := states[h]; ok {
+				// We've found a cycle.
+				// To diagnose it, set debug to 2 and start again,
+				// so that we'll print all rules applied until we complete another cycle.
+				// If debug is already >= 2, we've already done that, so it's time to crash.
+				if debug < 2 {
+					debug = 2
+					states = make(map[string]bool)
+				} else {
+					f.Fatalf("rewrite cycle detected")
+				}
+			}
+			states[h] = true
 		}
 	}
 	// remove clobbered values
@@ -1541,12 +1567,16 @@ func rotateLeft32(v, rotate int64) int64 {
 	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
 }
 
+func rotateRight64(v, rotate int64) int64 {
+	return int64(bits.RotateLeft64(uint64(v), int(-rotate)))
+}
+
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
 func armBFAuxInt(lsb, width int64) arm64BitField {
 	if lsb < 0 || lsb > 63 {
 		panic("ARM(64) bit field lsb constant out of range")
 	}
-	if width < 1 || width > 64 {
+	if width < 1 || lsb+width > 64 {
 		panic("ARM(64) bit field width constant out of range")
 	}
 	return arm64BitField(width | lsb<<8)

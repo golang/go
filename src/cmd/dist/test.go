@@ -984,11 +984,6 @@ func (t *tester) internalLink() bool {
 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
 		return false
 	}
-	if gohostarch == "ppc64le" {
-		// linkmode=internal fails on ppc64le because cmd/link doesn't
-		// handle the TOC correctly (issue 15409).
-		return false
-	}
 	if goos == "android" {
 		return false
 	}

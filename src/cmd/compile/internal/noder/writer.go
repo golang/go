@@ -75,14 +75,6 @@ type writer struct {
 
 	encoder
 
-	// For writing out object descriptions, ext points to the extension
-	// writer for where we can write the compiler's private extension
-	// details for the object.
-	//
-	// TODO(mdempsky): This is a little hacky, but works easiest with
-	// the way things are currently.
-	ext *writer
-
 	// TODO(mdempsky): We should be able to prune localsIdx whenever a
 	// scope closes, and then maybe we can just use the same map for
 	// storing the TypeParams too (as their TypeName instead).
@@ -299,16 +291,16 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		// Type aliases can refer to uninstantiated generic types, so we
 		// might see len(TParams) != 0 && len(TArgs) == 0 here.
 		// TODO(mdempsky): Revisit after #46477 is resolved.
-		assert(typ.TParams().Len() == typ.TArgs().Len() || typ.TArgs().Len() == 0)
+		assert(typ.TypeParams().Len() == typ.TypeArgs().Len() || typ.TypeArgs().Len() == 0)
 
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
-		for orig.TArgs() != nil {
+		for orig.TypeArgs() != nil {
 			orig = orig.Orig()
 		}
 
 		w.code(typeNamed)
-		w.obj(orig.Obj(), typ.TArgs())
+		w.obj(orig.Obj(), typ.TypeArgs())
 
 	case *types2.TypeParam:
 		index := func() int {
@@ -345,7 +337,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.typ(typ.Elem())
 
 	case *types2.Signature:
-		assert(typ.TParams() == nil)
+		assert(typ.TypeParams() == nil)
 		w.code(typeSignature)
 		w.signature(typ)
 
@@ -405,7 +397,7 @@ func (w *writer) interfaceType(typ *types2.Interface) {
 	for i := 0; i < typ.NumExplicitMethods(); i++ {
 		m := typ.ExplicitMethod(i)
 		sig := m.Type().(*types2.Signature)
-		assert(sig.TParams() == nil)
+		assert(sig.TypeParams() == nil)
 
 		w.pos(m)
 		w.selector(m)
@@ -504,21 +496,21 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 	}
 
 	w := pw.newWriter(relocObj, syncObject1)
-	w.ext = pw.newWriter(relocObjExt, syncObject1)
+	wext := pw.newWriter(relocObjExt, syncObject1)
 	wname := pw.newWriter(relocName, syncObject1)
 	wdict := pw.newWriter(relocObjDict, syncObject1)
 
 	pw.globalsIdx[obj] = w.idx // break cycles
-	assert(w.ext.idx == w.idx)
+	assert(wext.idx == w.idx)
 	assert(wname.idx == w.idx)
 	assert(wdict.idx == w.idx)
 
 	w.dict = dict
-	w.ext.dict = dict
+	wext.dict = dict
 
-	code := w.doObj(obj)
+	code := w.doObj(wext, obj)
 	w.flush()
-	w.ext.flush()
+	wext.flush()
 
 	wname.qualifiedIdent(obj)
 	wname.code(code)
@@ -530,7 +522,7 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
 	return w.idx
 }
 
-func (w *writer) doObj(obj types2.Object) codeObj {
+func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
 	if obj.Pkg() != w.p.curpkg {
 		return objStub
 	}
@@ -542,7 +534,8 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 
 	case *types2.Const:
 		w.pos(obj)
-		w.value(obj.Type(), obj.Val())
+		w.typ(obj.Type())
+		w.value(obj.Val())
 		return objConst
 
 	case *types2.Func:
@@ -551,10 +544,10 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		sig := obj.Type().(*types2.Signature)
 
 		w.pos(obj)
-		w.typeParamNames(sig.TParams())
+		w.typeParamNames(sig.TypeParams())
 		w.signature(sig)
 		w.pos(decl)
-		w.ext.funcExt(obj)
+		wext.funcExt(obj)
 		return objFunc
 
 	case *types2.TypeName:
@@ -568,16 +561,16 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 		}
 
 		named := obj.Type().(*types2.Named)
-		assert(named.TArgs() == nil)
+		assert(named.TypeArgs() == nil)
 
 		w.pos(obj)
-		w.typeParamNames(named.TParams())
-		w.ext.typeExt(obj)
+		w.typeParamNames(named.TypeParams())
+		wext.typeExt(obj)
 		w.typExpr(decl.Type)
 
 		w.len(named.NumMethods())
 		for i := 0; i < named.NumMethods(); i++ {
-			w.method(named.Method(i))
+			w.method(wext, named.Method(i))
 		}
 
 		return objType
@@ -585,7 +578,7 @@ func (w *writer) doObj(obj types2.Object) codeObj {
 	case *types2.Var:
 		w.pos(obj)
 		w.typ(obj.Type())
-		w.ext.varExt(obj)
+		wext.varExt(obj)
 		return objVar
 	}
 }
@@ -596,12 +589,6 @@ func (w *writer) typExpr(expr syntax.Expr) {
 	assert(ok)
 	assert(tv.IsType())
 	w.typ(tv.Type)
-}
-
-func (w *writer) value(typ types2.Type, val constant.Value) {
-	w.sync(syncValue)
-	w.typ(typ)
-	w.rawValue(val)
 }
 
 // objDict writes the dictionary needed for reading the given object.
@@ -642,7 +629,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	assert(len(dict.funcs) == nfuncs)
 }
 
-func (w *writer) typeParamNames(tparams *types2.TParamList) {
+func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
 	w.sync(syncTypeParamNames)
 
 	ntparams := tparams.Len()
@@ -653,7 +640,7 @@ func (w *writer) typeParamNames(tparams *types2.TParamList) {
 	}
 }
 
-func (w *writer) method(meth *types2.Func) {
+func (w *writer) method(wext *writer, meth *types2.Func) {
 	decl, ok := w.p.funDecls[meth]
 	assert(ok)
 	sig := meth.Type().(*types2.Signature)
@@ -661,12 +648,12 @@ func (w *writer) method(meth *types2.Func) {
 	w.sync(syncMethod)
 	w.pos(meth)
 	w.selector(meth)
-	w.typeParamNames(sig.RParams())
+	w.typeParamNames(sig.RecvTypeParams())
 	w.param(sig.Recv())
 	w.signature(sig)
 
 	w.pos(decl) // XXX: Hack to workaround linker limitations.
-	w.ext.funcExt(meth)
+	wext.funcExt(meth)
 }
 
 // qualifiedIdent writes out the name of an object declared at package
@@ -1199,7 +1186,8 @@ func (w *writer) expr(expr syntax.Expr) {
 
 			w.code(exprConst)
 			w.pos(pos)
-			w.value(tv.Type, tv.Value)
+			w.typ(tv.Type)
+			w.value(tv.Value)
 
 			// TODO(mdempsky): These details are only important for backend
 			// diagnostics. Explore writing them out separately.
@@ -1677,7 +1665,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		obj := w.p.info.Defs[decl.Name].(*types2.Func)
 		sig := obj.Type().(*types2.Signature)
 
-		if sig.RParams() != nil || sig.TParams() != nil {
+		if sig.RecvTypeParams() != nil || sig.TypeParams() != nil {
 			break // skip generic functions
 		}
 
@@ -1711,7 +1699,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		// TODO(mdempsky): Revisit after #46477 is resolved.
 		if name.IsAlias() {
 			named, ok := name.Type().(*types2.Named)
-			if ok && named.TParams().Len() != 0 && named.TArgs().Len() == 0 {
+			if ok && named.TypeParams().Len() != 0 && named.TypeArgs().Len() == 0 {
 				break
 			}
 		}
@@ -1858,17 +1846,17 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 }
 
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) *types2.TParamList {
+func objTypeParams(obj types2.Object) *types2.TypeParamList {
 	switch obj := obj.(type) {
 	case *types2.Func:
 		sig := obj.Type().(*types2.Signature)
 		if sig.Recv() != nil {
-			return sig.RParams()
+			return sig.RecvTypeParams()
 		}
-		return sig.TParams()
+		return sig.TypeParams()
 	case *types2.TypeName:
 		if !obj.IsAlias() {
-			return obj.Type().(*types2.Named).TParams()
+			return obj.Type().(*types2.Named).TypeParams()
 		}
 	}
 	return nil

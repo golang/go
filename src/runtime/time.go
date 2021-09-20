@@ -367,9 +367,9 @@ func deltimer(t *timer) bool {
 
 // dodeltimer removes timer i from the current P's heap.
 // We are locked on the P when this is called.
-// It reports whether it saw no problems due to races.
+// It returns the smallest changed index in pp.timers.
 // The caller must have locked the timers for pp.
-func dodeltimer(pp *p, i int) {
+func dodeltimer(pp *p, i int) int {
 	if t := pp.timers[i]; t.pp.ptr() != pp {
 		throw("dodeltimer: wrong P")
 	} else {
@@ -381,16 +381,18 @@ func dodeltimer(pp *p, i int) {
 	}
 	pp.timers[last] = nil
 	pp.timers = pp.timers[:last]
+	smallestChanged := i
 	if i != last {
 		// Moving to i may have moved the last timer to a new parent,
 		// so sift up to preserve the heap guarantee.
-		siftupTimer(pp.timers, i)
+		smallestChanged = siftupTimer(pp.timers, i)
 		siftdownTimer(pp.timers, i)
 	}
 	if i == 0 {
 		updateTimer0When(pp)
 	}
 	atomic.Xadd(&pp.numTimers, -1)
+	return smallestChanged
 }
 
 // dodeltimer0 removes timer 0 from the current P's heap.
@@ -675,13 +677,14 @@ func adjusttimers(pp *p, now int64) {
 		switch s := atomic.Load(&t.status); s {
 		case timerDeleted:
 			if atomic.Cas(&t.status, s, timerRemoving) {
-				dodeltimer(pp, i)
+				changed := dodeltimer(pp, i)
 				if !atomic.Cas(&t.status, timerRemoving, timerRemoved) {
 					badTimer()
 				}
 				atomic.Xadd(&pp.deletedTimers, -1)
-				// Look at this heap position again.
-				i--
+				// Go back to the earliest changed heap entry.
+				// "- 1" because the loop will add 1.
+				i = changed - 1
 			}
 		case timerModifiedEarlier, timerModifiedLater:
 			if atomic.Cas(&t.status, s, timerMoving) {
@@ -691,10 +694,11 @@ func adjusttimers(pp *p, now int64) {
 				// We don't add it back yet because the
 				// heap manipulation could cause our
 				// loop to skip some other timer.
-				dodeltimer(pp, i)
+				changed := dodeltimer(pp, i)
 				moved = append(moved, t)
-				// Look at this heap position again.
-				i--
+				// Go back to the earliest changed heap entry.
+				// "- 1" because the loop will add 1.
+				i = changed - 1
 			}
 		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
 			badTimer()
@@ -1044,7 +1048,10 @@ func timeSleepUntil() (int64, *p) {
 // "panic holding locks" message. Instead, we panic while not
 // holding a lock.
 
-func siftupTimer(t []*timer, i int) {
+// siftupTimer puts the timer at position i in the right place
+// in the heap by moving it up toward the top of the heap.
+// It returns the smallest changed index.
+func siftupTimer(t []*timer, i int) int {
 	if i >= len(t) {
 		badTimer()
 	}
@@ -1064,8 +1071,11 @@ func siftupTimer(t []*timer, i int) {
 	if tmp != t[i] {
 		t[i] = tmp
 	}
+	return i
 }
 
+// siftdownTimer puts the timer at position i in the right place
+// in the heap by moving it down toward the bottom of the heap.
 func siftdownTimer(t []*timer, i int) {
 	n := len(t)
 	if i >= n {

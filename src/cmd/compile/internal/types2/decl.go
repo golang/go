@@ -317,7 +317,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
-		t.expand(check.typMap)
+		t.resolve(check.conf.Environment)
 
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
@@ -592,13 +592,13 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 	named.underlying = under(named)
 
 	// If the RHS is a type parameter, it must be from this type declaration.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TParams().list(), tpar) < 0 {
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TypeParams().list(), tpar) < 0 {
 		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
 		named.underlying = Typ[Invalid]
 	}
 }
 
-func (check *Checker) collectTypeParams(dst **TParamList, list []*syntax.Field) {
+func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Field) {
 	tparams := make([]*TypeParam, len(list))
 
 	// Declare type parameters up-front.
@@ -648,7 +648,7 @@ func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
 	//           constraints to make sure we don't rely on them if they
 	//           are not properly set yet.
 	tname := NewTypeName(name.Pos(), check.pkg, name.Value, nil)
-	tpar := check.NewTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
+	tpar := check.newTypeParam(tname, Typ[Invalid])          // assigns type to tname as a side-effect
 	check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }
@@ -715,7 +715,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 		}
 
 		if base != nil {
-			base.load() // TODO(mdempsky): Probably unnecessary.
+			base.resolve(nil) // TODO(mdempsky): Probably unnecessary.
 			base.methods = append(base.methods, m)
 		}
 	}

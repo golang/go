@@ -4,19 +4,30 @@
 
 package types
 
+const (
+	identIgnoreTags = 1 << iota
+	identStrict
+)
+
 // Identical reports whether t1 and t2 are identical types, following the spec rules.
 // Receiver parameter types are ignored. Named (defined) types are only equal if they
 // are pointer-equal - i.e. there must be a unique types.Type for each specific named
 // type. Also, a type containing a shape type is considered identical to another type
 // (shape or not) if their underlying types are the same, or they are both pointers.
 func Identical(t1, t2 *Type) bool {
-	return identical(t1, t2, true, nil)
+	return identical(t1, t2, 0, nil)
 }
 
 // IdenticalIgnoreTags is like Identical, but it ignores struct tags
 // for struct identity.
 func IdenticalIgnoreTags(t1, t2 *Type) bool {
-	return identical(t1, t2, false, nil)
+	return identical(t1, t2, identIgnoreTags, nil)
+}
+
+// IdenticalStrict is like Identical, but matches types exactly, without the
+// exception for shapes.
+func IdenticalStrict(t1, t2 *Type) bool {
+	return identical(t1, t2, identStrict, nil)
 }
 
 type typePair struct {
@@ -24,7 +35,7 @@ type typePair struct {
 	t2 *Type
 }
 
-func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) bool {
+func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool {
 	if t1 == t2 {
 		return true
 	}
@@ -32,7 +43,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
 		return false
 	}
 	if t1.sym != nil || t2.sym != nil {
-		if t1.HasShape() || t2.HasShape() {
+		if flags&identStrict == 0 && (t1.HasShape() || t2.HasShape()) {
 			switch t1.kind {
 			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TPTR, TUNSAFEPTR:
 				return true
@@ -78,7 +89,7 @@ cont:
 		}
 		for i, f1 := range t1.AllMethods().Slice() {
 			f2 := t2.AllMethods().Index(i)
-			if f1.Sym != f2.Sym || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
+			if f1.Sym != f2.Sym || !identical(f1.Type, f2.Type, flags, assumedEqual) {
 				return false
 			}
 		}
@@ -90,10 +101,10 @@ cont:
 		}
 		for i, f1 := range t1.FieldSlice() {
 			f2 := t2.Field(i)
-			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
+			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !identical(f1.Type, f2.Type, flags, assumedEqual) {
 				return false
 			}
-			if cmpTags && f1.Note != f2.Note {
+			if (flags&identIgnoreTags) == 0 && f1.Note != f2.Note {
 				return false
 			}
 		}
@@ -111,7 +122,7 @@ cont:
 			}
 			for i, f1 := range fs1 {
 				f2 := fs2[i]
-				if f1.IsDDD() != f2.IsDDD() || !identical(f1.Type, f2.Type, cmpTags, assumedEqual) {
+				if f1.IsDDD() != f2.IsDDD() || !identical(f1.Type, f2.Type, flags, assumedEqual) {
 					return false
 				}
 			}
@@ -129,10 +140,10 @@ cont:
 		}
 
 	case TMAP:
-		if !identical(t1.Key(), t2.Key(), cmpTags, assumedEqual) {
+		if !identical(t1.Key(), t2.Key(), flags, assumedEqual) {
 			return false
 		}
 	}
 
-	return identical(t1.Elem(), t2.Elem(), cmpTags, assumedEqual)
+	return identical(t1.Elem(), t2.Elem(), flags, assumedEqual)
 }

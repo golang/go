@@ -670,6 +670,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Miscellaneous
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)

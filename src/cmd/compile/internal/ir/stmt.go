@@ -385,14 +385,11 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 // code generation to jump directly to another function entirely.
 type TailCallStmt struct {
 	miniStmt
-	Target *Name
+	Call *CallExpr // the underlying call
 }
 
-func NewTailCallStmt(pos src.XPos, target *Name) *TailCallStmt {
-	if target.Op() != ONAME || target.Class != PFUNC {
-		base.FatalfAt(pos, "tail call to non-func %v", target)
-	}
-	n := &TailCallStmt{Target: target}
+func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {
+	n := &TailCallStmt{Call: call}
 	n.pos = pos
 	n.op = OTAILCALL
 	return n

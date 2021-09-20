@@ -826,7 +826,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type param is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp

@@ -315,6 +315,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_LR, v.AuxInt)
 	case ssa.OpARM64MVNshiftRA, ssa.OpARM64NEGshiftRA:
 		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_AR, v.AuxInt)
+	case ssa.OpARM64MVNshiftRO:
+		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm64.SHIFT_ROR, v.AuxInt)
 	case ssa.OpARM64ADDshiftLL,
 		ssa.OpARM64SUBshiftLL,
 		ssa.OpARM64ANDshiftLL,
@@ -342,6 +344,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64ORNshiftRA,
 		ssa.OpARM64BICshiftRA:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm64.SHIFT_AR, v.AuxInt)
+	case ssa.OpARM64ANDshiftRO,
+		ssa.OpARM64ORshiftRO,
+		ssa.OpARM64XORshiftRO,
+		ssa.OpARM64EONshiftRO,
+		ssa.OpARM64ORNshiftRO,
+		ssa.OpARM64BICshiftRO:
+		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm64.SHIFT_ROR, v.AuxInt)
 	case ssa.OpARM64MOVDconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -389,6 +398,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_LR, v.AuxInt)
 	case ssa.OpARM64CMPshiftRA, ssa.OpARM64CMNshiftRA, ssa.OpARM64TSTshiftRA:
 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_AR, v.AuxInt)
+	case ssa.OpARM64TSTshiftRO:
+		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm64.SHIFT_ROR, v.AuxInt)
 	case ssa.OpARM64MOVDaddr:
 		p := s.Prog(arm64.AMOVD)
 		p.From.Type = obj.TYPE_ADDR
@@ -1046,6 +1057,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4.To.SetTarget(p)
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
+	case ssa.OpARM64CALLtail:
+		s.TailCall(v)
 	case ssa.OpARM64LoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -1241,16 +1254,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockARM64EQ, ssa.BlockARM64NE,
 		ssa.BlockARM64LT, ssa.BlockARM64GE,

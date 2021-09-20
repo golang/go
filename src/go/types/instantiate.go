@@ -71,7 +71,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.env)
+	inst := check.instance(pos, typ, targs, check.conf.Environment)
 
 	assert(len(posList) <= len(targs))
 	check.later(func() {
@@ -116,9 +116,11 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Envir
 			}
 		}
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
 		named.targs = NewTypeList(targs)
-		named.instPos = &pos
+		named.resolver = func(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
+			return expandNamed(env, n, pos)
+		}
 		if env != nil {
 			// It's possible that we've lost a race to add named to the environment.
 			// In this case, use whichever instance is recorded in the environment.

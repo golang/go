@@ -508,7 +508,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(regArgs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
+					intToReg(&regArgs, st.ireg, st.size, offset)
 				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
@@ -524,7 +524,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("attempted to copy pointer to FP register")
 				}
 				offset := add(v.ptr, st.offset, "precomputed value offset")
-				memmove(regArgs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
+				floatToReg(&regArgs, st.freg, st.size, offset)
 			default:
 				panic("unknown ABI part kind")
 			}
@@ -610,13 +610,13 @@ func (v Value) call(op string, in []Value) []Value {
 				switch st.kind {
 				case abiStepIntReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, regArgs.IntRegArgAddr(st.ireg, st.size), st.size)
+					intFromReg(&regArgs, st.ireg, st.size, offset)
 				case abiStepPointer:
 					s := add(s, st.offset, "precomputed value offset")
 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
 				case abiStepFloatReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, regArgs.FloatRegArgAddr(st.freg, st.size), st.size)
+					floatFromReg(&regArgs, st.freg, st.size, offset)
 				case abiStepStack:
 					panic("register-based return value has stack component")
 				default:
@@ -698,13 +698,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					switch st.kind {
 					case abiStepIntReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, regs.IntRegArgAddr(st.ireg, st.size), st.size)
+						intFromReg(regs, st.ireg, st.size, offset)
 					case abiStepPointer:
 						s := add(v.ptr, st.offset, "precomputed value offset")
 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
 					case abiStepFloatReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, regs.FloatRegArgAddr(st.freg, st.size), st.size)
+						floatFromReg(regs, st.freg, st.size, offset)
 					case abiStepStack:
 						panic("register-based return value has stack component")
 					default:
@@ -784,7 +784,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					// Copy values to "integer registers."
 					if v.flag&flagIndir != 0 {
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(regs.IntRegArgAddr(st.ireg, st.size), offset, st.size)
+						intToReg(regs, st.ireg, st.size, offset)
 					} else {
 						// Only populate the Ints space on the return path.
 						// This is safe because out is kept alive until the
@@ -799,7 +799,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 						panic("attempted to copy pointer to FP register")
 					}
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(regs.FloatRegArgAddr(st.freg, st.size), offset, st.size)
+					floatToReg(regs, st.freg, st.size, offset)
 				default:
 					panic("unknown ABI part kind")
 				}
@@ -982,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
+					intToReg(&methodRegs, mStep.ireg, mStep.size, from)
 				case abiStepFloatReg:
-					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
+					floatToReg(&methodRegs, mStep.freg, mStep.size, from)
 				default:
 					panic("unexpected method step")
 				}
@@ -1000,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
+					intFromReg(valueRegs, vStep.ireg, vStep.size, to)
 				case abiStepFloatReg:
-					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
+					floatFromReg(valueRegs, vStep.freg, vStep.size, to)
 				default:
 					panic("unexpected value step")
 				}
@@ -1515,15 +1515,21 @@ func (v Value) MapIndex(key Value) Value {
 	// considered unexported. This is consistent with the
 	// behavior for structs, which allow read but not write
 	// of unexported fields.
-	key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
 
-	var k unsafe.Pointer
-	if key.flag&flagIndir != 0 {
-		k = key.ptr
+	var e unsafe.Pointer
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
-		k = unsafe.Pointer(&key.ptr)
+		key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
+		var k unsafe.Pointer
+		if key.flag&flagIndir != 0 {
+			k = key.ptr
+		} else {
+			k = unsafe.Pointer(&key.ptr)
+		}
+		e = mapaccess(v.typ, v.pointer(), k)
 	}
-	e := mapaccess(v.typ, v.pointer(), k)
 	if e == nil {
 		return Value{}
 	}
@@ -2121,6 +2127,25 @@ func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBeExported()
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
+
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		if elem.typ == nil {
+			mapdelete_faststr(v.typ, v.pointer(), k)
+			return
+		}
+		elem.mustBeExported()
+		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+		var e unsafe.Pointer
+		if elem.flag&flagIndir != 0 {
+			e = elem.ptr
+		} else {
+			e = unsafe.Pointer(&elem.ptr)
+		}
+		mapassign_faststr(v.typ, v.pointer(), k, e)
+		return
+	}
+
 	key = key.assignTo("reflect.Value.SetMapIndex", tt.key, nil)
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
@@ -2915,8 +2940,7 @@ func (v Value) CanConvert(t Type) bool {
 	// from slice to pointer-to-array.
 	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
 		n := t.Elem().Len()
-		h := (*unsafeheader.Slice)(v.ptr)
-		if n > h.Len {
+		if n > v.Len() {
 			return false
 		}
 	}
@@ -3183,10 +3207,10 @@ func cvtStringRunes(v Value, t Type) Value {
 // convertOp: []T -> *[N]T
 func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
-	h := (*unsafeheader.Slice)(v.ptr)
-	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
 	}
+	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
@@ -3253,10 +3277,19 @@ func makemap(t *rtype, cap int) (m unsafe.Pointer)
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
 
 //go:noescape
+func mapaccess_faststr(t *rtype, m unsafe.Pointer, key string) (val unsafe.Pointer)
+
+//go:noescape
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
 
 //go:noescape
+func mapassign_faststr(t *rtype, m unsafe.Pointer, key string, val unsafe.Pointer)
+
+//go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
+
+//go:noescape
+func mapdelete_faststr(t *rtype, m unsafe.Pointer, key string)
 
 //go:noescape
 func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter)

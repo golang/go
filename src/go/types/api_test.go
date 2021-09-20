@@ -152,6 +152,7 @@ func TestValuesInfo(t *testing.T) {
 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
 
 		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
+		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
 	}
 
 	for _, test := range tests {
@@ -1616,6 +1617,48 @@ func TestIdentical_issue15173(t *testing.T) {
 		{nil, nil, true},
 	} {
 		if got := Identical(test.x, test.y); got != test.want {
+			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
+		}
+	}
+}
+
+func TestIdenticalUnions(t *testing.T) {
+	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
+	myInt := NewNamed(tname, Typ[Int], nil)
+	tmap := map[string]*Term{
+		"int":     NewTerm(false, Typ[Int]),
+		"~int":    NewTerm(true, Typ[Int]),
+		"string":  NewTerm(false, Typ[String]),
+		"~string": NewTerm(true, Typ[String]),
+		"myInt":   NewTerm(false, myInt),
+	}
+	makeUnion := func(s string) *Union {
+		parts := strings.Split(s, "|")
+		var terms []*Term
+		for _, p := range parts {
+			term := tmap[p]
+			if term == nil {
+				t.Fatalf("missing term %q", p)
+			}
+			terms = append(terms, term)
+		}
+		return NewUnion(terms)
+	}
+	for _, test := range []struct {
+		x, y string
+		want bool
+	}{
+		// These tests are just sanity checks. The tests for type sets and
+		// interfaces provide much more test coverage.
+		{"int|~int", "~int", true},
+		{"myInt|~int", "~int", true},
+		{"int|string", "string|int", true},
+		{"int|int|string", "string|int", true},
+		{"myInt|string", "int|string", false},
+	} {
+		x := makeUnion(test.x)
+		y := makeUnion(test.y)
+		if got := Identical(x, y); got != test.want {
 			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
 		}
 	}

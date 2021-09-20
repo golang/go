@@ -1829,6 +1829,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpPPC64CALLstatic:
 		s.Call(v)
 
+	case ssa.OpPPC64CALLtail:
+		s.TailCall(v)
+
 	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:
 		p := s.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_REG
@@ -1980,14 +1983,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.AJMP)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
 		ssa.BlockPPC64LT, ssa.BlockPPC64GE,

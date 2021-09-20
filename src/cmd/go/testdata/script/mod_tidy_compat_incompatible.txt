@@ -97,10 +97,9 @@ replace (
 	example.net/requireincompatible v0.1.0 => ./requireincompatible
 )
 
-require (
-	example.com/retract/incompatible v1.0.0 // indirect
-	example.net/lazy v0.1.0
-)
+require example.net/lazy v0.1.0
+
+require example.com/retract/incompatible v1.0.0 // indirect
 -- incompatible.go --
 package incompatible
 

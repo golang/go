@@ -243,20 +243,24 @@ func (e *invalidImportError) Unwrap() error {
 //
 // If the package is not present in any module selected from the requirement
 // graph, importFromModules returns an *ImportMissingError.
-func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, err error) {
+//
+// If the package is present in exactly one module, importFromModules will
+// return the module, its root directory, and a list of other modules that
+// lexically could have provided the package but did not.
+func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, altMods []module.Version, err error) {
 	if strings.Contains(path, "@") {
-		return module.Version{}, "", fmt.Errorf("import path should not have @version")
+		return module.Version{}, "", nil, fmt.Errorf("import path should not have @version")
 	}
 	if build.IsLocalImport(path) {
-		return module.Version{}, "", fmt.Errorf("relative import not supported")
+		return module.Version{}, "", nil, fmt.Errorf("relative import not supported")
 	}
 	if path == "C" {
 		// There's no directory for import "C".
-		return module.Version{}, "", nil
+		return module.Version{}, "", nil, nil
 	}
 	// Before any further lookup, check that the path is valid.
 	if err := module.CheckImportPath(path); err != nil {
-		return module.Version{}, "", &invalidImportError{importPath: path, err: err}
+		return module.Version{}, "", nil, &invalidImportError{importPath: path, err: err}
 	}
 
 	// Is the package in the standard library?
@@ -265,14 +269,14 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		for _, mainModule := range MainModules.Versions() {
 			if MainModules.InGorootSrc(mainModule) {
 				if dir, ok, err := dirInModule(path, MainModules.PathPrefix(mainModule), MainModules.ModRoot(mainModule), true); err != nil {
-					return module.Version{}, dir, err
+					return module.Version{}, dir, nil, err
 				} else if ok {
-					return mainModule, dir, nil
+					return mainModule, dir, nil, nil
 				}
 			}
 		}
 		dir := filepath.Join(cfg.GOROOT, "src", path)
-		return module.Version{}, dir, nil
+		return module.Version{}, dir, nil, nil
 	}
 
 	// -mod=vendor is special.
@@ -283,19 +287,19 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		mainDir, mainOK, mainErr := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
 		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
 		if mainOK && vendorOK {
-			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
+			return module.Version{}, "", nil, &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
 		}
 		// Prefer to return main directory if there is one,
 		// Note that we're not checking that the package exists.
 		// We'll leave that for load.
 		if !vendorOK && mainDir != "" {
-			return mainModule, mainDir, nil
+			return mainModule, mainDir, nil, nil
 		}
 		if mainErr != nil {
-			return module.Version{}, "", mainErr
+			return module.Version{}, "", nil, mainErr
 		}
 		readVendorList(mainModule)
-		return vendorPkgModule[path], vendorDir, nil
+		return vendorPkgModule[path], vendorDir, nil, nil
 	}
 
 	// Check each module on the build list.
@@ -316,7 +320,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 	// already non-nil, then we attempt to load the package using the full
 	// requirements in mg.
 	for {
-		var sumErrMods []module.Version
+		var sumErrMods, altMods []module.Version
 		for prefix := path; prefix != "."; prefix = pathpkg.Dir(prefix) {
 			var (
 				v  string
@@ -350,13 +354,15 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 				// continue the loop and find the package in some other module,
 				// we need to look at this module to make sure the import is
 				// not ambiguous.
-				return module.Version{}, "", err
+				return module.Version{}, "", nil, err
 			}
 			if dir, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
-				return module.Version{}, "", err
+				return module.Version{}, "", nil, err
 			} else if ok {
 				mods = append(mods, m)
 				dirs = append(dirs, dir)
+			} else {
+				altMods = append(altMods, m)
 			}
 		}
 
@@ -369,7 +375,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 				mods[i], mods[j] = mods[j], mods[i]
 				dirs[i], dirs[j] = dirs[j], dirs[i]
 			}
-			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+			return module.Version{}, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 		}
 
 		if len(sumErrMods) > 0 {
@@ -377,7 +383,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 				j := len(sumErrMods) - 1 - i
 				sumErrMods[i], sumErrMods[j] = sumErrMods[j], sumErrMods[i]
 			}
-			return module.Version{}, "", &ImportMissingSumError{
+			return module.Version{}, "", nil, &ImportMissingSumError{
 				importPath: path,
 				mods:       sumErrMods,
 				found:      len(mods) > 0,
@@ -385,7 +391,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		}
 
 		if len(mods) == 1 {
-			return mods[0], dirs[0], nil
+			return mods[0], dirs[0], altMods, nil
 		}
 
 		if mg != nil {
@@ -395,7 +401,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			if !HasModRoot() {
 				queryErr = ErrNoModRoot
 			}
-			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
+			return module.Version{}, "", nil, &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
 		}
 
 		// So far we've checked the root dependencies.
@@ -406,7 +412,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			// the module graph, so we can't return an ImportMissingError here — one
 			// of the missing modules might actually contain the package in question,
 			// in which case we shouldn't go looking for it in some new dependency.
-			return module.Version{}, "", err
+			return module.Version{}, "", nil, err
 		}
 	}
 }

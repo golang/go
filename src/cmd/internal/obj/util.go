@@ -7,6 +7,7 @@ package obj
 import (
 	"bytes"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
 	"internal/buildcfg"
 	"io"
@@ -45,6 +46,10 @@ func (p *Prog) InnermostFilename() string {
 		return "<unknown file name>"
 	}
 	return pos.Filename()
+}
+
+func (p *Prog) AllPos(result []src.Pos) []src.Pos {
+	return p.Ctxt.AllPos(p.Pos, result)
 }
 
 var armCondCode = []string{

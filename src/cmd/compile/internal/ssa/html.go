@@ -903,15 +903,12 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 			if strings.HasPrefix(l, "buildssa") {
 				escaped = fmt.Sprintf("<b>%v</b>", l)
 			} else {
-				// Parse the line number from the format l(123).
-				idx := strings.Index(l, " l(")
-				if idx != -1 {
-					subl := l[idx+3:]
-					idxEnd := strings.Index(subl, ")")
-					if idxEnd != -1 {
-						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
-							lineNo = subl[:idxEnd]
-						}
+				// Parse the line number from the format file:line:col.
+				// See the implementation in ir/fmt.go:dumpNodeHeader.
+				sl := strings.Split(l, ":")
+				if len(sl) >= 3 {
+					if _, err := strconv.Atoi(sl[len(sl)-2]); err == nil {
+						lineNo = sl[len(sl)-2]
 					}
 				}
 				escaped = html.EscapeString(l)
@@ -1221,7 +1218,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) endBlock(b *Block) {
+func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")

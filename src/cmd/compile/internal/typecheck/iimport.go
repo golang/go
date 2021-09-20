@@ -316,16 +316,12 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		return n
 
 	case 'T', 'U':
-		var rparams []*types.Type
-		if tag == 'U' {
-			rparams = r.typeList()
-		}
-
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		n := importtype(pos, sym)
 		t := n.Type()
 		if tag == 'U' {
+			rparams := r.typeList()
 			t.SetRParams(rparams)
 		}
 
@@ -825,7 +821,7 @@ func (r *importReader) typ1() *types.Type {
 		}
 		return n.Type()
 
-	case instType:
+	case instanceType:
 		if r.p.exportVersion < iexportVersionGenerics {
 			base.Fatalf("unexpected instantiation type")
 		}
@@ -1170,10 +1166,26 @@ func (r *importReader) stmtList() []ir.Node {
 		if n.Op() == ir.OBLOCK {
 			n := n.(*ir.BlockStmt)
 			list = append(list, n.List...)
-		} else {
-			list = append(list, n)
+			continue
 		}
-
+		if len(list) > 0 {
+			// check for an optional label that can only immediately
+			// precede a for/range/select/switch statement.
+			if last := list[len(list)-1]; last.Op() == ir.OLABEL {
+				label := last.(*ir.LabelStmt).Label
+				switch n.Op() {
+				case ir.OFOR:
+					n.(*ir.ForStmt).Label = label
+				case ir.ORANGE:
+					n.(*ir.RangeStmt).Label = label
+				case ir.OSELECT:
+					n.(*ir.SelectStmt).Label = label
+				case ir.OSWITCH:
+					n.(*ir.SwitchStmt).Label = label
+				}
+			}
+		}
+		list = append(list, n)
 	}
 	return list
 }
@@ -1503,7 +1515,7 @@ func (r *importReader) node() ir.Node {
 		if go117ExportTypes {
 			n.SetOp(op)
 		}
-		*n.PtrInit() = init
+		n.SetInit(init)
 		n.IsDDD = r.bool()
 		if go117ExportTypes {
 			n.SetType(r.exoticType())
@@ -1607,7 +1619,12 @@ func (r *importReader) node() ir.Node {
 	// 	unreachable - never exported
 
 	case ir.OAS:
-		return ir.NewAssignStmt(r.pos(), r.expr(), r.expr())
+		pos := r.pos()
+		init := r.stmtList()
+		n := ir.NewAssignStmt(pos, r.expr(), r.expr())
+		n.SetInit(init)
+		n.Def = r.bool()
+		return n
 
 	case ir.OASOP:
 		n := ir.NewAssignOpStmt(r.pos(), r.op(), r.expr(), nil)
@@ -1624,7 +1641,12 @@ func (r *importReader) node() ir.Node {
 			// unreachable - mapped to case OAS2 by exporter
 			goto error
 		}
-		return ir.NewAssignListStmt(r.pos(), op, r.exprList(), r.exprList())
+		pos := r.pos()
+		init := r.stmtList()
+		n := ir.NewAssignListStmt(pos, op, r.exprList(), r.exprList())
+		n.SetInit(init)
+		n.Def = r.bool()
+		return n
 
 	case ir.ORETURN:
 		return ir.NewReturnStmt(r.pos(), r.exprList())
@@ -1638,26 +1660,28 @@ func (r *importReader) node() ir.Node {
 	case ir.OIF:
 		pos, init := r.pos(), r.stmtList()
 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.OFOR:
 		pos, init := r.pos(), r.stmtList()
 		cond, post := r.exprsOrNil()
 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.ORANGE:
-		pos := r.pos()
+		pos, init := r.pos(), r.stmtList()
 		k, v := r.exprsOrNil()
-		return ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
+		n := ir.NewRangeStmt(pos, k, v, r.expr(), r.stmtList())
+		n.SetInit(init)
+		return n
 
 	case ir.OSELECT:
 		pos := r.pos()
 		init := r.stmtList()
 		n := ir.NewSelectStmt(pos, r.commList())
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	case ir.OSWITCH:
@@ -1665,7 +1689,7 @@ func (r *importReader) node() ir.Node {
 		init := r.stmtList()
 		x, _ := r.exprsOrNil()
 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
-		*n.PtrInit() = init
+		n.SetInit(init)
 		return n
 
 	// case OCASE:
@@ -1709,7 +1733,12 @@ func (r *importReader) node() ir.Node {
 		return n
 
 	case ir.OSELRECV2:
-		return ir.NewAssignListStmt(r.pos(), ir.OSELRECV2, r.exprList(), r.exprList())
+		pos := r.pos()
+		init := r.stmtList()
+		n := ir.NewAssignListStmt(pos, ir.OSELRECV2, r.exprList(), r.exprList())
+		n.SetInit(init)
+		n.Def = r.bool()
+		return n
 
 	default:
 		base.Fatalf("cannot import %v (%d) node\n"+

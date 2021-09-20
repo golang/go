@@ -122,7 +122,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
-				named.load()
+				named.resolve(nil)
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
@@ -321,10 +321,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
-			if ftyp.TParams().Len() != mtyp.TParams().Len() {
+			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 				return m, f
 			}
-			if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+			if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
 				panic("method with type parameters")
 			}
 
@@ -334,7 +334,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := newUnifier(true)
-			u.x.init(ftyp.TParams().list())
+			u.x.init(ftyp.TypeParams().list())
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -373,10 +373,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
 		mtyp := m.typ.(*Signature)
-		if ftyp.TParams().Len() != mtyp.TParams().Len() {
+		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 			return m, f
 		}
-		if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+		if !acceptMethodTypeParams && ftyp.TypeParams().Len() > 0 {
 			panic("method with type parameters")
 		}
 
@@ -387,17 +387,17 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
-		if Vn != nil && Vn.TParams().Len() > 0 {
+		if Vn != nil && Vn.TypeParams().Len() > 0 {
 			// Be careful: The number of type arguments may not match
 			// the number of receiver parameters. If so, an error was
 			// reported earlier but the length discrepancy is still
 			// here. Exit early in this case to prevent an assertion
 			// failure in makeSubstMap.
 			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.RParams().list()) != Vn.targs.Len() {
+			if len(ftyp.RecvTypeParams().list()) != Vn.targs.Len() {
 				return
 			}
-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
+			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RecvTypeParams().list(), Vn.targs.list()), nil).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
@@ -406,7 +406,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(true)
-		if ftyp.TParams().Len() > 0 {
+		if ftyp.TypeParams().Len() > 0 {
 			// We reach here only if we accept method type parameters.
 			// In this case, unification must consider any receiver
 			// and method type parameters as "free" type parameters.
@@ -416,9 +416,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// unimplemented call so that we test this code if we
 			// enable method type parameters.
 			unimplemented()
-			u.x.init(append(ftyp.RParams().list(), ftyp.TParams().list()...))
+			u.x.init(append(ftyp.RecvTypeParams().list(), ftyp.TypeParams().list()...))
 		} else {
-			u.x.init(ftyp.RParams().list())
+			u.x.init(ftyp.RecvTypeParams().list())
 		}
 		if !u.unify(ftyp, mtyp) {
 			return m, f

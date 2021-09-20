@@ -767,7 +767,6 @@ var notEncodableTimes = []struct {
 	time Time
 	want string
 }{
-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.MarshalBinary: zone offset has fractional minute"},
 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.MarshalBinary: unexpected zone offset"},
 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.MarshalBinary: unexpected zone offset"},
 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.MarshalBinary: unexpected zone offset"},
@@ -1434,6 +1433,37 @@ func TestMarshalBinaryZeroTime(t *testing.T) {
 	}
 	if t1 != t0 {
 		t.Errorf("t0=%#v\nt1=%#v\nwant identical structures", t0, t1)
+	}
+}
+
+func TestMarshalBinaryVersion2(t *testing.T) {
+	t0, err := Parse(RFC3339, "1880-01-01T00:00:00Z")
+	if err != nil {
+		t.Errorf("Failed to parse time, error = %v", err)
+	}
+	loc, err := LoadLocation("US/Eastern")
+	if err != nil {
+		t.Errorf("Failed to load location, error = %v", err)
+	}
+	t1 := t0.In(loc)
+	b, err := t1.MarshalBinary()
+	if err != nil {
+		t.Errorf("Failed to Marshal, error = %v", err)
+	}
+
+	t2 := Time{}
+	err = t2.UnmarshalBinary(b)
+	if err != nil {
+		t.Errorf("Failed to Unmarshal, error = %v", err)
+	}
+
+	if !(t0.Equal(t1) && t1.Equal(t2)) {
+		if !t0.Equal(t1) {
+			t.Errorf("The result t1: %+v after Marshal is not matched original t0: %+v", t1, t0)
+		}
+		if !t1.Equal(t2) {
+			t.Errorf("The result t2: %+v after Unmarshal is not matched original t1: %+v", t2, t1)
+		}
 	}
 }
 

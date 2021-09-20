@@ -25,6 +25,7 @@ var filePrefixes = []string{
 	"issue37621",
 	"issue38649",
 	"issue39534",
+	"issue48396",
 }
 
 func TestGoDefs(t *testing.T) {

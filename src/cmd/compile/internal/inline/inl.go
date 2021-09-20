@@ -544,6 +544,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 			call := call.(*ir.CallExpr)
 			call.NoInline = true
 		}
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
+		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
 
 	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.

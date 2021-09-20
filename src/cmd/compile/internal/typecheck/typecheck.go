@@ -879,6 +879,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+		n.Call = typecheck(n.Call, ctxStmt|ctxExpr).(*ir.CallExpr)
 		return n
 
 	case ir.OCHECKNIL:

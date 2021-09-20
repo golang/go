@@ -1392,7 +1392,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 	case *ast.SelectorExpr:
 		check.selector(x, e)
 
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if check.indexExpr(x, ix) {
 			check.funcInst(x, ix)

@@ -1003,6 +1003,7 @@ func validateII(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
@@ -1010,6 +1011,7 @@ func validateIF(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
@@ -1017,6 +1019,7 @@ func validateSI(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
@@ -1024,6 +1027,7 @@ func validateSF(ctxt *obj.Link, ins *instruction) {
 	wantImmI(ctxt, ins.as, ins.imm, 12)
 	wantIntReg(ctxt, ins.as, "rd", ins.rd)
 	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 	wantNoneReg(ctxt, ins.as, "rs3", ins.rs3)
 }
 
@@ -1567,7 +1571,7 @@ func instructionForProg(p *obj.Prog) *instruction {
 func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction {
 	// <opi> $imm, REG, TO
 	ins := instructionForProg(p)
-	ins.as, ins.rs1 = as, uint32(rs)
+	ins.as, ins.rs1, ins.rs2 = as, uint32(rs), obj.REG_NONE
 
 	low, high, err := Split32BitImmediate(ins.imm)
 	if err != nil {
@@ -1990,13 +1994,23 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 	case ASEQZ:
 		// SEQZ rs, rd -> SLTIU $1, rs, rd
 		ins.as = ASLTIU
-		ins.rs1 = uint32(p.From.Reg)
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
 		ins.imm = 1
 
 	case ASNEZ:
 		// SNEZ rs, rd -> SLTU rs, x0, rd
 		ins.as = ASLTU
 		ins.rs1 = REG_ZERO
+
+	case AFABSS:
+		// FABSS rs, rd -> FSGNJXS rs, rs, rd
+		ins.as = AFSGNJXS
+		ins.rs1 = uint32(p.From.Reg)
+
+	case AFABSD:
+		// FABSD rs, rd -> FSGNJXD rs, rs, rd
+		ins.as = AFSGNJXD
+		ins.rs1 = uint32(p.From.Reg)
 
 	case AFNEGS:
 		// FNEGS rs, rd -> FSGNJNS rs, rs, rd

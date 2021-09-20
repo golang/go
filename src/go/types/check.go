@@ -89,7 +89,6 @@ type Checker struct {
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	env     *Environment           // for deduplicating identical instances
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -174,6 +173,11 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		conf = new(Config)
 	}
 
+	// make sure we have an environment
+	if conf.Environment == nil {
+		conf.Environment = NewEnvironment()
+	}
+
 	// make sure we have an info struct
 	if info == nil {
 		info = new(Info)
@@ -192,7 +196,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		version: version,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
-		env:     NewEnvironment(),
 	}
 }
 

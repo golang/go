@@ -272,7 +272,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpRISCV64FADDS, ssa.OpRISCV64FSUBS, ssa.OpRISCV64FMULS, ssa.OpRISCV64FDIVS,
 		ssa.OpRISCV64FEQS, ssa.OpRISCV64FNES, ssa.OpRISCV64FLTS, ssa.OpRISCV64FLES,
 		ssa.OpRISCV64FADDD, ssa.OpRISCV64FSUBD, ssa.OpRISCV64FMULD, ssa.OpRISCV64FDIVD,
-		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED:
+		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED,
+		ssa.OpRISCV64FSGNJD:
 		r := v.Reg()
 		r1 := v.Args[0].Reg()
 		r2 := v.Args[1].Reg()
@@ -329,7 +330,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_REG, Reg: r3}})
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
+	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FABSD, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
@@ -412,6 +413,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpRISCV64CALLstatic, ssa.OpRISCV64CALLclosure, ssa.OpRISCV64CALLinter:
 		s.Call(v)
+	case ssa.OpRISCV64CALLtail:
+		s.TailCall(v)
 	case ssa.OpRISCV64LoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -724,14 +727,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 	case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BNEZ,
 		ssa.BlockRISCV64BLT, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BGEZ,
 		ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:

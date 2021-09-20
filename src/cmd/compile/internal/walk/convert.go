@@ -25,9 +25,6 @@ func walkConv(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		return n.X
 	}
 	if n.Op() == ir.OCONVNOP && ir.ShouldCheckPtr(ir.CurFunc, 1) {
-		if n.Type().IsPtr() && n.X.Type().IsUnsafePtr() { // unsafe.Pointer to *T
-			return walkCheckPtrAlignment(n, init, nil)
-		}
 		if n.Type().IsUnsafePtr() && n.X.Type().IsUintptr() { // uintptr to unsafe.Pointer
 			return walkCheckPtrArithmetic(n, init)
 		}
@@ -411,41 +408,6 @@ func byteindex(n ir.Node) ir.Node {
 	n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
 	n.SetType(types.Types[types.TINT])
 	n.SetTypecheck(1)
-	return n
-}
-
-func walkCheckPtrAlignment(n *ir.ConvExpr, init *ir.Nodes, se *ir.SliceExpr) ir.Node {
-	if !n.Type().IsPtr() {
-		base.Fatalf("expected pointer type: %v", n.Type())
-	}
-	elem := n.Type().Elem()
-	var count ir.Node
-	if se != nil {
-		count = se.Max
-	}
-	if count != nil {
-		if !elem.IsArray() {
-			base.Fatalf("expected array type: %v", elem)
-		}
-		elem = elem.Elem()
-	}
-
-	size := elem.Size()
-	if elem.Alignment() == 1 && (size == 0 || size == 1 && count == nil) {
-		return n
-	}
-
-	if count == nil {
-		count = ir.NewInt(1)
-	}
-
-	n.X = cheapExpr(n.X, init)
-	checkPtrCall := mkcall("checkptrAlignment", nil, init, typecheck.ConvNop(n.X, types.Types[types.TUNSAFEPTR]), reflectdata.TypePtr(elem), typecheck.Conv(count, types.Types[types.TUINTPTR]))
-	if se != nil {
-		se.CheckPtrCall = checkPtrCall
-	} else {
-		init.Append(checkPtrCall)
-	}
 	return n
 }
 

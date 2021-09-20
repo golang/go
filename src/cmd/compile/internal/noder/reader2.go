@@ -7,8 +7,6 @@
 package noder
 
 import (
-	"go/constant"
-
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
@@ -18,7 +16,7 @@ import (
 type pkgReader2 struct {
 	pkgDecoder
 
-	check   *types2.Checker
+	env     *types2.Environment
 	imports map[string]*types2.Package
 
 	posBases []*syntax.PosBase
@@ -26,11 +24,11 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(check *types2.Checker, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+func readPackage2(env *types2.Environment, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
 	pr := pkgReader2{
 		pkgDecoder: input,
 
-		check:   check,
+		env:     env,
 		imports: imports,
 
 		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
@@ -233,7 +231,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
-			t, _ := types2.Instantiate(types2.NewEnvironment(r.p.check), name.Type(), targs, false)
+			t, _ := types2.Instantiate(r.p.env, name.Type(), targs, false)
 			return t
 		}
 		return name.Type()
@@ -388,14 +386,15 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 
 		case objConst:
 			pos := r.pos()
-			typ, val := r.value()
+			typ := r.typ()
+			val := r.value()
 			return types2.NewConst(pos, objPkg, objName, typ, val)
 
 		case objFunc:
 			pos := r.pos()
 			tparams := r.typeParamNames()
 			sig := r.signature(nil)
-			sig.SetTParams(tparams)
+			sig.SetTypeParams(tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case objType:
@@ -426,11 +425,6 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
 	})
 
 	return objPkg, objName
-}
-
-func (r *reader2) value() (types2.Type, constant.Value) {
-	r.sync(syncValue)
-	return r.typ(), r.rawValue()
 }
 
 func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
@@ -481,7 +475,7 @@ func (r *reader2) typeParamNames() []*types2.TypeParam {
 		pkg, name := r.localIdent()
 
 		tname := types2.NewTypeName(pos, pkg, name, nil)
-		r.dict.tparams[i] = r.p.check.NewTypeParam(tname, nil)
+		r.dict.tparams[i] = types2.NewTypeParam(tname, nil)
 	}
 
 	for i, bound := range r.dict.bounds {
@@ -498,7 +492,7 @@ func (r *reader2) method() *types2.Func {
 
 	rparams := r.typeParamNames()
 	sig := r.signature(r.param())
-	sig.SetRParams(rparams)
+	sig.SetRecvTypeParams(rparams)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
 	return types2.NewFunc(pos, pkg, name, sig)

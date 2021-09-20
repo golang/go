@@ -19,6 +19,14 @@ import (
 // when it may not be safe to keep them only in the integer
 // register space otherwise.
 type RegArgs struct {
+	// Values in these slots should be precisely the bit-by-bit
+	// representation of how they would appear in a register.
+	//
+	// This means that on big endian arches, integer values should
+	// be in the top bits of the slot. Floats are usually just
+	// directly represented, but some architectures treat narrow
+	// width floating point values specially (e.g. they're promoted
+	// first, or they need to be NaN-boxed).
 	Ints   [IntArgRegs]uintptr  // untyped integer registers
 	Floats [FloatArgRegs]uint64 // untyped float registers
 
@@ -54,26 +62,6 @@ func (r *RegArgs) IntRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
 		offset = goarch.PtrSize - argSize
 	}
 	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Ints[reg])) + offset)
-}
-
-// FloatRegArgAddr returns a pointer inside of r.Floats[reg] that is appropriately
-// offset for an argument of size argSize.
-//
-// argSize must be non-zero, fit in a register, and a power-of-two.
-//
-// This method is a helper for dealing with the endianness of different CPU
-// architectures, since sub-word-sized arguments in big endian architectures
-// need to be "aligned" to the upper edge of the register to be interpreted
-// by the CPU correctly.
-func (r *RegArgs) FloatRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
-	if argSize > EffectiveFloatRegSize || argSize == 0 || argSize&(argSize-1) != 0 {
-		panic("invalid argSize")
-	}
-	offset := uintptr(0)
-	if goarch.BigEndian {
-		offset = EffectiveFloatRegSize - argSize
-	}
-	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Floats[reg])) + offset)
 }
 
 // IntArgRegBitmap is a bitmap large enough to hold one bit per

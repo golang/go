@@ -12,7 +12,7 @@ func init() {
 func initTestingZone() {
 	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
 	if err != nil {
-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+		panic("cannot load America/Los_Angeles for testing: " + err.Error() + "; you may want to use -tags=timetzdata")
 	}
 	z.name = "Local"
 	localLoc = *z

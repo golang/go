@@ -696,6 +696,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
 		s.Call(v)
+	case ssa.OpARMCALLtail:
+		s.TailCall(v)
 	case ssa.OpARMCALLudiv:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -936,16 +938,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockARMEQ, ssa.BlockARMNE,
 		ssa.BlockARMLT, ssa.BlockARMGE,

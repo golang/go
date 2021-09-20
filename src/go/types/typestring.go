@@ -65,9 +65,6 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 	newTypeWriter(buf, qf).signature(sig)
 }
 
-// instanceMarker is the prefix for an instantiated type in unexpanded form.
-const instanceMarker = '#'
-
 type typeWriter struct {
 	buf  *bytes.Buffer
 	seen map[Type]bool
@@ -226,13 +223,6 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *Named:
-		// Instance markers indicate unexpanded instantiated
-		// types. Write them to aid debugging, but don't write
-		// them when we need an instance hash: whether a type
-		// is fully expanded or not doesn't matter for identity.
-		if w.env == nil && t.instPos != nil {
-			w.byte(instanceMarker)
-		}
 		w.typePrefix(t)
 		w.typeName(t.obj)
 		if t.targs != nil {

@@ -627,6 +627,105 @@ modifying or saving the FPCR.
 Functions are allowed to modify it between calls (as long as they
 restore it), but as of this writing Go code never does.
 
+### ppc64 architecture
+
+The ppc64 architecture uses R3 – R10 and R14 – R17 for integer arguments
+and results.
+
+It uses F1 – F12 for floating-point arguments and results.
+
+Register R31 is a permanent scratch register in Go.
+
+Special-purpose registers used within Go generated code and Go
+assembly code are as follows:
+
+| Register | Call meaning | Return meaning | Body meaning |
+| --- | --- | --- | --- |
+| R0  | Zero value | Same | Same |
+| R1  | Stack pointer | Same | Same |
+| R2  | TOC register | Same | Same |
+| R11 | Closure context pointer | Scratch | Scratch |
+| R12 | Function address on indirect calls | Scratch | Scratch |
+| R13 | TLS pointer | Same | Same |
+| R20,R21 | Scratch | Scratch | Used by duffcopy, duffzero |
+| R30 | Current goroutine | Same | Same |
+| R31 | Scratch | Scratch | Scratch |
+| LR  | Link register | Link register | Scratch |
+*Rationale*: These register meanings are compatible with Go’s
+stack-based calling convention.
+
+The link register, LR, holds the function return
+address at the function entry and is set to the correct return
+address before exiting the function. It is also used
+in some cases as the function address when doing an indirect call.
+
+The register R2 contains the address of the TOC (table of contents) which
+contains data or code addresses used when generating position independent
+code. Non-Go code generated when using cgo contains TOC-relative addresses
+which depend on R2 holding a valid TOC. Go code compiled with -shared or
+-dynlink initializes and maintains R2 and uses it in some cases for
+function calls; Go code compiled without these options does not modify R2.
+
+When making a function call R12 contains the function address for use by the
+code to generate R2 at the beginning of the function. R12 can be used for
+other purposes within the body of the function, such as trampoline generation.
+
+R20 and R21 are used in duffcopy and duffzero which could be generated
+before arguments are saved so should not be used for register arguments.
+
+The Count register CTR can be used as the call target for some branch instructions.
+It holds the return address when preemption has occurred.
+
+On PPC64 when a float32 is loaded it becomes a float64 in the register, which is
+different from other platforms and that needs to be recognized by the internal
+implementation of reflection so that float32 arguments are passed correctly.
+
+Registers R18 - R29 and F13 - F31 are considered scratch registers.
+
+#### Stack layout
+
+The stack pointer, R1, grows down and is aligned to 8 bytes in Go, but changed
+to 16 bytes when calling cgo.
+
+A function's stack frame, after the frame is created, is laid out as
+follows:
+
+    +------------------------------+
+    | ... locals ...               |
+    | ... outgoing arguments ...   |
+    | 24  TOC register R2 save     | When compiled with -shared/-dynlink
+    | 16  Unused in Go             | Not used in Go
+    |  8  CR save                  | nonvolatile CR fields
+    |  0  return PC                | ← R1 points to
+    +------------------------------+ ↓ lower addresses
+
+The "return PC" is loaded to the link register, LR, as part of the
+ppc64 `BL` operations.
+
+On entry to a non-leaf function, the stack frame size is subtracted from R1 to
+create its stack frame, and saves the value of LR at the bottom of the frame.
+
+A leaf function that does not require any stack space does not modify R1 and
+does not save LR.
+
+*NOTE*: We might need to save the frame pointer on the stack as
+in the PPC64 ELF v2 ABI so Go can inter-operate with platform debuggers
+and profilers.
+
+This stack layout is used by both register-based (ABIInternal) and
+stack-based (ABI0) calling conventions.
+
+#### Flags
+
+The condition register consists of 8 condition code register fields
+CR0-CR7. Go generated code only sets and uses CR0, commonly set by
+compare functions and use to determine the target of a conditional
+branch. The generated code does not set or use CR1-CR7.
+
+The floating point status and control register (FPSCR) is initialized
+to 0 by the kernel at startup of the Go program and not changed by
+the Go generated code.
+
 ## Future directions
 
 ### Spill path improvements

@@ -6,40 +6,48 @@ package poll_test
 
 import (
 	"internal/poll"
-	"internal/syscall/unix"
 	"runtime"
-	"syscall"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
-// checkPipes returns true if all pipes are closed properly, false otherwise.
-func checkPipes(fds []int) bool {
-	for _, fd := range fds {
-		// Check if each pipe fd has been closed.
-		_, _, errno := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), syscall.F_GETPIPE_SZ, 0)
-		if errno == 0 {
-			return false
+var closeHook atomic.Value // func(fd int)
+
+func init() {
+	closeFunc := poll.CloseFunc
+	poll.CloseFunc = func(fd int) (err error) {
+		if v := closeHook.Load(); v != nil {
+			if hook := v.(func(int)); hook != nil {
+				hook(fd)
+			}
 		}
+		return closeFunc(fd)
 	}
-	return true
 }
 
 func TestSplicePipePool(t *testing.T) {
 	const N = 64
 	var (
-		p   *poll.SplicePipe
-		ps  []*poll.SplicePipe
-		fds []int
-		err error
+		p          *poll.SplicePipe
+		ps         []*poll.SplicePipe
+		allFDs     []int
+		pendingFDs sync.Map // fd → struct{}{}
+		err        error
 	)
+
+	closeHook.Store(func(fd int) { pendingFDs.Delete(fd) })
+	t.Cleanup(func() { closeHook.Store((func(int))(nil)) })
+
 	for i := 0; i < N; i++ {
 		p, _, err = poll.GetPipe()
 		if err != nil {
-			t.Skip("failed to create pipe, skip this test")
+			t.Skipf("failed to create pipe due to error(%v), skip this test", err)
 		}
 		_, pwfd := poll.GetPipeFds(p)
-		fds = append(fds, pwfd)
+		allFDs = append(allFDs, pwfd)
+		pendingFDs.Store(pwfd, struct{}{})
 		ps = append(ps, p)
 	}
 	for _, p = range ps {
@@ -62,12 +70,21 @@ func TestSplicePipePool(t *testing.T) {
 	for {
 		runtime.GC()
 		time.Sleep(10 * time.Millisecond)
-		if checkPipes(fds) {
+
+		// Detect whether all pipes are closed properly.
+		var leakedFDs []int
+		pendingFDs.Range(func(k, v interface{}) bool {
+			leakedFDs = append(leakedFDs, k.(int))
+			return true
+		})
+		if len(leakedFDs) == 0 {
 			break
 		}
+
 		select {
 		case <-expiredTime.C:
-			t.Fatal("at least one pipe is still open")
+			t.Logf("all descriptors: %v", allFDs)
+			t.Fatalf("leaked descriptors: %v", leakedFDs)
 		default:
 		}
 	}
