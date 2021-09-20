@@ -148,12 +148,18 @@ func (ctxt *Link) MaxVersion() int {
 }
 
 // generatorFunc is a convenience type.
-// Linker created symbols that are large, and shouldn't really live in the
-// heap can define a generator function, and their bytes can be generated
+// Some linker-created Symbols are large and shouldn't really live in the heap.
+// Such Symbols can define a generator function. Their bytes can be generated
 // directly in the output mmap.
 //
-// Generator symbols shouldn't grow the symbol size, and might be called in
-// parallel in the future.
+// Relocations are applied prior to emitting generator Symbol contents.
+// Generator Symbols that require relocations can be written in two passes.
+// The first pass, at Symbol creation time, adds only relocations.
+// The second pass, at content generation time, adds the rest.
+// See generateFunctab for an example.
+//
+// Generator functions shouldn't grow the Symbol size.
+// Generator functions must be safe for concurrent use.
 //
 // Generator Symbols have their Data set to the mmapped area when the
 // generator is called.
