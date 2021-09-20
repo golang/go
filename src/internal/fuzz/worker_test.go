@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"internal/race"
 	"io"
 	"os"
 	"os/signal"
@@ -27,6 +28,9 @@ func TestMain(m *testing.M) {
 }
 
 func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+	if race.Enabled {
+		b.Skip("TODO(48504): fix and re-enable")
+	}
 	origEnv := os.Getenv("GODEBUG")
 	defer func() { os.Setenv("GODEBUG", origEnv) }()
 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
@@ -65,6 +69,9 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
 // BenchmarkWorkerPing acts as the coordinator and measures the time it takes
 // a worker to respond to N pings. This is a rough measure of our RPC latency.
 func BenchmarkWorkerPing(b *testing.B) {
+	if race.Enabled {
+		b.Skip("TODO(48504): fix and re-enable")
+	}
 	b.SetParallelism(1)
 	w := newWorkerForTest(b)
 	for i := 0; i < b.N; i++ {
@@ -77,6 +84,9 @@ func BenchmarkWorkerPing(b *testing.B) {
 // BenchmarkWorkerFuzz acts as the coordinator and measures the time it takes
 // a worker to mutate a given input and call a trivial fuzz function N times.
 func BenchmarkWorkerFuzz(b *testing.B) {
+	if race.Enabled {
+		b.Skip("TODO(48504): fix and re-enable")
+	}
 	b.SetParallelism(1)
 	w := newWorkerForTest(b)
 	entry := CorpusEntry{Values: []interface{}{[]byte(nil)}}
