@@ -93,14 +93,16 @@ func avoidFunctions() []string {
 }
 
 func TestCPUProfile(t *testing.T) {
-	testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1"}, avoidFunctions())
+	testCPUProfile(t, matches, func(dur time.Duration) {
 		cpuHogger(cpuHog1, &salt1, dur)
 	})
 }
 
 func TestCPUProfileMultithreaded(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
-	testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, avoidFunctions())
+	testCPUProfile(t, matches, func(dur time.Duration) {
 		c := make(chan int)
 		go func() {
 			cpuHogger(cpuHog1, &salt1, dur)
@@ -167,7 +169,8 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 	runtime.GC()
 
 	var cpuTime1, cpuTimeN time.Duration
-	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions())
+	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		cpuTime1 = diffCPUTime(t, func() {
 			// Consume CPU in one goroutine
 			cpuHogger(cpuHog1, &salt1, dur)
@@ -272,7 +275,8 @@ func TestCPUProfileInlining(t *testing.T) {
 		t.Skip("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
 	}
 
-	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}, avoidFunctions())
+	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		cpuHogger(inlinedCaller, &salt1, dur)
 	})
 
@@ -322,7 +326,8 @@ func inlinedCalleeDump(pcs []uintptr) {
 }
 
 func TestCPUProfileRecursion(t *testing.T) {
-	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions())
+	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		cpuHogger(recursionCaller, &salt1, dur)
 	})
 
@@ -407,7 +412,7 @@ func cpuProfilingBroken() bool {
 
 // testCPUProfile runs f under the CPU profiler, checking for some conditions specified by need,
 // as interpreted by matches, and returns the parsed profile.
-func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
+func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
 	case "darwin":
 		out, err := exec.Command("uname", "-a").CombinedOutput()
@@ -448,7 +453,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 		f(duration)
 		StopCPUProfile()
 
-		if p, ok := profileOk(t, matches, need, avoid, prof, duration); ok {
+		if p, ok := profileOk(t, matches, prof, duration); ok {
 			return p
 		}
 
@@ -504,15 +509,11 @@ func stackContains(spec string, count uintptr, stk []*profile.Location, labels m
 	return false
 }
 
-type matchFunc func(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool
+type sampleMatchFunc func(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool
 
-func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, prof bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
+func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
 	ok = true
 
-	// Check that profile is well formed, contains 'need', and does not contain
-	// anything from 'avoid'.
-	have := make([]uintptr, len(need))
-	avoidSamples := make([]uintptr, len(avoid))
 	var samples uintptr
 	var buf bytes.Buffer
 	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
@@ -520,20 +521,6 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 		fprintStack(&buf, stk)
 		fmt.Fprintf(&buf, " labels: %v\n", labels)
 		samples += count
-		for i, spec := range need {
-			if matches(spec, count, stk, labels) {
-				have[i] += count
-			}
-		}
-		for i, name := range avoid {
-			for _, loc := range stk {
-				for _, line := range loc.Line {
-					if strings.Contains(line.Function.Name, name) {
-						avoidSamples[i] += count
-					}
-				}
-			}
-		}
 		fmt.Fprintf(&buf, "\n")
 	})
 	t.Logf("total %d CPU profile samples collected:\n%s", samples, buf.String())
@@ -556,39 +543,77 @@ func profileOk(t *testing.T, matches matchFunc, need []string, avoid []string, p
 		ok = false
 	}
 
-	for i, name := range avoid {
-		bad := avoidSamples[i]
-		if bad != 0 {
-			t.Logf("found %d samples in avoid-function %s\n", bad, name)
-			ok = false
-		}
-	}
-
-	if len(need) == 0 {
-		return p, ok
-	}
-
-	var total uintptr
-	for i, name := range need {
-		total += have[i]
-		t.Logf("%s: %d\n", name, have[i])
-	}
-	if total == 0 {
-		t.Logf("no samples in expected functions")
+	if matches != nil && !matches(t, p) {
 		ok = false
 	}
-	// We'd like to check a reasonable minimum, like
-	// total / len(have) / smallconstant, but this test is
-	// pretty flaky (see bug 7095).  So we'll just test to
-	// make sure we got at least one sample.
-	min := uintptr(1)
-	for i, name := range need {
-		if have[i] < min {
-			t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
+
+	return p, ok
+}
+
+type profileMatchFunc func(*testing.T, *profile.Profile) bool
+
+func matchAndAvoidStacks(matches sampleMatchFunc, need []string, avoid []string) profileMatchFunc {
+	return func(t *testing.T, p *profile.Profile) (ok bool) {
+		ok = true
+
+		// Check that profile is well formed, contains 'need', and does not contain
+		// anything from 'avoid'.
+		have := make([]uintptr, len(need))
+		avoidSamples := make([]uintptr, len(avoid))
+
+		for _, sample := range p.Sample {
+			count := uintptr(sample.Value[0])
+			for i, spec := range need {
+				if matches(spec, count, sample.Location, sample.Label) {
+					have[i] += count
+				}
+			}
+			for i, name := range avoid {
+				for _, loc := range sample.Location {
+					for _, line := range loc.Line {
+						if strings.Contains(line.Function.Name, name) {
+							avoidSamples[i] += count
+						}
+					}
+				}
+			}
+		}
+
+		for i, name := range avoid {
+			bad := avoidSamples[i]
+			if bad != 0 {
+				t.Logf("found %d samples in avoid-function %s\n", bad, name)
+				ok = false
+			}
+		}
+
+		if len(need) == 0 {
+			return
+		}
+
+		var total uintptr
+		for i, name := range need {
+			total += have[i]
+			t.Logf("%s: %d\n", name, have[i])
+		}
+		if total == 0 {
+			t.Logf("no samples in expected functions")
 			ok = false
 		}
+
+		// We'd like to check a reasonable minimum, like
+		// total / len(have) / smallconstant, but this test is
+		// pretty flaky (see bug 7095).  So we'll just test to
+		// make sure we got at least one sample.
+		min := uintptr(1)
+		for i, name := range need {
+			if have[i] < min {
+				t.Logf("%s has %d samples out of %d, want at least %d, ideally %d", name, have[i], total, min, total/uintptr(len(have)))
+				ok = false
+			}
+		}
+		return
 	}
-	return p, ok
 }
 
 // Fork can hang if preempted with signals frequently enough (see issue 5517).
@@ -704,7 +729,7 @@ func fprintStack(w io.Writer, stk []*profile.Location) {
 
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
 func TestMathBigDivide(t *testing.T) {
-	testCPUProfile(t, nil, nil, nil, func(duration time.Duration) {
+	testCPUProfile(t, nil, func(duration time.Duration) {
 		t := time.After(duration)
 		pi := new(big.Int)
 		for {
@@ -733,7 +758,8 @@ func stackContainsAll(spec string, count uintptr, stk []*profile.Location, label
 }
 
 func TestMorestack(t *testing.T) {
-	testCPUProfile(t, stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions(), func(duration time.Duration) {
+	matches := matchAndAvoidStacks(stackContainsAll, []string{"runtime.newstack,runtime/pprof.growstack"}, avoidFunctions())
+	testCPUProfile(t, matches, func(duration time.Duration) {
 		t := time.After(duration)
 		c := make(chan bool)
 		for {
@@ -1364,7 +1390,8 @@ func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, l
 }
 
 func TestCPUProfileLabel(t *testing.T) {
-	testCPUProfile(t, stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, avoidFunctions())
+	testCPUProfile(t, matches, func(dur time.Duration) {
 		Do(context.Background(), Labels("key", "value"), func(context.Context) {
 			cpuHogger(cpuHog1, &salt1, dur)
 		})
@@ -1375,7 +1402,8 @@ func TestLabelRace(t *testing.T) {
 	// Test the race detector annotations for synchronization
 	// between settings labels and consuming them from the
 	// profile.
-	testCPUProfile(t, stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, nil, func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime/pprof.cpuHogger;key=value"}, nil)
+	testCPUProfile(t, matches, func(dur time.Duration) {
 		start := time.Now()
 		var wg sync.WaitGroup
 		for time.Since(start) < dur {
@@ -1392,6 +1420,86 @@ func TestLabelRace(t *testing.T) {
 			wg.Wait()
 		}
 	})
+}
+
+// TestLabelSystemstack makes sure CPU profiler samples of goroutines running
+// on systemstack include the correct pprof labels. See issue #48577
+func TestLabelSystemstack(t *testing.T) {
+	matchBasics := matchAndAvoidStacks(stackContainsLabeled, []string{"runtime.systemstack;key=value"}, avoidFunctions())
+	matches := func(t *testing.T, prof *profile.Profile) bool {
+		if !matchBasics(t, prof) {
+			return false
+		}
+
+		var withLabel, withoutLabel int64
+		for _, s := range prof.Sample {
+			var systemstack, labelHog bool
+			for _, loc := range s.Location {
+				for _, l := range loc.Line {
+					switch l.Function.Name {
+					case "runtime.systemstack":
+						systemstack = true
+					case "runtime/pprof.labelHog":
+						labelHog = true
+					}
+				}
+			}
+
+			if systemstack && labelHog {
+				if s.Label != nil && contains(s.Label["key"], "value") {
+					withLabel += s.Value[0]
+				} else {
+					withoutLabel += s.Value[0]
+				}
+			}
+		}
+
+		// ratio on 2019 Intel MBP before/after CL 351751 for n=30 runs:
+		// before: mean=0.013 stddev=0.013 min=0.000 max=0.039
+		// after : mean=0.996 stddev=0.007 min=0.967 max=1.000
+		//
+		// TODO: Figure out why some samples (containing gcWriteBarrier, gcStart)
+		// still have labelHog without labels. Once fixed this test case can be
+		// simplified to just check that all samples containing labelHog() have the
+		// label, and no other samples do.
+		ratio := float64(withLabel) / float64((withLabel + withoutLabel))
+		if ratio < 0.9 {
+			t.Logf("only %.1f%% of labelHog(systemstack()) samples have label", ratio*100)
+			return false
+		}
+		return true
+	}
+
+	testCPUProfile(t, matches, func(dur time.Duration) {
+		Do(context.Background(), Labels("key", "value"), func(context.Context) {
+			var wg sync.WaitGroup
+			stop := make(chan struct{})
+			for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					labelHog(stop)
+				}()
+			}
+
+			time.Sleep(dur)
+			close(stop)
+			wg.Wait()
+		})
+	})
+}
+
+// labelHog is designed to burn CPU time in a way that a high number of CPU
+// samples end up running on systemstack.
+func labelHog(stop chan struct{}) {
+	for i := 0; ; i++ {
+		select {
+		case <-stop:
+			return
+		default:
+			fmt.Fprintf(io.Discard, "%d", i)
+		}
+	}
 }
 
 // Check that there is no deadlock when the program receives SIGPROF while in
@@ -1686,7 +1794,8 @@ func TestTimeVDSO(t *testing.T) {
 		testenv.SkipFlaky(t, 48655)
 	}
 
-	p := testCPUProfile(t, stackContains, []string{"time.now"}, avoidFunctions(), func(dur time.Duration) {
+	matches := matchAndAvoidStacks(stackContains, []string{"time.now"}, avoidFunctions())
+	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		t0 := time.Now()
 		for {
 			t := time.Now()
