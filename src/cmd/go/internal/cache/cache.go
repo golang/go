@@ -533,3 +533,13 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 
 	return nil
 }
+
+// FuzzDir returns a subdirectory within the cache for storing fuzzing data.
+// The subdirectory may not exist.
+//
+// This directory is managed by the internal/fuzz package. Files in this
+// directory aren't removed by the 'go clean -cache' command or by Trim.
+// They may be removed with 'go clean -fuzzcache'.
+func (c *Cache) FuzzDir() string {
+	return filepath.Join(c.dir, "fuzz")
+}

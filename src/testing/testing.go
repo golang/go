@@ -34,7 +34,7 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Testing_flags
+// https://golang.org/cmd/go/#hdr-Testing_flags.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkRandInt(b *testing.B) {
@@ -132,6 +132,30 @@
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
 //
+// Fuzzing
+//
+// Functions of the form
+//     func FuzzXxx(*testing.F)
+// are considered fuzz targets, and are executed by the "go test" command. When
+// the -fuzz flag is provided, the functions will be fuzzed.
+//
+// For a description of the testing flags, see
+// https://golang.org/cmd/go/#hdr-Testing_flags.
+//
+// For a description of fuzzing, see golang.org/s/draft-fuzzing-design.
+// TODO(#48255): write and link to documentation that will be helpful to users
+// who are unfamiliar with fuzzing.
+//
+// A sample fuzz target looks like this:
+//
+//     func FuzzBytesCmp(f *testing.F) {
+//         f.Fuzz(func(t *testing.T, a, b []byte) {
+//             if bytes.HasPrefix(a, b) && !bytes.Contains(a, b) {
+//                 t.Error("HasPrefix is true, but Contains is false")
+//             }
+//         })
+//     }
+//
 // Skipping
 //
 // Tests or benchmarks may be skipped at run time with a call to
@@ -142,6 +166,21 @@
 //             t.Skip("skipping test in short mode.")
 //         }
 //         ...
+//     }
+//
+// The Skip method of *T can be used in a fuzz target if the input is invalid,
+// but should not be considered a crash. For example:
+//
+//     func FuzzJSONMarshalling(f *testing.F) {
+//         f.Fuzz(func(t *testing.T, b []byte) {
+//             var v interface{}
+//             if err := json.Unmarshal(b, &v); err != nil {
+//                 t.Skip()
+//             }
+//             if _, err := json.Marshal(v); err != nil {
+//                 t.Error("Marshal: %v", err)
+//             }
+//         })
 //     }
 //
 // Subtests and Sub-benchmarks
@@ -163,17 +202,25 @@
 // of the top-level test and the sequence of names passed to Run, separated by
 // slashes, with an optional trailing sequence number for disambiguation.
 //
-// The argument to the -run and -bench command-line flags is an unanchored regular
+// The argument to the -run, -bench, and -fuzz command-line flags is an unanchored regular
 // expression that matches the test's name. For tests with multiple slash-separated
 // elements, such as subtests, the argument is itself slash-separated, with
 // expressions matching each name element in turn. Because it is unanchored, an
 // empty expression matches any string.
 // For example, using "matching" to mean "whose name contains":
 //
-//     go test -run ''      # Run all tests.
-//     go test -run Foo     # Run top-level tests matching "Foo", such as "TestFooBar".
-//     go test -run Foo/A=  # For top-level tests matching "Foo", run subtests matching "A=".
-//     go test -run /A=1    # For all top-level tests, run subtests matching "A=1".
+//     go test -run ''        # Run all tests.
+//     go test -run Foo       # Run top-level tests matching "Foo", such as "TestFooBar".
+//     go test -run Foo/A=    # For top-level tests matching "Foo", run subtests matching "A=".
+//     go test -run /A=1      # For all top-level tests, run subtests matching "A=1".
+//     go test -fuzz FuzzFoo  # Fuzz the target matching "FuzzFoo"
+//
+// The -run argument can also be used to run a specific value in the seed
+// corpus, for debugging. For example:
+//     go test -run=FuzzFoo/9ddb952d9814
+//
+// The -fuzz and -run flags can both be set, in order to fuzz a target but
+// skip the execution of all other tests.
 //
 // Subtests can also be used to control parallelism. A parent test will only
 // complete once all of its subtests complete. In this example, all tests are
@@ -246,6 +293,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"runtime/trace"
@@ -307,6 +355,7 @@ func Init() {
 	shuffle = flag.String("test.shuffle", "off", "randomize the execution order of tests and benchmarks")
 
 	initBenchmarkFlags()
+	initFuzzFlags()
 }
 
 var (
@@ -406,6 +455,7 @@ type common struct {
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
+	fuzzing    bool           // Whether the current test is a fuzzing target.
 	hasSub     int32          // Written atomically.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
@@ -538,6 +588,13 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
+	if c.helperNames == nil {
+		c.helperNames = make(map[string]struct{})
+		for pc := range c.helperPCs {
+			c.helperNames[pcToName(pc)] = struct{}{}
+		}
+	}
+
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
@@ -605,6 +662,17 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
 		// itself follow a test-name header when it is finally flushed to stdout.
 		fmt.Fprintf(p.w, format, args...)
 	}
+}
+
+// isFuzzing returns whether the current context, or any of the parent contexts,
+// are a fuzzing target
+func (c *common) isFuzzing() bool {
+	for com := c; com != nil; com = com.parent {
+		if com.fuzzing {
+			return true
+		}
+	}
+	return false
 }
 
 type indenter struct {
@@ -1083,6 +1151,12 @@ func (t *T) Parallel() {
 		panic("testing: t.Parallel called after t.Setenv; cannot set environment variables in parallel tests")
 	}
 	t.isParallel = true
+	if t.parent.barrier == nil {
+		// T.Parallel has no effect when fuzzing.
+		// Multiple processes may run in parallel, but only one input can run at a
+		// time per process so we can attribute crashes to specific inputs.
+		return
+	}
 
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
@@ -1155,9 +1229,24 @@ func tRunner(t *T, fn func(t *T)) {
 			t.Errorf("race detected during execution of test")
 		}
 
-		// If the test panicked, print any test output before dying.
+		// Check if the test panicked or Goexited inappropriately.
+		//
+		// If this happens in a normal test, print output but continue panicking.
+		// tRunner is called in its own goroutine, so this terminates the process.
+		//
+		// If this happens while fuzzing, recover from the panic and treat it like a
+		// normal failure. It's important that the process keeps running in order to
+		// find short inputs that cause panics.
 		err := recover()
 		signal := true
+
+		if err != nil && t.isFuzzing() {
+			t.Errorf("panic: %s\n%s\n", err, string(debug.Stack()))
+			t.mu.Lock()
+			t.finished = true
+			t.mu.Unlock()
+			err = nil
+		}
 
 		t.mu.RLock()
 		finished := t.finished
@@ -1176,6 +1265,7 @@ func tRunner(t *T, fn func(t *T)) {
 				}
 			}
 		}
+
 		// Use a deferred call to ensure that we report that the test is
 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
 		didPanic := false
@@ -1245,7 +1335,7 @@ func tRunner(t *T, fn func(t *T)) {
 		t.report() // Report after all subtests have finished.
 
 		// Do not lock t.done to allow race detector to detect race in case
-		// the user does not appropriately synchronizes a goroutine.
+		// the user does not appropriately synchronize a goroutine.
 		t.done = true
 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
 			t.setRan()
@@ -1393,6 +1483,16 @@ func (f matchStringOnly) ImportPath() string                          { return "
 func (f matchStringOnly) StartTestLog(io.Writer)                      {}
 func (f matchStringOnly) StopTestLog() error                          { return errMain }
 func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+func (f matchStringOnly) CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error {
+	return errMain
+}
+func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
+func (f matchStringOnly) ReadCorpus(string, []reflect.Type) ([]corpusEntry, error) {
+	return nil, errMain
+}
+func (f matchStringOnly) CheckCorpus([]interface{}, []reflect.Type) error { return nil }
+func (f matchStringOnly) ResetCoverage()                                  {}
+func (f matchStringOnly) SnapshotCoverage()                               {}
 
 // Main is an internal function, part of the implementation of the "go test" command.
 // It was exported because it is cross-package and predates "internal" packages.
@@ -1401,15 +1501,16 @@ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
 // new functionality is added to the testing package.
 // Systems simulating "go test" should be updated to use MainStart.
 func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
-	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, examples).Run())
+	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, nil, examples).Run())
 }
 
 // M is a type passed to a TestMain function to run the actual tests.
 type M struct {
-	deps       testDeps
-	tests      []InternalTest
-	benchmarks []InternalBenchmark
-	examples   []InternalExample
+	deps        testDeps
+	tests       []InternalTest
+	benchmarks  []InternalBenchmark
+	fuzzTargets []InternalFuzzTarget
+	examples    []InternalExample
 
 	timer     *time.Timer
 	afterOnce sync.Once
@@ -1434,18 +1535,25 @@ type testDeps interface {
 	StartTestLog(io.Writer)
 	StopTestLog() error
 	WriteProfileTo(string, io.Writer, int) error
+	CoordinateFuzzing(time.Duration, int64, time.Duration, int64, int, []corpusEntry, []reflect.Type, string, string) error
+	RunFuzzWorker(func(corpusEntry) error) error
+	ReadCorpus(string, []reflect.Type) ([]corpusEntry, error)
+	CheckCorpus([]interface{}, []reflect.Type) error
+	ResetCoverage()
+	SnapshotCoverage()
 }
 
 // MainStart is meant for use by tests generated by 'go test'.
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
-func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
+func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
 	Init()
 	return &M{
-		deps:       deps,
-		tests:      tests,
-		benchmarks: benchmarks,
-		examples:   examples,
+		deps:        deps,
+		tests:       tests,
+		benchmarks:  benchmarks,
+		fuzzTargets: fuzzTargets,
+		examples:    examples,
 	}
 }
 
@@ -1472,9 +1580,15 @@ func (m *M) Run() (code int) {
 		m.exitCode = 2
 		return
 	}
+	if *matchFuzz != "" && *fuzzCacheDir == "" {
+		fmt.Fprintln(os.Stderr, "testing: -test.fuzzcachedir must be set if -test.fuzz is set")
+		flag.Usage()
+		m.exitCode = 2
+		return
+	}
 
 	if len(*matchList) != 0 {
-		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
+		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.fuzzTargets, m.examples)
 		m.exitCode = 0
 		return
 	}
@@ -1502,22 +1616,42 @@ func (m *M) Run() (code int) {
 
 	m.before()
 	defer m.after()
-	deadline := m.startAlarm()
-	haveExamples = len(m.examples) > 0
-	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
-	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
-	m.stopAlarm()
-	if !testRan && !exampleRan && *matchBenchmarks == "" {
-		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+
+	// Run tests, examples, and benchmarks unless this is a fuzz worker process.
+	// Workers start after this is done by their parent process, and they should
+	// not repeat this work.
+	if !*isFuzzWorker {
+		deadline := m.startAlarm()
+		haveExamples = len(m.examples) > 0
+		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+		fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets, deadline)
+		exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+		m.stopAlarm()
+		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
+			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+		}
+		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+			fmt.Println("FAIL")
+			m.exitCode = 1
+			return
+		}
 	}
-	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+
+	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+	if !fuzzingOk {
 		fmt.Println("FAIL")
-		m.exitCode = 1
+		if *isFuzzWorker {
+			m.exitCode = fuzzWorkerExitCode
+		} else {
+			m.exitCode = 1
+		}
 		return
 	}
 
-	fmt.Println("PASS")
 	m.exitCode = 0
+	if !*isFuzzWorker {
+		fmt.Println("PASS")
+	}
 	return
 }
 
@@ -1538,7 +1672,7 @@ func (t *T) report() {
 	}
 }
 
-func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) {
 	if _, err := matchString(*matchList, "non-empty"); err != nil {
 		fmt.Fprintf(os.Stderr, "testing: invalid regexp in -test.list (%q): %s\n", *matchList, err)
 		os.Exit(1)
@@ -1552,6 +1686,11 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 	for _, bench := range benchmarks {
 		if ok, _ := matchString(*matchList, bench.Name); ok {
 			fmt.Println(bench.Name)
+		}
+	}
+	for _, fuzzTarget := range fuzzTargets {
+		if ok, _ := matchString(*matchList, fuzzTarget.Name); ok {
+			fmt.Println(fuzzTarget.Name)
 		}
 	}
 	for _, example := range examples {

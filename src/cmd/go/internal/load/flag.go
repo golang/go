@@ -22,8 +22,9 @@ var (
 // that allows specifying different effective flags for different packages.
 // See 'go help build' for more details about per-package flags.
 type PerPackageFlag struct {
-	present bool
-	values  []ppfValue
+	present      bool
+	values       []ppfValue
+	seenPackages map[*Package]bool // the packages for which the flags have already been set
 }
 
 // A ppfValue is a single <pattern>=<flags> per-package flag value.

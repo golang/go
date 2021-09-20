@@ -1782,7 +1782,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 
 	// Coverage instrumentation counters for libfuzzer.
 	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
-		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._counters", 0), sect)
+		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
 	}
 
 	if len(state.data[sym.STLSBSS]) > 0 {
@@ -2522,6 +2524,7 @@ func (ctxt *Link) address() []*sym.Segment {
 	var noptr *sym.Section
 	var bss *sym.Section
 	var noptrbss *sym.Section
+	var fuzzCounters *sym.Section
 	for i, s := range Segdata.Sections {
 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && s.Name == ".tbss" {
 			continue
@@ -2533,17 +2536,17 @@ func (ctxt *Link) address() []*sym.Segment {
 		s.Vaddr = va
 		va += uint64(vlen)
 		Segdata.Length = va - Segdata.Vaddr
-		if s.Name == ".data" {
+		switch s.Name {
+		case ".data":
 			data = s
-		}
-		if s.Name == ".noptrdata" {
+		case ".noptrdata":
 			noptr = s
-		}
-		if s.Name == ".bss" {
+		case ".bss":
 			bss = s
-		}
-		if s.Name == ".noptrbss" {
+		case ".noptrbss":
 			noptrbss = s
+		case "__libfuzzer_extra_counters":
+			fuzzCounters = s
 		}
 	}
 
@@ -2659,6 +2662,11 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+
+	if fuzzCounters != nil {
+		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr))
+		ctxt.xdefine("internal/fuzz._ecounters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+	}
 
 	if ctxt.IsSolaris() {
 		// On Solaris, in the runtime it sets the external names of the

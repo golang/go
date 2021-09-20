@@ -32,35 +32,36 @@ var (
 	matchBenchmarks *string
 	benchmarkMemory *bool
 
-	benchTime = benchTimeFlag{d: 1 * time.Second} // changed during test of testing package
+	benchTime = durationOrCountFlag{d: 1 * time.Second} // changed during test of testing package
 )
 
-type benchTimeFlag struct {
-	d time.Duration
-	n int
+type durationOrCountFlag struct {
+	d         time.Duration
+	n         int
+	allowZero bool
 }
 
-func (f *benchTimeFlag) String() string {
+func (f *durationOrCountFlag) String() string {
 	if f.n > 0 {
 		return fmt.Sprintf("%dx", f.n)
 	}
 	return time.Duration(f.d).String()
 }
 
-func (f *benchTimeFlag) Set(s string) error {
+func (f *durationOrCountFlag) Set(s string) error {
 	if strings.HasSuffix(s, "x") {
 		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
-		if err != nil || n <= 0 {
+		if err != nil || n < 0 || (!f.allowZero && n == 0) {
 			return fmt.Errorf("invalid count")
 		}
-		*f = benchTimeFlag{n: int(n)}
+		*f = durationOrCountFlag{n: int(n)}
 		return nil
 	}
 	d, err := time.ParseDuration(s)
-	if err != nil || d <= 0 {
+	if err != nil || d < 0 || (!f.allowZero && d == 0) {
 		return fmt.Errorf("invalid duration")
 	}
-	*f = benchTimeFlag{d: d}
+	*f = durationOrCountFlag{d: d}
 	return nil
 }
 
@@ -98,7 +99,7 @@ type B struct {
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
 	benchFunc        func(b *B)
-	benchTime        benchTimeFlag
+	benchTime        durationOrCountFlag
 	bytes            int64
 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool

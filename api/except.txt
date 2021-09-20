@@ -492,6 +492,7 @@ pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uin
 pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
 pkg syscall (windows-amd64), type RawSockaddrAny struct, Pad [96]int8
 pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+pkg testing, func MainStart(testDeps, []InternalTest, []InternalBenchmark, []InternalExample) *M
 pkg testing, func RegisterCover(Cover)
 pkg text/scanner, const GoTokens = 1012
 pkg text/template/parse, type DotNode bool
