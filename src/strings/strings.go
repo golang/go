@@ -1107,7 +1107,7 @@ func Index(s, substr string) int {
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < t {
+		if fails >= bytealg.Cutover(i) && i < t {
 			// See comment in ../bytes/bytes.go.
 			j := bytealg.IndexRabinKarp(s[i:], substr)
 			if j < 0 {
