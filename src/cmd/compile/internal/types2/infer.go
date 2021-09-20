@@ -562,7 +562,7 @@ func (w *cycleFinder) typ(typ Type) {
 		w.typ(t.elem)
 
 	case *Named:
-		for _, tpar := range t.TArgs().list() {
+		for _, tpar := range t.TypeArgs().list() {
 			w.typ(tpar)
 		}
 

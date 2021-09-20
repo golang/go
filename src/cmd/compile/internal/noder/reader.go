@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/constant"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -77,8 +78,6 @@ type reader struct {
 	decoder
 
 	p *pkgReader
-
-	ext *reader
 
 	dict *readerDict
 
@@ -194,15 +193,32 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
 	r := pr.newReader(relocPosBase, idx, syncPosBase)
 	var b *src.PosBase
 
-	filename := r.string()
+	absFilename := r.string()
+	filename := absFilename
+
+	// For build artifact stability, the export data format only
+	// contains the "absolute" filename as returned by objabi.AbsFile.
+	// However, some tests (e.g., test/run.go's asmcheck tests) expect
+	// to see the full, original filename printed out. Re-expanding
+	// "$GOROOT" to buildcfg.GOROOT is a close-enough approximation to
+	// satisfy this.
+	//
+	// TODO(mdempsky): De-duplicate this logic with similar logic in
+	// cmd/link/internal/ld's expandGoroot. However, this will probably
+	// require being more consistent about when we use native vs UNIX
+	// file paths.
+	const dollarGOROOT = "$GOROOT"
+	if strings.HasPrefix(filename, dollarGOROOT) {
+		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
+	}
 
 	if r.bool() {
-		b = src.NewFileBase(filename, filename)
+		b = src.NewFileBase(filename, absFilename)
 	} else {
 		pos := r.pos0()
 		line := r.uint()
 		col := r.uint()
-		b = src.NewLinePragmaBase(pos, filename, filename, line, col)
+		b = src.NewLinePragmaBase(pos, filename, absFilename, line, col)
 	}
 
 	pr.posBases[idx] = b
@@ -568,10 +584,10 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 	dict := pr.objDictIdx(sym, idx, implicits, explicits)
 
 	r := pr.newReader(relocObj, idx, syncObject1)
-	r.ext = pr.newReader(relocObjExt, idx, syncObject1)
+	rext := pr.newReader(relocObjExt, idx, syncObject1)
 
 	r.dict = dict
-	r.ext.dict = dict
+	rext.dict = dict
 
 	sym = r.mangle(sym)
 	if !sym.IsBlank() && sym.Def != nil {
@@ -608,7 +624,8 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 	case objConst:
 		name := do(ir.OLITERAL, false)
-		typ, val := r.value()
+		typ := r.typ()
+		val := FixValue(typ, r.value())
 		setType(name, typ)
 		setValue(name, val)
 		return name
@@ -623,7 +640,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		name.Func = ir.NewFunc(r.pos())
 		name.Func.Nname = name
 
-		r.ext.funcExt(name)
+		rext.funcExt(name)
 		return name
 
 	case objType:
@@ -632,7 +649,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 		setType(name, typ)
 
 		// Important: We need to do this before SetUnderlying.
-		r.ext.typeExt(name)
+		rext.typeExt(name)
 
 		// We need to defer CheckSize until we've called SetUnderlying to
 		// handle recursive types.
@@ -642,7 +659,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 
 		methods := make([]*types.Field, r.len())
 		for i := range methods {
-			methods[i] = r.method()
+			methods[i] = r.method(rext)
 		}
 		if len(methods) != 0 {
 			typ.Methods().Set(methods)
@@ -655,7 +672,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
 	case objVar:
 		name := do(ir.ONAME, false)
 		setType(name, r.typ())
-		r.ext.varExt(name)
+		rext.varExt(name)
 		return name
 	}
 }
@@ -737,13 +754,7 @@ func (r *reader) typeParamNames() {
 	}
 }
 
-func (r *reader) value() (*types.Type, constant.Value) {
-	r.sync(syncValue)
-	typ := r.typ()
-	return typ, FixValue(typ, r.rawValue())
-}
-
-func (r *reader) method() *types.Field {
+func (r *reader) method(rext *reader) *types.Field {
 	r.sync(syncMethod)
 	pos := r.pos()
 	pkg, sym := r.selector()
@@ -759,7 +770,7 @@ func (r *reader) method() *types.Field {
 	name.Func = ir.NewFunc(r.pos())
 	name.Func.Nname = name
 
-	r.ext.funcExt(name)
+	rext.funcExt(name)
 
 	meth := types.NewField(name.Func.Pos(), sym, typ)
 	meth.Nname = name
@@ -916,6 +927,11 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // constructed.
 var todoBodies []*ir.Func
 
+// todoBodiesDone signals that we constructed all function in todoBodies.
+// This is necessary to prevent reader.addBody adds thing to todoBodies
+// when nested inlining happens.
+var todoBodiesDone = false
+
 func (r *reader) addBody(fn *ir.Func) {
 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
 	bodyReader[fn] = pri
@@ -926,7 +942,7 @@ func (r *reader) addBody(fn *ir.Func) {
 		return
 	}
 
-	if r.curfn == nil {
+	if r.curfn == nil && !todoBodiesDone {
 		todoBodies = append(todoBodies, fn)
 		return
 	}
@@ -1538,7 +1554,8 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprConst:
 		pos := r.pos()
-		typ, val := r.value()
+		typ := r.typ()
+		val := FixValue(typ, r.value())
 		op := r.op()
 		orig := r.string()
 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))

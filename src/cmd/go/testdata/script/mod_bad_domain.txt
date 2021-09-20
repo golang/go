@@ -2,7 +2,7 @@ env GO111MODULE=on
 
 # explicit get should report errors about bad names
 ! go get appengine
-stderr '^go get: malformed module path "appengine": missing dot in first path element$'
+stderr '^go: malformed module path "appengine": missing dot in first path element$'
 ! go get x/y.z
 stderr 'malformed module path "x/y.z": missing dot in first path element'
 

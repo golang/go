@@ -862,6 +862,7 @@ type loadPkg struct {
 	imports     []*loadPkg     // packages imported by this one
 	testImports []string       // test-only imports, saved for use by pkg.test.
 	inStd       bool
+	altMods     []module.Version // modules that could have contained the package but did not
 
 	// Populated by (*loader).pkgTest:
 	testOnce sync.Once
@@ -970,7 +971,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		ld.GoVersion = MainModules.GoVersion()
 
 		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
+			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
 	}
@@ -1142,7 +1143,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// If that is not the case, there is a bug in the loading loop above.
 			for _, m := range rs.rootModules {
 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-					ld.errorf("go mod tidy: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
 					base.ExitIfErrors()
 				}
 			}
@@ -1184,8 +1185,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the
-// information gained from ld.pkgs and includes the modules in add as roots at
-// at least the given versions.
+// information gained from ld.pkgs.
 //
 // In particular:
 //
@@ -1343,7 +1343,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
 					changed = true
 					break
 				}
@@ -1554,7 +1554,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1659,7 +1659,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		}
 	}
 
-	pkg.mod, pkg.dir, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	pkg.mod, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
 	if pkg.dir == "" {
 		return
 	}
@@ -1884,7 +1884,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 	mg, err := rs.Graph(ctx)
 	if err != nil {
-		ld.errorf("go mod tidy: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
+		ld.errorf("go: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
 		suggestFixes()
 		return
 	}
@@ -1918,7 +1918,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}

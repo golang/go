@@ -8,9 +8,6 @@ package types
 
 import "go/token"
 
-// TODO(rFindley) decide error codes for the errors in this file, and check
-//                if error spans can be improved
-
 type substMap map[*TypeParam]Type
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
@@ -55,25 +52,12 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
 	}
 
 	// general case
-	var subst subster
-	subst.pos = pos
-	subst.smap = smap
-
-	if check != nil {
-		subst.check = check
-		if env == nil {
-			env = check.env
-		}
+	subst := subster{
+		pos:   pos,
+		smap:  smap,
+		check: check,
+		env:   check.bestEnv(env),
 	}
-	if env == nil {
-		// If we don't have a *Checker and its global type map,
-		// use a local version. Besides avoiding duplicate work,
-		// the type map prevents infinite recursive substitution
-		// for recursive types (example: type T[P any] *T[P]).
-		env = NewEnvironment()
-	}
-	subst.env = env
-
 	return subst.typ(typ)
 }
 
@@ -128,8 +112,7 @@ func (subst *subster) typ(typ Type) Type {
 		if recv != t.recv || params != t.params || results != t.results {
 			return &Signature{
 				rparams: t.rparams,
-				// TODO(rFindley) why can't we nil out tparams here, rather than in
-				//                instantiate above?
+				// TODO(rFindley) why can't we nil out tparams here, rather than in instantiate?
 				tparams:  t.tparams,
 				scope:    t.scope,
 				recv:     recv,
@@ -182,13 +165,19 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if t.TypeParams().Len() == 0 {
+		// subst is called by expandNamed, so in this function we need to be
+		// careful not to call any methods that would cause t to be expanded: doing
+		// so would result in deadlock.
+		//
+		// So we call t.orig.TypeParams() rather than t.TypeParams() here and
+		// below.
+		if t.orig.TypeParams().Len() == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
 		var newTArgs []Type
-		assert(t.targs.Len() == t.TypeParams().Len())
+		assert(t.targs.Len() == t.orig.TypeParams().Len())
 
 		// already instantiated
 		dump(">>> %s already instantiated", t)
@@ -201,7 +190,7 @@ func (subst *subster) typ(typ Type) Type {
 			if new_targ != targ {
 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 				if newTArgs == nil {
-					newTArgs = make([]Type, t.TypeParams().Len())
+					newTArgs = make([]Type, t.orig.TypeParams().Len())
 					copy(newTArgs, t.targs.list())
 				}
 				newTArgs[i] = new_targ
@@ -221,27 +210,19 @@ func (subst *subster) typ(typ Type) Type {
 			return named
 		}
 
-		// Create a new named type and populate the environment to avoid endless
+		t.orig.resolve(subst.env)
+		// Create a new instance and populate the environment to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		t.load()
-		// It's ok to provide a nil *Checker because the newly created type
-		// doesn't need to be (lazily) expanded; it's expanded below.
-		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
-		named.targs = NewTypeList(newTArgs)
-		subst.env.typeForHash(h, named)
-		t.expand(subst.env) // must happen after env update to avoid infinite recursion
+		t.orig.resolve(subst.env)
+		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
 
-		// do the substitution
-		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTArgs)
-		named.underlying = subst.typOrNil(t.underlying)
-		dump(">>> underlying: %v", named.underlying)
-		assert(named.underlying != nil)
-		named.fromRHS = named.underlying // for consistency, though no cycle detection is necessary
-
-		return named
+		// Note that if we were to expose substitution more generally (not just in
+		// the context of a declaration), we'd have to substitute in
+		// named.underlying as well.
+		//
+		// But this is unnecessary for now.
 
 	case *TypeParam:
 		return subst.smap.lookup(t)

@@ -111,14 +111,6 @@ func checkUserNS(t *testing.T) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
 }
 
 func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
@@ -199,14 +191,6 @@ func TestUnshare(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	path := "/proc/net/dev"

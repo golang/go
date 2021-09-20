@@ -772,6 +772,9 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpPPC64SUB
 		return true
+	case OpTailCall:
+		v.Op = OpPPC64CALLtail
+		return true
 	case OpTrunc:
 		v.Op = OpPPC64FTRUNC
 		return true

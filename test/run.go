@@ -780,11 +780,13 @@ func (t *test) run() {
 			}
 
 		default:
-			// we don't know how to add -G for this test yet
-			if *verbose {
-				fmt.Printf("excl\t%s\n", t.goFileName())
+			if t.glevel != CompilerDefaultGLevel {
+				// we don't know how to add -G for this test yet
+				if *verbose {
+					fmt.Printf("excl\t%s\n", t.goFileName())
+				}
+				return false
 			}
-			return false
 		}
 
 		return true
@@ -1751,7 +1753,7 @@ var (
 	// are the supported variants.
 	archVariants = map[string][]string{
 		"386":     {"GO386", "sse2", "softfloat"},
-		"amd64":   {},
+		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
 		"arm":     {"GOARM", "5", "6", "7"},
 		"arm64":   {},
 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
@@ -2182,11 +2184,7 @@ var types2Failures32Bit = setOf(
 )
 
 var g3Failures = setOf(
-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
-
 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
-
-	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
 )
 
 var unifiedFailures = setOf(

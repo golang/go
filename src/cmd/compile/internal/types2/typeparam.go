@@ -29,18 +29,22 @@ type TypeParam struct {
 func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
-// or Signature type by calling SetTParams. Setting a type parameter on more
+// or Signature type by calling SetTypeParams. Setting a type parameter on more
 // than one type will result in a panic.
 //
-// The bound argument can be nil, and set later via SetBound.
-func (check *Checker) NewTypeParam(obj *TypeName, bound Type) *TypeParam {
+// The constraint argument can be nil, and set later via SetConstraint.
+func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
+	return (*Checker)(nil).newTypeParam(obj, constraint)
+}
+
+func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	// Always increment lastID, even if it is not used.
 	id := nextID()
 	if check != nil {
 		check.nextID++
 		id = check.nextID
 	}
-	typ := &TypeParam{check: check, id: id, obj: obj, index: -1, bound: bound}
+	typ := &TypeParam{check: check, id: id, obj: obj, index: -1, bound: constraint}
 	if obj.typ == nil {
 		obj.typ = typ
 	}

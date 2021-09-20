@@ -1209,6 +1209,15 @@ func (l *Loader) IsItab(i Sym) bool {
 	return r.Sym(li).IsItab()
 }
 
+// Returns whether this symbol is a dictionary symbol.
+func (l *Loader) IsDict(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsDict()
+}
+
 // Return whether this is a trampoline of a deferreturn call.
 func (l *Loader) IsDeferReturnTramp(i Sym) bool {
 	return l.deferReturnTramp[i]

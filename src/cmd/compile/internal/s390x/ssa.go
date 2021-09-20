@@ -556,6 +556,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
 		s.Call(v)
+	case ssa.OpS390XCALLtail:
+		s.TailCall(v)
 	case ssa.OpS390XLoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -899,16 +901,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
 		return
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 		return
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-		return
-	case ssa.BlockRetJmp:
-		p := s.Prog(s390x.ABR)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 		return
 	}
 

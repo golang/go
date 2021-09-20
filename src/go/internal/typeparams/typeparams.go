@@ -21,7 +21,7 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
 			Rbrack: rbrack,
 		}
 	default:
-		return &ast.MultiIndexExpr{
+		return &ast.IndexListExpr{
 			X:       x,
 			Lbrack:  lbrack,
 			Indices: exprs,
@@ -30,25 +30,24 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.
 	}
 }
 
-// IndexExpr wraps an ast.IndexExpr or ast.MultiIndexExpr into the
-// MultiIndexExpr interface.
+// IndexExpr wraps an ast.IndexExpr or ast.IndexListExpr.
 //
 // Orig holds the original ast.Expr from which this IndexExpr was derived.
 type IndexExpr struct {
-	Orig ast.Expr // the wrapped expr, which may be distinct from MultiIndexExpr below.
-	*ast.MultiIndexExpr
+	Orig ast.Expr // the wrapped expr, which may be distinct from the IndexListExpr below.
+	*ast.IndexListExpr
 }
 
 func UnpackIndexExpr(n ast.Node) *IndexExpr {
 	switch e := n.(type) {
 	case *ast.IndexExpr:
-		return &IndexExpr{e, &ast.MultiIndexExpr{
+		return &IndexExpr{e, &ast.IndexListExpr{
 			X:       e.X,
 			Lbrack:  e.Lbrack,
 			Indices: []ast.Expr{e.Index},
 			Rbrack:  e.Rbrack,
 		}}
-	case *ast.MultiIndexExpr:
+	case *ast.IndexListExpr:
 		return &IndexExpr{e, e}
 	}
 	return nil

@@ -59,7 +59,7 @@ stderr '^example.net/testonly tested by\n\texample.net/testonly\.test imports\n\
 # but fail for a non-package subdirectory of a module.
 
 ! go get -d example.net/missing/subdir@v0.1.0
-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
 
 go get -d example.net/missing@v0.1.0
 
@@ -68,7 +68,7 @@ go get -d example.net/missing@v0.1.0
 # module is already present in the build list.
 
 ! go get -d example.net/missing/subdir@v0.1.0
-stderr '^go get: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
+stderr '^go: module example.net/missing@v0.1.0 found \(replaced by ./missing\), but does not contain package example.net/missing/subdir$'
 
 
 -- go.mod --

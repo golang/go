@@ -50,13 +50,6 @@ func (env *Environment) typeHash(typ Type, targs []Type) string {
 		h.typ(typ)
 	}
 
-	if debug {
-		// there should be no instance markers in type hashes
-		for _, b := range buf.Bytes() {
-			assert(b != instanceMarker)
-		}
-	}
-
 	return buf.String()
 }
 

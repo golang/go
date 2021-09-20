@@ -27,7 +27,7 @@ exists $GOPATH/bin/hello.svn$GOEXE
 # reasonable message instead of a panic.
 ! go get -d vcs-test.golang.org/svn/nonexistent.svn
 ! stderr panic
-stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
+stderr 'go: vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
 
 -- go.mod --
 module golang/go/issues/28943/main

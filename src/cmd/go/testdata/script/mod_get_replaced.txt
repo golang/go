@@ -82,7 +82,7 @@ cp go.mod.orig go.mod
 ! go list example
 stderr '^package example is not in GOROOT \(.*\)$'
 ! go get -d example
-stderr '^go get: malformed module path "example": missing dot in first path element$'
+stderr '^go: malformed module path "example": missing dot in first path element$'
 
 go mod edit -replace example@v0.1.0=./example
 

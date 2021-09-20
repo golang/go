@@ -873,7 +873,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.expr0(x.Index, depth+1)
 		p.print(x.Rbrack, token.RBRACK)
 
-	case *ast.MultiIndexExpr:
+	case *ast.IndexListExpr:
 		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
 		// one level of depth
 		p.expr1(x.X, token.HighestPrec, 1)

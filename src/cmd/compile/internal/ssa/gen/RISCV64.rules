@@ -96,6 +96,10 @@
 (Sqrt ...) => (FSQRTD ...)
 (Sqrt32 ...) => (FSQRTS ...)
 
+(Copysign ...) => (FSGNJD ...)
+
+(Abs ...) => (FABSD ...)
+
 (FMA ...) => (FMADDD ...)
 
 // Sign and zero extension.
@@ -542,6 +546,7 @@
 (StaticCall  ...) => (CALLstatic  ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
+(TailCall ...) => (CALLtail ...)
 
 // Atomic Intrinsics
 (AtomicLoad8   ...) => (LoweredAtomicLoad8  ...)

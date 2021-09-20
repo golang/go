@@ -80,13 +80,13 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	if *whyM {
 		for _, arg := range args {
 			if strings.Contains(arg, "@") {
-				base.Fatalf("go mod why: module query not allowed")
+				base.Fatalf("go: %s: 'go mod why' requires a module path, not a version query", arg)
 			}
 		}
 
 		mods, err := modload.ListModules(ctx, args, 0)
 		if err != nil {
-			base.Fatalf("go mod why: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 
 		byModule := make(map[module.Version][]string)

@@ -136,6 +136,14 @@ func walkStmt(n ir.Node) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+
+		var init ir.Nodes
+		n.Call.X = walkExpr(n.Call.X, &init)
+
+		if len(init) > 0 {
+			init.Append(n)
+			return ir.NewBlockStmt(n.Pos(), init)
+		}
 		return n
 
 	case ir.OINLMARK:

@@ -352,7 +352,10 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
 	if types.Identical(src, dst) {
 		return ir.OCONVNOP, ""
 	}
+	return Assignop1(src, dst)
+}
 
+func Assignop1(src, dst *types.Type) (ir.Op, string) {
 	// 2. src and dst have identical underlying types and
 	//   a. either src or dst is not a named type, or
 	//   b. both are empty interface types, or
@@ -1019,10 +1022,11 @@ type Tsubster struct {
 	SubstForwFunc func(*types.Type) *types.Type
 }
 
-// Typ computes the type obtained by substituting any type parameter in t with the
-// corresponding type argument in subst. If t contains no type parameters, the
-// result is t; otherwise the result is a new type. It deals with recursive types
-// by using TFORW types and finding partially or fully created types via sym.Def.
+// Typ computes the type obtained by substituting any type parameter or shape in t
+// that appears in subst.Tparams with the corresponding type argument in subst.Targs.
+// If t contains no type parameters, the result is t; otherwise the result is a new
+// type. It deals with recursive types by using TFORW types and finding partially or
+// fully created types via sym.Def.
 func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 	// Defer the CheckSize calls until we have fully-defined
 	// (possibly-recursive) top-level type.
@@ -1033,14 +1037,14 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
 }
 
 func (ts *Tsubster) typ1(t *types.Type) *types.Type {
-	if !t.HasTParam() && t.Kind() != types.TFUNC {
+	if !t.HasTParam() && !t.HasShape() && t.Kind() != types.TFUNC {
 		// Note: function types need to be copied regardless, as the
 		// types of closures may contain declarations that need
 		// to be copied. See #45738.
 		return t
 	}
 
-	if t.IsTypeParam() {
+	if t.IsTypeParam() || t.IsShape() {
 		for i, tp := range ts.Tparams {
 			if tp == t {
 				return ts.Targs[i]
@@ -1072,14 +1076,14 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 	var targsChanged bool
 	var forw *types.Type
 
-	if t.Sym() != nil && t.HasTParam() {
+	if t.Sym() != nil && (t.HasTParam() || t.HasShape()) {
 		// Need to test for t.HasTParam() again because of special TFUNC case above.
 		// Translate the type params for this type according to
 		// the tparam/targs mapping from subst.
 		neededTargs = make([]*types.Type, len(t.RParams()))
 		for i, rparam := range t.RParams() {
 			neededTargs[i] = ts.typ1(rparam)
-			if !types.Identical(neededTargs[i], rparam) {
+			if !types.IdenticalStrict(neededTargs[i], rparam) {
 				targsChanged = true
 			}
 		}
@@ -1286,7 +1290,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 // fields, set force to true.
 func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 	if t.NumFields() == 0 {
-		if t.HasTParam() {
+		if t.HasTParam() || t.HasShape() {
 			// For an empty struct, we need to return a new type,
 			// since it may now be fully instantiated (HasTParam
 			// becomes false).
@@ -1312,6 +1316,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			newfields[i].Embedded = f.Embedded
+			newfields[i].Note = f.Note
 			if f.IsDDD() {
 				newfields[i].SetIsDDD(true)
 			}
@@ -1387,19 +1392,20 @@ func genericTypeName(sym *types.Sym) string {
 	return sym.Name[0:strings.Index(sym.Name, "[")]
 }
 
-// Shapify takes a concrete type and returns a GCshape type that can
+// Shapify takes a concrete type and a type param index, and returns a GCshape type that can
 // be used in place of the input type and still generate identical code.
 // No methods are added - all methods calls directly on a shape should
 // be done by converting to an interface using the dictionary.
 //
-// TODO: this could take the generic function and base its decisions
-// on how that generic function uses this type argument. For instance,
-// if it doesn't use it as a function argument/return value, then
-// we don't need to distinguish int64 and float64 (because they only
-// differ in how they get passed as arguments). For now, we only
-// unify two different types if they are identical in every possible way.
-func Shapify(t *types.Type) *types.Type {
-	assert(!t.HasShape())
+// For now, we only consider two types to have the same shape, if they have exactly
+// the same underlying type or they are both pointer types.
+//
+//  Shape types are also distinguished by the index of the type in a type param/arg
+//  list. We need to do this so we can distinguish and substitute properly for two
+//  type params in the same function that have the same shape for a particular
+//  instantiation.
+func Shapify(t *types.Type, index int) *types.Type {
+	assert(!t.IsShape())
 	// Map all types with the same underlying type to the same shape.
 	u := t.Underlying()
 
@@ -1409,22 +1415,35 @@ func Shapify(t *types.Type) *types.Type {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 
-	if s := shaped[u]; s != nil {
+	if shapeMap == nil {
+		shapeMap = map[int]map[*types.Type]*types.Type{}
+	}
+	submap := shapeMap[index]
+	if submap == nil {
+		submap = map[*types.Type]*types.Type{}
+		shapeMap[index] = submap
+	}
+	if s := submap[u]; s != nil {
 		return s
 	}
 
-	sym := shapePkg.Lookup(u.LinkString())
+	nm := fmt.Sprintf("%s_%d", u.LinkString(), index)
+	sym := types.ShapePkg.Lookup(nm)
+	if sym.Def != nil {
+		// Use any existing type with the same name
+		submap[u] = sym.Def.Type()
+		return submap[u]
+	}
 	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
 	s := types.NewNamed(name)
+	sym.Def = name
 	s.SetUnderlying(u)
 	s.SetIsShape(true)
 	s.SetHasShape(true)
 	name.SetType(s)
 	name.SetTypecheck(1)
-	shaped[u] = s
+	submap[u] = s
 	return s
 }
 
-var shaped = map[*types.Type]*types.Type{}
-
-var shapePkg = types.NewPkg(".shape", ".shape")
+var shapeMap map[int]map[*types.Type]*types.Type

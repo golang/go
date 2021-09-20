@@ -544,7 +544,7 @@ func IsStackAddr(v *Value) bool {
 		v = v.Args[0]
 	}
 	switch v.Op {
-	case OpSP, OpLocalAddr, OpSelectNAddr:
+	case OpSP, OpLocalAddr, OpSelectNAddr, OpGetCallerSP:
 		return true
 	}
 	return false

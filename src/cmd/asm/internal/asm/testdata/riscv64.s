@@ -382,10 +382,12 @@ start:
 	SNEZ	X15, X15				// b337f000
 
 	// F extension
+	FABSS	F0, F1					// d3200020
 	FNEGS	F0, F1					// d3100020
 	FNES	F0, F1, X7				// d3a300a093c31300
 
 	// D extension
+	FABSD	F0, F1					// d3200022
 	FNEGD	F0, F1					// d3100022
 	FNED	F0, F1, X5				// d3a200a293c21200
 	FLTD	F0, F1, X5				// d39200a2

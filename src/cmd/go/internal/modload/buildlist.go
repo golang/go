@@ -591,7 +591,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 // 	   selected at the same version or is upgraded by the dependencies of a
 // 	   root.
 //
-// If any module that provided a package has been upgraded above its previous,
+// If any module that provided a package has been upgraded above its previous
 // version, the caller may need to reload and recompute the package graph.
 //
 // To ensure that the loading process eventually converges, the caller should
@@ -980,17 +980,37 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
 	return true
 }
 
-// tidyUnprunedRoots returns a minimal set of root requirements that maintains the
-// selected version of every module that provided a package in pkgs, and
-// includes the selected version of every such module in direct as a root.
+// tidyUnprunedRoots returns a minimal set of root requirements that maintains
+// the selected version of every module that provided or lexically could have
+// provided a package in pkgs, and includes the selected version of every such
+// module in direct as a root.
 func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
 	var (
+		// keep is a set of of modules that provide packages or are needed to
+		// disambiguate imports.
 		keep     []module.Version
 		keptPath = map[string]bool{}
-	)
-	var (
-		rootPaths   []string // module paths that should be included as roots
+
+		// rootPaths is a list of module paths that provide packages directly
+		// imported from the main module. They should be included as roots.
+		rootPaths   []string
 		inRootPaths = map[string]bool{}
+
+		// altMods is a set of paths of modules that lexically could have provided
+		// imported packages. It may be okay to remove these from the list of
+		// explicit requirements if that removes them from the module graph. If they
+		// are present in the module graph reachable from rootPaths, they must not
+		// be at a lower version. That could cause a missing sum error or a new
+		// import ambiguity.
+		//
+		// For example, suppose a developer rewrites imports from example.com/m to
+		// example.com/m/v2, then runs 'go mod tidy'. Tidy may delete the
+		// requirement on example.com/m if there is no other transitive requirement
+		// on it. However, if example.com/m were downgraded to a version not in
+		// go.sum, when package example.com/m/v2/p is loaded, we'd get an error
+		// trying to disambiguate the import, since we can't check example.com/m
+		// without its sum. See #47738.
+		altMods = map[string]string{}
 	)
 	for _, pkg := range pkgs {
 		if !pkg.fromExternalModule() {
@@ -1004,12 +1024,44 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
 				inRootPaths[m.Path] = true
 			}
 		}
+		for _, m := range pkg.altMods {
+			altMods[m.Path] = m.Version
+		}
 	}
 
-	min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
+	// Construct a build list with a minimal set of roots.
+	// This may remove or downgrade modules in altMods.
+	reqs := &mvsReqs{roots: keep}
+	min, err := mvs.Req(mainModule, rootPaths, reqs)
 	if err != nil {
 		return nil, err
 	}
+	buildList, err := mvs.BuildList([]module.Version{mainModule}, reqs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if modules in altMods were downgraded but not removed.
+	// If so, add them to roots, which will retain an "// indirect" requirement
+	// in go.mod. See comment on altMods above.
+	keptAltMod := false
+	for _, m := range buildList {
+		if v, ok := altMods[m.Path]; ok && semver.Compare(m.Version, v) < 0 {
+			keep = append(keep, module.Version{Path: m.Path, Version: v})
+			keptAltMod = true
+		}
+	}
+	if keptAltMod {
+		// We must run mvs.Req again instead of simply adding altMods to min.
+		// It's possible that a requirement in altMods makes some other
+		// explicit indirect requirement unnecessary.
+		reqs.roots = keep
+		min, err = mvs.Req(mainModule, rootPaths, reqs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return newRequirements(unpruned, min, direct), nil
 }
 

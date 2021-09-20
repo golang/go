@@ -11,7 +11,7 @@ stdout '^patch.example.com/indirect v1.0.0'
 
 # @patch should be rejected for modules not already in the build list.
 ! go get -d patch.example.com/depofdirectpatch@patch
-stderr '^go get: can''t query version "patch" of module patch.example.com/depofdirectpatch: no existing version is required$'
+stderr '^go: can''t query version "patch" of module patch.example.com/depofdirectpatch: no existing version is required$'
 cmp go.mod.orig go.mod
 
 # get -u=patch, with no arguments, should patch-update all dependencies
@@ -38,7 +38,7 @@ cp go.mod.orig go.mod
 go mod edit -droprequire=patch.example.com/direct
 cp go.mod go.mod.dropped
 ! go get -d all@patch
-stderr '^go get all@patch: can''t query version "patch" of module patch.example.com/direct: no existing version is required$'
+stderr '^go: all@patch: can''t query version "patch" of module patch.example.com/direct: no existing version is required$'
 cmp go.mod.dropped go.mod
 
 # Requesting the direct dependency with -u=patch but without an explicit version
@@ -86,7 +86,7 @@ stdout '^patch.example.com/indirect v1.0.1'
 # Standard library packages cannot be upgraded explicitly.
 cp go.mod.orig go.mod
 ! go get cmd/vet@patch
-stderr 'go get: can''t request explicit version "patch" of standard library package cmd/vet$'
+stderr 'go: can''t request explicit version "patch" of standard library package cmd/vet$'
 
 # However, standard-library packages without explicit versions are fine.
 go get -d -u=patch -d cmd/go
