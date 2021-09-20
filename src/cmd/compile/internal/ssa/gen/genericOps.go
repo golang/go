@@ -105,7 +105,7 @@ var genericOps = []opData{
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	// Shift amounts are considered unsigned.
-	// If arg1 is known to be less than the number of bits in arg0,
+	// If arg1 is known to be nonnegative and less than the number of bits in arg0,
 	// then auxInt may be set to 1.
 	// This enables better code generation on some platforms.
 	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
