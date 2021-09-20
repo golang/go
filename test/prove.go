@@ -820,7 +820,7 @@ func unrollDownExcl0(a []int) int {
 // Induction variable in unrolled loop.
 func unrollDownExcl1(a []int) int {
 	var i, x int
-	for i = len(a) - 1; i >= 1; i -= 2 { // ERROR "Induction variable: limits \[1,\?\], increment 2$"
+	for i = len(a) - 1; i >= 1; i -= 2 { // ERROR "Induction variable: limits \(0,\?\], increment 2$"
 		x += a[i]   // ERROR "Proved IsInBounds$"
 		x += a[i-1] // ERROR "Proved IsInBounds$"
 	}

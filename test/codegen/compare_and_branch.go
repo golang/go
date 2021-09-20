@@ -204,3 +204,39 @@ func ui32xu8(x chan uint32) {
 		dummy()
 	}
 }
+
+// Signed 64-bit comparison with 1/-1 to comparison with 0.
+func si64x0(x chan int64) {
+	// riscv64:"BGTZ"
+	for <-x >= 1 {
+		dummy()
+	}
+
+	// riscv64:"BLEZ"
+	for <-x < 1 {
+		dummy()
+	}
+
+	// riscv64:"BLTZ"
+	for <-x <= -1 {
+		dummy()
+	}
+
+	// riscv64:"BGEZ"
+	for <-x > -1 {
+		dummy()
+	}
+}
+
+// Unsigned 64-bit comparison with 1 to comparison with 0.
+func ui64x0(x chan uint64) {
+	// riscv64:"BNEZ"
+	for <-x >= 1 {
+		dummy()
+	}
+
+	// riscv64:"BEQZ"
+	for <-x < 1 {
+		dummy()
+	}
+}

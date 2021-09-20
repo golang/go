@@ -518,8 +518,17 @@
 (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
 
+// prefer equalities with zero
 (Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 (Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8)U x (Const(64|32|16|8) <t> [1])) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Leq(64|32|16|8)U (Const(64|32|16|8) <t> [1]) x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+
+// prefer comparisons with zero
+(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) => (Leq(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Leq(64|32|16|8) x (Const(64|32|16|8) <t> [-1])) => (Less(64|32|16|8) x (Const(64|32|16|8) <t> [0]))
+(Leq(64|32|16|8) (Const(64|32|16|8) <t> [1]) x) => (Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8) (Const(64|32|16|8) <t> [-1]) x) => (Leq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 
 // constant floating point comparisons
 (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
