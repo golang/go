@@ -513,7 +513,10 @@ var depsRules = `
 	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
-	internal/testlog, runtime/pprof, regexp
+	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand, encoding/hex, crypto/sha256
+	< internal/fuzz;
+
+	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
 	OS, flag, testing, internal/cfg

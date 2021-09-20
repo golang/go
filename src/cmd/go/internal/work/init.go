@@ -60,6 +60,14 @@ func BuildInit() {
 	}
 }
 
+func FuzzInstrumentFlags() []string {
+	if cfg.Goarch != "amd64" && cfg.Goarch != "arm64" {
+		// Instrumentation is only supported on 64-bit architectures.
+		return nil
+	}
+	return []string{"-d=libfuzzer"}
+}
+
 func instrumentInit() {
 	if !cfg.BuildRace && !cfg.BuildMSan {
 		return
