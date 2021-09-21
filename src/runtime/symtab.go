@@ -206,7 +206,7 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 		}
 		lastFuncID = inltree[ix].funcID
 		// Back up to an instruction in the "caller".
-		tracepc = f.entry + uintptr(inltree[ix].parentPc)
+		tracepc = f.entry() + uintptr(inltree[ix].parentPc)
 		pc = tracepc + 1
 	}
 
@@ -651,7 +651,7 @@ func FuncForPC(pc uintptr) *Func {
 			file, line := funcline(f, pc)
 			fi := &funcinl{
 				ones:  ^uintptr(0),
-				entry: f.entry, // entry of the real (the outermost) function.
+				entry: f.entry(), // entry of the real (the outermost) function.
 				name:  name,
 				file:  file,
 				line:  int(line),
@@ -682,7 +682,7 @@ func (f *Func) Entry() uintptr {
 		fi := (*funcinl)(unsafe.Pointer(fn))
 		return fi.entry
 	}
-	return fn.entry
+	return fn.entry()
 }
 
 // FileLine returns the file name and line number of the
@@ -731,7 +731,12 @@ func (f funcInfo) _Func() *Func {
 
 // isInlined reports whether f should be re-interpreted as a *funcinl.
 func (f *_func) isInlined() bool {
-	return f.entry == ^uintptr(0) // see comment for funcinl.ones
+	return f.entryPC == ^uintptr(0) // see comment for funcinl.ones
+}
+
+// entry returns the entry PC for f.
+func (f *_func) entry() uintptr {
+	return f.entryPC
 }
 
 // findfunc looks up function metadata for a PC.
@@ -838,19 +843,19 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 
 	if !f.valid() {
 		if strict && panicking == 0 {
-			print("runtime: no module data for ", hex(f.entry), "\n")
+			print("runtime: no module data for ", hex(f.entry()), "\n")
 			throw("no module data")
 		}
 		return -1, 0
 	}
 	datap := f.datap
 	p := datap.pctab[off:]
-	pc := f.entry
+	pc := f.entry()
 	prevpc := pc
 	val := int32(-1)
 	for {
 		var ok bool
-		p, ok = step(p, &pc, &val, pc == f.entry)
+		p, ok = step(p, &pc, &val, pc == f.entry())
 		if !ok {
 			break
 		}
@@ -887,11 +892,11 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
 	p = datap.pctab[off:]
-	pc = f.entry
+	pc = f.entry()
 	val = -1
 	for {
 		var ok bool
-		p, ok = step(p, &pc, &val, pc == f.entry)
+		p, ok = step(p, &pc, &val, pc == f.entry())
 		if !ok {
 			break
 		}
@@ -975,7 +980,7 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
 func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
 	if x&(goarch.PtrSize-1) != 0 {
-		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+		print("invalid spdelta ", funcname(f), " ", hex(f.entry()), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
 }
@@ -984,12 +989,12 @@ func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 func funcMaxSPDelta(f funcInfo) int32 {
 	datap := f.datap
 	p := datap.pctab[f.pcsp:]
-	pc := f.entry
+	pc := f.entry()
 	val := int32(-1)
 	max := int32(0)
 	for {
 		var ok bool
-		p, ok = step(p, &pc, &val, pc == f.entry)
+		p, ok = step(p, &pc, &val, pc == f.entry())
 		if !ok {
 			return max
 		}

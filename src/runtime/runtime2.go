@@ -858,7 +858,7 @@ const (
 // Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
 // and with package debug/gosym and with symtab.go in package runtime.
 type _func struct {
-	entry   uintptr // start pc
+	entryPC uintptr // start pc
 	nameoff int32   // function name
 
 	args        int32  // in/out args size

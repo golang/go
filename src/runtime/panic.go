@@ -626,7 +626,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 				// deferreturn that runs any remaining
 				// defers and then returns from the
 				// function.
-				d1.pc = frame.fn.entry + uintptr(frame.fn.deferreturn)
+				d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
 				d1.varp = frame.varp
 				d1.fd = fd
 				// Save the SP/PC associated with current frame,
