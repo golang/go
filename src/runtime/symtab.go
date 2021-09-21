@@ -272,11 +272,14 @@ func (f *Func) raw() *_func {
 }
 
 func (f *Func) funcInfo() funcInfo {
-	fn := f.raw()
+	return f.raw().funcInfo()
+}
+
+func (f *_func) funcInfo() funcInfo {
 	// Find the module containing fn. fn is located in the pclntable.
 	// The unsafe.Pointer to uintptr conversions and arithmetic
 	// are safe because we are working with module addresses.
-	ptr := uintptr(unsafe.Pointer(fn))
+	ptr := uintptr(unsafe.Pointer(f))
 	var mod *moduledata
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		if len(datap.pclntable) == 0 {
@@ -288,7 +291,7 @@ func (f *Func) funcInfo() funcInfo {
 			break
 		}
 	}
-	return funcInfo{fn, mod}
+	return funcInfo{f, mod}
 }
 
 // PCDATA and FUNCDATA table indexes.
@@ -682,7 +685,7 @@ func (f *Func) Entry() uintptr {
 		fi := (*funcinl)(unsafe.Pointer(fn))
 		return fi.entry
 	}
-	return fn.entry()
+	return fn.funcInfo().entry()
 }
 
 // FileLine returns the file name and line number of the
@@ -735,7 +738,7 @@ func (f *_func) isInlined() bool {
 }
 
 // entry returns the entry PC for f.
-func (f *_func) entry() uintptr {
+func (f funcInfo) entry() uintptr {
 	return f.entryPC
 }
 

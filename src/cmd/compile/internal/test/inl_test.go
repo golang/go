@@ -65,7 +65,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*bmap).keys",
 			"(*bmap).overflow",
 			"(*waitq).enqueue",
-			"(*_func).entry",
+			"funcInfo.entry",
 
 			// GC-related ones
 			"cgoInRange",
