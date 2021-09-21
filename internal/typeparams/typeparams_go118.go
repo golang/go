@@ -136,32 +136,21 @@ func NewUnion(terms []*Term) *Union {
 	return types.NewUnion(terms)
 }
 
-// InitInferred initializes info to record inferred type information.
-func InitInferred(info *types.Info) {
-	info.Inferred = make(map[ast.Expr]types.Inferred)
+// InitInstanceInfo initializes info to record information about type and
+// function instances.
+func InitInstanceInfo(info *types.Info) {
+	info.Instances = make(map[*ast.Ident]types.Instance)
 }
 
-// GetInferred extracts inferred type information from info for e.
-//
-// The expression e may have an inferred type if it is an *ast.IndexExpr
-// representing partial instantiation of a generic function type for which type
-// arguments have been inferred using constraint type inference, or if it is an
-// *ast.CallExpr for which type type arguments have be inferred using both
-// constraint type inference and function argument inference.
-func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature) {
-	if info.Inferred == nil {
-		return nil, nil
+// GetInstance extracts information about the instantiation occurring at the
+// identifier id. id should be the identifier denoting a parameterized type or
+// function in an instantiation expression or function call.
+func GetInstance(info *types.Info, id *ast.Ident) (*TypeList, types.Type) {
+	if info.Instances != nil {
+		inf := info.Instances[id]
+		return inf.TypeArgs, inf.Type
 	}
-	inf := info.Inferred[e]
-
-	length := inf.TArgs.Len()
-
-	typs := make([]types.Type, length)
-	for i := 0; i < length; i++ {
-		typs[i] = inf.TArgs.At(i)
-	}
-
-	return typs, inf.Sig
+	return nil, nil
 }
 
 // Environment is an alias for types.Environment.

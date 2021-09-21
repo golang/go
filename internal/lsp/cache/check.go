@@ -439,7 +439,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, m *Metadata, mode sour
 		},
 		typesSizes: m.TypesSizes,
 	}
-	typeparams.InitInferred(pkg.typesInfo)
+	typeparams.InitInstanceInfo(pkg.typesInfo)
 
 	for _, gf := range pkg.m.GoFiles {
 		// In the presence of line directives, we may need to report errors in

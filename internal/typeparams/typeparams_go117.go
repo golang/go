@@ -159,15 +159,12 @@ func NewUnion(terms []*Term) *Union {
 	return nil
 }
 
-// InitInferred is a noop at this Go version.
-func InitInferred(*types.Info) {
-}
+// InitInstanceInfo is a noop at this Go version.
+func InitInstanceInfo(*types.Info) {}
 
-// GetInferred returns nothing, as type parameters are not supported at this Go
+// GetInstance returns nothing, as type parameters are not supported at this Go
 // version.
-func GetInferred(*types.Info, ast.Expr) ([]types.Type, *types.Signature) {
-	return nil, nil
-}
+func GetInstance(*types.Info, *ast.Ident) (*TypeList, types.Type) { return nil, nil }
 
 // Environment is a placeholder type, as type parameters are not supported at
 // this Go version.
