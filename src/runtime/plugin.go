@@ -112,7 +112,7 @@ func pluginftabverify(md *moduledata) {
 		f2 := findfunc(entry)
 		if f2.valid() {
 			name2 = funcname(f2)
-			entry2 = f2.entry
+			entry2 = f2.entry()
 		}
 		badtable = true
 		println("ftab entry", hex(entry), "/", hex(entry2), ": ",

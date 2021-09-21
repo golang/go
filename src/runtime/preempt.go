@@ -451,7 +451,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return true, startpc
 	case _PCDATA_RestartAtEntry:
 		// Restart from the function entry at resumption.
-		return true, f.entry
+		return true, f.entry()
 	}
 	return true, pc
 }

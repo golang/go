@@ -78,7 +78,7 @@ func debugCallCheck(pc uintptr) string {
 		}
 
 		// Check that this isn't an unsafe-point.
-		if pc != f.entry {
+		if pc != f.entry() {
 			pc--
 		}
 		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
