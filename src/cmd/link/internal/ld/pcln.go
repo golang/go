@@ -739,7 +739,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs 
 // writeFuncs writes the func structures and pcdata to runtime.functab.
 func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
 	ldr := ctxt.loader
-	deferReturnSym := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
+	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
 	funcdata, funcdataoff := []loader.Sym{}, []int64{}
 
 	// Write the individual func objects.

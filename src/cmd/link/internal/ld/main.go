@@ -173,6 +173,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	checkStrictDups = *FlagStrictDups
 
+	if !buildcfg.Experiment.RegabiWrappers {
+		abiInternalVer = 0
+	}
+
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {
 		ctxt.BuildMode.Set("exe")
