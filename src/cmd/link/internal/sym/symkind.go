@@ -118,9 +118,6 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
-
-	// ABI aliases (these never appear in the output)
-	SABIALIAS
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
@@ -143,7 +140,6 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SDWARFRANGE,
 	SDWARFLOC,
 	SDWARFLINES,
-	SABIALIAS,
 	SLIBFUZZER_EXTRA_COUNTER,
 }
 

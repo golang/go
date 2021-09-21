@@ -113,7 +113,6 @@ func trampoline(ctxt *Link, s loader.Sym) {
 		if !ldr.AttrReachable(rs) || ldr.SymType(rs) == sym.Sxxx {
 			continue // something is wrong. skip it here and we'll emit a better error later
 		}
-		rs = ldr.ResolveABIAlias(rs)
 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
 			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
 				// Symbols in the same package are laid out together.
@@ -194,7 +193,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 		off := r.Off()
 		siz := int32(r.Siz())
 		rs := r.Sym()
-		rs = ldr.ResolveABIAlias(rs)
 		rt := r.Type()
 		weak := r.Weak()
 		if off < 0 || off+siz > int32(len(P)) {
@@ -340,7 +338,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if weak && !ldr.AttrReachable(rs) {
 				// Redirect it to runtime.unreachableMethod, which will throw if called.
 				rs = syms.unreachableMethod
-				rs = ldr.ResolveABIAlias(rs)
 			}
 			if target.IsExternal() {
 				nExtReloc++
@@ -614,7 +611,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 
 	case objabi.R_TLS_LE, objabi.R_TLS_IE:
 		if target.IsElf() {
-			rs := ldr.ResolveABIAlias(r.Sym())
+			rs := r.Sym()
 			rr.Xsym = rs
 			if rr.Xsym == 0 {
 				rr.Xsym = ctxt.Tlsg
@@ -626,10 +623,9 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 
 	case objabi.R_ADDR:
 		// set up addend for eventual relocation via outer symbol.
-		rs := ldr.ResolveABIAlias(r.Sym())
+		rs := r.Sym()
 		if r.Weak() && !ldr.AttrReachable(rs) {
 			rs = ctxt.ArchSyms.unreachableMethod
-			rs = ldr.ResolveABIAlias(rs)
 		}
 		rs, off := FoldSubSymbolOffset(ldr, rs)
 		rr.Xadd = r.Add() + off
@@ -644,13 +640,13 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		if target.IsDarwin() {
 			return rr, false
 		}
-		rs := ldr.ResolveABIAlias(r.Sym())
+		rs := r.Sym()
 		rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym)
 		rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
 
 	// r.Sym() can be 0 when CALL $(constant) is transformed from absolute PC to relative PC call.
 	case objabi.R_GOTPCREL, objabi.R_CALL, objabi.R_PCREL:
-		rs := ldr.ResolveABIAlias(r.Sym())
+		rs := r.Sym()
 		if rt == objabi.R_GOTPCREL && target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 {
 			rr.Xadd = r.Add()
 			rr.Xadd -= int64(siz) // relative to address after the relocated chunk
@@ -692,7 +688,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 // symbol and addend.
 func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc) loader.ExtReloc {
 	var rr loader.ExtReloc
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	rr.Xsym = rs
 	rr.Xadd = r.Add()
 	rr.Type = r.Type()
@@ -705,7 +701,7 @@ func ExtrelocSimple(ldr *loader.Loader, r loader.Reloc) loader.ExtReloc {
 func ExtrelocViaOuterSym(ldr *loader.Loader, r loader.Reloc, s loader.Sym) loader.ExtReloc {
 	// set up addend for eventual relocation via outer symbol.
 	var rr loader.ExtReloc
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	rs, off := FoldSubSymbolOffset(ldr, rs)
 	rr.Xadd = r.Add() + off
 	rst := ldr.SymType(rs)
