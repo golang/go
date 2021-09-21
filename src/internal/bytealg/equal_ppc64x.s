@@ -9,33 +9,38 @@
 #include "textflag.h"
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD    a+0(FP), R3
 	MOVD    b+8(FP), R4
 	MOVD    size+16(FP), R5
 	MOVD    $ret+24(FP), R10
-
+#endif
 	BR	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+#ifndef GOEXPERIMENT_regabiargs
 	MOVD	a+0(FP), R3
 	MOVD	b+8(FP), R4
+	MOVD    $ret+16(FP), R10
+#endif
 	CMP	R3, R4
 	BEQ	eq
 	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
-	MOVD    $ret+16(FP), R10
 	BR	memeqbody<>(SB)
 eq:
 	MOVD	$1, R3
+#ifndef GOEXPERIMENT_regabiargs
 	MOVB	R3, ret+16(FP)
+#endif
 	RET
 
 // Do an efficient memequal for ppc64
 // R3 = s1
 // R4 = s2
 // R5 = len
-// R10 = addr of return value (byte)
+// R10 = addr of return value (byte) when not regabi
 TEXT memeqbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD    R5,CTR
 	CMP     R5,$8		// only optimize >=8
@@ -94,10 +99,16 @@ simple:
 	BNE	noteq
 	BR	equal
 noteq:
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	$0, R3
+#else
 	MOVB    $0, (R10)
+#endif
 	RET
 equal:
 	MOVD	$1, R3
+#ifndef GOEXPERIMENT_regabiargs
 	MOVB	R3, (R10)
+#endif
 	RET
 
