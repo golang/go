@@ -846,7 +846,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 
 	if !f.valid() {
 		if strict && panicking == 0 {
-			print("runtime: no module data for ", hex(f.entry()), "\n")
+			println("runtime: no module data for", hex(f.entry()))
 			throw("no module data")
 		}
 		return -1, 0
