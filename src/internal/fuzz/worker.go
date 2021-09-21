@@ -140,8 +140,8 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// for example, F.Fail was called first.
 				return fmt.Errorf("fuzzing process exited unexpectedly due to an internal failure: %w", err)
 			}
-			// Worker exited non-zero or was terminated by a non-interrupt signal
-			// (for example, SIGSEGV) while fuzzing.
+			// Worker exited non-zero or was terminated by a non-interrupt
+			// signal (for example, SIGSEGV) while fuzzing.
 			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
 
@@ -154,6 +154,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 				CoverageData: input.coverageData,
 			}
 			entry, resp, err := w.client.fuzz(ctx, input.entry, args)
+			canMinimize := true
 			if err != nil {
 				// Error communicating with worker.
 				w.stop()
@@ -184,7 +185,9 @@ func (w *worker) coordinate(ctx context.Context) error {
 				}
 				// Unexpected termination. Set error message and fall through.
 				// We'll restart the worker on the next iteration.
+				// Don't attempt to minimize this since it crashed the worker.
 				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+				canMinimize = false
 			}
 			result := fuzzResult{
 				limit:         input.limit,
@@ -194,6 +197,7 @@ func (w *worker) coordinate(ctx context.Context) error {
 				entry:         entry,
 				crasherMsg:    resp.Err,
 				coverageData:  resp.CoverageData,
+				canMinimize:   canMinimize,
 			}
 			w.coordinator.resultC <- result
 
@@ -206,10 +210,10 @@ func (w *worker) coordinate(ctx context.Context) error {
 				// TODO: double-check this is handled correctly when
 				// implementing -keepfuzzing.
 				result = fuzzResult{
-					entry:             input.entry,
-					crasherMsg:        input.crasherMsg,
-					minimizeAttempted: true,
-					limit:             input.limit,
+					entry:       input.entry,
+					crasherMsg:  input.crasherMsg,
+					canMinimize: false,
+					limit:       input.limit,
 				}
 				if result.crasherMsg == "" {
 					result.crasherMsg = err.Error()
@@ -247,11 +251,11 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 			// may not have been in a good state, but the error won't be meaningful
 			// to the user. Just return the original crasher without logging anything.
 			return fuzzResult{
-				entry:             input.entry,
-				crasherMsg:        input.crasherMsg,
-				coverageData:      input.keepCoverage,
-				minimizeAttempted: true,
-				limit:             input.limit,
+				entry:        input.entry,
+				crasherMsg:   input.crasherMsg,
+				coverageData: input.keepCoverage,
+				canMinimize:  false,
+				limit:        input.limit,
 			}, nil
 		}
 		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
@@ -262,13 +266,13 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 	}
 
 	return fuzzResult{
-		entry:             entry,
-		crasherMsg:        resp.Err,
-		coverageData:      resp.CoverageData,
-		minimizeAttempted: true,
-		limit:             input.limit,
-		count:             resp.Count,
-		totalDuration:     resp.Duration,
+		entry:         entry,
+		crasherMsg:    resp.Err,
+		coverageData:  resp.CoverageData,
+		canMinimize:   false,
+		limit:         input.limit,
+		count:         resp.Count,
+		totalDuration: resp.Duration,
 	}, nil
 }
 
