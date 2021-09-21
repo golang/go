@@ -4,6 +4,8 @@
 
 package goobj
 
+import "internal/buildcfg"
+
 // Builtin (compiler-generated) function references appear
 // frequently. We assign special indices for them, so they
 // don't need to be referenced by name.
@@ -27,7 +29,7 @@ func BuiltinIdx(name string, abi int) int {
 	if !ok {
 		return -1
 	}
-	if builtins[i].abi != abi {
+	if buildcfg.Experiment.RegabiWrappers && builtins[i].abi != abi {
 		return -1
 	}
 	return i

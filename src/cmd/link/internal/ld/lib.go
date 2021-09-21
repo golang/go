@@ -144,7 +144,7 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
-	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
+	ctxt.mkArchSym("runtime.unreachableMethod", abiInternalVer, &ctxt.unreachableMethod)
 
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
@@ -280,6 +280,10 @@ var (
 const (
 	MINFUNC = 16 // minimum size for a function
 )
+
+// Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
+// are used, 0 otherwise.
+var abiInternalVer = sym.SymVerABIInternal
 
 // DynlinkingGo reports whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
@@ -499,10 +503,6 @@ func (ctxt *Link) loadlib() {
 		flags |= loader.FlagStrictDups
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
-	}
-	if !buildcfg.Experiment.RegabiWrappers {
-		// Use ABI aliases if ABI wrappers are not used.
-		flags |= loader.FlagUseABIAlias
 	}
 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
@@ -769,7 +769,7 @@ func (ctxt *Link) linksetup() {
 		// Set runtime.disableMemoryProfiling bool if
 		// runtime.MemProfile is not retained in the binary after
 		// deadcode (and we're not dynamically linking).
-		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
+		memProfile := ctxt.loader.Lookup("runtime.MemProfile", abiInternalVer)
 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
@@ -2115,7 +2115,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		ver := 0
 		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
-			ver = sym.SymVerABIInternal
+			ver = abiInternalVer
 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
@@ -2155,19 +2155,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 		if symname != elfsym.Name {
 			l.SetSymExtname(s, elfsym.Name)
-		}
-
-		// For function symbols, if ABI wrappers are not used, we don't
-		// know what ABI is available, so alias it under both ABIs.
-		if !buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.loader.LookupOrCreateSym(symname, sym.SymVerABIInternal)
-			if l.SymType(alias) != 0 {
-				continue
-			}
-			su := l.MakeSymbolUpdater(alias)
-			su.SetType(sym.SABIALIAS)
-			r, _ := su.AddRel(0) // type doesn't matter
-			r.SetSym(s)
 		}
 	}
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})

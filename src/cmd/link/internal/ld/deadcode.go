@@ -96,8 +96,10 @@ func (d *deadcodePass) init() {
 	for _, name := range names {
 		// Mark symbol as a data/ABI0 symbol.
 		d.mark(d.ldr.Lookup(name, 0), 0)
-		// Also mark any Go functions (internal ABI).
-		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
+		if abiInternalVer != 0 {
+			// Also mark any Go functions (internal ABI).
+			d.mark(d.ldr.Lookup(name, abiInternalVer), 0)
+		}
 	}
 
 	// All dynamic exports are roots.
@@ -327,8 +329,8 @@ func deadcode(ctxt *Link) {
 	d.init()
 	d.flood()
 
-	methSym := ldr.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
-	methByNameSym := ldr.Lookup("reflect.Value.MethodByName", sym.SymVerABIInternal)
+	methSym := ldr.Lookup("reflect.Value.Method", abiInternalVer)
+	methByNameSym := ldr.Lookup("reflect.Value.MethodByName", abiInternalVer)
 
 	if ctxt.DynlinkingGo() {
 		// Exported methods may satisfy interfaces we don't know

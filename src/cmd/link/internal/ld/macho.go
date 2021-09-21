@@ -7,7 +7,6 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/codesign"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -561,7 +560,7 @@ func (ctxt *Link) domacho() {
 			ver := 0
 			// _cgo_panic is a Go function, so it uses ABIInternal.
 			if name == "_cgo_panic" {
-				ver = sym.ABIToVersion(obj.ABIInternal)
+				ver = abiInternalVer
 			}
 			s := ctxt.loader.Lookup(name, ver)
 			if s != 0 {

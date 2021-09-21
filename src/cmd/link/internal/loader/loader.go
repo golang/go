@@ -2192,7 +2192,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
-			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
+			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi
 			}
