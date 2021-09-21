@@ -41,7 +41,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	// if we don't have enough type arguments, try type inference
 	inferred := false
 	if got < want {
-		targs = check.infer(inst.Pos(), sig.TypeParams().list(), targs, nil, nil, true)
+		targs = check.infer(inst.Pos(), sig.TypeParams().list(), targs, nil, nil)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -338,7 +338,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		}
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call.Pos(), sig.TypeParams().list(), targs, sigParams, args, true)
+		targs := check.infer(call.Pos(), sig.TypeParams().list(), targs, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
