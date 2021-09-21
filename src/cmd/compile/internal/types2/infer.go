@@ -28,9 +28,7 @@ const useConstraintTypeInference = true
 //   3) Infer type arguments from untyped function arguments.
 //
 // Constraint type inference is used after each step to expand the set of type arguments.
-//
-// TODO(gri): remove the report parameter: is no longer needed.
-func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
+func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
 	if debug {
 		defer func() {
 			assert(result == nil || len(result) == len(tparams))
@@ -62,7 +60,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// If we have type arguments, see how far we get with constraint type inference.
 	if len(targs) > 0 && useConstraintTypeInference {
 		var index int
-		targs, index = check.inferB(tparams, targs, report)
+		targs, index = check.inferB(tparams, targs)
 		if targs == nil || index < 0 {
 			return targs
 		}
@@ -107,9 +105,6 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	}
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
-		if !report {
-			return
-		}
 		// provide a better error message if we can
 		targs, index := u.x.types()
 		if index == 0 {
@@ -176,7 +171,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
 	if useConstraintTypeInference {
-		targs, index = check.inferB(tparams, targs, report)
+		targs, index = check.inferB(tparams, targs)
 		if targs == nil || index < 0 {
 			return targs
 		}
@@ -214,7 +209,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 
 	// Again, follow up with constraint type inference.
 	if useConstraintTypeInference {
-		targs, index = check.inferB(tparams, targs, report)
+		targs, index = check.inferB(tparams, targs)
 		if targs == nil || index < 0 {
 			return targs
 		}
@@ -223,9 +218,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// At least one type argument couldn't be inferred.
 	assert(targs != nil && index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	if report {
-		check.errorf(pos, "cannot infer %s (%s) (%s)", tpar.obj.name, tpar.obj.pos, targs)
-	}
+	check.errorf(pos, "cannot infer %s (%s) (%s)", tpar.obj.name, tpar.obj.pos, targs)
 	return nil
 }
 
@@ -367,7 +360,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 // first type argument in that list that couldn't be inferred (and thus is nil). If all
 // type arguments were inferred successfully, index is < 0. The number of type arguments
 // provided may be less than the number of type parameters, but there must be at least one.
-func (check *Checker) inferB(tparams []*TypeParam, targs []Type, report bool) (types []Type, index int) {
+func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
 	// Setup bidirectional unification between those structural bounds
@@ -389,9 +382,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type, report bool) (t
 		sbound := typ.structuralType()
 		if sbound != nil {
 			if !u.unify(typ, sbound) {
-				if report {
-					check.errorf(tpar.obj, "%s does not match %s", tpar.obj, sbound)
-				}
+				check.errorf(tpar.obj, "%s does not match %s", tpar.obj, sbound)
 				return nil, 0
 			}
 		}
