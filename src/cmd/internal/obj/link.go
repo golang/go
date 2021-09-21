@@ -902,16 +902,6 @@ type Link struct {
 	Text []*LSym
 	Data []*LSym
 
-	// ABIAliases are text symbols that should be aliased to all
-	// ABIs. These symbols may only be referenced and not defined
-	// by this object, since the need for an alias may appear in a
-	// different object than the definition. Hence, this
-	// information can't be carried in the symbol definition.
-	//
-	// TODO(austin): Replace this with ABI wrappers once the ABIs
-	// actually diverge.
-	ABIAliases []*LSym
-
 	// Constant symbols (e.g. $i64.*) are data symbols created late
 	// in the concurrent phase. To ensure a deterministic order, we
 	// add them to a separate list, sort at the end, and append it
