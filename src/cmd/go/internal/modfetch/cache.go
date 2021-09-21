@@ -720,7 +720,7 @@ func checkCacheDir() error {
 	if cfg.GOMODCACHE == "" {
 		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
 		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
-		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
+		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
 	}
 	if !filepath.IsAbs(cfg.GOMODCACHE) {
 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)

@@ -246,6 +246,12 @@ func ModFile() *modfile.File {
 
 func BinDir() string {
 	Init()
+	if cfg.GOBIN != "" {
+		return cfg.GOBIN
+	}
+	if gopath == "" {
+		return ""
+	}
 	return filepath.Join(gopath, "bin")
 }
 
@@ -381,12 +387,11 @@ func Init() {
 		"verify, graph, and why. Implement support for go mod download and add test cases" +
 		"to ensure verify, graph, and why work properly.")
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
-	if len(list) == 0 || list[0] == "" {
-		base.Fatalf("missing $GOPATH")
-	}
-	gopath = list[0]
-	if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
-		base.Fatalf("$GOPATH/go.mod exists but should not")
+	if len(list) > 0 && list[0] != "" {
+		gopath = list[0]
+		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+			base.Fatalf("$GOPATH/go.mod exists but should not")
+		}
 	}
 
 	if inWorkspaceMode() {
