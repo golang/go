@@ -212,7 +212,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && ptrRecv(f)
+				hasPtrRecv := tpar == nil && f.hasPtrRecv()
 				if hasPtrRecv && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
