@@ -273,7 +273,22 @@ func (f *Func) raw() *_func {
 
 func (f *Func) funcInfo() funcInfo {
 	fn := f.raw()
-	return funcInfo{fn, findmoduledatap(fn.entry)}
+	// Find the module containing fn. fn is located in the pclntable.
+	// The unsafe.Pointer to uintptr conversions and arithmetic
+	// are safe because we are working with module addresses.
+	ptr := uintptr(unsafe.Pointer(fn))
+	var mod *moduledata
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if len(datap.pclntable) == 0 {
+			continue
+		}
+		base := uintptr(unsafe.Pointer(&datap.pclntable[0]))
+		if base <= ptr && ptr < base+uintptr(len(datap.pclntable)) {
+			mod = datap
+			break
+		}
+	}
+	return funcInfo{fn, mod}
 }
 
 // PCDATA and FUNCDATA table indexes.
