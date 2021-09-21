@@ -650,6 +650,7 @@ func FuncForPC(pc uintptr) *Func {
 			name := funcnameFromNameoff(f, inltree[ix].func_)
 			file, line := funcline(f, pc)
 			fi := &funcinl{
+				ones:  ^uintptr(0),
 				entry: f.entry, // entry of the real (the outermost) function.
 				name:  name,
 				file:  file,
@@ -667,7 +668,7 @@ func (f *Func) Name() string {
 		return ""
 	}
 	fn := f.raw()
-	if fn.entry == 0 { // inlined version
+	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
 		return fi.name
 	}
@@ -677,7 +678,7 @@ func (f *Func) Name() string {
 // Entry returns the entry address of the function.
 func (f *Func) Entry() uintptr {
 	fn := f.raw()
-	if fn.entry == 0 { // inlined version
+	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
 		return fi.entry
 	}
@@ -690,7 +691,7 @@ func (f *Func) Entry() uintptr {
 // counter within f.
 func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	fn := f.raw()
-	if fn.entry == 0 { // inlined version
+	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
 		return fi.file, fi.line
 	}
@@ -726,6 +727,11 @@ func (f funcInfo) valid() bool {
 
 func (f funcInfo) _Func() *Func {
 	return (*Func)(unsafe.Pointer(f._func))
+}
+
+// isInlined reports whether f should be re-interpreted as a *funcinl.
+func (f *_func) isInlined() bool {
+	return f.entry == ^uintptr(0) // see comment for funcinl.ones
 }
 
 // findfunc looks up function metadata for a PC.

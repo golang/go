@@ -879,8 +879,8 @@ type _func struct {
 // A *Func can be either a *_func or a *funcinl, and they are distinguished
 // by the first uintptr.
 type funcinl struct {
-	zero  uintptr // set to 0 to distinguish from _func
-	entry uintptr // entry of the real (the "outermost") frame.
+	ones  uintptr // set to ^0 to distinguish from _func
+	entry uintptr // entry of the real (the "outermost") frame
 	name  string
 	file  string
 	line  int
