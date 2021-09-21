@@ -540,6 +540,8 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
 // This directory is managed by the internal/fuzz package. Files in this
 // directory aren't removed by the 'go clean -cache' command or by Trim.
 // They may be removed with 'go clean -fuzzcache'.
+//
+// TODO(#48526): make Trim remove unused files from this directory.
 func (c *Cache) FuzzDir() string {
 	return filepath.Join(c.dir, "fuzz")
 }

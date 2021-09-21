@@ -77,10 +77,15 @@ stdout 'f.Fuzz function'
 stdout FAIL
 stdout 'f.Fuzz function'
 
-# Test that a call to f.Fatal after the Fuzz func is never executed.
-go test fatal_after_fuzz_func_fuzz_test.go
-stdout ok
-! stdout FAIL
+# Test that runtime.Goexit within the fuzz function is an error.
+! go test goexit_fuzz_fn_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+
+# Test that a call to f.Fatal after the Fuzz func is executed.
+! go test fatal_after_fuzz_func_fuzz_test.go
+! stdout ok
+stdout FAIL
 
 # Test that missing *T in f.Fuzz causes a non-zero exit status.
 ! go test incomplete_fuzz_call_fuzz_test.go
@@ -264,6 +269,18 @@ func Fuzz(f *testing.F) {
     f.Add([]byte("aa"))
     f.Fuzz(func(t *testing.T, b []byte) {
         f.Skip("skip here")
+    })
+}
+
+-- goexit_fuzz_fn_fuzz_test.go --
+package goexit_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        runtime.Goexit()
     })
 }
 

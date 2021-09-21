@@ -29,6 +29,11 @@ stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
 stdout 'runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
+! go test -run=FuzzWithGoexit -fuzz=FuzzWithGoexit -fuzztime=100x -fuzzminimizetime=1000x
+stdout 'testdata[/\\]fuzz[/\\]FuzzWithGoexit[/\\]'
+stdout 'runtime.Goexit'
+go run check_testdata.go FuzzWithGoexit
+
 ! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x -fuzzminimizetime=1000x
 stdout 'testdata[/\\]fuzz[/\\]FuzzWithFail[/\\]'
 go run check_testdata.go FuzzWithFail
@@ -108,7 +113,8 @@ go 1.16
 package fuzz_crash
 
 import (
-    "os"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -126,6 +132,15 @@ func FuzzWithNilPanic(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if string(b) != "aa" {
 			panic(nil)
+		}
+	})
+}
+
+func FuzzWithGoexit(f *testing.F) {
+	f.Add([]byte("aa"))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if string(b) != "aa" {
+			runtime.Goexit()
 		}
 	})
 }

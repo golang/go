@@ -146,21 +146,21 @@
 //
 // For example:
 //
-// func FuzzHex(f *testing.F) {
-//   for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
-//     f.Add(seed)
-//   }
-//   f.Fuzz(func(t *testing.T, in []byte) {
-//     enc := hex.EncodeToString(in)
-//     out, err := hex.DecodeString(enc)
-//     if err != nil {
-//       t.Fatalf("%v: decode: %v", in, err)
+//     func FuzzHex(f *testing.F) {
+//       for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
+//         f.Add(seed)
+//       }
+//       f.Fuzz(func(t *testing.T, in []byte) {
+//         enc := hex.EncodeToString(in)
+//         out, err := hex.DecodeString(enc)
+//         if err != nil {
+//           t.Fatalf("%v: decode: %v", in, err)
+//         }
+//         if !bytes.Equal(in, out) {
+//           t.Fatalf("%v: not equal after round trip: %v", in, out)
+//         }
+//       })
 //     }
-//     if !bytes.Equal(in, out) {
-//       t.Fatalf("%v: not equal after round trip: %v", in, out)
-//     }
-//   })
-// }
 //
 // Seed inputs may be registered by calling F.Add or by storing files in the
 // directory testdata/fuzz/<Name> (where <Name> is the name of the fuzz target)
@@ -506,7 +506,7 @@ type common struct {
 	name     string    // Name of test or benchmark.
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
-	barrier  chan bool // To signal parallel subtests they may start.
+	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
 
@@ -628,13 +628,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 // and inserts the final newline if needed and indentation spaces for formatting.
 // This function must be called with c.mu held.
 func (c *common) decorate(s string, skip int) string {
-	if c.helperNames == nil {
-		c.helperNames = make(map[string]struct{})
-		for pc := range c.helperPCs {
-			c.helperNames[pcToName(pc)] = struct{}{}
-		}
-	}
-
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
@@ -1280,14 +1273,6 @@ func tRunner(t *T, fn func(t *T)) {
 		err := recover()
 		signal := true
 
-		if err != nil && t.isFuzzing() {
-			t.Errorf("panic: %s\n%s\n", err, string(debug.Stack()))
-			t.mu.Lock()
-			t.finished = true
-			t.mu.Unlock()
-			err = nil
-		}
-
 		t.mu.RLock()
 		finished := t.finished
 		t.mu.RUnlock()
@@ -1304,6 +1289,18 @@ func tRunner(t *T, fn func(t *T)) {
 					break
 				}
 			}
+		}
+
+		if err != nil && t.isFuzzing() {
+			prefix := "panic: "
+			if err == errNilPanicOrGoexit {
+				prefix = ""
+			}
+			t.Errorf("%s%s\n%s\n", prefix, err, string(debug.Stack()))
+			t.mu.Lock()
+			t.finished = true
+			t.mu.Unlock()
+			err = nil
 		}
 
 		// Use a deferred call to ensure that we report that the test is

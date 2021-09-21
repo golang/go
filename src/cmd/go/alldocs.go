@@ -293,8 +293,11 @@
 // dependencies.
 //
 // The -fuzzcache flag causes clean to remove files stored in the Go build
-// cache for fuzz testing. Files stored in source testdata directories
-// are left in place.
+// cache for fuzz testing. The fuzzing engine caches files that expand
+// code coverage, so removing them may make fuzzing less effective until
+// new inputs are found that provide the same coverage. These files are
+// distinct from those stored in testdata directory; clean does not remove
+// those files.
 //
 // For more about build flags, see 'go help build'.
 //
@@ -1853,6 +1856,13 @@
 // The go command also caches successful package test results.
 // See 'go help test' for details. Running 'go clean -testcache' removes
 // all cached test results (but not cached build results).
+//
+// The go command also caches values used in fuzzing with 'go test -fuzz',
+// specifically, values that expanded code coverage when passed to a
+// fuzz function. These values are not used for regular building and
+// testing, but they're stored in a subdirectory of the build cache.
+// Running 'go clean -fuzzcache' removes all cached fuzzing values.
+// This may make fuzzing less effective, temporarily.
 //
 // The GODEBUG environment variable can enable printing of debugging
 // information about the state of the cache:

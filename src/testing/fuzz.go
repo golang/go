@@ -69,7 +69,7 @@ type F struct {
 	// from testdata.
 	corpus []corpusEntry
 
-	result     FuzzResult
+	result     fuzzResult
 	fuzzCalled bool
 }
 
@@ -290,17 +290,20 @@ var supportedTypes = map[reflect.Type]bool{
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
-// f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+//     f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
 //
-// This function should be fast, deterministic, and stateless.
+// The following types are allowed: []byte, string, bool, byte, rune, float32,
+// float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
+// More types may be supported in the future.
 //
-// No mutatable input arguments, or pointers to them, should be retained between
-// executions of the fuzz function, as the memory backing them may be mutated
-// during a subsequent invocation.
+// This function sould be fast and deterministic, and its behavior should not
+// depend on shared state. No mutatable input arguments, or pointers to them,
+// should be retained between executions of the fuzz function, as the memory
+// backing them may be mutated during a subsequent invocation.
 //
-// This is a terminal function which will terminate the currently running fuzz
-// target by calling runtime.Goexit.
-// To run any code after fuzzing stops, use (*F).Cleanup.
+// When fuzzing, F.Fuzz does not return until a problem is found, time runs
+// out (set with -fuzztime), or the test process is interrupted by a signal.
+// F.Fuzz should be called exactly once unless F.Skip or F.Fail is called.
 func (f *F) Fuzz(ff interface{}) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -440,7 +443,7 @@ func (f *F) Fuzz(ff interface{}) {
 			corpusTargetDir,
 			cacheTargetDir)
 		if err != nil {
-			f.result = FuzzResult{Error: err}
+			f.result = fuzzResult{Error: err}
 			f.Fail()
 			fmt.Fprintf(f.w, "%v\n", err)
 			if crashErr, ok := err.(fuzzCrashError); ok {
@@ -469,16 +472,6 @@ func (f *F) Fuzz(ff interface{}) {
 			run(e)
 		}
 	}
-
-	// Record that the fuzz function (or coordinateFuzzing or runFuzzWorker)
-	// returned normally. This is used to distinguish runtime.Goexit below
-	// from panic(nil).
-	f.finished = true
-
-	// Terminate the goroutine. F.Fuzz should not return.
-	// We cannot call runtime.Goexit from a deferred function: if there is a
-	// panic, that would replace the panic value with nil.
-	runtime.Goexit()
 }
 
 func (f *F) report() {
@@ -498,14 +491,14 @@ func (f *F) report() {
 	}
 }
 
-// FuzzResult contains the results of a fuzz run.
-type FuzzResult struct {
+// fuzzResult contains the results of a fuzz run.
+type fuzzResult struct {
 	N     int           // The number of iterations.
 	T     time.Duration // The total time taken.
 	Error error         // Error is the error from the crash
 }
 
-func (r FuzzResult) String() string {
+func (r fuzzResult) String() string {
 	s := ""
 	if r.Error == nil {
 		return s
@@ -698,27 +691,28 @@ func fRunner(f *F, fn func(*F)) {
 			atomic.AddUint32(&numFailed, 1)
 		}
 		err := recover()
-		f.mu.RLock()
-		ok := f.skipped || f.failed || (f.fuzzCalled && f.finished)
-		f.mu.RUnlock()
-		if err == nil && !ok {
-			err = errNilPanicOrGoexit
+		if err == nil {
+			f.mu.RLock()
+			fuzzNotCalled := !f.fuzzCalled && !f.skipped && !f.failed
+			if !f.finished && !f.skipped && !f.failed {
+				err = errNilPanicOrGoexit
+			}
+			f.mu.RUnlock()
+			if fuzzNotCalled && err == nil {
+				f.Error("returned without calling F.Fuzz, F.Fail, or F.Skip")
+			}
 		}
 
 		// Use a deferred call to ensure that we report that the test is
-		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+		// complete even if a cleanup function calls F.FailNow. See issue 41355.
 		didPanic := false
 		defer func() {
-			if didPanic {
-				return
+			if !didPanic {
+				// Only report that the test is complete if it doesn't panic,
+				// as otherwise the test binary can exit before the panic is
+				// reported to the user. See issue 41479.
+				f.signal <- true
 			}
-			if err != nil {
-				panic(err)
-			}
-			// Only report that the test is complete if it doesn't panic,
-			// as otherwise the test binary can exit before the panic is
-			// reported to the user. See issue 41479.
-			f.signal <- true
 		}()
 
 		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
@@ -747,8 +741,9 @@ func fRunner(f *F, fn func(*F)) {
 
 		if len(f.sub) > 0 {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
-			// T.Parallel has no effect while fuzzing, so this only affects fuzz
-			// targets run as normal tests.
+			// This only affects fuzz targets run as normal tests.
+			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
+			// branch is not taken. f.barrier is nil in that case.
 			close(f.barrier)
 			// Wait for the subtests to complete.
 			for _, sub := range f.sub {
@@ -776,11 +771,9 @@ func fRunner(f *F, fn func(*F)) {
 	f.start = time.Now()
 	fn(f)
 
-	// Code beyond this point is only executed if fn returned normally.
-	// That means fn did not call F.Fuzz or F.Skip. It should have called F.Fail.
+	// Code beyond this point will not be executed when FailNow or SkipNow
+	// is invoked.
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if !f.failed {
-		panic(f.name + " returned without calling F.Fuzz, F.Fail, or F.Skip")
-	}
+	f.finished = true
+	f.mu.Unlock()
 }
