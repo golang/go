@@ -64,15 +64,12 @@ func (err Error) Error() string {
 
 // An ArgumentError holds an error associated with an argument index.
 type ArgumentError struct {
-	index int
-	error
+	Index int
+	Err   error
 }
 
-// Index returns the positional index of the argument associated with the
-// error.
-func (e ArgumentError) Index() int {
-	return e.index
-}
+func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
 
 // An Importer resolves import paths to Packages.
 //
