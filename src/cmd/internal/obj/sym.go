@@ -330,7 +330,7 @@ const (
 
 // Traverse symbols based on flag, call fn for each symbol.
 func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	lists := [][]*LSym{ctxt.Text, ctxt.Data}
 	for _, list := range lists {
 		for _, s := range list {
 			if flag&traverseDefs != 0 {
@@ -410,7 +410,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 
 // Traverse aux symbols, calling fn for each sym/aux pair.
 func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	lists := [][]*LSym{ctxt.Text, ctxt.Data}
 	for _, list := range lists {
 		for _, s := range list {
 			if s.Gotype != nil {
