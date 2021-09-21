@@ -483,7 +483,7 @@ func (check *Checker) collectObjects() {
 		// Determine the receiver base type and associate m with it.
 		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
 		if base != nil {
-			m.obj.hasPtrRecv = ptr
+			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
 		}
 	}

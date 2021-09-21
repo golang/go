@@ -317,8 +317,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
-	instRecv   *Named // if non-nil, the receiver type for an incomplete instance method
-	hasPtrRecv bool   // only valid for methods that don't have a type yet
+	instRecv    *Named // if non-nil, the receiver type for an incomplete instance method
+	hasPtrRecv_ bool   // only valid for methods that don't have a type yet; use hasPtrRecv() to read
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -342,6 +342,25 @@ func (obj *Func) FullName() string {
 
 // Scope returns the scope of the function's body block.
 func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+
+// hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+func (obj *Func) hasPtrRecv() bool {
+	// If a method's receiver type is set, use that as the source of truth for the receiver.
+	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+	// signature. We may reach here before the signature is fully set up: we must explicitly
+	// check if the receiver is set (we cannot just look for non-nil obj.typ).
+	if sig, _ := obj.typ.(*Signature); sig != nil && sig.recv != nil {
+		_, isPtr := deref(sig.recv.typ)
+		return isPtr
+	}
+
+	// If a method's type is not set it may be a method/function that is:
+	// 1) client-supplied (via NewFunc with no signature), or
+	// 2) internally created but not yet type-checked.
+	// For case 1) we can't do anything; the client must know what they are doing.
+	// For case 2) we can use the information gathered by the resolver.
+	return obj.hasPtrRecv_
+}
 
 func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 

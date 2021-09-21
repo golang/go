@@ -257,7 +257,7 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
 			// During type checking origm may not have a fully set up type, so defer
 			// instantiation of its signature until later.
 			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
-			m.hasPtrRecv = ptrRecv(origm)
+			m.hasPtrRecv_ = origm.hasPtrRecv()
 			// Setting instRecv here allows us to complete later (we need the
 			// instRecv to get targs and the original method).
 			m.instRecv = n
@@ -316,7 +316,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
 		sig = &copy
 	}
 	var rtyp Type
-	if ptrRecv(m) {
+	if m.hasPtrRecv() {
 		rtyp = NewPointer(rbase)
 	} else {
 		rtyp = rbase
