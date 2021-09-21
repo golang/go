@@ -7,7 +7,9 @@
 package fuzz
 
 // TODO(#48504): re-enable on platforms where instrumentation works.
-// This was disabled due to an init failure on aix_ppc64.
+// In theory, we shouldn't need this file at all: if the binary was built
+// without coverage, then _counters and _ecounters should have the same address.
+// However, this caused an init failure on aix/ppc64, so it's disabled here.
 
 // coverage returns a []byte containing unique 8-bit counters for each edge of
 // the instrumented source code. This coverage data will only be generated if
