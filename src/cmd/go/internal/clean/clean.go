@@ -76,8 +76,11 @@ download cache, including unpacked source code of versioned
 dependencies.
 
 The -fuzzcache flag causes clean to remove files stored in the Go build
-cache for fuzz testing. Files stored in source testdata directories
-are left in place.
+cache for fuzz testing. The fuzzing engine caches files that expand
+code coverage, so removing them may make fuzzing less effective until
+new inputs are found that provide the same coverage. These files are
+distinct from those stored in testdata directory; clean does not remove
+those files.
 
 For more about build flags, see 'go help build'.
 
@@ -220,7 +223,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if !cfg.BuildN {
 			if err := os.RemoveAll(fuzzDir); err != nil {
-				base.Errorf("go clean -fuzzcache: %v", err)
+				base.Errorf("go: %v", err)
 			}
 		}
 	}

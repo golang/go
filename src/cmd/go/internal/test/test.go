@@ -824,7 +824,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testFuzz != "" && fuzzFlags != nil {
 		// Don't instrument packages which may affect coverage guidance but are
 		// unlikely to be useful. Most of these are used by the testing or
-		// internal/fuzz concurrently with fuzzing.
+		// internal/fuzz packages concurrently with fuzzing.
 		var fuzzNoInstrument = map[string]bool{
 			"context":       true,
 			"internal/fuzz": true,
