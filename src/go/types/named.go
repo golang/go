@@ -257,7 +257,7 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
 			// During type checking origm may not have a fully set up type, so defer
 			// instantiation of its signature until later.
 			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
-			m.hasPtrRecv = origm.hasPtrRecv
+			m.hasPtrRecv = ptrRecv(origm)
 			// Setting instRecv here allows us to complete later (we need the
 			// instRecv to get targs and the original method).
 			m.instRecv = n
@@ -289,31 +289,37 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
 
 func (check *Checker) completeMethod(env *Environment, m *Func) {
 	assert(m.instRecv != nil)
-	rtyp := m.instRecv
+	rbase := m.instRecv
 	m.instRecv = nil
 	m.setColor(black)
 
-	assert(rtyp.TypeArgs().Len() > 0)
+	assert(rbase.TypeArgs().Len() > 0)
 
 	// Look up the original method.
-	_, orig := lookupMethod(rtyp.orig.methods, rtyp.obj.pkg, m.name)
+	_, orig := lookupMethod(rbase.orig.methods, rbase.obj.pkg, m.name)
 	assert(orig != nil)
 	if check != nil {
 		check.objDecl(orig, nil)
 	}
 	origSig := orig.typ.(*Signature)
-	if origSig.RecvTypeParams().Len() != rtyp.targs.Len() {
+	if origSig.RecvTypeParams().Len() != rbase.targs.Len() {
 		m.typ = origSig // or new(Signature), but we can't use Typ[Invalid]: Funcs must have Signature type
 		return          // error reported elsewhere
 	}
 
-	smap := makeSubstMap(origSig.RecvTypeParams().list(), rtyp.targs.list())
+	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
 	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
 	if sig == origSig {
-		// No substitution occurred, but we still need to create a copy to hold the
-		// instantiated receiver.
+		// No substitution occurred, but we still need to create a new signature to
+		// hold the instantiated receiver.
 		copy := *origSig
 		sig = &copy
+	}
+	var rtyp Type
+	if ptrRecv(m) {
+		rtyp = NewPointer(rbase)
+	} else {
+		rtyp = rbase
 	}
 	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
 
