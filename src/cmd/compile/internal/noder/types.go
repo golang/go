@@ -115,7 +115,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			// Make sure the base generic type exists in type1 (it may
 			// not yet if we are referecing an imported generic type, as
 			// opposed to a generic type declared in this package).
-			_ = g.obj(typ.Orig().Obj())
+			_ = g.obj(typ.Origin().Obj())
 
 			// Create a forwarding type first and put it in the g.typs
 			// map, in order to deal with recursive generic types
