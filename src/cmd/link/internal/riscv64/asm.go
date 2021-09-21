@@ -168,7 +168,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return val, 0, false
 	}
 
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 
 	switch r.Type() {
 	case objabi.R_CALLRISCV:

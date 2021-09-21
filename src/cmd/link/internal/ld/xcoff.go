@@ -1238,7 +1238,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 		sym:  s,
 		roff: r.Off(),
 	}
-	targ := ldr.ResolveABIAlias(r.Sym())
+	targ := r.Sym()
 	var targType sym.SymKind
 	if targ != 0 {
 		targType = ldr.SymType(targ)
@@ -1333,7 +1333,7 @@ func (ctxt *Link) doxcoff() {
 				panic("cgo_export on static symbol")
 			}
 
-			if ldr.SymType(s) == sym.STEXT || ldr.SymType(s) == sym.SABIALIAS {
+			if ldr.SymType(s) == sym.STEXT {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.

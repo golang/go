@@ -547,7 +547,7 @@ func symtoc(ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) int64 {
 // symbol address can be used directly.
 // This code is for AIX only.
 func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	if target.IsLinux() {
 		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
 	}
@@ -562,7 +562,7 @@ func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r lo
 	var t int64
 	useAddi := false
 	relocs := ldr.Relocs(rs)
-	tarSym := ldr.ResolveABIAlias(relocs.At(0).Sym())
+	tarSym := relocs.At(0).Sym()
 
 	if target.IsInternal() && tarSym != 0 && ldr.AttrReachable(tarSym) && ldr.SymSect(tarSym).Seg == &ld.Segdata {
 		t = ldr.SymValue(tarSym) + r.Add() - ldr.SymValue(syms.TOC)
@@ -603,7 +603,7 @@ func archreloctoc(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r lo
 // archrelocaddr relocates a symbol address.
 // This code is for AIX only.
 func archrelocaddr(ldr *loader.Loader, target *ld.Target, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) int64 {
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	if target.IsAIX() {
 		ldr.Errorf(s, "archrelocaddr called for %s relocation\n", ldr.SymName(rs))
 	}
@@ -802,7 +802,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 }
 
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (relocatedOffset int64, nExtReloc int, ok bool) {
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	if target.IsExternal() {
 		// On AIX, relocations (except TLS ones) must be also done to the
 		// value with the current addresses.
@@ -909,7 +909,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 }
 
 func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv sym.RelocVariant, s loader.Sym, t int64, p []byte) (relocatedOffset int64) {
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 	switch rv & sym.RV_TYPE_MASK {
 	default:
 		ldr.Errorf(s, "unexpected relocation variant %d", rv)

@@ -173,7 +173,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 				}
 				wfn.Write(P[off:r.Off()])
 				off = r.Off()
-				rs := ldr.ResolveABIAlias(r.Sym())
+				rs := r.Sym()
 				switch r.Type() {
 				case objabi.R_ADDR:
 					writeSleb128(wfn, ldr.SymValue(rs)+r.Add())
