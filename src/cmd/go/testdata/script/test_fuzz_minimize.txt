@@ -48,10 +48,10 @@ go run check_testdata.go FuzzMinimizerRecoverable 50
 ! go test -run=FuzzMinimizerRecoverable minimizer_test.go
 rm testdata
 
-# Test that minimization is working for non-recoverable errors.
+# Test that minimization doesn't run for non-recoverable errors.
 ! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x minimizer_test.go
 ! stdout '^ok'
-stdout 'minimizing'
+! stdout 'minimizing'
 stdout 'fuzzing process terminated unexpectedly: exit status 99'
 stdout FAIL
 
