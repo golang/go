@@ -25,8 +25,8 @@ import (
 // unimplemented.
 //
 // If verify is set and constraint satisfaction fails, the returned error may
-// be of dynamic type ArgumentError indicating which type argument did not
-// satisfy its corresponding type parameter constraint, and why.
+// wrap an *ArgumentError indicating which type argument did not satisfy its
+// corresponding type parameter constraint, and why.
 //
 // TODO(rfindley): change this function to also return an error if lengths of
 // tparams and targs do not match.
@@ -43,7 +43,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
 			tparams = t.TypeParams().list()
 		}
 		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs); err != nil {
-			return inst, ArgumentError{i, err}
+			return inst, &ArgumentError{i, err}
 		}
 	}
 

@@ -6,6 +6,7 @@ package types_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -2000,9 +2001,13 @@ func TestInstantiateErrors(t *testing.T) {
 			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
 		}
 
-		gotAt := err.(ArgumentError).Index()
-		if gotAt != test.wantAt {
-			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, gotAt, test.wantAt)
+		var argErr *ArgumentError
+		if !errors.As(err, &argErr) {
+			t.Fatalf("Instantiate(%v, %v): error is not an *ArgumentError", T, test.targs)
+		}
+
+		if argErr.Index != test.wantAt {
+			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
 		}
 	}
 }
