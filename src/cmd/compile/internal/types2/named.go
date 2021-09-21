@@ -87,13 +87,11 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 
 // Obj returns the type name for the declaration defining the named type t. For
 // instantiated types, this is the type name of the base type.
-func (t *Named) Obj() *TypeName {
-	return t.orig.obj // for non-instances this is the same as t.obj
-}
+func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
 
-// Orig returns the original generic type an instantiated type is derived from.
-// If t is not an instantiated type, the result is t.
-func (t *Named) Orig() *Named { return t.orig }
+// Origin returns the parameterized type from which the named type t is
+// instantiated. If t is not an instantiated type, the result is t.
+func (t *Named) Origin() *Named { return t.orig }
 
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.

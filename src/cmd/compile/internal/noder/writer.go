@@ -296,7 +296,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		// TODO(mdempsky): Why do we need to loop here?
 		orig := typ
 		for orig.TypeArgs() != nil {
-			orig = orig.Orig()
+			orig = orig.Origin()
 		}
 
 		w.code(typeNamed)
