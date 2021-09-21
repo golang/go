@@ -210,7 +210,6 @@ func (subst *subster) typ(typ Type) Type {
 			return named
 		}
 
-		t.orig.resolve(subst.env)
 		// Create a new instance and populate the environment to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
