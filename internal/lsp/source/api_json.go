@@ -562,11 +562,6 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
-							Name:    "\"implementmissing\"",
-							Doc:     "suggested fixes for \"undeclared name: %s\" on a function call\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: %s\" that happen for a function call. For example:\n\tfunc m() {\n\t  a(1)\n\t}\nwill turn into\n\tfunc m() {\n\t  a(1)\n\t}\n\n\tfunc a(i int) {}\n",
-							Default: "false",
-						},
-						{
 							Name:    "\"nonewvars\"",
 							Doc:     "suggested fixes for \"no new vars on left side of :=\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no new vars on left side of :=\". For example:\n\tz := 1\n\tz := 2\nwill turn into\n\tz := 1\n\tz = 2\n",
 							Default: "true",
@@ -578,7 +573,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"undeclaredname\"",
-							Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will insert a new statement:\n\"<> := \".",
+							Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will either insert a new statement,\nsuch as:\n\n\"<> := \"\n\nor a new function declaration, such as:\n\nfunc <>(inferred parameters) {\n\tpanic(\"implement me!\")\n}\n",
 							Default: "true",
 						},
 						{
@@ -1140,11 +1135,6 @@ var GeneratedAPIJSON = &APIJSON{
 			Default: true,
 		},
 		{
-			Name:    "implementmissing",
-			Doc:     "suggested fixes for \"undeclared name: %s\" on a function call\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: %s\" that happen for a function call. For example:\n\tfunc m() {\n\t  a(1)\n\t}\nwill turn into\n\tfunc m() {\n\t  a(1)\n\t}\n\n\tfunc a(i int) {}\n",
-			Default: false,
-		},
-		{
 			Name:    "nonewvars",
 			Doc:     "suggested fixes for \"no new vars on left side of :=\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"no new vars on left side of :=\". For example:\n\tz := 1\n\tz := 2\nwill turn into\n\tz := 1\n\tz = 2\n",
 			Default: true,
@@ -1156,7 +1146,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "undeclaredname",
-			Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will insert a new statement:\n\"<> := \".",
+			Doc:     "suggested fixes for \"undeclared name: <>\"\n\nThis checker provides suggested fixes for type errors of the\ntype \"undeclared name: <>\". It will either insert a new statement,\nsuch as:\n\n\"<> := \"\n\nor a new function declaration, such as:\n\nfunc <>(inferred parameters) {\n\tpanic(\"implement me!\")\n}\n",
 			Default: true,
 		},
 		{

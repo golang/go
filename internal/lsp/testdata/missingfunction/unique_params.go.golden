@@ -1,0 +1,30 @@
+-- suggestedfix_unique_params_10_2 --
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package missingfunction
+
+func uniqueArguments() {
+	var s string
+	var i int
+	undefinedUniqueArguments(s, i, s) //@suggestedfix("undefinedUniqueArguments", "quickfix")
+}
+
+func undefinedUniqueArguments(s1 string, i int, s2 string) {
+	panic("implement me!")
+}
+
+-- suggestedfix_unique_params_6_2 --
+package missingfunction
+
+func uniqueArguments() {
+	var s string
+	var i int
+	undefinedUniqueArguments(s, i, s) //@suggestedfix("undefinedUniqueArguments", "quickfix")
+}
+
+func undefinedUniqueArguments(s1 string, i int, s2 string) {
+	panic("unimplemented")
+}
+

@@ -1,0 +1,15 @@
+-- suggestedfix_tuple_4_2 --
+package missingfunction
+
+func tuple() {
+	undefinedTuple(b()) //@suggestedfix("undefinedTuple", "quickfix")
+}
+
+func undefinedTuple(s string, err error) {
+	panic("unimplemented")
+}
+
+func b() (string, error) {
+	return "", nil
+}
+

@@ -24,7 +24,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string,
 	args = append(args, actionKinds...)
 	got, stderr := r.NormalizeGoplsCmd(t, args...)
 	if stderr == "ExecuteCommand is not yet supported on the command line" {
-		t.Skipf(stderr)
+		return // don't skip to keep the summary counts correct
 	}
 	want := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), filename, func() ([]byte, error) {
 		return []byte(got), nil

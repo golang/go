@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package missingfunction
+package undeclared
 
-func slice() {
-	undefinedSlice([]int{1, 2}) // want "undeclared name: undefinedSlice"
+func tuple() {
+	undefinedTuple(b()) // want "undeclared name: undefinedTuple"
+}
+
+func b() (string, error) {
+	return "", nil
 }

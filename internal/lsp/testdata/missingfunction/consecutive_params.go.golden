@@ -1,0 +1,12 @@
+-- suggestedfix_consecutive_params_5_2 --
+package missingfunction
+
+func consecutiveParams() {
+	var s string
+	undefinedConsecutiveParams(s, s) //@suggestedfix("undefinedConsecutiveParams", "quickfix")
+}
+
+func undefinedConsecutiveParams(s1, s2 string) {
+	panic("unimplemented")
+}
+

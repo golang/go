@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package missingfunction
+package undeclared
 
 func consecutiveParams() {
 	var s string
 	undefinedConsecutiveParams(s, s) // want "undeclared name: undefinedConsecutiveParams"
 }
-
-func undefinedConsecutiveParams(s1, s2 string) { panic("not implemented") }

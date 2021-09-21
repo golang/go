@@ -1,0 +1,12 @@
+-- suggestedfix_error_param_5_2 --
+package missingfunction
+
+func errorParam() {
+	var err error
+	undefinedErrorParam(err) //@suggestedfix("undefinedErrorParam", "quickfix")
+}
+
+func undefinedErrorParam(err error) {
+	panic("unimplemented")
+}
+

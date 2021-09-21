@@ -1,0 +1,15 @@
+-- suggestedfix_channels_4_2 --
+package missingfunction
+
+func channels(s string) {
+	undefinedChannels(c()) //@suggestedfix("undefinedChannels", "quickfix")
+}
+
+func undefinedChannels(ch1 <-chan string, ch2 chan string) {
+	panic("unimplemented")
+}
+
+func c() (<-chan string, chan string) {
+	return make(<-chan string), make(chan string)
+}
+

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package missingfunction
+package undeclared
 
 func channels(s string) {
 	undefinedChannels(c()) // want "undeclared name: undefinedChannels"
@@ -11,5 +11,3 @@ func channels(s string) {
 func c() (<-chan string, chan string) {
 	return make(<-chan string), make(chan string)
 }
-
-func undefinedChannels(ch1 <-chan string, ch2 chan string) { panic("not implemented") }
