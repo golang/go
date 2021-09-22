@@ -337,7 +337,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 		w.typ(typ.Elem())
 
 	case *types2.Signature:
-		assert(typ.TypeParams() == nil)
+		base.Assertf(typ.TypeParams() == nil, "unexpected type params: %v", typ)
 		w.code(typeSignature)
 		w.signature(typ)
 
@@ -1158,11 +1158,16 @@ func (w *writer) optLabel(label *syntax.Name) {
 func (w *writer) expr(expr syntax.Expr) {
 	expr = unparen(expr) // skip parens; unneeded after typecheck
 
-	obj, targs := lookupObj(w.p.info, expr)
+	obj, inst := lookupObj(w.p.info, expr)
+	targs := inst.TypeArgs
 
 	if tv, ok := w.p.info.Types[expr]; ok {
 		// TODO(mdempsky): Be more judicious about which types are marked as "needed".
-		w.needType(tv.Type)
+		if inst.Type != nil {
+			w.needType(inst.Type)
+		} else {
+			w.needType(tv.Type)
+		}
 
 		if tv.IsType() {
 			w.code(exprType)
@@ -1303,16 +1308,7 @@ func (w *writer) expr(expr syntax.Expr) {
 				}
 			}
 
-			if inf, ok := w.p.info.Inferred[expr]; ok {
-				obj, _ := lookupObj(w.p.info, expr.Fun)
-				assert(obj != nil)
-
-				// As if w.expr(expr.Fun), but using inf.TArgs instead.
-				w.code(exprName)
-				w.obj(obj, inf.TArgs)
-			} else {
-				w.expr(expr.Fun)
-			}
+			w.expr(expr.Fun)
 			w.bool(false) // not a method call (i.e., normal function call)
 		}
 
@@ -1756,31 +1752,17 @@ func isGlobal(obj types2.Object) bool {
 }
 
 // lookupObj returns the object that expr refers to, if any. If expr
-// is an explicit instantiation of a generic object, then the type
-// arguments are returned as well.
-func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs *types2.TypeList) {
+// is an explicit instantiation of a generic object, then the instance
+// object is returned as well.
+func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
 	if index, ok := expr.(*syntax.IndexExpr); ok {
-		if inf, ok := info.Inferred[index]; ok {
-			targs = inf.TArgs
-		} else {
-			args := unpackListExpr(index.Index)
-
-			if len(args) == 1 {
-				tv, ok := info.Types[args[0]]
-				assert(ok)
-				if tv.IsValue() {
-					return // normal index expression
-				}
+		args := unpackListExpr(index.Index)
+		if len(args) == 1 {
+			tv, ok := info.Types[args[0]]
+			assert(ok)
+			if tv.IsValue() {
+				return // normal index expression
 			}
-
-			list := make([]types2.Type, len(args))
-			for i, arg := range args {
-				tv, ok := info.Types[arg]
-				assert(ok)
-				assert(tv.IsType())
-				list[i] = tv.Type
-			}
-			targs = types2.NewTypeList(list)
 		}
 
 		expr = index.X
@@ -1795,7 +1777,8 @@ func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs *t
 	}
 
 	if name, ok := expr.(*syntax.Name); ok {
-		obj, _ = info.Uses[name]
+		obj = info.Uses[name]
+		inst = info.Instances[name]
 	}
 	return
 }

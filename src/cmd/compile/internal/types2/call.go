@@ -38,8 +38,6 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 		return
 	}
 
-	// if we don't have enough type arguments, try type inference
-	inferred := false
 	if got < want {
 		targs = check.infer(inst.Pos(), sig.TypeParams().list(), targs, nil, nil)
 		if targs == nil {
@@ -49,7 +47,6 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 			return
 		}
 		got = len(targs)
-		inferred = true
 	}
 	assert(got == want)
 
@@ -62,9 +59,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	// instantiate function signature
 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
 	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
-	if inferred {
-		check.recordInferred(inst, targs, res)
-	}
+	check.recordInstance(inst.X, targs, res)
 	x.typ = res
 	x.mode = value
 	x.expr = inst
@@ -346,7 +341,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		// compute result signature
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
 		assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
-		check.recordInferred(call, targs, rsig)
+		check.recordInstance(call.Fun, targs, rsig)
 
 		// Optimization: Only if the parameter list was adjusted do we
 		// need to compute it from the adjusted list; otherwise we can
