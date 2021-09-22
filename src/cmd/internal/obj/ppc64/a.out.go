@@ -242,8 +242,8 @@ const (
 	REGSB   = REG_R2
 	REGRET  = REG_R3
 	REGARG  = -1      /* -1 disables passing the first argument in register */
-	REGRT1  = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2  = REG_R4  /* reserved for runtime, duffcopy */
+	REGRT1  = REG_R20 /* reserved for runtime, duffzero and duffcopy */
+	REGRT2  = REG_R21 /* reserved for runtime, duffcopy */
 	REGMIN  = REG_R7  /* register variables allocated from here to REGMAX */
 	REGCTXT = REG_R11 /* context for closures */
 	REGTLS  = REG_R13 /* C ABI TLS base pointer */
