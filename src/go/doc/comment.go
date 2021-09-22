@@ -236,26 +236,24 @@ func heading(line string) string {
 
 	// allow "'" for possessive "'s" only
 	for b := line; ; {
-		i := strings.IndexRune(b, '\'')
-		if i < 0 {
+		var ok bool
+		if _, b, ok = strings.Cut(b, "'"); !ok {
 			break
 		}
-		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
-			return "" // not followed by "s "
+		if b != "s" && !strings.HasPrefix(b, "s ") {
+			return "" // ' not followed by s and then end-of-word
 		}
-		b = b[i+2:]
 	}
 
 	// allow "." when followed by non-space
 	for b := line; ; {
-		i := strings.IndexRune(b, '.')
-		if i < 0 {
+		var ok bool
+		if _, b, ok = strings.Cut(b, "."); !ok {
 			break
 		}
-		if i+1 >= len(b) || b[i+1] == ' ' {
+		if b == "" || strings.HasPrefix(b, " ") {
 			return "" // not followed by non-space
 		}
-		b = b[i+1:]
 	}
 
 	return line

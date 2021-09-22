@@ -1234,11 +1234,10 @@ func TestGoroutineCounts(t *testing.T) {
 
 func containsInOrder(s string, all ...string) bool {
 	for _, t := range all {
-		i := strings.Index(s, t)
-		if i < 0 {
+		var ok bool
+		if _, s, ok = strings.Cut(s, t); !ok {
 			return false
 		}
-		s = s[i+len(t):]
 	}
 	return true
 }
@@ -1318,18 +1317,18 @@ func TestEmptyCallStack(t *testing.T) {
 // stackContainsLabeled takes a spec like funcname;key=value and matches if the stack has that key
 // and value and has funcname somewhere in the stack.
 func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool {
-	semi := strings.Index(spec, ";")
-	if semi == -1 {
+	base, kv, ok := strings.Cut(spec, ";")
+	if !ok {
 		panic("no semicolon in key/value spec")
 	}
-	kv := strings.SplitN(spec[semi+1:], "=", 2)
-	if len(kv) != 2 {
+	k, v, ok := strings.Cut(kv, "=")
+	if !ok {
 		panic("missing = in key/value spec")
 	}
-	if !contains(labels[kv[0]], kv[1]) {
+	if !contains(labels[k], v) {
 		return false
 	}
-	return stackContains(spec[:semi], count, stk, labels)
+	return stackContains(base, count, stk, labels)
 }
 
 func TestCPUProfileLabel(t *testing.T) {

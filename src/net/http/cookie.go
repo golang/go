@@ -67,15 +67,14 @@ func readSetCookies(h Header) []*Cookie {
 			continue
 		}
 		parts[0] = textproto.TrimString(parts[0])
-		j := strings.Index(parts[0], "=")
-		if j < 0 {
+		name, value, ok := strings.Cut(parts[0], "=")
+		if !ok {
 			continue
 		}
-		name, value := parts[0][:j], parts[0][j+1:]
 		if !isCookieNameValid(name) {
 			continue
 		}
-		value, ok := parseCookieValue(value, true)
+		value, ok = parseCookieValue(value, true)
 		if !ok {
 			continue
 		}
@@ -90,10 +89,7 @@ func readSetCookies(h Header) []*Cookie {
 				continue
 			}
 
-			attr, val := parts[i], ""
-			if j := strings.Index(attr, "="); j >= 0 {
-				attr, val = attr[:j], attr[j+1:]
-			}
+			attr, val, _ := strings.Cut(parts[i], "=")
 			lowerAttr, isASCII := ascii.ToLower(attr)
 			if !isASCII {
 				continue
@@ -256,19 +252,12 @@ func readCookies(h Header, filter string) []*Cookie {
 
 		var part string
 		for len(line) > 0 { // continue since we have rest
-			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
-				part, line = line[:splitIndex], line[splitIndex+1:]
-			} else {
-				part, line = line, ""
-			}
+			part, line, _ = strings.Cut(line, ";")
 			part = textproto.TrimString(part)
-			if len(part) == 0 {
+			if part == "" {
 				continue
 			}
-			name, val := part, ""
-			if j := strings.Index(part, "="); j >= 0 {
-				name, val = name[:j], name[j+1:]
-			}
+			name, val, _ := strings.Cut(part, "=")
 			if !isCookieNameValid(name) {
 				continue
 			}
@@ -379,7 +368,7 @@ func sanitizeCookieValue(v string) string {
 	if len(v) == 0 {
 		return v
 	}
-	if strings.IndexByte(v, ' ') >= 0 || strings.IndexByte(v, ',') >= 0 {
+	if strings.ContainsAny(v, " ,") {
 		return `"` + v + `"`
 	}
 	return v

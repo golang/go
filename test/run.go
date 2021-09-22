@@ -535,9 +535,9 @@ func (ctxt *context) match(name string) bool {
 	if name == "" {
 		return false
 	}
-	if i := strings.Index(name, ","); i >= 0 {
+	if first, rest, ok := strings.Cut(name, ","); ok {
 		// comma-separated list
-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
+		return ctxt.match(first) && ctxt.match(rest)
 	}
 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
 		return false
@@ -622,24 +622,23 @@ func (t *test) run() {
 	}
 
 	// Execution recipe stops at first blank line.
-	pos := strings.Index(t.src, "\n\n")
-	if pos == -1 {
+	action, _, ok := strings.Cut(t.src, "\n\n")
+	if !ok {
 		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
 	}
-	action := t.src[:pos]
-	if nl := strings.Index(action, "\n"); nl >= 0 && strings.Contains(action[:nl], "+build") {
+	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
 		// skip first line
-		action = action[nl+1:]
+		action = rest
 	}
 	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
-	pkgPos := strings.Index(t.src, "\npackage")
-	if pkgPos == -1 {
-		pkgPos = pos // some files are intentionally malformed
+	header, _, ok := strings.Cut(t.src, "\npackage")
+	if !ok {
+		header = action // some files are intentionally malformed
 	}
-	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
+	if ok, why := shouldTest(header, goos, goarch); !ok {
 		if *showSkips {
 			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
 		}
@@ -1516,8 +1515,8 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
-				text = text[i+1:]
+			if _, suffix, ok := strings.Cut(text, " "); ok {
+				text = suffix
 			}
 			if we.re.MatchString(text) {
 				matched = true
@@ -1562,31 +1561,26 @@ func (t *test) updateErrors(out, file string) {
 	}
 	lines := strings.Split(string(src), "\n")
 	// Remove old errors.
-	for i, ln := range lines {
-		pos := strings.Index(ln, " // ERROR ")
-		if pos >= 0 {
-			lines[i] = ln[:pos]
-		}
+	for i := range lines {
+		lines[i], _, _ = strings.Cut(lines[i], " // ERROR ")
 	}
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
 	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
 	for _, errStr := range splitOutput(out, false) {
-		colon1 := strings.Index(errStr, ":")
-		if colon1 < 0 || errStr[:colon1] != file {
+		errFile, rest, ok := strings.Cut(errStr, ":")
+		if !ok || errFile != file {
 			continue
 		}
-		colon2 := strings.Index(errStr[colon1+1:], ":")
-		if colon2 < 0 {
+		lineStr, msg, ok := strings.Cut(rest, ":")
+		if !ok {
 			continue
 		}
-		colon2 += colon1 + 1
-		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
+		line, err := strconv.Atoi(lineStr)
 		line--
 		if err != nil || line < 0 || line >= len(lines) {
 			continue
 		}
-		msg := errStr[colon2+2:]
 		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
 		msg = strings.TrimLeft(msg, " \t")
 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {

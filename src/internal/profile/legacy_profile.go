@@ -750,11 +750,11 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
 			break
 		}
 
-		attr := strings.SplitN(l, delimiter, 2)
-		if len(attr) != 2 {
+		key, val, ok := strings.Cut(l, delimiter)
+		if !ok {
 			break
 		}
-		key, val := strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1])
+		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
 		var err error
 		switch key {
 		case "cycles/second":
@@ -1050,8 +1050,8 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
 			if err == errUnrecognized {
 				// Recognize assignments of the form: attr=value, and replace
 				// $attr with value on subsequent mappings.
-				if attr := strings.SplitN(l, delimiter, 2); len(attr) == 2 {
-					attrs = append(attrs, "$"+strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1]))
+				if attr, value, ok := strings.Cut(l, delimiter); ok {
+					attrs = append(attrs, "$"+strings.TrimSpace(attr), strings.TrimSpace(value))
 					r = strings.NewReplacer(attrs...)
 				}
 				// Ignore any unrecognized entries

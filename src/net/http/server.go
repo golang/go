@@ -2282,7 +2282,7 @@ func cleanPath(p string) string {
 // stripHostPort returns h without any trailing ":<port>".
 func stripHostPort(h string) string {
 	// If no port on host, return unchanged
-	if strings.IndexByte(h, ':') == -1 {
+	if !strings.Contains(h, ":") {
 		return h
 	}
 	host, _, err := net.SplitHostPort(h)

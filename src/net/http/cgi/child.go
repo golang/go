@@ -39,8 +39,8 @@ func Request() (*http.Request, error) {
 func envMap(env []string) map[string]string {
 	m := make(map[string]string)
 	for _, kv := range env {
-		if idx := strings.Index(kv, "="); idx != -1 {
-			m[kv[:idx]] = kv[idx+1:]
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			m[k] = v
 		}
 	}
 	return m

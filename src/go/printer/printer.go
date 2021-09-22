@@ -559,12 +559,9 @@ func stripCommonPrefix(lines []string) {
 	 * Check for vertical "line of stars" and correct prefix accordingly.
 	 */
 	lineOfStars := false
-	if i := strings.Index(prefix, "*"); i >= 0 {
-		// Line of stars present.
-		if i > 0 && prefix[i-1] == ' ' {
-			i-- // remove trailing blank from prefix so stars remain aligned
-		}
-		prefix = prefix[0:i]
+	if p, _, ok := strings.Cut(prefix, "*"); ok {
+		// remove trailing blank from prefix so stars remain aligned
+		prefix = strings.TrimSuffix(p, " ")
 		lineOfStars = true
 	} else {
 		// No line of stars present.
@@ -616,8 +613,8 @@ func stripCommonPrefix(lines []string) {
 	// lines.
 	last := lines[len(lines)-1]
 	closing := "*/"
-	i := strings.Index(last, closing) // i >= 0 (closing is always present)
-	if isBlank(last[0:i]) {
+	before, _, _ := strings.Cut(last, closing) // closing always present
+	if isBlank(before) {
 		// last line only contains closing */
 		if lineOfStars {
 			closing = " */" // add blank to align final star

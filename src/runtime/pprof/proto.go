@@ -13,6 +13,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -581,6 +582,9 @@ func (b *profileBuilder) readMapping() {
 	}
 }
 
+var space = []byte(" ")
+var newline = []byte("\n")
+
 func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
 	// $ cat /proc/self/maps
 	// 00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat
@@ -607,37 +611,24 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 	// next removes and returns the next field in the line.
 	// It also removes from line any spaces following the field.
 	next := func() []byte {
-		j := bytes.IndexByte(line, ' ')
-		if j < 0 {
-			f := line
-			line = nil
-			return f
-		}
-		f := line[:j]
-		line = line[j+1:]
-		for len(line) > 0 && line[0] == ' ' {
-			line = line[1:]
-		}
+		var f []byte
+		f, line, _ = bytes.Cut(line, space)
+		line = bytes.TrimLeft(line, " ")
 		return f
 	}
 
 	for len(data) > 0 {
-		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:i], data[i+1:]
-		}
+		line, data, _ = bytes.Cut(data, newline)
 		addr := next()
-		i = bytes.IndexByte(addr, '-')
-		if i < 0 {
+		loStr, hiStr, ok := strings.Cut(string(addr), "-")
+		if !ok {
 			continue
 		}
-		lo, err := strconv.ParseUint(string(addr[:i]), 16, 64)
+		lo, err := strconv.ParseUint(loStr, 16, 64)
 		if err != nil {
 			continue
 		}
-		hi, err := strconv.ParseUint(string(addr[i+1:]), 16, 64)
+		hi, err := strconv.ParseUint(hiStr, 16, 64)
 		if err != nil {
 			continue
 		}
