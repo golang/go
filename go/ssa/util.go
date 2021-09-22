@@ -164,6 +164,31 @@ func receiverTypeArgs(obj *types.Func) []types.Type {
 	return targs
 }
 
+// recvAsFirstArg takes a method signature and returns a function
+// signature with receiver as the first parameter.
+func recvAsFirstArg(sig *types.Signature) *types.Signature {
+	params := make([]*types.Var, 0, 1+sig.Params().Len())
+	params = append(params, sig.Recv())
+	for i := 0; i < sig.Params().Len(); i++ {
+		params = append(params, sig.Params().At(i))
+	}
+	return typeparams.NewSignatureType(nil, nil, nil, types.NewTuple(params...), sig.Results(), sig.Variadic())
+}
+
+// instanceArgs returns the Instance[id].TypeArgs as a slice.
+func instanceArgs(info *types.Info, id *ast.Ident) []types.Type {
+	targList := typeparams.GetInstances(info)[id].TypeArgs
+	if targList == nil {
+		return nil
+	}
+
+	targs := make([]types.Type, targList.Len())
+	for i, n := 0, targList.Len(); i < n; i++ {
+		targs[i] = targList.At(i)
+	}
+	return targs
+}
+
 // Mapping of a type T to a canonical instance C s.t. types.Indentical(T, C).
 // Thread-safe.
 type canonizer struct {
@@ -267,4 +292,20 @@ func (m *typeListMap) hash(ts []types.Type) uint32 {
 		h += 3 * m.hasher.Hash(ts[i])
 	}
 	return h
+}
+
+// instantiateMethod instantiates m with targs and returns a canonical representative for this method.
+func (canon *canonizer) instantiateMethod(m *types.Func, targs []types.Type, ctxt *typeparams.Context) *types.Func {
+	recv := recvType(m)
+	if p, ok := recv.(*types.Pointer); ok {
+		recv = p.Elem()
+	}
+	named := recv.(*types.Named)
+	inst, err := typeparams.Instantiate(ctxt, typeparams.NamedTypeOrigin(named), targs, false)
+	if err != nil {
+		panic(err)
+	}
+	rep := canon.Type(inst)
+	obj, _, _ := types.LookupFieldOrMethod(rep, true, m.Pkg(), m.Name())
+	return obj.(*types.Func)
 }

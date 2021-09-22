@@ -187,7 +187,8 @@ func doCallgraph(dir, gopath, algo, format string, tests bool, args []string) er
 	}
 
 	// Create and build SSA-form program representation.
-	prog, pkgs := ssautil.AllPackages(initial, 0)
+	mode := ssa.InstantiateGenerics // instantiate generics by default for soundness
+	prog, pkgs := ssautil.AllPackages(initial, mode)
 	prog.Build()
 
 	// -- call graph construction ------------------------------------------

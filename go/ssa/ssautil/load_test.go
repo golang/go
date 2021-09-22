@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -40,7 +41,8 @@ func TestBuildPackage(t *testing.T) {
 	}
 
 	pkg := types.NewPackage("hello", "")
-	ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset, pkg, []*ast.File{f}, 0)
+	mode := ssa.InstantiateGenerics
+	ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset, pkg, []*ast.File{f}, mode)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +67,7 @@ func TestPackages(t *testing.T) {
 		t.Fatal("there were errors")
 	}
 
-	prog, pkgs := ssautil.Packages(initial, 0)
+	prog, pkgs := ssautil.Packages(initial, ssa.InstantiateGenerics)
 	bytesNewBuffer := pkgs[0].Func("NewBuffer")
 	bytesNewBuffer.Pkg.Build()
 
@@ -102,7 +104,7 @@ func TestBuildPackage_MissingImport(t *testing.T) {
 	}
 
 	pkg := types.NewPackage("bad", "")
-	ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
+	ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset, pkg, []*ast.File{f}, ssa.BuilderMode(0))
 	if err == nil || ssapkg != nil {
 		t.Fatal("BuildPackage succeeded unexpectedly")
 	}
@@ -120,6 +122,6 @@ func TestIssue28106(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _ := ssautil.Packages(pkgs, 0)
+	prog, _ := ssautil.Packages(pkgs, ssa.BuilderMode(0))
 	prog.Build() // no crash
 }

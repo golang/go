@@ -76,6 +76,7 @@ func TestStdlib(t *testing.T) {
 	// Comment out these lines during benchmarking.  Approx SSA build costs are noted.
 	mode |= ssa.SanityCheckFunctions // + 2% space, + 4% time
 	mode |= ssa.GlobalDebug          // +30% space, +18% time
+	mode |= ssa.InstantiateGenerics  // + 0% space, + 2% time (unlikely to reproduce outside of stdlib)
 	prog, _ := ssautil.Packages(pkgs, mode)
 
 	t2 := time.Now()

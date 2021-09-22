@@ -33,23 +33,23 @@ func (f *Function) objectOf(id *ast.Ident) types.Object {
 // Only valid during f's create and build phases.
 func (f *Function) typeOf(e ast.Expr) types.Type {
 	if T := f.info.TypeOf(e); T != nil {
-		return T
+		return f.typ(T)
 	}
 	panic(fmt.Sprintf("no type for %T @ %s", e, f.Prog.Fset.Position(e.Pos())))
 }
 
-// instanceArgs returns the Instance[id].TypeArgs within the context of fn.
-func (fn *Function) instanceArgs(id *ast.Ident) []types.Type {
-	targList := typeparams.GetInstances(fn.info)[id].TypeArgs
-	if targList == nil {
-		return nil
-	}
+// typ is the locally instantiated type of T. T==typ(T) if f is not an instantiation.
+func (f *Function) typ(T types.Type) types.Type {
+	return f.subst.typ(T)
+}
 
-	targs := make([]types.Type, targList.Len())
-	for i, n := 0, targList.Len(); i < n; i++ {
-		targs[i] = targList.At(i)
+// If id is an Instance, returns info.Instances[id].Type.
+// Otherwise returns f.typeOf(id).
+func (f *Function) instanceType(id *ast.Ident) types.Type {
+	if t, ok := typeparams.GetInstances(f.info)[id]; ok {
+		return t.Type
 	}
-	return targs
+	return f.typeOf(id)
 }
 
 // Destinations associated with unlabelled for/switch/select stmts.
@@ -103,7 +103,7 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 	if name == "" {
 		name = fmt.Sprintf("arg%d", len(f.Params))
 	}
-	param := f.addParam(name, obj.Type(), obj.Pos())
+	param := f.addParam(name, f.typ(obj.Type()), obj.Pos())
 	param.object = obj
 	return param
 }
@@ -114,7 +114,7 @@ func (f *Function) addParamObj(obj types.Object) *Parameter {
 func (f *Function) addSpilledParam(obj types.Object) {
 	param := f.addParamObj(obj)
 	spill := &Alloc{Comment: obj.Name()}
-	spill.setType(types.NewPointer(obj.Type()))
+	spill.setType(types.NewPointer(param.Type()))
 	spill.setPos(obj.Pos())
 	f.objects[obj] = spill
 	f.Locals = append(f.Locals, spill)
@@ -273,7 +273,7 @@ func (f *Function) finishBody() {
 	f.info = nil
 	f.subst = nil
 
-	numberRegisters(f)
+	numberRegisters(f) // uses f.namedRegisters
 }
 
 // After this, function is done with BUILD phase.
@@ -350,6 +350,7 @@ func (f *Function) addLocalForIdent(id *ast.Ident) *Alloc {
 // addLocal creates an anonymous local variable of type typ, adds it
 // to function f and returns it.  pos is the optional source location.
 func (f *Function) addLocal(typ types.Type, pos token.Pos) *Alloc {
+	typ = f.typ(typ)
 	v := &Alloc{}
 	v.setType(types.NewPointer(typ))
 	v.setPos(pos)
@@ -482,9 +483,8 @@ func (fn *Function) declaredPackage() *Package {
 	switch {
 	case fn.Pkg != nil:
 		return fn.Pkg // non-generic function
-		// generics:
-	// case fn.Origin != nil:
-	// 	return fn.Origin.pkg // instance of a named generic function
+	case fn._Origin != nil:
+		return fn._Origin.Pkg // instance of a named generic function
 	case fn.parent != nil:
 		return fn.parent.declaredPackage() // instance of an anonymous [generic] function
 	default:

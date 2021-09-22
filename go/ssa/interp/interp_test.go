@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/interp"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // Each line contains a space-separated list of $GOROOT/test/
@@ -182,7 +183,9 @@ func run(t *testing.T, input string) bool {
 		return false
 	}
 
-	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
+	bmode := ssa.InstantiateGenerics | ssa.SanityCheckFunctions
+	// bmode |= ssa.PrintFunctions // enable for debugging
+	prog := ssautil.CreateProgram(iprog, bmode)
 	prog.Build()
 
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
@@ -194,7 +197,10 @@ func run(t *testing.T, input string) bool {
 
 	sizes := types.SizesFor("gc", ctx.GOARCH)
 	hint = fmt.Sprintf("To trace execution, run:\n%% go build golang.org/x/tools/cmd/ssadump && ./ssadump -build=C -test -run --interp=T %s\n", input)
-	exitCode := interp.Interpret(mainPkg, 0, sizes, input, []string{})
+	var imode interp.Mode // default mode
+	// imode |= interp.DisableRecover // enable for debugging
+	// imode |= interp.EnableTracing // enable for debugging
+	exitCode := interp.Interpret(mainPkg, imode, sizes, input, []string{})
 	if exitCode != 0 {
 		t.Fatalf("interpreting %s: exit code was %d", input, exitCode)
 	}
@@ -243,6 +249,68 @@ func TestGorootTest(t *testing.T) {
 
 	for _, input := range gorootTestTests {
 		if !run(t, filepath.Join(build.Default.GOROOT, "test", input)) {
+			failures = append(failures, input)
+		}
+	}
+	printFailures(failures)
+}
+
+// TestTypeparamTest runs the interpreter on runnable examples
+// in $GOROOT/test/typeparam/*.go.
+
+func TestTypeparamTest(t *testing.T) {
+	if !typeparams.Enabled {
+		return
+	}
+
+	// Skip known failures for the given reason.
+	// TODO(taking): Address these.
+	skip := map[string]string{
+		"chans.go":       "interp tests do not support runtime.SetFinalizer",
+		"issue23536.go":  "unknown reason",
+		"issue376214.go": "unknown issue with variadic cast on bytes",
+		"issue48042.go":  "interp tests do not handle reflect.Value.SetInt",
+		"issue47716.go":  "interp tests do not handle unsafe.Sizeof",
+		"issue50419.go":  "interp tests do not handle dispatch to String() correctly",
+		"issue51733.go":  "interp does not handle unsafe casts",
+		"ordered.go":     "math.NaN() comparisons not being handled correctly",
+		"orderedmap.go":  "interp tests do not support runtime.SetFinalizer",
+		"stringer.go":    "unknown reason",
+		"issue48317.go":  "interp tests do not support encoding/json",
+		"issue48318.go":  "interp tests do not support encoding/json",
+	}
+	// Collect all of the .go files in dir that are runnable.
+	dir := filepath.Join(build.Default.GOROOT, "test", "typeparam")
+	list, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inputs []string
+	for _, entry := range list {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue // Consider standalone go files.
+		}
+		if reason := skip[entry.Name()]; reason != "" {
+			t.Logf("skipping %q due to %s.", entry.Name(), reason)
+			continue
+		}
+		input := filepath.Join(dir, entry.Name())
+		src, err := os.ReadFile(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Only build test files that can be compiled, or compiled and run.
+		if bytes.HasPrefix(src, []byte("// run")) && !bytes.HasPrefix(src, []byte("// rundir")) {
+			inputs = append(inputs, input)
+		} else {
+			t.Logf("Not a `// run` file: %s", entry.Name())
+		}
+	}
+
+	var failures []string
+	for _, input := range inputs {
+		t.Log("running", input)
+		if !run(t, input) {
 			failures = append(failures, input)
 		}
 	}

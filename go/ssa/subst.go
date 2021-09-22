@@ -143,6 +143,15 @@ func (subst *subster) typ(t types.Type) (res types.Type) {
 	}
 }
 
+// types returns the result of {subst.typ(ts[i])}.
+func (subst *subster) types(ts []types.Type) []types.Type {
+	res := make([]types.Type, len(ts))
+	for i := range ts {
+		res[i] = subst.typ(ts[i])
+	}
+	return res
+}
+
 func (subst *subster) tuple(t *types.Tuple) *types.Tuple {
 	if t != nil {
 		if vars := subst.varlist(t); vars != nil {
@@ -360,7 +369,7 @@ func (subst *subster) signature(t *types.Signature) types.Type {
 	params := subst.tuple(t.Params())
 	results := subst.tuple(t.Results())
 	if recv != t.Recv() || params != t.Params() || results != t.Results() {
-		return types.NewSignature(recv, params, results, t.Variadic())
+		return typeparams.NewSignatureType(recv, nil, nil, params, results, t.Variadic())
 	}
 	return t
 }

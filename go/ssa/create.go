@@ -38,6 +38,7 @@ func NewProgram(fset *token.FileSet, mode BuilderMode) *Program {
 
 	h := typeutil.MakeHasher() // protected by methodsMu, in effect
 	prog.methodSets.SetHasher(h)
+	prog.runtimeTypes.SetHasher(h)
 
 	return prog
 }
@@ -106,8 +107,8 @@ func memberFromObject(pkg *Package, obj types.Object, syntax ast.Node) {
 			pos:         obj.Pos(),
 			Pkg:         pkg,
 			Prog:        pkg.Prog,
-			info:        pkg.info,
 			_TypeParams: tparams,
+			info:        pkg.info,
 		}
 		pkg.created.Add(fn)
 		if syntax == nil {

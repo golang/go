@@ -51,6 +51,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"golang.org/x/tools/go/ssa"
@@ -505,7 +506,11 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
 			return ext(fr, args)
 		}
 		if fn.Blocks == nil {
-			panic("no code for function: " + name)
+			var reason string // empty by default
+			if strings.HasPrefix(fn.Synthetic, "instantiation") {
+				reason = " (interp requires ssa.BuilderMode to include InstantiateGenerics on generics)"
+			}
+			panic("no code for function: " + name + reason)
 		}
 	}
 	fr.env = make(map[ssa.Value]value)
@@ -637,6 +642,9 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 // gc does), or the argument to os.Exit for normal termination.
 //
 // The SSA program must include the "runtime" package.
+//
+// Type parameterized functions must have been built with
+// InstantiateGenerics in the ssa.BuilderMode to be interpreted.
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
 	i := &interpreter{
 		prog:       mainpkg.Prog,

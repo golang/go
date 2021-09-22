@@ -102,11 +102,12 @@ func (insts *instanceSet) lookupOrCreate(targs []types.Type, cr *creator) *Funct
 	if inst, ok := insts.instances[key]; ok {
 		return inst
 	}
-	instance := createInstance(insts.fn, targs, insts.info, insts.syntax, cr)
 
-	// TODO(taking): Allow for the function to be built after monomorphization is supported.
-	instance.syntax = nil // treat instance as an external function to prevent building.
-
+	var syntax ast.Node
+	if insts.syntax != nil {
+		syntax = insts.syntax
+	}
+	instance := createInstance(insts.fn, targs, insts.info, syntax, cr)
 	insts.instances[key] = instance
 	return instance
 }
@@ -120,19 +121,8 @@ func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax a
 	var obj *types.Func
 	if recv := fn.Signature.Recv(); recv != nil {
 		// method
-		// instantiates m with targs and returns a canonical representative for this method.
 		m := fn.object.(*types.Func)
-		recv := recvType(m)
-		if p, ok := recv.(*types.Pointer); ok {
-			recv = p.Elem()
-		}
-		named := recv.(*types.Named)
-		inst, err := typeparams.Instantiate(prog.ctxt, typeparams.NamedTypeOrigin(named), targs, false)
-		if err != nil {
-			panic(err)
-		}
-		canon, _, _ := types.LookupFieldOrMethod(prog.canon.Type(inst), true, m.Pkg(), m.Name())
-		obj = canon.(*types.Func)
+		obj = prog.canon.instantiateMethod(m, targs, prog.ctxt)
 		sig = obj.Type().(*types.Signature)
 	} else {
 		instSig, err := typeparams.Instantiate(prog.ctxt, fn.Signature, targs, false)
@@ -154,7 +144,6 @@ func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax a
 		object:      obj,
 		Signature:   sig,
 		Synthetic:   synthetic,
-		syntax:      syntax, // on synthetic packages syntax is nil.
 		_Origin:     fn,
 		pos:         obj.Pos(),
 		Pkg:         nil,
@@ -163,6 +152,9 @@ func createInstance(fn *Function, targs []types.Type, info *types.Info, syntax a
 		_TypeArgs:   targs,
 		info:        info, // on synthetic packages info is nil.
 		subst:       makeSubster(prog.ctxt, fn._TypeParams, targs, false),
+	}
+	if prog.mode&InstantiateGenerics != 0 {
+		instance.syntax = syntax // otherwise treat instance as an external function.
 	}
 	cr.Add(instance)
 	return instance

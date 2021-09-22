@@ -48,7 +48,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	// Some Analyzers may need GlobalDebug, in which case we'll have
 	// to set it globally, but let's wait till we need it.
-	mode := ssa.BuilderMode(0)
+	// Monomorphize at least until type parameters are available.
+	mode := ssa.InstantiateGenerics
 
 	prog := ssa.NewProgram(pass.Fset, mode)
 

@@ -158,7 +158,7 @@ func Example_loadWholeProgram() {
 	}
 
 	// Create SSA packages for well-typed packages and their dependencies.
-	prog, pkgs := ssautil.AllPackages(initial, ssa.PrintPackages)
+	prog, pkgs := ssautil.AllPackages(initial, ssa.PrintPackages|ssa.InstantiateGenerics)
 	_ = pkgs
 
 	// Build SSA code for the whole program.

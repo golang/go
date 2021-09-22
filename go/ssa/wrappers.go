@@ -42,7 +42,7 @@ import (
 //   - the result may be a thunk or a wrapper.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(prog.methodsMu)
-func makeWrapper(prog *Program, sel *types.Selection, cr *creator) *Function {
+func makeWrapper(prog *Program, sel selection, cr *creator) *Function {
 	obj := sel.Obj().(*types.Func)       // the declared function
 	sig := sel.Type().(*types.Signature) // type of this wrapper
 
@@ -255,7 +255,7 @@ func makeBound(prog *Program, obj *types.Func, cr *creator) *Function {
 // than inlining the stub.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(meth.Prog.methodsMu)
-func makeThunk(prog *Program, sel *types.Selection, cr *creator) *Function {
+func makeThunk(prog *Program, sel selection, cr *creator) *Function {
 	if sel.Kind() != types.MethodExpr {
 		panic(sel)
 	}
@@ -301,4 +301,45 @@ type selectionKey struct {
 type boundsKey struct {
 	obj  types.Object // t.meth
 	inst *typeList    // canonical type instantiation list.
+}
+
+// methodExpr is an copy of a *types.Selection.
+// This exists as there is no way to create MethodExpr's for an instantiation.
+type methodExpr struct {
+	recv     types.Type
+	typ      types.Type
+	obj      types.Object
+	index    []int
+	indirect bool
+}
+
+func (*methodExpr) Kind() types.SelectionKind { return types.MethodExpr }
+func (m *methodExpr) Type() types.Type        { return m.typ }
+func (m *methodExpr) Recv() types.Type        { return m.recv }
+func (m *methodExpr) Obj() types.Object       { return m.obj }
+func (m *methodExpr) Index() []int            { return m.index }
+func (m *methodExpr) Indirect() bool          { return m.indirect }
+
+// create MethodExpr from a MethodValue.
+func toMethodExpr(mv *types.Selection) *methodExpr {
+	if mv.Kind() != types.MethodVal {
+		panic(mv)
+	}
+	return &methodExpr{
+		recv:     mv.Recv(),
+		typ:      recvAsFirstArg(mv.Type().(*types.Signature)),
+		obj:      mv.Obj(),
+		index:    mv.Index(),
+		indirect: mv.Indirect(),
+	}
+}
+
+// generalization of a *types.Selection and a methodExpr.
+type selection interface {
+	Kind() types.SelectionKind
+	Type() types.Type
+	Recv() types.Type
+	Obj() types.Object
+	Index() []int
+	Indirect() bool
 }

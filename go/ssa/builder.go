@@ -24,14 +24,62 @@ package ssa
 // TODO(adonovan): indeed, building functions is now embarrassingly parallel.
 // Audit for concurrency then benchmark using more goroutines.
 //
-// The builder's and Program's indices (maps) are populated and
+// State:
+//
+// The Package's and Program's indices (maps) are populated and
 // mutated during the CREATE phase, but during the BUILD phase they
 // remain constant.  The sole exception is Prog.methodSets and its
 // related maps, which are protected by a dedicated mutex.
 //
+// Generic functions declared in a package P can be instantiated from functions
+// outside of P. This happens independently of the CREATE and BUILD phase of P.
+//
+// Locks:
+//
+// Mutexes are currently acquired according to the following order:
+//     Prog.methodsMu ⊃ canonizer.mu ⊃ printMu
+// where x ⊃ y denotes that y can be acquired while x is held
+// and x cannot be acquired while y is held.
+//
+// Synthetics:
+//
+// During the BUILD phase new functions can be created and built. These include:
+// - wrappers (wrappers, bounds, thunks)
+// - generic function instantiations
+// These functions do not belong to a specific Pkg (Pkg==nil). Instead the
+// Package that led to them being CREATED is obligated to ensure these
+// are BUILT during the BUILD phase of the Package.
+//
+// Runtime types:
+//
+// A concrete type is a type that is fully monomorphized with concrete types,
+// i.e. it cannot reach a TypeParam type.
+// Some concrete types require full runtime type information. Cases
+// include checking whether a type implements an interface or
+// interpretation by the reflect package. All such types that may require
+// this information will have all of their method sets built and will be added to Prog.methodSets.
+// A type T is considered to require runtime type information if it is
+// a runtime type and has a non-empty method set and either:
+// - T flows into a MakeInterface instructions,
+// - T appears in a concrete exported member, or
+// - T is a type reachable from a type S that has non-empty method set.
+// For any such type T, method sets must be created before the BUILD
+// phase of the package is done.
+//
+// Function literals:
+//
+// The BUILD phase of a function literal (anonymous function) is tied to the
+// BUILD phase of the enclosing parent function. The FreeVars of an anonymous
+// function are discovered by building the anonymous function. This in turn
+// changes which variables must be bound in a MakeClosure instruction in the
+// parent. Anonymous functions also track where they are referred to in their
+// parent function.
+//
 // Happens-before:
 //
-// The happens-before constraints (with X<Y denoting X happens-before Y) are:
+// The above discussion leads to the following happens-before relation for
+// the BUILD and CREATE phases.
+// The happens-before relation (with X<Y denoting X happens-before Y) are:
 // - CREATE fn < fn.startBody() < fn.finishBody() < fn.built
 //   for any function fn.
 // - anon.parent.startBody() < CREATE anon, and
@@ -43,6 +91,16 @@ package ssa
 //   for any function fn created during the CREATE or BUILD phase of a package
 //   pkg. This includes declared and synthetic functions.
 //
+// Program.MethodValue:
+//
+// Program.MethodValue may trigger new wrapper and instantiation functions to
+// be created. It has the same obligation to BUILD created functions as a
+// Package.
+//
+// Program.NewFunction:
+//
+// This is a low level operation for creating functions that do not exist in
+// the source. Use with caution.
 
 import (
 	"fmt"
@@ -75,7 +133,7 @@ var (
 	tString     = types.Typ[types.String]
 	tUntypedNil = types.Typ[types.UntypedNil]
 	tRangeIter  = &opaqueType{nil, "iter"} // the type of all "range" iterators
-	tEface      = types.NewInterface(nil, nil).Complete()
+	tEface      = types.NewInterfaceType(nil, nil).Complete()
 
 	// SSA Value constants.
 	vZero = intConst(0)
@@ -248,6 +306,7 @@ func (b *builder) exprN(fn *Function, e ast.Expr) Value {
 // the caller should treat this like an ordinary library function
 // call.
 func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ types.Type, pos token.Pos) Value {
+	typ = fn.typ(typ)
 	switch obj.Name() {
 	case "make":
 		switch typ.Underlying().(type) {
@@ -538,7 +597,7 @@ func (b *builder) expr(fn *Function, e ast.Expr) Value {
 
 	// Is expression a constant?
 	if tv.Value != nil {
-		return NewConst(tv.Value, tv.Type)
+		return NewConst(tv.Value, fn.typ(tv.Type))
 	}
 
 	var v Value
@@ -563,14 +622,18 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 
 	case *ast.FuncLit:
 		fn2 := &Function{
-			name:      fmt.Sprintf("%s$%d", fn.Name(), 1+len(fn.AnonFuncs)),
-			Signature: fn.typeOf(e.Type).Underlying().(*types.Signature),
-			pos:       e.Type.Func,
-			parent:    fn,
-			Pkg:       fn.Pkg,
-			Prog:      fn.Prog,
-			syntax:    e,
-			info:      fn.info,
+			name:        fmt.Sprintf("%s$%d", fn.Name(), 1+len(fn.AnonFuncs)),
+			Signature:   fn.typeOf(e.Type).Underlying().(*types.Signature),
+			pos:         e.Type.Func,
+			parent:      fn,
+			Pkg:         fn.Pkg,
+			Prog:        fn.Prog,
+			syntax:      e,
+			_Origin:     nil,            // anon funcs do not have an origin.
+			_TypeParams: fn._TypeParams, // share the parent's type parameters.
+			_TypeArgs:   fn._TypeArgs,   // share the parent's type arguments.
+			info:        fn.info,
+			subst:       fn.subst, // share the parent's type substitutions.
 		}
 		fn.AnonFuncs = append(fn.AnonFuncs, fn2)
 		b.created.Add(fn2)
@@ -581,7 +644,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			return fn2
 		}
 		v := &MakeClosure{Fn: fn2}
-		v.setType(tv.Type)
+		v.setType(fn.typ(tv.Type))
 		for _, fv := range fn2.FreeVars {
 			v.Bindings = append(v.Bindings, fv.outer)
 			fv.outer = nil
@@ -589,13 +652,13 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		return fn.emit(v)
 
 	case *ast.TypeAssertExpr: // single-result form only
-		return emitTypeAssert(fn, b.expr(fn, e.X), tv.Type, e.Lparen)
+		return emitTypeAssert(fn, b.expr(fn, e.X), fn.typ(tv.Type), e.Lparen)
 
 	case *ast.CallExpr:
 		if fn.info.Types[e.Fun].IsType() {
 			// Explicit type conversion, e.g. string(x) or big.Int(x)
 			x := b.expr(fn, e.Args[0])
-			y := emitConv(fn, x, tv.Type)
+			y := emitConv(fn, x, fn.typ(tv.Type))
 			if y != x {
 				switch y := y.(type) {
 				case *Convert:
@@ -613,7 +676,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		// Call to "intrinsic" built-ins, e.g. new, make, panic.
 		if id, ok := unparen(e.Fun).(*ast.Ident); ok {
 			if obj, ok := fn.info.Uses[id].(*types.Builtin); ok {
-				if v := b.builtin(fn, obj, e.Args, tv.Type, e.Lparen); v != nil {
+				if v := b.builtin(fn, obj, e.Args, fn.typ(tv.Type), e.Lparen); v != nil {
 					return v
 				}
 			}
@@ -621,7 +684,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		// Regular function call.
 		var v Call
 		b.setCall(fn, e, &v.Call)
-		v.setType(tv.Type)
+		v.setType(fn.typ(tv.Type))
 		return fn.emit(&v)
 
 	case *ast.UnaryExpr:
@@ -644,7 +707,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				X:  b.expr(fn, e.X),
 			}
 			v.setPos(e.OpPos)
-			v.setType(tv.Type)
+			v.setType(fn.typ(tv.Type))
 			return fn.emit(v)
 		default:
 			panic(e.Op)
@@ -657,12 +720,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case token.SHL, token.SHR:
 			fallthrough
 		case token.ADD, token.SUB, token.MUL, token.QUO, token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
-			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), tv.Type, e.OpPos)
+			return emitArith(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), fn.typ(tv.Type), e.OpPos)
 
 		case token.EQL, token.NEQ, token.GTR, token.LSS, token.LEQ, token.GEQ:
 			cmp := emitCompare(fn, e.Op, b.expr(fn, e.X), b.expr(fn, e.Y), e.OpPos)
 			// The type of x==y may be UntypedBool.
-			return emitConv(fn, cmp, types.Default(tv.Type))
+			return emitConv(fn, cmp, types.Default(fn.typ(tv.Type)))
 		default:
 			panic("illegal op in BinaryExpr: " + e.Op.String())
 		}
@@ -695,7 +758,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			Max:  max,
 		}
 		v.setPos(e.Lbrack)
-		v.setType(tv.Type)
+		v.setType(fn.typ(tv.Type))
 		return fn.emit(v)
 
 	case *ast.Ident:
@@ -703,9 +766,9 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		// Universal built-in or nil?
 		switch obj := obj.(type) {
 		case *types.Builtin:
-			return &Builtin{name: obj.Name(), sig: tv.Type.(*types.Signature)}
+			return &Builtin{name: obj.Name(), sig: fn.instanceType(e).(*types.Signature)}
 		case *types.Nil:
-			return nilConst(tv.Type)
+			return nilConst(fn.instanceType(e))
 		}
 		// Package-level func or var?
 		if v := fn.Prog.packageLevelMember(obj); v != nil {
@@ -714,7 +777,8 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			}
 			callee := v.(*Function) // (func)
 			if len(callee._TypeParams) > 0 {
-				callee = fn.Prog.needsInstance(callee, fn.instanceArgs(e), b.created)
+				targs := fn.subst.types(instanceArgs(fn.info, e))
+				callee = fn.Prog.needsInstance(callee, targs, b.created)
 			}
 			return callee
 		}
@@ -726,7 +790,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		if !ok {
 			// builtin unsafe.{Add,Slice}
 			if obj, ok := fn.info.Uses[e.Sel].(*types.Builtin); ok {
-				return &Builtin{name: obj.Name(), sig: tv.Type.(*types.Signature)}
+				return &Builtin{name: obj.Name(), sig: fn.typ(tv.Type).(*types.Signature)}
 			}
 			// qualified identifier
 			return b.expr(fn, e.Sel)
@@ -735,13 +799,23 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 		case types.MethodExpr:
 			// (*T).f or T.f, the method f from the method-set of type T.
 			// The result is a "thunk".
-			return emitConv(fn, makeThunk(fn.Prog, sel, b.created), tv.Type)
+
+			sel := selection(sel)
+			if base := fn.typ(sel.Recv()); base != sel.Recv() {
+				// instantiate sel as sel.Recv is not equal after substitution.
+				pkg := fn.declaredPackage().Pkg
+				// mv is the instantiated method value.
+				mv := types.NewMethodSet(base).Lookup(pkg, sel.Obj().Name())
+				sel = toMethodExpr(mv)
+			}
+			thunk := makeThunk(fn.Prog, sel, b.created)
+			return emitConv(fn, thunk, fn.typ(tv.Type))
 
 		case types.MethodVal:
 			// e.f where e is an expression and f is a method.
 			// The result is a "bound".
 			obj := sel.Obj().(*types.Func)
-			rt := recvType(obj)
+			rt := fn.typ(recvType(obj))
 			wantAddr := isPointer(rt)
 			escaping := true
 			v := b.receiver(fn, e.X, wantAddr, escaping, sel)
@@ -751,12 +825,16 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				// We use: typeassert v.(I).
 				emitTypeAssert(fn, v, rt, token.NoPos)
 			}
+			if targs := receiverTypeArgs(obj); len(targs) > 0 {
+				// obj is generic.
+				obj = fn.Prog.canon.instantiateMethod(obj, fn.subst.types(targs), fn.Prog.ctxt)
+			}
 			c := &MakeClosure{
 				Fn:       makeBound(fn.Prog, obj, b.created),
 				Bindings: []Value{v},
 			}
 			c.setPos(e.Sel.Pos())
-			c.setType(tv.Type)
+			c.setType(fn.typ(tv.Type))
 			return fn.emit(c)
 
 		case types.FieldVal:
@@ -782,6 +860,7 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 				return b.expr(fn, ident)
 			}
 		}
+		// not a generic instantiation.
 		switch t := fn.typeOf(e.X).Underlying().(type) {
 		case *types.Array:
 			// Non-addressable array (in a register).
@@ -798,14 +877,12 @@ func (b *builder) expr0(fn *Function, e ast.Expr, tv types.TypeAndValue) Value {
 			return fn.emit(v)
 
 		case *types.Map:
-			// Maps are not addressable.
-			mapt := fn.typeOf(e.X).Underlying().(*types.Map)
 			v := &Lookup{
 				X:     b.expr(fn, e.X),
-				Index: emitConv(fn, b.expr(fn, e.Index), mapt.Key()),
+				Index: emitConv(fn, b.expr(fn, e.Index), t.Key()),
 			}
 			v.setPos(e.Lbrack)
-			v.setType(mapt.Elem())
+			v.setType(t.Elem())
 			return fn.emit(v)
 
 		case *types.Basic: // => string
@@ -883,7 +960,14 @@ func (b *builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
 		sel, ok := fn.info.Selections[selector]
 		if ok && sel.Kind() == types.MethodVal {
 			obj := sel.Obj().(*types.Func)
+			if recv := fn.typ(sel.Recv()); recv != sel.Recv() {
+				// adjust obj if the sel.Recv() changed during monomorphization.
+				pkg := fn.declaredPackage().Pkg
+				method, _, _ := types.LookupFieldOrMethod(recv, true, pkg, sel.Obj().Name())
+				obj = method.(*types.Func)
+			}
 			recv := recvType(obj)
+
 			wantAddr := isPointer(recv)
 			escaping := true
 			v := b.receiver(fn, selector.X, wantAddr, escaping, sel)
@@ -1532,12 +1616,12 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 
 		case *ast.SendStmt: // ch<- i
 			ch := b.expr(fn, comm.Chan)
+			chtyp := fn.typ(ch.Type()).Underlying().(*types.Chan)
 			st = &SelectState{
 				Dir:  types.SendOnly,
 				Chan: ch,
-				Send: emitConv(fn, b.expr(fn, comm.Value),
-					ch.Type().Underlying().(*types.Chan).Elem()),
-				Pos: comm.Arrow,
+				Send: emitConv(fn, b.expr(fn, comm.Value), chtyp.Elem()),
+				Pos:  comm.Arrow,
 			}
 			if debugInfo {
 				st.DebugNode = comm
@@ -1589,7 +1673,8 @@ func (b *builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
 	vars = append(vars, varIndex, varOk)
 	for _, st := range states {
 		if st.Dir == types.RecvOnly {
-			tElem := st.Chan.Type().Underlying().(*types.Chan).Elem()
+			chtyp := fn.typ(st.Chan.Type()).Underlying().(*types.Chan)
+			tElem := chtyp.Elem()
 			vars = append(vars, anonVar(tElem))
 		}
 	}
@@ -2208,13 +2293,17 @@ func (b *builder) buildFunctionBody(fn *Function) {
 	if fn.Blocks != nil {
 		return // building already started
 	}
+
 	var recvField *ast.FieldList
 	var body *ast.BlockStmt
 	var functype *ast.FuncType
 	switch n := fn.syntax.(type) {
 	case nil:
 		// TODO(taking): Temporarily this can be the body of a generic function.
-		return // not a Go source function.  (Synthetic, or from object file.)
+		if fn.Params != nil {
+			return // not a Go source function.  (Synthetic, or from object file.)
+		}
+		// fn.Params == nil is handled within body == nil case.
 	case *ast.FuncDecl:
 		functype = n.Type
 		recvField = n.Recv
@@ -2345,6 +2434,8 @@ func (p *Package) build() {
 	}
 
 	// Ensure we have runtime type info for all exported members.
+	// Additionally filter for just concrete types that can be runtime types.
+	//
 	// TODO(adonovan): ideally belongs in memberFromObject, but
 	// that would require package creation in topological order.
 	for name, mem := range p.Members {

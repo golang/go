@@ -89,7 +89,7 @@ func TestObjValueLookup(t *testing.T) {
 		return
 	}
 
-	prog := ssautil.CreateProgram(iprog, 0 /*|ssa.PrintFunctions*/)
+	prog := ssautil.CreateProgram(iprog, ssa.BuilderMode(0) /*|ssa.PrintFunctions*/)
 	mainInfo := iprog.Created[0]
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
@@ -247,7 +247,7 @@ func testValueForExpr(t *testing.T, testfile string) {
 
 	mainInfo := iprog.Created[0]
 
-	prog := ssautil.CreateProgram(iprog, 0)
+	prog := ssautil.CreateProgram(iprog, ssa.BuilderMode(0))
 	mainPkg := prog.Package(mainInfo.Pkg)
 	mainPkg.SetDebugMode(true)
 	mainPkg.Build()
@@ -403,7 +403,7 @@ func TestEnclosingFunction(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		prog := ssautil.CreateProgram(iprog, 0)
+		prog := ssautil.CreateProgram(iprog, ssa.BuilderMode(0))
 		pkg := prog.Package(iprog.Created[0].Pkg)
 		pkg.Build()
 

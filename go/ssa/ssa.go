@@ -293,10 +293,21 @@ type Node interface {
 // Syntax.Pos() always returns the position of the declaring "func" token.
 //
 // Type() returns the function's Signature.
+//
+// A function is generic iff it has a non-empty TypeParams list and an
+// empty TypeArgs list. TypeParams lists the type parameters of the
+// function's Signature or the receiver's type parameters for a method.
+//
+// The instantiation of a generic function is a concrete function. These
+// are a list of n>0 TypeParams and n TypeArgs. An instantiation will
+// have a generic Origin function. There is at most one instantiation
+// of each origin type per Identical() type list. Instantiations do not
+// belong to any Pkg. The generic function and the instantiations will
+// share the same source Pos for the functions and the instructions.
 type Function struct {
 	name      string
-	object    types.Object     // a declared *types.Func or one of its wrappers
-	method    *types.Selection // info about provenance of synthetic methods
+	object    types.Object // a declared *types.Func or one of its wrappers
+	method    selection    // info about provenance of synthetic methods
 	Signature *types.Signature
 	pos       token.Pos
 
@@ -1252,6 +1263,7 @@ type MapUpdate struct {
 //	; var x float64 @ 109:72 is x
 //	; address of *ast.CompositeLit @ 216:10 is t0
 type DebugRef struct {
+	// TODO(generics): Reconsider what DebugRefs are for generics.
 	anInstruction
 	Expr   ast.Expr     // the referring expression (never *ast.ParenExpr)
 	object types.Object // the identity of the source var/func

@@ -47,7 +47,7 @@ func init() {
 }
 
 const usage = `SSA builder and interpreter.
-Usage: ssadump [-build=[DBCSNFL]] [-test] [-run] [-interp=[TR]] [-arg=...] package...
+Usage: ssadump [-build=[DBCSNFLG]] [-test] [-run] [-interp=[TR]] [-arg=...] package...
 Use -help flag to display options.
 
 Examples:
@@ -55,7 +55,8 @@ Examples:
 % ssadump -build=F -test fmt             # dump SSA form of a package and its tests
 % ssadump -run -interp=T hello.go        # interpret a program, with tracing
 
-The -run flag causes ssadump to run the first package named main.
+The -run flag causes ssadump to build the code in a runnable form and run the first
+package named main.
 
 Interpretation of the standard "testing" package is no longer supported.
 `
@@ -128,6 +129,11 @@ func doMain() error {
 	}
 	if packages.PrintErrors(initial) > 0 {
 		return fmt.Errorf("packages contain errors")
+	}
+
+	// Turn on instantiating generics during build if the program will be run.
+	if *runFlag {
+		mode |= ssa.InstantiateGenerics
 	}
 
 	// Create SSA-form program representation.
