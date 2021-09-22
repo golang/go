@@ -205,8 +205,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	MOVD	R5, 40(R1)
 
 	MOVD	LR, R14
+	MOVD	$ret-FIXED_FRAME(FP), R5 // caller's SP
 	MOVD	R14, m_vdsoPC(R21)
-	MOVD	R15, m_vdsoSP(R21)
+	MOVD	R5, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R6
 	CMP	g, R6
@@ -297,9 +298,10 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
 	MOVD	R4, 32(R1)
 	MOVD	R5, 40(R1)
 
-	MOVD	LR, R14		// R14 is unchanged by C code
+	MOVD	LR, R14				// R14 is unchanged by C code
+	MOVD	$ret-FIXED_FRAME(FP), R5	// caller's SP
 	MOVD	R14, m_vdsoPC(R21)
-	MOVD	R15, m_vdsoSP(R21)
+	MOVD	R5, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R6
 	CMP	g, R6
