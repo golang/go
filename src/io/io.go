@@ -47,7 +47,7 @@ var EOF = errors.New("EOF")
 // middle of reading a fixed-size block or data structure.
 var ErrUnexpectedEOF = errors.New("unexpected EOF")
 
-// ErrNoProgress is returned by some clients of an Reader when
+// ErrNoProgress is returned by some clients of a Reader when
 // many calls to Read have failed to return any data or error,
 // usually the sign of a broken Reader implementation.
 var ErrNoProgress = errors.New("multiple Read calls return no data or error")

@@ -216,7 +216,7 @@ func TestMultiWriterCopy(t *testing.T) {
 	}
 }
 
-// readerFunc is an Reader implemented by the underlying func.
+// readerFunc is a Reader implemented by the underlying func.
 type readerFunc func(p []byte) (int, error)
 
 func (f readerFunc) Read(p []byte) (int, error) {
