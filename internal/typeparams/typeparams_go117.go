@@ -30,15 +30,15 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 	return nil
 }
 
-// ForTypeDecl returns an empty field list, as type parameters on not supported
+// ForTypeSpec returns an empty field list, as type parameters on not supported
 // at this Go version.
-func ForTypeDecl(*ast.TypeSpec) *ast.FieldList {
+func ForTypeSpec(*ast.TypeSpec) *ast.FieldList {
 	return nil
 }
 
-// ForFuncDecl returns an empty field list, as type parameters are not
+// ForFuncType returns an empty field list, as type parameters are not
 // supported at this Go version.
-func ForFuncDecl(*ast.FuncDecl) *ast.FieldList {
+func ForFuncType(*ast.FuncType) *ast.FieldList {
 	return nil
 }
 

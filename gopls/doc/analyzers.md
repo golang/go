@@ -554,6 +554,12 @@ Another example is about non-pointer receiver:
 
 **Disabled by default. Enable it by setting `"analyses": {"unusedwrite": true}`.**
 
+## **useany**
+
+check for constraints that could be simplified to "any"
+
+**Enabled by default.**
+
 ## **fillreturns**
 
 suggested fixes for "wrong number of return values (want %d, got %d)"

@@ -57,6 +57,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/simplifyslice"
 	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
+	"golang.org/x/tools/internal/lsp/analysis/useany"
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
@@ -1245,6 +1246,7 @@ func defaultAnalyzers() map[string]*Analyzer {
 		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, Enabled: true},
 		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
+		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: true},
 
 		// gofmt -s suite:
 		simplifycompositelit.Analyzer.Name: {

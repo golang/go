@@ -36,17 +36,20 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 	return nil
 }
 
-// ForTypeDecl returns n.TypeParams.
-func ForTypeDecl(n *ast.TypeSpec) *ast.FieldList {
+// ForTypeSpec returns n.TypeParams.
+func ForTypeSpec(n *ast.TypeSpec) *ast.FieldList {
+	if n == nil {
+		return nil
+	}
 	return n.TypeParams
 }
 
-// ForFuncDecl returns n.Type.TypeParams.
-func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
-	if n.Type != nil {
-		return n.Type.TypeParams
+// ForFuncType returns n.TypeParams.
+func ForFuncType(n *ast.FuncType) *ast.FieldList {
+	if n == nil {
+		return nil
 	}
-	return nil
+	return n.TypeParams
 }
 
 // TypeParam is an alias for types.TypeParam
