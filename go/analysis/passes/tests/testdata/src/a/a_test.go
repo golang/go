@@ -53,6 +53,46 @@ func ExampleFoo() {} // OK because a.Foo exists
 
 func ExampleBar() {} // want "ExampleBar refers to unknown identifier: Bar"
 
+func Example_withOutput() {
+	// Output:
+	// meow
+} // OK because output is the last comment block
+
+func Example_withBadOutput() {
+	// Output: // want "output comment block must be the last comment block"
+	// meow
+
+	// todo: change to bark
+}
+
+func Example_withBadUnorderedOutput() {
+	// Unordered Output: // want "output comment block must be the last comment block"
+	// meow
+
+	// todo: change to bark
+}
+
+func Example_withCommentAfterFunc() {
+	// Output: // OK because it is the last comment block
+	// meow
+} // todo: change to bark
+
+func Example_withOutputCommentAfterFunc() {
+	// Output:
+	// meow
+} // Output: bark // OK because output is not inside of an example
+
+func Example_withMultipleOutputs() {
+	// Output: // want "there can only be one output comment block per example"
+	// meow
+
+	// Output: // want "there can only be one output comment block per example"
+	// bark
+
+	// Output: // OK because it is the last output comment block
+	// ribbit
+}
+
 func nonTest() {} // OK because it doesn't start with "Test".
 
 func (Buf) TesthasReceiver() {} // OK because it has a receiver.
