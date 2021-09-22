@@ -77,10 +77,6 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
 
 func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
 	n := typecheck.NodAddrAt(pos, x)
-	switch x.Op() {
-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
-		n.SetOp(ir.OPTRLIT)
-	}
 	typed(types.NewPtr(x.Type()), n)
 	return n
 }

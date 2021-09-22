@@ -996,6 +996,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OSELECT:
 				transformSelect(m.(*ir.SelectStmt))
 
+			case ir.OCOMPLIT:
+				transformCompLit(m.(*ir.CompLitExpr))
+
+			case ir.OADDR:
+				transformAddr(m.(*ir.AddrExpr))
+
 			}
 		}
 

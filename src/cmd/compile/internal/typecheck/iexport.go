@@ -1746,7 +1746,17 @@ func (w *exportWriter) expr(n ir.Node) {
 		}
 		w.localName(n)
 
-	// case OPACK, ONONAME:
+	case ir.ONONAME:
+		w.op(ir.ONONAME)
+		// This should only be for OKEY nodes in generic functions
+		s := n.Sym()
+		w.string(s.Name)
+		w.pkg(s.Pkg)
+		if go117ExportTypes {
+			w.typ(n.Type())
+		}
+
+	// case OPACK:
 	// 	should have been resolved by typechecking - handled by default case
 
 	case ir.OTYPE:
@@ -1818,7 +1828,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.typ(n.Type())
 		w.fieldList(n.List) // special handling of field names
 
-	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+	case ir.OCOMPLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
 		if go117ExportTypes {
 			w.op(n.Op())
