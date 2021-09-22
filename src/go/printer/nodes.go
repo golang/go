@@ -1049,7 +1049,7 @@ func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
 			break
 		}
 		// remove leading 0's from integer (but not floating-point) imaginary literals
-		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+		if x[len(x)-1] == 'i' && !strings.ContainsAny(x, ".e") {
 			x = strings.TrimLeft(x, "0_")
 			if x == "i" {
 				x = "0i"

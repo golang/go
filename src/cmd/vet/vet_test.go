@@ -241,8 +241,8 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
 			// Assume errmsg says "file:line: foo".
 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
 			text := errmsg
-			if i := strings.Index(text, " "); i >= 0 {
-				text = text[i+1:]
+			if _, suffix, ok := strings.Cut(text, " "); ok {
+				text = suffix
 			}
 			if we.re.MatchString(text) {
 				matched = true

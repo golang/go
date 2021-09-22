@@ -19,13 +19,12 @@ import (
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
 	var b strings.Builder
-	if slash := strings.IndexByte(t, '/'); slash == -1 {
+	if major, sub, ok := strings.Cut(t, "/"); !ok {
 		if !isToken(t) {
 			return ""
 		}
 		b.WriteString(strings.ToLower(t))
 	} else {
-		major, sub := t[:slash], t[slash+1:]
 		if !isToken(major) || !isToken(sub) {
 			return ""
 		}
@@ -138,11 +137,8 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	i := strings.Index(v, ";")
-	if i == -1 {
-		i = len(v)
-	}
-	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
+	base, _, _ := strings.Cut(v, ";")
+	mediatype = strings.TrimSpace(strings.ToLower(base))
 
 	err = checkMediaTypeDisposition(mediatype)
 	if err != nil {
@@ -156,7 +152,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 	// Lazily initialized.
 	var continuation map[string]map[string]string
 
-	v = v[i:]
+	v = v[len(base):]
 	for len(v) > 0 {
 		v = strings.TrimLeftFunc(v, unicode.IsSpace)
 		if len(v) == 0 {
@@ -174,8 +170,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 		}
 
 		pmap := params
-		if idx := strings.Index(key, "*"); idx != -1 {
-			baseName := key[:idx]
+		if baseName, _, ok := strings.Cut(key, "*"); ok {
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)
 			}

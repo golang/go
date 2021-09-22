@@ -274,11 +274,10 @@ func TestProcSelfMaps(t *testing.T) {
 
 	f := func(t *testing.T, input string) {
 		for tx, tt := range strings.Split(input, "\n\n") {
-			i := strings.Index(tt, "->\n")
-			if i < 0 {
+			in, out, ok := strings.Cut(tt, "->\n")
+			if !ok {
 				t.Fatal("malformed test case")
 			}
-			in, out := tt[:i], tt[i+len("->\n"):]
 			if len(out) > 0 && out[len(out)-1] != '\n' {
 				out += "\n"
 			}

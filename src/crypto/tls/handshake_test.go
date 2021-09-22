@@ -191,18 +191,17 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 		// Otherwise the line is a line of hex dump that looks like:
 		// 00000170  fc f5 06 bf (...)  |.....X{&?......!|
 		// (Some bytes have been omitted from the middle section.)
-
-		if i := strings.IndexByte(line, ' '); i >= 0 {
-			line = line[i:]
-		} else {
+		_, after, ok := strings.Cut(line, " ")
+		if !ok {
 			return nil, errors.New("invalid test data")
 		}
+		line = after
 
-		if i := strings.IndexByte(line, '|'); i >= 0 {
-			line = line[:i]
-		} else {
+		before, _, ok := strings.Cut(line, "|")
+		if !ok {
 			return nil, errors.New("invalid test data")
 		}
+		line = before
 
 		hexBytes := strings.Fields(line)
 		for _, hexByte := range hexBytes {
