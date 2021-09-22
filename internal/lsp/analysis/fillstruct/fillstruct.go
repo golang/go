@@ -13,6 +13,7 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"strings"
 	"unicode"
 
 	"golang.org/x/tools/go/analysis"
@@ -87,6 +88,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		var fillable bool
+		var fillableFields []string
 		for i := 0; i < fieldCount; i++ {
 			field := obj.Field(i)
 			// Ignore fields that are not accessible in the current package.
@@ -94,6 +96,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 			fillable = true
+			fillableFields = append(fillableFields, fmt.Sprintf("%s: %s", field.Name(), field.Type().String()))
 		}
 		if !fillable {
 			return
@@ -105,7 +108,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		case *ast.SelectorExpr:
 			name = fmt.Sprintf("%s.%s", typ.X, typ.Sel.Name)
 		default:
-			name = "anonymous struct"
+			totalFields := len(fillableFields)
+			maxLen := 20
+			// Find the index to cut off printing of fields.
+			var i, fieldLen int
+			for i = range fillableFields {
+				if fieldLen > maxLen {
+					break
+				}
+				fieldLen += len(fillableFields[i])
+			}
+			fillableFields = fillableFields[:i]
+			if i < totalFields {
+				fillableFields = append(fillableFields, "...")
+			}
+			name = fmt.Sprintf("anonymous struct { %s }", strings.Join(fillableFields, ", "))
 		}
 		pass.Report(analysis.Diagnostic{
 			Message: fmt.Sprintf("Fill %s", name),
