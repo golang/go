@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/fake"
 	. "golang.org/x/tools/internal/lsp/regtest"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -111,5 +112,21 @@ type Example struct`
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Editor.Hover(env.Ctx, "main.go", env.RegexpSearch("main.go", "Example"))
+	})
+}
+
+func TestHoverRune_48492(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.18
+-- main.go --
+package main
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 1, 0, "package main\nfunc main() {\nconst x = `\nfoo\n`\n}"))
+		env.Editor.Hover(env.Ctx, "main.go", env.RegexpSearch("main.go", "foo"))
 	})
 }
