@@ -29,8 +29,10 @@ var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0
 
 // this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
 
-// Matches lines in genssa output that describe an inlined file (on a Unix filesystem).  Note it expects an unadventurous choice of basename.
-var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s/.*/[-a-zA-Z0-9_]+\.go:([0-9]+)`)
+// Matches lines in genssa output that describe an inlined file.
+// Note it expects an unadventurous choice of basename.
+var sepRE = regexp.QuoteMeta(string(filepath.Separator))
+var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-a-zA-Z0-9_]+\.go:([0-9]+)`)
 
 // this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
 
@@ -44,9 +46,6 @@ func testGoArch() string {
 }
 
 func TestDebugLines(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows lacks $HOME which complicates workaround for 'missing $GOPATH'") // $HOME needed to work around #43938
-	}
 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
@@ -65,9 +64,6 @@ func TestDebugLines(t *testing.T) {
 }
 
 func TestInlineLines(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows lacks $HOME which complicates workaround for 'missing $GOPATH'") // $HOME needed to work around #43938
-	}
 	if runtime.GOARCH != "amd64" && *testGoArchFlag == "" {
 		// As of september 2021, works for everything except mips64, but still potentially fragile
 		t.Skip("only runs for amd64 unless -arch explicitly supplied")
@@ -98,8 +94,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "foo.o", "-gcflags=-d=ssa/genssa/dump="+function+" "+moreGCFlags, source)
 	cmd.Dir = tmpdir
 	cmd.Env = replaceEnv(cmd.Env, "GOSSADIR", tmpdir)
-	cmd.Env = replaceEnv(cmd.Env, "HOME", os.Getenv("HOME")) // workaround for #43938
-	testGoos := "linux"                                      // default to linux
+	testGoos := "linux" // default to linux
 	if testGoArch() == "wasm" {
 		testGoos = "js"
 	}
