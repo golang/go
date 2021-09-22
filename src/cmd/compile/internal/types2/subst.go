@@ -177,7 +177,9 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		var newTArgs []Type
-		assert(t.targs.Len() == t.orig.TypeParams().Len())
+		if t.targs.Len() != t.orig.TypeParams().Len() {
+			return Typ[Invalid] // error reported elsewhere
+		}
 
 		// already instantiated
 		dump(">>> %s already instantiated", t)
