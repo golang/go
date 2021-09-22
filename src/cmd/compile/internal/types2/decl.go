@@ -625,13 +625,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 		// This also preserves the grouped output of type parameter lists
 		// when printing type strings.
 		if i == 0 || f.Type != list[i-1].Type {
-			// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
-			if name, _ := unparen(f.Type).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == universeAny {
-				bound = universeAny.Type()
-			} else {
-				bound = check.typ(f.Type)
-			}
+			bound = check.typ(f.Type)
 		}
 		tparams[i].bound = bound
 	}

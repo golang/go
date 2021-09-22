@@ -114,7 +114,7 @@ type I1[T any] interface{
 }
 
 // There is no such thing as a variadic generic type.
-type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
+type _[T ... /* ERROR invalid use of ... */ any] struct{}
 
 // Generic interfaces may be embedded as one would expect.
 type I2 interface {
@@ -213,9 +213,9 @@ func Sum[T Adder[T]](list []T) T {
 }
 
 // Valid and invalid variations.
-type B0 interface {}
-type B1[_ any] interface{}
-type B2[_, _ any] interface{}
+type B0 any
+type B1[_ any] any
+type B2[_, _ any] any
 
 func _[T1 B0]() {}
 func _[T1 B1[T1]]() {}
