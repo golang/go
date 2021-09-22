@@ -218,8 +218,6 @@ func (s *SymABIs) GenABIWrappers() {
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
-			// We'll generate ABI aliases instead of
-			// wrappers once we have LSyms in InitLSym.
 			continue
 		}
 
@@ -251,10 +249,9 @@ func InitLSym(f *ir.Func, hasBody bool) {
 			// the funcsym for either the defining
 			// function or its wrapper as appropriate.
 			//
-			// If we're using ABI aliases instead of
-			// wrappers, we only InitLSym for the defining
-			// ABI of a function, so we make the funcsym
-			// when we see that.
+			// If we're not using ABI wrappers, we only
+			// InitLSym for the defining ABI of a function,
+			// so we make the funcsym when we see that.
 			staticdata.NeedFuncSym(f)
 		}
 	}
