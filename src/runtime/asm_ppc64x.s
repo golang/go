@@ -688,7 +688,10 @@ havem:
 	MOVD    R5, FIXED_FRAME+0(R1)
 	MOVD    R6, FIXED_FRAME+8(R1)
 	MOVD    R7, FIXED_FRAME+16(R1)
-	BL	runtime·cgocallbackg(SB)
+
+	MOVD	$runtime·cgocallbackg(SB), R12
+	MOVD	R12, CTR
+	CALL	(CTR) // indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(R1), R5
