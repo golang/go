@@ -36,15 +36,9 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		return
 	case universeAny, universeComparable:
-		// complain if necessary
 		if !check.allowVersion(check.pkg, 1, 18) {
 			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
 			return // avoid follow-on errors
-		}
-		if obj == universeAny {
-			// If we allow "any" for general use, this if-statement can be removed (issue #33232).
-			check.softErrorf(e, _Todo, "cannot use any outside constraint position")
-			// ok to continue
 		}
 	}
 	check.recordUse(e, obj)
