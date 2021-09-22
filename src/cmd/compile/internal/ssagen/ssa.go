@@ -3206,6 +3206,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.BinaryExpr)
 		ptr := s.expr(n.X)
 		len := s.expr(n.Y)
+
+		// Force len to uintptr to prevent misuse of garbage bits in the
+		// upper part of the register (#48536).
+		len = s.conv(n, len, len.Type, types.Types[types.TUINTPTR])
+
 		return s.newValue2(ssa.OpAddPtr, n.Type(), ptr, len)
 
 	default:
