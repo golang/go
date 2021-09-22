@@ -330,7 +330,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
 // TODO(rfindley): eliminate this function or give it a better name.
 func safeUnderlying(typ Type) Type {
 	if t, _ := typ.(*Named); t != nil {
-		return t.resolve(nil).underlying
+		return t.underlying
 	}
 	return typ.Underlying()
 }
