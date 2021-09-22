@@ -154,7 +154,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.Operation:
 		if expr.Y == nil {
-			return Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
+			n := Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
+			if n.Op() == ir.OADDR && !g.delayTransform() {
+				transformAddr(n.(*ir.AddrExpr))
+			}
+			return n
 		}
 		switch op := g.op(expr.Op, binOps[:]); op {
 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
@@ -353,15 +357,27 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 				key = g.expr(elem.Key)
 			}
 			value := wrapname(g.pos(elem.Value), g.expr(elem.Value))
+			if value.Op() == ir.OPAREN {
+				// Make sure any PAREN node added by wrapper has a type
+				typed(value.(*ir.ParenExpr).X.Type(), value)
+			}
 			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, value)
 		default:
 			exprs[i] = wrapname(g.pos(elem), g.expr(elem))
+			if exprs[i].Op() == ir.OPAREN {
+				// Make sure any PAREN node added by wrapper has a type
+				typed(exprs[i].(*ir.ParenExpr).X.Type(), exprs[i])
+			}
 		}
 	}
 
 	n := ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, nil, exprs)
 	typed(g.typ(typ), n)
-	return transformCompLit(n)
+	var r ir.Node = n
+	if !g.delayTransform() {
+		r = transformCompLit(n)
+	}
+	return r
 }
 
 func (g *irgen) funcLit(typ2 types2.Type, expr *syntax.FuncLit) ir.Node {

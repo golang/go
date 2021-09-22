@@ -1368,7 +1368,11 @@ func (r *importReader) node() ir.Node {
 		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.fieldList())
 
 	case ir.OCOMPLIT:
-		return ir.NewCompLitExpr(r.pos(), ir.OCOMPLIT, ir.TypeNode(r.typ()), r.exprList())
+		pos := r.pos()
+		t := r.typ()
+		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(t), r.exprList())
+		n.SetType(t)
+		return n
 
 	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		if !go117ExportTypes {
