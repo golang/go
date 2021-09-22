@@ -340,7 +340,7 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
 		flag2 |= goobj.SymFlagItab
 	}
-	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], "..dict") {
+	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
 		flag2 |= goobj.SymFlagDict
 	}
 	name := s.Name
