@@ -225,21 +225,23 @@ func (t *LineTable) parsePclnTab() {
 	t.quantum = uint32(t.Data[6])
 	t.ptrsize = uint32(t.Data[7])
 
+	offset := func(word uint32) uint64 {
+		return t.uintptr(t.Data[8+word*t.ptrsize:])
+	}
+	data := func(word uint32) []byte {
+		return t.Data[offset(word):]
+	}
+
 	switch possibleVersion {
 	case ver116:
-		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
-		t.nfiletab = uint32(t.uintptr(t.Data[8+t.ptrsize:]))
-		offset := t.uintptr(t.Data[8+2*t.ptrsize:])
-		t.funcnametab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+3*t.ptrsize:])
-		t.cutab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+4*t.ptrsize:])
-		t.filetab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+5*t.ptrsize:])
-		t.pctab = t.Data[offset:]
-		offset = t.uintptr(t.Data[8+6*t.ptrsize:])
-		t.funcdata = t.Data[offset:]
-		t.functab = t.Data[offset:]
+		t.nfunctab = uint32(offset(0))
+		t.nfiletab = uint32(offset(1))
+		t.funcnametab = data(2)
+		t.cutab = data(3)
+		t.filetab = data(4)
+		t.pctab = data(5)
+		t.funcdata = data(6)
+		t.functab = data(6)
 		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
 		t.functab = t.functab[:functabsize]
 	case ver12:
