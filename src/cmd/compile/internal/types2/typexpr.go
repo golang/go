@@ -408,6 +408,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 
 	typ := check.instantiate(x.Pos(), base, targs, posList)
 	def.setUnderlying(typ)
+	check.recordInstance(x, targs, typ)
 
 	// make sure we check instantiation works at least once
 	// and that the resulting type is valid

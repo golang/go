@@ -114,86 +114,27 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 
 	case *syntax.CallExpr:
 		fun := g.expr(expr.Fun)
-
-		// The key for the Inferred map is the CallExpr (if inferring
-		// types required the function arguments) or the IndexExpr below
-		// (if types could be inferred without the function arguments).
-		if inferred, ok := g.info.Inferred[expr]; ok && inferred.TArgs.Len() > 0 {
-			// This is the case where inferring types required the
-			// types of the function arguments.
-			targs := make([]ir.Node, inferred.TArgs.Len())
-			for i := range targs {
-				targs[i] = ir.TypeNode(g.typ(inferred.TArgs.At(i)))
-			}
-			if fun.Op() == ir.OFUNCINST {
-				if len(fun.(*ir.InstExpr).Targs) < len(targs) {
-					// Replace explicit type args with the full list that
-					// includes the additional inferred type args.
-					// Substitute the type args for the type params in
-					// the generic function's type.
-					fun.(*ir.InstExpr).Targs = targs
-					newt := g.substType(fun.(*ir.InstExpr).X.Type(), fun.(*ir.InstExpr).X.Type().TParams(), targs)
-					typed(newt, fun)
-				}
-			} else {
-				// Create a function instantiation here, given there
-				// are only inferred type args (e.g. min(5,6), where
-				// min is a generic function). Substitute the type
-				// args for the type params in the generic function's
-				// type.
-				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
-				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
-				typed(newt, inst)
-				fun = inst
-			}
-
-		}
 		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
 
 	case *syntax.IndexExpr:
-		var targs []ir.Node
-
-		if inferred, ok := g.info.Inferred[expr]; ok && inferred.TArgs.Len() > 0 {
-			// This is the partial type inference case where the types
-			// can be inferred from other type arguments without using
-			// the types of the function arguments.
-			targs = make([]ir.Node, inferred.TArgs.Len())
-			for i := range targs {
-				targs[i] = ir.TypeNode(g.typ(inferred.TArgs.At(i)))
-			}
-		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
-			targs = g.exprList(expr.Index)
-		} else {
-			index := g.expr(expr.Index)
-			if index.Op() != ir.OTYPE {
+		args := unpackListExpr(expr.Index)
+		if len(args) == 1 {
+			tv, ok := g.info.Types[args[0]]
+			assert(ok)
+			if tv.IsValue() {
 				// This is just a normal index expression
-				n := Index(pos, g.typ(typ), g.expr(expr.X), index)
+				n := Index(pos, g.typ(typ), g.expr(expr.X), g.expr(args[0]))
 				if !g.delayTransform() {
 					// transformIndex will modify n.Type() for OINDEXMAP.
 					transformIndex(n)
 				}
 				return n
 			}
-			// This is generic function instantiation with a single type
-			targs = []ir.Node{index}
 		}
-		// This is a generic function instantiation (e.g. min[int]).
-		// Generic type instantiation is handled in the type
-		// section of expr() above (using g.typ).
-		x := g.expr(expr.X)
-		if x.Op() != ir.ONAME || x.Type().Kind() != types.TFUNC {
-			panic("Incorrect argument for generic func instantiation")
-		}
-		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
-		newt := g.typ(typ)
-		// Substitute the type args for the type params in the uninstantiated
-		// function's type. If there aren't enough type args, then the rest
-		// will be inferred at the call node, so don't try the substitution yet.
-		if x.Type().TParams().NumFields() == len(targs) {
-			newt = g.substType(g.typ(typ), x.Type().TParams(), targs)
-		}
-		typed(newt, n)
-		return n
+
+		// expr.Index is a list of type args, so we ignore it, since types2 has
+		// already provided this info with the Info.Instances map.
+		return g.expr(expr.X)
 
 	case *syntax.SelectorExpr:
 		// Qualified identifier.

@@ -59,7 +59,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
 		Implicits:  make(map[syntax.Node]types2.Object),
 		Scopes:     make(map[syntax.Node]*types2.Scope),
-		Inferred:   make(map[syntax.Expr]types2.Inferred),
+		Instances:  make(map[*syntax.Name]types2.Instance),
 		// expand as needed
 	}
 
