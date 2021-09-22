@@ -442,6 +442,11 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
+							Name:    "\"infertypeargs\"",
+							Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\nfunc f[T any](T) {}\n\nfunc _() {\n\tf[string](\"foo\") // string could be inferred\n}\n",
+							Default: "true",
+						},
+						{
 							Name:    "\"loopclosure\"",
 							Doc:     "check references to loop variables from within nested functions\n\nThis analyzer checks for references to loop variables from within a\nfunction literal inside the loop body. It checks only instances where\nthe function literal is called in a defer or go statement that is the\nlast statement in the loop body, as otherwise we would need whole\nprogram analysis.\n\nFor example:\n\n\tfor i, v := range s {\n\t\tgo func() {\n\t\t\tprintln(i, v) // not what you might expect\n\t\t}()\n\t}\n\nSee: https://golang.org/doc/go_faq.html#closures_and_goroutines",
 							Default: "true",
@@ -1012,6 +1017,11 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "ifaceassert",
 			Doc:     "detect impossible interface-to-interface type assertions\n\nThis checker flags type assertions v.(T) and corresponding type-switch cases\nin which the static type V of v is an interface that cannot possibly implement\nthe target interface T. This occurs when V and T contain methods with the same\nname but different signatures. Example:\n\n\tvar v interface {\n\t\tRead()\n\t}\n\t_ = v.(io.Reader)\n\nThe Read method in v has a different signature than the Read method in\nio.Reader, so this assertion cannot succeed.\n",
+			Default: true,
+		},
+		{
+			Name:    "infertypeargs",
+			Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\nfunc f[T any](T) {}\n\nfunc _() {\n\tf[string](\"foo\") // string could be inferred\n}\n",
 			Default: true,
 		},
 		{

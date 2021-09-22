@@ -9,6 +9,7 @@ package typeparams
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 )
 
@@ -34,6 +35,30 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 		return (*IndexExprData)(e)
 	}
 	return nil
+}
+
+// PackIndexExpr returns an *ast.IndexExpr or *ast.IndexListExpr, depending on
+// the cardinality of indices. Calling PackIndexExpr with len(indices) == 0
+// will panic.
+func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
+	switch len(indices) {
+	case 0:
+		panic("empty indices")
+	case 1:
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  indices[0],
+			Rbrack: rbrack,
+		}
+	default:
+		return &ast.IndexListExpr{
+			X:       x,
+			Lbrack:  lbrack,
+			Indices: indices,
+			Rbrack:  rbrack,
+		}
+	}
 }
 
 // ForTypeSpec returns n.TypeParams.

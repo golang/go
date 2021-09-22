@@ -9,6 +9,7 @@ package typeparams
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 )
 
@@ -28,6 +29,24 @@ func GetIndexExprData(n ast.Node) *IndexExprData {
 		}
 	}
 	return nil
+}
+
+// PackIndexExpr returns an *ast.IndexExpr with the given index.
+// Calling PackIndexExpr with len(indices) != 1 will panic.
+func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack token.Pos) ast.Expr {
+	switch len(indices) {
+	case 0:
+		panic("empty indices")
+	case 1:
+		return &ast.IndexExpr{
+			X:      x,
+			Lbrack: lbrack,
+			Index:  indices[0],
+			Rbrack: rbrack,
+		}
+	default:
+		panic("cannot pack multiple indices at this go version")
+	}
 }
 
 // ForTypeSpec returns an empty field list, as type parameters on not supported
