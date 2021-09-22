@@ -141,7 +141,7 @@ func testMultiWriter(t *testing.T, sink interface {
 	}
 }
 
-// writerFunc is an Writer implemented by the underlying func.
+// writerFunc is a Writer implemented by the underlying func.
 type writerFunc func(p []byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) {
