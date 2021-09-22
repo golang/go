@@ -46,7 +46,9 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*source.A
 	for _, ah := range roots {
 		diagnostics, _, err := ah.analyze(ctx, s)
 		if err != nil {
-			return nil, err
+			// Keep going if a single analyzer failed.
+			event.Error(ctx, fmt.Sprintf("analyzer %q failed", ah.analyzer.Name), err)
+			continue
 		}
 		results = append(results, diagnostics...)
 	}
