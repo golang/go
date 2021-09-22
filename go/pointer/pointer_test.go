@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/testenv"
 )
 
 var inputs = []string{
@@ -159,7 +160,10 @@ func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]bool, queries map[s
 	return // e.g. analysis didn't reach this call
 }
 
-func doOneInput(input, filename string) bool {
+func doOneInput(t *testing.T, input, filename string) bool {
+	// TODO(#48547): Fix ssa.CreateTestMainPackage and unskip.
+	testenv.SkipAfterGo1Point(t, 17)
+
 	var conf loader.Config
 
 	// Parsing.
@@ -567,7 +571,7 @@ func TestInput(t *testing.T) {
 			continue
 		}
 
-		if !doOneInput(string(content), filename) {
+		if !doOneInput(t, string(content), filename) {
 			ok = false
 		}
 	}

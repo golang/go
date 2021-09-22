@@ -35,7 +35,7 @@ func TestSliceToArrayPointer(t *testing.T) {
 		t.Fatalf("couldn't read file '%s': %s", filename, err)
 	}
 
-	if !doOneInput(string(content), filename) {
+	if !doOneInput(t, string(content), filename) {
 		t.Fail()
 	}
 }
