@@ -259,8 +259,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 
@@ -351,8 +352,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 

@@ -1544,3 +1544,33 @@ func TestTryAdd(t *testing.T) {
 		})
 	}
 }
+
+func TestTimeVDSO(t *testing.T) {
+	// Test that time functions have the right stack trace. In particular,
+	// it shouldn't be recursive.
+
+	p := testCPUProfile(t, stackContains, []string{"time.now"}, avoidFunctions(), func(dur time.Duration) {
+		t0 := time.Now()
+		for {
+			t := time.Now()
+			if t.Sub(t0) >= dur {
+				return
+			}
+		}
+	})
+
+	// Check for recursive time.now sample.
+	for _, sample := range p.Sample {
+		var seenNow bool
+		for _, loc := range sample.Location {
+			for _, line := range loc.Line {
+				if line.Function.Name == "time.now" {
+					if seenNow {
+						t.Fatalf("unexpected recursive time.now")
+					}
+					seenNow = true
+				}
+			}
+		}
+	}
+}
