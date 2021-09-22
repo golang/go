@@ -2196,7 +2196,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) {
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
@@ -2232,3 +2232,6 @@ func (w *intWriter) uint64(x uint64) {
 // information (e.g. length field for OSLICELIT).
 const go117ExportTypes = true
 const Go117ExportTypes = go117ExportTypes
+
+// The name used for dictionary parameters or local variables.
+const LocalDictName = ".dict"

@@ -401,10 +401,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	var dictVar *ir.Name
 	var dictAssign *ir.AssignStmt
 	if outer != nil {
-		// Note: for now this is a compile-time constant, so we don't really need a closure
-		// to capture it (a wrapper function would work just as well). But eventually it
-		// will be a read of a subdictionary from the parent dictionary.
-		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(".dict", g.dnum))
+		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
 		g.dnum++
 		dictVar.Class = ir.PAUTO
 		typed(types.Types[types.TUINTPTR], dictVar)
@@ -723,7 +720,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 	newf.Dcl = make([]*ir.Name, 0, len(gf.Dcl)+1)
 
 	// Create the needed dictionary param
-	dictionarySym := newsym.Pkg.Lookup(".dict")
+	dictionarySym := newsym.Pkg.Lookup(typecheck.LocalDictName)
 	dictionaryType := types.Types[types.TUINTPTR]
 	dictionaryName := ir.NewNameAt(gf.Pos(), dictionarySym)
 	typed(dictionaryType, dictionaryName)
@@ -731,7 +728,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
 	dictionaryName.Curfn = newf
 	newf.Dcl = append(newf.Dcl, dictionaryName)
 	for _, n := range gf.Dcl {
-		if n.Sym().Name == ".dict" {
+		if n.Sym().Name == typecheck.LocalDictName {
 			panic("already has dictionary")
 		}
 		newf.Dcl = append(newf.Dcl, subst.localvar(n))
@@ -1127,7 +1124,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			// Copy that closure variable to a local one.
 			// Note: this allows the dictionary to be captured by child closures.
 			// See issue 47723.
-			ldict := ir.NewNameAt(x.Pos(), newfn.Sym().Pkg.Lookup(".dict"))
+			ldict := ir.NewNameAt(x.Pos(), newfn.Sym().Pkg.Lookup(typecheck.LocalDictName))
 			typed(types.Types[types.TUINTPTR], ldict)
 			ldict.Class = ir.PAUTO
 			ldict.Curfn = newfn

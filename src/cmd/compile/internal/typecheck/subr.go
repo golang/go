@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -987,7 +988,7 @@ func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sy
 		}
 	}
 	name := makeInstName1(gf.Name, targs, hasBrackets)
-	name = ".dict." + name
+	name = fmt.Sprintf("%s.%s", objabi.GlobalDictPrefix, name)
 	return gf.Pkg.Lookup(name)
 }
 
