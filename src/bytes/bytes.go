@@ -1174,7 +1174,7 @@ func Index(s, sep []byte) int {
 		}
 		i++
 		fails++
-		if fails >= 4+i>>4 && i < t {
+		if fails >= bytealg.Cutover(i) && i < t {
 			// Give up on IndexByte, it isn't skipping ahead
 			// far enough to be better than Rabin-Karp.
 			// Experiments (using IndexPeriodic) suggest
