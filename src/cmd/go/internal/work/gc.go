@@ -156,6 +156,10 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			}
 		}
 	}
+	// Add -c=N to use concurrent backend compilation, if possible.
+	if c := gcBackendConcurrency(gcflags); c > 1 {
+		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
+	}
 
 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
 	if p.Internal.LocalPrefix != "" {
@@ -179,11 +183,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
-	}
-
-	// Add -c=N to use concurrent backend compilation, if possible.
-	if c := gcBackendConcurrency(gcflags); c > 1 {
-		args = append(args, fmt.Sprintf("-c=%d", c))
 	}
 
 	for _, f := range gofiles {
