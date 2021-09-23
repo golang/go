@@ -627,48 +627,20 @@ Error:
 func (check *Checker) use(arg ...syntax.Expr) {
 	var x operand
 	for _, e := range arg {
-		// Certain AST fields may legally be nil (e.g., the ast.SliceExpr.High field).
-		if e == nil {
+		switch n := e.(type) {
+		case nil:
+			// some AST fields may be nil (e.g., elements of syntax.SliceExpr.Index)
+			// TODO(gri) can those fields really make it here?
 			continue
-		}
-		if l, _ := e.(*syntax.ListExpr); l != nil {
-			check.use(l.ElemList...)
-			continue
-		}
-		check.rawExpr(&x, e, nil, false)
-	}
-}
-
-// useLHS is like use, but doesn't "use" top-level identifiers.
-// It should be called instead of use if the arguments are
-// expressions on the lhs of an assignment.
-// The arguments must not be nil.
-func (check *Checker) useLHS(arg ...syntax.Expr) {
-	var x operand
-	for _, e := range arg {
-		// If the lhs is an identifier denoting a variable v, this assignment
-		// is not a 'use' of v. Remember current value of v.used and restore
-		// after evaluating the lhs via check.rawExpr.
-		var v *Var
-		var v_used bool
-		if ident, _ := unparen(e).(*syntax.Name); ident != nil {
-			// never type-check the blank name on the lhs
-			if ident.Value == "_" {
+		case *syntax.Name:
+			// don't report an error evaluating blank
+			if n.Value == "_" {
 				continue
 			}
-			if _, obj := check.scope.LookupParent(ident.Value, nopos); obj != nil {
-				// It's ok to mark non-local variables, but ignore variables
-				// from other packages to avoid potential race conditions with
-				// dot-imported variables.
-				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
-					v = w
-					v_used = v.used
-				}
-			}
+		case *syntax.ListExpr:
+			check.use(n.ElemList...)
+			continue
 		}
 		check.rawExpr(&x, e, nil, false)
-		if v != nil {
-			v.used = v_used // restore v.used
-		}
 	}
 }
