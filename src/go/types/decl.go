@@ -314,6 +314,13 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 			}
 		}
 
+	case *Union:
+		for _, t := range t.terms {
+			if check.validType(t.typ, path) == invalid {
+				return invalid
+			}
+		}
+
 	case *Interface:
 		for _, etyp := range t.embeddeds {
 			if check.validType(etyp, path) == invalid {
