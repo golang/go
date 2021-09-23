@@ -173,6 +173,10 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 	if n == 0 {
 		return
 	}
+
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	remain := n
 	for {
 		skip := b.Buffered()
@@ -266,8 +270,8 @@ func (b *Reader) ReadByte() (byte, error) {
 // UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 //
 // UnreadByte returns an error if the most recent method called on the
-// Reader was not a read operation. Notably, Peek is not considered a
-// read operation.
+// Reader was not a read operation. Notably, Peek, Discard, and WriteTo are not
+// considered read operations.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -502,6 +506,9 @@ func (b *Reader) ReadString(delim byte) (string, error) {
 // If the underlying reader supports the WriteTo method,
 // this calls the underlying WriteTo without buffering.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	n, err = b.writeBuf(w)
 	if err != nil {
 		return
