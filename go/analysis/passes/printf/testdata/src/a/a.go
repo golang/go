@@ -698,6 +698,7 @@ type unexportedInterface struct {
 type unexportedStringer struct {
 	t ptrStringer
 }
+
 type unexportedStringerOtherFields struct {
 	s string
 	t ptrStringer
@@ -708,6 +709,7 @@ type unexportedStringerOtherFields struct {
 type unexportedError struct {
 	e error
 }
+
 type unexportedErrorOtherFields struct {
 	s string
 	e error

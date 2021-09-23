@@ -9,10 +9,16 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/printf"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	printf.Analyzer.Flags.Set("funcs", "Warn,Warnf")
-	analysistest.Run(t, testdata, printf.Analyzer, "a", "b", "nofmt")
+
+	tests := []string{"a", "b", "nofmt"}
+	if typeparams.Enabled {
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, printf.Analyzer, tests...)
 }

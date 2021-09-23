@@ -879,8 +879,12 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 			return
 		}
 		arg := call.Args[argNum]
-		if !matchArgType(pass, argInt, arg) {
-			pass.ReportRangef(call, "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+		if reason, ok := matchArgType(pass, argInt, arg); !ok {
+			details := ""
+			if reason != "" {
+				details = " (" + reason + ")"
+			}
+			pass.ReportRangef(call, "%s format %s uses non-int %s%s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg), details)
 			return false
 		}
 	}
@@ -897,12 +901,16 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
 		return false
 	}
-	if !matchArgType(pass, v.typ, arg) {
+	if reason, ok := matchArgType(pass, v.typ, arg); !ok {
 		typeString := ""
 		if typ := pass.TypesInfo.Types[arg].Type; typ != nil {
 			typeString = typ.String()
 		}
-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
+		details := ""
+		if reason != "" {
+			details = " (" + reason + ")"
+		}
+		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
 		return false
 	}
 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
