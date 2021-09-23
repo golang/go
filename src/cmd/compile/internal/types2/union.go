@@ -54,7 +54,10 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 	for _, x := range tlist {
 		tilde, typ := parseTilde(check, x)
 		if len(tlist) == 1 && !tilde {
-			return typ // single type (optimization)
+			// Single type. Ok to return early because all relevant
+			// checks have been performed in parseTilde (no need to
+			// run through term validity check below).
+			return typ
 		}
 		if len(terms) >= maxTermCount {
 			check.errorf(x, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
@@ -123,11 +126,16 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
 		tilde = true
 	}
 	typ = check.typ(x)
-	// embedding stand-alone type parameters is not permitted (issue #47127).
-	if _, ok := under(typ).(*TypeParam); ok {
-		check.error(x, "cannot embed a type parameter")
-		typ = Typ[Invalid]
-	}
+	// Embedding stand-alone type parameters is not permitted (issue #47127).
+	// Do this check later because it requires computation of the underlying type (see also issue #46461).
+	// Note: If an underlying type cannot be a type parameter, the call to
+	//       under() will not be needed and then we don't need to delay this
+	//       check to later and could return Typ[Invalid] instead.
+	check.later(func() {
+		if _, ok := under(typ).(*TypeParam); ok {
+			check.error(x, "cannot embed a type parameter")
+		}
+	})
 	return
 }
 
