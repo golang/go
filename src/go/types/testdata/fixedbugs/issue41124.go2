@@ -6,13 +6,13 @@ package p
 
 // Test case from issue.
 
-type Nat interface {
+type Nat /* ERROR cycle */ interface {
 	Zero|Succ
 }
 
 type Zero struct{}
 type Succ struct{
-	Nat // ERROR interface contains type constraints
+	Nat /* ERROR interface contains type constraints */
 }
 
 // Struct tests.
