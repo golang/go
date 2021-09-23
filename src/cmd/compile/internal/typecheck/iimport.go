@@ -1867,11 +1867,6 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 	}
 	t.SetUnderlying(subst.Typ(baseType.Underlying()))
 
-	if t.HasShape() && !t.IsInterface() {
-		// Concrete shape types have no methods.
-		return
-	}
-
 	newfields := make([]*types.Field, baseType.Methods().Len())
 	for i, f := range baseType.Methods().Slice() {
 		if !f.IsMethod() || types.IsInterfaceMethod(f.Type) {
@@ -1895,7 +1890,7 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 		}
 		t2 := msubst.Typ(f.Type)
 		oldsym := f.Nname.Sym()
-		newsym := MakeFuncInstSym(oldsym, targs, true)
+		newsym := MakeFuncInstSym(oldsym, targs, true, true)
 		var nname *ir.Name
 		if newsym.Def != nil {
 			nname = newsym.Def.(*ir.Name)

@@ -626,7 +626,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 		shapes = s1
 	}
 
-	sym := typecheck.MakeFuncInstSym(nameNode.Sym(), shapes, isMeth)
+	sym := typecheck.MakeFuncInstSym(nameNode.Sym(), shapes, false, isMeth)
 	info := g.instInfoMap[sym]
 	if info == nil {
 		// If instantiation doesn't exist yet, create it and add
