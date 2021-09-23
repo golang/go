@@ -6,7 +6,10 @@
 
 package types2
 
-import "cmd/compile/internal/syntax"
+import (
+	"cmd/compile/internal/syntax"
+	"fmt"
+)
 
 // assignment reports whether x can be assigned to a variable of type T,
 // if necessary by attempting to convert untyped values to the appropriate
@@ -236,6 +239,28 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	return x.typ
 }
 
+func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+	measure := func(x int, unit string) string {
+		s := fmt.Sprintf("%d %s", x, unit)
+		if x != 1 {
+			s += "s"
+		}
+		return s
+	}
+
+	vars := measure(nvars, "variable")
+	vals := measure(nvals, "value")
+	rhs0 := rhs[0]
+
+	if len(rhs) == 1 {
+		if call, _ := unparen(rhs0).(*syntax.CallExpr); call != nil {
+			check.errorf(rhs0, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
+			return
+		}
+	}
+	check.errorf(rhs0, "assignment mismatch: %s but %s", vars, vals)
+}
+
 // If returnPos is valid, initVars is called to type-check the assignment of
 // return expressions, and returnPos is the position of the return statement.
 func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syntax.Pos) {
@@ -244,6 +269,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
 		for _, obj := range lhs {
+			obj.used = true // avoid declared but not used errors
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
@@ -258,7 +284,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
 			return
 		}
-		check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+		if check.conf.CompilerErrorMessages {
+			check.assignError(orig_rhs, len(lhs), len(rhs))
+		} else {
+			check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
+		}
 		return
 	}
 
@@ -292,7 +322,11 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 				return
 			}
 		}
-		check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
+		if check.conf.CompilerErrorMessages {
+			check.assignError(orig_rhs, len(lhs), len(rhs))
+		} else {
+			check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
+		}
 		return
 	}
 
