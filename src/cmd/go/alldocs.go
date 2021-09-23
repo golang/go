@@ -167,8 +167,8 @@
 // 		directory, but it is not accessed. When -modfile is specified, an
 // 		alternate go.sum file is also used: its path is derived from the
 // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
-//   -workfile file
-//     in module aware mode, use the given go.work file as a workspace file.
+// 	-workfile file
+// 		in module aware mode, use the given go.work file as a workspace file.
 // 		By default or when -workfile is "auto", the go command searches for a
 // 		file named go.work in the current directory and then containing directories
 // 		until one is found. If a valid go.work file is found, the modules
