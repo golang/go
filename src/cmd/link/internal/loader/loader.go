@@ -752,22 +752,6 @@ func (l *Loader) NReachableSym() int {
 	return l.attrReachable.Count()
 }
 
-// SymNameLen returns the length of the symbol name, trying hard not to load
-// the name.
-func (l *Loader) SymNameLen(i Sym) int {
-	// Not much we can do about external symbols.
-	if l.IsExternal(i) {
-		return len(l.SymName(i))
-	}
-	r, li := l.toLocal(i)
-	le := r.Sym(li).NameLen(r.Reader)
-	if !r.NeedNameExpansion() {
-		return le
-	}
-	// Just load the symbol name. We don't know how expanded it'll be.
-	return len(l.SymName(i))
-}
-
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
 	if l.IsExternal(i) {
