@@ -5,18 +5,18 @@ env GO111MODULE=on
 [!exec:git] skip
 env GOPROXY=direct
 
-! go get github.com/golang/nonexist
+! go mod download github.com/golang/nonexist@latest
 stderr 'Confirm the import path was entered correctly.'
 stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
 ! stdout .
 
 # Fetching a nonexistent commit should return an "unknown revision"
 # error message.
-! go get github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
+! go mod download github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
 stderr '^go: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
 ! stdout .
 
-! go get github.com/golang/nonexist@master
+! go mod download github.com/golang/nonexist@master
 stderr '^Confirm the import path was entered correctly.$'
 stderr '^If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.$'
 ! stderr 'unknown revision'

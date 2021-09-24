@@ -7,26 +7,26 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 
-! go get -d vcs-test.golang.org/insecure/go/insecure
+! go mod download vcs-test.golang.org/insecure/go/insecure@latest
 stderr 'redirected .* to insecure URL'
 
 # insecure host
 env GOINSECURE=vcs-test.golang.org
 go clean -modcache
-go get -d vcs-test.golang.org/insecure/go/insecure
+go mod download vcs-test.golang.org/insecure/go/insecure@latest
 
 # insecure glob host
 env GOINSECURE=*.golang.org
 go clean -modcache
-go get -d vcs-test.golang.org/insecure/go/insecure
+go mod download vcs-test.golang.org/insecure/go/insecure@latest
 
 # insecure multiple host
 env GOINSECURE=somewhere-else.com,*.golang.org
 go clean -modcache
-go get -d vcs-test.golang.org/insecure/go/insecure
+go mod download vcs-test.golang.org/insecure/go/insecure@latest
 
 # different insecure host does not fetch
 env GOINSECURE=somewhere-else.com
 go clean -modcache
-! go get -d vcs-test.golang.org/insecure/go/insecure
+! go mod download vcs-test.golang.org/insecure/go/insecure@latest
 stderr 'redirected .* to insecure URL'

@@ -12,3 +12,8 @@ go get -x -d golang.org/x/text@v0.1.0
 stderr '^# get https://golang.org/x/text\?go-get=1$'
 stderr '^# get https://golang.org/x/text\?go-get=1: 200 OK \([0-9.]+s\)$'
 ! stderr '^# get //.*'
+
+-- go.mod --
+module m
+
+go 1.18

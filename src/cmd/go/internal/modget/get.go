@@ -273,6 +273,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
 	}
 
+	modload.ForceUseModules = true
+
 	// Do not allow any updating of go.mod until we've applied
 	// all the requested changes and checked that the result matches
 	// what was requested.
@@ -281,6 +283,20 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Allow looking up modules for import paths when outside of a module.
 	// 'go get' is expected to do this, unlike other commands.
 	modload.AllowMissingModuleImports()
+
+	// 'go get' no longer builds or installs packages, so there's nothing to do
+	// if there's no go.mod file.
+	// TODO(#40775): make modload.Init return ErrNoModRoot instead of exiting.
+	// We could handle that here by printing a different message.
+	modload.Init()
+	if !modload.HasModRoot() {
+		base.Fatalf("go: go.mod file not found in current directory or any parent directory.\n" +
+			"\t'go get' is no longer supported outside a module.\n" +
+			"\tTo build and install a command, use 'go install' with a version,\n" +
+			"\tlike 'go install example.com/cmd@latest'\n" +
+			"\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n" +
+			"\tor run 'go help get' or 'go help install'.")
+	}
 
 	queries := parseArgs(ctx, args)
 
@@ -350,10 +366,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	r.checkPackageProblems(ctx, pkgPatterns)
-
-	if !modload.HasModRoot() {
-		return
-	}
 
 	// Everything succeeded. Update go.mod.
 	oldReqs := reqsFromGoMod(modload.ModFile())
