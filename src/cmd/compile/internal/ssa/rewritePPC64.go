@@ -720,6 +720,8 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpRsh8x64(v)
 	case OpRsh8x8:
 		return rewriteValuePPC64_OpRsh8x8(v)
+	case OpSelectN:
+		return rewriteValuePPC64_OpSelectN(v)
 	case OpSignExt16to32:
 		v.Op = OpPPC64MOVHreg
 		return true
@@ -16438,6 +16440,82 @@ func rewriteValuePPC64_OpRsh8x8(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+}
+func rewriteValuePPC64_OpSelectN(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore _ src s3:(MOVDstore {t} _ dst mem)))))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)
+	// result: (Move [sz] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpPPC64CALLstatic || len(call.Args) != 1 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		s1 := call.Args[0]
+		if s1.Op != OpPPC64MOVDstore {
+			break
+		}
+		_ = s1.Args[2]
+		s1_1 := s1.Args[1]
+		if s1_1.Op != OpPPC64MOVDconst {
+			break
+		}
+		sz := auxIntToInt64(s1_1.AuxInt)
+		s2 := s1.Args[2]
+		if s2.Op != OpPPC64MOVDstore {
+			break
+		}
+		_ = s2.Args[2]
+		src := s2.Args[1]
+		s3 := s2.Args[2]
+		if s3.Op != OpPPC64MOVDstore {
+			break
+		}
+		mem := s3.Args[2]
+		dst := s3.Args[1]
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(sz)
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
+	// result: (Move [sz] dst src mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpPPC64CALLstatic || len(call.Args) != 4 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[3]
+		dst := call.Args[0]
+		src := call.Args[1]
+		call_2 := call.Args[2]
+		if call_2.Op != OpPPC64MOVDconst {
+			break
+		}
+		sz := auxIntToInt64(call_2.AuxInt)
+		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = int64ToAuxInt(sz)
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	return false
 }
 func rewriteValuePPC64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]
