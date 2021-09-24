@@ -1902,6 +1902,7 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
 		} else {
 			nname = ir.NewNameAt(f.Pos, newsym)
 			nname.SetType(t2)
+			ir.MarkFunc(nname)
 			newsym.Def = nname
 		}
 		newfields[i] = types.NewField(f.Pos, f.Sym, t2)
