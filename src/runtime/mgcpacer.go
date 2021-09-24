@@ -222,24 +222,14 @@ type gcControllerState struct {
 	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heapScan is updated.
-	//
-	// Stored as a uint64, but it's actually a float64. Use
-	// float64frombits to get the value.
-	//
-	// Read and written atomically.
-	assistWorkPerByte uint64
+	assistWorkPerByte atomic.Float64
 
 	// assistBytesPerWork is 1/assistWorkPerByte.
-	//
-	// Stored as a uint64, but it's actually a float64. Use
-	// float64frombits to get the value.
-	//
-	// Read and written atomically.
 	//
 	// Note that because this is read and written independently
 	// from assistWorkPerByte users may notice a skew between
 	// the two values, and such a state should be safe.
-	assistBytesPerWork uint64
+	assistBytesPerWork atomic.Float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker on
@@ -333,7 +323,7 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		assistRatio := float64frombits(atomic.Load64(&c.assistWorkPerByte))
+		assistRatio := c.assistWorkPerByte.Load()
 		print("pacer: assist ratio=", assistRatio,
 			" (scan ", gcController.heapScan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
@@ -439,8 +429,8 @@ func (c *gcControllerState) revise() {
 	// cycle.
 	assistWorkPerByte := float64(scanWorkRemaining) / float64(heapRemaining)
 	assistBytesPerWork := float64(heapRemaining) / float64(scanWorkRemaining)
-	atomic.Store64(&c.assistWorkPerByte, float64bits(assistWorkPerByte))
-	atomic.Store64(&c.assistBytesPerWork, float64bits(assistBytesPerWork))
+	c.assistWorkPerByte.Store(assistWorkPerByte)
+	c.assistBytesPerWork.Store(assistBytesPerWork)
 }
 
 // endCycle computes the trigger ratio for the next cycle.
