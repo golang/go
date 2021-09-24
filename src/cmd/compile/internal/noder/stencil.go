@@ -1220,6 +1220,12 @@ func (g *irgen) dictPass(info *instInfo) {
 			op := m.(*ir.CallExpr).X.Op()
 			if op != ir.OFUNCINST {
 				assert(op == ir.OMETHVALUE || op == ir.OCLOSURE || op == ir.ODYNAMICDOTTYPE || op == ir.ODYNAMICDOTTYPE2)
+				if op == ir.OMETHVALUE {
+					// Redo the transformation of OXDOT, now that we
+					// know the method value is being called.
+					m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+					transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
+				}
 				transformCall(m.(*ir.CallExpr))
 			}
 
