@@ -912,6 +912,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			if v := subst.ts.Vars[x.(*ir.Name)]; v != nil {
 				return v
 			}
+			if ir.IsBlank(x) {
+				// Special case, because a blank local variable is
+				// not in the fn.Dcl list.
+				m := ir.NewNameAt(x.Pos(), ir.BlankNode.Sym())
+				return typed(subst.ts.Typ(x.Type()), m)
+			}
 			return x
 		case ir.ONONAME:
 			// This handles the identifier in a type switch guard
