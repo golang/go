@@ -43,6 +43,25 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
+<p><!-- golang.org/issue/43684 -->
+  <code>go</code> <code>get</code> no longer builds or installs packages in
+  module-aware mode. <code>go</code> <code>get</code> is now dedicated to
+  adjusting dependencies in <code>go.mod</code>. Effectively, the
+  <code>-d</code> flag is always enabled. To install the latest version
+  of an executable outside the context of the current module, use
+  <a href="https://golang.org/ref/mod#go-install"><code>go</code>
+  <code>install</code> <code>example.com/cmd@latest</code></a>. Any
+  <a href="https://golang.org/ref/mod#version-queries">version query</a>
+  may be used instead of <code>latest</code>. This form of <code>go</code>
+  <code>install</code> was added in Go 1.16, so projects supporting older
+  versions may need to provide install instructions for both <code>go</code>
+  <code>install</code> and <code>go</code> <code>get</code>. <code>go</code>
+  <code>get</code> now reports an error when used outside a module, since there
+  is no <code>go.mod</code> file to update. In GOPATH mode (with
+  <code>GO111MODULE=off</code>), <code>go</code> <code>get</code> still builds
+  and installs packages, as before.
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
