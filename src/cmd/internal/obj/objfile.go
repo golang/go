@@ -408,7 +408,21 @@ func contentHashSection(s *LSym) byte {
 	name := s.Name
 	if s.IsPcdata() {
 		return 'P'
-	} else if strings.HasPrefix(name, "type.") {
+	}
+	if strings.HasPrefix(name, "runtime.gcbits.") {
+		return 'G' // gcbits
+	}
+	if strings.HasPrefix(name, "gcargs.") ||
+		strings.HasPrefix(name, "gclocals.") ||
+		strings.HasPrefix(name, "gclocals·") ||
+		strings.HasSuffix(name, ".opendefer") ||
+		strings.HasSuffix(name, ".arginfo0") ||
+		strings.HasSuffix(name, ".arginfo1") ||
+		strings.HasSuffix(name, ".args_stackmap") ||
+		strings.HasSuffix(name, ".stkobj") {
+		return 'F' // go.func.* or go.funcrel.*
+	}
+	if strings.HasPrefix(name, "type.") {
 		return 'T'
 	}
 	return 0
