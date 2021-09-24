@@ -12,8 +12,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-
-	"golang.org/x/mod/module"
 )
 
 var cmdWhy = &base.Command{
@@ -90,19 +88,19 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			base.Fatalf("go: %v", err)
 		}
 
-		byModule := make(map[module.Version][]string)
+		byModule := make(map[string][]string)
 		_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 		for _, path := range pkgs {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
-				byModule[m] = append(byModule[m], path)
+				byModule[m.Path] = append(byModule[m.Path], path)
 			}
 		}
 		sep := ""
 		for _, m := range mods {
 			best := ""
 			bestDepth := 1000000000
-			for _, path := range byModule[module.Version{Path: m.Path, Version: m.Version}] {
+			for _, path := range byModule[m.Path] {
 				d := modload.WhyDepth(path)
 				if d > 0 && d < bestDepth {
 					best = path
