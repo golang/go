@@ -188,20 +188,17 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 	s.pendingFolders = nil
 
+	var registrations []protocol.Registration
 	if options.ConfigurationSupported && options.DynamicConfigurationSupported {
-		registrations := []protocol.Registration{
-			{
-				ID:     "workspace/didChangeConfiguration",
-				Method: "workspace/didChangeConfiguration",
-			},
-			{
-				ID:     "workspace/didChangeWorkspaceFolders",
-				Method: "workspace/didChangeWorkspaceFolders",
-			},
-		}
-		if options.SemanticTokens {
-			registrations = append(registrations, semanticTokenRegistration(options.SemanticTypes, options.SemanticMods))
-		}
+		registrations = append(registrations, protocol.Registration{
+			ID:     "workspace/didChangeConfiguration",
+			Method: "workspace/didChangeConfiguration",
+		})
+	}
+	if options.SemanticTokens && options.DynamicRegistrationSemanticTokensSupported {
+		registrations = append(registrations, semanticTokenRegistration(options.SemanticTypes, options.SemanticMods))
+	}
+	if len(registrations) > 0 {
 		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
 			Registrations: registrations,
 		}); err != nil {
