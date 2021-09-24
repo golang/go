@@ -12,14 +12,15 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
-	"unicode"
+	"text/scanner"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -650,47 +651,78 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 	}, nil
 }
 
-// adjustRangeForWhitespace adjusts the given range to exclude unnecessary leading or
-// trailing whitespace characters from selection. In the following example, each line
-// of the if statement is indented once. There are also two extra spaces after the
-// closing bracket before the line break.
+// adjustRangeForCommentsAndWhitespace adjusts the given range to exclude unnecessary leading or
+// trailing whitespace characters from selection as well as leading or trailing comments.
+// In the following example, each line of the if statement is indented once. There are also two
+// extra spaces after the sclosing bracket before the line break and a comment.
 //
 // \tif (true) {
 // \t    _ = 1
-// \t}  \n
+// \t} // hello \n
 //
 // By default, a valid range begins at 'if' and ends at the first whitespace character
 // after the '}'. But, users are likely to highlight full lines rather than adjusting
 // their cursors for whitespace. To support this use case, we must manually adjust the
 // ranges to match the correct AST node. In this particular example, we would adjust
-// rng.Start forward by one byte, and rng.End backwards by two bytes.
-func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) (span.Range, error) {
-	offset, err := safetoken.Offset(tok, rng.Start)
-	if err != nil {
-		return span.Range{}, err
-	}
-	for offset < len(content) {
-		if !unicode.IsSpace(rune(content[offset])) {
-			break
+// rng.Start forward to the start of 'if' and rng.End backward to after '}'.
+func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, content []byte, file *ast.File) (span.Range, error) {
+	// Adjust the end of the range to after leading whitespace and comments.
+	prevStart, start := token.NoPos, rng.Start
+	startComment := sort.Search(len(file.Comments), func(i int) bool {
+		// Find the index for the first comment that ends after range start.
+		return file.Comments[i].End() > rng.Start
+	})
+	for prevStart != start {
+		prevStart = start
+		// If start is within a comment, move start to the end
+		// of the comment group.
+		if file.Comments[startComment].Pos() <= start && start < file.Comments[startComment].End() {
+			start = file.Comments[startComment].End()
+			startComment++
 		}
-		// Move forwards one byte to find a non-whitespace character.
-		offset += 1
+		// Move forwards to find a non-whitespace character.
+		offset, err := safetoken.Offset(tok, start)
+		if err != nil {
+			return span.Range{}, err
+		}
+		for offset < len(content) && isGoWhiteSpace(content[offset]) {
+			offset++
+		}
+		start = tok.Pos(offset)
 	}
-	rng.Start = tok.Pos(offset)
 
-	// Move backwards to find a non-whitespace character.
-	offset, err = safetoken.Offset(tok, rng.End)
-	if err != nil {
-		return span.Range{}, err
-	}
-	for o := offset - 1; 0 <= o && o < len(content); o-- {
-		if !unicode.IsSpace(rune(content[o])) {
-			break
+	// Adjust the end of the range to before trailing whitespace and comments.
+	prevEnd, end := token.NoPos, rng.End
+	endComment := sort.Search(len(file.Comments), func(i int) bool {
+		// Find the index for the first comment that ends after the range end.
+		return file.Comments[i].End() >= rng.End
+	})
+	for prevEnd != end {
+		prevEnd = end
+		// If end is within a comment, move end to the start
+		// of the comment group.
+		if file.Comments[endComment].Pos() < end && end <= file.Comments[endComment].End() {
+			end = file.Comments[endComment].Pos()
+			endComment--
 		}
-		offset = o
+		// Move backwards to find a non-whitespace character.
+		offset, err := safetoken.Offset(tok, end)
+		if err != nil {
+			return span.Range{}, err
+		}
+		for offset > 0 && isGoWhiteSpace(content[offset-1]) {
+			offset--
+		}
+		end = tok.Pos(offset)
 	}
-	rng.End = tok.Pos(offset)
-	return rng, nil
+
+	return span.NewRange(tok, start, end), nil
+}
+
+// isGoWhiteSpace returns true if b is a considered white space in
+// Go as defined by scanner.GoWhitespace.
+func isGoWhiteSpace(b byte) bool {
+	return uint64(scanner.GoWhitespace)&(1<<uint(b)) != 0
 }
 
 // findParent finds the parent AST node of the given target node, if the target is a
@@ -949,7 +981,7 @@ func CanExtractFunction(tok *token.File, rng span.Range, src []byte, file *ast.F
 		return nil, false, false, fmt.Errorf("start and end are equal")
 	}
 	var err error
-	rng, err = adjustRangeForWhitespace(rng, tok, src)
+	rng, err = adjustRangeForCommentsAndWhiteSpace(rng, tok, src, file)
 	if err != nil {
 		return nil, false, false, err
 	}
