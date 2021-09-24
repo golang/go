@@ -24,9 +24,8 @@ go mod why rsc.io/sampler
 cmp stdout why.want
 cmp go.mod go.mod.edit
 
-# TODO(#48613): 'go mod why -m' incorrectly reports sampler is not needed.
 go mod why -m rsc.io/sampler
-cmp stdout why-broken.want
+cmp stdout why.want
 cmp go.mod go.mod.edit
 
 cp go.mod.orig go.mod
@@ -91,6 +90,3 @@ rsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
 m
 rsc.io/quote
 rsc.io/sampler
--- why-broken.want --
-# rsc.io/sampler
-(main module does not need module rsc.io/sampler)
