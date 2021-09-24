@@ -40,7 +40,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return wrapname(g.pos(stmt.X), g.expr(stmt.X))
 	case *syntax.SendStmt:
 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
-		if !delayTransform() {
+		if !g.delayTransform() {
 			transformSend(n)
 		}
 		n.SetTypecheck(1)
@@ -62,7 +62,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 				lhs := g.expr(stmt.Lhs)
 				n = ir.NewAssignOpStmt(g.pos(stmt), op, lhs, rhs)
 			}
-			if !delayTransform() {
+			if !g.delayTransform() {
 				transformAsOp(n)
 			}
 			n.SetTypecheck(1)
@@ -77,7 +77,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 			n := ir.NewAssignStmt(g.pos(stmt), lhs[0], rhs[0])
 			n.Def = initDefn(n, names)
 
-			if !delayTransform() {
+			if !g.delayTransform() {
 				lhs, rhs := []ir.Node{n.X}, []ir.Node{n.Y}
 				transformAssign(n, lhs, rhs)
 				n.X, n.Y = lhs[0], rhs[0]
@@ -88,7 +88,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 
 		n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, lhs, rhs)
 		n.Def = initDefn(n, names)
-		if !delayTransform() {
+		if !g.delayTransform() {
 			transformAssign(n, n.Lhs, n.Rhs)
 		}
 		n.SetTypecheck(1)
@@ -100,7 +100,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
 	case *syntax.ReturnStmt:
 		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
-		if !delayTransform() {
+		if !g.delayTransform() {
 			transformReturn(n)
 		}
 		n.SetTypecheck(1)
@@ -112,7 +112,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
 	case *syntax.SelectStmt:
 		n := g.selectStmt(stmt)
 
-		if !delayTransform() {
+		if !g.delayTransform() {
 			transformSelect(n.(*ir.SelectStmt))
 		}
 		n.SetTypecheck(1)

@@ -319,3 +319,9 @@ func (g *irgen) unhandled(what string, p poser) {
 	base.FatalfAt(g.pos(p), "unhandled %s: %T", what, p)
 	panic("unreachable")
 }
+
+// delayTransform returns true if we should delay all transforms, because we are
+// creating the nodes for a generic function/method.
+func (g *irgen) delayTransform() bool {
+	return g.topFuncIsGeneric
+}
