@@ -89,20 +89,16 @@ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
 }
 
-func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
+func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) *ir.BinaryExpr {
 	switch op {
-	case ir.OANDAND, ir.OOROR:
-		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
 	case ir.OADD:
 		n := ir.NewBinaryExpr(pos, op, x, y)
 		typed(typ, n)
-		r := ir.Node(n)
-		if !delayTransform() {
-			r = transformAdd(n)
-		}
-		return r
+		return n
 	default:
-		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
+		n := ir.NewBinaryExpr(pos, op, x, y)
+		typed(x.Type(), n)
+		return n
 	}
 }
 
@@ -195,12 +191,9 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	return n
 }
 
-func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) *ir.BinaryExpr {
 	n := ir.NewBinaryExpr(pos, op, x, y)
 	typed(typ, n)
-	if !delayTransform() {
-		transformCompare(n)
-	}
 	return n
 }
 
@@ -270,26 +263,19 @@ func method(typ *types.Type, index int) *types.Field {
 	return types.ReceiverBaseType(typ).Methods().Index(index)
 }
 
-func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
+func Index(pos src.XPos, typ *types.Type, x, index ir.Node) *ir.IndexExpr {
 	n := ir.NewIndexExpr(pos, x, index)
 	typed(typ, n)
-	if !delayTransform() {
-		// transformIndex will modify n.Type() for OINDEXMAP.
-		transformIndex(n)
-	}
 	return n
 }
 
-func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
+func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) *ir.SliceExpr {
 	op := ir.OSLICE
 	if max != nil {
 		op = ir.OSLICE3
 	}
 	n := ir.NewSliceExpr(pos, op, x, low, high, max)
 	typed(typ, n)
-	if !delayTransform() {
-		transformSlice(n)
-	}
 	return n
 }
 

@@ -167,7 +167,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 			index := g.expr(expr.Index)
 			if index.Op() != ir.OTYPE {
 				// This is just a normal index expression
-				return Index(pos, g.typ(typ), g.expr(expr.X), index)
+				n := Index(pos, g.typ(typ), g.expr(expr.X), index)
+				if !delayTransform() {
+					// transformIndex will modify n.Type() for OINDEXMAP.
+					transformIndex(n)
+				}
+				return n
 			}
 			// This is generic function instantiation with a single type
 			targs = []ir.Node{index}
@@ -200,7 +205,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		return g.selectorExpr(pos, typ, expr)
 
 	case *syntax.SliceExpr:
-		return Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+		n := Slice(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+		if !delayTransform() {
+			transformSlice(n)
+		}
+		return n
 
 	case *syntax.Operation:
 		if expr.Y == nil {
@@ -208,9 +217,21 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 		}
 		switch op := g.op(expr.Op, binOps[:]); op {
 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
-			return Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
+			n := Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
+			if !delayTransform() {
+				transformCompare(n)
+			}
+			return n
+		case ir.OANDAND, ir.OOROR:
+			x := g.expr(expr.X)
+			y := g.expr(expr.Y)
+			return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
 		default:
-			return Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
+			n := Binary(pos, op, g.typ(typ), g.expr(expr.X), g.expr(expr.Y))
+			if op == ir.OADD && !delayTransform() {
+				return transformAdd(n)
+			}
+			return n
 		}
 
 	default:
