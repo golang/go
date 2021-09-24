@@ -183,10 +183,15 @@ func swalk(t reflect.Type, ix []int, indent string) {
 	}
 }
 
-func showOptions(o *source.Options) []string {
-	// non-breaking spaces for indenting current and defaults when they are on a separate line
-	const indent = "\u00a0\u00a0\u00a0\u00a0\u00a0"
-	var ans strings.Builder
+type sessionOption struct {
+	Name    string
+	Type    string
+	Current string
+	Default string
+}
+
+func showOptions(o *source.Options) []sessionOption {
+	var out []sessionOption
 	t := reflect.TypeOf(*o)
 	swalk(t, []int{}, "")
 	v := reflect.ValueOf(*o)
@@ -195,17 +200,26 @@ func showOptions(o *source.Options) []string {
 		val := v.FieldByIndex(f.index)
 		def := do.FieldByIndex(f.index)
 		tx := t.FieldByIndex(f.index)
-		prefix := fmt.Sprintf("%s (type is %s): ", tx.Name, tx.Type)
 		is := strVal(val)
 		was := strVal(def)
-		if len(is) < 30 && len(was) < 30 {
-			fmt.Fprintf(&ans, "%s current:%s, default:%s\n", prefix, is, was)
-		} else {
-			fmt.Fprintf(&ans, "%s\n%scurrent:%s\n%sdefault:%s\n", prefix, indent, is, indent, was)
-		}
+		out = append(out, sessionOption{
+			Name:    tx.Name,
+			Type:    tx.Type.String(),
+			Current: is,
+			Default: was,
+		})
 	}
-	return strings.Split(ans.String(), "\n")
+	sort.Slice(out, func(i, j int) bool {
+		rd := out[i].Current == out[i].Default
+		ld := out[j].Current == out[j].Default
+		if rd != ld {
+			return ld
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
+
 func strVal(val reflect.Value) string {
 	switch val.Kind() {
 	case reflect.Bool:

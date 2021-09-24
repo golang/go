@@ -791,7 +791,7 @@ Unknown page
 		}
 		return s
 	},
-	"options": func(s *cache.Session) []string {
+	"options": func(s *cache.Session) []sessionOption {
 		return showOptions(s.Options())
 	},
 })
@@ -919,7 +919,11 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 <h2>Overlays</h2>
 <ul>{{range .Overlays}}<li>{{template "filelink" .}}</li>{{end}}</ul>
 <h2>Options</h2>
-{{range options .}}<p>{{.}}{{end}}
+{{range options .}}
+<p><b>{{.Name}}</b> {{.Type}}</p>
+<p><i>default:</i> {{.Default}}</p>
+{{if ne .Default .Current}}<p><i>current:</i> {{.Current}}</p>{{end}}
+{{end}}
 {{end}}
 `))
 
