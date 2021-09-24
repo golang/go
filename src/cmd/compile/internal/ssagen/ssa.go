@@ -4503,7 +4503,7 @@ func InitTables() {
 		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
-	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeOnesCountAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasPOPCNT)
 			b := s.endBlock()
@@ -4518,10 +4518,6 @@ func InitTables() {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			op := op64
-			if s.config.PtrSize == 4 {
-				op = op32
-			}
 			s.vars[n] = s.newValue1(op, types.Types[types.TINT], args[0])
 			s.endBlock().AddEdgeTo(bEnd)
 
@@ -4536,7 +4532,7 @@ func InitTables() {
 		}
 	}
 	addF("math/bits", "OnesCount64",
-		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount64),
+		makeOnesCountAMD64(ssa.OpPopCount64),
 		sys.AMD64)
 	addF("math/bits", "OnesCount64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4544,7 +4540,7 @@ func InitTables() {
 		},
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount32",
-		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
+		makeOnesCountAMD64(ssa.OpPopCount32),
 		sys.AMD64)
 	addF("math/bits", "OnesCount32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4552,7 +4548,7 @@ func InitTables() {
 		},
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math/bits", "OnesCount16",
-		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
+		makeOnesCountAMD64(ssa.OpPopCount16),
 		sys.AMD64)
 	addF("math/bits", "OnesCount16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4565,7 +4561,7 @@ func InitTables() {
 		},
 		sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount",
-		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+		makeOnesCountAMD64(ssa.OpPopCount64),
 		sys.AMD64)
 	addF("math/bits", "Mul64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
