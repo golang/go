@@ -10,7 +10,7 @@ cp go.mod go.mod.orig
 # 'go get -u' from performing upgrades.
 
 cp go.mod.orig go.mod
-go get -u -d .
+go get -u .
 cmp go.mod go.mod.want
 
 
@@ -21,7 +21,7 @@ cmp go.mod go.mod.want
 # (in this case, example.net/indirect).
 
 cp go.mod.orig go.mod
-go get -d example.net/a@v0.2.0
+go get example.net/a@v0.2.0
 cmp go.mod go.mod.want
 
 

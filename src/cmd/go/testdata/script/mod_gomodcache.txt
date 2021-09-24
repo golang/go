@@ -5,7 +5,7 @@ env GO111MODULE=on
 env GOMODCACHE=$WORK/modcache
 go env GOMODCACHE
 stdout $WORK[/\\]modcache
-go get -d rsc.io/quote@v1.0.0
+go get rsc.io/quote@v1.0.0
 exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
 grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
 
@@ -18,7 +18,7 @@ exists $WORK/modcache/cache/download/sumdb
 env GOMODCACHE=
 go env GOMODCACHE
 stdout $GOPATH[/\\]pkg[/\\]mod
-go get -d rsc.io/quote@v1.0.0
+go get rsc.io/quote@v1.0.0
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 

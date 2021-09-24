@@ -17,7 +17,7 @@ exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.0.0-bad.mod
 
 # Importing a package from a module with a retracted latest version will
 # select the latest non-retracted version.
-go get -d ./use_self_prev
+go get ./use_self_prev
 go list -m example.com/retract/self/prev
 stdout '^example.com/retract/self/prev v1.1.0$'
 exists $GOPATH/pkg/mod/cache/download/example.com/retract/self/prev/@v/v1.9.0.mod

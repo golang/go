@@ -70,7 +70,7 @@ go mod edit -require=rsc.io/fortune@v1.0.0
 stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
 ! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
 stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
-go get -d rsc.io/fortune@v1.0.0
+go get rsc.io/fortune@v1.0.0
 go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
 exists $GOPATH/bin/fortune$GOEXE
 cd ..
@@ -125,7 +125,7 @@ stderr '^package example.com/cmd/err is not a main package$'
 mkdir tmp
 cd tmp
 go mod init m
-go get -d example.com/cmd@v1.0.0
+go get example.com/cmd@v1.0.0
 ! go build example.com/cmd/...
 stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
 cd ..

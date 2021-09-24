@@ -177,7 +177,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
 # 'go get' should update from the network or module cache,
 # even if a vendor directory is present.
-go get -d example.com/version@v1.1.0
+go get example.com/version@v1.1.0
 ! go list -f {{.Dir}} -tags tools all
 stderr '^go: inconsistent vendoring'
 
