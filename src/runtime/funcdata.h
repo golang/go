@@ -11,6 +11,7 @@
 #define PCDATA_UnsafePoint 0
 #define PCDATA_StackMapIndex 1
 #define PCDATA_InlTreeIndex 2
+#define PCDATA_ArgLiveIndex 3
 
 #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
 #define FUNCDATA_LocalsPointerMaps 1
@@ -18,6 +19,7 @@
 #define FUNCDATA_InlTree 3
 #define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
 #define FUNCDATA_ArgInfo 5
+#define FUNCDATA_ArgLiveInfo 6
 
 // Pseudo-assembly statements.
 

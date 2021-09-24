@@ -486,6 +486,7 @@ type FuncInfo struct {
 	StackObjects       *LSym
 	OpenCodedDeferInfo *LSym
 	ArgInfo            *LSym // argument info for traceback
+	ArgLiveInfo        *LSym // argument liveness info for traceback
 
 	FuncInfoSym *LSym
 }

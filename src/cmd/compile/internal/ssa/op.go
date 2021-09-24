@@ -103,6 +103,10 @@ func (a *AuxNameOffset) String() string {
 	return fmt.Sprintf("%s+%d", a.Name.Sym().Name, a.Offset)
 }
 
+func (a *AuxNameOffset) FrameOffset() int64 {
+	return a.Name.FrameOffset() + a.Offset
+}
+
 type AuxCall struct {
 	Fn      *obj.LSym
 	reg     *regInfo // regInfo for this call

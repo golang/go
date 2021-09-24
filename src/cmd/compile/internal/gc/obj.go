@@ -249,14 +249,17 @@ func addGCLocals() {
 			}
 		}
 		if x := fn.StackObjects; x != nil {
-			attr := int16(obj.RODATA)
-			objw.Global(x, int32(len(x.P)), attr)
+			objw.Global(x, int32(len(x.P)), obj.RODATA)
 			x.Set(obj.AttrStatic, true)
 		}
 		if x := fn.OpenCodedDeferInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 		if x := fn.ArgInfo; x != nil {
+			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+			x.Set(obj.AttrStatic, true)
+		}
+		if x := fn.ArgLiveInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
 		}

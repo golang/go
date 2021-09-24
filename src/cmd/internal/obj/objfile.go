@@ -347,7 +347,8 @@ func (w *writer) Sym(s *LSym) {
 			strings.HasPrefix(name, "runtime.gcbits."),
 			strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
-			strings.HasSuffix(name, ".arginfo1"):
+			strings.HasSuffix(name, ".arginfo1"),
+			strings.HasSuffix(name, ".argliveinfo"):
 			// These are just bytes, or varints.
 			align = 1
 		case strings.HasPrefix(name, "gclocals·"):
@@ -415,6 +416,7 @@ func contentHashSection(s *LSym) byte {
 		strings.HasSuffix(name, ".opendefer") ||
 		strings.HasSuffix(name, ".arginfo0") ||
 		strings.HasSuffix(name, ".arginfo1") ||
+		strings.HasSuffix(name, ".argliveinfo") ||
 		strings.HasSuffix(name, ".args_stackmap") ||
 		strings.HasSuffix(name, ".stkobj") {
 		return 'F' // go.func.* or go.funcrel.*
