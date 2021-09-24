@@ -1093,6 +1093,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 				transformCall(call)
 
+			case ir.OCONVNOP:
+				transformCall(call)
+
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
 				// in stencil() once we have created & attached the
