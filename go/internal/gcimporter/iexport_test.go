@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func readExportFile(filename string) ([]byte, error) {
@@ -83,8 +84,15 @@ func TestIExportData_stdlib(t *testing.T) {
 			Sizes: types.SizesFor(ctxt.Compiler, ctxt.GOARCH),
 		},
 	}
+	// Temporarily skip packages that use generics on the unified builder, to fix
+	// TryBots.
+	//
+	// TODO(#48595): fix this test with GOEXPERIMENT=unified.
+	isUnified := os.Getenv("GO_BUILDER_NAME") == "linux-amd64-unified"
 	for _, path := range buildutil.AllPackages(conf.Build) {
-		conf.Import(path)
+		if !(isUnified && testenv.UsesGenerics(path)) {
+			conf.Import(path)
+		}
 	}
 
 	// Create a package containing type and value errors to ensure

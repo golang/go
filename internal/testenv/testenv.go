@@ -297,3 +297,9 @@ func SkipAfterGo1Point(t Testing, x int) {
 		t.Skipf("running Go version %q is version 1.%d, newer than maximum 1.%d", runtime.Version(), Go1Point(), x)
 	}
 }
+
+// UsesGenerics reports if the standard library package stdlibPkg uses
+// generics.
+func UsesGenerics(stdlibPkg string) bool {
+	return stdlibPkg == "constraints"
+}
