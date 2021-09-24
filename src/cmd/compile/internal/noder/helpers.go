@@ -317,9 +317,3 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
 	}
 	return ir.NewAssignOpStmt(pos, op, x, bl)
 }
-
-// delayTransform returns true if we should delay all transforms, because we are
-// creating the nodes for a generic function/method.
-func delayTransform() bool {
-	return ir.CurFunc != nil && ir.CurFunc.Type().HasTParam()
-}
