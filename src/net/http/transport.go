@@ -35,6 +35,13 @@ import (
 	"golang.org/x/net/http/httpproxy"
 )
 
+func init() {
+	e := os.Getenv("GODEBUG")
+	if strings.Contains(e, "httproundtripdebug=1") {
+		debugRoundTrip = true
+	}
+}
+
 // DefaultTransport is the default implementation of Transport and is
 // used by DefaultClient. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
@@ -51,8 +58,6 @@ var DefaultTransport RoundTripper = &Transport{
 	IdleConnTimeout:       90 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
-
-	debugRoundTrip: strings.Contains(os.Getenv("GODEBUG"), "httpdebugroundtrip=1"),
 }
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
@@ -110,8 +115,6 @@ type Transport struct {
 	connsPerHostMu   sync.Mutex
 	connsPerHost     map[connectMethodKey]int
 	connsPerHostWait map[connectMethodKey]wantConnQueue // waiting getConns
-
-	debugRoundTrip bool // enables debug logging on round tripper
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -813,6 +816,7 @@ var (
 	// proxyConfigOnce guards proxyConfig
 	envProxyOnce      sync.Once
 	envProxyFuncValue func(*url.URL) (*url.URL, error)
+	debugRoundTrip    bool
 )
 
 // defaultProxyConfig returns a ProxyConfig value looked up
@@ -2589,8 +2593,6 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		}
 	}()
 
-	var debugRoundTrip = pc.t.debugRoundTrip
-
 	// Write the request concurrently with waiting for a response,
 	// in case the server decides to reply before reading our full
 	// request body.
@@ -2651,7 +2653,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 				panic(fmt.Sprintf("internal error: exactly one of res or err should be set; nil=%v", re.res == nil))
 			}
 			if debugRoundTrip {
-				req.logf("resc recv: %p, %T/%#v", re.res, re.err, re.err)
+				req.logf("resc recv: %p, %T/%v", re.res, re.err, re.err)
 			}
 			if re.err != nil {
 				return nil, pc.mapRoundTripError(req, startBytesWritten, re.err)
@@ -2672,10 +2674,14 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 // a t.Logf func. See export_test.go's Request.WithT method.
 type tLogKey struct{}
 
+type requestLogger func(string, ...interface{})
+
 func (tr *transportRequest) logf(format string, args ...interface{}) {
-	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
-		logf(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
+	logger := log.Printf
+	if logf, ok := tr.Request.Context().Value(tLogKey{}).(requestLogger); ok {
+		logger = logf
 	}
+	logger(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
 }
 
 // markReused marks this connection as having been successfully used for a
