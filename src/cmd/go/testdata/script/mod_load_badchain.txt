@@ -10,13 +10,13 @@ go mod download example.com/badchain/b@v1.1.0
 go mod download example.com/badchain/c@v1.1.0
 
 # Try to update example.com/badchain/a (and its dependencies).
-! go get -d example.com/badchain/a
+! go get example.com/badchain/a
 cmp stderr update-a-expected
 cmp go.mod go.mod.orig
 
 # Try to update the main module. This updates everything, including
 # modules that aren't direct requirements, so the error stack is shorter.
-! go get -d -u ./...
+! go get -u ./...
 cmp stderr update-main-expected
 cmp go.mod go.mod.orig
 

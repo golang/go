@@ -37,7 +37,7 @@ stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid ve
 
 # However, arguments to 'go get' can name packages above the root.
 cp go.mod.orig go.mod
-go get -d golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
+go get golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
 go list -m golang.org/x/text/...
 stdout 'golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
 ! stdout 'golang.org/x/text/unicode'
@@ -141,10 +141,10 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v1.999999.0
 go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
 cd outside
-! go get -d golang.org/x/text@upgrade
+! go get golang.org/x/text@upgrade
 stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999999.0: reading golang.org/x/text/go.mod at revision v1.999999.0: unknown revision v1.999999.0'
 cd ..
-go get -d golang.org/x/text@upgrade
+go get golang.org/x/text@upgrade
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v1.999999.0 => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
 
@@ -214,14 +214,14 @@ stdout 'github.com/pierrec/lz4 v2.0.4-0.20180826165652-dbe9298ce099\+incompatibl
 # to the equivalent +incompatible version, not a pseudo-version with a different
 # major version.
 cp go.mod.orig go.mod
-go get -d github.com/pierrec/lz4@v2.0.5
+go get github.com/pierrec/lz4@v2.0.5
 go list -m github.com/pierrec/lz4
 stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
 
 # 'go get' for a mismatched major version with a go.mod file should error out,
 # not resolve to a pseudo-version with a different major version.
 cp go.mod.orig go.mod
-! go get -d github.com/pierrec/lz4@v2.0.8
+! go get github.com/pierrec/lz4@v2.0.8
 stderr 'go: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
 
 # An invalid +incompatible suffix for a canonical version should error out,

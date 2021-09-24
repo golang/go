@@ -5,7 +5,7 @@ env GO111MODULE=on
 env GOPROXY=direct
 
 cd empty
-! go get -d launchpad.net/gocheck
+! go get launchpad.net/gocheck
 stderr '"bzr": executable file not found'
 cd ..
 

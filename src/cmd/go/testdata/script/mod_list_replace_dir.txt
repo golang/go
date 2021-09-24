@@ -3,7 +3,7 @@
 # Verifies golang.org/issue/29548
 
 # Populate go.sum and download dependencies.
-go get -d
+go get
 
 # Ensure v1.5.2 is also in the cache so we can list it.
 go mod download rsc.io/quote@v1.5.2

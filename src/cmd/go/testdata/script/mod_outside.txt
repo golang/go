@@ -136,13 +136,13 @@ stderr '^\t''go get'' is no longer supported outside a module.$'
 ! go get -u all
 stderr '^go: go.mod file not found in current directory or any parent directory.$'
 stderr '^\t''go get'' is no longer supported outside a module.$'
-! go get -d example.com/printversion@v1.0.0 example.com/version@none
+! go get example.com/printversion@v1.0.0 example.com/version@none
 stderr '^go: go.mod file not found in current directory or any parent directory.$'
 stderr '^\t''go get'' is no longer supported outside a module.$'
 
-# 'go get -d' should not download anything.
+# 'go get' should not download anything.
 go clean -modcache
-! go get -d example.com/printversion@v1.0.0
+! go get example.com/printversion@v1.0.0
 stderr '^go: go.mod file not found in current directory or any parent directory.$'
 stderr '^\t''go get'' is no longer supported outside a module.$'
 ! exists $GOPATH/pkg/mod/example.com/printversion@v1.0.0
