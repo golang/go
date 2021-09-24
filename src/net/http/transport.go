@@ -2674,11 +2674,9 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 // a t.Logf func. See export_test.go's Request.WithT method.
 type tLogKey struct{}
 
-type requestLogger func(string, ...interface{})
-
 func (tr *transportRequest) logf(format string, args ...interface{}) {
 	logger := log.Printf
-	if logf, ok := tr.Request.Context().Value(tLogKey{}).(requestLogger); ok {
+	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
 		logger = logf
 	}
 	logger(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
