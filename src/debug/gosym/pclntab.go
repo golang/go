@@ -373,18 +373,22 @@ func (t *LineTable) string(off uint32) string {
 
 // functabFieldSize returns the size in bytes of a single functab field.
 func (t *LineTable) functabFieldSize() int {
+	if t.version >= ver118 {
+		return 4
+	}
 	return int(t.ptrsize)
 }
 
 // funcTab returns t's funcTab.
 func (t *LineTable) funcTab() funcTab {
-	return funcTab{t}
+	return funcTab{LineTable: t, sz: t.functabFieldSize()}
 }
 
 // funcTab is memory corresponding to a slice of functab structs, followed by an invalid PC.
 // A functab struct is a PC and a func offset.
 type funcTab struct {
 	*LineTable
+	sz int // cached result of t.functabFieldSize
 }
 
 // Count returns the number of func entries in f.
@@ -394,17 +398,21 @@ func (f funcTab) Count() int {
 
 // pc returns the PC of the i'th func in f.
 func (f funcTab) pc(i int) uint64 {
-	return f.uint(f.functab[2*i*f.functabFieldSize():])
+	u := f.uint(f.functab[2*i*f.sz:])
+	if f.version >= ver118 {
+		u += uint64(f.textStart)
+	}
+	return u
 }
 
 // funcOff returns the funcdata offset of the i'th func in f.
 func (f funcTab) funcOff(i int) uint64 {
-	return f.uint(f.functab[(2*i+1)*f.functabFieldSize():])
+	return f.uint(f.functab[(2*i+1)*f.sz:])
 }
 
 // uint returns the uint stored at b.
 func (f funcTab) uint(b []byte) uint64 {
-	if f.functabFieldSize() == 4 {
+	if f.sz == 4 {
 		return uint64(f.binary.Uint32(b))
 	}
 	return f.binary.Uint64(b)

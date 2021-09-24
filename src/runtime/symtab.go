@@ -553,8 +553,8 @@ func modulesinit() {
 }
 
 type functab struct {
-	entry   uintptr
-	funcoff uintptr
+	entryoff uint32 // relative to runtime.text
+	funcoff  uint32
 }
 
 // Mapping information for secondary text sections
@@ -604,16 +604,16 @@ func moduledataverify1(datap *moduledata) {
 	nftab := len(datap.ftab) - 1
 	for i := 0; i < nftab; i++ {
 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
-		if datap.ftab[i].entry > datap.ftab[i+1].entry {
+		if datap.ftab[i].entryoff > datap.ftab[i+1].entryoff {
 			f1 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff])), datap}
 			f2 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff])), datap}
 			f2name := "end"
 			if i+1 < nftab {
 				f2name = funcname(f2)
 			}
-			println("function symbol table not sorted by PC:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name, ", plugin:", datap.pluginpath)
+			println("function symbol table not sorted by PC offset:", hex(datap.ftab[i].entryoff), funcname(f1), ">", hex(datap.ftab[i+1].entryoff), f2name, ", plugin:", datap.pluginpath)
 			for j := 0; j <= i; j++ {
-				println("\t", hex(datap.ftab[j].entry), funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}))
+				println("\t", hex(datap.ftab[j].entryoff), funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}))
 			}
 			if GOOS == "aix" && isarchive {
 				println("-Wl,-bnoobjreorder is mandatory on aix/ppc64 with c-archive")
@@ -622,8 +622,12 @@ func moduledataverify1(datap *moduledata) {
 		}
 	}
 
-	if datap.minpc != datap.ftab[0].entry ||
-		datap.maxpc != datap.ftab[nftab].entry {
+	min := datap.textAddr(uintptr(datap.ftab[0].entryoff))
+	// The max PC is outside of the text section.
+	// Subtract 1 to get a PC inside the text section, look it up, then add 1 back in.
+	max := datap.textAddr(uintptr(datap.ftab[nftab].entryoff-1)) + 1
+	if datap.minpc != min || datap.maxpc != max {
+		println("minpc=", hex(datap.minpc), "min=", hex(min), "maxpc=", hex(datap.maxpc), "max=", hex(max))
 		throw("minpc or maxpc invalid")
 	}
 
@@ -649,6 +653,9 @@ func moduledataverify1(datap *moduledata) {
 // Each function's offset is compared against the section vaddrs and sizes to determine the containing section.
 // Then the section relative offset is added to the section's
 // relocated baseaddr to compute the function addess.
+//
+// It is nosplit because it is part of the findfunc implementation.
+//go:nosplit
 func (md *moduledata) textAddr(off uintptr) uintptr {
 	var res uintptr
 	if len(md.textsectmap) > 1 {
@@ -808,24 +815,23 @@ func findfunc(pc uintptr) funcInfo {
 	if idx >= uint32(len(datap.ftab)) {
 		idx = uint32(len(datap.ftab) - 1)
 	}
-	if pc < datap.ftab[idx].entry {
+	if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
 		// With multiple text sections, the idx might reference a function address that
-		// is higher than the pc being searched, so search backward until the matching address is found.
-
-		for datap.ftab[idx].entry > pc && idx > 0 {
+		// is higher than the pcOff being searched, so search backward until the matching address is found.
+		for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
 			idx--
 		}
 		if idx == 0 {
 			throw("findfunc: bad findfunctab entry idx")
 		}
 	} else {
-		// linear search to find func with pc >= entry.
-		for datap.ftab[idx+1].entry <= pc {
+		// linear search to find func with pcOff >= entry.
+		for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
 			idx++
 		}
 	}
 	funcoff := datap.ftab[idx].funcoff
-	if funcoff == ^uintptr(0) {
+	if funcoff == ^uint32(0) {
 		// With multiple text sections, there may be functions inserted by the external
 		// linker that are not known by Go. This means there may be holes in the PC
 		// range covered by the func table. The invalid funcoff value indicates a hole.
