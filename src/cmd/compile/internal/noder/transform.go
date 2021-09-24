@@ -177,6 +177,12 @@ func transformCall(n *ir.CallExpr) {
 	}
 }
 
+// transformEarlyCall transforms the arguments of a call with an OFUNCINST node.
+func transformEarlyCall(n *ir.CallExpr) {
+	transformArgs(n)
+	typecheckaste(ir.OCALL, n.X, n.IsDDD, n.X.Type().Params(), n.Args)
+}
+
 // transformCompare transforms a compare operation (currently just equals/not
 // equals). Corresponds to the "comparison operators" case in
 // typecheck.typecheck1, including tcArith.

@@ -1097,6 +1097,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// A call with an OFUNCINST will get transformed
 				// in stencil() once we have created & attached the
 				// instantiation to be called.
+				// We must transform the arguments of the call now, though,
+				// so that any needed CONVIFACE nodes are exposed,
+				// so the dictionary format is correct
+				transformEarlyCall(call)
 
 			case ir.OXDOT, ir.ODOTTYPE, ir.ODOTTYPE2:
 			default:
