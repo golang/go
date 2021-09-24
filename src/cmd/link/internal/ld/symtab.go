@@ -537,22 +537,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 		name := ldr.SymName(s)
 		switch {
-		case strings.HasPrefix(name, "type."):
-			if !ctxt.DynlinkingGo() {
-				ldr.SetAttrNotInSymbolTable(s, true)
-			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.STYPERELRO
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtyperel)
-				}
-			} else {
-				symGroupType[s] = sym.STYPE
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtype)
-				}
-			}
-
 		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
 			// Keep go.importpath symbols in the same section as types and
 			// names, as they can be referred to by a section offset.
@@ -599,6 +583,25 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 				align = a
 			}
 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+
+		// Note: Check for "type." prefix after checking for .arginfo1 suffix.
+		// That way symbols like "type..eq.[2]interface {}.arginfo1" that belong
+		// in go.func.* end up there.
+		case strings.HasPrefix(name, "type."):
+			if !ctxt.DynlinkingGo() {
+				ldr.SetAttrNotInSymbolTable(s, true)
+			}
+			if ctxt.UseRelro() {
+				symGroupType[s] = sym.STYPERELRO
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtyperel)
+				}
+			} else {
+				symGroupType[s] = sym.STYPE
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtype)
+				}
+			}
 		}
 	}
 
