@@ -6664,7 +6664,13 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
 		return true
 	}
 
-	for _, a := range abiInfo.InParams() {
+	start := 0
+	if strings.Contains(f.LSym.Name, "[") {
+		// Skip the dictionary argument - it is implicit and the user doesn't need to see it.
+		start = 1
+	}
+
+	for _, a := range abiInfo.InParams()[start:] {
 		if !visitType(a.FrameOffset(abiInfo), a.Type, 0) {
 			break
 		}
