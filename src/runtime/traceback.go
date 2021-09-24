@@ -427,7 +427,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				print(name, "(")
 				argp := unsafe.Pointer(frame.argp)
-				printArgs(f, argp)
+				printArgs(f, argp, tracepc)
 				print(")\n")
 				print("\t", file, ":", line)
 				if frame.pc > f.entry() {
@@ -540,7 +540,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 }
 
 // printArgs prints function arguments in traceback.
-func printArgs(f funcInfo, argp unsafe.Pointer) {
+func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
 	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
 	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
 	// encoding.
@@ -564,7 +564,25 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		return
 	}
 
-	print1 := func(off, sz uint8) {
+	liveInfo := funcdata(f, _FUNCDATA_ArgLiveInfo)
+	liveIdx := pcdatavalue(f, _PCDATA_ArgLiveIndex, pc, nil)
+	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
+	if liveInfo != nil {
+		startOffset = *(*uint8)(liveInfo)
+	}
+
+	isLive := func(off, slotIdx uint8) bool {
+		if liveInfo == nil || liveIdx <= 0 {
+			return true // no liveness info, always live
+		}
+		if off < startOffset {
+			return true
+		}
+		bits := *(*uint8)(add(liveInfo, uintptr(liveIdx)+uintptr(slotIdx/8)))
+		return bits&(1<<(slotIdx%8)) != 0
+	}
+
+	print1 := func(off, sz, slotIdx uint8) {
 		x := readUnaligned64(add(argp, uintptr(off)))
 		// mask out irrelevant bits
 		if sz < 8 {
@@ -576,6 +594,9 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 			}
 		}
 		print(hex(x))
+		if !isLive(off, slotIdx) {
+			print("?")
+		}
 	}
 
 	start := true
@@ -585,6 +606,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		}
 	}
 	pi := 0
+	slotIdx := uint8(0) // register arg spill slot index
 printloop:
 	for {
 		o := p[pi]
@@ -609,7 +631,10 @@ printloop:
 			printcomma()
 			sz := p[pi]
 			pi++
-			print1(o, sz)
+			print1(o, sz, slotIdx)
+			if o >= startOffset {
+				slotIdx++
+			}
 		}
 		start = false
 	}

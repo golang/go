@@ -301,6 +301,7 @@ const (
 	_PCDATA_UnsafePoint   = 0
 	_PCDATA_StackMapIndex = 1
 	_PCDATA_InlTreeIndex  = 2
+	_PCDATA_ArgLiveIndex  = 3
 
 	_FUNCDATA_ArgsPointerMaps    = 0
 	_FUNCDATA_LocalsPointerMaps  = 1
@@ -308,6 +309,7 @@ const (
 	_FUNCDATA_InlTree            = 3
 	_FUNCDATA_OpenCodedDeferInfo = 4
 	_FUNCDATA_ArgInfo            = 5
+	_FUNCDATA_ArgLiveInfo        = 6
 
 	_ArgsSizeUnknown = -0x80000000
 )
