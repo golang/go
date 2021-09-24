@@ -2,7 +2,10 @@
 
 env GO111MODULE=on
 
-# TODO(#43684): test message outside module.
+# 'go get' outside a module prints an error.
+! go get example.com/cmd/a
+stderr '^go: go.mod file not found in current directory or any parent directory.$'
+stderr '^\t''go get'' is no longer supported outside a module.$'
 
 cp go.mod.orig go.mod
 

@@ -58,6 +58,11 @@ mkdir test/test_dir.go
 rm test/test_dir.go
 
 
+-- go.mod --
+module m
+
+go 1.18
+
 -- test.go --
 package main
 func main() {println("test")}
