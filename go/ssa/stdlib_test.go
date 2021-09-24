@@ -51,7 +51,12 @@ func TestStdlib(t *testing.T) {
 	ctxt.GOPATH = ""      // disable GOPATH
 	conf := loader.Config{Build: &ctxt}
 	for _, path := range buildutil.AllPackages(conf.Build) {
-		conf.ImportWithTests(path)
+		// Temporarily skip packages that use generics until supported by go/ssa.
+		//
+		// TODO(#48595): revert this once go/ssa supports generics.
+		if !testenv.UsesGenerics(path) {
+			conf.ImportWithTests(path)
+		}
 	}
 
 	iprog, err := conf.Load()
