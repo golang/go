@@ -78,6 +78,62 @@ GLOBL _rt0_amd64_lib_argc<>(SB),NOPTR, $8
 DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
+#ifdef GOAMD64_v2
+DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v2 microarchitecture support.\n"
+#endif
+
+#ifdef GOAMD64_v3
+DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v3 microarchitecture support.\n"
+#endif
+
+#ifdef GOAMD64_v4
+DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v4 microarchitecture support.\n"
+#endif
+
+GLOBL bad_proc_msg<>(SB), RODATA, $78
+
+// Define a list of AMD64 microarchitecture level features
+// https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
+
+                          // SSE3     SSSE3    CMPXCHNG16 SSE4.1    SSE4.2    POPCNT
+#define V2_FEATURES_CX      (1 << 0 | 1 << 9 | 1 << 13  | 1 << 19 | 1 << 20 | 1 << 23)
+                          // LAHF/SAHF
+#define V2_EXT_FEATURES_CX  (1 << 0)
+                                           // FMA       MOVBE     OSXSAVE   AVX       F16C
+#define V3_FEATURES_CX      (V2_FEATURES_CX | 1 << 12 | 1 << 22 | 1 << 27 | 1 << 28 | 1 << 29)
+                                               // ABM (FOR LZNCT)
+#define V3_EXT_FEATURES_CX  (V2_EXT_FEATURES_CX | 1 << 5)
+                          // BMI1     AVX2     BMI2
+#define V3_EXT_FEATURES_BX  (1 << 3 | 1 << 5 | 1 << 8)
+                       // XMM      YMM
+#define V3_OS_SUPPORT_AX (1 << 1 | 1 << 2)
+                                              // AVX512F   AVX512DQ  AVX512CD  AVX512BW  AVX512VL
+#define V4_EXT_FEATURES_BX (V3_EXT_FEATURES_BX | 1 << 16 | 1 << 17 | 1 << 28 | 1 << 30 | 1 << 31)
+                                          // OPMASK   ZMM
+#define V4_OS_SUPPORT_AX (V3_OS_SUPPORT_AX | 1 << 5 | (1 << 6 | 1 << 7))
+
+#ifdef GOAMD64_v2
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V2_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V2_EXT_FEATURES_CX
+#endif
+
+#ifdef GOAMD64_v3
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V3_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
+#define NEED_EXT_FEATURES_BX V3_EXT_FEATURES_BX
+#define NEED_OS_SUPPORT_AX V3_OS_SUPPORT_AX
+#endif
+
+#ifdef GOAMD64_v4
+#define NEED_MAX_CPUID 0x80000001
+#define NEED_FEATURES_CX V3_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
+#define NEED_EXT_FEATURES_BX V4_EXT_FEATURES_BX
+#define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
@@ -101,8 +157,23 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CPUID
 	MOVL	AX, SI
 	CMPL	AX, $0
-	JE	nocpuinfo
+#ifdef GOAMD64_v1
+	JE nocpuinfo
+#else
+	JNE	has_cpuinfo
 
+bad_proc: // show that the program requires a certain microarchitecture level.
+	MOVQ	$2, 0(SP)
+	MOVQ	$bad_proc_msg<>(SB), AX
+	MOVQ	AX, 8(SP)
+	MOVQ	$78, 16(SP)
+	CALL	runtime·write(SB)
+	MOVQ	$1, 0(SP)
+	CALL	runtime·exit(SB)
+	CALL	runtime·abort(SB)
+#endif
+
+has_cpuinfo:
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -110,12 +181,50 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
 	MOVB	$1, runtime·isIntel(SB)
-notintel:
 
+notintel:
 	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
 	CPUID
 	MOVL	AX, runtime·processorVersionInfo(SB)
+
+#ifdef NEED_FEATURES_CX
+	ANDL	$NEED_FEATURES_CX, CX
+	CMPL	CX, $NEED_FEATURES_CX
+	JNZ bad_proc
+#endif
+
+#ifdef NEED_MAX_CPUID
+	MOVL	$0x80000000, AX
+	CPUID
+	CMPL	AX, $NEED_MAX_CPUID
+	JL  bad_proc
+#endif
+
+#ifdef NEED_EXT_FEATURES_BX
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_BX, BX
+	CMPL	BX, $NEED_EXT_FEATURES_BX
+	JNZ bad_proc
+#endif
+
+#ifdef NEED_EXT_FEATURES_CX
+	MOVL	$0x80000001, AX
+	CPUID
+	ANDL	$NEED_EXT_FEATURES_CX, CX
+	CMPL	CX, $NEED_EXT_FEATURES_CX
+	JNZ bad_proc
+#endif
+
+#ifdef NEED_OS_SUPPORT_AX
+	MOVL	$0, CX
+	XGETBV
+	ANDL	$NEED_OS_SUPPORT_AX, AX
+	CMPL	AX, $NEED_OS_SUPPORT_AX
+	JNZ bad_proc
+#endif
 
 nocpuinfo:
 	// if there is an _cgo_init, call it.
