@@ -1122,6 +1122,16 @@ func (v Value) Close() {
 	chanclose(v.pointer())
 }
 
+// CanComplex reports whether Complex can be used without panicking.
+func (v Value) CanComplex() bool {
+	switch v.kind() {
+	case Complex64, Complex128:
+		return true
+	default:
+		return false
+	}
+}
+
 // Complex returns v's underlying value, as a complex128.
 // It panics if v's Kind is not Complex64 or Complex128
 func (v Value) Complex() complex128 {
@@ -1249,6 +1259,16 @@ func (v Value) FieldByNameFunc(match func(string) bool) Value {
 	return Value{}
 }
 
+// CanFloat reports whether Float can be used without panicking.
+func (v Value) CanFloat() bool {
+	switch v.kind() {
+	case Float32, Float64:
+		return true
+	default:
+		return false
+	}
+}
+
 // Float returns v's underlying value, as a float64.
 // It panics if v's Kind is not Float32 or Float64
 func (v Value) Float() float64 {
@@ -1308,6 +1328,16 @@ func (v Value) Index(i int) Value {
 		return Value{uint8Type, p, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", v.kind()})
+}
+
+// CanInt reports whether Int can be used without panicking.
+func (v Value) CanInt() bool {
+	switch v.kind() {
+	case Int, Int8, Int16, Int32, Int64:
+		return true
+	default:
+		return false
+	}
 }
 
 // Int returns v's underlying value, as an int64.
@@ -2389,6 +2419,16 @@ func (v Value) Type() Type {
 	}
 	m := ms[i]
 	return v.typ.typeOff(m.mtyp)
+}
+
+// CanUint reports whether Uint can be used without panicking.
+func (v Value) CanUint() bool {
+	switch v.kind() {
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return true
+	default:
+		return false
+	}
 }
 
 // Uint returns v's underlying value, as a uint64.
