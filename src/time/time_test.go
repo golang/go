@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"os"
@@ -885,8 +886,13 @@ var parseDurationTests = []struct {
 	{"9223372036854775807ns", (1<<63 - 1) * Nanosecond},
 	{"9223372036854775.807us", (1<<63 - 1) * Nanosecond},
 	{"9223372036s854ms775us807ns", (1<<63 - 1) * Nanosecond},
-	// large negative value
-	{"-9223372036854775807ns", -1<<63 + 1*Nanosecond},
+	{"-9223372036854775808ns", -1 << 63 * Nanosecond},
+	{"-9223372036854775.808us", -1 << 63 * Nanosecond},
+	{"-9223372036s854ms775us808ns", -1 << 63 * Nanosecond},
+	// largest negative value
+	{"-9223372036854775808ns", -1 << 63 * Nanosecond},
+	// largest negative round trip value, see https://golang.org/issue/48629
+	{"-2562047h47m16.854775808s", -1 << 63 * Nanosecond},
 	// huge string; issue 15011.
 	{"0.100000000000000000000h", 6 * Minute},
 	// This value tests the first overflow check in leadingFraction.
@@ -924,9 +930,7 @@ var parseDurationErrorTests = []struct {
 	// overflow
 	{"9223372036854775810ns", `"9223372036854775810ns"`},
 	{"9223372036854775808ns", `"9223372036854775808ns"`},
-	// largest negative value of type int64 in nanoseconds should fail
-	// see https://go-review.googlesource.com/#/c/2461/
-	{"-9223372036854775808ns", `"-9223372036854775808ns"`},
+	{"-9223372036854775809ns", `"-9223372036854775809ns"`},
 	{"9223372036854776us", `"9223372036854776us"`},
 	{"3000000h", `"3000000h"`},
 	{"9223372036854775.808us", `"9223372036854775.808us"`},
@@ -945,6 +949,19 @@ func TestParseDurationErrors(t *testing.T) {
 }
 
 func TestParseDurationRoundTrip(t *testing.T) {
+	// https://golang.org/issue/48629
+	max0 := Duration(math.MaxInt64)
+	max1, err := ParseDuration(max0.String())
+	if err != nil || max0 != max1 {
+		t.Errorf("round-trip failed: %d => %q => %d, %v", max0, max0.String(), max1, err)
+	}
+
+	min0 := Duration(math.MinInt64)
+	min1, err := ParseDuration(min0.String())
+	if err != nil || min0 != min1 {
+		t.Errorf("round-trip failed: %d => %q => %d, %v", min0, min0.String(), min1, err)
+	}
+
 	for i := 0; i < 100; i++ {
 		// Resolutions finer than milliseconds will result in
 		// imprecise round-trips.
