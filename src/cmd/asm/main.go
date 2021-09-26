@@ -29,12 +29,12 @@ func main() {
 	buildcfg.Check()
 	GOARCH := buildcfg.GOARCH
 
-	architecture := arch.Set(GOARCH)
+	flags.Parse()
+
+	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
 	if architecture == nil {
 		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
-
-	flags.Parse()
 
 	ctxt := obj.Linknew(architecture.LinkArch)
 	ctxt.Debugasm = flags.PrintOut

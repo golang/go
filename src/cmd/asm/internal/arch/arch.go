@@ -50,7 +50,7 @@ func nilRegisterNumber(name string, n int16) (int16, bool) {
 
 // Set configures the architecture specified by GOARCH and returns its representation.
 // It returns nil if GOARCH is not recognized.
-func Set(GOARCH string) *Arch {
+func Set(GOARCH string, shared bool) *Arch {
 	switch GOARCH {
 	case "386":
 		return archX86(&x86.Link386)
@@ -73,7 +73,7 @@ func Set(GOARCH string) *Arch {
 	case "ppc64le":
 		return archPPC64(&ppc64.Linkppc64le)
 	case "riscv64":
-		return archRISCV64()
+		return archRISCV64(shared)
 	case "s390x":
 		return archS390x()
 	case "wasm":
@@ -541,12 +541,18 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	}
 }
 
-func archRISCV64() *Arch {
+func archRISCV64(shared bool) *Arch {
 	register := make(map[string]int16)
 
 	// Standard register names.
 	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
-		if i == riscv.REG_G {
+		// Disallow X3 in shared mode, as this will likely be used as the
+		// GP register, which could result in problems in non-Go code,
+		// including signal handlers.
+		if shared && i == riscv.REG_GP {
+			continue
+		}
+		if i == riscv.REG_TP || i == riscv.REG_G {
 			continue
 		}
 		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
