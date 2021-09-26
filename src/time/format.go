@@ -1402,10 +1402,7 @@ func parseSignedOffset(value string) int {
 	if err != nil || value[1:] == rem {
 		return 0
 	}
-	if sign == '-' {
-		x = -x
-	}
-	if x < -23 || 23 < x {
+	if x > 23 {
 		return 0
 	}
 	return len(value) - len(rem)
@@ -1443,19 +1440,19 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
 
 // leadingInt consumes the leading [0-9]* from s.
-func leadingInt(s string) (x int64, rem string, err error) {
+func leadingInt(s string) (x uint64, rem string, err error) {
 	i := 0
 	for ; i < len(s); i++ {
 		c := s[i]
 		if c < '0' || c > '9' {
 			break
 		}
-		if x > (1<<63-1)/10 {
+		if x > 1<<63/10 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
-		x = x*10 + int64(c) - '0'
-		if x < 0 {
+		x = x*10 + uint64(c) - '0'
+		if x > 1<<63 {
 			// overflow
 			return 0, "", errLeadingInt
 		}
@@ -1466,7 +1463,7 @@ func leadingInt(s string) (x int64, rem string, err error) {
 // leadingFraction consumes the leading [0-9]* from s.
 // It is used only for fractions, so does not return an error on overflow,
 // it just stops accumulating precision.
-func leadingFraction(s string) (x int64, scale float64, rem string) {
+func leadingFraction(s string) (x uint64, scale float64, rem string) {
 	i := 0
 	scale = 1
 	overflow := false
@@ -1483,8 +1480,8 @@ func leadingFraction(s string) (x int64, scale float64, rem string) {
 			overflow = true
 			continue
 		}
-		y := x*10 + int64(c) - '0'
-		if y < 0 {
+		y := x*10 + uint64(c) - '0'
+		if y > 1<<63 {
 			overflow = true
 			continue
 		}
@@ -1494,15 +1491,15 @@ func leadingFraction(s string) (x int64, scale float64, rem string) {
 	return x, scale, s[i:]
 }
 
-var unitMap = map[string]int64{
-	"ns": int64(Nanosecond),
-	"us": int64(Microsecond),
-	"µs": int64(Microsecond), // U+00B5 = micro symbol
-	"μs": int64(Microsecond), // U+03BC = Greek letter mu
-	"ms": int64(Millisecond),
-	"s":  int64(Second),
-	"m":  int64(Minute),
-	"h":  int64(Hour),
+var unitMap = map[string]uint64{
+	"ns": uint64(Nanosecond),
+	"us": uint64(Microsecond),
+	"µs": uint64(Microsecond), // U+00B5 = micro symbol
+	"μs": uint64(Microsecond), // U+03BC = Greek letter mu
+	"ms": uint64(Millisecond),
+	"s":  uint64(Second),
+	"m":  uint64(Minute),
+	"h":  uint64(Hour),
 }
 
 // ParseDuration parses a duration string.
@@ -1513,7 +1510,7 @@ var unitMap = map[string]int64{
 func ParseDuration(s string) (Duration, error) {
 	// [-+]?([0-9]*(\.[0-9]*)?[a-z]+)+
 	orig := s
-	var d int64
+	var d uint64
 	neg := false
 
 	// Consume [-+]?
@@ -1533,7 +1530,7 @@ func ParseDuration(s string) (Duration, error) {
 	}
 	for s != "" {
 		var (
-			v, f  int64       // integers before, after decimal point
+			v, f  uint64      // integers before, after decimal point
 			scale float64 = 1 // value = v + f/scale
 		)
 
@@ -1581,7 +1578,7 @@ func ParseDuration(s string) (Duration, error) {
 		if !ok {
 			return 0, errors.New("time: unknown unit " + quote(u) + " in duration " + quote(orig))
 		}
-		if v > (1<<63-1)/unit {
+		if v > 1<<63/unit {
 			// overflow
 			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
@@ -1589,21 +1586,22 @@ func ParseDuration(s string) (Duration, error) {
 		if f > 0 {
 			// float64 is needed to be nanosecond accurate for fractions of hours.
 			// v >= 0 && (f*unit/scale) <= 3.6e+12 (ns/h, h is the largest unit)
-			v += int64(float64(f) * (float64(unit) / scale))
-			if v < 0 {
+			v += uint64(float64(f) * (float64(unit) / scale))
+			if v > 1<<63 {
 				// overflow
 				return 0, errors.New("time: invalid duration " + quote(orig))
 			}
 		}
 		d += v
-		if d < 0 {
-			// overflow
+		if d > 1<<63 {
 			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 	}
-
 	if neg {
-		d = -d
+		return -Duration(d), nil
+	}
+	if d > 1<<63-1 {
+		return 0, errors.New("time: invalid duration " + quote(orig))
 	}
 	return Duration(d), nil
 }
