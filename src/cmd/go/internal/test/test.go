@@ -132,8 +132,6 @@ variables are unchanged. A cached test result is treated as executing
 in no time at all,so a successful package test result will be cached and
 reused regardless of -timeout setting.
 
-Run 'go help fuzz' for details around how the go command handles fuzz targets.
-
 In addition to the build flags, the flags handled by 'go test' itself are:
 
 	-args
