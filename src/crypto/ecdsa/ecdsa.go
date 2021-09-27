@@ -200,10 +200,13 @@ var errZeroParam = errors.New("zero parameter")
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	randutil.MaybeReadByte(rand)
 
-	// Get min(log2(q) / 2, 256) bits of entropy from rand.
-	entropylen := (priv.Curve.Params().BitSize + 7) / 16
-	if entropylen > 32 {
+	// Get min(max(log2(q), 256), 512) bits of entropy from rand.
+	entropylen := (priv.Curve.Params().BitSize + 7) / 8
+	if entropylen < 32 {
 		entropylen = 32
+	}
+	if entropylen > 64 {
+		entropylen = 64
 	}
 	entropy := make([]byte, entropylen)
 	_, err = io.ReadFull(rand, entropy)
