@@ -60,18 +60,19 @@ func BuildInit() {
 	}
 }
 
-// FuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
 // on supported platforms.
 //
-// On unsupported platforms, FuzzInstrumentFlags returns nil, meaning no
+// On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no
 // instrumentation is added. 'go test -fuzz' still works without coverage,
 // but it generates random inputs without guidance, so it's much less effective.
-func FuzzInstrumentFlags() []string {
-	// TODO: expand the set of supported platforms, with testing.
-	// Nothing about the instrumentation is OS specific, but only amd64 and arm64
-	// are supported in the runtime. See src/runtime/libfuzzer*.
+func fuzzInstrumentFlags() []string {
+	// TODO: expand the set of supported platforms, with testing. Nothing about
+	// the instrumentation is OS specific, but only amd64 and arm64 are
+	// supported in the runtime. See src/runtime/libfuzzer*.
 	//
-	// Keep in sync with build constraints in internal/fuzz/counters_{un,}supported.go
+	// Keep in sync with build constraints in
+	// internal/fuzz/counters_{un,}supported.go
 	switch cfg.Goos {
 	case "darwin", "freebsd", "linux", "windows":
 	default:

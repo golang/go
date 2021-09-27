@@ -144,6 +144,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+	if p.Internal.FuzzInstrument {
+		gcflags = append(gcflags, fuzzInstrumentFlags()...)
+	}
 	if compilingRuntime {
 		// Remove -N, if present.
 		// It is not possible to build the runtime with no optimizations,
