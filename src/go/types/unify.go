@@ -109,7 +109,7 @@ func (d *tparamsList) init(tparams []*TypeParam) {
 
 // join unifies the i'th type parameter of x with the j'th type parameter of y.
 // If both type parameters already have a type associated with them and they are
-// not joined, join fails and return false.
+// not joined, join fails and returns false.
 func (u *unifier) join(i, j int) bool {
 	ti := u.x.indices[i]
 	tj := u.y.indices[j]
@@ -133,6 +133,7 @@ func (u *unifier) join(i, j int) bool {
 		break
 	case ti > 0 && tj > 0:
 		// Both type parameters have (possibly different) inferred types. Cannot join.
+		// TODO(gri) Should we check if types are identical? Investigate.
 		return false
 	case ti > 0:
 		// Only the type parameter for x has an inferred type. Use x slot for y.
@@ -223,7 +224,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 }
 
 // nify implements the core unification algorithm which is an
-// adapted version of Checker.identical0. For changes to that
+// adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
@@ -424,6 +425,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
+		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
 		if y, ok := y.(*Named); ok {
 			xargs := x.targs.list()
 			yargs := y.targs.list()
