@@ -104,7 +104,13 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 // IsComparable reports whether each type in interface t's type set is comparable.
 func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 
+// IsMethodSet reports whether the interface t is fully described by its method
+// set.
+func (t *Interface) IsMethodSet() bool { return !t.typeSet().IsConstraint() }
+
 // IsConstraint reports whether interface t is not just a method set.
+//
+// TODO(rfindley): remove this method.
 func (t *Interface) IsConstraint() bool { return t.typeSet().IsConstraint() }
 
 // Complete computes the interface's type set. It must be called by users of
