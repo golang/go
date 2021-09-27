@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -434,7 +433,7 @@ const (
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	if b.CacheCheck.Enable {
-		atomic.AddInt64(&b.CacheCheck.Build.Missed, 1)
+		b.CacheCheck.Build.SetMissed()
 	}
 	p := a.Package
 
@@ -473,8 +472,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 
 		if b.CacheCheck.Enable && cachedBuild {
-			atomic.AddInt64(&b.CacheCheck.Build.Hit, 1)
-			atomic.AddInt64(&b.CacheCheck.Build.Missed, -1)
+			b.CacheCheck.Build.SetHit()
 		}
 
 		// Source files might be cached, even if the full action is not
@@ -1206,6 +1204,10 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		return err
 	}
 
+	if b.CacheCheck.Enable {
+		return nil
+	}
+
 	// TODO(rsc): Why do we pass $GCCGO to go vet?
 	env := b.cCompilerEnv()
 	if cfg.BuildToolchainName == "gccgo" {
@@ -1320,12 +1322,11 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 // Note that any new influence on this logic must be reported in b.linkActionID above as well.
 func (b *Builder) link(ctx context.Context, a *Action) (err error) {
 	if b.CacheCheck.Enable {
-		b.CacheCheck.Link.Missed++
+		b.CacheCheck.Link.SetMissed()
 	}
 	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
 		if b.CacheCheck.Enable {
-			b.CacheCheck.Link.Hit++
-			b.CacheCheck.Link.Missed--
+			b.CacheCheck.Link.SetHit()
 		}
 		return nil
 	}
@@ -1524,6 +1525,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 }
 
 func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
+	if b.CacheCheck.Enable {
+		return nil
+	}
+
 	if err := allowInstall(a); err != nil {
 		return err
 	}
@@ -1573,6 +1578,9 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
 }
 
 func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
+	if b.CacheCheck.Enable {
+		return nil
+	}
 	if b.useCache(a, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
 		return nil
 	}
@@ -2073,6 +2081,9 @@ func (b *Builder) processOutput(out []byte) string {
 // It accumulates execution time in a.
 func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interface{}) ([]byte, error) {
 	cmdline := str.StringList(cmdargs...)
+	if b.CacheCheck.Enable {
+		return nil, nil
+	}
 
 	for _, arg := range cmdline {
 		// GNU binutils commands, including gcc and gccgo, interpret an argument

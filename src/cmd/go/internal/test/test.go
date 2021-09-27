@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -1419,7 +1418,7 @@ func (c *runCache) tryCache(b *work.Builder, a *work.Action) bool {
 
 func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bool {
 	if testCC {
-		atomic.AddInt64(&b.CacheCheck.Test.Missed, 1) // if cache is used for this test, decrement this value later
+		b.CacheCheck.Test.SetMissed()
 	}
 	if len(pkgArgs) == 0 {
 		// Caching does not apply to "go test",
@@ -1585,8 +1584,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 	}
 	c.buf.Write(data[j:])
 	if testCC {
-		atomic.AddInt64(&b.CacheCheck.Test.Hit, 1)
-		atomic.AddInt64(&b.CacheCheck.Test.Missed, -1)
+		b.CacheCheck.Test.SetHit()
 	}
 	return true
 }

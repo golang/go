@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -35,13 +36,23 @@ type CacheStatus struct {
 	Hit    int64 `json:"hit"`
 }
 
+// SetMissed increment missed value
+func (cs *CacheStatus) SetMissed() {
+	atomic.AddInt64(&cs.Missed, 1)
+}
+
+// SetHit increments hit and decrement missed value
+func (cs *CacheStatus) SetHit() {
+	atomic.AddInt64(&cs.Missed, -1)
+	atomic.AddInt64(&cs.Hit, 1)
+}
+
 // CacheCheckInfo holds the information about cache check option for test
 type CacheCheckInfo struct {
-	Enable  bool        `json:"-"`
-	Build   CacheStatus `json:"build"`
-	Link    CacheStatus `json:"link"`
-	Install CacheStatus `json:"install"`
-	Test    CacheStatus `json:"test"`
+	Enable bool        `json:"-"`
+	Build  CacheStatus `json:"build"`
+	Link   CacheStatus `json:"link"`
+	Test   CacheStatus `json:"test"`
 }
 
 // A Builder holds global state about a build.
