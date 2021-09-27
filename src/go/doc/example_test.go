@@ -747,3 +747,50 @@ func mustParse(fset *token.FileSet, filename, src string) *ast.File {
 	}
 	return f
 }
+
+func TestGenericFunctions(t *testing.T) {
+	const src = `
+package p
+
+func GenericF1[T any]() (t T)                     { return }
+func GenericF2[T any]() (t []T)                   { return }
+func GenericF3[D comparable, T any]() (m map[D]T) { return }
+
+type MyObject struct{}
+
+// MyObject constructor that use generic type T
+func MyConstructor[T any](i T) MyObject {
+        return MyObject{}
+}
+`
+	// Parse literal source code as a *doc.Package.
+	fset := token.NewFileSet()
+	files := []*ast.File{mustParse(fset, "src.go", src)}
+	p, err := doc.NewFromFiles(fset, files, "example.com/p")
+	if err != nil {
+		t.Fatalf("doc.NewFromFiles: %v", err)
+	}
+
+	// Type definition check
+	if len(p.Types) != 1 || p.Types[0].Name != "MyObject" {
+		t.Errorf("MyObject should be the only defined type")
+	}
+	if len(p.Types[0].Funcs) != 1 {
+		t.Errorf("Only 1 function should return MyObject")
+	}
+
+	// All should be rendered as top-level functions
+	missing := map[string]bool{
+		"GenericF1": false,
+		"GenericF2": false,
+		"GenericF3": false,
+	}
+
+	for _, f := range p.Funcs {
+		delete(missing, f.Name)
+	}
+
+	for f := range missing {
+		t.Errorf("generic func %v not rendered as top level funcs", f)
+	}
+}
