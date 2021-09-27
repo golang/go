@@ -430,7 +430,10 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
 					// A type parameter is not a defined type.
 					continue
 				}
-				if t := r.lookupType(n); t != nil {
+				if t := r.lookupType(n); t != nil && t.decl != nil {
+					// Only types with Decl are counted
+					// Types of generic functions have nil declaration,
+					// should be associated on top-level
 					typ = t
 					numResultTypes++
 					if numResultTypes > 1 {
