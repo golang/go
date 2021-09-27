@@ -224,6 +224,11 @@ func TestMorePanic(t *testing.T) {
 			want: `panic: die
 	panic: test executed panic(nil) or runtime.Goexit`,
 		},
+		{
+			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
+			flags: []string{"-test.run=TestCallRunInCleanupHelper"},
+			want:  `panic: testing: t.Run is called during t.Cleanup`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -237,6 +242,18 @@ func TestMorePanic(t *testing.T) {
 			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
 		}
 	}
+}
+
+func TestCallRunInCleanupHelper(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	t.Cleanup(func() {
+		t.Run("in-cleanup", func(t *testing.T) {
+			t.Log("must not be executed")
+		})
+	})
 }
 
 func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {

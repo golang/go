@@ -604,12 +604,13 @@ type common struct {
 	finished    bool                 // Test function has completed.
 	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
 
-	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
-	bench      bool           // Whether the current test is a benchmark.
-	hasSub     atomic.Bool    // whether there are sub-benchmarks.
-	raceErrors int            // Number of races detected during test.
-	runner     string         // Function name of tRunner running the test.
-	isParallel bool           // Whether the test is parallel.
+	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+	bench          bool           // Whether the current test is a benchmark.
+	hasSub         atomic.Bool    // whether there are sub-benchmarks.
+	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
+	raceErrors     int            // Number of races detected during test.
+	runner         string         // Function name of tRunner running the test.
+	isParallel     bool           // Whether the test is parallel.
 
 	parent   *common
 	level    int       // Nesting depth of test or benchmark.
@@ -1291,6 +1292,9 @@ const (
 // If catchPanic is true, this will catch panics, and return the recovered
 // value if any.
 func (c *common) runCleanup(ph panicHandling) (panicVal any) {
+	c.cleanupStarted.Store(true)
+	defer c.cleanupStarted.Store(false)
+
 	if ph == recoverAndReturnPanic {
 		defer func() {
 			panicVal = recover()
@@ -1583,6 +1587,10 @@ func tRunner(t *T, fn func(t *T)) {
 // Run may be called simultaneously from multiple goroutines, but all such calls
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
+	if t.cleanupStarted.Load() {
+		panic("testing: t.Run is called during t.Cleanup")
+	}
+
 	t.hasSub.Store(true)
 	testName, ok, _ := t.context.match.fullName(&t.common, name)
 	if !ok || shouldFailFast() {
