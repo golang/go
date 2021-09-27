@@ -193,25 +193,6 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
 		}
 	}
 
-	// Pcdata
-	h.Offsets[goobj.BlkPcdata] = w.Offset()
-	for _, s := range ctxt.Text { // iteration order must match genFuncInfoSyms
-		// Because of the phase order, it's possible that we try to write an invalid
-		// object file, and the Pcln variables haven't been filled in. As such, we
-		// need to check that Pcsp exists, and assume the other pcln variables exist
-		// as well. Tests like test/fixedbugs/issue22200.go demonstrate this issue.
-		if fn := s.Func(); fn != nil && fn.Pcln.Pcsp != nil {
-			pc := &fn.Pcln
-			w.Bytes(pc.Pcsp.P)
-			w.Bytes(pc.Pcfile.P)
-			w.Bytes(pc.Pcline.P)
-			w.Bytes(pc.Pcinline.P)
-			for i := range pc.Pcdata {
-				w.Bytes(pc.Pcdata[i].P)
-			}
-		}
-	}
-
 	// Blocks used only by tools (objdump, nm).
 
 	// Referenced symbol names from other packages

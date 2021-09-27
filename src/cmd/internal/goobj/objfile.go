@@ -100,7 +100,6 @@ import (
 //    }
 //
 //    Data   [...]byte
-//    Pcdata [...]byte
 //
 //    // blocks only used by tools (objdump, nm)
 //
@@ -204,7 +203,6 @@ const (
 	BlkReloc
 	BlkAux
 	BlkData
-	BlkPcdata
 	BlkRefName
 	BlkEnd
 	NBlk
