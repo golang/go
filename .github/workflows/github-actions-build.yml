@@ -1,0 +1,11 @@
+name: build
+on: [push]
+jobs:
+  Builder-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+      - run: (cd src && bash ./all.bash)
