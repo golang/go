@@ -357,6 +357,8 @@ type SymRef struct {
 	SymIdx uint32
 }
 
+func (s SymRef) IsZero() bool { return s == SymRef{} }
+
 // Hash64
 type Hash64Type [Hash64Size]byte
 
