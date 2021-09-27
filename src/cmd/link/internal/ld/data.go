@@ -1367,6 +1367,11 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
 					// the relro data.
 					isRelro = true
 				}
+			case sym.SGOFUNC:
+				// The only SGOFUNC symbols that contain relocations are .stkobj,
+				// and their relocations are of type objabi.R_ADDROFF,
+				// which always get resolved during linking.
+				isRelro = false
 			}
 			if isRelro {
 				state.setSymType(s, symnrelro)

@@ -687,6 +687,7 @@ func schedinit() {
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
+	stkobjinit()    // must run before GC starts
 
 	sigsave(&_g_.m.sigmask)
 	initSigmask = _g_.m.sigmask

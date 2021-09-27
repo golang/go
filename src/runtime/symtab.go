@@ -427,7 +427,8 @@ type moduledata struct {
 	noptrbss, enoptrbss   uintptr
 	end, gcdata, gcbss    uintptr
 	types, etypes         uintptr
-	gofunc, gofuncrel     uintptr // go.func.*, go.funcrel.*
+	rodata                uintptr
+	gofunc                uintptr // go.func.*
 
 	textsectmap []textsect
 	typelinks   []int32 // offsets from types
@@ -1092,11 +1093,7 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if off == ^uint32(0) {
 		return nil
 	}
-	base := f.datap.gofunc
-	if off&1 != 0 {
-		base = f.datap.gofuncrel
-	}
-	return unsafe.Pointer(base + uintptr(off>>1))
+	return unsafe.Pointer(f.datap.gofunc + uintptr(off))
 }
 
 // step advances to the next pc, value pair in the encoded table.
