@@ -39,7 +39,6 @@ import (
 	"log"
 	"math"
 	"sort"
-	"strings"
 )
 
 func Linknew(arch *LinkArch) *Link {
@@ -206,9 +205,10 @@ func (ctxt *Link) NumberSyms() {
 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
 		// may reference named symbols whose names are not fully expanded.
 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
-			if s.Size <= 8 && len(s.R) == 0 && !strings.HasPrefix(s.Name, "type.") {
+			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
 				// We can use short hash only for symbols without relocations.
-				// Don't use short hash for type symbols, as they need special handling.
+				// Don't use short hash for symbols that belong in a particular section
+				// or require special handling (such as type symbols).
 				s.PkgIdx = goobj.PkgIdxHashed64
 				s.SymIdx = hashed64idx
 				if hashed64idx != int32(len(ctxt.hashed64defs)) {

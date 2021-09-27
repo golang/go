@@ -525,6 +525,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
+	// Some of these symbol section conditions are duplicated
+	// in cmd/internal/obj.contentHashSection.
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
