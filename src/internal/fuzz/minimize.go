@@ -79,6 +79,25 @@ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool)
 			j = len(v)
 		}
 	}
+
+	// Then, try to make it more simplified and human-readable by trying to replace each
+	// byte with a printable character.
+	printableChars := []byte("012789ABCXYZabcxyz !\"#$%&'()*+,.")
+	for i, b := range v {
+		if shouldStop() {
+			return
+		}
+
+		for _, pc := range printableChars {
+			v[i] = pc
+			if try(v) {
+				// Successful. Move on to the next byte in v.
+				break
+			}
+			// Unsuccessful. Revert v[i] back to original value.
+			v[i] = b
+		}
+	}
 }
 
 func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool) {
