@@ -29,6 +29,21 @@ import (
 	"cmd/internal/buildid"
 )
 
+// CacheStatus holds the information about cache hit & missed count
+type CacheStatus struct {
+	Missed int64 `json:"missed"`
+	Hit    int64 `json:"hit"`
+}
+
+// CacheCheckInfo holds the information about cache check option for test
+type CacheCheckInfo struct {
+	Enable  bool        `json:"-"`
+	Build   CacheStatus `json:"build"`
+	Link    CacheStatus `json:"link"`
+	Install CacheStatus `json:"install"`
+	Test    CacheStatus `json:"test"`
+}
+
 // A Builder holds global state about a build.
 // It does not hold per-package state, because we
 // build packages in parallel, and the builder is shared.
@@ -57,6 +72,8 @@ type Builder struct {
 	id           sync.Mutex
 	toolIDCache  map[string]string // tool name -> tool ID
 	buildIDCache map[string]string // file name -> build ID
+
+	CacheCheck CacheCheckInfo // used only for testCC
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.

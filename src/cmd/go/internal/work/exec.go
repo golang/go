@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -432,6 +433,9 @@ const (
 // build is the action for building a single package.
 // Note that any new influence on this logic must be reported in b.buildActionID above as well.
 func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+	if b.CacheCheck.Enable {
+		atomic.AddInt64(&b.CacheCheck.Build.Missed, 1)
+	}
 	p := a.Package
 
 	bit := func(x uint32, b bool) uint32 {
@@ -466,6 +470,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 					need &^= needCompiledGoFiles
 				}
 			}
+		}
+
+		if b.CacheCheck.Enable && cachedBuild {
+			atomic.AddInt64(&b.CacheCheck.Build.Hit, 1)
+			atomic.AddInt64(&b.CacheCheck.Build.Missed, -1)
 		}
 
 		// Source files might be cached, even if the full action is not
@@ -777,6 +786,10 @@ OverlayLoop:
 			return err
 		}
 		gofiles = append(gofiles, objdir+"_gomod_.go")
+	}
+
+	if b.CacheCheck.Enable {
+		return nil
 	}
 
 	// Compile Go.
@@ -1306,9 +1319,20 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 // link is the action for linking a single command.
 // Note that any new influence on this logic must be reported in b.linkActionID above as well.
 func (b *Builder) link(ctx context.Context, a *Action) (err error) {
+	if b.CacheCheck.Enable {
+		b.CacheCheck.Link.Missed++
+	}
 	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
+		if b.CacheCheck.Enable {
+			b.CacheCheck.Link.Hit++
+			b.CacheCheck.Link.Missed--
+		}
 		return nil
 	}
+	if b.CacheCheck.Enable {
+		return nil
+	}
+
 	defer b.flushOutput(a)
 
 	if err := b.Mkdir(a.Objdir); err != nil {

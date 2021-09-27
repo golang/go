@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/build"
@@ -22,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cmd/go/internal/base"
@@ -528,6 +530,7 @@ var (
 	testTimeout      time.Duration                     // -timeout flag
 	testV            bool                              // -v flag
 	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
+	testCC           bool                              // -cc flag (check cache)
 )
 
 var (
@@ -613,6 +616,15 @@ var defaultVetFlags = []string{
 	// "-unusedresult",
 }
 
+func printCacheStatus(cs work.CacheCheckInfo) error {
+	data, err := json.Marshal(cs)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("BuildCache: %s\n", string(data))
+	return nil
+}
+
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 	pkgArgs, testArgs = testFlags(args)
@@ -691,6 +703,10 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	var b work.Builder
 	b.Init()
 
+	if testCC {
+		b.CacheCheck.Enable = true
+	}
+
 	if cfg.BuildI {
 		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
 		cfg.BuildV = testV
@@ -742,6 +758,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		b.Do(ctx, a)
 		if !testC || a.Failed {
+			if testCC {
+				printCacheStatus(b.CacheCheck)
+			}
 			return
 		}
 		b.Init()
@@ -893,6 +912,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	b.Do(ctx, root)
+	if testCC {
+		printCacheStatus(b.CacheCheck)
+	}
 }
 
 // ensures that package p imports the named package
@@ -1248,6 +1270,10 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		return nil
 	}
 
+	if b.CacheCheck.Enable {
+		return nil
+	}
+
 	execCmd := work.FindExecCmd()
 	testlogArg := []string{}
 	if !c.disableCache && len(execCmd) == 0 {
@@ -1392,6 +1418,9 @@ func (c *runCache) tryCache(b *work.Builder, a *work.Action) bool {
 }
 
 func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bool {
+	if testCC {
+		atomic.AddInt64(&b.CacheCheck.Test.Missed, 1) // if cache is used for this test, decrement this value later
+	}
 	if len(pkgArgs) == 0 {
 		// Caching does not apply to "go test",
 		// only to "go test foo" (including "go test .").
@@ -1555,6 +1584,10 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		j++
 	}
 	c.buf.Write(data[j:])
+	if testCC {
+		atomic.AddInt64(&b.CacheCheck.Test.Hit, 1)
+		atomic.AddInt64(&b.CacheCheck.Test.Missed, -1)
+	}
 	return true
 }
 
