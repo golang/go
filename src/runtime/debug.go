@@ -95,3 +95,22 @@ func mayMoreStackPreempt() {
 		g.stackguard0 = stackPreempt
 	}
 }
+
+// mayMoreStackMove is a maymorestack hook that forces stack movement
+// at every possible point.
+//
+// See mayMoreStackPreempt.
+//
+//go:nosplit
+//go:linkname mayMoreStackMove
+func mayMoreStackMove() {
+	// Don't do anything on the g0 or gsignal stack.
+	g := getg()
+	if g == g.m.g0 || g == g.m.gsignal {
+		return
+	}
+	// Force stack movement, unless the stack is already poisoned.
+	if g.stackguard0 < stackPoisonMin {
+		g.stackguard0 = stackForceMove
+	}
+}
