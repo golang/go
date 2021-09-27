@@ -711,7 +711,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
 	gofunc := ldr.Lookup("go.func.*", 0)
-	gofuncrel := ldr.Lookup("go.funcrel.*", 0)
+	gofuncBase := ldr.SymValue(gofunc)
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	funcdata := []loader.Sym{}
 	var pcsp, pcfile, pcline, pcinline loader.Sym
@@ -813,24 +813,10 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 				continue
 			}
 
-			outer := ldr.OuterSym(fdsym)
-			if outer == 0 {
-				panic(fmt.Sprintf("no carrier sym for symbol %s (funcdata %s#%d)", ldr.SymName(fdsym), ldr.SymName(s), j))
+			if outer := ldr.OuterSym(fdsym); outer != gofunc {
+				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
 			}
-			rel := uint32(ldr.SymValue(fdsym) - ldr.SymValue(outer))
-			// Record gofunc vs gofuncrel in bottom bit. See runtime/symtab.go:funcdata.
-			// TODO: The only symbols that in gofuncrel are .stkobj symbols.
-			// Remove those relocations, and simplify this.
-			rel <<= 1
-			switch outer {
-			case gofunc:
-			case gofuncrel:
-				rel |= 1
-			default:
-				panic(fmt.Sprintf("expected symbol %s (funcdata %s#%d) to be placed in go.func.* or go.funcrel.*, got %s (%d)",
-					ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer), outer))
-			}
-			sb.SetUint32(ctxt.Arch, int64(dataoff), rel)
+			sb.SetUint32(ctxt.Arch, int64(dataoff), uint32(ldr.SymValue(fdsym)-gofuncBase))
 		}
 	}
 }
