@@ -391,7 +391,9 @@ func (w *writer) Hash(s *LSym) {
 // TODO: instead of duplicating them, have the compiler decide where symbols go.
 func contentHashSection(s *LSym) byte {
 	name := s.Name
-	if strings.HasPrefix(name, "type.") {
+	if s.IsPcdata() {
+		return 'P'
+	} else if strings.HasPrefix(name, "type.") {
 		return 'T'
 	}
 	return 0
@@ -655,16 +657,6 @@ func nAuxSym(s *LSym) int {
 func genFuncInfoSyms(ctxt *Link) {
 	infosyms := make([]*LSym, 0, len(ctxt.Text))
 	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
-	preparePcSym := func(s *LSym) *LSym {
-		if s == nil {
-			return s
-		}
-		s.PkgIdx = goobj.PkgIdxHashed
-		s.SymIdx = int32(len(hashedsyms) + len(ctxt.hasheddefs))
-		s.Set(AttrIndexed, true)
-		hashedsyms = append(hashedsyms, s)
-		return s
-	}
 	var b bytes.Buffer
 	symidx := int32(len(ctxt.defs))
 	for _, s := range ctxt.Text {
@@ -679,13 +671,13 @@ func genFuncInfoSyms(ctxt *Link) {
 			FuncFlag: fn.FuncFlag,
 		}
 		pc := &fn.Pcln
-		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
-		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
-		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
-		o.Pcinline = makeSymRef(preparePcSym(pc.Pcinline))
+		o.Pcsp = makeSymRef(pc.Pcsp)
+		o.Pcfile = makeSymRef(pc.Pcfile)
+		o.Pcline = makeSymRef(pc.Pcline)
+		o.Pcinline = makeSymRef(pc.Pcinline)
 		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
 		for i, pcSym := range pc.Pcdata {
-			o.Pcdata[i] = makeSymRef(preparePcSym(pcSym))
+			o.Pcdata[i] = makeSymRef(pcSym)
 		}
 		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
 		for i, x := range pc.Funcdataoff {

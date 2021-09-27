@@ -201,7 +201,7 @@ func (ctxt *Link) NumberSyms() {
 	ctxt.nonpkgdefs = []*LSym{}
 
 	var idx, hashedidx, hashed64idx, nonpkgidx int32
-	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
 		// may reference named symbols whose names are not fully expanded.
 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
@@ -324,12 +324,18 @@ const (
 	traverseDefs traverseFlag = 1 << iota
 	traverseRefs
 	traverseAux
+	traversePcdata
 
-	traverseAll = traverseDefs | traverseRefs | traverseAux
+	traverseAll = traverseDefs | traverseRefs | traverseAux | traversePcdata
 )
 
 // Traverse symbols based on flag, call fn for each symbol.
 func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+	fnNoNil := func(s *LSym) {
+		if s != nil {
+			fn(s)
+		}
+	}
 	lists := [][]*LSym{ctxt.Text, ctxt.Data}
 	for _, list := range lists {
 		for _, s := range list {
@@ -338,20 +344,26 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 			}
 			if flag&traverseRefs != 0 {
 				for _, r := range s.R {
-					if r.Sym != nil {
-						fn(r.Sym)
-					}
+					fnNoNil(r.Sym)
 				}
 			}
 			if flag&traverseAux != 0 {
-				if s.Gotype != nil {
-					fn(s.Gotype)
-				}
+				fnNoNil(s.Gotype)
 				if s.Type == objabi.STEXT {
 					f := func(parent *LSym, aux *LSym) {
 						fn(aux)
 					}
 					ctxt.traverseFuncAux(flag, s, f)
+				}
+			}
+			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
+				fi := s.Func().Pcln
+				fnNoNil(fi.Pcsp)
+				fnNoNil(fi.Pcfile)
+				fnNoNil(fi.Pcline)
+				fnNoNil(fi.Pcinline)
+				for _, d := range fi.Pcdata {
+					fnNoNil(d)
 				}
 			}
 		}
