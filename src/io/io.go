@@ -479,7 +479,16 @@ func (l *LimitedReader) Read(p []byte) (n int, err error) {
 // NewSectionReader returns a SectionReader that reads from r
 // starting at offset off and stops with EOF after n bytes.
 func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
-	return &SectionReader{r, off, off, off + n}
+	var remaining int64
+	const maxint64 = 1<<63 - 1
+	if off <= maxint64-n {
+		remaining = n + off
+	} else {
+		// Overflow, with no way to return error.
+		// Assume we can read up to an offset of 1<<63 - 1.
+		remaining = maxint64
+	}
+	return &SectionReader{r, off, off, remaining}
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section
