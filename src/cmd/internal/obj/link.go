@@ -700,6 +700,9 @@ const (
 	// convert between ABI0 and ABIInternal calling conventions.
 	AttrABIWrapper
 
+	// IsPcdata indicates this is a pcdata symbol.
+	AttrPcdata
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -727,6 +730,7 @@ func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0
 func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
+func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {

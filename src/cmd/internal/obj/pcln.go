@@ -26,7 +26,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 	dst := []byte{}
 	sym := &LSym{
 		Type:      objabi.SRODATA,
-		Attribute: AttrContentAddressable,
+		Attribute: AttrContentAddressable | AttrPcdata,
 	}
 
 	if dbg {
@@ -337,7 +337,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			// use an empty symbol.
 			pcln.Pcdata[i] = &LSym{
 				Type:      objabi.SRODATA,
-				Attribute: AttrContentAddressable,
+				Attribute: AttrContentAddressable | AttrPcdata,
 			}
 		} else {
 			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
