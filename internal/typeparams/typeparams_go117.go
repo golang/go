@@ -91,28 +91,23 @@ func SetTypeParamConstraint(tparam *TypeParam, constraint types.Type) {
 	unsupported()
 }
 
+// NewSignatureType calls types.NewSignature, panicking if recvTypeParams or
+// typeParams is non-empty.
+func NewSignatureType(recv *types.Var, recvTypeParams, typeParams []*TypeParam, params, results *types.Tuple, variadic bool) *types.Signature {
+	if len(recvTypeParams) != 0 || len(typeParams) != 0 {
+		panic("signatures cannot have type parameters at this Go version")
+	}
+	return types.NewSignature(recv, params, results, variadic)
+}
+
 // ForSignature returns an empty slice.
 func ForSignature(*types.Signature) *TypeParamList {
 	return nil
 }
 
-// SetForSignature panics if tparams is non-empty.
-func SetForSignature(_ *types.Signature, tparams []*TypeParam) {
-	if len(tparams) > 0 {
-		unsupported()
-	}
-}
-
 // RecvTypeParams returns a nil slice.
 func RecvTypeParams(sig *types.Signature) *TypeParamList {
 	return nil
-}
-
-// SetRecvTypeParams panics if rparams is non-empty.
-func SetRecvTypeParams(sig *types.Signature, rparams []*TypeParam) {
-	if len(rparams) > 0 {
-		unsupported()
-	}
 }
 
 // IsComparable returns false, as no interfaces are type-restricted at this Go
@@ -121,10 +116,10 @@ func IsComparable(*types.Interface) bool {
 	return false
 }
 
-// IsConstraint returns false, as no interfaces are type-restricted at this Go
+// IsMethodSet returns true, as no interfaces are type-restricted at this Go
 // version.
-func IsConstraint(*types.Interface) bool {
-	return false
+func IsMethodSet(*types.Interface) bool {
+	return true
 }
 
 // ForNamed returns an empty type parameter list, as type parameters are not
@@ -185,12 +180,12 @@ func InitInstanceInfo(*types.Info) {}
 // version.
 func GetInstance(*types.Info, *ast.Ident) (*TypeList, types.Type) { return nil, nil }
 
-// Environment is a placeholder type, as type parameters are not supported at
+// Context is a placeholder type, as type parameters are not supported at
 // this Go version.
-type Environment struct{}
+type Context struct{}
 
 // Instantiate is unsupported on this Go version, and panics.
-func Instantiate(env *Environment, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
+func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
 	unsupported()
 	return nil, nil
 }
