@@ -264,7 +264,7 @@ func (t *LineTable) parsePclnTab() {
 	t.version = possibleVersion
 }
 
-// go12Funcs returns a slice of Funcs derived from the Go 1.2 pcln table.
+// go12Funcs returns a slice of Funcs derived from the Go 1.2+ pcln table.
 func (t *LineTable) go12Funcs() []Func {
 	// Assume it is malformed and return nil on error.
 	if !disableRecover {
@@ -442,7 +442,7 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
 	return 0
 }
 
-// go12PCToLine maps program counter to line number for the Go 1.2 pcln table.
+// go12PCToLine maps program counter to line number for the Go 1.2+ pcln table.
 func (t *LineTable) go12PCToLine(pc uint64) (line int) {
 	defer func() {
 		if !disableRecover && recover() != nil {
@@ -459,7 +459,7 @@ func (t *LineTable) go12PCToLine(pc uint64) (line int) {
 	return int(t.pcvalue(linetab, entry, pc))
 }
 
-// go12PCToFile maps program counter to file name for the Go 1.2 pcln table.
+// go12PCToFile maps program counter to file name for the Go 1.2+ pcln table.
 func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	defer func() {
 		if !disableRecover && recover() != nil {
@@ -491,7 +491,7 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	return ""
 }
 
-// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2/1.16 pcln table.
+// go12LineToPC maps a (file, line) pair to a program counter for the Go 1.2+ pcln table.
 func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 	defer func() {
 		if !disableRecover && recover() != nil {
