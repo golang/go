@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/testenv"
-	"golang.org/x/tools/internal/typeparams"
 )
 
 func TestMain(m *testing.M) {
@@ -107,12 +106,6 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 			for _, ext := range pkgExts {
 				if strings.HasSuffix(f.Name(), ext) {
 					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
-					if testenv.UsesGenerics(name) && !typeparams.Enabled {
-						// golang/go#48632: Skip generic packages when type parameters are
-						// not enabled, as a temporary measure to allow avoiding the new
-						// go/types API on Go 1.18.
-						continue
-					}
 					if testPath(t, filepath.Join(dir, name), dir) != nil {
 						nimports++
 					}
