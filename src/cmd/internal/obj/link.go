@@ -830,15 +830,14 @@ func (*LSym) CanBeAnSSAAux() {}
 
 type Pcln struct {
 	// Aux symbols for pcln
-	Pcsp        *LSym
-	Pcfile      *LSym
-	Pcline      *LSym
-	Pcinline    *LSym
-	Pcdata      []*LSym
-	Funcdata    []*LSym
-	Funcdataoff []int64
-	UsedFiles   map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
-	InlTree     InlTree                        // per-function inlining tree extracted from the global tree
+	Pcsp      *LSym
+	Pcfile    *LSym
+	Pcline    *LSym
+	Pcinline  *LSym
+	Pcdata    []*LSym
+	Funcdata  []*LSym
+	UsedFiles map[goobj.CUFileIndex]struct{} // file indices used while generating pcfile
+	InlTree   InlTree                        // per-function inlining tree extracted from the global tree
 }
 
 type Reloc struct {

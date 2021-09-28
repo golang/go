@@ -623,33 +623,24 @@ func (state *pclntab) generateFunctab(ctxt *Link, funcs []loader.Sym, inlSyms ma
 }
 
 // funcData returns the funcdata and offsets for the FuncInfo.
-// The funcdata and offsets are written into runtime.functab after each func
+// The funcdata are written into runtime.functab after each func
 // object. This is a helper function to make querying the FuncInfo object
 // cleaner.
 //
-// Note, the majority of fdOffsets are 0, meaning there is no offset between
-// the compiler's generated symbol, and what the runtime needs. They are
-// plumbed through for no loss of generality.
-//
 // NB: Preload must be called on the FuncInfo before calling.
-// NB: fdSyms and fdOffs are used as scratch space.
-func funcData(fi loader.FuncInfo, inlSym loader.Sym, fdSyms []loader.Sym, fdOffs []int64) ([]loader.Sym, []int64) {
-	fdSyms, fdOffs = fdSyms[:0], fdOffs[:0]
+// NB: fdSyms is used as scratch space.
+func funcData(ldr *loader.Loader, s loader.Sym, fi loader.FuncInfo, inlSym loader.Sym, fdSyms []loader.Sym) []loader.Sym {
+	fdSyms = fdSyms[:0]
 	if fi.Valid() {
-		numOffsets := int(fi.NumFuncdataoff())
-		for i := 0; i < numOffsets; i++ {
-			fdOffs = append(fdOffs, fi.Funcdataoff(i))
-		}
-		fdSyms = fi.Funcdata(fdSyms)
+		fdSyms = ldr.Funcdata(s, fdSyms)
 		if fi.NumInlTree() > 0 {
 			if len(fdSyms) < objabi.FUNCDATA_InlTree+1 {
 				fdSyms = append(fdSyms, make([]loader.Sym, objabi.FUNCDATA_InlTree+1-len(fdSyms))...)
-				fdOffs = append(fdOffs, make([]int64, objabi.FUNCDATA_InlTree+1-len(fdOffs))...)
 			}
 			fdSyms[objabi.FUNCDATA_InlTree] = inlSym
 		}
 	}
-	return fdSyms, fdOffs
+	return fdSyms
 }
 
 // calculateFunctabSize calculates the size of the pclntab, and the offsets in
@@ -673,7 +664,7 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 		size += int64(state.funcSize)
 		if fi.Valid() {
 			fi.Preload()
-			numFuncData := int(fi.NumFuncdataoff())
+			numFuncData := ldr.NumFuncdata(s)
 			if fi.NumInlTree() > 0 {
 				if numFuncData < objabi.FUNCDATA_InlTree+1 {
 					numFuncData = objabi.FUNCDATA_InlTree + 1
@@ -738,7 +729,7 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 // generateFunctab.
 func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations []uint32, setAddr pclnSetAddr, setUint pclnSetUint) {
 	ldr := ctxt.loader
-	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+	funcdata := []loader.Sym{}
 	for i, s := range funcs {
 		fi := ldr.FuncInfo(s)
 		if !fi.Valid() {
@@ -748,18 +739,18 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs 
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
-		funcdata, funcdataoff := funcData(fi, inlSyms[s], funcdata, funcdataoff)
+		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
 		if len(funcdata) > 0 {
 			off := int64(startLocations[i] + state.funcSize + numPCData(ldr, s, fi)*4)
 			off = Rnd(off, int64(ctxt.Arch.PtrSize))
 			for j := range funcdata {
 				dataoff := off + int64(ctxt.Arch.PtrSize*j)
 				if funcdata[j] == 0 {
-					setUint(sb, ctxt.Arch, dataoff, uint64(funcdataoff[j]))
+					setUint(sb, ctxt.Arch, dataoff, 0)
 					continue
 				}
 				// TODO: Does this need deduping?
-				setAddr(sb, ctxt.Arch, dataoff, funcdata[j], funcdataoff[j])
+				setAddr(sb, ctxt.Arch, dataoff, funcdata[j], 0)
 			}
 		}
 	}
@@ -769,7 +760,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs 
 func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
-	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+	funcdata := []loader.Sym{}
 	var pcsp, pcfile, pcline, pcinline loader.Sym
 	var pcdata []loader.Sym
 
@@ -839,7 +830,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		off += 1 // pad
 
 		// nfuncdata must be the final entry.
-		funcdata, funcdataoff = funcData(fi, 0, funcdata, funcdataoff)
+		funcdata = funcData(ldr, s, fi, 0, funcdata)
 		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
 
 		// Output the pcdata.

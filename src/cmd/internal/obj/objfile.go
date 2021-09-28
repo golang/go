@@ -671,10 +671,6 @@ func genFuncInfoSyms(ctxt *Link) {
 			FuncFlag: fn.FuncFlag,
 		}
 		pc := &fn.Pcln
-		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
-		for i, x := range pc.Funcdataoff {
-			o.Funcdataoff[i] = uint32(x)
-		}
 		i := 0
 		o.File = make([]goobj.CUFileIndex, len(pc.UsedFiles))
 		for f := range pc.UsedFiles {

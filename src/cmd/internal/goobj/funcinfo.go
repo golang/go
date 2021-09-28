@@ -21,11 +21,8 @@ type FuncInfo struct {
 	Locals   uint32
 	FuncID   objabi.FuncID
 	FuncFlag objabi.FuncFlag
-
-	Funcdataoff []uint32
-	File        []CUFileIndex
-
-	InlTree []InlTreeNode
+	File     []CUFileIndex
+	InlTree  []InlTreeNode
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
@@ -45,10 +42,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	writeUint8(0) // pad to uint32 boundary
 	writeUint8(0)
 
-	writeUint32(uint32(len(a.Funcdataoff)))
-	for _, x := range a.Funcdataoff {
-		writeUint32(x)
-	}
 	writeUint32(uint32(len(a.File)))
 	for _, f := range a.File {
 		writeUint32(uint32(f))
@@ -65,25 +58,19 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 // corresponding "off" field stores the byte offset of the start of
 // the items in question.
 type FuncInfoLengths struct {
-	NumFuncdataoff uint32
-	FuncdataoffOff uint32
-	NumFile        uint32
-	FileOff        uint32
-	NumInlTree     uint32
-	InlTreeOff     uint32
-	Initialized    bool
+	NumFile     uint32
+	FileOff     uint32
+	NumInlTree  uint32
+	InlTreeOff  uint32
+	Initialized bool
 }
 
 func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
 	var result FuncInfoLengths
 
-	// Offset to the number of funcdataoff values. This value is determined by counting
+	// Offset to the number of the file table. This value is determined by counting
 	// the number of bytes until we write funcdataoff to the file.
-	const numfuncdataoffOff = 12
-	result.NumFuncdataoff = binary.LittleEndian.Uint32(b[numfuncdataoffOff:])
-	result.FuncdataoffOff = numfuncdataoffOff + 4
-
-	numfileOff := result.FuncdataoffOff + 4*result.NumFuncdataoff
+	const numfileOff = 12
 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
 	result.FileOff = numfileOff + 4
 
@@ -103,10 +90,6 @@ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32
 func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8]) }
 
 func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
-
-func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int64 {
-	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
-}
 
 func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
 	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))

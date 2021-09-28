@@ -1930,12 +1930,38 @@ func (l *Loader) NumPcdata(i Sym) int {
 	return n
 }
 
+// Returns all funcdata symbols of symbol i.
+// tmp is a scratch space.
+func (l *Loader) Funcdata(i Sym, tmp []Sym) []Sym {
+	fd := tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			fd = append(fd, l.resolve(r, a.Sym()))
+		}
+	}
+	return fd
+}
+
+// Returns the number of funcdata for symbol i.
+func (l *Loader) NumFuncdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			n++
+		}
+	}
+	return n
+}
+
 // FuncInfo provides hooks to access goobj.FuncInfo in the objects.
 type FuncInfo struct {
 	l       *Loader
 	r       *oReader
 	data    []byte
-	auxs    []goobj.Aux
 	lengths goobj.FuncInfoLengths
 }
 
@@ -1961,38 +1987,6 @@ func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
 // below related to pcdata, funcdataoff, files, and inltree nodes.
 func (fi *FuncInfo) Preload() {
 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
-}
-
-func (fi *FuncInfo) NumFuncdataoff() uint32 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return fi.lengths.NumFuncdataoff
-}
-
-func (fi *FuncInfo) Funcdataoff(k int) int64 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return (*goobj.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
-}
-
-func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
-		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
-	} else {
-		syms = syms[:0]
-	}
-	for j := range fi.auxs {
-		a := &fi.auxs[j]
-		if a.Type() == goobj.AuxFuncdata {
-			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
-		}
-	}
-	return syms
 }
 
 func (fi *FuncInfo) NumFile() uint32 {
@@ -2051,7 +2045,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 		a := &auxs[j]
 		if a.Type() == goobj.AuxFuncInfo {
 			b := r.Data(a.Sym().SymIdx)
-			return FuncInfo{l, r, b, auxs, goobj.FuncInfoLengths{}}
+			return FuncInfo{l, r, b, goobj.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
