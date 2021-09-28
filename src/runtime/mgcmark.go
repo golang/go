@@ -587,8 +587,6 @@ func gcWakeAllAssists() {
 //
 // gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
-//
-//go:nowritebarrier
 func gcParkAssist() bool {
 	lock(&work.assistQueue.lock)
 	// If the GC cycle finished while we were getting the lock,
