@@ -331,8 +331,6 @@ func (w *worker) start() (err error) {
 	cmd := exec.Command(w.binPath, w.args...)
 	cmd.Dir = w.dir
 	cmd.Env = w.env[:len(w.env):len(w.env)] // copy on append to ensure workers don't overwrite each other.
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	// Create the "fuzz_in" and "fuzz_out" pipes so we can communicate with
 	// the worker. We don't use stdin and stdout, since the test binary may
