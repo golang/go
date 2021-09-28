@@ -165,8 +165,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 
 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
-	if p.Internal.LocalPrefix != "" {
-		// Workaround #43883.
+	if p.Internal.LocalPrefix == "" {
+		args = append(args, "-nolocalimports")
+	} else {
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
