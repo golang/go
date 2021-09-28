@@ -118,7 +118,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 			len(workedits) > 0
 
 	if !anyFlags {
-		base.Fatalf("go: no flags specified (see 'go help mod edit').")
+		base.Fatalf("go: no flags specified (see 'go help mod editwork').")
 	}
 
 	if *editworkJSON && *editworkPrint {
