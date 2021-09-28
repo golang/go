@@ -76,6 +76,10 @@ func TestImportTypeparamTests(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if isUnifiedBuilder() {
+		t.Skip("unified export data format is currently unsupported")
+	}
+
 	for _, entry := range list {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			// For now, only consider standalone go files.

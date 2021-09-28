@@ -63,6 +63,12 @@ func iexport(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// isUnifiedBuilder reports whether we are executing on a go builder that uses
+// unified export data.
+func isUnifiedBuilder() bool {
+	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64-unified"
+}
+
 func TestIExportData_stdlib(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo standard library is inaccessible")
@@ -88,7 +94,7 @@ func TestIExportData_stdlib(t *testing.T) {
 	// TryBots.
 	//
 	// TODO(#48595): fix this test with GOEXPERIMENT=unified.
-	isUnified := os.Getenv("GO_BUILDER_NAME") == "linux-amd64-unified"
+	isUnified := isUnifiedBuilder()
 	for _, path := range buildutil.AllPackages(conf.Build) {
 		if !(isUnified && testenv.UsesGenerics(path)) {
 			conf.Import(path)
