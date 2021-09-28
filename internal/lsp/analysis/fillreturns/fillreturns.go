@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `suggested fixes for "wrong number of return values (want %d, got %d)"
@@ -104,6 +105,14 @@ outer:
 		}
 		if enclosingFunc == nil {
 			continue
+		}
+
+		// Skip any generic enclosing functions, since type parameters don't
+		// have 0 values.
+		// TODO(rstambler): We should be able to handle this if the return
+		// values are all concrete types.
+		if tparams := typeparams.ForFuncType(enclosingFunc); tparams != nil && tparams.NumFields() > 0 {
+			return nil, nil
 		}
 
 		// Find the function declaration that encloses the ReturnStmt.
