@@ -485,22 +485,25 @@ func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 			seen[pcSym] = struct{}{}
 		}
 	}
+	var pcsp, pcline, pcfile, pcinline loader.Sym
+	var pcdata []loader.Sym
 	for _, s := range funcs {
 		fi := ldr.FuncInfo(s)
 		if !fi.Valid() {
 			continue
 		}
 		fi.Preload()
+		pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
 
-		pcSyms := []loader.Sym{fi.Pcsp(), fi.Pcfile(), fi.Pcline()}
+		pcSyms := []loader.Sym{pcsp, pcfile, pcline}
 		for _, pcSym := range pcSyms {
 			saveOffset(pcSym)
 		}
-		for _, pcSym := range fi.Pcdata() {
+		for _, pcSym := range pcdata {
 			saveOffset(pcSym)
 		}
 		if fi.NumInlTree() > 0 {
-			saveOffset(fi.Pcinline())
+			saveOffset(pcinline)
 		}
 	}
 
@@ -521,11 +524,11 @@ func (state *pclntab) generatePctab(ctxt *Link, funcs []loader.Sym) {
 
 // numPCData returns the number of PCData syms for the FuncInfo.
 // NB: Preload must be called on valid FuncInfos before calling this function.
-func numPCData(fi loader.FuncInfo) uint32 {
+func numPCData(ldr *loader.Loader, s loader.Sym, fi loader.FuncInfo) uint32 {
 	if !fi.Valid() {
 		return 0
 	}
-	numPCData := uint32(len(fi.Pcdata()))
+	numPCData := uint32(ldr.NumPcdata(s))
 	if fi.NumInlTree() > 0 {
 		if numPCData < objabi.PCDATA_InlTreeIndex+1 {
 			numPCData = objabi.PCDATA_InlTreeIndex + 1
@@ -676,7 +679,7 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 					numFuncData = objabi.FUNCDATA_InlTree + 1
 				}
 			}
-			size += int64(numPCData(fi) * 4)
+			size += int64(numPCData(ldr, s, fi) * 4)
 			if numFuncData > 0 { // Func data is aligned.
 				size = Rnd(size, int64(ctxt.Arch.PtrSize))
 			}
@@ -747,7 +750,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs 
 		// Missing funcdata will be 0 (nil pointer).
 		funcdata, funcdataoff := funcData(fi, inlSyms[s], funcdata, funcdataoff)
 		if len(funcdata) > 0 {
-			off := int64(startLocations[i] + state.funcSize + numPCData(fi)*4)
+			off := int64(startLocations[i] + state.funcSize + numPCData(ldr, s, fi)*4)
 			off = Rnd(off, int64(ctxt.Arch.PtrSize))
 			for j := range funcdata {
 				dataoff := off + int64(ctxt.Arch.PtrSize*j)
@@ -767,12 +770,15 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
 	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+	var pcsp, pcfile, pcline, pcinline loader.Sym
+	var pcdata []loader.Sym
 
 	// Write the individual func objects.
 	for i, s := range funcs {
 		fi := ldr.FuncInfo(s)
 		if fi.Valid() {
 			fi.Preload()
+			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
 		}
 
 		// Note we skip the space for the entry value -- that's handled in
@@ -801,13 +807,13 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 		// pcdata
 		if fi.Valid() {
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcsp()))))
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcfile()))))
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(fi.Pcline()))))
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcsp))))
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcfile))))
+			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcline))))
 		} else {
 			off += 12
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(numPCData(fi))))
+		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(numPCData(ldr, s, fi))))
 
 		// Store the offset to compilation unit's file table.
 		cuIdx := ^uint32(0)
@@ -838,11 +844,11 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 		// Output the pcdata.
 		if fi.Valid() {
-			for j, pcSym := range fi.Pcdata() {
+			for j, pcSym := range pcdata {
 				sb.SetUint32(ctxt.Arch, int64(off+uint32(j*4)), uint32(ldr.SymValue(pcSym)))
 			}
 			if fi.NumInlTree() > 0 {
-				sb.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(fi.Pcinline())))
+				sb.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(pcinline)))
 			}
 		}
 	}

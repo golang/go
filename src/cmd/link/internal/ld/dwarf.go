@@ -1417,7 +1417,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
 		if !fi.Valid() {
 			continue
 		}
-		fpcsp := fi.Pcsp()
+		fpcsp := d.ldr.Pcsp(s)
 
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.

@@ -1532,27 +1532,7 @@ func (l *Loader) DynidSyms() []Sym {
 // approach would be to check for gotype during preload and copy the
 // results in to a map (might want to try this at some point and see
 // if it helps speed things up).
-func (l *Loader) SymGoType(i Sym) Sym {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
-	for j := range auxs {
-		a := &auxs[j]
-		switch a.Type() {
-		case goobj.AuxGotype:
-			return l.resolve(r, a.Sym())
-		}
-	}
-	return 0
-}
+func (l *Loader) SymGoType(i Sym) Sym { return l.aux1(i, goobj.AuxGotype) }
 
 // SymUnit returns the compilation unit for a given symbol (which will
 // typically be nil for external or linker-manufactured symbols).
@@ -1890,6 +1870,66 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	}
 }
 
+func (l *Loader) auxs(i Sym) (*oReader, []goobj.Aux) {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return l.objs[pp.objidx].r, pp.auxs
+	} else {
+		r, li := l.toLocal(i)
+		return r, r.Auxs(li)
+	}
+}
+
+// Returns a specific aux symbol of type t for symbol i.
+func (l *Loader) aux1(i Sym, t uint8) Sym {
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == t {
+			return l.resolve(r, a.Sym())
+		}
+	}
+	return 0
+}
+
+func (l *Loader) Pcsp(i Sym) Sym { return l.aux1(i, goobj.AuxPcsp) }
+
+// Returns all aux symbols of per-PC data for symbol i.
+// tmp is a scratch space for the pcdata slice.
+func (l *Loader) PcdataAuxs(i Sym, tmp []Sym) (pcsp, pcfile, pcline, pcinline Sym, pcdata []Sym) {
+	pcdata = tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		switch a.Type() {
+		case goobj.AuxPcsp:
+			pcsp = l.resolve(r, a.Sym())
+		case goobj.AuxPcline:
+			pcline = l.resolve(r, a.Sym())
+		case goobj.AuxPcfile:
+			pcfile = l.resolve(r, a.Sym())
+		case goobj.AuxPcinline:
+			pcinline = l.resolve(r, a.Sym())
+		case goobj.AuxPcdata:
+			pcdata = append(pcdata, l.resolve(r, a.Sym()))
+		}
+	}
+	return
+}
+
+// Returns the number of pcdata for symbol i.
+func (l *Loader) NumPcdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxPcdata {
+			n++
+		}
+	}
+	return n
+}
+
 // FuncInfo provides hooks to access goobj.FuncInfo in the objects.
 type FuncInfo struct {
 	l       *Loader
@@ -1917,42 +1957,10 @@ func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
 	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
-func (fi *FuncInfo) Pcsp() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcfile() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcinline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
 // Preload has to be called prior to invoking the various methods
 // below related to pcdata, funcdataoff, files, and inltree nodes.
 func (fi *FuncInfo) Preload() {
 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
-}
-
-func (fi *FuncInfo) Pcdata() []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	syms := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data)
-	ret := make([]Sym, len(syms))
-	for i := range ret {
-		ret[i] = fi.l.resolve(fi.r, syms[i])
-	}
-	return ret
 }
 
 func (fi *FuncInfo) NumFuncdataoff() uint32 {
@@ -2038,20 +2046,7 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 }
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		if pp.objidx == 0 {
-			return FuncInfo{}
-		}
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
+	r, auxs := l.auxs(i)
 	for j := range auxs {
 		a := &auxs[j]
 		if a.Type() == goobj.AuxFuncInfo {
