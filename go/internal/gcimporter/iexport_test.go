@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/internal/testenv"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func readExportFile(filename string) ([]byte, error) {
@@ -96,9 +97,12 @@ func TestIExportData_stdlib(t *testing.T) {
 	// TODO(#48595): fix this test with GOEXPERIMENT=unified.
 	isUnified := isUnifiedBuilder()
 	for _, path := range buildutil.AllPackages(conf.Build) {
-		if !(isUnified && testenv.UsesGenerics(path)) {
-			conf.Import(path)
+		if testenv.UsesGenerics(path) && (isUnified || !typeparams.Enabled) {
+			// golang/go#48632: Skip generic packages if we can't handle type
+			// parameters.
+			continue
 		}
+		conf.Import(path)
 	}
 
 	// Create a package containing type and value errors to ensure
