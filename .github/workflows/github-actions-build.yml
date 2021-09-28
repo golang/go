@@ -9,3 +9,8 @@ jobs:
         with:
           go-version: '1.16'
       - run: (cd src && bash ./all.bash)
+      - run: (cd .. && tar cf - ./go | gzip -9 -c > go.linux-amd64.tar.gz)
+      - uses: actions/upload-artifact@v2
+        with:
+          name: go.linux-amd64.tar.gz
+          path: ../go.linux-amd64.tar.gz
