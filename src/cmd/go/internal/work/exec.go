@@ -645,7 +645,7 @@ OverlayLoop:
 	}
 
 	// Run cgo.
-	if a.Package.UsesCgo() || a.Package.UsesSwig() {
+	if (a.Package.UsesCgo() || a.Package.UsesSwig()) && !b.CacheCheck.Enable {
 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
 		// There is one exception: runtime/cgo's job is to bridge the
 		// cgo and non-cgo worlds, so it necessarily has files in both.
@@ -1607,6 +1607,9 @@ func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
 
 // BuildInstallFunc is the action for installing a single package or executable.
 func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+	if b.CacheCheck.Enable {
+		return nil
+	}
 	defer func() {
 		if err != nil && err != errPrintedOutput {
 			// a.Package == nil is possible for the go install -buildmode=shared
