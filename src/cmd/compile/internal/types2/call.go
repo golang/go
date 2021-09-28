@@ -103,7 +103,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 			check.expr(x, call.ArgList[0])
 			if x.mode != invalid {
 				if t := asInterface(T); t != nil {
-					if t.IsConstraint() {
+					if !t.IsMethodSet() {
 						check.errorf(call, "cannot use interface %s in conversion (contains type list or is comparable)", T)
 						break
 					}

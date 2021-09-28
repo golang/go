@@ -1687,7 +1687,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
 		name := w.p.info.Defs[decl.Name].(*types2.TypeName)
 		// Skip type declarations for interfaces that are only usable as
 		// type parameter bounds.
-		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && iface.IsConstraint() {
+		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && !iface.IsMethodSet() {
 			break
 		}
 

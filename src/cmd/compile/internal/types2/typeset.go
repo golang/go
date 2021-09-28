@@ -30,8 +30,8 @@ func (s *_TypeSet) IsAll() bool {
 	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
 }
 
-// IsConstraint reports whether type set s is not just a set of methods.
-func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
+// IsMethodSet reports whether the interface t is fully described by its method set.
+func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
 func (s *_TypeSet) IsComparable() bool {
