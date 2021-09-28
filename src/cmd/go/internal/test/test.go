@@ -1790,9 +1790,23 @@ func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	return nil
 }
 
-// printExitStatus is the action for printing the exit status
+// printExitStatus is the action for printing the final exit status.
+// If we are running multiple test targets, print a final "FAIL"
+// in case a failure in an early package has already scrolled
+// off of the user's terminal.
+// (See https://golang.org/issue/30507#issuecomment-470593235.)
+//
+// In JSON mode, we need to maintain valid JSON output and
+// we assume that the test output is being parsed by a tool
+// anyway, so the failure will not be missed and would be
+// awkward to try to wedge into the JSON stream.
+//
+// In fuzz mode, we only allow a single package for now
+// (see CL 350156 and https://golang.org/issue/46312),
+// so there is no possibility of scrolling off and no need
+// to print the final status.
 func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
-	if !testJSON && len(pkgArgs) != 0 {
+	if !testJSON && testFuzz == "" && len(pkgArgs) != 0 {
 		if base.GetExitStatus() != 0 {
 			fmt.Println("FAIL")
 			return nil
