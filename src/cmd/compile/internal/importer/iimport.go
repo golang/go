@@ -313,8 +313,7 @@ func (r *importReader) obj(name string) {
 		if tag == 'G' {
 			tparams = r.tparamList()
 		}
-		sig := r.signature(nil)
-		sig.SetTypeParams(tparams)
+		sig := r.signature(nil, nil, tparams)
 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T', 'U':
@@ -338,19 +337,19 @@ func (r *importReader) obj(name string) {
 				mpos := r.pos()
 				mname := r.ident()
 				recv := r.param()
-				msig := r.signature(recv)
 
 				// If the receiver has any targs, set those as the
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
-				targs := baseType(msig.Recv().Type()).TypeArgs()
+				targs := baseType(recv.Type()).TypeArgs()
+				var rparams []*types2.TypeParam
 				if targs.Len() > 0 {
-					rparams := make([]*types2.TypeParam, targs.Len())
+					rparams = make([]*types2.TypeParam, targs.Len())
 					for i := range rparams {
-						rparams[i] = types2.AsTypeParam(targs.At(i))
+						rparams[i], _ = targs.At(i).(*types2.TypeParam)
 					}
-					msig.SetRecvTypeParams(rparams)
 				}
+				msig := r.signature(recv, rparams, nil)
 
 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
 			}
@@ -584,7 +583,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		return types2.NewMap(r.typ(), r.typ())
 	case signatureType:
 		r.currPkg = r.pkg()
-		return r.signature(nil)
+		return r.signature(nil, nil, nil)
 
 	case structType:
 		r.currPkg = r.pkg()
@@ -624,7 +623,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 				recv = types2.NewVar(syntax.Pos{}, r.currPkg, "", base)
 			}
 
-			msig := r.signature(recv)
+			msig := r.signature(recv, nil, nil)
 			methods[i] = types2.NewFunc(mpos, r.currPkg, mname, msig)
 		}
 
@@ -681,11 +680,11 @@ func (r *importReader) kind() itag {
 	return itag(r.uint64())
 }
 
-func (r *importReader) signature(recv *types2.Var) *types2.Signature {
+func (r *importReader) signature(recv *types2.Var, rparams, tparams []*types2.TypeParam) *types2.Signature {
 	params := r.paramList()
 	results := r.paramList()
 	variadic := params.Len() > 0 && r.bool()
-	return types2.NewSignature(recv, params, results, variadic)
+	return types2.NewSignatureType(recv, rparams, tparams, params, results, variadic)
 }
 
 func (r *importReader) tparamList() []*types2.TypeParam {
