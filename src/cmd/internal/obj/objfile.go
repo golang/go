@@ -671,14 +671,6 @@ func genFuncInfoSyms(ctxt *Link) {
 			FuncFlag: fn.FuncFlag,
 		}
 		pc := &fn.Pcln
-		o.Pcsp = makeSymRef(pc.Pcsp)
-		o.Pcfile = makeSymRef(pc.Pcfile)
-		o.Pcline = makeSymRef(pc.Pcline)
-		o.Pcinline = makeSymRef(pc.Pcinline)
-		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
-		for i, pcSym := range pc.Pcdata {
-			o.Pcdata[i] = makeSymRef(pcSym)
-		}
 		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
 		for i, x := range pc.Funcdataoff {
 			o.Funcdataoff[i] = uint32(x)
