@@ -6,13 +6,16 @@ package stringtab
 
 import (
 	"fmt"
+	"internal/coverage/slicereader"
 	"internal/coverage/uleb128"
 	"io"
 )
 
-// This package implements a string table writer utility for use in
-// emitting coverage meta-data and counter-data files.
+// This package implements string table writer and reader utilities,
+// for use in emitting and reading/decoding coverage meta-data and
+// counter-data files.
 
+// Writer implements a string table writing utility.
 type Writer struct {
 	stab   map[string]uint32
 	strs   []string
@@ -86,4 +89,34 @@ func (stw *Writer) Write(w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+type Reader struct {
+	r    *slicereader.Reader
+	strs []string
+}
+
+func NewReader(r *slicereader.Reader) *Reader {
+	str := &Reader{
+		r: r,
+	}
+	return str
+}
+
+func (str *Reader) Entries() int {
+	return len(str.strs)
+}
+
+func (str *Reader) Get(idx uint32) string {
+	return str.strs[idx]
+}
+
+func (str *Reader) Read() {
+	// Read the table itself.
+	numEntries := int(str.r.ReadULEB128())
+	str.strs = make([]string, 0, numEntries)
+	for idx := 0; idx < numEntries; idx++ {
+		slen := str.r.ReadULEB128()
+		str.strs = append(str.strs, str.r.ReadString(int64(slen)))
+	}
 }

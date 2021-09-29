@@ -549,12 +549,22 @@ var depsRules = `
 	FMT
 	< internal/diff, internal/txtar;
 
-    FMT, io, internal/coverage/uleb128
+    FMT, os
+    < internal/coverage/slicewriter;
+
+    encoding/binary, internal/unsafeheader, unsafe
+    < internal/coverage/slicereader;
+
+    FMT, io, internal/coverage/slicereader, internal/coverage/uleb128
     < internal/coverage/stringtab;
 
     FMT, encoding/binary, internal/coverage, internal/coverage/stringtab,
     io, os, bufio, crypto/md5
     < internal/coverage/encodemeta;
+
+    FMT, encoding/binary, internal/coverage, io, os,
+    crypto/md5, internal/coverage/stringtab
+    < internal/coverage/decodemeta;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
