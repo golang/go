@@ -86,6 +86,17 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
 }
 
 func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+	// Set g.curDecl to the function name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic function.
+	g.curDecl = decl.Name.Value
+	obj2 := g.info.Defs[decl.Name]
+	recv := types2.AsSignature(obj2.Type()).Recv()
+	if recv != nil {
+		t2 := deref2(recv.Type())
+		// This is a method, so set g.curDecl to recvTypeName.methName instead.
+		g.curDecl = types2.AsNamed(t2).Obj().Name() + "." + g.curDecl
+	}
+
 	fn := ir.NewFunc(g.pos(decl))
 	fn.Nname, _ = g.def(decl.Name)
 	fn.Nname.Func = fn
@@ -143,6 +154,9 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+	// Set g.curDecl to the type name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic type.
+	g.curDecl = decl.Name.Value
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
@@ -205,6 +219,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 		methods := make([]*types.Field, otyp.NumMethods())
 		for i := range methods {
 			m := otyp.Method(i)
+			// Set g.curDecl to recvTypeName.methName, as context for the
+			// method-specific type params in the receiver.
+			g.curDecl = decl.Name.Value + "." + m.Name()
 			meth := g.obj(m)
 			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
 			methods[i].Nname = meth

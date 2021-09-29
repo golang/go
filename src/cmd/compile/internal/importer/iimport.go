@@ -362,13 +362,13 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		name0, sub := parseSubscript(name)
-		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
-		t := types2.NewTypeParam(tn, nil)
-		if sub == 0 {
-			errorf("missing subscript")
+		// Remove the "path" from the type param name that makes it unique
+		ix := strings.LastIndex(name, ".")
+		if ix < 0 {
+			errorf("missing path for type param")
 		}
-		t.SetId(sub)
+		tn := types2.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+		t := types2.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
 		id := ident{r.currPkg.Name(), name}
@@ -751,24 +751,4 @@ func baseType(typ types2.Type) *types2.Named {
 	// receiver base types are always (possibly generic) types2.Named types
 	n, _ := typ.(*types2.Named)
 	return n
-}
-
-func parseSubscript(name string) (string, uint64) {
-	// Extract the subscript value from the type param name. We export
-	// and import the subscript value, so that all type params have
-	// unique names.
-	sub := uint64(0)
-	startsub := -1
-	for i, r := range name {
-		if '₀' <= r && r < '₀'+10 {
-			if startsub == -1 {
-				startsub = i
-			}
-			sub = sub*10 + uint64(r-'₀')
-		}
-	}
-	if startsub >= 0 {
-		name = name[:startsub]
-	}
-	return name, sub
 }

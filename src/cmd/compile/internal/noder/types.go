@@ -219,7 +219,10 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 		// Save the name of the type parameter in the sym of the type.
 		// Include the types2 subscript in the sym name
 		pkg := g.tpkg(typ)
-		sym := pkg.Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
+		// Create the unique types1 name for a type param, using its context with a
+		// function, type, or method declaration.
+		nm := g.curDecl + "." + typ.Obj().Name()
+		sym := pkg.Lookup(nm)
 		if sym.Def != nil {
 			// Make sure we use the same type param type for the same
 			// name, whether it is created during types1-import or
@@ -318,6 +321,10 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
 				meth2 = ir.NewNameAt(meth.Pos(), newsym)
 				rparams := types2.AsSignature(m.Type()).RecvTypeParams()
 				tparams := make([]*types.Type, rparams.Len())
+				// Set g.curDecl to be the method context, so type
+				// params in the receiver of the method that we are
+				// translating gets the right unique name.
+				g.curDecl = typ.Obj().Name() + "." + m.Name()
 				for i := range tparams {
 					tparams[i] = g.typ1(rparams.At(i))
 				}

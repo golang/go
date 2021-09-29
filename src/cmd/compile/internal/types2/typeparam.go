@@ -55,12 +55,6 @@ func (t *TypeParam) Index() int {
 	return t.index
 }
 
-// SetId sets the unique id of a type param. Should only be used for type params
-// in imported generic types.
-func (t *TypeParam) SetId(id uint64) {
-	t.id = id
-}
-
 // Constraint returns the type constraint specified for t.
 func (t *TypeParam) Constraint() Type {
 	return t.bound
