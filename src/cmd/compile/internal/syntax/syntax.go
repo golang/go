@@ -17,6 +17,7 @@ type Mode uint
 const (
 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
 	AllowGenerics
+	AllowTypeSets  // requires AllowGenerics; remove once #48424 is decided
 	AllowTypeLists // requires AllowGenerics; remove once 1.18 is out
 )
 
