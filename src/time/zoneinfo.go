@@ -635,7 +635,7 @@ var zoneinfoOnce sync.Once
 // locations in order:
 //
 // - the directory or uncompressed zip file named by the ZONEINFO environment variable
-// - pn a Unix system, the system standard installation location
+// - on a Unix system, the system standard installation location
 // - $GOROOT/lib/time/zoneinfo.zip
 // - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
