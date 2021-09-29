@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/apidiff"
@@ -28,6 +29,19 @@ func TestAPIConsistency(t *testing.T) {
 	new := typeCheck(t, []string{"common.go", "typeparams_go118.go"})
 
 	report := apidiff.Changes(old, new)
+
+	// Temporarily ignore API diff related to Environment, so that we can use a
+	// transient alias in go/types to allow renaming this type without ever
+	// breaking the x/tools builder.
+	// TODO(rfindley): remove this
+	var filteredChanges []apidiff.Change
+	for _, change := range report.Changes {
+		if strings.Contains(change.Message, "Environment") {
+			continue
+		}
+		filteredChanges = append(filteredChanges, change)
+	}
+	report.Changes = filteredChanges
 	if len(report.Changes) > 0 {
 		t.Errorf("API diff:\n%s", report)
 	}
