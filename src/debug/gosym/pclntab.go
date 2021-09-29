@@ -22,6 +22,7 @@ const (
 	ver11
 	ver12
 	ver116
+	ver118
 )
 
 // A LineTable is a data structure mapping program counters to line numbers.
@@ -48,10 +49,11 @@ type LineTable struct {
 	// Contains the version of the pclntab section.
 	version version
 
-	// Go 1.2/1.16 state
+	// Go 1.2/1.16/1.18 state
 	binary      binary.ByteOrder
 	quantum     uint32
 	ptrsize     uint32
+	textStart   uintptr // address of runtime.text symbol (1.18+)
 	funcnametab []byte
 	cutab       []byte
 	funcdata    []byte
@@ -166,8 +168,11 @@ func (t *LineTable) isGo12() bool {
 	return t.version >= ver12
 }
 
-const go12magic = 0xfffffffb
-const go116magic = 0xfffffffa
+const (
+	go12magic  = 0xfffffffb
+	go116magic = 0xfffffffa
+	go118magic = 0xfffffff0
+)
 
 // uintptr returns the pointer-sized value encoded at b.
 // The pointer size is dictated by the table being read.
@@ -219,11 +224,15 @@ func (t *LineTable) parsePclnTab() {
 		t.binary, possibleVersion = binary.LittleEndian, ver116
 	case beMagic == go116magic:
 		t.binary, possibleVersion = binary.BigEndian, ver116
+	case leMagic == go118magic:
+		t.binary, possibleVersion = binary.LittleEndian, ver118
+	case beMagic == go118magic:
+		t.binary, possibleVersion = binary.BigEndian, ver118
 	default:
 		return
 	}
 
-	// quantum and ptrSize are the same between 1.2 and 1.16
+	// quantum and ptrSize are the same between 1.2, 1.16, and 1.18
 	t.quantum = uint32(t.Data[6])
 	t.ptrsize = uint32(t.Data[7])
 
@@ -235,6 +244,18 @@ func (t *LineTable) parsePclnTab() {
 	}
 
 	switch possibleVersion {
+	case ver118:
+		t.nfunctab = uint32(offset(0))
+		t.nfiletab = uint32(offset(1))
+		t.textStart = uintptr(offset(2))
+		t.funcnametab = data(3)
+		t.cutab = data(4)
+		t.filetab = data(5)
+		t.pctab = data(6)
+		t.funcdata = data(7)
+		t.functab = data(7)
+		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		t.functab = t.functab[:functabsize]
 	case ver116:
 		t.nfunctab = uint32(offset(0))
 		t.nfiletab = uint32(offset(1))
@@ -380,7 +401,14 @@ func (f funcData) IsZero() bool {
 }
 
 // entryPC returns the func's entry PC.
-func (f funcData) entryPC() uint64 {
+func (f *funcData) entryPC() uint64 {
+	// In Go 1.18, the first field of _func changed
+	// from a uintptr entry PC to a uint32 entry offset.
+	if f.t.version >= ver118 {
+		// TODO: support multiple text sections.
+		// See runtime/symtab.go:(*moduledata).textAddr.
+		return uint64(f.t.binary.Uint32(f.data)) + uint64(f.t.textStart)
+	}
 	return f.t.uintptr(f.data)
 }
 
@@ -397,7 +425,12 @@ func (f funcData) field(n uint32) uint32 {
 	if n == 0 || n > 9 {
 		panic("bad funcdata field")
 	}
+	// In Go 1.18, the first field of _func changed
+	// from a uintptr entry PC to a uint32 entry offset.
 	sz0 := f.t.ptrsize
+	if f.t.version >= ver118 {
+		sz0 = 4
+	}
 	off := sz0 + (n-1)*4 // subsequent fields are 4 bytes each
 	data := f.data[off:]
 	return f.t.binary.Uint32(data)
