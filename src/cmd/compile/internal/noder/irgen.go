@@ -34,13 +34,13 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 	}
 
 	// typechecking
-	env := types2.NewEnvironment()
+	env := types2.NewContext()
 	importer := gcimports{
 		env:      env,
 		packages: map[string]*types2.Package{"unsafe": types2.Unsafe},
 	}
 	conf := types2.Config{
-		Environment:           env,
+		Context:               env,
 		GoVersion:             base.Flag.Lang,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors

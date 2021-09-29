@@ -281,7 +281,7 @@ func NewTypeName(pos syntax.Pos, pkg *Package, name string, typ Type) *TypeName 
 func NewTypeNameLazy(pos syntax.Pos, pkg *Package, name string, load func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
 	obj := NewTypeName(pos, pkg, name, nil)
 
-	resolve := func(_ *Environment, t *Named) (*TypeParamList, Type, []*Func) {
+	resolve := func(_ *Context, t *Named) (*TypeParamList, Type, []*Func) {
 		tparams, underlying, methods := load(t)
 
 		switch underlying.(type) {

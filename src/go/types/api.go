@@ -112,10 +112,9 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
-	// Environment is the environment used for resolving global
-	// identifiers. If nil, the type checker will initialize this
-	// field with a newly created environment.
-	Environment *Environment
+	// Context is the context used for resolving global identifiers. If nil, the
+	// type checker will initialize this field with a newly created context.
+	Context *Context
 
 	// GoVersion describes the accepted Go language version. The string
 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be

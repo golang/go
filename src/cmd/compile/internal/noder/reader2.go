@@ -16,7 +16,7 @@ import (
 type pkgReader2 struct {
 	pkgDecoder
 
-	env     *types2.Environment
+	env     *types2.Context
 	imports map[string]*types2.Package
 
 	posBases []*syntax.PosBase
@@ -24,7 +24,7 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(env *types2.Environment, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+func readPackage2(env *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
 	pr := pkgReader2{
 		pkgDecoder: input,
 

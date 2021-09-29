@@ -37,8 +37,8 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 // that it doesn't modify the incoming type. If a substitution took place, the
 // result type is different from the incoming type.
 //
-// If the given environment is non-nil, it is used in lieu of check.env.
-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environment) Type {
+// If the given context is non-nil, it is used in lieu of check.Config.Context
+func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, ctxt *Context) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -56,7 +56,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environ
 		pos:   pos,
 		smap:  smap,
 		check: check,
-		env:   check.bestEnv(env),
+		ctxt:  check.bestContext(ctxt),
 	}
 	return subst.typ(typ)
 }
@@ -65,7 +65,7 @@ type subster struct {
 	pos   token.Pos
 	smap  substMap
 	check *Checker // nil if called via Instantiate
-	env   *Environment
+	ctxt  *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -205,19 +205,19 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := subst.env.typeHash(t.orig, newTArgs)
+		h := subst.ctxt.typeHash(t.orig, newTArgs)
 		dump(">>> new type hash: %s", h)
-		if named := subst.env.typeForHash(h, nil); named != nil {
+		if named := subst.ctxt.typeForHash(h, nil); named != nil {
 			dump(">>> found %s", named)
 			return named
 		}
 
-		// Create a new instance and populate the environment to avoid endless
+		// Create a new instance and populate the context to avoid endless
 		// recursion. The position used here is irrelevant because validation only
 		// occurs on t (we don't call validType on named), but we use subst.pos to
 		// help with debugging.
-		t.orig.resolve(subst.env)
-		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.env)
+		t.orig.resolve(subst.ctxt)
+		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
 
 		// Note that if we were to expose substitution more generally (not just in
 		// the context of a declaration), we'd have to substitute in
