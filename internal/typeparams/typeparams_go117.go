@@ -53,6 +53,10 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 // this Go version. Its methods panic on use.
 type IndexListExpr struct {
 	ast.Expr
+	X       ast.Expr   // expression
+	Lbrack  token.Pos  // position of "["
+	Indices []ast.Expr // index expressions
+	Rbrack  token.Pos  // position of "]"
 }
 
 // ForTypeSpec returns an empty field list, as type parameters on not supported
