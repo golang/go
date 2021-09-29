@@ -14,6 +14,7 @@ import (
 	"internal/abi"
 	"reflect"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -35,10 +36,36 @@ func CFDataToSlice(data CFRef) []byte {
 	return out
 }
 
+// CFStringToString returns a Go string representation of the passed
+// in CFString.
+func CFStringToString(ref CFRef) string {
+	data := CFStringCreateExternalRepresentation(ref)
+	b := CFDataToSlice(data)
+	CFRelease(data)
+	return string(b)
+}
+
+// TimeToCFDateRef converts a time.Time into an apple CFDateRef
+func TimeToCFDateRef(t time.Time) CFRef {
+	secs := t.Sub(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)).Seconds()
+	ref := CFDateCreate(int(secs))
+	return ref
+}
+
 type CFString CFRef
 
 const kCFAllocatorDefault = 0
 const kCFStringEncodingUTF8 = 0x08000100
+
+//go:cgo_import_dynamic x509_CFDataCreate CFDataCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func BytesToCFData(b []byte) CFRef {
+	p := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
+	ret := syscall(abi.FuncPCABI0(x509_CFDataCreate_trampoline), kCFAllocatorDefault, uintptr(p), uintptr(len(b)), 0, 0, 0)
+	runtime.KeepAlive(p)
+	return CFRef(ret)
+}
+func x509_CFDataCreate_trampoline()
 
 //go:cgo_import_dynamic x509_CFStringCreateWithBytes CFStringCreateWithBytes "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
 
@@ -126,5 +153,55 @@ func CFRelease(ref CFRef) {
 }
 func x509_CFRelease_trampoline()
 
+//go:cgo_import_dynamic x509_CFArrayCreateMutable CFArrayCreateMutable "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFArrayCreateMutable() CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFArrayCreateMutable_trampoline), kCFAllocatorDefault, 0, 0 /* kCFTypeArrayCallBacks */, 0, 0, 0)
+	return CFRef(ret)
+}
+func x509_CFArrayCreateMutable_trampoline()
+
+//go:cgo_import_dynamic x509_CFArrayAppendValue CFArrayAppendValue "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFArrayAppendValue(array CFRef, val CFRef) {
+	syscall(abi.FuncPCABI0(x509_CFArrayAppendValue_trampoline), uintptr(array), uintptr(val), 0, 0, 0, 0)
+}
+func x509_CFArrayAppendValue_trampoline()
+
+//go:cgo_import_dynamic x509_CFDateCreate CFDateCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFDateCreate(seconds int) CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, uintptr(seconds), 0, 0, 0, 0)
+	return CFRef(ret)
+}
+func x509_CFDateCreate_trampoline()
+
+//go:cgo_import_dynamic x509_CFErrorCopyDescription CFErrorCopyDescription "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFErrorCopyDescription(errRef CFRef) CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFErrorCopyDescription_trampoline), uintptr(errRef), 0, 0, 0, 0, 0)
+	return CFRef(ret)
+}
+func x509_CFErrorCopyDescription_trampoline()
+
+//go:cgo_import_dynamic x509_CFStringCreateExternalRepresentation CFStringCreateExternalRepresentation "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+
+func CFStringCreateExternalRepresentation(strRef CFRef) CFRef {
+	ret := syscall(abi.FuncPCABI0(x509_CFStringCreateExternalRepresentation_trampoline), kCFAllocatorDefault, uintptr(strRef), kCFStringEncodingUTF8, 0, 0, 0)
+	return CFRef(ret)
+}
+func x509_CFStringCreateExternalRepresentation_trampoline()
+
 // syscall is implemented in the runtime package (runtime/sys_darwin.go)
 func syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) uintptr
+
+// ReleaseCFArray iterates through an array, releasing its contents, and then
+// releases the array itself. This is necessary because we cannot, easily, set the
+// CFArrayCallBacks argument when creating CFArrays.
+func ReleaseCFArray(array CFRef) {
+	for i := 0; i < CFArrayGetCount(array); i++ {
+		ref := CFArrayGetValueAtIndex(array, i)
+		CFRelease(ref)
+	}
+	CFRelease(array)
+}

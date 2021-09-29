@@ -1836,8 +1836,8 @@ func TestLongChain(t *testing.T) {
 }
 
 func TestSystemRootsError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows does not use (or support) systemRoots")
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		t.Skip("Windows and darwin do not use (or support) systemRoots")
 	}
 
 	defer func(oldSystemRoots *CertPool) { systemRoots = oldSystemRoots }(systemRootsPool())
