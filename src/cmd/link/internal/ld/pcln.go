@@ -17,11 +17,10 @@ import (
 	"strings"
 )
 
+const funcSize = 10 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
-	// The size of the func object in the runtime.
-	funcSize uint32
-
 	// The first and last functions found.
 	firstFunc, lastFunc loader.Sym
 
@@ -69,11 +68,7 @@ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f gen
 // generate pclntab.
 func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit, []loader.Sym) {
 	ldr := ctxt.loader
-
-	state := &pclntab{
-		// This is the size of the _func object in runtime/runtime2.go.
-		funcSize: 10 * 4,
-	}
+	state := new(pclntab)
 
 	// Gather some basic stats and info.
 	seenCUs := make(map[*sym.CompilationUnit]struct{})
@@ -671,7 +666,7 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 		size = Rnd(size, int64(ctxt.Arch.PtrSize))
 		startLocations[i] = uint32(size)
 		fi := ldr.FuncInfo(s)
-		size += int64(state.funcSize)
+		size += funcSize
 		if fi.Valid() {
 			fi.Preload()
 			numFuncData := ldr.NumFuncdata(s)
@@ -748,7 +743,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs 
 		// Missing funcdata will be 0 (nil pointer).
 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
 		if len(funcdata) > 0 {
-			off := int64(startLocations[i] + state.funcSize + numPCData(ldr, s, fi)*4)
+			off := int64(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
 			off = Rnd(off, int64(ctxt.Arch.PtrSize))
 			for j := range funcdata {
 				dataoff := off + int64(ctxt.Arch.PtrSize*j)
