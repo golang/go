@@ -6,8 +6,8 @@ package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 0cb3812e7d540ef3a904e96df795bc37a21de9b0
-// last fetched Mon Aug 02 2021 10:08:19 GMT-0400 (Eastern Daylight Time)
+// commit: 10b56de150ad67c3c330da8e2df53ebf2cf347c4
+// last fetched Wed Sep 29 2021 12:31:31 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -32,7 +32,7 @@ type Client interface {
 	RegisterCapability(context.Context, *RegistrationParams) error
 	UnregisterCapability(context.Context, *UnregistrationParams) error
 	ShowMessageRequest(context.Context, *ShowMessageRequestParams) (*MessageActionItem /*MessageActionItem | null*/, error)
-	ApplyEdit(context.Context, *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResponse, error)
+	ApplyEdit(context.Context, *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResult, error)
 }
 
 func clientDispatch(ctx context.Context, client Client, reply jsonrpc2.Replier, r jsonrpc2.Request) (bool, error) {
@@ -196,8 +196,8 @@ func (s *clientDispatcher) ShowMessageRequest(ctx context.Context, params *ShowM
 	return result, nil
 }
 
-func (s *clientDispatcher) ApplyEdit(ctx context.Context, params *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResponse, error) {
-	var result *ApplyWorkspaceEditResponse
+func (s *clientDispatcher) ApplyEdit(ctx context.Context, params *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResult, error) {
+	var result *ApplyWorkspaceEditResult
 	if err := s.sender.Call(ctx, "workspace/applyEdit", params, &result); err != nil {
 		return nil, err
 	}

@@ -4,8 +4,8 @@
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 0cb3812e7d540ef3a904e96df795bc37a21de9b0
-// last fetched Mon Aug 02 2021 10:08:19 GMT-0400 (Eastern Daylight Time)
+// commit: 10b56de150ad67c3c330da8e2df53ebf2cf347c4
+// last fetched Wed Sep 29 2021 12:31:31 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -42,9 +42,11 @@ type ApplyWorkspaceEditParams struct {
 }
 
 /**
- * A response returned from the apply workspace edit request.
+ * The result returned from the apply workspace edit request.
+ *
+ * @since 3.17 renamed from ApplyWorkspaceEditResponse
  */
-type ApplyWorkspaceEditResponse struct {
+type ApplyWorkspaceEditResult struct {
 	/**
 	 * Indicates whether the edit was applied or not.
 	 */
@@ -976,12 +978,12 @@ type CompletionItemKind float64
  */
 type CompletionItemLabelDetails struct {
 	/**
-	 * An optional string which is rendered less prominently directly after {@link CompletionItemLabel.label label},
+	 * An optional string which is rendered less prominently directly after {@link CompletionItem.label label},
 	 * without any spacing. Should be used for function signatures or type annotations.
 	 */
 	Detail string `json:"detail,omitempty"`
 	/**
-	 * An optional string which is rendered less prominently after {@link CompletionItemLabel.detail}. Should be used
+	 * An optional string which is rendered less prominently after {@link CompletionItem.detail}. Should be used
 	 * for fully qualified names or file path.
 	 */
 	Description string `json:"description,omitempty"`
@@ -3692,6 +3694,12 @@ type ServerCapabilities struct {
 	 */
 	MonikerProvider interface{}/* bool | MonikerOptions | MonikerRegistrationOptions*/ `json:"monikerProvider,omitempty"`
 	/**
+	 * The server provides type hierarchy support.
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	TypeHierarchyProvider interface{}/* bool | TypeHierarchyOptions | TypeHierarchyRegistrationOptions*/ `json:"typeHierarchyProvider,omitempty"`
+	/**
 	 * Experimental server capabilities.
 	 */
 	Experimental interface{} `json:"experimental,omitempty"`
@@ -4174,6 +4182,12 @@ type TextDocumentClientCapabilities struct {
 	 * @since 3.16.0
 	 */
 	Moniker MonikerClientCapabilities `json:"moniker,omitempty"`
+	/**
+	 * Capabilities specific to the various type hierarchy requests.
+	 *
+	 * @since 3.17.0 - proposed state
+	 */
+	TypeHierarchy TypeHierarchyClientCapabilities `json:"typeHierarchy,omitempty"`
 }
 
 /**
@@ -4389,6 +4403,114 @@ type TypeDefinitionRegistrationOptions struct {
 	TextDocumentRegistrationOptions
 	TypeDefinitionOptions
 	StaticRegistrationOptions
+}
+
+/**
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchyClientCapabilities struct {
+	/**
+	 * Whether implementation supports dynamic registration. If this is set to `true`
+	 * the client supports the new `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+	 * return value for the corresponding server capability as well.
+	 */
+	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
+}
+
+/**
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchyItem struct {
+	/**
+	 * The name of this item.
+	 */
+	Name string `json:"name"`
+	/**
+	 * The kind of this item.
+	 */
+	Kind SymbolKind `json:"kind"`
+	/**
+	 * Tags for this item.
+	 */
+	Tags []SymbolTag `json:"tags,omitempty"`
+	/**
+	 * More detail for this item, e.g. the signature of a function.
+	 */
+	Detail string `json:"detail,omitempty"`
+	/**
+	 * The resource identifier of this item.
+	 */
+	URI DocumentURI `json:"uri"`
+	/**
+	 * The range enclosing this symbol not including leading/trailing whitespace
+	 * but everything else, e.g. comments and code.
+	 */
+	Range Range `json:"range"`
+	/**
+	 * The range that should be selected and revealed when this symbol is being
+	 * picked, e.g. the name of a function. Must be contained by the
+	 * [`range`](#TypeHierarchyItem.range).
+	 */
+	SelectionRange Range `json:"selectionRange"`
+	/**
+	 * A data entry field that is preserved between a type hierarchy prepare and
+	 * supertypes or subtypes requests. It could also be used to identify the
+	 * type hierarchy in the server, helping improve the performance on
+	 * resolving supertypes and subtypes.
+	 */
+	Data interface{} `json:"data,omitempty"`
+}
+
+/**
+ * Type hierarchy options used during static registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchyOptions struct {
+	WorkDoneProgressOptions
+}
+
+/**
+ * The parameter of a `textDocument/prepareTypeHierarchy` request.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchyPrepareParams struct {
+	TextDocumentPositionParams
+	WorkDoneProgressParams
+}
+
+/**
+ * Type hierarchy options used during static or dynamic registration.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchyRegistrationOptions struct {
+	TextDocumentRegistrationOptions
+	TypeHierarchyOptions
+	StaticRegistrationOptions
+}
+
+/**
+ * The parameter of a `typeHierarchy/subtypes` request.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchySubtypesParams struct {
+	Item TypeHierarchyItem `json:"item"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * The parameter of a `typeHierarchy/supertypes` request.
+ *
+ * @since 3.17.0 - proposed state
+ */
+type TypeHierarchySupertypesParams struct {
+	Item TypeHierarchyItem `json:"item"`
+	WorkDoneProgressParams
+	PartialResultParams
 }
 
 /**

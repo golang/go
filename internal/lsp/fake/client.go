@@ -115,14 +115,14 @@ func (c *Client) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*p
 }
 
 // ApplyEdit applies edits sent from the server.
-func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
+func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
 	if len(params.Edit.Changes) != 0 {
-		return &protocol.ApplyWorkspaceEditResponse{FailureReason: "Edit.Changes is unsupported"}, nil
+		return &protocol.ApplyWorkspaceEditResult{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
 	for _, change := range params.Edit.DocumentChanges {
 		if err := c.editor.applyProtocolEdit(ctx, change); err != nil {
 			return nil, err
 		}
 	}
-	return &protocol.ApplyWorkspaceEditResponse{Applied: true}, nil
+	return &protocol.ApplyWorkspaceEditResult{Applied: true}, nil
 }

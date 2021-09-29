@@ -117,13 +117,13 @@ func (c testClient) ShowMessage(context.Context, *protocol.ShowMessageParams) er
 	return nil
 }
 
-func (c testClient) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
+func (c testClient) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
 	res, err := applyTextDocumentEdits(c.runner, params.Edit.DocumentChanges)
 	if err != nil {
 		return nil, err
 	}
 	c.runner.editRecv <- res
-	return &protocol.ApplyWorkspaceEditResponse{Applied: true}, nil
+	return &protocol.ApplyWorkspaceEditResult{Applied: true}, nil
 }
 
 func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests.CallHierarchyResult) {

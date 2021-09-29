@@ -56,8 +56,8 @@ func (s *Server) DidChange(ctx context.Context, params *protocol.DidChangeTextDo
 	return s.didChange(ctx, params)
 }
 
-func (s *Server) DidChangeConfiguration(ctx context.Context, _ *protocol.DidChangeConfigurationParams) error {
-	return s.didChangeConfiguration(ctx, nil)
+func (s *Server) DidChangeConfiguration(ctx context.Context, _gen *protocol.DidChangeConfigurationParams) error {
+	return s.didChangeConfiguration(ctx, _gen)
 }
 
 func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
@@ -176,6 +176,10 @@ func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRena
 	return s.prepareRename(ctx, params)
 }
 
+func (s *Server) PrepareTypeHierarchy(context.Context, *protocol.TypeHierarchyPrepareParams) ([]protocol.TypeHierarchyItem, error) {
+	return nil, notImplemented("PrepareTypeHierarchy")
+}
+
 func (s *Server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
 	return nil, notImplemented("RangeFormatting")
 }
@@ -234,6 +238,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) SignatureHelp(ctx context.Context, params *protocol.SignatureHelpParams) (*protocol.SignatureHelp, error) {
 	return s.signatureHelp(ctx, params)
+}
+
+func (s *Server) Subtypes(context.Context, *protocol.TypeHierarchySubtypesParams) ([]protocol.TypeHierarchyItem, error) {
+	return nil, notImplemented("Subtypes")
+}
+
+func (s *Server) Supertypes(context.Context, *protocol.TypeHierarchySupertypesParams) ([]protocol.TypeHierarchyItem, error) {
+	return nil, notImplemented("Supertypes")
 }
 
 func (s *Server) Symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {

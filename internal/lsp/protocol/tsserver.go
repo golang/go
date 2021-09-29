@@ -6,8 +6,8 @@ package protocol
 
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 0cb3812e7d540ef3a904e96df795bc37a21de9b0
-// last fetched Mon Aug 02 2021 10:08:19 GMT-0400 (Eastern Daylight Time)
+// commit: 10b56de150ad67c3c330da8e2df53ebf2cf347c4
+// last fetched Wed Sep 29 2021 12:31:31 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -55,6 +55,9 @@ type Server interface {
 	WillRenameFiles(context.Context, *RenameFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	WillDeleteFiles(context.Context, *DeleteFilesParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	Moniker(context.Context, *MonikerParams) ([]Moniker /*Moniker[] | null*/, error)
+	PrepareTypeHierarchy(context.Context, *TypeHierarchyPrepareParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
+	Supertypes(context.Context, *TypeHierarchySupertypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
+	Subtypes(context.Context, *TypeHierarchySubtypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error)
 	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
@@ -327,6 +330,27 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, sendParseError(ctx, reply, err)
 		}
 		resp, err := server.Moniker(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "textDocument/prepareTypeHierarchy": // req
+		var params TypeHierarchyPrepareParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.PrepareTypeHierarchy(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "typeHierarchy/supertypes": // req
+		var params TypeHierarchySupertypesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.Supertypes(ctx, &params)
+		return true, reply(ctx, resp, err)
+	case "typeHierarchy/subtypes": // req
+		var params TypeHierarchySubtypesParams
+		if err := json.Unmarshal(r.Params(), &params); err != nil {
+			return true, sendParseError(ctx, reply, err)
+		}
+		resp, err := server.Subtypes(ctx, &params)
 		return true, reply(ctx, resp, err)
 	case "initialize": // req
 		var params ParamInitialize
@@ -735,6 +759,30 @@ func (s *serverDispatcher) WillDeleteFiles(ctx context.Context, params *DeleteFi
 func (s *serverDispatcher) Moniker(ctx context.Context, params *MonikerParams) ([]Moniker /*Moniker[] | null*/, error) {
 	var result []Moniker /*Moniker[] | null*/
 	if err := s.sender.Call(ctx, "textDocument/moniker", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) PrepareTypeHierarchy(ctx context.Context, params *TypeHierarchyPrepareParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error) {
+	var result []TypeHierarchyItem /*TypeHierarchyItem[] | null*/
+	if err := s.sender.Call(ctx, "textDocument/prepareTypeHierarchy", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) Supertypes(ctx context.Context, params *TypeHierarchySupertypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error) {
+	var result []TypeHierarchyItem /*TypeHierarchyItem[] | null*/
+	if err := s.sender.Call(ctx, "typeHierarchy/supertypes", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) Subtypes(ctx context.Context, params *TypeHierarchySubtypesParams) ([]TypeHierarchyItem /*TypeHierarchyItem[] | null*/, error) {
+	var result []TypeHierarchyItem /*TypeHierarchyItem[] | null*/
+	if err := s.sender.Call(ctx, "typeHierarchy/subtypes", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

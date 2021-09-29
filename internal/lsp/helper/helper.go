@@ -158,6 +158,9 @@ func doUses() {
 					nm := ""
 					if len(f.Names) > 0 {
 						nm = f.Names[0].String()
+						if nm == "_" {
+							nm = "_gen"
+						}
 					}
 					fx.paramnames = append(fx.paramnames, nm)
 				}

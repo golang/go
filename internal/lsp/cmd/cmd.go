@@ -418,8 +418,8 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 	return results, nil
 }
 
-func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {
-	return &protocol.ApplyWorkspaceEditResponse{Applied: false, FailureReason: "not implemented"}, nil
+func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
+	return &protocol.ApplyWorkspaceEditResult{Applied: false, FailureReason: "not implemented"}, nil
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
