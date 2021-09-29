@@ -12,10 +12,12 @@ import (
 	"log"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 var netFiles []*ast.File
@@ -67,6 +69,72 @@ func TestInspectAllNodes(t *testing.T) {
 		})
 	}
 	compare(t, nodesA, nodesB)
+}
+
+func TestInspectGenericNodes(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("type parameters are not supported at this Go version")
+	}
+
+	// src is using the 16 identifiers i0, i1, ... i15 so
+	// we can easily verify that we've found all of them.
+	const src = `package a
+
+type I interface { ~i0|i1 }
+
+type T[i2, i3 interface{ ~i4 }] struct {}
+
+func f[i5, i6 any]() {
+	_ = f[i7, i8]
+	var x T[i9, i10]
+}
+
+func (*T[i11, i12]) m()
+
+var _ i13[i14, i15]
+`
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", src, 0)
+	inspect := inspector.New([]*ast.File{f})
+	found := make([]bool, 16)
+
+	indexListExprs := make(map[*typeparams.IndexListExpr]bool)
+
+	// Verify that we reach all i* identifiers, and collect IndexListExpr nodes.
+	inspect.Preorder(nil, func(n ast.Node) {
+		switch n := n.(type) {
+		case *ast.Ident:
+			if n.Name[0] == 'i' {
+				index, err := strconv.Atoi(n.Name[1:])
+				if err != nil {
+					t.Fatal(err)
+				}
+				found[index] = true
+			}
+		case *typeparams.IndexListExpr:
+			indexListExprs[n] = false
+		}
+	})
+	for i, v := range found {
+		if !v {
+			t.Errorf("missed identifier i%d", i)
+		}
+	}
+
+	// Verify that we can filter to IndexListExprs that we found in the first
+	// step.
+	if len(indexListExprs) == 0 {
+		t.Fatal("no index list exprs found")
+	}
+	inspect.Preorder([]ast.Node{&typeparams.IndexListExpr{}}, func(n ast.Node) {
+		ix := n.(*typeparams.IndexListExpr)
+		indexListExprs[ix] = true
+	})
+	for ix, v := range indexListExprs {
+		if !v {
+			t.Errorf("inspected node %v not filtered", ix)
+		}
+	}
 }
 
 // TestPruning compares Inspector against ast.Inspect,

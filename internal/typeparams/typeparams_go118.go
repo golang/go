@@ -22,6 +22,7 @@ import (
 //
 // For nodes that don't represent index expressions, GetIndexExprData returns
 // nil.
+// TODO(rfindley): remove this function in favor of using the alias below.
 func GetIndexExprData(n ast.Node) *IndexExprData {
 	switch e := n.(type) {
 	case *ast.IndexExpr:
@@ -60,6 +61,9 @@ func PackIndexExpr(x ast.Expr, lbrack token.Pos, indices []ast.Expr, rbrack toke
 		}
 	}
 }
+
+// IndexListExpr is an alias for ast.IndexListExpr.
+type IndexListExpr = ast.IndexListExpr
 
 // ForTypeSpec returns n.TypeParams.
 func ForTypeSpec(n *ast.TypeSpec) *ast.FieldList {
