@@ -721,8 +721,11 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		for _, arg := range args {
 			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
 			if truth(v) == (name == "or") {
-				break
+				return v
 			}
+		}
+		if final != missingVal {
+			v = s.validateType(final, argType)
 		}
 		return v
 	}
