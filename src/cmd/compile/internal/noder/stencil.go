@@ -610,21 +610,16 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
 	// number of instantiations we have to generate. You can actually have a mix
 	// of shape and non-shape arguments, because of inferred or explicitly
 	// specified concrete type args.
-	var s1 []*types.Type
+	s1 := make([]*types.Type, len(shapes))
 	for i, t := range shapes {
 		if !t.IsShape() {
-			if s1 == nil {
-				s1 = make([]*types.Type, len(shapes))
-				copy(s1[0:i], shapes[0:i])
-			}
 			s1[i] = typecheck.Shapify(t, i)
-		} else if s1 != nil {
-			s1[i] = shapes[i]
+		} else {
+			// Already a shape, but make sure it has the correct index.
+			s1[i] = typecheck.Shapify(shapes[i].Underlying(), i)
 		}
 	}
-	if s1 != nil {
-		shapes = s1
-	}
+	shapes = s1
 
 	sym := typecheck.MakeFuncInstSym(nameNode.Sym(), shapes, false, isMeth)
 	info := g.instInfoMap[sym]
