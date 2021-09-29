@@ -87,6 +87,8 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
 	p.indent = nil
 }
 
+func (p *parser) allowGenerics() bool { return p.mode&AllowGenerics != 0 }
+
 // takePragma returns the current parsed pragmas
 // and clears them from the parser state.
 func (p *parser) takePragma() Pragma {
@@ -597,7 +599,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 			p.xnest++
 			x := p.expr()
 			p.xnest--
-			if name0, ok := x.(*Name); p.mode&AllowGenerics != 0 && ok && p.tok != _Rbrack {
+			if name0, ok := x.(*Name); p.allowGenerics() && ok && p.tok != _Rbrack {
 				// generic type
 				d.TParamList = p.paramList(name0, _Rbrack, true)
 				pos := p.pos()
@@ -687,7 +689,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	f.Name = p.name()
-	if p.mode&AllowGenerics != 0 && p.got(_Lbrack) {
+	if p.allowGenerics() && p.got(_Lbrack) {
 		if p.tok == _Rbrack {
 			p.syntaxError("empty type parameter list")
 			p.next()
@@ -1425,7 +1427,7 @@ func (p *parser) interfaceType() *InterfaceType {
 		switch p.tok {
 		case _Name:
 			f := p.methodDecl()
-			if f.Name == nil && p.mode&AllowGenerics != 0 {
+			if f.Name == nil && p.allowGenerics() {
 				f = p.embeddedElem(f)
 			}
 			typ.MethodList = append(typ.MethodList, f)
@@ -1443,14 +1445,14 @@ func (p *parser) interfaceType() *InterfaceType {
 			return false
 
 		case _Operator:
-			if p.op == Tilde && p.mode&AllowGenerics != 0 {
+			if p.op == Tilde && p.allowGenerics() {
 				typ.MethodList = append(typ.MethodList, p.embeddedElem(nil))
 				return false
 			}
 
 		case _Type:
 			// TODO(gri) remove TypeList syntax if we accept #45346
-			if p.mode&AllowGenerics != 0 && p.mode&AllowTypeLists != 0 {
+			if p.allowGenerics() && p.mode&AllowTypeLists != 0 {
 				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
 				p.next()
 				if p.tok != _Semi && p.tok != _Rbrace {
@@ -1473,7 +1475,7 @@ func (p *parser) interfaceType() *InterfaceType {
 			}
 
 		default:
-			if p.mode&AllowGenerics != 0 {
+			if p.allowGenerics() {
 				pos := p.pos()
 				if t := p.typeOrNil(); t != nil {
 					f := new(Field)
@@ -1485,7 +1487,7 @@ func (p *parser) interfaceType() *InterfaceType {
 			}
 		}
 
-		if p.mode&AllowGenerics != 0 {
+		if p.allowGenerics() {
 			if p.mode&AllowTypeLists != 0 {
 				p.syntaxError("expecting method, type list, or embedded element")
 				p.advance(_Semi, _Rbrace, _Type)
@@ -1570,7 +1572,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 
 		// Careful dance: We don't know if we have an embedded instantiated
 		// type T[P1, P2, ...] or a field T of array/slice type [P]E or []E.
-		if p.mode&AllowGenerics != 0 && len(names) == 1 && p.tok == _Lbrack {
+		if p.allowGenerics() && len(names) == 1 && p.tok == _Lbrack {
 			typ = p.arrayOrTArgs()
 			if typ, ok := typ.(*IndexExpr); ok {
 				// embedded type T[P1, P2, ...]
@@ -1708,7 +1710,7 @@ func (p *parser) methodDecl() *Field {
 		f.Type = p.funcType()
 
 	case _Lbrack:
-		if p.mode&AllowGenerics != 0 {
+		if p.allowGenerics() {
 			// Careful dance: We don't know if we have a generic method m[T C](x T)
 			// or an embedded instantiated type T[P1, P2] (we accept generic methods
 			// for generality and robustness of parsing).
@@ -1846,38 +1848,60 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		defer p.trace("paramDecl")()
 	}
 
-	f := new(Field)
+	// type set notation is ok in type parameter lists
+	typeSetsOk := p.mode&AllowTypeSets != 0 && follow == _Rbrack
+
+	pos := p.pos()
 	if name != nil {
-		f.pos = name.pos
-	} else {
-		f.pos = p.pos()
+		pos = name.pos
+	} else if typeSetsOk && p.tok == _Operator && p.op == Tilde {
+		// "~" ...
+		return p.embeddedElem(nil)
 	}
 
+	f := new(Field)
+	f.pos = pos
+
 	if p.tok == _Name || name != nil {
+		// name
 		if name == nil {
 			name = p.name()
 		}
 
-		if p.mode&AllowGenerics != 0 && p.tok == _Lbrack {
+		if p.allowGenerics() && p.tok == _Lbrack {
+			// name "[" ...
 			f.Type = p.arrayOrTArgs()
 			if typ, ok := f.Type.(*IndexExpr); ok {
+				// name "[" ... "]"
 				typ.X = name
 			} else {
+				// name "[" n "]" E
 				f.Name = name
 			}
 			return f
 		}
 
 		if p.tok == _Dot {
-			// name_or_type
+			// name "." ...
 			f.Type = p.qualifiedName(name)
+			if typeSetsOk && p.tok == _Operator && p.op == Or {
+				// name "." name "|" ...
+				f = p.embeddedElem(f)
+			}
 			return f
+		}
+
+		if typeSetsOk && p.tok == _Operator && p.op == Or {
+			// name "|" ...
+			f.Type = name
+			return p.embeddedElem(f)
 		}
 
 		f.Name = name
 	}
 
 	if p.tok == _DotDotDot {
+		// [name] "..." ...
 		t := new(DotsType)
 		t.pos = p.pos()
 		p.next()
@@ -1890,7 +1914,17 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		return f
 	}
 
+	if typeSetsOk && p.tok == _Operator && p.op == Tilde {
+		// [name] "~" ...
+		f.Type = p.embeddedElem(nil).Type
+		return f
+	}
+
 	f.Type = p.typeOrNil()
+	if typeSetsOk && p.tok == _Operator && p.op == Or && f.Type != nil {
+		// [name] type "|"
+		f = p.embeddedElem(f)
+	}
 	if f.Name != nil || f.Type != nil {
 		return f
 	}
@@ -1952,7 +1986,7 @@ func (p *parser) paramList(name *Name, close token, requireNames bool) (list []*
 			if par.Type != nil {
 				typ = par.Type
 				if par.Name == nil {
-					pos = typ.Pos()
+					pos = StartPos(typ)
 					par.Name = NewName(pos, "_")
 				}
 			} else if typ != nil {
@@ -2654,7 +2688,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
 		x = s
 	}
 
-	if p.mode&AllowGenerics != 0 && p.tok == _Lbrack {
+	if p.allowGenerics() && p.tok == _Lbrack {
 		x = p.typeInstance(x)
 	}
 

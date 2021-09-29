@@ -26,11 +26,11 @@ var (
 )
 
 func TestParse(t *testing.T) {
-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeSets)
 }
 
 func TestVerify(t *testing.T) {
-	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
+	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeSets)
 	if err != nil {
 		return // error already reported
 	}
@@ -46,7 +46,7 @@ func TestParseGo2(t *testing.T) {
 	for _, fi := range list {
 		name := fi.Name()
 		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeLists)
+			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeSets|AllowTypeLists)
 		}
 	}
 }
