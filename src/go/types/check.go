@@ -173,9 +173,9 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		conf = new(Config)
 	}
 
-	// make sure we have an environment
-	if conf.Environment == nil {
-		conf.Environment = NewEnvironment()
+	// make sure we have a context
+	if conf.Context == nil {
+		conf.Context = NewContext()
 	}
 
 	// make sure we have an info struct

@@ -20,9 +20,8 @@ import (
 // *Signature). Any methods attached to a *Named are simply copied; they are
 // not instantiated.
 //
-// If env is non-nil, it may be used to de-dupe the instance against previous
-// instances with the same identity. This functionality is implemented for
-// environments with non-nil Checkers.
+// If ctxt is non-nil, it may be used to de-dupe the instance against previous
+// instances with the same identity.
 //
 // If verify is set and constraint satisfaction fails, the returned error may
 // be of dynamic type ArgumentError indicating which type argument did not
@@ -30,8 +29,8 @@ import (
 //
 // TODO(rfindley): change this function to also return an error if lengths of
 // tparams and targs do not match.
-func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
-	inst := (*Checker)(nil).instance(nopos, typ, targs, env)
+func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, error) {
+	inst := (*Checker)(nil).instance(nopos, typ, targs, ctxt)
 
 	var err error
 	if validate {
@@ -71,7 +70,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 		}()
 	}
 
-	inst := check.instance(pos, typ, targs, check.conf.Environment)
+	inst := check.instance(pos, typ, targs, check.conf.Context)
 
 	assert(len(posList) <= len(targs))
 	check.later(func() {
@@ -103,28 +102,28 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
-func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Environment) Type {
+func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Context) Type {
 	switch t := typ.(type) {
 	case *Named:
 		var h string
-		if env != nil {
-			h = env.TypeHash(t, targs)
+		if ctxt != nil {
+			h = ctxt.TypeHash(t, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
-			if named := env.typeForHash(h, nil); named != nil {
+			if named := ctxt.typeForHash(h, nil); named != nil {
 				return named
 			}
 		}
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
 		named.targs = NewTypeList(targs)
-		named.resolver = func(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
-			return expandNamed(env, n, pos)
+		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+			return expandNamed(ctxt, n, pos)
 		}
-		if env != nil {
-			// It's possible that we've lost a race to add named to the environment.
-			// In this case, use whichever instance is recorded in the environment.
-			named = env.typeForHash(h, named)
+		if ctxt != nil {
+			// It's possible that we've lost a race to add named to the context.
+			// In this case, use whichever instance is recorded in the context.
+			named = ctxt.typeForHash(h, named)
 		}
 		return named
 
@@ -136,7 +135,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Envi
 		if tparams.Len() == 0 {
 			return typ // nothing to do (minor optimization)
 		}
-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), env).(*Signature)
+		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
 		// If the signature doesn't use its type parameters, subst
 		// will not make a copy. In that case, make a copy now (so
 		// we can set tparams to nil w/o causing side-effects).
@@ -192,7 +191,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 
 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
 	// rather than falling back to verbose qualification. Maybe this can be part
-	// of a the shared environment.
+	// of the shared context.
 	var qf Qualifier
 	if check != nil {
 		qf = check.qualifier
