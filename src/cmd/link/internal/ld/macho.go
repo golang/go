@@ -897,6 +897,14 @@ func collectmachosyms(ctxt *Link) {
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
 		}
+		for n := range Segtext.Sections[1:] {
+			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+			if s != 0 {
+				addsym(s)
+			} else {
+				break
+			}
+		}
 		s = ldr.Lookup("runtime.etext", 0)
 		if ldr.SymType(s) == sym.STEXT {
 			addsym(s)
