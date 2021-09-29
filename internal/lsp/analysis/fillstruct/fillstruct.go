@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `note incomplete struct initializations
@@ -66,6 +67,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
+		// Ignore types that have type parameters for now.
+		// TODO: support type params.
+		if typ, ok := typ.(*types.Named); ok {
+			if tparams := typeparams.ForNamed(typ); tparams != nil && tparams.Len() > 0 {
+				return
+			}
+		}
+
 		// Find reference to the type declaration of the struct being initialized.
 		for {
 			p, ok := typ.Underlying().(*types.Pointer)
@@ -94,6 +103,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Ignore fields that are not accessible in the current package.
 			if field.Pkg() != nil && field.Pkg() != pass.Pkg && !field.Exported() {
 				continue
+			}
+			// Ignore structs containing fields that have type parameters for now.
+			// TODO: support type params.
+			if typ, ok := field.Type().(*types.Named); ok {
+				if tparams := typeparams.ForNamed(typ); tparams != nil && tparams.Len() > 0 {
+					return
+				}
+			}
+			if _, ok := field.Type().(*typeparams.TypeParam); ok {
+				return
 			}
 			fillable = true
 			fillableFields = append(fillableFields, fmt.Sprintf("%s: %s", field.Name(), field.Type().String()))
