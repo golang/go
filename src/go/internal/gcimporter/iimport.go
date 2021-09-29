@@ -652,7 +652,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		baseType := r.typ()
 		// The imported instantiated type doesn't include any methods, so
 		// we must always use the methods of the base (orig) type.
-		// TODO provide a non-nil *Environment
+		// TODO provide a non-nil *Context
 		t, _ := types.Instantiate(nil, baseType, targs, false)
 		return t
 

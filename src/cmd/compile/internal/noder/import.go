@@ -48,7 +48,7 @@ var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, 
 }
 
 type gcimports struct {
-	env      *types2.Context
+	ctxt     *types2.Context
 	packages map[string]*types2.Package
 }
 
@@ -61,7 +61,7 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 		panic("mode must be 0")
 	}
 
-	_, pkg, err := readImportFile(path, typecheck.Target, m.env, m.packages)
+	_, pkg, err := readImportFile(path, typecheck.Target, m.ctxt, m.packages)
 	return pkg, err
 }
 

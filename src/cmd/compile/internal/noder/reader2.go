@@ -16,7 +16,7 @@ import (
 type pkgReader2 struct {
 	pkgDecoder
 
-	env     *types2.Context
+	ctxt    *types2.Context
 	imports map[string]*types2.Package
 
 	posBases []*syntax.PosBase
@@ -24,11 +24,11 @@ type pkgReader2 struct {
 	typs     []types2.Type
 }
 
-func readPackage2(env *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
+func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
 	pr := pkgReader2{
 		pkgDecoder: input,
 
-		env:     env,
+		ctxt:    ctxt,
 		imports: imports,
 
 		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
@@ -231,7 +231,7 @@ func (r *reader2) doTyp() (res types2.Type) {
 		obj, targs := r.obj()
 		name := obj.(*types2.TypeName)
 		if len(targs) != 0 {
-			t, _ := types2.Instantiate(r.p.env, name.Type(), targs, false)
+			t, _ := types2.Instantiate(r.p.ctxt, name.Type(), targs, false)
 			return t
 		}
 		return name.Type()
