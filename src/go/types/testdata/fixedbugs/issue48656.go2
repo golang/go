@@ -1,0 +1,13 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// TODO(gri) Still need better error positions and message here.
+//           But this doesn't crash anymore.
+
+func f[P /* ERROR does not match \*Q */ interface{*Q}, Q any](p P, q Q) {
+	_ = f[P]
+        _ = f /* ERROR cannot infer P */ [*P]
+}

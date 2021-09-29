@@ -128,7 +128,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		if inferred != tpar {
 			check.errorf(arg, _Todo, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, 0, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, _Todo, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
