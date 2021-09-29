@@ -1,0 +1,6 @@
+package nonewvars
+
+func hello[T any]() int {
+	var z T
+	z := 1 // want "no new variables on left side of :="
+}

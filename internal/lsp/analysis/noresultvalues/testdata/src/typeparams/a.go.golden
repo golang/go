@@ -1,0 +1,6 @@
+package noresult
+
+func hello[T any]() {
+	var z T
+	return // want "no result values expected"
+}
