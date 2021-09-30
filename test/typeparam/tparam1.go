@@ -10,7 +10,9 @@ package tparam1
 
 // The predeclared identifier "any" may be used in place of interface{}.
 var _ any
+
 func _(_ any)
+
 type _[_ any] struct{}
 
 const N = 10
@@ -32,7 +34,7 @@ type C interface{}
 
 func _[T interface{}]()        {}
 func _[T C]()                  {}
-func _[T struct{}]()           {} // ERROR "not an interface"
+func _[T struct{}]()           {} // ok if #48424 is accepted
 func _[T interface{ m() T }]() {}
 func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
 	var _ T1
