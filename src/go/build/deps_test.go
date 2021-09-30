@@ -214,7 +214,6 @@ var depsRules = `
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
-	  runtime/debug,
 	  runtime/trace,
 	  text/scanner,
 	  text/tabwriter;
@@ -271,8 +270,10 @@ var depsRules = `
 
 	# executable parsing
 	FMT, encoding/binary, compress/zlib
+	< runtime/debug
 	< debug/dwarf
 	< debug/elf, debug/gosym, debug/macho, debug/pe, debug/plan9obj, internal/xcoff
+	< debug/buildinfo
 	< DEBUG;
 
 	# go parser and friends.
@@ -510,7 +511,7 @@ var depsRules = `
 	FMT, flag, math/rand
 	< testing/quick;
 
-	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo, math/rand
+	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
 	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand, encoding/hex, crypto/sha256
