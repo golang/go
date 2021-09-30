@@ -918,6 +918,10 @@ func init() {
 		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
 		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
 		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
+		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
+		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
+		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
+		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
 	}
 
 	var AMD64blocks = []blockData{

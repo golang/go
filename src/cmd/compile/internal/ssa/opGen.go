@@ -1041,6 +1041,8 @@ const (
 	OpAMD64BLSMSKL
 	OpAMD64BLSRQ
 	OpAMD64BLSRL
+	OpAMD64TZCNTQ
+	OpAMD64TZCNTL
 
 	OpARMADD
 	OpARMADDconst
@@ -13743,6 +13745,34 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		clobberFlags: true,
 		asm:          x86.ABLSRL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:         "TZCNTQ",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ATZCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:         "TZCNTL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ATZCNTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
