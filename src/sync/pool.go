@@ -71,7 +71,7 @@ type poolLocal struct {
 }
 
 // from runtime
-func fastrand() uint32
+func fastrandn(n uint32) uint32
 
 var poolRaceHash [128]uint64
 
@@ -92,7 +92,7 @@ func (p *Pool) Put(x interface{}) {
 		return
 	}
 	if race.Enabled {
-		if fastrand()%4 == 0 {
+		if fastrandn(4) == 0 {
 			// Randomly drop x on floor.
 			return
 		}

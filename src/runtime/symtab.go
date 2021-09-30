@@ -921,7 +921,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 			if cache != nil {
 				x := pcvalueCacheKey(targetpc)
 				e := &cache.entries[x]
-				ci := fastrand() % uint32(len(cache.entries[x]))
+				ci := fastrandn(uint32(len(cache.entries[x])))
 				e[ci] = e[0]
 				e[0] = pcvalueCacheEnt{
 					targetpc: targetpc,
