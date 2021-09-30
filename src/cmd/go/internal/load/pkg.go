@@ -21,6 +21,7 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -1921,9 +1922,8 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	}
 	p.Internal.Imports = imports
 	p.collectDeps()
-
-	if cfg.ModulesEnabled && p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
-		p.Internal.BuildInfo = modload.PackageBuildInfo(pkgPath, p.Deps)
+	if p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
+		p.setBuildInfo()
 	}
 
 	// unsafe is a fake package.
@@ -2193,6 +2193,83 @@ func (p *Package) collectDeps() {
 			p.DepsErrors = append(p.DepsErrors, p1.Error)
 		}
 	}
+}
+
+// setBuildInfo gathers build information, formats it as a string to be
+// embedded in the binary, then sets p.Internal.BuildInfo to that string.
+// setBuildInfo should only be called on a main package with no errors.
+//
+// This information can be retrieved using debug.ReadBuildInfo.
+func (p *Package) setBuildInfo() {
+	setPkgErrorf := func(format string, args ...interface{}) {
+		if p.Error == nil {
+			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
+		}
+	}
+
+	var debugModFromModinfo func(*modinfo.ModulePublic) *debug.Module
+	debugModFromModinfo = func(mi *modinfo.ModulePublic) *debug.Module {
+		dm := &debug.Module{
+			Path:    mi.Path,
+			Version: mi.Version,
+		}
+		if mi.Replace != nil {
+			dm.Replace = debugModFromModinfo(mi.Replace)
+		} else {
+			dm.Sum = modfetch.Sum(module.Version{Path: mi.Path, Version: mi.Version})
+		}
+		return dm
+	}
+
+	var main debug.Module
+	if p.Module != nil {
+		main = *debugModFromModinfo(p.Module)
+	}
+
+	visited := make(map[*Package]bool)
+	mdeps := make(map[module.Version]*debug.Module)
+	var q []*Package
+	q = append(q, p.Internal.Imports...)
+	for len(q) > 0 {
+		p1 := q[0]
+		q = q[1:]
+		if visited[p1] {
+			continue
+		}
+		visited[p1] = true
+		if p1.Module != nil {
+			m := module.Version{Path: p1.Module.Path, Version: p1.Module.Version}
+			if p1.Module.Path != main.Path && mdeps[m] == nil {
+				mdeps[m] = debugModFromModinfo(p1.Module)
+			}
+		}
+		q = append(q, p1.Internal.Imports...)
+	}
+	sortedMods := make([]module.Version, 0, len(mdeps))
+	for mod := range mdeps {
+		sortedMods = append(sortedMods, mod)
+	}
+	module.Sort(sortedMods)
+	deps := make([]*debug.Module, len(sortedMods))
+	for i, mod := range sortedMods {
+		deps[i] = mdeps[mod]
+	}
+
+	pkgPath := p.ImportPath
+	if p.Internal.CmdlineFiles {
+		pkgPath = "command-line-arguments"
+	}
+	info := &debug.BuildInfo{
+		Path: pkgPath,
+		Main: main,
+		Deps: deps,
+	}
+	text, err := info.MarshalText()
+	if err != nil {
+		setPkgErrorf("error formatting build info: %v", err)
+		return
+	}
+	p.Internal.BuildInfo = string(text)
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,
