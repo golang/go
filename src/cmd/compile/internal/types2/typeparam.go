@@ -100,9 +100,9 @@ func (t *TypeParam) iface() *Interface {
 	}
 
 	// If we don't have an interface, wrap constraint into an implicit interface.
-	// TODO(gri) mark it as implicit - see comment in Checker.bound
 	if ityp == nil {
 		ityp = NewInterfaceType(nil, []Type{bound})
+		ityp.implicit = true
 		t.bound = ityp // update t.bound for next time (optimization)
 	}
 
