@@ -540,11 +540,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		align := int32(1)
 		name := ldr.SymName(s)
 		switch {
-		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
-			// Keep go.importpath symbols in the same section as types and
-			// names, as they can be referred to by a section offset.
-			symGroupType[s] = sym.STYPERELRO
-
 		case strings.HasPrefix(name, "go.string."):
 			symGroupType[s] = sym.SGOSTRING
 			ldr.SetAttrNotInSymbolTable(s, true)
@@ -611,7 +606,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 					ldr.SetCarrierSym(s, symtype)
 				}
 			}
-			if strings.HasPrefix(name, "type..namedata.") && ldr.SymAlign(s) == 0 {
+			if (strings.HasPrefix(name, "type..namedata.") || strings.HasPrefix(name, "type..importpath.")) && ldr.SymAlign(s) == 0 {
 				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
 			}
 		}
