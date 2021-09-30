@@ -1165,13 +1165,6 @@ func symalign(ldr *loader.Loader, s loader.Sym) int32 {
 	} else if align != 0 {
 		return min
 	}
-	// FIXME: figure out a way to avoid checking by name here.
-	sname := ldr.SymName(s)
-	if strings.HasPrefix(sname, "go.string.") || strings.HasPrefix(sname, "type..namedata.") {
-		// String data is just bytes.
-		// If we align it, we waste a lot of space to padding.
-		return min
-	}
 	align = int32(thearch.Maxalign)
 	ssz := ldr.SymSize(s)
 	for int64(align) > ssz && align > min {
