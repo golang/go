@@ -29,6 +29,10 @@ func dotest(t *testing.T) {
 	if runtime.GOARCH != "amd64" {
 		t.Skipf("skipping on non-AMD64 system %s", runtime.GOARCH)
 	}
+	// This test builds a Linux/AMD64 binary. Skipping in short mode if cross compiling.
+	if runtime.GOOS != "linux" && testing.Short() {
+		t.Skipf("skipping in short mode on non-Linux system %s", runtime.GOARCH)
+	}
 	var err error
 	pclineTempDir, err = os.MkdirTemp("", "pclinetest")
 	if err != nil {
@@ -198,9 +202,6 @@ func TestLineAline(t *testing.T) {
 }
 
 func TestPCLine(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in -short mode")
-	}
 	dotest(t)
 	defer endtest()
 
