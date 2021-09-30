@@ -599,7 +599,7 @@ func (p *parser) parseNamedType(nlist []interface{}) types.Type {
 			p.skipInlineBody()
 			p.expectEOL()
 
-			sig := types.NewSignature(receiver, params, results, isVariadic)
+			sig := types.NewSignatureType(receiver, nil, nil, params, results, isVariadic)
 			nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
 		}
 	}
@@ -766,7 +766,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []interface{}) *typ
 	params, isVariadic := p.parseParamList(pkg)
 	results := p.parseResultList(pkg)
 
-	*t = *types.NewSignature(nil, params, results, isVariadic)
+	*t = *types.NewSignatureType(nil, nil, nil, params, results, isVariadic)
 	return t
 }
 
