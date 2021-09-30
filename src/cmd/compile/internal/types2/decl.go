@@ -632,19 +632,33 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 		// This also preserves the grouped output of type parameter lists
 		// when printing type strings.
 		if i == 0 || f.Type != list[i-1].Type {
-			bound = check.typ(f.Type)
+			bound = check.bound(f.Type)
 		}
 		tparams[i].bound = bound
 	}
 
 	check.later(func() {
 		for i, tpar := range tparams {
-			u := under(tpar.bound)
-			if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
-				check.errorf(list[i].Type, "%s is not an interface", tpar.bound)
+			if _, ok := under(tpar.bound).(*TypeParam); ok {
+				check.error(list[i].Type, "cannot use a type parameter as constraint")
 			}
+			tpar.iface() // compute type set
 		}
 	})
+}
+
+func (check *Checker) bound(x syntax.Expr) Type {
+	// A type set literal of the form ~T and A|B may only appear as constraint;
+	// embed it in an implicit interface so that only interface type-checking
+	// needs to take care of such type expressions.
+	if op, _ := x.(*syntax.Operation); op != nil && (op.Op == syntax.Tilde || op.Op == syntax.Or) {
+		// TODO(gri) Should mark this interface as "implicit" somehow
+		//           (and propagate the info to types2.Interface) so
+		//           that we can elide the interface again in error
+		//           messages. Could use a sentinel name for the field.
+		x = &syntax.InterfaceType{MethodList: []*syntax.Field{{Type: x}}}
+	}
+	return check.typ(x)
 }
 
 func (check *Checker) declareTypeParam(name *syntax.Name) *TypeParam {
