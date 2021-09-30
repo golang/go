@@ -537,6 +537,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			continue
 		}
 
+		align := int32(1)
 		name := ldr.SymName(s)
 		switch {
 		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
@@ -571,14 +572,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		case strings.HasPrefix(name, "gcargs."),
 			strings.HasPrefix(name, "gclocals."),
 			strings.HasPrefix(name, "gclocals·"),
-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc,
-			strings.HasSuffix(name, ".opendefer"),
+			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc: // inltree, see pcln.go
+			// GC stack maps and inltrees have 32-bit fields.
+			align = 4
+			fallthrough
+		case strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"):
+			// These are just bytes, or varints, use align 1 (set before the switch).
 			symGroupType[s] = sym.SGOFUNC
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgofunc)
-			align := int32(4)
 			if a := ldr.SymAlign(s); a < align {
 				ldr.SetSymAlign(s, align)
 			} else {
