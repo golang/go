@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -334,53 +333,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 	}
 	info.GoVersion = info.Replace.GoVersion
 	return info
-}
-
-// PackageBuildInfo returns a string containing module version information
-// for modules providing packages named by path and deps. path and deps must
-// name packages that were resolved successfully with LoadPackages.
-func PackageBuildInfo(path string, deps []string) string {
-	if !Enabled() {
-		return ""
-	}
-	target, _ := findModule(loaded, path)
-	mdeps := make(map[module.Version]bool)
-	for _, dep := range deps {
-		if m, ok := findModule(loaded, dep); ok {
-			mdeps[m] = true
-		}
-	}
-	var mods []module.Version
-	delete(mdeps, target)
-	for mod := range mdeps {
-		mods = append(mods, mod)
-	}
-	module.Sort(mods)
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "path\t%s\n", path)
-
-	writeEntry := func(token string, m module.Version) {
-		mv := m.Version
-		if mv == "" {
-			mv = "(devel)"
-		}
-		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
-		if r, _ := Replacement(m); r.Path == "" {
-			fmt.Fprintf(&buf, "\t%s\n", modfetch.Sum(m))
-		} else {
-			fmt.Fprintf(&buf, "\n=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
-		}
-	}
-
-	if target.Path != "" {
-		writeEntry("mod", target)
-	}
-	for _, mod := range mods {
-		writeEntry("dep", mod)
-	}
-
-	return buf.String()
 }
 
 // findModule searches for the module that contains the package at path.

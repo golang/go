@@ -5,6 +5,8 @@
 package debug
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -32,6 +34,41 @@ type Module struct {
 	Version string  // module version
 	Sum     string  // checksum
 	Replace *Module // replaced by this module
+}
+
+func (bi *BuildInfo) MarshalText() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	if bi.Path != "" {
+		fmt.Fprintf(buf, "path\t%s\n", bi.Path)
+	}
+	var formatMod func(string, Module)
+	formatMod = func(word string, m Module) {
+		buf.WriteString(word)
+		buf.WriteByte('\t')
+		buf.WriteString(m.Path)
+		mv := m.Version
+		if mv == "" {
+			mv = "(devel)"
+		}
+		buf.WriteByte('\t')
+		buf.WriteString(mv)
+		if m.Replace == nil {
+			buf.WriteByte('\t')
+			buf.WriteString(m.Sum)
+		} else {
+			buf.WriteByte('\n')
+			formatMod("=>", *m.Replace)
+		}
+		buf.WriteByte('\n')
+	}
+	if bi.Main.Path != "" {
+		formatMod("mod", bi.Main)
+	}
+	for _, dep := range bi.Deps {
+		formatMod("dep", *dep)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func readBuildInfo(data string) (*BuildInfo, bool) {
