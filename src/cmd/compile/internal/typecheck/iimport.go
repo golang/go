@@ -188,9 +188,18 @@ func ReadImports(pkg *types.Pkg, data string) {
 	// Inline body index.
 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
 		pkg := p.pkgAt(ird.uint64())
+		pkgPrefix := pkg.Prefix + "."
 
 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			s2 := p.stringAt(ird.uint64())
+			// Function/method instantiation names may include "" to
+			// represent the path name of the imported package (in type
+			// names), so replace "" with pkg.Prefix. The "" in the names
+			// will get replaced by the linker as well, so will not
+			// appear in the executable. Include the dot to avoid
+			// matching with struct tags ending in '"'.
+			s2 = strings.Replace(s2, "\"\".", pkgPrefix, -1)
+			s := pkg.Lookup(s2)
 			off := ird.uint64()
 
 			if _, ok := inlineImporter[s]; !ok {

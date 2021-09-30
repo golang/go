@@ -64,7 +64,7 @@ var NumImport = make(map[string]int)
 // The default is regular Go syntax (fmtGo).
 // fmtDebug is like fmtGo but for debugging dumps and prints the type kind too.
 // fmtTypeID and fmtTypeIDName are for generating various unique representations
-// of types used in hashes and the linker.
+// of types used in hashes, the linker, and function/method instantiations.
 type fmtMode int
 
 const (
@@ -461,15 +461,25 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 	case TINTER:
 		if t.IsEmptyInterface() {
-			b.WriteString("interface {}")
+			if mode == fmtTypeID {
+				b.WriteString("interface{}")
+			} else {
+				b.WriteString("interface {}")
+			}
 			break
 		}
-		b.WriteString("interface {")
+		if mode == fmtTypeID {
+			b.WriteString("interface{")
+		} else {
+			b.WriteString("interface {")
+		}
 		for i, f := range t.AllMethods().Slice() {
 			if i != 0 {
 				b.WriteByte(';')
 			}
-			b.WriteByte(' ')
+			if mode != fmtTypeID {
+				b.WriteByte(' ')
+			}
 			switch {
 			case f.Sym == nil:
 				// Check first that a symbol is defined for this type.
@@ -485,7 +495,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
-		if t.AllMethods().Len() != 0 {
+		if t.AllMethods().Len() != 0 && mode != fmtTypeID {
 			b.WriteByte(' ')
 		}
 		b.WriteByte('}')
@@ -560,15 +570,21 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			b.WriteByte(byte(close))
 		} else {
-			b.WriteString("struct {")
+			if mode == fmtTypeID {
+				b.WriteString("struct{")
+			} else {
+				b.WriteString("struct {")
+			}
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
 					b.WriteByte(';')
 				}
-				b.WriteByte(' ')
+				if mode != fmtTypeID {
+					b.WriteByte(' ')
+				}
 				fldconv(b, f, 'L', mode, visited, funarg)
 			}
-			if t.NumFields() != 0 {
+			if t.NumFields() != 0 && mode != fmtTypeID {
 				b.WriteByte(' ')
 			}
 			b.WriteByte('}')
@@ -652,7 +668,14 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 	if name != "" {
 		b.WriteString(name)
-		b.WriteString(" ")
+		if mode == fmtTypeID {
+			// This is the one case where we can't omit the space, since
+			// we need a separate between field name and type, so we use
+			// "#" instead.
+			b.WriteString("#")
+		} else {
+			b.WriteString(" ")
+		}
 	}
 
 	if f.IsDDD() {
@@ -667,7 +690,11 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 	}
 
 	if verb != 'S' && funarg == FunargNone && f.Note != "" {
-		b.WriteString(" ")
+		if mode != fmtTypeID {
+			b.WriteString(" ")
+		}
+		// TODO: for fmtTypeID, we should possibly using %-quoting, so
+		// space is %20, etc.
 		b.WriteString(strconv.Quote(f.Note))
 	}
 }
