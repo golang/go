@@ -685,7 +685,12 @@ func (c *coordinator) logStats() {
 		}
 	} else {
 		rate := float64(c.count) / time.Since(c.startTime).Seconds() // be more precise here
-		fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), interesting: %d\n", c.elapsed(), c.count, rate, c.interestingCount)
+		if coverageEnabled {
+			interestingTotalCount := len(c.corpus.entries) - len(c.opts.Seed)
+			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
+		} else {
+			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)", c.elapsed(), c.count, rate)
+		}
 	}
 }
 
