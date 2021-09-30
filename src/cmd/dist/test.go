@@ -509,7 +509,8 @@ func (t *tester) registerTests() {
 			heading: "GOOS=ios on darwin/amd64",
 			fn: func(dt *distTest) error {
 				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-run=SystemRoots", "crypto/x509")
-				cmd.Env = append(os.Environ(), "GOOS=ios", "CGO_ENABLED=1")
+				setEnv(cmd, "GOOS", "ios")
+				setEnv(cmd, "CGO_ENABLED", "1")
 				return nil
 			},
 		})
@@ -529,7 +530,7 @@ func (t *tester) registerTests() {
 				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 				// creation of first goroutines and first garbage collections in the parallel setting.
-				cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
+				setEnv(cmd, "GOMAXPROCS", "2")
 				return nil
 			},
 		})
@@ -550,7 +551,7 @@ func (t *tester) registerTests() {
 					return nil
 				}
 				cmd := exec.Command("go", "test")
-				cmd.Dir = filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153")
+				setDir(cmd, filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153"))
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				return cmd.Run()
@@ -587,16 +588,13 @@ func (t *tester) registerTests() {
 					return err
 				}
 
-				// Run `go test fmt` in the moved GOROOT.
+				// Run `go test fmt` in the moved GOROOT, without explicitly setting
+				// GOROOT in the environment. The 'go' command should find itself.
 				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
-				// Don't set GOROOT in the environment.
-				for _, e := range os.Environ() {
-					if !strings.HasPrefix(e, "GOROOT=") && !strings.HasPrefix(e, "GOCACHE=") {
-						cmd.Env = append(cmd.Env, e)
-					}
-				}
+				unsetEnv(cmd, "GOROOT")
+				unsetEnv(cmd, "GOCACHE") // TODO(bcmills): ...why‽
 				err := cmd.Run()
 
 				if rerr := os.Rename(moved, goroot); rerr != nil {
@@ -723,11 +721,9 @@ func (t *tester) registerTests() {
 						heading: "../misc/swig/callback",
 						fn: func(dt *distTest) error {
 							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
-							cmd.Env = append(os.Environ(),
-								"CGO_CFLAGS=-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option",
-								"CGO_CXXFLAGS=-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option",
-								"CGO_LDFLAGS=-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option",
-							)
+							setEnv(cmd, "CGO_CFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
+							setEnv(cmd, "CGO_CXXFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
+							setEnv(cmd, "CGO_LDFLAGS", "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option")
 							return nil
 						},
 					},
@@ -879,9 +875,9 @@ func (t *tester) registerSeqTest(name, dirBanner string, cmdline ...interface{})
 func (t *tester) bgDirCmd(dir, bin string, args ...string) *exec.Cmd {
 	cmd := exec.Command(bin, args...)
 	if filepath.IsAbs(dir) {
-		cmd.Dir = dir
+		setDir(cmd, dir)
 	} else {
-		cmd.Dir = filepath.Join(goroot, dir)
+		setDir(cmd, filepath.Join(goroot, dir))
 	}
 	return cmd
 }
@@ -1114,7 +1110,8 @@ func (t *tester) runHostTest(dir, pkg string) error {
 	defer os.Remove(f.Name())
 
 	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", f.Name(), pkg)
-	cmd.Env = append(os.Environ(), "GOARCH="+gohostarch, "GOOS="+gohostos)
+	setEnv(cmd, "GOARCH", gohostarch)
+	setEnv(cmd, "GOOS", gohostos)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -1123,7 +1120,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
 
 func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
-	cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=auto")
+	setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=auto")
 
 	// Skip internal linking cases on linux/arm64 to support GCC-9.4 and above.
 	// See issue #39466.
@@ -1131,7 +1128,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	if t.internalLink() && !skipInternalLink {
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")
-		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=internal")
+		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=internal")
 	}
 
 	pair := gohostos + "-" + goarch
@@ -1143,9 +1140,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 			break
 		}
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
-		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
+		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
 
-		cmd = t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
+		t.addCmd(dt, "misc/cgo/test", t.goTest(), "-ldflags", "-linkmode=external -s")
 
 		if t.supportedBuildmode("pie") {
 			t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
@@ -1163,10 +1160,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 		"openbsd-386", "openbsd-amd64", "openbsd-arm", "openbsd-arm64", "openbsd-mips64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest())
-		cmd.Env = append(os.Environ(), "GOFLAGS=-ldflags=-linkmode=external")
+		setEnv(cmd, "GOFLAGS", "-ldflags=-linkmode=external")
 		// cgo should be able to cope with both -g arguments and colored
 		// diagnostics.
-		cmd.Env = append(cmd.Env, "CGO_CFLAGS=-g0 -fdiagnostics-color")
+		setEnv(cmd, "CGO_CFLAGS", "-g0 -fdiagnostics-color")
 
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=auto")
 		t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-ldflags", "-linkmode=external")
@@ -1199,7 +1196,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 					// than -static in -extldflags, so test both.
 					// See issue #16651.
 					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
-					cmd.Env = append(os.Environ(), "CGO_LDFLAGS=-static -pthread")
+					setEnv(cmd, "CGO_LDFLAGS", "-static -pthread")
 				}
 			}
 
@@ -1438,7 +1435,7 @@ func (t *tester) raceTest(dt *distTest) error {
 		// We shouldn't need to redo all of misc/cgo/test too.
 		// The race buildler will take care of this.
 		// cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-race")
-		// cmd.Env = append(os.Environ(), "GOTRACEBACK=2")
+		// setEnv(cmd, "GOTRACEBACK", "2")
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
@@ -1468,7 +1465,8 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 		})
 
 		cmd := t.dirCmd("test", "go", "build", "-o", runtest.exe, "run.go")
-		cmd.Env = append(os.Environ(), "GOOS="+gohostos, "GOARCH="+gohostarch)
+		setEnv(cmd, "GOOS", gohostos)
+		setEnv(cmd, "GOARCH", gohostarch)
 		runtest.err = cmd.Run()
 	})
 	if runtest.err != nil {
@@ -1632,7 +1630,7 @@ func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
 	bin := t.prebuiltGoPackageTestBinary()
 	fmt.Fprintf(os.Stderr, "# %s: using pre-built %s...\n", stdMatches[0], bin)
 	cmd := exec.Command(bin, "-test.short="+short(), "-test.timeout="+timeout.String())
-	cmd.Dir = filepath.Dir(bin)
+	setDir(cmd, filepath.Dir(bin))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
