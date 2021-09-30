@@ -272,7 +272,8 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 // ------------------------ //
 
 func TrailingZeros(n uint) int {
-	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// amd64/v3:"TZCNTQ"
 	// arm:"CLZ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
@@ -285,7 +286,8 @@ func TrailingZeros(n uint) int {
 }
 
 func TrailingZeros64(n uint64) int {
-	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+	// amd64/v3:"TZCNTQ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
 	// ppc64/power8:"ANDN","POPCNTD"
@@ -303,7 +305,8 @@ func TrailingZeros64Subtract(n uint64) int {
 }
 
 func TrailingZeros32(n uint32) int {
-	// amd64:"BTSQ\\t\\$32","BSFQ"
+	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
+	// amd64/v3:"TZCNTL"
 	// arm:"CLZ"
 	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
@@ -343,7 +346,8 @@ func TrailingZeros8(n uint8) int {
 func IterateBits(n uint) int {
 	i := 0
 	for n != 0 {
-		// amd64:"BSFQ",-"CMOVEQ"
+		// amd64/v1,amd64/v2:"BSFQ",-"CMOVEQ"
+		// amd64/v3:"TZCNTQ"
 		i += bits.TrailingZeros(n)
 		n &= n - 1
 	}
@@ -353,7 +357,8 @@ func IterateBits(n uint) int {
 func IterateBits64(n uint64) int {
 	i := 0
 	for n != 0 {
-		// amd64:"BSFQ",-"CMOVEQ"
+		// amd64/v1,amd64/v2:"BSFQ",-"CMOVEQ"
+		// amd64/v3:"TZCNTQ"
 		i += bits.TrailingZeros64(n)
 		n &= n - 1
 	}
@@ -363,7 +368,8 @@ func IterateBits64(n uint64) int {
 func IterateBits32(n uint32) int {
 	i := 0
 	for n != 0 {
-		// amd64:"BSFL",-"BTSQ"
+		// amd64/v1,amd64/v2:"BSFL",-"BTSQ"
+		// amd64/v3:"TZCNTL"
 		i += bits.TrailingZeros32(n)
 		n &= n - 1
 	}
@@ -373,7 +379,8 @@ func IterateBits32(n uint32) int {
 func IterateBits16(n uint16) int {
 	i := 0
 	for n != 0 {
-		// amd64:"BSFL",-"BTSL"
+		// amd64/v1,amd64/v2:"BSFL",-"BTSL"
+		// amd64/v3:"TZCNTL"
 		// arm64:"RBITW","CLZW",-"ORR"
 		i += bits.TrailingZeros16(n)
 		n &= n - 1
@@ -384,7 +391,8 @@ func IterateBits16(n uint16) int {
 func IterateBits8(n uint8) int {
 	i := 0
 	for n != 0 {
-		// amd64:"BSFL",-"BTSL"
+		// amd64/v1,amd64/v2:"BSFL",-"BTSL"
+		// amd64/v3:"TZCNTL"
 		// arm64:"RBITW","CLZW",-"ORR"
 		i += bits.TrailingZeros8(n)
 		n &= n - 1

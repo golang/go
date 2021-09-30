@@ -78,15 +78,21 @@
 (OffPtr [off] ptr) => (ADDQ (MOVQconst [off]) ptr)
 
 // Lowering other arithmetic
-(Ctz64 <t> x) => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x) => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz64 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
+(Ctz32 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz64 <t> x) && buildcfg.GOAMD64 <  3 => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+(Ctz32 x)     && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
 (Ctz16 x) => (BSFL (BTSLconst <typ.UInt32> [16] x))
 (Ctz8  x) => (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
-(Ctz64NonZero x) => (Select0 (BSFQ x))
-(Ctz32NonZero ...) => (BSFL ...)
-(Ctz16NonZero ...) => (BSFL ...)
-(Ctz8NonZero  ...) => (BSFL ...)
+(Ctz64NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
+(Ctz32NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz16NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz8NonZero  x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz64NonZero x) && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ x))
+(Ctz32NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
+(Ctz16NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
+(Ctz8NonZero  x) && buildcfg.GOAMD64 <  3 => (BSFL x)
 
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
