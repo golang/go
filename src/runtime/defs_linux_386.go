@@ -3,6 +3,8 @@
 
 package runtime
 
+import "internal/goarch"
+
 const (
 	_EINTR  = 0x4
 	_EAGAIN = 0xb
@@ -172,6 +174,11 @@ type siginfo struct {
 	si_code  int32
 	// below here is a union; si_addr is the only field we use
 	si_addr uint32
+
+	// Pad struct to the max size in the kernel. Account for the 3 32-bit
+	// fields, the alignment to this architecture's pointer size, and the final
+	// pointer-length field.
+	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
 }
 
 type stackt struct {
@@ -235,6 +242,10 @@ type sigevent struct {
 	notify int32
 	// below here is a union; sigev_notify_thread_id is the only field we use
 	sigev_notify_thread_id int32
+
+	// Pad struct to the max size in the kernel. Account for the pointer-length
+	// field and the 3 32-bit fields.
+	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
 }
 
 type epollevent struct {
