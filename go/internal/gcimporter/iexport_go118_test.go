@@ -80,6 +80,10 @@ func TestImportTypeparamTests(t *testing.T) {
 		t.Skip("unified export data format is currently unsupported")
 	}
 
+	skip := map[string]string{
+		"issue48424.go": "go/types support missing", // TODO: need to implement this if #48424 is accepted
+	}
+
 	for _, entry := range list {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			// For now, only consider standalone go files.
@@ -87,17 +91,23 @@ func TestImportTypeparamTests(t *testing.T) {
 		}
 
 		t.Run(entry.Name(), func(t *testing.T) {
+			if reason, ok := skip[entry.Name()]; ok {
+				t.Skip(reason)
+			}
+
 			filename := filepath.Join(rootDir, entry.Name())
 			src, err := os.ReadFile(filename)
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			if !bytes.HasPrefix(src, []byte("// run")) && !bytes.HasPrefix(src, []byte("// compile")) {
 				// We're bypassing the logic of run.go here, so be conservative about
 				// the files we consider in an attempt to make this test more robust to
 				// changes in test/typeparams.
 				t.Skipf("not detected as a run test")
 			}
+
 			testExportSrc(t, src)
 		})
 	}
