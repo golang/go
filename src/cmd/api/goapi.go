@@ -653,10 +653,15 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	}
 
 	// Type-check package files.
+	var sizes types.Sizes
+	if w.context != nil {
+		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
+	}
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
 		Importer:         w,
+		Sizes:            sizes,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
