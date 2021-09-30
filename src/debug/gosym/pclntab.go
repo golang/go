@@ -490,7 +490,7 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
 	fileStartPC := filePC
 	for t.step(&fp, &filePC, &fileVal, filePC == entry) {
 		fileIndex := fileVal
-		if t.version == ver116 {
+		if t.version == ver116 || t.version == ver118 {
 			fileIndex = int32(t.binary.Uint32(cutab[fileVal*4:]))
 		}
 		if fileIndex == filenum && fileStartPC < filePC {
@@ -589,7 +589,7 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
 		entry := f.entryPC()
 		filetab := f.pcfile()
 		linetab := f.pcln()
-		if t.version == ver116 {
+		if t.version == ver116 || t.version == ver118 {
 			cutab = t.cutab[f.cuOffset()*4:]
 		}
 		pc := t.findFileLine(entry, filetab, linetab, int32(filenum), int32(line), cutab)
