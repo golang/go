@@ -27,19 +27,6 @@ func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check
 // emptyInterface represents the empty interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
 
-// NewInterface returns a new interface for the given methods and embedded types.
-// NewInterface takes ownership of the provided methods and may modify their types
-// by setting missing receivers.
-//
-// Deprecated: Use NewInterfaceType instead which allows arbitrary embedded types.
-func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
-	tnames := make([]Type, len(embeddeds))
-	for i, t := range embeddeds {
-		tnames[i] = t
-	}
-	return NewInterfaceType(methods, tnames)
-}
-
 // NewInterfaceType returns a new interface for the given methods and embedded types.
 // NewInterfaceType takes ownership of the provided methods and may modify their types
 // by setting missing receivers.
@@ -75,12 +62,6 @@ func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
 
 // NumEmbeddeds returns the number of embedded types in interface t.
 func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
-
-// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
-// The result is nil if the i'th embedded type is not a defined type.
-//
-// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
 
 // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
 func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }

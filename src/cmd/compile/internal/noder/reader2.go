@@ -316,7 +316,7 @@ func (r *reader2) signature(recv *types2.Var) *types2.Signature {
 	results := r.params()
 	variadic := r.bool()
 
-	return types2.NewSignature(recv, params, results, variadic)
+	return types2.NewSignatureType(recv, nil, nil, params, results, variadic)
 }
 
 func (r *reader2) params() *types2.Tuple {
