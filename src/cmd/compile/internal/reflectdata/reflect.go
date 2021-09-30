@@ -329,7 +329,11 @@ func methods(t *types.Type) []*typeSig {
 		if f.Type.Recv() == nil {
 			base.Fatalf("receiver with no type on %v method %v %v", mt, f.Sym, f)
 		}
-		if f.Nointerface() {
+		if f.Nointerface() && !t.IsFullyInstantiated() {
+			// Skip creating method wrappers if f is nointerface. But, if
+			// t is an instantiated type, we still have to call
+			// methodWrapper, because methodWrapper generates the actual
+			// generic method on the type as well.
 			continue
 		}
 
@@ -347,6 +351,11 @@ func methods(t *types.Type) []*typeSig {
 			tsym:  methodWrapper(t, f, false),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
+		}
+		if f.Nointerface() {
+			// In the case of a nointerface method on an instantiated
+			// type, don't actually apppend the typeSig.
+			continue
 		}
 		ms = append(ms, sig)
 	}
