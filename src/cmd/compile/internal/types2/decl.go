@@ -652,11 +652,12 @@ func (check *Checker) bound(x syntax.Expr) Type {
 	// embed it in an implicit interface so that only interface type-checking
 	// needs to take care of such type expressions.
 	if op, _ := x.(*syntax.Operation); op != nil && (op.Op == syntax.Tilde || op.Op == syntax.Or) {
-		// TODO(gri) Should mark this interface as "implicit" somehow
-		//           (and propagate the info to types2.Interface) so
-		//           that we can elide the interface again in error
-		//           messages. Could use a sentinel name for the field.
-		x = &syntax.InterfaceType{MethodList: []*syntax.Field{{Type: x}}}
+		t := check.typ(&syntax.InterfaceType{MethodList: []*syntax.Field{{Type: x}}})
+		// mark t as implicit interface if all went well
+		if t, _ := t.(*Interface); t != nil {
+			t.implicit = true
+		}
+		return t
 	}
 	return check.typ(x)
 }
