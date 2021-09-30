@@ -316,18 +316,39 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 				lookupGroupCancel()
 			}()
 		}
-		err := mapErr(ctx.Err())
+		ctxErr := ctx.Err()
+		err := &DNSError{
+			Err:       mapErr(ctxErr).Error(),
+			Name:      host,
+			IsTimeout: ctxErr == context.DeadlineExceeded,
+		}
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
 		}
 		return nil, err
 	case r := <-ch:
 		lookupGroupCancel()
+		err := r.Err
+		if err != nil {
+			if _, ok := err.(*DNSError); !ok {
+				isTimeout := false
+				if err == context.DeadlineExceeded {
+					isTimeout = true
+				} else if terr, ok := err.(timeout); ok {
+					isTimeout = terr.Timeout()
+				}
+				err = &DNSError{
+					Err:       err.Error(),
+					Name:      host,
+					IsTimeout: isTimeout,
+				}
+			}
+		}
 		if trace != nil && trace.DNSDone != nil {
 			addrs, _ := r.Val.([]IPAddr)
-			trace.DNSDone(ipAddrsEface(addrs), r.Shared, r.Err)
+			trace.DNSDone(ipAddrsEface(addrs), r.Shared, err)
 		}
-		return lookupIPReturn(r.Val, r.Err, r.Shared)
+		return lookupIPReturn(r.Val, err, r.Shared)
 	}
 }
 
