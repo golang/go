@@ -2200,6 +2200,9 @@ func (p *Package) collectDeps() {
 // setBuildInfo should only be called on a main package with no errors.
 //
 // This information can be retrieved using debug.ReadBuildInfo.
+//
+// Note that the GoVersion field is not set here to avoid encoding it twice.
+// It is stored separately in the binary, mostly for historical reasons.
 func (p *Package) setBuildInfo() {
 	setPkgErrorf := func(format string, args ...interface{}) {
 		if p.Error == nil {

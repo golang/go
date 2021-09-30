@@ -142,7 +142,8 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_modules",
 			build: buildWithModules,
-			want: "path\texample.com/m\n" +
+			want: "go\t$GOVERSION\n" +
+				"path\texample.com/m\n" +
 				"mod\texample.com/m\t(devel)\t\n",
 		},
 		{
@@ -157,7 +158,7 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
-			want:  "",
+			want:  "go\t$GOVERSION\n",
 		},
 		{
 			name: "invalid_gopath",
@@ -193,7 +194,7 @@ func TestReadFile(t *testing.T) {
 						} else if got, err := info.MarshalText(); err != nil {
 							t.Fatalf("unexpected error marshaling BuildInfo: %v", err)
 						} else {
-							got := string(got)
+							got := strings.ReplaceAll(string(got), runtime.Version(), "$GOVERSION")
 							if got != tc.want {
 								t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 							}

@@ -71,7 +71,7 @@ func ReadFile(name string) (info *BuildInfo, err error) {
 // accessed through the given ReaderAt. Most information is only available for
 // binaries built with module support.
 func Read(r io.ReaderAt) (*BuildInfo, error) {
-	_, mod, err := readRawBuildInfo(r)
+	vers, mod, err := readRawBuildInfo(r)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +79,7 @@ func Read(r io.ReaderAt) (*BuildInfo, error) {
 	if err := bi.UnmarshalText([]byte(mod)); err != nil {
 		return nil, err
 	}
+	bi.GoVersion = vers
 	return bi, nil
 }
 
