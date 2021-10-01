@@ -169,6 +169,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 	// eventually switch the type back to SRODATA.
 	inlTreeSym.SetType(sym.SGOFUNC)
 	ldr.SetAttrReachable(its, true)
+	ldr.SetSymAlign(its, 4) // it has 32-bit fields
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)

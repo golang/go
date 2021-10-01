@@ -332,14 +332,27 @@ func (w *writer) Sym(s *LSym) {
 	if fn := s.Func(); fn != nil {
 		align = uint32(fn.Align)
 	}
-	if s.ContentAddressable() {
-		// We generally assume data symbols are natually aligned,
-		// except for strings. If we dedup a string symbol and a
-		// non-string symbol with the same content, we should keep
+	if s.ContentAddressable() && s.Size != 0 {
+		// We generally assume data symbols are natually aligned
+		// (e.g. integer constants), except for strings and a few
+		// compiler-emitted funcdata. If we dedup a string symbol and
+		// a non-string symbol with the same content, we should keep
 		// the largest alignment.
 		// TODO: maybe the compiler could set the alignment for all
 		// data symbols more carefully.
-		if s.Size != 0 && !strings.HasPrefix(s.Name, "go.string.") {
+		switch {
+		case strings.HasPrefix(s.Name, "go.string."),
+			strings.HasPrefix(name, "type..namedata."),
+			strings.HasPrefix(name, "type..importpath."),
+			strings.HasSuffix(name, ".opendefer"),
+			strings.HasSuffix(name, ".arginfo0"),
+			strings.HasSuffix(name, ".arginfo1"):
+			// These are just bytes, or varints.
+			align = 1
+		case strings.HasPrefix(name, "gclocals·"):
+			// It has 32-bit fields.
+			align = 4
+		default:
 			switch {
 			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
 				align = 8
@@ -347,8 +360,9 @@ func (w *writer) Sym(s *LSym) {
 				align = 4
 			case s.Size%2 == 0:
 				align = 2
+			default:
+				align = 1
 			}
-			// don't bother setting align to 1.
 		}
 	}
 	if s.Size > cutoff {

@@ -320,7 +320,7 @@ var (
 	HEADR   int32
 
 	nerrors  int
-	liveness int64
+	liveness int64 // size of liveness data (funcdata), printed if -v
 
 	// See -strictdups command line flag.
 	checkStrictDups   int // 0=off 1=warning 2=error

@@ -537,16 +537,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			continue
 		}
 
-		align := int32(1)
 		name := ldr.SymName(s)
 		switch {
 		case strings.HasPrefix(name, "go.string."):
 			symGroupType[s] = sym.SGOSTRING
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgostring)
-			if ldr.SymAlign(s) == 0 {
-				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
-			}
 
 		case strings.HasPrefix(name, "runtime.gcbits."):
 			symGroupType[s] = sym.SGCBITS
@@ -570,23 +566,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		case strings.HasPrefix(name, "gcargs."),
 			strings.HasPrefix(name, "gclocals."),
 			strings.HasPrefix(name, "gclocals·"),
-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc: // inltree, see pcln.go
-			// GC stack maps and inltrees have 32-bit fields.
-			align = 4
-			fallthrough
-		case strings.HasSuffix(name, ".opendefer"),
+			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
+			strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"):
-			// These are just bytes, or varints, use align 1 (set before the switch).
 			symGroupType[s] = sym.SGOFUNC
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgofunc)
-			if a := ldr.SymAlign(s); a < align {
-				ldr.SetSymAlign(s, align)
-			} else {
-				align = a
+			if ctxt.Debugvlog != 0 {
+				align := ldr.SymAlign(s)
+				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
 			}
-			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
 
 		// Note: Check for "type." prefix after checking for .arginfo1 suffix.
 		// That way symbols like "type..eq.[2]interface {}.arginfo1" that belong
@@ -605,9 +595,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 				if symtyperel != 0 {
 					ldr.SetCarrierSym(s, symtype)
 				}
-			}
-			if (strings.HasPrefix(name, "type..namedata.") || strings.HasPrefix(name, "type..importpath.")) && ldr.SymAlign(s) == 0 {
-				ldr.SetSymAlign(s, 1) // String data is just bytes, no padding.
 			}
 		}
 	}
