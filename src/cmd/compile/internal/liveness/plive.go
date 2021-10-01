@@ -15,7 +15,6 @@
 package liveness
 
 import (
-	"crypto/md5"
 	"crypto/sha1"
 	"fmt"
 	"os"
@@ -1326,19 +1325,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 		loff = objw.BitVec(&liveSymTmp, loff, locals)
 	}
 
-	// Give these LSyms content-addressable names,
-	// so that they can be de-duplicated.
-	// This provides significant binary size savings.
-	//
 	// These symbols will be added to Ctxt.Data by addGCLocals
 	// after parallel compilation is done.
-	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
-		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
-			lsym.P = tmpSym.P
-			lsym.Set(obj.AttrContentAddressable, true)
-		})
-	}
-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp)
+	return base.Ctxt.GCLocalsSym(argsSymTmp.P), base.Ctxt.GCLocalsSym(liveSymTmp.P)
 }
 
 // Entry pointer for Compute analysis. Solves for the Compute of
