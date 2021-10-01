@@ -290,7 +290,7 @@ func (c *gcControllerState) init(gcPercent int32) {
 // startCycle resets the GC controller's state and computes estimates
 // for a new GC cycle. The caller must hold worldsema and the world
 // must be stopped.
-func (c *gcControllerState) startCycle(markStartTime int64) {
+func (c *gcControllerState) startCycle(markStartTime int64, procs int) {
 	c.scanWork = 0
 	c.bgScanCredit = 0
 	c.assistTime = 0
@@ -316,7 +316,7 @@ func (c *gcControllerState) startCycle(markStartTime int64) {
 	// dedicated workers so that the utilization is closest to
 	// 25%. For small GOMAXPROCS, this would introduce too much
 	// error, so we add fractional workers in that case.
-	totalUtilizationGoal := float64(gomaxprocs) * gcBackgroundUtilization
+	totalUtilizationGoal := float64(procs) * gcBackgroundUtilization
 	c.dedicatedMarkWorkersNeeded = int64(totalUtilizationGoal + 0.5)
 	utilError := float64(c.dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
 	const maxUtilError = 0.3
@@ -329,14 +329,14 @@ func (c *gcControllerState) startCycle(markStartTime int64) {
 			// Too many dedicated workers.
 			c.dedicatedMarkWorkersNeeded--
 		}
-		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(gomaxprocs)
+		c.fractionalUtilizationGoal = (totalUtilizationGoal - float64(c.dedicatedMarkWorkersNeeded)) / float64(procs)
 	} else {
 		c.fractionalUtilizationGoal = 0
 	}
 
 	// In STW mode, we just want dedicated workers.
 	if debug.gcstoptheworld > 0 {
-		c.dedicatedMarkWorkersNeeded = int64(gomaxprocs)
+		c.dedicatedMarkWorkersNeeded = int64(procs)
 		c.fractionalUtilizationGoal = 0
 	}
 
@@ -464,7 +464,7 @@ func (c *gcControllerState) revise() {
 // endCycle computes the trigger ratio for the next cycle.
 // userForced indicates whether the current GC cycle was forced
 // by the application.
-func (c *gcControllerState) endCycle(userForced bool) float64 {
+func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) float64 {
 	// Record last heap goal for the scavenger.
 	// We'll be updating the heap goal soon.
 	gcController.lastHeapGoal = gcController.heapGoal
@@ -495,13 +495,13 @@ func (c *gcControllerState) endCycle(userForced bool) float64 {
 	// heap growth is the error.
 	goalGrowthRatio := c.effectiveGrowthRatio()
 	actualGrowthRatio := float64(c.heapLive)/float64(c.heapMarked) - 1
-	assistDuration := nanotime() - c.markStartTime
+	assistDuration := now - c.markStartTime
 
 	// Assume background mark hit its utilization goal.
 	utilization := gcBackgroundUtilization
 	// Add assist utilization; avoid divide by zero.
 	if assistDuration > 0 {
-		utilization += float64(c.assistTime) / float64(assistDuration*int64(gomaxprocs))
+		utilization += float64(c.assistTime) / float64(assistDuration*int64(procs))
 	}
 
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
