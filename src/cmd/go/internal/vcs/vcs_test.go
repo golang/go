@@ -8,7 +8,6 @@ import (
 	"errors"
 	"internal/testenv"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -205,7 +204,8 @@ func TestRepoRootForImportPath(t *testing.T) {
 	}
 }
 
-// Test that vcsFromDir correctly inspects a given directory and returns the right VCS and root.
+// Test that vcs.FromDir correctly inspects a given directory and returns the
+// right VCS and repo directory.
 func TestFromDir(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "vcstest")
 	if err != nil {
@@ -232,18 +232,14 @@ func TestFromDir(t *testing.T) {
 			f.Close()
 		}
 
-		want := RepoRoot{
-			VCS:  vcs,
-			Root: path.Join("example.com", vcs.Name),
-		}
-		var got RepoRoot
-		got.VCS, got.Root, err = FromDir(dir, tempDir)
+		wantRepoDir := filepath.Dir(dir)
+		gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
 		if err != nil {
 			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
 			continue
 		}
-		if got.VCS.Name != want.VCS.Name || got.Root != want.Root {
-			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.VCS, got.Root, want.VCS, want.Root)
+		if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
+			t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
 		}
 	}
 }

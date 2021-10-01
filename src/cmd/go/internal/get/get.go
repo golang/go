@@ -417,10 +417,10 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 // to make the first copy of or update a copy of the given package.
 func downloadPackage(p *load.Package) error {
 	var (
-		vcsCmd         *vcs.Cmd
-		repo, rootPath string
-		err            error
-		blindRepo      bool // set if the repo has unusual configuration
+		vcsCmd                  *vcs.Cmd
+		repo, rootPath, repoDir string
+		err                     error
+		blindRepo               bool // set if the repo has unusual configuration
 	)
 
 	// p can be either a real package, or a pseudo-package whose “import path” is
@@ -446,10 +446,18 @@ func downloadPackage(p *load.Package) error {
 
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		vcsCmd, rootPath, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
+		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
 		if err != nil {
 			return err
 		}
+		if !str.HasFilePathPrefix(repoDir, p.Internal.Build.SrcRoot) {
+			panic(fmt.Sprintf("repository %q not in source root %q", repo, p.Internal.Build.SrcRoot))
+		}
+		rootPath = str.TrimFilePathPrefix(repoDir, p.Internal.Build.SrcRoot)
+		if err := vcs.CheckGOVCS(vcsCmd, rootPath); err != nil {
+			return err
+		}
+
 		repo = "<local>" // should be unused; make distinctive
 
 		// Double-check where it came from.

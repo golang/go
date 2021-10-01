@@ -133,6 +133,12 @@
 // 		arguments to pass on each go tool asm invocation.
 // 	-buildmode mode
 // 		build mode to use. See 'go help buildmode' for more.
+// 	-buildvcs
+// 		Whether to stamp binaries with version control information. By default,
+// 		version control information is stamped into a binary if the main package
+// 		and the main module containing it are in the repository containing the
+// 		current directory (if there is a repository). Use -buildvcs=false to
+// 		omit version control information.
 // 	-compiler name
 // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 // 	-gccgoflags '[pattern=]arg list'

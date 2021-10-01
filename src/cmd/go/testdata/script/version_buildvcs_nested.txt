@@ -1,0 +1,50 @@
+[!exec:git] skip
+[!exec:hg] skip
+env GOFLAGS=-n
+
+# Create a root module in a root Git repository.
+mkdir root
+cd root
+go mod init example.com/root
+exec git init
+
+# It's an error to build a package from a nested Mercurial repository
+# without -buildvcs=false, even if the package is in a separate module.
+mkdir hgsub
+cd hgsub
+exec hg init
+cp ../../main.go main.go
+! go build
+stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
+stderr '\tUse -buildvcs=false to disable VCS stamping.$'
+go mod init example.com/root/hgsub
+! go build
+stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
+go build -buildvcs=false
+cd ..
+
+# It's an error to build a package from a nested Git repository if the package
+# is in a separate repository from the current directory or from the module
+# root directory. However, unlike with other VCS, it's okay for a Git repository
+# to be nested within another Git repository. This happens with submodules.
+mkdir gitsub
+cd gitsub
+exec git init
+exec git config user.name 'J.R.Gopher'
+exec git config user.email 'gopher@golang.org'
+cp ../../main.go main.go
+! go build
+stderr '^error obtaining VCS status: main module is in repository ".*root" but current directory is in repository ".*gitsub"$'
+go build -buildvcs=false
+go mod init example.com/root/gitsub
+exec git commit --allow-empty -m empty # status commands fail without this
+go build
+rm go.mod
+cd ..
+! go build ./gitsub
+stderr '^error obtaining VCS status: main package is in repository ".*gitsub" but current directory is in repository ".*root"$'
+go build -buildvcs=false -o=gitsub${/} ./gitsub
+
+-- main.go --
+package main
+func main() {}

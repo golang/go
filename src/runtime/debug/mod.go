@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"strings"
 )
 
 // exported from runtime
@@ -38,10 +39,11 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
 
 // BuildInfo represents the build information read from a Go binary.
 type BuildInfo struct {
-	GoVersion string    // Version of Go that produced this binary.
-	Path      string    // The main package path
-	Main      Module    // The module containing the main package
-	Deps      []*Module // Module dependencies
+	GoVersion string         // Version of Go that produced this binary.
+	Path      string         // The main package path
+	Main      Module         // The module containing the main package
+	Deps      []*Module      // Module dependencies
+	Settings  []BuildSetting // Other information about the build.
 }
 
 // Module represents a module.
@@ -50,6 +52,14 @@ type Module struct {
 	Version string  // module version
 	Sum     string  // checksum
 	Replace *Module // replaced by this module
+}
+
+// BuildSetting describes a setting that may be used to understand how the
+// binary was built. For example, VCS commit and dirty status is stored here.
+type BuildSetting struct {
+	// Key and Value describe the build setting. They must not contain tabs
+	// or newlines.
+	Key, Value string
 }
 
 func (bi *BuildInfo) MarshalText() ([]byte, error) {
@@ -86,6 +96,12 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
 	for _, dep := range bi.Deps {
 		formatMod("dep", *dep)
 	}
+	for _, s := range bi.Settings {
+		if strings.ContainsAny(s.Key, "\n\t") || strings.ContainsAny(s.Value, "\n\t") {
+			return nil, fmt.Errorf("build setting %q contains tab or newline", s.Key)
+		}
+		fmt.Fprintf(buf, "build\t%s\t%s\n", s.Key, s.Value)
+	}
 
 	return buf.Bytes(), nil
 }
@@ -100,12 +116,13 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
 	}()
 
 	var (
-		pathLine = []byte("path\t")
-		modLine  = []byte("mod\t")
-		depLine  = []byte("dep\t")
-		repLine  = []byte("=>\t")
-		newline  = []byte("\n")
-		tab      = []byte("\t")
+		pathLine  = []byte("path\t")
+		modLine   = []byte("mod\t")
+		depLine   = []byte("dep\t")
+		repLine   = []byte("=>\t")
+		buildLine = []byte("build\t")
+		newline   = []byte("\n")
+		tab       = []byte("\t")
 	)
 
 	readModuleLine := func(elem [][]byte) (Module, error) {
@@ -167,6 +184,15 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
 				Sum:     string(elem[2]),
 			}
 			last = nil
+		case bytes.HasPrefix(line, buildLine):
+			elem := bytes.Split(line[len(buildLine):], tab)
+			if len(elem) != 2 {
+				return fmt.Errorf("expected 2 columns for build setting; got %d", len(elem))
+			}
+			if len(elem[0]) == 0 {
+				return fmt.Errorf("empty key")
+			}
+			bi.Settings = append(bi.Settings, BuildSetting{Key: string(elem[0]), Value: string(elem[1])})
 		}
 		lineNum++
 	}
