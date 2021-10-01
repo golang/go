@@ -22,10 +22,6 @@ type Context struct {
 	seen    map[*Named]int    // assigned unique IDs
 }
 
-// Temporary alias to allow x/tools tests to pass.
-// TODO(rfindley): remove the Environment type.
-type Environment = Context
-
 // NewContext creates a new Context.
 func NewContext() *Context {
 	return &Context{
