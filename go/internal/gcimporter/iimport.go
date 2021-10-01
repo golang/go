@@ -18,6 +18,7 @@ import (
 	"go/types"
 	"io"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -405,12 +406,21 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		name0, sub := parseSubscript(name)
+		// Temporarily strip both type parameter subscripts and path prefixes,
+		// while we replace subscripts with prefixes in the compiler.
+		// TODO(rfindley): remove support for subscripts once the compiler changes
+		// have landed.
+		name0, _ := parseSubscript(name)
+		ix := strings.LastIndex(name, ".")
+		name0 = name0[ix+1:]
 		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
 		t := typeparams.NewTypeParam(tn, nil)
-		if sub == 0 {
-			errorf("name %q missing subscript", name)
-		}
+
+		// The check below is disabled so that we can support both path-prefixed
+		// and subscripted type parameter names.
+		// if sub == 0 {
+		// 	errorf("name %q missing subscript", name)
+		// }
 
 		// TODO(rfindley): can we use a different, stable ID?
 		// t.SetId(sub)
