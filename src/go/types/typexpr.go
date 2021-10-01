@@ -139,7 +139,7 @@ func (check *Checker) varType(e ast.Expr) Type {
 	check.later(func() {
 		if t := asInterface(typ); t != nil {
 			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
-			if tset.IsConstraint() {
+			if !tset.IsMethodSet() {
 				if tset.comparable {
 					check.softErrorf(e, _Todo, "interface is (or embeds) comparable")
 				} else {
