@@ -223,18 +223,32 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// same compiler settings and can reuse each other's results.
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
-	// Only include the package directory if it may affect the output.
-	// We trim workspace paths for all packages when -trimpath is set.
-	// The compiler hides the exact value of $GOROOT
-	// when building things in GOROOT.
-	// Assume b.WorkDir is being trimmed properly.
-	// When -trimpath is used with a package built from the module cache,
-	// use the module path and version instead of the directory.
-	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
+
+	// Include information about the origin of the package that
+	// may be embedded in the debug info for the object file.
+	if cfg.BuildTrimpath {
+		// When -trimpath is used with a package built from the module cache,
+		// its debug information refers to the module path and version
+		// instead of the directory.
+		if p.Module != nil {
+			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+		}
+	} else if p.Goroot {
+		// The Go compiler always hides the exact value of $GOROOT
+		// when building things in GOROOT, but the C compiler
+		// merely rewrites GOROOT to GOROOT_FINAL.
+		if len(p.CFiles) > 0 {
+			fmt.Fprintf(h, "goroot %s\n", cfg.GOROOT_FINAL)
+		}
+		// b.WorkDir is always either trimmed or rewritten to
+		// the literal string "/tmp/go-build".
+	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
+		// -trimpath is not set and no other rewrite rules apply,
+		// so the object file may refer to the absolute directory
+		// containing the package.
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
-	} else if cfg.BuildTrimpath && p.Module != nil {
-		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
 	}
+
 	if p.Module != nil {
 		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
 	}
