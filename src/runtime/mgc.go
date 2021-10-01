@@ -663,7 +663,7 @@ func gcStart(trigger gcTrigger) {
 
 	// Assists and workers can start the moment we start
 	// the world.
-	gcController.startCycle(now)
+	gcController.startCycle(now, int(gomaxprocs))
 	work.heapGoal = gcController.heapGoal
 
 	// In STW mode, disable scheduling of user Gs. This may also
@@ -889,7 +889,7 @@ top:
 	// endCycle depends on all gcWork cache stats being flushed.
 	// The termination algorithm above ensured that up to
 	// allocations since the ragged barrier.
-	nextTriggerRatio := gcController.endCycle(work.userForced)
+	nextTriggerRatio := gcController.endCycle(now, int(gomaxprocs), work.userForced)
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(nextTriggerRatio)
