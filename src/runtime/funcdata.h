@@ -44,7 +44,7 @@
 
 // NO_LOCAL_POINTERS indicates that the assembly function stores
 // no pointers to heap objects in its local stack variables.
-#define NO_LOCAL_POINTERS	FUNCDATA $FUNCDATA_LocalsPointerMaps, runtime·no_pointers_stackmap(SB)
+#define NO_LOCAL_POINTERS	FUNCDATA $FUNCDATA_LocalsPointerMaps, no_pointers_stackmap(SB)
 
 // ArgsSizeUnknown is set in Func.argsize to mark all functions
 // whose argument size is unknown (C vararg functions, and
