@@ -427,6 +427,7 @@ type moduledata struct {
 	noptrbss, enoptrbss   uintptr
 	end, gcdata, gcbss    uintptr
 	types, etypes         uintptr
+	gofunc, gofuncrel     uintptr // go.func.*, go.funcrel.*
 
 	textsectmap []textsect
 	typelinks   []int32 // offsets from types
@@ -1073,6 +1074,8 @@ func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
 	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)
 }
 
+// funcdata returns a pointer to the ith funcdata for f.
+// funcdata should be kept in sync with cmd/link:writeFuncs.
 func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil
@@ -1084,7 +1087,16 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 		}
 		p = add(p, 4)
 	}
-	return *(*unsafe.Pointer)(add(p, uintptr(i)*goarch.PtrSize))
+	p = add(p, uintptr(i)*4)
+	off := *(*uint32)(p)
+	if off == ^uint32(0) {
+		return nil
+	}
+	base := f.datap.gofunc
+	if off&1 != 0 {
+		base = f.datap.gofuncrel
+	}
+	return unsafe.Pointer(base + uintptr(off>>1))
 }
 
 // step advances to the next pc, value pair in the encoded table.
