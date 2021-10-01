@@ -107,5 +107,5 @@ func exportCertificate(cert macOS.CFRef) (*Certificate, error) {
 }
 
 func loadSystemRoots() (*CertPool, error) {
-	return nil, nil
+	return &CertPool{systemPool: true}, nil
 }

@@ -741,9 +741,20 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	// Use platform verifiers, where available
-	if opts.Roots == nil && (runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios") {
-		return c.systemVerify(&opts)
+	// Use platform verifiers, where available, if Roots is from SystemCertPool.
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		if opts.Roots == nil {
+			return c.systemVerify(&opts)
+		}
+		if opts.Roots != nil && opts.Roots.systemPool {
+			platformChains, err := c.systemVerify(&opts)
+			// If the platform verifier succeeded, or there are no additional
+			// roots, return the platform verifier result. Otherwise, continue
+			// with the Go verifier.
+			if err == nil || opts.Roots.len() == 0 {
+				return platformChains, err
+			}
+		}
 	}
 
 	if opts.Roots == nil {
