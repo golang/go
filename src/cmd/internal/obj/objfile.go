@@ -344,6 +344,7 @@ func (w *writer) Sym(s *LSym) {
 		case strings.HasPrefix(s.Name, "go.string."),
 			strings.HasPrefix(name, "type..namedata."),
 			strings.HasPrefix(name, "type..importpath."),
+			strings.HasPrefix(name, "runtime.gcbits."),
 			strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"):
