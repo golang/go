@@ -772,6 +772,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
 	}
+	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_ASM != 0 {
+		fmt.Fprintf(ctxt.Bso, "asm ")
+	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
 		fn := s.Func()
