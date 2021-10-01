@@ -10,6 +10,10 @@ import (
 	"unsafe"
 )
 
+func loadSystemRoots() (*CertPool, error) {
+	return &CertPool{systemPool: true}, nil
+}
+
 // Creates a new *syscall.CertContext representing the leaf certificate in an in-memory
 // certificate store containing itself and all of the intermediate certificates specified
 // in the opts.Intermediates CertPool.
@@ -270,48 +274,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	}
 
 	return chains, nil
-}
-
-func loadSystemRoots() (*CertPool, error) {
-	// TODO: restore this functionality on Windows. We tried to do
-	// it in Go 1.8 but had to revert it. See Issue 18609.
-	// Returning (nil, nil) was the old behavior, prior to CL 30578.
-	// The if statement here avoids vet complaining about
-	// unreachable code below.
-	if true {
-		return nil, nil
-	}
-
-	const CRYPT_E_NOT_FOUND = 0x80092004
-
-	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
-	if err != nil {
-		return nil, err
-	}
-	defer syscall.CertCloseStore(store, 0)
-
-	roots := NewCertPool()
-	var cert *syscall.CertContext
-	for {
-		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
-		if err != nil {
-			if errno, ok := err.(syscall.Errno); ok {
-				if errno == CRYPT_E_NOT_FOUND {
-					break
-				}
-			}
-			return nil, err
-		}
-		if cert == nil {
-			break
-		}
-		// Copy the buf, since ParseCertificate does not create its own copy.
-		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:cert.Length:cert.Length]
-		buf2 := make([]byte, cert.Length)
-		copy(buf2, buf)
-		if c, err := ParseCertificate(buf2); err == nil {
-			roots.AddCert(c)
-		}
-	}
-	return roots, nil
 }
