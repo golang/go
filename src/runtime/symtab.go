@@ -383,6 +383,9 @@ const (
 	// to be an incomplete unwinding of the stack. In certain contexts
 	// (in particular garbage collector stack scans) that is a fatal error.
 	funcFlag_SPWRITE
+
+	// ASM indicates that a function was implemented in assembly.
+	funcFlag_ASM
 )
 
 // pcHeader holds data used by the pclntab lookups.
