@@ -676,6 +676,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go.func.*", 0))
+	if gofuncrel := ldr.Lookup("go.funcrel.*", 0); gofuncrel != 0 {
+		moduledata.AddAddr(ctxt.Arch, gofuncrel)
+	} else {
+		moduledata.AddUint(ctxt.Arch, 0)
+	}
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
