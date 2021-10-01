@@ -108,6 +108,8 @@ func SystemCertPool() (*CertPool, error) {
 		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
 	} else if runtime.GOOS == "darwin" {
 		return nil, errors.New("crypto/x509: system root pool is not available on macOS")
+	} else if runtime.GOOS == "ios" {
+		return nil, errors.New("crypto/x509: system root pool is not available on iOS")
 	}
 
 	if sysRoots := systemRootsPool(); sysRoots != nil {

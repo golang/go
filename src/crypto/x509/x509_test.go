@@ -1975,7 +1975,7 @@ func TestMultipleRDN(t *testing.T) {
 }
 
 func TestSystemCertPool(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		t.Skip("not implemented on Windows (Issue 16736, 18609) or darwin (Issue 46287)")
 	}
 	a, err := SystemCertPool()
