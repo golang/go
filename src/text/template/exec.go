@@ -714,6 +714,13 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
 	}
 
+	unwrap := func(v reflect.Value) reflect.Value {
+		if v.Type() == reflectValueType {
+			v = v.Interface().(reflect.Value)
+		}
+		return v
+	}
+
 	// Special case for builtin and/or, which short-circuit.
 	if isBuiltin && (name == "and" || name == "or") {
 		argType := typ.In(0)
@@ -721,13 +728,13 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		for _, arg := range args {
 			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
 			if truth(v) == (name == "or") {
-				return v
+				return unwrap(v)
 			}
 		}
 		if final != missingVal {
 			v = s.validateType(final, argType)
 		}
-		return v
+		return unwrap(v)
 	}
 
 	// Build the arg list.
@@ -767,10 +774,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		s.at(node)
 		s.errorf("error calling %s: %w", name, err)
 	}
-	if v.Type() == reflectValueType {
-		v = v.Interface().(reflect.Value)
-	}
-	return v
+	return unwrap(v)
 }
 
 // canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
