@@ -38,6 +38,7 @@ import (
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/trace"
+	"cmd/go/internal/vcs"
 	"cmd/internal/str"
 	"cmd/internal/sys"
 
@@ -2267,6 +2268,72 @@ func (p *Package) setBuildInfo() {
 		Main: main,
 		Deps: deps,
 	}
+
+	// Add VCS status if all conditions are true:
+	//
+	// - -buildvcs is enabled.
+	// - p is contained within a main module (there may be multiple main modules
+	//   in a workspace, but local replacements don't count).
+	// - Both the current directory and p's module's root directory are contained
+	//   in the same local repository.
+	// - We know the VCS commands needed to get the status.
+	setVCSError := func(err error) {
+		setPkgErrorf("error obtaining VCS status: %v\n\tUse -buildvcs=false to disable VCS stamping.", err)
+	}
+
+	var repoDir string
+	var vcsCmd *vcs.Cmd
+	var err error
+	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" {
+		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "")
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			setVCSError(err)
+			return
+		}
+		if !str.HasFilePathPrefix(p.Module.Dir, repoDir) &&
+			!str.HasFilePathPrefix(repoDir, p.Module.Dir) {
+			// The module containing the main package does not overlap with the
+			// repository containing the working directory. Don't include VCS info.
+			// If the repo contains the module or vice versa, but they are not
+			// the same directory, it's likely an error (see below).
+			repoDir, vcsCmd = "", nil
+		}
+	}
+	if repoDir != "" && vcsCmd.Status != nil {
+		// Check that the current directory, package, and module are in the same
+		// repository. vcs.FromDir allows nested Git repositories, but nesting
+		// is not allowed for other VCS tools. The current directory may be outside
+		// p.Module.Dir when a workspace is used.
+		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "")
+		if err != nil {
+			setVCSError(err)
+			return
+		}
+		if pkgRepoDir != repoDir {
+			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
+			return
+		}
+		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "")
+		if err != nil {
+			setVCSError(err)
+			return
+		}
+		if modRepoDir != repoDir {
+			setVCSError(fmt.Errorf("main module is in repository %q but current directory is in repository %q", modRepoDir, repoDir))
+			return
+		}
+
+		st, err := vcsCmd.Status(vcsCmd, repoDir)
+		if err != nil {
+			setVCSError(err)
+			return
+		}
+		info.Settings = []debug.BuildSetting{
+			{Key: vcsCmd.Cmd + "revision", Value: st.Revision},
+			{Key: vcsCmd.Cmd + "uncommitted", Value: strconv.FormatBool(st.Uncommitted)},
+		}
+	}
+
 	text, err := info.MarshalText()
 	if err != nil {
 		setPkgErrorf("error formatting build info: %v", err)
