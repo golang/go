@@ -491,6 +491,7 @@ var execTests = []execTest{
 	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+	{"boolean if pipe", "{{if true | not | and 1}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
 	// Indexing.
 	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
