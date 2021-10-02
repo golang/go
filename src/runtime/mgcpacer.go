@@ -11,6 +11,12 @@ import (
 	"unsafe"
 )
 
+// go119MemoryLimitSupport is a feature flag for a number of changes
+// related to the memory limit feature (#48409). Disabling this flag
+// disables those features, as well as the memory limit mechanism,
+// which becomes a no-op.
+const go119MemoryLimitSupport = true
+
 const (
 	// gcGoalUtilization is the goal CPU utilization for
 	// marking as a fraction of GOMAXPROCS.
@@ -249,10 +255,11 @@ type gcControllerState struct {
 	bgScanCredit int64
 
 	// assistTime is the nanoseconds spent in mutator assists
-	// during this cycle. This is updated atomically. Updates
-	// occur in bounded batches, since it is both written and read
-	// throughout the cycle.
-	assistTime int64
+	// during this cycle. This is updated atomically, and must also
+	// be updated atomically even during a STW, because it is read
+	// by sysmon. Updates occur in bounded batches, since it is both
+	// written and read throughout the cycle.
+	assistTime atomic.Int64
 
 	// dedicatedMarkTime is the nanoseconds spent in dedicated
 	// mark workers during this cycle. This is updated atomically
@@ -381,7 +388,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	c.stackScanWork.Store(0)
 	c.globalsScanWork.Store(0)
 	c.bgScanCredit = 0
-	c.assistTime = 0
+	c.assistTime.Store(0)
 	c.dedicatedMarkTime = 0
 	c.fractionalMarkTime = 0
 	c.idleMarkTime = 0
@@ -608,7 +615,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	utilization := gcBackgroundUtilization
 	// Add assist utilization; avoid divide by zero.
 	if assistDuration > 0 {
-		utilization += float64(c.assistTime) / float64(assistDuration*int64(procs))
+		utilization += float64(c.assistTime.Load()) / float64(assistDuration*int64(procs))
 	}
 
 	if c.heapLive <= c.trigger {
@@ -743,9 +750,17 @@ func (c *gcControllerState) enlistWorker() {
 
 // findRunnableGCWorker returns a background mark worker for _p_ if it
 // should be run. This must only be called when gcBlackenEnabled != 0.
-func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
+	}
+
+	// Since we have the current time, check if the GC CPU limiter
+	// hasn't had an update in a while. This check is necessary in
+	// case the limiter is on but hasn't been checked in a while and
+	// so may have left sufficient headroom to turn off again.
+	if gcCPULimiter.needUpdate(now) {
+		gcCPULimiter.update(gcController.assistTime.Load(), now)
 	}
 
 	if !gcMarkWorkAvailable(_p_) {
@@ -799,7 +814,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// goal?
 		//
 		// This should be kept in sync with pollFractionalWorkerExit.
-		delta := nanotime() - c.markStartTime
+		delta := now - c.markStartTime
 		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
 			// Nope. No need to run a fractional worker.
 			gcBgMarkWorkerPool.push(&node.node)

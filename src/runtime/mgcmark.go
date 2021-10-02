@@ -413,6 +413,14 @@ func gcAssistAlloc(gp *g) {
 
 	traced := false
 retry:
+	if go119MemoryLimitSupport && gcCPULimiter.limiting() {
+		// If the CPU limiter is enabled, intentionally don't
+		// assist to reduce the amount of CPU time spent in the GC.
+		if traced {
+			traceGCMarkAssistDone()
+		}
+		return
+	}
 	// Compute the amount of scan work we need to do to make the
 	// balance positive. When the required amount of work is low,
 	// we over-assist to build up credit for future allocations
@@ -581,12 +589,14 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 		// a valid pointer).
 		gp.param = unsafe.Pointer(gp)
 	}
-	duration := nanotime() - startTime
+	now := nanotime()
+	duration := now - startTime
 	_p_ := gp.m.p.ptr()
 	_p_.gcAssistTime += duration
 	if _p_.gcAssistTime > gcAssistTimeSlack {
-		atomic.Xaddint64(&gcController.assistTime, _p_.gcAssistTime)
+		assistTime := gcController.assistTime.Add(_p_.gcAssistTime)
 		_p_.gcAssistTime = 0
+		gcCPULimiter.update(assistTime, now)
 	}
 }
 

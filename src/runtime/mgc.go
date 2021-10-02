@@ -675,6 +675,9 @@ func gcStart(trigger gcTrigger) {
 	gcController.startCycle(now, int(gomaxprocs), trigger)
 	work.heapGoal = gcController.heapGoal
 
+	// Notify the CPU limiter that assists may begin.
+	gcCPULimiter.startGCTransition(true, 0, now)
+
 	// In STW mode, disable scheduling of user Gs. This may also
 	// disable scheduling of this goroutine, so it may block as
 	// soon as we start the world again.
@@ -725,6 +728,9 @@ func gcStart(trigger gcTrigger) {
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 		memstats.gcPauseDist.record(now - work.pauseStart)
+
+		// Release the CPU limiter.
+		gcCPULimiter.finishGCTransition(now)
 	})
 
 	// Release the world sema before Gosched() in STW mode
@@ -882,6 +888,9 @@ top:
 	// this before waking blocked assists.
 	atomic.Store(&gcBlackenEnabled, 0)
 
+	// Notify the CPU limiter that assists will now cease.
+	gcCPULimiter.startGCTransition(false, gcController.assistTime.Load(), now)
+
 	// Wake all blocked assists. These will run when we
 	// start the world again.
 	gcWakeAllAssists()
@@ -997,7 +1006,7 @@ func gcMarkTermination() {
 	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
 	// We report idle marking time below, but omit it from the
 	// overall utilization here since it's "free".
-	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
+	markCpu := gcController.assistTime.Load() + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
 	cycleCpu := sweepTermCpu + markCpu + markTermCpu
 	work.totaltime += cycleCpu
@@ -1019,6 +1028,9 @@ func gcMarkTermination() {
 	memstats.numgc++
 	injectglist(&work.sweepWaiters.list)
 	unlock(&work.sweepWaiters.lock)
+
+	// Release the CPU limiter.
+	gcCPULimiter.finishGCTransition(now)
 
 	// Finish the current heap profiling cycle and start a new
 	// heap profiling cycle. We do this before starting the world
@@ -1081,7 +1093,13 @@ func gcMarkTermination() {
 			prev = ns
 		}
 		print(" ms clock, ")
-		for i, ns := range []int64{sweepTermCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
+		for i, ns := range []int64{
+			sweepTermCpu,
+			gcController.assistTime.Load(),
+			gcController.dedicatedMarkTime + gcController.fractionalMarkTime,
+			gcController.idleMarkTime,
+			markTermCpu,
+		} {
 			if i == 2 || i == 3 {
 				// Separate mark time components with /.
 				print("/")
