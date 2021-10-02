@@ -96,10 +96,10 @@ func numError(err error) error {
 	if !ok {
 		return err
 	}
-	if ne.Err == strconv.ErrSyntax {
+	if errors.Is(ne.Err, strconv.ErrSyntax) {
 		return errParse
 	}
-	if ne.Err == strconv.ErrRange {
+	if errors.Is(ne.Err, strconv.ErrRange) {
 		return errRange
 	}
 	return err
@@ -1013,7 +1013,7 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			if err == ErrHelp {
+			if errors.Is(err, ErrHelp) {
 				os.Exit(0)
 			}
 			os.Exit(2)

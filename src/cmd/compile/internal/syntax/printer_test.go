@@ -48,7 +48,7 @@ func TestPrintError(t *testing.T) {
 
 	var buf shortBuffer
 	_, err = Fprint(&buf, ast, 0)
-	if err == nil || err != io.ErrShortBuffer {
+	if err == nil || !errors.Is(err, io.ErrShortBuffer) {
 		t.Errorf("got err = %s, want %s", err, io.ErrShortBuffer)
 	}
 }

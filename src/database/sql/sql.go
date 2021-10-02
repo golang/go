@@ -1527,7 +1527,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		return db.prepare(ctx, query, alwaysNewConn)
 	}
 	return stmt, err
@@ -1603,7 +1603,7 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		return db.exec(ctx, query, args, alwaysNewConn)
 	}
 	return res, err
@@ -1676,7 +1676,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		return db.query(ctx, query, args, alwaysNewConn)
 	}
 	return rows, err
@@ -1811,7 +1811,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		return db.begin(ctx, opts, alwaysNewConn)
 	}
 	return tx, err
@@ -1890,7 +1890,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
@@ -2054,7 +2054,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 // as the sql operation is done with the dc.
 func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
 	c.closemu.RUnlock()
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		c.close(err)
 	}
 }
@@ -2586,7 +2586,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err
@@ -2734,7 +2734,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err

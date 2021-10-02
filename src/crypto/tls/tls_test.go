@@ -564,7 +564,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}()
 
 	_, err = tconn.Write([]byte("foo"))
-	if err != errConnClosed {
+	if !errors.Is(err, errConnClosed) {
 		t.Errorf("Write error = %v; want errConnClosed", err)
 	}
 
@@ -631,7 +631,7 @@ func TestConnCloseWrite(t *testing.T) {
 			return fmt.Errorf("client CloseWrite: %v", err)
 		}
 
-		if _, err := conn.Write([]byte{0}); err != errShutdown {
+		if _, err := conn.Write([]byte{0}); !errors.Is(err, errShutdown) {
 			return fmt.Errorf("CloseWrite error = %v; want errShutdown", err)
 		}
 
@@ -674,7 +674,7 @@ func TestConnCloseWrite(t *testing.T) {
 		defer netConn.Close()
 		conn := Client(netConn, testConfig.Clone())
 
-		if err := conn.CloseWrite(); err != errEarlyCloseWrite {
+		if err := conn.CloseWrite(); !errors.Is(err, errEarlyCloseWrite) {
 			t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
 		}
 	}

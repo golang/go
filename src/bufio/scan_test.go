@@ -241,7 +241,7 @@ func TestScanLineTooLong(t *testing.T) {
 		}
 	}
 	err := s.Err()
-	if err != ErrTooLong {
+	if !errors.Is(err, ErrTooLong) {
 		t.Fatalf("expected ErrTooLong; got %s", err)
 	}
 }

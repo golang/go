@@ -630,7 +630,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		if err := ctxt.importGo(p, path, srcDir, mode); err == nil {
 			goto Found
-		} else if err != errNoModules {
+		} else if !errors.Is(err, errNoModules) {
 			return p, err
 		}
 

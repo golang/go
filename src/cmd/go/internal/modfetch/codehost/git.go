@@ -40,7 +40,7 @@ type notExistError struct {
 }
 
 func (e notExistError) Error() string   { return e.err.Error() }
-func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
+func (notExistError) Is(err error) bool { return errors.Is(err, fs.ErrNotExist) }
 
 const gitWorkDirType = "git3"
 

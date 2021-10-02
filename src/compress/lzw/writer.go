@@ -199,7 +199,7 @@ func (w *Writer) Close() error {
 		if err := w.write(w, w.savedCode); err != nil {
 			return err
 		}
-		if err := w.incHi(); err != nil && err != errOutOfCodes {
+		if err := w.incHi(); err != nil && !errors.Is(err, errOutOfCodes) {
 			return err
 		}
 	}

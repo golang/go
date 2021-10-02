@@ -534,7 +534,7 @@ func TestGrow(t *testing.T) {
 
 func TestGrowOverflow(t *testing.T) {
 	defer func() {
-		if err := recover(); err != ErrTooLarge {
+		if err := recover(); !errors.Is(err, ErrTooLarge) {
 			t.Errorf("after too-large Grow, recover() = %v; want %v", err, ErrTooLarge)
 		}
 	}()

@@ -146,7 +146,7 @@ func (s *Scanner) Scan() bool {
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
-				if err == ErrFinalToken {
+				if errors.Is(err, ErrFinalToken) {
 					s.token = token
 					s.done = true
 					return true

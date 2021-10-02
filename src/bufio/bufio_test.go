@@ -766,7 +766,7 @@ func TestBufferFull(t *testing.T) {
 	const longString = "And now, hello, world! It is the time for all good men to come to the aid of their party"
 	buf := NewReaderSize(strings.NewReader(longString), minReadBufferSize)
 	line, err := buf.ReadSlice('!')
-	if string(line) != "And now, hello, " || err != ErrBufferFull {
+	if string(line) != "And now, hello, " || !errors.Is(err, ErrBufferFull) {
 		t.Errorf("first ReadSlice(,) = %q, %v", line, err)
 	}
 	line, err = buf.ReadSlice('!')
@@ -785,10 +785,10 @@ func TestPeek(t *testing.T) {
 	if s, err := buf.Peek(4); string(s) != "abcd" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abcd", string(s), err)
 	}
-	if _, err := buf.Peek(-1); err != ErrNegativeCount {
+	if _, err := buf.Peek(-1); !errors.Is(err, ErrNegativeCount) {
 		t.Fatalf("want ErrNegativeCount got %v", err)
 	}
-	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || err != ErrBufferFull {
+	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || !errors.Is(err, ErrBufferFull) {
 		t.Fatalf("want %q, ErrBufFull got %q, err=%v", "abcdefghijklmnop", string(s), err)
 	}
 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
@@ -1032,7 +1032,7 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
 			t.Errorf("%q call %d, isPrefix == %v, want %v", input, i, isPrefix, e.isPrefix)
 			return
 		}
-		if err != e.err {
+		if !errors.Is(err, e.err) {
 			t.Errorf("%q call %d, err == %v, want %v", input, i, err, e.err)
 			return
 		}
@@ -1265,7 +1265,7 @@ func TestReaderClearError(t *testing.T) {
 	if _, err := b.Read(nil); err != nil {
 		t.Fatalf("1st nil Read = %v; want nil", err)
 	}
-	if _, err := b.Read(buf); err != errFake {
+	if _, err := b.Read(buf); !errors.Is(err, errFake) {
 		t.Fatalf("1st Read = %v; want errFake", err)
 	}
 	if _, err := b.Read(nil); err != nil {
