@@ -1312,7 +1312,7 @@ func (c *GCController) Revise(d GCControllerReviseDelta) {
 }
 
 func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, gomaxprocs int) {
-	c.assistTime = assistTime
+	c.assistTime.Store(assistTime)
 	c.endCycle(elapsed, gomaxprocs, false)
 	c.resetLive(bytesMarked)
 	c.commit()
@@ -1371,6 +1371,61 @@ func NewPIController(kp, ti, tt, min, max float64) *PIController {
 
 func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
 	return c.piController.next(input, setpoint, period)
+}
+
+const (
+	CapacityPerProc          = capacityPerProc
+	GCCPULimiterUpdatePeriod = gcCPULimiterUpdatePeriod
+)
+
+type GCCPULimiter struct {
+	limiter gcCPULimiterState
+}
+
+func NewGCCPULimiter(now int64, gomaxprocs int32) *GCCPULimiter {
+	// Force the controller to escape. We're going to
+	// do 64-bit atomics on it, and if it gets stack-allocated
+	// on a 32-bit architecture, it may get allocated unaligned
+	// space.
+	l := escape(new(GCCPULimiter))
+	l.limiter.resetCapacity(now, gomaxprocs)
+	return l
+}
+
+func (l *GCCPULimiter) Fill() uint64 {
+	return l.limiter.bucket.fill
+}
+
+func (l *GCCPULimiter) Capacity() uint64 {
+	return l.limiter.bucket.capacity
+}
+
+func (l *GCCPULimiter) Overflow() uint64 {
+	return l.limiter.overflow
+}
+
+func (l *GCCPULimiter) Limiting() bool {
+	return l.limiter.limiting()
+}
+
+func (l *GCCPULimiter) NeedUpdate(now int64) bool {
+	return l.limiter.needUpdate(now)
+}
+
+func (l *GCCPULimiter) StartGCTransition(enableGC bool, totalAssistTime, now int64) {
+	l.limiter.startGCTransition(enableGC, totalAssistTime, now)
+}
+
+func (l *GCCPULimiter) FinishGCTransition(now int64) {
+	l.limiter.finishGCTransition(now)
+}
+
+func (l *GCCPULimiter) Update(totalAssistTime int64, now int64) {
+	l.limiter.update(totalAssistTime, now)
+}
+
+func (l *GCCPULimiter) ResetCapacity(now int64, nprocs int32) {
+	l.limiter.resetCapacity(now, nprocs)
 }
 
 const ScavengePercent = scavengePercent
