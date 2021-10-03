@@ -788,7 +788,6 @@ func (r *Reader) Open(name string) (fs.File, error) {
 	if e.isDir {
 		return &openDir{e, r.openReadDir(name), 0}, nil
 	}
-
 	e.file.readDataDescriptor()
 	rc, err := e.file.Open()
 	if err != nil {
