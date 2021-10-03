@@ -1754,10 +1754,10 @@ const (
 func (c *conn) setState(nc net.Conn, state ConnState, runHook bool) {
 	srv := c.server
 	switch state {
-	case StateNew:
-		srv.trackConn(c, true)
 	case StateHijacked, StateClosed:
-		srv.trackConn(c, false)
+		srv.mu.Lock()
+		delete(srv.activeConn, c)
+		srv.mu.Unlock()
 	}
 	if state > 0xff || state < 0 {
 		panic("internal error")
@@ -3068,6 +3068,10 @@ func (srv *Server) Serve(l net.Listener) error {
 		}
 		tempDelay = 0
 		c := srv.newConn(rw)
+		if !srv.trackConn(c) {
+			rw.Close()
+			return ErrServerClosed
+		}
 		c.setState(c.rwc, StateNew, runHooks) // before Serve can return
 		go c.serve(connCtx)
 	}
@@ -3139,17 +3143,19 @@ func (s *Server) trackListener(ln *net.Listener, add bool) bool {
 	return true
 }
 
-func (s *Server) trackConn(c *conn, add bool) {
+// trackConn adds a connection to the set of tracked connections.
+// It reports whether the server is still up (not Shutdown or Closed).
+func (s *Server) trackConn(c *conn) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.shuttingDown() {
+		return false
+	}
 	if s.activeConn == nil {
 		s.activeConn = make(map[*conn]struct{})
 	}
-	if add {
-		s.activeConn[c] = struct{}{}
-	} else {
-		delete(s.activeConn, c)
-	}
+	s.activeConn[c] = struct{}{}
+	return true
 }
 
 func (s *Server) idleTimeout() time.Duration {
