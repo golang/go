@@ -1420,16 +1420,19 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, 
 		err = errBad
 		return
 	}
+	if nbytes > 10 {
+		value = value[:10]
+		nbytes = 10
+	}
 	if ns, err = atoi(value[1:nbytes]); err != nil {
 		return
 	}
-	if ns < 0 || 1e9 <= ns {
+	if ns < 0 {
 		rangeErrString = "fractional second"
 		return
 	}
 	// We need nanoseconds, which means scaling by the number
-	// of missing digits in the format, maximum length 10. If it's
-	// longer than 10, we won't scale.
+	// of missing digits in the format, maximum length 10.
 	scaleDigits := 10 - nbytes
 	for i := 0; i < scaleDigits; i++ {
 		ns *= 10
