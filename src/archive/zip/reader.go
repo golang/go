@@ -176,9 +176,12 @@ func (f *File) DataOffset() (offset int64, err error) {
 func (f *File) Open() (io.ReadCloser, error) {
 	bodyOffset, err := f.findBodyOffset()
 	if err != nil {
+		if f.hasDataDescriptor() {
+			f.descErr = err
+		}
 		return nil, err
 	}
-	f.readDataDescriptor()
+	f.readDataDescriptor(bodyOffset)
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	dcomp := f.zip.decompressor(f.Method)
@@ -199,21 +202,18 @@ func (f *File) Open() (io.ReadCloser, error) {
 func (f *File) OpenRaw() (io.Reader, error) {
 	bodyOffset, err := f.findBodyOffset()
 	if err != nil {
+		if f.hasDataDescriptor() {
+			f.descErr = err
+		}
 		return nil, err
 	}
-	f.readDataDescriptor()
+	f.readDataDescriptor(bodyOffset)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, int64(f.CompressedSize64))
 	return r, nil
 }
 
-func (f *File) readDataDescriptor() {
+func (f *File) readDataDescriptor(bodyOffset int64) {
 	if !f.hasDataDescriptor() {
-		return
-	}
-
-	bodyOffset, err := f.findBodyOffset()
-	if err != nil {
-		f.descErr = err
 		return
 	}
 
