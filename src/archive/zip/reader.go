@@ -125,7 +125,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		if err != nil {
 			return err
 		}
-		f.readDataDescriptor()
 		z.File = append(z.File, f)
 	}
 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
@@ -789,6 +788,8 @@ func (r *Reader) Open(name string) (fs.File, error) {
 	if e.isDir {
 		return &openDir{e, r.openReadDir(name), 0}, nil
 	}
+
+	e.file.readDataDescriptor()
 	rc, err := e.file.Open()
 	if err != nil {
 		return nil, err
