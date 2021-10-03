@@ -54,7 +54,7 @@ type File struct {
 	zipr         io.ReaderAt
 	headerOffset int64
 	zip64        bool  // zip64 extended information extra field presence
-	descErr      error // error reading the data descriptor during init
+	descErr      error // error reading the data descriptor
 }
 
 // OpenReader will open the Zip file specified by name and return a ReadCloser.
@@ -125,7 +125,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		if err != nil {
 			return err
 		}
-		f.readDataDescriptor()
 		z.File = append(z.File, f)
 	}
 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
@@ -179,6 +178,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	f.readDataDescriptor()
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	dcomp := f.zip.decompressor(f.Method)
@@ -201,6 +201,7 @@ func (f *File) OpenRaw() (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+	f.readDataDescriptor()
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, int64(f.CompressedSize64))
 	return r, nil
 }
