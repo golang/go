@@ -268,7 +268,10 @@ func locInRange(f *token.File, loc token.Pos) bool {
 func (e *encoded) srcLine(x ast.Node) string {
 	file := e.pgf.Tok
 	line := file.Line(x.Pos())
-	start := file.Offset(file.LineStart(line))
+	start, err := source.Offset(file, file.LineStart(line))
+	if err != nil {
+		return ""
+	}
 	end := start
 	for ; end < len(e.pgf.Src) && e.pgf.Src[end] != '\n'; end++ {
 

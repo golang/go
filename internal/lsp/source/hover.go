@@ -203,8 +203,14 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		// It's a string, scan only if it contains a unicode escape sequence under or before the
 		// current cursor position.
 		var found bool
-		litOffset := pgf.Tok.Offset(lit.Pos())
-		offset := pgf.Tok.Offset(pos)
+		litOffset, err := Offset(pgf.Tok, lit.Pos())
+		if err != nil {
+			return 0, MappedRange{}, err
+		}
+		offset, err := Offset(pgf.Tok, pos)
+		if err != nil {
+			return 0, MappedRange{}, err
+		}
 		for i := offset - litOffset; i > 0; i-- {
 			// Start at the cursor position and search backward for the beginning of a rune escape sequence.
 			rr, _ := utf8.DecodeRuneInString(lit.Value[i:])
@@ -486,17 +492,27 @@ func HoverInfo(ctx context.Context, s Snapshot, pkg Package, obj types.Object, p
 			// obj may not have been produced by type checking the AST containing
 			// node, so we need to be careful about using token.Pos.
 			tok := s.FileSet().File(obj.Pos())
-			offset := tok.Offset(obj.Pos())
+			offset, err := Offset(tok, obj.Pos())
+			if err != nil {
+				return nil, err
+			}
 			tok2 := s.FileSet().File(node.Pos())
 			var spec ast.Spec
 			for _, s := range node.Specs {
 				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				if InRange(tok2, s.Pos()) && InRange(tok2, s.End()) && tok2.Offset(s.Pos()) <= offset && offset <= tok2.Offset(s.End()) {
+				start, err := Offset(tok2, s.Pos())
+				if err != nil {
+					return nil, err
+				}
+				end, err := Offset(tok2, s.End())
+				if err != nil {
+					return nil, err
+				}
+				if start <= offset && offset <= end {
 					spec = s
 					break
 				}
 			}
-			var err error
 			info, err = formatGenDecl(node, spec, obj, obj.Type())
 			if err != nil {
 				return nil, err

@@ -80,12 +80,15 @@ func packageCompletionSurrounding(ctx context.Context, fset *token.FileSet, pgf 
 		return nil, fmt.Errorf("unparseable file (%s)", pgf.URI)
 	}
 	tok := fset.File(expr.Pos())
-	offset := pgf.Tok.Offset(pos)
+	offset, err := source.Offset(pgf.Tok, pos)
+	if err != nil {
+		return nil, err
+	}
 	if offset > tok.Size() {
 		debug.Bug(ctx, "out of bounds cursor", "cursor offset (%d) out of bounds for %s (size: %d)", offset, pgf.URI, tok.Size())
 		return nil, fmt.Errorf("cursor out of bounds")
 	}
-	cursor := tok.Pos(pgf.Tok.Offset(pos))
+	cursor := tok.Pos(offset)
 	m := &protocol.ColumnMapper{
 		URI:       pgf.URI,
 		Content:   pgf.Src,

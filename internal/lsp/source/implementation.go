@@ -223,7 +223,6 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 		return nil, errNoObjectFound
 	}
 	pkg := pkgs[0]
-	var offset int
 	pgf, err := pkg.File(uri)
 	if err != nil {
 		return nil, err
@@ -236,7 +235,10 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	offset = pgf.Tok.Offset(rng.Start)
+	offset, err := Offset(pgf.Tok, rng.Start)
+	if err != nil {
+		return nil, err
+	}
 	return qualifiedObjsAtLocation(ctx, s, objSearchKey{uri, offset}, map[objSearchKey]bool{})
 }
 
@@ -350,7 +352,11 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key objSearchKey, 
 			offset := -1
 			for _, pgf := range pkg.CompiledGoFiles() {
 				if pgf.Tok.Base() <= int(pos) && int(pos) <= pgf.Tok.Base()+pgf.Tok.Size() {
-					offset = pgf.Tok.Offset(pos)
+					var err error
+					offset, err = Offset(pgf.Tok, pos)
+					if err != nil {
+						return nil, err
+					}
 					uri = pgf.URI
 				}
 			}

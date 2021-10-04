@@ -331,7 +331,10 @@ func fullNode(snapshot Snapshot, obj types.Object, pkg Package) (ast.Decl, error
 		fset := snapshot.FileSet()
 		file2, _ := parser.ParseFile(fset, tok.Name(), pgf.Src, parser.AllErrors|parser.ParseComments)
 		if file2 != nil {
-			offset := tok.Offset(obj.Pos())
+			offset, err := Offset(tok, obj.Pos())
+			if err != nil {
+				return nil, err
+			}
 			file = file2
 			tok2 := fset.File(file2.Pos())
 			pos = tok2.Pos(offset)

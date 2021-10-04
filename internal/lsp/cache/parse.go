@@ -782,7 +782,10 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 	// If the "{" is already in the source code, there isn't anything to
 	// fix since we aren't missing curlies.
 	if b.Lbrace.IsValid() {
-		braceOffset := tok.Offset(b.Lbrace)
+		braceOffset, err := source.Offset(tok, b.Lbrace)
+		if err != nil {
+			return nil
+		}
 		if braceOffset < len(src) && src[braceOffset] == '{' {
 			return nil
 		}
@@ -834,7 +837,11 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 
 	var buf bytes.Buffer
 	buf.Grow(len(src) + 3)
-	buf.Write(src[:tok.Offset(insertPos)])
+	offset, err := source.Offset(tok, insertPos)
+	if err != nil {
+		return nil
+	}
+	buf.Write(src[:offset])
 
 	// Detect if we need to insert a semicolon to fix "for" loop situations like:
 	//
@@ -854,7 +861,7 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 	// Insert "{}" at insertPos.
 	buf.WriteByte('{')
 	buf.WriteByte('}')
-	buf.Write(src[tok.Offset(insertPos):])
+	buf.Write(src[offset:])
 	return buf.Bytes()
 }
 
@@ -888,7 +895,10 @@ func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
 
 	// If the right brace is actually in the source code at the
 	// specified position, don't mess with it.
-	braceOffset := tok.Offset(body.Rbrace)
+	braceOffset, err := source.Offset(tok, body.Rbrace)
+	if err != nil {
+		return
+	}
 	if braceOffset < len(src) && src[braceOffset] == '}' {
 		return
 	}
@@ -923,8 +933,12 @@ func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byt
 		return nil
 	}
 
+	insertOffset, err := source.Offset(tok, s.X.End())
+	if err != nil {
+		return nil
+	}
 	// Insert directly after the selector's ".".
-	insertOffset := tok.Offset(s.X.End()) + 1
+	insertOffset++
 	if src[insertOffset-1] != '.' {
 		return nil
 	}
@@ -980,7 +994,10 @@ func isPhantomUnderscore(id *ast.Ident, tok *token.File, src []byte) bool {
 
 	// Phantom underscore means the underscore is not actually in the
 	// program text.
-	offset := tok.Offset(id.Pos())
+	offset, err := source.Offset(tok, id.Pos())
+	if err != nil {
+		return false
+	}
 	return len(src) <= offset || src[offset] != '_'
 }
 
@@ -995,11 +1012,15 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 	}
 
 	// Try to extract a statement from the BadExpr.
-	// Make sure that the positions are in range first.
-	if !source.InRange(tok, bad.Pos()) || !source.InRange(tok, bad.End()-1) {
+	start, err := source.Offset(tok, bad.Pos())
+	if err != nil {
 		return
 	}
-	stmtBytes := src[tok.Offset(bad.Pos()) : tok.Offset(bad.End()-1)+1]
+	end, err := source.Offset(tok, bad.End()-1)
+	if err != nil {
+		return
+	}
+	stmtBytes := src[start : end+1]
 	stmt, err := parseStmt(bad.Pos(), stmtBytes)
 	if err != nil {
 		return
@@ -1039,7 +1060,11 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 // readKeyword reads the keyword starting at pos, if any.
 func readKeyword(pos token.Pos, tok *token.File, src []byte) string {
 	var kwBytes []byte
-	for i := tok.Offset(pos); i < len(src); i++ {
+	offset, err := source.Offset(tok, pos)
+	if err != nil {
+		return ""
+	}
+	for i := offset; i < len(src); i++ {
 		// Use a simplified identifier check since keywords are always lowercase ASCII.
 		if src[i] < 'a' || src[i] > 'z' {
 			break
@@ -1076,15 +1101,15 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 	// Avoid doing tok.Offset(to) since that panics if badExpr ends at EOF.
 	// It also panics if the position is not in the range of the file, and
 	// badExprs may not necessarily have good positions, so check first.
-	if !source.InRange(tok, from) {
+	fromOffset, err := source.Offset(tok, from)
+	if err != nil {
 		return false
 	}
-	if !source.InRange(tok, to-1) {
+	toOffset, err := source.Offset(tok, to-1)
+	if err != nil {
 		return false
 	}
-	fromOffset := tok.Offset(from)
-	toOffset := tok.Offset(to-1) + 1
-	exprBytes = append(exprBytes, src[fromOffset:toOffset]...)
+	exprBytes = append(exprBytes, src[fromOffset:toOffset+1]...)
 	exprBytes = bytes.TrimSpace(exprBytes)
 
 	// If our expression ends in "]" (e.g. "[]"), add a phantom selector
@@ -1237,18 +1262,26 @@ FindTo:
 		}
 	}
 
-	if !from.IsValid() || tok.Offset(from) >= len(src) {
+	fromOffset, err := source.Offset(tok, from)
+	if err != nil {
+		return false
+	}
+	if !from.IsValid() || fromOffset >= len(src) {
 		return false
 	}
 
-	if !to.IsValid() || tok.Offset(to) >= len(src) {
+	toOffset, err := source.Offset(tok, to)
+	if err != nil {
+		return false
+	}
+	if !to.IsValid() || toOffset >= len(src) {
 		return false
 	}
 
 	// Insert any phantom selectors needed to prevent dangling "." from messing
 	// up the AST.
 	exprBytes := make([]byte, 0, int(to-from)+len(phantomSelectors))
-	for i, b := range src[tok.Offset(from):tok.Offset(to)] {
+	for i, b := range src[fromOffset:toOffset] {
 		if len(phantomSelectors) > 0 && from+token.Pos(i) == phantomSelectors[0] {
 			exprBytes = append(exprBytes, '_')
 			phantomSelectors = phantomSelectors[1:]

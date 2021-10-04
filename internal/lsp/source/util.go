@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -541,6 +542,15 @@ func IsValidImport(pkgPath, importPkgPath string) bool {
 // should not check that a value equals "command-line-arguments" directly.
 func IsCommandLineArguments(s string) bool {
 	return strings.Contains(s, "command-line-arguments")
+}
+
+// Offset returns tok.Offset(pos), but it also checks that the pos is in range
+// for the given file.
+func Offset(tok *token.File, pos token.Pos) (int, error) {
+	if !InRange(tok, pos) {
+		return -1, fmt.Errorf("pos %v is not in range for file [%v:%v)", pos, tok.Base(), tok.Base()+tok.Size())
+	}
+	return tok.Offset(pos), nil
 }
 
 // InRange reports whether the given position is in the given token.File.

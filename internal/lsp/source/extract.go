@@ -63,7 +63,11 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 	if tok == nil {
 		return nil, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
-	newLineIndent := "\n" + calculateIndentation(src, tok, insertBeforeStmt)
+	indent, err := calculateIndentation(src, tok, insertBeforeStmt)
+	if err != nil {
+		return nil, err
+	}
+	newLineIndent := "\n" + indent
 
 	lhs := strings.Join(lhsNames, ", ")
 	assignStmt := &ast.AssignStmt{
@@ -128,11 +132,17 @@ func CanExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 // When inserting lines of code, we must ensure that the lines have consistent
 // formatting (i.e. the proper indentation). To do so, we observe the indentation on the
 // line of code on which the insertion occurs.
-func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.Node) string {
+func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.Node) (string, error) {
 	line := tok.Line(insertBeforeStmt.Pos())
-	lineOffset := tok.Offset(tok.LineStart(line))
-	stmtOffset := tok.Offset(insertBeforeStmt.Pos())
-	return string(content[lineOffset:stmtOffset])
+	lineOffset, err := Offset(tok, tok.LineStart(line))
+	if err != nil {
+		return "", err
+	}
+	stmtOffset, err := Offset(tok, insertBeforeStmt.Pos())
+	if err != nil {
+		return "", err
+	}
+	return string(content[lineOffset:stmtOffset]), nil
 }
 
 // generateAvailableIdentifier adjusts the new function name until there are no collisons in scope.
@@ -390,8 +400,14 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We put the selection in a constructed file. We can then traverse and edit
 	// the extracted selection without modifying the original AST.
-	startOffset := tok.Offset(rng.Start)
-	endOffset := tok.Offset(rng.End)
+	startOffset, err := Offset(tok, rng.Start)
+	if err != nil {
+		return nil, err
+	}
+	endOffset, err := Offset(tok, rng.End)
+	if err != nil {
+		return nil, err
+	}
 	selection := src[startOffset:endOffset]
 	extractedBlock, err := parseBlockStmt(fset, selection)
 	if err != nil {
@@ -584,11 +600,21 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We're going to replace the whole enclosing function,
 	// so preserve the text before and after the selected block.
-	outerStart := tok.Offset(outer.Pos())
-	outerEnd := tok.Offset(outer.End())
+	outerStart, err := Offset(tok, outer.Pos())
+	if err != nil {
+		return nil, err
+	}
+	outerEnd, err := Offset(tok, outer.End())
+	if err != nil {
+		return nil, err
+	}
 	before := src[outerStart:startOffset]
 	after := src[endOffset:outerEnd]
-	newLineIndent := "\n" + calculateIndentation(src, tok, start)
+	indent, err := calculateIndentation(src, tok, start)
+	if err != nil {
+		return nil, err
+	}
+	newLineIndent := "\n" + indent
 
 	var fullReplacement strings.Builder
 	fullReplacement.Write(before)
@@ -634,8 +660,11 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 // their cursors for whitespace. To support this use case, we must manually adjust the
 // ranges to match the correct AST node. In this particular example, we would adjust
 // rng.Start forward by one byte, and rng.End backwards by two bytes.
-func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) span.Range {
-	offset := tok.Offset(rng.Start)
+func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) (span.Range, error) {
+	offset, err := Offset(tok, rng.Start)
+	if err != nil {
+		return span.Range{}, err
+	}
 	for offset < len(content) {
 		if !unicode.IsSpace(rune(content[offset])) {
 			break
@@ -646,7 +675,10 @@ func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) s
 	rng.Start = tok.Pos(offset)
 
 	// Move backwards to find a non-whitespace character.
-	offset = tok.Offset(rng.End)
+	offset, err = Offset(tok, rng.End)
+	if err != nil {
+		return span.Range{}, err
+	}
 	for o := offset - 1; 0 <= o && o < len(content); o-- {
 		if !unicode.IsSpace(rune(content[o])) {
 			break
@@ -654,7 +686,7 @@ func adjustRangeForWhitespace(rng span.Range, tok *token.File, content []byte) s
 		offset = o
 	}
 	rng.End = tok.Pos(offset)
-	return rng
+	return rng, nil
 }
 
 // findParent finds the parent AST node of the given target node, if the target is a
@@ -916,7 +948,11 @@ func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 	if tok == nil {
 		return nil, false, false, fmt.Errorf("no file for pos %v", fset.Position(file.Pos()))
 	}
-	rng = adjustRangeForWhitespace(rng, tok, src)
+	var err error
+	rng, err = adjustRangeForWhitespace(rng, tok, src)
+	if err != nil {
+		return nil, false, false, err
+	}
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.End)
 	if len(path) == 0 {
 		return nil, false, false, fmt.Errorf("no path enclosing interval")

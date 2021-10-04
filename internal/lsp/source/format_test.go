@@ -35,7 +35,10 @@ func TestImportPrefix(t *testing.T) {
 		{"package x; import \"os\"; func f() {}\n\n", "package x; import \"os\""},
 		{"package x; func f() {fmt.Println()}\n\n", "package x"},
 	} {
-		got := importPrefix([]byte(tt.input))
+		got, err := importPrefix([]byte(tt.input))
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got != tt.want {
 			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, tt.want, got))
 		}
@@ -62,7 +65,10 @@ Hi description
 */`,
 		},
 	} {
-		got := importPrefix([]byte(strings.ReplaceAll(tt.input, "\n", "\r\n")))
+		got, err := importPrefix([]byte(strings.ReplaceAll(tt.input, "\n", "\r\n")))
+		if err != nil {
+			t.Fatal(err)
+		}
 		want := strings.ReplaceAll(tt.want, "\n", "\r\n")
 		if got != want {
 			t.Errorf("%d: failed for %q:\n%s", i, tt.input, diffStr(t, want, got))
