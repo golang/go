@@ -639,6 +639,10 @@ func rewriteValuePPC64(v *Value) bool {
 		return true
 	case OpPopCount8:
 		return rewriteValuePPC64_OpPopCount8(v)
+	case OpPrefetchCache:
+		return rewriteValuePPC64_OpPrefetchCache(v)
+	case OpPrefetchCacheStreamed:
+		return rewriteValuePPC64_OpPrefetchCacheStreamed(v)
 	case OpRotateLeft16:
 		return rewriteValuePPC64_OpRotateLeft16(v)
 	case OpRotateLeft32:
@@ -14002,6 +14006,34 @@ func rewriteValuePPC64_OpPopCount8(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpPrefetchCache(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (PrefetchCache ptr mem)
+	// result: (DCBT ptr mem [0])
+	for {
+		ptr := v_0
+		mem := v_1
+		v.reset(OpPPC64DCBT)
+		v.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpPrefetchCacheStreamed(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (PrefetchCacheStreamed ptr mem)
+	// result: (DCBT ptr mem [8])
+	for {
+		ptr := v_0
+		mem := v_1
+		v.reset(OpPPC64DCBT)
+		v.AuxInt = int64ToAuxInt(8)
+		v.AddArg2(ptr, mem)
 		return true
 	}
 }
