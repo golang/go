@@ -46,7 +46,11 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 //
 // TODO(mdempsky): Move to internal/goexperiment.
 func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment.Flags, err error) {
-	regabiSupported := goarch == "amd64" || goarch == "arm64"
+	regabiSupported := false
+	switch goarch {
+	case "amd64", "arm64", "ppc64le", "ppc64":
+		regabiSupported = true
+	}
 
 	baseline = goexperiment.Flags{
 		RegabiWrappers: regabiSupported,
@@ -112,7 +116,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 		flags.RegabiArgs = true
 	}
 	// regabi is only supported on amd64, arm64, ppc64 and ppc64le.
-	if goarch != "amd64" && goarch != "arm64" && goarch != "ppc64le" && goarch != "ppc64" {
+	if !regabiSupported {
 		flags.RegabiReflect = false
 		flags.RegabiArgs = false
 	}
