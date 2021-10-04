@@ -85,7 +85,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	} else {
 		check.exprOrType(x, call.Fun, true)
 	}
-	// x.typ map be generic
+	// x.typ may be generic
 
 	switch x.mode {
 	case invalid:
@@ -177,7 +177,13 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// evaluate arguments
 	args, _ := check.exprList(call.Args, false)
+	isGeneric := sig.TypeParams().Len() > 0
 	sig = check.arguments(call, sig, targs, args)
+
+	if isGeneric && sig.TypeParams().Len() == 0 {
+		// Update the recorded type of call.Fun to its instantiated type.
+		check.recordTypeAndValue(call.Fun, value, sig, nil)
+	}
 
 	// determine result
 	switch sig.results.Len() {
