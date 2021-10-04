@@ -228,7 +228,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
 		}
 	}
 
-	if !ok {
+	if !ok || testing.Verbose() {
 		t.Logf("full disassembly:\n%s", text)
 	}
 }
