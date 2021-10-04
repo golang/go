@@ -995,6 +995,10 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 	}
 
 	// Try to extract a statement from the BadExpr.
+	// Make sure that the positions are in range first.
+	if !source.InRange(tok, bad.Pos()) || !source.InRange(tok, bad.End()-1) {
+		return
+	}
 	stmtBytes := src[tok.Offset(bad.Pos()) : tok.Offset(bad.End()-1)+1]
 	stmt, err := parseStmt(bad.Pos(), stmtBytes)
 	if err != nil {
