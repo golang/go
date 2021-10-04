@@ -430,12 +430,12 @@ func TestPageAllocScavenge(t *testing.T) {
 	}
 	for name, v := range tests {
 		v := v
-		runTest := func(t *testing.T, mayUnlock bool) {
+		t.Run(name, func(t *testing.T) {
 			b := NewPageAlloc(v.beforeAlloc, v.beforeScav)
 			defer FreePageAlloc(b)
 
 			for iter, h := range v.expect {
-				if got := b.Scavenge(h.request, mayUnlock); got != h.expect {
+				if got := b.Scavenge(h.request); got != h.expect {
 					t.Fatalf("bad scavenge #%d: want %d, got %d", iter+1, h.expect, got)
 				}
 			}
@@ -443,12 +443,6 @@ func TestPageAllocScavenge(t *testing.T) {
 			defer FreePageAlloc(want)
 
 			checkPageAlloc(t, want, b)
-		}
-		t.Run(name, func(t *testing.T) {
-			runTest(t, false)
-		})
-		t.Run(name+"MayUnlock", func(t *testing.T) {
-			runTest(t, true)
 		})
 	}
 }
