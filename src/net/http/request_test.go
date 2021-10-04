@@ -635,33 +635,50 @@ func TestNewRequestContentLength(t *testing.T) {
 }
 
 var parseHTTPVersionTests = []struct {
-	vers         string
+	version      string
 	major, minor int
 	ok           bool
 }{
 	{"HTTP/0.9", 0, 9, true},
 	{"HTTP/1.0", 1, 0, true},
 	{"HTTP/1.1", 1, 1, true},
+	{"HTTP/2", 2, 0, true},
+	{"HTTP/2.0", 2, 0, true},
+	{"HTTP/2.1", 2, 1, true},
+	{"HTTP/3", 3, 0, true},
 	{"HTTP/3.14", 3, 14, true},
+	{"HTTP/10", 10, 0, true},
+	{"HTTP/10.0", 10, 0, true},
+	{"HTTP/10.234", 10, 234, true},
+	{"HTTP/9999.9999", 9999, 9999, true},
 
 	{"HTTP", 0, 0, false},
+	{"HTTP/", 0, 0, false},
+	{"HTTP/0", 0, 0, false},
+	{"HTTP/00.00", 0, 0, false},
+	{"HTTP/0.0", 0, 0, false},
+	{"HTTP/0.8", 0, 0, false},
+	{"HTTP/1.2", 0, 0, false},
 	{"HTTP/one.one", 0, 0, false},
 	{"HTTP/1.1/", 0, 0, false},
 	{"HTTP/-1,0", 0, 0, false},
 	{"HTTP/0,-1", 0, 0, false},
 	{"HTTP/", 0, 0, false},
 	{"HTTP/1,1", 0, 0, false},
+	{"HTTP/10000", 0, 0, false},
+	{"HTTP/100.10000", 0, 0, false},
+	{"HTTP/10000.10000", 0, 0, false},
 }
 
 func TestParseHTTPVersion(t *testing.T) {
 	for _, tt := range parseHTTPVersionTests {
-		major, minor, ok := ParseHTTPVersion(tt.vers)
+		major, minor, ok := ParseHTTPVersion(tt.version)
 		if ok != tt.ok || major != tt.major || minor != tt.minor {
 			type version struct {
 				major, minor int
 				ok           bool
 			}
-			t.Errorf("failed to parse %q, expected: %#v, got %#v", tt.vers, version{tt.major, tt.minor, tt.ok}, version{major, minor, ok})
+			t.Errorf("failed to parse %q, expected: %#v, got %#v", tt.version, version{tt.major, tt.minor, tt.ok}, version{major, minor, ok})
 		}
 	}
 }

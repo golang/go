@@ -23,6 +23,7 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -780,32 +781,36 @@ func removeZone(host string) string {
 }
 
 // ParseHTTPVersion parses an HTTP version string.
-// "HTTP/1.0" returns (1, 0, true). Note that strings without
-// a minor version, such as "HTTP/2", are not valid.
-func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
-	const Big = 1000000 // arbitrary upper bound
-	switch vers {
-	case "HTTP/1.1":
-		return 1, 1, true
+// "HTTP/1.0" returns (1, 0, true).
+func ParseHTTPVersion(version string) (major, minor int, ok bool) {
+	switch version {
+	case "HTTP/0.9":
+		return 0, 9, true
 	case "HTTP/1.0":
 		return 1, 0, true
-	}
-	if !strings.HasPrefix(vers, "HTTP/") {
+	case "HTTP/1.1":
+		return 1, 1, true
+	case "HTTP/2", "HTTP/2.0":
+		return 2, 0, true
+	case "HTTP/3", "HTTP/3.0":
+		return 3, 0, true
+	default: // handle potential future versions starting from 2.x up to 9999.9999
+		httpVersionPattern := regexp.MustCompile("^HTTP/([2-9]|[1-9]\\d{1,3})(?:\\.(\\d{1,4}))?$")
+
+		if versionGroups := httpVersionPattern.FindStringSubmatch(version); versionGroups != nil {
+			nrOfVersionGroups := len(versionGroups)
+			majorVersion, _ := strconv.Atoi(versionGroups[1])
+
+			if nrOfVersionGroups == 2 {
+				return majorVersion, 0, true
+			} else if nrOfVersionGroups == 3 {
+				minorVersion, _ := strconv.Atoi(versionGroups[2])
+				return majorVersion, minorVersion, true
+			}
+		}
+
 		return 0, 0, false
 	}
-	dot := strings.Index(vers, ".")
-	if dot < 0 {
-		return 0, 0, false
-	}
-	major, err := strconv.Atoi(vers[5:dot])
-	if err != nil || major < 0 || major > Big {
-		return 0, 0, false
-	}
-	minor, err = strconv.Atoi(vers[dot+1:])
-	if err != nil || minor < 0 || minor > Big {
-		return 0, 0, false
-	}
-	return major, minor, true
 }
 
 func validMethod(method string) bool {
