@@ -259,7 +259,6 @@ func addGCLocals() {
 		if x := fn.ArgInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
-			x.Set(obj.AttrContentAddressable, true)
 		}
 	}
 }
