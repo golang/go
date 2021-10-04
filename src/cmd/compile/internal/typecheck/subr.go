@@ -1217,7 +1217,7 @@ func (ts *Tsubster) typ1(t *types.Type) *types.Type {
 		}
 	case types.TFORW:
 		if ts.SubstForwFunc != nil {
-			newt = ts.SubstForwFunc(t)
+			return ts.SubstForwFunc(forw)
 		} else {
 			assert(false)
 		}

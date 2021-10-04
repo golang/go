@@ -1822,9 +1822,25 @@ func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types
 	instSym := baseSym.Pkg.Lookup(name)
 	if instSym.Def != nil {
 		// May match existing type from previous import or
-		// types2-to-types1 conversion, or from in-progress instantiation
-		// in the current type import stack.
-		return instSym.Def.Type()
+		// types2-to-types1 conversion.
+		t := instSym.Def.Type()
+		if t.Kind() != types.TFORW {
+			return t
+		}
+		// Or, we have started creating this type in (*TSubster).Typ, but its
+		// underlying type was not completed yet, so we need to add this type
+		// to deferredInstStack, if not already there.
+		found := false
+		for _, t2 := range deferredInstStack {
+			if t2 == t {
+				found = true
+				break
+			}
+		}
+		if !found {
+			deferredInstStack = append(deferredInstStack, t)
+		}
+		return t
 	}
 
 	t := NewIncompleteNamedType(baseType.Pos(), instSym)
@@ -1865,6 +1881,7 @@ func resumeDoInst() {
 // during a type substitution for an instantiation. This is needed for
 // instantiations of mutually recursive types.
 func doInst(t *types.Type) *types.Type {
+	assert(t.Kind() == types.TFORW)
 	return Instantiate(t.Pos(), t.OrigSym().Def.(*ir.Name).Type(), t.RParams())
 }
 
@@ -1873,6 +1890,7 @@ func doInst(t *types.Type) *types.Type {
 // instantiation being created, baseType is the base generic type, and targs are
 // the type arguments that baseType is being instantiated with.
 func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+	assert(t.Kind() == types.TFORW)
 	subst := Tsubster{
 		Tparams:       baseType.RParams(),
 		Targs:         targs,
