@@ -33,7 +33,6 @@ import (
 var bootstrapDirs = []string{
 	"cmd/asm",
 	"cmd/asm/internal/...",
-	"cmd/cgo",
 	"cmd/compile",
 	"cmd/compile/internal/...",
 	"cmd/internal/archive",
@@ -102,6 +101,7 @@ func bootstrapBuildTools() {
 
 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
 	mkobjabi(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
+	mkzdefaultcc("", pathf("%s/src/cmd/cgo/zdefaultcc.go", goroot))
 
 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
 	// We use a subdirectory of $GOROOT/pkg because that's the
@@ -134,12 +134,6 @@ func bootstrapBuildTools() {
 				}
 
 				xmkdirall(dst)
-				if path == "cmd/cgo" {
-					// Write to src because we need the file both for bootstrap
-					// and for later in the main build.
-					mkzdefaultcc("", pathf("%s/zdefaultcc.go", src))
-					mkzdefaultcc("", pathf("%s/zdefaultcc.go", dst))
-				}
 				return nil
 			}
 
