@@ -13,7 +13,7 @@ type Entry struct {
 	logger    *Logger         // logger which will be used to log the entry
 	context   context.Context // context set by the user
 	calldepth int             // calldepth is the count of the number of frames to skip
-	level     *Level          // level of the entry
+	level     Level           // level of the entry
 	message   string          // message contains the text to print
 }
 
@@ -36,7 +36,7 @@ func (e *Entry) Context() context.Context {
 }
 
 // LogLevel returns the log level for entry.
-func (e *Entry) LogLevel() *Level {
+func (e *Entry) LogLevel() Level {
 	return e.level
 }
 
@@ -53,36 +53,36 @@ func (e *Entry) CallDepth() int {
 // Print calls e.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
 func (e *Entry) Print(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...))
+	e.OutputLevel(NoneLevel, 2, fmt.Sprint(v...))
 }
 
 // Printf calls e.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
 func (e *Entry) Printf(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...))
+	e.OutputLevel(NoneLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Println calls e.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
 func (e *Entry) Println(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...))
+	e.OutputLevel(NoneLevel, 2, fmt.Sprintln(v...))
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func (e *Entry) Fatal(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), FatalLevel)
+	e.OutputLevel(FatalLevel, 2, fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
 func (e *Entry) Fatalf(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), FatalLevel)
+	e.OutputLevel(FatalLevel, 2, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func (e *Entry) Fatalln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), FatalLevel)
+	e.OutputLevel(FatalLevel, 2, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
@@ -90,7 +90,7 @@ func (e *Entry) Fatalln(v ...interface{}) {
 // followed by a call to panic().
 func (e *Entry) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	e.Output(2, s, PanicLevel)
+	e.OutputLevel(PanicLevel, 2, s)
 	panic(s)
 }
 
@@ -98,7 +98,7 @@ func (e *Entry) Panic(v ...interface{}) {
 // followed by a call to panic().
 func (e *Entry) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	e.Output(2, s, PanicLevel)
+	e.OutputLevel(PanicLevel, 2, s)
 	panic(s)
 }
 
@@ -106,83 +106,83 @@ func (e *Entry) Panicf(format string, v ...interface{}) {
 // followed by a call to panic().
 func (e *Entry) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	e.Output(2, s, PanicLevel)
+	e.OutputLevel(PanicLevel, 2, s)
 	panic(s)
 }
 
 // Error is equivalent to Print() and logs the message at level Error.
 func (e *Entry) Error(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), ErrorLevel)
+	e.OutputLevel(ErrorLevel, 2, fmt.Sprint(v...))
 }
 
 // Errorf is equivalent to Printf() and logs the message at level Error.
 func (e *Entry) Errorf(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), ErrorLevel)
+	e.OutputLevel(ErrorLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Errorln is equivalent to Println() and logs the message at level Error.
 func (e *Entry) Errorln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), ErrorLevel)
+	e.OutputLevel(ErrorLevel, 2, fmt.Sprintln(v...))
 }
 
 // Warn is equivalent to Print() and logs the message at level Warning.
 func (e *Entry) Warn(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), WarnLevel)
+	e.OutputLevel(WarnLevel, 2, fmt.Sprint(v...))
 }
 
 // Warnf is equivalent to Printf() and logs the message at level Warning.
 func (e *Entry) Warnf(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), WarnLevel)
+	e.OutputLevel(WarnLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Warnln is equivalent to Println() and logs the message at level Warning.
 func (e *Entry) Warnln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), WarnLevel)
+	e.OutputLevel(WarnLevel, 2, fmt.Sprintln(v...))
 }
 
 // Info is equivalent to Print() and logs the message at level Info.
 func (e *Entry) Info(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), InfoLevel)
+	e.OutputLevel(InfoLevel, 2, fmt.Sprint(v...))
 }
 
 // Infof is equivalent to Printf() and logs the message at level Info.
 func (e *Entry) Infof(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), InfoLevel)
+	e.OutputLevel(InfoLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Infoln is equivalent to Println() and logs the message at level Info.
 func (e *Entry) Infoln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), InfoLevel)
+	e.OutputLevel(InfoLevel, 2, fmt.Sprintln(v...))
 }
 
 // Debug is equivalent to Print() and logs the message at level Debug.
 func (e *Entry) Debug(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), DebugLevel)
+	e.OutputLevel(DebugLevel, 2, fmt.Sprint(v...))
 }
 
 // Debugf is equivalent to Printf() and logs the message at level Debug.
 func (e *Entry) Debugf(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), DebugLevel)
+	e.OutputLevel(DebugLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Debugln is equivalent to Println() and logs the message at level Debug.
 func (e *Entry) Debugln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), DebugLevel)
+	e.OutputLevel(DebugLevel, 2, fmt.Sprintln(v...))
 }
 
 // Trace is equivalent to Print() and logs the message at level Trace.
 func (e *Entry) Trace(v ...interface{}) {
-	e.Output(2, fmt.Sprint(v...), TraceLevel)
+	e.OutputLevel(TraceLevel, 2, fmt.Sprint(v...))
 }
 
 // Tracef is equivalent to Printf() and logs the message at level Trace.
 func (e *Entry) Tracef(format string, v ...interface{}) {
-	e.Output(2, fmt.Sprintf(format, v...), TraceLevel)
+	e.OutputLevel(TraceLevel, 2, fmt.Sprintf(format, v...))
 }
 
 // Traceln is equivalent to Println() and logs the message at level Trace.
 func (e *Entry) Traceln(v ...interface{}) {
-	e.Output(2, fmt.Sprintln(v...), TraceLevel)
+	e.OutputLevel(TraceLevel, 2, fmt.Sprintln(v...))
 }
 
 // Output writes the output for a logging event. The string s contains
@@ -191,10 +191,20 @@ func (e *Entry) Traceln(v ...interface{}) {
 // already a newline. Calldepth is the count of the number of
 // frames to skip when computing the file name and line number
 // if Llongfile or Lshortfile is set; a value of 1 will print the details
-// for the caller of Output. Level is the log level for the output.
-// If any formatter is configured for the logger, it will be used to format
-// the output.
-func (e *Entry) Output(calldepth int, s string, level ...Level) error {
+// for the caller of Output.
+func (e *Entry) Output(calldepth int, s string) error {
+	return e.OutputLevel(NoneLevel, calldepth+1, s) // +1 for this frame
+}
+
+// OutputLevel writes the output for a logging event with level. The string s
+// contains the text to print after the prefix specified by the flags of the
+// Logger. A newline is appended if the last character of s is not already
+// a newline. Calldepth is the count of the number of frames to skip when
+// computing the file name and line number if Llongfile or Lshortfile is set;
+// a value of 1 will print the details for the caller of Output. Level is the
+// log level for the output. If any formatter is configured for the logger,
+// it will be used to format the output.
+func (e *Entry) OutputLevel(level Level, calldepth int, s string) error {
 	var formatter LoggerFormatter
 
 	e.logger.mu.Lock()
@@ -212,12 +222,7 @@ func (e *Entry) Output(calldepth int, s string, level ...Level) error {
 		// +1 for this frame.
 		e.calldepth = calldepth + 1
 		e.message = s
-
-		if level != nil {
-			e.level = &level[0]
-		} else {
-			e.level = nil
-		}
+		e.level = level
 
 		serialized, err := formatter.Format(e)
 
@@ -238,5 +243,5 @@ func (e *Entry) Output(calldepth int, s string, level ...Level) error {
 		return err
 	}
 
-	return e.logger.Output(calldepth+1, s, level...) // +1 for this frame.
+	return e.logger.OutputLevel(level, calldepth+1, s) // +1 for this frame.
 }
