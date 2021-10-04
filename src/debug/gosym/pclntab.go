@@ -232,6 +232,7 @@ func (t *LineTable) parsePclnTab() {
 	default:
 		return
 	}
+	t.version = possibleVersion
 
 	// quantum and ptrSize are the same between 1.2, 1.16, and 1.18
 	t.quantum = uint32(t.Data[6])
@@ -255,7 +256,7 @@ func (t *LineTable) parsePclnTab() {
 		t.pctab = data(6)
 		t.funcdata = data(7)
 		t.functab = data(7)
-		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
 		t.functab = t.functab[:functabsize]
 	case ver116:
 		t.nfunctab = uint32(offset(0))
@@ -266,7 +267,7 @@ func (t *LineTable) parsePclnTab() {
 		t.pctab = data(5)
 		t.funcdata = data(6)
 		t.functab = data(6)
-		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
 		t.functab = t.functab[:functabsize]
 	case ver12:
 		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
@@ -274,7 +275,7 @@ func (t *LineTable) parsePclnTab() {
 		t.funcnametab = t.Data
 		t.functab = t.Data[8+t.ptrsize:]
 		t.pctab = t.Data
-		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+		functabsize := (int(t.nfunctab)*2 + 1) * t.functabFieldSize()
 		fileoff := t.binary.Uint32(t.functab[functabsize:])
 		t.functab = t.functab[:functabsize]
 		t.filetab = t.Data[fileoff:]
@@ -283,7 +284,6 @@ func (t *LineTable) parsePclnTab() {
 	default:
 		panic("unreachable")
 	}
-	t.version = possibleVersion
 }
 
 // go12Funcs returns a slice of Funcs derived from the Go 1.2+ pcln table.
@@ -295,12 +295,12 @@ func (t *LineTable) go12Funcs() []Func {
 		}()
 	}
 
-	n := len(t.functab) / int(t.ptrsize) / 2
-	funcs := make([]Func, n)
+	ft := t.funcTab()
+	funcs := make([]Func, ft.Count())
 	for i := range funcs {
 		f := &funcs[i]
-		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
-		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
+		f.Entry = ft.pc(i)
+		f.End = ft.pc(i + 1)
 		info := t.funcData(uint32(i))
 		f.LineTable = t
 		f.FrameSize = int(info.deferreturn())
@@ -317,13 +317,12 @@ func (t *LineTable) go12Funcs() []Func {
 
 // findFunc returns the funcData corresponding to the given program counter.
 func (t *LineTable) findFunc(pc uint64) funcData {
-	if pc < t.uintptr(t.functab) || pc >= t.uintptr(t.functab[len(t.functab)-int(t.ptrsize):]) {
+	ft := t.funcTab()
+	if pc < ft.pc(0) || pc >= ft.pc(ft.Count()) {
 		return funcData{}
 	}
-	// The function table is a list of 2*nfunctab+1 uintptrs,
-	// alternating program counters and offsets to func structures.
 	idx := sort.Search(int(t.nfunctab), func(i int) bool {
-		return t.uintptr(t.functab[2*i*int(t.ptrsize):]) > pc
+		return ft.pc(i) > pc
 	})
 	idx--
 	return t.funcData(uint32(idx))
@@ -372,6 +371,45 @@ func (t *LineTable) string(off uint32) string {
 	return t.stringFrom(t.funcdata, off)
 }
 
+// functabFieldSize returns the size in bytes of a single functab field.
+func (t *LineTable) functabFieldSize() int {
+	return int(t.ptrsize)
+}
+
+// funcTab returns t's funcTab.
+func (t *LineTable) funcTab() funcTab {
+	return funcTab{t}
+}
+
+// funcTab is memory corresponding to a slice of functab structs, followed by an invalid PC.
+// A functab struct is a PC and a func offset.
+type funcTab struct {
+	*LineTable
+}
+
+// Count returns the number of func entries in f.
+func (f funcTab) Count() int {
+	return int(f.nfunctab)
+}
+
+// pc returns the PC of the i'th func in f.
+func (f funcTab) pc(i int) uint64 {
+	return f.uint(f.functab[2*i*f.functabFieldSize():])
+}
+
+// funcOff returns the funcdata offset of the i'th func in f.
+func (f funcTab) funcOff(i int) uint64 {
+	return f.uint(f.functab[(2*i+1)*f.functabFieldSize():])
+}
+
+// uint returns the uint stored at b.
+func (f funcTab) uint(b []byte) uint64 {
+	if f.functabFieldSize() == 4 {
+		return uint64(f.binary.Uint32(b))
+	}
+	return f.binary.Uint64(b)
+}
+
 // funcData is memory corresponding to an _func struct.
 type funcData struct {
 	t    *LineTable // LineTable this data is a part of
@@ -380,7 +418,7 @@ type funcData struct {
 
 // funcData returns the ith funcData in t.functab.
 func (t *LineTable) funcData(i uint32) funcData {
-	data := t.funcdata[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
+	data := t.funcdata[t.funcTab().funcOff(int(i)):]
 	return funcData{t: t, data: data}
 }
 
