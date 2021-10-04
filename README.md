@@ -14,6 +14,14 @@ BSD-style license found in the LICENSE file.
 
 ### Download and Install
 
+## Microsoft Windows
+ https://golang.org/dl/go1.17.1.windows-amd64.msi
+## Apple macOS
+ https://golang.org/dl/go1.17.1.darwin-amd64.pkg
+
+## Linux
+ https://golang.org/dl/go1.17.1.linux-amd64.tar.gz
+
 #### Binary Distributions
 
 Official binary distributions are available at https://golang.org/dl/.
