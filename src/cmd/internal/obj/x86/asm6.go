@@ -2230,6 +2230,16 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 		obj.MarkUnsafePoints(ctxt, s.Func().Text, newprog, useTLS, nil)
 	}
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	// TODO: could this live in obj instead of obj/$ARCH?
+	for _, jt := range s.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, s, p.Pc)
+		}
+	}
 }
 
 func instinit(ctxt *obj.Link) {

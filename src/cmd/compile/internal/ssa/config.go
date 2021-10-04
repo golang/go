@@ -168,6 +168,9 @@ type Frontend interface {
 
 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
 	MyImportPath() string
+
+	// LSym returns the linker symbol of the function being compiled.
+	LSym() string
 }
 
 // NewConfig returns a new configuration object for the given architecture.

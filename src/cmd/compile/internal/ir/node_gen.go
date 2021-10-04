@@ -712,6 +712,28 @@ func (n *InstExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.Targs, edit)
 }
 
+func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *JumpTableStmt) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *JumpTableStmt) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Idx != nil && do(n.Idx) {
+		return true
+	}
+	return false
+}
+func (n *JumpTableStmt) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Idx != nil {
+		n.Idx = edit(n.Idx).(Node)
+	}
+}
+
 func (n *KeyExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *KeyExpr) copy() Node {
 	c := *n

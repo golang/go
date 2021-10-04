@@ -52,6 +52,10 @@ type Arch struct {
 	// can combine adjacent loads into a single larger, possibly unaligned, load.
 	// Note that currently the optimizations must be able to handle little endian byte order.
 	CanMergeLoads bool
+
+	// CanJumpTable reports whether the backend can handle
+	// compiling a jump table.
+	CanJumpTable bool
 }
 
 // InFamily reports whether a is a member of any of the specified
@@ -85,6 +89,7 @@ var ArchAMD64 = &Arch{
 	MinLC:         1,
 	Alignment:     1,
 	CanMergeLoads: true,
+	CanJumpTable:  true,
 }
 
 var ArchARM = &Arch{

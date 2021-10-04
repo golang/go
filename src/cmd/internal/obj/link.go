@@ -495,8 +495,18 @@ type FuncInfo struct {
 	ArgInfo            *LSym // argument info for traceback
 	ArgLiveInfo        *LSym // argument liveness info for traceback
 	WrapInfo           *LSym // for wrapper, info of wrapped function
+	JumpTables         []JumpTable
 
 	FuncInfoSym *LSym
+}
+
+// JumpTable represents a table used for implementing multi-way
+// computed branching, used typically for implementing switches.
+// Sym is the table itself, and Targets is a list of target
+// instructions to go to for the computed branch index.
+type JumpTable struct {
+	Sym     *LSym
+	Targets []*Prog
 }
 
 // NewFuncInfo allocates and returns a FuncInfo for LSym.

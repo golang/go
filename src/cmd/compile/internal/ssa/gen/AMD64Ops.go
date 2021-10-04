@@ -1001,6 +1001,12 @@ func init() {
 		{name: "NEF", controls: 1},
 		{name: "ORD", controls: 1}, // FP, ordered comparison (parity zero)
 		{name: "NAN", controls: 1}, // FP, unordered comparison (parity one)
+
+		// JUMPTABLE implements jump tables.
+		// Aux is the symbol (an *obj.LSym) for the jump table.
+		// control[0] is the index into the jump table.
+		// control[1] is the address of the jump table (the address of the symbol stored in Aux).
+		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
 	archs = append(archs, arch{

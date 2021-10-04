@@ -517,6 +517,8 @@
 
 (If cond yes no) => (NE (TESTB cond cond) yes no)
 
+(JumpTable idx) => (JUMPTABLE {makeJumpTableSym(b)} idx (LEAQ <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+
 // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
 (AtomicLoad8 ptr mem) => (MOVBatomicload ptr mem)
 (AtomicLoad32 ptr mem) => (MOVLatomicload ptr mem)

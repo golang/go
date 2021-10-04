@@ -11,6 +11,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -223,6 +224,9 @@ func (s *exprSwitch) flush() {
 }
 
 func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
+	if s.tryJumpTable(cc, out) {
+		return
+	}
 	binarySearch(len(cc), out,
 		func(i int) ir.Node {
 			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.exprname, cc[i-1].hi)
@@ -233,6 +237,49 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
 			nif.Body = []ir.Node{c.jmp}
 		},
 	)
+}
+
+// Try to implement the clauses with a jump table. Returns true if successful.
+func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
+	const go119UseJumpTables = true
+	const minCases = 8   // have at least minCases cases in the switch
+	const minDensity = 4 // use at least 1 out of every minDensity entries
+
+	if !go119UseJumpTables || !ssagen.Arch.LinkArch.CanJumpTable {
+		return false
+	}
+	if len(cc) < minCases {
+		return false // not enough cases for it to be worth it
+	}
+	if cc[0].lo.Val().Kind() != constant.Int {
+		return false // e.g. float
+	}
+	if s.exprname.Type().Size() > int64(types.PtrSize) {
+		return false // 64-bit switches on 32-bit archs
+	}
+	min := cc[0].lo.Val()
+	max := cc[len(cc)-1].hi.Val()
+	width := constant.BinaryOp(constant.BinaryOp(max, token.SUB, min), token.ADD, constant.MakeInt64(1))
+	limit := constant.MakeInt64(int64(len(cc)) * minDensity)
+	if constant.Compare(width, token.GTR, limit) {
+		// We disable jump tables if we use less than a minimum fraction of the entries.
+		// i.e. for switch x {case 0: case 1000: case 2000:} we don't want to use a jump table.
+		return false
+	}
+	jt := ir.NewJumpTableStmt(base.Pos, s.exprname)
+	for _, c := range cc {
+		jmp := c.jmp.(*ir.BranchStmt)
+		if jmp.Op() != ir.OGOTO || jmp.Label == nil {
+			panic("bad switch case body")
+		}
+		for i := c.lo.Val(); constant.Compare(i, token.LEQ, c.hi.Val()); i = constant.BinaryOp(i, token.ADD, constant.MakeInt64(1)) {
+			jt.Cases = append(jt.Cases, i)
+			jt.Targets = append(jt.Targets, jmp.Label)
+		}
+	}
+	out.Append(jt)
+	// TODO: handle the size portion of string switches using a jump table.
+	return true
 }
 
 func (c *exprClause) test(exprname ir.Node) ir.Node {
@@ -562,7 +609,7 @@ func (s *typeSwitch) flush() {
 // then cases before i will be tested; otherwise, cases i and later.
 //
 // leaf(i, nif) should setup nif (an OIF node) to test case i. In
-// particular, it should set nif.Left and nif.Nbody.
+// particular, it should set nif.Cond and nif.Body.
 func binarySearch(n int, out *ir.Nodes, less func(i int) ir.Node, leaf func(i int, nif *ir.IfStmt)) {
 	const binarySearchMin = 4 // minimum number of cases for binary search
 

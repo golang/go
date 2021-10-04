@@ -1838,6 +1838,8 @@ func (op opData) auxIntType() string {
 // auxType returns the Go type that this block should store in its aux field.
 func (b blockData) auxType() string {
 	switch b.aux {
+	case "Sym":
+		return "Sym"
 	case "S390XCCMask", "S390XCCMaskInt8", "S390XCCMaskUint8":
 		return "s390x.CCMask"
 	case "S390XRotateParams":
