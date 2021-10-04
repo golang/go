@@ -11,6 +11,7 @@ package gosym
 import (
 	"bytes"
 	"encoding/binary"
+	"sort"
 	"sync"
 )
 
@@ -319,25 +320,13 @@ func (t *LineTable) findFunc(pc uint64) funcData {
 	if pc < t.uintptr(t.functab) || pc >= t.uintptr(t.functab[len(t.functab)-int(t.ptrsize):]) {
 		return funcData{}
 	}
-
 	// The function table is a list of 2*nfunctab+1 uintptrs,
 	// alternating program counters and offsets to func structures.
-	f := t.functab
-	nf := t.nfunctab
-	for nf > 0 {
-		m := nf / 2
-		fm := f[2*t.ptrsize*m:]
-		if t.uintptr(fm) <= pc && pc < t.uintptr(fm[2*t.ptrsize:]) {
-			data := t.funcdata[t.uintptr(fm[t.ptrsize:]):]
-			return funcData{t: t, data: data}
-		} else if pc < t.uintptr(fm) {
-			nf = m
-		} else {
-			f = f[(m+1)*2*t.ptrsize:]
-			nf -= m + 1
-		}
-	}
-	return funcData{}
+	idx := sort.Search(int(t.nfunctab), func(i int) bool {
+		return t.uintptr(t.functab[2*i*int(t.ptrsize):]) > pc
+	})
+	idx--
+	return t.funcData(uint32(idx))
 }
 
 // readvarint reads, removes, and returns a varint from *pp.
