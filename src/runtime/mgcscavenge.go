@@ -270,35 +270,85 @@ func bgscavenge(c chan int) {
 	c <- 1
 	goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 
-	// Exponentially-weighted moving average of the fraction of time this
-	// goroutine spends scavenging (that is, percent of a single CPU).
-	// It represents a measure of scheduling overheads which might extend
-	// the sleep or the critical time beyond what's expected. Assume no
-	// overhead to begin with.
+	// idealFraction is the ideal % of overall application CPU time that we
+	// spend scavenging.
 	//
-	// TODO(mknyszek): Consider making this based on total CPU time of the
-	// application (i.e. scavengePercent * GOMAXPROCS). This isn't really
-	// feasible now because the scavenger acquires the heap lock over the
-	// scavenging operation, which means scavenging effectively blocks
-	// allocators and isn't scalable. However, given a scalable allocator,
-	// it makes sense to also make the scavenger scale with it; if you're
-	// allocating more frequently, then presumably you're also generating
-	// more work for the scavenger.
-	const idealFraction = scavengePercent / 100.0
-	scavengeEWMA := float64(idealFraction)
+	// TODO(mknyszek): Currently this is percent of one CPU (hence the division
+	// by gomaxprocs), but ideally this should be 1% of overall CPU time.
+	// Given a scalable memory allocator, it makes sense that the scavenger
+	// should scale with it; if you're allocating more frequently, then presumably
+	// you're also generating more work from the scavenger.
+	idealFraction := float64(scavengePercent) / 100.0 / float64(gomaxprocs)
 
+	// Input: fraction of CPU time used.
+	// Setpoint: idealFraction.
+	// Output: ratio of critical time to sleep time (determines sleep time).
+	//
+	// The output of this controller is somewhat indirect to what we actually
+	// want to achieve: how much time to sleep for. The reason for this definition
+	// is to ensure that the controller's outputs have a direct relationship with
+	// its inputs (as opposed to an inverse relationship), making it somewhat
+	// easier to reason about for tuning purposes.
+	critSleepController := piController{
+		// Tuned loosely via Ziegler-Nichols process.
+		kp: 0.3375,
+		ti: 3.2e6,
+		tt: 1e9, // 1 second reset time.
+
+		// These ranges seem wide, but we want to give the controller plenty of
+		// room to hunt for the optimal value.
+		min: 0.001,  // 1:1000
+		max: 1000.0, // 1000:1
+	}
+	// It doesn't really matter what value we start at, but we can't be zero, because
+	// that'll cause divide-by-zero issues.
+	critSleepRatio := 0.001
 	for {
 		released := uintptr(0)
 		crit := float64(0)
 
-		// If background scavenging is disabled or if there's no work to do just park.
-		retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
-		if retained > goal {
-			// Scavenge one page, and measure the amount of time spent scavenging.
+		// Spend at least 1 ms scavenging, otherwise the corresponding
+		// sleep time to maintain our desired utilization is too low to
+		// be reliable.
+		const minCritTime = 1e6
+		for crit < minCritTime {
+			// If background scavenging is disabled or if there's no work to do just park.
+			retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
+			if retained <= goal {
+				break
+			}
+
+			// scavengeQuantum is the amount of memory we try to scavenge
+			// in one go. A smaller value means the scavenger is more responsive
+			// to the scheduler in case of e.g. preemption. A larger value means
+			// that the overheads of scavenging are better amortized, so better
+			// scavenging throughput.
+			//
+			// The current value is chosen assuming a cost of ~10µs/physical page
+			// (this is somewhat pessimistic), which implies a worst-case latency of
+			// about 160µs for 4 KiB physical pages. The current value is biased
+			// toward latency over throughput.
+			const scavengeQuantum = 64 << 10
+
+			// Accumulate the amount of time spent scavenging.
 			start := nanotime()
-			released = mheap_.pages.scavenge(physPageSize)
+			released = mheap_.pages.scavenge(scavengeQuantum)
 			atomic.Xadduintptr(&mheap_.pages.scav.released, released)
-			crit = float64(nanotime() - start)
+			end := nanotime()
+
+			// On some platforms we may see end >= start if the time it takes to scavenge
+			// memory is less than the minimum granularity of its clock (e.g. Windows) or
+			// due to clock bugs.
+			//
+			// In this case, just assume scavenging takes 10 µs per regular physical page
+			// (determined empirically), and conservatively ignore the impact of huge pages
+			// on timing.
+			const approxCritNSPerPhysicalPage = 10e3
+			if end <= start {
+				crit += approxCritNSPerPhysicalPage * float64(released/physPageSize)
+			} else {
+				crit += float64(end - start)
+			}
 		}
 
 		if released == 0 {
@@ -316,18 +366,13 @@ func bgscavenge(c chan int) {
 			throw("released less than one physical page of memory")
 		}
 
-		// On some platforms we may see crit as zero if the time it takes to scavenge
-		// memory is less than the minimum granularity of its clock (e.g. Windows).
-		// In this case, just assume scavenging takes 10 µs per regular physical page
-		// (determined empirically), and conservatively ignore the impact of huge pages
-		// on timing.
-		//
-		// We shouldn't ever see a crit value less than zero unless there's a bug of
-		// some kind, either on our side or in the platform we're running on, but be
-		// defensive in that case as well.
-		const approxCritNSPerPhysicalPage = 10e3
-		if crit <= 0 {
-			crit = approxCritNSPerPhysicalPage * float64(released/physPageSize)
+		if crit < minCritTime {
+			// This means there wasn't enough work to actually fill up minCritTime.
+			// That's fine; we shouldn't try to do anything with this information
+			// because it's going result in a short enough sleep request that things
+			// will get messy. Just assume we did at least this much work.
+			// All this means is that we'll sleep longer than we otherwise would have.
+			crit = minCritTime
 		}
 
 		// Multiply the critical time by 1 + the ratio of the costs of using
@@ -338,41 +383,19 @@ func bgscavenge(c chan int) {
 		// because of the additional overheads of using scavenged memory.
 		crit *= 1 + scavengeCostRatio
 
-		// If we spent more than 10 ms (for example, if the OS scheduled us away, or someone
-		// put their machine to sleep) in the critical section, bound the time we use to
-		// calculate at 10 ms to avoid letting the sleep time get arbitrarily high.
-		const maxCrit = 10e6
-		if crit > maxCrit {
-			crit = maxCrit
-		}
+		// Go to sleep for our current sleepNS.
+		slept := scavengeSleep(int64(crit / critSleepRatio))
 
-		// Compute the amount of time to sleep, assuming we want to use at most
-		// scavengePercent of CPU time. Take into account scheduling overheads
-		// that may extend the length of our sleep by multiplying by how far
-		// off we are from the ideal ratio. For example, if we're sleeping too
-		// much, then scavengeEMWA < idealFraction, so we'll adjust the sleep time
-		// down.
-		adjust := scavengeEWMA / idealFraction
-		sleepTime := int64(adjust * crit / (scavengePercent / 100.0))
+		// Calculate the CPU time spent.
+		//
+		// This may be slightly inaccurate with respect to GOMAXPROCS, but we're
+		// recomputing this often enough relative to GOMAXPROCS changes in general
+		// (it only changes when the world is stopped, and not during a GC) that
+		// that small inaccuracy is in the noise.
+		cpuFraction := float64(crit) / ((float64(slept) + crit) * float64(gomaxprocs))
 
-		// Go to sleep.
-		slept := scavengeSleep(sleepTime)
-
-		// Compute the new ratio.
-		fraction := crit / (crit + float64(slept))
-
-		// Set a lower bound on the fraction.
-		// Due to OS-related anomalies we may "sleep" for an inordinate amount
-		// of time. Let's avoid letting the ratio get out of hand by bounding
-		// the sleep time we use in our EWMA.
-		const minFraction = 1.0 / 1000.0
-		if fraction < minFraction {
-			fraction = minFraction
-		}
-
-		// Update scavengeEWMA by merging in the new crit/slept ratio.
-		const alpha = 0.5
-		scavengeEWMA = alpha*fraction + (1-alpha)*scavengeEWMA
+		// Update the critSleepRatio, adjusting until we reach our ideal fraction.
+		critSleepRatio = critSleepController.next(cpuFraction, idealFraction, float64(slept)+crit)
 	}
 }
 
