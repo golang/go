@@ -125,7 +125,7 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	// information about the heap yet) so this is fine, and avoids a fault
 	// or garbage data later.
 	if lastHeapGoal == 0 {
-		mheap_.scavengeGoal = ^uint64(0)
+		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
 		return
 	}
 	// Compute our scavenging goal.
@@ -157,10 +157,10 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
 	// the background scavenger. We disable the background scavenger if there's
 	// less than one physical page of work to do because it's not worth it.
 	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
-		mheap_.scavengeGoal = ^uint64(0)
+		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
 		return
 	}
-	mheap_.scavengeGoal = retainedGoal
+	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
 }
 
 // Sleep/wait state of the background scavenger.
@@ -299,7 +299,7 @@ func bgscavenge(c chan int) {
 			lock(&mheap_.lock)
 
 			// If background scavenging is disabled or if there's no work to do just park.
-			retained, goal := heapRetained(), mheap_.scavengeGoal
+			retained, goal := heapRetained(), atomic.Load64(&mheap_.scavengeGoal)
 			if retained <= goal {
 				unlock(&mheap_.lock)
 				return

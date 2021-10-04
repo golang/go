@@ -111,6 +111,8 @@ type mheap struct {
 	// scavengeGoal is the amount of total retained heap memory (measured by
 	// heapRetained) that the runtime will try to maintain by returning memory
 	// to the OS.
+	//
+	// Accessed atomically.
 	scavengeGoal uint64
 
 	// Page reclaimer state
@@ -1399,9 +1401,10 @@ func (h *mheap) grow(npage uintptr) bool {
 	// By scavenging inline we deal with the failure to allocate out of
 	// memory fragments by scavenging the memory fragments that are least
 	// likely to be re-used.
-	if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
+	scavengeGoal := atomic.Load64(&h.scavengeGoal)
+	if retained := heapRetained(); retained+uint64(totalGrowth) > scavengeGoal {
 		todo := totalGrowth
-		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
+		if overage := uintptr(retained + uint64(totalGrowth) - scavengeGoal); todo > overage {
 			todo = overage
 		}
 		h.pages.scavenge(todo, false)
