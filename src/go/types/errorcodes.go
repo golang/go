@@ -875,7 +875,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + nil
+	//  var _ = 1 + new(int)
 	_InvalidUntypedConversion
 
 	// _BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
