@@ -1090,10 +1090,15 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	}
 	p = add(p, uintptr(i)*4)
 	off := *(*uint32)(p)
+	// Return off == ^uint32(0) ? 0 : f.datap.gofunc + uintptr(off), but without branches.
+	// The compiler calculates mask on most architectures using conditional assignment.
+	var mask uintptr
 	if off == ^uint32(0) {
-		return nil
+		mask = 1
 	}
-	return unsafe.Pointer(f.datap.gofunc + uintptr(off))
+	mask--
+	raw := f.datap.gofunc + uintptr(off)
+	return unsafe.Pointer(raw & mask)
 }
 
 // step advances to the next pc, value pair in the encoded table.
