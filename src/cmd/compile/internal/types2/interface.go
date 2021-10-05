@@ -93,9 +93,6 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
 // Implementation
 
 func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
-	var tlist []syntax.Expr // types collected from all type lists
-	var tname *syntax.Name  // most recent "type" name
-
 	addEmbedded := func(pos syntax.Pos, typ Type) {
 		ityp.embeddeds = append(ityp.embeddeds, typ)
 		if ityp.embedPos == nil {
@@ -120,31 +117,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 				check.error(f.Name, "invalid method name _")
 			}
 			continue // ignore
-		}
-
-		// TODO(gri) Remove type list handling once the parser doesn't accept type lists anymore.
-		if name == "type" {
-			// Report an error for the first type list per interface
-			// if we don't allow type lists, but continue.
-			if !check.conf.AllowTypeLists && tlist == nil {
-				check.softErrorf(f.Name, "use generalized embedding syntax instead of a type list")
-			}
-			// For now, collect all type list entries as if it
-			// were a single union, where each union element is
-			// of the form ~T.
-			op := new(syntax.Operation)
-			// We should also set the position (but there is no setter);
-			// we don't care because this code will eventually go away.
-			op.Op = syntax.Tilde
-			op.X = f.Type
-			tlist = append(tlist, op)
-			// Report an error if we have multiple type lists in an
-			// interface, but only if they are permitted in the first place.
-			if check.conf.AllowTypeLists && tname != nil && tname != f.Name {
-				check.error(f.Name, "cannot have multiple type lists in an interface")
-			}
-			tname = f.Name
-			continue
 		}
 
 		typ := check.typ(f.Type)
@@ -173,13 +145,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
 		check.recordDef(f.Name, m)
 		ityp.methods = append(ityp.methods, m)
-	}
-
-	// If we saw a type list, add it like an embedded union.
-	if tlist != nil {
-		// Types T in a type list are added as ~T expressions but we don't
-		// have the position of the '~'. Use the first type position instead.
-		addEmbedded(tlist[0].(*syntax.Operation).X.Pos(), parseUnion(check, tlist))
 	}
 
 	// All methods and embedded elements for this interface are collected;

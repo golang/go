@@ -1450,30 +1450,6 @@ func (p *parser) interfaceType() *InterfaceType {
 				return false
 			}
 
-		case _Type:
-			// TODO(gri) remove TypeList syntax if we accept #45346
-			if p.allowGenerics() && p.mode&AllowTypeLists != 0 {
-				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
-				p.next()
-				if p.tok != _Semi && p.tok != _Rbrace {
-					f := new(Field)
-					f.pos = p.pos()
-					f.Name = type_
-					f.Type = p.type_()
-					typ.MethodList = append(typ.MethodList, f)
-					for p.got(_Comma) {
-						f := new(Field)
-						f.pos = p.pos()
-						f.Name = type_
-						f.Type = p.type_()
-						typ.MethodList = append(typ.MethodList, f)
-					}
-				} else {
-					p.syntaxError("expecting type")
-				}
-				return false
-			}
-
 		default:
 			if p.allowGenerics() {
 				pos := p.pos()
@@ -1488,13 +1464,8 @@ func (p *parser) interfaceType() *InterfaceType {
 		}
 
 		if p.allowGenerics() {
-			if p.mode&AllowTypeLists != 0 {
-				p.syntaxError("expecting method, type list, or embedded element")
-				p.advance(_Semi, _Rbrace, _Type)
-			} else {
-				p.syntaxError("expecting method or embedded element")
-				p.advance(_Semi, _Rbrace)
-			}
+			p.syntaxError("expecting method or embedded element")
+			p.advance(_Semi, _Rbrace)
 			return false
 		}
 
