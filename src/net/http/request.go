@@ -795,7 +795,7 @@ func ParseHTTPVersion(version string) (major, minor int, ok bool) {
 	case "HTTP/3", "HTTP/3.0":
 		return 3, 0, true
 	default: // handle potential future versions starting from 2.x up to 9999.9999
-		httpVersionPattern := regexp.MustCompile("^HTTP/([2-9]|[1-9]\\d{1,3})(?:\\.(\\d{1,4}))?$")
+		httpVersionPattern := regexp.MustCompile(`^HTTP/([2-9]|[1-9]\d{1,3})(?:\.(\d{1,4}))?$`)
 
 		if versionGroups := httpVersionPattern.FindStringSubmatch(version); versionGroups != nil {
 			nrOfVersionGroups := len(versionGroups)
