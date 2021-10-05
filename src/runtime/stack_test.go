@@ -585,6 +585,34 @@ func count21(n int) int { return 1 + count22(n-1) }
 func count22(n int) int { return 1 + count23(n-1) }
 func count23(n int) int { return 1 + count1(n-1) }
 
+type stkobjT struct {
+	p *stkobjT
+	x int64
+	y [20]int // consume some stack
+}
+
+// Sum creates a linked list of stkobjTs.
+func Sum(n int64, p *stkobjT) {
+	if n == 0 {
+		return
+	}
+	s := stkobjT{p: p, x: n}
+	Sum(n-1, &s)
+	p.x += s.x
+}
+
+func BenchmarkStackCopyWithStkobj(b *testing.B) {
+	c := make(chan bool)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			var s stkobjT
+			Sum(100000, &s)
+			c <- true
+		}()
+		<-c
+	}
+}
+
 type structWithMethod struct{}
 
 func (s structWithMethod) caller() string {
