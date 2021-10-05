@@ -808,28 +808,36 @@ func findfunc(pc uintptr) funcInfo {
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
 
-	// If the idx is beyond the end of the ftab, set it to the end of the table and search backward.
-	// This situation can occur if multiple text sections are generated to handle large text sections
-	// and the linker has inserted jump tables between them.
-
-	if idx >= uint32(len(datap.ftab)) {
-		idx = uint32(len(datap.ftab) - 1)
-	}
-	if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
-		// With multiple text sections, the idx might reference a function address that
-		// is higher than the pcOff being searched, so search backward until the matching address is found.
-		for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
-			idx--
-		}
-		if idx == 0 {
-			throw("findfunc: bad findfunctab entry idx")
-		}
-	} else {
-		// linear search to find func with pcOff >= entry.
-		for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
+	// Find the ftab entry.
+	if len(datap.textsectmap) == 1 {
+		// fast path for the common case
+		pcOff := uint32(pc - datap.text)
+		for datap.ftab[idx+1].entryoff <= pcOff {
 			idx++
 		}
+	} else {
+		// Multiple text sections.
+		// If the idx is beyond the end of the ftab, set it to the end of the table and search backward.
+		if idx >= uint32(len(datap.ftab)) {
+			idx = uint32(len(datap.ftab) - 1)
+		}
+		if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
+			// The idx might reference a function address that
+			// is higher than the pcOff being searched, so search backward until the matching address is found.
+			for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
+				idx--
+			}
+			if idx == 0 {
+				throw("findfunc: bad findfunctab entry idx")
+			}
+		} else {
+			// linear search to find func with pc >= entry.
+			for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
+				idx++
+			}
+		}
 	}
+
 	funcoff := datap.ftab[idx].funcoff
 	if funcoff == ^uint32(0) {
 		// With multiple text sections, there may be functions inserted by the external
