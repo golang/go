@@ -184,6 +184,20 @@ stdout ok
 ! stdout ^ok
 stdout FAIL
 
+
+# Fuzzing indicates that one new interesting value was found with an empty
+# corpus, and the total size of the cache is now 1.
+go clean -fuzzcache
+go test -fuzz=Fuzz -fuzztime=10000x success_fuzz_test.go
+stdout 'new interesting: 1'
+stdout 'total: 1'
+
+# Fuzzing again with a small fuzztime does not find any other interesting
+# values but still indicates that the cache size is 1.
+go test -fuzz=Fuzz -fuzztime=2x success_fuzz_test.go
+stdout 'new interesting: 0'
+stdout 'total: 1'
+
 -- noop_fuzz_test.go --
 package noop_fuzz
 
