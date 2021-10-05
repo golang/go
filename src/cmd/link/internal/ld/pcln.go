@@ -591,8 +591,7 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 	size := int64(int(state.nfunc)*2*4 + 4)
 
 	// Now find the space for the func objects. We do this in a running manner,
-	// so that we can find individual starting locations, and because funcdata
-	// requires alignment.
+	// so that we can find individual starting locations.
 	for i, s := range funcs {
 		size = Rnd(size, int64(ctxt.Arch.PtrSize))
 		startLocations[i] = uint32(size)
@@ -607,9 +606,6 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
 				}
 			}
 			size += int64(numPCData(ldr, s, fi) * 4)
-			if numFuncData > 0 { // Func data is aligned.
-				size = Rnd(size, int64(ctxt.Arch.PtrSize))
-			}
 			size += int64(numFuncData * 4)
 		}
 	}
@@ -747,10 +743,8 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
-		// funcdata must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
 		off = uint32(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
-		off = uint32(Rnd(int64(off), int64(ctxt.Arch.PtrSize)))
 		for j := range funcdata {
 			dataoff := off + uint32(4*j)
 			fdsym := funcdata[j]
