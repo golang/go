@@ -173,7 +173,13 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// evaluate arguments
 	args, _ := check.exprList(call.ArgList, false)
+	isGeneric := sig.TypeParams().Len() > 0
 	sig = check.arguments(call, sig, targs, args)
+
+	if isGeneric && sig.TypeParams().Len() == 0 {
+		// update the recorded type of call.Fun to its instantiated type
+		check.recordTypeAndValue(call.Fun, value, sig, nil)
+	}
 
 	// determine result
 	switch sig.results.Len() {
