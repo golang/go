@@ -1096,9 +1096,9 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 	if i < 0 || i >= f.nfuncdata {
 		return nil
 	}
-	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
-	p = add(p, uintptr(i)*4)
-	off := *(*uint32)(p)
+	base := f.datap.gofunc // load gofunc address early so that we calculate during cache misses
+	p := uintptr(unsafe.Pointer(&f.nfuncdata)) + unsafe.Sizeof(f.nfuncdata) + uintptr(f.npcdata)*4 + uintptr(i)*4
+	off := *(*uint32)(unsafe.Pointer(p))
 	// Return off == ^uint32(0) ? 0 : f.datap.gofunc + uintptr(off), but without branches.
 	// The compiler calculates mask on most architectures using conditional assignment.
 	var mask uintptr
@@ -1106,7 +1106,7 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 		mask = 1
 	}
 	mask--
-	raw := f.datap.gofunc + uintptr(off)
+	raw := base + uintptr(off)
 	return unsafe.Pointer(raw & mask)
 }
 
