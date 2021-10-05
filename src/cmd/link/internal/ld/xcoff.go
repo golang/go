@@ -822,9 +822,12 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		}
 	}
 
+	name = ldr.SymExtname(x)
+	name = mangleABIName(ctxt, ldr, x, name)
+
 	s := &XcoffSymEnt64{
 		Nsclass: C_EXT,
-		Noffset: uint32(xfile.stringTable.add(ldr.SymExtname(x))),
+		Noffset: uint32(xfile.stringTable.add(name)),
 		Nvalue:  uint64(ldr.SymValue(x)),
 		Nscnum:  f.getXCOFFscnum(ldr.SymSect(x)),
 		Ntype:   SYM_TYPE_FUNC,
