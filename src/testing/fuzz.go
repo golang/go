@@ -299,11 +299,12 @@ var supportedTypes = map[reflect.Type]bool{
 // This function sould be fast and deterministic, and its behavior should not
 // depend on shared state. No mutatable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
-// backing them may be mutated during a subsequent invocation.
+// backing them may be mutated during a subsequent invocation. ff must not
+// modify the underlying data of the arguments provided by the fuzzing engine.
 //
-// When fuzzing, F.Fuzz does not return until a problem is found, time runs
-// out (set with -fuzztime), or the test process is interrupted by a signal.
-// F.Fuzz should be called exactly once unless F.Skip or F.Fail is called.
+// When fuzzing, F.Fuzz does not return until a problem is found, time runs out
+// (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
+// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
 func (f *F) Fuzz(ff interface{}) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
