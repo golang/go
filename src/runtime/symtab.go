@@ -1088,12 +1088,6 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
 		return nil
 	}
 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
-	if goarch.PtrSize == 8 && uintptr(p)&4 != 0 {
-		if uintptr(unsafe.Pointer(f._func))&4 != 0 {
-			println("runtime: misaligned func", f._func)
-		}
-		p = add(p, 4)
-	}
 	p = add(p, uintptr(i)*4)
 	off := *(*uint32)(p)
 	// Return off == ^uint32(0) ? 0 : f.datap.gofunc + uintptr(off), but without branches.
