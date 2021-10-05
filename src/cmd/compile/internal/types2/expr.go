@@ -996,6 +996,12 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		if isString(x.typ) != isString(y.typ) {
 			return false
 		}
+		if x.isNil() && !hasNil(y.typ) {
+			return false
+		}
+		if y.isNil() && !hasNil(x.typ) {
+			return false
+		}
 		return true
 	}
 	if canMix(x, &y) {
