@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"math"
 	"math/bits"
 	"os"
 	"os/exec"
@@ -107,7 +108,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z]+)`)
+		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)
 	}
 
 	// Find all the instruction addresses we need to edit.
@@ -209,7 +210,8 @@ var featureToOpcodes = map[string][]string{
 	// native objdump doesn't include [QL] on linux.
 	"popcnt": []string{"popcntq", "popcntl", "popcnt"},
 	"bmi1":   []string{"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
-	// TODO: more?
+	"sse41":  []string{"roundsd"},
+	"fma":    []string{"vfmadd231sd"},
 }
 
 // Test to use POPCNT instruction, if available
@@ -332,4 +334,35 @@ func TestTrailingZeros(t *testing.T) {
 			t.Errorf("TrailingZeros64(%#x) = %d, want %d", tt.x, got, want)
 		}
 	}
+}
+
+func TestRound(t *testing.T) {
+	for _, tt := range []struct {
+		x, want float64
+	}{
+		{1.4, 1},
+		{1.5, 2},
+		{1.6, 2},
+		{2.4, 2},
+		{2.5, 2},
+		{2.6, 3},
+	} {
+		if got := math.RoundToEven(tt.x); got != tt.want {
+			t.Errorf("RoundToEven(%f) = %f, want %f", tt.x, got, tt.want)
+		}
+	}
+}
+
+func TestFMA(t *testing.T) {
+	for _, tt := range []struct {
+		x, y, z, want float64
+	}{
+		{2, 3, 4, 10},
+		{3, 4, 5, 17},
+	} {
+		if got := math.FMA(tt.x, tt.y, tt.z); got != tt.want {
+			t.Errorf("FMA(%f,%f,%f) = %f, want %f", tt.x, tt.y, tt.z, got, tt.want)
+		}
+	}
+
 }
