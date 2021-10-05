@@ -1019,6 +1019,8 @@
 (MOVWZreg x:(MOVWZloadidx _ _ _)) => x
 (MOVWreg x:(MOVWload _ _)) => x
 (MOVWreg x:(MOVWloadidx _ _ _)) => x
+(MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _))) => x
+(MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _))) => x
 
 // don't extend if argument is already extended
 (MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
