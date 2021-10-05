@@ -622,10 +622,10 @@ func moduledataverify1(datap *moduledata) {
 		}
 	}
 
-	min := datap.textAddr(uintptr(datap.ftab[0].entryoff))
+	min := datap.textAddr(datap.ftab[0].entryoff)
 	// The max PC is outside of the text section.
 	// Subtract 1 to get a PC inside the text section, look it up, then add 1 back in.
-	max := datap.textAddr(uintptr(datap.ftab[nftab].entryoff-1)) + 1
+	max := datap.textAddr(datap.ftab[nftab].entryoff-1) + 1
 	if datap.minpc != min || datap.maxpc != max {
 		println("minpc=", hex(datap.minpc), "min=", hex(min), "maxpc=", hex(datap.maxpc), "max=", hex(max))
 		throw("minpc or maxpc invalid")
@@ -656,8 +656,9 @@ func moduledataverify1(datap *moduledata) {
 //
 // It is nosplit because it is part of the findfunc implementation.
 //go:nosplit
-func (md *moduledata) textAddr(off uintptr) uintptr {
-	var res uintptr
+func (md *moduledata) textAddr(off32 uint32) uintptr {
+	off := uintptr(off32)
+	res := md.text + off
 	if len(md.textsectmap) > 1 {
 		for i := range md.textsectmap {
 			if off >= md.textsectmap[i].vaddr && off < md.textsectmap[i].end {
@@ -665,13 +666,10 @@ func (md *moduledata) textAddr(off uintptr) uintptr {
 				break
 			}
 		}
-	} else {
-		// single text section
-		res = md.text + off
-	}
-	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
-		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
-		throw("runtime: text offset out of range")
+		if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
+			println("runtime: textAddr", hex(res), "out of range", hex(md.text), "-", hex(md.etext))
+			throw("runtime: text offset out of range")
+		}
 	}
 	return res
 }
@@ -783,7 +781,7 @@ func (f *_func) isInlined() bool {
 
 // entry returns the entry PC for f.
 func (f funcInfo) entry() uintptr {
-	return f.datap.textAddr(uintptr(f.entryoff))
+	return f.datap.textAddr(f.entryoff)
 }
 
 // findfunc looks up function metadata for a PC.
@@ -819,10 +817,10 @@ func findfunc(pc uintptr) funcInfo {
 		if idx >= uint32(len(datap.ftab)) {
 			idx = uint32(len(datap.ftab) - 1)
 		}
-		if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
+		if pc < datap.textAddr(datap.ftab[idx].entryoff) {
 			// The idx might reference a function address that
 			// is higher than the pcOff being searched, so search backward until the matching address is found.
-			for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
+			for datap.textAddr(datap.ftab[idx].entryoff) > pc && idx > 0 {
 				idx--
 			}
 			if idx == 0 {
@@ -830,7 +828,7 @@ func findfunc(pc uintptr) funcInfo {
 			}
 		} else {
 			// linear search to find func with pc >= entry.
-			for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
+			for datap.textAddr(datap.ftab[idx+1].entryoff) <= pc {
 				idx++
 			}
 		}
