@@ -1172,7 +1172,7 @@ func waitOrStop(ctx context.Context, cmd *exec.Cmd, interrupt os.Signal, killDel
 		err := cmd.Process.Signal(interrupt)
 		if err == nil {
 			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
-		} else if err.Error() == "os: process already finished" {
+		} else if err == os.ErrProcessDone {
 			errc <- nil
 			return
 		}
