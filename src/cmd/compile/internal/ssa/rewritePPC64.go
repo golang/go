@@ -7093,6 +7093,20 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _)))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpPPC64LoweredAtomicLoad8 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (MOVBZreg x:(Arg <t>))
 	// cond: is8BitInt(t) && !isSigned(t)
 	// result: x
@@ -10544,6 +10558,20 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 	for {
 		x := v_0
 		if x.Op != OpPPC64MOVWZloadidx {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _)))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpSelect0 {
+			break
+		}
+		x_0 := x.Args[0]
+		if x_0.Op != OpPPC64LoweredAtomicLoad32 {
 			break
 		}
 		v.copyOf(x)
