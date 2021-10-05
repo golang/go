@@ -1359,7 +1359,7 @@ func cmdbootstrap() {
 	}
 
 	// To recap, so far we have built the new toolchain
-	// (cmd/asm, cmd/compile, cmd/link)
+	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link)
 	// using Go 1.4's toolchain and go command.
 	// Then we built the new go command (as go_bootstrap)
 	// using the new toolchain and our own build logic (above).
