@@ -667,20 +667,20 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
 		}
 
-		off := startLocations[i]
+		off := int64(startLocations[i])
 		// entry uintptr (offset of func entry PC from textStart)
 		entryOff := ldr.SymValue(s) - textStart
 		if entryOff < 0 {
 			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(entryOff)))
+		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
 
 		// name int32
 		nameoff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(nameoff)))
+		off = sb.SetUint32(ctxt.Arch, off, uint32(nameoff))
 
 		// args int32
 		// TODO: Move into funcinfo.
@@ -688,75 +688,75 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		if fi.Valid() {
 			args = uint32(fi.Args())
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), args))
+		off = sb.SetUint32(ctxt.Arch, off, args)
 
 		// deferreturn
 		deferreturn := computeDeferReturn(ctxt, deferReturnSym, s)
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), deferreturn))
+		off = sb.SetUint32(ctxt.Arch, off, deferreturn)
 
 		// pcdata
 		if fi.Valid() {
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcsp))))
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcfile))))
-			off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(ldr.SymValue(pcline))))
+			off = sb.SetUint32(ctxt.Arch, off, uint32(ldr.SymValue(pcsp)))
+			off = sb.SetUint32(ctxt.Arch, off, uint32(ldr.SymValue(pcfile)))
+			off = sb.SetUint32(ctxt.Arch, off, uint32(ldr.SymValue(pcline)))
 		} else {
 			off += 12
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), uint32(numPCData(ldr, s, fi))))
+		off = sb.SetUint32(ctxt.Arch, off, uint32(numPCData(ldr, s, fi)))
 
 		// Store the offset to compilation unit's file table.
 		cuIdx := ^uint32(0)
 		if cu := ldr.SymUnit(s); cu != nil {
 			cuIdx = cuOffsets[cu.PclnIndex]
 		}
-		off = uint32(sb.SetUint32(ctxt.Arch, int64(off), cuIdx))
+		off = sb.SetUint32(ctxt.Arch, off, cuIdx)
 
 		// funcID uint8
 		var funcID objabi.FuncID
 		if fi.Valid() {
 			funcID = fi.FuncID()
 		}
-		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+		off = sb.SetUint8(ctxt.Arch, off, uint8(funcID))
 
 		// flag uint8
 		var flag objabi.FuncFlag
 		if fi.Valid() {
 			flag = fi.FuncFlag()
 		}
-		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(flag)))
+		off = sb.SetUint8(ctxt.Arch, off, uint8(flag))
 
 		off += 1 // pad
 
 		// nfuncdata must be the final entry.
 		funcdata = funcData(ldr, s, fi, 0, funcdata)
-		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
+		off = sb.SetUint8(ctxt.Arch, off, uint8(len(funcdata)))
 
 		// Output the pcdata.
 		if fi.Valid() {
 			for j, pcSym := range pcdata {
-				sb.SetUint32(ctxt.Arch, int64(off+uint32(j*4)), uint32(ldr.SymValue(pcSym)))
+				sb.SetUint32(ctxt.Arch, off+int64(j*4), uint32(ldr.SymValue(pcSym)))
 			}
 			if fi.NumInlTree() > 0 {
-				sb.SetUint32(ctxt.Arch, int64(off+objabi.PCDATA_InlTreeIndex*4), uint32(ldr.SymValue(pcinline)))
+				sb.SetUint32(ctxt.Arch, off+objabi.PCDATA_InlTreeIndex*4, uint32(ldr.SymValue(pcinline)))
 			}
 		}
 
 		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
-		off = uint32(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
+		off = int64(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
 		for j := range funcdata {
-			dataoff := off + uint32(4*j)
+			dataoff := off + int64(4*j)
 			fdsym := funcdata[j]
 			if fdsym == 0 {
-				sb.SetUint32(ctxt.Arch, int64(dataoff), ^uint32(0)) // ^0 is a sentinel for "no value"
+				sb.SetUint32(ctxt.Arch, dataoff, ^uint32(0)) // ^0 is a sentinel for "no value"
 				continue
 			}
 
 			if outer := ldr.OuterSym(fdsym); outer != gofunc {
 				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
 			}
-			sb.SetUint32(ctxt.Arch, int64(dataoff), uint32(ldr.SymValue(fdsym)-gofuncBase))
+			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)-gofuncBase))
 		}
 	}
 }
