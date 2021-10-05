@@ -115,9 +115,13 @@ func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x
 func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
 
 // slicing
-// TODO(gri) implement this
 
-func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
+func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j] }
+func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
+func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
+func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
+func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
 
 // len/cap built-ins
 
