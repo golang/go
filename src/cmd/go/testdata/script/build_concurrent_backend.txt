@@ -1,10 +1,6 @@
 # Tests golang.org/issue/48490
 # cmd/go should enable concurrent compilation by default
 
-# Skip test on darwin/arm64, see #48496.
-# TODO(cuonglm): remove this once #48496 is fixed.
-[darwin] [arm64] skip
-
 # Reset all experiments, since one of them can disable
 # concurrent compilation, e.g: fieldtrack.
 env GOEXPERIMENT=none
