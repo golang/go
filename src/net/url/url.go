@@ -976,11 +976,11 @@ func (v Values) Encode() string {
 		return ""
 	}
 	var buf strings.Builder
-	keys := make([]string, 0, len(v))
+	keys := make(sort.StringSlice, 0, len(v))
 	for k := range v {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	sort.Sort(keys)
 	for _, k := range keys {
 		vs := v[k]
 		keyEscaped := QueryEscape(k)
