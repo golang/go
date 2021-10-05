@@ -1035,8 +1035,9 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
 
 func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
 	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
-	if x&(goarch.PtrSize-1) != 0 {
+	if debugPcln && x&(goarch.PtrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry()), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+		throw("bad spdelta")
 	}
 	return x
 }
