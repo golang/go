@@ -288,7 +288,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		}
 		return res
 	}
-	res := md.textAddr(uintptr(off))
+	res := md.textAddr(uint32(off))
 	return unsafe.Pointer(res)
 }
 
