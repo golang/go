@@ -406,22 +406,21 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 		if sect.Name != ".text" {
 			break
 		}
-		off = t.SetUint(ctxt.Arch, off, sect.Vaddr-textbase)
-		off = t.SetUint(ctxt.Arch, off, sect.Length)
-		if n == 0 {
-			s := ldr.Lookup("runtime.text", 0)
-			if s == 0 {
-				ctxt.Errorf(s, "Unable to find symbol runtime.text\n")
-			}
-			off = t.SetAddr(ctxt.Arch, off, s)
-
-		} else {
-			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
-			if s == 0 {
-				ctxt.Errorf(s, "Unable to find symbol runtime.text.%d\n", n)
-			}
-			off = t.SetAddr(ctxt.Arch, off, s)
+		// The fields written should match runtime/symtab.go:textsect.
+		// They are designed to minimize runtime calculations.
+		vaddr := sect.Vaddr - textbase
+		off = t.SetUint(ctxt.Arch, off, vaddr) // field vaddr
+		end := vaddr + sect.Length
+		off = t.SetUint(ctxt.Arch, off, end) // field end
+		name := "runtime.text"
+		if n != 0 {
+			name = fmt.Sprintf("runtime.text.%d", n)
 		}
+		s := ldr.Lookup(name, 0)
+		if s == 0 {
+			ctxt.Errorf(s, "Unable to find symbol %s\n", name)
+		}
+		off = t.SetAddr(ctxt.Arch, off, s) // field baseaddr
 		n++
 	}
 	return t.Sym(), uint32(n)

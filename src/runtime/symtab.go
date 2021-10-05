@@ -561,7 +561,7 @@ type functab struct {
 
 type textsect struct {
 	vaddr    uintptr // prelinked section vaddr
-	length   uintptr // section length
+	end      uintptr // vaddr + section length
 	baseaddr uintptr // relocated section address
 }
 
@@ -650,9 +650,9 @@ func moduledataverify1(datap *moduledata) {
 // To resolve the large text issue, the text is split into multiple text sections
 // to allow the linker to generate long calls when necessary.
 // When this happens, the vaddr for each text section is set to its offset within the text.
-// Each function's offset is compared against the section vaddrs and sizes to determine the containing section.
+// Each function's offset is compared against the section vaddrs and ends to determine the containing section.
 // Then the section relative offset is added to the section's
-// relocated baseaddr to compute the function addess.
+// relocated baseaddr to compute the function address.
 //
 // It is nosplit because it is part of the findfunc implementation.
 //go:nosplit
@@ -660,16 +660,14 @@ func (md *moduledata) textAddr(off uintptr) uintptr {
 	var res uintptr
 	if len(md.textsectmap) > 1 {
 		for i := range md.textsectmap {
-			sectaddr := md.textsectmap[i].vaddr
-			sectlen := md.textsectmap[i].length
-			if uintptr(off) >= sectaddr && uintptr(off) < sectaddr+sectlen {
-				res = md.textsectmap[i].baseaddr + uintptr(off) - uintptr(md.textsectmap[i].vaddr)
+			if off >= md.textsectmap[i].vaddr && off < md.textsectmap[i].end {
+				res = md.textsectmap[i].baseaddr + off - md.textsectmap[i].vaddr
 				break
 			}
 		}
 	} else {
 		// single text section
-		res = md.text + uintptr(off)
+		res = md.text + off
 	}
 	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
 		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
