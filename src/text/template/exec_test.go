@@ -489,6 +489,8 @@ var execTests = []execTest{
 	{"and pipe-false", "{{0 | and 1}}", "0", nil, true},
 	{"or pipe-true", "{{1 | or 0}}", "1", nil, true},
 	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
+	{"and undef", "{{and 1 .Unknown}}", "<no value>", nil, true},
+	{"or undef", "{{or 0 .Unknown}}", "<no value>", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 	{"boolean if pipe", "{{if true | not | and 1}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},

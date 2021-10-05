@@ -728,13 +728,21 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		for _, arg := range args {
 			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
 			if truth(v) == (name == "or") {
-				return unwrap(v)
+				// This value was already unwrapped
+				// by the .Interface().(reflect.Value).
+				return v
 			}
 		}
 		if final != missingVal {
-			v = s.validateType(final, argType)
+			// The last argument to and/or is coming from
+			// the pipeline. We didn't short circuit on an earlier
+			// argument, so we are going to return this one.
+			// We don't have to evaluate final, but we do
+			// have to check its type. Then, since we are
+			// going to return it, we have to unwrap it.
+			v = unwrap(s.validateType(final, argType))
 		}
-		return unwrap(v)
+		return v
 	}
 
 	// Build the arg list.
