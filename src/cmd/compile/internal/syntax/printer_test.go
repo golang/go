@@ -60,12 +60,12 @@ var stringTests = []string{
 	// generic type declarations
 	"package p; type _[T any] struct{}",
 	"package p; type _[A, B, C interface{m()}] struct{}",
-	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}] struct{}",
+	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}",
 
 	// generic function declarations
 	"package p; func _[T any]()",
 	"package p; func _[A, B, C interface{m()}]()",
-	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}]()",
+	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()",
 
 	// methods with generic receiver types
 	"package p; func (R[T]) _()",
@@ -94,7 +94,7 @@ var stringTests = []string{
 
 func TestPrintString(t *testing.T) {
 	for _, want := range stringTests {
-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeSets|AllowTypeLists)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeSets)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -140,10 +140,10 @@ var exprTests = [][2]string{
 	dup("func(int, float32) string"),
 	dup("interface{m()}"),
 	dup("interface{m() string; n(x int)}"),
-	dup("interface{type int}"),
-	dup("interface{type int, float64, string}"),
-	dup("interface{type int; m()}"),
-	dup("interface{type int, float64, string; m() string; n(x int)}"),
+	dup("interface{~int}"),
+	dup("interface{~int | ~float64 | ~string}"),
+	dup("interface{~int; m()}"),
+	dup("interface{~int | ~float64 | ~string; m() string; n(x int)}"),
 	dup("map[string]int"),
 	dup("chan E"),
 	dup("<-chan E"),
@@ -155,7 +155,7 @@ var exprTests = [][2]string{
 	dup("interface{~int}"),
 	dup("interface{int | string}"),
 	dup("interface{~int | ~string; float64; m()}"),
-	dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
 	dup("interface{~T[int, string] | string}"),
 
 	// non-type expressions
@@ -214,7 +214,7 @@ var exprTests = [][2]string{
 func TestShortString(t *testing.T) {
 	for _, test := range exprTests {
 		src := "package p; var _ = " + test[0]
-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics|AllowTypeLists)
+		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
 		if err != nil {
 			t.Errorf("%s: %s", test[0], err)
 			continue

@@ -159,10 +159,7 @@ type _ interface {
 	~rune
 }
 
-// Interface type lists may contain each type at most once.
-// (If there are multiple lists, we assume the author intended
-// for them to be all in a single list, and we report the error
-// as well.)
+// Type sets may contain each type at most once.
 type _ interface {
 	~int|~int /* ERROR overlapping terms ~int */
 	~int|int /* ERROR overlapping terms int */
