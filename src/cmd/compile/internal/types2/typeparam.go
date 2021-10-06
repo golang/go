@@ -50,7 +50,8 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	return typ
 }
 
-// Index returns the index of the type param within its param list.
+// Index returns the index of the type param within its param list, or -1 if
+// the type parameter has not yet been bound to a type.
 func (t *TypeParam) Index() int {
 	return t.index
 }
