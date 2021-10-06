@@ -294,7 +294,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			// Union parsing reports a (delayed) error, so we can ignore this entry.
 			continue
 		default:
-			if typ == Typ[Invalid] {
+			if u == Typ[Invalid] {
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
