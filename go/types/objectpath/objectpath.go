@@ -23,10 +23,10 @@ package objectpath
 
 import (
 	"fmt"
+	"go/types"
+	"sort"
 	"strconv"
 	"strings"
-
-	"go/types"
 
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -67,6 +67,8 @@ type Path string
 //   which is encoded as a string of decimal digits.
 //   These indices are stable across different representations
 //   of the same package, even source and export data.
+//   The indices used are implementation specific and may not correspond to
+//   the argument to the go/types function.
 //
 // In the example below,
 //
@@ -287,8 +289,12 @@ func For(obj types.Object) (Path, error) {
 		// Inspect declared methods of defined types.
 		if T, ok := o.Type().(*types.Named); ok {
 			path = append(path, opType)
-			for i := 0; i < T.NumMethods(); i++ {
-				m := T.Method(i)
+			// Note that method index here is always with respect
+			// to canonical ordering of methods, regardless of how
+			// they appear in the underlying type.
+			canonical := canonicalize(T)
+			for i := 0; i < len(canonical); i++ {
+				m := canonical[i]
 				path2 := appendOpArg(path, opMethod, i)
 				if m == obj {
 					return Path(path2), nil // found declared method
@@ -420,11 +426,6 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	// abstraction of *types.{Pointer,Slice,Array,Chan,Map}
 	type hasElem interface {
 		Elem() types.Type
-	}
-	// abstraction of *types.{Interface,Named}
-	type hasMethods interface {
-		Method(int) *types.Func
-		NumMethods() int
 	}
 	// abstraction of *types.{Named,Signature}
 	type hasTypeParams interface {
@@ -563,10 +564,11 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			if !ok {
 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want interface or named)", code, t, t)
 			}
-			if n := hasMethods.NumMethods(); index >= n {
+			canonical := canonicalize(hasMethods)
+			if n := len(canonical); index >= n {
 				return nil, fmt.Errorf("method index %d out of range [0-%d)", index, n)
 			}
-			obj = hasMethods.Method(index)
+			obj = canonical[index]
 			t = nil
 
 		case opObj:
@@ -587,4 +589,29 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	}
 
 	return obj, nil // success
+}
+
+// hasMethods is an abstraction of *types.{Interface,Named}. This is pulled up
+// because it is used by methodOrdering, which is in turn used by both encoding
+// and decoding.
+type hasMethods interface {
+	Method(int) *types.Func
+	NumMethods() int
+}
+
+// canonicalize returns a canonical order for the methods in a hasMethod.
+func canonicalize(hm hasMethods) []*types.Func {
+	count := hm.NumMethods()
+	if count <= 0 {
+		return nil
+	}
+	canon := make([]*types.Func, count)
+	for i := 0; i < count; i++ {
+		canon[i] = hm.Method(i)
+	}
+	less := func(i, j int) bool {
+		return canon[i].Id() < canon[j].Id()
+	}
+	sort.Slice(canon, less)
+	return canon
 }

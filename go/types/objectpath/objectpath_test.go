@@ -46,6 +46,10 @@ type M map[struct{x int}]struct{y int}
 
 func unexportedFunc()
 type unexportedType struct{}
+
+type S struct{t struct{x int}}
+type R []struct{y int}
+type Q [2]struct{z int}
 `},
 		"a": {"a.go": `
 package a
@@ -80,6 +84,9 @@ type T struct{x, y int}
 		{"b", "T.M0.RA0", "var  *interface{f()}", ""},       // parameter
 		{"b", "T.M0.RA0.EM0", "func (interface).f()", ""},   // interface method
 		{"b", "unexportedType", "type b.unexportedType struct{}", ""},
+		{"b", "S.UF0.F0", "field x int", ""},
+		{"b", "R.UEF0", "field y int", ""},
+		{"b", "Q.UEF0", "field z int", ""},
 		{"a", "T", "type a.T struct{x int; y int}", ""},
 		{"a", "T.UF0", "field x int", ""},
 
@@ -99,6 +106,13 @@ type T struct{x, y int}
 		{"b", "A.UF0", "", "cannot apply 'U' to struct{x int} (got *types.Struct, want named)"},
 		{"b", "M.UPO", "", "cannot apply 'P' to map[struct{x int}]struct{y int} (got *types.Map, want signature)"},
 		{"b", "C.O", "", "path denotes type a.Int int, which belongs to a different package"},
+		{"b", "T.M9", "", "method index 9 out of range [0-1)"},
+		{"b", "M.UF0", "", "cannot apply 'F' to map[struct{x int}]struct{y int} (got *types.Map, want struct)"},
+		{"b", "V.KO", "", "cannot apply 'K' to []*a.T (got *types.Slice, want map)"},
+		{"b", "V.A4", "", "cannot apply 'A' to []*a.T (got *types.Slice, want tuple)"},
+		{"b", "V.RA0", "", "cannot apply 'R' to []*a.T (got *types.Slice, want signature)"},
+		{"b", "F.PA4", "", "tuple index 4 out of range [0-4)"},
+		{"b", "F.XO", "", "invalid path: unknown code 'X'"},
 	}
 	conf := loader.Config{Build: buildutil.FakeContext(pkgs)}
 	conf.Import("a")
@@ -309,4 +323,66 @@ func objectString(obj types.Object) string {
 	s = strings.Replace(s, "func (interface).Method", "func (p.Foo).Method", -1)
 
 	return s
+}
+
+// TestOrdering uses objectpath over two Named types with the same method
+// names but in a different source order and checks that objectpath is the
+// same for methods with the same name.
+func TestOrdering(t *testing.T) {
+	pkgs := map[string]map[string]string{
+		"p": {"p.go": `
+package p
+
+type T struct{ A int }
+
+func (T) M() { }
+func (T) N() { }
+func (T) X() { }
+func (T) Y() { }
+`},
+		"q": {"q.go": `
+package q
+
+type T struct{ A int }
+
+func (T) N() { }
+func (T) M() { }
+func (T) Y() { }
+func (T) X() { }
+`}}
+	conf := loader.Config{Build: buildutil.FakeContext(pkgs)}
+	conf.Import("p")
+	conf.Import("q")
+	prog, err := conf.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := prog.Imported["p"].Pkg
+	q := prog.Imported["q"].Pkg
+
+	// From here, the objectpaths generated for p and q should be the
+	// same. If they are not, then we are generating an ordering that is
+	// dependent on the declaration of the types within the file.
+	for _, test := range []struct {
+		path objectpath.Path
+	}{
+		{"T.M0"},
+		{"T.M1"},
+		{"T.M2"},
+		{"T.M3"},
+	} {
+		pobj, err := objectpath.Object(p, test.path)
+		if err != nil {
+			t.Errorf("Object(%s) failed in a1: %v", test.path, err)
+			continue
+		}
+		qobj, err := objectpath.Object(q, test.path)
+		if err != nil {
+			t.Errorf("Object(%s) failed in a2: %v", test.path, err)
+			continue
+		}
+		if pobj.Name() != pobj.Name() {
+			t.Errorf("Objects(%s) not equal, got a1 = %v, a2 = %v", test.path, pobj.Name(), qobj.Name())
+		}
+	}
 }
