@@ -82,6 +82,17 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial 
 	return name, ok, partial
 }
 
+// clearSubNames clears the matcher's internal state, potentially freeing
+// memory. After this is called, T.Name may return the same strings as it did
+// for earlier subtests.
+func (m *matcher) clearSubNames() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key := range m.subNames {
+		delete(m.subNames, key)
+	}
+}
+
 func (m simpleMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
 	for i, s := range name {
 		if i >= len(m) {

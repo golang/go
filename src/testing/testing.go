@@ -495,7 +495,6 @@ type common struct {
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
-	fuzzing    bool           // Whether the current test is a fuzzing target.
 	hasSub     int32          // Written atomically.
 	raceErrors int            // Number of races detected during test.
 	runner     string         // Function name of tRunner running the test.
@@ -695,17 +694,6 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
 		// itself follow a test-name header when it is finally flushed to stdout.
 		fmt.Fprintf(p.w, format, args...)
 	}
-}
-
-// isFuzzing returns whether the current context, or any of the parent contexts,
-// are a fuzzing target
-func (c *common) isFuzzing() bool {
-	for com := c; com != nil; com = com.parent {
-		if com.fuzzing {
-			return true
-		}
-	}
-	return false
 }
 
 type indenter struct {
@@ -1291,7 +1279,7 @@ func tRunner(t *T, fn func(t *T)) {
 			}
 		}
 
-		if err != nil && t.isFuzzing() {
+		if err != nil && t.context.isFuzzing {
 			prefix := "panic: "
 			if err == errNilPanicOrGoexit {
 				prefix = ""
@@ -1456,6 +1444,12 @@ func (t *T) Deadline() (deadline time.Time, ok bool) {
 type testContext struct {
 	match    *matcher
 	deadline time.Time
+
+	// isFuzzing is true in the context used when generating random inputs
+	// for fuzz targets. isFuzzing is false when running normal tests and
+	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
+	// does not match).
+	isFuzzing bool
 
 	mu sync.Mutex
 

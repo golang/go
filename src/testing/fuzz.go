@@ -380,6 +380,13 @@ func (f *F) Fuzz(ff interface{}) {
 		if e.Path != "" {
 			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
 		}
+		if f.testContext.isFuzzing {
+			// Don't preserve subtest names while fuzzing. If fn calls T.Run,
+			// there will be a very large number of subtests with duplicate names,
+			// which will use a large amount of memory. The subtest names aren't
+			// useful since there's no way to re-run them deterministically.
+			f.testContext.match.clearSubNames()
+		}
 
 		// Record the stack trace at the point of this call so that if the subtest
 		// function - which runs in a separate stack - is marked as a helper, we can
@@ -395,7 +402,6 @@ func (f *F) Fuzz(ff interface{}) {
 				level:   f.level + 1,
 				creator: pc[:n],
 				chatty:  f.chatty,
-				fuzzing: true,
 			},
 			context: f.testContext,
 		}
@@ -615,6 +621,7 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ok bool) {
 	}
 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
 	tctx := newTestContext(1, m)
+	tctx.isFuzzing = true
 	fctx := &fuzzContext{
 		deps: deps,
 	}
