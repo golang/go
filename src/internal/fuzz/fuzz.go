@@ -136,13 +136,12 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 
 	// Ensure that any crash we find is written to the corpus, even if an error
 	// or interruption occurs while minimizing it.
-	var crashMinimizing *fuzzResult
 	crashWritten := false
 	defer func() {
-		if crashMinimizing == nil || crashWritten {
+		if c.crashMinimizing == nil || crashWritten {
 			return
 		}
-		fileName, werr := writeToCorpus(crashMinimizing.entry.Data, opts.CorpusDir)
+		fileName, werr := writeToCorpus(c.crashMinimizing.entry.Data, opts.CorpusDir)
 		if werr != nil {
 			err = fmt.Errorf("%w\n%v", err, werr)
 			return
@@ -150,7 +149,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 		if err == nil {
 			err = &crashError{
 				name: filepath.Base(fileName),
-				err:  errors.New(crashMinimizing.crasherMsg),
+				err:  errors.New(c.crashMinimizing.crasherMsg),
 			}
 		}
 	}()
@@ -198,7 +197,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 	for {
 		var inputC chan fuzzInput
 		input, ok := c.peekInput()
-		if ok && crashMinimizing == nil && !stopping {
+		if ok && c.crashMinimizing == nil && !stopping {
 			inputC = c.inputC
 		}
 
@@ -236,7 +235,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					break
 				}
 				if c.canMinimize() && result.canMinimize {
-					if crashMinimizing != nil {
+					if c.crashMinimizing != nil {
 						// This crash is not minimized, and another crash is being minimized.
 						// Ignore this one and wait for the other one to finish.
 						break
@@ -244,7 +243,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// Found a crasher but haven't yet attempted to minimize it.
 					// Send it back to a worker for minimization. Disable inputC so
 					// other workers don't continue fuzzing.
-					crashMinimizing = &result
+					c.crashMinimizing = &result
 					fmt.Fprintf(c.opts.Log, "fuzz: minimizing %d-byte crash input...\n", len(result.entry.Data))
 					c.queueForMinimization(result, nil)
 				} else if !crashWritten {
@@ -308,7 +307,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					// number of new edges that this result expanded.
 					// TODO(jayconrod, katiehockman): Don't write a value that's already
 					// in the corpus.
-					if c.canMinimize() && result.canMinimize && crashMinimizing == nil {
+					if c.canMinimize() && result.canMinimize && c.crashMinimizing == nil {
 						// Send back to workers to find a smaller value that preserves
 						// at least one new coverage bit.
 						c.queueForMinimization(result, keepCoverage)
@@ -604,6 +603,9 @@ type coordinator struct {
 	// same thing.
 	minimizeQueue queue
 
+	// crashMinimizing is the crash that is currently being minimized.
+	crashMinimizing *fuzzResult
+
 	// coverageMask aggregates coverage that was found for all inputs in the
 	// corpus. Each byte represents a single basic execution block. Each set bit
 	// within the byte indicates that an input has triggered that block at least
@@ -692,6 +694,8 @@ func (c *coordinator) logStats() {
 		} else {
 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, testing seed corpus: %d/%d completed\n", c.elapsed(), runSoFar, c.warmupInputCount)
 		}
+	} else if c.crashMinimizing != nil {
+		fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, minimizing\n", c.elapsed())
 	} else {
 		rate := float64(c.count-c.countLastLog) / now.Sub(c.timeLastLog).Seconds()
 		if coverageEnabled {
