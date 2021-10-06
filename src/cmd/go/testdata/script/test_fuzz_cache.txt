@@ -32,6 +32,19 @@ go clean -fuzzcache
 go list -f {{.Stale}} ./empty
 stdout false
 
+# Fuzzing indicates that one new interesting value was found with an empty
+# corpus, and the total size of the cache is now 1.
+go clean -fuzzcache
+go test -fuzz=FuzzEmpty -fuzztime=10000x .
+stdout 'new interesting: 1'
+stdout 'total: 1'
+
+# Fuzzing again with a small fuzztime does not find any other interesting
+# values but still indicates that the cache size is 1.
+go test -fuzz=FuzzEmpty -fuzztime=2x .
+stdout 'new interesting: 0'
+stdout 'total: 1'
+
 -- go.mod --
 module example.com/y
 
@@ -43,6 +56,10 @@ import (
 	"io"
 	"testing"
 )
+
+func FuzzEmpty(f *testing.F) {
+    f.Fuzz(func (*testing.T, []byte) {})
+}
 
 func FuzzY(f *testing.F) {
 	f.Add([]byte("y"))
