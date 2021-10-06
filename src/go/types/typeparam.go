@@ -50,17 +50,10 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	return typ
 }
 
-// TODO(rfindley): remove or export these placeholder APIs.
-
-// Index returns the index of the type param within its param list.
-func (t *TypeParam) _Index() int {
+// Index returns the index of the type param within its param list, or -1 if
+// the type parameter has not yet been bound to a type.
+func (t *TypeParam) Index() int {
 	return t.index
-}
-
-// SetId sets the unique id of a type param. Should only be used for type params
-// in imported generic types.
-func (t *TypeParam) _SetId(id uint64) {
-	t.id = id
 }
 
 // Obj returns the type name for t.
