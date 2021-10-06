@@ -367,7 +367,7 @@ func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
 		if dst.IsFloat() {
 			switch src.Kind() {
 			case types.TINT64, types.TUINT64:
-				return src.Kind(), types.TFLOAT64
+				return src.Kind(), dst.Kind()
 			}
 		}
 
@@ -383,7 +383,7 @@ func rtconvfn(src, dst *types.Type) (param, result types.Kind) {
 		if dst.IsFloat() {
 			switch src.Kind() {
 			case types.TINT64, types.TUINT64:
-				return src.Kind(), types.TFLOAT64
+				return src.Kind(), dst.Kind()
 			case types.TUINT32, types.TUINT, types.TUINTPTR:
 				return types.TUINT32, types.TFLOAT64
 			}
