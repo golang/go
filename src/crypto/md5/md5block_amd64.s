@@ -71,6 +71,8 @@ loop:
 	MOVL	DX,		R9
 	MOVL	DX,		R10
 
+// Uses https://github.com/animetosho/md5-optimisation#dependency-shortcut-in-g-function
+
 #define ROUND2(a, b, c, d, index, const, shift) \
 	XORL	R11, R9; \
 	ADDL	$const, a; \
@@ -78,9 +80,9 @@ loop:
 	ANDL	b,		R10; \
 	ANDL	c,		R9; \
 	MOVL	(index*4)(SI),R8; \
-	ORL	R9,		R10; \
+    ADDL    R9,    a; \
+    ADDL    R10,   a; \
 	MOVL	c,		R9; \
-	ADDL	R10,		a; \
 	MOVL	c,		R10; \
 	ROLL	$shift,	a; \
 	ADDL	b,		a
@@ -104,18 +106,30 @@ loop:
 
 	MOVL	CX,		R9
 
-#define ROUND3(a, b, c, d, index, const, shift) \
+// Uses https://github.com/animetosho/md5-optimisation#h-function-re-use
+
+#define ROUND3FIRST(a, b, c, d, index, const, shift) \
+	MOVL	d,		R9; \
+	XORL	c,		R9; \
+	XORL	b,		R9; \
 	ADDL	$const, a; \
 	ADDL	R8, a; \
 	MOVL	(index*4)(SI),R8; \
-	XORL	d,		R9; \
-	XORL	b,		R9; \
 	ADDL	R9,		a; \
 	ROLL	$shift,		a; \
-	MOVL	b,		R9; \
 	ADDL	b,		a
 
-	ROUND3(AX,BX,CX,DX, 8,0xfffa3942, 4);
+#define ROUND3(a, b, c, d, index, const, shift) \
+	XORL	a,		R9; \
+	XORL	b,		R9; \
+	ADDL	$const, a; \
+	ADDL	R8, a; \
+	MOVL	(index*4)(SI),R8; \
+	ADDL	R9,		a; \
+	ROLL	$shift,		a; \
+	ADDL	b,		a
+
+	ROUND3FIRST(AX,BX,CX,DX, 8,0xfffa3942, 4);
 	ROUND3(DX,AX,BX,CX,11,0x8771f681,11);
 	ROUND3(CX,DX,AX,BX,14,0x6d9d6122,16);
 	ROUND3(BX,CX,DX,AX, 1,0xfde5380c,23);
