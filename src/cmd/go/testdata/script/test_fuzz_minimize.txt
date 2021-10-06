@@ -74,6 +74,12 @@ stdout FAIL
 # Test that re-running the unminimized value causes a crash.
 ! go test -run=FuzzMinimizerRecoverable minimizer_test.go
 
+! go test -fuzz=FuzzMinimizerTooSlow -run=FuzzMinimizerTooSlow -fuzzminimizetime=3s minimizer_test.go
+stdout 'fuzz: minimizing'
+stdout 'fuzz: elapsed: 3s, minimizing'
+stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerTooSlow[/\\]'
+stdout FAIL
+
 # TODO(jayconrod,katiehockman): add a test which verifies that the right bytes
 # are written to testdata in the case of an interrupt during minimization.
 
@@ -87,6 +93,7 @@ package fuzz_test
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 func FuzzMinimizeZeroDurationSet(f *testing.F) {
@@ -142,6 +149,16 @@ func FuzzMinimizerNonrecoverable(f *testing.F) {
 		}
 	})
 }
+
+func FuzzMinimizerTooSlow(f *testing.F) {
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) > 50 {
+			t.Error("error here")
+			time.Sleep(2 * time.Second)
+		}
+	})
+}
+
 -- check_testdata.go --
 // +build ignore
 
