@@ -12,7 +12,7 @@ type Nat /* ERROR cycle */ interface {
 
 type Zero struct{}
 type Succ struct{
-	Nat // ERROR interface contains type constraints
+	Nat // Nat contains type constraints but is invalid, so no error
 }
 
 // Struct tests.
