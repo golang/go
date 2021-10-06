@@ -1,7 +1,8 @@
 // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
 
-//go:build 386 || amd64 || arm64 || ppc64le || s390x
+//go:build (386 || amd64 || arm64 || ppc64le || s390x) && !gcflags_noopt
 // +build 386 amd64 arm64 ppc64le s390x
+// +build !gcflags_noopt
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
