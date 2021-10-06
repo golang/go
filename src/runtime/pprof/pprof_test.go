@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package pprof
@@ -10,9 +11,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"internal/abi"
 	"internal/profile"
 	"internal/testenv"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"os/exec"
@@ -23,6 +26,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	_ "unsafe"
 )
 
 func cpuHogger(f func(x int) int, y *int, dur time.Duration) {
@@ -75,6 +79,10 @@ func cpuHog2(x int) int {
 	return foo
 }
 
+func cpuHog3(x int) int {
+	return cpuHog0(x, 1e5)
+}
+
 // Return a list of functions that we don't want to ever appear in CPU
 // profiles. For gccgo, that list includes the sigprof handler itself.
 func avoidFunctions() []string {
@@ -103,6 +111,93 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
+func TestCPUProfileMultithreadMagnitude(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("issue 35057 is only confirmed on Linux")
+	}
+
+	// Run a workload in a single goroutine, then run copies of the same
+	// workload in several goroutines. For both the serial and parallel cases,
+	// the CPU time the process measures with its own profiler should match the
+	// total CPU usage that the OS reports.
+	//
+	// We could also check that increases in parallelism (GOMAXPROCS) lead to a
+	// linear increase in the CPU usage reported by both the OS and the
+	// profiler, but without a guarantee of exclusive access to CPU resources
+	// that is likely to be a flaky test.
+
+	// Require the smaller value to be within 10%, or 40% in short mode.
+	maxDiff := 0.10
+	if testing.Short() {
+		maxDiff = 0.40
+	}
+
+	parallelism := runtime.GOMAXPROCS(0)
+
+	var cpuTime1, cpuTimeN time.Duration
+	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {
+		cpuTime1 = diffCPUTime(t, func() {
+			// Consume CPU in one goroutine
+			cpuHogger(cpuHog1, &salt1, dur)
+		})
+
+		cpuTimeN = diffCPUTime(t, func() {
+			// Next, consume CPU in several goroutines
+			var wg sync.WaitGroup
+			var once sync.Once
+			for i := 0; i < parallelism; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					var salt = 0
+					cpuHogger(cpuHog3, &salt, dur)
+					once.Do(func() { salt1 = salt })
+				}()
+			}
+			wg.Wait()
+		})
+	})
+
+	for i, unit := range []string{"count", "nanoseconds"} {
+		if have, want := p.SampleType[i].Unit, unit; have != want {
+			t.Errorf("pN SampleType[%d]; %q != %q", i, have, want)
+		}
+	}
+
+	var value1, valueN time.Duration
+	for _, sample := range p.Sample {
+		if stackContains("runtime/pprof.cpuHog1", uintptr(sample.Value[0]), sample.Location, sample.Label) {
+			value1 += time.Duration(sample.Value[1]) * time.Nanosecond
+		}
+		if stackContains("runtime/pprof.cpuHog3", uintptr(sample.Value[0]), sample.Location, sample.Label) {
+			valueN += time.Duration(sample.Value[1]) * time.Nanosecond
+		}
+	}
+
+	compare := func(a, b time.Duration, maxDiff float64) func(*testing.T) {
+		return func(t *testing.T) {
+			t.Logf("compare %s vs %s", a, b)
+			if a <= 0 || b <= 0 {
+				t.Errorf("Expected both time reports to be positive")
+				return
+			}
+
+			if a < b {
+				a, b = b, a
+			}
+
+			diff := float64(a-b) / float64(a)
+			if diff > maxDiff {
+				t.Errorf("CPU usage reports are too different (limit -%.1f%%, got -%.1f%%)", maxDiff*100, diff*100)
+			}
+		}
+	}
+
+	// check that the OS's perspective matches what the Go runtime measures
+	t.Run("serial execution OS vs pprof", compare(cpuTime1, value1, maxDiff))
+	t.Run("parallel execution OS vs pprof", compare(cpuTimeN, valueN, maxDiff))
+}
+
 // containsInlinedCall reports whether the function body for the function f is
 // known to contain an inlined function call within the first maxBytes bytes.
 func containsInlinedCall(f interface{}, maxBytes int) bool {
@@ -113,7 +208,7 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
 // findInlinedCall returns the PC of an inlined function call within
 // the function body for the function f if any.
 func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
-	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
+	fFunc := runtime.FuncForPC(uintptr(abi.FuncPCABIInternal(f)))
 	if fFunc == nil || fFunc.Entry() == 0 {
 		panic("failed to locate function entry")
 	}
@@ -257,39 +352,43 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
 	return p
 }
 
+func cpuProfilingBroken() bool {
+	switch runtime.GOOS {
+	case "plan9":
+		// Profiling unimplemented.
+		return true
+	case "aix":
+		// See https://golang.org/issue/45170.
+		return true
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+		// See https://golang.org/issue/13841.
+		return true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			// See https://golang.org/issue/13841.
+			return true
+		}
+	}
+
+	return false
+}
+
 // testCPUProfile runs f under the CPU profiler, checking for some conditions specified by need,
 // as interpreted by matches, and returns the parsed profile.
 func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
 	switch runtime.GOOS {
-	case "darwin", "ios":
-		switch runtime.GOARCH {
-		case "arm64":
-			// nothing
-		default:
-			out, err := exec.Command("uname", "-a").CombinedOutput()
-			if err != nil {
-				t.Fatal(err)
-			}
-			vers := string(out)
-			t.Logf("uname -a: %v", vers)
+	case "darwin":
+		out, err := exec.Command("uname", "-a").CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
 		}
+		vers := string(out)
+		t.Logf("uname -a: %v", vers)
 	case "plan9":
 		t.Skip("skipping on plan9")
 	}
 
-	broken := false
-	switch runtime.GOOS {
-	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
-		broken = true
-	case "openbsd":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			broken = true
-		}
-	case "windows":
-		if runtime.GOARCH == "arm" {
-			broken = true // See https://golang.org/issues/42862
-		}
-	}
+	broken := cpuProfilingBroken()
 
 	maxDuration := 5 * time.Second
 	if testing.Short() && broken {
@@ -340,6 +439,16 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 	}
 	t.FailNow()
 	return nil
+}
+
+var diffCPUTimeImpl func(f func()) time.Duration
+
+func diffCPUTime(t *testing.T, f func()) time.Duration {
+	if fn := diffCPUTimeImpl; fn != nil {
+		return fn(f)
+	}
+	t.Fatalf("cannot measure CPU time on GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
+	return 0
 }
 
 func contains(slice []string, s string) bool {
@@ -514,8 +623,10 @@ func TestGoroutineSwitch(t *testing.T) {
 		}
 		StopCPUProfile()
 
-		// Read profile to look for entries for runtime.gogo with an attempt at a traceback.
-		// The special entry
+		// Read profile to look for entries for gogo with an attempt at a traceback.
+		// "runtime.gogo" is OK, because that's the part of the context switch
+		// before the actual switch begins. But we should not see "gogo",
+		// aka "gogo<>(SB)", which does the actual switch and is marked SPWRITE.
 		parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, _ map[string][]string) {
 			// An entry with two frames with 'System' in its top frame
 			// exists to record a PC without a traceback. Those are okay.
@@ -526,13 +637,19 @@ func TestGoroutineSwitch(t *testing.T) {
 				}
 			}
 
-			// Otherwise, should not see runtime.gogo.
+			// An entry with just one frame is OK too:
+			// it knew to stop at gogo.
+			if len(stk) == 1 {
+				return
+			}
+
+			// Otherwise, should not see gogo.
 			// The place we'd see it would be the inner most frame.
 			name := stk[0].Line[0].Function.Name
-			if name == "runtime.gogo" {
+			if name == "gogo" {
 				var buf bytes.Buffer
 				fprintStack(&buf, stk)
-				t.Fatalf("found profile entry for runtime.gogo:\n%s", buf.String())
+				t.Fatalf("found profile entry for gogo:\n%s", buf.String())
 			}
 		})
 	}
@@ -603,17 +720,20 @@ func TestMorestack(t *testing.T) {
 
 //go:noinline
 func growstack1() {
-	growstack()
+	growstack(10)
 }
 
 //go:noinline
-func growstack() {
-	var buf [8 << 10]byte
+func growstack(n int) {
+	var buf [8 << 18]byte
 	use(buf)
+	if n > 0 {
+		growstack(n - 1)
+	}
 }
 
 //go:noinline
-func use(x [8 << 10]byte) {}
+func use(x [8 << 18]byte) {}
 
 func TestBlockProfile(t *testing.T) {
 	type TestCase struct {
@@ -890,6 +1010,74 @@ func blockCond() {
 	c.Wait()
 	mu.Unlock()
 }
+
+// See http://golang.org/cl/299991.
+func TestBlockProfileBias(t *testing.T) {
+	rate := int(1000) // arbitrary value
+	runtime.SetBlockProfileRate(rate)
+	defer runtime.SetBlockProfileRate(0)
+
+	// simulate blocking events
+	blockFrequentShort(rate)
+	blockInfrequentLong(rate)
+
+	var w bytes.Buffer
+	Lookup("block").WriteTo(&w, 0)
+	p, err := profile.Parse(&w)
+	if err != nil {
+		t.Fatalf("failed to parse profile: %v", err)
+	}
+	t.Logf("parsed proto: %s", p)
+
+	il := float64(-1) // blockInfrequentLong duration
+	fs := float64(-1) // blockFrequentShort duration
+	for _, s := range p.Sample {
+		for _, l := range s.Location {
+			for _, line := range l.Line {
+				if len(s.Value) < 2 {
+					t.Fatal("block profile has less than 2 sample types")
+				}
+
+				if line.Function.Name == "runtime/pprof.blockInfrequentLong" {
+					il = float64(s.Value[1])
+				} else if line.Function.Name == "runtime/pprof.blockFrequentShort" {
+					fs = float64(s.Value[1])
+				}
+			}
+		}
+	}
+	if il == -1 || fs == -1 {
+		t.Fatal("block profile is missing expected functions")
+	}
+
+	// stddev of bias from 100 runs on local machine multiplied by 10x
+	const threshold = 0.2
+	if bias := (il - fs) / il; math.Abs(bias) > threshold {
+		t.Fatalf("bias: abs(%f) > %f", bias, threshold)
+	} else {
+		t.Logf("bias: abs(%f) < %f", bias, threshold)
+	}
+}
+
+// blockFrequentShort produces 100000 block events with an average duration of
+// rate / 10.
+func blockFrequentShort(rate int) {
+	for i := 0; i < 100000; i++ {
+		blockevent(int64(rate/10), 1)
+	}
+}
+
+// blockFrequentShort produces 10000 block events with an average duration of
+// rate.
+func blockInfrequentLong(rate int) {
+	for i := 0; i < 10000; i++ {
+		blockevent(int64(rate), 1)
+	}
+}
+
+// Used by TestBlockProfileBias.
+//go:linkname blockevent runtime.blockevent
+func blockevent(cycles int64, skip int)
 
 func TestMutexProfile(t *testing.T) {
 	// Generate mutex profile
@@ -1455,5 +1643,40 @@ func TestTryAdd(t *testing.T) {
 				t.Errorf("Got Samples = %+v\n\twant %+v", got, want)
 			}
 		})
+	}
+}
+
+func TestTimeVDSO(t *testing.T) {
+	// Test that time functions have the right stack trace. In particular,
+	// it shouldn't be recursive.
+
+	if runtime.GOOS == "android" {
+		// Flaky on Android, issue 48655. VDSO may not be enabled.
+		testenv.SkipFlaky(t, 48655)
+	}
+
+	p := testCPUProfile(t, stackContains, []string{"time.now"}, avoidFunctions(), func(dur time.Duration) {
+		t0 := time.Now()
+		for {
+			t := time.Now()
+			if t.Sub(t0) >= dur {
+				return
+			}
+		}
+	})
+
+	// Check for recursive time.now sample.
+	for _, sample := range p.Sample {
+		var seenNow bool
+		for _, loc := range sample.Location {
+			for _, line := range loc.Line {
+				if line.Function.Name == "time.now" {
+					if seenNow {
+						t.Fatalf("unexpected recursive time.now")
+					}
+					seenNow = true
+				}
+			}
+		}
 	}
 }

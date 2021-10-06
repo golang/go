@@ -70,16 +70,49 @@ var allDesc = []Description{
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/allocs-by-size:bytes",
-		Description: "Distribution of all objects allocated by approximate size.",
-		Kind:        KindFloat64Histogram,
+		Name: "/gc/heap/allocs-by-size:bytes",
+		Description: "Distribution of heap allocations by approximate size. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindFloat64Histogram,
+		Cumulative: true,
+	},
+	{
+		Name:        "/gc/heap/allocs:bytes",
+		Description: "Cumulative sum of memory allocated to the heap by the application.",
+		Kind:        KindUint64,
 		Cumulative:  true,
 	},
 	{
-		Name:        "/gc/heap/frees-by-size:bytes",
-		Description: "Distribution of all objects freed by approximate size.",
-		Kind:        KindFloat64Histogram,
+		Name: "/gc/heap/allocs:objects",
+		Description: "Cumulative count of heap allocations triggered by the application. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/gc/heap/frees-by-size:bytes",
+		Description: "Distribution of freed heap allocations by approximate size. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindFloat64Histogram,
+		Cumulative: true,
+	},
+	{
+		Name:        "/gc/heap/frees:bytes",
+		Description: "Cumulative sum of heap memory freed by the garbage collector.",
+		Kind:        KindUint64,
 		Cumulative:  true,
+	},
+	{
+		Name: "/gc/heap/frees:objects",
+		Description: "Cumulative count of heap allocations whose storage was freed " +
+			"by the garbage collector. " +
+			"Note that this does not include tiny objects as defined by " +
+			"/gc/heap/tiny/allocs:objects, only tiny blocks.",
+		Kind:       KindUint64,
+		Cumulative: true,
 	},
 	{
 		Name:        "/gc/heap/goal:bytes",
@@ -90,6 +123,16 @@ var allDesc = []Description{
 		Name:        "/gc/heap/objects:objects",
 		Description: "Number of objects, live or unswept, occupying heap memory.",
 		Kind:        KindUint64,
+	},
+	{
+		Name: "/gc/heap/tiny/allocs:objects",
+		Description: "Count of small allocations that are packed together into blocks. " +
+			"These allocations are counted separately from other allocations " +
+			"because each individual allocation is not tracked by the runtime, " +
+			"only their block. Each block is already accounted for in " +
+			"allocs-by-size and frees-by-size.",
+		Kind:       KindUint64,
+		Cumulative: true,
 	},
 	{
 		Name:        "/gc/pauses:seconds",
@@ -175,6 +218,11 @@ var allDesc = []Description{
 		Name:        "/sched/goroutines:goroutines",
 		Description: "Count of live goroutines.",
 		Kind:        KindUint64,
+	},
+	{
+		Name:        "/sched/latencies:seconds",
+		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
+		Kind:        KindFloat64Histogram,
 	},
 }
 

@@ -1,6 +1,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_openbsd.go
 
+//go:build amd64 && openbsd
 // +build amd64,openbsd
 
 package syscall

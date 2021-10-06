@@ -61,8 +61,13 @@ func Uvarint(buf []byte) (uint64, int) {
 	var x uint64
 	var s uint
 	for i, b := range buf {
+		if i == MaxVarintLen64 {
+			// Catch byte reads past MaxVarintLen64.
+			// See issue https://golang.org/issues/41185
+			return 0, -(i + 1) // overflow
+		}
 		if b < 0x80 {
-			if i >= MaxVarintLen64 || i == MaxVarintLen64-1 && b > 1 {
+			if i == MaxVarintLen64-1 && b > 1 {
 				return 0, -(i + 1) // overflow
 			}
 			return x | uint64(b)<<s, i + 1

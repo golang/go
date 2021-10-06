@@ -66,6 +66,7 @@ func init() {
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	base.AddModCommonFlags(&cmdDownload.Flag)
+	base.AddWorkfileFlag(&cmdDownload.Flag)
 }
 
 type moduleJSON struct {
@@ -81,21 +82,32 @@ type moduleJSON struct {
 }
 
 func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
+	modload.ExplicitWriteGoMod = true
 	if !modload.HasModRoot() && len(args) == 0 {
-		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
+		base.Fatalf("go: no modules specified (see 'go help mod download')")
 	}
-	if len(args) == 0 {
+	haveExplicitArgs := len(args) > 0
+	if !haveExplicitArgs {
 		args = []string{"all"}
-	} else if modload.HasModRoot() {
-		modload.LoadModFile(ctx) // to fill Target
-		targetAtUpgrade := modload.Target.Path + "@upgrade"
-		targetAtPatch := modload.Target.Path + "@patch"
+	}
+	if modload.HasModRoot() {
+		modload.LoadModFile(ctx) // to fill MainModules
+
+		if len(modload.MainModules.Versions()) != 1 {
+			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
+		}
+		mainModule := modload.MainModules.Versions()[0]
+
+		targetAtUpgrade := mainModule.Path + "@upgrade"
+		targetAtPatch := mainModule.Path + "@patch"
 		for _, arg := range args {
 			switch arg {
-			case modload.Target.Path, targetAtUpgrade, targetAtPatch:
-				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
+			case mainModule.Path, targetAtUpgrade, targetAtPatch:
+				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
 			}
 		}
 	}
@@ -132,12 +144,25 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	var mods []*moduleJSON
-	listU := false
-	listVersions := false
-	listRetractions := false
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	for _, info := range modload.ListModules(ctx, args, listU, listVersions, listRetractions) {
+	infos, infosErr := modload.ListModules(ctx, args, 0)
+	if !haveExplicitArgs {
+		// 'go mod download' is sometimes run without arguments to pre-populate the
+		// module cache. It may fetch modules that aren't needed to build packages
+		// in the main module. This is usually not intended, so don't save sums for
+		// downloaded modules (golang.org/issue/45332). We do still fix
+		// inconsistencies in go.mod though.
+		//
+		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
+		// be updated after loading the build list. This may require setting
+		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
+
+	for _, info := range infos {
 		if info.Replace != nil {
 			info = info.Replace
 		}
@@ -171,7 +196,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("go mod download: %v", err)
+				base.Fatalf("go: %v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -181,12 +206,28 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("go mod download: %v", m.Error)
+				base.Errorf("go: %v", m.Error)
 			}
 		}
 		base.ExitIfErrors()
 	}
 
-	// Update go.mod and especially go.sum if needed.
-	modload.WriteGoMod()
+	// If there were explicit arguments, update go.mod and especially go.sum.
+	// 'go mod download mod@version' is a useful way to add a sum without using
+	// 'go get mod@version', which may have other side effects. We print this in
+	// some error message hints.
+	//
+	// Don't save sums for 'go mod download' without arguments; see comment above.
+	if haveExplicitArgs {
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Errorf("go: %v", err)
+		}
+	}
+
+	// If there was an error matching some of the requested packages, emit it now
+	// (after we've written the checksums for the modules that were downloaded
+	// successfully).
+	if infosErr != nil {
+		base.Errorf("go: %v", infosErr)
+	}
 }

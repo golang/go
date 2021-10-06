@@ -16,10 +16,10 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	exec "internal/execabs"
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -215,8 +215,7 @@ func main() {
 	}
 	optional := fileFeatures(*nextFile)
 	exception := fileFeatures(*exceptFile)
-	fail = !compareAPI(bw, features, required, optional, exception,
-		*allowNew && strings.Contains(runtime.Version(), "devel"))
+	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
 }
 
 // export emits the exported package features.
@@ -654,10 +653,15 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	}
 
 	// Type-check package files.
+	var sizes types.Sizes
+	if w.context != nil {
+		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
+	}
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
 		Importer:         w,
+		Sizes:            sizes,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {

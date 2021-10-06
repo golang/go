@@ -32,11 +32,13 @@ var (
 	D        MultiFlag
 	I        MultiFlag
 	PrintOut int
+	DebugV   bool
 )
 
 func init() {
 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
+	flag.BoolVar(&DebugV, "v", false, "print debug output")
 	objabi.AddVersionFlag() // -V
 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
 }

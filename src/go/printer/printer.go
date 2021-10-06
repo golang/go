@@ -8,6 +8,7 @@ package printer
 import (
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/token"
 	"io"
 	"os"
@@ -64,6 +65,8 @@ type printer struct {
 	lastTok      token.Token  // last token printed (token.ILLEGAL if it's whitespace)
 	prevOpen     token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
 	wsbuf        []whiteSpace // delayed white space
+	goBuild      []int        // start index of all //go:build comments in output
+	plusBuild    []int        // start index of all // +build comments in output
 
 	// Positions
 	// The out position differs from the pos position when the result
@@ -649,6 +652,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// shortcut common case of //-style comments
 	if text[1] == '/' {
+		if constraint.IsGoBuild(text) {
+			p.goBuild = append(p.goBuild, len(p.output))
+		} else if constraint.IsPlusBuild(text) {
+			p.plusBuild = append(p.plusBuild, len(p.output))
+		}
 		p.writeString(pos, trimRight(text), true)
 		return
 	}
@@ -836,7 +844,7 @@ func (p *printer) writeWhitespace(n int) {
 // ----------------------------------------------------------------------------
 // Printing interface
 
-// nlines limits n to maxNewlines.
+// nlimit limits n to maxNewlines.
 func nlimit(n int) int {
 	if n > maxNewlines {
 		n = maxNewlines
@@ -1122,6 +1130,8 @@ func (p *printer) printNode(node interface{}) error {
 	// get comments ready for use
 	p.nextComment()
 
+	p.print(pmode(0))
+
 	// format node
 	switch n := node.(type) {
 	case ast.Expr:
@@ -1312,6 +1322,10 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
 	// print outstanding comments
 	p.impliedSemi = false // EOF acts like a newline
 	p.flush(token.Position{Offset: infinity, Line: infinity}, token.EOF)
+
+	// output is buffered in p.output now.
+	// fix //go:build and // +build comments if needed.
+	p.fixGoBuildLines()
 
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide

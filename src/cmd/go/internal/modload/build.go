@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"internal/goroot"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,17 +51,17 @@ func findStandardImportPath(path string) string {
 // a given package. If modules are not enabled or if the package is in the
 // standard library or if the package was not successfully loaded with
 // LoadPackages or ImportFromFiles, nil is returned.
-func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
+func PackageModuleInfo(ctx context.Context, pkgpath string) *modinfo.ModulePublic {
 	if isStandardImportPath(pkgpath) || !Enabled() {
 		return nil
 	}
-	m, ok := findModule(pkgpath)
+	m, ok := findModule(loaded, pkgpath)
 	if !ok {
 		return nil
 	}
-	fromBuildList := true
-	listRetracted := false
-	return moduleInfo(context.TODO(), m, fromBuildList, listRetracted)
+
+	rs := LoadModFile(ctx)
+	return moduleInfo(ctx, rs, m, 0)
 }
 
 func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
@@ -68,26 +69,38 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	listRetracted := false
 	if i := strings.Index(path, "@"); i >= 0 {
 		m := module.Version{Path: path[:i], Version: path[i+1:]}
-		fromBuildList := false
-		return moduleInfo(ctx, m, fromBuildList, listRetracted)
+		return moduleInfo(ctx, nil, m, 0)
 	}
 
-	for _, m := range buildList {
-		if m.Path == path {
-			fromBuildList := true
-			return moduleInfo(ctx, m, fromBuildList, listRetracted)
+	rs := LoadModFile(ctx)
+
+	var (
+		v  string
+		ok bool
+	)
+	if rs.pruning == pruned {
+		v, ok = rs.rootSelected(path)
+	}
+	if !ok {
+		mg, err := rs.Graph(ctx)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+		v = mg.Selected(path)
+	}
+
+	if v == "none" {
+		return &modinfo.ModulePublic{
+			Path: path,
+			Error: &modinfo.ModuleError{
+				Err: "module not in current build",
+			},
 		}
 	}
 
-	return &modinfo.ModulePublic{
-		Path: path,
-		Error: &modinfo.ModuleError{
-			Err: "module not in current build",
-		},
-	}
+	return moduleInfo(ctx, rs, module.Version{Path: path, Version: v}, 0)
 }
 
 // addUpdate fills in m.Update if an updated version is available.
@@ -96,7 +109,26 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+
+	if semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -113,7 +145,11 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
 	if listRetracted {
 		allowed = CheckExclusions
 	}
-	m.Versions, _ = versions(ctx, m.Path, allowed)
+	var err error
+	m.Versions, err = versions(ctx, m.Path, allowed)
+	if err != nil && m.Error == nil {
+		m.Error = &modinfo.ModuleError{Err: err.Error()}
+	}
 }
 
 // addRetraction fills in m.Retracted if the module was retracted by its author.
@@ -124,31 +160,72 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 
 	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
-	var rerr *ModuleRetractedError
-	if errors.As(err, &rerr) {
-		if len(rerr.Rationale) == 0 {
+	var noVersionErr *NoMatchingVersionError
+	var retractErr *ModuleRetractedError
+	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	} else if errors.As(err, &retractErr) {
+		if len(retractErr.Rationale) == 0 {
 			m.Retracted = []string{"retracted by module author"}
 		} else {
-			m.Retracted = rerr.Rationale
+			m.Retracted = retractErr.Rationale
 		}
-	} else if err != nil && m.Error == nil {
+	} else if m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
 }
 
-func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetracted bool) *modinfo.ModulePublic {
-	if m == Target {
+// addDeprecation fills in m.Deprecated if the module was deprecated by its
+// author. m.Error is set if there's an error loading deprecation information.
+func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
+	deprecation, err := CheckDeprecation(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var noVersionErr *NoMatchingVersionError
+	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+		// Ignore "not found" and "no matching version" errors.
+		// This means the proxy has no matching version or no versions at all.
+		//
+		// We should report other errors though. An attacker that controls the
+		// network shouldn't be able to hide versions by interfering with
+		// the HTTPS connection. An attacker that controls the proxy may still
+		// hide versions, since the "list" and "latest" endpoints are not
+		// authenticated.
+		return
+	}
+	if err != nil {
+		if m.Error == nil {
+			m.Error = &modinfo.ModuleError{Err: err.Error()}
+		}
+		return
+	}
+	m.Deprecated = deprecation
+}
+
+// moduleInfo returns information about module m, loaded from the requirements
+// in rs (which may be nil to indicate that m was not loaded from a requirement
+// graph).
+func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode) *modinfo.ModulePublic {
+	if m.Version == "" && MainModules.Contains(m.Path) {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: m.Version,
 			Main:    true,
 		}
-		if HasModRoot() {
-			info.Dir = ModRoot()
-			info.GoMod = ModFilePath()
-			if modFile.Go != nil {
-				info.GoVersion = modFile.Go.Version
-			}
+		if v, ok := rawGoVersion.Load(m); ok {
+			info.GoVersion = v.(string)
+		} else {
+			panic("internal error: GoVersion not set for main module")
+		}
+		if modRoot := MainModules.ModRoot(m); modRoot != "" {
+			info.Dir = modRoot
+			info.GoMod = modFilePath(modRoot)
 		}
 		return info
 	}
@@ -156,15 +233,18 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 	info := &modinfo.ModulePublic{
 		Path:     m.Path,
 		Version:  m.Version,
-		Indirect: fromBuildList && loaded != nil && !loaded.direct[m.Path],
+		Indirect: rs != nil && !rs.direct[m.Path],
 	}
 	if v, ok := rawGoVersion.Load(m); ok {
 		info.GoVersion = v.(string)
 	}
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
-	completeFromModCache := func(m *modinfo.ModulePublic) {
-		mod := module.Version{Path: m.Path, Version: m.Version}
+	completeFromModCache := func(m *modinfo.ModulePublic, replacedFrom string) {
+		checksumOk := func(suffix string) bool {
+			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
+				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
+		}
 
 		if m.Version != "" {
 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
@@ -173,38 +253,47 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 				m.Version = q.Version
 				m.Time = &q.Time
 			}
+		}
+		mod := module.Version{Path: m.Path, Version: m.Version}
 
-			gomod, err := modfetch.CachePath(mod, "mod")
-			if err == nil {
-				if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
-					m.GoMod = gomod
+		if m.GoVersion == "" && checksumOk("/go.mod") {
+			// Load the go.mod file to determine the Go version, since it hasn't
+			// already been populated from rawGoVersion.
+			if summary, err := rawGoModSummary(mod, replacedFrom); err == nil && summary.goVersion != "" {
+				m.GoVersion = summary.goVersion
+			}
+		}
+
+		if m.Version != "" {
+			if checksumOk("/go.mod") {
+				gomod, err := modfetch.CachePath(mod, "mod")
+				if err == nil {
+					if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
+						m.GoMod = gomod
+					}
 				}
 			}
-			dir, err := modfetch.DownloadDir(mod)
-			if err == nil {
-				m.Dir = dir
+			if checksumOk("") {
+				dir, err := modfetch.DownloadDir(mod)
+				if err == nil {
+					m.Dir = dir
+				}
 			}
 
-			if listRetracted {
+			if mode&ListRetracted != 0 {
 				addRetraction(ctx, m)
 			}
 		}
-
-		if m.GoVersion == "" {
-			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
-				m.GoVersion = summary.goVersionV[1:]
-			}
-		}
 	}
 
-	if !fromBuildList {
+	if rs == nil {
 		// If this was an explicitly-versioned argument to 'go mod download' or
 		// 'go list -m', report the actual requested version, not its replacement.
-		completeFromModCache(info) // Will set m.Error in vendor mode.
+		completeFromModCache(info, "") // Will set m.Error in vendor mode.
 		return info
 	}
 
-	r := Replacement(m)
+	r, replacedFrom := Replacement(m)
 	if r.Path == "" {
 		if cfg.BuildMod == "vendor" {
 			// It's tempting to fill in the "Dir" field to point within the vendor
@@ -213,7 +302,7 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 			// interleave packages from different modules if one module path is a
 			// prefix of the other.
 		} else {
-			completeFromModCache(info)
+			completeFromModCache(info, "")
 		}
 		return info
 	}
@@ -233,12 +322,12 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 		if filepath.IsAbs(r.Path) {
 			info.Replace.Dir = r.Path
 		} else {
-			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
+			info.Replace.Dir = filepath.Join(replacedFrom, r.Path)
 		}
 		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
 	}
 	if cfg.BuildMod != "vendor" {
-		completeFromModCache(info.Replace)
+		completeFromModCache(info.Replace, replacedFrom)
 		info.Dir = info.Replace.Dir
 		info.GoMod = info.Replace.GoMod
 		info.Retracted = info.Replace.Retracted
@@ -251,15 +340,14 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
 // for modules providing packages named by path and deps. path and deps must
 // name packages that were resolved successfully with LoadPackages.
 func PackageBuildInfo(path string, deps []string) string {
-	if isStandardImportPath(path) || !Enabled() {
+	if !Enabled() {
 		return ""
 	}
-
-	target := mustFindModule(path, path)
+	target, _ := findModule(loaded, path)
 	mdeps := make(map[module.Version]bool)
 	for _, dep := range deps {
-		if !isStandardImportPath(dep) {
-			mdeps[mustFindModule(path, dep)] = true
+		if m, ok := findModule(loaded, dep); ok {
+			mdeps[m] = true
 		}
 	}
 	var mods []module.Version
@@ -278,14 +366,16 @@ func PackageBuildInfo(path string, deps []string) string {
 			mv = "(devel)"
 		}
 		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
-		if r := Replacement(m); r.Path == "" {
+		if r, _ := Replacement(m); r.Path == "" {
 			fmt.Fprintf(&buf, "\t%s\n", modfetch.Sum(m))
 		} else {
 			fmt.Fprintf(&buf, "\n=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
 		}
 	}
 
-	writeEntry("mod", target)
+	if target.Path != "" {
+		writeEntry("mod", target)
+	}
 	for _, mod := range mods {
 		writeEntry("dep", mod)
 	}
@@ -293,37 +383,12 @@ func PackageBuildInfo(path string, deps []string) string {
 	return buf.String()
 }
 
-// mustFindModule is like findModule, but it calls base.Fatalf if the
-// module can't be found.
-//
-// TODO(jayconrod): remove this. Callers should use findModule and return
-// errors instead of relying on base.Fatalf.
-func mustFindModule(target, path string) module.Version {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
-	if ok {
-		if pkg.err != nil {
-			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
-		}
-		return pkg.mod
-	}
-
-	if path == "command-line-arguments" {
-		return Target
-	}
-
-	base.Fatalf("build %v: cannot find module for path %v", target, path)
-	panic("unreachable")
-}
-
 // findModule searches for the module that contains the package at path.
 // If the package was loaded, its containing module and true are returned.
-// Otherwise, module.Version{} and false are returend.
-func findModule(path string) (module.Version, bool) {
-	if pkg, ok := loaded.pkgCache.Get(path).(*loadPkg); ok {
+// Otherwise, module.Version{} and false are returned.
+func findModule(ld *loader, path string) (module.Version, bool) {
+	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
 		return pkg.mod, pkg.mod != module.Version{}
-	}
-	if path == "command-line-arguments" {
-		return Target, true
 	}
 	return module.Version{}, false
 }

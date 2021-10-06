@@ -4,6 +4,7 @@
 
 // Fake networking for js/wasm. It is intended to allow tests of other package to pass.
 
+//go:build js && wasm
 // +build js,wasm
 
 package net
@@ -265,13 +266,29 @@ func sysSocket(family, sotype, proto int) (int, error) {
 
 func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
 	return 0, nil, syscall.ENOSYS
+
+}
+func (fd *netFD) readFromInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+	return 0, syscall.ENOSYS
 }
 
-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+func (fd *netFD) readFromInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int, sa syscall.Sockaddr, err error) {
 	return 0, 0, 0, nil, syscall.ENOSYS
 }
 
 func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeToInet4(p []byte, sa syscall.SockaddrInet4) (n int, err error) {
+	return 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeToInet6(p []byte, sa syscall.SockaddrInet6) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 

@@ -23,6 +23,16 @@ type Image interface {
 	Set(x, y int, c color.Color)
 }
 
+// RGBA64Image extends both the Image and image.RGBA64Image interfaces with a
+// SetRGBA64 method to change a single pixel. SetRGBA64 is equivalent to
+// calling Set, but it can avoid allocations from converting concrete color
+// types to the color.Color interface type.
+type RGBA64Image interface {
+	image.RGBA64Image
+	Set(x, y int, c color.Color)
+	SetRGBA64(x, y int, c color.RGBA64)
+}
+
 // Quantizer produces a palette for an image.
 type Quantizer interface {
 	// Quantize appends up to cap(p) - len(p) colors to p and returns the
@@ -109,7 +119,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		return
 	}
 
-	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
+	// Fast paths for special cases. If none of them apply, then we fall back
+	// to general but slower implementations.
 	switch dst0 := dst.(type) {
 	case *image.RGBA:
 		if op == Over {
@@ -208,6 +219,88 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 		x0, x1, dx = x1-1, x0-1, -1
 		y0, y1, dy = y1-1, y0-1, -1
 	}
+
+	// FALLBACK1.17
+	//
+	// Try the draw.RGBA64Image and image.RGBA64Image interfaces, part of the
+	// standard library since Go 1.17. These are like the draw.Image and
+	// image.Image interfaces but they can avoid allocations from converting
+	// concrete color types to the color.Color interface type.
+
+	if dst0, _ := dst.(RGBA64Image); dst0 != nil {
+		if src0, _ := src.(image.RGBA64Image); src0 != nil {
+			if mask == nil {
+				sy := sp.Y + y0 - r.Min.Y
+				my := mp.Y + y0 - r.Min.Y
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					sx := sp.X + x0 - r.Min.X
+					mx := mp.X + x0 - r.Min.X
+					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+						if op == Src {
+							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
+						} else {
+							srgba := src0.RGBA64At(sx, sy)
+							a := m - uint32(srgba.A)
+							drgba := dst0.RGBA64At(x, y)
+							dst0.SetRGBA64(x, y, color.RGBA64{
+								R: uint16((uint32(drgba.R)*a)/m) + srgba.R,
+								G: uint16((uint32(drgba.G)*a)/m) + srgba.G,
+								B: uint16((uint32(drgba.B)*a)/m) + srgba.B,
+								A: uint16((uint32(drgba.A)*a)/m) + srgba.A,
+							})
+						}
+					}
+				}
+				return
+
+			} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
+				sy := sp.Y + y0 - r.Min.Y
+				my := mp.Y + y0 - r.Min.Y
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					sx := sp.X + x0 - r.Min.X
+					mx := mp.X + x0 - r.Min.X
+					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						switch {
+						case ma == 0:
+							if op == Over {
+								// No-op.
+							} else {
+								dst0.SetRGBA64(x, y, color.RGBA64{})
+							}
+						case ma == m && op == Src:
+							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
+						default:
+							srgba := src0.RGBA64At(sx, sy)
+							if op == Over {
+								drgba := dst0.RGBA64At(x, y)
+								a := m - (uint32(srgba.A) * ma / m)
+								dst0.SetRGBA64(x, y, color.RGBA64{
+									R: uint16((uint32(drgba.R)*a + uint32(srgba.R)*ma) / m),
+									G: uint16((uint32(drgba.G)*a + uint32(srgba.G)*ma) / m),
+									B: uint16((uint32(drgba.B)*a + uint32(srgba.B)*ma) / m),
+									A: uint16((uint32(drgba.A)*a + uint32(srgba.A)*ma) / m),
+								})
+							} else {
+								dst0.SetRGBA64(x, y, color.RGBA64{
+									R: uint16(uint32(srgba.R) * ma / m),
+									G: uint16(uint32(srgba.G) * ma / m),
+									B: uint16(uint32(srgba.B) * ma / m),
+									A: uint16(uint32(srgba.A) * ma / m),
+								})
+							}
+						}
+					}
+				}
+				return
+			}
+		}
+	}
+
+	// FALLBACK1.0
+	//
+	// If none of the faster code paths above apply, use the draw.Image and
+	// image.Image interfaces, part of the standard library since Go 1.0.
 
 	var out color.RGBA64
 	sy := sp.Y + y0 - r.Min.Y
@@ -526,6 +619,89 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
 	sx1 := sx0 + (x1 - x0)
 	i0 := dst.PixOffset(x0, y0)
 	di := dx * 4
+
+	// Try the image.RGBA64Image interface, part of the standard library since
+	// Go 1.17.
+	//
+	// This optimization is similar to how FALLBACK1.17 optimizes FALLBACK1.0
+	// in DrawMask, except here the concrete type of dst is known to be
+	// *image.RGBA.
+	if src0, _ := src.(image.RGBA64Image); src0 != nil {
+		if mask == nil {
+			if op == Over {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						dr := uint32(d[0])
+						dg := uint32(d[1])
+						db := uint32(d[2])
+						da := uint32(d[3])
+						a := (m - uint32(srgba.A)) * 0x101
+						d[0] = uint8((dr*a/m + uint32(srgba.R)) >> 8)
+						d[1] = uint8((dg*a/m + uint32(srgba.G)) >> 8)
+						d[2] = uint8((db*a/m + uint32(srgba.B)) >> 8)
+						d[3] = uint8((da*a/m + uint32(srgba.A)) >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			} else {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						d[0] = uint8(srgba.R >> 8)
+						d[1] = uint8(srgba.G >> 8)
+						d[2] = uint8(srgba.B >> 8)
+						d[3] = uint8(srgba.A >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			}
+			return
+
+		} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
+			if op == Over {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						dr := uint32(d[0])
+						dg := uint32(d[1])
+						db := uint32(d[2])
+						da := uint32(d[3])
+						a := (m - (uint32(srgba.A) * ma / m)) * 0x101
+						d[0] = uint8((dr*a + uint32(srgba.R)*ma) / m >> 8)
+						d[1] = uint8((dg*a + uint32(srgba.G)*ma) / m >> 8)
+						d[2] = uint8((db*a + uint32(srgba.B)*ma) / m >> 8)
+						d[3] = uint8((da*a + uint32(srgba.A)*ma) / m >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			} else {
+				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+						ma := uint32(mask0.RGBA64At(mx, my).A)
+						srgba := src0.RGBA64At(sx, sy)
+						d := dst.Pix[i : i+4 : i+4]
+						d[0] = uint8(uint32(srgba.R) * ma / m >> 8)
+						d[1] = uint8(uint32(srgba.G) * ma / m >> 8)
+						d[2] = uint8(uint32(srgba.B) * ma / m >> 8)
+						d[3] = uint8(uint32(srgba.A) * ma / m >> 8)
+					}
+					i0 += dy * dst.Stride
+				}
+			}
+			return
+		}
+	}
+
+	// Use the image.Image interface, part of the standard library since Go
+	// 1.0.
+	//
+	// This is similar to FALLBACK1.0 in DrawMask, except here the concrete
+	// type of dst is known to be *image.RGBA.
 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
 		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
 			ma := uint32(m)

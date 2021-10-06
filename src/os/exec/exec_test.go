@@ -488,7 +488,7 @@ func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
-	t.Skip("flaky test; see https://golang.org/issue/5780")
+	testenv.SkipFlaky(t, 5780)
 	switch runtime.GOOS {
 	case "windows":
 		t.Skip("no operating system support; skipping")
@@ -915,6 +915,16 @@ func TestHelperProcess(*testing.T) {
 	case "sleep":
 		time.Sleep(3 * time.Second)
 		os.Exit(0)
+	case "pipehandle":
+		handle, _ := strconv.ParseUint(args[0], 16, 64)
+		pipe := os.NewFile(uintptr(handle), "")
+		_, err := fmt.Fprint(pipe, args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "writing to pipe failed: %v\n", err)
+			os.Exit(1)
+		}
+		pipe.Close()
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
@@ -1042,41 +1052,18 @@ func TestContextCancel(t *testing.T) {
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")
 
-	r, w, err := os.Pipe()
+	stdin, err := c.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Stdin = r
-
-	stdout, err := c.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	readDone := make(chan struct{})
-	go func() {
-		defer close(readDone)
-		var a [1024]byte
-		for {
-			n, err := stdout.Read(a[:])
-			if err != nil {
-				if err != io.EOF {
-					t.Errorf("unexpected read error: %v", err)
-				}
-				return
-			}
-			t.Logf("%s", a[:n])
-		}
-	}()
+	defer stdin.Close()
 
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := r.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := io.WriteString(w, "echo"); err != nil {
+	// At this point the process is alive. Ensure it by sending data to stdin.
+	if _, err := io.WriteString(stdin, "echo"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1086,19 +1073,14 @@ func TestContextCancel(t *testing.T) {
 	// should now fail.  Give the process a little while to die.
 	start := time.Now()
 	for {
-		if _, err := io.WriteString(w, "echo"); err != nil {
+		if _, err := io.WriteString(stdin, "echo"); err != nil {
 			break
 		}
-		if time.Since(start) > time.Second {
+		if time.Since(start) > time.Minute {
 			t.Fatal("canceling context did not stop program")
 		}
 		time.Sleep(time.Millisecond)
 	}
-
-	if err := w.Close(); err != nil {
-		t.Errorf("error closing write end of pipe: %v", err)
-	}
-	<-readDone
 
 	if err := c.Wait(); err == nil {
 		t.Error("program unexpectedly exited successfully")

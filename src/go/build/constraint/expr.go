@@ -355,8 +355,8 @@ func IsPlusBuild(line string) bool {
 	return ok
 }
 
-// splitGoBuild splits apart the leading //go:build prefix in line from the build expression itself.
-// It returns "", false if the input is not a //go:build line or if the input contains multiple lines.
+// splitPlusBuild splits apart the leading // +build prefix in line from the build expression itself.
+// It returns "", false if the input is not a // +build line or if the input contains multiple lines.
 func splitPlusBuild(line string) (expr string, ok bool) {
 	// A single trailing newline is OK; otherwise multiple lines are not.
 	if len(line) > 0 && line[len(line)-1] == '\n' {
@@ -425,6 +425,9 @@ func parsePlusBuildExpr(text string) Expr {
 		} else {
 			x = or(x, y)
 		}
+	}
+	if x == nil {
+		x = tag("ignore")
 	}
 	return x
 }

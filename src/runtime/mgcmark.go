@@ -7,6 +7,7 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -56,8 +57,6 @@ const (
 func gcMarkRootPrepare() {
 	assertWorldStopped()
 
-	work.nFlushCacheRoots = 0
-
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
 		return int(divRoundUp(bytes, rootBlockBytes))
@@ -105,7 +104,14 @@ func gcMarkRootPrepare() {
 	work.nStackRoots = int(atomic.Loaduintptr(&allglen))
 
 	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nFlushCacheRoots + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
+
+	// Calculate base indexes of each root type
+	work.baseData = uint32(fixedRootCount)
+	work.baseBSS = work.baseData + uint32(work.nDataRoots)
+	work.baseSpans = work.baseBSS + uint32(work.nBSSRoots)
+	work.baseStacks = work.baseSpans + uint32(work.nSpanRoots)
+	work.baseEnd = work.baseStacks + uint32(work.nStackRoots)
 }
 
 // gcMarkRootCheck checks that all roots have been scanned. It is
@@ -116,23 +122,26 @@ func gcMarkRootCheck() {
 		throw("left over markroot jobs")
 	}
 
-	lock(&allglock)
 	// Check that stacks have been scanned.
-	var gp *g
-	for i := 0; i < work.nStackRoots; i++ {
-		gp = allgs[i]
-		if !gp.gcscandone {
-			goto fail
+	//
+	// We only check the first nStackRoots Gs that we should have scanned.
+	// Since we don't care about newer Gs (see comment in
+	// gcMarkRootPrepare), no locking is required.
+	i := 0
+	forEachGRace(func(gp *g) {
+		if i >= work.nStackRoots {
+			return
 		}
-	}
-	unlock(&allglock)
-	return
 
-fail:
-	println("gp", gp, "goid", gp.goid,
-		"status", readgstatus(gp),
-		"gcscandone", gp.gcscandone)
-	throw("scan missed a g")
+		if !gp.gcscandone {
+			println("gp", gp, "goid", gp.goid,
+				"status", readgstatus(gp),
+				"gcscandone", gp.gcscandone)
+			throw("scan missed a g")
+		}
+
+		i++
+	})
 }
 
 // ptrmask for an allocation containing a single pointer.
@@ -146,28 +155,16 @@ var oneptrmask = [...]uint8{1}
 //
 //go:nowritebarrier
 func markroot(gcw *gcWork, i uint32) {
-	// TODO(austin): This is a bit ridiculous. Compute and store
-	// the bases in gcMarkRootPrepare instead of the counts.
-	baseFlushCache := uint32(fixedRootCount)
-	baseData := baseFlushCache + uint32(work.nFlushCacheRoots)
-	baseBSS := baseData + uint32(work.nDataRoots)
-	baseSpans := baseBSS + uint32(work.nBSSRoots)
-	baseStacks := baseSpans + uint32(work.nSpanRoots)
-	end := baseStacks + uint32(work.nStackRoots)
-
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
 	switch {
-	case baseFlushCache <= i && i < baseData:
-		flushmcache(int(i - baseFlushCache))
-
-	case baseData <= i && i < baseBSS:
+	case work.baseData <= i && i < work.baseBSS:
 		for _, datap := range activeModules() {
-			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
+			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-work.baseData))
 		}
 
-	case baseBSS <= i && i < baseSpans:
+	case work.baseBSS <= i && i < work.baseSpans:
 		for _, datap := range activeModules() {
-			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-baseBSS))
+			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-work.baseBSS))
 		}
 
 	case i == fixedRootFinalizers:
@@ -181,15 +178,18 @@ func markroot(gcw *gcWork, i uint32) {
 		// stackfree.
 		systemstack(markrootFreeGStacks)
 
-	case baseSpans <= i && i < baseStacks:
+	case work.baseSpans <= i && i < work.baseStacks:
 		// mark mspan.specials
-		markrootSpans(gcw, int(i-baseSpans))
+		markrootSpans(gcw, int(i-work.baseSpans))
 
 	default:
 		// the rest is scanning goroutine stacks
 		var gp *g
-		if baseStacks <= i && i < end {
-			gp = allgs[i-baseStacks]
+		if work.baseStacks <= i && i < work.baseEnd {
+			// N.B. Atomic read of allglen in gcMarkRootPrepare
+			// acts as a barrier to ensure that allgs must be large
+			// enough to contain all relevant Gs.
+			gp = allgs[i-work.baseStacks]
 		} else {
 			throw("markroot: bad index")
 		}
@@ -246,7 +246,7 @@ func markroot(gcw *gcWork, i uint32) {
 //
 //go:nowritebarrier
 func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
-	if rootBlockBytes%(8*sys.PtrSize) != 0 {
+	if rootBlockBytes%(8*goarch.PtrSize) != 0 {
 		// This is necessary to pick byte offsets in ptrmask0.
 		throw("rootBlockBytes must be a multiple of 8*ptrSize")
 	}
@@ -259,7 +259,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 		return
 	}
 	b := b0 + off
-	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*sys.PtrSize))))
+	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*goarch.PtrSize))))
 	n := uintptr(rootBlockBytes)
 	if off+n > n0 {
 		n = n0 - off
@@ -373,7 +373,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 				scanobject(p, gcw)
 
 				// The special itself is a root.
-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw, nil)
+				scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
 			}
 			unlock(&s.speciallock)
 		}
@@ -587,8 +587,6 @@ func gcWakeAllAssists() {
 //
 // gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
-//
-//go:nowritebarrier
 func gcParkAssist() bool {
 	lock(&work.assistQueue.lock)
 	// If the GC cycle finished while we were getting the lock,
@@ -738,7 +736,7 @@ func scanstack(gp *g, gcw *gcWork) {
 	// register that gets moved back and forth between the
 	// register and sched.ctxt without a write barrier.
 	if gp.sched.ctxt != nil {
-		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+		scanblock(uintptr(unsafe.Pointer(&gp.sched.ctxt)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 	}
 
 	// Scan the stack. Accumulate a list of stack objects.
@@ -751,26 +749,23 @@ func scanstack(gp *g, gcw *gcWork) {
 	// Find additional pointers that point into the stack from the heap.
 	// Currently this includes defers and panics. See also function copystack.
 
-	// Find and trace all defer arguments.
-	tracebackdefers(gp, scanframe, nil)
-
 	// Find and trace other pointers in defer records.
 	for d := gp._defer; d != nil; d = d.link {
 		if d.fn != nil {
-			// tracebackdefers above does not scan the func value, which could
-			// be a stack allocated closure. See issue 30453.
-			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			// Scan the func value, which could be a stack allocated closure.
+			// See issue 30453.
+			scanblock(uintptr(unsafe.Pointer(&d.fn)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 		if d.link != nil {
 			// The link field of a stack-allocated defer record might point
 			// to a heap-allocated defer record. Keep that heap record live.
-			scanblock(uintptr(unsafe.Pointer(&d.link)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			scanblock(uintptr(unsafe.Pointer(&d.link)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 		// Retain defers records themselves.
 		// Defer records might not be reachable from the G through regular heap
 		// tracing because the defer linked list might weave between the stack and the heap.
 		if d.heap {
-			scanblock(uintptr(unsafe.Pointer(&d)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+			scanblock(uintptr(unsafe.Pointer(&d)), goarch.PtrSize, &oneptrmask[0], gcw, &state)
 		}
 	}
 	if gp._panic != nil {
@@ -793,24 +788,24 @@ func scanstack(gp *g, gcw *gcWork) {
 		if obj == nil {
 			continue
 		}
-		t := obj.typ
-		if t == nil {
+		r := obj.r
+		if r == nil {
 			// We've already scanned this object.
 			continue
 		}
-		obj.setType(nil) // Don't scan it again.
+		obj.setRecord(nil) // Don't scan it again.
 		if stackTraceDebug {
 			printlock()
-			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of type", t.string())
+			print("  live stkobj at", hex(state.stack.lo+uintptr(obj.off)), "of size", obj.size)
 			if conservative {
 				print(" (conservative)")
 			}
 			println()
 			printunlock()
 		}
-		gcdata := t.gcdata
+		gcdata := r.gcdata()
 		var s *mspan
-		if t.kind&kindGCProg != 0 {
+		if r.useGCProg() {
 			// This path is pretty unlikely, an object large enough
 			// to have a GC program allocated on the stack.
 			// We need some space to unpack the program into a straight
@@ -820,15 +815,15 @@ func scanstack(gp *g, gcw *gcWork) {
 			// to change from a Lempel-Ziv style program to something else.
 			// Or we can forbid putting objects on stacks if they require
 			// a gc program (see issue 27447).
-			s = materializeGCProg(t.ptrdata, gcdata)
+			s = materializeGCProg(r.ptrdata(), gcdata)
 			gcdata = (*byte)(unsafe.Pointer(s.startAddr))
 		}
 
 		b := state.stack.lo + uintptr(obj.off)
 		if conservative {
-			scanConservative(b, t.ptrdata, gcdata, gcw, &state)
+			scanConservative(b, r.ptrdata(), gcdata, gcw, &state)
 		} else {
-			scanblock(b, t.ptrdata, gcdata, gcw, &state)
+			scanblock(b, r.ptrdata(), gcdata, gcw, &state)
 		}
 
 		if s != nil {
@@ -844,10 +839,10 @@ func scanstack(gp *g, gcw *gcWork) {
 		if stackTraceDebug {
 			for i := 0; i < x.nobj; i++ {
 				obj := &x.obj[i]
-				if obj.typ == nil { // reachable
+				if obj.r == nil { // reachable
 					continue
 				}
-				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of type", obj.typ.string())
+				println("  dead stkobj at", hex(gp.stack.lo+uintptr(obj.off)), "of size", obj.r.size)
 				// Note: not necessarily really dead - only reachable-from-ptr dead.
 			}
 		}
@@ -867,7 +862,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 	}
 
 	isAsyncPreempt := frame.fn.valid() && frame.fn.funcID == funcID_asyncPreempt
-	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV1
+	isDebugCall := frame.fn.valid() && frame.fn.funcID == funcID_debugCallV2
 	if state.conservative || isAsyncPreempt || isDebugCall {
 		if debugScanConservative {
 			println("conservatively scanning function", funcname(frame.fn), "at PC", hex(frame.continpc))
@@ -914,13 +909,13 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 
 	// Scan local variables if stack frame has been allocated.
 	if locals.n > 0 {
-		size := uintptr(locals.n) * sys.PtrSize
+		size := uintptr(locals.n) * goarch.PtrSize
 		scanblock(frame.varp-size, size, locals.bytedata, gcw, state)
 	}
 
 	// Scan arguments.
 	if args.n > 0 {
-		scanblock(frame.argp, uintptr(args.n)*sys.PtrSize, args.bytedata, gcw, state)
+		scanblock(frame.argp, uintptr(args.n)*goarch.PtrSize, args.bytedata, gcw, state)
 	}
 
 	// Add all stack objects to the stack object list.
@@ -928,7 +923,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		// varp is 0 for defers, where there are no locals.
 		// In that case, there can't be a pointer to its args, either.
 		// (And all args would be scanned above anyway.)
-		for _, obj := range objs {
+		for i := range objs {
+			obj := &objs[i]
 			off := obj.off
 			base := frame.varp // locals base pointer
 			if off >= 0 {
@@ -940,9 +936,9 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 				continue
 			}
 			if stackTraceDebug {
-				println("stkobj at", hex(ptr), "of type", obj.typ.string())
+				println("stkobj at", hex(ptr), "of size", obj.size)
 			}
-			state.addObject(ptr, obj.typ)
+			state.addObject(ptr, obj)
 		}
 	}
 }
@@ -1108,11 +1104,6 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			gcw.balance()
 		}
 
-		// This might be a good place to add prefetch code...
-		// if(wbuf.nobj > 4) {
-		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
-		//  }
-		//
 		b := gcw.tryGetFast()
 		if b == 0 {
 			b = gcw.tryGet()
@@ -1139,6 +1130,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			// No heap or root jobs.
 			break
 		}
+
 		scanobject(b, gcw)
 
 		// Flush background scan work credit.
@@ -1173,9 +1165,9 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
-		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
+		bits := uint32(*addb(ptrmask, i/(goarch.PtrSize*8)))
 		if bits == 0 {
-			i += sys.PtrSize * 8
+			i += goarch.PtrSize * 8
 			continue
 		}
 		for j := 0; j < 8 && i < n; j++ {
@@ -1191,7 +1183,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 				}
 			}
 			bits >>= 1
-			i += sys.PtrSize
+			i += goarch.PtrSize
 		}
 	}
 }
@@ -1203,6 +1195,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 //
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
+	// Prefetch object before we scan it.
+	//
+	// This will overlap fetching the beginning of the object with initial
+	// setup before we start scanning the object.
+	sys.Prefetch(b)
+
 	// Find the bits for b and the size of the object at b.
 	//
 	// b is either the beginning of an object, in which case this
@@ -1252,12 +1250,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 	}
 
 	var i uintptr
-	for i = 0; i < n; i += sys.PtrSize {
-		// Find bits for this word.
-		if i != 0 {
-			// Avoid needless hbits.next() on last iteration.
-			hbits = hbits.next()
-		}
+	for i = 0; i < n; i, hbits = i+goarch.PtrSize, hbits.next() {
 		// Load bits once. See CL 22712 and issue 16973 for discussion.
 		bits := hbits.bits()
 		if bits&bitScan == 0 {
@@ -1306,7 +1299,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
 		hexdumpWords(b, b+n, func(p uintptr) byte {
 			if ptrmask != nil {
-				word := (p - b) / sys.PtrSize
+				word := (p - b) / goarch.PtrSize
 				bits := *addb(ptrmask, word/8)
 				if (bits>>(word%8))&1 == 0 {
 					return '$'
@@ -1331,9 +1324,9 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 		printunlock()
 	}
 
-	for i := uintptr(0); i < n; i += sys.PtrSize {
+	for i := uintptr(0); i < n; i += goarch.PtrSize {
 		if ptrmask != nil {
-			word := i / sys.PtrSize
+			word := i / goarch.PtrSize
 			bits := *addb(ptrmask, word/8)
 			if bits == 0 {
 				// Skip 8 words (the loop increment will do the 8th)
@@ -1342,10 +1335,10 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 				// seen this word of ptrmask, so i
 				// must be 8-word-aligned, but check
 				// our reasoning just in case.
-				if i%(sys.PtrSize*8) != 0 {
+				if i%(goarch.PtrSize*8) != 0 {
 					throw("misaligned mask")
 				}
-				i += sys.PtrSize*8 - sys.PtrSize
+				i += goarch.PtrSize*8 - goarch.PtrSize
 				continue
 			}
 			if (bits>>(word%8))&1 == 0 {
@@ -1407,7 +1400,7 @@ func shade(b uintptr) {
 //go:nowritebarrierrec
 func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
-	if obj&(sys.PtrSize-1) != 0 {
+	if obj&(goarch.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
 	}
 	mbits := span.markBitsForIndex(objIndex)
@@ -1446,12 +1439,12 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 		}
 	}
 
-	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but
-	// seems like a nice optimization that can be added back in.
-	// There needs to be time between the PREFETCH and the use.
-	// Previously we put the obj in an 8 element buffer that is drained at a rate
-	// to give the PREFETCH time to do its work.
-	// Use of PREFETCHNTA might be more appropriate than PREFETCH
+	// We're adding obj to P's local workbuf, so it's likely
+	// this object will be processed soon by the same P.
+	// Even if the workbuf gets flushed, there will likely still be
+	// some benefit on platforms with inclusive shared caches.
+	sys.Prefetch(obj)
+	// Queue the obj for scanning.
 	if !gcw.putFast(obj) {
 		gcw.put(obj)
 	}
@@ -1479,13 +1472,13 @@ func gcDumpObject(label string, obj, off uintptr) {
 		// We're printing something from a stack frame. We
 		// don't know how big it is, so just show up to an
 		// including off.
-		size = off + sys.PtrSize
+		size = off + goarch.PtrSize
 	}
-	for i := uintptr(0); i < size; i += sys.PtrSize {
+	for i := uintptr(0); i < size; i += goarch.PtrSize {
 		// For big objects, just print the beginning (because
 		// that usually hints at the object's type) and the
 		// fields around off.
-		if !(i < 128*sys.PtrSize || off-16*sys.PtrSize < i && i < off+16*sys.PtrSize) {
+		if !(i < 128*goarch.PtrSize || off-16*goarch.PtrSize < i && i < off+16*goarch.PtrSize) {
 			skipped = true
 			continue
 		}

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ppc64 || ppc64le
 // +build ppc64 ppc64le
 
 #include "go_asm.h"
@@ -29,7 +30,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	BEQ	nocgo
 #endif
 	MOVD	runtime·tls_g(SB), R31
-	MOVD	g, 0(R13)(R31*1)
+	MOVD	g, 0(R31)
 
 nocgo:
 	RET
@@ -45,7 +46,7 @@ nocgo:
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
 TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	runtime·tls_g(SB), R31
-	MOVD	0(R13)(R31*1), g
+	MOVD	0(R31), g
 	RET
 
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

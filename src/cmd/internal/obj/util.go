@@ -7,7 +7,9 @@ package obj
 import (
 	"bytes"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"strings"
 )
@@ -44,6 +46,10 @@ func (p *Prog) InnermostFilename() string {
 		return "<unknown file name>"
 	}
 	return pos.Filename()
+}
+
+func (p *Prog) AllPos(result []src.Pos) []src.Pos {
+	return p.Ctxt.AllPos(p.Pos, result)
 }
 
 var armCondCode = []string{
@@ -83,7 +89,7 @@ func CConv(s uint8) string {
 	}
 	for i := range opSuffixSpace {
 		sset := &opSuffixSpace[i]
-		if sset.arch == objabi.GOARCH {
+		if sset.arch == buildcfg.GOARCH {
 			return sset.cconv(s)
 		}
 	}
@@ -187,7 +193,7 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
 		// In short, print one of these two:
 		// TEXT	foo(SB), DUPOK|NOSPLIT, $0
 		// TEXT	foo(SB), $0
-		s := p.From.Sym.Attribute.TextAttrString()
+		s := p.From.Sym.TextAttrString()
 		if s != "" {
 			fmt.Fprintf(w, "%s%s", sep, s)
 			sep = ", "
@@ -330,7 +336,7 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 	case TYPE_SHIFT:
 		v := int(a.Offset)
 		ops := "<<>>->@>"
-		switch objabi.GOARCH {
+		switch buildcfg.GOARCH {
 		case "arm":
 			op := ops[((v>>5)&3)<<1:]
 			if v&(1<<4) != 0 {
@@ -346,7 +352,7 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 			r := (v >> 16) & 31
 			fmt.Fprintf(w, "%s%c%c%d", Rconv(r+RBaseARM64), op[0], op[1], (v>>10)&63)
 		default:
-			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
+			panic("TYPE_SHIFT is not supported on " + buildcfg.GOARCH)
 		}
 
 	case TYPE_REGREG:

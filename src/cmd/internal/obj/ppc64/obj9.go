@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"log"
 )
 
 func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
@@ -293,9 +294,9 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
 		//     BL (LR)
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero")
+			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy")
+			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = AMOVD
@@ -686,7 +687,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.From.Reg = REG_LR
 					q.To.Type = obj.TYPE_REG
 					q.To.Reg = REGTMP
-
 					prologueEnd = q
 
 					q = obj.Appendp(q, c.newprog)
@@ -786,14 +786,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.From.Reg = REGG
 				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R3
+				q.To.Reg = REG_R22
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REG_R0
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R3
+				q.To.Reg = REG_R22
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = ABEQ
@@ -803,10 +803,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
-				q.From.Reg = REG_R3
+				q.From.Reg = REG_R22
 				q.From.Offset = 0 // Panic.argp
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R4
+				q.To.Reg = REG_R23
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
@@ -814,14 +814,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.From.Offset = int64(autosize) + c.ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R5
+				q.To.Reg = REG_R24
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R4
+				q.From.Reg = REG_R23
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R5
+				q.To.Reg = REG_R24
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = ABNE
@@ -834,14 +834,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.From.Offset = c.ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R6
+				q.To.Reg = REG_R25
 
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R6
+				q.From.Reg = REG_R25
 				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REG_R3
+				q.To.Reg = REG_R22
 				q.To.Offset = 0 // Panic.argp
 
 				q = obj.Appendp(q, c.newprog)
@@ -984,6 +984,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Reg = REGSP
 			}
 		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 && p.As != ACMPU {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1035,7 +1050,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p0 := p // save entry point, but skipping the two instructions setting R2 in shared mode
 
-	// MOVD	g_stackguard(g), R3
+	// MOVD	g_stackguard(g), R22
 	p = obj.Appendp(p, c.newprog)
 
 	p.As = AMOVD
@@ -1046,7 +1061,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R3
+	p.To.Reg = REG_R22
 
 	// Mark the stack bound check and morestack call async nonpreemptible.
 	// If we get preempted here, when resumed the preemption request is
@@ -1062,85 +1077,70 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ACMPU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
+		p.From.Reg = REG_R22
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGSP
-	} else if framesize <= objabi.StackBig {
-		// large stack: SP-framesize < stackguard-StackSmall
-		//	ADD $-(framesize-StackSmall), SP, R4
-		//	CMP stackguard, R4
-		p = obj.Appendp(p, c.newprog)
-
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ACMPU
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
 	} else {
-		// Such a large stack we need to protect against wraparound.
-		// If SP is close to zero:
-		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//
-		// Preemption sets stackguard to StackPreempt, a very large value.
-		// That breaks the math above, so we have to check for that explicitly.
-		//	// stackguard is R3
-		//	CMP	R3, $StackPreempt
-		//	BEQ	label-of-call-to-morestack
-		//	ADD	$StackGuard, SP, R4
-		//	SUB	R3, R4
-		//	MOVD	$(framesize+(StackGuard-StackSmall)), R31
-		//	CMPU	R31, R4
+		// large stack: SP-framesize < stackguard-StackSmall
+		offset := int64(framesize) - objabi.StackSmall
+		if framesize > objabi.StackBig {
+			// Such a large stack we need to protect against underflow.
+			// The runtime guarantees SP > objabi.StackBig, but
+			// framesize is large enough that SP-framesize may
+			// underflow, causing a direct comparison with the
+			// stack guard to incorrectly succeed. We explicitly
+			// guard against underflow.
+			//
+			//	CMPU	SP, $(framesize-StackSmall)
+			//	BLT	label-of-call-to-morestack
+			if offset <= 0xffff {
+				p = obj.Appendp(p, c.newprog)
+				p.As = ACMPU
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_CONST
+				p.To.Offset = offset
+			} else {
+				// Constant is too big for CMPU.
+				p = obj.Appendp(p, c.newprog)
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = offset
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_R23
+
+				p = obj.Appendp(p, c.newprog)
+				p.As = ACMPU
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = REGSP
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_R23
+			}
+
+			p = obj.Appendp(p, c.newprog)
+			q = p
+			p.As = ABLT
+			p.To.Type = obj.TYPE_BRANCH
+		}
+
+		// Check against the stack guard. We've ensured this won't underflow.
+		//	ADD  $-(framesize-StackSmall), SP, R4
+		//	CMPU stackguard, R4
 		p = obj.Appendp(p, c.newprog)
 
-		p.As = ACMP
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = objabi.StackPreempt
-
-		p = obj.Appendp(p, c.newprog)
-		q = p
-		p.As = ABEQ
-		p.To.Type = obj.TYPE_BRANCH
-
-		p = obj.Appendp(p, c.newprog)
 		p.As = AADD
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
+		p.From.Offset = -offset
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + int64(objabi.StackGuard) - objabi.StackSmall
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REGTMP
+		p.To.Reg = REG_R23
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMPU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REGTMP
+		p.From.Reg = REG_R22
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R4
+		p.To.Reg = REG_R23
 	}
 
 	// q1: BLT	done
@@ -1150,17 +1150,25 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.As = ABLT
 	p.To.Type = obj.TYPE_BRANCH
 
-	// MOVD	LR, R5
 	p = obj.Appendp(p, c.newprog)
+	p.As = obj.ANOP // zero-width place holder
 
+	if q != nil {
+		q.To.SetTarget(p)
+	}
+
+	// Spill the register args that could be clobbered by the
+	// morestack code.
+
+	spill := c.cursym.Func().SpillRegisterArgs(p, c.newprog)
+
+	// MOVD LR, R5
+	p = obj.Appendp(spill, c.newprog)
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REG_LR
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R5
-	if q != nil {
-		q.To.SetTarget(p)
-	}
 
 	p = c.ctxt.EmitEntryStackMap(c.cursym, p, c.newprog)
 
@@ -1180,8 +1188,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		// Fortunately, in shared mode, 8(SP) and 16(SP) are reserved in
 		// the caller's frame, but not used (0(SP) is caller's saved LR,
 		// 24(SP) is caller's saved R2). Use 8(SP) to save this function's R2.
-
-		// MOVD R12, 8(SP)
+		// MOVD R2, 8(SP)
 		p = obj.Appendp(p, c.newprog)
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_REG
@@ -1248,7 +1255,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REG_R2
 	}
 
-	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
+	p = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
 
 	// BR	start
 	p = obj.Appendp(p, c.newprog)

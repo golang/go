@@ -5,7 +5,6 @@
 package cgotest
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,7 +36,7 @@ func TestCrossPackageTests(t *testing.T) {
 		}
 	}
 
-	GOPATH, err := ioutil.TempDir("", "cgotest")
+	GOPATH, err := os.MkdirTemp("", "cgotest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +46,7 @@ func TestCrossPackageTests(t *testing.T) {
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 

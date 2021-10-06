@@ -3,6 +3,7 @@
 
 env GO111MODULE=on
 env GOPROXY=direct
+env GOSUMDB=
 
 # Regression test for golang.org/issue/32161:
 # 'go mod init' did not locate tags when resolving a commit to a pseudo-version.

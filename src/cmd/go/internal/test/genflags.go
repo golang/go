@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -9,12 +10,14 @@ package main
 import (
 	"bytes"
 	"flag"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"text/template"
+
+	"cmd/go/internal/test/internal/genflags"
 )
 
 func main() {
@@ -24,9 +27,18 @@ func main() {
 }
 
 func regenerate() error {
+	vetAnalyzers, err := genflags.VetAnalyzers()
+	if err != nil {
+		return err
+	}
+
 	t := template.Must(template.New("fileTemplate").Parse(fileTemplate))
+	tData := map[string][]string{
+		"testFlags":    testFlags(),
+		"vetAnalyzers": vetAnalyzers,
+	}
 	buf := bytes.NewBuffer(nil)
-	if err := t.Execute(buf, testFlags()); err != nil {
+	if err := t.Execute(buf, tData); err != nil {
 		return err
 	}
 
@@ -63,7 +75,7 @@ func testFlags() []string {
 		name := strings.TrimPrefix(f.Name, "test.")
 
 		switch name {
-		case "testlogfile", "paniconexit0":
+		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker":
 			// These flags are only for use by cmd/go.
 		default:
 			names = append(names, name)
@@ -84,7 +96,13 @@ package test
 // passFlagToTest contains the flags that should be forwarded to
 // the test binary with the prefix "test.".
 var passFlagToTest = map[string]bool {
-{{- range .}}
+{{- range .testFlags}}
+	"{{.}}": true,
+{{- end }}
+}
+
+var passAnalyzersToVet = map[string]bool {
+{{- range .vetAnalyzers}}
 	"{{.}}": true,
 {{- end }}
 }

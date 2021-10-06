@@ -151,6 +151,10 @@ var tests = []string{
 	// erroneous programs
 	"ERROR1 + 2 +",
 	"ERRORx :=  0",
+
+	// build comments
+	"// copyright\n\n//go:build x\n\npackage p\n",
+	"// copyright\n\n//go:build x\n// +build x\n\npackage p\n",
 }
 
 func String(s string) (string, error) {

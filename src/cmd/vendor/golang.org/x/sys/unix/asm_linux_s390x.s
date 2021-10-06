@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build s390x
+//go:build linux && s390x && gc
 // +build linux
+// +build s390x
 // +build gc
 
 #include "textflag.h"

@@ -29,7 +29,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	// Exp10 Range.
 	if man == 0 {
 		if neg {
-			f = math.Float64frombits(0x80000000_00000000) // Negative zero.
+			f = math.Float64frombits(0x8000000000000000) // Negative zero.
 		}
 		return f, true
 	}
@@ -39,7 +39,7 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
-	man <<= clz
+	man <<= uint(clz)
 	const float64ExponentBias = 1023
 	retExp2 := uint64(217706*exp10>>16+64+float64ExponentBias) - uint64(clz)
 
@@ -84,9 +84,9 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (f float64, ok bool) {
 	if retExp2-1 >= 0x7FF-1 {
 		return 0, false
 	}
-	retBits := retExp2<<52 | retMantissa&0x000FFFFF_FFFFFFFF
+	retBits := retExp2<<52 | retMantissa&0x000FFFFFFFFFFFFF
 	if neg {
-		retBits |= 0x80000000_00000000
+		retBits |= 0x8000000000000000
 	}
 	return math.Float64frombits(retBits), true
 }
@@ -114,7 +114,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 
 	// Normalization.
 	clz := bits.LeadingZeros64(man)
-	man <<= clz
+	man <<= uint(clz)
 	const float32ExponentBias = 127
 	retExp2 := uint64(217706*exp10>>16+64+float32ExponentBias) - uint64(clz)
 
@@ -122,13 +122,13 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	xHi, xLo := bits.Mul64(man, detailedPowersOfTen[exp10-detailedPowersOfTenMinExp10][1])
 
 	// Wider Approximation.
-	if xHi&0x3F_FFFFFFFF == 0x3F_FFFFFFFF && xLo+man < man {
+	if xHi&0x3FFFFFFFFF == 0x3FFFFFFFFF && xLo+man < man {
 		yHi, yLo := bits.Mul64(man, detailedPowersOfTen[exp10-detailedPowersOfTenMinExp10][0])
 		mergedHi, mergedLo := xHi, xLo+yHi
 		if mergedLo < xLo {
 			mergedHi++
 		}
-		if mergedHi&0x3F_FFFFFFFF == 0x3F_FFFFFFFF && mergedLo+1 == 0 && yLo+man < man {
+		if mergedHi&0x3FFFFFFFFF == 0x3FFFFFFFFF && mergedLo+1 == 0 && yLo+man < man {
 			return 0, false
 		}
 		xHi, xLo = mergedHi, mergedLo
@@ -140,7 +140,7 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (f float32, ok bool) {
 	retExp2 -= 1 ^ msb
 
 	// Half-way Ambiguity.
-	if xLo == 0 && xHi&0x3F_FFFFFFFF == 0 && retMantissa&3 == 1 {
+	if xLo == 0 && xHi&0x3FFFFFFFFF == 0 && retMantissa&3 == 1 {
 		return 0, false
 	}
 

@@ -6,6 +6,7 @@ package image
 
 import (
 	"image/color"
+	"image/color/palette"
 	"testing"
 )
 
@@ -186,6 +187,92 @@ func Test16BitsPerColorChannel(t *testing.T) {
 		r, _, _, _ := m.At(1, 2).RGBA()
 		if r != 0x1357 {
 			t.Errorf("%T: want red value 0x%04x got 0x%04x", m, 0x1357, r)
+			continue
+		}
+	}
+}
+
+func TestRGBA64Image(t *testing.T) {
+	// memset sets every element of s to v.
+	memset := func(s []byte, v byte) {
+		for i := range s {
+			s[i] = v
+		}
+	}
+
+	r := Rect(0, 0, 3, 2)
+	testCases := []Image{
+		NewAlpha(r),
+		NewAlpha16(r),
+		NewCMYK(r),
+		NewGray(r),
+		NewGray16(r),
+		NewNRGBA(r),
+		NewNRGBA64(r),
+		NewNYCbCrA(r, YCbCrSubsampleRatio444),
+		NewPaletted(r, palette.Plan9),
+		NewRGBA(r),
+		NewRGBA64(r),
+		NewUniform(color.RGBA64{}),
+		NewYCbCr(r, YCbCrSubsampleRatio444),
+		r,
+	}
+	for _, tc := range testCases {
+		switch tc := tc.(type) {
+		// Most of the concrete image types in the testCases implement the
+		// draw.RGBA64Image interface: they have a SetRGBA64 method. We use an
+		// interface literal here, instead of importing "image/draw", to avoid
+		// an import cycle.
+		//
+		// The YCbCr and NYCbCrA types are special-cased. Chroma subsampling
+		// means that setting one pixel can modify neighboring pixels. They
+		// don't have Set or SetRGBA64 methods because that side effect could
+		// be surprising. Here, we just memset the channel buffers instead.
+		//
+		// The Uniform and Rectangle types are also special-cased, as they
+		// don't have a Set or SetRGBA64 method.
+		case interface {
+			SetRGBA64(x, y int, c color.RGBA64)
+		}:
+			tc.SetRGBA64(1, 1, color.RGBA64{0x7FFF, 0x3FFF, 0x0000, 0x7FFF})
+
+		case *NYCbCrA:
+			memset(tc.YCbCr.Y, 0x77)
+			memset(tc.YCbCr.Cb, 0x88)
+			memset(tc.YCbCr.Cr, 0x99)
+			memset(tc.A, 0xAA)
+
+		case *Uniform:
+			tc.C = color.RGBA64{0x7FFF, 0x3FFF, 0x0000, 0x7FFF}
+
+		case *YCbCr:
+			memset(tc.Y, 0x77)
+			memset(tc.Cb, 0x88)
+			memset(tc.Cr, 0x99)
+
+		case Rectangle:
+			// No-op. Rectangle pixels' colors are immutable. They're always
+			// color.Opaque.
+
+		default:
+			t.Errorf("could not initialize pixels for %T", tc)
+			continue
+		}
+
+		// Check that RGBA64At(x, y) is equivalent to At(x, y).RGBA().
+		rgba64Image, ok := tc.(RGBA64Image)
+		if !ok {
+			t.Errorf("%T is not an RGBA64Image", tc)
+			continue
+		}
+		got := rgba64Image.RGBA64At(1, 1)
+		wantR, wantG, wantB, wantA := tc.At(1, 1).RGBA()
+		if (uint32(got.R) != wantR) || (uint32(got.G) != wantG) ||
+			(uint32(got.B) != wantB) || (uint32(got.A) != wantA) {
+			t.Errorf("%T:\ngot  (0x%04X, 0x%04X, 0x%04X, 0x%04X)\n"+
+				"want (0x%04X, 0x%04X, 0x%04X, 0x%04X)", tc,
+				got.R, got.G, got.B, got.A,
+				wantR, wantG, wantB, wantA)
 			continue
 		}
 	}

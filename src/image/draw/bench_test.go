@@ -190,7 +190,8 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 	}
 }
 
-// The BenchmarkFoo functions exercise a drawFoo fast-path function in draw.go.
+// The BenchmarkFoo and BenchmarkFooN functions exercise a drawFoo fast-path
+// function in draw.go.
 
 func BenchmarkFillOver(b *testing.B) {
 	bench(b, color.RGBAModel, nil, nil, Over)
@@ -232,8 +233,12 @@ func BenchmarkGlyphOver(b *testing.B) {
 	bench(b, color.RGBAModel, nil, color.AlphaModel, Over)
 }
 
-func BenchmarkRGBA(b *testing.B) {
+func BenchmarkRGBA1(b *testing.B) {
 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+}
+
+func BenchmarkRGBA2(b *testing.B) {
+	bench(b, color.RGBAModel, color.RGBAModel, color.AlphaModel, Over)
 }
 
 func BenchmarkPalettedFill(b *testing.B) {

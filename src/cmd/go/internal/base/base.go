@@ -10,14 +10,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 )
 
 // A Command is an implementation of a go command

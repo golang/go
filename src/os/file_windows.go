@@ -279,10 +279,11 @@ func rename(oldname, newname string) error {
 }
 
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any.
+// It returns the files and an error, if any. The Windows handles underlying
+// the returned files are marked as inheritable by child processes.
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
-	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
+	e := syscall.Pipe(p[:])
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
@@ -326,6 +327,8 @@ func Link(oldname, newname string) error {
 }
 
 // Symlink creates newname as a symbolic link to oldname.
+// On Windows, a symlink to a non-existent oldname creates a file symlink;
+// if oldname is later created as a directory the symlink will not work.
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	// '/' does not work in link's content
@@ -364,17 +367,14 @@ func Symlink(oldname, newname string) error {
 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
-
 	if err != nil {
 		// the unprivileged create flag is unsupported
 		// below Windows 10 (1703, v10.0.14972). retry without it.
 		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
-
 		err = syscall.CreateSymbolicLink(n, o, flags)
-	}
-
-	if err != nil {
-		return &LinkError{"symlink", oldname, newname, err}
+		if err != nil {
+			return &LinkError{"symlink", oldname, newname, err}
+		}
 	}
 	return nil
 }

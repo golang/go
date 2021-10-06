@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix
 // +build aix
 
 // Aix system calls.
@@ -251,7 +252,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 			}
 		}
 
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
 		sa.Name = string(bytes)
 		return sa, nil
 
@@ -419,8 +420,8 @@ func (w WaitStatus) TrapCause() int { return -1 }
 //sys	Mknod(path string, mode uint32, dev int) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
-//sys   Open(path string, mode int, perm uint32) (fd int, err error) = open64
-//sys   Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
+//sys	Open(path string, mode int, perm uint32) (fd int, err error) = open64
+//sys	Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
@@ -439,8 +440,8 @@ func (w WaitStatus) TrapCause() int { return -1 }
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sysnb	Umask(mask int) (oldmask int)
 //sysnb	Uname(buf *Utsname) (err error)
-//sys   Unlink(path string) (err error)
-//sys   Unlinkat(dirfd int, path string, flags int) (err error)
+//sys	Unlink(path string) (err error)
+//sys	Unlinkat(dirfd int, path string, flags int) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	readlen(fd int, p *byte, np int) (n int, err error) = read
@@ -514,7 +515,7 @@ func Munmap(b []byte) (err error) {
 //sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
 
-//sysnb pipe(p *[2]_C_int) (err error)
+//sysnb	pipe(p *[2]_C_int) (err error)
 
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {

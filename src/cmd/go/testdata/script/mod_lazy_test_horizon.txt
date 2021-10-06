@@ -32,12 +32,12 @@ stdout '^c v0.2.0 '
 # but the irrelevant dependency on c v0.2.0 should be pruned out,
 # leaving only the relevant dependency on c v0.1.0.
 
-go mod edit -go=1.16
+go mod edit -go=1.17
 go list -m c
-stdout '^c v0.2.0'  # TODO(#36460): v0.1.0
+stdout '^c v0.1.0'
 
 [!short] go test -v x
-[!short] stdout ' c v0.2.0$'  # TODO(#36460): v0.1.0
+[!short] stdout ' c v0.1.0$'
 
 -- m.go --
 package m
@@ -66,7 +66,7 @@ replace (
 -- a1/go.mod --
 module a
 
-go 1.16
+go 1.17
 
 require b v0.1.0
 -- a1/a.go --
@@ -78,7 +78,7 @@ import _ "b"
 -- b1/go.mod --
 module b
 
-go 1.16
+go 1.17
 
 require c v0.2.0
 -- b1/b.go --
@@ -97,7 +97,7 @@ func TestCVersion(t *testing.T) {
 -- c1/go.mod --
 module c
 
-go 1.16
+go 1.17
 -- c1/c.go --
 package c
 
@@ -105,7 +105,7 @@ const Version = "v0.1.0"
 -- c2/go.mod --
 module c
 
-go 1.16
+go 1.17
 -- c2/c.go --
 package c
 
@@ -113,7 +113,7 @@ const Version = "v0.2.0"
 -- x1/go.mod --
 module x
 
-go 1.16
+go 1.17
 
 require c v0.1.0
 -- x1/x.go --

@@ -6,7 +6,7 @@ package load
 
 import (
 	"cmd/go/internal/base"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 	"fmt"
 	"strings"
 )
@@ -34,7 +34,7 @@ type ppfValue struct {
 
 // Set is called each time the flag is encountered on the command line.
 func (f *PerPackageFlag) Set(v string) error {
-	return f.set(v, base.Cwd)
+	return f.set(v, base.Cwd())
 }
 
 // set is the implementation of Set, taking a cwd (current working directory) for easier testing.

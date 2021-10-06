@@ -36,7 +36,7 @@ func Tool(toolName string) string {
 	}
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+		fmt.Fprintf(os.Stderr, "go: no such tool %q\n", toolName)
 		SetExitStatus(2)
 		Exit()
 	}

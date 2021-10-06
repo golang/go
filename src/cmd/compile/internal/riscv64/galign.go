@@ -5,18 +5,17 @@
 package riscv64
 
 import (
-	"cmd/compile/internal/gc"
+	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/riscv"
 )
 
-func Init(arch *gc.Arch) {
+func Init(arch *ssagen.ArchInfo) {
 	arch.LinkArch = &riscv.LinkRISCV64
 
 	arch.REGSP = riscv.REG_SP
 	arch.MAXWIDTH = 1 << 50
 
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop
 	arch.ZeroRange = zeroRange
 
 	arch.SSAMarkMoves = ssaMarkMoves

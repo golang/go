@@ -219,6 +219,9 @@ class ChanTypePrinter:
 			yield ('[{0}]'.format(i), (ptr + j).dereference())
 
 
+def paramtypematch(t, pattern):
+	return t.code == gdb.TYPE_CODE_TYPEDEF and str(t).startswith(".param") and pattern.match(str(t.target()))
+
 #
 #  Register all the *Printer classes above.
 #
@@ -228,6 +231,8 @@ def makematcher(klass):
 		try:
 			if klass.pattern.match(str(val.type)):
 				return klass(val)
+			elif paramtypematch(val.type, klass.pattern):
+				return klass(val.cast(val.type.target()))
 		except Exception:
 			pass
 	return matcher
@@ -387,7 +392,7 @@ class GoLenFunc(gdb.Function):
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
-			if klass.pattern.match(typename):
+			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
 				return obj[fld]
 
 
@@ -402,7 +407,7 @@ class GoCapFunc(gdb.Function):
 	def invoke(self, obj):
 		typename = str(obj.type)
 		for klass, fld in self.how:
-			if klass.pattern.match(typename):
+			if klass.pattern.match(typename) or paramtypematch(obj.type, klass.pattern):
 				return obj[fld]
 
 

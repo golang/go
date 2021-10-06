@@ -31,7 +31,6 @@ import (
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/robustio"
-	"cmd/go/internal/work"
 	"cmd/internal/sys"
 )
 
@@ -72,7 +71,6 @@ func tooSlow(t *testing.T) {
 // (temp) directory.
 var testGOROOT string
 
-var testCC string
 var testGOCACHE string
 
 var testGo string
@@ -178,13 +176,6 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
 		}
-
-		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
-			os.Exit(2)
-		}
-		testCC = strings.TrimSpace(string(out))
 
 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
 		cmd.Stderr = new(strings.Builder)
@@ -811,8 +802,12 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	// so that we can change files.
 	for _, copydir := range []string{
 		"src/runtime",
+		"src/internal/abi",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/internal/goarch",
+		"src/internal/goexperiment",
+		"src/internal/goos",
 		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
@@ -1382,7 +1377,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 		}`)
 	testStr := "test test test test test \n\\ "
 	var buf bytes.Buffer
-	for buf.Len() < work.ArgLengthForResponseFile+1 {
+	for buf.Len() < sys.ExecArgLengthLimit+1 {
 		buf.WriteString(testStr)
 	}
 	tg.run("run", "-ldflags", fmt.Sprintf(`-X "main.extern=%s"`, buf.String()), tg.path("main.go"))
@@ -2183,7 +2178,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
 			section := f.Section(".edata")
 			if section == nil {
-				t.Fatalf(".edata section is not present")
+				t.Skip(".edata section is not present")
 			}
 			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
 			type IMAGE_EXPORT_DIRECTORY struct {
@@ -2829,4 +2824,60 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.run("test", "-coverpkg=a", "atest")
 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
 	tg.grepStdout("coverage: 100", "no coverage")
+}
+
+// Regression test for golang.org/issue/34499: version command should not crash
+// when executed in a deleted directory on Linux.
+func TestExecInDeletedDir(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "plan9",
+		"aix",                // Fails with "device busy".
+		"solaris", "illumos": // Fails with "invalid argument".
+		t.Skipf("%v does not support removing the current working directory", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	wd, err := os.Getwd()
+	tg.check(err)
+	tg.makeTempdir()
+	tg.check(os.Chdir(tg.tempdir))
+	defer func() { tg.check(os.Chdir(wd)) }()
+
+	tg.check(os.Remove(tg.tempdir))
+
+	// `go version` should not fail
+	tg.run("version")
+}
+
+// A missing C compiler should not force the net package to be stale.
+// Issue 47215.
+func TestMissingCC(t *testing.T) {
+	if !canCgo {
+		t.Skip("test is only meaningful on systems with cgo")
+	}
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "gcc"
+	}
+	if filepath.IsAbs(cc) {
+		t.Skipf(`"CC" (%s) is an absolute path`, cc)
+	}
+	_, err := exec.LookPath(cc)
+	if err != nil {
+		t.Skipf(`"CC" (%s) not on PATH`, cc)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	netStale, _ := tg.isStale("net")
+	if netStale {
+		t.Skip(`skipping test because "net" package is currently stale`)
+	}
+
+	tg.setenv("PATH", "") // No C compiler on PATH.
+	netStale, _ = tg.isStale("net")
+	if netStale {
+		t.Error(`clearing "PATH" causes "net" to be stale`)
+	}
 }

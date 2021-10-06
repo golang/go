@@ -283,7 +283,7 @@ var templMMU = `<!doctype html>
          .done(function(worst) {
             details.text('Lowest mutator utilization in ' + niceDuration(windowNS) + ' windows:');
             for (var i = 0; i < worst.length; i++) {
-              details.append($('<br/>'));
+              details.append($('<br>'));
               var text = worst[i].MutatorUtil.toFixed(3) + ' at time ' + niceDuration(worst[i].Time);
               details.append($('<a/>').text(text).attr('href', worst[i].URL));
             }
@@ -328,27 +328,27 @@ var templMMU = `<!doctype html>
       <div id="mmu_chart" style="width: 900px; height: 500px; display: inline-block; vertical-align: top">Loading plot...</div>
       <div id="options" style="display: inline-block; vertical-align: top">
         <p>
-          <b>View</b><br/>
+          <b>View</b><br>
           <input type="radio" name="view" id="system" checked><label for="system">System</label>
-          <span class="help">?<span>Consider whole system utilization. For example, if one of four procs is available to the mutator, mutator utilization will be 0.25. This is the standard definition of an MMU.</span></span><br/>
+          <span class="help">?<span>Consider whole system utilization. For example, if one of four procs is available to the mutator, mutator utilization will be 0.25. This is the standard definition of an MMU.</span></span><br>
           <input type="radio" name="view" id="perProc"><label for="perProc">Per-goroutine</label>
-          <span class="help">?<span>Consider per-goroutine utilization. When even one goroutine is interrupted by GC, mutator utilization is 0.</span></span><br/>
+          <span class="help">?<span>Consider per-goroutine utilization. When even one goroutine is interrupted by GC, mutator utilization is 0.</span></span><br>
         </p>
         <p>
-          <b>Include</b><br/>
+          <b>Include</b><br>
           <input type="checkbox" id="stw" checked><label for="stw">STW</label>
-          <span class="help">?<span>Stop-the-world stops all goroutines simultaneously.</span></span><br/>
+          <span class="help">?<span>Stop-the-world stops all goroutines simultaneously.</span></span><br>
           <input type="checkbox" id="background" checked><label for="background">Background workers</label>
-          <span class="help">?<span>Background workers are GC-specific goroutines. 25% of the CPU is dedicated to background workers during GC.</span></span><br/>
+          <span class="help">?<span>Background workers are GC-specific goroutines. 25% of the CPU is dedicated to background workers during GC.</span></span><br>
           <input type="checkbox" id="assist" checked><label for="assist">Mark assist</label>
-          <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br/>
+          <span class="help">?<span>Mark assists are performed by allocation to prevent the mutator from outpacing GC.</span></span><br>
           <input type="checkbox" id="sweep"><label for="sweep">Sweep</label>
-          <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br/>
+          <span class="help">?<span>Sweep reclaims unused memory between GCs. (Enabling this may be very slow.).</span></span><br>
         </p>
         <p>
-          <b>Display</b><br/>
+          <b>Display</b><br>
           <input type="checkbox" id="mut"><label for="mut">Show percentiles</label>
-          <span class="help">?<span>Display percentile mutator utilization in addition to minimum. E.g., p99 MU drops the worst 1% of windows.</span></span><br/>
+          <span class="help">?<span>Display percentile mutator utilization in addition to minimum. E.g., p99 MU drops the worst 1% of windows.</span></span><br>
         </p>
       </div>
     </div>

@@ -5,6 +5,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"internal/fmtsort"
 	"io"
@@ -179,10 +180,7 @@ func errRecover(errp *error) {
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
-	var tmpl *Template
-	if t.common != nil {
-		tmpl = t.tmpl[name]
-	}
+	tmpl := t.Lookup(name)
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
 	}
@@ -230,6 +228,8 @@ func (t *Template) DefinedTemplates() string {
 		return ""
 	}
 	var b strings.Builder
+	t.muTmpl.RLock()
+	defer t.muTmpl.RUnlock()
 	for name, tmpl := range t.tmpl {
 		if tmpl.Tree == nil || tmpl.Root == nil {
 			continue
@@ -244,6 +244,12 @@ func (t *Template) DefinedTemplates() string {
 	return b.String()
 }
 
+// Sentinel errors for use with panic to signal early exits from range loops.
+var (
+	walkBreak    = errors.New("break")
+	walkContinue = errors.New("continue")
+)
+
 // Walk functions step through the major pieces of the template structure,
 // generating output as they go.
 func (s *state) walk(dot reflect.Value, node parse.Node) {
@@ -256,7 +262,11 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
 		}
+	case *parse.BreakNode:
+		panic(walkBreak)
 	case *parse.CommentNode:
+	case *parse.ContinueNode:
+		panic(walkContinue)
 	case *parse.IfNode:
 		s.walkIfOrWith(parse.NodeIf, dot, node.Pipe, node.List, node.ElseList)
 	case *parse.ListNode:
@@ -335,6 +345,11 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 
 func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 	s.at(r)
+	defer func() {
+		if r := recover(); r != nil && r != walkBreak {
+			panic(r)
+		}
+	}()
 	defer s.pop(s.mark())
 	val, _ := indirect(s.evalPipeline(dot, r.Pipe))
 	// mark top of stack before any variables in the body are pushed.
@@ -348,8 +363,14 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		if len(r.Pipe.Decl) > 1 {
 			s.setTopVar(2, index)
 		}
+		defer s.pop(mark)
+		defer func() {
+			// Consume panic(walkContinue)
+			if r := recover(); r != nil && r != walkContinue {
+				panic(r)
+			}
+		}()
 		s.walk(elem, r.List)
-		s.pop(mark)
 	}
 	switch val.Kind() {
 	case reflect.Array, reflect.Slice:
@@ -401,7 +422,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 
 func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	s.at(t)
-	tmpl := s.tmpl.tmpl[t.Name]
+	tmpl := s.tmpl.Lookup(t.Name)
 	if tmpl == nil {
 		s.errorf("template %q not defined", t.Name)
 	}
@@ -573,11 +594,11 @@ func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ide
 func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd parse.Node, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(node)
 	name := node.Ident
-	function, ok := findFunction(name, s.tmpl)
+	function, isBuiltin, ok := findFunction(name, s.tmpl)
 	if !ok {
 		s.errorf("%q is not a defined function", name)
 	}
-	return s.evalCall(dot, function, cmd, name, args, final)
+	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }
 
 // evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
@@ -606,7 +627,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		ptr = ptr.Addr()
 	}
 	if method := ptr.MethodByName(fieldName); method.IsValid() {
-		return s.evalCall(dot, method, node, fieldName, args, final)
+		return s.evalCall(dot, method, false, node, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final != missingVal
 	// It's not a method; must be a field of a struct or an element of a map.
@@ -615,7 +636,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
 			field := receiver.FieldByIndex(tField.Index)
-			if tField.PkgPath != "" { // field is unexported
+			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
 			}
 			// If it's a function, we must call it.
@@ -670,7 +691,7 @@ var (
 // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
 // it looks just like a function call. The arg list, if non-nil, includes (in the manner of the shell), arg[0]
 // as the function itself.
-func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
+func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
 	if args != nil {
 		args = args[1:] // Zeroth arg is function name/node; not passed to function.
 	}
@@ -692,6 +713,38 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
 		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
 	}
+
+	unwrap := func(v reflect.Value) reflect.Value {
+		if v.Type() == reflectValueType {
+			v = v.Interface().(reflect.Value)
+		}
+		return v
+	}
+
+	// Special case for builtin and/or, which short-circuit.
+	if isBuiltin && (name == "and" || name == "or") {
+		argType := typ.In(0)
+		var v reflect.Value
+		for _, arg := range args {
+			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
+			if truth(v) == (name == "or") {
+				// This value was already unwrapped
+				// by the .Interface().(reflect.Value).
+				return v
+			}
+		}
+		if final != missingVal {
+			// The last argument to and/or is coming from
+			// the pipeline. We didn't short circuit on an earlier
+			// argument, so we are going to return this one.
+			// We don't have to evaluate final, but we do
+			// have to check its type. Then, since we are
+			// going to return it, we have to unwrap it.
+			v = unwrap(s.validateType(final, argType))
+		}
+		return v
+	}
+
 	// Build the arg list.
 	argv := make([]reflect.Value, numIn)
 	// Args must be evaluated. Fixed args first.
@@ -727,12 +780,9 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	// error to the caller.
 	if err != nil {
 		s.at(node)
-		s.errorf("error calling %s: %v", name, err)
+		s.errorf("error calling %s: %w", name, err)
 	}
-	if v.Type() == reflectValueType {
-		v = v.Interface().(reflect.Value)
-	}
-	return v
+	return unwrap(v)
 }
 
 // canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.

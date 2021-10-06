@@ -51,30 +51,14 @@ type Reloc struct {
 	*goobj.Reloc
 	r *oReader
 	l *Loader
-
-	// External reloc types may not fit into a uint8 which the Go object file uses.
-	// Store it here, instead of in the byte of goobj.Reloc.
-	// For Go symbols this will always be zero.
-	// goobj.Reloc.Type() + typ is always the right type, for both Go and external
-	// symbols.
-	typ objabi.RelocType
 }
 
-func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
-func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
-func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
-func (rel Reloc) IsMarker() bool         { return rel.Siz() == 0 }
-
-func (rel Reloc) SetType(t objabi.RelocType) {
-	if t != objabi.RelocType(uint8(t)) {
-		panic("SetType: type doesn't fit into Reloc")
-	}
-	rel.Reloc.SetType(uint8(t))
-	if rel.typ != 0 {
-		// should use SymbolBuilder.SetRelocType
-		panic("wrong method to set reloc type")
-	}
-}
+func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) &^ objabi.R_WEAK }
+func (rel Reloc) Weak() bool                 { return objabi.RelocType(rel.Reloc.Type())&objabi.R_WEAK != 0 }
+func (rel Reloc) SetType(t objabi.RelocType) { rel.Reloc.SetType(uint16(t)) }
+func (rel Reloc) Sym() Sym                   { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+func (rel Reloc) SetSym(s Sym)               { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc) IsMarker() bool             { return rel.Siz() == 0 }
 
 // Aux holds a "handle" to access an aux symbol record from an
 // object file.
@@ -241,7 +225,6 @@ type Loader struct {
 	attrExternal         Bitmap // external symbols, indexed by ext sym index
 
 	attrReadOnly         map[Sym]bool     // readonly data for this sym
-	attrTopFrame         map[Sym]struct{} // top frame symbols
 	attrSpecial          map[Sym]struct{} // "special" frame symbols
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
@@ -273,6 +256,9 @@ type Loader struct {
 	// field tracking is enabled. Reachparent[K] contains the index of
 	// the symbol that triggered the marking of symbol K as live.
 	Reachparent []Sym
+
+	// CgoExports records cgo-exported symbols by SymName.
+	CgoExports map[string]Sym
 
 	flags uint32
 
@@ -308,15 +294,14 @@ type elfsetstringFunc func(str string, off int)
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
-	name     string // TODO: would this be better as offset into str table?
-	size     int64
-	ver      int
-	kind     sym.SymKind
-	objidx   uint32 // index of original object if sym made by cloneToExternal
-	relocs   []goobj.Reloc
-	reltypes []objabi.RelocType // relocation types
-	data     []byte
-	auxs     []goobj.Aux
+	name   string // TODO: would this be better as offset into str table?
+	size   int64
+	ver    int
+	kind   sym.SymKind
+	objidx uint32 // index of original object if sym made by cloneToExternal
+	relocs []goobj.Reloc
+	data   []byte
+	auxs   []goobj.Aux
 }
 
 const (
@@ -348,7 +333,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
-		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
@@ -474,6 +458,15 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
+		// Fix for issue #47185 -- given two dupok symbols with
+		// different sizes, favor symbol with larger size. See
+		// also issue #46653.
+		szdup := l.SymSize(oldi)
+		sz := int64(r.Sym(li).Siz())
+		if szdup < sz {
+			// new symbol overwrites old symbol.
+			l.objSyms[oldi] = objSym{r.objidx, li}
+		}
 		return oldi
 	}
 	oldr, oldli := l.toLocal(oldi)
@@ -486,14 +479,14 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		// new symbol overwrites old symbol.
 		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 		l.objSyms[oldi] = objSym{r.objidx, li}
 	} else {
 		// old symbol overwrites new symbol.
 		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !typ.IsData() { // only allow overwriting data symbol
-			log.Fatalf("duplicated definition of symbol " + name)
+			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 	}
 	return oldi
@@ -530,6 +523,36 @@ func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
 		l.symsByName[ver][name] = i
 	}
 	return i
+}
+
+// AddCgoExport records a cgo-exported symbol in l.CgoExports.
+// This table is used to identify the correct Go symbol ABI to use
+// to resolve references from host objects (which don't have ABIs).
+func (l *Loader) AddCgoExport(s Sym) {
+	if l.CgoExports == nil {
+		l.CgoExports = make(map[string]Sym)
+	}
+	l.CgoExports[l.SymName(s)] = s
+}
+
+// LookupOrCreateCgoExport is like LookupOrCreateSym, but if ver
+// indicates a global symbol, it uses the CgoExport table to determine
+// the appropriate symbol version (ABI) to use. ver must be either 0
+// or a static symbol version.
+func (l *Loader) LookupOrCreateCgoExport(name string, ver int) Sym {
+	if ver >= sym.SymVerStatic {
+		return l.LookupOrCreateSym(name, ver)
+	}
+	if ver != 0 {
+		panic("ver must be 0 or a static version")
+	}
+	// Look for a cgo-exported symbol from Go.
+	if s, ok := l.CgoExports[name]; ok {
+		return s
+	}
+	// Otherwise, this must just be a symbol in the host object.
+	// Create a version 0 symbol for it.
+	return l.LookupOrCreateSym(name, 0)
 }
 
 func (l *Loader) IsExternal(i Sym) bool {
@@ -684,12 +707,18 @@ func (l *Loader) checkdup(name string, r *oReader, li uint32, dup Sym) {
 	p := r.Data(li)
 	rdup, ldup := l.toLocal(dup)
 	pdup := rdup.Data(ldup)
-	if bytes.Equal(p, pdup) {
-		return
-	}
 	reason := "same length but different contents"
 	if len(p) != len(pdup) {
 		reason = fmt.Sprintf("new length %d != old length %d", len(p), len(pdup))
+	} else if bytes.Equal(p, pdup) {
+		// For BSS symbols, we need to check size as well, see issue 46653.
+		szdup := l.SymSize(dup)
+		sz := int64(r.Sym(li).Siz())
+		if szdup == sz {
+			return
+		}
+		reason = fmt.Sprintf("different sizes: new size %d != old size %d",
+			sz, szdup)
 	}
 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
 
@@ -723,22 +752,6 @@ func (l *Loader) NReachableSym() int {
 	return l.attrReachable.Count()
 }
 
-// SymNameLen returns the length of the symbol name, trying hard not to load
-// the name.
-func (l *Loader) SymNameLen(i Sym) int {
-	// Not much we can do about external symbols.
-	if l.IsExternal(i) {
-		return len(l.SymName(i))
-	}
-	r, li := l.toLocal(i)
-	le := r.Sym(li).NameLen(r.Reader)
-	if !r.NeedNameExpansion() {
-		return le
-	}
-	// Just load the symbol name. We don't know how expanded it'll be.
-	return len(l.SymName(i))
-}
-
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
 	if l.IsExternal(i) {
@@ -756,6 +769,9 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
+	if r == nil {
+		return "?"
+	}
 	name := r.Sym(li).Name(r.Reader)
 	if !r.NeedNameExpansion() {
 		return name
@@ -1008,24 +1024,6 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
 	}
 }
 
-// AttrTopFrame returns true for a function symbol that is an entry
-// point, meaning that unwinders should stop when they hit this
-// function.
-func (l *Loader) AttrTopFrame(i Sym) bool {
-	_, ok := l.attrTopFrame[i]
-	return ok
-}
-
-// SetAttrTopFrame sets the "top frame" property for a symbol (see
-// AttrTopFrame).
-func (l *Loader) SetAttrTopFrame(i Sym, v bool) {
-	if v {
-		l.attrTopFrame[i] = struct{}{}
-	} else {
-		delete(l.attrTopFrame, i)
-	}
-}
-
 // AttrSpecial returns true for a symbols that do not have their
 // address (i.e. Value) computed by the usual mechanism of
 // data.go:dodata() & data.go:address().
@@ -1192,6 +1190,15 @@ func (l *Loader) IsItab(i Sym) bool {
 	}
 	r, li := l.toLocal(i)
 	return r.Sym(li).IsItab()
+}
+
+// Returns whether this symbol is a dictionary symbol.
+func (l *Loader) IsDict(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsDict()
 }
 
 // Return whether this is a trampoline of a deferreturn call.
@@ -1446,7 +1453,7 @@ func (l *Loader) SetSymLocalElfSym(i Sym, es int32) {
 	}
 }
 
-// SymPlt returns the plt value for pe symbols.
+// SymPlt returns the PLT offset of symbol s.
 func (l *Loader) SymPlt(s Sym) int32 {
 	if v, ok := l.plt[s]; ok {
 		return v
@@ -1454,7 +1461,7 @@ func (l *Loader) SymPlt(s Sym) int32 {
 	return -1
 }
 
-// SetPlt sets the plt value for pe symbols.
+// SetPlt sets the PLT offset of symbol i.
 func (l *Loader) SetPlt(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetPlt")
@@ -1466,7 +1473,7 @@ func (l *Loader) SetPlt(i Sym, v int32) {
 	}
 }
 
-// SymGot returns the got value for pe symbols.
+// SymGot returns the GOT offset of symbol s.
 func (l *Loader) SymGot(s Sym) int32 {
 	if v, ok := l.got[s]; ok {
 		return v
@@ -1474,7 +1481,7 @@ func (l *Loader) SymGot(s Sym) int32 {
 	return -1
 }
 
-// SetGot sets the got value for pe symbols.
+// SetGot sets the GOT offset of symbol i.
 func (l *Loader) SetGot(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetGot")
@@ -1525,27 +1532,7 @@ func (l *Loader) DynidSyms() []Sym {
 // approach would be to check for gotype during preload and copy the
 // results in to a map (might want to try this at some point and see
 // if it helps speed things up).
-func (l *Loader) SymGoType(i Sym) Sym {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
-	for j := range auxs {
-		a := &auxs[j]
-		switch a.Type() {
-		case goobj.AuxGotype:
-			return l.resolve(r, a.Sym())
-		}
-	}
-	return 0
-}
+func (l *Loader) SymGoType(i Sym) Sym { return l.aux1(i, goobj.AuxGotype) }
 
 // SymUnit returns the compilation unit for a given symbol (which will
 // typically be nil for external or linker-manufactured symbols).
@@ -1566,7 +1553,7 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 // regular compiler-generated Go symbols), but in the case of
 // building with "-linkshared" (when a symbol is read from a
 // shared library), will hold the library name.
-// NOTE: this correspondes to sym.Symbol.File field.
+// NOTE: this corresponds to sym.Symbol.File field.
 func (l *Loader) SymPkg(i Sym) string {
 	if f, ok := l.symPkg[i]; ok {
 		return f
@@ -1852,10 +1839,9 @@ func (relocs *Relocs) Count() int { return len(relocs.rs) }
 // At returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
 	if relocs.l.isExtReader(relocs.r) {
-		pp := relocs.l.payloads[relocs.li]
-		return Reloc{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
+		return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 	}
-	return Reloc{&relocs.rs[j], relocs.r, relocs.l, 0}
+	return Reloc{&relocs.rs[j], relocs.r, relocs.l}
 }
 
 // Relocs returns a Relocs object for the given global sym.
@@ -1884,12 +1870,98 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	}
 }
 
+func (l *Loader) auxs(i Sym) (*oReader, []goobj.Aux) {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return l.objs[pp.objidx].r, pp.auxs
+	} else {
+		r, li := l.toLocal(i)
+		return r, r.Auxs(li)
+	}
+}
+
+// Returns a specific aux symbol of type t for symbol i.
+func (l *Loader) aux1(i Sym, t uint8) Sym {
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == t {
+			return l.resolve(r, a.Sym())
+		}
+	}
+	return 0
+}
+
+func (l *Loader) Pcsp(i Sym) Sym { return l.aux1(i, goobj.AuxPcsp) }
+
+// Returns all aux symbols of per-PC data for symbol i.
+// tmp is a scratch space for the pcdata slice.
+func (l *Loader) PcdataAuxs(i Sym, tmp []Sym) (pcsp, pcfile, pcline, pcinline Sym, pcdata []Sym) {
+	pcdata = tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		switch a.Type() {
+		case goobj.AuxPcsp:
+			pcsp = l.resolve(r, a.Sym())
+		case goobj.AuxPcline:
+			pcline = l.resolve(r, a.Sym())
+		case goobj.AuxPcfile:
+			pcfile = l.resolve(r, a.Sym())
+		case goobj.AuxPcinline:
+			pcinline = l.resolve(r, a.Sym())
+		case goobj.AuxPcdata:
+			pcdata = append(pcdata, l.resolve(r, a.Sym()))
+		}
+	}
+	return
+}
+
+// Returns the number of pcdata for symbol i.
+func (l *Loader) NumPcdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxPcdata {
+			n++
+		}
+	}
+	return n
+}
+
+// Returns all funcdata symbols of symbol i.
+// tmp is a scratch space.
+func (l *Loader) Funcdata(i Sym, tmp []Sym) []Sym {
+	fd := tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			fd = append(fd, l.resolve(r, a.Sym()))
+		}
+	}
+	return fd
+}
+
+// Returns the number of funcdata for symbol i.
+func (l *Loader) NumFuncdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			n++
+		}
+	}
+	return n
+}
+
 // FuncInfo provides hooks to access goobj.FuncInfo in the objects.
 type FuncInfo struct {
 	l       *Loader
 	r       *oReader
 	data    []byte
-	auxs    []goobj.Aux
 	lengths goobj.FuncInfoLengths
 }
 
@@ -1904,77 +1976,17 @@ func (fi *FuncInfo) Locals() int {
 }
 
 func (fi *FuncInfo) FuncID() objabi.FuncID {
-	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
+	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
 }
 
-func (fi *FuncInfo) Pcsp() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcfile() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcinline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data)
-	return fi.l.resolve(fi.r, sym)
+func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
+	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
 // Preload has to be called prior to invoking the various methods
 // below related to pcdata, funcdataoff, files, and inltree nodes.
 func (fi *FuncInfo) Preload() {
 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
-}
-
-func (fi *FuncInfo) Pcdata() []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	syms := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data)
-	ret := make([]Sym, len(syms))
-	for i := range ret {
-		ret[i] = fi.l.resolve(fi.r, syms[i])
-	}
-	return ret
-}
-
-func (fi *FuncInfo) NumFuncdataoff() uint32 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return fi.lengths.NumFuncdataoff
-}
-
-func (fi *FuncInfo) Funcdataoff(k int) int64 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return (*goobj.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
-}
-
-func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
-		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
-	} else {
-		syms = syms[:0]
-	}
-	for j := range fi.auxs {
-		a := &fi.auxs[j]
-		if a.Type() == goobj.AuxFuncdata {
-			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
-		}
-	}
-	return syms
 }
 
 func (fi *FuncInfo) NumFile() uint32 {
@@ -1989,6 +2001,13 @@ func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
 		panic("need to call Preload first")
 	}
 	return (*goobj.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+}
+
+// TopFrame returns true if the function associated with this FuncInfo
+// is an entry point, meaning that unwinders should stop when they hit
+// this function.
+func (fi *FuncInfo) TopFrame() bool {
+	return (fi.FuncFlag() & objabi.FuncFlag_TOPFRAME) != 0
 }
 
 type InlTreeNode struct {
@@ -2021,25 +2040,12 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 }
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		if pp.objidx == 0 {
-			return FuncInfo{}
-		}
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
+	r, auxs := l.auxs(i)
 	for j := range auxs {
 		a := &auxs[j]
 		if a.Type() == goobj.AuxFuncInfo {
 			b := r.Data(a.Sym().SymIdx)
-			return FuncInfo{l, r, b, auxs, goobj.FuncInfoLengths{}}
+			return FuncInfo{l, r, b, goobj.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
@@ -2150,9 +2156,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		gi := st.addSym(name, v, r, i, kind, osym)
 		r.syms[i] = gi
-		if osym.TopFrame() {
-			l.SetAttrTopFrame(gi, true)
-		}
 		if osym.Local() {
 			l.SetAttrLocal(gi, true)
 		}
@@ -2161,7 +2164,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
-			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
+			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi
 			}
@@ -2187,7 +2190,6 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	// Index 0 is invalid for symbols.
 	l.objSyms = make([]objSym, 1, symSize)
 
-	l.npkgsyms = l.NSym()
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, hashed64Size),
@@ -2197,6 +2199,7 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, pkgDef)
 	}
+	l.npkgsyms = l.NSym()
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
 		st.preloadSyms(o.r, hashedDef)
@@ -2237,7 +2240,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		pkg := r.Pkg(i)
 		objidx, ok := l.objByPkg[pkg]
 		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+			log.Fatalf("%v: reference to nonexistent package %s", r.unit.Lib, pkg)
 		}
 		r.pkg[i] = objidx
 	}
@@ -2264,24 +2267,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 		log.Fatalf("invalid symbol ABI: %d", abi)
 	}
 	return v
-}
-
-// ResolveABIAlias given a symbol returns the ABI alias target of that
-// symbol. If the sym in question is not an alias, the sym itself is
-// returned.
-func (l *Loader) ResolveABIAlias(s Sym) Sym {
-	if s == 0 {
-		return 0
-	}
-	if l.SymType(s) != sym.SABIALIAS {
-		return s
-	}
-	relocs := l.Relocs(s)
-	target := relocs.At(0).Sym()
-	if l.SymType(target) == sym.SABIALIAS {
-		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
-	}
-	return target
 }
 
 // TopLevelSym tests a symbol (by name and kind) to determine whether
@@ -2345,13 +2330,11 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
 		pp.relocs = make([]goobj.Reloc, relocs.Count())
-		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
 			rel := relocs.At(i)
-			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
-			pp.reltypes[i] = rel.Type()
+			pp.relocs[i].Set(rel.Off(), rel.Siz(), uint16(rel.Type()), rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
 		}
 
 		// Copy data
@@ -2407,7 +2390,6 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 		// when copying attributes from a dupOK ABI wrapper symbol to
 		// the real target symbol (which may not be marked dupOK).
 	}
-	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
 	l.SetAttrSpecial(dst, l.AttrSpecial(src))
 	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
 	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
@@ -2567,7 +2549,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
-					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
+					if !assignedToUnit.Has(sym) {
 						textp = append(textp, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {

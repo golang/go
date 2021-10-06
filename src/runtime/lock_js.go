@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build js && wasm
 // +build js,wasm
 
 package runtime
@@ -175,7 +176,12 @@ var idleID int32
 // If an event handler returned, we resume it and it will pause the execution.
 // beforeIdle either returns the specific goroutine to schedule next or
 // indicates with otherReady that some goroutine became ready.
-func beforeIdle(delay int64) (gp *g, otherReady bool) {
+func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
+	delay := int64(-1)
+	if pollUntil != 0 {
+		delay = pollUntil - now
+	}
+
 	if delay > 0 {
 		clearIdleID()
 		if delay < 1e6 {

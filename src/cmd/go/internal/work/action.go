@@ -294,14 +294,14 @@ func (b *Builder) Init() {
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
-		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+		fmt.Fprintf(os.Stderr, "go: %v\n", err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
 
 	for _, tag := range cfg.BuildContext.BuildTags {
 		if strings.Contains(tag, ",") {
-			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+			fmt.Fprintf(os.Stderr, "go: -tags space-separated list contains comma\n")
 			base.SetExitStatus(2)
 			base.Exit()
 		}
@@ -344,7 +344,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 			if strings.HasPrefix(t, "pkgpath ") {
 				t = strings.TrimPrefix(t, "pkgpath ")
 				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
+				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
 			}
 		}
 	} else {
@@ -355,7 +355,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
+			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd(), nil, &stk, nil, 0))
 		}
 	}
 	return
@@ -776,7 +776,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadImportWithFlags(pkg, base.Cwd, nil, &stk, nil, 0)
+				p := load.LoadImportWithFlags(pkg, base.Cwd(), nil, &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}

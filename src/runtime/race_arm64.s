@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build race
 // +build race
 
 #include "go_asm.h"
@@ -42,8 +43,14 @@
 
 // func runtime·raceread(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·raceread(SB), NOSPLIT, $0-8
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would make caller's PC ineffective.
+TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R0, R1	// addr
+#else
 	MOVD	addr+0(FP), R1
+#endif
 	MOVD	LR, R2
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_read(SB), R9
@@ -65,8 +72,14 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 
 // func runtime·racewrite(addr uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would make caller's PC ineffective.
+TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R0, R1	// addr
+#else
 	MOVD	addr+0(FP), R1
+#endif
 	MOVD	LR, R2
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVD	$__tsan_write(SB), R9
@@ -88,9 +101,16 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would make caller's PC ineffective.
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R1, R2	// size
+	MOVD	R0, R1	// addr
+#else
 	MOVD	addr+0(FP), R1
 	MOVD	size+8(FP), R2
+#endif
 	MOVD	LR, R3
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_read_range(SB), R9
@@ -113,9 +133,16 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 
 // func runtime·racewriterange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would make caller's PC ineffective.
+TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+#ifdef GOEXPERIMENT_regabiargs
+	MOVD	R1, R2	// size
+	MOVD	R0, R1	// addr
+#else
 	MOVD	addr+0(FP), R1
 	MOVD	size+8(FP), R2
+#endif
 	MOVD	LR, R3
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVD	$__tsan_write_range(SB), R9
@@ -160,21 +187,13 @@ call:
 ret:
 	RET
 
-// func runtime·racefuncenterfp(fp uintptr)
-// Called from instrumented code.
-// Like racefuncenter but doesn't passes an arg, uses the caller pc
-// from the first slot on the stack
-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
-	MOVD	0(RSP), R9
-	JMP	racefuncenter<>(SB)
-
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 	MOVD	callpc+0(FP), R9
 	JMP	racefuncenter<>(SB)
 
-// Common code for racefuncenter/racefuncenterfp
+// Common code for racefuncenter
 // R9 = caller's return address
 TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	load_g

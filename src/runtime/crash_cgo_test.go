@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
 // +build cgo
 
 package runtime_test
@@ -275,6 +276,15 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 func TestCgoTracebackContext(t *testing.T) {
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackContext")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoTracebackContextPreemption(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "TracebackContextPreemption")
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q got %v", want, got)
@@ -581,6 +591,7 @@ func TestSegv(t *testing.T) {
 	}
 
 	for _, test := range []string{"Segv", "SegvInCgo"} {
+		test := test
 		t.Run(test, func(t *testing.T) {
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)

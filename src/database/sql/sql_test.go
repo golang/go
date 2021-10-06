@@ -431,25 +431,24 @@ func TestTxContextWait(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		// Guard against the context being canceled before BeginTx completes.
-		if err == context.DeadlineExceeded {
-			t.Skip("tx context canceled prior to first use")
-		}
 		t.Fatal(err)
 	}
 	tx.keepConnOnRollback = false
 
+	go func() {
+		time.Sleep(15 * time.Millisecond)
+		cancel()
+	}()
 	// This will trigger the *fakeConn.Prepare method which will take time
 	// performing the query. The ctxDriverPrepare func will check the context
 	// after this and close the rows and return an error.
 	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
-		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
+	if err != context.Canceled {
+		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}
 
 	waitForFree(t, db, 5*time.Second, 0)
@@ -657,7 +656,7 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	db.SetMaxOpenConns(max)
 
 	// First saturate the connection pool.
-	// Then start new requests for a connection that is cancelled after it is requested.
+	// Then start new requests for a connection that is canceled after it is requested.
 
 	state = 1
 	for i := 0; i < max; i++ {
@@ -1820,6 +1819,30 @@ func TestNullInt32Param(t *testing.T) {
 	nullTestRun(t, spec)
 }
 
+func TestNullInt16Param(t *testing.T) {
+	spec := nullTestSpec{"nullint16", "int16", [6]nullTestRow{
+		{NullInt16{31, true}, 1, NullInt16{31, true}},
+		{NullInt16{-22, false}, 1, NullInt16{0, false}},
+		{22, 1, NullInt16{22, true}},
+		{NullInt16{33, true}, 1, NullInt16{33, true}},
+		{NullInt16{222, false}, 1, NullInt16{0, false}},
+		{0, NullInt16{31, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
+func TestNullByteParam(t *testing.T) {
+	spec := nullTestSpec{"nullbyte", "byte", [6]nullTestRow{
+		{NullByte{31, true}, 1, NullByte{31, true}},
+		{NullByte{0, false}, 1, NullByte{0, false}},
+		{22, 1, NullByte{22, true}},
+		{NullByte{33, true}, 1, NullByte{33, true}},
+		{NullByte{222, false}, 1, NullByte{0, false}},
+		{0, NullByte{31, false}, nil},
+	}}
+	nullTestRun(t, spec)
+}
+
 func TestNullFloat64Param(t *testing.T) {
 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
 		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
@@ -2785,7 +2808,7 @@ func TestTxCannotCommitAfterRollback(t *testing.T) {
 	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
 	sendQuery := make(chan struct{})
 	// The Tx status is returned through the row results, ensure
-	// that the rows results are not cancelled.
+	// that the rows results are not canceled.
 	bypassRowsAwaitDone = true
 	hookTxGrabConn = func() {
 		cancel()
@@ -2815,7 +2838,7 @@ func TestTxStmtDeadlock(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -2826,6 +2849,7 @@ func TestTxStmtDeadlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cancel()
 	// Run number of stmt queries to reproduce deadlock from context cancel
 	for i := 0; i < 1e3; i++ {
 		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
@@ -4060,8 +4084,17 @@ func TestOpenConnector(t *testing.T) {
 	}
 	defer db.Close()
 
-	if _, is := db.connector.(*fakeConnector); !is {
+	c, ok := db.connector.(*fakeConnector)
+	if !ok {
 		t.Fatal("not using *fakeConnector")
+	}
+
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !c.closed {
+		t.Fatal("connector is not closed")
 	}
 }
 

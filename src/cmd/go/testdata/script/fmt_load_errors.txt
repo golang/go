@@ -6,6 +6,17 @@ go fmt -n exclude
 stdout 'exclude[/\\]x\.go'
 stdout 'exclude[/\\]x_linux\.go'
 
+# Test edge cases with gofmt.
+# Note that this execs GOROOT/bin/gofmt.
+
+! exec gofmt does-not-exist
+
+exec gofmt gofmt-dir/no-extension
+stdout 'package x'
+
+exec gofmt gofmt-dir
+! stdout 'package x'
+
 -- exclude/empty/x.txt --
 -- exclude/ignore/_x.go --
 package x
@@ -16,4 +27,6 @@ package x
 -- exclude/x_linux.go --
 // +build windows
 
+package x
+-- gofmt-dir/no-extension --
 package x

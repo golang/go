@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build (aix || darwin || dragonfly || freebsd || (!android && linux) || netbsd || openbsd || solaris) && !cgo
 // +build aix darwin dragonfly freebsd !android,linux netbsd openbsd solaris
 // +build !cgo
 
@@ -12,24 +13,6 @@ import (
 	"strings"
 	"testing"
 )
-
-const testGroupFile = `# See the opendirectoryd(8) man page for additional 
-# information about Open Directory.
-##
-nobody:*:-2:
-nogroup:*:-1:
-wheel:*:0:root
-emptyid:*::root
-invalidgid:*:notanumber:root
-+plussign:*:20:root
--minussign:*:21:root
-      
-daemon:*:1:root
-    indented:*:7:
-# comment:*:4:found
-     # comment:*:4:found
-kmem:*:2:root
-`
 
 var groupTests = []struct {
 	in   string
@@ -48,6 +31,8 @@ var groupTests = []struct {
 	{testGroupFile, "invalidgid", ""},
 	{testGroupFile, "indented", "7"},
 	{testGroupFile, "# comment", ""},
+	{testGroupFile, "largegroup", "1000"},
+	{testGroupFile, "manymembers", "777"},
 	{"", "emptyfile", ""},
 }
 

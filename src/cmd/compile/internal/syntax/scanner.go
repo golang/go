@@ -343,6 +343,11 @@ redo:
 		s.op, s.prec = Not, 0
 		s.tok = _Operator
 
+	case '~':
+		s.nextch()
+		s.op, s.prec = Tilde, 0
+		s.tok = _Operator
+
 	default:
 		s.errorf("invalid character %#U", s.ch)
 		s.nextch()

@@ -31,11 +31,13 @@
 package ld
 
 import (
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"internal/buildcfg"
 	"path/filepath"
 	"strings"
 )
@@ -102,10 +104,15 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		elfshnum = xosect.Elfsect.(*ElfShdr).shnum
 	}
 
+	sname := ldr.SymExtname(x)
+	sname = mangleABIName(ctxt, ldr, x, sname)
+
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
 	bind := elf.STB_GLOBAL
-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+		// Static tmp is package local, but a package can be shared among multiple DSOs.
+		// They need to have a single view of the static tmp that are writable.
 		bind = elf.STB_LOCAL
 	}
 
@@ -139,8 +146,6 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		// instructions are inserted.
 		other |= 3 << 5
 	}
-
-	sname := ldr.SymExtname(x)
 
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
@@ -295,6 +300,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType) 
 	ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
 
 	name := ldr.SymName(s)
+	name = mangleABIName(ctxt, ldr, s, name)
 	ctxt.Out.WriteString(name)
 	ctxt.Out.Write8(0)
 
@@ -501,13 +507,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
 	)
 
-	var symgofuncrel loader.Sym
-	if !ctxt.DynlinkingGo() {
-		if ctxt.UseRelro() {
-			symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
-		} else {
-			symgofuncrel = symgofunc
-		}
+	symgofuncrel := symgofunc
+	if ctxt.UseRelro() {
+		symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
 	}
 
 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
@@ -519,6 +521,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
+	// Some of these symbol section conditions are duplicated
+	// in cmd/internal/obj.contentHashSection.
 	nsym := loader.Sym(ldr.NSym())
 	symGroupType := make([]sym.SymKind, nsym)
 	for s := loader.Sym(1); s < nsym; s++ {
@@ -531,27 +535,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 		name := ldr.SymName(s)
 		switch {
-		case strings.HasPrefix(name, "type."):
-			if !ctxt.DynlinkingGo() {
-				ldr.SetAttrNotInSymbolTable(s, true)
-			}
-			if ctxt.UseRelro() {
-				symGroupType[s] = sym.STYPERELRO
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtyperel)
-				}
-			} else {
-				symGroupType[s] = sym.STYPE
-				if symtyperel != 0 {
-					ldr.SetCarrierSym(s, symtype)
-				}
-			}
-
-		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
-			// Keep go.importpath symbols in the same section as types and
-			// names, as they can be referred to by a section offset.
-			symGroupType[s] = sym.STYPERELRO
-
 		case strings.HasPrefix(name, "go.string."):
 			symGroupType[s] = sym.SGOSTRING
 			ldr.SetAttrNotInSymbolTable(s, true)
@@ -568,7 +551,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			}
 			if ctxt.UseRelro() {
 				symGroupType[s] = sym.SGOFUNCRELRO
-				if symgofuncrel != 0 {
+				if !ctxt.DynlinkingGo() {
 					ldr.SetCarrierSym(s, symgofuncrel)
 				}
 			} else {
@@ -579,18 +562,38 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		case strings.HasPrefix(name, "gcargs."),
 			strings.HasPrefix(name, "gclocals."),
 			strings.HasPrefix(name, "gclocals·"),
-			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc,
-			strings.HasSuffix(name, ".opendefer"):
-			symGroupType[s] = sym.SGOFUNC
+			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
+			strings.HasSuffix(name, ".opendefer"),
+			strings.HasSuffix(name, ".arginfo0"),
+			strings.HasSuffix(name, ".arginfo1"),
+			strings.HasSuffix(name, ".args_stackmap"),
+			strings.HasSuffix(name, ".stkobj"):
 			ldr.SetAttrNotInSymbolTable(s, true)
+			symGroupType[s] = sym.SGOFUNC
 			ldr.SetCarrierSym(s, symgofunc)
-			align := int32(4)
-			if a := ldr.SymAlign(s); a < align {
-				ldr.SetSymAlign(s, align)
-			} else {
-				align = a
+			if ctxt.Debugvlog != 0 {
+				align := ldr.SymAlign(s)
+				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
 			}
-			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+
+		// Note: Check for "type." prefix after checking for .arginfo1 suffix.
+		// That way symbols like "type..eq.[2]interface {}.arginfo1" that belong
+		// in go.func.* end up there.
+		case strings.HasPrefix(name, "type."):
+			if !ctxt.DynlinkingGo() {
+				ldr.SetAttrNotInSymbolTable(s, true)
+			}
+			if ctxt.UseRelro() {
+				symGroupType[s] = sym.STYPERELRO
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtyperel)
+				}
+			} else {
+				symGroupType[s] = sym.STYPE
+				if symtyperel != 0 {
+					ldr.SetCarrierSym(s, symtype)
+				}
+			}
 		}
 	}
 
@@ -668,6 +671,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
+	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go.func.*", 0))
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
@@ -822,4 +827,44 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
 	}
 	CarrierSymByType[typ].Size = sz
+}
+
+func isStaticTmp(name string) bool {
+	return strings.Contains(name, "."+obj.StaticNamePref)
+}
+
+// Mangle function name with ABI information.
+func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) string {
+	// For functions with ABI wrappers, we have to make sure that we
+	// don't wind up with two symbol table entries with the same
+	// name (since this will generated an error from the external
+	// linker). If we have wrappers, keep the ABIInternal name
+	// unmangled since we want cross-load-module calls to target
+	// ABIInternal, and rename other symbols.
+	//
+	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+	// sym or marker relocation to associate the wrapper with the
+	// wrapped function.
+	if !buildcfg.Experiment.RegabiWrappers {
+		return name
+	}
+
+	if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal {
+		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
+		}
+	}
+
+	// When loading a shared library, if a symbol has only one ABI,
+	// and the name is not mangled, we don't know what ABI it is.
+	// So we always mangle ABIInternal function name in shared linkage,
+	// except symbols that are exported to C. Type symbols are always
+	// ABIInternal so they are not mangled.
+	if ctxt.IsShared() {
+		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type.") {
+			name = fmt.Sprintf("%s.abiinternal", name)
+		}
+	}
+
+	return name
 }

@@ -5,10 +5,12 @@
 package ssa
 
 import (
+	"cmd/compile/internal/abi"
+	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"internal/buildcfg"
 )
 
 // A Config holds readonly compilation information.
@@ -19,30 +21,33 @@ type Config struct {
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter // lowering function
-	lowerValue     valueRewriter // lowering function
-	splitLoad      valueRewriter // function for splitting merged load ops; only used on some architectures
-	registers      []Register    // machine registers
-	gpRegMask      regMask       // general purpose integer register mask
-	fpRegMask      regMask       // floating point register mask
-	fp32RegMask    regMask       // floating point register mask
-	fp64RegMask    regMask       // floating point register mask
-	specialRegMask regMask       // special register mask
-	GCRegMap       []*Register   // garbage collector register map, by GC register index
-	FPReg          int8          // register number of frame pointer, -1 if not used
-	LinkReg        int8          // register number of link register if it is a general purpose register, -1 if not used
-	hasGReg        bool          // has hardware g register
-	ctxt           *obj.Link     // Generic arch information
-	optimize       bool          // Do optimization
-	noDuffDevice   bool          // Don't use Duff's device
-	useSSE         bool          // Use SSE for non-float operations
-	useAvg         bool          // Use optimizations that need Avg* operations
-	useHmul        bool          // Use optimizations that need Hmul* operations
-	SoftFloat      bool          //
-	Race           bool          // race detector enabled
-	NeedsFpScratch bool          // No direct move between GP and FP register sets
-	BigEndian      bool          //
-	UseFMA         bool          // Use hardware FMA operation
+	lowerBlock     blockRewriter  // lowering function
+	lowerValue     valueRewriter  // lowering function
+	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
+	registers      []Register     // machine registers
+	gpRegMask      regMask        // general purpose integer register mask
+	fpRegMask      regMask        // floating point register mask
+	fp32RegMask    regMask        // floating point register mask
+	fp64RegMask    regMask        // floating point register mask
+	specialRegMask regMask        // special register mask
+	intParamRegs   []int8         // register numbers of integer param (in/out) registers
+	floatParamRegs []int8         // register numbers of floating param (in/out) registers
+	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
+	ABI0           *abi.ABIConfig
+	GCRegMap       []*Register // garbage collector register map, by GC register index
+	FPReg          int8        // register number of frame pointer, -1 if not used
+	LinkReg        int8        // register number of link register if it is a general purpose register, -1 if not used
+	hasGReg        bool        // has hardware g register
+	ctxt           *obj.Link   // Generic arch information
+	optimize       bool        // Do optimization
+	noDuffDevice   bool        // Don't use Duff's device
+	useSSE         bool        // Use SSE for non-float operations
+	useAvg         bool        // Use optimizations that need Avg* operations
+	useHmul        bool        // Use optimizations that need Hmul* operations
+	SoftFloat      bool        //
+	Race           bool        // race detector enabled
+	BigEndian      bool        //
+	UseFMA         bool        // Use hardware FMA operation
 }
 
 type (
@@ -138,24 +143,11 @@ type Frontend interface {
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
-	Auto(src.XPos, *types.Type) GCNode
+	Auto(src.XPos, *types.Type) *ir.Name
 
 	// Given the name for a compound type, returns the name we should use
 	// for the parts of that compound type.
-	SplitString(LocalSlot) (LocalSlot, LocalSlot)
-	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
-	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
-	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
-	SplitStruct(LocalSlot, int) LocalSlot
-	SplitArray(LocalSlot) LocalSlot              // array must be length 1
-	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
-
-	// DerefItab dereferences an itab function
-	// entry, given the symbol of the itab and
-	// the byte offset of the function pointer.
-	// It may return nil.
-	DerefItab(sym *obj.LSym, offset int64) *obj.LSym
 
 	// Line returns a string describing the given position.
 	Line(src.XPos) string
@@ -178,34 +170,8 @@ type Frontend interface {
 	MyImportPath() string
 }
 
-// interface used to hold a *gc.Node (a stack variable).
-// We'd use *gc.Node directly but that would lead to an import cycle.
-type GCNode interface {
-	Typ() *types.Type
-	String() string
-	IsSynthetic() bool
-	IsAutoTmp() bool
-	StorageClass() StorageClass
-}
-
-type StorageClass uint8
-
-const (
-	ClassAuto     StorageClass = iota // local stack variable
-	ClassParam                        // argument
-	ClassParamOut                     // return value
-)
-
-const go116lateCallExpansion = true
-
-// LateCallExpansionEnabledWithin returns true if late call expansion should be tested
-// within compilation of a function/method.
-func LateCallExpansionEnabledWithin(f *Func) bool {
-	return go116lateCallExpansion
-}
-
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat bool) *Config {
 	c := &Config{arch: arch, Types: types}
 	c.useAvg = true
 	c.useHmul = true
@@ -219,9 +185,12 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
+		c.specialRegMask = specialRegMaskAMD64
+		c.intParamRegs = paramIntRegAMD64
+		c.floatParamRegs = paramFloatRegAMD64
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
-		c.hasGReg = false
+		c.hasGReg = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -253,10 +222,12 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
+		c.intParamRegs = paramIntRegARM64
+		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = objabi.GOOS == "darwin" || objabi.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -268,9 +239,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
+		c.intParamRegs = paramIntRegPPC64
+		c.floatParamRegs = paramFloatRegPPC64
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
-		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.hasGReg = true
 	case "mips64":
 		c.BigEndian = true
@@ -349,9 +321,16 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 	c.optimize = optimize
 	c.useSSE = true
 	c.UseFMA = true
+	c.SoftFloat = softfloat
+	if softfloat {
+		c.floatParamRegs = nil // no FP registers in softfloat mode
+	}
+
+	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.FixedFrameSize())
+	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
 
 	// On Plan 9, floating point operations are not allowed in note handler.
-	if objabi.GOOS == "plan9" {
+	if buildcfg.GOOS == "plan9" {
 		// Don't use FMA on Plan 9
 		c.UseFMA = false
 

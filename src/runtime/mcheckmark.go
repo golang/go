@@ -13,8 +13,8 @@
 package runtime
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -24,7 +24,7 @@ import (
 // allocation.
 //
 //go:notinheap
-type checkmarksMap [heapArenaBytes / sys.PtrSize / 8]uint8
+type checkmarksMap [heapArenaBytes / goarch.PtrSize / 8]uint8
 
 // If useCheckmark is true, marking of an object uses the checkmark
 // bits instead of the standard mark bits.

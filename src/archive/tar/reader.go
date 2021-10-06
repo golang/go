@@ -65,7 +65,7 @@ func (tr *Reader) next() (*Header, error) {
 	format := FormatUSTAR | FormatPAX | FormatGNU
 	for {
 		// Discard the remainder of the file and any padding.
-		if err := discard(tr.r, tr.curr.PhysicalRemaining()); err != nil {
+		if err := discard(tr.r, tr.curr.physicalRemaining()); err != nil {
 			return nil, err
 		}
 		if _, err := tryReadFull(tr.r, tr.blk[:tr.pad]); err != nil {
@@ -355,7 +355,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	}
 
 	// Verify the header matches a known format.
-	format := tr.blk.GetFormat()
+	format := tr.blk.getFormat()
 	if format == FormatUnknown {
 		return nil, nil, ErrHeader
 	}
@@ -364,30 +364,30 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	hdr := new(Header)
 
 	// Unpack the V7 header.
-	v7 := tr.blk.V7()
-	hdr.Typeflag = v7.TypeFlag()[0]
-	hdr.Name = p.parseString(v7.Name())
-	hdr.Linkname = p.parseString(v7.LinkName())
-	hdr.Size = p.parseNumeric(v7.Size())
-	hdr.Mode = p.parseNumeric(v7.Mode())
-	hdr.Uid = int(p.parseNumeric(v7.UID()))
-	hdr.Gid = int(p.parseNumeric(v7.GID()))
-	hdr.ModTime = time.Unix(p.parseNumeric(v7.ModTime()), 0)
+	v7 := tr.blk.toV7()
+	hdr.Typeflag = v7.typeFlag()[0]
+	hdr.Name = p.parseString(v7.name())
+	hdr.Linkname = p.parseString(v7.linkName())
+	hdr.Size = p.parseNumeric(v7.size())
+	hdr.Mode = p.parseNumeric(v7.mode())
+	hdr.Uid = int(p.parseNumeric(v7.uid()))
+	hdr.Gid = int(p.parseNumeric(v7.gid()))
+	hdr.ModTime = time.Unix(p.parseNumeric(v7.modTime()), 0)
 
 	// Unpack format specific fields.
 	if format > formatV7 {
-		ustar := tr.blk.USTAR()
-		hdr.Uname = p.parseString(ustar.UserName())
-		hdr.Gname = p.parseString(ustar.GroupName())
-		hdr.Devmajor = p.parseNumeric(ustar.DevMajor())
-		hdr.Devminor = p.parseNumeric(ustar.DevMinor())
+		ustar := tr.blk.toUSTAR()
+		hdr.Uname = p.parseString(ustar.userName())
+		hdr.Gname = p.parseString(ustar.groupName())
+		hdr.Devmajor = p.parseNumeric(ustar.devMajor())
+		hdr.Devminor = p.parseNumeric(ustar.devMinor())
 
 		var prefix string
 		switch {
 		case format.has(FormatUSTAR | FormatPAX):
 			hdr.Format = format
-			ustar := tr.blk.USTAR()
-			prefix = p.parseString(ustar.Prefix())
+			ustar := tr.blk.toUSTAR()
+			prefix = p.parseString(ustar.prefix())
 
 			// For Format detection, check if block is properly formatted since
 			// the parser is more liberal than what USTAR actually permits.
@@ -396,23 +396,23 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 				hdr.Format = FormatUnknown // Non-ASCII characters in block.
 			}
 			nul := func(b []byte) bool { return int(b[len(b)-1]) == 0 }
-			if !(nul(v7.Size()) && nul(v7.Mode()) && nul(v7.UID()) && nul(v7.GID()) &&
-				nul(v7.ModTime()) && nul(ustar.DevMajor()) && nul(ustar.DevMinor())) {
+			if !(nul(v7.size()) && nul(v7.mode()) && nul(v7.uid()) && nul(v7.gid()) &&
+				nul(v7.modTime()) && nul(ustar.devMajor()) && nul(ustar.devMinor())) {
 				hdr.Format = FormatUnknown // Numeric fields must end in NUL
 			}
 		case format.has(formatSTAR):
-			star := tr.blk.STAR()
-			prefix = p.parseString(star.Prefix())
-			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
-			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
+			star := tr.blk.toSTAR()
+			prefix = p.parseString(star.prefix())
+			hdr.AccessTime = time.Unix(p.parseNumeric(star.accessTime()), 0)
+			hdr.ChangeTime = time.Unix(p.parseNumeric(star.changeTime()), 0)
 		case format.has(FormatGNU):
 			hdr.Format = format
 			var p2 parser
-			gnu := tr.blk.GNU()
-			if b := gnu.AccessTime(); b[0] != 0 {
+			gnu := tr.blk.toGNU()
+			if b := gnu.accessTime(); b[0] != 0 {
 				hdr.AccessTime = time.Unix(p2.parseNumeric(b), 0)
 			}
-			if b := gnu.ChangeTime(); b[0] != 0 {
+			if b := gnu.changeTime(); b[0] != 0 {
 				hdr.ChangeTime = time.Unix(p2.parseNumeric(b), 0)
 			}
 
@@ -439,8 +439,8 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 			// See https://golang.org/issues/21005
 			if p2.err != nil {
 				hdr.AccessTime, hdr.ChangeTime = time.Time{}, time.Time{}
-				ustar := tr.blk.USTAR()
-				if s := p.parseString(ustar.Prefix()); isASCII(s) {
+				ustar := tr.blk.toUSTAR()
+				if s := p.parseString(ustar.prefix()); isASCII(s) {
 					prefix = s
 				}
 				hdr.Format = FormatUnknown // Buggy file is not GNU
@@ -465,38 +465,38 @@ func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) (sparseDatas, err
 	// Make sure that the input format is GNU.
 	// Unfortunately, the STAR format also has a sparse header format that uses
 	// the same type flag but has a completely different layout.
-	if blk.GetFormat() != FormatGNU {
+	if blk.getFormat() != FormatGNU {
 		return nil, ErrHeader
 	}
 	hdr.Format.mayOnlyBe(FormatGNU)
 
 	var p parser
-	hdr.Size = p.parseNumeric(blk.GNU().RealSize())
+	hdr.Size = p.parseNumeric(blk.toGNU().realSize())
 	if p.err != nil {
 		return nil, p.err
 	}
-	s := blk.GNU().Sparse()
-	spd := make(sparseDatas, 0, s.MaxEntries())
+	s := blk.toGNU().sparse()
+	spd := make(sparseDatas, 0, s.maxEntries())
 	for {
-		for i := 0; i < s.MaxEntries(); i++ {
+		for i := 0; i < s.maxEntries(); i++ {
 			// This termination condition is identical to GNU and BSD tar.
-			if s.Entry(i).Offset()[0] == 0x00 {
+			if s.entry(i).offset()[0] == 0x00 {
 				break // Don't return, need to process extended headers (even if empty)
 			}
-			offset := p.parseNumeric(s.Entry(i).Offset())
-			length := p.parseNumeric(s.Entry(i).Length())
+			offset := p.parseNumeric(s.entry(i).offset())
+			length := p.parseNumeric(s.entry(i).length())
 			if p.err != nil {
 				return nil, p.err
 			}
 			spd = append(spd, sparseEntry{Offset: offset, Length: length})
 		}
 
-		if s.IsExtended()[0] > 0 {
+		if s.isExtended()[0] > 0 {
 			// There are more entries. Read an extension header and parse its entries.
 			if _, err := mustReadFull(tr.r, blk[:]); err != nil {
 				return nil, err
 			}
-			s = blk.Sparse()
+			s = blk.toSparse()
 			continue
 		}
 		return spd, nil // Done
@@ -678,11 +678,13 @@ func (fr *regFileReader) WriteTo(w io.Writer) (int64, error) {
 	return io.Copy(w, struct{ io.Reader }{fr})
 }
 
-func (fr regFileReader) LogicalRemaining() int64 {
+// logicalRemaining implements fileState.logicalRemaining.
+func (fr regFileReader) logicalRemaining() int64 {
 	return fr.nb
 }
 
-func (fr regFileReader) PhysicalRemaining() int64 {
+// logicalRemaining implements fileState.physicalRemaining.
+func (fr regFileReader) physicalRemaining() int64 {
 	return fr.nb
 }
 
@@ -694,9 +696,9 @@ type sparseFileReader struct {
 }
 
 func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
-	finished := int64(len(b)) >= sr.LogicalRemaining()
+	finished := int64(len(b)) >= sr.logicalRemaining()
 	if finished {
-		b = b[:sr.LogicalRemaining()]
+		b = b[:sr.logicalRemaining()]
 	}
 
 	b0 := b
@@ -724,7 +726,7 @@ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
 		return n, errMissData // Less data in dense file than sparse file
 	case err != nil:
 		return n, err
-	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
+	case sr.logicalRemaining() == 0 && sr.physicalRemaining() > 0:
 		return n, errUnrefData // More data in dense file than sparse file
 	case finished:
 		return n, io.EOF
@@ -746,7 +748,7 @@ func (sr *sparseFileReader) WriteTo(w io.Writer) (n int64, err error) {
 
 	var writeLastByte bool
 	pos0 := sr.pos
-	for sr.LogicalRemaining() > 0 && !writeLastByte && err == nil {
+	for sr.logicalRemaining() > 0 && !writeLastByte && err == nil {
 		var nf int64 // Size of fragment
 		holeStart, holeEnd := sr.sp[0].Offset, sr.sp[0].endOffset()
 		if sr.pos < holeStart { // In a data fragment
@@ -754,7 +756,7 @@ func (sr *sparseFileReader) WriteTo(w io.Writer) (n int64, err error) {
 			nf, err = io.CopyN(ws, sr.fr, nf)
 		} else { // In a hole fragment
 			nf = holeEnd - sr.pos
-			if sr.PhysicalRemaining() == 0 {
+			if sr.physicalRemaining() == 0 {
 				writeLastByte = true
 				nf--
 			}
@@ -779,18 +781,18 @@ func (sr *sparseFileReader) WriteTo(w io.Writer) (n int64, err error) {
 		return n, errMissData // Less data in dense file than sparse file
 	case err != nil:
 		return n, err
-	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
+	case sr.logicalRemaining() == 0 && sr.physicalRemaining() > 0:
 		return n, errUnrefData // More data in dense file than sparse file
 	default:
 		return n, nil
 	}
 }
 
-func (sr sparseFileReader) LogicalRemaining() int64 {
+func (sr sparseFileReader) logicalRemaining() int64 {
 	return sr.sp[len(sr.sp)-1].endOffset() - sr.pos
 }
-func (sr sparseFileReader) PhysicalRemaining() int64 {
-	return sr.fr.PhysicalRemaining()
+func (sr sparseFileReader) physicalRemaining() int64 {
+	return sr.fr.physicalRemaining()
 }
 
 type zeroReader struct{}

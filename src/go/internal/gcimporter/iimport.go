@@ -8,6 +8,7 @@
 package gcimporter
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -15,11 +16,13 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"math/big"
 	"sort"
+	"strings"
 )
 
 type intReader struct {
-	*bytes.Reader
+	*bufio.Reader
 	path string
 }
 
@@ -39,6 +42,21 @@ func (r *intReader) uint64() uint64 {
 	return i
 }
 
+// Keep this in sync with constants in iexport.go.
+const (
+	iexportVersionGo1_11 = 0
+	iexportVersionPosCol = 1
+	// TODO: before release, change this back to 2.
+	iexportVersionGenerics = iexportVersionPosCol
+
+	iexportVersionCurrent = iexportVersionGenerics
+)
+
+type ident struct {
+	pkg  string
+	name string
+}
+
 const predeclReserved = 32
 
 type itag uint64
@@ -54,14 +72,17 @@ const (
 	signatureType
 	structType
 	interfaceType
+	typeParamType
+	instanceType
+	unionType
 )
 
 // iImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
-func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
-	const currentVersion = 1
+func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataReader *bufio.Reader, path string) (pkg *types.Package, err error) {
+	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	defer func() {
 		if e := recover(); e != nil {
@@ -73,26 +94,33 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		}
 	}()
 
-	r := &intReader{bytes.NewReader(data), path}
+	r := &intReader{dataReader, path}
 
 	version = int64(r.uint64())
 	switch version {
-	case currentVersion, 0:
+	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		errorf("unknown iexport format version %d", version)
+		if version > iexportVersionGenerics {
+			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+		} else {
+			errorf("unknown iexport format version %d", version)
+		}
 	}
 
 	sLen := int64(r.uint64())
 	dLen := int64(r.uint64())
 
-	whence, _ := r.Seek(0, io.SeekCurrent)
-	stringData := data[whence : whence+sLen]
-	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io.SeekCurrent)
+	data := make([]byte, sLen+dLen)
+	if _, err := io.ReadFull(r, data); err != nil {
+		errorf("cannot read %d bytes of stringData and declData: %s", len(data), err)
+	}
+	stringData := data[:sLen]
+	declData := data[sLen:]
 
 	p := iimporter{
-		ipath:   path,
-		version: int(version),
+		exportVersion: version,
+		ipath:         path,
+		version:       int(version),
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -101,6 +129,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		declData: declData,
 		pkgIndex: make(map[*types.Package]map[string]uint64),
 		typCache: make(map[uint64]types.Type),
+		// Separate map for typeparams, keyed by their package and unique
+		// name (name with subscript).
+		tparamIndex: make(map[ident]types.Type),
 
 		fake: fakeFileSet{
 			fset:  fset,
@@ -164,22 +195,22 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 	// package was imported completely and without errors
 	localpkg.MarkComplete()
-
-	consumed, _ := r.Seek(0, io.SeekCurrent)
-	return int(consumed), localpkg, nil
+	return localpkg, nil
 }
 
 type iimporter struct {
-	ipath   string
-	version int
+	exportVersion int64
+	ipath         string
+	version       int
 
 	stringData  []byte
 	stringCache map[uint64]string
 	pkgCache    map[uint64]*types.Package
 
-	declData []byte
-	pkgIndex map[*types.Package]map[string]uint64
-	typCache map[uint64]types.Type
+	declData    []byte
+	pkgIndex    map[*types.Package]map[string]uint64
+	typCache    map[uint64]types.Type
+	tparamIndex map[ident]types.Type
 
 	fake          fakeFileSet
 	interfaceList []*types.Interface
@@ -269,17 +300,26 @@ func (r *importReader) obj(name string) {
 
 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
 
-	case 'F':
-		sig := r.signature(nil)
-
+	case 'F', 'G':
+		var tparams []*types.TypeParam
+		if tag == 'G' {
+			tparams = r.tparamList()
+		}
+		sig := r.signature(nil, nil, tparams)
 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
 
-	case 'T':
+	case 'T', 'U':
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
 		named := types.NewNamed(obj, nil, nil)
+		// Declare obj before calling r.tparamList, so the new type name is recognized
+		// if used in the constraint of one of its own typeparams (see #48280).
 		r.declare(obj)
+		if tag == 'U' {
+			tparams := r.tparamList()
+			named.SetTypeParams(tparams)
+		}
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
 		named.SetUnderlying(underlying)
@@ -289,11 +329,44 @@ func (r *importReader) obj(name string) {
 				mpos := r.pos()
 				mname := r.ident()
 				recv := r.param()
-				msig := r.signature(recv)
+
+				// If the receiver has any targs, set those as the
+				// rparams of the method (since those are the
+				// typeparams being used in the method sig/body).
+				targs := baseType(recv.Type()).TypeArgs()
+				var rparams []*types.TypeParam
+				if targs.Len() > 0 {
+					rparams = make([]*types.TypeParam, targs.Len())
+					for i := range rparams {
+						rparams[i], _ = targs.At(i).(*types.TypeParam)
+					}
+				}
+				msig := r.signature(recv, rparams, nil)
 
 				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
 			}
 		}
+
+	case 'P':
+		// We need to "declare" a typeparam in order to have a name that
+		// can be referenced recursively (if needed) in the type param's
+		// bound.
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected type param type")
+		}
+		// Remove the "path" from the type param name that makes it unique
+		ix := strings.LastIndex(name, ".")
+		if ix < 0 {
+			errorf("missing path for type param")
+		}
+		tn := types.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+		t := types.NewTypeParam(tn, nil)
+		// To handle recursive references to the typeparam within its
+		// bound, save the partial type in tparamIndex before reading the bounds.
+		id := ident{r.currPkg.Name(), name}
+		r.p.tparamIndex[id] = t
+
+		t.SetConstraint(r.typ())
 
 	case 'V':
 		typ := r.typ()
@@ -320,7 +393,9 @@ func (r *importReader) value() (typ types.Type, val constant.Value) {
 		val = constant.MakeString(r.string())
 
 	case types.IsInteger:
-		val = r.mpint(b)
+		var x big.Int
+		r.mpint(&x, b)
+		val = constant.Make(&x)
 
 	case types.IsFloat:
 		val = r.mpfloat(b)
@@ -365,8 +440,8 @@ func intSize(b *types.Basic) (signed bool, maxBytes uint) {
 	return
 }
 
-func (r *importReader) mpint(b *types.Basic) constant.Value {
-	signed, maxBytes := intSize(b)
+func (r *importReader) mpint(x *big.Int, typ *types.Basic) {
+	signed, maxBytes := intSize(typ)
 
 	maxSmall := 256 - maxBytes
 	if signed {
@@ -385,7 +460,8 @@ func (r *importReader) mpint(b *types.Basic) constant.Value {
 				v = ^v
 			}
 		}
-		return constant.MakeInt64(v)
+		x.SetInt64(v)
+		return
 	}
 
 	v := -n
@@ -395,39 +471,23 @@ func (r *importReader) mpint(b *types.Basic) constant.Value {
 	if v < 1 || uint(v) > maxBytes {
 		errorf("weird decoding: %v, %v => %v", n, signed, v)
 	}
-
-	buf := make([]byte, v)
-	io.ReadFull(&r.declReader, buf)
-
-	// convert to little endian
-	// TODO(gri) go/constant should have a more direct conversion function
-	//           (e.g., once it supports a big.Float based implementation)
-	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
-		buf[i], buf[j] = buf[j], buf[i]
-	}
-
-	x := constant.MakeFromBytes(buf)
+	b := make([]byte, v)
+	io.ReadFull(&r.declReader, b)
+	x.SetBytes(b)
 	if signed && n&1 != 0 {
-		x = constant.UnaryOp(token.SUB, x, 0)
+		x.Neg(x)
 	}
-	return x
 }
 
-func (r *importReader) mpfloat(b *types.Basic) constant.Value {
-	x := r.mpint(b)
-	if constant.Sign(x) == 0 {
-		return x
+func (r *importReader) mpfloat(typ *types.Basic) constant.Value {
+	var mant big.Int
+	r.mpint(&mant, typ)
+	var f big.Float
+	f.SetInt(&mant)
+	if f.Sign() != 0 {
+		f.SetMantExp(&f, int(r.int64()))
 	}
-
-	exp := r.int64()
-	switch {
-	case exp > 0:
-		x = constant.Shift(x, token.SHL, uint(exp))
-	case exp < 0:
-		d := constant.Shift(constant.MakeInt64(1), token.SHL, uint(-exp))
-		x = constant.BinaryOp(x, token.QUO, d)
-	}
-	return x
+	return constant.Make(&f)
 }
 
 func (r *importReader) ident() string {
@@ -513,7 +573,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
 		return types.NewMap(r.typ(), r.typ())
 	case signatureType:
 		r.currPkg = r.pkg()
-		return r.signature(nil)
+		return r.signature(nil, nil, nil)
 
 	case structType:
 		r.currPkg = r.pkg()
@@ -553,13 +613,56 @@ func (r *importReader) doType(base *types.Named) types.Type {
 				recv = types.NewVar(token.NoPos, r.currPkg, "", base)
 			}
 
-			msig := r.signature(recv)
+			msig := r.signature(recv, nil, nil)
 			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
 		}
 
 		typ := types.NewInterfaceType(methods, embeddeds)
 		r.p.interfaceList = append(r.p.interfaceList, typ)
 		return typ
+
+	case typeParamType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected type param type")
+		}
+		pkg, name := r.qualifiedIdent()
+		id := ident{pkg.Name(), name}
+		if t, ok := r.p.tparamIndex[id]; ok {
+			// We're already in the process of importing this typeparam.
+			return t
+		}
+		// Otherwise, import the definition of the typeparam now.
+		r.p.doDecl(pkg, name)
+		return r.p.tparamIndex[id]
+
+	case instanceType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected instantiation type")
+		}
+		// pos does not matter for instances: they are positioned on the original
+		// type.
+		_ = r.pos()
+		len := r.uint64()
+		targs := make([]types.Type, len)
+		for i := range targs {
+			targs[i] = r.typ()
+		}
+		baseType := r.typ()
+		// The imported instantiated type doesn't include any methods, so
+		// we must always use the methods of the base (orig) type.
+		// TODO provide a non-nil *Context
+		t, _ := types.Instantiate(nil, baseType, targs, false)
+		return t
+
+	case unionType:
+		if r.p.exportVersion < iexportVersionGenerics {
+			errorf("unexpected instantiation type")
+		}
+		terms := make([]*types.Term, r.uint64())
+		for i := range terms {
+			terms[i] = types.NewTerm(r.bool(), r.typ())
+		}
+		return types.NewUnion(terms)
 	}
 }
 
@@ -567,11 +670,23 @@ func (r *importReader) kind() itag {
 	return itag(r.uint64())
 }
 
-func (r *importReader) signature(recv *types.Var) *types.Signature {
+func (r *importReader) signature(recv *types.Var, rparams, tparams []*types.TypeParam) *types.Signature {
 	params := r.paramList()
 	results := r.paramList()
 	variadic := params.Len() > 0 && r.bool()
-	return types.NewSignature(recv, params, results, variadic)
+	return types.NewSignatureType(recv, rparams, tparams, params, results, variadic)
+}
+
+func (r *importReader) tparamList() []*types.TypeParam {
+	n := r.uint64()
+	if n == 0 {
+		return nil
+	}
+	xs := make([]*types.TypeParam, n)
+	for i := range xs {
+		xs[i], _ = r.typ().(*types.TypeParam)
+	}
+	return xs
 }
 
 func (r *importReader) paramList() *types.Tuple {
@@ -615,4 +730,14 @@ func (r *importReader) byte() byte {
 		errorf("declReader.ReadByte: %v", err)
 	}
 	return x
+}
+
+func baseType(typ types.Type) *types.Named {
+	// pointer receivers are never types.Named types
+	if p, _ := typ.(*types.Pointer); p != nil {
+		typ = p.Elem()
+	}
+	// receiver base types are always (possibly generic) types.Named types
+	n, _ := typ.(*types.Named)
+	return n
 }

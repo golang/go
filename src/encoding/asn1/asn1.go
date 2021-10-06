@@ -914,7 +914,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		structType := fieldType
 
 		for i := 0; i < structType.NumField(); i++ {
-			if structType.Field(i).PkgPath != "" {
+			if !structType.Field(i).IsExported() {
 				err = StructuralError{"struct contains unexported fields"}
 				return
 			}

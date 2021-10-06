@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package poll
@@ -229,8 +230,62 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
 	}
 }
 
+// ReadFrom wraps the recvfrom network call for IPv4.
+func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := syscall.RecvfromInet4(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
+// ReadFrom wraps the recvfrom network call for IPv6.
+func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		n, err := syscall.RecvfromInet6(fd.Sysfd, p, 0, from)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			n = 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, err
+	}
+}
+
 // ReadMsg wraps the recvmsg network call.
-func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, error) {
+func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.Sockaddr, error) {
 	if err := fd.readLock(); err != nil {
 		return 0, 0, 0, nil, err
 	}
@@ -239,7 +294,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 		return 0, 0, 0, nil, err
 	}
 	for {
-		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
+		n, oobn, sysflags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, flags)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue
@@ -252,7 +307,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 			}
 		}
 		err = fd.eofError(n, err)
-		return n, oobn, flags, sa, err
+		return n, oobn, sysflags, sa, err
 	}
 }
 
@@ -323,6 +378,58 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 		if n == 0 {
 			return nn, io.ErrUnexpectedEOF
 		}
+	}
+}
+
+// WriteToInet4 wraps the sendto network call for IPv4 addresses.
+func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := syscall.SendtoInet4(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
+	}
+}
+
+// WriteToInet6 wraps the sendto network call for IPv6 addresses.
+func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, err
+	}
+	for {
+		err := syscall.SendtoInet6(fd.Sysfd, p, 0, sa)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return 0, err
+		}
+		return len(p), nil
 	}
 }
 

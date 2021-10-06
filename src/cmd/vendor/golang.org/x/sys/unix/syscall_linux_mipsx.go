@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (mips || mipsle)
 // +build linux
 // +build mips mipsle
 
@@ -112,7 +113,7 @@ func setTimeval(sec, usec int64) Timeval {
 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
 }
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
 
 func Pipe2(p []int, flags int) (err error) {
 	if len(p) != 2 {
@@ -125,7 +126,7 @@ func Pipe2(p []int, flags int) (err error) {
 	return
 }
 
-//sysnb pipe() (p1 int, p2 int, err error)
+//sysnb	pipe() (p1 int, p2 int, err error)
 
 func Pipe(p []int) (err error) {
 	if len(p) != 2 {
@@ -153,10 +154,10 @@ type rlimit32 struct {
 	Max uint32
 }
 
-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+//sysnb	getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
 
 func Getrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, nil, rlim)
+	err = Prlimit(0, resource, nil, rlim)
 	if err != ENOSYS {
 		return err
 	}
@@ -181,10 +182,10 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
 	return
 }
 
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+//sysnb	setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
 
 func Setrlimit(resource int, rlim *Rlimit) (err error) {
-	err = prlimit(0, resource, rlim, nil)
+	err = Prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
 	}
@@ -226,6 +227,10 @@ func (msghdr *Msghdr) SetIovlen(length int) {
 
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
+}
+
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint32(length)
 }
 
 //sys	poll(fds *PollFd, nfds int, timeout int) (n int, err error)

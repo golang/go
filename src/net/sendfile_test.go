@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -10,6 +11,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -312,4 +314,67 @@ func TestSendfilePipe(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// Issue 43822: tests that returns EOF when conn write timeout.
+func TestSendfileOnWriteTimeoutExceeded(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	errc := make(chan error, 1)
+	go func(ln Listener) (retErr error) {
+		defer func() {
+			errc <- retErr
+			close(errc)
+		}()
+
+		conn, err := ln.Accept()
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+
+		// Set the write deadline in the past(1h ago). It makes
+		// sure that it is always write timeout.
+		if err := conn.SetWriteDeadline(time.Now().Add(-1 * time.Hour)); err != nil {
+			return err
+		}
+
+		f, err := os.Open(newton)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		_, err = io.Copy(conn, f)
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return nil
+		}
+
+		if err == nil {
+			err = fmt.Errorf("expected ErrDeadlineExceeded, but got nil")
+		}
+		return err
+	}(ln)
+
+	conn, err := Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	n, err := io.Copy(io.Discard, conn)
+	if err != nil {
+		t.Fatalf("expected nil error, but got %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("expected receive zero, but got %d byte(s)", n)
+	}
+
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
 }

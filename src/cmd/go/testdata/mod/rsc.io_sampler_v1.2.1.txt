@@ -5,7 +5,7 @@ module "rsc.io/sampler"
 
 require "golang.org/x/text" v0.0.0-20170915032832-14c0d48ead0c
 -- .info --
-{"Version":"v1.2.1","Name":"cac3af4f8a0ab40054fa6f8d423108a63a1255bb","Short":"cac3af4f8a0a","Time":"2018-02-13T18:16:22Z"}EOF
+{"Version":"v1.2.1","Name":"cac3af4f8a0ab40054fa6f8d423108a63a1255bb","Short":"cac3af4f8a0a","Time":"2018-02-13T18:16:22Z"}
 -- hello.go --
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

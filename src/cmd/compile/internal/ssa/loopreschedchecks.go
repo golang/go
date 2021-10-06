@@ -246,7 +246,8 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.fe.Syslook("goschedguarded")
-		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil, nil), mem0)
+		// TODO(register args) -- will need more details
+		mem1 := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeMem, StaticAuxCall(resched, nil), mem0)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 

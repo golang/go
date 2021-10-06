@@ -68,7 +68,12 @@ func (b *Reader) Size() int { return len(b.buf) }
 
 // Reset discards any buffered data, resets all state, and switches
 // the buffered reader to read from r.
+// Calling Reset on the zero value of Reader initializes the internal buffer
+// to the default size.
 func (b *Reader) Reset(r io.Reader) {
+	if b.buf == nil {
+		b.buf = make([]byte, defaultBufSize)
+	}
 	b.reset(b.buf, r)
 }
 
@@ -168,6 +173,10 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 	if n == 0 {
 		return
 	}
+
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	remain := n
 	for {
 		skip := b.Buffered()
@@ -261,8 +270,8 @@ func (b *Reader) ReadByte() (byte, error) {
 // UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 //
 // UnreadByte returns an error if the most recent method called on the
-// Reader was not a read operation. Notably, Peek is not considered a
-// read operation.
+// Reader was not a read operation. Notably, Peek, Discard, and WriteTo are not
+// considered read operations.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -497,6 +506,9 @@ func (b *Reader) ReadString(delim byte) (string, error) {
 // If the underlying reader supports the WriteTo method,
 // this calls the underlying WriteTo without buffering.
 func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+	b.lastByte = -1
+	b.lastRuneSize = -1
+
 	n, err = b.writeBuf(w)
 	if err != nil {
 		return
@@ -590,7 +602,12 @@ func (b *Writer) Size() int { return len(b.buf) }
 
 // Reset discards any unflushed buffered data, clears any error, and
 // resets b to write its output to w.
+// Calling Reset on the zero value of Writer initializes the internal buffer
+// to the default size.
 func (b *Writer) Reset(w io.Writer) {
+	if b.buf == nil {
+		b.buf = make([]byte, defaultBufSize)
+	}
 	b.err = nil
 	b.n = 0
 	b.wr = w
@@ -622,6 +639,14 @@ func (b *Writer) Flush() error {
 
 // Available returns how many bytes are unused in the buffer.
 func (b *Writer) Available() int { return len(b.buf) - b.n }
+
+// AvailableBuffer returns an empty buffer with b.Available() capacity.
+// This buffer is intended to be appended to and
+// passed to an immediately succeeding Write call.
+// The buffer is only valid until the next write operation on b.
+func (b *Writer) AvailableBuffer() []byte {
+	return b.buf[b.n:][:0]
+}
 
 // Buffered returns the number of bytes that have been written into the current buffer.
 func (b *Writer) Buffered() int { return b.n }
@@ -670,7 +695,8 @@ func (b *Writer) WriteByte(c byte) error {
 // WriteRune writes a single Unicode code point, returning
 // the number of bytes written and any error.
 func (b *Writer) WriteRune(r rune) (size int, err error) {
-	if r < utf8.RuneSelf {
+	// Compare as uint32 to correctly handle negative runes.
+	if uint32(r) < utf8.RuneSelf {
 		err = b.WriteByte(byte(r))
 		if err != nil {
 			return 0, err

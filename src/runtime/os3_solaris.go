@@ -5,7 +5,8 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -172,7 +173,7 @@ func newosproc(mp *m) {
 	// Disable signals during create, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret = pthread_create(&tid, &attr, funcPC(tstart_sysvicall), unsafe.Pointer(mp))
+	ret = pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
@@ -215,7 +216,7 @@ func miniterrno()
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
 
 	minitSignals()
 
@@ -227,6 +228,11 @@ func unminit() {
 	unminitSignals()
 }
 
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
 func sigtramp()
 
 //go:nosplit
@@ -236,8 +242,8 @@ func setsig(i uint32, fn uintptr) {
 
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = sigset_all
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	*((*uintptr)(unsafe.Pointer(&sa._funcptr))) = fn
 	sigaction(i, &sa, nil)
@@ -281,6 +287,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 //go:nosplit
@@ -385,6 +404,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 }
 
 //go:nosplit
+//go:cgo_unsafe_args
 func doMmap(addr, n, prot, flags, fd, off uintptr) (uintptr, uintptr) {
 	var libcall libcall
 	libcall.fn = uintptr(unsafe.Pointer(&libc_mmap))
@@ -517,11 +537,16 @@ func sysconf(name int32) int64 {
 func usleep1(usec uint32)
 
 //go:nosplit
+func usleep_no_g(µs uint32) {
+	usleep1(µs)
+}
+
+//go:nosplit
 func usleep(µs uint32) {
 	usleep1(µs)
 }
 
-func walltime1() (sec int64, nsec int32) {
+func walltime() (sec int64, nsec int32) {
 	var ts mts
 	sysvicall2(&libc_clock_gettime, _CLOCK_REALTIME, uintptr(unsafe.Pointer(&ts)))
 	return ts.tv_sec, int32(ts.tv_nsec)
@@ -564,16 +589,13 @@ func setNonblock(fd int32) {
 func osyield1()
 
 //go:nosplit
-func osyield() {
-	_g_ := getg()
-
-	// Check the validity of m because we might be called in cgo callback
-	// path early enough where there isn't a m available yet.
-	if _g_ != nil && _g_.m != nil {
-		sysvicall0(&libc_sched_yield)
-		return
-	}
+func osyield_no_g() {
 	osyield1()
+}
+
+//go:nosplit
+func osyield() {
+	sysvicall0(&libc_sched_yield)
 }
 
 //go:linkname executablePath os.executablePath
@@ -591,7 +613,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
 	sysauxv(auxv[:])
 }
 

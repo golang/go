@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
 // +build cgo
 
 package main
@@ -28,6 +29,11 @@ func canInternalLink() bool {
 			return false
 		}
 	case "openbsd":
+		switch runtime.GOARCH {
+		case "arm64", "mips64":
+			return false
+		}
+	case "windows":
 		switch runtime.GOARCH {
 		case "arm64":
 			return false

@@ -10,10 +10,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	exec "internal/execabs"
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -21,7 +21,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 )
 
 // Downloaded size limits.

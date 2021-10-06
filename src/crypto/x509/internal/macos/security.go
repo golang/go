@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin && !ios
 // +build darwin,!ios
 
 package macOS
 
 import (
 	"errors"
+	"internal/abi"
 	"strconv"
 	"unsafe"
 )
@@ -63,11 +65,10 @@ var ErrNoTrustSettings = errors.New("no trust settings found")
 
 const errSecNoTrustSettings = -25263
 
-//go:linkname x509_SecTrustSettingsCopyCertificates x509_SecTrustSettingsCopyCertificates
 //go:cgo_import_dynamic x509_SecTrustSettingsCopyCertificates SecTrustSettingsCopyCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustSettingsCopyCertificates(domain SecTrustSettingsDomain) (certArray CFRef, err error) {
-	ret := syscall(funcPC(x509_SecTrustSettingsCopyCertificates_trampoline), uintptr(domain),
+	ret := syscall(abi.FuncPCABI0(x509_SecTrustSettingsCopyCertificates_trampoline), uintptr(domain),
 		uintptr(unsafe.Pointer(&certArray)), 0, 0, 0, 0)
 	if int32(ret) == errSecNoTrustSettings {
 		return 0, ErrNoTrustSettings
@@ -80,11 +81,10 @@ func x509_SecTrustSettingsCopyCertificates_trampoline()
 
 const kSecFormatX509Cert int32 = 9
 
-//go:linkname x509_SecItemExport x509_SecItemExport
 //go:cgo_import_dynamic x509_SecItemExport SecItemExport "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecItemExport(cert CFRef) (data CFRef, err error) {
-	ret := syscall(funcPC(x509_SecItemExport_trampoline), uintptr(cert), uintptr(kSecFormatX509Cert),
+	ret := syscall(abi.FuncPCABI0(x509_SecItemExport_trampoline), uintptr(cert), uintptr(kSecFormatX509Cert),
 		0 /* flags */, 0 /* keyParams */, uintptr(unsafe.Pointer(&data)), 0)
 	if ret != 0 {
 		return 0, OSStatus{"SecItemExport", int32(ret)}
@@ -95,11 +95,10 @@ func x509_SecItemExport_trampoline()
 
 const errSecItemNotFound = -25300
 
-//go:linkname x509_SecTrustSettingsCopyTrustSettings x509_SecTrustSettingsCopyTrustSettings
 //go:cgo_import_dynamic x509_SecTrustSettingsCopyTrustSettings SecTrustSettingsCopyTrustSettings "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain) (trustSettings CFRef, err error) {
-	ret := syscall(funcPC(x509_SecTrustSettingsCopyTrustSettings_trampoline), uintptr(cert), uintptr(domain),
+	ret := syscall(abi.FuncPCABI0(x509_SecTrustSettingsCopyTrustSettings_trampoline), uintptr(cert), uintptr(domain),
 		uintptr(unsafe.Pointer(&trustSettings)), 0, 0, 0)
 	if int32(ret) == errSecItemNotFound {
 		return 0, ErrNoTrustSettings
@@ -110,11 +109,10 @@ func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain
 }
 func x509_SecTrustSettingsCopyTrustSettings_trampoline()
 
-//go:linkname x509_SecPolicyCopyProperties x509_SecPolicyCopyProperties
 //go:cgo_import_dynamic x509_SecPolicyCopyProperties SecPolicyCopyProperties "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecPolicyCopyProperties(policy CFRef) CFRef {
-	ret := syscall(funcPC(x509_SecPolicyCopyProperties_trampoline), uintptr(policy), 0, 0, 0, 0, 0)
+	ret := syscall(abi.FuncPCABI0(x509_SecPolicyCopyProperties_trampoline), uintptr(policy), 0, 0, 0, 0, 0)
 	return CFRef(ret)
 }
 func x509_SecPolicyCopyProperties_trampoline()

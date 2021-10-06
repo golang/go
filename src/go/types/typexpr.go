@@ -7,11 +7,12 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/internal/typeparams"
 	"go/token"
-	"sort"
-	"strconv"
+	"strings"
 )
 
 // ident type-checks identifier e and initializes x with the value or type of e.
@@ -26,13 +27,19 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	// Note that we cannot use check.lookup here because the returned scope
 	// may be different from obj.Parent(). See also Scope.LookupParent doc.
 	scope, obj := check.scope.LookupParent(e.Name, check.pos)
-	if obj == nil {
+	switch obj {
+	case nil:
 		if e.Name == "_" {
-			check.errorf(e, _InvalidBlank, "cannot use _ as value or type")
+			check.error(e, _InvalidBlank, "cannot use _ as value or type")
 		} else {
 			check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Name)
 		}
 		return
+	case universeAny, universeComparable:
+		if !check.allowVersion(check.pkg, 1, 18) {
+			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
+			return // avoid follow-on errors
+		}
 	}
 	check.recordUse(e, obj)
 
@@ -51,12 +58,12 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	assert(typ != nil)
 
-	// The object may be dot-imported: If so, remove its package from
-	// the map of unused dot imports for the respective file scope.
+	// The object may have been dot-imported.
+	// If so, mark the respective package as used.
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
-	if pkg := obj.Pkg(); pkg != check.pkg && pkg != nil {
-		delete(check.unusedDotImports[scope], pkg)
+	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
+		pkgName.used = true
 	}
 
 	switch obj := obj.(type) {
@@ -116,8 +123,33 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 }
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must not be an (uninstantiated) generic type.
 func (check *Checker) typ(e ast.Expr) Type {
 	return check.definedType(e, nil)
+}
+
+// varType type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must not be an (uninstantiated) generic type and it must not be a
+// constraint interface.
+func (check *Checker) varType(e ast.Expr) Type {
+	typ := check.definedType(e, nil)
+	// We don't want to call under() (via asInterface) or complete interfaces while we
+	// are in the middle of type-checking parameter declarations that might belong to
+	// interface methods. Delay this check to the end of type-checking.
+	check.later(func() {
+		if t := asInterface(typ); t != nil {
+			tset := computeInterfaceTypeSet(check, e.Pos(), t) // TODO(gri) is this the correct position?
+			if !tset.IsMethodSet() {
+				if tset.comparable {
+					check.softErrorf(e, _Todo, "interface is (or embeds) comparable")
+				} else {
+					check.softErrorf(e, _Todo, "interface contains type constraints")
+				}
+			}
+		}
+	})
+
+	return typ
 }
 
 // definedType is like typ but also accepts a type name def.
@@ -125,93 +157,64 @@ func (check *Checker) typ(e ast.Expr) Type {
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked.
 //
-func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
-	if trace {
-		check.trace(e.Pos(), "%s", e)
-		check.indent++
-		defer func() {
-			check.indent--
-			check.trace(e.Pos(), "=> %s", T)
-		}()
+func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+	typ := check.typInternal(e, def)
+	assert(isTyped(typ))
+	if isGeneric(typ) {
+		check.errorf(e, _Todo, "cannot use generic type %s without instantiation", typ)
+		typ = Typ[Invalid]
 	}
-
-	T = check.typInternal(e, def)
-	assert(isTyped(T))
-	check.recordTypeAndValue(e, typexpr, T, nil)
-
-	return
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
 }
 
-// funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
-	scope.isFunc = true
-	check.recordScope(ftyp, scope)
-
-	recvList, _ := check.collectParams(scope, recvPar, false)
-	params, variadic := check.collectParams(scope, ftyp.Params, true)
-	results, _ := check.collectParams(scope, ftyp.Results, false)
-
-	if recvPar != nil {
-		// recv parameter list present (may be empty)
-		// spec: "The receiver is specified via an extra parameter section preceding the
-		// method name. That parameter section must declare a single parameter, the receiver."
-		var recv *Var
-		switch len(recvList) {
-		case 0:
-			check.error(recvPar, _BadRecv, "method is missing receiver")
-			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
-		default:
-			// more than one receiver
-			check.error(recvList[len(recvList)-1], _BadRecv, "method must have exactly one receiver")
-			fallthrough // continue with first receiver
-		case 1:
-			recv = recvList[0]
+// genericType is like typ but the type must be an (uninstantiated) generic type.
+func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
+	typ := check.typInternal(e, nil)
+	assert(isTyped(typ))
+	if typ != Typ[Invalid] && !isGeneric(typ) {
+		if reportErr {
+			check.errorf(e, _Todo, "%s is not a generic type", typ)
 		}
-		// spec: "The receiver type must be of the form T or *T where T is a type name."
-		// (ignore invalid types - error was reported before)
-		if t, _ := deref(recv.typ); t != Typ[Invalid] {
-			var err string
-			if T, _ := t.(*Named); T != nil {
-				// spec: "The type denoted by T is called the receiver base type; it must not
-				// be a pointer or interface type and it must be declared in the same package
-				// as the method."
-				if T.obj.pkg != check.pkg {
-					err = "type not defined in this package"
-				} else {
-					// TODO(gri) This is not correct if the underlying type is unknown yet.
-					switch u := T.underlying.(type) {
-					case *Basic:
-						// unsafe.Pointer is treated like a regular pointer
-						if u.kind == UnsafePointer {
-							err = "unsafe.Pointer"
-						}
-					case *Pointer, *Interface:
-						err = "pointer or interface type"
-					}
-				}
-			} else {
-				err = "basic or unnamed type"
-			}
-			if err != "" {
-				check.errorf(recv, _InvalidRecv, "invalid receiver %s (%s)", recv.typ, err)
-				// ok to continue
-			}
-		}
-		sig.recv = recv
+		typ = Typ[Invalid]
 	}
+	// TODO(gri) what is the correct call below?
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
+}
 
-	sig.scope = scope
-	sig.params = NewTuple(params...)
-	sig.results = NewTuple(results...)
-	sig.variadic = variadic
+// goTypeName returns the Go type name for typ and
+// removes any occurrences of "types." from that name.
+func goTypeName(typ Type) string {
+	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
 }
 
 // typInternal drives type checking of types.
-// Must only be called by definedType.
+// Must only be called by definedType or genericType.
 //
-func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
-	switch e := e.(type) {
+func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+	if trace {
+		check.trace(e0.Pos(), "type %s", e0)
+		check.indent++
+		defer func() {
+			check.indent--
+			var under Type
+			if T != nil {
+				// Calling under() here may lead to endless instantiations.
+				// Test case: type T[P any] *T[P]
+				// TODO(gri) investigate if that's a bug or to be expected
+				// (see also analogous comment in Checker.instantiate).
+				under = safeUnderlying(T)
+			}
+			if T == under {
+				check.trace(e0.Pos(), "=> %s // %s", T, goTypeName(T))
+			} else {
+				check.trace(e0.Pos(), "=> %s (under = %s) // %s", T, under, goTypeName(T))
+			}
+		}()
+	}
+
+	switch e := e0.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
 
@@ -249,7 +252,17 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			check.errorf(&x, _NotAType, "%s is not a type", &x)
 		}
 
+	case *ast.IndexExpr, *ast.IndexListExpr:
+		ix := typeparams.UnpackIndexExpr(e)
+		if !check.allowVersion(check.pkg, 1, 18) {
+			check.softErrorf(inNode(e, ix.Lbrack), _Todo, "type instantiation requires go1.18 or later")
+		}
+		// TODO(rfindley): type instantiation should require go1.18
+		return check.instantiatedType(ix.X, ix.Indices, def)
+
 	case *ast.ParenExpr:
+		// Generic types must be instantiated before they can be used in any form.
+		// Consequently, generic types cannot be parenthesized.
 		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:
@@ -257,15 +270,20 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			typ := new(Array)
 			def.setUnderlying(typ)
 			typ.len = check.arrayLength(e.Len)
-			typ.elem = check.typ(e.Elt)
-			return typ
-
-		} else {
-			typ := new(Slice)
-			def.setUnderlying(typ)
-			typ.elem = check.typ(e.Elt)
+			typ.elem = check.varType(e.Elt)
 			return typ
 		}
+
+		typ := new(Slice)
+		def.setUnderlying(typ)
+		typ.elem = check.varType(e.Elt)
+		return typ
+
+	case *ast.Ellipsis:
+		// dots are handled explicitly where they are legal
+		// (array composite literals and parameter lists)
+		check.error(e, _InvalidDotDotDot, "invalid use of '...'")
+		check.use(e.Elt)
 
 	case *ast.StructType:
 		typ := new(Struct)
@@ -276,7 +294,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.StarExpr:
 		typ := new(Pointer)
 		def.setUnderlying(typ)
-		typ.base = check.typ(e.X)
+		typ.base = check.varType(e.X)
 		return typ
 
 	case *ast.FuncType:
@@ -288,6 +306,9 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.InterfaceType:
 		typ := new(Interface)
 		def.setUnderlying(typ)
+		if def != nil {
+			typ.obj = def.obj
+		}
 		check.interfaceType(typ, e, def)
 		return typ
 
@@ -295,8 +316,8 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.typ(e.Key)
-		typ.elem = check.typ(e.Value)
+		typ.key = check.varType(e.Key)
+		typ.elem = check.varType(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -304,9 +325,13 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		//
 		// Delay this check because it requires fully setup types;
 		// it is safe to continue in any case (was issue 6667).
-		check.atEnd(func() {
+		check.later(func() {
 			if !Comparable(typ.key) {
-				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s", typ.key)
+				var why string
+				if asTypeParam(typ.key) != nil {
+					why = " (missing comparable constraint)"
+				}
+				check.errorf(e.Key, _IncomparableMapKey, "incomparable map key type %s%s", typ.key, why)
 			}
 		})
 
@@ -330,11 +355,11 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 		typ.dir = dir
-		typ.elem = check.typ(e.Value)
+		typ.elem = check.varType(e.Value)
 		return typ
 
 	default:
-		check.errorf(e, _NotAType, "%s is not a type", e)
+		check.errorf(e0, _NotAType, "%s is not a type", e0)
 	}
 
 	typ := Typ[Invalid]
@@ -342,35 +367,54 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	return typ
 }
 
-// typeOrNil type-checks the type expression (or nil value) e
-// and returns the typ of e, or nil.
-// If e is neither a type nor nil, typOrNil returns Typ[Invalid].
-//
-func (check *Checker) typOrNil(e ast.Expr) Type {
-	var x operand
-	check.rawExpr(&x, e, nil)
-	switch x.mode {
-	case invalid:
-		// ignore - error reported before
-	case novalue:
-		check.errorf(&x, _NotAType, "%s used as type", &x)
-	case typexpr:
-		return x.typ
-	case value:
-		if x.isNil() {
-			return nil
-		}
-		fallthrough
-	default:
-		check.errorf(&x, _NotAType, "%s is not a type", &x)
+func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) Type {
+	gtyp := check.genericType(x, true)
+	if gtyp == Typ[Invalid] {
+		return gtyp // error already reported
 	}
-	return Typ[Invalid]
+	base, _ := gtyp.(*Named)
+	if base == nil {
+		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+	}
+
+	// evaluate arguments
+	targs := check.typeList(targsx)
+	if targs == nil {
+		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+		return Typ[Invalid]
+	}
+
+	// determine argument positions
+	posList := make([]token.Pos, len(targs))
+	for i, arg := range targsx {
+		posList[i] = arg.Pos()
+	}
+
+	typ := check.instantiate(x.Pos(), base, targs, posList)
+	def.setUnderlying(typ)
+	check.recordInstance(x, targs, typ)
+
+	// make sure we check instantiation works at least once
+	// and that the resulting type is valid
+	check.later(func() {
+		check.validType(typ, nil)
+	})
+
+	return typ
 }
 
 // arrayLength type-checks the array length expression e
 // and returns the constant length >= 0, or a value < 0
 // to indicate an error (and thus an unknown length).
 func (check *Checker) arrayLength(e ast.Expr) int64 {
+	// If e is an undeclared identifier, the array declaration might be an
+	// attempt at a parameterized type declaration with missing constraint.
+	// Provide a better error message than just "undeclared name: X".
+	if name, _ := e.(*ast.Ident); name != nil && check.lookup(name.Name) == nil {
+		check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
+		return -1
+	}
+
 	var x operand
 	check.expr(&x, e)
 	if x.mode != constant_ {
@@ -379,6 +423,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		}
 		return -1
 	}
+
 	if isUntyped(x.typ) || isInteger(x.typ) {
 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
 			if representableConst(val, check, Typ[Int], nil) {
@@ -390,375 +435,23 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 			}
 		}
 	}
+
 	check.errorf(&x, _InvalidArrayLen, "array length %s must be integer", &x)
 	return -1
 }
 
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
-	if list == nil {
-		return
-	}
-
-	var named, anonymous bool
-	for i, field := range list.List {
-		ftype := field.Type
-		if t, _ := ftype.(*ast.Ellipsis); t != nil {
-			ftype = t.Elt
-			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
-				variadic = true
-			} else {
-				check.softErrorf(t, _MisplacedDotDotDot, "can only use ... with final parameter in list")
-				// ignore ... and continue
-			}
+// typeList provides the list of types corresponding to the incoming expression list.
+// If an error occurred, the result is nil, but all list elements were type-checked.
+func (check *Checker) typeList(list []ast.Expr) []Type {
+	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+	for i, x := range list {
+		t := check.varType(x)
+		if t == Typ[Invalid] {
+			res = nil
 		}
-		typ := check.typ(ftype)
-		// The parser ensures that f.Tag is nil and we don't
-		// care if a constructed AST contains a non-nil tag.
-		if len(field.Names) > 0 {
-			// named parameter
-			for _, name := range field.Names {
-				if name.Name == "" {
-					check.invalidAST(name, "anonymous parameter")
-					// ok to continue
-				}
-				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
-				check.declare(scope, name, par, scope.pos)
-				params = append(params, par)
-			}
-			named = true
-		} else {
-			// anonymous parameter
-			par := NewParam(ftype.Pos(), check.pkg, "", typ)
-			check.recordImplicit(field, par)
-			params = append(params, par)
-			anonymous = true
+		if res != nil {
+			res[i] = t
 		}
 	}
-
-	if named && anonymous {
-		check.invalidAST(list, "list contains both named and anonymous parameters")
-		// ok to continue
-	}
-
-	// For a variadic function, change the last parameter's type from T to []T.
-	// Since we type-checked T rather than ...T, we also need to retro-actively
-	// record the type for ...T.
-	if variadic {
-		last := params[len(params)-1]
-		last.typ = &Slice{elem: last.typ}
-		check.recordTypeAndValue(list.List[len(list.List)-1].Type, typexpr, last.typ, nil)
-	}
-
-	return
-}
-
-func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
-	if alt := oset.insert(obj); alt != nil {
-		check.errorf(atPos(pos), _DuplicateDecl, "%s redeclared", obj.Name())
-		check.reportAltDecl(alt)
-		return false
-	}
-	return true
-}
-
-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
-	for _, f := range iface.Methods.List {
-		if len(f.Names) > 0 {
-			// We have a method with name f.Names[0].
-			// (The parser ensures that there's only one method
-			// and we don't care if a constructed AST has more.)
-			name := f.Names[0]
-			if name.Name == "_" {
-				check.errorf(name, _BlankIfaceMethod, "invalid method name _")
-				continue // ignore
-			}
-
-			typ := check.typ(f.Type)
-			sig, _ := typ.(*Signature)
-			if sig == nil {
-				if typ != Typ[Invalid] {
-					check.invalidAST(f.Type, "%s is not a method signature", typ)
-				}
-				continue // ignore
-			}
-
-			// use named receiver type if available (for better error messages)
-			var recvTyp Type = ityp
-			if def != nil {
-				recvTyp = def
-			}
-			sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
-
-			m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
-			check.recordDef(name, m)
-			ityp.methods = append(ityp.methods, m)
-		} else {
-			// We have an embedded interface and f.Type is its
-			// (possibly qualified) embedded type name. Collect
-			// it if it's a valid interface.
-			typ := check.typ(f.Type)
-
-			utyp := check.underlying(typ)
-			if _, ok := utyp.(*Interface); !ok {
-				if utyp != Typ[Invalid] {
-					check.errorf(f.Type, _InvalidIfaceEmbed, "%s is not an interface", typ)
-				}
-				continue
-			}
-
-			ityp.embeddeds = append(ityp.embeddeds, typ)
-			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
-		}
-	}
-
-	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
-		// empty interface
-		ityp.allMethods = markComplete
-		return
-	}
-
-	// sort for API stability
-	sort.Sort(byUniqueMethodName(ityp.methods))
-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
-
-	check.later(func() { check.completeInterface(ityp) })
-}
-
-func (check *Checker) completeInterface(ityp *Interface) {
-	if ityp.allMethods != nil {
-		return
-	}
-
-	// completeInterface may be called via the LookupFieldOrMethod,
-	// MissingMethod, Identical, or IdenticalIgnoreTags external API
-	// in which case check will be nil. In this case, type-checking
-	// must be finished and all interfaces should have been completed.
-	if check == nil {
-		panic("internal error: incomplete interface")
-	}
-
-	if trace {
-		check.trace(token.NoPos, "complete %s", ityp)
-		check.indent++
-		defer func() {
-			check.indent--
-			check.trace(token.NoPos, "=> %s", ityp)
-		}()
-	}
-
-	// An infinitely expanding interface (due to a cycle) is detected
-	// elsewhere (Checker.validType), so here we simply assume we only
-	// have valid interfaces. Mark the interface as complete to avoid
-	// infinite recursion if the validType check occurs later for some
-	// reason.
-	ityp.allMethods = markComplete
-
-	// Methods of embedded interfaces are collected unchanged; i.e., the identity
-	// of a method I.m's Func Object of an interface I is the same as that of
-	// the method m in an interface that embeds interface I. On the other hand,
-	// if a method is embedded via multiple overlapping embedded interfaces, we
-	// don't provide a guarantee which "original m" got chosen for the embedding
-	// interface. See also issue #34421.
-	//
-	// If we don't care to provide this identity guarantee anymore, instead of
-	// reusing the original method in embeddings, we can clone the method's Func
-	// Object and give it the position of a corresponding embedded interface. Then
-	// we can get rid of the mpos map below and simply use the cloned method's
-	// position.
-
-	var seen objset
-	var methods []*Func
-	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
-	addMethod := func(pos token.Pos, m *Func, explicit bool) {
-		switch other := seen.insert(m); {
-		case other == nil:
-			methods = append(methods, m)
-			mpos[m] = pos
-		case explicit:
-			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
-			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
-		default:
-			// check method signatures after all types are computed (issue #33656)
-			check.atEnd(func() {
-				if !check.identical(m.typ, other.Type()) {
-					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
-					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
-				}
-			})
-		}
-	}
-
-	for _, m := range ityp.methods {
-		addMethod(m.pos, m, true)
-	}
-
-	posList := check.posMap[ityp]
-	for i, typ := range ityp.embeddeds {
-		pos := posList[i] // embedding position
-		typ, ok := check.underlying(typ).(*Interface)
-		if !ok {
-			// An error was reported when collecting the embedded types.
-			// Ignore it.
-			continue
-		}
-		check.completeInterface(typ)
-		for _, m := range typ.allMethods {
-			addMethod(pos, m, false) // use embedding position pos rather than m.pos
-		}
-	}
-
-	if methods != nil {
-		sort.Sort(byUniqueMethodName(methods))
-		ityp.allMethods = methods
-	}
-}
-
-// byUniqueTypeName named type lists can be sorted by their unique type names.
-type byUniqueTypeName []Type
-
-func (a byUniqueTypeName) Len() int           { return len(a) }
-func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName(a[j]) }
-func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-func sortName(t Type) string {
-	if named, _ := t.(*Named); named != nil {
-		return named.obj.Id()
-	}
-	return ""
-}
-
-// byUniqueMethodName method lists can be sorted by their unique method names.
-type byUniqueMethodName []*Func
-
-func (a byUniqueMethodName) Len() int           { return len(a) }
-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
-func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-func (check *Checker) tag(t *ast.BasicLit) string {
-	if t != nil {
-		if t.Kind == token.STRING {
-			if val, err := strconv.Unquote(t.Value); err == nil {
-				return val
-			}
-		}
-		check.invalidAST(t, "incorrect tag syntax: %q", t.Value)
-	}
-	return ""
-}
-
-func (check *Checker) structType(styp *Struct, e *ast.StructType) {
-	list := e.Fields
-	if list == nil {
-		return
-	}
-
-	// struct fields and tags
-	var fields []*Var
-	var tags []string
-
-	// for double-declaration checks
-	var fset objset
-
-	// current field typ and tag
-	var typ Type
-	var tag string
-	add := func(ident *ast.Ident, embedded bool, pos token.Pos) {
-		if tag != "" && tags == nil {
-			tags = make([]string, len(fields))
-		}
-		if tags != nil {
-			tags = append(tags, tag)
-		}
-
-		name := ident.Name
-		fld := NewField(pos, check.pkg, name, typ, embedded)
-		// spec: "Within a struct, non-blank field names must be unique."
-		if name == "_" || check.declareInSet(&fset, pos, fld) {
-			fields = append(fields, fld)
-			check.recordDef(ident, fld)
-		}
-	}
-
-	// addInvalid adds an embedded field of invalid type to the struct for
-	// fields with errors; this keeps the number of struct fields in sync
-	// with the source as long as the fields are _ or have different names
-	// (issue #25627).
-	addInvalid := func(ident *ast.Ident, pos token.Pos) {
-		typ = Typ[Invalid]
-		tag = ""
-		add(ident, true, pos)
-	}
-
-	for _, f := range list.List {
-		typ = check.typ(f.Type)
-		tag = check.tag(f.Tag)
-		if len(f.Names) > 0 {
-			// named fields
-			for _, name := range f.Names {
-				add(name, false, name.Pos())
-			}
-		} else {
-			// embedded field
-			// spec: "An embedded type must be specified as a type name T or as a pointer
-			// to a non-interface type name *T, and T itself may not be a pointer type."
-			pos := f.Type.Pos()
-			name := embeddedFieldIdent(f.Type)
-			if name == nil {
-				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
-				name = ast.NewIdent("_")
-				name.NamePos = pos
-				addInvalid(name, pos)
-				continue
-			}
-			t, isPtr := deref(typ)
-			// Because we have a name, typ must be of the form T or *T, where T is the name
-			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
-			switch t := t.Underlying().(type) {
-			case *Basic:
-				if t == Typ[Invalid] {
-					// error was reported before
-					addInvalid(name, pos)
-					continue
-				}
-
-				// unsafe.Pointer is treated like a regular pointer
-				if t.kind == UnsafePointer {
-					check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be unsafe.Pointer")
-					addInvalid(name, pos)
-					continue
-				}
-
-			case *Pointer:
-				check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
-				addInvalid(name, pos)
-				continue
-
-			case *Interface:
-				if isPtr {
-					check.errorf(f.Type, _InvalidPtrEmbed, "embedded field type cannot be a pointer to an interface")
-					addInvalid(name, pos)
-					continue
-				}
-			}
-			add(name, true, pos)
-		}
-	}
-
-	styp.fields = fields
-	styp.tags = tags
-}
-
-func embeddedFieldIdent(e ast.Expr) *ast.Ident {
-	switch e := e.(type) {
-	case *ast.Ident:
-		return e
-	case *ast.StarExpr:
-		// *T is valid, but **T is not
-		if _, ok := e.X.(*ast.StarExpr); !ok {
-			return embeddedFieldIdent(e.X)
-		}
-	case *ast.SelectorExpr:
-		return e.Sel
-	}
-	return nil // invalid embedded field
+	return res
 }

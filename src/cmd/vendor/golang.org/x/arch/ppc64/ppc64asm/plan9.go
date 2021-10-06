@@ -76,6 +76,9 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		args = append(args, args[0])
 		return op + " " + strings.Join(args[1:], ",")
+	case PASTECC:
+		// paste. has two input registers, and an L field, unlike other 3 operand instructions.
+		return op + " " + args[0] + "," + args[1] + "," + args[2]
 	case SYNC:
 		if args[0] == "$1" {
 			return "LWSYNC"
@@ -136,7 +139,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 	case LXVL, LXVLL:
 		return op + " " + args[1] + "," + args[2] + "," + args[0]
 
-	case DCBT, DCBTST, DCBZ, DCBST, DCBI, ICBI:
+	case DCBT, DCBTST, DCBZ, DCBST, ICBI:
 		if args[0] == "0" || args[0] == "R0" {
 			return op + " (" + args[1] + ")"
 		}

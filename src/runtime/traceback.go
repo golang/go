@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/bytealg"
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -15,63 +16,11 @@ import (
 // The most important fact about a given architecture is whether it uses a link register.
 // On systems with link registers, the prologue for a non-leaf function stores the
 // incoming value of LR at the bottom of the newly allocated stack frame.
-// On systems without link registers, the architecture pushes a return PC during
+// On systems without link registers (x86), the architecture pushes a return PC during
 // the call instruction, so the return PC ends up above the stack frame.
 // In this file, the return PC is always called LR, no matter how it was found.
-//
-// To date, the opposite of a link register architecture is an x86 architecture.
-// This code may need to change if some other kind of non-link-register
-// architecture comes along.
-//
-// The other important fact is the size of a pointer: on 32-bit systems the LR
-// takes up only 4 bytes on the stack, while on 64-bit systems it takes up 8 bytes.
-// Typically this is ptrSize.
-//
-// As an exception, amd64p32 had ptrSize == 4 but the CALL instruction still
-// stored an 8-byte return PC onto the stack. To accommodate this, we used regSize
-// as the size of the architecture-pushed return PC.
-//
-// usesLR is defined below in terms of minFrameSize, which is defined in
-// arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
 
 const usesLR = sys.MinFrameSize > 0
-
-// Traceback over the deferred function calls.
-// Report them like calls that have been invoked but not started executing yet.
-func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
-	var frame stkframe
-	for d := gp._defer; d != nil; d = d.link {
-		fn := d.fn
-		if fn == nil {
-			// Defer of nil function. Args don't matter.
-			frame.pc = 0
-			frame.fn = funcInfo{}
-			frame.argp = 0
-			frame.arglen = 0
-			frame.argmap = nil
-		} else {
-			frame.pc = fn.fn
-			f := findfunc(frame.pc)
-			if !f.valid() {
-				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
-				throw("unknown pc")
-			}
-			frame.fn = f
-			frame.argp = uintptr(deferArgs(d))
-			var ok bool
-			frame.arglen, frame.argmap, ok = getArgInfoFast(f, true)
-			if !ok {
-				frame.arglen, frame.argmap = getArgInfo(&frame, f, true, fn)
-			}
-		}
-		frame.continpc = frame.pc
-		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
-			return
-		}
-	}
-}
-
-const sizeofSkipFunction = 256
 
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
@@ -80,9 +29,7 @@ const sizeofSkipFunction = 256
 //
 // The skip argument is only valid with pcbuf != nil and counts the number
 // of logical frames to skip rather than physical frames (with inlining, a
-// PC in pcbuf can represent multiple calls). If a PC is partially skipped
-// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
-// N indicates the number of logical frames to skip in pcbuf[0].
+// PC in pcbuf can represent multiple calls).
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
 	if skip > 0 && callback != nil {
 		throw("gentraceback callback cannot be used with non-zero skip")
@@ -144,8 +91,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.lr = 0
 		} else {
-			frame.pc = uintptr(*(*sys.Uintreg)(unsafe.Pointer(frame.sp)))
-			frame.sp += sys.RegSize
+			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
+			frame.sp += goarch.PtrSize
 		}
 	}
 
@@ -180,6 +127,22 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			break
 		}
 
+		// Compute function info flags.
+		flag := f.flag
+		if f.funcID == funcID_cgocallback {
+			// cgocallback does write SP to switch from the g0 to the curg stack,
+			// but it carefully arranges that during the transition BOTH stacks
+			// have cgocallback frame valid for unwinding through.
+			// So we don't need to exclude it with the other SP-writing functions.
+			flag &^= funcFlag_SPWRITE
+		}
+		if frame.pc == pc0 && frame.sp == sp0 && pc0 == gp.syscallpc && sp0 == gp.syscallsp {
+			// Some Syscall functions write to SP, but they do so only after
+			// saving the entry PC/SP using entersyscall.
+			// Since we are using the entry PC/SP, the later SP write doesn't matter.
+			flag &^= funcFlag_SPWRITE
+		}
+
 		// Found an actual function.
 		// Derive frame pointer and link register.
 		if frame.fp == 0 {
@@ -196,6 +159,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					frame.pc = gp.m.curg.sched.pc
 					frame.fn = findfunc(frame.pc)
 					f = frame.fn
+					flag = f.flag
 					frame.sp = gp.m.curg.sched.sp
 					cgoCtxt = gp.m.curg.cgoCtxt
 				case funcID_systemstack:
@@ -203,29 +167,44 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					// stack transition.
 					frame.sp = gp.m.curg.sched.sp
 					cgoCtxt = gp.m.curg.cgoCtxt
+					flag &^= funcFlag_SPWRITE
 				}
 			}
 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
-				frame.fp += sys.RegSize
+				frame.fp += goarch.PtrSize
 			}
 		}
 		var flr funcInfo
-		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
+		if flag&funcFlag_TOPFRAME != 0 {
+			// This function marks the top of the stack. Stop the traceback.
 			frame.lr = 0
 			flr = funcInfo{}
-		} else if usesLR && f.funcID == funcID_jmpdefer {
-			// jmpdefer modifies SP/LR/PC non-atomically.
-			// If a profiling interrupt arrives during jmpdefer,
-			// the stack unwind may see a mismatched register set
-			// and get confused. Stop if we see PC within jmpdefer
-			// to avoid that confusion.
-			// See golang.org/issue/8153.
+		} else if flag&funcFlag_SPWRITE != 0 && (callback == nil || n > 0) {
+			// The function we are in does a write to SP that we don't know
+			// how to encode in the spdelta table. Examples include context
+			// switch routines like runtime.gogo but also any code that switches
+			// to the g0 stack to run host C code. Since we can't reliably unwind
+			// the SP (we might not even be on the stack we think we are),
+			// we stop the traceback here.
+			// This only applies for profiling signals (callback == nil).
+			//
+			// For a GC stack traversal (callback != nil), we should only see
+			// a function when it has voluntarily preempted itself on entry
+			// during the stack growth check. In that case, the function has
+			// not yet had a chance to do any writes to SP and is safe to unwind.
+			// isAsyncSafePoint does not allow assembly functions to be async preempted,
+			// and preemptPark double-checks that SPWRITE functions are not async preempted.
+			// So for GC stack traversal we leave things alone (this if body does not execute for n == 0)
+			// at the bottom frame of the stack. But farther up the stack we'd better not
+			// find any.
 			if callback != nil {
-				throw("traceback_arm: found jmpdefer when tracing with callback")
+				println("traceback: unexpected SPWRITE function", funcname(f))
+				throw("traceback")
 			}
 			frame.lr = 0
+			flr = funcInfo{}
 		} else {
 			var lrPtr uintptr
 			if usesLR {
@@ -235,8 +214,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			} else {
 				if frame.lr == 0 {
-					lrPtr = frame.fp - sys.RegSize
-					frame.lr = uintptr(*(*sys.Uintreg)(unsafe.Pointer(lrPtr)))
+					lrPtr = frame.fp - goarch.PtrSize
+					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
 				}
 			}
 			flr = findfunc(frame.lr)
@@ -266,13 +245,28 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.varp = frame.fp
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.varp -= sys.RegSize
+			frame.varp -= goarch.PtrSize
 		}
 
 		// For architectures with frame pointers, if there's
 		// a frame, then there's a saved frame pointer here.
-		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
-			frame.varp -= sys.RegSize
+		//
+		// NOTE: This code is not as general as it looks.
+		// On x86, the ABI is to save the frame pointer word at the
+		// top of the stack frame, so we have to back down over it.
+		// On arm64, the frame pointer should be at the bottom of
+		// the stack (with R29 (aka FP) = RSP), in which case we would
+		// not want to do the subtraction here. But we started out without
+		// any frame pointer, and when we wanted to add it, we didn't
+		// want to break all the assembly doing direct writes to 8(RSP)
+		// to set the first parameter to a called function.
+		// So we decided to write the FP link *below* the stack pointer
+		// (with R29 = RSP - 8 in Go functions).
+		// This is technically ABI-compatible but not standard.
+		// And it happens to end up mimicking the x86 layout.
+		// Other architectures may make different decisions.
+		if frame.varp > frame.sp && framepointer_enabled {
+			frame.varp -= goarch.PtrSize
 		}
 
 		// Derive size of arguments.
@@ -303,7 +297,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.continpc = frame.pc
 		if waspanic {
 			if frame.fn.deferreturn != 0 {
-				frame.continpc = frame.fn.entry + uintptr(frame.fn.deferreturn) + 1
+				frame.continpc = frame.fn.entry() + uintptr(frame.fn.deferreturn) + 1
 				// Note: this may perhaps keep return variables alive longer than
 				// strictly necessary, as we are using "function has a defer statement"
 				// as a proxy for "function actually deferred something". It seems
@@ -339,7 +333,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// See issue 34123.
 			// The pc can be at function entry when the frame is initialized without
 			// actually running code, like runtime.mstart.
-			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
+			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry() {
 				pc++
 			} else {
 				tracepc--
@@ -363,7 +357,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					}
 					lastFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
-					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
 					pc = tracepc + 1
 				}
 			}
@@ -390,7 +384,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 			// backup to CALL instruction to read inlining info (same logic as below)
 			tracepc := frame.pc
-			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry() && !waspanic {
 				tracepc--
 			}
 			// If there is inlining info, print the inner frames.
@@ -418,7 +412,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					}
 					lastFuncID = inltree[ix].funcID
 					// Back up to an instruction in the "caller".
-					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
 				}
 			}
 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, lastFuncID) {
@@ -432,21 +426,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					name = "panic"
 				}
 				print(name, "(")
-				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
-				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
-					if i >= 10 {
-						print(", ...")
-						break
-					}
-					if i != 0 {
-						print(", ")
-					}
-					print(hex(argp[i]))
-				}
+				argp := unsafe.Pointer(frame.argp)
+				printArgs(f, argp)
 				print(")\n")
 				print("\t", file, ":", line)
-				if frame.pc > f.entry {
-					print(" +", hex(frame.pc-f.entry))
+				if frame.pc > f.entry() {
+					print(" +", hex(frame.pc-f.entry()))
 				}
 				if gp.m != nil && gp.m.throwing > 0 && gp == gp.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
@@ -490,11 +475,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// before faking a call.
 		if usesLR && injectedCall {
 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
-			frame.sp += sys.MinFrameSize
-			if GOARCH == "arm64" {
-				// arm64 needs 16-byte aligned SP, always
-				frame.sp += sys.PtrSize
-			}
+			frame.sp += alignUp(sys.MinFrameSize, sys.StackAlign)
 			f = findfunc(frame.pc)
 			frame.fn = f
 			if !f.valid() {
@@ -558,6 +539,82 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
+// printArgs prints function arguments in traceback.
+func printArgs(f funcInfo, argp unsafe.Pointer) {
+	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
+	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
+	// encoding.
+	// These constants need to be in sync with the compiler.
+	const (
+		_endSeq         = 0xff
+		_startAgg       = 0xfe
+		_endAgg         = 0xfd
+		_dotdotdot      = 0xfc
+		_offsetTooLarge = 0xfb
+	)
+
+	const (
+		limit    = 10                       // print no more than 10 args/components
+		maxDepth = 5                        // no more than 5 layers of nesting
+		maxLen   = (maxDepth*3+2)*limit + 1 // max length of _FUNCDATA_ArgInfo (see the compiler side for reasoning)
+	)
+
+	p := (*[maxLen]uint8)(funcdata(f, _FUNCDATA_ArgInfo))
+	if p == nil {
+		return
+	}
+
+	print1 := func(off, sz uint8) {
+		x := readUnaligned64(add(argp, uintptr(off)))
+		// mask out irrelevant bits
+		if sz < 8 {
+			shift := 64 - sz*8
+			if goarch.BigEndian {
+				x = x >> shift
+			} else {
+				x = x << shift >> shift
+			}
+		}
+		print(hex(x))
+	}
+
+	start := true
+	printcomma := func() {
+		if !start {
+			print(", ")
+		}
+	}
+	pi := 0
+printloop:
+	for {
+		o := p[pi]
+		pi++
+		switch o {
+		case _endSeq:
+			break printloop
+		case _startAgg:
+			printcomma()
+			print("{")
+			start = true
+			continue
+		case _endAgg:
+			print("}")
+		case _dotdotdot:
+			printcomma()
+			print("...")
+		case _offsetTooLarge:
+			printcomma()
+			print("_")
+		default:
+			printcomma()
+			sz := p[pi]
+			pi++
+			print1(o, sz)
+		}
+		start = false
+	}
+}
+
 // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
 // and reflect.methodValue.
 type reflectMethodValue struct {
@@ -609,16 +666,16 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
 				// Figure out whether the return values are valid.
 				// Reflect will update this value after it copies
 				// in the return values.
-				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
+				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*goarch.PtrSize))
 			}
-			if mv.fn != f.entry {
+			if mv.fn != f.entry() {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := mv.stack
-			arglen = uintptr(bv.n * sys.PtrSize)
+			arglen = uintptr(bv.n * goarch.PtrSize)
 			if !retValid {
-				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
+				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
 			}
 			argmap = bv
 		}
@@ -671,13 +728,13 @@ func printcreatedby(gp *g) {
 func printcreatedby1(f funcInfo, pc uintptr) {
 	print("created by ", funcname(f), "\n")
 	tracepc := pc // back up to CALL instruction for funcline.
-	if pc > f.entry {
+	if pc > f.entry() {
 		tracepc -= sys.PCQuantum
 	}
 	file, line := funcline(f, tracepc)
 	print("\t", file, ":", line)
-	if pc > f.entry {
-		print(" +", hex(pc-f.entry))
+	if pc > f.entry() {
+		print(" +", hex(pc-f.entry()))
 	}
 	print("\n")
 }
@@ -785,8 +842,8 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 	}
 	print(name, "(...)\n")
 	print("\t", file, ":", line)
-	if pc > f.entry {
-		print(" +", hex(pc-f.entry))
+	if pc > f.entry() {
+		print(" +", hex(pc-f.entry()))
 	}
 	print("\n")
 }
@@ -924,19 +981,16 @@ func tracebackothers(me *g) {
 		traceback(^uintptr(0), ^uintptr(0), 0, curgp)
 	}
 
-	// We can't take allglock here because this may be during fatal
-	// throw/panic, where locking allglock could be out-of-order or a
-	// direct deadlock.
+	// We can't call locking forEachG here because this may be during fatal
+	// throw/panic, where locking could be out-of-order or a direct
+	// deadlock.
 	//
-	// Instead, use atomic access to allgs which requires no locking. We
-	// don't lock against concurrent creation of new Gs, but even with
-	// allglock we may miss Gs created after this loop.
-	ptr, length := atomicAllG()
-	for i := uintptr(0); i < length; i++ {
-		gp := atomicAllGIndex(ptr, i)
-
+	// Instead, use forEachGRace, which requires no locking. We don't lock
+	// against concurrent creation of new Gs, but even with allglock we may
+	// miss Gs created after this loop.
+	forEachGRace(func(gp *g) {
 		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
-			continue
+			return
 		}
 		print("\n")
 		goroutineheader(gp)
@@ -950,15 +1004,15 @@ func tracebackothers(me *g) {
 		} else {
 			traceback(^uintptr(0), ^uintptr(0), 0, gp)
 		}
-	}
+	})
 }
 
 // tracebackHexdump hexdumps part of stk around frame.sp and frame.fp
 // for debugging purposes. If the address bad is included in the
 // hexdumped range, it will mark it as well.
 func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
-	const expand = 32 * sys.PtrSize
-	const maxExpand = 256 * sys.PtrSize
+	const expand = 32 * goarch.PtrSize
+	const maxExpand = 256 * goarch.PtrSize
 	// Start around frame.sp.
 	lo, hi := frame.sp, frame.sp
 	// Expand to include frame.fp.
@@ -998,22 +1052,6 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 		}
 		return 0
 	})
-}
-
-// Does f mark the top of a goroutine stack?
-func topofstack(f funcInfo, g0 bool) bool {
-	return f.funcID == funcID_goexit ||
-		f.funcID == funcID_mstart ||
-		f.funcID == funcID_mcall ||
-		f.funcID == funcID_morestack ||
-		f.funcID == funcID_rt0_go ||
-		f.funcID == funcID_externalthreadhandler ||
-		// asmcgocall is TOS on the system stack because it
-		// switches to the system stack, but in this case we
-		// can come back to the regular stack and still want
-		// to be able to unwind through the call that appeared
-		// on the regular stack.
-		(g0 && f.funcID == funcID_asmcgocall)
 }
 
 // isSystemGoroutine reports whether the goroutine g must be omitted

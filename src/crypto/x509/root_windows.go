@@ -218,11 +218,6 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 		if oid, ok := windowsExtKeyUsageOIDs[eku]; ok {
 			oids = append(oids, &oid[0])
 		}
-		// Like the standard verifier, accept SGC EKUs as equivalent to ServerAuth.
-		if eku == ExtKeyUsageServerAuth {
-			oids = append(oids, &syscall.OID_SERVER_GATED_CRYPTO[0])
-			oids = append(oids, &syscall.OID_SGC_NETSCAPE[0])
-		}
 	}
 	if oids != nil {
 		para.RequestedUsage.Type = syscall.USAGE_MATCH_TYPE_OR

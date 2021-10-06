@@ -35,6 +35,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/buildcfg"
+	"log"
 	"math"
 )
 
@@ -49,8 +51,14 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
+// noZRreplace is the set of instructions for which $0 in the To operand
+// should NOT be replaced with REGZERO.
+var noZRreplace = map[obj.As]bool{
+	APRFM: true,
+}
+
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
-	// MOV	g_stackguard(g), R1
+	// MOV	g_stackguard(g), RT1
 	p = obj.Appendp(p, c.newprog)
 
 	p.As = AMOVD
@@ -61,7 +69,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R1
+	p.To.Reg = REGRT1
 
 	// Mark the stack bound check and morestack call async nonpreemptible.
 	// If we get preempted here, when resumed the preemption request is
@@ -72,25 +80,25 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	q := (*obj.Prog)(nil)
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
-		//	MOV	SP, R2
-		//	CMP	stackguard, R2
+		//	MOV	SP, RT2
+		//	CMP	stackguard, RT2
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = AMOVD
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
+		p.To.Reg = REGRT2
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.Reg = REG_R2
+		p.From.Reg = REGRT1
+		p.Reg = REGRT2
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
-		//	SUB	$(framesize-StackSmall), SP, R2
-		//	CMP	stackguard, R2
+		//	SUB	$(framesize-StackSmall), SP, RT2
+		//	CMP	stackguard, RT2
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = ASUB
@@ -98,64 +106,44 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = int64(framesize) - objabi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
+		p.To.Reg = REGRT2
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.Reg = REG_R2
+		p.From.Reg = REGRT1
+		p.Reg = REGRT2
 	} else {
-		// Such a large stack we need to protect against wraparound
-		// if SP is close to zero.
-		//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
-		// The +StackGuard on both sides is required to keep the left side positive:
-		// SP is allowed to be slightly below stackguard. See stack.h.
-		//	CMP	$StackPreempt, R1
-		//	BEQ	label_of_call_to_morestack
-		//	ADD	$StackGuard, SP, R2
-		//	SUB	R1, R2
-		//	MOV	$(framesize+(StackGuard-StackSmall)), R3
-		//	CMP	R3, R2
-		p = obj.Appendp(p, c.newprog)
+		// Such a large stack we need to protect against underflow.
+		// The runtime guarantees SP > objabi.StackBig, but
+		// framesize is large enough that SP-framesize may
+		// underflow, causing a direct comparison with the
+		// stack guard to incorrectly succeed. We explicitly
+		// guard against underflow.
+		//
+		//	SUBS	$(framesize-StackSmall), SP, RT2
+		//	// On underflow, jump to morestack
+		//	BLO	label_of_call_to_morestack
+		//	CMP	stackguard, RT2
 
-		p.As = ACMP
+		p = obj.Appendp(p, c.newprog)
+		p.As = ASUBS
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = objabi.StackPreempt
-		p.Reg = REG_R1
+		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGRT2
 
 		p = obj.Appendp(p, c.newprog)
 		q = p
-		p.As = ABEQ
+		p.As = ABLO
 		p.To.Type = obj.TYPE_BRANCH
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AADD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(objabi.StackGuard)
-		p.Reg = REGSP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = ASUB
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R2
-
-		p = obj.Appendp(p, c.newprog)
-		p.As = AMOVD
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R3
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ACMP
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R3
-		p.Reg = REG_R2
+		p.From.Reg = REGRT1
+		p.Reg = REGRT2
 	}
 
 	// BLS	do-morestack
@@ -179,17 +167,20 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
 	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
+	if q != nil {
+		q.To.SetTarget(pcdata)
+	}
+	bls.To.SetTarget(pcdata)
+
+	spill := c.cursym.Func().SpillRegisterArgs(pcdata, c.newprog)
+
 	// MOV	LR, R3
-	movlr := obj.Appendp(pcdata, c.newprog)
+	movlr := obj.Appendp(spill, c.newprog)
 	movlr.As = AMOVD
 	movlr.From.Type = obj.TYPE_REG
 	movlr.From.Reg = REGLINK
 	movlr.To.Type = obj.TYPE_REG
 	movlr.To.Reg = REG_R3
-	if q != nil {
-		q.To.SetTarget(movlr)
-	}
-	bls.To.SetTarget(movlr)
 
 	debug := movlr
 	if false {
@@ -214,7 +205,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.To.Sym = c.ctxt.Lookup(morestack)
 
-	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
+	pcdata = c.ctxt.EndUnsafePoint(unspill, c.newprog, -1)
 
 	// B	start
 	jmp := obj.Appendp(pcdata, c.newprog)
@@ -240,7 +232,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
 	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 {
+	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGZERO
 	}
@@ -313,13 +305,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// For 32-bit logical instruction with constant,
-	// rewrite the high 32-bit to be a repetition of
-	// the low 32-bit, so that the BITCON test can be
-	// shared for both 32-bit and 64-bit. 32-bit ops
-	// will zero the high 32-bit of the destination
-	// register anyway.
-	if isANDWop(p.As) && p.From.Type == obj.TYPE_CONST {
+	// For 32-bit instruction with constant, rewrite
+	// the high 32-bit to be a repetition of the low
+	// 32-bit, so that the BITCON test can be shared
+	// for both 32-bit and 64-bit. 32-bit ops will
+	// zero the high 32-bit of the destination register
+	// anyway.
+	// For MOVW, the destination register can't be ZR,
+	// so don't bother rewriting it in this situation.
+	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
 		v := p.From.Offset & 0xffffffff
 		p.From.Offset = v | v<<32
 	}
@@ -339,9 +333,9 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 		//     CALL REGTMP
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
-			sym = c.ctxt.Lookup("runtime.duffzero")
+			sym = c.ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
 		} else {
-			sym = c.ctxt.Lookup("runtime.duffcopy")
+			sym = c.ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
 		}
 		offset := p.To.Offset
 		p.As = AMOVD
@@ -538,6 +532,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
+			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
@@ -589,7 +589,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Reg = REGSP
 				q1.Spadj = c.autosize
 
-				if objabi.GOOS == "ios" {
+				if buildcfg.GOOS == "ios" {
 					// iOS does not support SA_ONSTACK. We will run the signal handler
 					// on the G stack. If we write below SP, it may be clobbered by
 					// the signal handler. So we save LR after decrementing SP.
@@ -621,61 +621,60 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
-			if objabi.Framepointer_enabled {
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = AMOVD
-				q1.From.Type = obj.TYPE_REG
-				q1.From.Reg = REGFP
-				q1.To.Type = obj.TYPE_MEM
-				q1.To.Reg = REGSP
-				q1.To.Offset = -8
+			// Frame pointer.
+			q1 = obj.Appendp(q1, c.newprog)
+			q1.Pos = p.Pos
+			q1.As = AMOVD
+			q1.From.Type = obj.TYPE_REG
+			q1.From.Reg = REGFP
+			q1.To.Type = obj.TYPE_MEM
+			q1.To.Reg = REGSP
+			q1.To.Offset = -8
 
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = ASUB
-				q1.From.Type = obj.TYPE_CONST
-				q1.From.Offset = 8
-				q1.Reg = REGSP
-				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REGFP
-			}
+			q1 = obj.Appendp(q1, c.newprog)
+			q1.Pos = p.Pos
+			q1.As = ASUB
+			q1.From.Type = obj.TYPE_CONST
+			q1.From.Offset = 8
+			q1.Reg = REGSP
+			q1.To.Type = obj.TYPE_REG
+			q1.To.Reg = REGFP
 
 			if c.cursym.Func().Text.From.Sym.Wrapper() {
 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
 				//
-				//	MOV  g_panic(g), R1
+				//	MOV  g_panic(g), RT1
 				//	CBNZ checkargp
 				// end:
 				//	NOP
 				// ... function body ...
 				// checkargp:
-				//	MOV  panic_argp(R1), R2
-				//	ADD  $(autosize+8), RSP, R3
-				//	CMP  R2, R3
+				//	MOV  panic_argp(RT1), RT2
+				//	ADD  $(autosize+8), RSP, R20
+				//	CMP  RT2, R20
 				//	BNE  end
-				//	ADD  $8, RSP, R4
-				//	MOVD R4, panic_argp(R1)
+				//	ADD  $8, RSP, R20
+				//	MOVD R20, panic_argp(RT1)
 				//	B    end
 				//
 				// The NOP is needed to give the jumps somewhere to land.
 				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
 				q = q1
 
-				// MOV g_panic(g), R1
+				// MOV g_panic(g), RT1
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REGG
 				q.From.Offset = 4 * int64(c.ctxt.Arch.PtrSize) // G.panic
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R1
+				q.To.Reg = REGRT1
 
-				// CBNZ R1, checkargp
+				// CBNZ RT1, checkargp
 				cbnz := obj.Appendp(q, c.newprog)
 				cbnz.As = ACBNZ
 				cbnz.From.Type = obj.TYPE_REG
-				cbnz.From.Reg = REG_R1
+				cbnz.From.Reg = REGRT1
 				cbnz.To.Type = obj.TYPE_BRANCH
 
 				// Empty branch target at the top of the function body
@@ -687,33 +686,33 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				for last = end; last.Link != nil; last = last.Link {
 				}
 
-				// MOV panic_argp(R1), R2
+				// MOV panic_argp(RT1), RT2
 				mov := obj.Appendp(last, c.newprog)
 				mov.As = AMOVD
 				mov.From.Type = obj.TYPE_MEM
-				mov.From.Reg = REG_R1
+				mov.From.Reg = REGRT1
 				mov.From.Offset = 0 // Panic.argp
 				mov.To.Type = obj.TYPE_REG
-				mov.To.Reg = REG_R2
+				mov.To.Reg = REGRT2
 
 				// CBNZ branches to the MOV above
 				cbnz.To.SetTarget(mov)
 
-				// ADD $(autosize+8), SP, R3
+				// ADD $(autosize+8), SP, R20
 				q = obj.Appendp(mov, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = int64(c.autosize) + 8
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R3
+				q.To.Reg = REG_R20
 
-				// CMP R2, R3
+				// CMP RT2, R20
 				q = obj.Appendp(q, c.newprog)
 				q.As = ACMP
 				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R2
-				q.Reg = REG_R3
+				q.From.Reg = REGRT2
+				q.Reg = REG_R20
 
 				// BNE end
 				q = obj.Appendp(q, c.newprog)
@@ -721,22 +720,22 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_BRANCH
 				q.To.SetTarget(end)
 
-				// ADD $8, SP, R4
+				// ADD $8, SP, R20
 				q = obj.Appendp(q, c.newprog)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
 				q.From.Offset = 8
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_R4
+				q.To.Reg = REG_R20
 
-				// MOV R4, panic_argp(R1)
+				// MOV R20, panic_argp(RT1)
 				q = obj.Appendp(q, c.newprog)
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_REG
-				q.From.Reg = REG_R4
+				q.From.Reg = REG_R20
 				q.To.Type = obj.TYPE_MEM
-				q.To.Reg = REG_R1
+				q.To.Reg = REGRT1
 				q.To.Offset = 0 // Panic.argp
 
 				// B end
@@ -764,28 +763,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.To.Reg = REGSP
 					p.Spadj = -c.autosize
 
-					if objabi.Framepointer_enabled {
-						p = obj.Appendp(p, c.newprog)
-						p.As = ASUB
-						p.From.Type = obj.TYPE_CONST
-						p.From.Offset = 8
-						p.Reg = REGSP
-						p.To.Type = obj.TYPE_REG
-						p.To.Reg = REGFP
-					}
+					// Frame pointer.
+					p = obj.Appendp(p, c.newprog)
+					p.As = ASUB
+					p.From.Type = obj.TYPE_CONST
+					p.From.Offset = 8
+					p.Reg = REGSP
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REGFP
 				}
 			} else {
 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
 
-				if objabi.Framepointer_enabled {
-					p.As = AMOVD
-					p.From.Type = obj.TYPE_MEM
-					p.From.Reg = REGSP
-					p.From.Offset = -8
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REGFP
-					p = obj.Appendp(p, c.newprog)
-				}
+				// Frame pointer.
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_MEM
+				p.From.Reg = REGSP
+				p.From.Offset = -8
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REGFP
+				p = obj.Appendp(p, c.newprog)
 
 				aoffset := c.autosize
 
@@ -818,6 +815,28 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.Link = q
 					p = q
 				}
+			}
+
+			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
+			// so that if you are debugging a low-level crash where PC and LR are zero,
+			// you can look at R27 to see what jumped to the zero.
+			// This is useful when bringing up Go on a new system.
+			// (There is similar code in ../ppc64/obj9.go:/if.false.)
+			const debugRETZERO = false
+			if debugRETZERO {
+				if p.As != obj.ARET {
+					q = newprog()
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+				}
+				p.As = AADR
+				p.From.Type = obj.TYPE_BRANCH
+				p.From.Offset = 0
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REGTMP
+
 			}
 
 			if p.As != obj.ARET {
@@ -865,109 +884,120 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case obj.ADUFFCOPY:
-			if objabi.Framepointer_enabled {
-				//  ADR	ret_addr, R27
-				//  STP	(FP, R27), -24(SP)
-				//  SUB	24, SP, FP
-				//  DUFFCOPY
-				// ret_addr:
-				//  SUB	8, SP, FP
+			//  ADR	ret_addr, R27
+			//  STP	(FP, R27), -24(SP)
+			//  SUB	24, SP, FP
+			//  DUFFCOPY
+			// ret_addr:
+			//  SUB	8, SP, FP
 
-				q1 := p
-				// copy DUFFCOPY from q1 to q4
-				q4 := obj.Appendp(p, c.newprog)
-				q4.Pos = p.Pos
-				q4.As = obj.ADUFFCOPY
-				q4.To = p.To
+			q1 := p
+			// copy DUFFCOPY from q1 to q4
+			q4 := obj.Appendp(p, c.newprog)
+			q4.Pos = p.Pos
+			q4.As = obj.ADUFFCOPY
+			q4.To = p.To
 
-				q1.As = AADR
-				q1.From.Type = obj.TYPE_BRANCH
-				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REG_R27
+			q1.As = AADR
+			q1.From.Type = obj.TYPE_BRANCH
+			q1.To.Type = obj.TYPE_REG
+			q1.To.Reg = REG_R27
 
-				q2 := obj.Appendp(q1, c.newprog)
-				q2.Pos = p.Pos
-				q2.As = ASTP
-				q2.From.Type = obj.TYPE_REGREG
-				q2.From.Reg = REGFP
-				q2.From.Offset = int64(REG_R27)
-				q2.To.Type = obj.TYPE_MEM
-				q2.To.Reg = REGSP
-				q2.To.Offset = -24
+			q2 := obj.Appendp(q1, c.newprog)
+			q2.Pos = p.Pos
+			q2.As = ASTP
+			q2.From.Type = obj.TYPE_REGREG
+			q2.From.Reg = REGFP
+			q2.From.Offset = int64(REG_R27)
+			q2.To.Type = obj.TYPE_MEM
+			q2.To.Reg = REGSP
+			q2.To.Offset = -24
 
-				// maintaine FP for DUFFCOPY
-				q3 := obj.Appendp(q2, c.newprog)
-				q3.Pos = p.Pos
-				q3.As = ASUB
-				q3.From.Type = obj.TYPE_CONST
-				q3.From.Offset = 24
-				q3.Reg = REGSP
-				q3.To.Type = obj.TYPE_REG
-				q3.To.Reg = REGFP
+			// maintain FP for DUFFCOPY
+			q3 := obj.Appendp(q2, c.newprog)
+			q3.Pos = p.Pos
+			q3.As = ASUB
+			q3.From.Type = obj.TYPE_CONST
+			q3.From.Offset = 24
+			q3.Reg = REGSP
+			q3.To.Type = obj.TYPE_REG
+			q3.To.Reg = REGFP
 
-				q5 := obj.Appendp(q4, c.newprog)
-				q5.Pos = p.Pos
-				q5.As = ASUB
-				q5.From.Type = obj.TYPE_CONST
-				q5.From.Offset = 8
-				q5.Reg = REGSP
-				q5.To.Type = obj.TYPE_REG
-				q5.To.Reg = REGFP
-				q1.From.SetTarget(q5)
-				p = q5
-			}
+			q5 := obj.Appendp(q4, c.newprog)
+			q5.Pos = p.Pos
+			q5.As = ASUB
+			q5.From.Type = obj.TYPE_CONST
+			q5.From.Offset = 8
+			q5.Reg = REGSP
+			q5.To.Type = obj.TYPE_REG
+			q5.To.Reg = REGFP
+			q1.From.SetTarget(q5)
+			p = q5
 
 		case obj.ADUFFZERO:
-			if objabi.Framepointer_enabled {
-				//  ADR	ret_addr, R27
-				//  STP	(FP, R27), -24(SP)
-				//  SUB	24, SP, FP
-				//  DUFFZERO
-				// ret_addr:
-				//  SUB	8, SP, FP
+			//  ADR	ret_addr, R27
+			//  STP	(FP, R27), -24(SP)
+			//  SUB	24, SP, FP
+			//  DUFFZERO
+			// ret_addr:
+			//  SUB	8, SP, FP
 
-				q1 := p
-				// copy DUFFZERO from q1 to q4
-				q4 := obj.Appendp(p, c.newprog)
-				q4.Pos = p.Pos
-				q4.As = obj.ADUFFZERO
-				q4.To = p.To
+			q1 := p
+			// copy DUFFZERO from q1 to q4
+			q4 := obj.Appendp(p, c.newprog)
+			q4.Pos = p.Pos
+			q4.As = obj.ADUFFZERO
+			q4.To = p.To
 
-				q1.As = AADR
-				q1.From.Type = obj.TYPE_BRANCH
-				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REG_R27
+			q1.As = AADR
+			q1.From.Type = obj.TYPE_BRANCH
+			q1.To.Type = obj.TYPE_REG
+			q1.To.Reg = REG_R27
 
-				q2 := obj.Appendp(q1, c.newprog)
-				q2.Pos = p.Pos
-				q2.As = ASTP
-				q2.From.Type = obj.TYPE_REGREG
-				q2.From.Reg = REGFP
-				q2.From.Offset = int64(REG_R27)
-				q2.To.Type = obj.TYPE_MEM
-				q2.To.Reg = REGSP
-				q2.To.Offset = -24
+			q2 := obj.Appendp(q1, c.newprog)
+			q2.Pos = p.Pos
+			q2.As = ASTP
+			q2.From.Type = obj.TYPE_REGREG
+			q2.From.Reg = REGFP
+			q2.From.Offset = int64(REG_R27)
+			q2.To.Type = obj.TYPE_MEM
+			q2.To.Reg = REGSP
+			q2.To.Offset = -24
 
-				// maintaine FP for DUFFZERO
-				q3 := obj.Appendp(q2, c.newprog)
-				q3.Pos = p.Pos
-				q3.As = ASUB
-				q3.From.Type = obj.TYPE_CONST
-				q3.From.Offset = 24
-				q3.Reg = REGSP
-				q3.To.Type = obj.TYPE_REG
-				q3.To.Reg = REGFP
+			// maintain FP for DUFFZERO
+			q3 := obj.Appendp(q2, c.newprog)
+			q3.Pos = p.Pos
+			q3.As = ASUB
+			q3.From.Type = obj.TYPE_CONST
+			q3.From.Offset = 24
+			q3.Reg = REGSP
+			q3.To.Type = obj.TYPE_REG
+			q3.To.Reg = REGFP
 
-				q5 := obj.Appendp(q4, c.newprog)
-				q5.Pos = p.Pos
-				q5.As = ASUB
-				q5.From.Type = obj.TYPE_CONST
-				q5.From.Offset = 8
-				q5.Reg = REGSP
-				q5.To.Type = obj.TYPE_REG
-				q5.To.Reg = REGFP
-				q1.From.SetTarget(q5)
-				p = q5
+			q5 := obj.Appendp(q4, c.newprog)
+			q5.Pos = p.Pos
+			q5.As = ASUB
+			q5.From.Type = obj.TYPE_CONST
+			q5.From.Offset = 8
+			q5.Reg = REGSP
+			q5.To.Type = obj.TYPE_REG
+			q5.To.Reg = REGFP
+			q1.From.SetTarget(q5)
+			p = q5
+		}
+
+		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+			f := c.cursym.Func()
+			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
+				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
+				if ctxt.Debugvlog || !ctxt.IsAsm {
+					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
+					if !ctxt.IsAsm {
+						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
+						ctxt.DiagFlush()
+						log.Fatalf("bad SPWRITE")
+					}
+				}
 			}
 		}
 	}

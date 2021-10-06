@@ -432,6 +432,10 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		}
 	}
 
+	if len(syms) == 0 {
+		return fmt.Errorf("no matches found for regexp: %s", o.Symbol)
+	}
+
 	// Correlate the symbols from the binary with the profile samples.
 	for _, s := range syms {
 		sns := symNodes[s]
@@ -445,7 +449,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 			return err
 		}
 
-		ns := annotateAssembly(insts, sns, s.base)
+		ns := annotateAssembly(insts, sns, s.file)
 
 		fmt.Fprintf(w, "ROUTINE ======================== %s\n", s.sym.Name[0])
 		for _, name := range s.sym.Name[1:] {
@@ -534,7 +538,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 			addr = *address
 		}
 		msyms, err := f.Symbols(rx, addr)
-		base := f.Base()
 		f.Close()
 		if err != nil {
 			continue
@@ -543,7 +546,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 			objSyms = append(objSyms,
 				&objSymbol{
 					sym:  ms,
-					base: base,
 					file: f,
 				},
 			)
@@ -558,7 +560,6 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 // added to correspond to sample addresses
 type objSymbol struct {
 	sym  *plugin.Sym
-	base uint64
 	file plugin.ObjFile
 }
 
@@ -578,8 +579,7 @@ func nodesPerSymbol(ns graph.Nodes, symbols []*objSymbol) map[*objSymbol]graph.N
 	for _, s := range symbols {
 		// Gather samples for this symbol.
 		for _, n := range ns {
-			address := n.Info.Address - s.base
-			if address >= s.sym.Start && address < s.sym.End {
+			if address, err := s.file.ObjAddr(n.Info.Address); err == nil && address >= s.sym.Start && address < s.sym.End {
 				symNodes[s] = append(symNodes[s], n)
 			}
 		}
@@ -621,7 +621,7 @@ func (a *assemblyInstruction) cumValue() int64 {
 // annotateAssembly annotates a set of assembly instructions with a
 // set of samples. It returns a set of nodes to display. base is an
 // offset to adjust the sample addresses.
-func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []assemblyInstruction {
+func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, file plugin.ObjFile) []assemblyInstruction {
 	// Add end marker to simplify printing loop.
 	insts = append(insts, plugin.Inst{
 		Addr: ^uint64(0),
@@ -645,7 +645,10 @@ func annotateAssembly(insts []plugin.Inst, samples graph.Nodes, base uint64) []a
 
 		// Sum all the samples until the next instruction (to account
 		// for samples attributed to the middle of an instruction).
-		for next := insts[ix+1].Addr; s < len(samples) && samples[s].Info.Address-base < next; s++ {
+		for next := insts[ix+1].Addr; s < len(samples); s++ {
+			if addr, err := file.ObjAddr(samples[s].Info.Address); err != nil || addr >= next {
+				break
+			}
 			sample := samples[s]
 			n.flatDiv += sample.FlatDiv
 			n.flat += sample.Flat
@@ -1055,6 +1058,7 @@ func printTree(w io.Writer, rpt *Report) error {
 	var flatSum int64
 
 	rx := rpt.options.Symbol
+	matched := 0
 	for _, n := range g.Nodes {
 		name, flat, cum := n.Info.PrintableName(), n.FlatValue(), n.CumValue()
 
@@ -1062,6 +1066,7 @@ func printTree(w io.Writer, rpt *Report) error {
 		if rx != nil && !rx.MatchString(name) {
 			continue
 		}
+		matched++
 
 		fmt.Fprintln(w, separator)
 		// Print incoming edges.
@@ -1098,6 +1103,9 @@ func printTree(w io.Writer, rpt *Report) error {
 	}
 	if len(g.Nodes) > 0 {
 		fmt.Fprintln(w, separator)
+	}
+	if rx != nil && matched == 0 {
+		return fmt.Errorf("no matches found for regexp: %s", rx)
 	}
 	return nil
 }

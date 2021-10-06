@@ -1,7 +1,7 @@
 package windows
 
 /*
-#cgo CFLAGS: -mnop-fun-dllimport
+#cgo amd64 386 CFLAGS: -mnop-fun-dllimport
 
 #include <windows.h>
 

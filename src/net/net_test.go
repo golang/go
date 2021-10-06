@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -586,4 +587,24 @@ func TestNotTemporaryRead(t *testing.T) {
 		return nil
 	}
 	withTCPConnPair(t, client, server)
+}
+
+// The various errors should implement the Error interface.
+func TestErrors(t *testing.T) {
+	var (
+		_ Error = &OpError{}
+		_ Error = &ParseError{}
+		_ Error = &AddrError{}
+		_ Error = UnknownNetworkError("")
+		_ Error = InvalidAddrError("")
+		_ Error = &timeoutError{}
+		_ Error = &DNSConfigError{}
+		_ Error = &DNSError{}
+	)
+
+	// ErrClosed was introduced as type error, so we can't check
+	// it using a declaration.
+	if _, ok := ErrClosed.(Error); !ok {
+		t.Fatal("ErrClosed does not implement Error")
+	}
 }

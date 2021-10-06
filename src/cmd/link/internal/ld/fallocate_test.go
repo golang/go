@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin || linux
 // +build darwin linux
 
 package ld
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -15,14 +15,10 @@ import (
 )
 
 func TestFallocate(t *testing.T) {
-	dir, err := ioutil.TempDir("", "TestFallocate")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 	filename := filepath.Join(dir, "a.out")
 	out := NewOutBuf(nil)
-	err = out.Open(filename)
+	err := out.Open(filename)
 	if err != nil {
 		t.Fatalf("Open file failed: %v", err)
 	}

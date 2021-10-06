@@ -10,7 +10,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
+	"cmd/internal/str"
 	"context"
 	"fmt"
 	"os"
@@ -33,7 +33,7 @@ See also: go fmt, go vet.
 }
 
 func runFix(ctx context.Context, cmd *base.Command, args []string) {
-	pkgs := load.PackagesAndErrors(ctx, args)
+	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
 	w := 0
 	for _, pkg := range pkgs {
 		if pkg.Error != nil {

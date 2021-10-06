@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -213,6 +214,11 @@ func minit() {
 func unminit() {
 }
 
+// Called from exitm, but not from drop, to undo the effect of thread-owned
+// resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+func mdestroy(mp *m) {
+}
+
 var sysstat = []byte("/dev/sysstat\x00")
 
 func getproccount() int32 {
@@ -320,12 +326,28 @@ func crash() {
 
 //go:nosplit
 func getRandomData(r []byte) {
-	extendRandom(r, 0)
+	// inspired by wyrand see hash32.go for detail
+	t := nanotime()
+	v := getg().m.procid ^ uint64(t)
+
+	for len(r) > 0 {
+		v ^= 0xa0761d6478bd642f
+		v *= 0xe7037ed1a0b428db
+		size := 8
+		if len(r) < 8 {
+			size = len(r)
+		}
+		for i := 0; i < size; i++ {
+			r[i] = byte(v >> (8 * i))
+		}
+		r = r[size:]
+		v = v>>32 | v<<32
+	}
 }
 
 func initsig(preinit bool) {
 	if !preinit {
-		notify(unsafe.Pointer(funcPC(sigtramp)))
+		notify(unsafe.Pointer(abi.FuncPCABI0(sigtramp)))
 	}
 }
 
@@ -335,12 +357,22 @@ func osyield() {
 }
 
 //go:nosplit
+func osyield_no_g() {
+	osyield()
+}
+
+//go:nosplit
 func usleep(µs uint32) {
 	ms := int32(µs / 1000)
 	if ms == 0 {
 		ms = 1
 	}
 	sleep(ms)
+}
+
+//go:nosplit
+func usleep_no_g(usec uint32) {
+	usleep(usec)
 }
 
 //go:nosplit

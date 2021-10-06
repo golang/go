@@ -7,6 +7,8 @@
 package runtime
 
 import (
+	"internal/goarch"
+	"internal/goos"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
@@ -27,8 +29,6 @@ var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
 var Xadduintptr = atomic.Xadduintptr
 
-var FuncPC = funcPC
-
 var Fastlog2 = fastlog2
 
 var Atoi = atoi
@@ -45,6 +45,14 @@ var NetpollGenericInit = netpollGenericInit
 
 var Memmove = memmove
 var MemclrNoHeapPointers = memclrNoHeapPointers
+
+var LockPartialOrder = lockPartialOrder
+
+type LockRank lockRank
+
+func (l LockRank) String() string {
+	return lockRank(l).String()
+}
 
 const PreemptMSupported = preemptMSupported
 
@@ -190,7 +198,7 @@ func MemclrBytes(b []byte) {
 	memclrNoHeapPointers(s.array, uintptr(s.len))
 }
 
-var HashLoad = &hashLoad
+const HashLoad = hashLoad
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
@@ -200,8 +208,6 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
-type Uintreg sys.Uintreg
-
 var Open = open
 var Close = closefd
 var Read = read
@@ -209,8 +215,6 @@ var Write = write
 
 func Envs() []string     { return envs }
 func SetEnvs(e []string) { envs = e }
-
-var BigEndian = sys.BigEndian
 
 // For benchmarking.
 
@@ -241,7 +245,7 @@ func BenchSetType(n int, x interface{}) {
 	})
 }
 
-const PtrSize = sys.PtrSize
+const PtrSize = goarch.PtrSize
 
 var ForceGCPeriod = &forcegcperiod
 
@@ -375,7 +379,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
 			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
 		}
-		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
+		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
 		slow.Mallocs += slow.Frees
 
 		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
@@ -397,9 +401,6 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			pg := sys.OnesCount64(p.pcache.scav)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
-
-		// Unused space in the current arena also counts as released space.
-		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
 
 		getg().m.mallocing--
 	})
@@ -1051,7 +1052,7 @@ func FreePageAlloc(pp *PageAlloc) {
 //
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*sys.GoosAix))
+var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + arenaBaseOffset*goos.IsAix))
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.
@@ -1133,31 +1134,6 @@ func SemNwait(addr *uint32) uint32 {
 	return atomic.Load(&root.nwait)
 }
 
-// MapHashCheck computes the hash of the key k for the map m, twice.
-// Method 1 uses the built-in hasher for the map.
-// Method 2 uses the typehash function (the one used by reflect).
-// Returns the two hash values, which should always be equal.
-func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
-	// Unpack m.
-	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
-	mh := (*hmap)(efaceOf(&m).data)
-
-	// Unpack k.
-	kt := efaceOf(&k)._type
-	var p unsafe.Pointer
-	if isDirectIface(kt) {
-		q := efaceOf(&k).data
-		p = unsafe.Pointer(&q)
-	} else {
-		p = efaceOf(&k).data
-	}
-
-	// Compute the hash functions.
-	x := mt.hasher(noescape(p), uintptr(mh.hash0))
-	y := typehash(kt, noescape(p), uintptr(mh.hash0))
-	return x, y
-}
-
 // mspan wrapper for testing.
 //go:notinheap
 type MSpan mspan
@@ -1214,3 +1190,43 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
 func (th *TimeHistogram) Record(duration int64) {
 	(*timeHistogram)(th).record(duration)
 }
+
+func SetIntArgRegs(a int) int {
+	lock(&finlock)
+	old := intArgRegs
+	if a >= 0 {
+		intArgRegs = a
+	}
+	unlock(&finlock)
+	return old
+}
+
+func FinalizerGAsleep() bool {
+	lock(&finlock)
+	result := fingwait
+	unlock(&finlock)
+	return result
+}
+
+// For GCTestMoveStackOnNextCall, it's important not to introduce an
+// extra layer of call, since then there's a return before the "real"
+// next call.
+var GCTestMoveStackOnNextCall = gcTestMoveStackOnNextCall
+
+// For GCTestIsReachable, it's important that we do this as a call so
+// escape analysis can see through it.
+func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+	return gcTestIsReachable(ptrs...)
+}
+
+// For GCTestPointerClass, it's important that we do this as a call so
+// escape analysis can see through it.
+//
+// This is nosplit because gcTestPointerClass is.
+//
+//go:nosplit
+func GCTestPointerClass(p unsafe.Pointer) string {
+	return gcTestPointerClass(p)
+}
+
+const Raceenabled = raceenabled

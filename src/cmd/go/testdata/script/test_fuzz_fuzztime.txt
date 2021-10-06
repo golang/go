@@ -1,0 +1,82 @@
+# TODO(jayconrod): support shared memory on more platforms.
+[!darwin] [!linux] [!windows] skip
+
+[short] skip
+
+# There are no seed values, so 'go test' should finish quickly.
+go test
+
+# Fuzzing should exit 0 after fuzztime, even if timeout is short.
+go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
+
+# We should see the same behavior when invoking the test binary directly.
+go test -c
+exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
+
+# Timeout should not cause inputs to be written as crashers.
+! exists testdata/fuzz
+
+# When we use fuzztime with an "x" suffix, it runs a specific number of times.
+# This fuzz function creates a file with a unique name ($pid.$count) on each run.
+# We count the files to find the number of runs.
+mkdir count
+env GOCACHE=$WORK/tmp
+go test -fuzz=FuzzCount -fuzztime=1000x -fuzzminimizetime=1x
+go run check_file_count.go 1000
+
+-- go.mod --
+module fuzz
+
+go 1.16
+-- fuzz_fast_test.go --
+package fuzz_test
+
+import "testing"
+
+func FuzzFast(f *testing.F) {
+	f.Fuzz(func (*testing.T, []byte) {})
+}
+-- fuzz_count_test.go --
+package fuzz
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func FuzzCount(f *testing.F) {
+	pid := os.Getpid()
+	n := 0
+	f.Fuzz(func(t *testing.T, _ []byte) {
+		name := fmt.Sprintf("count/%v.%d", pid, n)
+		if err := os.WriteFile(name, nil, 0666); err != nil {
+			t.Fatal(err)
+		}
+		n++
+	})
+}
+-- check_file_count.go --
+// +build ignore
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
+
+func main() {
+	dir, err := os.ReadDir("count")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	got := len(dir)
+	want, _ := strconv.Atoi(os.Args[1])
+	if got != want {
+		fmt.Fprintf(os.Stderr, "got %d files; want %d\n", got, want)
+		os.Exit(1)
+	}
+}

@@ -33,6 +33,9 @@ helperfuncs_test.go:45: 5
 helperfuncs_test.go:21: 6
 helperfuncs_test.go:44: 7
 helperfuncs_test.go:56: 8
+--- FAIL: Test/sub2 (?s)
+helperfuncs_test.go:71: 11
+helperfuncs_test.go:75: recover 12
 helperfuncs_test.go:64: 9
 helperfuncs_test.go:60: 10
 `

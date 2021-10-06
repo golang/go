@@ -30,7 +30,7 @@ import (
 	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
-	"net/http/internal"
+	"net/http/internal/testcert"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -626,12 +626,15 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 			t.Fatalf("ExportHttp2ConfigureTransport: %v", err)
 		}
 
-		connCh := make(chan net.Conn, 1)
+		mu := sync.Mutex{}
+		var conns []net.Conn
 		var dialCnt, gotConnCnt, tlsHandshakeCnt int32
 		tr.Dial = func(network, addr string) (net.Conn, error) {
 			atomic.AddInt32(&dialCnt, 1)
 			c, err := net.Dial(network, addr)
-			connCh <- c
+			mu.Lock()
+			defer mu.Unlock()
+			conns = append(conns, c)
 			return c, err
 		}
 
@@ -685,7 +688,12 @@ func TestTransportMaxConnsPerHost(t *testing.T) {
 			t.FailNow()
 		}
 
-		(<-connCh).Close()
+		mu.Lock()
+		for _, c := range conns {
+			c.Close()
+		}
+		conns = nil
+		mu.Unlock()
 		tr.CloseIdleConnections()
 
 		doReq()
@@ -3734,7 +3742,7 @@ func TestTransportDialTLSContext(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return c, c.Handshake()
+		return c, c.HandshakeContext(ctx)
 	}
 
 	req, err := NewRequest("GET", ts.URL, nil)
@@ -4291,7 +4299,7 @@ func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
 
 // Issue 13839
 func TestNoCrashReturningTransportAltConn(t *testing.T) {
-	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -5314,7 +5322,6 @@ func TestMissingStatusNoPanic(t *testing.T) {
 
 	ln := newLocalListener(t)
 	addr := ln.Addr().String()
-	shutdown := make(chan bool, 1)
 	done := make(chan bool)
 	fullAddrURL := fmt.Sprintf("http://%s", addr)
 	raw := "HTTP/1.1 400\r\n" +
@@ -5326,10 +5333,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
 		"Aloha Olaa"
 
 	go func() {
-		defer func() {
-			ln.Close()
-			close(done)
-		}()
+		defer close(done)
 
 		conn, _ := ln.Accept()
 		if conn != nil {
@@ -5360,7 +5364,7 @@ func TestMissingStatusNoPanic(t *testing.T) {
 		t.Errorf("got=%v want=%q", err, want)
 	}
 
-	close(shutdown)
+	ln.Close()
 	<-done
 }
 
@@ -6437,10 +6441,11 @@ func TestErrorWriteLoopRace(t *testing.T) {
 // Test that a new request which uses the connection of an active request
 // cannot cause it to be canceled as well.
 func TestCancelRequestWhenSharingConnection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
+	reqc := make(chan chan struct{}, 2)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, req *Request) {
+		ch := make(chan struct{}, 1)
+		reqc <- ch
+		<-ch
 		w.Header().Add("Content-Length", "0")
 	}))
 	defer ts.Close()
@@ -6452,34 +6457,87 @@ func TestCancelRequestWhenSharingConnection(t *testing.T) {
 
 	var wg sync.WaitGroup
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	wg.Add(1)
+	putidlec := make(chan chan struct{})
+	go func() {
+		defer wg.Done()
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			PutIdleConn: func(error) {
+				// Signal that the idle conn has been returned to the pool,
+				// and wait for the order to proceed.
+				ch := make(chan struct{})
+				putidlec <- ch
+				<-ch
+			},
+		})
+		req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
+		res, err := client.Do(req)
+		if err == nil {
+			res.Body.Close()
+		}
+		if err != nil {
+			t.Errorf("request 1: got err %v, want nil", err)
+		}
+	}()
 
-	for i := 0; i < 10; i++ {
+	// Wait for the first request to receive a response and return the
+	// connection to the idle pool.
+	r1c := <-reqc
+	close(r1c)
+	idlec := <-putidlec
+
+	wg.Add(1)
+	cancelctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer wg.Done()
+		req, _ := NewRequestWithContext(cancelctx, "GET", ts.URL, nil)
+		res, err := client.Do(req)
+		if err == nil {
+			res.Body.Close()
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("request 2: got err %v, want Canceled", err)
+		}
+	}()
+
+	// Wait for the second request to arrive at the server, and then cancel
+	// the request context.
+	r2c := <-reqc
+	cancel()
+
+	// Give the cancelation a moment to take effect, and then unblock the first request.
+	time.Sleep(1 * time.Millisecond)
+	close(idlec)
+
+	close(r2c)
+	wg.Wait()
+}
+
+func TestHandlerAbortRacesBodyRead(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		go io.Copy(io.Discard, req.Body)
+		panic(ErrAbortHandler)
+	}))
+	defer ts.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for ctx.Err() == nil {
-				reqctx, reqcancel := context.WithCancel(ctx)
-				go reqcancel()
-				req, _ := NewRequestWithContext(reqctx, "GET", ts.URL, nil)
-				res, err := client.Do(req)
-				if err == nil {
-					res.Body.Close()
+			for j := 0; j < 10; j++ {
+				const reqLen = 6 * 1024 * 1024
+				req, _ := NewRequest("POST", ts.URL, &io.LimitedReader{R: neverEnding('x'), N: reqLen})
+				req.ContentLength = reqLen
+				resp, _ := ts.Client().Transport.RoundTrip(req)
+				if resp != nil {
+					resp.Body.Close()
 				}
 			}
 		}()
 	}
-
-	for ctx.Err() == nil {
-		req, _ := NewRequest("GET", ts.URL, nil)
-		if res, err := client.Do(req); err != nil {
-			t.Errorf("unexpected: %p %v", req, err)
-			break
-		} else {
-			res.Body.Close()
-		}
-	}
-
-	cancel()
 	wg.Wait()
 }

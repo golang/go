@@ -14,6 +14,10 @@ import (
 )
 
 func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
+	if check.conf.IgnoreFuncBodies {
+		panic("function body not ignored")
+	}
+
 	if trace {
 		check.trace(body.Pos(), "--- %s: %s", name, sig)
 		defer func() {
@@ -56,7 +60,8 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 
 func (check *Checker) usage(scope *Scope) {
 	var unused []*Var
-	for _, elem := range scope.elems {
+	for name, elem := range scope.elems {
+		elem = resolve(name, elem)
 		if v, _ := elem.(*Var); v != nil && !v.used {
 			unused = append(unused, v)
 		}
@@ -147,9 +152,9 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
 	}
 }
 
-func (check *Checker) openScope(s ast.Stmt, comment string) {
-	scope := NewScope(check.scope, s.Pos(), s.End(), comment)
-	check.recordScope(s, scope)
+func (check *Checker) openScope(node ast.Node, comment string) {
+	scope := NewScope(check.scope, node.Pos(), node.End(), comment)
+	check.recordScope(node, scope)
 	check.scope = scope
 }
 
@@ -169,7 +174,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	var code errorCode
-	switch check.rawExpr(&x, call, nil) {
+	switch check.rawExpr(&x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 		code = _InvalidDefer
@@ -255,7 +260,7 @@ L:
 			// look for duplicate types for a given value
 			// (quadratic algorithm, but these lists tend to be very short)
 			for _, vt := range seen[val] {
-				if check.identical(v.typ, vt.typ) {
+				if Identical(v.typ, vt.typ) {
 					check.errorf(&v, _DuplicateCase, "duplicate case %s in expression switch", &v)
 					check.error(atPos(vt.pos), _DuplicateCase, "\tprevious case") // secondary error, \t indented
 					continue L
@@ -266,21 +271,38 @@ L:
 	}
 }
 
+// isNil reports whether the expression e denotes the predeclared value nil.
+func (check *Checker) isNil(e ast.Expr) bool {
+	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
+	if name, _ := unparen(e).(*ast.Ident); name != nil {
+		_, ok := check.lookup(name.Name).(*Nil)
+		return ok
+	}
+	return false
+}
+
 func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]ast.Expr) (T Type) {
+	var dummy operand
 L:
 	for _, e := range types {
-		T = check.typOrNil(e)
-		if T == Typ[Invalid] {
-			continue L
+		// The spec allows the value nil instead of a type.
+		if check.isNil(e) {
+			T = nil
+			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+		} else {
+			T = check.varType(e)
+			if T == Typ[Invalid] {
+				continue L
+			}
 		}
 		// look for duplicate types
 		// (quadratic algorithm, but type switches tend to be reasonably small)
 		for t, other := range seen {
-			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
+			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
-					Ts = T.String()
+					Ts = TypeString(T, check.qualifier)
 				}
 				check.errorf(e, _DuplicateCase, "duplicate case %s in type switch", Ts)
 				check.error(other, _DuplicateCase, "\tprevious case") // secondary error, \t indented
@@ -294,6 +316,47 @@ L:
 	}
 	return
 }
+
+// TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+//
+// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[string]ast.Expr) (T Type) {
+// 	var dummy operand
+// L:
+// 	for _, e := range types {
+// 		// The spec allows the value nil instead of a type.
+// 		var hash string
+// 		if check.isNil(e) {
+// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			T = nil
+// 			hash = "<nil>" // avoid collision with a type named nil
+// 		} else {
+// 			T = check.varType(e)
+// 			if T == Typ[Invalid] {
+// 				continue L
+// 			}
+// 			hash = typeHash(T, nil)
+// 		}
+// 		// look for duplicate types
+// 		if other := seen[hash]; other != nil {
+// 			// talk about "case" rather than "type" because of nil case
+// 			Ts := "nil"
+// 			if T != nil {
+// 				Ts = TypeString(T, check.qualifier)
+// 			}
+// 			var err error_
+// 			err.errorf(e, "duplicate case %s in type switch", Ts)
+// 			err.errorf(other, "previous case")
+// 			check.report(&err)
+// 			continue L
+// 		}
+// 		seen[hash] = e
+// 		if T != nil {
+// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 		}
+// 	}
+// 	return
+// }
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
@@ -328,7 +391,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil)
+		kind := check.rawExpr(&x, s.X, nil, false)
 		var msg string
 		var code errorCode
 		switch x.mode {
@@ -348,25 +411,33 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.errorf(&x, code, "%s %s", &x, msg)
 
 	case *ast.SendStmt:
-		var ch, x operand
+		var ch, val operand
 		check.expr(&ch, s.Chan)
-		check.expr(&x, s.Value)
-		if ch.mode == invalid || x.mode == invalid {
+		check.expr(&val, s.Value)
+		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-
-		tch, ok := ch.typ.Underlying().(*Chan)
-		if !ok {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-chan type %s", ch.typ)
+		var elem Type
+		if !underIs(ch.typ, func(u Type) bool {
+			uch, _ := u.(*Chan)
+			if uch == nil {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to non-channel %s", &ch)
+				return false
+			}
+			if uch.dir == RecvOnly {
+				check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only channel %s", &ch)
+				return false
+			}
+			if elem != nil && !Identical(uch.elem, elem) {
+				check.invalidOp(inNode(s, s.Arrow), _Todo, "channels of %s must have the same element type", &ch)
+				return false
+			}
+			elem = uch.elem
+			return true
+		}) {
 			return
 		}
-
-		if tch.dir == RecvOnly {
-			check.invalidOp(inNode(s, s.Arrow), _InvalidSend, "cannot send to receive-only type %s", tch)
-			return
-		}
-
-		check.assignment(&x, tch.elem, "send")
+		check.assignment(&val, elem, "send")
 
 	case *ast.IncDecStmt:
 		var op token.Token
@@ -609,7 +680,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 
-		// rhs must be of the form: expr.(type) and expr must be an interface
+		// rhs must be of the form: expr.(type) and expr must be an ordinary interface
 		expr, _ := rhs.(*ast.TypeAssertExpr)
 		if expr == nil || expr.Type != nil {
 			check.invalidAST(s, "incorrect form of type switch guard")
@@ -620,7 +691,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		xtyp, _ := x.typ.Underlying().(*Interface)
+		xtyp, _ := under(x.typ).(*Interface)
 		if xtyp == nil {
 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
 			return
@@ -761,43 +832,22 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			switch typ := x.typ.Underlying().(type) {
-			case *Basic:
-				if isString(typ) {
-					key = Typ[Int]
-					val = universeRune // use 'rune' name
-				}
-			case *Array:
-				key = Typ[Int]
-				val = typ.elem
-			case *Slice:
-				key = Typ[Int]
-				val = typ.elem
-			case *Pointer:
-				if typ, _ := typ.base.Underlying().(*Array); typ != nil {
-					key = Typ[Int]
-					val = typ.elem
-				}
-			case *Map:
-				key = typ.key
-				val = typ.elem
-			case *Chan:
-				key = typ.elem
-				val = Typ[Invalid]
-				if typ.dir == SendOnly {
-					check.errorf(&x, _InvalidChanRange, "cannot range over send-only channel %s", &x)
-					// ok to continue
-				}
-				if s.Value != nil {
-					check.errorf(atPos(s.Value.Pos()), _InvalidIterVar, "iteration over %s permits only one iteration variable", &x)
-					// ok to continue
-				}
+			// Ranging over a type parameter is permitted if it has a structural type.
+			typ := optype(x.typ)
+			if _, ok := typ.(*Chan); ok && s.Value != nil {
+				check.softErrorf(atPos(s.Value.Pos()), _InvalidIterVar, "range over %s permits only one iteration variable", &x)
+				// ok to continue
 			}
-		}
-
-		if key == nil {
-			check.errorf(&x, _InvalidRangeExpr, "cannot range over %s", &x)
-			// ok to continue
+			var msg string
+			key, val, msg = rangeKeyVal(typ, isVarName(s.Key), isVarName(s.Value))
+			if key == nil || msg != "" {
+				if msg != "" {
+					// TODO(rFindley) should this be parenthesized, to be consistent with other qualifiers?
+					msg = ": " + msg
+				}
+				check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s%s", &x, msg)
+				// ok to continue
+			}
 		}
 
 		// check assignment to/declaration of iteration variables
@@ -878,4 +928,46 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	default:
 		check.invalidAST(s, "invalid statement")
 	}
+}
+
+// isVarName reports whether x is a non-nil, non-blank (_) expression.
+func isVarName(x ast.Expr) bool {
+	if x == nil {
+		return false
+	}
+	ident, _ := unparen(x).(*ast.Ident)
+	return ident == nil || ident.Name != "_"
+}
+
+// rangeKeyVal returns the key and value type produced by a range clause
+// over an expression of type typ, and possibly an error message. If the
+// range clause is not permitted the returned key is nil or msg is not
+// empty (in that case we still may have a non-nil key type which can be
+// used to reduce the chance for follow-on errors).
+// The wantKey, wantVal, and hasVal flags indicate which of the iteration
+// variables are used or present; this matters if we range over a generic
+// type where not all keys or values are of the same type.
+func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+	switch typ := arrayPtrDeref(typ).(type) {
+	case *Basic:
+		if isString(typ) {
+			return Typ[Int], universeRune, "" // use 'rune' name
+		}
+	case *Array:
+		return Typ[Int], typ.elem, ""
+	case *Slice:
+		return Typ[Int], typ.elem, ""
+	case *Map:
+		return typ.key, typ.elem, ""
+	case *Chan:
+		var msg string
+		if typ.dir == SendOnly {
+			msg = "receive from send-only channel"
+		}
+		return typ.elem, Typ[Invalid], msg
+	case *top:
+		// we have a type parameter with no structural type
+		return nil, nil, "no structural type"
+	}
+	return nil, nil, ""
 }

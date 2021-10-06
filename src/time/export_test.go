@@ -51,6 +51,7 @@ const (
 	RuleJulian       = RuleKind(ruleJulian)
 	RuleDOY          = RuleKind(ruleDOY)
 	RuleMonthWeekDay = RuleKind(ruleMonthWeekDay)
+	UnixToInternal   = unixToInternal
 )
 
 type Rule struct {
@@ -128,3 +129,5 @@ var StdChunkNames = map[int]string{
 	stdFracSecond9 | 8<<stdArgShift: ".99999999",
 	stdFracSecond9 | 9<<stdArgShift: ".999999999",
 }
+
+var Quote = quote

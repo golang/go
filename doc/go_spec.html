@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Oct 7, 2020",
+	"Subtitle": "Version of Sep 16, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -490,8 +490,8 @@ After a backslash, certain single-character escapes represent special values:
 \n   U+000A line feed or newline
 \r   U+000D carriage return
 \t   U+0009 horizontal tab
-\v   U+000b vertical tab
-\\   U+005c backslash
+\v   U+000B vertical tab
+\\   U+005C backslash
 \'   U+0027 single quote  (valid escape only within rune literals)
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
@@ -830,7 +830,7 @@ The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> i
 
 <h3 id="Method_sets">Method sets</h3>
 <p>
-A type may have a <i>method set</i> associated with it.
+A type has a (possibly empty) <i>method set</i> associated with it.
 The method set of an <a href="#Interface_types">interface type</a> is its interface.
 The method set of any other type <code>T</code> consists of all
 <a href="#Method_declarations">methods</a> declared with receiver type <code>T</code>.
@@ -3000,6 +3000,18 @@ method value; the saved copy is then used as the receiver in any calls,
 which may be executed later.
 </p>
 
+<pre>
+type S struct { *T }
+type T int
+func (t T) M() { print(t) }
+
+t := new(T)
+s := S{T: t}
+f := t.M                    // receiver *t is evaluated and stored in f
+g := s.M                    // receiver *(s.T) is evaluated and stored in g
+*t = 42                     // does not affect stored receivers in f and g
+</pre>
+
 <p>
 The type <code>T</code> may be an interface or non-interface type.
 </p>
@@ -3400,7 +3412,7 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
-var v, ok T1 = x.(T)
+var v, ok interface{} = x.(T) // dynamic types of v and ok are T and bool
 </pre>
 
 <p>
@@ -3446,7 +3458,7 @@ In a function call, the function value and arguments are evaluated in
 After they are evaluated, the parameters of the call are passed by value to the function
 and the called function begins execution.
 The return parameters of the function are passed by value
-back to the calling function when the function returns.
+back to the caller when the function returns.
 </p>
 
 <p>
@@ -3532,9 +3544,9 @@ within <code>Greeting</code>, <code>who</code> will have the value
 </p>
 
 <p>
-If the final argument is assignable to a slice type <code>[]T</code>, it is
-passed unchanged as the value for a <code>...T</code> parameter if the argument
-is followed by <code>...</code>. In this case no new slice is created.
+If the final argument is assignable to a slice type <code>[]T</code> and
+is followed by <code>...</code>, it is passed unchanged as the value
+for a <code>...T</code> parameter. In this case no new slice is created.
 </p>
 
 <p>
@@ -3602,7 +3614,7 @@ var i = 1&lt;&lt;s                   // 1 has type int
 var j int32 = 1&lt;&lt;s             // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)           // 1 has type uint64; k == 1&lt;&lt;33
 var m int = 1.0&lt;&lt;s             // 1.0 has type int; m == 1&lt;&lt;33
-var n = 1.0&lt;&lt;s == j            // 1.0 has type int; n == true
+var n = 1.0&lt;&lt;s == j            // 1.0 has type int32; n == true
 var o = 1&lt;&lt;s == 2&lt;&lt;s           // 1 and 2 have type int; o == false
 var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
 var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
@@ -3681,8 +3693,8 @@ The bitwise logical and shift operators apply to integers only.
 ^    bitwise XOR            integers
 &amp;^   bit clear (AND NOT)    integers
 
-&lt;&lt;   left shift             integer &lt;&lt; unsigned integer
-&gt;&gt;   right shift            integer &gt;&gt; unsigned integer
+&lt;&lt;   left shift             integer &lt;&lt; integer &gt;= 0
+&gt;&gt;   right shift            integer &gt;&gt; integer &gt;= 0
 </pre>
 
 
@@ -4164,6 +4176,10 @@ in any of these cases:
 	<li>
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
+	<li>
+	<code>x</code> is a slice, <code>T</code> is a pointer to an array,
+	and the slice and array types have <a href="#Type_identity">identical</a> element types.
+	</li>
 </ul>
 
 <p>
@@ -4314,6 +4330,28 @@ MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
 </li>
 </ol>
 
+<h4 id="Conversions_from_slice_to_array_pointer">Conversions from slice to array pointer</h4>
+
+<p>
+Converting a slice to an array pointer yields a pointer to the underlying array of the slice.
+If the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
+</p>
+
+<pre>
+s := make([]byte, 2, 4)
+s0 := (*[0]byte)(s)      // s0 != nil
+s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
+s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
+s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
+
+var t []string
+t0 := (*[0]string)(t)    // t0 == nil
+t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+
+u := make([]byte, 0)
+u0 := (*[0]byte)(u)      // u0 != nil
+</pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
 
@@ -4523,9 +4561,8 @@ SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | S
 <h3 id="Terminating_statements">Terminating statements</h3>
 
 <p>
-A <i>terminating statement</i> prevents execution of all statements that lexically
-appear after it in the same <a href="#Blocks">block</a>. The following statements
-are terminating:
+A <i>terminating statement</i> interrupts the regular flow of control in
+a <a href="#Blocks">block</a>. The following statements are terminating:
 </p>
 
 <ol>
@@ -4648,7 +4685,7 @@ The following built-in functions are not permitted in statement context:
 
 <pre>
 append cap complex imag len make new real
-unsafe.Alignof unsafe.Offsetof unsafe.Sizeof
+unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice
 </pre>
 
 <pre>
@@ -4887,7 +4924,7 @@ if x := f(); x &lt; y {
 
 <p>
 "Switch" statements provide multi-way execution.
-An expression or type specifier is compared to the "cases"
+An expression or type is compared to the "cases"
 inside the "switch" to determine which branch
 to execute.
 </p>
@@ -4931,9 +4968,9 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 
 <p>
 If the switch expression evaluates to an untyped constant, it is first implicitly
-<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
-if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
+<a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>.
 The predeclared untyped value <code>nil</code> cannot be used as a switch expression.
+The switch expression type must be <a href="#Comparison_operators">comparable</a>.
 </p>
 
 <p>
@@ -4998,7 +5035,7 @@ floating point, or string constants in case expressions.
 A type switch compares types rather than values. It is otherwise similar
 to an expression switch. It is marked by a special switch expression that
 has the form of a <a href="#Type_assertions">type assertion</a>
-using the reserved word <code>type</code> rather than an actual type:
+using the keyword <code>type</code> rather than an actual type:
 </p>
 
 <pre>
@@ -6689,6 +6726,10 @@ type Pointer *ArbitraryType
 func Alignof(variable ArbitraryType) uintptr
 func Offsetof(selector ArbitraryType) uintptr
 func Sizeof(variable ArbitraryType) uintptr
+
+type IntegerType int  // shorthand for an integer type; it is not a real type
+func Add(ptr Pointer, len IntegerType) Pointer
+func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
 </pre>
 
 <p>
@@ -6743,6 +6784,40 @@ uintptr(unsafe.Pointer(&amp;x)) % unsafe.Alignof(x) == 0
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <code>Sizeof</code> are compile-time constant expressions of type <code>uintptr</code>.
+</p>
+
+<p>
+The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
+if it is an untyped constant it is given type <code>int</code>.
+The rules for <a href="/pkg/unsafe#Pointer">valid uses</a> of <code>Pointer</code> still apply.
+</p>
+
+<p>
+The function <code>Slice</code> returns a slice whose underlying array starts at <code>ptr</code>
+and whose length and capacity are <code>len</code>.
+<code>Slice(ptr, len)</code> is equivalent to
+</p>
+
+<pre>
+(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+</pre>
+
+<p>
+except that, as a special case, if <code>ptr</code>
+is <code>nil</code> and <code>len</code> is zero,
+<code>Slice</code> returns <code>nil</code>.
+</p>
+
+<p>
+The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
+if it is an untyped constant it is given type <code>int</code>.
+At run time, if <code>len</code> is negative,
+or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
+a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>

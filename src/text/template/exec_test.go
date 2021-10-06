@@ -12,6 +12,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -480,8 +481,19 @@ var execTests = []execTest{
 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
 	{"and", "{{and false 0}} {{and 1 0}} {{and 0 true}} {{and 1 1}}", "false 0 0 1", nil, true},
 	{"or", "{{or 0 0}} {{or 1 0}} {{or 0 true}} {{or 1 1}}", "0 1 true 1", nil, true},
+	{"or short-circuit", "{{or 0 1 (die)}}", "1", nil, true},
+	{"and short-circuit", "{{and 1 0 (die)}}", "0", nil, true},
+	{"or short-circuit2", "{{or 0 0 (die)}}", "", nil, false},
+	{"and short-circuit2", "{{and 1 1 (die)}}", "", nil, false},
+	{"and pipe-true", "{{1 | and 1}}", "1", nil, true},
+	{"and pipe-false", "{{0 | and 1}}", "0", nil, true},
+	{"or pipe-true", "{{1 | or 0}}", "1", nil, true},
+	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
+	{"and undef", "{{and 1 .Unknown}}", "<no value>", nil, true},
+	{"or undef", "{{or 0 .Unknown}}", "<no value>", nil, true},
 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+	{"boolean if pipe", "{{if true | not | and 1}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
 
 	// Indexing.
 	{"slice[0]", "{{index .SI 0}}", "3", tVal, true},
@@ -563,6 +575,8 @@ var execTests = []execTest{
 	{"range empty no else", "{{range .SIEmpty}}-{{.}}-{{end}}", "", tVal, true},
 	{"range []int else", "{{range .SI}}-{{.}}-{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+	{"range []int break else", "{{range .SI}}-{{.}}-{{break}}NOTREACHED{{else}}EMPTY{{end}}", "-3-", tVal, true},
+	{"range []int continue else", "{{range .SI}}-{{.}}-{{continue}}NOTREACHED{{else}}EMPTY{{end}}", "-3--4--5-", tVal, true},
 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
 	{"range map", "{{range .MSI}}-{{.}}-{{end}}", "-1--3--2-", tVal, true},
@@ -763,6 +777,7 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 		"add":         add,
 		"count":       count,
 		"dddArg":      dddArg,
+		"die":         func() bool { panic("die") },
 		"echo":        echo,
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,
@@ -899,6 +914,28 @@ func TestExecError(t *testing.T) {
 	got := err.Error()
 	if got != want {
 		t.Errorf("expected\n%q\ngot\n%q", want, got)
+	}
+}
+
+type CustomError struct{}
+
+func (*CustomError) Error() string { return "heyo !" }
+
+// Check that a custom error can be returned.
+func TestExecError_CustomError(t *testing.T) {
+	failingFunc := func() (string, error) {
+		return "", &CustomError{}
+	}
+	tmpl := Must(New("top").Funcs(FuncMap{
+		"err": failingFunc,
+	}).Parse("{{ err }}"))
+
+	var b bytes.Buffer
+	err := tmpl.Execute(&b, nil)
+
+	var e *CustomError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected custom error; got %s", err)
 	}
 }
 
@@ -1178,8 +1215,11 @@ var cmpTests = []cmpTest{
 	{"eq .Ptr .NilPtr", "false", true},
 	{"eq .NilPtr .NilPtr", "true", true},
 	{"eq .Iface1 .Iface1", "true", true},
-	{"eq .Iface1 .Iface2", "false", true},
-	{"eq .Iface2 .Iface2", "true", true},
+	{"eq .Iface1 .NilIface", "false", true},
+	{"eq .NilIface .NilIface", "true", true},
+	{"eq .NilIface .Iface1", "false", true},
+	{"eq .NilIface 0", "false", true},
+	{"eq 0 .NilIface", "false", true},
 	// Errors
 	{"eq `xy` 1", "", false},       // Different types.
 	{"eq 2 2.0", "", false},        // Different types.
@@ -1194,12 +1234,12 @@ var cmpTests = []cmpTest{
 func TestComparison(t *testing.T) {
 	b := new(bytes.Buffer)
 	var cmpStruct = struct {
-		Uthree, Ufour  uint
-		NegOne, Three  int
-		Ptr, NilPtr    *int
-		Map            map[int]int
-		V1, V2         V
-		Iface1, Iface2 fmt.Stringer
+		Uthree, Ufour    uint
+		NegOne, Three    int
+		Ptr, NilPtr      *int
+		Map              map[int]int
+		V1, V2           V
+		Iface1, NilIface fmt.Stringer
 	}{
 		Uthree: 3,
 		Ufour:  4,
@@ -1709,4 +1749,41 @@ func TestIssue43065(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "range over send-only channel") {
 		t.Errorf("%s", err)
 	}
+}
+
+// Issue 39807: data race in html/template & text/template
+func TestIssue39807(t *testing.T) {
+	var wg sync.WaitGroup
+
+	tplFoo, err := New("foo").Parse(`{{ template "bar" . }}`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tplBar, err := New("bar").Parse("bar")
+	if err != nil {
+		t.Error(err)
+	}
+
+	gofuncs := 10
+	numTemplates := 10
+
+	for i := 1; i <= gofuncs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numTemplates; j++ {
+				_, err := tplFoo.AddParseTree(tplBar.Name(), tplBar.Tree)
+				if err != nil {
+					t.Error(err)
+				}
+				err = tplFoo.Execute(io.Discard, nil)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
 }

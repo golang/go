@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !js
 // +build !js
 
 package net
@@ -154,40 +155,27 @@ func slowDialTCP(ctx context.Context, network string, laddr, raddr *TCPAddr) (*T
 	return c, err
 }
 
-func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
-	// Estimate the expected time for this platform.
-	// On Windows, dialing a closed port takes roughly 1 second,
-	// but other platforms should be instantaneous.
-	if runtime.GOOS == "windows" {
-		expected = 1500 * time.Millisecond
-	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		expected = 150 * time.Millisecond
-	} else {
-		expected = 95 * time.Millisecond
-	}
+func dialClosedPort(t *testing.T) (dialLatency time.Duration) {
+	// On most platforms, dialing a closed port should be nearly instantaneous —
+	// less than a few hundred milliseconds. However, on some platforms it may be
+	// much slower: on Windows and OpenBSD, it has been observed to take up to a
+	// few seconds.
 
 	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Logf("dialClosedPort: Listen failed: %v", err)
-		return 999 * time.Hour, expected
+		t.Fatalf("dialClosedPort: Listen failed: %v", err)
 	}
 	addr := l.Addr().String()
 	l.Close()
-	// On OpenBSD, interference from TestTCPSelfConnect is mysteriously
-	// causing the first attempt to hang for a few seconds, so we throw
-	// away the first result and keep the second.
-	for i := 1; ; i++ {
-		startTime := time.Now()
-		c, err := Dial("tcp", addr)
-		if err == nil {
-			c.Close()
-		}
-		elapsed := time.Now().Sub(startTime)
-		if i == 2 {
-			t.Logf("dialClosedPort: measured delay %v", elapsed)
-			return elapsed, expected
-		}
+
+	startTime := time.Now()
+	c, err := Dial("tcp", addr)
+	if err == nil {
+		c.Close()
 	}
+	elapsed := time.Now().Sub(startTime)
+	t.Logf("dialClosedPort: measured delay %v", elapsed)
+	return elapsed
 }
 
 func TestDialParallel(t *testing.T) {
@@ -197,10 +185,7 @@ func TestDialParallel(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	closedPortDelay, expectClosedPortDelay := dialClosedPort(t)
-	if closedPortDelay > expectClosedPortDelay {
-		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
-	}
+	closedPortDelay := dialClosedPort(t)
 
 	const instant time.Duration = 0
 	const fallbackDelay = 200 * time.Millisecond
@@ -655,15 +640,7 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			// A suspected kernel bug in macOS 10.12 occasionally results in
-			// timeout errors when dialing address ::1. The errors have not
-			// been observed on newer versions of the OS, so we don't plan to work
-			// around them. See https://golang.org/issue/22019.
-			if tt.raddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
-				t.Logf("ignoring timeout error on Darwin; see https://golang.org/issue/22019")
-			} else {
-				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
-			}
+			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
 		}
 		if err != nil {
 			if perr := parseDialError(err); perr != nil {
@@ -682,10 +659,7 @@ func TestDialerDualStack(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	closedPortDelay, expectClosedPortDelay := dialClosedPort(t)
-	if closedPortDelay > expectClosedPortDelay {
-		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
-	}
+	closedPortDelay := dialClosedPort(t)
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()

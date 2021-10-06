@@ -30,7 +30,6 @@ type verifyTest struct {
 	systemSkip    bool
 	systemLax     bool
 	keyUsages     []ExtKeyUsage
-	ignoreCN      bool
 
 	errorCallback  func(*testing.T, error)
 	expectedChains [][]string
@@ -205,19 +204,6 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		name:          "SGCIntermediate",
-		leaf:          megaLeaf,
-		intermediates: []string{comodoIntermediate1},
-		roots:         []string{comodoRoot},
-		currentTime:   1360431182,
-
-		// CryptoAPI can find alternative validation paths.
-		systemLax: true,
-		expectedChains: [][]string{
-			{"mega.co.nz", "EssentialSSL CA", "COMODO Certification Authority"},
-		},
-	},
-	{
 		// Check that a name constrained intermediate works even when
 		// it lists multiple constraints.
 		name:          "MultipleConstraints",
@@ -297,8 +283,6 @@ var verifyTests = []verifyTest{
 		errorCallback: expectNotAuthorizedError,
 	},
 	{
-		// If any SAN extension is present (even one without any DNS
-		// names), the CN should be ignored.
 		name:        "IgnoreCNWithSANs",
 		leaf:        ignoreCNWithSANLeaf,
 		dnsName:     "foo.example.com",
@@ -325,7 +309,6 @@ var verifyTests = []verifyTest{
 		// verify error.
 		name:          "CriticalExtLeaf",
 		leaf:          criticalExtLeafWithExt,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediate},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -338,7 +321,6 @@ var verifyTests = []verifyTest{
 		// cause a verify error.
 		name:          "CriticalExtIntermediate",
 		leaf:          criticalExtLeaf,
-		dnsName:       "example.com",
 		intermediates: []string{criticalExtIntermediateWithExt},
 		roots:         []string{criticalExtRoot},
 		currentTime:   1486684488,
@@ -347,60 +329,12 @@ var verifyTests = []verifyTest{
 		errorCallback: expectUnhandledCriticalExtension,
 	},
 	{
-		// Test that invalid CN are ignored.
-		name:        "InvalidCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-
-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
-	},
-	{
-		// Test that valid CN are respected.
 		name:        "ValidCN",
 		leaf:        validCNWithoutSAN,
 		dnsName:     "foo.example.com",
 		roots:       []string{invalidCNRoot},
 		currentTime: 1540000000,
 		systemSkip:  true, // does not chain to a system root
-
-		expectedChains: [][]string{
-			{"foo.example.com", "Test root"},
-		},
-	},
-	// Replicate CN tests with ignoreCN = true
-	{
-		name:        "IgnoreCNWithSANs/ignoreCN",
-		leaf:        ignoreCNWithSANLeaf,
-		dnsName:     "foo.example.com",
-		roots:       []string{ignoreCNWithSANRoot},
-		currentTime: 1486684488,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "InvalidCN/ignoreCN",
-		leaf:        invalidCNWithoutSAN,
-		dnsName:     "foo,invalid",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
-
-		errorCallback: expectHostnameError("certificate is not valid for any names"),
-	},
-	{
-		name:        "ValidCN/ignoreCN",
-		leaf:        validCNWithoutSAN,
-		dnsName:     "foo.example.com",
-		roots:       []string{invalidCNRoot},
-		currentTime: 1540000000,
-		systemSkip:  true, // does not chain to a system root
-		ignoreCN:    true,
 
 		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
 	},
@@ -503,9 +437,6 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
-	defer func(savedIgnoreCN bool) { ignoreCN = savedIgnoreCN }(ignoreCN)
-
-	ignoreCN = test.ignoreCN
 	opts := VerifyOptions{
 		Intermediates: NewCertPool(),
 		DNSName:       test.dnsName,
@@ -986,93 +917,6 @@ UjWumDqtujWTI6cfSN01RpiyEGjkpTHCClguGYEQyVB1/OpaFs4R1+7vUIgtYf8/
 QnMFlEPVjjxOAToZpR9GTnfQXeWBIiGH/pR9hNiTrdZoQ0iy2+tzJOeRf1SktoA+
 naM8THLCV8Sg1Mw4J87VBp6iSNnpn86CcDaTmjvfliHjWbcM2pE38P1ZWrOZyGls
 QyYBNWNgVYkDOnXYukrZVP/u3oDYLdE41V4tC5h9Pmzb/CaIxw==
------END CERTIFICATE-----`
-
-var megaLeaf = `-----BEGIN CERTIFICATE-----
-MIIFOjCCBCKgAwIBAgIQWYE8Dup170kZ+k11Lg51OjANBgkqhkiG9w0BAQUFADBy
-MQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
-VQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01PRE8gQ0EgTGltaXRlZDEYMBYGA1UE
-AxMPRXNzZW50aWFsU1NMIENBMB4XDTEyMTIxNDAwMDAwMFoXDTE0MTIxNDIzNTk1
-OVowfzEhMB8GA1UECxMYRG9tYWluIENvbnRyb2wgVmFsaWRhdGVkMS4wLAYDVQQL
-EyVIb3N0ZWQgYnkgSW5zdHJhIENvcnBvcmF0aW9uIFB0eS4gTFREMRUwEwYDVQQL
-EwxFc3NlbnRpYWxTU0wxEzARBgNVBAMTCm1lZ2EuY28ubnowggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQDcxMCClae8BQIaJHBUIVttlLvhbK4XhXPk3RQ3
-G5XA6tLZMBQ33l3F9knYJ0YErXtr8IdfYoulRQFmKFMJl9GtWyg4cGQi2Rcr5VN5
-S5dA1vu4oyJBxE9fPELcK6Yz1vqaf+n6za+mYTiQYKggVdS8/s8hmNuXP9Zk1pIn
-+q0pGsf8NAcSHMJgLqPQrTDw+zae4V03DvcYfNKjuno88d2226ld7MAmQZ7uRNsI
-/CnkdelVs+akZsXf0szefSqMJlf08SY32t2jj4Ra7RApVYxOftD9nij/aLfuqOU6
-ow6IgIcIG2ZvXLZwK87c5fxL7UAsTTV+M1sVv8jA33V2oKLhAgMBAAGjggG9MIIB
-uTAfBgNVHSMEGDAWgBTay+qtWwhdzP/8JlTOSeVVxjj0+DAdBgNVHQ4EFgQUmP9l
-6zhyrZ06Qj4zogt+6LKFk4AwDgYDVR0PAQH/BAQDAgWgMAwGA1UdEwEB/wQCMAAw
-NAYDVR0lBC0wKwYIKwYBBQUHAwEGCCsGAQUFBwMCBgorBgEEAYI3CgMDBglghkgB
-hvhCBAEwTwYDVR0gBEgwRjA6BgsrBgEEAbIxAQICBzArMCkGCCsGAQUFBwIBFh1o
-dHRwczovL3NlY3VyZS5jb21vZG8uY29tL0NQUzAIBgZngQwBAgEwOwYDVR0fBDQw
-MjAwoC6gLIYqaHR0cDovL2NybC5jb21vZG9jYS5jb20vRXNzZW50aWFsU1NMQ0Eu
-Y3JsMG4GCCsGAQUFBwEBBGIwYDA4BggrBgEFBQcwAoYsaHR0cDovL2NydC5jb21v
-ZG9jYS5jb20vRXNzZW50aWFsU1NMQ0FfMi5jcnQwJAYIKwYBBQUHMAGGGGh0dHA6
-Ly9vY3NwLmNvbW9kb2NhLmNvbTAlBgNVHREEHjAcggptZWdhLmNvLm56gg53d3cu
-bWVnYS5jby5uejANBgkqhkiG9w0BAQUFAAOCAQEAcYhrsPSvDuwihMOh0ZmRpbOE
-Gw6LqKgLNTmaYUPQhzi2cyIjhUhNvugXQQlP5f0lp5j8cixmArafg1dTn4kQGgD3
-ivtuhBTgKO1VYB/VRoAt6Lmswg3YqyiS7JiLDZxjoV7KoS5xdiaINfHDUaBBY4ZH
-j2BUlPniNBjCqXe/HndUTVUewlxbVps9FyCmH+C4o9DWzdGBzDpCkcmo5nM+cp7q
-ZhTIFTvZfo3zGuBoyu8BzuopCJcFRm3cRiXkpI7iOMUIixO1szkJS6WpL1sKdT73
-UXp08U0LBqoqG130FbzEJBBV3ixbvY6BWMHoCWuaoF12KJnC5kHt2RoWAAgMXA==
------END CERTIFICATE-----`
-
-var comodoIntermediate1 = `-----BEGIN CERTIFICATE-----
-MIIFAzCCA+ugAwIBAgIQGLLLuqME8aAPwfLzJkYqSjANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0xOTEyMzEyMzU5NTlaMHIxCzAJBgNVBAYTAkdCMRswGQYDVQQIExJHcmVh
-dGVyIE1hbmNoZXN0ZXIxEDAOBgNVBAcTB1NhbGZvcmQxGjAYBgNVBAoTEUNPTU9E
-TyBDQSBMaW1pdGVkMRgwFgYDVQQDEw9Fc3NlbnRpYWxTU0wgQ0EwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCt8AiwcsargxIxF3CJhakgEtSYau2A1NHf
-5I5ZLdOWIY120j8YC0YZYwvHIPPlC92AGvFaoL0dds23Izp0XmEbdaqb1IX04XiR
-0y3hr/yYLgbSeT1awB8hLRyuIVPGOqchfr7tZ291HRqfalsGs2rjsQuqag7nbWzD
-ypWMN84hHzWQfdvaGlyoiBSyD8gSIF/F03/o4Tjg27z5H6Gq1huQByH6RSRQXScq
-oChBRVt9vKCiL6qbfltTxfEFFld+Edc7tNkBdtzffRDPUanlOPJ7FAB1WfnwWdsX
-Pvev5gItpHnBXaIcw5rIp6gLSApqLn8tl2X2xQScRMiZln5+pN0vAgMBAAGjggGD
-MIIBfzAfBgNVHSMEGDAWgBQLWOWLxkwVN6RAqTCpIb5HNlpW/zAdBgNVHQ4EFgQU
-2svqrVsIXcz//CZUzknlVcY49PgwDgYDVR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQI
-MAYBAf8CAQAwIAYDVR0lBBkwFwYKKwYBBAGCNwoDAwYJYIZIAYb4QgQBMD4GA1Ud
-IAQ3MDUwMwYEVR0gADArMCkGCCsGAQUFBwIBFh1odHRwczovL3NlY3VyZS5jb21v
-ZG8uY29tL0NQUzBJBgNVHR8EQjBAMD6gPKA6hjhodHRwOi8vY3JsLmNvbW9kb2Nh
-LmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDBsBggrBgEFBQcB
-AQRgMF4wNgYIKwYBBQUHMAKGKmh0dHA6Ly9jcnQuY29tb2RvY2EuY29tL0NvbW9k
-b1VUTlNHQ0NBLmNydDAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuY29tb2RvY2Eu
-Y29tMA0GCSqGSIb3DQEBBQUAA4IBAQAtlzR6QDLqcJcvgTtLeRJ3rvuq1xqo2l/z
-odueTZbLN3qo6u6bldudu+Ennv1F7Q5Slqz0J790qpL0pcRDAB8OtXj5isWMcL2a
-ejGjKdBZa0wztSz4iw+SY1dWrCRnilsvKcKxudokxeRiDn55w/65g+onO7wdQ7Vu
-F6r7yJiIatnyfKH2cboZT7g440LX8NqxwCPf3dfxp+0Jj1agq8MLy6SSgIGSH6lv
-+Wwz3D5XxqfyH8wqfOQsTEZf6/Nh9yvENZ+NWPU6g0QO2JOsTGvMd/QDzczc4BxL
-XSXaPV7Od4rhPsbXlM1wSTz/Dr0ISKvlUhQVnQ6cGodWaK2cCQBk
------END CERTIFICATE-----`
-
-var comodoRoot = `-----BEGIN CERTIFICATE-----
-MIIEHTCCAwWgAwIBAgIQToEtioJl4AsC7j41AkblPTANBgkqhkiG9w0BAQUFADCB
-gTELMAkGA1UEBhMCR0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4G
-A1UEBxMHU2FsZm9yZDEaMBgGA1UEChMRQ09NT0RPIENBIExpbWl0ZWQxJzAlBgNV
-BAMTHkNPTU9ETyBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTAeFw0wNjEyMDEwMDAw
-MDBaFw0yOTEyMzEyMzU5NTlaMIGBMQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3Jl
-YXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3JkMRowGAYDVQQKExFDT01P
-RE8gQ0EgTGltaXRlZDEnMCUGA1UEAxMeQ09NT0RPIENlcnRpZmljYXRpb24gQXV0
-aG9yaXR5MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0ECLi3LjkRv3
-UcEbVASY06m/weaKXTuH+7uIzg3jLz8GlvCiKVCZrts7oVewdFFxze1CkU1B/qnI
-2GqGd0S7WWaXUF601CxwRM/aN5VCaTwwxHGzUvAhTaHYujl8HJ6jJJ3ygxaYqhZ8
-Q5sVW7euNJH+1GImGEaaP+vB+fGQV+useg2L23IwambV4EajcNxo2f8ESIl33rXp
-+2dtQem8Ob0y2WIC8bGoPW43nOIv4tOiJovGuFVDiOEjPqXSJDlqR6sA1KGzqSX+
-DT+nHbrTUcELpNqsOO9VUCQFZUaTNE8tja3G1CEZ0o7KBWFxB3NH5YoZEr0ETc5O
-nKVIrLsm9wIDAQABo4GOMIGLMB0GA1UdDgQWBBQLWOWLxkwVN6RAqTCpIb5HNlpW
-/zAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zBJBgNVHR8EQjBAMD6g
-PKA6hjhodHRwOi8vY3JsLmNvbW9kb2NhLmNvbS9DT01PRE9DZXJ0aWZpY2F0aW9u
-QXV0aG9yaXR5LmNybDANBgkqhkiG9w0BAQUFAAOCAQEAPpiem/Yb6dc5t3iuHXIY
-SdOH5EOC6z/JqvWote9VfCFSZfnVDeFs9D6Mk3ORLgLETgdxb8CPOGEIqB6BCsAv
-IC9Bi5HcSEW88cbeunZrM8gALTFGTO3nnc+IlP8zwFboJIYmuNg4ON8qa90SzMc/
-RxdMosIGlgnW2/4/PEZB31jiVg88O8EckzXZOFKs7sjsLjBOlDW0JB9LeGna8gI4
-zJVSk/BwJVmcIGfE7vmLV2H0knZ9P4SNVbfo5azV8fUZVqZa+5Acr5Pr5RzUZ5dd
-BA6+C4OmF4O5MBKgxTMVBbkN+8cFduPYSo38NBejxiEovjBFMR7HeL5YYTisO+IB
-ZQ==
 -----END CERTIFICATE-----`
 
 var nameConstraintsLeaf = `-----BEGIN CERTIFICATE-----
@@ -1587,16 +1431,6 @@ CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
 QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
 oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
 XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
------END CERTIFICATE-----`
-
-const invalidCNWithoutSAN = `-----BEGIN CERTIFICATE-----
-MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
-A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
-FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
-90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
-hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
-xfOcLt/vbvo=
 -----END CERTIFICATE-----`
 
 const validCNWithoutSAN = `-----BEGIN CERTIFICATE-----

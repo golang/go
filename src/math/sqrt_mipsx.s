@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build mips || mipsle
 // +build mips mipsle
 
 #include "textflag.h"
 
-// func Sqrt(x float64) float64
-TEXT ·Sqrt(SB),NOSPLIT,$0
+// func archSqrt(x float64) float64
+TEXT ·archSqrt(SB),NOSPLIT,$0
 #ifdef GOMIPS_softfloat
 	JMP ·sqrt(SB)
 #else

@@ -5,11 +5,11 @@ env GO111MODULE=on
 # to resolve an external module.
 cd dir
 ! go get
-stderr '^go get: no package in current directory$'
+stderr '^go: no package to get in current directory$'
 ! go get .
-stderr '^go get \.: no package in current directory$'
+stderr '^go: .: no package to get in current directory$'
 ! go get ./subdir
-stderr '^go get: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+stderr '^go: \.[/\\]subdir \('$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir\) is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
 ! go list
 ! stderr 'cannot find module providing package'
 stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'

@@ -4,6 +4,7 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m32 _const.go
 
+//go:build 386 && linux
 // +build 386,linux
 
 package syscall

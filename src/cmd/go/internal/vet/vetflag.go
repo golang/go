@@ -10,9 +10,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	exec "internal/execabs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -82,7 +82,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 	vetcmd := exec.Command(tool, "-flags")
 	vetcmd.Stdout = out
 	if err := vetcmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "go vet: can't execute %s -flags: %v\n", tool, err)
+		fmt.Fprintf(os.Stderr, "go: can't execute %s -flags: %v\n", tool, err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -92,7 +92,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
 		Usage string
 	}
 	if err := json.Unmarshal(out.Bytes(), &analysisFlags); err != nil {
-		fmt.Fprintf(os.Stderr, "go vet: can't unmarshal JSON from %s -flags: %v", tool, err)
+		fmt.Fprintf(os.Stderr, "go: can't unmarshal JSON from %s -flags: %v", tool, err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -184,7 +184,8 @@ func exitWithUsage() {
 	if vetTool != "" {
 		cmd = vetTool
 	}
-	fmt.Fprintf(os.Stderr, "Run '%s -help' for the vet tool's flags.\n", cmd)
+	fmt.Fprintf(os.Stderr, "Run '%s help' for a full list of flags and analyzers.\n", cmd)
+	fmt.Fprintf(os.Stderr, "Run '%s -help' for an overview.\n", cmd)
 
 	base.SetExitStatus(2)
 	base.Exit()

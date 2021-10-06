@@ -158,8 +158,21 @@ func operandString(x *operand, qf Qualifier) string {
 	// <typ>
 	if hasType {
 		if x.typ != Typ[Invalid] {
-			buf.WriteString(" of type ")
+			var intro string
+			var tpar *TypeParam
+			if isGeneric(x.typ) {
+				intro = " of parameterized type "
+			} else if tpar = asTypeParam(x.typ); tpar != nil {
+				intro = " of type parameter "
+			} else {
+				intro = " of type "
+			}
+			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
+			if tpar != nil {
+				buf.WriteString(" constrained by ")
+				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+			}
 		} else {
 			buf.WriteString(" with invalid type")
 		}
@@ -213,9 +226,10 @@ func (x *operand) isNil() bool {
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil reason is provided, it may be set to a more
-// detailed explanation of the failure (result != ""). The check parameter may
-// be nil if assignableTo is invoked through an exported API call, i.e., when
-// all methods have been type-checked.
+// detailed explanation of the failure (result != ""). The returned error code
+// is only valid if the (first) result is false. The check parameter may be nil
+// if assignableTo is invoked through an exported API call, i.e., when all
+// methods have been type-checked.
 func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true, 0 // avoid spurious errors
@@ -223,26 +237,46 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	V := x.typ
 
+	const debugAssignableTo = false
+	if debugAssignableTo && check != nil {
+		check.dump("V = %s", V)
+		check.dump("T = %s", T)
+	}
+
 	// x's type is identical to T
-	if check.identical(V, T) {
+	if Identical(V, T) {
 		return true, 0
 	}
 
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := optype(V)
+	Tu := optype(T)
+
+	if debugAssignableTo && check != nil {
+		check.dump("Vu = %s", Vu)
+		check.dump("Tu = %s", Tu)
+	}
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
-			return representableConst(x.val, check, t, nil), _IncompatibleAssign
+		if t, _ := under(T).(*TypeParam); t != nil {
+			return t.is(func(t *term) bool {
+				// TODO(gri) this could probably be more efficient
+				if t.tilde {
+					// TODO(gri) We need to check assignability
+					//           for the underlying type of x.
+				}
+				ok, _ := x.assignableTo(check, t.typ, reason)
+				return ok
+			}), _IncompatibleAssign
 		}
-		return check.implicitType(x, Tu) != nil, _IncompatibleAssign
+		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
-	// x's type V and T have identical underlying types and at least one of V or
-	// T is not a named type.
-	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	// x's type V and T have identical underlying types
+	// and at least one of V or T is not a named type
+	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true, 0
 	}
 
@@ -251,7 +285,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
-					if check.identical(m.typ, wrongType.typ) {
+					if Identical(m.typ, wrongType.typ) {
 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
 					} else {
 						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
@@ -270,12 +304,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			if !isNamed(V) || !isNamed(T) {
-				return true, 0
-			} else {
-				return false, _InvalidChanAssign
-			}
+		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
 		}
 	}
 

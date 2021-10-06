@@ -30,6 +30,8 @@
 
 package sym
 
+import "cmd/internal/objabi"
+
 // A SymKind describes the kind of memory represented by a symbol.
 type SymKind uint8
 
@@ -118,33 +120,29 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
-
-	// ABI aliases (these never appear in the output)
-	SABIALIAS
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
 // of type cmd/internal/objabi.SymKind) to values of type SymKind.
 var AbiSymKindToSymKind = [...]SymKind{
-	Sxxx,
-	STEXT,
-	SRODATA,
-	SNOPTRDATA,
-	SDATA,
-	SBSS,
-	SNOPTRBSS,
-	STLSBSS,
-	SDWARFCUINFO,
-	SDWARFCONST,
-	SDWARFFCN,
-	SDWARFABSFCN,
-	SDWARFTYPE,
-	SDWARFVAR,
-	SDWARFRANGE,
-	SDWARFLOC,
-	SDWARFLINES,
-	SABIALIAS,
-	SLIBFUZZER_EXTRA_COUNTER,
+	objabi.Sxxx:                     Sxxx,
+	objabi.STEXT:                    STEXT,
+	objabi.SRODATA:                  SRODATA,
+	objabi.SNOPTRDATA:               SNOPTRDATA,
+	objabi.SDATA:                    SDATA,
+	objabi.SBSS:                     SBSS,
+	objabi.SNOPTRBSS:                SNOPTRBSS,
+	objabi.STLSBSS:                  STLSBSS,
+	objabi.SDWARFCUINFO:             SDWARFCUINFO,
+	objabi.SDWARFCONST:              SDWARFCONST,
+	objabi.SDWARFFCN:                SDWARFFCN,
+	objabi.SDWARFABSFCN:             SDWARFABSFCN,
+	objabi.SDWARFTYPE:               SDWARFTYPE,
+	objabi.SDWARFVAR:                SDWARFVAR,
+	objabi.SDWARFRANGE:              SDWARFRANGE,
+	objabi.SDWARFLOC:                SDWARFLOC,
+	objabi.SDWARFLINES:              SDWARFLINES,
+	objabi.SLIBFUZZER_EXTRA_COUNTER: SLIBFUZZER_EXTRA_COUNTER,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some

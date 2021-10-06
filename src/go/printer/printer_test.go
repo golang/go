@@ -35,6 +35,7 @@ const (
 	rawFormat
 	normNumber
 	idempotent
+	allowTypeParams
 )
 
 // format parses src, prints the corresponding AST, verifies the resulting
@@ -70,7 +71,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formatted output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parser.ParseComments); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -88,8 +89,11 @@ func lineAt(text []byte, offs int) []byte {
 
 // diff compares a and b.
 func diff(aname, bname string, a, b []byte) error {
-	var buf bytes.Buffer // holding long error message
+	if bytes.Equal(a, b) {
+		return nil
+	}
 
+	var buf bytes.Buffer // holding long error message
 	// compare lengths
 	if len(a) != len(b) {
 		fmt.Fprintf(&buf, "\nlength changed: len(%s) = %d, len(%s) = %d", aname, len(a), bname, len(b))
@@ -97,7 +101,7 @@ func diff(aname, bname string, a, b []byte) error {
 
 	// compare contents
 	line := 1
-	offs := 1
+	offs := 0
 	for i := 0; i < len(a) && i < len(b); i++ {
 		ch := a[i]
 		if ch != b[i] {
@@ -112,10 +116,8 @@ func diff(aname, bname string, a, b []byte) error {
 		}
 	}
 
-	if buf.Len() > 0 {
-		return errors.New(buf.String())
-	}
-	return nil
+	fmt.Fprintf(&buf, "\n%s:\n%s\n%s:\n%s", aname, a, bname, b)
+	return errors.New(buf.String())
 }
 
 func runcheck(t *testing.T, source, golden string, mode checkMode) {
@@ -206,6 +208,14 @@ var data = []entry{
 	{"complit.input", "complit.x", export},
 	{"go2numbers.input", "go2numbers.golden", idempotent},
 	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
+	{"generics.input", "generics.golden", idempotent | allowTypeParams},
+	{"gobuild1.input", "gobuild1.golden", idempotent},
+	{"gobuild2.input", "gobuild2.golden", idempotent},
+	{"gobuild3.input", "gobuild3.golden", idempotent},
+	{"gobuild4.input", "gobuild4.golden", idempotent},
+	{"gobuild5.input", "gobuild5.golden", idempotent},
+	{"gobuild6.input", "gobuild6.golden", idempotent},
+	{"gobuild7.input", "gobuild7.golden", idempotent},
 }
 
 func TestFiles(t *testing.T) {

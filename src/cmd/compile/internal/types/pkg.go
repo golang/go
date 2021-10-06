@@ -31,8 +31,7 @@ type Pkg struct {
 	// height of their imported packages.
 	Height int
 
-	Imported bool // export data of this package was parsed
-	Direct   bool // imported directly
+	Direct bool // imported directly
 }
 
 // NewPkg returns a new Pkg for the given package path and name.
@@ -84,9 +83,6 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	return s
 }
 
-// List of .inittask entries in imported packages, in source code order.
-var InitSyms []*Sym
-
 // LookupOK looks up name in pkg and reports whether it previously existed.
 func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	// TODO(gri) remove this check in favor of specialized lookup
@@ -100,9 +96,6 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 	s = &Sym{
 		Name: name,
 		Pkg:  pkg,
-	}
-	if name == ".inittask" {
-		InitSyms = append(InitSyms, s)
 	}
 	pkg.Syms[name] = s
 	return s, false

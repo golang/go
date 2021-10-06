@@ -706,3 +706,24 @@ func BenchmarkStringAdd(b *testing.B) {
 		})
 	}
 }
+
+var bitLenTests = []struct {
+	val  int64
+	want int
+}{
+	{0, 0},
+	{1, 1},
+	{-16, 5},
+	{1 << 61, 62},
+	{1 << 62, 63},
+	{-1 << 62, 63},
+	{-1 << 63, 64},
+}
+
+func TestBitLen(t *testing.T) {
+	for _, test := range bitLenTests {
+		if got := BitLen(MakeInt64(test.val)); got != test.want {
+			t.Errorf("%v: got %v, want %v", test.val, got, test.want)
+		}
+	}
+}

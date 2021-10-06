@@ -92,11 +92,11 @@ func ArrayInit(i, j int) [4]int {
 // Check that assembly output has matching offset and base register
 // (issue #21064).
 
-func check_asmout(a, b int) int {
+func check_asmout(b [2]int) int {
 	runtime.GC() // use some frame
 	// amd64:`.*b\+24\(SP\)`
 	// arm:`.*b\+4\(FP\)`
-	return b
+	return b[1]
 }
 
 // Check that simple functions get promoted to nosplit, even when

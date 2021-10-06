@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -463,7 +462,7 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 		gopath = *tmp
 		dir = ""
 	} else {
-		d, err := ioutil.TempDir("", filepath.Base(t.Name()))
+		d, err := os.MkdirTemp("", filepath.Base(t.Name()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -475,7 +474,7 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 	if err := os.MkdirAll(src, 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -535,10 +534,10 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 	fmt.Fprintf(&cgo1, "}\n\n")
 	fmt.Fprintf(&cgo1, "%s\n", ptrTestMain)
 
-	if err := ioutil.WriteFile(filepath.Join(src, "cgo1.go"), cgo1.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "cgo1.go"), cgo1.Bytes(), 0666); err != nil {
 		t.Fatal(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(src, "cgo2.go"), cgo2.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "cgo2.go"), cgo2.Bytes(), 0666); err != nil {
 		t.Fatal(err)
 	}
 

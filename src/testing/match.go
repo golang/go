@@ -14,34 +14,45 @@ import (
 
 // matcher sanitizes, uniques, and filters names of subtests and subbenchmarks.
 type matcher struct {
-	filter    []string
+	filter    filterMatch
 	matchFunc func(pat, str string) (bool, error)
 
 	mu       sync.Mutex
 	subNames map[string]int64
 }
 
+type filterMatch interface {
+	// matches checks the name against the receiver's pattern strings using the
+	// given match function.
+	matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool)
+
+	// verify checks that the receiver's pattern strings are valid filters by
+	// calling the given match function.
+	verify(name string, matchString func(pat, str string) (bool, error)) error
+}
+
+// simpleMatch matches a test name if all of the pattern strings match in
+// sequence.
+type simpleMatch []string
+
+// alternationMatch matches a test name if one of the alternations match.
+type alternationMatch []filterMatch
+
 // TODO: fix test_main to avoid race and improve caching, also allowing to
 // eliminate this Mutex.
 var matchMutex sync.Mutex
 
 func newMatcher(matchString func(pat, str string) (bool, error), patterns, name string) *matcher {
-	var filter []string
+	var impl filterMatch
 	if patterns != "" {
-		filter = splitRegexp(patterns)
-		for i, s := range filter {
-			filter[i] = rewrite(s)
-		}
-		// Verify filters before doing any processing.
-		for i, s := range filter {
-			if _, err := matchString(s, "non-empty"); err != nil {
-				fmt.Fprintf(os.Stderr, "testing: invalid regexp for element %d of %s (%q): %s\n", i, name, s, err)
-				os.Exit(1)
-			}
+		impl = splitRegexp(patterns)
+		if err := impl.verify(name, matchString); err != nil {
+			fmt.Fprintf(os.Stderr, "testing: invalid regexp for %s\n", err)
+			os.Exit(1)
 		}
 	}
 	return &matcher{
-		filter:    filter,
+		filter:    impl,
 		matchFunc: matchString,
 		subNames:  map[string]int64{},
 	}
@@ -60,22 +71,63 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial 
 	matchMutex.Lock()
 	defer matchMutex.Unlock()
 
+	if m.filter == nil {
+		return name, true, false
+	}
+
 	// We check the full array of paths each time to allow for the case that
 	// a pattern contains a '/'.
 	elem := strings.Split(name, "/")
-	for i, s := range elem {
-		if i >= len(m.filter) {
-			break
-		}
-		if ok, _ := m.matchFunc(m.filter[i], s); !ok {
-			return name, false, false
-		}
-	}
-	return name, true, len(elem) < len(m.filter)
+	ok, partial = m.filter.matches(elem, m.matchFunc)
+	return name, ok, partial
 }
 
-func splitRegexp(s string) []string {
-	a := make([]string, 0, strings.Count(s, "/"))
+func (m simpleMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
+	for i, s := range name {
+		if i >= len(m) {
+			break
+		}
+		if ok, _ := matchString(m[i], s); !ok {
+			return false, false
+		}
+	}
+	return true, len(name) < len(m)
+}
+
+func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
+	for i, s := range m {
+		m[i] = rewrite(s)
+	}
+	// Verify filters before doing any processing.
+	for i, s := range m {
+		if _, err := matchString(s, "non-empty"); err != nil {
+			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
+		}
+	}
+	return nil
+}
+
+func (m alternationMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {
+	for _, m := range m {
+		if ok, partial = m.matches(name, matchString); ok {
+			return ok, partial
+		}
+	}
+	return false, false
+}
+
+func (m alternationMatch) verify(name string, matchString func(pat, str string) (bool, error)) error {
+	for i, m := range m {
+		if err := m.verify(name, matchString); err != nil {
+			return fmt.Errorf("alternation %d of %s", i, err)
+		}
+	}
+	return nil
+}
+
+func splitRegexp(s string) filterMatch {
+	a := make(simpleMatch, 0, strings.Count(s, "/"))
+	b := make(alternationMatch, 0, strings.Count(s, "|"))
 	cs := 0
 	cp := 0
 	for i := 0; i < len(s); {
@@ -103,10 +155,24 @@ func splitRegexp(s string) []string {
 				i = 0
 				continue
 			}
+		case '|':
+			if cs == 0 && cp == 0 {
+				a = append(a, s[:i])
+				s = s[i+1:]
+				i = 0
+				b = append(b, a)
+				a = make(simpleMatch, 0, len(a))
+				continue
+			}
 		}
 		i++
 	}
-	return append(a, s)
+
+	a = append(a, s)
+	if len(b) == 0 {
+		return a
+	}
+	return append(b, a)
 }
 
 // unique creates a unique name for the given parent and subname by affixing it

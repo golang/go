@@ -322,8 +322,8 @@ func (b *builder) addEdge(edge *Edge, from, to int, hasNodelets bool) {
 }
 
 // dotColor returns a color for the given score (between -1.0 and
-// 1.0), with -1.0 colored red, 0.0 colored grey, and 1.0 colored
-// green. If isBackground is true, then a light (low-saturation)
+// 1.0), with -1.0 colored green, 0.0 colored grey, and 1.0 colored
+// red. If isBackground is true, then a light (low-saturation)
 // color is returned (suitable for use as a background color);
 // otherwise, a darker color is returned (suitable for use as a
 // foreground color).

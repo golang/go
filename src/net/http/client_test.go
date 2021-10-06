@@ -257,12 +257,12 @@ func TestClientRedirects(t *testing.T) {
 		t.Fatalf("Get error: %v", err)
 	}
 	res.Body.Close()
-	finalUrl := res.Request.URL.String()
+	finalURL := res.Request.URL.String()
 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with custom client, expected error %q, got %q", e, g)
 	}
-	if !strings.HasSuffix(finalUrl, "/?n=15") {
-		t.Errorf("expected final url to end in /?n=15; got url %q", finalUrl)
+	if !strings.HasSuffix(finalURL, "/?n=15") {
+		t.Errorf("expected final url to end in /?n=15; got url %q", finalURL)
 	}
 	if e, g := 15, len(lastVia); e != g {
 		t.Errorf("expected lastVia to have contained %d elements; got %d", e, g)
@@ -1945,7 +1945,7 @@ func TestClientDoCanceledVsTimeout_h2(t *testing.T) {
 }
 
 // Issue 33545: lock-in the behavior promised by Client.Do's
-// docs about request cancelation vs timing out.
+// docs about request cancellation vs timing out.
 func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2081,4 +2081,48 @@ func (b *issue40382Body) Close() error {
 		b.t.Error("Body closed more than once")
 	}
 	return nil
+}
+
+func TestProbeZeroLengthBody(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	reqc := make(chan struct{})
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(reqc)
+		if _, err := io.Copy(w, r.Body); err != nil {
+			t.Errorf("error copying request body: %v", err)
+		}
+	}))
+	defer cst.close()
+
+	bodyr, bodyw := io.Pipe()
+	var gotBody string
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		req, _ := NewRequest("GET", cst.ts.URL, bodyr)
+		res, err := cst.c.Do(req)
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		gotBody = string(b)
+	}()
+
+	select {
+	case <-reqc:
+		// Request should be sent after trying to probe the request body for 200ms.
+	case <-time.After(60 * time.Second):
+		t.Errorf("request not sent after 60s")
+	}
+
+	// Write the request body and wait for the request to complete.
+	const content = "body"
+	bodyw.Write([]byte(content))
+	bodyw.Close()
+	wg.Wait()
+	if gotBody != content {
+		t.Fatalf("server got body %q, want %q", gotBody, content)
+	}
 }

@@ -66,7 +66,9 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		for fname, f := range fsys {
 			i := strings.Index(fname, "/")
 			if i < 0 {
-				list = append(list, mapFileInfo{fname, f})
+				if fname != "." {
+					list = append(list, mapFileInfo{fname, f})
+				}
 			} else {
 				need[fname[:i]] = true
 			}
@@ -223,11 +225,11 @@ func (d *mapDir) Read(b []byte) (int, error) {
 
 func (d *mapDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	n := len(d.entry) - d.offset
-	if count > 0 && n > count {
-		n = count
-	}
 	if n == 0 && count > 0 {
 		return nil, io.EOF
+	}
+	if count > 0 && n > count {
+		n = count
 	}
 	list := make([]fs.DirEntry, n)
 	for i := range list {

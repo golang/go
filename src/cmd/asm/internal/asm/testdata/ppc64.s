@@ -41,6 +41,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVDBR (R3)(R4), R5             // 7ca41c28
 	MOVWBR (R3)(R4), R5             // 7ca41c2c
 	MOVHBR (R3)(R4), R5             // 7ca41e2c
+	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc20
+	MOVD $foo(SB), R5               // 3ca0000038a50000
 
 	MOVDU 8(R3), R4                 // e8830009
 	MOVDU (R3)(R4), R5              // 7ca4186a
@@ -76,6 +78,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVHU R5, (R3)(R4)              // 7ca41b6e
 	MOVBU R4, 1(R3)                 // 9c830001
 	MOVBU R5, (R3)(R4)              // 7ca419ee
+
+	MOVB $0, R4			// 38800000
+	MOVBZ $0, R4			// 38800000
+	MOVH $0, R4			// 38800000
+	MOVHZ $0, R4			// 38800000
+	MOVW $0, R4			// 38800000
+	MOVWZ $0, R4			// 38800000
+	MOVD $0, R4			// 38800000
+	MOVD $0, R0			// 38000000
 
 	ADD $1, R3                      // 38630001
 	ADD $1, R3, R4                  // 38830001
@@ -280,11 +291,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	ROTLW R3, R4, R5                // 5c85183e
 	EXTSWSLI $3, R4, R5             // 7c851ef4
 	RLWMI $7, R3, $65535, R6        // 50663c3e
+	RLWMI $7, R3, $16, $31, R6      // 50663c3e
 	RLWMICC $7, R3, $65535, R6      // 50663c3f
+	RLWMICC $7, R3, $16, $31, R6    // 50663c3f
 	RLWNM $3, R4, $7, R6            // 54861f7e
+	RLWNM $3, R4, $29, $31, R6      // 54861f7e
 	RLWNM R3, R4, $7, R6            // 5c861f7e
+	RLWNM R3, R4, $29, $31, R6      // 5c861f7e
 	RLWNMCC $3, R4, $7, R6          // 54861f7f
+	RLWNMCC $3, R4, $29, $31, R6    // 54861f7f
 	RLWNMCC R3, R4, $7, R6          // 5c861f7f
+	RLWNMCC R3, R4, $29, $31, R6    // 5c861f7f
 	RLDMI $0, R4, $7, R6            // 7886076c
 	RLDMICC $0, R4, $7, R6          // 7886076d
 	RLDIMI $0, R4, $7, R6           // 788601cc
@@ -303,6 +320,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	RLDICCC $0, R4, $15, R6         // 788603c9
 	CLRLSLWI $16, R5, $8, R4        // 54a4422e
 	CLRLSLDI $24, R4, $2, R3        // 78831588
+	RLDCR	$1, R1, $-16, R1        // 78210ee4
+	RLDCRCC	$1, R1, $-16, R1        // 78210ee5
 
 	BEQ 0(PC)                       // 41820000
 	BEQ CR1,0(PC)                   // 41860000
@@ -630,6 +649,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	LXVB16X (R3)(R4), VS1           // 7c241ed8
 	LXVW4X (R3)(R4), VS1            // 7c241e18
 	LXV 16(R3), VS1                 // f4230011
+	LXV 16(R3), VS33                // f4230019
+	LXV 16(R3), V1                  // f4230019
 	LXVL R3, R4, VS1                // 7c23221a
 	LXVLL R3, R4, VS1               // 7c23225a
 	LXVX R3, R4, VS1                // 7c232218
@@ -649,8 +670,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MTFPRD R3, F0                   // 7c030166
 	MFVRD V0, R3                    // 7c030067
 	MFVSRLD VS63,R4                 // 7fe40267
+	MFVSRLD V31,R4                  // 7fe40267
 	MFVSRWZ VS33,R4                 // 7c2400e7
+	MFVSRWZ V1,R4                   // 7c2400e7
 	MTVSRD R3, VS1                  // 7c230166
+	MTVSRDD R3, R4, VS1             // 7c232366
+	MTVSRDD R3, R4, VS33            // 7c232367
+	MTVSRDD R3, R4, V1              // 7c232367
 	MTVRD R3, V13                   // 7da30167
 	MTVSRWA R4, VS31                // 7fe401a6
 	MTVSRWS R4, VS32                // 7c040327
@@ -659,6 +685,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XXBRW VS1, VS2                  // f04f0f6c
 	XXBRH VS2, VS3                  // f067176c
 	XXLAND VS1, VS2, VS3            // f0611410
+	XXLAND V1, V2, V3               // f0611417
+	XXLAND VS33, VS34, VS35         // f0611417
 	XXLANDC VS1, VS2, VS3           // f0611450
 	XXLEQV VS0, VS1, VS2            // f0400dd0
 	XXLNAND VS0, VS1, VS2           // f0400d90
@@ -668,11 +696,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	XXLORQ VS1, VS2, VS3            // f0611490
 	XXLXOR VS1, VS2, VS3            // f06114d0
 	XXSEL VS1, VS2, VS3, VS4        // f08110f0
+	XXSEL VS33, VS34, VS35, VS36    // f08110ff
+	XXSEL V1, V2, V3, V4            // f08110ff
 	XXMRGHW VS1, VS2, VS3           // f0611090
 	XXMRGLW VS1, VS2, VS3           // f0611190
 	XXSPLTW VS1, $1, VS2            // f0410a90
+	XXSPLTW VS33, $1, VS34          // f0410a93
+	XXSPLTW V1, $1, V2              // f0410a93
 	XXPERM VS1, VS2, VS3            // f06110d0
 	XXSLDWI VS1, VS2, $1, VS3       // f0611110
+	XXSLDWI V1, V2, $1, V3          // f0611117
+	XXSLDWI VS33, VS34, $1, VS35    // f0611117
 	XSCVDPSP VS1, VS2               // f0400c24
 	XVCVDPSP VS1, VS2               // f0400e24
 	XSCVSXDDP VS1, VS2              // f0400de0

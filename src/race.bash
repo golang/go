@@ -9,34 +9,20 @@
 set -e
 
 function usage {
-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
+	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
 	exit 1
 }
 
-case $(uname) in
-"Darwin")
-	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "arm64" ]; then
-		usage
-	fi
-	;;
-"Linux")
-	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "ppc64le" ] && [ $(uname -m) != "aarch64" ]; then
-		usage
-	fi
-	;;
-"FreeBSD")
-	if [ $(uname -m) != "amd64" ]; then
-		usage
-	fi
-	;;
-"NetBSD")
-	if [ $(uname -m) != "amd64" ]; then
-		usage
-	fi
-	;;
-*)
-	usage
-	;;
+case $(uname -s -m) in
+  "Darwin x86_64") ;;
+  "Darwin arm64")  ;;
+  "Linux x86_64")  ;;
+  "Linux ppc64le") ;;
+  "Linux aarch64") ;;
+  "FreeBSD amd64") ;;
+  "NetBSD amd64")  ;;
+  "OpenBSD amd64") ;;
+  *) usage         ;;
 esac
 
 if [ ! -f make.bash ]; then

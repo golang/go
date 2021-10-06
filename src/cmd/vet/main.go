@@ -1,3 +1,7 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package main
 
 import (
@@ -22,6 +26,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
+	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
@@ -54,6 +59,7 @@ func main() {
 		nilfunc.Analyzer,
 		printf.Analyzer,
 		shift.Analyzer,
+		sigchanyzer.Analyzer,
 		stdmethods.Analyzer,
 		stringintconv.Analyzer,
 		structtag.Analyzer,

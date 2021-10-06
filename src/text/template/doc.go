@@ -112,6 +112,14 @@ data, defined in detail in the corresponding sections that follow.
 		T0 is executed; otherwise, dot is set to the successive elements
 		of the array, slice, or map and T1 is executed.
 
+	{{break}}
+		The innermost {{range pipeline}} loop is ended early, stopping the
+		current iteration and bypassing all remaining iterations.
+
+	{{continue}}
+		The current iteration of the innermost {{range pipeline}} loop is
+		stopped, and the loop starts the next iteration.
+
 	{{template "name"}}
 		The template with the specified name is executed with nil data.
 
@@ -307,9 +315,10 @@ Predefined global functions are named as follows.
 
 	and
 		Returns the boolean AND of its arguments by returning the
-		first empty argument or the last argument, that is,
-		"and x y" behaves as "if x then y else x". All the
-		arguments are evaluated.
+		first empty argument or the last argument. That is,
+		"and x y" behaves as "if x then y else x."
+		Evaluation proceeds through the arguments left to right
+		and returns when the result is determined.
 	call
 		Returns the result of calling the first argument, which
 		must be a function, with the remaining arguments as parameters.
@@ -344,8 +353,9 @@ Predefined global functions are named as follows.
 	or
 		Returns the boolean OR of its arguments by returning the
 		first non-empty argument or the last argument, that is,
-		"or x y" behaves as "if x then x else y". All the
-		arguments are evaluated.
+		"or x y" behaves as "if x then x else y".
+		Evaluation proceeds through the arguments left to right
+		and returns when the result is determined.
 	print
 		An alias for fmt.Sprint
 	printf

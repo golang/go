@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"internal/bytealg"
+	"internal/itoa"
 	"io"
 	"os"
 )
@@ -84,7 +85,7 @@ func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest str
 	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
-	lines, err := queryCS(ctx, net, ips, itoa(port))
+	lines, err := queryCS(ctx, net, ips, itoa.Itoa(port))
 	if err != nil {
 		return
 	}
@@ -261,8 +262,8 @@ func (*Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cn
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
-		addrs = append(addrs, &SRV{absDomainName([]byte(f[5])), uint16(port), uint16(priority), uint16(weight)})
-		cname = absDomainName([]byte(f[0]))
+		addrs = append(addrs, &SRV{absDomainName(f[5]), uint16(port), uint16(priority), uint16(weight)})
+		cname = absDomainName(f[0])
 	}
 	byPriorityWeight(addrs).sort()
 	return
@@ -279,7 +280,7 @@ func (*Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err error
 			continue
 		}
 		if pref, _, ok := dtoi(f[2]); ok {
-			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
+			mx = append(mx, &MX{absDomainName(f[3]), uint16(pref)})
 		}
 	}
 	byPref(mx).sort()
@@ -296,7 +297,7 @@ func (*Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err error
 		if len(f) < 3 {
 			continue
 		}
-		ns = append(ns, &NS{absDomainName([]byte(f[2]))})
+		ns = append(ns, &NS{absDomainName(f[2])})
 	}
 	return
 }
@@ -308,7 +309,7 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txt []string, err 
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
-			txt = append(txt, absDomainName([]byte(line[i+1:])))
+			txt = append(txt, line[i+1:])
 		}
 	}
 	return
@@ -328,7 +329,7 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
 		if len(f) < 3 {
 			continue
 		}
-		name = append(name, absDomainName([]byte(f[2])))
+		name = append(name, absDomainName(f[2]))
 	}
 	return
 }

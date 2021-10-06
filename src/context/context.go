@@ -303,10 +303,8 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 	if !ok {
 		return nil, false
 	}
-	p.mu.Lock()
-	ok = p.done == done
-	p.mu.Unlock()
-	if !ok {
+	pdone, _ := p.done.Load().(chan struct{})
+	if pdone != done {
 		return nil, false
 	}
 	return p, true
@@ -345,7 +343,7 @@ type cancelCtx struct {
 	Context
 
 	mu       sync.Mutex            // protects following fields
-	done     chan struct{}         // created lazily, closed by first cancel call
+	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
 	children map[canceler]struct{} // set to nil by the first cancel call
 	err      error                 // set to non-nil by the first cancel call
 }
@@ -354,17 +352,22 @@ func (c *cancelCtx) Value(key interface{}) interface{} {
 	if key == &cancelCtxKey {
 		return c
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
 }
 
 func (c *cancelCtx) Done() <-chan struct{} {
-	c.mu.Lock()
-	if c.done == nil {
-		c.done = make(chan struct{})
+	d := c.done.Load()
+	if d != nil {
+		return d.(chan struct{})
 	}
-	d := c.done
-	c.mu.Unlock()
-	return d
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	d = c.done.Load()
+	if d == nil {
+		d = make(chan struct{})
+		c.done.Store(d)
+	}
+	return d.(chan struct{})
 }
 
 func (c *cancelCtx) Err() error {
@@ -401,10 +404,11 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 		return // already canceled
 	}
 	c.err = err
-	if c.done == nil {
-		c.done = closedchan
+	d, _ := c.done.Load().(chan struct{})
+	if d == nil {
+		c.done.Store(closedchan)
 	} else {
-		close(c.done)
+		close(d)
 	}
 	for child := range c.children {
 		// NOTE: acquiring the child's lock while holding parent's lock.
@@ -559,5 +563,31 @@ func (c *valueCtx) Value(key interface{}) interface{} {
 	if c.key == key {
 		return c.val
 	}
-	return c.Context.Value(key)
+	return value(c.Context, key)
+}
+
+func value(c Context, key interface{}) interface{} {
+	for {
+		switch ctx := c.(type) {
+		case *valueCtx:
+			if key == ctx.key {
+				return ctx.val
+			}
+			c = ctx.Context
+		case *cancelCtx:
+			if key == &cancelCtxKey {
+				return c
+			}
+			c = ctx.Context
+		case *timerCtx:
+			if key == &cancelCtxKey {
+				return &ctx.cancelCtx
+			}
+			c = ctx.Context
+		case *emptyCtx:
+			return nil
+		default:
+			return c.Value(key)
+		}
+	}
 }

@@ -370,7 +370,7 @@ func g2() {
 	defer ap.method2()
 	defer ap.method1()
 	ff1(ap, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-	// Try to get the stack to be be moved by growing it too large, so
+	// Try to get the stack to be moved by growing it too large, so
 	// existing stack-allocated defer becomes invalid.
 	rec1(2000)
 }
@@ -408,5 +408,33 @@ func ff1(ap *foo, a, b, c, d, e, f, g, h, i int) {
 func rec1(max int) {
 	if max > 0 {
 		rec1(max - 1)
+	}
+}
+
+func TestIssue43921(t *testing.T) {
+	defer func() {
+		expect(t, 1, recover())
+	}()
+	func() {
+		// Prevent open-coded defers
+		for {
+			defer func() {}()
+			break
+		}
+
+		defer func() {
+			defer func() {
+				expect(t, 4, recover())
+			}()
+			panic(4)
+		}()
+		panic(1)
+
+	}()
+}
+
+func expect(t *testing.T, n int, err interface{}) {
+	if n != err {
+		t.Fatalf("have %v, want %v", err, n)
 	}
 }

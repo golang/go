@@ -24,12 +24,12 @@ stdout '^vcs-test.golang.org/git/retract-pseudo.git v0.0.0-20201009173747-64c061
 
 # A retracted version is a valid base. Retraction should not validate existing
 # pseudo-versions, nor should it turn invalid pseudo-versions valid.
-go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-713affd19d7b
+go get vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-713affd19d7b
 go list -m vcs-test.golang.org/git/retract-pseudo.git
 stdout '^vcs-test.golang.org/git/retract-pseudo.git v1.0.1-0.20201009173747-713affd19d7b$'
 
-! go get -d vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371
-stderr '^go get: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
+! go get vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371
+stderr '^go: vcs-test.golang.org/git/retract-pseudo.git@v1.0.1-0.20201009173747-64c061ed4371: invalid pseudo-version: tag \(v1.0.0\) found on revision 64c061ed4371 is already canonical, so should not be replaced with a pseudo-version derived from that tag$'
 
 -- retract-pseudo.sh --
 #!/bin/bash

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package unix
@@ -310,6 +311,10 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 		from, err = anyToSockaddr(fd, &rsa)
 	}
 	return
+}
+
+func Send(s int, buf []byte, flags int) (err error) {
+	return sendto(s, buf, flags, nil, 0)
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {

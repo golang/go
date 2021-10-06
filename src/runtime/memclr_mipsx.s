@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build mips || mipsle
 // +build mips mipsle
 
 #include "textflag.h"
@@ -13,6 +14,8 @@
 #define MOVWHI  MOVWR
 #define MOVWLO  MOVWL
 #endif
+
+// See memclrNoHeapPointers Go doc for important implementation constraints.
 
 // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8

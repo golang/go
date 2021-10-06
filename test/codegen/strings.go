@@ -30,6 +30,7 @@ func ConstantLoad() {
 	//   arm:`MOVW\t\$48`,`MOVW\t\$49`,`MOVW\t\$50`
 	// arm64:`MOVD\t\$12592`,`MOVD\t\$50`
 	//  wasm:`I64Const\t\$12592`,`I64Store16\t\$0`,`I64Const\t\$50`,`I64Store8\t\$2`
+	// mips64:`MOVV\t\$48`,`MOVV\t\$49`,`MOVV\t\$50`
 	bsink = []byte("012")
 
 	// 858927408 = 0x33323130

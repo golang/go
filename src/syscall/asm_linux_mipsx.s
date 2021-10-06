@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (mips || mipsle)
 // +build linux
 // +build mips mipsle
 
@@ -137,6 +138,23 @@ ok2:
 	MOVW	R2, r1+28(FP)	// r1
 	MOVW	R3, r2+32(FP)	// r2
 	MOVW	R0, err+36(FP)	// errno
+	RET
+
+// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
+	MOVW	a1+4(FP), R4
+	MOVW	R0, R5
+	MOVW	R0, R6
+	MOVW	trap+0(FP), R2	// syscall entry
+	SYSCALL
+	BEQ	R7, ok
+	MOVW	$-1, R1
+	MOVW	R1, r1+8(FP)	// r1
+	MOVW	R2, err+12(FP)	// errno
+	RET
+ok:
+	MOVW	R2, r1+8(FP)	// r1
+	MOVW	R0, err+12(FP)	// errno
 	RET
 
 TEXT ·rawSyscallNoError(SB),NOSPLIT,$20-24

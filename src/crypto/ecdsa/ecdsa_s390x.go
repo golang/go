@@ -21,12 +21,18 @@ import (
 //go:noescape
 func kdsa(fc uint64, params *[4096]byte) (errn uint64)
 
+// testingDisableKDSA forces the generic fallback path. It must only be set in tests.
+var testingDisableKDSA bool
+
 // canUseKDSA checks if KDSA instruction is available, and if it is, it checks
 // the name of the curve to see if it matches the curves supported(P-256, P-384, P-521).
 // Then, based on the curve name, a function code and a block size will be assigned.
 // If KDSA instruction is not available or if the curve is not supported, canUseKDSA
 // will set ok to false.
 func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) {
+	if testingDisableKDSA {
+		return 0, 0, false
+	}
 	if !cpu.S390X.HasECDSA {
 		return 0, 0, false
 	}

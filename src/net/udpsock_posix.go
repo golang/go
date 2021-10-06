@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || windows
 // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris windows
 
 package net
@@ -42,21 +43,35 @@ func (a *UDPAddr) toLocal(net string) sockaddr {
 	return &UDPAddr{loopbackIP(net), a.Port, a.Zone}
 }
 
-func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
-	var addr *UDPAddr
-	n, sa, err := c.fd.readFrom(b)
-	switch sa := sa.(type) {
-	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
-	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+	var n int
+	var err error
+	switch c.fd.family {
+	case syscall.AF_INET:
+		var from syscall.SockaddrInet4
+		n, err = c.fd.readFromInet4(b, &from)
+		if err == nil {
+			ip := from.Addr // copy from.Addr; ip escapes, so this line allocates 4 bytes
+			*addr = UDPAddr{IP: ip[:], Port: from.Port}
+		}
+	case syscall.AF_INET6:
+		var from syscall.SockaddrInet6
+		n, err = c.fd.readFromInet6(b, &from)
+		if err == nil {
+			ip := from.Addr // copy from.Addr; ip escapes, so this line allocates 16 bytes
+			*addr = UDPAddr{IP: ip[:], Port: from.Port, Zone: zoneCache.name(int(from.ZoneId))}
+		}
+	}
+	if err != nil {
+		// No sockaddr, so don't return UDPAddr.
+		addr = nil
 	}
 	return n, addr, err
 }
 
 func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
 	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob)
+	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
@@ -73,11 +88,23 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 	if addr == nil {
 		return 0, errMissingAddress
 	}
-	sa, err := addr.sockaddr(c.fd.family)
-	if err != nil {
-		return 0, err
+
+	switch c.fd.family {
+	case syscall.AF_INET:
+		sa, err := ipToSockaddrInet4(addr.IP, addr.Port)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet4(b, sa)
+	case syscall.AF_INET6:
+		sa, err := ipToSockaddrInet6(addr.IP, addr.Port, addr.Zone)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet6(b, sa)
+	default:
+		return 0, &AddrError{Err: "invalid address family", Addr: addr.IP.String()}
 	}
-	return c.fd.writeTo(b, sa)
 }
 
 func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {

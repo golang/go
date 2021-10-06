@@ -5,6 +5,7 @@
 package signal
 
 import (
+	"internal/itoa"
 	"os"
 	"runtime"
 	"syscall"
@@ -155,23 +156,8 @@ func TestStop(t *testing.T) {
 	}
 }
 
-func itoa(val int) string {
-	if val < 0 {
-		return "-" + itoa(-val)
-	}
-	var buf [32]byte // big enough for int64
-	i := len(buf) - 1
-	for val >= 10 {
-		buf[i] = byte(val%10 + '0')
-		i--
-		val /= 10
-	}
-	buf[i] = byte(val + '0')
-	return string(buf[i:])
-}
-
 func postNote(pid int, note string) error {
-	f, err := os.OpenFile("/proc/"+itoa(pid)+"/note", os.O_WRONLY, 0)
+	f, err := os.OpenFile("/proc/"+itoa.Itoa(pid)+"/note", os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}

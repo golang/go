@@ -71,6 +71,11 @@ func (p *YCbCr) At(x, y int) color.Color {
 	return p.YCbCrAt(x, y)
 }
 
+func (p *YCbCr) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.YCbCrAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
+}
+
 func (p *YCbCr) YCbCrAt(x, y int) color.YCbCr {
 	if !(Point{x, y}.In(p.Rect)) {
 		return color.YCbCr{}
@@ -208,6 +213,11 @@ func (p *NYCbCrA) ColorModel() color.Model {
 
 func (p *NYCbCrA) At(x, y int) color.Color {
 	return p.NYCbCrAAt(x, y)
+}
+
+func (p *NYCbCrA) RGBA64At(x, y int) color.RGBA64 {
+	r, g, b, a := p.NYCbCrAAt(x, y).RGBA()
+	return color.RGBA64{uint16(r), uint16(g), uint16(b), uint16(a)}
 }
 
 func (p *NYCbCrA) NYCbCrAAt(x, y int) color.NYCbCrA {

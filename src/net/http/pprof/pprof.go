@@ -44,7 +44,7 @@
 // The package also exports a handler that serves execution trace data
 // for the "go tool trace" command. To collect a 5-second execution trace:
 //
-//	wget -O trace.out http://localhost:6060/debug/pprof/trace?seconds=5
+//	curl -o trace.out http://localhost:6060/debug/pprof/trace?seconds=5
 //	go tool trace trace.out
 //
 // To view all available profiles, open http://localhost:6060/debug/pprof/
@@ -287,7 +287,7 @@ func (name handler) serveDeltaProfile(w http.ResponseWriter, r *http.Request, p 
 		err := r.Context().Err()
 		if err == context.DeadlineExceeded {
 			serveError(w, http.StatusRequestTimeout, err.Error())
-		} else { // TODO: what's a good status code for cancelled requests? 400?
+		} else { // TODO: what's a good status code for canceled requests? 400?
 			serveError(w, http.StatusInternalServerError, err.Error())
 		}
 		return
@@ -431,7 +431,7 @@ Types of profiles available:
 
 	b.WriteString(`</table>
 <a href="goroutine?debug=2">full goroutine stack dump</a>
-<br/>
+<br>
 <p>
 Profile Descriptions:
 <ul>

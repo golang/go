@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -20,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,7 +44,7 @@ const (
 	// opensslSentinel on the connection.
 	opensslSendSentinel
 
-	// opensslKeyUpdate causes OpenSSL to send send a key update message to the
+	// opensslKeyUpdate causes OpenSSL to send a key update message to the
 	// client and request one back.
 	opensslKeyUpdate
 )
@@ -1222,6 +1224,56 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 	runClientTestTLS13(t, test)
 }
 
+func TestServerSelectingUnconfiguredApplicationProtocol(t *testing.T) {
+	// This checks that the server can't select an application protocol that the
+	// client didn't offer.
+
+	c, s := localPipe(t)
+	errChan := make(chan error, 1)
+
+	go func() {
+		client := Client(c, &Config{
+			ServerName:   "foo",
+			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			NextProtos:   []string{"http", "something-else"},
+		})
+		errChan <- client.Handshake()
+	}()
+
+	var header [5]byte
+	if _, err := io.ReadFull(s, header[:]); err != nil {
+		t.Fatal(err)
+	}
+	recordLen := int(header[3])<<8 | int(header[4])
+
+	record := make([]byte, recordLen)
+	if _, err := io.ReadFull(s, record); err != nil {
+		t.Fatal(err)
+	}
+
+	serverHello := &serverHelloMsg{
+		vers:         VersionTLS12,
+		random:       make([]byte, 32),
+		cipherSuite:  TLS_RSA_WITH_AES_128_GCM_SHA256,
+		alpnProtocol: "how-about-this",
+	}
+	serverHelloBytes := serverHello.marshal()
+
+	s.Write([]byte{
+		byte(recordTypeHandshake),
+		byte(VersionTLS12 >> 8),
+		byte(VersionTLS12 & 0xff),
+		byte(len(serverHelloBytes) >> 8),
+		byte(len(serverHelloBytes)),
+	})
+	s.Write(serverHelloBytes)
+	s.Close()
+
+	if err := <-errChan; !strings.Contains(err.Error(), "server selected unadvertised ALPN protocol") {
+		t.Fatalf("Expected error about unconfigured cipher suite but got %q", err)
+	}
+}
+
 // sctsBase64 contains data from `openssl s_client -serverinfo 18 -connect ritter.vg:443`
 const sctsBase64 = "ABIBaQFnAHUApLkJkLQYWBSHuxOizGdwCjw1mAT5G9+443fNDsgN3BAAAAFHl5nuFgAABAMARjBEAiAcS4JdlW5nW9sElUv2zvQyPoZ6ejKrGGB03gjaBZFMLwIgc1Qbbn+hsH0RvObzhS+XZhr3iuQQJY8S9G85D9KeGPAAdgBo9pj4H2SCvjqM7rkoHUz8cVFdZ5PURNEKZ6y7T0/7xAAAAUeX4bVwAAAEAwBHMEUCIDIhFDgG2HIuADBkGuLobU5a4dlCHoJLliWJ1SYT05z6AiEAjxIoZFFPRNWMGGIjskOTMwXzQ1Wh2e7NxXE1kd1J0QsAdgDuS723dc5guuFCaR+r4Z5mow9+X7By2IMAxHuJeqj9ywAAAUhcZIqHAAAEAwBHMEUCICmJ1rBT09LpkbzxtUC+Hi7nXLR0J+2PmwLp+sJMuqK+AiEAr0NkUnEVKVhAkccIFpYDqHOlZaBsuEhWWrYpg2RtKp0="
 
@@ -1528,7 +1580,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {
@@ -1569,7 +1621,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {
@@ -1619,7 +1671,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
 					}
 					if c.DidResume {
 						return nil
-						// The SCTs and OCSP Responce are dropped on resumption.
+						// The SCTs and OCSP Response are dropped on resumption.
 						// See http://golang.org/issue/39075.
 					}
 					if len(c.OCSPResponse) == 0 {
@@ -2509,5 +2561,37 @@ func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
 	if !reflect.DeepEqual(ccs.SignedCertificateTimestamps, serverConfig.Certificates[0].SignedCertificateTimestamps) {
 		t.Errorf("client ConnectionState contained unexpected SignedCertificateTimestamps after resumption: wanted %v, got %v",
 			serverConfig.Certificates[0].SignedCertificateTimestamps, ccs.SignedCertificateTimestamps)
+	}
+}
+
+// TestClientHandshakeContextCancellation tests that cancelling
+// the context given to the client side conn.HandshakeContext
+// interrupts the in-progress handshake.
+func TestClientHandshakeContextCancellation(t *testing.T) {
+	c, s := localPipe(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	unblockServer := make(chan struct{})
+	defer close(unblockServer)
+	go func() {
+		cancel()
+		<-unblockServer
+		_ = s.Close()
+	}()
+	cli := Client(c, testConfig)
+	// Initiates client side handshake, which will block until the client hello is read
+	// by the server, unless the cancellation works.
+	err := cli.HandshakeContext(ctx)
+	if err == nil {
+		t.Fatal("Client handshake did not error when the context was canceled")
+	}
+	if err != context.Canceled {
+		t.Errorf("Unexpected client handshake error: %v", err)
+	}
+	if runtime.GOARCH == "wasm" {
+		t.Skip("conn.Close does not error as expected when called multiple times on WASM")
+	}
+	err = cli.Close()
+	if err == nil {
+		t.Error("Client connection was not closed when the context was canceled")
 	}
 }
