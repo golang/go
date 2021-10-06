@@ -676,7 +676,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
-		// runtime.rodata, runtime.erodata and runtime.epclntab.
+		// the following symbols. They might not be referenced in the program.
 		addRef := func(name string) {
 			r, _ := moduledata.AddRel(objabi.R_XCOFFREF)
 			r.SetSym(ldr.Lookup(name, 0))
@@ -685,6 +685,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		addRef("runtime.rodata")
 		addRef("runtime.erodata")
 		addRef("runtime.epclntab")
+		// As we use relative addressing for text symbols in functab, it is
+		// important that the offsets we computed stay unchanged by the external
+		// linker, i.e. all symbols in Textp should not be removed.
+		// Most of them are actually referenced (our deadcode pass ensures that),
+		// except go.buildid which is generated late and not used by the program.
+		addRef("go.buildid")
 	}
 
 	// text section information
