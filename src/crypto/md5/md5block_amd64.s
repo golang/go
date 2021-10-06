@@ -44,12 +44,12 @@ loop:
 	ADDL	$const, a; \
 	ADDL	R8, a; \
 	ANDL	b, R9; \
-	XORL d, R9; \
-	MOVL (index*4)(SI), R8; \
-	ADDL R9, a; \
-	ROLL $shift, a; \
-	MOVL c, R9; \
-	ADDL b, a
+	XORL	d, R9; \
+	MOVL	(index*4)(SI), R8; \
+	ADDL	R9, a; \
+	ROLL	$shift, a; \
+	MOVL	c, R9; \
+	ADDL	b, a
 
 	ROUND1(AX,BX,CX,DX, 1,0xd76aa478, 7);
 	ROUND1(DX,AX,BX,CX, 2,0xe8c7b756,12);
@@ -75,13 +75,13 @@ loop:
 
 #define ROUND2(a, b, c, d, index, const, shift) \
 	XORL	R11, R9; \
-	ADDL	$const, a; \
-	ADDL	R8, a; \
+	ADDL	$const,	a; \
+	ADDL	R8,	a; \
 	ANDL	b,		R10; \
 	ANDL	c,		R9; \
 	MOVL	(index*4)(SI),R8; \
-    ADDL    R9,    a; \
-    ADDL    R10,   a; \
+	ADDL	R9,	a; \
+	ADDL	R10,	a; \
 	MOVL	c,		R9; \
 	MOVL	c,		R10; \
 	ROLL	$shift,	a; \
@@ -112,8 +112,8 @@ loop:
 	MOVL	d,		R9; \
 	XORL	c,		R9; \
 	XORL	b,		R9; \
-	ADDL	$const, a; \
-	ADDL	R8, a; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
 	MOVL	(index*4)(SI),R8; \
 	ADDL	R9,		a; \
 	ROLL	$shift,		a; \
@@ -122,8 +122,8 @@ loop:
 #define ROUND3(a, b, c, d, index, const, shift) \
 	XORL	a,		R9; \
 	XORL	b,		R9; \
-	ADDL	$const, a; \
-	ADDL	R8, a; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
 	MOVL	(index*4)(SI),R8; \
 	ADDL	R9,		a; \
 	ROLL	$shift,		a; \
@@ -150,9 +150,9 @@ loop:
 	XORL	DX,		R9
 
 #define ROUND4(a, b, c, d, index, const, shift) \
-	ADDL	$const, a; \
-	ADDL	R8, a; \
-	ORL	b,		R9; \
+	ADDL	$const,	a; \
+	ADDL	R8,		a; \
+	ORL		b,		R9; \
 	XORL	c,		R9; \
 	ADDL	R9,		a; \
 	MOVL	(index*4)(SI),R8; \
