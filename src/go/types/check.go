@@ -106,6 +106,7 @@ type Checker struct {
 	files        []*ast.File               // package files
 	imports      []*PkgName                // list of imported packages
 	dotImportMap map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+	rparamMap    map[*ast.Ident]*TypeParam // maps blank receiver type params to their type
 
 	firstErr error                 // first error encountered
 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
@@ -283,6 +284,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	check.dotImportMap = nil
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
+	check.rparamMap = nil
 
 	// TODO(rFindley) There's more memory we should release at this point.
 

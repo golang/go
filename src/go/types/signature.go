@@ -5,9 +5,7 @@
 package types
 
 import (
-	"fmt"
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -108,35 +106,29 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.scope = check.scope
 	defer check.closeScope()
 
-	var recvTyp ast.Expr // rewritten receiver type; valid if != nil
 	if recvPar != nil && len(recvPar.List) > 0 {
 		// collect generic receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			// Blank identifiers don't get declared and regular type-checking of the instantiated
-			// parameterized receiver type expression fails in Checker.collectParams of receiver.
-			// Identify blank type parameters and substitute each with a unique new identifier named
-			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
-			// name.
-			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "n_" identifiers
+			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
+			// Blank identifiers don't get declared, so naive type-checking of the
+			// receiver type expression would fail in Checker.collectParams below,
+			// when Checker.ident cannot resolve the _ to a type.
+			//
+			// Checker.rparamMap maps these blank identifiers to their type parameter
+			// types, so that they may be resolved in Checker.ident when they fail
+			// lookup in the scope.
 			for i, p := range rparams {
 				if p.Name == "_" {
-					new := *p
-					new.Name = fmt.Sprintf("%d_", i)
-					rparams[i] = &new // use n_ identifier instead of _ so it can be looked up
-					if smap == nil {
-						smap = make(map[*ast.Ident]*ast.Ident)
+					tpar := sig.rparams.At(i)
+					if check.rparamMap == nil {
+						check.rparamMap = make(map[*ast.Ident]*TypeParam)
 					}
-					smap[p] = &new
+					check.rparamMap[p] = tpar
 				}
 			}
-			if smap != nil {
-				// blank identifiers were found => use rewritten receiver type
-				recvTyp = isubst(recvPar.List[0].Type, smap)
-			}
-			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeParam
@@ -183,9 +175,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
-	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
-	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
+	recvList, _ := check.collectParams(scope, recvPar, false)
+	params, variadic := check.collectParams(scope, ftyp.Params, true)
+	results, _ := check.collectParams(scope, ftyp.Results, false)
 	scope.squash(func(obj, alt Object) {
 		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -267,8 +259,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the first type in list.
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
+// variable list.
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -276,9 +268,6 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	var named, anonymous bool
 	for i, field := range list.List {
 		ftype := field.Type
-		if i == 0 && type0 != nil {
-			ftype = type0
-		}
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
@@ -327,45 +316,4 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast
 	}
 
 	return
-}
-
-// isubst returns an x with identifiers substituted per the substitution map smap.
-// isubst only handles the case of (valid) method receiver type expressions correctly.
-func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
-	switch n := x.(type) {
-	case *ast.Ident:
-		if alt := smap[n]; alt != nil {
-			return alt
-		}
-	case *ast.StarExpr:
-		X := isubst(n.X, smap)
-		if X != n.X {
-			new := *n
-			new.X = X
-			return &new
-		}
-	case *ast.IndexExpr, *ast.IndexListExpr:
-		ix := typeparams.UnpackIndexExpr(x)
-		var newIndexes []ast.Expr
-		for i, index := range ix.Indices {
-			new := isubst(index, smap)
-			if new != index {
-				if newIndexes == nil {
-					newIndexes = make([]ast.Expr, len(ix.Indices))
-					copy(newIndexes, ix.Indices)
-				}
-				newIndexes[i] = new
-			}
-		}
-		if newIndexes != nil {
-			return typeparams.PackIndexExpr(ix.X, ix.Lbrack, newIndexes, ix.Rbrack)
-		}
-	case *ast.ParenExpr:
-		return isubst(n.X, smap) // no need to keep parentheses
-	default:
-		// Other receiver type expressions are invalid.
-		// It's fine to ignore those here as they will
-		// be checked elsewhere.
-	}
-	return x
 }
