@@ -245,7 +245,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 // Generates special mapping symbols that are required by ARM64 ELF standart.
 // https://github.com/ARM-software/abi-aa/blob/2020q4/aaelf64/aaelf64.rst#mapping-symbols
 func genElfMappingSymbols(ctxt *Link) {
-	if ctxt.Arch.Family != sys.ARM64 {
+	if ctxt.Arch.Family != sys.ARM64 || !ctxt.IsELF {
 		return
 	}
 	ldr := ctxt.loader
@@ -256,23 +256,20 @@ func genElfMappingSymbols(ctxt *Link) {
 		if poolOffsetsSym == 0 {
 			continue
 		}
-
 		relocs := ldr.Relocs(poolOffsetsSym)
-
 		for at := 0; at < relocs.Count(); at++ {
 			r := relocs.At(at)
-			addr := ldr.SymValue(r.Sym())
-
-			// check if a symbol is presented in a binary
-			if addr != 0 {
+			if ldr.AttrReachable(r.Sym()) {
+				addr := ldr.SymValue(r.Sym())
 				sym2pool[r.Sym()] = addr + r.Add()
 			}
 		}
 	}
 
 	// There are 2 symbols designed to mark inline transitions between code and data:
-	// $d in the beginning of a sequence of data
-	// $x in the beginning of a sequence of ARM64 instructions
+	// $d in the beginning of a sequence of data.
+	// $x in the beginning of a sequence of ARM64 instructions.
+	// Mapping symbols have type STT_NOTYPE and binding STB_LOCAL, the st_size field is unused and must be zero.
 	datasymb := putelfstr("$d")
 	codesymb := putelfstr("$x")
 
@@ -290,7 +287,6 @@ func genElfMappingSymbols(ctxt *Link) {
 				if ctxt.LinkMode == LinkExternal && elfshnum != elf.SHN_UNDEF {
 					addr -= int64(sect.Vaddr)
 				}
-				// all mapping symbols have type STT_NOTYPE and binding STB_LOCAL. The st_size field is unused and must be zero.
 				putelfsyment(ctxt.Out, codesymb, addr, 0, elf.ST_INFO(elf.STB_LOCAL, elf.STT_NOTYPE), elfshnum, 0)
 				ctxt.numelfsym++
 				needcodesymb = false
@@ -299,7 +295,6 @@ func genElfMappingSymbols(ctxt *Link) {
 				if ctxt.LinkMode == LinkExternal && elfshnum != elf.SHN_UNDEF {
 					pool -= int64(sect.Vaddr)
 				}
-				// place data symbols where pool addresses are presented.
 				putelfsyment(ctxt.Out, datasymb, pool, 0, elf.ST_INFO(elf.STB_LOCAL, elf.STT_NOTYPE), elfshnum, 0)
 				needcodesymb = true
 				ctxt.numelfsym++
@@ -308,6 +303,7 @@ func genElfMappingSymbols(ctxt *Link) {
 	}
 }
 
+// getSymInfo returns generic information about symbol size and position that's needed inside putelfsym and genElfMappingSymbols.
 func getSymInfo(ctxt *Link, x loader.Sym) (addr int64, sz int64, sect *sym.Section, elfshnum elf.SectionIndex, ok bool) {
 	ldr := ctxt.loader
 	addr = ldr.SymValue(x)

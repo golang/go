@@ -267,24 +267,23 @@ func addGCLocals() {
 }
 
 // addLiteralPoolOffsets creates a special symbol "_literalPoolOffsets" which
-// does not have a type so it does not appear in an executable. Instead it's used by
-// the linker to recreate information about function literal pool offsets so it's
-// able to insert special mapping symbols "$x" and "$d" both required by ARM64 ELF standard.
+// has no content (only relocations), no other symbols refer to it so it will be
+// marked dead by the deadcode phase. Instead it's used by the linker to recreate
+// information about function literal pool offsets so it's able to insert special
+// mapping symbols "$x" and "$d" both required by ARM64 ELF standard.
 //
 // https://github.com/ARM-software/abi-aa/blob/2020q4/aaelf64/aaelf64.rst#mapping-symbols
 func addLiteralPoolOffsets() {
 	if base.Ctxt.Arch.Family != sys.ARM64 {
 		return
 	}
-
-	poolOffsets := base.Ctxt.Lookup(base.Ctxt.Pkgpath + "._literalPoolOffsets")
-	poolOffsets.Set(obj.AttrDuplicateOK, true)
-
-	base.Ctxt.Data = append(base.Ctxt.Data, poolOffsets)
-
-	// This symbol does not have content and it consists only of relocations
+	var poolOffsets *obj.LSym
 	for _, s := range base.Ctxt.Text {
 		if s.Func().LiteralPoolOffset != 0 {
+			if poolOffsets == nil {
+				poolOffsets = base.Ctxt.Lookup(base.Ctxt.Pkgpath + "._literalPoolOffsets")
+				base.Ctxt.Data = append(base.Ctxt.Data, poolOffsets)
+			}
 			// Not a real relocation is created here. We just need to know
 			// a symbol which contains a literal pool and an offset for it,
 			// then a real pool location is calculated as value + add on the linker stage.
