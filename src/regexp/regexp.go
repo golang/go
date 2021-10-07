@@ -20,6 +20,8 @@
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
+// Following utf8.DecodeRune, each byte of an invalid UTF-8 sequence
+// is treated as if it encoded utf8.RuneError (U+FFFD).
 //
 // There are 16 methods of Regexp that match a regular expression and identify
 // the matched text. Their names are matched by this regular expression:
@@ -276,7 +278,11 @@ func minInputLen(re *syntax.Regexp) int {
 	case syntax.OpLiteral:
 		l := 0
 		for _, r := range re.Rune {
-			l += utf8.RuneLen(r)
+			if r == utf8.RuneError {
+				l++
+			} else {
+				l += utf8.RuneLen(r)
+			}
 		}
 		return l
 	case syntax.OpCapture, syntax.OpPlus:
