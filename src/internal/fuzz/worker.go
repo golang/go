@@ -1029,7 +1029,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 		entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
 		h := sha256.Sum256(entryOut.Data)
 		name := fmt.Sprintf("%x", h[:4])
-		entryOut.Name = name
+		entryOut.Path = name
 		entryOut.Parent = entryIn.Parent
 		entryOut.Generation = entryIn.Generation
 		if err != nil {
@@ -1092,8 +1092,8 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 		h := sha256.Sum256(dataOut)
 		name := fmt.Sprintf("%x", h[:4])
 		entryOut = CorpusEntry{
-			Name:       name,
-			Parent:     entryIn.Name,
+			Parent:     entryIn.Path,
+			Path:       name,
 			Data:       dataOut,
 			Generation: entryIn.Generation + 1,
 		}
