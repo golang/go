@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"mime"
+	"net"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -84,8 +85,15 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 	if url.Host == "localhost.localdev" {
 		return nil, fmt.Errorf("no such host localhost.localdev")
 	}
-	if os.Getenv("TESTGONETWORK") == "panic" && !strings.HasPrefix(url.Host, "127.0.0.1") && !strings.HasPrefix(url.Host, "0.0.0.0") {
-		panic("use of network: " + url.String())
+	if os.Getenv("TESTGONETWORK") == "panic" {
+		host := url.Host
+		if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
+			host = h
+		}
+		addr := net.ParseIP(host)
+		if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
+			panic("use of network: " + url.String())
+		}
 	}
 
 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
