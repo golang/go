@@ -631,9 +631,11 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 		if thisSect := ldr.SymSect(s); thisSect != prevSect {
 			// With multiple text sections, there may be a hole here in the
 			// address space. We use an invalid funcoff value to mark the hole.
+			// Use the end PC - 1 to distinguish the end of a section vs. the
+			// start of the next.
 			// See also runtime/symtab.go:findfunc
 			prevFuncSize := uint32(ldr.SymSize(prevFunc))
-			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize)
+			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize-1)
 			sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), ^uint32(0))
 			funcIndex++
 			prevSect = thisSect
