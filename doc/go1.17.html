@@ -14,13 +14,13 @@ Do not send CLs removing the interior tags from such phrases.
   main ul li { margin: 0.5em 0; }
 </style>
 
-<h2 id="introduction">DRAFT RELEASE NOTES — Introduction to Go 1.17</h2>
+<h2 id="introduction">Introduction to Go 1.17</h2>
 
 <p>
-  <strong>
-    Go 1.17 is not yet released. These are work-in-progress
-    release notes. Go 1.17 is expected to be released in August 2021.
-  </strong>
+  The latest Go release, version 1.17, arrives six months after <a href="/doc/go1.16">Go 1.16</a>.
+  Most of its changes are in the implementation of the toolchain, runtime, and libraries.
+  As always, the release maintains the Go 1 <a href="/doc/go1compat">promise of compatibility</a>.
+  We expect almost all Go programs to continue to compile and run as before.
 </p>
 
 <h2 id="language">Changes to the language</h2>
@@ -134,35 +134,54 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<h4 id="lazy-loading">Lazy module loading</h4>
+<a id="lazy-loading"><!-- for existing links only --></a>
+<h4 id="graph-pruning">Pruned module graphs in <code>go 1.17</code> modules</h4>
 
 <p><!-- golang.org/issue/36460 -->
+  If a module specifies <code>go</code> <code>1.17</code> or higher, the module
+  graph includes only the <em>immediate</em> dependencies of
+  other <code>go</code> <code>1.17</code> modules, not their full transitive
+  dependencies. (See <a href="/ref/mod#graph-pruning">Module graph pruning</a>
+  for more detail.)
+</p>
+
+<p>
+  For the <code>go</code> command to correctly resolve transitive imports using
+  the pruned module graph, the <code>go.mod</code> file for each module needs to
+  include more detail about the transitive dependencies relevant to that module.
   If a module specifies <code>go</code> <code>1.17</code> or higher in its
-  <code>go.mod</code> file, its transitive requirements are now loaded lazily,
-  avoiding the need to download or read <code>go.mod</code> files for
-  otherwise-irrelevant dependencies. To support lazy loading, in Go 1.17 modules
-  the <code>go</code> command maintains <em>explicit</em> requirements in
-  the <code>go.mod</code> file for every dependency that provides any package
-  transitively imported by any package or test within the module.
-  See <a href="https://golang.org/design/36460-lazy-module-loading">the design
-  document</a> for more detail.
-  <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
+  <code>go.mod</code> file, its <code>go.mod</code> file now contains an
+  explicit <a href="/ref/mod#go-mod-file-require"><code>require</code>
+  directive</a> for every module that provides a transitively-imported package.
+  (In previous versions, the <code>go.mod</code> file typically only included
+  explicit requirements for <em>directly</em>-imported packages.)
+<p>
+
+<p>
+  Since the expanded <code>go.mod</code> file needed for module graph pruning
+  includes all of the dependencies needed to load the imports of any package in
+  the main module, if the main module specifies
+  <code>go</code> <code>1.17</code> or higher the <code>go</code> tool no longer
+  reads (or even downloads) <code>go.mod</code> files for dependencies if they
+  are not needed in order to complete the requested command.
+  (See <a href="/ref/mod#lazy-loading">Lazy loading</a>.)
 </p>
 
 <p><!-- golang.org/issue/45965 -->
-  Because the number of additional explicit requirements in the go.mod file may
-  be substantial, in a Go 1.17 module the newly-added requirements
-  on <em>indirect</em> dependencies are maintained in a
-  separate <code>require</code> block from the block containing direct
-  dependencies.
+  Because the number of explicit requirements may be substantially larger in an
+  expanded Go 1.17 <code>go.mod</code> file, the newly-added requirements
+  on <em>indirect</em> dependencies in a <code>go</code> <code>1.17</code>
+  module are maintained in a separate <code>require</code> block from the block
+  containing direct dependencies.
 </p>
 
 <p><!-- golang.org/issue/45094 -->
-  To facilitate the upgrade to lazy loading, the
-  <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
-  a <code>-go</code> flag to set or change the <code>go</code> version in
-  the <code>go.mod</code> file. To enable lazy loading for an existing module
-  without changing the selected versions of its dependencies, run:
+  To facilitate the upgrade to Go 1.17 pruned module graphs, the
+  <a href="/ref/mod#go-mod-tidy"><code>go</code> <code>mod</code> <code>tidy</code></a>
+  subcommand now supports a <code>-go</code> flag to set or change
+  the <code>go</code> version in the <code>go.mod</code> file. To convert
+  the <code>go.mod</code> file for an existing module to Go 1.17 without
+  changing the selected versions of its dependencies, run:
 </p>
 
 <pre>
@@ -199,10 +218,10 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- golang.org/issue/46366 -->
-  The <code>go</code> <code>mod</code> <code>graph</code> subcommand also
-  supports the <code>-go</code> flag, which causes it to report the graph as
-  seen by the indicated Go version, showing dependencies that may otherwise be
-  pruned out by lazy loading.
+  The <a href="/ref/mod#go-mod-graph"><code>go</code> <code>mod</code> <code>graph</code></a>
+  subcommand also supports the <code>-go</code> flag, which causes it to report
+  the graph as seen by the indicated Go version, showing dependencies that may
+  otherwise be pruned out.
 </p>
 
 <h4 id="module-deprecation-comments">Module deprecation comments</h4>
@@ -270,7 +289,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- golang.org/issue/36876 -->
   If the main module specifies <code>go</code> <code>1.17</code> or higher,
-  <code>go</code> <code>mod</code> <code>vendor</code> now annotates
+  <a href="/ref/mod#go-mod-vendor"><code>go</code> <code>mod</code> <code>vendor</code></a>
+  now annotates
   <code>vendor/modules.txt</code> with the <code>go</code> version indicated by
   each vendored module in its own <code>go.mod</code> file. The annotated
   version is used when building the module's packages from vendored source code.
@@ -466,6 +486,15 @@ func Foo() bool {
   could reveal bugs in code that uses <code>reflect</code>
   or <code>unsafe.Pointer</code> to bypass this language restriction
   and compare functions by code pointer.
+</p>
+
+<h3 id="link">Linker</h3>
+
+<p><!-- CL 310349 -->
+  When the linker uses external linking mode, which is the default
+  when linking a program that uses cgo, and the linker is invoked
+  with a <code>-I</code> option, the option will now be passed to the
+  external linker as a <code>-Wl,--dynamic-linker</code> option.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -724,9 +753,9 @@ func Foo() bool {
 
     <p><!-- CL 311572 -->
       The new
-      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a> 
-      and 
-      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a> 
+      <a href="/pkg/database/sql/#NullInt16"><code>NullInt16</code></a>
+      and
+      <a href="/pkg/database/sql/#NullByte"><code>NullByte</code></a>
       structs represent the int16 and byte values that may be null. These can be used as
       destinations of the <a href="/pkg/database/sql/#Scan"><code>Scan</code></a> method,
       similar to NullString.
@@ -1176,11 +1205,11 @@ func Foo() bool {
 
     <p><!-- CL 300996 -->
       The package now accepts comma "," as a separator for fractional seconds when parsing and formatting time.
-      The following time formats are now accepted:
+      For example, the following time layouts are now accepted:
       <ul>
-        <li>2006-01-02 14:06:03,999999999 -0700 MST</li>
-        <li>Mon Jan _2 14:06:03,120007 2006</li>
-        <li>Mon Jan 2 14:06:03,120007 2006</li>
+        <li>2006-01-02 15:04:05,999999999 -0700 MST</li>
+        <li>Mon Jan _2 15:04:05,000000 2006</li>
+        <li>Monday, January 2 15:04:05,000 2006</li>
       </ul>
     </p>
 

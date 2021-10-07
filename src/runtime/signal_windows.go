@@ -183,6 +183,17 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 		return _EXCEPTION_CONTINUE_SEARCH
 	}
 
+	// VEH is called before SEH, but arm64 MSVC DLLs use SEH to trap
+	// illegal instructions during runtime initialization to determine
+	// CPU features, so if we make it to the last handler and we're
+	// arm64 and it's an illegal instruction and this is coming from
+	// non-Go code, then assume it's this runtime probing happen, and
+	// pass that onward to SEH.
+	if GOARCH == "arm64" && info.exceptioncode == _EXCEPTION_ILLEGAL_INSTRUCTION &&
+		(r.ip() < firstmoduledata.text || firstmoduledata.etext < r.ip()) {
+		return _EXCEPTION_CONTINUE_SEARCH
+	}
+
 	winthrow(info, r, gp)
 	return 0 // not reached
 }

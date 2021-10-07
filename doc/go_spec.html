@@ -4329,6 +4329,7 @@ a <a href="#Run_time_panics">run-time panic</a> occurs.
 <pre>
 s := make([]byte, 2, 4)
 s0 := (*[0]byte)(s)      // s0 != nil
+s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
 s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
 s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 

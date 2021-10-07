@@ -449,13 +449,22 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
 	}
 
 	setDefaultBuildMod() // possibly enable automatic vendoring
-	rs = requirementsFromModFile(ctx)
-
+	rs = requirementsFromModFile()
 	if cfg.BuildMod == "vendor" {
 		readVendorList()
 		checkVendorConsistency()
 		rs.initVendor(vendorList)
 	}
+	if rs.hasRedundantRoot() {
+		// If any module path appears more than once in the roots, we know that the
+		// go.mod file needs to be updated even though we have not yet loaded any
+		// transitive dependencies.
+		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+		if err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
+
 	if index.goVersionV == "" {
 		// TODO(#45551): Do something more principled instead of checking
 		// cfg.CmdName directly here.
@@ -530,7 +539,12 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %v", err)
 	}
 
-	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFile(ctx))
+	rs := requirementsFromModFile()
+	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	commitRequirements(ctx, modFileGoVersion(), rs)
 
 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
 	// imported all the correct requirements above, we're probably missing
@@ -641,9 +655,8 @@ func initTarget(m module.Version) {
 
 // requirementsFromModFile returns the set of non-excluded requirements from
 // the global modFile.
-func requirementsFromModFile(ctx context.Context) *Requirements {
+func requirementsFromModFile() *Requirements {
 	roots := make([]module.Version, 0, len(modFile.Require))
-	mPathCount := map[string]int{Target.Path: 1}
 	direct := map[string]bool{}
 	for _, r := range modFile.Require {
 		if index != nil && index.exclude[r.Mod] {
@@ -656,28 +669,12 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
 		}
 
 		roots = append(roots, r.Mod)
-		mPathCount[r.Mod.Path]++
 		if !r.Indirect {
 			direct[r.Mod.Path] = true
 		}
 	}
 	module.Sort(roots)
 	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
-
-	// If any module path appears more than once in the roots, we know that the
-	// go.mod file needs to be updated even though we have not yet loaded any
-	// transitive dependencies.
-	for _, n := range mPathCount {
-		if n > 1 {
-			var err error
-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
-			if err != nil {
-				base.Fatalf("go: %v", err)
-			}
-			break
-		}
-	}
-
 	return rs
 }
 

@@ -832,3 +832,23 @@ func TestQuote(t *testing.T) {
 	}
 
 }
+
+// Issue 48037
+func TestFormatFractionalSecondSeparators(t *testing.T) {
+	tests := []struct {
+		s, want string
+	}{
+		{`15:04:05.000`, `21:00:57.012`},
+		{`15:04:05.999`, `21:00:57.012`},
+		{`15:04:05,000`, `21:00:57,012`},
+		{`15:04:05,999`, `21:00:57,012`},
+	}
+
+	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2009
+	time := Unix(0, 1233810057012345600)
+	for _, tt := range tests {
+		if q := time.Format(tt.s); q != tt.want {
+			t.Errorf("Format(%q) = got %q, want %q", tt.s, q, tt.want)
+		}
+	}
+}

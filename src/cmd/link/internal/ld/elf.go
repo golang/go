@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -1749,7 +1750,7 @@ func asmbElf(ctxt *Link) {
 		sh.Flags = uint64(elf.SHF_ALLOC)
 		sh.Addralign = 1
 
-		if interpreter == "" && buildcfg.GO_LDSO != "" {
+		if interpreter == "" && buildcfg.GOOS == runtime.GOOS && buildcfg.GOARCH == runtime.GOARCH && buildcfg.GO_LDSO != "" {
 			interpreter = buildcfg.GO_LDSO
 		}
 
