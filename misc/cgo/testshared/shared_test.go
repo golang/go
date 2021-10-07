@@ -1033,7 +1033,7 @@ func TestGlobal(t *testing.T) {
 // Run a test using -linkshared of an installed shared package.
 // Issue 26400.
 func TestTestInstalledShared(t *testing.T) {
-	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
+	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
 }
 
 // Test generated pointer method with -linkshared.
@@ -1045,8 +1045,8 @@ func TestGeneratedMethod(t *testing.T) {
 // Test use of shared library struct with generated hash function.
 // Issue 30768.
 func TestGeneratedHash(t *testing.T) {
-	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
-	goCmd(nil, "test", "-linkshared", "./issue30768")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+	goCmd(t, "test", "-linkshared", "./issue30768")
 }
 
 // Test that packages can be added not in dependency order (here a depends on b, and a adds
