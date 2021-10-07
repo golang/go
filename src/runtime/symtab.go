@@ -623,9 +623,7 @@ func moduledataverify1(datap *moduledata) {
 	}
 
 	min := datap.textAddr(datap.ftab[0].entryoff)
-	// The max PC is outside of the text section.
-	// Subtract 1 to get a PC inside the text section, look it up, then add 1 back in.
-	max := datap.textAddr(datap.ftab[nftab].entryoff-1) + 1
+	max := datap.textAddr(datap.ftab[nftab].entryoff)
 	if datap.minpc != min || datap.maxpc != max {
 		println("minpc=", hex(datap.minpc), "min=", hex(min), "maxpc=", hex(datap.maxpc), "max=", hex(max))
 		throw("minpc or maxpc invalid")
@@ -660,9 +658,10 @@ func (md *moduledata) textAddr(off32 uint32) uintptr {
 	off := uintptr(off32)
 	res := md.text + off
 	if len(md.textsectmap) > 1 {
-		for i := range md.textsectmap {
-			if off >= md.textsectmap[i].vaddr && off < md.textsectmap[i].end {
-				res = md.textsectmap[i].baseaddr + off - md.textsectmap[i].vaddr
+		for i, sect := range md.textsectmap {
+			// For the last section, include the end address (etext), as it is included in the functab.
+			if off >= sect.vaddr && off < sect.end || (i == len(md.textsectmap)-1 && off == sect.end) {
+				res = sect.baseaddr + off - sect.vaddr
 				break
 			}
 		}
