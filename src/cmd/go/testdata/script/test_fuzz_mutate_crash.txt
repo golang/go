@@ -21,7 +21,7 @@ go run check_testdata.go FuzzWithBug
 # Now, the failing bytes should have been added to the seed corpus for
 # the target, and should fail when run without fuzzing.
 ! go test
-stdout 'testdata[/\\]fuzz[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
+stdout 'FuzzWithBug/[a-f0-9]{64}'
 stdout 'this input caused a crash!'
 
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x

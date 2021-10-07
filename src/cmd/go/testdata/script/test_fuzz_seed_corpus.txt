@@ -26,6 +26,7 @@ stdout ok
 ! go test -fuzz=FuzzWithTestdata -run=FuzzWithTestdata -fuzztime=1x
 ! stdout ^ok
 ! stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+stdout 'found a crash while testing seed corpus entry: FuzzWithTestdata/1'
 stdout FAIL
 
 # Test that fuzzing a target with no seed corpus or cache finds a crash, prints

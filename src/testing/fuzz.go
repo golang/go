@@ -80,7 +80,7 @@ var _ TB = (*F)(nil)
 // import internal/fuzz from testing.
 type corpusEntry = struct {
 	Parent     string
-	Name       string
+	Path       string
 	Data       []byte
 	Values     []interface{}
 	Generation int
@@ -259,7 +259,7 @@ func (f *F) Add(args ...interface{}) {
 		}
 		values = append(values, args[i])
 	}
-	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Name: fmt.Sprintf("seed#%d", len(f.corpus))})
+	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Path: fmt.Sprintf("seed#%d", len(f.corpus))})
 }
 
 // supportedTypes represents all of the supported types which can be fuzzed.
@@ -369,16 +369,16 @@ func (f *F) Fuzz(ff interface{}) {
 	// fn is called in its own goroutine.
 	run := func(e corpusEntry) error {
 		if e.Values == nil {
-			// Every code path should have already unmarshaled Data into Values.
-			// It's our fault if it didn't.
-			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Name))
+			// The corpusEntry must have non-nil Values in order to run the
+			// test. If Values is nil, it is a bug in our code.
+			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Path))
 		}
 		if shouldFailFast() {
 			return nil
 		}
-		testName := f.common.name
-		if e.Name != "" {
-			testName = fmt.Sprintf("%s/%s", testName, e.Name)
+		testName := f.name
+		if e.Path != "" {
+			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
 		}
 
 		// Record the stack trace at the point of this call so that if the subtest
@@ -448,9 +448,10 @@ func (f *F) Fuzz(ff interface{}) {
 			f.Fail()
 			fmt.Fprintf(f.w, "%v\n", err)
 			if crashErr, ok := err.(fuzzCrashError); ok {
-				crashName := crashErr.CrashName()
-				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join(corpusDir, f.name, crashName))
-				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.deps.ImportPath(), f.name, crashName)
+				crashPath := crashErr.CrashPath()
+				fmt.Fprintf(f.w, "Crash written to %s\n", crashPath)
+				testName := filepath.Base(crashPath)
+				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.deps.ImportPath(), f.name, testName)
 			}
 		}
 		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
@@ -470,7 +471,10 @@ func (f *F) Fuzz(ff interface{}) {
 		// Fuzzing is not enabled, or will be done later. Only run the seed
 		// corpus now.
 		for _, e := range f.corpus {
-			run(e)
+			name := fmt.Sprintf("%s/%s", f.name, filepath.Base(e.Path))
+			if _, ok, _ := f.testContext.match.fullName(nil, name); ok {
+				run(e)
+			}
 		}
 	}
 }
@@ -516,11 +520,11 @@ type fuzzCrashError interface {
 	error
 	Unwrap() error
 
-	// CrashName returns the name of the subtest that corresponds to the saved
-	// crash input file in the seed corpus. The test can be re-run with
-	// go test $pkg -run=$target/$name where $pkg is the package's import path,
-	// $target is the fuzz target name, and $name is the string returned here.
-	CrashName() string
+	// CrashPath returns the path of the subtest that corresponds to the saved
+	// crash input file in the seed corpus. The test can be re-run with go test
+	// -run=$target/$name $target is the fuzz target name, and $name is the
+	// filepath.Base of the string returned here.
+	CrashPath() string
 }
 
 // fuzzContext holds fields common to all fuzz targets.
