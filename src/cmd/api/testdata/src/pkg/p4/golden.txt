@@ -1,0 +1,4 @@
+pkg p4, func NewPair[T1 interface{ M }, T2 interface{ ~int }](T1, T2) Pair
+pkg p4, method (Pair[_, X2]) Second() X2
+pkg p4, method (Pair[X1, _]) First() X1
+pkg p4, type Pair[T1 interface{ M }, T2 interface{ ~int }] struct
