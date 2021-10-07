@@ -6,27 +6,44 @@ package embed_test
 
 import (
 	"embed"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"time"
 )
 
-//└── static
-//    ├── apple.png
-//    ├── banana.png
-//    └── cake.png
-//go:embed static/*.png
-var images embed.FS
+//go:embed internal/embedtest/testdata/*.txt
+var content embed.FS
 
 func Example() {
-	mux := http.NewServeMux()
-	mux.Handle("/static/", http.FileServer(http.FS(images)))
-	err := http.ListenAndServe(":8080", mux)
+	addr := "127.0.0.1:8080"
+
+	go func() {
+		mutex := http.NewServeMux()
+		mutex.Handle("/", http.FileServer(http.FS(content)))
+		err := http.ListenAndServe(addr, mutex)
+		if err != nil {
+			log.Fatalf("http server start failed: %v", err)
+		}
+	}()
+
+	time.Sleep(time.Second)
+
+	url := fmt.Sprintf("http://%s/internal/embedtest/testdata/hello.txt", addr)
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("http client request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("read response body failed: %v", err)
 	}
 
-	// curl localhost:8080/static/apple.png --output apple.png
-	// curl localhost:8080/static/banana.png --output banana.png
-	// curl localhost:8080/static/cake.png --output cake.png
+	fmt.Printf("%s", body)
+
 	// Output:
+	// hello, world
 }
