@@ -148,7 +148,7 @@ func (p *ProcessState) SystemTime() time.Duration {
 	return p.systemTime()
 }
 
-// Exited reports whether the program has exited.
+// Exited reports whether the program has exited. (Note that if the program has been forcefully killed, Exited will return `false`)
 func (p *ProcessState) Exited() bool {
 	return p.exited()
 }
