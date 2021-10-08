@@ -76,7 +76,7 @@ stdout FAIL
 
 ! go test -fuzz=FuzzMinimizerTooSlow -run=FuzzMinimizerTooSlow -fuzzminimizetime=3s minimizer_test.go
 stdout 'fuzz: minimizing'
-stdout 'fuzz: elapsed: 3s, minimizing'
+stdout 'fuzz: elapsed: \d+s, minimizing'
 stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerTooSlow[/\\]'
 stdout FAIL
 
