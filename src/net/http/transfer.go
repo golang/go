@@ -1030,7 +1030,7 @@ func (b *body) registerOnHitEOF(fn func()) {
 	b.onHitEOF = fn
 }
 
-// bodyLocked is a io.Reader reading from a *body when its mutex is
+// bodyLocked is an io.Reader reading from a *body when its mutex is
 // already held.
 type bodyLocked struct {
 	b *body

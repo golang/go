@@ -6557,7 +6557,7 @@ func TestDisableKeepAliveUpgrade(t *testing.T) {
 
 	rwc, ok := resp.Body.(io.ReadWriteCloser)
 	if !ok {
-		t.Fatalf("Response.Body is not a io.ReadWriteCloser: %T", resp.Body)
+		t.Fatalf("Response.Body is not an io.ReadWriteCloser: %T", resp.Body)
 	}
 
 	_, err = rwc.Write([]byte("hello"))
