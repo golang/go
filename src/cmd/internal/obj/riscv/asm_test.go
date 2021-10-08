@@ -134,9 +134,6 @@ TEXT _stub(SB),$0-0
 }
 
 func TestBranch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping in short mode")
-	}
 	if runtime.GOARCH != "riscv64" {
 		t.Skip("Requires riscv64 to run")
 	}
