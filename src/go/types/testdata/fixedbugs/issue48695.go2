@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This issue is still open.
-
 package p
 
-func f[P interface{*Q}, Q any](p P, q Q) {
-	// _ = f[P]
-        // _ = f[/* ERROR cannot infer P */ *P]
+func g[P interface{~func(T) P}, T any](P) {}
+
+func _() {
+	type F func(int) F
+	var f F
+	g(f)
+	_ = g[F]
 }
