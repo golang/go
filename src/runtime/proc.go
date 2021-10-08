@@ -249,6 +249,7 @@ func main() {
 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 	if raceenabled {
+		runExitHooks(0) // run hooks now, since racefini does not return
 		racefini()
 	}
 
@@ -268,6 +269,7 @@ func main() {
 	if panicking.Load() != 0 {
 		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
 	}
+	runExitHooks(0)
 
 	exit(0)
 	for {
@@ -279,8 +281,9 @@ func main() {
 // os_beforeExit is called from os.Exit(0).
 //
 //go:linkname os_beforeExit os.runtime_beforeExit
-func os_beforeExit() {
-	if raceenabled {
+func os_beforeExit(exitCode int) {
+	runExitHooks(exitCode)
+	if exitCode == 0 && raceenabled {
 		racefini()
 	}
 }
