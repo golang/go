@@ -674,6 +674,27 @@ func TestAddDate(t *testing.T) {
 	}
 }
 
+var addDateXTests = []struct {
+	years, months, days int
+}{
+	{4, 6, 0},
+	{3, 18, 0},
+	{5, -6, 0},
+}
+
+func TestAddDateX(t *testing.T) {
+	t0 := Date(2021, 10, 31, 16, 8, 8, 0, UTC)
+	t1 := Date(2026, 4, 30, 16, 8, 8, 0, UTC)
+	for _, at := range addDateXTests {
+		time := t0.AddDateX(at.years, at.months, at.days)
+		if !time.Equal(t1) {
+			t.Errorf("AddDateX(%d, %d, %d) = %v, want %v",
+				at.years, at.months, at.days,
+				time, t1)
+		}
+	}
+}
+
 var daysInTests = []struct {
 	year, month, di int
 }{

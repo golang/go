@@ -909,6 +909,37 @@ func (t Time) AddDate(years int, months int, days int) Time {
 	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec()), t.Location())
 }
 
+// AddDateX returns the time more attention to months then AddDate.
+// For example, AddDateX(0, 1, 0) applied to 2021-08-31
+// will returns 2021-09-30.
+// Because in most cases, the expectation is the change of months,
+// so, process day after process year and month
+//
+// AddDateX if you want to normalizes the result like AddDate,
+// You can set the optional param normalizes equal to true,
+// It will be the same as the result of the function AddDate.
+func (t Time) AddDateX(years int, months int, days int, normalizes ...bool) Time {
+	year, month, day := t.Date()
+	hour, min, sec := t.Clock()
+
+	if len(normalizes) > 0 && normalizes[0] == true {
+		return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec()), t.Location())
+	}
+
+	// Normalize month, overflowing into year.
+	m := int(month+Month(months)) - 1
+	year, m = norm(year+years, m, 12)
+	month = Month(m) + 1
+
+	if lDay := daysIn(month, year); day > lDay {
+		// If the desired month does not have this day,
+		// temporarily set the day as the maximum day of the desired month,
+		// and then process the param days.
+		day = lDay
+	}
+	return Date(year, month, day+days, hour, min, sec, int(t.nsec()), t.Location())
+}
+
 const (
 	secondsPerMinute = 60
 	secondsPerHour   = 60 * secondsPerMinute
