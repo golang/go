@@ -72,7 +72,6 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 
 	// Gather some basic stats and info.
 	seenCUs := make(map[*sym.CompilationUnit]struct{})
-	prevSect := ldr.SymSect(ctxt.Textp[0])
 	compUnits := []*sym.CompilationUnit{}
 	funcs := []loader.Sym{}
 
@@ -86,16 +85,6 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
 			state.firstFunc = s
 		}
 		state.lastFunc = s
-		ss := ldr.SymSect(s)
-		if ss != prevSect {
-			// With multiple text sections, the external linker may
-			// insert functions between the sections, which are not
-			// known by Go. This leaves holes in the PC range covered
-			// by the func table. We need to generate an entry to mark
-			// the hole.
-			state.nfunc++
-			prevSect = ss
-		}
 
 		// We need to keep track of all compilation units we see. Some symbols
 		// (eg, go.buildid, _cgoexp_, etc) won't have a compilation unit.
@@ -624,30 +613,14 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 		}
 		return uint32(off)
 	}
-	var prevFunc loader.Sym
-	prevSect := ldr.SymSect(funcs[0])
-	funcIndex := 0
 	for i, s := range funcs {
-		if thisSect := ldr.SymSect(s); thisSect != prevSect {
-			// With multiple text sections, there may be a hole here in the
-			// address space. We use an invalid funcoff value to mark the hole.
-			// Use the end PC - 1 to distinguish the end of a section vs. the
-			// start of the next.
-			// See also runtime/symtab.go:findfunc
-			prevFuncSize := uint32(ldr.SymSize(prevFunc))
-			sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(prevFunc)+prevFuncSize-1)
-			sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), ^uint32(0))
-			funcIndex++
-			prevSect = thisSect
-		}
-		prevFunc = s
-		sb.SetUint32(ctxt.Arch, int64(funcIndex*2*4), pcOff(s))
-		sb.SetUint32(ctxt.Arch, int64((funcIndex*2+1)*4), startLocations[i])
-		funcIndex++
+		sb.SetUint32(ctxt.Arch, int64(i*2*4), pcOff(s))
+		sb.SetUint32(ctxt.Arch, int64((i*2+1)*4), startLocations[i])
 	}
 
 	// Final entry of table is just end pc offset.
-	sb.SetUint32(ctxt.Arch, int64(funcIndex)*2*4, pcOff(prevFunc)+uint32(ldr.SymSize(prevFunc)))
+	lastFunc := funcs[len(funcs)-1]
+	sb.SetUint32(ctxt.Arch, int64(len(funcs))*2*4, pcOff(lastFunc)+uint32(ldr.SymSize(lastFunc)))
 }
 
 // writeFuncs writes the func structures and pcdata to runtime.functab.
