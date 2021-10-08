@@ -998,8 +998,6 @@ type (
 		Name *Ident        // function/method name
 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
 		Body *BlockStmt    // function body; or nil for external (non-Go) function
-		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
-		//                they are only valid for declared functions
 	}
 )
 
