@@ -2506,9 +2506,9 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 	return spec
 }
 
-func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, closeTok token.Token) {
-	list := p.parseParameterList(name0, closeTok, p.parseParamDecl, true)
-	closePos := p.expect(closeTok)
+func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident) {
+	list := p.parseParameterList(name0, token.RBRACK, p.parseParamDecl, true)
+	closePos := p.expect(token.RBRACK)
 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
 	// Type alias cannot have type parameters. Accept them for robustness but complain.
 	if p.tok == token.ASSIGN {
@@ -2537,7 +2537,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 			p.exprLev--
 			if name0, _ := x.(*ast.Ident); p.parseTypeParams() && name0 != nil && p.tok != token.RBRACK {
 				// generic type [T any];
-				p.parseGenericType(spec, lbrack, name0, token.RBRACK)
+				p.parseGenericType(spec, lbrack, name0)
 			} else {
 				// array type
 				// TODO(rfindley) should resolve all identifiers in x.
@@ -2619,10 +2619,11 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	results := p.parseResult()
 
 	var body *ast.BlockStmt
-	if p.tok == token.LBRACE {
+	switch p.tok {
+	case token.LBRACE:
 		body = p.parseBody()
 		p.expectSemi()
-	} else if p.tok == token.SEMICOLON {
+	case token.SEMICOLON:
 		p.next()
 		if p.tok == token.LBRACE {
 			// opening { of function declaration on next line
@@ -2630,7 +2631,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 			body = p.parseBody()
 			p.expectSemi()
 		}
-	} else {
+	default:
 		p.expectSemi()
 	}
 
