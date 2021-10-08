@@ -73,6 +73,10 @@ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.O
 
 	cfg = applyCommandOverrides(cmd[0], c.format, cfg)
 
+	// Create label pseudo nodes before filtering, in case the filters use
+	// the generated nodes.
+	generateTagRootsLeaves(p, cfg, o.UI)
+
 	// Delay focus after configuring report to get percentages on all samples.
 	relative := cfg.RelativePercentages
 	if relative {
@@ -206,6 +210,25 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
 		cfg.EdgeFraction = 0
 	}
 	return cfg
+}
+
+// generateTagRootsLeaves generates extra nodes from the tagroot and tagleaf options.
+func generateTagRootsLeaves(prof *profile.Profile, cfg config, ui plugin.UI) {
+	tagRootLabelKeys := dropEmptyStrings(strings.Split(cfg.TagRoot, ","))
+	tagLeafLabelKeys := dropEmptyStrings(strings.Split(cfg.TagLeaf, ","))
+	rootm, leafm := addLabelNodes(prof, tagRootLabelKeys, tagLeafLabelKeys, cfg.Unit)
+	warnNoMatches(cfg.TagRoot == "" || rootm, "TagRoot", ui)
+	warnNoMatches(cfg.TagLeaf == "" || leafm, "TagLeaf", ui)
+}
+
+// dropEmptyStrings filters a slice to only non-empty strings
+func dropEmptyStrings(in []string) (out []string) {
+	for _, s := range in {
+		if s != "" {
+			out = append(out, s)
+		}
+	}
+	return
 }
 
 func aggregate(prof *profile.Profile, cfg config) error {
