@@ -4,10 +4,7 @@
 
 package types2
 
-import (
-	"cmd/compile/internal/syntax"
-	"fmt"
-)
+import "cmd/compile/internal/syntax"
 
 // ----------------------------------------------------------------------------
 // API
@@ -105,39 +102,33 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	sig.scope = check.scope
 	defer check.closeScope()
 
-	var recvTyp syntax.Expr // rewritten receiver type; valid if != nil
 	if recvPar != nil {
 		// collect generic receiver type parameters, if any
 		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.Type, true)
 		if len(rparams) > 0 {
-			// Blank identifiers don't get declared and regular type-checking of the instantiated
-			// parameterized receiver type expression fails in Checker.collectParams of receiver.
-			// Identify blank type parameters and substitute each with a unique new identifier named
-			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
-			// name.
-			var smap map[*syntax.Name]*syntax.Name // substitution map from "_" to "!n" identifiers
+			tparams := make([]*TypeParam, len(rparams))
+			for i, rparam := range rparams {
+				tparams[i] = check.declareTypeParam(rparam)
+			}
+			sig.rparams = bindTParams(tparams)
+			// Blank identifiers don't get declared, so naive type-checking of the
+			// receiver type expression would fail in Checker.collectParams below,
+			// when Checker.ident cannot resolve the _ to a type.
+			//
+			// Checker.recvTParamMap maps these blank identifiers to their type parameter
+			// types, so that they may be resolved in Checker.ident when they fail
+			// lookup in the scope.
 			for i, p := range rparams {
 				if p.Value == "_" {
-					new := *p
-					new.Value = fmt.Sprintf("%d_", i)
-					rparams[i] = &new // use n_ identifier instead of _ so it can be looked up
-					if smap == nil {
-						smap = make(map[*syntax.Name]*syntax.Name)
+					tpar := sig.rparams.At(i)
+					if check.recvTParamMap == nil {
+						check.recvTParamMap = make(map[*syntax.Name]*TypeParam)
 					}
-					smap[p] = &new
+					check.recvTParamMap[p] = tpar
 				}
 			}
-			if smap != nil {
-				// blank identifiers were found => use rewritten receiver type
-				recvTyp = isubst(recvPar.Type, smap)
-			}
-			rlist := make([]*TypeParam, len(rparams))
-			for i, rparam := range rparams {
-				rlist[i] = check.declareTypeParam(rparam)
-			}
-			sig.rparams = bindTParams(rlist)
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeParam
@@ -186,10 +177,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
 	var recvList []*Var // TODO(gri) remove the need for making a list here
 	if recvPar != nil {
-		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, recvTyp, false) // use rewritten receiver type, if any
+		recvList, _ = check.collectParams(scope, []*syntax.Field{recvPar}, false) // use rewritten receiver type, if any
 	}
-	params, variadic := check.collectParams(scope, ftyp.ParamList, nil, true)
-	results, _ := check.collectParams(scope, ftyp.ResultList, nil, false)
+	params, variadic := check.collectParams(scope, ftyp.ParamList, true)
+	results, _ := check.collectParams(scope, ftyp.ResultList, false)
 	scope.Squash(func(obj, alt Object) {
 		var err error_
 		err.errorf(obj, "%s redeclared in this block", obj.Name())
@@ -281,8 +272,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 }
 
 // collectParams declares the parameters of list in scope and returns the corresponding
-// variable list. If type0 != nil, it is used instead of the first type in list.
-func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 syntax.Expr, variadicOk bool) (params []*Var, variadic bool) {
+// variable list.
+func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -296,9 +287,6 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 		// type-check type of grouped fields only once
 		if ftype != prev {
 			prev = ftype
-			if i == 0 && type0 != nil {
-				ftype = type0
-			}
 			if t, _ := ftype.(*syntax.DotsType); t != nil {
 				ftype = t.Elem
 				if variadicOk && i == len(list)-1 {
@@ -347,62 +335,4 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
 	}
 
 	return
-}
-
-// isubst returns an x with identifiers substituted per the substitution map smap.
-// isubst only handles the case of (valid) method receiver type expressions correctly.
-func isubst(x syntax.Expr, smap map[*syntax.Name]*syntax.Name) syntax.Expr {
-	switch n := x.(type) {
-	case *syntax.Name:
-		if alt := smap[n]; alt != nil {
-			return alt
-		}
-	// case *syntax.StarExpr:
-	// 	X := isubst(n.X, smap)
-	// 	if X != n.X {
-	// 		new := *n
-	// 		new.X = X
-	// 		return &new
-	// 	}
-	case *syntax.Operation:
-		if n.Op == syntax.Mul && n.Y == nil {
-			X := isubst(n.X, smap)
-			if X != n.X {
-				new := *n
-				new.X = X
-				return &new
-			}
-		}
-	case *syntax.IndexExpr:
-		Index := isubst(n.Index, smap)
-		if Index != n.Index {
-			new := *n
-			new.Index = Index
-			return &new
-		}
-	case *syntax.ListExpr:
-		var elems []syntax.Expr
-		for i, elem := range n.ElemList {
-			new := isubst(elem, smap)
-			if new != elem {
-				if elems == nil {
-					elems = make([]syntax.Expr, len(n.ElemList))
-					copy(elems, n.ElemList)
-				}
-				elems[i] = new
-			}
-		}
-		if elems != nil {
-			new := *n
-			new.ElemList = elems
-			return &new
-		}
-	case *syntax.ParenExpr:
-		return isubst(n.X, smap) // no need to keep parentheses
-	default:
-		// Other receiver type expressions are invalid.
-		// It's fine to ignore those here as they will
-		// be checked elsewhere.
-	}
-	return x
 }

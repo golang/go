@@ -100,9 +100,10 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files        []*syntax.File            // list of package files
-	imports      []*PkgName                // list of imported packages
-	dotImportMap map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+	files         []*syntax.File              // list of package files
+	imports       []*PkgName                  // list of imported packages
+	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
+	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -292,6 +293,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	check.dotImportMap = nil
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
+	check.recvTParamMap = nil
 
 	// TODO(gri) There's more memory we should release at this point.
 
