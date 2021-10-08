@@ -673,6 +673,33 @@ func (md *moduledata) textAddr(off32 uint32) uintptr {
 	return res
 }
 
+// textOff is the opposite of textAddr. It converts a PC to a (virtual) offset
+// to md.text, and returns if the PC is in any Go text section.
+//
+// It is nosplit because it is part of the findfunc implementation.
+//go:nosplit
+func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
+	res := uint32(pc - md.text)
+	if len(md.textsectmap) > 1 {
+		for i, sect := range md.textsectmap {
+			if sect.baseaddr > pc {
+				// pc is not in any section.
+				return 0, false
+			}
+			end := sect.baseaddr + (sect.end - sect.vaddr)
+			// For the last section, include the end address (etext), as it is included in the functab.
+			if i == len(md.textsectmap) {
+				end++
+			}
+			if pc < end {
+				res = uint32(pc - sect.baseaddr + sect.vaddr)
+				break
+			}
+		}
+	}
+	return res, true
+}
+
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
 //
@@ -796,7 +823,12 @@ func findfunc(pc uintptr) funcInfo {
 	}
 	const nsub = uintptr(len(findfuncbucket{}.subbuckets))
 
-	x := pc - datap.minpc
+	pcOff, ok := datap.textOff(pc)
+	if !ok {
+		return funcInfo{}
+	}
+
+	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
 	b := x / pcbucketsize
 	i := x % pcbucketsize / (pcbucketsize / nsub)
 
@@ -804,43 +836,11 @@ func findfunc(pc uintptr) funcInfo {
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
 
 	// Find the ftab entry.
-	if len(datap.textsectmap) == 1 {
-		// fast path for the common case
-		pcOff := uint32(pc - datap.text)
-		for datap.ftab[idx+1].entryoff <= pcOff {
-			idx++
-		}
-	} else {
-		// Multiple text sections.
-		// If the idx is beyond the end of the ftab, set it to the end of the table and search backward.
-		if idx >= uint32(len(datap.ftab)) {
-			idx = uint32(len(datap.ftab) - 1)
-		}
-		if pc < datap.textAddr(datap.ftab[idx].entryoff) {
-			// The idx might reference a function address that
-			// is higher than the pcOff being searched, so search backward until the matching address is found.
-			for datap.textAddr(datap.ftab[idx].entryoff) > pc && idx > 0 {
-				idx--
-			}
-			if idx == 0 {
-				throw("findfunc: bad findfunctab entry idx")
-			}
-		} else {
-			// linear search to find func with pc >= entry.
-			for datap.textAddr(datap.ftab[idx+1].entryoff) <= pc {
-				idx++
-			}
-		}
+	for datap.ftab[idx+1].entryoff <= pcOff {
+		idx++
 	}
 
 	funcoff := datap.ftab[idx].funcoff
-	if funcoff == ^uint32(0) {
-		// With multiple text sections, there may be functions inserted by the external
-		// linker that are not known by Go. This means there may be holes in the PC
-		// range covered by the func table. The invalid funcoff value indicates a hole.
-		// See also cmd/link/internal/ld/pcln.go:pclntab
-		return funcInfo{}
-	}
 	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
 }
 
