@@ -117,16 +117,16 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			// receiver type expression would fail in Checker.collectParams below,
 			// when Checker.ident cannot resolve the _ to a type.
 			//
-			// Checker.rparamMap maps these blank identifiers to their type parameter
+			// Checker.recvTParamMap maps these blank identifiers to their type parameter
 			// types, so that they may be resolved in Checker.ident when they fail
 			// lookup in the scope.
 			for i, p := range rparams {
 				if p.Name == "_" {
 					tpar := sig.rparams.At(i)
-					if check.rparamMap == nil {
-						check.rparamMap = make(map[*ast.Ident]*TypeParam)
+					if check.recvTParamMap == nil {
+						check.recvTParamMap = make(map[*ast.Ident]*TypeParam)
 					}
-					check.rparamMap[p] = tpar
+					check.recvTParamMap[p] = tpar
 				}
 			}
 			// determine receiver type to get its type parameters

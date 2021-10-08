@@ -32,8 +32,8 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		if e.Name == "_" {
 			// Blank identifiers are never declared, but the current identifier may
 			// be a placeholder for a receiver type parameter. In this case we can
-			// resolve its type and object from Checker.rparamMap.
-			if tpar := check.rparamMap[e]; tpar != nil {
+			// resolve its type and object from Checker.recvTParamMap.
+			if tpar := check.recvTParamMap[e]; tpar != nil {
 				x.mode = typexpr
 				x.typ = tpar
 			} else {
