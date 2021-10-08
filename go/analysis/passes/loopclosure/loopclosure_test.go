@@ -5,6 +5,7 @@
 package loopclosure_test
 
 import (
+	"golang.org/x/tools/internal/typeparams"
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
@@ -13,5 +14,9 @@ import (
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, loopclosure.Analyzer, "a")
+	tests := []string{"a", "golang.org/..."}
+	if typeparams.Enabled {
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, loopclosure.Analyzer, tests...)
 }
