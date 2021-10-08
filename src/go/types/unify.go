@@ -63,10 +63,6 @@ func (u *unifier) unify(x, y Type) bool {
 type tparamsList struct {
 	unifier *unifier
 	tparams []*TypeParam
-	// For each tparams element, there is a corresponding mask bit in masks.
-	// If set, the corresponding type parameter is masked and doesn't appear
-	// as a type parameter with tparamsList.index.
-	masks []bool
 	// For each tparams element, there is a corresponding type slot index in indices.
 	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
@@ -107,13 +103,8 @@ func (d *tparamsList) init(tparams []*TypeParam) {
 		}
 	}
 	d.tparams = tparams
-	d.masks = make([]bool, len(tparams))
 	d.indices = make([]int, len(tparams))
 }
-
-// mask and unmask permit the masking/unmasking of the i'th type parameter of d.
-func (d *tparamsList) mask(i int)   { d.masks[i] = true }
-func (d *tparamsList) unmask(i int) { d.masks[i] = false }
 
 // join unifies the i'th type parameter of x with the j'th type parameter of y.
 // If both type parameters already have a type associated with them and they are
@@ -158,13 +149,11 @@ func (u *unifier) join(i, j int) bool {
 	return true
 }
 
-// If typ is an unmasked type parameter of d, index returns the type parameter index.
+// If typ is a type parameter of d, index returns the type parameter index.
 // Otherwise, the result is < 0.
 func (d *tparamsList) index(typ Type) int {
 	if tpar, ok := typ.(*TypeParam); ok {
-		if i := tparamIndex(d.tparams, tpar); i >= 0 && !d.masks[i] {
-			return i
-		}
+		return tparamIndex(d.tparams, tpar)
 	}
 	return -1
 }
@@ -257,7 +246,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 	}
 
-	// Cases where at least one of x or y is an (unmasked) type parameter.
+	// Cases where at least one of x or y is a type parameter.
 	switch i, j := u.x.index(x), u.y.index(y); {
 	case i >= 0 && j >= 0:
 		// both x and y are type parameters
@@ -270,12 +259,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	case i >= 0:
 		// x is a type parameter, y is not
 		if tx := u.x.at(i); tx != nil {
-			// The inferred type tx may be or contain x again but we don't
-			// want to "unpack" it again when unifying tx with y: tx is the
-			// inferred type. Mask type parameter x for this recursion, so
-			// that subsequent encounters treat x like an ordinary type.
-			u.x.mask(i)
-			defer u.x.unmask(i)
 			return u.nifyEq(tx, y, p)
 		}
 		// otherwise, infer type from y
@@ -285,9 +268,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	case j >= 0:
 		// y is a type parameter, x is not
 		if ty := u.y.at(j); ty != nil {
-			// see comment above
-			u.y.mask(j)
-			defer u.y.unmask(j)
 			return u.nifyEq(x, ty, p)
 		}
 		// otherwise, infer type from x
