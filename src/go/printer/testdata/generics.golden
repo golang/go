@@ -36,8 +36,13 @@ func _() {
 }
 
 // properly format one-line type lists
+// TODO(rfindley): remove support for type lists
 type _ interface{ type a }
 
 type _ interface {
 	type a, b, c
 }
+
+// type constraint literals with elided interfaces
+func _[P ~int, Q int | string]()	{}
+func _[P struct{ f int }, Q *P]()	{}

@@ -7,7 +7,9 @@
 // constraint.
 package typeparams
 
-// DisallowParsing is the numeric value of a parsing mode that disallows type
-// parameters. This only matters if the typeparams experiment is active, and
-// may be used for running tests that disallow generics.
-const DisallowParsing = 1 << 30
+// 'Hidden' parser modes to control the parsing of type-parameter related
+// features.
+const (
+	DisallowTypeSets = 1 << 29 // Disallow eliding 'interface' in constraint type sets.
+	DisallowParsing  = 1 << 30 // Disallow type parameters entirely.
+)
