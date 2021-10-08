@@ -39,9 +39,11 @@ fi
 dversion=$(echo "$version" | sed 's/^go//')
 sed "s!UUU!$url!; s/SSS/$sha256/; s/VVV/$dversion/" dockerfile.in >$dir/Dockerfile
 
-docker build --pull -t us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion $dir
-docker run goboring/golang:$dversion go version
-docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
+dpkg=us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion
+
+docker build --pull -t $dpkg  $dir
+docker run $dpkg go version
+docker run $dpkg go tool nm /usr/local/go/bin/go >$dir/nm
 if ! grep crypto/internal/boring/sig.BoringCrypto $dir/nm >/dev/null; then
 	echo 'built docker image but did NOT find sig.BoringCrypto in go command!' >&2
 	exit 2
@@ -50,7 +52,7 @@ if egrep 'crypto/sha256\.\(\*digest\)' $dir/nm >/dev/null; then
 	echo 'built docker image but DID find sha256.(*digest) in go command unexpectedly!' >&2
 	exit 2
 fi
-docker push us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion
+docker push $dpkg
 
 echo
-echo published as goboring/golang:$dversion
+echo published as $dpkg

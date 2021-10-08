@@ -24,8 +24,8 @@ at `gs://go-boringcrypto/`, making it available for download at
 The script records each published release in the `RELEASES` file in this directory.
 
 The `build.docker` script, which must be run after `build.release`, prepares a Docker image
-and publishes it on hub.docker.com in the goboring organization.
-`go1.8.3b1` is published as `goboring/golang:1.8.3b1`.
+and publishes it on Google Artifact Registry.
+`go1.17.2b7` is published as `us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:1.17.2b7`.
 
 ## Release process
 
@@ -56,8 +56,8 @@ To issue new BoringCrypto releases based on Go 1.X:
 
 ## Building from Docker
 
-A Dockerfile that starts with `FROM golang:1.8.3` can switch
-to `FROM goboring/golang:1.8.3b2` (see [goboring/golang on Docker Hub](https://hub.docker.com/r/goboring/golang/))
+A Dockerfile that starts with `FROM golang:1.17.2` can switch
+to `FROM us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:1.17.2b7`
 and should need no other modifications.
 
 ## Building from Bazel
