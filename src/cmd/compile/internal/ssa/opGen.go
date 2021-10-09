@@ -4733,7 +4733,6 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTL",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -10777,7 +10776,6 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTQ",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -10792,7 +10790,6 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTL",
 		argLen:       1,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
