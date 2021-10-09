@@ -29254,11 +29254,11 @@ func rewriteValueAMD64_OpHasCPUFeature(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (HasCPUFeature {s})
-	// result: (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
+	// result: (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
 	for {
 		s := auxToSym(v.Aux)
 		v.reset(OpAMD64SETNE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
 		v0.AuxInt = int32ToAuxInt(0)
 		v1 := b.NewValue0(v.Pos, OpAMD64LoweredHasCPUFeature, typ.UInt64)
 		v1.Aux = symToAux(s)

@@ -472,7 +472,7 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 
-(HasCPUFeature {s}) => (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
+(HasCPUFeature {s}) => (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
 (Addr {sym} base) => (LEAQ {sym} base)
 (LocalAddr {sym} base _) => (LEAQ {sym} base)
 
