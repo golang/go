@@ -22,7 +22,7 @@ func ExampleWaitGroup() {
 	var urls = []string{
 		"http://www.golang.org/",
 		"http://www.google.com/",
-		"http://www.somestupidname.com/",
+		"http://www.example.com/",
 	}
 	for _, url := range urls {
 		// Increment the WaitGroup counter.
