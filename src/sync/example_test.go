@@ -20,8 +20,8 @@ var http httpPkg
 func ExampleWaitGroup() {
 	var wg sync.WaitGroup
 	var urls = []string{
-		"https://www.golang.org/",
-		"https://www.google.com/",
+		"http://www.golang.org/",
+		"http://www.google.com/",
 	}
 	for _, url := range urls {
 		// Increment the WaitGroup counter.
