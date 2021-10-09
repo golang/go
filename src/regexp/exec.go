@@ -401,45 +401,44 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 	}
 
 	m := newOnePassMachine()
-	if cap(m.matchcap) < ncap {
-		m.matchcap = make([]int, ncap)
-	} else {
-		m.matchcap = m.matchcap[:ncap]
-	}
-
 	matched := false
-	for i := range m.matchcap {
-		m.matchcap[i] = -1
-	}
-
 	i, _ := m.inputs.init(ir, ib, is)
 
 	r, r1 := endOfText, endOfText
 	width, width1 := 0, 0
-	r, width = i.step(pos)
-	if r != endOfText {
-		r1, width1 = i.step(pos + width)
-	}
 	var flag lazyFlag
-	if pos == 0 {
-		flag = newLazyFlag(-1, r)
-	} else {
-		flag = i.context(pos)
-	}
-	pc := re.onepass.Start
-	inst := re.onepass.Inst[pc]
+	var pc int
+	var inst onePassInst
+
 	// If there is a simple literal prefix, skip over it.
-	if pos == 0 && flag.match(syntax.EmptyOp(inst.Arg)) &&
-		len(re.prefix) > 0 && i.canCheckPrefix() {
+	if pos == 0 && len(re.prefix) > 0 && i.canCheckPrefix() {
 		// Match requires literal prefix; fast search for it.
 		if !i.hasPrefix(re) {
 			goto Return
 		}
 		pos += len(re.prefix)
-		r, width = i.step(pos)
-		r1, width1 = i.step(pos + width)
-		flag = i.context(pos)
 		pc = int(re.prefixEnd)
+	} else {
+		pc = re.onepass.Start
+	}
+
+	if cap(m.matchcap) < ncap {
+		m.matchcap = make([]int, ncap)
+	} else {
+		m.matchcap = m.matchcap[:ncap]
+	}
+	for i := range m.matchcap {
+		m.matchcap[i] = -1
+	}
+
+	r, width = i.step(pos)
+	if pos == 0 {
+		flag = newLazyFlag(-1, r)
+	} else {
+		flag = i.context(pos)
+	}
+	if r != endOfText {
+		r1, width1 = i.step(pos + width)
 	}
 	for {
 		inst = re.onepass.Inst[pc]
