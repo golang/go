@@ -715,11 +715,13 @@ func (check *Checker) bound(x ast.Expr) Type {
 		wrap = op.Op == token.OR
 	}
 	if wrap {
-		// TODO(gri) Should mark this interface as "implicit" somehow
-		//           (and propagate the info to types2.Interface) so
-		//           that we can elide the interface again in error
-		//           messages. Could use a sentinel name for the field.
 		x = &ast.InterfaceType{Methods: &ast.FieldList{List: []*ast.Field{{Type: x}}}}
+		t := check.typ(x)
+		// mark t as implicit interface if all went well
+		if t, _ := t.(*Interface); t != nil {
+			t.implicit = true
+		}
+		return t
 	}
 	return check.typ(x)
 }
