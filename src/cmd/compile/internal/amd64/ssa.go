@@ -1125,7 +1125,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if v.Args[0].Reg() != v.Reg() {
 			// POPCNT on Intel has a false dependency on the destination register.
 			// Xor register with itself to break the dependency.
-			p := s.Prog(x86.AXORQ)
+			p := s.Prog(x86.AXORL)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = v.Reg()
 			p.To.Type = obj.TYPE_REG
