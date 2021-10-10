@@ -681,7 +681,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 	for _, f := range list.List {
 		// TODO(rfindley) we should be able to rely on f.Type != nil at this point
 		if f.Type != nil {
-			bound := check.typ(f.Type)
+			bound := check.bound(f.Type)
 			bounds = append(bounds, bound)
 			posns = append(posns, f.Type)
 			for i := range f.Names {
@@ -693,12 +693,35 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
 
 	check.later(func() {
 		for i, bound := range bounds {
-			u := under(bound)
-			if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
-				check.errorf(posns[i], _Todo, "%s is not an interface", bound)
+			if _, ok := under(bound).(*TypeParam); ok {
+				check.error(posns[i], _Todo, "cannot use a type parameter as constraint")
 			}
 		}
+		for _, tpar := range tparams {
+			tpar.iface() // compute type set
+		}
 	})
+}
+
+func (check *Checker) bound(x ast.Expr) Type {
+	// A type set literal of the form ~T and A|B may only appear as constraint;
+	// embed it in an implicit interface so that only interface type-checking
+	// needs to take care of such type expressions.
+	wrap := false
+	switch op := x.(type) {
+	case *ast.UnaryExpr:
+		wrap = op.Op == token.TILDE
+	case *ast.BinaryExpr:
+		wrap = op.Op == token.OR
+	}
+	if wrap {
+		// TODO(gri) Should mark this interface as "implicit" somehow
+		//           (and propagate the info to types2.Interface) so
+		//           that we can elide the interface again in error
+		//           messages. Could use a sentinel name for the field.
+		x = &ast.InterfaceType{Methods: &ast.FieldList{List: []*ast.Field{{Type: x}}}}
+	}
+	return check.typ(x)
 }
 
 func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {

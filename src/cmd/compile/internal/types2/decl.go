@@ -640,6 +640,8 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 
 	check.later(func() {
 		for i, tpar := range tparams {
+			// TODO(rfindley): this results in duplicate error messages for type
+			// parameters that share a constraint.
 			if _, ok := under(tpar.bound).(*TypeParam); ok {
 				check.error(list[i].Type, "cannot use a type parameter as constraint")
 			}

@@ -24,8 +24,7 @@ type TypeParam struct {
 	id    uint64    // unique id, for debugging only
 	obj   *TypeName // corresponding type name
 	index int       // type parameter index in source order, starting at 0
-	// TODO(rfindley): this could also be Typ[Invalid]. Verify that this is handled correctly.
-	bound Type // *Named or *Interface; underlying type is always *Interface
+	bound Type      // any type, but eventually an *Interface for correct programs (see TypeParam.iface)
 }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
@@ -69,15 +68,6 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // Constraint returns the type constraint specified for t.
 func (t *TypeParam) Constraint() Type {
-	// compute the type set if possible (we may not have an interface)
-	if iface, _ := under(t.bound).(*Interface); iface != nil {
-		// use the type bound position if we have one
-		pos := token.NoPos
-		if n, _ := t.bound.(*Named); n != nil {
-			pos = n.obj.pos
-		}
-		computeInterfaceTypeSet(t.check, pos, iface)
-	}
 	return t.bound
 }
 
@@ -97,10 +87,41 @@ func (t *TypeParam) String() string   { return TypeString(t, nil) }
 
 // iface returns the constraint interface of t.
 func (t *TypeParam) iface() *Interface {
-	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
-		return iface
+	bound := t.bound
+
+	// determine constraint interface
+	var ityp *Interface
+	switch u := under(bound).(type) {
+	case *Basic:
+		if u == Typ[Invalid] {
+			// error is reported elsewhere
+			return &emptyInterface
+		}
+	case *Interface:
+		ityp = u
+	case *TypeParam:
+		// error is reported in Checker.collectTypeParams
+		return &emptyInterface
 	}
-	return &emptyInterface
+
+	// If we don't have an interface, wrap constraint into an implicit interface.
+	// TODO(gri) mark it as implicit - see comment in Checker.bound
+	if ityp == nil {
+		ityp = NewInterfaceType(nil, []Type{bound})
+		t.bound = ityp // update t.bound for next time (optimization)
+	}
+
+	// compute type set if necessary
+	if ityp.tset == nil {
+		// use the (original) type bound position if we have one
+		pos := token.NoPos
+		if n, _ := bound.(*Named); n != nil {
+			pos = n.obj.pos
+		}
+		computeInterfaceTypeSet(t.check, pos, ityp)
+	}
+
+	return ityp
 }
 
 // structuralType returns the structural type of the type parameter's constraint; or nil.
