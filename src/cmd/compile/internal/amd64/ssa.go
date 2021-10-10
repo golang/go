@@ -618,8 +618,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = r
 		p.SetFrom3Reg(v.Args[0].Reg())
 
+	case ssa.OpAMD64ANDQconst:
+		asm := v.Op.Asm()
+		// If the constant is positive and fits into 32 bits, use ANDL.
+		// This saves a few bytes of encoding.
+		if 0 <= v.AuxInt && v.AuxInt <= (1<<32-1) {
+			asm = x86.AANDL
+		}
+		p := s.Prog(asm)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
-		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst,
+		ssa.OpAMD64ANDLconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst,
 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst,
 		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst,
