@@ -332,7 +332,7 @@ func bitSetPowerOf2Test(x int) bool {
 }
 
 func bitSetTest(x int) bool {
-	// amd64:"ANDQ\t[$]9, AX"
+	// amd64:"ANDL\t[$]9, AX"
 	// amd64:"CMPQ\tAX, [$]9"
 	return x&9 == 9
 }
