@@ -186,9 +186,16 @@ func NewUnion(terms []*Term) *Union {
 // InitInstanceInfo is a noop at this Go version.
 func InitInstanceInfo(*types.Info) {}
 
-// GetInstance returns nothing, as type parameters are not supported at this Go
-// version.
-func GetInstance(*types.Info, *ast.Ident) (*TypeList, types.Type) { return nil, nil }
+// Instance is a placeholder type, as type parameters are not supported at this
+// Go version.
+type Instance struct {
+	TypeArgs *TypeList
+	Type     types.Type
+}
+
+// GetInstances returns a nil map, as type parameters are not supported at this
+// Go version.
+func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
 
 // Context is a placeholder type, as type parameters are not supported at
 // this Go version.

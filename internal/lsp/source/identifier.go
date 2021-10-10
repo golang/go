@@ -354,8 +354,8 @@ func fullNode(snapshot Snapshot, obj types.Object, pkg Package) (ast.Decl, error
 //
 // If no such signature exists, it returns nil.
 func inferredSignature(info *types.Info, id *ast.Ident) *types.Signature {
-	_, typ := typeparams.GetInstance(info, id)
-	sig, _ := typ.(*types.Signature)
+	inst := typeparams.GetInstances(info)[id]
+	sig, _ := inst.Type.(*types.Signature)
 	return sig
 }
 

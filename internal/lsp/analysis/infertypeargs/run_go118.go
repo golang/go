@@ -33,10 +33,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		// Confirm that instantiation actually occurred at this ident.
-		_, instance := typeparams.GetInstance(pass.TypesInfo, ident)
-		if instance == nil {
+		idata, ok := typeparams.GetInstances(pass.TypesInfo)[ident]
+		if !ok {
 			return // something went wrong, but fail open
 		}
+		instance := idata.Type
 
 		// Start removing argument expressions from the right, and check if we can
 		// still infer the call expression.
@@ -62,7 +63,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// Most likely inference failed.
 				break
 			}
-			_, newInstance := typeparams.GetInstance(info, ident)
+			newIData := typeparams.GetInstances(info)[ident]
+			newInstance := newIData.Type
 			if !types.Identical(instance, newInstance) {
 				// The inferred result type does not match the original result type, so
 				// this simplification is not valid.
