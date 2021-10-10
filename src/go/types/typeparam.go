@@ -108,6 +108,7 @@ func (t *TypeParam) iface() *Interface {
 	// TODO(gri) mark it as implicit - see comment in Checker.bound
 	if ityp == nil {
 		ityp = NewInterfaceType(nil, []Type{bound})
+		ityp.implicit = true
 		t.bound = ityp // update t.bound for next time (optimization)
 	}
 

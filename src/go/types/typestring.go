@@ -191,6 +191,15 @@ func (w *typeWriter) typ(typ Type) {
 		}
 
 	case *Interface:
+		if t.implicit {
+			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
+				w.typ(t.embeddeds[0])
+				break
+			}
+			// Something's wrong with the implicit interface.
+			// Print it as such and continue.
+			w.string("/* implicit */ ")
+		}
 		w.string("interface{")
 		first := true
 		for _, m := range t.methods {

@@ -89,7 +89,7 @@ func defPredeclaredTypes() {
 		res := NewVar(token.NoPos, nil, "", Typ[String])
 		sig := NewSignatureType(nil, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(token.NoPos, nil, "Error", sig)
-		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, true, nil}
+		ityp := &Interface{nil, obj, []*Func{err}, nil, nil, false, true, nil}
 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
 		typ := NewNamed(obj, ityp, nil)
 		sig.recv = NewVar(token.NoPos, nil, "", typ)
@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
 	{
 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
 		obj.setColor(black)
-		ityp := &Interface{nil, obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
+		ityp := &Interface{nil, obj, nil, nil, nil, false, true, &_TypeSet{true, nil, allTermlist}}
 		NewNamed(obj, ityp, nil)
 		def(obj)
 	}
