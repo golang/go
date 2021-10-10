@@ -1260,7 +1260,7 @@ func Index(s, sep []byte) int {
 // Cut slices s around the first instance of sep,
 // returning the text before and after sep.
 // The found result reports whether sep appears in s.
-// If sep does not appear in s, cut returns s, "", false.
+// If sep does not appear in s, cut returns s, nil, false.
 //
 // Cut returns slices of the original slice s, not copies.
 func Cut(s, sep []byte) (before, after []byte, found bool) {
