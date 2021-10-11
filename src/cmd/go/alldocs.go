@@ -498,7 +498,7 @@
 // files. Those commands can run any process but the intent is to
 // create or update Go source files.
 //
-// Go generate is never run automatically by go build, go get, go test,
+// Go generate is never run automatically by go build, go test,
 // and so on. It must be run explicitly.
 //
 // Go generate scans the file for directives, which are lines of
@@ -644,8 +644,7 @@
 //
 // See 'go help install' or https://golang.org/ref/mod#go-install for details.
 //
-// In addition to build flags (listed in 'go help build') 'go get' accepts the
-// following flags.
+// 'go get' accepts the following flags.
 //
 // The -t flag instructs get to consider modules needed to build tests of
 // packages specified on the command line.
@@ -659,6 +658,10 @@
 //
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
+//
+// The -x flag prints commands as they are executed. This is useful for
+// debugging version control commands when a module is downloaded directly
+// from a repository.
 //
 // For more about modules, see https://golang.org/ref/mod.
 //
