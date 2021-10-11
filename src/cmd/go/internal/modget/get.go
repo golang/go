@@ -83,8 +83,7 @@ current directory. For example:
 
 See 'go help install' or https://golang.org/ref/mod#go-install for details.
 
-In addition to build flags (listed in 'go help build') 'go get' accepts the
-following flags.
+'go get' accepts the following flags.
 
 The -t flag instructs get to consider modules needed to build tests of
 packages specified on the command line.
@@ -98,6 +97,10 @@ but changes the default to select patch releases.
 
 When the -t and -u flags are used together, get will update
 test dependencies as well.
+
+The -x flag prints commands as they are executed. This is useful for
+debugging version control commands when a module is downloaded directly
+from a repository.
 
 For more about modules, see https://golang.org/ref/mod.
 
