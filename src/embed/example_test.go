@@ -6,44 +6,18 @@ package embed_test
 
 import (
 	"embed"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"time"
 )
 
-//go:embed internal/embedtest/testdata/*.txt
-var content embed.FS
+//go:embed static/*.png
+var images embed.FS
 
 func Example() {
-	addr := "127.0.0.1:8080"
-
-	go func() {
-		mutex := http.NewServeMux()
-		mutex.Handle("/", http.FileServer(http.FS(content)))
-		err := http.ListenAndServe(addr, mutex)
-		if err != nil {
-			log.Fatalf("http server start failed: %v", err)
-		}
-	}()
-
-	time.Sleep(time.Second)
-
-	url := fmt.Sprintf("http://%s/internal/embedtest/testdata/hello.txt", addr)
-	resp, err := http.Get(url)
+	mux := http.NewServeMux()
+	mux.Handle("/static/", http.FileServer(http.FS(images)))
+	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
-		log.Fatalf("http client request failed: %v", err)
+		log.Fatal(err)
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("read response body failed: %v", err)
-	}
-
-	fmt.Printf("%s", body)
-
-	// Output:
-	// hello, world
 }
