@@ -627,24 +627,29 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
 	// Example: type T[P T[P]] interface{}
 	*dst = bindTParams(tparams)
 
+	// Keep track of bounds for later validation.
 	var bound Type
+	var bounds []Type
+	var posers []poser
 	for i, f := range list {
 		// Optimization: Re-use the previous type bound if it hasn't changed.
 		// This also preserves the grouped output of type parameter lists
 		// when printing type strings.
 		if i == 0 || f.Type != list[i-1].Type {
 			bound = check.bound(f.Type)
+			bounds = append(bounds, bound)
+			posers = append(posers, f.Type)
 		}
 		tparams[i].bound = bound
 	}
 
 	check.later(func() {
-		for i, tpar := range tparams {
-			// TODO(rfindley): this results in duplicate error messages for type
-			// parameters that share a constraint.
-			if _, ok := under(tpar.bound).(*TypeParam); ok {
-				check.error(list[i].Type, "cannot use a type parameter as constraint")
+		for i, bound := range bounds {
+			if _, ok := under(bound).(*TypeParam); ok {
+				check.error(posers[i], "cannot use a type parameter as constraint")
 			}
+		}
+		for _, tpar := range tparams {
 			tpar.iface() // compute type set
 		}
 	})
