@@ -34,7 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 	"cmd/link/internal/benchmark"
 	"flag"
@@ -76,8 +76,8 @@ var (
 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
 	flagTmpdir     = flag.String("tmpdir", "", "use `directory` for temporary files")
 
-	flagExtld      str.QuotedStringListFlag
-	flagExtldflags str.QuotedStringListFlag
+	flagExtld      quoted.Flag
+	flagExtldflags quoted.Flag
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")

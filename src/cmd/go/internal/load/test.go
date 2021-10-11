@@ -23,7 +23,7 @@ import (
 
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/trace"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 var TestMainDeps = []string{

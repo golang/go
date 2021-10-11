@@ -6,7 +6,7 @@ package load
 
 import (
 	"cmd/go/internal/base"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"fmt"
 	"strings"
 )
@@ -63,7 +63,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 		match = MatchPackage(pattern, cwd)
 		v = v[i+1:]
 	}
-	flags, err := str.SplitQuotedFields(v)
+	flags, err := quoted.Split(v)
 	if err != nil {
 		return err
 	}

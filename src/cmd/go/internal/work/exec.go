@@ -34,8 +34,9 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 )
 
@@ -2666,7 +2667,7 @@ func envList(key, def string) []string {
 	if v == "" {
 		v = def
 	}
-	args, err := str.SplitQuotedFields(v)
+	args, err := quoted.Split(v)
 	if err != nil {
 		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))
 	}

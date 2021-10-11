@@ -10,7 +10,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 	"context"
 	"fmt"
 	"os"
