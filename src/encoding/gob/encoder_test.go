@@ -1202,3 +1202,66 @@ func TestMarshalFloatMap(t *testing.T) {
 		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
 	}
 }
+
+func TestDecodePartial(t *testing.T) {
+	type T struct {
+		X []int
+		Y string
+	}
+
+	var buf bytes.Buffer
+	t1 := T{X: []int{1, 2, 3}, Y: "foo"}
+	t2 := T{X: []int{4, 5, 6}, Y: "bar"}
+	enc := NewEncoder(&buf)
+
+	t1start := 0
+	if err := enc.Encode(&t1); err != nil {
+		t.Fatal(err)
+	}
+
+	t2start := buf.Len()
+	if err := enc.Encode(&t2); err != nil {
+		t.Fatal(err)
+	}
+
+	data := buf.Bytes()
+	for i := 0; i <= len(data); i++ {
+		bufr := bytes.NewReader(data[:i])
+
+		// Decode both values, stopping at the first error.
+		var t1b, t2b T
+		dec := NewDecoder(bufr)
+		var err error
+		err = dec.Decode(&t1b)
+		if err == nil {
+			err = dec.Decode(&t2b)
+		}
+
+		switch i {
+		case t1start, t2start:
+			// Either the first or the second Decode calls had zero input.
+			if err != io.EOF {
+				t.Errorf("%d/%d: expected io.EOF: %v", i, len(data), err)
+			}
+		case len(data):
+			// We reached the end of the entire input.
+			if err != nil {
+				t.Errorf("%d/%d: unexpected error: %v", i, len(data), err)
+			}
+			if !reflect.DeepEqual(t1b, t1) {
+				t.Fatalf("t1 value mismatch: got %v, want %v", t1b, t1)
+			}
+			if !reflect.DeepEqual(t2b, t2) {
+				t.Fatalf("t2 value mismatch: got %v, want %v", t2b, t2)
+			}
+		default:
+			// In between, we must see io.ErrUnexpectedEOF.
+			// The decoder used to erroneously return io.EOF in some cases here,
+			// such as if the input was cut off right after some type specs,
+			// but before any value was actually transmitted.
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("%d/%d: expected io.ErrUnexpectedEOF: %v", i, len(data), err)
+			}
+		}
+	}
+}
