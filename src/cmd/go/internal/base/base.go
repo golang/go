@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/cfg"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 // A Command is an implementation of a go command

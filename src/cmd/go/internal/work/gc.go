@@ -20,8 +20,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
+	"cmd/go/internal/str"
 	"cmd/internal/objabi"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 	"crypto/sha1"
 )
@@ -565,7 +566,7 @@ func setextld(ldflags []string, compiler []string) ([]string, error) {
 			return ldflags, nil
 		}
 	}
-	joined, err := str.JoinAndQuoteFields(compiler)
+	joined, err := quoted.Join(compiler)
 	if err != nil {
 		return nil, err
 	}
