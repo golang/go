@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -584,6 +584,14 @@ var depsRules = `
     FMT, internal/coverage, os,
     path/filepath, regexp, sort, strconv
     < internal/coverage/pods;
+
+    FMT, bufio, crypto/md5, encoding/binary, runtime/debug,
+    internal/coverage, internal/coverage/cmerge,
+    internal/coverage/cformat, internal/coverage/calloc,
+    internal/coverage/decodecounter, internal/coverage/decodemeta,
+    internal/coverage/encodecounter, internal/coverage/encodemeta,
+    internal/coverage/pods, os, path/filepath, reflect, time, unsafe
+    < runtime/coverage;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
