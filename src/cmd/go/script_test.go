@@ -174,6 +174,7 @@ func (ts *testScript) setup() {
 		"GOARCH=" + runtime.GOARCH,
 		"TESTGO_GOHOSTARCH=" + goHostArch,
 		"GOCACHE=" + testGOCACHE,
+		"GOCOVERDIR=" + os.Getenv("GOCOVERDIR"),
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
 		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),

@@ -9,9 +9,11 @@ package work
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/coverage"
 	"internal/lazyregexp"
 	"io"
 	"io/fs"
@@ -630,7 +632,13 @@ OverlayLoop:
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
 	if p.Internal.CoverMode != "" {
+		outfiles := []string{}
+		infiles := []string{}
 		for i, file := range str.StringList(gofiles, cgofiles) {
+			if base.IsTestFile(file) {
+				continue // Not covering this file.
+			}
+
 			var sourceFile string
 			var coverFile string
 			var key string
@@ -646,18 +654,53 @@ OverlayLoop:
 				key = file
 			}
 			coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
-			cover := p.Internal.CoverVars[key]
-			if cover == nil || base.IsTestFile(file) {
-				// Not covering this file.
-				continue
-			}
-			if err := b.cover(a, coverFile, sourceFile, cover.Var); err != nil {
-				return err
+			if cfg.Experiment.CoverageRedesign {
+				infiles = append(infiles, sourceFile)
+				outfiles = append(outfiles, coverFile)
+			} else {
+				cover := p.Internal.CoverVars[key]
+				if cover == nil {
+					continue // Not covering this file.
+				}
+				if err := b.cover(a, coverFile, sourceFile, cover.Var); err != nil {
+					return err
+				}
 			}
 			if i < len(gofiles) {
 				gofiles[i] = coverFile
 			} else {
 				cgofiles[i-len(gofiles)] = coverFile
+			}
+		}
+
+		if cfg.Experiment.CoverageRedesign {
+			if len(infiles) != 0 {
+				// Coverage instrumentation creates new top level
+				// variables in the target package for things like
+				// meta-data containers, counter vars, etc. To avoid
+				// collisions with user variables, suffix the var name
+				// with 12 hex digits from the SHA-256 hash of the
+				// import path. Choice of 12 digits is historical/arbitrary,
+				// we just need enough of the hash to avoid accidents,
+				// as opposed to precluding determined attempts by
+				// users to break things.
+				sum := sha256.Sum256([]byte(a.Package.ImportPath))
+				coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
+				mode := a.Package.Internal.CoverMode
+				if mode == "" {
+					panic("covermode should be set at this point")
+				}
+				pkgcfg := a.Objdir + "pkgcfg.txt"
+				if err := b.cover2(a, pkgcfg, infiles, outfiles, coverVar, mode); err != nil {
+					return err
+				}
+			} else {
+				// If there are no input files passed to cmd/cover,
+				// then we don't want to pass -covercfg when building
+				// the package with the compiler, so set covermode to
+				// the empty string so as to signal that we need to do
+				// that.
+				p.Internal.CoverMode = ""
 			}
 		}
 	}
@@ -1895,6 +1938,47 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 		"-var", varName,
 		"-o", dst,
 		src)
+}
+
+// cover2 runs, in effect,
+//
+//	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
+func (b *Builder) cover2(a *Action, pkgcfg string, infiles, outfiles []string, varName string, mode string) error {
+	if err := b.writeCoverPkgCfg(a, pkgcfg); err != nil {
+		return err
+	}
+	args := []string{base.Tool("cover"),
+		"-pkgcfg", pkgcfg,
+		"-mode", mode,
+		"-var", varName,
+		"-o", strings.Join(outfiles, string(os.PathListSeparator)),
+	}
+	args = append(args, infiles...)
+	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+		cfg.BuildToolexec, args)
+}
+
+func (b *Builder) writeCoverPkgCfg(a *Action, file string) error {
+	p := a.Package
+	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
+	pcfg := coverage.CoverPkgConfig{
+		PkgPath: p.ImportPath,
+		PkgName: p.Name,
+		// Note: coverage granularity is currently hard-wired to
+		// 'perblock'; there isn't a way using "go build -cover" or "go
+		// test -cover" to select it. This may change in the future
+		// depending on user demand.
+		Granularity: "perblock",
+		OutConfig:   p.Internal.CoverageCfg,
+	}
+	if a.Package.Module != nil {
+		pcfg.ModulePath = a.Package.Module.Path
+	}
+	data, err := json.Marshal(pcfg)
+	if err != nil {
+		return err
+	}
+	return b.writeFile(file, data)
 }
 
 var objectMagic = [][]byte{

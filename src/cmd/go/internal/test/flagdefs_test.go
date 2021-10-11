@@ -25,7 +25,8 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
 		}
 		name := strings.TrimPrefix(f.Name, "test.")
 		switch name {
-		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker":
+		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker",
+			"gocoverdir":
 			// These are internal flags.
 		default:
 			if !passFlagToTest[name] {

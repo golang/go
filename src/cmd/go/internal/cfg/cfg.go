@@ -74,6 +74,9 @@ var (
 	BuildLinkshared        bool                    // -linkshared flag
 	BuildMSan              bool                    // -msan flag
 	BuildASan              bool                    // -asan flag
+	BuildCover             bool                    // -cover flag
+	BuildCoverMode         string                  // -covermode flag
+	BuildCoverPkg          []string                // -coverpkg flag
 	BuildN                 bool                    // -n flag
 	BuildO                 string                  // -o flag
 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag

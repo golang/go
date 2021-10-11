@@ -33,11 +33,7 @@ func init() {
 	cf.BoolVar(&testC, "c", false, "")
 	cf.BoolVar(&cfg.BuildI, "i", false, "")
 	cf.StringVar(&testO, "o", "", "")
-
-	cf.BoolVar(&testCover, "cover", false, "")
-	cf.Var(coverFlag{(*coverModeFlag)(&testCoverMode)}, "covermode", "")
-	cf.Var(coverFlag{commaListFlag{&testCoverPaths}}, "coverpkg", "")
-
+	work.AddCoverFlags(CmdTest, &testCoverProfile)
 	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 	cf.BoolVar(&testJSON, "json", false, "")
 	cf.Var(&testVet, "vet", "")
@@ -52,7 +48,6 @@ func init() {
 	cf.StringVar(&testBlockProfile, "blockprofile", "", "")
 	cf.String("blockprofilerate", "", "")
 	cf.Int("count", 0, "")
-	cf.Var(coverFlag{stringFlag{&testCoverProfile}}, "coverprofile", "")
 	cf.String("cpu", "", "")
 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
 	cf.Bool("failfast", false, "")
@@ -77,55 +72,6 @@ func init() {
 	for name := range passFlagToTest {
 		cf.Var(cf.Lookup(name).Value, "test."+name, "")
 	}
-}
-
-// A coverFlag is a flag.Value that also implies -cover.
-type coverFlag struct{ v flag.Value }
-
-func (f coverFlag) String() string { return f.v.String() }
-
-func (f coverFlag) Set(value string) error {
-	if err := f.v.Set(value); err != nil {
-		return err
-	}
-	testCover = true
-	return nil
-}
-
-type coverModeFlag string
-
-func (f *coverModeFlag) String() string { return string(*f) }
-func (f *coverModeFlag) Set(value string) error {
-	switch value {
-	case "", "set", "count", "atomic":
-		*f = coverModeFlag(value)
-		return nil
-	default:
-		return errors.New(`valid modes are "set", "count", or "atomic"`)
-	}
-}
-
-// A commaListFlag is a flag.Value representing a comma-separated list.
-type commaListFlag struct{ vals *[]string }
-
-func (f commaListFlag) String() string { return strings.Join(*f.vals, ",") }
-
-func (f commaListFlag) Set(value string) error {
-	if value == "" {
-		*f.vals = nil
-	} else {
-		*f.vals = strings.Split(value, ",")
-	}
-	return nil
-}
-
-// A stringFlag is a flag.Value representing a single string.
-type stringFlag struct{ val *string }
-
-func (f stringFlag) String() string { return *f.val }
-func (f stringFlag) Set(value string) error {
-	*f.val = value
-	return nil
 }
 
 // outputdirFlag implements the -outputdir flag.
@@ -456,18 +402,6 @@ helpLoop:
 			testHelp = true
 			break helpLoop
 		}
-	}
-
-	// Ensure that -race and -covermode are compatible.
-	if testCoverMode == "" {
-		testCoverMode = "set"
-		if cfg.BuildRace {
-			// Default coverage mode is atomic when -race is set.
-			testCoverMode = "atomic"
-		}
-	}
-	if cfg.BuildRace && testCoverMode != "atomic" {
-		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, testCoverMode)
 	}
 
 	// Forward any unparsed arguments (following --args) to the test binary.

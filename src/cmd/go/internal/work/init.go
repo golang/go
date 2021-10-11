@@ -71,6 +71,19 @@ func BuildInit() {
 			base.Fatalf("go: %s environment variable is relative; must be absolute path: %s\n", key, path)
 		}
 	}
+
+	// Set covermode if not already set.
+	// Ensure that -race and -covermode are compatible.
+	if cfg.BuildCoverMode == "" {
+		cfg.BuildCoverMode = "set"
+		if cfg.BuildRace {
+			// Default coverage mode is atomic when -race is set.
+			cfg.BuildCoverMode = "atomic"
+		}
+	}
+	if cfg.BuildRace && cfg.BuildCoverMode != "atomic" {
+		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, cfg.BuildCoverMode)
+	}
 }
 
 // fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation

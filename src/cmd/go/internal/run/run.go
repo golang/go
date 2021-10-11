@@ -69,6 +69,9 @@ func init() {
 	CmdRun.Run = runRun // break init loop
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
+		work.AddCoverFlags(CmdRun, nil)
+	}
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 
@@ -145,6 +148,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	cmdArgs := args[i:]
 	load.CheckPackageErrors([]*load.Package{p})
+
+	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+		load.PrepareForCoverageBuild([]*load.Package{p})
+	}
 
 	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date

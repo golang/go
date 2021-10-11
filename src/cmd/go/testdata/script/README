@@ -39,6 +39,7 @@ Scripts also have access to these other environment variables:
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
 	GODEBUG=<actual GODEBUG>
+	GOCOVERDIR=<current setting of GOCOVERDIR>
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
 
