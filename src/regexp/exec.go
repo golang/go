@@ -432,13 +432,13 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 	}
 
 	r, width = i.step(pos)
+	if r != endOfText {
+		r1, width1 = i.step(pos + width)
+	}
 	if pos == 0 {
 		flag = newLazyFlag(-1, r)
 	} else {
 		flag = i.context(pos)
-	}
-	if r != endOfText {
-		r1, width1 = i.step(pos + width)
 	}
 	for {
 		inst = re.onepass.Inst[pc]
