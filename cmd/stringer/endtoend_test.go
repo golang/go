@@ -17,11 +17,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/internal/testenv"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // This file contains a test that compiles and runs each program in testdata
@@ -42,8 +44,15 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Readdirnames: %s", err)
 	}
+	if typeparams.Enabled {
+		names = append(names, moreTests(t, "testdata/typeparams", "typeparams")...)
+	}
 	// Generate, compile, and run the test programs.
 	for _, name := range names {
+		if name == "typeparams" {
+			// ignore the directory containing the tests with type params
+			continue
+		}
 		if !strings.HasSuffix(name, ".go") {
 			t.Errorf("%s is not a Go file", name)
 			continue
@@ -56,10 +65,29 @@ func TestEndToEnd(t *testing.T) {
 			t.Logf("cgo is not enabled for %s", name)
 			continue
 		}
-		// Names are known to be ASCII and long enough.
-		typeName := fmt.Sprintf("%c%s", name[0]+'A'-'a', name[1:len(name)-len(".go")])
-		stringerCompileAndRun(t, dir, stringer, typeName, name)
+		stringerCompileAndRun(t, dir, stringer, typeName(name), name)
 	}
+}
+
+// a type name for stringer. use the last component of the file name with the .go
+func typeName(fname string) string {
+	// file names are known to be ascii and end .go
+	base := path.Base(fname)
+	return fmt.Sprintf("%c%s", base[0]+'A'-'a', base[1:len(base)-len(".go")])
+}
+
+func moreTests(t *testing.T, dirname, prefix string) []string {
+	x, err := os.ReadDir(dirname)
+	if err != nil {
+		// error, but try the rest of the tests
+		t.Errorf("can't read type param tess from %s: %v", dirname, err)
+		return nil
+	}
+	names := make([]string, len(x))
+	for i, f := range x {
+		names[i] = prefix + "/" + f.Name()
+	}
+	return names
 }
 
 // TestTags verifies that the -tags flag works as advertised.
@@ -173,7 +201,7 @@ func buildStringer(t *testing.T) (dir string, stringer string) {
 func stringerCompileAndRun(t *testing.T, dir, stringer, typeName, fileName string) {
 	t.Helper()
 	t.Logf("run: %s %s\n", fileName, typeName)
-	source := filepath.Join(dir, fileName)
+	source := filepath.Join(dir, path.Base(fileName))
 	err := copy(source, filepath.Join("testdata", fileName))
 	if err != nil {
 		t.Fatalf("copying file to temporary directory: %s", err)
