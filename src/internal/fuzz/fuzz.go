@@ -825,9 +825,11 @@ func (c *coordinator) peekMinimizeInput() (fuzzMinimizeInput, bool) {
 			}
 		}
 	}
-	remaining := c.opts.Limit - c.count - c.countWaiting
-	if input.limit > remaining {
-		input.limit = remaining
+	if c.opts.Limit > 0 {
+		remaining := c.opts.Limit - c.count - c.countWaiting
+		if input.limit > remaining {
+			input.limit = remaining
+		}
 	}
 	return input, true
 }
