@@ -115,16 +115,15 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 }
 
 func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
-	if len == 0 {
-		return
-	}
-
-	if ptr == nil {
-		panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+	if len < 0 {
+		panicunsafeslicelen()
 	}
 
 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
-	if overflow || mem > -uintptr(ptr) || len < 0 {
+	if overflow || mem > -uintptr(ptr) {
+		if ptr == nil {
+			panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+		}
 		panicunsafeslicelen()
 	}
 }
