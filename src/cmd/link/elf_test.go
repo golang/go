@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -409,5 +410,122 @@ func TestPIESize(t *testing.T) {
 				t.Errorf("PIE unexpectedly large: got difference of %d (%d - %d), expected difference %d", diffReal, sizepie, sizeexe, diffExpected)
 			}
 		})
+	}
+}
+
+func TestMappingSymbols(t *testing.T) {
+	if runtime.GOARCH != "arm64" {
+		t.Skip("skipping arm64 only test")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	buildmodes := []string{"exe", "pie"}
+
+	var wg sync.WaitGroup
+	wg.Add(len(buildmodes))
+
+	for _, buildmode := range buildmodes {
+		go func(mode string) {
+			defer wg.Done()
+			symbols := buildSymbols(t, mode)
+			checkMappingSymbols(t, symbols)
+		}(buildmode)
+	}
+
+	wg.Wait()
+}
+
+// Builds a simple program, then returns a corresponding symbol table for that binary
+func buildSymbols(t *testing.T, mode string) []elf.Symbol {
+	goTool := testenv.GoToolPath(t)
+
+	dir := t.TempDir()
+
+	goFile := filepath.Join(dir, "main.go")
+	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(goTool, "build", "-o", mode, "-buildmode="+mode)
+	cmd.Dir = dir
+
+	t.Logf("%s build", goTool)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(dir, mode)
+
+	elfexe, err := elf.Open(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	symbols, err := elfexe.Symbols()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return symbols
+}
+
+// Checks that mapping symbols are inserted correctly inside a symbol table.
+func checkMappingSymbols(t *testing.T, symbols []elf.Symbol) {
+	// textValues variable stores addresses of function symbols,
+	// it helps ensuring that "$x" symbol has a correct place (at the beginning of a function)
+	textValues := make(map[uint64]struct{})
+	for _, symbol := range symbols {
+		if elf.ST_TYPE(symbol.Info) == elf.STT_FUNC {
+			textValues[symbol.Value] = struct{}{}
+		}
+	}
+
+	// mappingSymbols variable keeps only "$x" and "$d" symbols sorted by their position.
+	var mappingSymbols []elf.Symbol
+	for _, symbol := range symbols {
+		if symbol.Name == "$x" || symbol.Name == "$d" {
+			if elf.ST_TYPE(symbol.Info) != elf.STT_NOTYPE || elf.ST_BIND(symbol.Info) != elf.STB_LOCAL {
+				t.Fatalf("met \"%v\" symbol at %v position with incorrect info %v", symbol.Name, symbol.Value, symbol.Info)
+			}
+			mappingSymbols = append(mappingSymbols, symbol)
+		}
+	}
+	sort.Slice(mappingSymbols, func(i, j int) bool {
+		return mappingSymbols[i].Value < mappingSymbols[j].Value
+	})
+
+	hasData := false
+	hasText := false
+
+	needCodeSymb := true
+	for _, symbol := range mappingSymbols {
+		if symbol.Name == "$x" {
+			hasText = true
+
+			_, has := textValues[symbol.Value]
+			if !has {
+				t.Fatalf("met \"$x\" symbol at %v position which is not a beginning of the function", symbol.Value)
+			}
+
+			needCodeSymb = false
+			continue
+		}
+
+		hasData = true
+
+		if needCodeSymb {
+			t.Fatalf("met unexpected \"$d\" symbol at %v position, (\"$x\" should always go after \"$d\", not another \"$d\")", symbol.Value)
+		}
+		needCodeSymb = true
+	}
+
+	if !hasText || !hasData {
+		t.Fatal("binary does not have mapping symbols")
 	}
 }
