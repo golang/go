@@ -2268,6 +2268,35 @@ func (p *Package) setBuildInfo() {
 		Main: main,
 		Deps: deps,
 	}
+	appendSetting := func(key, value string) {
+		info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
+	}
+
+	// Add command-line flags relevant to the build.
+	// This is informational, not an exhaustive list.
+	if cfg.BuildBuildinfo {
+		appendSetting("compiler", cfg.BuildContext.Compiler)
+		if BuildAsmflags.present {
+			appendSetting("asmflags", BuildAsmflags.String())
+		}
+		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
+			appendSetting("gcflags", BuildGcflags.String())
+		}
+		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
+			appendSetting("gccgoflags", BuildGccgoflags.String())
+		}
+		if BuildLdflags.present {
+			appendSetting("ldflags", BuildLdflags.String())
+		}
+		tags := append(cfg.BuildContext.BuildTags, cfg.BuildContext.ToolTags...)
+		appendSetting("tags", strings.Join(tags, ","))
+		appendSetting("CGO_ENABLED", strconv.FormatBool(cfg.BuildContext.CgoEnabled))
+		if cfg.BuildContext.CgoEnabled {
+			for _, name := range []string{"CGO_CPPFLAGS", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+				appendSetting(name, cfg.Getenv(name))
+			}
+		}
+	}
 
 	// Add VCS status if all conditions are true:
 	//
@@ -2328,10 +2357,10 @@ func (p *Package) setBuildInfo() {
 			setVCSError(err)
 			return
 		}
-		info.Settings = []debug.BuildSetting{
+		info.Settings = append(info.Settings, []debug.BuildSetting{
 			{Key: vcsCmd.Cmd + "revision", Value: st.Revision},
 			{Key: vcsCmd.Cmd + "uncommitted", Value: strconv.FormatBool(st.Uncommitted)},
-		}
+		}...)
 	}
 
 	text, err := info.MarshalText()
