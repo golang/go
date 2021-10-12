@@ -461,25 +461,15 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 
 	case TINTER:
 		if t.IsEmptyInterface() {
-			if mode == fmtTypeID {
-				b.WriteString("interface{}")
-			} else {
-				b.WriteString("interface {}")
-			}
+			b.WriteString("interface {}")
 			break
 		}
-		if mode == fmtTypeID {
-			b.WriteString("interface{")
-		} else {
-			b.WriteString("interface {")
-		}
+		b.WriteString("interface {")
 		for i, f := range t.AllMethods().Slice() {
 			if i != 0 {
 				b.WriteByte(';')
 			}
-			if mode != fmtTypeID {
-				b.WriteByte(' ')
-			}
+			b.WriteByte(' ')
 			switch {
 			case f.Sym == nil:
 				// Check first that a symbol is defined for this type.
@@ -495,7 +485,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
-		if t.AllMethods().Len() != 0 && mode != fmtTypeID {
+		if t.AllMethods().Len() != 0 {
 			b.WriteByte(' ')
 		}
 		b.WriteByte('}')
@@ -570,21 +560,15 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			b.WriteByte(byte(close))
 		} else {
-			if mode == fmtTypeID {
-				b.WriteString("struct{")
-			} else {
-				b.WriteString("struct {")
-			}
+			b.WriteString("struct {")
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
 					b.WriteByte(';')
 				}
-				if mode != fmtTypeID {
-					b.WriteByte(' ')
-				}
+				b.WriteByte(' ')
 				fldconv(b, f, 'L', mode, visited, funarg)
 			}
-			if t.NumFields() != 0 && mode != fmtTypeID {
+			if t.NumFields() != 0 {
 				b.WriteByte(' ')
 			}
 			b.WriteByte('}')
@@ -668,14 +652,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 
 	if name != "" {
 		b.WriteString(name)
-		if mode == fmtTypeID {
-			// This is the one case where we can't omit the space, since
-			// we need a separate between field name and type, so we use
-			// "#" instead.
-			b.WriteString("#")
-		} else {
-			b.WriteString(" ")
-		}
+		b.WriteString(" ")
 	}
 
 	if f.IsDDD() {
@@ -690,11 +667,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
 	}
 
 	if verb != 'S' && funarg == FunargNone && f.Note != "" {
-		if mode != fmtTypeID {
-			b.WriteString(" ")
-		}
-		// TODO: for fmtTypeID, we should possibly using %-quoting, so
-		// space is %20, etc.
+		b.WriteString(" ")
 		b.WriteString(strconv.Quote(f.Note))
 	}
 }
