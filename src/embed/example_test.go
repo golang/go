@@ -10,13 +10,13 @@ import (
 	"net/http"
 )
 
-//go:embed static/*.png
-var images embed.FS
+//go:embed internal/embedtest/testdata/*.txt
+var content embed.FS
 
 func Example() {
-	mux := http.NewServeMux()
-	mux.Handle("/static/", http.FileServer(http.FS(images)))
-	err := http.ListenAndServe(":8080", mux)
+	mutex := http.NewServeMux()
+	mutex.Handle("/", http.FileServer(http.FS(content)))
+	err := http.ListenAndServe(":8080", mutex)
 	if err != nil {
 		log.Fatal(err)
 	}
