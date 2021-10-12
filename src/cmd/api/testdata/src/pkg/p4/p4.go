@@ -20,3 +20,7 @@ func (p Pair[X1, _]) First() X1 {
 func (p Pair[_, X2]) Second() X2 {
 	return p.f2
 }
+
+func Clone[S ~[]T, T any](s S) S {
+	return append(S(nil), s...)
+}
