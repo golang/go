@@ -524,6 +524,10 @@ type IfaceAny struct {
 	T2  T2
 }
 
+type Generic[T any] struct {
+	X T
+}
+
 var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
@@ -641,6 +645,7 @@ var marshalTests = []struct {
 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
 	{Value: atomValue, ExpectXML: atomXML},
+	{Value: &Generic[int]{1}, ExpectXML: `<Generic><X>1</X></Generic>`},
 	{
 		Value: &Ship{
 			Name:  "Heart of Gold",
