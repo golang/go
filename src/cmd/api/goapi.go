@@ -838,7 +838,8 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 		buf.WriteString(typ.Obj().Name())
 
 	case *types.TypeParam:
-		buf.WriteString(typ.Obj().Name())
+		// Type parameter names may change, so use a placeholder instead.
+		fmt.Fprintf(buf, "$%d", typ.Index())
 
 	default:
 		panic(fmt.Sprintf("unknown type %T", typ))
@@ -870,7 +871,7 @@ func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList
 			buf.WriteString(", ")
 		}
 		tp := tparams.At(i)
-		buf.WriteString(tp.Obj().Name())
+		w.writeType(buf, tp)
 		if withConstraints {
 			buf.WriteByte(' ')
 			w.writeType(buf, tp.Constraint())
