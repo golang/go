@@ -1678,7 +1678,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
 		t := v.Type
 		key := selKey{v, 0, t.Size(), t}
 		w := x.commonArgs[key]
-		if w != nil {
+		if w != nil && w.Uses != 0 { // do not reuse dead value
 			v.copyOf(w)
 			break
 		}
@@ -1709,9 +1709,15 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 	}
 	key := selKey{baseArg, offset, t.Size(), t}
 	w := x.commonArgs[key]
-	if w != nil {
+	if w != nil && w.Uses != 0 { // do not reuse dead value
 		if toReplace != nil {
 			toReplace.copyOf(w)
+			if x.debug > 1 {
+				x.Printf("...replace %s\n", toReplace.LongString())
+			}
+		}
+		if x.debug > 1 {
+			x.Printf("-->%s\n", w.LongString())
 		}
 		return w
 	}
