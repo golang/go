@@ -390,27 +390,6 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// These nodes don't produce code; omit from inlining budget.
 		return false
 
-	case ir.OFOR, ir.OFORUNTIL:
-		n := n.(*ir.ForStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	case ir.OSWITCH:
-		n := n.(*ir.SwitchStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	// case ir.ORANGE, ir.OSELECT in "unhandled" above
-
-	case ir.OBREAK, ir.OCONTINUE:
-		n := n.(*ir.BranchStmt)
-		if n.Label != nil {
-			// Should have short-circuited due to labeled control error above.
-			base.Fatalf("unexpected labeled break/continue: %v", n)
-		}
-
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
 		if ir.IsConst(n.Cond, constant.Bool) {
