@@ -115,7 +115,7 @@ type dictInfo struct {
 	itabConvs []ir.Node
 
 	// Mapping from each shape type that substitutes a type param, to its
-	// type bound (which is also substitued with shapes if it is parameterized)
+	// type bound (which is also substituted with shapes if it is parameterized)
 	shapeToBound map[*types.Type]*types.Type
 
 	// For type switches on nonempty interfaces, a map from OTYPE entries of
