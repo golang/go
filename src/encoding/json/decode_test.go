@@ -452,6 +452,8 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
+	{in: ``, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 0}},
+	{in: ` `, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 1}},
 	{in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
 	{in: `{"F3": -}`, ptr: new(V), out: V{F3: Number("-")}, err: &SyntaxError{msg: "invalid character '}' in numeric literal", Offset: 9}},
 
@@ -1084,6 +1086,11 @@ func equalError(a, b error) bool {
 	}
 	if b == nil {
 		return a == nil
+	}
+	ase, aok := a.(*SyntaxError)
+	bse, bok := b.(*SyntaxError)
+	if aok || bok {
+		return aok && bok && *ase == *bse
 	}
 	return a.Error() == b.Error()
 }

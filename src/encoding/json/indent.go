@@ -19,7 +19,9 @@ func compact(dst *bytes.Buffer, src []byte, escape bool) error {
 	scan := newScanner()
 	defer freeScanner(scan)
 	start := 0
+	var offset int64
 	for i, c := range src {
+		offset++
 		if escape && (c == '<' || c == '>' || c == '&') {
 			if start < i {
 				dst.Write(src[start:i])
@@ -51,7 +53,7 @@ func compact(dst *bytes.Buffer, src []byte, escape bool) error {
 	}
 	if scan.eof() == scanError {
 		dst.Truncate(origLen)
-		return scan.err
+		return &SyntaxError{msg: scan.errMsg, Offset: offset}
 	}
 	if start < len(src) {
 		dst.Write(src[start:])
@@ -84,8 +86,9 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	defer freeScanner(scan)
 	needIndent := false
 	depth := 0
+	var offset int64
 	for _, c := range src {
-		scan.bytes++
+		offset++
 		v := scan.step(scan, c)
 		if v == scanSkipSpace {
 			continue
@@ -137,7 +140,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	}
 	if scan.eof() == scanError {
 		dst.Truncate(origLen)
-		return scan.err
+		return &SyntaxError{msg: scan.errMsg, Offset: offset}
 	}
 	return nil
 }

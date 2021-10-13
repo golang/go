@@ -178,18 +178,20 @@ func TestIndentBig(t *testing.T) {
 	}
 }
 
-type indentErrorTest struct {
+type errorTest struct {
 	in  string
 	err error
 }
 
-var indentErrorTests = []indentErrorTest{
+var errorTests = []errorTest{
 	{`{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
 	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
+	{``, &SyntaxError{"unexpected end of JSON input", 0}},
+	{`  [  `, &SyntaxError{"unexpected end of JSON input", 5}},
 }
 
 func TestIndentErrors(t *testing.T) {
-	for i, tt := range indentErrorTests {
+	for i, tt := range errorTests {
 		slice := make([]uint8, 0)
 		buf := bytes.NewBuffer(slice)
 		if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
@@ -197,6 +199,17 @@ func TestIndentErrors(t *testing.T) {
 				t.Errorf("#%d: Indent: %#v", i, err)
 				continue
 			}
+		}
+	}
+}
+
+func TestCompactErrors(t *testing.T) {
+	for i, tt := range errorTests {
+		var buf bytes.Buffer
+		err := Compact(&buf, []byte(tt.in))
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: Compact: expected %#v, got: %#v", i, tt.err, err)
+			continue
 		}
 	}
 }

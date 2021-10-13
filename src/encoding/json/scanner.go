@@ -29,14 +29,13 @@ func Valid(data []byte) bool {
 // scan is passed in for use by checkValid to avoid an allocation.
 func checkValid(data []byte, scan *scanner) error {
 	scan.reset()
-	for _, c := range data {
-		scan.bytes++
+	for i, c := range data {
 		if scan.step(scan, c) == scanError {
-			return scan.err
+			return &SyntaxError{msg: scan.errMsg, Offset: int64(i + 1)}
 		}
 	}
 	if scan.eof() == scanError {
-		return scan.err
+		return &SyntaxError{msg: scan.errMsg, Offset: int64(len(data))}
 	}
 	return nil
 }
@@ -75,11 +74,7 @@ type scanner struct {
 	parseState []int
 
 	// Error that happened, if any.
-	err error
-
-	// total bytes consumed, updated by decoder.Decode (and deliberately
-	// not set to zero by scan.reset)
-	bytes int64
+	errMsg string
 }
 
 var scannerPool = sync.Pool{
@@ -90,8 +85,6 @@ var scannerPool = sync.Pool{
 
 func newScanner() *scanner {
 	scan := scannerPool.Get().(*scanner)
-	// scan.reset by design doesn't set bytes to zero
-	scan.bytes = 0
 	scan.reset()
 	return scan
 }
@@ -148,14 +141,14 @@ const maxNestingDepth = 10000
 func (s *scanner) reset() {
 	s.step = stateBeginValue
 	s.parseState = s.parseState[0:0]
-	s.err = nil
+	s.errMsg = ""
 	s.endTop = false
 }
 
 // eof tells the scanner that the end of input has been reached.
 // It returns a scan status just as s.step does.
 func (s *scanner) eof() int {
-	if s.err != nil {
+	if s.errMsg != "" {
 		return scanError
 	}
 	if s.endTop {
@@ -165,8 +158,8 @@ func (s *scanner) eof() int {
 	if s.endTop {
 		return scanEnd
 	}
-	if s.err == nil {
-		s.err = &SyntaxError{"unexpected end of JSON input", s.bytes}
+	if s.errMsg == "" {
+		s.errMsg = "unexpected end of JSON input"
 	}
 	return scanError
 }
@@ -588,7 +581,7 @@ func stateError(s *scanner, c byte) int {
 // error records an error and switches to the error state.
 func (s *scanner) error(c byte, context string) int {
 	s.step = stateError
-	s.err = &SyntaxError{"invalid character " + quoteChar(c) + " " + context, s.bytes}
+	s.errMsg = "invalid character " + quoteChar(c) + " " + context
 	return scanError
 }
 

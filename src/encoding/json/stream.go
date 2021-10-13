@@ -99,13 +99,8 @@ Input:
 		// Look in the buffer for a new value.
 		for ; scanp < len(dec.buf); scanp++ {
 			c := dec.buf[scanp]
-			dec.scan.bytes++
 			switch dec.scan.step(&dec.scan, c) {
 			case scanEnd:
-				// scanEnd is delayed one byte so we decrement
-				// the scanner bytes count by 1 to ensure that
-				// this value is correct in the next call of Decode.
-				dec.scan.bytes--
 				break Input
 			case scanEndObject, scanEndArray:
 				// scanEnd is delayed one byte.
@@ -116,8 +111,8 @@ Input:
 					break Input
 				}
 			case scanError:
-				dec.err = dec.scan.err
-				return 0, dec.scan.err
+				dec.err = &SyntaxError{msg: dec.scan.errMsg, Offset: dec.scanned + int64(scanp) + 1}
+				return 0, dec.err
 			}
 		}
 
