@@ -50,7 +50,9 @@ func TestInst(t *testing.T) {
 	if output, err = cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
 	}
-	re := regexp.MustCompile(`\bSort\[.*shape.*\]`)
+	// Look for shape-based instantiation of Sort, but ignore any extra wrapper
+	// ending in "-tramp" (which are created on riscv).
+	re := regexp.MustCompile(`\bSort\[.*shape.*\][^-]`)
 	r := re.FindAllIndex(output, -1)
 	if len(r) != 1 {
 		t.Fatalf("Wanted 1 instantiations of Sort function, got %d\n", len(r))
