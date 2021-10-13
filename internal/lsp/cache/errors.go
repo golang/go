@@ -233,6 +233,9 @@ func analysisDiagnosticDiagnostics(snapshot *snapshot, pkg *pkg, a *analysis.Ana
 // onlyDeletions returns true if all of the suggested fixes are deletions.
 func onlyDeletions(fixes []source.SuggestedFix) bool {
 	for _, fix := range fixes {
+		if fix.Command != nil {
+			return false
+		}
 		for _, edits := range fix.Edits {
 			for _, edit := range edits {
 				if edit.NewText != "" {
