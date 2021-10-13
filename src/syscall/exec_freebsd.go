@@ -214,11 +214,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 1: look for fd[i] < i and move those up above len(fd)
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+		_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(pipe), F_DUP2FD_CLOEXEC, uintptr(nextfd))
 		if err1 != 0 {
 			goto childerror
 		}
-		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 		pipe = nextfd
 		nextfd++
 	}
@@ -227,11 +226,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_DUP2FD_CLOEXEC, uintptr(nextfd))
 			if err1 != 0 {
 				goto childerror
 			}
-			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
 		}
