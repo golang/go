@@ -135,8 +135,7 @@ func s1(x int) int { // ERROR "can inline s1"
 	return foo() // ERROR "inlining call to s1.func1"
 }
 
-// can't currently inline functions with a break statement
-func switchBreak(x, y int) int {
+func switchBreak(x, y int) int { // ERROR "can inline switchBreak"
 	var n int
 	switch x {
 	case 0:
@@ -218,8 +217,7 @@ func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
 	}
 }
 
-// BAD: for2 should be inlineable too.
-func for2(fn func() bool) { // ERROR "fn does not escape"
+func for2(fn func() bool) { // ERROR "can inline for2" "fn does not escape"
 Loop:
 	for {
 		if fn() {
