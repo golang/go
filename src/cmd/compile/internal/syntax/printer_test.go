@@ -72,7 +72,7 @@ var stringTests = []string{
 	"package p; func (*R[A, B, C]) _()",
 	"package p; func (_ *R[A, B, C]) _()",
 
-	// type constraint literals with elided interfaces (only if AllowTypeSets is set)
+	// type constraint literals with elided interfaces
 	"package p; func _[P ~int, Q int | string]() {}",
 	"package p; func _[P struct{f int}, Q *P]() {}",
 
@@ -94,7 +94,7 @@ var stringTests = []string{
 
 func TestPrintString(t *testing.T) {
 	for _, want := range stringTests {
-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeSets)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics)
 		if err != nil {
 			t.Error(err)
 			continue

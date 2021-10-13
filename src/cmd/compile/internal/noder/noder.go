@@ -36,7 +36,7 @@ func LoadPackage(filenames []string) {
 
 	mode := syntax.CheckBranches
 	if supportsGenerics {
-		mode |= syntax.AllowGenerics | syntax.AllowTypeSets
+		mode |= syntax.AllowGenerics
 	}
 
 	// Limit the number of simultaneously open files.
