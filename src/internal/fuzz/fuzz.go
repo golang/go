@@ -875,12 +875,10 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
 }
 
 // canMinimize returns whether the coordinator should attempt to find smaller
-// inputs that reproduce a crash or new coverage. It shouldn't do this if it
-// is in the warmup phase.
+// inputs that reproduce a crash or new coverage.
 func (c *coordinator) canMinimize() bool {
 	return c.minimizationAllowed &&
-		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit) &&
-		!c.warmupRun()
+		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
 }
 
 func (c *coordinator) elapsed() time.Duration {

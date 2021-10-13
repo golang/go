@@ -7,56 +7,72 @@
 env GOCACHE=$WORK/gocache
 
 # Test that fuzzminimizetime cannot be negative seconds
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1ms minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1ms .
 ! stdout '^ok'
 ! stdout 'contains a non-zero byte'
 stdout 'invalid duration'
 stdout FAIL
 
 # Test that fuzzminimizetime cannot be negative times
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1x minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1x .
 ! stdout '^ok'
 ! stdout 'contains a non-zero byte'
 stdout 'invalid count'
 stdout FAIL
 
 # Test that fuzzminimizetime can be zero seconds, and minimization is disabled
-! go test -fuzz=FuzzMinimizeZeroDurationSet -run=FuzzMinimizeZeroDurationSet -fuzztime=10000x -fuzzminimizetime=0s minimizer_test.go
+! go test -fuzz=FuzzMinimizeZeroDurationSet -run=FuzzMinimizeZeroDurationSet -fuzztime=10000x -fuzzminimizetime=0s .
 ! stdout '^ok'
 ! stdout 'minimizing'
 stdout 'there was an Error'
 stdout FAIL
 
 # Test that fuzzminimizetime can be zero times, and minimization is disabled
-! go test -fuzz=FuzzMinimizeZeroLimitSet -run=FuzzMinimizeZeroLimitSet -fuzztime=10000x -fuzzminimizetime=0x minimizer_test.go
+! go test -fuzz=FuzzMinimizeZeroLimitSet -run=FuzzMinimizeZeroLimitSet -fuzztime=10000x -fuzzminimizetime=0x .
 ! stdout '^ok'
 ! stdout 'minimizing'
 stdout 'there was an Error'
 stdout FAIL
 
-# Test that minimization is working for recoverable errors.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x minimizer_test.go
+# Test that minimization occurs for a crash that appears while minimizing a
+# newly found interesting input. There must be only one worker for this test to
+# be flaky like we want.
+! go test -fuzz=FuzzMinimizerCrashInMinimization -run=FuzzMinimizerCrashInMinimization -fuzztime=10000x -parallel=1 .
 ! stdout '^ok'
 stdout 'got the minimum size!'
-stdout 'contains a non-zero byte'
+stdout 'flaky failure'
+stdout FAIL
+
+# Make sure the crash that was written will fail when run with go test
+! go test -run=FuzzMinimizerCrashInMinimization .
+
+# Clear testdata.
+rm testdata
+
+# Test that minimization is working for recoverable errors.
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x .
+! stdout '^ok'
+stdout 'got the minimum size!'
+# The error message that was printed should be for the one written to testdata.
+stdout 'contains a non-zero byte of length 50'
 stdout FAIL
 
 # Check that the bytes written to testdata are of length 50 (the minimum size)
-go run check_testdata.go FuzzMinimizerRecoverable 50
+go run ./check_testdata FuzzMinimizerRecoverable 50
 
 # Test that re-running the minimized value causes a crash.
-! go test -run=FuzzMinimizerRecoverable minimizer_test.go
+! go test -run=FuzzMinimizerRecoverable .
 rm testdata
 
 # Test that minimization doesn't run for non-recoverable errors.
-! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x minimizer_test.go
+! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x .
 ! stdout '^ok'
 ! stdout 'minimizing'
 stdout 'fuzzing process terminated unexpectedly: exit status 99'
 stdout FAIL
 
 # Check that re-running the value causes a crash.
-! go test -run=FuzzMinimizerNonrecoverable minimizer_test.go
+! go test -run=FuzzMinimizerNonrecoverable .
 rm testdata
 
 # Clear the fuzzing cache. There may already be minimized inputs that would
@@ -65,35 +81,43 @@ go clean -fuzzcache
 
 # Test that minimization can be cancelled by fuzzminimizetime and the latest
 # crash will still be logged and written to testdata.
-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
+! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=1x .
 ! stdout '^ok'
 stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerRecoverable[/\\]'
 ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
 stdout FAIL
 
 # Test that re-running the unminimized value causes a crash.
-! go test -run=FuzzMinimizerRecoverable minimizer_test.go
-
-! go test -fuzz=FuzzMinimizerTooSlow -run=FuzzMinimizerTooSlow -fuzzminimizetime=3s minimizer_test.go
-stdout 'fuzz: minimizing'
-stdout 'fuzz: elapsed: \d+s, minimizing'
-stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerTooSlow[/\\]'
-stdout FAIL
+! go test -run=FuzzMinimizerRecoverable .
 
 # TODO(jayconrod,katiehockman): add a test which verifies that the right bytes
 # are written to testdata in the case of an interrupt during minimization.
 
 -- go.mod --
-module m
+module example.com/y
 
 go 1.16
--- minimizer_test.go --
-package fuzz_test
+-- y.go --
+package y
 
 import (
+	"bytes"
+	"io"
+)
+
+func Y(w io.Writer, b []byte) {
+	if !bytes.Equal(b, []byte("y")) {
+		w.Write([]byte("not equal"))
+	}
+}
+-- y_test.go --
+package y
+
+import (
+	"bytes"
+	"io"
 	"os"
 	"testing"
-	"time"
 )
 
 func FuzzMinimizeZeroDurationSet(f *testing.F) {
@@ -126,42 +150,42 @@ func FuzzMinimizerRecoverable(f *testing.F) {
 				if len(b) == 50 {
 					t.Log("got the minimum size!")
 				}
-				t.Fatal("contains a non-zero byte")
+				t.Fatalf("contains a non-zero byte of length %d", len(b))
 			}
 		}
 	})
 }
 
 func FuzzMinimizerNonrecoverable(f *testing.F) {
-	f.Add(make([]byte, 100))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) < 50 {
+		os.Exit(99)
+	})
+}
+
+func FuzzMinimizerCrashInMinimization(f *testing.F) {
+	seed := make([]byte, 1000)
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) < 50 || len(b) > 1100 {
 			// Make sure that b is large enough that it can be minimized
 			return
 		}
-		// Given the randomness of the mutations, this should allow the
-		// minimizer to trim down the value a bit.
-		for _, n := range b {
-			if n != 0 {
-				t.Log("contains a non-zero byte")
-				os.Exit(99)
-			}
+		if !bytes.Equal(b, seed) {
+			// This should have hit a new edge, and the interesting input
+			// should be attempting minimization
+			Y(io.Discard, b)
+		}
+		if len(b) < 350 {
+			t.Error("flaky failure")
+		}
+		if len(b) == 50 {
+			t.Log("got the minimum size!")
 		}
 	})
 }
-
-func FuzzMinimizerTooSlow(f *testing.F) {
-	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) > 50 {
-			t.Error("error here")
-			time.Sleep(2 * time.Second)
-		}
-	})
-}
-
--- check_testdata.go --
-// +build ignore
-
+-- empty/empty.go --
+package empty
+-- check_testdata/check_testdata.go --
 package main
 
 import (

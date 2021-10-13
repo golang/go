@@ -261,8 +261,8 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
 		return fuzzResult{}, fmt.Errorf("fuzzing process terminated unexpectedly while minimizing: %w", w.waitErr)
 	}
 
-	if input.crasherMsg != "" && resp.Err == "" && !resp.Success {
-		return fuzzResult{}, fmt.Errorf("attempted to minimize but could not reproduce")
+	if input.crasherMsg != "" && resp.Err == "" {
+		return fuzzResult{}, fmt.Errorf("attempted to minimize a crash but could not reproduce")
 	}
 
 	return fuzzResult{
@@ -509,12 +509,11 @@ type minimizeArgs struct {
 
 // minimizeResponse contains results from workerServer.minimize.
 type minimizeResponse struct {
-	// Success is true if the worker found a smaller input, stored in shared
-	// memory, that was "interesting" for the same reason as the original input.
-	// If minimizeArgs.KeepCoverage was set, the minimized input preserved at
-	// least one coverage bit and did not cause an error. Otherwise, the
-	// minimized input caused some error, recorded in Err.
-	Success bool
+	// WroteToMem is true if the worker found a smaller input and wrote it to
+	// shared memory. If minimizeArgs.KeepCoverage was set, the minimized input
+	// preserved at least one coverage bit and did not cause an error.
+	// Otherwise, the minimized input caused some error, recorded in Err.
+	WroteToMem bool
 
 	// Err is the error string caused by the value in shared memory, if any.
 	Err string
@@ -777,32 +776,31 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
 	}
 
 	// Minimize the values in vals, then write to shared memory. We only write
-	// to shared memory after completing minimization. If the worker terminates
-	// unexpectedly before then, the coordinator will use the original input.
-	resp.Success, err = ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit, args.KeepCoverage)
-	if resp.Success {
+	// to shared memory after completing minimization.
+	// TODO(48165): If the worker terminates unexpectedly during minimization,
+	// the coordinator has no way of retrieving the crashing input.
+	success, err := ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit, args.KeepCoverage)
+	if success {
 		writeToMem(vals, mem)
-	}
-	if err != nil {
-		resp.Err = err.Error()
-	} else if resp.Success {
-		resp.CoverageData = coverageSnapshot
+		resp.WroteToMem = true
+		if err != nil {
+			resp.Err = err.Error()
+		} else {
+			resp.CoverageData = coverageSnapshot
+		}
 	}
 	return resp
 }
 
 // minimizeInput applies a series of minimizing transformations on the provided
-// vals, ensuring that each minimization still causes an error in fuzzFn. Before
-// every call to fuzzFn, it marshals the new vals and writes it to the provided
-// mem just in case an unrecoverable error occurs. It uses the context to
-// determine how long to run, stopping once closed. It returns a bool
-// indicating whether minimization was successful and an error if one was found.
+// vals, ensuring that each minimization still causes an error in fuzzFn. It
+// uses the context to determine how long to run, stopping once closed. It
+// returns a bool indicating whether minimization was successful and an error if
+// one was found.
 func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64, keepCoverage []byte) (success bool, retErr error) {
-	wantError := keepCoverage == nil
 	shouldStop := func() bool {
 		return ctx.Err() != nil ||
-			(limit > 0 && *count >= limit) ||
-			(retErr != nil && !wantError)
+			(limit > 0 && *count >= limit)
 	}
 	if shouldStop() {
 		return false, nil
@@ -812,11 +810,12 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 	// If not, then whatever caused us to think the value was interesting may
 	// have been a flake, and we can't minimize it.
 	*count++
-	if retErr = ws.fuzzFn(CorpusEntry{Values: vals}); retErr == nil && wantError {
-		return false, nil
-	} else if retErr != nil && !wantError {
-		return false, retErr
-	} else if keepCoverage != nil && !hasCoverageBit(keepCoverage, coverageSnapshot) {
+	retErr = ws.fuzzFn(CorpusEntry{Values: vals})
+	if keepCoverage != nil {
+		if !hasCoverageBit(keepCoverage, coverageSnapshot) || retErr != nil {
+			return false, nil
+		}
+	} else if retErr == nil {
 		return false, nil
 	}
 
@@ -881,7 +880,13 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 		err := ws.fuzzFn(CorpusEntry{Values: vals})
 		if err != nil {
 			retErr = err
-			return wantError
+			if keepCoverage != nil {
+				// Now that we've found a crash, that's more important than any
+				// minimization of interesting inputs that was being done. Clear out
+				// keepCoverage to only minimize the crash going forward.
+				keepCoverage = nil
+			}
+			return true
 		}
 		if keepCoverage != nil && hasCoverageBit(keepCoverage, coverageSnapshot) {
 			return true
@@ -939,7 +944,7 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
 			panic("unreachable")
 		}
 	}
-	return (wantError || retErr == nil), retErr
+	return true, retErr
 }
 
 func writeToMem(vals []interface{}, mem *sharedMem) {
@@ -1024,7 +1029,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	}
 	defer func() { wc.memMu <- mem }()
 	resp.Count = mem.header().count
-	if resp.Success {
+	if resp.WroteToMem {
 		entryOut.Data = mem.valueCopy()
 		entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
 		h := sha256.Sum256(entryOut.Data)

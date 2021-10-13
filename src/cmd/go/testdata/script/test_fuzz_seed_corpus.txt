@@ -47,6 +47,23 @@ cp cache-file $GOCACHE/fuzz/example.com/x/FuzzWithCache/1
 stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithCache[/\\]'
 stdout FAIL
 
+# Write a crashing input to the cache
+mkdir $GOCACHE/fuzz/example.com/x/FuzzWithMinimizableCache
+cp cache-file-bytes $GOCACHE/fuzz/example.com/x/FuzzWithMinimizableCache/1
+
+# Test that fuzzing a target with a failure in the cache minimizes it and writes
+# the new crash to testdata/fuzz
+! go test -fuzz=FuzzWithMinimizableCache -run=FuzzWithMinimizableCache -fuzztime=10000x
+! stdout ^ok
+stdout 'gathering baseline coverage'
+stdout 'got the minimum size!'
+stdout 'contains a non-zero byte of length 10'
+stdout 'Crash written to testdata[/\\]fuzz[/\\]FuzzWithMinimizableCache[/\\]'
+stdout FAIL
+# Make sure this crash didn't come from fuzzing
+# (the log line that states fuzzing began shouldn't have printed)
+! stdout 'execs'
+
 # Clear the fuzz cache and make sure it's gone
 go clean -fuzzcache
 ! exists $GOCACHE/fuzz
@@ -158,6 +175,22 @@ func FuzzWithCache(f *testing.F) {
     })
 }
 
+func FuzzWithMinimizableCache(f *testing.F) {
+    f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) < 10 {
+			return
+		}
+		for _, n := range b {
+			if n != 0 {
+				if len(b) == 10 {
+					t.Log("got the minimum size!")
+				}
+				t.Fatalf("contains a non-zero byte of length %d", len(b))
+			}
+		}
+    })
+}
+
 func FuzzRunNoneWithCache(f *testing.F) {
     f.Fuzz(func(t *testing.T, i int) {
         if i == 10 {
@@ -171,3 +204,6 @@ int(10)
 -- cache-file --
 go test fuzz v1
 int(10)
+-- cache-file-bytes --
+go test fuzz v1
+[]byte("11111111111111111111")
