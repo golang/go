@@ -5,6 +5,7 @@
 package syscall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -29,8 +30,15 @@ type SysProcAttr struct {
 	// Unlike Setctty, in this case Ctty must be a descriptor
 	// number in the parent process.
 	Foreground bool
-	Pgid       int // Child's process group ID if Setpgid.
+	Pgid       int    // Child's process group ID if Setpgid.
+	Pdeathsig  Signal // Signal that the process will get when its parent dies (Linux and FreeBSD only)
 }
+
+const (
+	_P_PID = 0
+
+	_PROC_PDEATHSIG_CTL = 11
+)
 
 // Implemented in runtime package.
 func runtime_BeforeFork()
@@ -56,6 +64,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		nextfd int
 		i      int
 	)
+
+	// Record parent PID so child can test if it has died.
+	ppid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -172,6 +183,31 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
 		if err1 != 0 {
 			goto childerror
+		}
+	}
+
+	// Parent death signal
+	if sys.Pdeathsig != 0 {
+		switch runtime.GOARCH {
+		case "386", "arm":
+			_, _, err1 = RawSyscall6(SYS_PROCCTL, _P_PID, 0, 0, _PROC_PDEATHSIG_CTL, uintptr(unsafe.Pointer(&sys.Pdeathsig)), 0)
+		default:
+			_, _, err1 = RawSyscall6(SYS_PROCCTL, _P_PID, 0, _PROC_PDEATHSIG_CTL, uintptr(unsafe.Pointer(&sys.Pdeathsig)), 0, 0)
+		}
+		if err1 != 0 {
+			goto childerror
+		}
+
+		// Signal self if parent is already dead. This might cause a
+		// duplicate signal in rare cases, but it won't matter when
+		// using SIGKILL.
+		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
+		if r1 != ppid {
+			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
+			if err1 != 0 {
+				goto childerror
+			}
 		}
 	}
 
