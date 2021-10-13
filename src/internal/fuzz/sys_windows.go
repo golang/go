@@ -86,7 +86,7 @@ func (m *sharedMem) Close() error {
 	return nil
 }
 
-// setWorkerComm configures communciation channels on the cmd that will
+// setWorkerComm configures communication channels on the cmd that will
 // run a worker process.
 func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
 	mem := <-comm.memMu
