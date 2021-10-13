@@ -132,7 +132,11 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
+	haveEmbed := g.haveEmbed
 	g.later(func() {
+		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
+
+		g.haveEmbed = haveEmbed
 		if fn.Type().HasTParam() {
 			g.topFuncIsGeneric = true
 		}
@@ -241,12 +245,15 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 
 	if decl.Pragma != nil {
 		pragma := decl.Pragma.(*pragmas)
-		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
-		varEmbed(g.makeXPos, names[0], decl, pragma, true)
+		varEmbed(g.makeXPos, names[0], decl, pragma, g.haveEmbed)
 		g.reportUnused(pragma)
 	}
 
+	haveEmbed := g.haveEmbed
 	do := func() {
+		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
+
+		g.haveEmbed = haveEmbed
 		values := g.exprList(decl.Values)
 
 		var as2 *ir.AssignListStmt
