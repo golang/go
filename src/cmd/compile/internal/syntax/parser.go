@@ -1820,7 +1820,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 	}
 
 	// type set notation is ok in type parameter lists
-	typeSetsOk := p.mode&AllowTypeSets != 0 && follow == _Rbrack
+	typeSetsOk := follow == _Rbrack
 
 	pos := p.pos()
 	if name != nil {
