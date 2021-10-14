@@ -132,6 +132,11 @@ func IsMethodSet(*types.Interface) bool {
 	return true
 }
 
+// IsImplicit returns false, as no interfaces are implicit at this Go version.
+func IsImplicit(*types.Interface) bool {
+	return false
+}
+
 // ForNamed returns an empty type parameter list, as type parameters are not
 // supported at this Go version.
 func ForNamed(*types.Named) *TypeParamList {

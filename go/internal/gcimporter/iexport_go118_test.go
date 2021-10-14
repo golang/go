@@ -36,6 +36,10 @@ func ToInt[P interface{ ~int }](p P) int { return int(p) }
 var IntID = ToInt[int]
 
 type G[C comparable] int
+
+func ImplicitFunc[T ~int]() {}
+
+type ImplicitType[T ~int] int
 `
 	testExportSrc(t, []byte(src))
 }

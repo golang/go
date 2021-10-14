@@ -200,6 +200,9 @@ func equalType(x, y types.Type) error {
 				return fmt.Errorf("mismatched %s method: %s", xm.Name(), err)
 			}
 		}
+		// Constraints are handled explicitly in the *TypeParam case below, so we
+		// don't yet need to consider embeddeds here.
+		// TODO(rfindley): consider the type set here.
 	case *types.Array:
 		y := y.(*types.Array)
 		if x.Len() != y.Len() {
@@ -315,9 +318,12 @@ func equalType(x, y types.Type) error {
 			return fmt.Errorf("unequal named types: %s vs %s", x, y)
 		}
 		// For now, just compare constraints by type string to short-circuit
-		// cycles.
-		xc := sanitizeName(x.Constraint().String())
-		yc := sanitizeName(y.Constraint().String())
+		// cycles. We have to make interfaces explicit as export data currently
+		// doesn't support marking interfaces as implicit.
+		// TODO(rfindley): remove makeExplicit once export data contains an
+		// implicit bit.
+		xc := sanitizeName(makeExplicit(x.Constraint()).String())
+		yc := sanitizeName(makeExplicit(y.Constraint()).String())
 		if xc != yc {
 			return fmt.Errorf("unequal constraints: %s vs %s", xc, yc)
 		}
@@ -326,6 +332,23 @@ func equalType(x, y types.Type) error {
 		panic(fmt.Sprintf("unexpected %T type", x))
 	}
 	return nil
+}
+
+// makeExplicit returns an explicit version of typ, if typ is an implicit
+// interface. Otherwise it returns typ unmodified.
+func makeExplicit(typ types.Type) types.Type {
+	if iface, _ := typ.(*types.Interface); iface != nil && typeparams.IsImplicit(iface) {
+		var methods []*types.Func
+		for i := 0; i < iface.NumExplicitMethods(); i++ {
+			methods = append(methods, iface.Method(i))
+		}
+		var embeddeds []types.Type
+		for i := 0; i < iface.NumEmbeddeds(); i++ {
+			embeddeds = append(embeddeds, iface.EmbeddedType(i))
+		}
+		return types.NewInterfaceType(methods, embeddeds)
+	}
+	return typ
 }
 
 func equalTypeArgs(x, y *typeparams.TypeList) error {
