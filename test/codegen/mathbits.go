@@ -93,6 +93,8 @@ func Len32(n uint32) int {
 	// arm:"CLZ" arm64:"CLZ"
 	// mips:"CLZ"
 	// wasm:"I64Clz"
+	// ppc64: "CNTLZW"
+	// ppc64le: "CNTLZW"
 	return bits.Len32(n)
 }
 
