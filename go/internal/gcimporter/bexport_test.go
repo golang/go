@@ -19,10 +19,12 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
 
 var isRace = false
@@ -66,14 +68,22 @@ type UnknownType undefined
 	}
 
 	numPkgs := len(prog.AllPackages)
-	if want := 248; numPkgs < want {
+	if want := minStdlibPackages; numPkgs < want {
 		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
 	}
 
+	checked := 0
 	for pkg, info := range prog.AllPackages {
 		if info.Files == nil {
 			continue // empty directory
 		}
+		// Binary export does not support generic code.
+		inspect := inspector.New(info.Files)
+		if genericfeatures.ForPackage(inspect, &info.Info) != 0 {
+			t.Logf("skipping package %q which uses generics", pkg.Path())
+			continue
+		}
+		checked++
 		exportdata, err := gcimporter.BExportData(conf.Fset, pkg)
 		if err != nil {
 			t.Fatal(err)
@@ -115,6 +125,9 @@ type UnknownType undefined
 					pkg.Path(), name, err, obj2, obj1)
 			}
 		}
+	}
+	if want := minStdlibPackages; checked < want {
+		t.Errorf("Checked only %d packages, want at least %d", checked, want)
 	}
 }
 

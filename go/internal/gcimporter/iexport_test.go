@@ -28,10 +28,11 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/internal/gcimporter"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/internal/testenv"
+	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
 
 func readExportFile(filename string) ([]byte, error) {
@@ -69,6 +70,8 @@ func isUnifiedBuilder() bool {
 	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64-unified"
 }
 
+const minStdlibPackages = 248
+
 func TestIExportData_stdlib(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo standard library is inaccessible")
@@ -90,15 +93,8 @@ func TestIExportData_stdlib(t *testing.T) {
 			Sizes: types.SizesFor(ctxt.Compiler, ctxt.GOARCH),
 		},
 	}
-	// Temporarily skip packages that use generics on the unified builder, to fix
-	// TryBots.
-	//
-	// TODO(#48595): fix this test with GOEXPERIMENT=unified.
-	isUnified := isUnifiedBuilder()
 	for _, path := range buildutil.AllPackages(conf.Build) {
-		if !(isUnified && testenv.UsesGenerics(path)) {
-			conf.Import(path)
-		}
+		conf.Import(path)
 	}
 
 	// Create a package containing type and value errors to ensure
@@ -117,13 +113,19 @@ type UnknownType undefined
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	numPkgs := len(prog.AllPackages)
-	if want := 248; numPkgs < want {
-		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
-	}
-
 	var sorted []*types.Package
+	isUnified := isUnifiedBuilder()
 	for pkg, info := range prog.AllPackages {
+		// Temporarily skip packages that use generics on the unified builder, to
+		// fix TryBots.
+		//
+		// TODO(#48595): fix this test with GOEXPERIMENT=unified.
+		inspect := inspector.New(info.Files)
+		features := genericfeatures.ForPackage(inspect, &info.Info)
+		if isUnified && features != 0 {
+			t.Logf("skipping package %q which uses generics", pkg.Path())
+			continue
+		}
 		if info.Files != nil { // non-empty directory
 			sorted = append(sorted, pkg)
 		}
@@ -133,6 +135,11 @@ type UnknownType undefined
 	})
 
 	version := gcimporter.IExportVersion
+	numPkgs := len(sorted)
+	if want := minStdlibPackages; numPkgs < want {
+		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
+	}
+
 	for _, pkg := range sorted {
 		if exportdata, err := iexport(conf.Fset, version, pkg); err != nil {
 			t.Error(err)
