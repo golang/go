@@ -89,6 +89,39 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 		return true
 	}
 
+	// TODO(gri) consider passing under(x.typ), under(T) into convertibleToImpl (optimization)
+	Vp, _ := under(x.typ).(*TypeParam)
+	Tp, _ := under(T).(*TypeParam)
+
+	// generic cases
+	// (generic operands cannot be constants, so we can ignore x.val)
+	switch {
+	case Vp != nil && Tp != nil:
+		x := *x // don't modify outer x
+		return Vp.underIs(func(V Type) bool {
+			x.typ = V
+			return Tp.underIs(func(T Type) bool {
+				return x.convertibleToImpl(check, T)
+			})
+		})
+	case Vp != nil:
+		x := *x // don't modify outer x
+		return Vp.underIs(func(V Type) bool {
+			x.typ = V
+			return x.convertibleToImpl(check, T)
+		})
+	case Tp != nil:
+		return Tp.underIs(func(T Type) bool {
+			return x.convertibleToImpl(check, T)
+		})
+	}
+
+	// non-generic case
+	return x.convertibleToImpl(check, T)
+}
+
+// convertibleToImpl should only be called by convertibleTo
+func (x *operand) convertibleToImpl(check *Checker, T Type) bool {
 	// "x's type and T have identical underlying types if tags are ignored"
 	V := x.typ
 	Vu := under(V)
