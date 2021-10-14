@@ -65,6 +65,30 @@ Do not send CLs removing the interior tags from such phrases.
   and installs packages, as before.
 </p>
 
+<p><!-- golang.org/issue/37475 -->
+  The <code>go</code> command now embeds version control information in
+  binaries including the currently checked-out revision and a flag indicating
+  whether edited or untracked files are present. Version control information
+  is embedded if the <code>go</code> command is invoked in a directory within a
+  Git or Mercurial repository, and the <code>main</code> package and its
+  containing main module are in the same repository. This information may be
+  omitted using the flag <code>-buildvcs=false</code>.
+</p>
+
+<p><!-- golang.org/issue/37475 -->
+  Additionally, the <code>go</code> command embeds information about the build
+  including build and tool tags (set with <code>-tags</code>), compiler,
+  assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
+  enabled, and if it was, the values of the cgo environment variables
+  (like <code>CGO_CFLAGS</code>). This information may be omitted using the
+  flag <code>-buildinfo=false</code>. Both VCS and build information may be
+  read together with module information using <code>go</code>
+  <code>version</code> <code>-m</code> <code>file</code> or
+  <code>runtime/debug.ReadBuildInfo</code> (for the currently running binary)
+  or the new <a href="#debug/buildinfo"><code>debug/buildinfo</code></a>
+  package.
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -113,6 +137,19 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   TODO: complete this section
 </p>
+
+<dl id="debug/buildinfo"><dt><a href="/pkg/debug/buildinfo">debug/buildinfo</a></dt>
+  <dd>
+    <p><!-- golang.org/issue/39301 -->
+      This new package provides access to module versions, version control
+      information, and build flags embedded in executable files built by
+      the <code>go</code> command. The same information is also available via
+      <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
+      for the currently running binary and via <code>go</code>
+      <code>version</code> <code>-m</code> on the command line.
+    </p>
+  </dd>
+</dl>
 
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
