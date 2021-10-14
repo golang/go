@@ -3304,6 +3304,7 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 // ErrHandlerTimeout is returned on ResponseWriter Write calls
 // in handlers which have timed out.
 var ErrHandlerTimeout = errors.New("http: Handler timeout")
+var ErrClientHangup = errors.New("http: Client hung up")
 
 type timeoutHandler struct {
 	handler Handler
@@ -3364,9 +3365,14 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	case <-ctx.Done():
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
-		w.WriteHeader(StatusServiceUnavailable)
-		io.WriteString(w, h.errorBody())
-		tw.timedOut = true
+		switch err := ctx.Err(); err {
+		case context.DeadlineExceeded:
+			w.WriteHeader(StatusServiceUnavailable)
+			io.WriteString(w, h.errorBody())
+			tw.timedOut = true
+		case context.Canceled:
+			tw.clientHangup = true
+		}
 	}
 }
 
@@ -3376,10 +3382,11 @@ type timeoutWriter struct {
 	wbuf bytes.Buffer
 	req  *Request
 
-	mu          sync.Mutex
-	timedOut    bool
-	wroteHeader bool
-	code        int
+	mu           sync.Mutex
+	timedOut     bool
+	clientHangup bool
+	wroteHeader  bool
+	code         int
 }
 
 var _ Pusher = (*timeoutWriter)(nil)
@@ -3399,6 +3406,9 @@ func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	defer tw.mu.Unlock()
 	if tw.timedOut {
 		return 0, ErrHandlerTimeout
+	}
+	if tw.clientHangup {
+		return 0, ErrClientHangup
 	}
 	if !tw.wroteHeader {
 		tw.writeHeaderLocked(StatusOK)
