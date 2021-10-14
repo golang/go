@@ -259,7 +259,6 @@ func addGCLocals() {
 		if x := fn.ArgInfo; x != nil {
 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 			x.Set(obj.AttrStatic, true)
-			x.Set(obj.AttrContentAddressable, true)
 		}
 	}
 }
@@ -274,7 +273,7 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type().Width, flags)
+	base.Ctxt.Globl(s, nam.Type().Size(), flags)
 	if nam.LibfuzzerExtraCounter() {
 		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 	}

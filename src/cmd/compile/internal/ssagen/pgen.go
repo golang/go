@@ -57,8 +57,8 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 		return ap
 	}
 
-	if a.Type().Width != b.Type().Width {
-		return a.Type().Width > b.Type().Width
+	if a.Type().Size() != b.Type().Size() {
+		return a.Type().Size() > b.Type().Size()
 	}
 
 	return a.Sym().Name < b.Sym().Name
@@ -75,7 +75,22 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // allocate space. In particular, it excludes arguments and results, which are in
 // the callers frame.
 func needAlloc(n *ir.Name) bool {
-	return n.Class == ir.PAUTO || n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters()
+	if n.Op() != ir.ONAME {
+		base.FatalfAt(n.Pos(), "%v has unexpected Op %v", n, n.Op())
+	}
+
+	switch n.Class {
+	case ir.PAUTO:
+		return true
+	case ir.PPARAM:
+		return false
+	case ir.PPARAMOUT:
+		return n.IsOutputParamInRegisters()
+
+	default:
+		base.FatalfAt(n.Pos(), "%v has unexpected Class %v", n, n.Class)
+		return false
+	}
 }
 
 func (s *ssafn) AllocFrame(f *ssa.Func) {
@@ -132,7 +147,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 
 		types.CalcSize(n.Type())
-		w := n.Type().Width
+		w := n.Type().Size()
 		if w >= types.MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
@@ -144,7 +159,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
+		s.stksize = types.Rnd(s.stksize, n.Type().Alignment())
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true

@@ -59,8 +59,6 @@ const (
 	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
 	// of a CALL (JAL) instruction, by encoding the address into the instruction.
 	R_CALLMIPS
-	// R_CALLRISCV marks RISC-V CALLs for stack checking.
-	R_CALLRISCV
 	R_CONST
 	R_PCREL
 	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
@@ -218,6 +216,15 @@ const (
 
 	// RISC-V.
 
+	// R_RISCV_CALL relocates a J-type instruction with a 21 bit PC-relative
+	// address.
+	R_RISCV_CALL
+
+	// R_RISCV_CALL_TRAMP is the same as R_RISCV_CALL but denotes the use of a
+	// trampoline, which we may be able to avoid during relocation. These are
+	// only used by the linker and are not emitted by the compiler or assembler.
+	R_RISCV_CALL_TRAMP
+
 	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
@@ -274,7 +281,7 @@ const (
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_CALLRISCV:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
 		return true
 	}
 	return false

@@ -10,20 +10,35 @@ start:
 
 	// 2.4: Integer Computational Instructions
 
-	ADDI	$2047, X5, X6				// 1383f27f
-	ADDI	$-2048, X5, X6				// 13830280
 	ADDI	$2047, X5				// 9382f27f
 	ADDI	$-2048, X5				// 93820280
+	ADDI	$2048, X5				// 9382024093820240
+	ADDI	$-2049, X5				// 938202c09382f2bf
+	ADDI	$4094, X5				// 9382f27f9382f27f
+	ADDI	$-4096, X5				// 9382028093820280
+	ADDI	$4095, X5				// b71f00009b8fffffb382f201
+	ADDI	$-4097, X5				// b7ffffff9b8fffffb382f201
+	ADDI	$2047, X5, X6				// 1383f27f
+	ADDI	$-2048, X5, X6				// 13830280
+	ADDI	$2048, X5, X6				// 1383024013030340
+	ADDI	$-2049, X5, X6				// 138302c01303f3bf
+	ADDI	$4094, X5, X6				// 1383f27f1303f37f
+	ADDI	$-4096, X5, X6				// 1383028013030380
+	ADDI	$4095, X5, X6				// b71f00009b8fffff3383f201
+	ADDI	$-4097, X5, X6				// b7ffffff9b8fffff3383f201
 
 	SLTI	$55, X5, X7				// 93a37203
 	SLTIU	$55, X5, X7				// 93b37203
 
 	ANDI	$1, X5, X6				// 13f31200
 	ANDI	$1, X5					// 93f21200
+	ANDI	$2048, X5				// b71f00009b8f0f80b3f2f201
 	ORI	$1, X5, X6				// 13e31200
 	ORI	$1, X5					// 93e21200
+	ORI	$2048, X5				// b71f00009b8f0f80b3e2f201
 	XORI	$1, X5, X6				// 13c31200
 	XORI	$1, X5					// 93c21200
+	XORI	$2048, X5				// b71f00009b8f0f80b3c2f201
 
 	SLLI	$1, X5, X6				// 13931200
 	SLLI	$1, X5					// 93921200
@@ -86,20 +101,15 @@ start:
 	SRA	$1, X5					// 93d21240
 
 	// 2.5: Control Transfer Instructions
-
-	// These jumps and branches get printed as a jump or branch
-	// to 2 because they transfer control to the second instruction
-	// in the function (the first instruction being an invisible
-	// stack pointer adjustment).
-	JAL	X5, start	// JAL	X5, 2		// eff25ff0
+	JAL	X5, 2(PC)				// ef028000
 	JALR	X6, (X5)				// 67830200
 	JALR	X6, 4(X5)				// 67834200
-	BEQ	X5, X6, start	// BEQ	X5, X6, 2	// e38c62ee
-	BNE	X5, X6, start	// BNE	X5, X6, 2	// e39a62ee
-	BLT	X5, X6, start	// BLT	X5, X6, 2	// e3c862ee
-	BLTU	X5, X6, start	// BLTU	X5, X6, 2	// e3e662ee
-	BGE	X5, X6, start	// BGE	X5, X6, 2	// e3d462ee
-	BGEU	X5, X6, start	// BGEU	X5, X6, 2	// e3f262ee
+	BEQ	X5, X6, 2(PC)				// 63846200
+	BNE	X5, X6, 2(PC)				// 63946200
+	BLT	X5, X6, 2(PC)				// 63c46200
+	BLTU	X5, X6, 2(PC)				// 63e46200
+	BGE	X5, X6, 2(PC)				// 63d46200
+	BGEU	X5, X6, 2(PC)				// 63f46200
 
 	// 2.6: Load and Store Instructions
 	LW	(X5), X6				// 03a30200
@@ -219,6 +229,10 @@ start:
 	FMVSX	X5, F0					// 538002f0
 	FMVXW	F0, X5					// d30200e0
 	FMVWX	X5, F0					// 538002f0
+	FMADDS	F1, F2, F3, F4				// 43822018
+	FMSUBS	F1, F2, F3, F4				// 47822018
+	FNMSUBS	F1, F2, F3, F4				// 4b822018
+	FNMADDS	F1, F2, F3, F4				// 4f822018
 
 	// 11.8: Single-Precision Floating-Point Compare Instructions
 	FEQS	F0, F1, X7				// d3a300a0
@@ -259,6 +273,10 @@ start:
 	FSGNJXD	F1, F0, F2				// 53211022
 	FMVXD	F0, X5					// d30200e2
 	FMVDX	X5, F0					// 538002f2
+	FMADDD	F1, F2, F3, F4				// 4382201a
+	FMSUBD	F1, F2, F3, F4				// 4782201a
+	FNMSUBD	F1, F2, F3, F4				// 4b82201a
+	FNMADDD	F1, F2, F3, F4				// 4f82201a
 
 	// 12.6: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
@@ -277,11 +295,17 @@ start:
 
 	// MOV pseudo-instructions
 	MOV	X5, X6					// 13830200
-	MOV	$2047, X5				// 9b02f07f
-	MOV	$-2048, X5				// 9b020080
+	MOV	$2047, X5				// 9302f07f
+	MOV	$-2048, X5				// 93020080
+	MOV	$2048, X5				// b71200009b820280
+	MOV	$-2049, X5				// b7f2ffff9b82f27f
+	MOV	$4096, X5				// b7120000
+	MOV	$2147479552, X5				// b7f2ff7f
+	MOV	$2147483647, X5				// b70200809b82f2ff
+	MOV	$-2147483647, X5			// b70200809b821200
 
-	// Converted to load of symbol.
-	MOV	$4294967296, X5				// 97020000
+	// Converted to load of symbol (AUIPC + LD)
+	MOV	$4294967296, X5				// 9702000083b20200
 
 	MOV	(X5), X6				// 03b30200
 	MOV	4(X5), X6				// 03b34200
@@ -325,42 +349,44 @@ start:
 	NEGW	X5					// bb025040
 	NEGW	X5, X6					// 3b035040
 
-	// These jumps can get printed as jumps to 2 because they go to the
-	// second instruction in the function (the first instruction is an
-	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff01fc2
+	// This jumps to the second instruction in the function (the
+	// first instruction is an invisible stack pointer adjustment).
+	JMP	start					// JMP	2
+
+	JMP	2(PC)					// 6f008000
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
-	// JMP and CALL to symbol are encoded as:
-	//	AUIPC $0, TMP
-	//	JALR $0, TMP
-	// with a R_RISCV_PCREL_ITYPE relocation - the linker resolves the
-	// real address and updates the immediates for both instructions.
-	CALL	asmtest(SB)				// 970f0000
-	JMP	asmtest(SB)				// 970f0000
+	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
+	// respectively), with a R_RISCV_CALL relocation. The linker resolves
+	// the real address and updates the immediate, using a trampoline in
+	// the case where the address is not directly reachable.
+	CALL	asmtest(SB)				// ef000000
+	JMP	asmtest(SB)				// 6f000000
 
 	// Branch pseudo-instructions
-	BEQZ	X5, start	// BEQZ	X5, 2		// e38202c0
-	BGEZ	X5, start	// BGEZ	X5, 2		// e3d002c0
-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34e53be
-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36c53be
-	BGTZ	X5, start	// BGTZ	X5, 2		// e34a50be
-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35853be
-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37653be
-	BLEZ	X5, start	// BLEZ	X5, 2		// e35450be
-	BLTZ	X5, start	// BLTZ	X5, 2		// e3c202be
-	BNEZ	X5, start	// BNEZ	X5, 2		// e39002be
+	BEQZ	X5, 2(PC)				// 63840200
+	BGEZ	X5, 2(PC)				// 63d40200
+	BGT	X5, X6, 2(PC)				// 63445300
+	BGTU	X5, X6, 2(PC)				// 63645300
+	BGTZ	X5, 2(PC)				// 63445000
+	BLE	X5, X6, 2(PC)				// 63545300
+	BLEU	X5, X6, 2(PC)				// 63745300
+	BLEZ	X5, 2(PC)				// 63545000
+	BLTZ	X5, 2(PC)				// 63c40200
+	BNEZ	X5, 2(PC)				// 63940200
 
 	// Set pseudo-instructions
 	SEQZ	X15, X15				// 93b71700
 	SNEZ	X15, X15				// b337f000
 
 	// F extension
+	FABSS	F0, F1					// d3200020
 	FNEGS	F0, F1					// d3100020
 	FNES	F0, F1, X7				// d3a300a093c31300
 
 	// D extension
+	FABSD	F0, F1					// d3200022
 	FNEGD	F0, F1					// d3100022
 	FNED	F0, F1, X5				// d3a200a293c21200
 	FLTD	F0, F1, X5				// d39200a2

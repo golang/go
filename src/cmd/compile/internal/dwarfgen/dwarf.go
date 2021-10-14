@@ -214,9 +214,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			Type:          base.Ctxt.Lookup(typename),
 			DeclFile:      declpos.RelFilename(),
 			DeclLine:      declpos.RelLine(),
-			DeclCol:       declpos.Col(),
+			DeclCol:       declpos.RelCol(),
 			InlIndex:      int32(inlIndex),
 			ChildIndex:    -1,
+			DictIndex:     n.DictIndex,
 		})
 		// Record go type of to insure that it gets emitted by the linker.
 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
@@ -371,9 +372,10 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		Type:          base.Ctxt.Lookup(typename),
 		DeclFile:      declpos.RelFilename(),
 		DeclLine:      declpos.RelLine(),
-		DeclCol:       declpos.Col(),
+		DeclCol:       declpos.RelCol(),
 		InlIndex:      int32(inlIndex),
 		ChildIndex:    -1,
+		DictIndex:     n.DictIndex,
 	}
 }
 
@@ -475,9 +477,10 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 		StackOffset: ssagen.StackOffset(debug.Slots[debug.VarSlots[varID][0]]),
 		DeclFile:    declpos.RelFilename(),
 		DeclLine:    declpos.RelLine(),
-		DeclCol:     declpos.Col(),
+		DeclCol:     declpos.RelCol(),
 		InlIndex:    int32(inlIndex),
 		ChildIndex:  -1,
+		DictIndex:   n.DictIndex,
 	}
 	list := debug.LocationLists[varID]
 	if len(list) != 0 {

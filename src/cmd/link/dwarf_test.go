@@ -8,6 +8,7 @@ import (
 	"bytes"
 	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
+	"cmd/internal/str"
 	"debug/dwarf"
 	"internal/testenv"
 	"os"
@@ -67,8 +68,11 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			if extld == "" {
 				extld = "gcc"
 			}
-			var err error
-			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+			extldArgs, err := str.SplitQuotedFields(extld)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expectDWARF, err = cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
 			if err != nil {
 				t.Fatal(err)
 			}

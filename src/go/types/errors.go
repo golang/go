@@ -63,22 +63,28 @@ func (check *Checker) markImports(pkg *Package) {
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
+	return sprintf(check.fset, check.qualifier, format, args...)
+}
+
+func sprintf(fset *token.FileSet, qf Qualifier, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
 			arg = "<nil>"
 		case operand:
-			panic("internal error: should always pass *operand")
+			panic("got operand instead of *operand")
 		case *operand:
-			arg = operandString(a, check.qualifier)
+			arg = operandString(a, qf)
 		case token.Pos:
-			arg = check.fset.Position(a).String()
+			if fset != nil {
+				arg = fset.Position(a).String()
+			}
 		case ast.Expr:
 			arg = ExprString(a)
 		case Object:
-			arg = ObjectString(a, check.qualifier)
+			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, check.qualifier)
+			arg = TypeString(a, qf)
 		}
 		args[i] = arg
 	}
@@ -236,7 +242,7 @@ func (s atPos) Pos() token.Pos {
 func spanOf(at positioner) posSpan {
 	switch x := at.(type) {
 	case nil:
-		panic("internal error: nil")
+		panic("nil positioner")
 	case posSpan:
 		return x
 	case ast.Node:
@@ -259,7 +265,7 @@ func stripAnnotations(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
-		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
 			b.WriteRune(r)
 		}
 	}

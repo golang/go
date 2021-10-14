@@ -10,16 +10,18 @@ type R[T any] struct {
 	F T
 }
 
-type S = R
+// type S = R // disallowed for now
 
 type Sint = R[int]
 
-type Simp = a.Rimp
+// type Simp = a.Rimp // disallowed for now
 
-type SimpString Simp[string]
+// type SimpString Simp[string] // disallowed for now
+type SimpString a.Rimp[string]
 
 func main() {
-	var s S[int]
+	// var s S[int] // disallowed for now
+	var s R[int]
 	if s.F != 0 {
 		panic(s.F)
 	}
@@ -27,7 +29,8 @@ func main() {
 	if s2.F != 0 {
 		panic(s2.F)
 	}
-	var s3 Simp[string]
+	// var s3 Simp[string] // disallowed for now
+	var s3 a.Rimp[string]
 	if s3.F != "" {
 		panic(s3.F)
 	}

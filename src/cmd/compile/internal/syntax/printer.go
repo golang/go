@@ -494,39 +494,16 @@ func (p *printer) printRawNode(n Node) {
 		p.printSignature(n)
 
 	case *InterfaceType:
-		// separate type list and method list
-		var types []Expr
-		var methods []*Field
-		for _, f := range n.MethodList {
-			if f.Name != nil && f.Name.Value == "type" {
-				types = append(types, f.Type)
-			} else {
-				// method or embedded interface
-				methods = append(methods, f)
-			}
-		}
-
-		multiLine := len(n.MethodList) > 0 && p.linebreaks
 		p.print(_Interface)
-		if multiLine {
+		if p.linebreaks && len(n.MethodList) > 1 {
 			p.print(blank)
-		}
-		p.print(_Lbrace)
-		if multiLine {
+			p.print(_Lbrace)
 			p.print(newline, indent)
-		}
-		if len(types) > 0 {
-			p.print(_Type, blank)
-			p.printExprList(types)
-			if len(methods) > 0 {
-				p.print(_Semi, blank)
-			}
-		}
-		if len(methods) > 0 {
-			p.printMethodList(methods)
-		}
-		if multiLine {
+			p.printMethodList(n.MethodList)
 			p.print(outdent, newline)
+		} else {
+			p.print(_Lbrace)
+			p.printMethodList(n.MethodList)
 		}
 		p.print(_Rbrace)
 

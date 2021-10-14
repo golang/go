@@ -503,6 +503,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)
@@ -566,6 +567,9 @@
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
+
+// Publication barrier (0xe is ST option)
+(PubBarrier mem) => (DMB [0xe] mem)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
@@ -1174,6 +1178,9 @@
 (CMPW x (MOVDconst [c])) => (CMPWconst [int32(c)] x)
 (CMPW (MOVDconst [c]) x) => (InvertFlags (CMPWconst [int32(c)] x))
 
+(ROR x (MOVDconst [c])) => (RORconst x [c&63])
+(RORW x (MOVDconst [c])) => (RORWconst x [c&31])
+
 // Canonicalize the order of arguments to comparisons - helps with CSE.
 ((CMP|CMPW) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW) y x))
 
@@ -1359,6 +1366,7 @@
 (XOR x (MVN y)) => (EON x y)
 (OR  x (MVN y)) => (ORN x y)
 (MVN (XOR x y)) => (EON x y)
+(NEG (NEG x)) => x
 
 (CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
 (CSEL [cc] (MOVDconst [0]) (MOVDconst [-1]) flag) => (CSETM [arm64Negate(cc)] flag)
@@ -1596,6 +1604,7 @@
 (MVN x:(SLLconst [c] y)) && clobberIfDead(x) => (MVNshiftLL [c] y)
 (MVN x:(SRLconst [c] y)) && clobberIfDead(x) => (MVNshiftRL [c] y)
 (MVN x:(SRAconst [c] y)) && clobberIfDead(x) => (MVNshiftRA [c] y)
+(MVN x:(RORconst [c] y)) && clobberIfDead(x) => (MVNshiftRO [c] y)
 (ADD x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (ADDshiftLL x0 y [c])
 (ADD x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (ADDshiftRL x0 y [c])
 (ADD x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (ADDshiftRA x0 y [c])
@@ -1605,21 +1614,27 @@
 (AND x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (ANDshiftLL x0 y [c])
 (AND x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (ANDshiftRL x0 y [c])
 (AND x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (ANDshiftRA x0 y [c])
+(AND x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (ANDshiftRO x0 y [c])
 (OR  x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (ORshiftLL  x0 y [c]) // useful for combined load
 (OR  x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (ORshiftRL  x0 y [c])
 (OR  x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (ORshiftRA  x0 y [c])
+(OR  x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (ORshiftRO  x0 y [c])
 (XOR x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (XORshiftLL x0 y [c])
 (XOR x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (XORshiftRL x0 y [c])
 (XOR x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (XORshiftRA x0 y [c])
+(XOR x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (XORshiftRO x0 y [c])
 (BIC x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (BICshiftLL x0 y [c])
 (BIC x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (BICshiftRL x0 y [c])
 (BIC x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (BICshiftRA x0 y [c])
+(BIC x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (BICshiftRO x0 y [c])
 (ORN x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (ORNshiftLL x0 y [c])
 (ORN x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (ORNshiftRL x0 y [c])
 (ORN x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (ORNshiftRA x0 y [c])
+(ORN x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (ORNshiftRO x0 y [c])
 (EON x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (EONshiftLL x0 y [c])
 (EON x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (EONshiftRL x0 y [c])
 (EON x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (EONshiftRA x0 y [c])
+(EON x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (EONshiftRO x0 y [c])
 (CMP x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (CMPshiftLL x0 y [c])
 (CMP x0:(SLLconst [c] y) x1) && clobberIfDead(x0) => (InvertFlags (CMPshiftLL x1 y [c]))
 (CMP x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (CMPshiftRL x0 y [c])
@@ -1632,6 +1647,7 @@
 (TST x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) => (TSTshiftLL x0 y [c])
 (TST x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) => (TSTshiftRL x0 y [c])
 (TST x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) => (TSTshiftRA x0 y [c])
+(TST x0 x1:(RORconst [c] y)) && clobberIfDead(x1) => (TSTshiftRO x0 y [c])
 
 // prefer *const ops to *shift ops
 (ADDshiftLL (MOVDconst [c]) x [d]) => (ADDconst [c] (SLLconst <x.Type> x [d]))
@@ -1640,12 +1656,15 @@
 (ANDshiftLL (MOVDconst [c]) x [d]) => (ANDconst [c] (SLLconst <x.Type> x [d]))
 (ANDshiftRL (MOVDconst [c]) x [d]) => (ANDconst [c] (SRLconst <x.Type> x [d]))
 (ANDshiftRA (MOVDconst [c]) x [d]) => (ANDconst [c] (SRAconst <x.Type> x [d]))
+(ANDshiftRO (MOVDconst [c]) x [d]) => (ANDconst [c] (RORconst <x.Type> x [d]))
 (ORshiftLL  (MOVDconst [c]) x [d]) => (ORconst  [c] (SLLconst <x.Type> x [d]))
 (ORshiftRL  (MOVDconst [c]) x [d]) => (ORconst  [c] (SRLconst <x.Type> x [d]))
 (ORshiftRA  (MOVDconst [c]) x [d]) => (ORconst  [c] (SRAconst <x.Type> x [d]))
+(ORshiftRO  (MOVDconst [c]) x [d]) => (ORconst  [c] (RORconst <x.Type> x [d]))
 (XORshiftLL (MOVDconst [c]) x [d]) => (XORconst [c] (SLLconst <x.Type> x [d]))
 (XORshiftRL (MOVDconst [c]) x [d]) => (XORconst [c] (SRLconst <x.Type> x [d]))
 (XORshiftRA (MOVDconst [c]) x [d]) => (XORconst [c] (SRAconst <x.Type> x [d]))
+(XORshiftRO (MOVDconst [c]) x [d]) => (XORconst [c] (RORconst <x.Type> x [d]))
 (CMPshiftLL (MOVDconst [c]) x [d]) => (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
 (CMPshiftRL (MOVDconst [c]) x [d]) => (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
 (CMPshiftRA (MOVDconst [c]) x [d]) => (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
@@ -1655,11 +1674,13 @@
 (TSTshiftLL (MOVDconst [c]) x [d]) => (TSTconst [c] (SLLconst <x.Type> x [d]))
 (TSTshiftRL (MOVDconst [c]) x [d]) => (TSTconst [c] (SRLconst <x.Type> x [d]))
 (TSTshiftRA (MOVDconst [c]) x [d]) => (TSTconst [c] (SRAconst <x.Type> x [d]))
+(TSTshiftRO (MOVDconst [c]) x [d]) => (TSTconst [c] (RORconst <x.Type> x [d]))
 
 // constant folding in *shift ops
 (MVNshiftLL (MOVDconst [c]) [d]) => (MOVDconst [^int64(uint64(c)<<uint64(d))])
 (MVNshiftRL (MOVDconst [c]) [d]) => (MOVDconst [^int64(uint64(c)>>uint64(d))])
 (MVNshiftRA (MOVDconst [c]) [d]) => (MOVDconst [^(c>>uint64(d))])
+(MVNshiftRO (MOVDconst [c]) [d]) => (MOVDconst [^rotateRight64(c, d)])
 (NEGshiftLL (MOVDconst [c]) [d]) => (MOVDconst [-int64(uint64(c)<<uint64(d))])
 (NEGshiftRL (MOVDconst [c]) [d]) => (MOVDconst [-int64(uint64(c)>>uint64(d))])
 (NEGshiftRA (MOVDconst [c]) [d]) => (MOVDconst [-(c>>uint64(d))])
@@ -1672,21 +1693,27 @@
 (ANDshiftLL x (MOVDconst [c]) [d]) => (ANDconst x [int64(uint64(c)<<uint64(d))])
 (ANDshiftRL x (MOVDconst [c]) [d]) => (ANDconst x [int64(uint64(c)>>uint64(d))])
 (ANDshiftRA x (MOVDconst [c]) [d]) => (ANDconst x [c>>uint64(d)])
+(ANDshiftRO x (MOVDconst [c]) [d]) => (ANDconst x [rotateRight64(c, d)])
 (ORshiftLL  x (MOVDconst [c]) [d]) => (ORconst  x [int64(uint64(c)<<uint64(d))])
 (ORshiftRL  x (MOVDconst [c]) [d]) => (ORconst  x [int64(uint64(c)>>uint64(d))])
 (ORshiftRA  x (MOVDconst [c]) [d]) => (ORconst  x [c>>uint64(d)])
+(ORshiftRO  x (MOVDconst [c]) [d]) => (ORconst  x [rotateRight64(c, d)])
 (XORshiftLL x (MOVDconst [c]) [d]) => (XORconst x [int64(uint64(c)<<uint64(d))])
 (XORshiftRL x (MOVDconst [c]) [d]) => (XORconst x [int64(uint64(c)>>uint64(d))])
 (XORshiftRA x (MOVDconst [c]) [d]) => (XORconst x [c>>uint64(d)])
+(XORshiftRO x (MOVDconst [c]) [d]) => (XORconst x [rotateRight64(c, d)])
 (BICshiftLL x (MOVDconst [c]) [d]) => (ANDconst x [^int64(uint64(c)<<uint64(d))])
 (BICshiftRL x (MOVDconst [c]) [d]) => (ANDconst x [^int64(uint64(c)>>uint64(d))])
 (BICshiftRA x (MOVDconst [c]) [d]) => (ANDconst x [^(c>>uint64(d))])
+(BICshiftRO x (MOVDconst [c]) [d]) => (ANDconst x [^rotateRight64(c, d)])
 (ORNshiftLL x (MOVDconst [c]) [d]) => (ORconst  x [^int64(uint64(c)<<uint64(d))])
 (ORNshiftRL x (MOVDconst [c]) [d]) => (ORconst  x [^int64(uint64(c)>>uint64(d))])
 (ORNshiftRA x (MOVDconst [c]) [d]) => (ORconst  x [^(c>>uint64(d))])
+(ORNshiftRO x (MOVDconst [c]) [d]) => (ORconst  x [^rotateRight64(c, d)])
 (EONshiftLL x (MOVDconst [c]) [d]) => (XORconst x [^int64(uint64(c)<<uint64(d))])
 (EONshiftRL x (MOVDconst [c]) [d]) => (XORconst x [^int64(uint64(c)>>uint64(d))])
 (EONshiftRA x (MOVDconst [c]) [d]) => (XORconst x [^(c>>uint64(d))])
+(EONshiftRO x (MOVDconst [c]) [d]) => (XORconst x [^rotateRight64(c, d)])
 (CMPshiftLL x (MOVDconst [c]) [d]) => (CMPconst x [int64(uint64(c)<<uint64(d))])
 (CMPshiftRL x (MOVDconst [c]) [d]) => (CMPconst x [int64(uint64(c)>>uint64(d))])
 (CMPshiftRA x (MOVDconst [c]) [d]) => (CMPconst x [c>>uint64(d)])
@@ -1696,29 +1723,36 @@
 (TSTshiftLL x (MOVDconst [c]) [d]) => (TSTconst x [int64(uint64(c)<<uint64(d))])
 (TSTshiftRL x (MOVDconst [c]) [d]) => (TSTconst x [int64(uint64(c)>>uint64(d))])
 (TSTshiftRA x (MOVDconst [c]) [d]) => (TSTconst x [c>>uint64(d)])
+(TSTshiftRO x (MOVDconst [c]) [d]) => (TSTconst x [rotateRight64(c, d)])
 
 // simplification with *shift ops
-(SUBshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(SUBshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(SUBshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(ANDshiftLL x y:(SLLconst x [c]) [d]) && c==d => y
-(ANDshiftRL x y:(SRLconst x [c]) [d]) && c==d => y
-(ANDshiftRA x y:(SRAconst x [c]) [d]) && c==d => y
-(ORshiftLL  x y:(SLLconst x [c]) [d]) && c==d => y
-(ORshiftRL  x y:(SRLconst x [c]) [d]) && c==d => y
-(ORshiftRA  x y:(SRAconst x [c]) [d]) && c==d => y
-(XORshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(XORshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(XORshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(EONshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(EONshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(EONshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [-1])
+(SUBshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(SUBshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(SUBshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(ANDshiftLL y:(SLLconst x [c]) x [c]) => y
+(ANDshiftRL y:(SRLconst x [c]) x [c]) => y
+(ANDshiftRA y:(SRAconst x [c]) x [c]) => y
+(ANDshiftRO y:(RORconst x [c]) x [c]) => y
+(ORshiftLL  y:(SLLconst x [c]) x [c]) => y
+(ORshiftRL  y:(SRLconst x [c]) x [c]) => y
+(ORshiftRA  y:(SRAconst x [c]) x [c]) => y
+(ORshiftRO  y:(RORconst x [c]) x [c]) => y
+(XORshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(XORshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(XORshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(XORshiftRO (RORconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftRO (RORconst x [c]) x [c]) => (MOVDconst [0])
+(EONshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [-1])
+(EONshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [-1])
+(EONshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
+(EONshiftRO (RORconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftRO (RORconst x [c]) x [c]) => (MOVDconst [-1])
 
 // Generate rotates with const shift
 (ADDshiftLL [c] (SRLconst x [64-c]) x) => (RORconst [64-c] x)
@@ -1824,16 +1858,26 @@
 // sbfiz
 // (x << lc) >> rc
 (SRAconst [rc] (SLLconst [lc] x)) && lc > rc => (SBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+// int64(x << lc)
 (MOVWreg (SLLconst [lc] x)) && lc < 32 => (SBFIZ [armBFAuxInt(lc, 32-lc)] x)
 (MOVHreg (SLLconst [lc] x)) && lc < 16 => (SBFIZ [armBFAuxInt(lc, 16-lc)] x)
 (MOVBreg (SLLconst [lc] x)) && lc < 8 => (SBFIZ [armBFAuxInt(lc, 8-lc)] x)
+// int64(x) << lc
+(SLLconst [lc] (MOVWreg x))  => (SBFIZ [armBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHreg x))  => (SBFIZ [armBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBreg x))  => (SBFIZ [armBFAuxInt(lc, min(8, 64-lc))] x)
 
 // sbfx
 // (x << lc) >> rc
 (SRAconst [rc] (SLLconst [lc] x)) && lc <= rc => (SBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+// int64(x) >> rc
 (SRAconst [rc] (MOVWreg x)) && rc < 32 => (SBFX [armBFAuxInt(rc, 32-rc)] x)
 (SRAconst [rc] (MOVHreg x)) && rc < 16 => (SBFX [armBFAuxInt(rc, 16-rc)] x)
 (SRAconst [rc] (MOVBreg x)) && rc < 8 => (SBFX [armBFAuxInt(rc, 8-rc)] x)
+// merge sbfx and sign-extension into sbfx
+(MOVWreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (SBFX [bfc] x)
+(MOVHreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (SBFX [bfc] x)
+(MOVBreg (SBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (SBFX [bfc] x)
 
 // sbfiz/sbfx combinations: merge shifts into bitfield ops
 (SRAconst [sc] (SBFIZ [bfc] x)) && sc < bfc.getARM64BFlsb()
@@ -1843,42 +1887,48 @@
 	=> (SBFX [armBFAuxInt(sc-bfc.getARM64BFlsb(), bfc.getARM64BFlsb()+bfc.getARM64BFwidth()-sc)] x)
 
 // ubfiz
+// (x << lc) >> rc
+(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
+// uint64(x) << lc
+(SLLconst [lc] (MOVWUreg x))  => (UBFIZ [armBFAuxInt(lc, min(32, 64-lc))] x)
+(SLLconst [lc] (MOVHUreg x))  => (UBFIZ [armBFAuxInt(lc, min(16, 64-lc))] x)
+(SLLconst [lc] (MOVBUreg x))  => (UBFIZ [armBFAuxInt(lc, min(8, 64-lc))] x)
+// uint64(x << lc)
+(MOVWUreg (SLLconst [lc] x)) && lc < 32 => (UBFIZ [armBFAuxInt(lc, 32-lc)] x)
+(MOVHUreg (SLLconst [lc] x)) && lc < 16 => (UBFIZ [armBFAuxInt(lc, 16-lc)] x)
+(MOVBUreg (SLLconst [lc] x)) && lc < 8 => (UBFIZ [armBFAuxInt(lc, 8-lc)] x)
+
+// merge ANDconst into ubfiz
 // (x & ac) << sc
 (SLLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, 0)
 	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(SLLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, 0) => (UBFIZ [armBFAuxInt(sc, 32)] x)
-(SLLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, 0) => (UBFIZ [armBFAuxInt(sc, 16)] x)
-(SLLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, 0) => (UBFIZ [armBFAuxInt(sc, 8)] x)
 // (x << sc) & ac
 (ANDconst [ac] (SLLconst [sc] x)) && isARM64BFMask(sc, ac, sc)
 	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
-(MOVWUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
-(MOVHUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
-(MOVBUreg (SLLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	=> (UBFIZ [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
-// (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc > rc => (UBFIZ [armBFAuxInt(lc-rc, 64-lc)] x)
 
 // ubfx
+// (x << lc) >> rc
+(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+// uint64(x) >> rc
+(SRLconst [rc] (MOVWUreg x)) && rc < 32 => (UBFX [armBFAuxInt(rc, 32-rc)] x)
+(SRLconst [rc] (MOVHUreg x)) && rc < 16 => (UBFX [armBFAuxInt(rc, 16-rc)] x)
+(SRLconst [rc] (MOVBUreg x)) && rc < 8 => (UBFX [armBFAuxInt(rc, 8-rc)] x)
+// uint64(x >> rc)
+(MOVWUreg (SRLconst [rc] x)) && rc < 32 => (UBFX [armBFAuxInt(rc, 32)] x)
+(MOVHUreg (SRLconst [rc] x)) && rc < 16 => (UBFX [armBFAuxInt(rc, 16)] x)
+(MOVBUreg (SRLconst [rc] x)) && rc < 8 => (UBFX [armBFAuxInt(rc, 8)] x)
+// merge ANDconst into ubfx
 // (x >> sc) & ac
 (ANDconst [ac] (SRLconst [sc] x)) && isARM64BFMask(sc, ac, 0)
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, 0))] x)
-(MOVWUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<32-1, 0) => (UBFX [armBFAuxInt(sc, 32)] x)
-(MOVHUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<16-1, 0) => (UBFX [armBFAuxInt(sc, 16)] x)
-(MOVBUreg (SRLconst [sc] x)) && isARM64BFMask(sc, 1<<8-1, 0) => (UBFX [armBFAuxInt(sc, 8)] x)
 // (x & ac) >> sc
 (SRLconst [sc] (ANDconst [ac] x)) && isARM64BFMask(sc, ac, sc)
 	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(ac, sc))] x)
-(SRLconst [sc] (MOVWUreg x)) && isARM64BFMask(sc, 1<<32-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<32-1, sc))] x)
-(SRLconst [sc] (MOVHUreg x)) && isARM64BFMask(sc, 1<<16-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<16-1, sc))] x)
-(SRLconst [sc] (MOVBUreg x)) && isARM64BFMask(sc, 1<<8-1, sc)
-	=> (UBFX [armBFAuxInt(sc, arm64BFWidth(1<<8-1, sc))] x)
-// (x << lc) >> rc
-(SRLconst [rc] (SLLconst [lc] x)) && lc < rc => (UBFX [armBFAuxInt(rc-lc, 64-rc)] x)
+
+// merge ubfx and zerso-extension into ubfx
+(MOVWUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 32 => (UBFX [bfc] x)
+(MOVHUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <= 16 => (UBFX [bfc] x)
+(MOVBUreg (UBFX [bfc] x)) && bfc.getARM64BFwidth() <=  8 => (UBFX [bfc] x)
 
 // ubfiz/ubfx combinations: merge shifts into bitfield ops
 (SRLconst [sc] (UBFX [bfc] x)) && sc < bfc.getARM64BFwidth()
@@ -2860,6 +2910,10 @@
 (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 
+// Prefetch instructions (aux is option: 0 - PLDL1KEEP; 1 - PLDL1STRM)
+(PrefetchCache addr mem)         => (PRFM [0] addr mem)
+(PrefetchCacheStreamed addr mem) => (PRFM [1] addr mem)
+
 // Arch-specific inlining for small or disjoint runtime.memmove
 (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
 	&& sz >= 0
@@ -2877,3 +2931,5 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(call)
 	=> (Move [sz] dst src mem)
+
+((REV|REVW) ((REV|REVW) p)) => p

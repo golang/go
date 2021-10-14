@@ -33,7 +33,7 @@ func TestScan(t *testing.T) {
 		}
 		if p == "net/http" {
 			// A test import but not an import
-			t.Errorf("json reported as importing encoding/binary but does not")
+			t.Errorf("json reported as importing net/http but does not")
 		}
 	}
 	if !foundBase64 {

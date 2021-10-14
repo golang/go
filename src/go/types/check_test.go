@@ -20,9 +20,6 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types_test
 
 import (

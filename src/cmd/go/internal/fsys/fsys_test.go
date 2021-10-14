@@ -1,7 +1,6 @@
 package fsys
 
 import (
-	"cmd/go/internal/txtar"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"golang.org/x/tools/txtar"
 )
 
 // initOverlay resets the overlay state to reflect the config.

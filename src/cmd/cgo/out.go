@@ -59,9 +59,9 @@ func (p *Package) writeDefs() {
 	// Write C main file for using gcc to resolve imports.
 	fmt.Fprintf(fm, "int main() { return 0; }\n")
 	if *importRuntimeCgo {
-		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*), void *a, int c, __SIZE_TYPE__ ctxt) { }\n")
+		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*) __attribute__((unused)), void *a __attribute__((unused)), int c __attribute__((unused)), __SIZE_TYPE__ ctxt __attribute__((unused))) { }\n")
 		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void) { return 0; }\n")
-		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt) { }\n")
+		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt __attribute__((unused))) { }\n")
 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
@@ -70,8 +70,8 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__);\n")
 	}
-	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
-	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
+	fmt.Fprintf(fm, "void _cgo_allocate(void *a __attribute__((unused)), int c __attribute__((unused))) { }\n")
+	fmt.Fprintf(fm, "void _cgo_panic(void *a __attribute__((unused)), int c __attribute__((unused))) { }\n")
 	fmt.Fprintf(fm, "void _cgo_reginit(void) { }\n")
 
 	// Write second Go output: definitions of _C_xxx.
@@ -135,6 +135,7 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fgo2, "%s", buf.Bytes())
 		fmt.Fprintf(fgo2, "\n\n")
 	}
+	fmt.Fprintf(fgo2, "//go:notinheap\ntype _Ctype_void_notinheap struct{}\n\n")
 	if *gccgo {
 		fmt.Fprintf(fgo2, "type _Ctype_void byte\n")
 	} else {
@@ -1054,9 +1055,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
 
+		fmt.Fprintf(fgo2, "\t")
+
 		if gccResult != "void" {
 			// Write results back to frame.
-			fmt.Fprintf(fgo2, "\t")
 			forFieldList(fntype.Results,
 				func(i int, aname string, atype ast.Expr) {
 					if i > 0 {
@@ -1458,10 +1460,10 @@ const gccProlog = `
   (have a negative array count) and an inscrutable error will come
   out of the compiler and hopefully mention "name".
 */
-#define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2+1];
+#define __cgo_compile_assert_eq(x, y, name) typedef char name[(x-y)*(x-y)*-2UL+1UL];
 
 /* Check at compile time that the sizes we use match our expectations. */
-#define __cgo_size_assert(t, n) __cgo_compile_assert_eq(sizeof(t), n, _cgo_sizeof_##t##_is_not_##n)
+#define __cgo_size_assert(t, n) __cgo_compile_assert_eq(sizeof(t), (size_t)n, _cgo_sizeof_##t##_is_not_##n)
 
 __cgo_size_assert(char, 1)
 __cgo_size_assert(short, 2)

@@ -431,11 +431,10 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 		if v := urlQuery.Get("code"); v != "" {
 			location := ts.URL
 			if final := urlQuery.Get("next"); final != "" {
-				splits := strings.Split(final, ",")
-				first, rest := splits[0], splits[1:]
+				first, rest, _ := strings.Cut(final, ",")
 				location = fmt.Sprintf("%s?code=%s", location, first)
-				if len(rest) > 0 {
-					location = fmt.Sprintf("%s&next=%s", location, strings.Join(rest, ","))
+				if rest != "" {
+					location = fmt.Sprintf("%s&next=%s", location, rest)
 				}
 			}
 			code, _ := strconv.Atoi(v)
@@ -2081,4 +2080,48 @@ func (b *issue40382Body) Close() error {
 		b.t.Error("Body closed more than once")
 	}
 	return nil
+}
+
+func TestProbeZeroLengthBody(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	reqc := make(chan struct{})
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(reqc)
+		if _, err := io.Copy(w, r.Body); err != nil {
+			t.Errorf("error copying request body: %v", err)
+		}
+	}))
+	defer cst.close()
+
+	bodyr, bodyw := io.Pipe()
+	var gotBody string
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		req, _ := NewRequest("GET", cst.ts.URL, bodyr)
+		res, err := cst.c.Do(req)
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		gotBody = string(b)
+	}()
+
+	select {
+	case <-reqc:
+		// Request should be sent after trying to probe the request body for 200ms.
+	case <-time.After(60 * time.Second):
+		t.Errorf("request not sent after 60s")
+	}
+
+	// Write the request body and wait for the request to complete.
+	const content = "body"
+	bodyw.Write([]byte(content))
+	bodyw.Close()
+	wg.Wait()
+	if gotBody != content {
+		t.Fatalf("server got body %q, want %q", gotBody, content)
+	}
 }

@@ -35,7 +35,7 @@ func LoadPackage(filenames []string) {
 	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
 
 	mode := syntax.CheckBranches
-	if supportsGenerics && types.AllowsGoVersion(types.LocalPkg, 1, 18) {
+	if supportsGenerics {
 		mode |= syntax.AllowGenerics
 	}
 
@@ -154,7 +154,6 @@ func LoadPackage(filenames []string) {
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to Target.Decls.
 	base.Timer.Start("fe", "typecheck", "func")
-	var fcount int64
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			if base.Flag.W > 1 {
@@ -166,7 +165,6 @@ func LoadPackage(filenames []string) {
 				s := fmt.Sprintf("\nafter typecheck %v", fn)
 				ir.Dump(s, fn)
 			}
-			fcount++
 		}
 	}
 
@@ -191,13 +189,23 @@ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
 	base.ErrorfAt(p.makeXPos(pos), format, args...)
 }
 
-// TODO(gri) Can we eliminate fileh in favor of absFilename?
-func fileh(name string) string {
-	return objabi.AbsFile("", name, base.Flag.TrimPath)
-}
-
-func absFilename(name string) string {
-	return objabi.AbsFile(base.Ctxt.Pathname, name, base.Flag.TrimPath)
+// trimFilename returns the "trimmed" filename of b, which is the
+// absolute filename after applying -trimpath processing. This
+// filename form is suitable for use in object files and export data.
+//
+// If b's filename has already been trimmed (i.e., because it was read
+// in from an imported package's export data), then the filename is
+// returned unchanged.
+func trimFilename(b *syntax.PosBase) string {
+	filename := b.Filename()
+	if !b.Trimmed() {
+		dir := ""
+		if b.IsFileBase() {
+			dir = base.Ctxt.Pathname
+		}
+		filename = objabi.AbsFile(dir, filename, base.Flag.TrimPath)
+	}
+	return filename
 }
 
 // noder transforms package syntax's AST into a Node tree.
@@ -374,7 +382,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
 		return
 	}
 
-	if ipkg == ir.Pkgs.Unsafe {
+	if ipkg == types.UnsafePkg {
 		p.importedUnsafe = true
 	}
 	if ipkg.Path == "embed" {
@@ -1529,7 +1537,7 @@ func (p *noder) mkname(name *syntax.Name) ir.Node {
 	return mkname(p.name(name))
 }
 
-func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+func wrapname(pos src.XPos, x ir.Node) ir.Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
 	switch x.Op() {
@@ -1539,11 +1547,15 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 		}
 		fallthrough
 	case ir.ONAME, ir.ONONAME, ir.OPACK:
-		p := ir.NewParenExpr(p.pos(n), x)
+		p := ir.NewParenExpr(pos, x)
 		p.SetImplicit(true)
 		return p
 	}
 	return x
+}
+
+func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+	return wrapname(p.pos(n), x)
 }
 
 func (p *noder) setlineno(n syntax.Node) {
@@ -1723,7 +1735,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 // (primarily misuse of linker flags), other files are not.
 // See golang.org/issue/23672.
 func isCgoGeneratedFile(pos syntax.Pos) bool {
-	return strings.HasPrefix(filepath.Base(filepath.Clean(fileh(pos.Base().Filename()))), "_cgo_")
+	return strings.HasPrefix(filepath.Base(trimFilename(pos.Base())), "_cgo_")
 }
 
 // safeArg reports whether arg is a "safe" command-line argument,

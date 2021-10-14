@@ -96,10 +96,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		}
 		out.Write64(uint64(r.Xadd))
 
-	case objabi.R_CALLRISCV:
-		// Call relocations are currently handled via R_RISCV_PCREL_ITYPE.
-		// TODO(jsing): Consider generating elf.R_RISCV_CALL instead of a
-		// HI20/LO12_I pair.
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+		out.Write64(uint64(sectoff))
+		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
 
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 		// Find the text symbol for the AUIPC instruction targeted
@@ -156,10 +156,38 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 }
 
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+	rs := r.Sym()
+	pc := ldr.SymValue(s) + int64(r.Off())
+
+	// If the call points to a trampoline, see if we can reach the symbol
+	// directly. This situation can occur when the relocation symbol is
+	// not assigned an address until after the trampolines are generated.
+	if r.Type() == objabi.R_RISCV_CALL_TRAMP {
+		relocs := ldr.Relocs(rs)
+		if relocs.Count() != 1 {
+			ldr.Errorf(s, "trampoline %v has %d relocations", ldr.SymName(rs), relocs.Count())
+		}
+		tr := relocs.At(0)
+		if tr.Type() != objabi.R_RISCV_PCREL_ITYPE {
+			ldr.Errorf(s, "trampoline %v has unexpected relocation %v", ldr.SymName(rs), tr.Type())
+		}
+		trs := tr.Sym()
+		if ldr.SymValue(trs) != 0 && ldr.SymType(trs) != sym.SDYNIMPORT && ldr.SymType(trs) != sym.SUNDEFEXT {
+			trsOff := ldr.SymValue(trs) + tr.Add() - pc
+			if trsOff >= -(1<<20) && trsOff < (1<<20) {
+				r.SetType(objabi.R_RISCV_CALL)
+				r.SetSym(trs)
+				r.SetAdd(tr.Add())
+				rs = trs
+			}
+		}
+
+	}
+
 	if target.IsExternal() {
 		switch r.Type() {
-		case objabi.R_CALLRISCV:
-			return val, 0, true
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+			return val, 1, true
 
 		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 			return val, 2, true
@@ -168,11 +196,19 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return val, 0, false
 	}
 
-	rs := ldr.ResolveABIAlias(r.Sym())
+	off := ldr.SymValue(rs) + r.Add() - pc
 
 	switch r.Type() {
-	case objabi.R_CALLRISCV:
-		// Nothing to do.
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+		// Generate instruction immediates.
+		imm, err := riscv.EncodeJImmediate(off)
+		if err != nil {
+			ldr.Errorf(s, "cannot encode R_RISCV_CALL relocation offset for %s: %v", ldr.SymName(rs), err)
+		}
+		immMask := int64(riscv.JTypeImmMask)
+
+		val = (val &^ immMask) | int64(imm)
+
 		return val, 0, true
 
 	case objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
@@ -186,13 +222,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return ebreakIns<<32 | ebreakIns, 0, true
 
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
-		pc := ldr.SymValue(s) + int64(r.Off())
-		off := ldr.SymValue(rs) + r.Add() - pc
-
 		// Generate AUIPC and second instruction immediates.
 		low, high, err := riscv.Split32BitImmediate(off)
 		if err != nil {
-			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32-bits: %d", off)
+			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32 bits: %d", off)
 		}
 
 		auipcImm, err := riscv.EncodeUImmediate(high)
@@ -237,8 +270,92 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+		return ld.ExtrelocSimple(ldr, r), true
+
 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false
+}
+
+func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+	relocs := ldr.Relocs(s)
+	r := relocs.At(ri)
+
+	switch r.Type() {
+	case objabi.R_RISCV_CALL:
+		pc := ldr.SymValue(s) + int64(r.Off())
+		off := ldr.SymValue(rs) + r.Add() - pc
+
+		// Relocation symbol has an address and is directly reachable,
+		// therefore there is no need for a trampoline.
+		if ldr.SymValue(rs) != 0 && off >= -(1<<20) && off < (1<<20) && (*ld.FlagDebugTramp <= 1 || ldr.SymPkg(s) == ldr.SymPkg(rs)) {
+			break
+		}
+
+		// Relocation symbol is too far for a direct call or has not
+		// yet been given an address. See if an existing trampoline is
+		// reachable and if so, reuse it. Otherwise we need to create
+		// a new trampoline.
+		var tramp loader.Sym
+		for i := 0; ; i++ {
+			oName := ldr.SymName(rs)
+			name := fmt.Sprintf("%s-tramp%d", oName, i)
+			if r.Add() != 0 {
+				name = fmt.Sprintf("%s%+x-tramp%d", oName, r.Add(), i)
+			}
+			tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+			ldr.SetAttrReachable(tramp, true)
+			if ldr.SymType(tramp) == sym.SDYNIMPORT {
+				// Do not reuse trampoline defined in other module.
+				continue
+			}
+			if oName == "runtime.deferreturn" {
+				ldr.SetIsDeferReturnTramp(tramp, true)
+			}
+			if ldr.SymValue(tramp) == 0 {
+				// Either trampoline does not exist or we found one
+				// that does not have an address assigned and will be
+				// laid down immediately after the current function.
+				break
+			}
+
+			trampOff := ldr.SymValue(tramp) - (ldr.SymValue(s) + int64(r.Off()))
+			if trampOff >= -(1<<20) && trampOff < (1<<20) {
+				// An existing trampoline that is reachable.
+				break
+			}
+		}
+		if ldr.SymType(tramp) == 0 {
+			trampb := ldr.MakeSymbolUpdater(tramp)
+			ctxt.AddTramp(trampb)
+			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
+		}
+		sb := ldr.MakeSymbolUpdater(s)
+		if ldr.SymValue(rs) == 0 {
+			// In this case the target symbol has not yet been assigned an
+			// address, so we have to assume a trampoline is required. Mark
+			// this as a call via a trampoline so that we can potentially
+			// switch to a direct call during relocation.
+			sb.SetRelocType(ri, objabi.R_RISCV_CALL_TRAMP)
+		}
+		relocs := sb.Relocs()
+		r := relocs.At(ri)
+		r.SetSym(tramp)
+		r.SetAdd(0)
+
+	default:
+		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
+	}
+}
+
+func genCallTramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.AddUint32(arch, 0x00000f97) // AUIPC	$0, X31
+	tramp.AddUint32(arch, 0x000f8067) // JALR		X0, (X31)
+
+	r, _ := tramp.AddRel(objabi.R_RISCV_PCREL_ITYPE)
+	r.SetSiz(8)
+	r.SetSym(target)
+	r.SetAdd(offset)
 }

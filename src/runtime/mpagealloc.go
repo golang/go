@@ -155,7 +155,7 @@ func addrsToSummaryRange(level int, base, limit uintptr) (lo int, hi int) {
 	// upper-bound. Note that the exclusive upper bound may be within a
 	// summary at this level, meaning if we just do the obvious computation
 	// hi will end up being an inclusive upper bound. Unfortunately, just
-	// adding 1 to that is too broad since we might be on the very edge of
+	// adding 1 to that is too broad since we might be on the very edge
 	// of a summary's max page count boundary for this level
 	// (1 << levelLogPages[level]). So, make limit an inclusive upper bound
 	// then shift, then add 1, so we get an exclusive upper bound at the end.

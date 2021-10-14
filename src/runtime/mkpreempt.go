@@ -200,6 +200,8 @@ func gen386() {
 		l.add("MOVL", reg, 4)
 	}
 
+	softfloat := "GO386_softfloat"
+
 	// Save SSE state only if supported.
 	lSSE := layout{stack: l.stack, sp: "SP"}
 	for i := 0; i < 8; i++ {
@@ -209,13 +211,13 @@ func gen386() {
 	p("ADJSP $%d", lSSE.stack)
 	p("NOP SP")
 	l.save()
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
+	p("#ifndef %s", softfloat)
 	lSSE.save()
-	label("nosse:")
+	p("#endif")
 	p("CALL ·asyncPreempt2(SB)")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
+	p("#ifndef %s", softfloat)
 	lSSE.restore()
-	label("nosse2:")
+	p("#endif")
 	l.restore()
 	p("ADJSP $%d", -lSSE.stack)
 

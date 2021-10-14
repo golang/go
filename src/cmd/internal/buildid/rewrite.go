@@ -22,6 +22,9 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
 	if bufSize == 0 {
 		bufSize = 31 * 1024 // bufSize+little will likely fit in 32 kB
 	}
+	if len(id) == 0 {
+		return nil, [32]byte{}, fmt.Errorf("buildid.FindAndHash: no id specified")
+	}
 	if len(id) > bufSize {
 		return nil, [32]byte{}, fmt.Errorf("buildid.FindAndHash: buffer too small")
 	}

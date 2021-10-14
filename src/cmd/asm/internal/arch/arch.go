@@ -178,6 +178,10 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	instructions["PSLLDQ"] = x86.APSLLO
 	instructions["PSRLDQ"] = x86.APSRLO
 	instructions["PADDD"] = x86.APADDL
+	// Spellings originally used in CL 97235.
+	instructions["MOVBELL"] = x86.AMOVBEL
+	instructions["MOVBEQQ"] = x86.AMOVBEQ
+	instructions["MOVBEWW"] = x86.AMOVBEW
 
 	return &Arch{
 		LinkArch:       linkArch,

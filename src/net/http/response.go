@@ -165,16 +165,14 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 		}
 		return nil, err
 	}
-	if i := strings.IndexByte(line, ' '); i == -1 {
+	proto, status, ok := strings.Cut(line, " ")
+	if !ok {
 		return nil, badStringError("malformed HTTP response", line)
-	} else {
-		resp.Proto = line[:i]
-		resp.Status = strings.TrimLeft(line[i+1:], " ")
 	}
-	statusCode := resp.Status
-	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
-		statusCode = resp.Status[:i]
-	}
+	resp.Proto = proto
+	resp.Status = strings.TrimLeft(status, " ")
+
+	statusCode, _, _ := strings.Cut(resp.Status, " ")
 	if len(statusCode) != 3 {
 		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
@@ -182,7 +180,6 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	if err != nil || resp.StatusCode < 0 {
 		return nil, badStringError("malformed HTTP status code", statusCode)
 	}
-	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
 		return nil, badStringError("malformed HTTP version", resp.Proto)
 	}

@@ -4,13 +4,10 @@
 
 package types
 
-// TODO(gri) use a different symbol instead of ⊤ for the set of all types
-//           (⊤ is hard to distinguish from T in some fonts)
-
 // A term describes elementary type sets:
 //
 //   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
-//   ⊤:  &term{}          == ⊤                      // set of all types
+//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
 //   T:  &term{false, T}  == {T}                    // set of type T
 //  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
 //
@@ -24,7 +21,7 @@ func (x *term) String() string {
 	case x == nil:
 		return "∅"
 	case x.typ == nil:
-		return "⊤"
+		return "𝓤"
 	case x.tilde:
 		return "~" + x.typ.String()
 	default:
@@ -41,7 +38,7 @@ func (x *term) equal(y *term) bool {
 	case x.typ == nil || y.typ == nil:
 		return x.typ == y.typ
 	}
-	// ∅ ⊂ x, y ⊂ ⊤
+	// ∅ ⊂ x, y ⊂ 𝓤
 
 	return x.tilde == y.tilde && Identical(x.typ, y.typ)
 }
@@ -57,11 +54,11 @@ func (x *term) union(y *term) (_, _ *term) {
 	case y == nil:
 		return x, nil // x ∪ ∅ == x
 	case x.typ == nil:
-		return x, nil // ⊤ ∪ y == ⊤
+		return x, nil // 𝓤 ∪ y == 𝓤
 	case y.typ == nil:
-		return y, nil // x ∪ ⊤ == ⊤
+		return y, nil // x ∪ 𝓤 == 𝓤
 	}
-	// ∅ ⊂ x, y ⊂ ⊤
+	// ∅ ⊂ x, y ⊂ 𝓤
 
 	if x.disjoint(y) {
 		return x, y // x ∪ y == (x, y) if x ∩ y == ∅
@@ -85,11 +82,11 @@ func (x *term) intersect(y *term) *term {
 	case x == nil || y == nil:
 		return nil // ∅ ∩ y == ∅ and ∩ ∅ == ∅
 	case x.typ == nil:
-		return y // ⊤ ∩ y == y
+		return y // 𝓤 ∩ y == y
 	case y.typ == nil:
-		return x // x ∩ ⊤ == x
+		return x // x ∩ 𝓤 == x
 	}
-	// ∅ ⊂ x, y ⊂ ⊤
+	// ∅ ⊂ x, y ⊂ 𝓤
 
 	if x.disjoint(y) {
 		return nil // x ∩ y == ∅ if x ∩ y == ∅
@@ -113,9 +110,9 @@ func (x *term) includes(t Type) bool {
 	case x == nil:
 		return false // t ∈ ∅ == false
 	case x.typ == nil:
-		return true // t ∈ ⊤ == true
+		return true // t ∈ 𝓤 == true
 	}
-	// ∅ ⊂ x ⊂ ⊤
+	// ∅ ⊂ x ⊂ 𝓤
 
 	u := t
 	if x.tilde {
@@ -133,11 +130,11 @@ func (x *term) subsetOf(y *term) bool {
 	case y == nil:
 		return false // x ⊆ ∅ == false since x != ∅
 	case y.typ == nil:
-		return true // x ⊆ ⊤ == true
+		return true // x ⊆ 𝓤 == true
 	case x.typ == nil:
-		return false // ⊤ ⊆ y == false since y != ⊤
+		return false // 𝓤 ⊆ y == false since y != 𝓤
 	}
-	// ∅ ⊂ x, y ⊂ ⊤
+	// ∅ ⊂ x, y ⊂ 𝓤
 
 	if x.disjoint(y) {
 		return false // x ⊆ y == false if x ∩ y == ∅
@@ -154,6 +151,9 @@ func (x *term) subsetOf(y *term) bool {
 // disjoint reports whether x ∩ y == ∅.
 // x.typ and y.typ must not be nil.
 func (x *term) disjoint(y *term) bool {
+	if debug && (x.typ == nil || y.typ == nil) {
+		panic("invalid argument(s)")
+	}
 	ux := x.typ
 	if y.tilde {
 		ux = under(ux)

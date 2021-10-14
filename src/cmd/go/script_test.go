@@ -31,9 +31,10 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
-	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
+
+	"golang.org/x/tools/txtar"
 )
 
 var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
@@ -184,6 +185,7 @@ func (ts *testScript) setup() {
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
 		":=" + string(os.PathListSeparator),
+		"/=" + string(os.PathSeparator),
 	}
 	if !testenv.HasExternalNetwork() {
 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
@@ -1170,7 +1172,7 @@ func waitOrStop(ctx context.Context, cmd *exec.Cmd, interrupt os.Signal, killDel
 		err := cmd.Process.Signal(interrupt)
 		if err == nil {
 			err = ctx.Err() // Report ctx.Err() as the reason we interrupted.
-		} else if err.Error() == "os: process already finished" {
+		} else if err == os.ErrProcessDone {
 			errc <- nil
 			return
 		}

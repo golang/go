@@ -86,7 +86,6 @@ type Checker struct {
 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
-	typMap  map[string]*Named      // maps an instantiated named type hash to a *Named type
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
@@ -101,9 +100,10 @@ type Checker struct {
 	// information collected during type-checking of a set of package files
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
-	files        []*syntax.File            // list of package files
-	imports      []*PkgName                // list of imported packages
-	dotImportMap map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+	files         []*syntax.File              // list of package files
+	imports       []*PkgName                  // list of imported packages
+	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
+	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -171,6 +171,11 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		conf = new(Config)
 	}
 
+	// make sure we have a context
+	if conf.Context == nil {
+		conf.Context = NewContext()
+	}
+
 	// make sure we have an info struct
 	if info == nil {
 		info = new(Info)
@@ -188,7 +193,6 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 		version: version,
 		objMap:  make(map[Object]*declInfo),
 		impMap:  make(map[importKey]*Package),
-		typMap:  make(map[string]*Named),
 	}
 }
 
@@ -289,6 +293,7 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	check.dotImportMap = nil
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
+	check.recvTParamMap = nil
 
 	// TODO(gri) There's more memory we should release at this point.
 
@@ -412,12 +417,36 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
 	}
 }
 
-func (check *Checker) recordInferred(call syntax.Expr, targs []Type, sig *Signature) {
-	assert(call != nil)
-	assert(sig != nil)
-	if m := check.Inferred; m != nil {
-		m[call] = Inferred{targs, sig}
+// recordInstance records instantiation information into check.Info, if the
+// Instances map is non-nil. The given expr must be an ident, selector, or
+// index (list) expr with ident or selector operand.
+//
+// TODO(rfindley): the expr parameter is fragile. See if we can access the
+// instantiated identifier in some other way.
+func (check *Checker) recordInstance(expr syntax.Expr, targs []Type, typ Type) {
+	ident := instantiatedIdent(expr)
+	assert(ident != nil)
+	assert(typ != nil)
+	if m := check.Instances; m != nil {
+		m[ident] = Instance{NewTypeList(targs), typ}
 	}
+}
+
+func instantiatedIdent(expr syntax.Expr) *syntax.Name {
+	var selOrIdent syntax.Expr
+	switch e := expr.(type) {
+	case *syntax.IndexExpr:
+		selOrIdent = e.X
+	case *syntax.SelectorExpr, *syntax.Name:
+		selOrIdent = e
+	}
+	switch x := selOrIdent.(type) {
+	case *syntax.Name:
+		return x
+	case *syntax.SelectorExpr:
+		return x.Sel
+	}
+	panic("instantiated ident not found")
 }
 
 func (check *Checker) recordDef(id *syntax.Name, obj Object) {

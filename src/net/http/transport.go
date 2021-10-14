@@ -1715,12 +1715,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
-			f := strings.SplitN(resp.Status, " ", 2)
+			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
-			if len(f) < 2 {
+			if !ok {
 				return nil, errors.New("unknown status code")
 			}
-			return nil, errors.New(f[1])
+			return nil, errors.New(text)
 		}
 	}
 

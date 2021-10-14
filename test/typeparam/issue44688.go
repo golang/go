@@ -77,8 +77,9 @@ func test1[T any](arg T) {
 	// calling method expressions
 	m1x := B1[T].m1
 	m1x(b1, arg)
-	m2x := B2[T].m2
-	m2x(b2, arg)
+	// TODO(khr): reenable these.
+	//m2x := B2[T].m2
+	//m2x(b2, arg)
 
 	// calling method values
 	m1v := b1.m1

@@ -244,7 +244,7 @@ func NewGoDeferStmt(pos src.XPos, op Op, call Node) *GoDeferStmt {
 	return n
 }
 
-// A IfStmt is a return statement: if Init; Cond { Then } else { Else }.
+// An IfStmt is a return statement: if Init; Cond { Body } else { Else }.
 type IfStmt struct {
 	miniStmt
 	Cond   Node
@@ -338,7 +338,7 @@ type SelectStmt struct {
 	HasBreak bool
 
 	// TODO(rsc): Instead of recording here, replace with a block?
-	Compiled Nodes // compiled form, after walkSwitch
+	Compiled Nodes // compiled form, after walkSelect
 }
 
 func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {
@@ -385,14 +385,11 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 // code generation to jump directly to another function entirely.
 type TailCallStmt struct {
 	miniStmt
-	Target *Name
+	Call *CallExpr // the underlying call
 }
 
-func NewTailCallStmt(pos src.XPos, target *Name) *TailCallStmt {
-	if target.Op() != ONAME || target.Class != PFUNC {
-		base.FatalfAt(pos, "tail call to non-func %v", target)
-	}
-	n := &TailCallStmt{Target: target}
+func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {
+	n := &TailCallStmt{Call: call}
 	n.pos = pos
 	n.op = OTAILCALL
 	return n

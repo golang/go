@@ -7,10 +7,6 @@
 
 package runtime
 
-// Called from assembly only; declared for go vet.
-func load_g()
-func save_g()
-func reginit()
-
+// This is needed for vet
 //go:noescape
 func callCgoSigaction(sig uintptr, new, old *sigactiont) int32

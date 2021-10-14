@@ -142,7 +142,7 @@ var (
 	mbuckets  *bucket // memory profile buckets
 	bbuckets  *bucket // blocking profile buckets
 	xbuckets  *bucket // mutex profile buckets
-	buckhash  *[179999]*bucket
+	buckhash  *[buckHashSize]*bucket
 	bucketmem uintptr
 
 	mProf struct {

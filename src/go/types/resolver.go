@@ -381,12 +381,15 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
+				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+					check.softErrorf(d.spec.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
+				}
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
-				info := &declInfo{file: fileScope, fdecl: d.decl}
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
+				hasTParamError := false // avoid duplicate type parameter errors
 				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
@@ -398,8 +401,9 @@ func (check *Checker) collectObjects() {
 						if name == "main" {
 							code = _InvalidMainDecl
 						}
-						if tparams := typeparams.Get(d.decl.Type); tparams != nil {
-							check.softErrorf(tparams, code, "func %s must have no type parameters", name)
+						if d.decl.Type.TypeParams.NumFields() != 0 {
+							check.softErrorf(d.decl.Type.TypeParams.List[0], code, "func %s must have no type parameters", name)
+							hasTParamError = true
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
@@ -435,6 +439,10 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
+				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+					check.softErrorf(d.decl.Type.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
+				}
+				info := &declInfo{file: fileScope, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the
 				// receiver is invalid); also we need their fdecl info when associating
@@ -475,7 +483,7 @@ func (check *Checker) collectObjects() {
 		// Determine the receiver base type and associate m with it.
 		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
 		if base != nil {
-			m.obj.hasPtrRecv = ptr
+			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
 		}
 	}
@@ -505,7 +513,7 @@ L: // unpack receiver type
 
 	// unpack type parameters, if any
 	switch rtyp.(type) {
-	case *ast.IndexExpr, *ast.MultiIndexExpr:
+	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(rtyp)
 		rtyp = ix.X
 		if unpackParams {

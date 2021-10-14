@@ -140,6 +140,7 @@ type CmdFlags struct {
 
 // ParseFlags parses the command-line flags into Flag.
 func ParseFlags() {
+	Flag.G = 3
 	Flag.I = addImportDir
 
 	Flag.LowerC = 1
@@ -356,7 +357,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: fix races and enable the following flags
-	if Ctxt.Flag_shared || Ctxt.Flag_dynlink || Flag.Race {
+	if Ctxt.Flag_dynlink || Flag.Race {
 		return false
 	}
 	return true

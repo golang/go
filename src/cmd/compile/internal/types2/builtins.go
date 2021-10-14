@@ -336,15 +336,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 		var src Type
-		switch t := under(y.typ).(type) {
+		switch t := optype(y.typ).(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
 			}
 		case *Slice:
 			src = t.elem
-		case *TypeParam:
-			check.error(x, "copy on generic operands not yet implemented")
 		}
 
 		if dst == nil || src == nil {
@@ -662,6 +660,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
+		// record the selector expression (was bug - issue #47895)
+		{
+			mode := value
+			if x.mode == variable || indirect {
+				mode = variable
+			}
+			check.record(&operand{mode, selx, obj.Type(), nil, 0})
+		}
+
 		// The field offset is considered a variable even if the field is declared before
 		// the part of the struct which is variable-sized. This makes both the rules
 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
@@ -754,7 +761,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		var t operand
 		x1 := x
 		for _, arg := range call.ArgList {
-			check.rawExpr(x1, arg, nil) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%v: %s", posFor(x1), x1)
 			x1 = &t // use incoming x only for first argument
 		}
@@ -817,7 +824,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// type param is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
 		return ptyp

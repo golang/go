@@ -555,6 +555,7 @@ func formatTestmain(t *testFuncs) ([]byte, error) {
 type testFuncs struct {
 	Tests       []testFunc
 	Benchmarks  []testFunc
+	FuzzTargets []testFunc
 	Examples    []testFunc
 	TestMain    *testFunc
 	Package     *Package
@@ -653,6 +654,13 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
+		case isTest(name, "Fuzz"):
+			err := checkTestFunc(n, "F")
+			if err != nil {
+				return err
+			}
+			t.FuzzTargets = append(t.FuzzTargets, testFunc{pkg, name, "", false})
+			*doImport, *seen = true, true
 		}
 	}
 	ex := doc.Examples(f)
@@ -716,6 +724,12 @@ var benchmarks = []testing.InternalBenchmark{
 {{end}}
 }
 
+var fuzzTargets = []testing.InternalFuzzTarget{
+{{range .FuzzTargets}}
+	{"{{.Name}}", {{.Package}}.{{.Name}}},
+{{end}}
+}
+
 var examples = []testing.InternalExample{
 {{range .Examples}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}, {{.Unordered}}},
@@ -774,7 +788,7 @@ func main() {
 		CoveredPackages: {{printf "%q" .Covered}},
 	})
 {{end}}
-	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
+	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)
 	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))

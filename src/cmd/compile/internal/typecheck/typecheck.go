@@ -879,6 +879,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
+		n.Call = typecheck(n.Call, ctxStmt|ctxExpr).(*ir.CallExpr)
 		return n
 
 	case ir.OCHECKNIL:
@@ -1736,11 +1737,6 @@ func CheckMapKeys() {
 	mapqueue = nil
 }
 
-// TypeGen tracks the number of function-scoped defined types that
-// have been declared. It's used to generate unique linker symbols for
-// their runtime type descriptors.
-var TypeGen int32
-
 func typecheckdeftype(n *ir.Name) {
 	if base.EnableTrace && base.Flag.LowerT {
 		defer tracePrint("typecheckdeftype", n)(nil)
@@ -1748,8 +1744,7 @@ func typecheckdeftype(n *ir.Name) {
 
 	t := types.NewNamed(n)
 	if n.Curfn != nil {
-		TypeGen++
-		t.Vargen = TypeGen
+		t.SetVargen()
 	}
 
 	if n.Pragma()&ir.NotInHeap != 0 {

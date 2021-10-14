@@ -12,8 +12,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-
-	"golang.org/x/mod/module"
 )
 
 var cmdWhy = &base.Command{
@@ -61,11 +59,14 @@ var (
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
 	base.AddModCommonFlags(&cmdWhy.Flag)
+	base.AddWorkfileFlag(&cmdWhy.Flag)
 }
 
 func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot
+	modload.ExplicitWriteGoMod = true // don't write go.mod in ListModules
 
 	loadOpts := modload.PackageOpts{
 		Tags:                     imports.AnyTags(),
@@ -78,28 +79,28 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	if *whyM {
 		for _, arg := range args {
 			if strings.Contains(arg, "@") {
-				base.Fatalf("go mod why: module query not allowed")
+				base.Fatalf("go: %s: 'go mod why' requires a module path, not a version query", arg)
 			}
 		}
 
 		mods, err := modload.ListModules(ctx, args, 0)
 		if err != nil {
-			base.Fatalf("go mod why: %v", err)
+			base.Fatalf("go: %v", err)
 		}
 
-		byModule := make(map[module.Version][]string)
+		byModule := make(map[string][]string)
 		_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
 		for _, path := range pkgs {
 			m := modload.PackageModule(path)
 			if m.Path != "" {
-				byModule[m] = append(byModule[m], path)
+				byModule[m.Path] = append(byModule[m.Path], path)
 			}
 		}
 		sep := ""
 		for _, m := range mods {
 			best := ""
 			bestDepth := 1000000000
-			for _, path := range byModule[module.Version{Path: m.Path, Version: m.Version}] {
+			for _, path := range byModule[m.Path] {
 				d := modload.WhyDepth(path)
 				if d > 0 && d < bestDepth {
 					best = path

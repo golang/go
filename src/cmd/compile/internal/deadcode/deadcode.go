@@ -38,6 +38,7 @@ func Func(fn *ir.Func) {
 		}
 	}
 
+	ir.VisitList(fn.Body, markHiddenClosureDead)
 	fn.Body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
 }
 
@@ -62,9 +63,11 @@ func stmts(nn *ir.Nodes) {
 			if ir.IsConst(n.Cond, constant.Bool) {
 				var body ir.Nodes
 				if ir.BoolVal(n.Cond) {
+					ir.VisitList(n.Else, markHiddenClosureDead)
 					n.Else = ir.Nodes{}
 					body = n.Body
 				} else {
+					ir.VisitList(n.Body, markHiddenClosureDead)
 					n.Body = ir.Nodes{}
 					body = n.Else
 				}
@@ -114,6 +117,7 @@ func stmts(nn *ir.Nodes) {
 		}
 
 		if cut {
+			ir.VisitList((*nn)[i+1:len(*nn)], markHiddenClosureDead)
 			*nn = (*nn)[:i+1]
 			break
 		}
@@ -149,4 +153,14 @@ func expr(n ir.Node) ir.Node {
 		}
 	}
 	return n
+}
+
+func markHiddenClosureDead(n ir.Node) {
+	if n.Op() != ir.OCLOSURE {
+		return
+	}
+	clo := n.(*ir.ClosureExpr)
+	if clo.Func.IsHiddenClosure() {
+		clo.Func.SetIsDeadcodeClosure(true)
+	}
 }

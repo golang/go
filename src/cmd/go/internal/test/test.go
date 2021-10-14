@@ -29,6 +29,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
 	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
@@ -60,8 +61,8 @@ followed by detailed output for each failed package.
 
 'Go test' recompiles each package along with any files with names matching
 the file pattern "*_test.go".
-These additional files can contain test functions, benchmark functions, and
-example functions. See 'go help testfunc' for more.
+These additional files can contain test functions, benchmark functions, fuzz
+targets and example functions. See 'go help testfunc' for more.
 Each listed package causes the execution of a separate test binary.
 Files whose names begin with "_" (including "_test.go") or "." are ignored.
 
@@ -78,7 +79,8 @@ binary. Only a high-confidence subset of the default go vet checks are
 used. That subset is: 'atomic', 'bool', 'buildtags', 'errorsas',
 'ifaceassert', 'nilfunc', 'printf', and 'stringintconv'. You can see
 the documentation for these and other vet tests via "go doc cmd/vet".
-To disable the running of go vet, use the -vet=off flag.
+To disable the running of go vet, use the -vet=off flag. To run all
+checks, use the -vet=all flag.
 
 All test output and summary lines are printed to the go command's
 standard output, even if the test printed them to its own standard
@@ -119,16 +121,16 @@ elapsed time in the summary line.
 The rule for a match in the cache is that the run involves the same
 test binary and the flags on the command line come entirely from a
 restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
--list, -parallel, -run, -short, and -v. If a run of go test has any test
-or non-test flags outside this set, the result is not cached. To
-disable test caching, use any test flag or argument other than the
-cacheable flags. The idiomatic way to disable test caching explicitly
-is to use -count=1. Tests that open files within the package's source
-root (usually $GOPATH) or that consult environment variables only
-match future runs in which the files and environment variables are unchanged.
-A cached test result is treated as executing in no time at all,
-so a successful package test result will be cached and reused
-regardless of -timeout setting.
+-list, -parallel, -run, -short, -timeout, -failfast, and -v.
+If a run of go test has any test or non-test flags outside this set,
+the result is not cached. To disable test caching, use any test flag
+or argument other than the cacheable flags. The idiomatic way to disable
+test caching explicitly is to use -count=1. Tests that open files within
+the package's source root (usually $GOPATH) or that consult environment
+variables only match future runs in which the files and environment
+variables are unchanged. A cached test result is treated as executing
+in no time at all,so a successful package test result will be cached and
+reused regardless of -timeout setting.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
@@ -206,9 +208,10 @@ control the execution of any test:
 	    (for example, -benchtime 100x).
 
 	-count n
-	    Run each test and benchmark n times (default 1).
+	    Run each test, benchmark, and fuzz seed n times (default 1).
 	    If -cpu is set, run n times for each GOMAXPROCS value.
-	    Examples are always run once.
+	    Examples are always run once. -count does not apply to
+	    fuzz targets matched by -fuzz.
 
 	-cover
 	    Enable coverage analysis.
@@ -235,32 +238,59 @@ control the execution of any test:
 	    Sets -cover.
 
 	-cpu 1,2,4
-	    Specify a list of GOMAXPROCS values for which the tests or
-	    benchmarks should be executed. The default is the current value
-	    of GOMAXPROCS.
+	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+	    fuzz targets should be executed. The default is the current value
+	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
 
 	-failfast
 	    Do not start new tests after the first test failure.
 
+	-fuzz regexp
+	    Run the fuzz target matching the regular expression. When specified,
+	    the command line argument must match exactly one package, and regexp
+	    must match exactly one fuzz target within that package. After tests,
+	    benchmarks, seed corpora of other fuzz targets, and examples have
+	    completed, the matching target will be fuzzed. See the Fuzzing section
+	    of the testing package documentation for details.
+
+	-fuzztime t
+	    Run enough iterations of the fuzz test to take t, specified as a
+	    time.Duration (for example, -fuzztime 1h30s). The default is to run
+	    forever.
+	    The special syntax Nx means to run the fuzz test N times
+	    (for example, -fuzztime 100x).
+
+	-json
+	    Log verbose output and test results in JSON. This presents the
+	    same information as the -v flag in a machine-readable format.
+
 	-list regexp
-	    List tests, benchmarks, or examples matching the regular expression.
-	    No tests, benchmarks or examples will be run. This will only
-	    list top-level tests. No subtest or subbenchmarks will be shown.
+	    List tests, benchmarks, fuzz targets, or examples matching the regular
+	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+	    This will only list top-level tests. No subtest or subbenchmarks will be
+	    shown.
 
 	-parallel n
-	    Allow parallel execution of test functions that call t.Parallel.
+	    Allow parallel execution of test functions that call t.Parallel, and
+	    f.Fuzz functions that call t.Parallel when running the seed corpus.
 	    The value of this flag is the maximum number of tests to run
-	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+	    simultaneously.
+	    While fuzzing, the value of this flag is the maximum number of
+	    subprocesses that may call the fuzz function simultaneously, regardless of
+	    whether T.Parallel is called.
+	    By default, -parallel is set to the value of GOMAXPROCS.
+	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
+	    performance due to CPU contention, especially when fuzzing.
 	    Note that -parallel only applies within a single test binary.
 	    The 'go test' command may run tests for different packages
 	    in parallel as well, according to the setting of the -p flag
 	    (see 'go help build').
 
 	-run regexp
-	    Run only those tests and examples matching the regular expression.
-	    For tests, the regular expression is split by unbracketed slash (/)
-	    characters into a sequence of regular expressions, and each part
-	    of a test's identifier must match the corresponding element in
+	    Run only those tests, examples, and fuzz targets matching the regular
+	    expression. For tests, the regular expression is split by unbracketed
+	    slash (/) characters into a sequence of regular expressions, and each
+	    part of a test's identifier must match the corresponding element in
 	    the sequence, if any. Note that possible parents of matches are
 	    run too, so that -run=X/Y matches and runs and reports the result
 	    of all tests matching X, even those without sub-tests matching Y,
@@ -430,6 +460,10 @@ A benchmark function is one named BenchmarkXxx and should have the signature,
 
 	func BenchmarkXxx(b *testing.B) { ... }
 
+A fuzz target is one named FuzzXxx and should have the signature,
+
+	func FuzzXxx(f *testing.F) { ... }
+
 An example function is similar to a test function but, instead of using
 *testing.T to report success or failure, prints output to os.Stdout.
 If the last comment in the function starts with "Output:" then the output
@@ -469,7 +503,7 @@ Here is another example where the ordering of the output is ignored:
 
 The entire test file is presented as the example when it contains a single
 example function, at least one other function, type, variable, or constant
-declaration, and no test or benchmark functions.
+declaration, and no fuzz targets or test or benchmark functions.
 
 See the documentation of the testing package for more information.
 `,
@@ -483,6 +517,7 @@ var (
 	testCoverPaths   []string                          // -coverpkg flag
 	testCoverPkgs    []*load.Package                   // -coverpkg flag
 	testCoverProfile string                            // -coverprofile flag
+	testFuzz         string                            // -fuzz flag
 	testJSON         bool                              // -json flag
 	testList         string                            // -list flag
 	testO            string                            // -o flag
@@ -577,6 +612,7 @@ var defaultVetFlags = []string{
 }
 
 func runTest(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
 	pkgArgs, testArgs = testFlags(args)
 
 	if cfg.DebugTrace != "" {
@@ -615,6 +651,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
+	if testFuzz != "" && len(pkgs) != 1 {
+		base.Fatalf("cannot use -fuzz flag with multiple packages")
+	}
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
@@ -625,7 +664,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if testTimeout > 0 {
+	// Don't set this if fuzzing, since it should be able to run
+	// indefinitely.
+	if testTimeout > 0 && testFuzz == "" {
 		testKillTimeout = testTimeout + 1*time.Minute
 	}
 
@@ -649,7 +690,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	b.Init()
 
 	if cfg.BuildI {
-		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
+		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
 		cfg.BuildV = testV
 
 		deps := make(map[string]bool)
@@ -771,6 +812,30 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			p.Internal.CoverVars = declareCoverVars(p, coverFiles...)
 			if testCover && testCoverMode == "atomic" {
 				ensureImport(p, "sync/atomic")
+			}
+		}
+	}
+
+	// Inform the compiler that it should instrument the binary at
+	// build-time when fuzzing is enabled.
+	if testFuzz != "" {
+		// Don't instrument packages which may affect coverage guidance but are
+		// unlikely to be useful. Most of these are used by the testing or
+		// internal/fuzz packages concurrently with fuzzing.
+		var skipInstrumentation = map[string]bool{
+			"context":       true,
+			"internal/fuzz": true,
+			"reflect":       true,
+			"runtime":       true,
+			"sync":          true,
+			"sync/atomic":   true,
+			"syscall":       true,
+			"testing":       true,
+			"time":          true,
+		}
+		for _, p := range load.TestPackageList(ctx, pkgOpts, pkgs) {
+			if !skipInstrumentation[p.ImportPath] {
+				p.Internal.FuzzInstrument = true
 			}
 		}
 	}
@@ -1080,6 +1145,8 @@ func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVa
 }
 
 var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+var noTargetsToFuzz = []byte("\ntesting: warning: no targets to fuzz\n")
+var tooManyTargetsToFuzz = []byte("\ntesting: warning: -fuzz matches more than one target, won't fuzz\n")
 
 type runCache struct {
 	disableCache bool // cache should be disabled for this run
@@ -1127,10 +1194,10 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 	}
 
 	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || (testBench != "") {
+	if len(pkgArgs) == 0 || testBench != "" || testFuzz != "" {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
-		// or when benchmarking.
+		// or when benchmarking or fuzzing.
 		// No change to stdout.
 	} else {
 		// If we're only running a single package under test or if parallelism is
@@ -1183,7 +1250,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
 	}
 	panicArg := "-test.paniconexit0"
-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
+	fuzzArg := []string{}
+	if testFuzz != "" {
+		fuzzCacheDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath)
+		fuzzArg = []string{"-test.fuzzcachedir=" + fuzzCacheDir}
+	}
+	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, testArgs)
 
 	if testCoverProfile != "" {
 		// Write coverage to temporary profile, for merging later.
@@ -1276,6 +1348,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
 			norun = " [no tests to run]"
 		}
+		if bytes.HasPrefix(out, noTargetsToFuzz[1:]) || bytes.Contains(out, noTargetsToFuzz) {
+			norun = " [no targets to fuzz]"
+		}
+		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
+			norun = " [will not fuzz, -fuzz matches more than one target]"
+		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		c.saveOutput(a)
 	} else {
@@ -1347,6 +1425,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			"-test.run",
 			"-test.short",
 			"-test.timeout",
+			"-test.failfast",
 			"-test.v":
 			// These are cacheable.
 			// Note that this list is documented above,
@@ -1711,9 +1790,23 @@ func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
 	return nil
 }
 
-// printExitStatus is the action for printing the exit status
+// printExitStatus is the action for printing the final exit status.
+// If we are running multiple test targets, print a final "FAIL"
+// in case a failure in an early package has already scrolled
+// off of the user's terminal.
+// (See https://golang.org/issue/30507#issuecomment-470593235.)
+//
+// In JSON mode, we need to maintain valid JSON output and
+// we assume that the test output is being parsed by a tool
+// anyway, so the failure will not be missed and would be
+// awkward to try to wedge into the JSON stream.
+//
+// In fuzz mode, we only allow a single package for now
+// (see CL 350156 and https://golang.org/issue/46312),
+// so there is no possibility of scrolling off and no need
+// to print the final status.
 func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
-	if !testJSON && len(pkgArgs) != 0 {
+	if !testJSON && testFuzz == "" && len(pkgArgs) != 0 {
 		if base.GetExitStatus() != 0 {
 			fmt.Println("FAIL")
 			return nil

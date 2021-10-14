@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -297,7 +298,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
 		// Unsafe cast through memory.
 		// We'll need to do a load with type kt. Create a temporary of type kt to
 		// ensure sufficient alignment. nt may be under-aligned.
-		if kt.Align < nt.Align {
+		if uint8(kt.Alignment()) < uint8(nt.Alignment()) {
 			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
 		}
 		tmp := o.newTemp(kt, true)
@@ -443,6 +444,13 @@ func (o *orderState) edge() {
 	// __libfuzzer_extra_counters.
 	counter := staticinit.StaticName(types.Types[types.TUINT8])
 	counter.SetLibfuzzerExtraCounter(true)
+	// As well as setting SetLibfuzzerExtraCounter, we preemptively set the
+	// symbol type to SLIBFUZZER_EXTRA_COUNTER so that the race detector
+	// instrumentation pass (which does not have access to the flags set by
+	// SetLibfuzzerExtraCounter) knows to ignore them. This information is
+	// lost by the time it reaches the compile step, so SetLibfuzzerExtraCounter
+	// is still necessary.
+	counter.Linksym().Type = objabi.SLIBFUZZER_EXTRA_COUNTER
 
 	// counter += 1
 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
@@ -941,6 +949,12 @@ func (o *orderState) stmt(n ir.Node) {
 					if colas {
 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
 							init = init[1:]
+
+							// iimport may have added a default initialization assignment,
+							// due to how it handles ODCL statements.
+							if len(init) > 0 && init[0].Op() == ir.OAS && init[0].(*ir.AssignStmt).X == n {
+								init = init[1:]
+							}
 						}
 						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
 						ncas.PtrInit().Append(dcl)

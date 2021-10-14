@@ -78,12 +78,12 @@ func unified(noders []*noder) {
 		base.Errorf("cannot use -G and -d=quirksmode together")
 	}
 
-	newReadImportFunc = func(data string, pkg1 *types.Pkg, check *types2.Checker, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
 		pr := newPkgDecoder(pkg1.Path, data)
 
 		// Read package descriptors for both types2 and compiler backend.
 		readPackage(newPkgReader(pr), pkg1)
-		pkg2 = readPackage2(check, packages, pr)
+		pkg2 = readPackage2(ctxt, packages, pr)
 		return
 	}
 
@@ -106,7 +106,6 @@ func unified(noders []*noder) {
 	readPackage(localPkgReader, types.LocalPkg)
 
 	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
-	r.ext = r
 	r.pkgInit(types.LocalPkg, target)
 
 	// Type-check any top-level assignments. We ignore non-assignments
@@ -137,11 +136,7 @@ func unified(noders []*noder) {
 		}
 	}
 	todoBodies = nil
-
-	if !quirksMode() {
-		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
-		r.wrapTypes(target)
-	}
+	todoBodiesDone = true
 
 	// Check that nothing snuck past typechecking.
 	for _, n := range target.Decls {
@@ -195,7 +190,6 @@ func writePkgStub(noders []*noder) string {
 
 	{
 		w := privateRootWriter
-		w.ext = w
 		w.pkgInit(noders)
 		w.flush()
 	}

@@ -334,6 +334,16 @@ const (
 	OEND
 )
 
+// IsCmp reports whether op is a comparison operation (==, !=, <, <=,
+// >, or >=).
+func (op Op) IsCmp() bool {
+	switch op {
+	case OEQ, ONE, OLT, OLE, OGT, OGE:
+		return true
+	}
+	return false
+}
+
 // Nodes is a pointer to a slice of *Node.
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.

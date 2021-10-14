@@ -115,20 +115,16 @@ func size(name string, t *testing.T) int64 {
 	if err != nil {
 		t.Fatal("open failed:", err)
 	}
-	defer file.Close()
-	var buf [100]byte
-	len := 0
-	for {
-		n, e := file.Read(buf[0:])
-		len += n
-		if e == io.EOF {
-			break
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error(err)
 		}
-		if e != nil {
-			t.Fatal("read failed:", e)
-		}
+	}()
+	n, err := io.Copy(io.Discard, file)
+	if err != nil {
+		t.Fatal(err)
 	}
-	return int64(len)
+	return n
 }
 
 func equal(name1, name2 string) (r bool) {
@@ -1761,8 +1757,8 @@ func TestHostname(t *testing.T) {
 	// and the /bin/hostname only returns the first component
 	want := runBinHostname(t)
 	if hostname != want {
-		i := strings.Index(hostname, ".")
-		if i < 0 || hostname[0:i] != want {
+		host, _, ok := strings.Cut(hostname, ".")
+		if !ok || host != want {
 			t.Errorf("Hostname() = %q, want %q", hostname, want)
 		}
 	}

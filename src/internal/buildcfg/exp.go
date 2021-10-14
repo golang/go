@@ -46,7 +46,11 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 //
 // TODO(mdempsky): Move to internal/goexperiment.
 func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment.Flags, err error) {
-	regabiSupported := goarch == "amd64" || goarch == "arm64"
+	regabiSupported := false
+	switch goarch {
+	case "amd64", "arm64", "ppc64le", "ppc64":
+		regabiSupported = true
+	}
 
 	baseline = goexperiment.Flags{
 		RegabiWrappers: regabiSupported,
@@ -111,8 +115,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
 		flags.RegabiReflect = true
 		flags.RegabiArgs = true
 	}
-	// regabi is only supported on amd64 and arm64.
-	if goarch != "amd64" && goarch != "arm64" {
+	// regabi is only supported on amd64, arm64, ppc64 and ppc64le.
+	if !regabiSupported {
 		flags.RegabiReflect = false
 		flags.RegabiArgs = false
 	}
@@ -158,7 +162,11 @@ func expList(exp, base *goexperiment.Flags, all bool) []string {
 // GOEXPERIMENT is exactly what a user would set on the command line
 // to get the set of enabled experiments.
 func GOEXPERIMENT() string {
-	return strings.Join(expList(&Experiment, &experimentBaseline, false), ",")
+	goexp := strings.Join(expList(&Experiment, &experimentBaseline, false), ",")
+	if goexp == "" && DefaultGOEXPERIMENT != "" {
+		goexp = "," // non-empty to override DefaultGOEXPERIMENT
+	}
+	return goexp
 }
 
 // EnabledExperiments returns a list of enabled experiments, as

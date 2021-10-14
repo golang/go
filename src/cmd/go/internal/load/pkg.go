@@ -203,6 +203,7 @@ type PackageInternal struct {
 	Local             bool                 // imported via local path (./ or ../)
 	LocalPrefix       string               // interpret ./ and ../ imports relative to this prefix
 	ExeName           string               // desired name for temporary executable
+	FuzzInstrument    bool                 // package should be instrumented for fuzzing
 	CoverMode         string               // preprocess Go source files with the coverage tool in this mode
 	CoverVars         map[string]*CoverVar // variables created by coverage analysis
 	OmitDebug         bool                 // tell linker not to write debug information
@@ -1450,9 +1451,9 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 			// The importer is a list of command-line files.
 			// Pretend that the import path is the import path of the
 			// directory containing them.
-			// If the directory is outside the main module, this will resolve to ".",
+			// If the directory is outside the main modules, this will resolve to ".",
 			// which is not a prefix of any valid module.
-			importerPath = modload.DirImportPath(ctx, importer.Dir)
+			importerPath, _ = modload.MainModules.DirImportPath(ctx, importer.Dir)
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
@@ -1677,9 +1678,10 @@ func (p *Package) DefaultExecName() string {
 func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
 	p.copyBuild(opts, bp)
 
-	// The localPrefix is the path we interpret ./ imports relative to.
+	// The localPrefix is the path we interpret ./ imports relative to,
+	// if we support them at all (not in module mode!).
 	// Synthesized main packages sometimes override this.
-	if p.Internal.Local {
+	if p.Internal.Local && !cfg.ModulesEnabled {
 		p.Internal.LocalPrefix = dirToImportPath(p.Dir)
 	}
 
@@ -2447,7 +2449,8 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 		}
 		matches, _ = modload.LoadPackages(ctx, modOpts, patterns...)
 	} else {
-		matches = search.ImportPaths(patterns)
+		noModRoots := []string{}
+		matches = search.ImportPaths(patterns, noModRoots)
 	}
 
 	var (
@@ -2673,10 +2676,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 		if fi.IsDir() {
 			base.Fatalf("%s is a directory, should be a Go file", file)
 		}
-		dir1, _ := filepath.Split(file)
-		if dir1 == "" {
-			dir1 = "./"
-		}
+		dir1 := filepath.Dir(file)
 		if dir == "" {
 			dir = dir1
 		} else if dir != dir1 {
@@ -2704,7 +2704,9 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 	pkg.Internal.Local = true
 	pkg.Internal.CmdlineFiles = true
 	pkg.load(ctx, opts, "command-line-arguments", &stk, nil, bp, err)
-	pkg.Internal.LocalPrefix = dirToImportPath(dir)
+	if !cfg.ModulesEnabled {
+		pkg.Internal.LocalPrefix = dirToImportPath(dir)
+	}
 	pkg.ImportPath = "command-line-arguments"
 	pkg.Target = ""
 	pkg.Match = gofiles

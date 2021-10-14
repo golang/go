@@ -631,12 +631,13 @@ var zoneinfoOnce sync.Once
 // Otherwise, the name is taken to be a location name corresponding to a file
 // in the IANA Time Zone database, such as "America/New_York".
 //
-// The time zone database needed by LoadLocation may not be
-// present on all systems, especially non-Unix systems.
-// LoadLocation looks in the directory or uncompressed zip file
-// named by the ZONEINFO environment variable, if any, then looks in
-// known installation locations on Unix systems,
-// and finally looks in $GOROOT/lib/time/zoneinfo.zip.
+// LoadLocation looks for the IANA Time Zone database in the following
+// locations in order:
+//
+// - the directory or uncompressed zip file named by the ZONEINFO environment variable
+// - on a Unix system, the system standard installation location
+// - $GOROOT/lib/time/zoneinfo.zip
+// - the time/tzdata package, if it was imported
 func LoadLocation(name string) (*Location, error) {
 	if name == "" || name == "UTC" {
 		return UTC, nil

@@ -84,6 +84,30 @@ func NegAddFromConstNeg(a int) int {
 	return c
 }
 
+func SubSubNegSimplify(a, b int) int {
+	// amd64:"NEGQ"
+	r := (a - b) - a
+	return r
+}
+
+func SubAddSimplify(a, b int) int {
+	// amd64:-"SUBQ",-"ADDQ"
+	r := a + (b - a)
+	return r
+}
+
+func SubAddNegSimplify(a, b int) int {
+	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
+	r := a - (b + a)
+	return r
+}
+
+func AddAddSubSimplify(a, b, c int) int {
+	// amd64:-"SUBQ"
+	r := a + (b + (c - a))
+	return r
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
@@ -217,7 +241,7 @@ func FloatDivs(a []float32) float32 {
 
 func Pow2Mods(n1 uint, n2 int) (uint, int) {
 	// 386:"ANDL\t[$]31",-"DIVL"
-	// amd64:"ANDQ\t[$]31",-"DIVQ"
+	// amd64:"ANDL\t[$]31",-"DIVQ"
 	// arm:"AND\t[$]31",-".*udiv"
 	// arm64:"AND\t[$]31",-"UDIV"
 	// ppc64:"ANDCC\t[$]31"
@@ -428,7 +452,7 @@ func LenDiv2(s string) int {
 
 func LenMod1(a []int) int {
 	// 386:"ANDL\t[$]1023"
-	// amd64:"ANDQ\t[$]1023"
+	// amd64:"ANDL\t[$]1023"
 	// arm64:"AND\t[$]1023",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"
@@ -439,7 +463,7 @@ func LenMod1(a []int) int {
 
 func LenMod2(s string) int {
 	// 386:"ANDL\t[$]2047"
-	// amd64:"ANDQ\t[$]2047"
+	// amd64:"ANDL\t[$]2047"
 	// arm64:"AND\t[$]2047",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"
@@ -460,7 +484,7 @@ func CapDiv(a []int) int {
 
 func CapMod(a []int) int {
 	// 386:"ANDL\t[$]4095"
-	// amd64:"ANDQ\t[$]4095"
+	// amd64:"ANDL\t[$]4095"
 	// arm64:"AND\t[$]4095",-"SDIV"
 	// arm/6:"AND",-".*udiv"
 	// arm/7:"BFC",-".*udiv",-"AND"

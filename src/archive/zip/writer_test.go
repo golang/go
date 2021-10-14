@@ -362,7 +362,7 @@ func TestWriterDirAttributes(t *testing.T) {
 	}
 
 	binary.LittleEndian.PutUint32(sig[:], uint32(dataDescriptorSignature))
-	if bytes.Index(b, sig[:]) != -1 {
+	if bytes.Contains(b, sig[:]) {
 		t.Error("there should be no data descriptor")
 	}
 }

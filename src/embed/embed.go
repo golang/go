@@ -83,8 +83,7 @@
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.
-// It can only be used with global variables at package scope,
-// not with local variables.
+// It can only be used with variables at package scope, not with local variables.
 //
 // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
 // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
@@ -292,6 +291,8 @@ func (f FS) readDir(dir string) []file {
 }
 
 // Open opens the named file for reading and returns it as an fs.File.
+//
+// The returned file implements io.Seeker when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
@@ -338,6 +339,10 @@ type openFile struct {
 	f      *file // the file itself
 	offset int64 // current read offset
 }
+
+var (
+	_ io.Seeker = (*openFile)(nil)
+)
 
 func (f *openFile) Close() error               { return nil }
 func (f *openFile) Stat() (fs.FileInfo, error) { return f.f, nil }

@@ -508,7 +508,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regArgs.Ints[st.ireg]), offset, st.size)
+					intToReg(&regArgs, st.ireg, st.size, offset)
 				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
@@ -524,7 +524,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("attempted to copy pointer to FP register")
 				}
 				offset := add(v.ptr, st.offset, "precomputed value offset")
-				memmove(unsafe.Pointer(&regArgs.Floats[st.freg]), offset, st.size)
+				floatToReg(&regArgs, st.freg, st.size, offset)
 			default:
 				panic("unknown ABI part kind")
 			}
@@ -610,13 +610,13 @@ func (v Value) call(op string, in []Value) []Value {
 				switch st.kind {
 				case abiStepIntReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Ints[st.ireg]), st.size)
+					intFromReg(&regArgs, st.ireg, st.size, offset)
 				case abiStepPointer:
 					s := add(s, st.offset, "precomputed value offset")
 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
 				case abiStepFloatReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Floats[st.freg]), st.size)
+					floatFromReg(&regArgs, st.freg, st.size, offset)
 				case abiStepStack:
 					panic("register-based return value has stack component")
 				default:
@@ -698,13 +698,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					switch st.kind {
 					case abiStepIntReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Ints[st.ireg]), st.size)
+						intFromReg(regs, st.ireg, st.size, offset)
 					case abiStepPointer:
 						s := add(v.ptr, st.offset, "precomputed value offset")
 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
 					case abiStepFloatReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Floats[st.freg]), st.size)
+						floatFromReg(regs, st.freg, st.size, offset)
 					case abiStepStack:
 						panic("register-based return value has stack component")
 					default:
@@ -784,7 +784,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					// Copy values to "integer registers."
 					if v.flag&flagIndir != 0 {
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(unsafe.Pointer(&regs.Ints[st.ireg]), offset, st.size)
+						intToReg(regs, st.ireg, st.size, offset)
 					} else {
 						// Only populate the Ints space on the return path.
 						// This is safe because out is kept alive until the
@@ -799,7 +799,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 						panic("attempted to copy pointer to FP register")
 					}
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regs.Floats[st.freg]), offset, st.size)
+					floatToReg(regs, st.freg, st.size, offset)
 				default:
 					panic("unknown ABI part kind")
 				}
@@ -930,7 +930,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
-		// Only copy the reciever to the stack if the ABI says so.
+		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
 	} else {
@@ -982,9 +982,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
+					intToReg(&methodRegs, mStep.ireg, mStep.size, from)
 				case abiStepFloatReg:
-					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
+					floatToReg(&methodRegs, mStep.freg, mStep.size, from)
 				default:
 					panic("unexpected method step")
 				}
@@ -1000,9 +1000,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
+					intFromReg(valueRegs, vStep.ireg, vStep.size, to)
 				case abiStepFloatReg:
-					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
+					floatFromReg(valueRegs, vStep.freg, vStep.size, to)
 				default:
 					panic("unexpected value step")
 				}
@@ -1120,6 +1120,16 @@ func (v Value) Close() {
 	v.mustBe(Chan)
 	v.mustBeExported()
 	chanclose(v.pointer())
+}
+
+// CanComplex reports whether Complex can be used without panicking.
+func (v Value) CanComplex() bool {
+	switch v.kind() {
+	case Complex64, Complex128:
+		return true
+	default:
+		return false
+	}
 }
 
 // Complex returns v's underlying value, as a complex128.
@@ -1249,6 +1259,16 @@ func (v Value) FieldByNameFunc(match func(string) bool) Value {
 	return Value{}
 }
 
+// CanFloat reports whether Float can be used without panicking.
+func (v Value) CanFloat() bool {
+	switch v.kind() {
+	case Float32, Float64:
+		return true
+	default:
+		return false
+	}
+}
+
 // Float returns v's underlying value, as a float64.
 // It panics if v's Kind is not Float32 or Float64
 func (v Value) Float() float64 {
@@ -1308,6 +1328,16 @@ func (v Value) Index(i int) Value {
 		return Value{uint8Type, p, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", v.kind()})
+}
+
+// CanInt reports whether Int can be used without panicking.
+func (v Value) CanInt() bool {
+	switch v.kind() {
+	case Int, Int8, Int16, Int32, Int64:
+		return true
+	default:
+		return false
+	}
 }
 
 // Int returns v's underlying value, as an int64.
@@ -1515,15 +1545,21 @@ func (v Value) MapIndex(key Value) Value {
 	// considered unexported. This is consistent with the
 	// behavior for structs, which allow read but not write
 	// of unexported fields.
-	key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
 
-	var k unsafe.Pointer
-	if key.flag&flagIndir != 0 {
-		k = key.ptr
+	var e unsafe.Pointer
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
-		k = unsafe.Pointer(&key.ptr)
+		key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
+		var k unsafe.Pointer
+		if key.flag&flagIndir != 0 {
+			k = key.ptr
+		} else {
+			k = unsafe.Pointer(&key.ptr)
+		}
+		e = mapaccess(v.typ, v.pointer(), k)
 	}
-	e := mapaccess(v.typ, v.pointer(), k)
 	if e == nil {
 		return Value{}
 	}
@@ -1549,11 +1585,12 @@ func (v Value) MapKeys() []Value {
 	if m != nil {
 		mlen = maplen(m)
 	}
-	it := mapiterinit(v.typ, m)
+	var it hiter
+	mapiterinit(v.typ, m, &it)
 	a := make([]Value, mlen)
 	var i int
 	for i = 0; i < len(a); i++ {
-		key := mapiterkey(it)
+		key := mapiterkey(&it)
 		if key == nil {
 			// Someone deleted an entry from the map since we
 			// called maplen above. It's a data race, but nothing
@@ -1561,59 +1598,154 @@ func (v Value) MapKeys() []Value {
 			break
 		}
 		a[i] = copyVal(keyType, fl, key)
-		mapiternext(it)
+		mapiternext(&it)
 	}
 	return a[:i]
+}
+
+// hiter's structure matches runtime.hiter's structure.
+// Having a clone here allows us to embed a map iterator
+// inside type MapIter so that MapIters can be re-used
+// without doing any allocations.
+type hiter struct {
+	key         unsafe.Pointer
+	elem        unsafe.Pointer
+	t           unsafe.Pointer
+	h           unsafe.Pointer
+	buckets     unsafe.Pointer
+	bptr        unsafe.Pointer
+	overflow    *[]unsafe.Pointer
+	oldoverflow *[]unsafe.Pointer
+	startBucket uintptr
+	offset      uint8
+	wrapped     bool
+	B           uint8
+	i           uint8
+	bucket      uintptr
+	checkBucket uintptr
+}
+
+func (h hiter) initialized() bool {
+	return h.t != nil
 }
 
 // A MapIter is an iterator for ranging over a map.
 // See Value.MapRange.
 type MapIter struct {
-	m  Value
-	it unsafe.Pointer
+	m     Value
+	hiter hiter
 }
 
-// Key returns the key of the iterator's current map entry.
-func (it *MapIter) Key() Value {
-	if it.it == nil {
+// Key returns the key of iter's current map entry.
+func (iter *MapIter) Key() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Key called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
 		panic("MapIter.Key called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	ktype := t.key
-	return copyVal(ktype, it.m.flag.ro()|flag(ktype.Kind()), mapiterkey(it.it))
+	return copyVal(ktype, iter.m.flag.ro()|flag(ktype.Kind()), iterkey)
 }
 
-// Value returns the value of the iterator's current map entry.
-func (it *MapIter) Value() Value {
-	if it.it == nil {
+// SetKey assigns dst to the key of iter's current map entry.
+// It is equivalent to dst.Set(i.Key()), but it avoids allocating a new Value.
+// As in Go, the key must be assignable to dst's type.
+func (iter *MapIter) SetKey(dst Value) {
+	if !iter.hiter.initialized() {
+		panic("MapIter.SetKey called before Next")
+	}
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
+		panic("MapIter.SetKey called on exhausted iterator")
+	}
+
+	dst.mustBeAssignable()
+	var target unsafe.Pointer
+	if dst.kind() == Interface {
+		target = dst.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	ktype := t.key
+
+	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind())}
+	key = key.assignTo("reflect.MapIter.SetKey", dst.typ, target)
+	typedmemmove(dst.typ, dst.ptr, key.ptr)
+}
+
+// Value returns the value of iter's current map entry.
+func (iter *MapIter) Value() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Value called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
 		panic("MapIter.Value called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
+	return copyVal(vtype, iter.m.flag.ro()|flag(vtype.Kind()), iterelem)
+}
+
+// SetValue assigns dst to the value of iter's current map entry.
+// It is equivalent to dst.Set(i.Value()), but it avoids allocating a new Value.
+// As in Go, the value must be assignable to dst's type.
+func (iter *MapIter) SetValue(dst Value) {
+	if !iter.hiter.initialized() {
+		panic("MapIter.SetValue called before Next")
+	}
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
+		panic("MapIter.SetValue called on exhausted iterator")
+	}
+
+	dst.mustBeAssignable()
+	var target unsafe.Pointer
+	if dst.kind() == Interface {
+		target = dst.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	vtype := t.elem
+
+	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind())}
+	elem = elem.assignTo("reflect.MapIter.SetValue", dst.typ, target)
+	typedmemmove(dst.typ, dst.ptr, elem.ptr)
 }
 
 // Next advances the map iterator and reports whether there is another
-// entry. It returns false when the iterator is exhausted; subsequent
+// entry. It returns false when iter is exhausted; subsequent
 // calls to Key, Value, or Next will panic.
-func (it *MapIter) Next() bool {
-	if it.it == nil {
-		it.it = mapiterinit(it.m.typ, it.m.pointer())
+func (iter *MapIter) Next() bool {
+	if !iter.m.IsValid() {
+		panic("MapIter.Next called on an iterator that does not have an associated map Value")
+	}
+	if !iter.hiter.initialized() {
+		mapiterinit(iter.m.typ, iter.m.pointer(), &iter.hiter)
 	} else {
-		if mapiterkey(it.it) == nil {
+		if mapiterkey(&iter.hiter) == nil {
 			panic("MapIter.Next called on exhausted iterator")
 		}
-		mapiternext(it.it)
+		mapiternext(&iter.hiter)
 	}
-	return mapiterkey(it.it) != nil
+	return mapiterkey(&iter.hiter) != nil
+}
+
+// Reset modifies iter to iterate over v.
+// It panics if v's Kind is not Map and v is not the zero Value.
+// Reset(Value{}) causes iter to not to refer to any map,
+// which may allow the previously iterated-over map to be garbage collected.
+func (iter *MapIter) Reset(v Value) {
+	if v.IsValid() {
+		v.mustBe(Map)
+	}
+	iter.m = v
+	iter.hiter = hiter{}
 }
 
 // MapRange returns a range iterator for a map.
@@ -2025,6 +2157,25 @@ func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBeExported()
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
+
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		if elem.typ == nil {
+			mapdelete_faststr(v.typ, v.pointer(), k)
+			return
+		}
+		elem.mustBeExported()
+		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+		var e unsafe.Pointer
+		if elem.flag&flagIndir != 0 {
+			e = elem.ptr
+		} else {
+			e = unsafe.Pointer(&elem.ptr)
+		}
+		mapassign_faststr(v.typ, v.pointer(), k, e)
+		return
+	}
+
 	key = key.assignTo("reflect.Value.SetMapIndex", tt.key, nil)
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
@@ -2270,6 +2421,16 @@ func (v Value) Type() Type {
 	return v.typ.typeOff(m.mtyp)
 }
 
+// CanUint reports whether Uint can be used without panicking.
+func (v Value) CanUint() bool {
+	switch v.kind() {
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return true
+	default:
+		return false
+	}
+}
+
 // Uint returns v's underlying value, as a uint64.
 // It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 func (v Value) Uint() uint64 {
@@ -2366,11 +2527,12 @@ func grow(s Value, extra int) (Value, int, int) {
 	if m == 0 {
 		m = extra
 	} else {
+		const threshold = 256
 		for m < i1 {
-			if i0 < 1024 {
+			if i0 < threshold {
 				m += m
 			} else {
-				m += m / 4
+				m += (m + 3*threshold) / 4
 			}
 		}
 	}
@@ -2819,8 +2981,7 @@ func (v Value) CanConvert(t Type) bool {
 	// from slice to pointer-to-array.
 	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
 		n := t.Elem().Len()
-		h := (*unsafeheader.Slice)(v.ptr)
-		if n > h.Len {
+		if n > v.Len() {
 			return false
 		}
 	}
@@ -3087,10 +3248,10 @@ func cvtStringRunes(v Value, t Type) Value {
 // convertOp: []T -> *[N]T
 func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
-	h := (*unsafeheader.Slice)(v.ptr)
-	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
 	}
+	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
@@ -3157,24 +3318,31 @@ func makemap(t *rtype, cap int) (m unsafe.Pointer)
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
 
 //go:noescape
+func mapaccess_faststr(t *rtype, m unsafe.Pointer, key string) (val unsafe.Pointer)
+
+//go:noescape
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
+
+//go:noescape
+func mapassign_faststr(t *rtype, m unsafe.Pointer, key string, val unsafe.Pointer)
 
 //go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
 
-// m escapes into the return value, but the caller of mapiterinit
-// doesn't let the return value escape.
 //go:noescape
-func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
+func mapdelete_faststr(t *rtype, m unsafe.Pointer, key string)
 
 //go:noescape
-func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter)
 
 //go:noescape
-func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
+func mapiterkey(it *hiter) (key unsafe.Pointer)
 
 //go:noescape
-func mapiternext(it unsafe.Pointer)
+func mapiterelem(it *hiter) (elem unsafe.Pointer)
+
+//go:noescape
+func mapiternext(it *hiter)
 
 //go:noescape
 func maplen(m unsafe.Pointer) int

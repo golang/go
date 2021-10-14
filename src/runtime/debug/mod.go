@@ -70,11 +70,10 @@ func readBuildInfo(data string) (*BuildInfo, bool) {
 	)
 	// Reverse of cmd/go/internal/modload.PackageBuildInfo
 	for len(data) > 0 {
-		i := strings.IndexByte(data, '\n')
-		if i < 0 {
+		line, data, ok = strings.Cut(data, "\n")
+		if !ok {
 			break
 		}
-		line, data = data[:i], data[i+1:]
 		switch {
 		case strings.HasPrefix(line, pathLine):
 			elem := line[len(pathLine):]

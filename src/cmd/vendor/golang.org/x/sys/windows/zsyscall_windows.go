@@ -69,6 +69,7 @@ var (
 	procConvertStringSecurityDescriptorToSecurityDescriptorW = modadvapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
 	procConvertStringSidToSidW                               = modadvapi32.NewProc("ConvertStringSidToSidW")
 	procCopySid                                              = modadvapi32.NewProc("CopySid")
+	procCreateProcessAsUserW                                 = modadvapi32.NewProc("CreateProcessAsUserW")
 	procCreateServiceW                                       = modadvapi32.NewProc("CreateServiceW")
 	procCreateWellKnownSid                                   = modadvapi32.NewProc("CreateWellKnownSid")
 	procCryptAcquireContextW                                 = modadvapi32.NewProc("CryptAcquireContextW")
@@ -345,6 +346,7 @@ var (
 	procVirtualLock                                          = modkernel32.NewProc("VirtualLock")
 	procVirtualProtect                                       = modkernel32.NewProc("VirtualProtect")
 	procVirtualUnlock                                        = modkernel32.NewProc("VirtualUnlock")
+	procWTSGetActiveConsoleSessionId                         = modkernel32.NewProc("WTSGetActiveConsoleSessionId")
 	procWaitForMultipleObjects                               = modkernel32.NewProc("WaitForMultipleObjects")
 	procWaitForSingleObject                                  = modkernel32.NewProc("WaitForSingleObject")
 	procWriteConsoleW                                        = modkernel32.NewProc("WriteConsoleW")
@@ -547,6 +549,18 @@ func ConvertStringSidToSid(stringSid *uint16, sid **SID) (err error) {
 
 func CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) {
 	r1, _, e1 := syscall.Syscall(procCopySid.Addr(), 3, uintptr(destSidLen), uintptr(unsafe.Pointer(destSid)), uintptr(unsafe.Pointer(srcSid)))
+	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func CreateProcessAsUser(token Token, appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) {
+	var _p0 uint32
+	if inheritHandles {
+		_p0 = 1
+	}
+	r1, _, e1 := syscall.Syscall12(procCreateProcessAsUserW.Addr(), 11, uintptr(token), uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0)
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
@@ -2976,6 +2990,12 @@ func VirtualUnlock(addr uintptr, length uintptr) (err error) {
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func WTSGetActiveConsoleSessionId() (sessionID uint32) {
+	r0, _, _ := syscall.Syscall(procWTSGetActiveConsoleSessionId.Addr(), 0, 0, 0, 0)
+	sessionID = uint32(r0)
 	return
 }
 

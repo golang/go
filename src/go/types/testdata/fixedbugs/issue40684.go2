@@ -6,8 +6,8 @@ package p
 
 type T[_ any] int
 
-func f[_ any]()
-func g[_, _ any]()
+func f[_ any]() {}
+func g[_, _ any]() {}
 
 func _() {
 	_ = f[T /* ERROR without instantiation */ ]

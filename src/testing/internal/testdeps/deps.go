@@ -12,12 +12,18 @@ package testdeps
 
 import (
 	"bufio"
+	"context"
+	"internal/fuzz"
 	"internal/testlog"
 	"io"
+	"os"
+	"os/signal"
+	"reflect"
 	"regexp"
 	"runtime/pprof"
 	"strings"
 	"sync"
+	"time"
 )
 
 // TestDeps is an implementation of the testing.testDeps interface,
@@ -125,4 +131,69 @@ func (TestDeps) StopTestLog() error {
 // SetPanicOnExit0 tells the os package whether to panic on os.Exit(0).
 func (TestDeps) SetPanicOnExit0(v bool) {
 	testlog.SetPanicOnExit0(v)
+}
+
+func (TestDeps) CoordinateFuzzing(
+	timeout time.Duration,
+	limit int64,
+	minimizeTimeout time.Duration,
+	minimizeLimit int64,
+	parallel int,
+	seed []fuzz.CorpusEntry,
+	types []reflect.Type,
+	corpusDir,
+	cacheDir string) (err error) {
+	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
+	// In either case, we'll stop worker processes gracefully and save
+	// crashers and interesting values.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	err = fuzz.CoordinateFuzzing(ctx, fuzz.CoordinateFuzzingOpts{
+		Log:             os.Stderr,
+		Timeout:         timeout,
+		Limit:           limit,
+		MinimizeTimeout: minimizeTimeout,
+		MinimizeLimit:   minimizeLimit,
+		Parallel:        parallel,
+		Seed:            seed,
+		Types:           types,
+		CorpusDir:       corpusDir,
+		CacheDir:        cacheDir,
+	})
+	if err == ctx.Err() {
+		return nil
+	}
+	return err
+}
+
+func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+	// Worker processes may or may not receive a signal when the user presses ^C
+	// On POSIX operating systems, a signal sent to a process group is delivered
+	// to all processes in that group. This is not the case on Windows.
+	// If the worker is interrupted, return quickly and without error.
+	// If only the coordinator process is interrupted, it tells each worker
+	// process to stop by closing its "fuzz_in" pipe.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	err := fuzz.RunFuzzWorker(ctx, fn)
+	if err == ctx.Err() {
+		return nil
+	}
+	return err
+}
+
+func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {
+	return fuzz.ReadCorpus(dir, types)
+}
+
+func (TestDeps) CheckCorpus(vals []interface{}, types []reflect.Type) error {
+	return fuzz.CheckCorpus(vals, types)
+}
+
+func (TestDeps) ResetCoverage() {
+	fuzz.ResetCoverage()
+}
+
+func (TestDeps) SnapshotCoverage() {
+	fuzz.SnapshotCoverage()
 }

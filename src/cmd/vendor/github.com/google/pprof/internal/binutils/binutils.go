@@ -525,6 +525,47 @@ type elfMapping struct {
 	stextOffset *uint64
 }
 
+// findProgramHeader returns the program segment that matches the current
+// mapping and the given address, or an error if it cannot find a unique program
+// header.
+func (m *elfMapping) findProgramHeader(ef *elf.File, addr uint64) (*elf.ProgHeader, error) {
+	// For user space executables, we try to find the actual program segment that
+	// is associated with the given mapping. Skip this search if limit <= start.
+	// We cannot use just a check on the start address of the mapping to tell if
+	// it's a kernel / .ko module mapping, because with quipper address remapping
+	// enabled, the address would be in the lower half of the address space.
+
+	if m.stextOffset != nil || m.start >= m.limit || m.limit >= (uint64(1)<<63) {
+		// For the kernel, find the program segment that includes the .text section.
+		return elfexec.FindTextProgHeader(ef), nil
+	}
+
+	// Fetch all the loadable segments.
+	var phdrs []elf.ProgHeader
+	for i := range ef.Progs {
+		if ef.Progs[i].Type == elf.PT_LOAD {
+			phdrs = append(phdrs, ef.Progs[i].ProgHeader)
+		}
+	}
+	// Some ELF files don't contain any loadable program segments, e.g. .ko
+	// kernel modules. It's not an error to have no header in such cases.
+	if len(phdrs) == 0 {
+		return nil, nil
+	}
+	// Get all program headers associated with the mapping.
+	headers := elfexec.ProgramHeadersForMapping(phdrs, m.offset, m.limit-m.start)
+	if len(headers) == 0 {
+		return nil, errors.New("no program header matches mapping info")
+	}
+	if len(headers) == 1 {
+		return headers[0], nil
+	}
+
+	// Use the file offset corresponding to the address to symbolize, to narrow
+	// down the header.
+	return elfexec.HeaderForFileOffset(headers, addr-m.start+m.offset)
+}
+
 // file implements the binutils.ObjFile interface.
 type file struct {
 	b       *binrep
@@ -555,27 +596,9 @@ func (f *file) computeBase(addr uint64) error {
 	}
 	defer ef.Close()
 
-	var ph *elf.ProgHeader
-	// For user space executables, find the actual program segment that is
-	// associated with the given mapping. Skip this search if limit <= start.
-	// We cannot use just a check on the start address of the mapping to tell if
-	// it's a kernel / .ko module mapping, because with quipper address remapping
-	// enabled, the address would be in the lower half of the address space.
-	if f.m.stextOffset == nil && f.m.start < f.m.limit && f.m.limit < (uint64(1)<<63) {
-		// Get all program headers associated with the mapping.
-		headers, hasLoadables := elfexec.ProgramHeadersForMapping(ef, f.m.offset, f.m.limit-f.m.start)
-
-		// Some ELF files don't contain any loadable program segments, e.g. .ko
-		// kernel modules. It's not an error to have no header in such cases.
-		if hasLoadables {
-			ph, err = matchUniqueHeader(headers, addr-f.m.start+f.m.offset)
-			if err != nil {
-				return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
-			}
-		}
-	} else {
-		// For the kernel, find the program segment that includes the .text section.
-		ph = elfexec.FindTextProgHeader(ef)
+	ph, err := f.m.findProgramHeader(ef, addr)
+	if err != nil {
+		return fmt.Errorf("failed to find program header for file %q, ELF mapping %#v, address %x: %v", f.name, *f.m, addr, err)
 	}
 
 	base, err := elfexec.GetBase(&ef.FileHeader, ph, f.m.stextOffset, f.m.start, f.m.limit, f.m.offset)
@@ -585,38 +608,6 @@ func (f *file) computeBase(addr uint64) error {
 	f.base = base
 	f.isData = ph != nil && ph.Flags&elf.PF_X == 0
 	return nil
-}
-
-// matchUniqueHeader attempts to identify a unique header from the given list,
-// using the given file offset to disambiguate between multiple segments. It
-// returns an error if the header list is empty or if it cannot identify a
-// unique header.
-func matchUniqueHeader(headers []*elf.ProgHeader, fileOffset uint64) (*elf.ProgHeader, error) {
-	if len(headers) == 0 {
-		return nil, errors.New("no program header matches mapping info")
-	}
-	if len(headers) == 1 {
-		// Don't use the file offset if we already have a single header.
-		return headers[0], nil
-	}
-	// We have multiple input segments. Attempt to identify a unique one
-	// based on the given file offset.
-	var ph *elf.ProgHeader
-	for _, h := range headers {
-		if fileOffset >= h.Off && fileOffset < h.Off+h.Memsz {
-			if ph != nil {
-				// Assuming no other bugs, this can only happen if we have two or
-				// more small program segments that fit on the same page, and a
-				// segment other than the last one includes uninitialized data.
-				return nil, fmt.Errorf("found second program header (%#v) that matches file offset %x, first program header is %#v. Does first program segment contain uninitialized data?", *h, fileOffset, *ph)
-			}
-			ph = h
-		}
-	}
-	if ph == nil {
-		return nil, fmt.Errorf("no program header matches file offset %x", fileOffset)
-	}
-	return ph, nil
 }
 
 func (f *file) Name() string {

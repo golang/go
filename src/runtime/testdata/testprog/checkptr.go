@@ -20,6 +20,7 @@ func init() {
 	register("CheckPtrSmall", CheckPtrSmall)
 	register("CheckPtrSliceOK", CheckPtrSliceOK)
 	register("CheckPtrSliceFail", CheckPtrSliceFail)
+	register("CheckPtrAlignmentNested", CheckPtrAlignmentNested)
 }
 
 func CheckPtrAlignmentNoPtr() {
@@ -95,4 +96,11 @@ func CheckPtrSliceFail() {
 	p := new(int64)
 	sink2 = p
 	sink2 = unsafe.Slice(p, 100)
+}
+
+func CheckPtrAlignmentNested() {
+	s := make([]int8, 100)
+	p := unsafe.Pointer(&s[0])
+	n := 9
+	_ = ((*[10]int8)(unsafe.Pointer((*[10]int64)(unsafe.Pointer(&p)))))[:n:n]
 }

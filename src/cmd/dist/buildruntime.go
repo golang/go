@@ -60,6 +60,7 @@ func mkbuildcfg(file string) {
 	fmt.Fprintf(&buf, "import \"runtime\"\n")
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+	fmt.Fprintf(&buf, "const defaultGOAMD64 = `%s`\n", goamd64)
 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)

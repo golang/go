@@ -1,6 +1,7 @@
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+"use strict";
 
 (() => {
 	// Map multiple JavaScript environments to a single common API,
@@ -566,6 +567,13 @@
 				this.mem.setUint32(offset + 4, 0, true);
 				offset += 8;
 			});
+
+			// The linker guarantees global data starts from at least wasmMinDataAddr.
+			// Keep in sync with cmd/link/internal/ld/data.go:wasmMinDataAddr.
+			const wasmMinDataAddr = 4096 + 4096;
+			if (offset >= wasmMinDataAddr) {
+				throw new Error("command line too long");
+			}
 
 			this._inst.exports.run(argc, argv);
 			if (this.exited) {

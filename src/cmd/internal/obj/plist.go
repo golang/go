@@ -54,11 +54,28 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			if curtext == nil { // func _() {}
 				continue
 			}
-			if p.To.Sym.Name == "go_args_stackmap" {
+			switch p.To.Sym.Name {
+			case "go_args_stackmap":
 				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
 					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
 				}
 				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
+			case "no_pointers_stackmap":
+				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_LocalsPointerMaps {
+					ctxt.Diag("FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps")
+				}
+				// funcdata for functions with no local variables in frame.
+				// Define two zero-length bitmaps, because the same index is used
+				// for the local variables as for the argument frame, and assembly
+				// frames have two argument bitmaps, one without results and one with results.
+				// Write []uint32{2, 0}.
+				b := make([]byte, 8)
+				ctxt.Arch.ByteOrder.PutUint32(b, 2)
+				s := ctxt.GCLocalsSym(b)
+				if !s.OnList() {
+					ctxt.Globl(s, int64(len(s.P)), int(RODATA|DUPOK))
+				}
+				p.To.Sym = s
 			}
 
 		}
@@ -156,7 +173,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	}
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
-	s.Func().FuncFlag = toFuncFlag(flag)
+	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -172,10 +189,13 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.dwarfSym(s)
 }
 
-func toFuncFlag(flag int) objabi.FuncFlag {
+func (ctxt *Link) toFuncFlag(flag int) objabi.FuncFlag {
 	var out objabi.FuncFlag
 	if flag&TOPFRAME != 0 {
 		out |= objabi.FuncFlag_TOPFRAME
+	}
+	if ctxt.IsAsm {
+		out |= objabi.FuncFlag_ASM
 	}
 	return out
 }

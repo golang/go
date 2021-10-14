@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, rconv)
+	obj.RegisterRegister(obj.RBasePPC64, REG_SPR0+1024, rconv)
 	obj.RegisterOpcode(obj.ABasePPC64, Anames)
 }
 
@@ -80,9 +80,6 @@ func rconv(r int) string {
 		return fmt.Sprintf("SPR(%d)", r-REG_SPR0)
 	}
 
-	if REG_DCR0 <= r && r <= REG_DCR0+1023 {
-		return fmt.Sprintf("DCR(%d)", r-REG_DCR0)
-	}
 	if r == REG_FPSCR {
 		return "FPSCR"
 	}

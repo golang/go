@@ -30,9 +30,9 @@ go env
 
 # checking errors
 ! go env -w
-stderr 'go env -w: no KEY=VALUE arguments given'
+stderr 'go: no KEY=VALUE arguments given'
 ! go env -u
-stderr 'go env -u: no arguments given'
+stderr 'go: ''go env -u'' requires an argument'
 
 # go env -w changes default setting
 env root=
@@ -111,7 +111,7 @@ stderr 'GOPATH entry is relative; must be absolute path'
 
 # go env -w rejects invalid GOTMPDIR values
 ! go env -w GOTMPDIR=x
-stderr 'go env -w: GOTMPDIR must be an absolute path'
+stderr 'go: GOTMPDIR must be an absolute path'
 
 # go env -w should accept absolute GOTMPDIR value
 # and should not create it
@@ -134,24 +134,24 @@ stdout ^$
 go env -w CC=clang
 [!windows] ! go env -w CC=./clang
 [!windows] ! go env -w CC=bin/clang
-[!windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+[!windows] stderr 'go: CC entry is relative; must be absolute path'
 
 [windows] go env -w CC=$WORK\bin\clang
 [windows] ! go env -w CC=.\clang
 [windows] ! go env -w CC=bin\clang
-[windows] stderr 'go env -w: CC entry is relative; must be absolute path'
+[windows] stderr 'go: CC entry is relative; must be absolute path'
 
 # go env -w rejects relative CXX values
 [!windows] go env -w CC=/usr/bin/cpp
 go env -w CXX=cpp
 [!windows] ! go env -w CXX=./cpp
 [!windows] ! go env -w CXX=bin/cpp
-[!windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
+[!windows] stderr 'go: CXX entry is relative; must be absolute path'
 
 [windows] go env -w CXX=$WORK\bin\cpp
 [windows] ! go env -w CXX=.\cpp
 [windows] ! go env -w CXX=bin\cpp
-[windows] stderr 'go env -w: CXX entry is relative; must be absolute path'
+[windows] stderr 'go: CXX entry is relative; must be absolute path'
 
 # go env -w/-u checks validity of GOOS/ARCH combinations
 env GOOS=
@@ -176,9 +176,9 @@ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
 
 # go env -w should reject relative paths in GOMODCACHE environment.
 ! go env -w GOMODCACHE=~/test
-stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
+stderr 'go: GOMODCACHE entry is relative; must be absolute path: "~/test"'
 ! go env -w GOMODCACHE=./test
-stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'
+stderr 'go: GOMODCACHE entry is relative; must be absolute path: "./test"'
 
 # go env -w checks validity of GOEXPERIMENT
 env GOEXPERIMENT=

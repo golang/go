@@ -7,4 +7,6 @@
 
 package sha1
 
-var block = blockGeneric
+func block(dig *digest, p []byte) {
+	blockGeneric(dig, p)
+}

@@ -336,6 +336,115 @@ func TestSetValue(t *testing.T) {
 	}
 }
 
+func TestMapIterSet(t *testing.T) {
+	m := make(map[string]interface{}, len(valueTests))
+	for _, tt := range valueTests {
+		m[tt.s] = tt.i
+	}
+	v := ValueOf(m)
+
+	k := New(v.Type().Key()).Elem()
+	e := New(v.Type().Elem()).Elem()
+
+	iter := v.MapRange()
+	for iter.Next() {
+		iter.SetKey(k)
+		iter.SetValue(e)
+		want := m[k.String()]
+		got := e.Interface()
+		if got != want {
+			t.Errorf("%q: want (%T) %v, got (%T) %v", k.String(), want, want, got, got)
+		}
+		if setkey, key := valueToString(k), valueToString(iter.Key()); setkey != key {
+			t.Errorf("MapIter.Key() = %q, MapIter.SetKey() = %q", key, setkey)
+		}
+		if setval, val := valueToString(e), valueToString(iter.Value()); setval != val {
+			t.Errorf("MapIter.Value() = %q, MapIter.SetValue() = %q", val, setval)
+		}
+	}
+
+	got := int(testing.AllocsPerRun(10, func() {
+		iter := v.MapRange()
+		for iter.Next() {
+			iter.SetKey(k)
+			iter.SetValue(e)
+		}
+	}))
+	// Making a *MapIter allocates. This should be the only allocation.
+	if got != 1 {
+		t.Errorf("wanted 1 alloc, got %d", got)
+	}
+}
+
+func TestCanIntUintFloatComplex(t *testing.T) {
+	type integer int
+	type uinteger uint
+	type float float64
+	type complex complex128
+
+	var ops = [...]string{"CanInt", "CanUint", "CanFloat", "CanComplex"}
+
+	var testCases = []struct {
+		i    interface{}
+		want [4]bool
+	}{
+		// signed integer
+		{132, [...]bool{true, false, false, false}},
+		{int8(8), [...]bool{true, false, false, false}},
+		{int16(16), [...]bool{true, false, false, false}},
+		{int32(32), [...]bool{true, false, false, false}},
+		{int64(64), [...]bool{true, false, false, false}},
+		// unsigned integer
+		{uint(132), [...]bool{false, true, false, false}},
+		{uint8(8), [...]bool{false, true, false, false}},
+		{uint16(16), [...]bool{false, true, false, false}},
+		{uint32(32), [...]bool{false, true, false, false}},
+		{uint64(64), [...]bool{false, true, false, false}},
+		{uintptr(0xABCD), [...]bool{false, true, false, false}},
+		// floating-point
+		{float32(256.25), [...]bool{false, false, true, false}},
+		{float64(512.125), [...]bool{false, false, true, false}},
+		// complex
+		{complex64(532.125 + 10i), [...]bool{false, false, false, true}},
+		{complex128(564.25 + 1i), [...]bool{false, false, false, true}},
+		// underlying
+		{integer(-132), [...]bool{true, false, false, false}},
+		{uinteger(132), [...]bool{false, true, false, false}},
+		{float(256.25), [...]bool{false, false, true, false}},
+		{complex(532.125 + 10i), [...]bool{false, false, false, true}},
+		// not-acceptable
+		{"hello world", [...]bool{false, false, false, false}},
+		{new(int), [...]bool{false, false, false, false}},
+		{new(uint), [...]bool{false, false, false, false}},
+		{new(float64), [...]bool{false, false, false, false}},
+		{new(complex64), [...]bool{false, false, false, false}},
+		{new([5]int), [...]bool{false, false, false, false}},
+		{new(integer), [...]bool{false, false, false, false}},
+		{new(map[int]int), [...]bool{false, false, false, false}},
+		{new(chan<- int), [...]bool{false, false, false, false}},
+		{new(func(a int8)), [...]bool{false, false, false, false}},
+		{new(struct{ i int }), [...]bool{false, false, false, false}},
+	}
+
+	for i, tc := range testCases {
+		v := ValueOf(tc.i)
+		got := [...]bool{v.CanInt(), v.CanUint(), v.CanFloat(), v.CanComplex()}
+
+		for j := range tc.want {
+			if got[j] != tc.want[j] {
+				t.Errorf(
+					"#%d: v.%s() returned %t for type %T, want %t",
+					i,
+					ops[j],
+					got[j],
+					tc.i,
+					tc.want[j],
+				)
+			}
+		}
+	}
+}
+
 func TestCanSetField(t *testing.T) {
 	type embed struct{ x, X int }
 	type Embed struct{ x, X int }
@@ -865,6 +974,9 @@ var deepEqualTests = []DeepEqualTest{
 	{error(nil), error(nil), true},
 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
 	{fn1, fn2, true},
+	{[]byte{1, 2, 3}, []byte{1, 2, 3}, true},
+	{[]MyByte{1, 2, 3}, []MyByte{1, 2, 3}, true},
+	{MyBytes{1, 2, 3}, MyBytes{1, 2, 3}, true},
 
 	// Inequalities
 	{1, 2, false},
@@ -885,6 +997,9 @@ var deepEqualTests = []DeepEqualTest{
 	{fn1, fn3, false},
 	{fn3, fn3, false},
 	{[][]int{{1}}, [][]int{{2}}, false},
+	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
+
+	// Fun with floating point.
 	{math.NaN(), math.NaN(), false},
 	{&[1]float64{math.NaN()}, &[1]float64{math.NaN()}, false},
 	{&[1]float64{math.NaN()}, self{}, true},
@@ -892,7 +1007,6 @@ var deepEqualTests = []DeepEqualTest{
 	{[]float64{math.NaN()}, self{}, true},
 	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
 	{map[float64]float64{math.NaN(): 1}, self{}, true},
-	{&structWithSelfPtr{p: &structWithSelfPtr{s: "a"}}, &structWithSelfPtr{p: &structWithSelfPtr{s: "b"}}, false},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
@@ -910,6 +1024,9 @@ var deepEqualTests = []DeepEqualTest{
 	{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
 	{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
 	{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
+	{[]byte{1, 2, 3}, []MyByte{1, 2, 3}, false},
+	{[]MyByte{1, 2, 3}, MyBytes{1, 2, 3}, false},
+	{[]byte{1, 2, 3}, MyBytes{1, 2, 3}, false},
 
 	// Possible loops.
 	{&loop1, &loop1, true},
@@ -1006,6 +1123,82 @@ func TestDeepEqualUnexportedMap(t *testing.T) {
 	y1 := UnexpT{map[int]int{2: 3}}
 	if DeepEqual(&x1, &y1) {
 		t.Error("DeepEqual(x1, y1) = true, want false")
+	}
+}
+
+var deepEqualPerfTests = []struct {
+	x, y interface{}
+}{
+	{x: int8(99), y: int8(99)},
+	{x: []int8{99}, y: []int8{99}},
+	{x: int16(99), y: int16(99)},
+	{x: []int16{99}, y: []int16{99}},
+	{x: int32(99), y: int32(99)},
+	{x: []int32{99}, y: []int32{99}},
+	{x: int64(99), y: int64(99)},
+	{x: []int64{99}, y: []int64{99}},
+	{x: int(999999), y: int(999999)},
+	{x: []int{999999}, y: []int{999999}},
+
+	{x: uint8(99), y: uint8(99)},
+	{x: []uint8{99}, y: []uint8{99}},
+	{x: uint16(99), y: uint16(99)},
+	{x: []uint16{99}, y: []uint16{99}},
+	{x: uint32(99), y: uint32(99)},
+	{x: []uint32{99}, y: []uint32{99}},
+	{x: uint64(99), y: uint64(99)},
+	{x: []uint64{99}, y: []uint64{99}},
+	{x: uint(999999), y: uint(999999)},
+	{x: []uint{999999}, y: []uint{999999}},
+	{x: uintptr(999999), y: uintptr(999999)},
+	{x: []uintptr{999999}, y: []uintptr{999999}},
+
+	{x: float32(1.414), y: float32(1.414)},
+	{x: []float32{1.414}, y: []float32{1.414}},
+	{x: float64(1.414), y: float64(1.414)},
+	{x: []float64{1.414}, y: []float64{1.414}},
+
+	{x: complex64(1.414), y: complex64(1.414)},
+	{x: []complex64{1.414}, y: []complex64{1.414}},
+	{x: complex128(1.414), y: complex128(1.414)},
+	{x: []complex128{1.414}, y: []complex128{1.414}},
+
+	{x: true, y: true},
+	{x: []bool{true}, y: []bool{true}},
+
+	{x: "abcdef", y: "abcdef"},
+	{x: []string{"abcdef"}, y: []string{"abcdef"}},
+
+	{x: []byte("abcdef"), y: []byte("abcdef")},
+	{x: [][]byte{[]byte("abcdef")}, y: [][]byte{[]byte("abcdef")}},
+
+	{x: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}, y: [6]byte{'a', 'b', 'c', 'a', 'b', 'c'}},
+	{x: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}, y: [][6]byte{[6]byte{'a', 'b', 'c', 'a', 'b', 'c'}}},
+}
+
+func TestDeepEqualAllocs(t *testing.T) {
+	for _, tt := range deepEqualPerfTests {
+		t.Run(ValueOf(tt.x).Type().String(), func(t *testing.T) {
+			got := testing.AllocsPerRun(100, func() {
+				if !DeepEqual(tt.x, tt.y) {
+					t.Errorf("DeepEqual(%v, %v)=false", tt.x, tt.y)
+				}
+			})
+			if int(got) != 0 {
+				t.Errorf("DeepEqual(%v, %v) allocated %d times", tt.x, tt.y, int(got))
+			}
+		})
+	}
+}
+
+func BenchmarkDeepEqual(b *testing.B) {
+	for _, bb := range deepEqualPerfTests {
+		b.Run(ValueOf(bb.x).Type().String(), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				sink = DeepEqual(bb.x, bb.y)
+			}
+		})
 	}
 }
 
@@ -4388,8 +4581,17 @@ func TestConvertPanic(t *testing.T) {
 
 var gFloat32 float32
 
+const snan uint32 = 0x7f800001
+
 func TestConvertNaNs(t *testing.T) {
-	const snan uint32 = 0x7f800001
+	// Test to see if a store followed by a load of a signaling NaN
+	// maintains the signaling bit. (This used to fail on the 387 port.)
+	gFloat32 = math.Float32frombits(snan)
+	runtime.Gosched() // make sure we don't optimize the store/load away
+	if got := math.Float32bits(gFloat32); got != snan {
+		t.Errorf("store/load of sNaN not faithful, got %x want %x", got, snan)
+	}
+	// Test reflect's conversion between float32s. See issue 36400.
 	type myFloat32 float32
 	x := V(myFloat32(math.Float32frombits(snan)))
 	y := x.Convert(TypeOf(float32(0)))
@@ -7001,6 +7203,53 @@ func BenchmarkNew(b *testing.B) {
 	})
 }
 
+func BenchmarkMap(b *testing.B) {
+	type V *int
+	value := ValueOf((V)(nil))
+	stringKeys := []string{}
+	mapOfStrings := map[string]V{}
+	uint64Keys := []uint64{}
+	mapOfUint64s := map[uint64]V{}
+	for i := 0; i < 100; i++ {
+		stringKey := fmt.Sprintf("key%d", i)
+		stringKeys = append(stringKeys, stringKey)
+		mapOfStrings[stringKey] = nil
+
+		uint64Key := uint64(i)
+		uint64Keys = append(uint64Keys, uint64Key)
+		mapOfUint64s[uint64Key] = nil
+	}
+
+	tests := []struct {
+		label          string
+		m, keys, value Value
+	}{
+		{"StringKeys", ValueOf(mapOfStrings), ValueOf(stringKeys), value},
+		{"Uint64Keys", ValueOf(mapOfUint64s), ValueOf(uint64Keys), value},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.label, func(b *testing.B) {
+			b.Run("MapIndex", func(b *testing.B) {
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					for j := tt.keys.Len() - 1; j >= 0; j-- {
+						tt.m.MapIndex(tt.keys.Index(j))
+					}
+				}
+			})
+			b.Run("SetMapIndex", func(b *testing.B) {
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					for j := tt.keys.Len() - 1; j >= 0; j-- {
+						tt.m.SetMapIndex(tt.keys.Index(j), tt.value)
+					}
+				}
+			})
+		})
+	}
+}
+
 func TestSwapper(t *testing.T) {
 	type I int
 	var a, b, c I
@@ -7183,6 +7432,72 @@ func TestMapIterNilMap(t *testing.T) {
 	}
 }
 
+func TestMapIterReset(t *testing.T) {
+	iter := new(MapIter)
+
+	// Use of zero iterator should panic.
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Error("Next did not panic")
+	}()
+
+	// Reset to new Map should work.
+	m := map[string]int{"one": 1, "two": 2, "three": 3}
+	iter.Reset(ValueOf(m))
+	if got, want := iterateToString(iter), `[one: 1, three: 3, two: 2]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+
+	// Reset to Zero value should work, but iterating over it should panic.
+	iter.Reset(Value{})
+	func() {
+		defer func() { recover() }()
+		iter.Next()
+		t.Error("Next did not panic")
+	}()
+
+	// Reset to a different Map with different types should work.
+	m2 := map[int]string{1: "one", 2: "two", 3: "three"}
+	iter.Reset(ValueOf(m2))
+	if got, want := iterateToString(iter), `[1: one, 2: two, 3: three]`; got != want {
+		t.Errorf("iterator returned %s (after sorting), want %s", got, want)
+	}
+
+	// Check that Reset, Next, and SetKey/SetValue play nicely together.
+	m3 := map[uint64]uint64{
+		1 << 0: 1 << 1,
+		1 << 1: 1 << 2,
+		1 << 2: 1 << 3,
+	}
+	kv := New(TypeOf(uint64(0))).Elem()
+	for i := 0; i < 5; i++ {
+		var seenk, seenv uint64
+		iter.Reset(ValueOf(m3))
+		for iter.Next() {
+			iter.SetKey(kv)
+			seenk ^= kv.Uint()
+			iter.SetValue(kv)
+			seenv ^= kv.Uint()
+		}
+		if seenk != 0b111 {
+			t.Errorf("iteration yielded keys %b, want %b", seenk, 0b111)
+		}
+		if seenv != 0b1110 {
+			t.Errorf("iteration yielded values %b, want %b", seenv, 0b1110)
+		}
+	}
+
+	// Reset should not allocate.
+	n := int(testing.AllocsPerRun(10, func() {
+		iter.Reset(ValueOf(m2))
+		iter.Reset(Value{})
+	}))
+	if n > 0 {
+		t.Errorf("MapIter.Reset allocated %d times", n)
+	}
+}
+
 func TestMapIterSafety(t *testing.T) {
 	// Using a zero MapIter causes a panic, but not a crash.
 	func() {
@@ -7295,5 +7610,12 @@ func TestConvertibleTo(t *testing.T) {
 	// Shouldn't raise stack overflow
 	if t1.ConvertibleTo(t2) {
 		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
+	}
+
+	t3 := ValueOf([]example1.MyStruct{}).Type()
+	t4 := ValueOf([]example2.MyStruct{}).Type()
+
+	if t3.ConvertibleTo(t4) {
+		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t3, t4)
 	}
 }

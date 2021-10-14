@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/goarch"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -586,8 +587,6 @@ func gcWakeAllAssists() {
 //
 // gcParkAssist reports whether the assist is now satisfied. If it
 // returns false, the caller must retry the assist.
-//
-//go:nowritebarrier
 func gcParkAssist() bool {
 	lock(&work.assistQueue.lock)
 	// If the GC cycle finished while we were getting the lock,
@@ -804,7 +803,7 @@ func scanstack(gp *g, gcw *gcWork) {
 			println()
 			printunlock()
 		}
-		gcdata := r.gcdata
+		gcdata := r.gcdata()
 		var s *mspan
 		if r.useGCProg() {
 			// This path is pretty unlikely, an object large enough
@@ -924,7 +923,8 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 		// varp is 0 for defers, where there are no locals.
 		// In that case, there can't be a pointer to its args, either.
 		// (And all args would be scanned above anyway.)
-		for i, obj := range objs {
+		for i := range objs {
+			obj := &objs[i]
 			off := obj.off
 			base := frame.varp // locals base pointer
 			if off >= 0 {
@@ -938,7 +938,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
 			if stackTraceDebug {
 				println("stkobj at", hex(ptr), "of size", obj.size)
 			}
-			state.addObject(ptr, &objs[i])
+			state.addObject(ptr, obj)
 		}
 	}
 }
@@ -1104,11 +1104,6 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			gcw.balance()
 		}
 
-		// This might be a good place to add prefetch code...
-		// if(wbuf.nobj > 4) {
-		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
-		//  }
-		//
 		b := gcw.tryGetFast()
 		if b == 0 {
 			b = gcw.tryGet()
@@ -1135,6 +1130,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			// No heap or root jobs.
 			break
 		}
+
 		scanobject(b, gcw)
 
 		// Flush background scan work credit.
@@ -1199,6 +1195,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 //
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
+	// Prefetch object before we scan it.
+	//
+	// This will overlap fetching the beginning of the object with initial
+	// setup before we start scanning the object.
+	sys.Prefetch(b)
+
 	// Find the bits for b and the size of the object at b.
 	//
 	// b is either the beginning of an object, in which case this
@@ -1437,12 +1439,12 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 		}
 	}
 
-	// Queue the obj for scanning. The PREFETCH(obj) logic has been removed but
-	// seems like a nice optimization that can be added back in.
-	// There needs to be time between the PREFETCH and the use.
-	// Previously we put the obj in an 8 element buffer that is drained at a rate
-	// to give the PREFETCH time to do its work.
-	// Use of PREFETCHNTA might be more appropriate than PREFETCH
+	// We're adding obj to P's local workbuf, so it's likely
+	// this object will be processed soon by the same P.
+	// Even if the workbuf gets flushed, there will likely still be
+	// some benefit on platforms with inclusive shared caches.
+	sys.Prefetch(obj)
+	// Queue the obj for scanning.
 	if !gcw.putFast(obj) {
 		gcw.put(obj)
 	}

@@ -25,6 +25,7 @@ var (
 	GOARCH   = envOr("GOARCH", defaultGOARCH)
 	GOOS     = envOr("GOOS", defaultGOOS)
 	GO386    = envOr("GO386", defaultGO386)
+	GOAMD64  = goamd64()
 	GOARM    = goarm()
 	GOMIPS   = gomips()
 	GOMIPS64 = gomips64()
@@ -50,6 +51,21 @@ func envOr(key, value string) string {
 		return x
 	}
 	return value
+}
+
+func goamd64() int {
+	switch v := envOr("GOAMD64", defaultGOAMD64); v {
+	case "v1":
+		return 1
+	case "v2":
+		return 2
+	case "v3":
+		return 3
+	case "v4":
+		return 4
+	}
+	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
+	return int(defaultGOAMD64[len("v")] - '0')
 }
 
 func goarm() int {

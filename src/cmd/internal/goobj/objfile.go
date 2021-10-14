@@ -100,7 +100,6 @@ import (
 //    }
 //
 //    Data   [...]byte
-//    Pcdata [...]byte
 //
 //    // blocks only used by tools (objdump, nm)
 //
@@ -204,7 +203,6 @@ const (
 	BlkReloc
 	BlkAux
 	BlkData
-	BlkPcdata
 	BlkRefName
 	BlkEnd
 	NBlk
@@ -304,6 +302,7 @@ const (
 const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
+	SymFlagDict
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +332,7 @@ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -356,6 +356,8 @@ type SymRef struct {
 	PkgIdx uint32
 	SymIdx uint32
 }
+
+func (s SymRef) IsZero() bool { return s == SymRef{} }
 
 // Hash64
 type Hash64Type [Hash64Size]byte

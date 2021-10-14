@@ -40,7 +40,7 @@ func init() {
 
 func runBug(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
-		base.Fatalf("go bug: bug takes no arguments")
+		base.Fatalf("go: bug takes no arguments")
 	}
 	var buf bytes.Buffer
 	buf.WriteString(bugHeader)

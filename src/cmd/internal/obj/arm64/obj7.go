@@ -51,6 +51,12 @@ var complements = []obj.As{
 	ACMNW: ACMPW,
 }
 
+// noZRreplace is the set of instructions for which $0 in the To operand
+// should NOT be replaced with REGZERO.
+var noZRreplace = map[obj.As]bool{
+	APRFM: true,
+}
+
 func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	// MOV	g_stackguard(g), RT1
 	p = obj.Appendp(p, c.newprog)
@@ -226,7 +232,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGZERO
 	}
-	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 {
+	if p.To.Type == obj.TYPE_CONST && p.To.Offset == 0 && !noZRreplace[p.As] {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGZERO
 	}
@@ -305,7 +311,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	// for both 32-bit and 64-bit. 32-bit ops will
 	// zero the high 32-bit of the destination register
 	// anyway.
-	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW) && p.From.Type == obj.TYPE_CONST {
+	// For MOVW, the destination register can't be ZR,
+	// so don't bother rewriting it in this situation.
+	if (isANDWop(p.As) || isADDWop(p.As) || p.As == AMOVW && p.To.Reg != REGZERO) && p.From.Type == obj.TYPE_CONST {
 		v := p.From.Offset & 0xffffffff
 		p.From.Offset = v | v<<32
 	}

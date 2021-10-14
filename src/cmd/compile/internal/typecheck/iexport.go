@@ -63,8 +63,9 @@
 //     }
 //
 //     type Func struct {
-//         Tag       byte // 'F'
+//         Tag       byte // 'F' or 'G'
 //         Pos       Pos
+//         TypeParams []typeOff  // only present if Tag == 'G'
 //         Signature Signature
 //     }
 //
@@ -75,8 +76,9 @@
 //     }
 //
 //     type Type struct {
-//         Tag        byte // 'T'
+//         Tag        byte // 'T' or 'U'
 //         Pos        Pos
+//         TypeParams []typeOff  // only present if Tag == 'U'
 //         Underlying typeOff
 //
 //         Methods []struct{  // omitted if Underlying is an interface type
@@ -93,6 +95,12 @@
 //         Type typeOff
 //     }
 //
+//     // "Automatic" declaration of each typeparam
+//     type TypeParam struct {
+//         Tag  byte // 'P'
+//         Pos  Pos
+//         Bound typeOff
+//     }
 //
 // typeOff means a uvarint that either indicates a predeclared type,
 // or an offset into the Data section. If the uvarint is less than
@@ -104,7 +112,7 @@
 // (*exportWriter).value for details.
 //
 //
-// There are nine kinds of type descriptors, distinguished by an itag:
+// There are twelve kinds of type descriptors, distinguished by an itag:
 //
 //     type DefinedType struct {
 //         Tag     itag // definedType
@@ -172,8 +180,30 @@
 //         }
 //     }
 //
+//     // Reference to a type param declaration
+//     type TypeParamType struct {
+//         Tag     itag // typeParamType
+//         Name    stringOff
+//         PkgPath stringOff
+//     }
 //
-//  TODO(danscales): fill in doc for 'type TypeParamType' and 'type InstType'
+//     // Instantiation of a generic type (like List[T2] or List[int])
+//     type InstanceType struct {
+//         Tag     itag // instanceType
+//         Pos     pos
+//         TypeArgs []typeOff
+//         BaseType typeOff
+//     }
+//
+//     type UnionType struct {
+//         Tag     itag // interfaceType
+//         Terms   []struct {
+//             tilde bool
+//             Type  typeOff
+//         }
+//     }
+//
+//
 //
 //     type Signature struct {
 //         Params   []Param
@@ -255,7 +285,7 @@ const (
 	structType
 	interfaceType
 	typeParamType
-	instType
+	instanceType // Instantiation of a generic type
 	unionType
 )
 
@@ -430,7 +460,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
 	}
 
 	// Don't export predeclared declarations.
-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
+	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == types.UnsafePkg {
 		return
 	}
 
@@ -566,6 +596,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// for predeclared objects).
 			underlying = types.ErrorType
 		}
+		if underlying == types.ComparableType.Underlying() {
+			// Do same for ComparableType as for ErrorType.
+			underlying = types.ComparableType
+		}
+		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
+			// Do same for AnyType as for ErrorType.
+			underlying = types.AnyType
+		}
 		w.typ(underlying)
 
 		t := n.Type()
@@ -578,7 +616,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
 
 		// Sort methods, for consistency with types2.
 		methods := append([]*types.Field(nil), t.Methods().Slice()...)
-		sort.Sort(types.MethodsByName(methods))
+		if base.Debug.UnifiedQuirks != 0 {
+			sort.Sort(types.MethodsByName(methods))
+		}
 
 		w.uint64(uint64(len(methods)))
 		for _, m := range methods {
@@ -876,14 +916,14 @@ func (w *exportWriter) startType(k itag) {
 
 func (w *exportWriter) doTyp(t *types.Type) {
 	s := t.Sym()
-	if s != nil && t.OrigSym != nil {
+	if s != nil && t.OrigSym() != nil {
 		assert(base.Flag.G > 0)
 		// This is an instantiated type - could be a re-instantiation like
 		// Value[T2] or a full instantiation like Value[int].
 		if strings.Index(s.Name, "[") < 0 {
 			base.Fatalf("incorrect name for instantiated type")
 		}
-		w.startType(instType)
+		w.startType(instanceType)
 		w.pos(t.Pos())
 		// Export the type arguments for the instantiated type. The
 		// instantiated type could be in a method header (e.g. "func (v
@@ -893,7 +933,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// types or existing typeparams from the function/method header.
 		w.typeList(t.RParams())
 		// Export a reference to the base type.
-		baseType := t.OrigSym.Def.(*ir.Name).Type()
+		baseType := t.OrigSym().Def.(*ir.Name).Type()
 		w.typ(baseType)
 		return
 	}
@@ -903,7 +943,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	// type orderedAbs[T any] T
 	if t.IsTypeParam() && t.Underlying() == t {
 		assert(base.Flag.G > 0)
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 		// Write out the first use of a type param as a qualified ident.
@@ -914,7 +954,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
 	}
 
 	if s != nil {
-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
 			base.Fatalf("builtin type missing from typIndex: %v", t)
 		}
 
@@ -978,8 +1018,10 @@ func (w *exportWriter) doTyp(t *types.Type) {
 		// Sort methods and embedded types, for consistency with types2.
 		// Note: embedded types may be anonymous, and types2 sorts them
 		// with sort.Stable too.
-		sort.Sort(types.MethodsByName(methods))
-		sort.Stable(types.EmbeddedsByName(embeddeds))
+		if base.Debug.UnifiedQuirks != 0 {
+			sort.Sort(types.MethodsByName(methods))
+			sort.Stable(types.EmbeddedsByName(embeddeds))
+		}
 
 		w.startType(interfaceType)
 		w.setPkg(t.Pkg(), true)
@@ -1444,10 +1486,23 @@ func (w *exportWriter) node(n ir.Node) {
 	}
 }
 
-// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
-// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
+func isNonEmptyAssign(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OAS:
+		if n.(*ir.AssignStmt).Y != nil {
+			return true
+		}
+	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+		return true
+	}
+	return false
+}
+
+// Caution: stmt will emit more than one node for statement nodes n that have a
+// non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
+// section (such as in "if", "for", etc.).
 func (w *exportWriter) stmt(n ir.Node) {
-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) {
+	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) && n.Op() != ir.ORANGE {
 		// can't use stmtList here since we don't want the final OEND
 		for _, n := range n.Init() {
 			w.stmt(n)
@@ -1483,8 +1538,10 @@ func (w *exportWriter) stmt(n ir.Node) {
 		if n.Y != nil {
 			w.op(ir.OAS)
 			w.pos(n.Pos())
+			w.stmtList(n.Init())
 			w.expr(n.X)
 			w.expr(n.Y)
+			w.bool(n.Def)
 		}
 
 	case ir.OASOP:
@@ -1505,8 +1562,10 @@ func (w *exportWriter) stmt(n ir.Node) {
 			w.op(ir.OAS2)
 		}
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	case ir.ORETURN:
 		n := n.(*ir.ReturnStmt)
@@ -1544,6 +1603,7 @@ func (w *exportWriter) stmt(n ir.Node) {
 		n := n.(*ir.RangeStmt)
 		w.op(ir.ORANGE)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprsOrNil(n.Key, n.Value)
 		w.expr(n.X)
 		w.stmtList(n.Body)
@@ -1680,12 +1740,23 @@ func (w *exportWriter) expr(n ir.Node) {
 		isBuiltin := n.BuiltinOp != ir.OXXX
 		w.bool(isBuiltin)
 		if isBuiltin {
+			w.bool(n.Sym().Pkg == types.UnsafePkg)
 			w.string(n.Sym().Name)
 			break
 		}
 		w.localName(n)
 
-	// case OPACK, ONONAME:
+	case ir.ONONAME:
+		w.op(ir.ONONAME)
+		// This should only be for OKEY nodes in generic functions
+		s := n.Sym()
+		w.string(s.Name)
+		w.pkg(s.Pkg)
+		if go117ExportTypes {
+			w.typ(n.Type())
+		}
+
+	// case OPACK:
 	// 	should have been resolved by typechecking - handled by default case
 
 	case ir.OTYPE:
@@ -1757,7 +1828,7 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.typ(n.Type())
 		w.fieldList(n.List) // special handling of field names
 
-	case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+	case ir.OCOMPLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
 		if go117ExportTypes {
 			w.op(n.Op())
@@ -2052,8 +2123,10 @@ func (w *exportWriter) expr(n ir.Node) {
 		n := n.(*ir.AssignListStmt)
 		w.op(ir.OSELRECV2)
 		w.pos(n.Pos())
+		w.stmtList(n.Init())
 		w.exprList(n.Lhs)
 		w.exprList(n.Rhs)
+		w.bool(n.Def)
 
 	default:
 		base.Fatalf("cannot export %v (%d) node\n"+
@@ -2133,7 +2206,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
 		return
 	}
 
-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, ".dict") { // TODO: just use autotmp names for dictionaries?
+	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) {
 		base.Fatalf("unexpected dot in identifier: %v", name)
 	}
 
@@ -2169,3 +2242,6 @@ func (w *intWriter) uint64(x uint64) {
 // information (e.g. length field for OSLICELIT).
 const go117ExportTypes = true
 const Go117ExportTypes = go117ExportTypes
+
+// The name used for dictionary parameters or local variables.
+const LocalDictName = ".dict"

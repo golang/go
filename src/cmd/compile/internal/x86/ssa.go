@@ -752,6 +752,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
 		s.Call(v)
+	case ssa.Op386CALLtail:
+		s.TailCall(v)
 	case ssa.Op386NEGL,
 		ssa.Op386BSWAPL,
 		ssa.Op386NOTL:
@@ -892,14 +894,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.AJMP)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.Block386EQF:
 		s.CombJump(b, next, &eqfJumps)

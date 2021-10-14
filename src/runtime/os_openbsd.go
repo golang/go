@@ -233,6 +233,19 @@ func sigdelset(mask *sigset, i int) {
 func (c *sigctxt) fixsigcode(sig uint32) {
 }
 
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
+}
+
 var haveMapStack = false
 
 func osStackAlloc(s *mspan) {
