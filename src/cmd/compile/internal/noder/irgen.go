@@ -44,7 +44,6 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		GoVersion:             base.Flag.Lang,
 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
-		AllowTypeLists:        true, // remove this line once all tests use type set syntax
 		Error: func(err error) {
 			terr := err.(types2.Error)
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
