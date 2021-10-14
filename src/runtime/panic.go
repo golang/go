@@ -560,14 +560,28 @@ func printpanics(p *_panic) {
 	print("\n")
 }
 
-// addOneOpenDeferFrame scans the stack for the first frame (if any) with
-// open-coded defers and if it finds one, adds a single record to the defer chain
-// for that frame. If sp is non-nil, it starts the stack scan from the frame
-// specified by sp. If sp is nil, it uses the sp from the current defer record
-// (which has just been finished). Hence, it continues the stack scan from the
-// frame of the defer that just finished. It skips any frame that already has an
-// open-coded _defer record, which would have been created from a previous
-// (unrecovered) panic.
+// addOneOpenDeferFrame scans the stack (in gentraceback order, from inner frames to
+// outer frames) for the first frame (if any) with open-coded defers. If it finds
+// one, it adds a single entry to the defer chain for that frame. The entry added
+// represents all the defers in the associated open defer frame, and is sorted in
+// order with respect to any non-open-coded defers.
+//
+// addOneOpenDeferFrame stops (possibly without adding a new entry) if it encounters
+// an in-progress open defer entry. An in-progress open defer entry means there has
+// been a new panic because of a defer in the associated frame. addOneOpenDeferFrame
+// does not add an open defer entry past a started entry, because that started entry
+// still needs to finished, and addOneOpenDeferFrame will be called when that started
+// entry is completed. The defer removal loop in gopanic() similarly stops at an
+// in-progress defer entry. Together, addOneOpenDeferFrame and the defer removal loop
+// ensure the invariant that there is no open defer entry further up the stack than
+// an in-progress defer, and also that the defer removal loop is guaranteed to remove
+// all not-in-progress open defer entries from the defer chain.
+//
+// If sp is non-nil, addOneOpenDeferFrame starts the stack scan from the frame
+// specified by sp. If sp is nil, it uses the sp from the current defer record (which
+// has just been finished). Hence, it continues the stack scan from the frame of the
+// defer that just finished. It skips any frame that already has a (not-in-progress)
+// open-coded _defer record in the defer chain.
 //
 // Note: All entries of the defer chain (including this new open-coded entry) have
 // their pointers (including sp) adjusted properly if the stack moves while
@@ -607,6 +621,16 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 					if frame.sp == dsp {
 						if !d.openDefer {
 							throw("duplicated defer entry")
+						}
+						// Don't add any record past an
+						// in-progress defer entry. We don't
+						// need it, and more importantly, we
+						// want to keep the invariant that
+						// there is no open defer entry
+						// passed an in-progress entry (see
+						// header comment).
+						if d.started {
+							return false
 						}
 						return true
 					}
@@ -849,12 +873,15 @@ func gopanic(e interface{}) {
 			}
 			atomic.Xadd(&runningPanicDefers, -1)
 
-			// Remove any remaining non-started, open-coded
-			// defer entries after a recover, since the
-			// corresponding defers will be executed normally
-			// (inline). Any such entry will become stale once
-			// we run the corresponding defers inline and exit
-			// the associated stack frame.
+			// After a recover, remove any remaining non-started,
+			// open-coded defer entries, since the corresponding defers
+			// will be executed normally (inline). Any such entry will
+			// become stale once we run the corresponding defers inline
+			// and exit the associated stack frame. We only remove up to
+			// the first started (in-progress) open defer entry, not
+			// including the current frame, since any higher entries will
+			// be from a higher panic in progress, and will still be
+			// needed.
 			d := gp._defer
 			var prev *_defer
 			if !done {
