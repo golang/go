@@ -6060,14 +6060,14 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 				Method: " ",
 				URL:    u,
 			},
-			wantErr: "invalid method",
+			wantErr: `invalid method " "`,
 		},
 		{
 			name: "nil URL",
 			req: &Request{
 				Method: "GET",
 			},
-			wantErr: "nil Request.URL",
+			wantErr: `nil Request.URL`,
 		},
 		{
 			name: "invalid header key",
@@ -6076,7 +6076,7 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 				Header: Header{"💡": {"emoji"}},
 				URL:    u,
 			},
-			wantErr: "invalid header field name",
+			wantErr: `invalid header field name "💡"`,
 		},
 		{
 			name: "invalid header value",
@@ -6085,7 +6085,7 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 				Header: Header{"key": {"\x19"}},
 				URL:    u,
 			},
-			wantErr: "invalid header field value",
+			wantErr: `invalid header field value for "key"`,
 		},
 		{
 			name: "non HTTP(s) scheme",
@@ -6093,7 +6093,7 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 				Method: "POST",
 				URL:    &url.URL{Scheme: "faux"},
 			},
-			wantErr: "unsupported protocol scheme",
+			wantErr: `unsupported protocol scheme "faux"`,
 		},
 		{
 			name: "no Host in URL",
@@ -6101,7 +6101,7 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 				Method: "POST",
 				URL:    &url.URL{Scheme: "http"},
 			},
-			wantErr: "no Host",
+			wantErr: `no Host in request URL`,
 		},
 	}
 
@@ -6117,8 +6117,8 @@ func TestTransportClosesBodyOnInvalidRequests(t *testing.T) {
 			if !bc {
 				t.Fatal("Expected body to have been closed")
 			}
-			if g, w := err.Error(), tt.wantErr; !strings.Contains(g, w) {
-				t.Fatalf("Error mismatch\n\t%q\ndoes not contain\n\t%q", g, w)
+			if g, w := err.Error(), tt.wantErr; !strings.HasSuffix(g, w) {
+				t.Fatalf("Error mismatch: %q does not end with %q", g, w)
 			}
 		})
 	}
