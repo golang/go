@@ -1631,6 +1631,7 @@ func TestConvertibleTo(t *testing.T) {
 	}{
 		{Typ[Int], Typ[Int], true},
 		{Typ[Int], Typ[Float32], true},
+		{Typ[Int], Typ[String], true},
 		{newDefined(Typ[Int]), Typ[Int], true},
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
@@ -1638,8 +1639,7 @@ func TestConvertibleTo(t *testing.T) {
 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
 		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
-		// Untyped string values are not permitted by the spec, so the below
-		// behavior is undefined.
+		// Untyped string values are not permitted by the spec, so the behavior below is undefined.
 		{Typ[UntypedString], Typ[String], true},
 	} {
 		if got := ConvertibleTo(test.v, test.t); got != test.want {
