@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -114,6 +115,23 @@ func TestReadFile(t *testing.T) {
 		}
 	}
 
+	goVersionRe := regexp.MustCompile("(?m)^go\t.*\n")
+	buildRe := regexp.MustCompile("(?m)^build\t.*\n")
+	cleanOutputForComparison := func(got string) string {
+		// Remove or replace anything that might depend on the test's environment
+		// so we can check the output afterward with a string comparison.
+		// We'll remove all build lines except the compiler, just to make sure
+		// build lines are included.
+		got = goVersionRe.ReplaceAllString(got, "go\tGOVERSION\n")
+		got = buildRe.ReplaceAllStringFunc(got, func(match string) string {
+			if strings.HasPrefix(match, "build\tcompiler\t") {
+				return match
+			}
+			return ""
+		})
+		return got
+	}
+
 	cases := []struct {
 		name    string
 		build   func(t *testing.T, goos, goarch string) string
@@ -142,9 +160,10 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_modules",
 			build: buildWithModules,
-			want: "go\t$GOVERSION\n" +
+			want: "go\tGOVERSION\n" +
 				"path\texample.com/m\n" +
-				"mod\texample.com/m\t(devel)\t\n",
+				"mod\texample.com/m\t(devel)\t\n" +
+				"build\tcompiler\tgc\n",
 		},
 		{
 			name: "invalid_modules",
@@ -158,7 +177,7 @@ func TestReadFile(t *testing.T) {
 		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
-			want:  "go\t$GOVERSION\n",
+			want:  "go\tGOVERSION\n",
 		},
 		{
 			name: "invalid_gopath",
@@ -193,8 +212,7 @@ func TestReadFile(t *testing.T) {
 							t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
 						} else if got, err := info.MarshalText(); err != nil {
 							t.Fatalf("unexpected error marshaling BuildInfo: %v", err)
-						} else {
-							got := strings.ReplaceAll(string(got), runtime.Version(), "$GOVERSION")
+						} else if got := cleanOutputForComparison(string(got)); got != tc.want {
 							if got != tc.want {
 								t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 							}
