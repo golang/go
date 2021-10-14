@@ -31,7 +31,7 @@ stdout FAIL
 ! go test -fuzz=FuzzMinimizeZeroLimitSet -run=FuzzMinimizeZeroLimitSet -fuzztime=10000x -fuzzminimizetime=0x .
 ! stdout '^ok'
 ! stdout 'minimizing'
-stdout 'there was an Error'
+stdout -count=1 'there was an Error'
 stdout FAIL
 
 # Test that minimization is working for recoverable errors.
@@ -49,11 +49,27 @@ go run ./check_testdata FuzzMinimizerRecoverable 50
 ! go test -run=FuzzMinimizerRecoverable .
 rm testdata
 
+# Test that minimization is working for recoverable errors. Run it with -v this
+# time to ensure the command line output still looks right.
+! go test -v -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x .
+! stdout '^ok'
+stdout 'got the minimum size!'
+# The error message that was printed should be for the one written to testdata.
+stdout 'contains a non-zero byte of length 50'
+stdout FAIL
+
+# Check that the bytes written to testdata are of length 50 (the minimum size)
+go run ./check_testdata FuzzMinimizerRecoverable 50
+
+# Test that re-running the minimized value causes a crash.
+! go test -run=FuzzMinimizerRecoverable .
+rm testdata
+
 # Test that minimization doesn't run for non-recoverable errors.
 ! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x .
 ! stdout '^ok'
 ! stdout 'minimizing'
-stdout 'fuzzing process terminated unexpectedly: exit status 99'
+stdout -count=1 'fuzzing process terminated unexpectedly: exit status 99'
 stdout FAIL
 
 # Check that re-running the value causes a crash.

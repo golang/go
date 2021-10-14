@@ -29,7 +29,7 @@ env GOCACHE=$WORK/gocache
 ! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.fuzztime=10000x -test.parallel=1
 ! stdout '^ok'
 stdout 'got the minimum size!'
-stdout 'flaky failure'
+stdout -count=1 'flaky failure'
 stdout FAIL
 
 # Make sure the crash that was written will fail when run with go test

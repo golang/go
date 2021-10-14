@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -367,14 +368,14 @@ func (f *F) Fuzz(ff interface{}) {
 	// run calls fn on a given input, as a subtest with its own T.
 	// run is analogous to T.Run. The test filtering and cleanup works similarly.
 	// fn is called in its own goroutine.
-	run := func(e corpusEntry) error {
+	run := func(captureOut io.Writer, e corpusEntry) (ok bool) {
 		if e.Values == nil {
 			// The corpusEntry must have non-nil Values in order to run the
 			// test. If Values is nil, it is a bug in our code.
 			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Path))
 		}
 		if shouldFailFast() {
-			return nil
+			return true
 		}
 		testName := f.name
 		if e.Path != "" {
@@ -405,6 +406,10 @@ func (f *F) Fuzz(ff interface{}) {
 			},
 			context: f.testContext,
 		}
+		if captureOut != nil {
+			// t.parent aliases f.common.
+			t.parent.w = captureOut
+		}
 		t.w = indenter{&t.common}
 		if t.chatty != nil {
 			// TODO(#48132): adjust this to work with test2json.
@@ -426,10 +431,7 @@ func (f *F) Fuzz(ff interface{}) {
 		})
 		<-t.signal
 		f.inFuzzFn = false
-		if t.Failed() {
-			return errors.New(string(f.output))
-		}
-		return nil
+		return !t.Failed()
 	}
 
 	switch f.fuzzContext.mode {
@@ -466,7 +468,17 @@ func (f *F) Fuzz(ff interface{}) {
 	case fuzzWorker:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		if err := f.fuzzContext.deps.RunFuzzWorker(run); err != nil {
+		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) error {
+			// Don't write to f.w (which points to Stdout) if running from a
+			// fuzz worker. This would become very verbose, particularly during
+			// minimization. Return the error instead, and let the caller deal
+			// with the output.
+			var buf bytes.Buffer
+			if ok := run(&buf, e); !ok {
+				return errors.New(buf.String())
+			}
+			return nil
+		}); err != nil {
 			// Internal errors are marked with f.Fail; user code may call this too, before F.Fuzz.
 			// The worker will exit with fuzzWorkerExitCode, indicating this is a failure
 			// (and 'go test' should exit non-zero) but a crasher should not be recorded.
@@ -479,7 +491,7 @@ func (f *F) Fuzz(ff interface{}) {
 		for _, e := range f.corpus {
 			name := fmt.Sprintf("%s/%s", f.name, filepath.Base(e.Path))
 			if _, ok, _ := f.testContext.match.fullName(nil, name); ok {
-				run(e)
+				run(f.w, e)
 			}
 		}
 	}
