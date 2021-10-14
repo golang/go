@@ -848,6 +848,7 @@
 (ADDconst [c] (SUBFCconst [d] x)) && is32Bit(c+d) => (SUBFCconst [c+d] x)
 (NEG (ADDconst [c] x)) && is32Bit(-c) => (SUBFCconst [-c] x)
 (NEG (SUBFCconst [c] x)) && is32Bit(-c) => (ADDconst [-c] x)
+(NEG (SUB x y)) => (SUB y x)
 
 // Use register moves instead of stores and loads to move int<=>float values
 // Common with math Float64bits, Float64frombits
@@ -1087,7 +1088,7 @@
 ((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
 // ISELB special case where arg0, arg1 values are 0, 1
 
 (Equal cmp) => (ISELB [2] (MOVDconst [1]) cmp)
@@ -1138,6 +1139,9 @@
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 0 => (ISEL [n+1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 1 => (ISEL [n-1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 2 => (ISEL [n] x y bool)
+(XORconst [1] (ISELB [6] (MOVDconst [1]) cmp)) => (ISELB [2] (MOVDconst [1]) cmp)
+(XORconst [1] (ISELB [5] (MOVDconst [1]) cmp)) => (ISELB [1] (MOVDconst [1]) cmp)
+(XORconst [1] (ISELB [4] (MOVDconst [1]) cmp)) => (ISELB [0] (MOVDconst [1]) cmp)
 
 // A particular pattern seen in cgo code:
 (AND (MOVDconst [c]) x:(MOVBZload _ _)) => (ANDconst [c&0xFF] x)
