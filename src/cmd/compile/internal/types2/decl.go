@@ -557,7 +557,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
 			check.errorf(tdecl.Type.Pos(), "using type constraint %s requires go1.18 or later", rhs)
 		}
-	})
+	}).describef(obj, "validType(%s)", obj.Name())
 
 	alias := tdecl.Alias
 	if alias && tdecl.TParamList != nil {
