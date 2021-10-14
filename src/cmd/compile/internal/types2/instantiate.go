@@ -63,7 +63,6 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
 			if res != nil {
 				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] T[P]
-				// TODO(gri) investigate if that's a bug or to be expected.
 				under = safeUnderlying(res)
 			}
 			check.trace(pos, "=> %s (under = %s)", res, under)
@@ -115,7 +114,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
 			}
 		}
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
 		named.targs = NewTypeList(targs)
 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
 			return expandNamed(ctxt, n, pos)
