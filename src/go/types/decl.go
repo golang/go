@@ -329,7 +329,17 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
-		t.resolve(check.conf.Context)
+		// If t is parameterized, we should be considering the instantiated (expanded)
+		// form of t, but in general we can't with this algorithm: if t is an invalid
+		// type it may be so because it infinitely expands through a type parameter.
+		// Instantiating such a type would lead to an infinite sequence of instantiations.
+		// In general, we need "type flow analysis" to recognize those cases.
+		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+		// In this algorithm we always only consider the orginal, uninstantiated type.
+		// This won't recognize some invalid cases with parameterized types, but it
+		// will terminate.
+		t = t.orig
+
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
 		if t.obj.pkg != check.pkg {
@@ -357,7 +367,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 					check.cycleError(path[i:])
 					t.info = invalid
 					t.underlying = Typ[Invalid]
-					return t.info
+					return invalid
 				}
 			}
 			panic("cycle start not found")
