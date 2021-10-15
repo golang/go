@@ -65,22 +65,9 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
 	if obj.typ == nil {
 		obj.typ = typ
 	}
-	// Ensure that typ is always expanded, at which point the check field can be
-	// nilled out.
-	//
-	// Note that currently we cannot nil out check inside typ.under(), because
-	// it's possible that typ is expanded multiple times.
-	//
-	// TODO(rFindley): clean this up so that under is the only function mutating
-	//                 named types.
+	// Ensure that typ is always expanded and sanity-checked.
 	if check != nil {
-		check.later(func() {
-			switch typ.under().(type) {
-			case *Named:
-				panic("unexpanded underlying type")
-			}
-			typ.check = nil
-		})
+		check.defTypes = append(check.defTypes, typ)
 	}
 	return typ
 }
@@ -240,6 +227,12 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
 	n.orig.resolve(ctxt)
 
 	check := n.check
+
+	if _, unexpanded := n.orig.underlying.(*Named); unexpanded {
+		// We should only get an unexpanded underlying here during type checking
+		// (for example, in recursive type declarations).
+		assert(check != nil)
+	}
 
 	// Mismatching arg and tparam length may be checked elsewhere.
 	if n.orig.tparams.Len() == n.targs.Len() {
