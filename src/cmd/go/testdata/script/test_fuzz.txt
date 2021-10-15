@@ -70,12 +70,26 @@ stdout 'f.Fuzz function'
 stdout FAIL
 stdout 'f.Fuzz function'
 
+# Test that f.Fail within f.Fuzz panics
+! go test fail_fuzz_fn_fuzz_test.go
+! stdout ^ok
+stdout FAIL
+stdout 'f.Fuzz function'
+
 # Test that f.Skip within f.Fuzz panics
 ! go test skip_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'skip here'
 stdout FAIL
 stdout 'f.Fuzz function'
+
+# Test that f.Skipped within f.Fuzz panics
+! go test skipped_fuzz_fn_fuzz_test.go
+! stdout ^ok
+! stdout 'f.Skipped is'
+stdout FAIL
+stdout 'f.Fuzz function'
+stdout 't.Skipped is false'
 
 # Test that runtime.Goexit within the fuzz function is an error.
 ! go test goexit_fuzz_fn_fuzz_test.go
@@ -260,6 +274,18 @@ func Fuzz(f *testing.F) {
     })
 }
 
+-- fail_fuzz_fn_fuzz_test.go --
+package skip_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        f.Fail()
+    })
+}
+
 -- skip_fuzz_fn_fuzz_test.go --
 package skip_fuzz_fn_fuzz
 
@@ -269,6 +295,19 @@ func Fuzz(f *testing.F) {
     f.Add([]byte("aa"))
     f.Fuzz(func(t *testing.T, b []byte) {
         f.Skip("skip here")
+    })
+}
+
+-- skipped_fuzz_fn_fuzz_test.go --
+package skipped_fuzz_fn_fuzz
+
+import "testing"
+
+func Fuzz(f *testing.F) {
+    f.Add([]byte("aa"))
+    f.Fuzz(func(t *testing.T, b []byte) {
+        t.Logf("t.Skipped is %t\n", t.Skipped())
+        t.Logf("f.Skipped is %t\n", f.Skipped())
     })
 }
 

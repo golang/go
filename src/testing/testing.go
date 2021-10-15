@@ -492,6 +492,7 @@ type common struct {
 	cleanupName string               // Name of the cleanup function.
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
 	finished    bool                 // Test function has completed.
+	inFuzzFn    bool                 // Whether the fuzz function, if this is one, is running.
 
 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench      bool           // Whether the current test is a benchmark.
@@ -545,6 +546,12 @@ func Verbose() bool {
 		panic("testing: Verbose called before Parse")
 	}
 	return *chatty
+}
+
+func (c *common) checkFuzzFn(name string) {
+	if c.inFuzzFn {
+		panic(fmt.Sprintf("testing: f.%s was called inside the f.Fuzz function, use t.%s instead", name, name))
+	}
 }
 
 // frameSkip searches, starting after skip frames, for the first caller frame
@@ -821,6 +828,7 @@ func (c *common) Failed() bool {
 // created during the test. Calling FailNow does not stop
 // those other goroutines.
 func (c *common) FailNow() {
+	c.checkFuzzFn("FailNow")
 	c.Fail()
 
 	// Calling runtime.Goexit will exit the goroutine, which
@@ -889,47 +897,59 @@ func (c *common) logDepth(s string, depth int) {
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
 // printed to avoid having performance depend on the value of the -test.v flag.
-func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
+func (c *common) Log(args ...interface{}) {
+	c.checkFuzzFn("Log")
+	c.log(fmt.Sprintln(args...))
+}
 
 // Logf formats its arguments according to the format, analogous to Printf, and
 // records the text in the error log. A final newline is added if not provided. For
 // tests, the text will be printed only if the test fails or the -test.v flag is
 // set. For benchmarks, the text is always printed to avoid having performance
 // depend on the value of the -test.v flag.
-func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
+func (c *common) Logf(format string, args ...interface{}) {
+	c.checkFuzzFn("Logf")
+	c.log(fmt.Sprintf(format, args...))
+}
 
 // Error is equivalent to Log followed by Fail.
 func (c *common) Error(args ...interface{}) {
+	c.checkFuzzFn("Error")
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
 // Errorf is equivalent to Logf followed by Fail.
 func (c *common) Errorf(format string, args ...interface{}) {
+	c.checkFuzzFn("Errorf")
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
 // Fatal is equivalent to Log followed by FailNow.
 func (c *common) Fatal(args ...interface{}) {
+	c.checkFuzzFn("Fatal")
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
 // Fatalf is equivalent to Logf followed by FailNow.
 func (c *common) Fatalf(format string, args ...interface{}) {
+	c.checkFuzzFn("Fatalf")
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
 
 // Skip is equivalent to Log followed by SkipNow.
 func (c *common) Skip(args ...interface{}) {
+	c.checkFuzzFn("Skip")
 	c.log(fmt.Sprintln(args...))
 	c.SkipNow()
 }
 
 // Skipf is equivalent to Logf followed by SkipNow.
 func (c *common) Skipf(format string, args ...interface{}) {
+	c.checkFuzzFn("Skipf")
 	c.log(fmt.Sprintf(format, args...))
 	c.SkipNow()
 }
@@ -943,6 +963,7 @@ func (c *common) Skipf(format string, args ...interface{}) {
 // other goroutines created during the test. Calling SkipNow does not stop
 // those other goroutines.
 func (c *common) SkipNow() {
+	c.checkFuzzFn("SkipNow")
 	c.mu.Lock()
 	c.skipped = true
 	c.finished = true
@@ -982,6 +1003,7 @@ func (c *common) Helper() {
 // subtests complete. Cleanup functions will be called in last added,
 // first called order.
 func (c *common) Cleanup(f func()) {
+	c.checkFuzzFn("Cleanup")
 	var pc [maxStackLen]uintptr
 	// Skip two extra frames to account for this function and runtime.Callers itself.
 	n := runtime.Callers(2, pc[:])
@@ -1015,6 +1037,7 @@ func (c *common) Cleanup(f func()) {
 // Each subsequent call to t.TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
+	c.checkFuzzFn("TempDir")
 	// Use a single parent directory for all the temporary directories
 	// created by a test, each numbered sequentially.
 	c.tempDirMu.Lock()
@@ -1080,6 +1103,7 @@ func (c *common) TempDir() string {
 //
 // This cannot be used in parallel tests.
 func (c *common) Setenv(key, value string) {
+	c.checkFuzzFn("Setenv")
 	prevValue, ok := os.LookupEnv(key)
 
 	if err := os.Setenv(key, value); err != nil {
