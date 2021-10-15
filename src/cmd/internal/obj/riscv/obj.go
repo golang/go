@@ -280,14 +280,15 @@ func containsCall(sym *obj.LSym) bool {
 }
 
 // setPCs sets the Pc field in all instructions reachable from p.
-// It uses pc as the initial value.
-func setPCs(p *obj.Prog, pc int64) {
+// It uses pc as the initial value and returns the next available pc.
+func setPCs(p *obj.Prog, pc int64) int64 {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
 		}
 	}
+	return pc
 }
 
 // stackOffset updates Addr offsets based on the current stack size.
@@ -582,17 +583,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
+		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			callCount++
+		}
 	}
+	const callTrampSize = 8 // 2 machine instructions.
+	maxTrampSize := int64(callCount * callTrampSize)
 
 	// Compute instruction addresses.  Once we do that, we need to check for
 	// overextended jumps and branches.  Within each iteration, Pc differences
 	// are always lower bounds (since the program gets monotonically longer,
 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
 	for {
-		rescan := false
-		setPCs(cursym.Func().Text, 0)
+		big, rescan := false, false
+		maxPC := setPCs(cursym.Func().Text, 0)
+		if maxPC+maxTrampSize > (1 << 20) {
+			big = true
+		}
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
 			switch p.As {
@@ -619,6 +629,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case AJAL:
 				// Linker will handle the intersymbol case and trampolines.
 				if p.To.Target() == nil {
+					if !big {
+						break
+					}
+					// This function is going to be too large for JALs
+					// to reach trampolines. Replace with AUIPC+JALR.
+					jmp := obj.Appendp(p, newprog)
+					jmp.As = AJALR
+					jmp.From = p.From
+					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					p.As = AAUIPC
+					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
+					p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
+					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+					p.Reg = obj.REG_NONE
+					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					rescan = true
 					break
 				}
 				offset := p.To.Target().Pc - p.Pc
