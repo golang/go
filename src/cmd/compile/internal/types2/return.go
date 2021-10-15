@@ -62,6 +62,11 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 		return true
 
 	case *syntax.ForStmt:
+		if _, ok := s.Init.(*syntax.RangeClause); ok {
+			// Range clauses guarantee that the loop terminates,
+			// so the loop is not a terminating statement. See issue 49003.
+			break
+		}
 		if s.Cond == nil && !hasBreak(s.Body, label, true) {
 			return true
 		}
