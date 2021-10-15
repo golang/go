@@ -263,7 +263,7 @@ var ReadUnaligned64 = readUnaligned64
 func CountPagesInUse() (pagesInUse, counted uintptr) {
 	stopTheWorld("CountPagesInUse")
 
-	pagesInUse = uintptr(mheap_.pagesInUse)
+	pagesInUse = uintptr(mheap_.pagesInUse.Load())
 
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {

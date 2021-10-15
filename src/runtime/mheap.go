@@ -96,17 +96,17 @@ type mheap struct {
 	// any given time, the system is at (gcController.heapLive,
 	// pagesSwept) in this space.
 	//
-	// It's important that the line pass through a point we
-	// control rather than simply starting at a (0,0) origin
+	// It is important that the line pass through a point we
+	// control rather than simply starting at a 0,0 origin
 	// because that lets us adjust sweep pacing at any time while
 	// accounting for current progress. If we could only adjust
 	// the slope, it would create a discontinuity in debt if any
 	// progress has already been made.
-	pagesInUse         uint64  // pages of spans in stats mSpanInUse; updated atomically
-	pagesSwept         uint64  // pages swept this cycle; updated atomically
-	pagesSweptBasis    uint64  // pagesSwept to use as the origin of the sweep ratio; updated atomically
-	sweepHeapLiveBasis uint64  // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
-	sweepPagesPerByte  float64 // proportional sweep ratio; written with lock, read without
+	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
+	pagesSwept         uint64        // pages swept this cycle; updated atomically
+	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
+	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
+	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
 	// compiler can't 8-byte align fields.
 
@@ -1311,7 +1311,7 @@ HaveSpan:
 		atomic.Or8(&arena.pageInUse[pageIdx], pageMask)
 
 		// Update related page sweeper stats.
-		atomic.Xadd64(&h.pagesInUse, int64(npages))
+		h.pagesInUse.Add(int64(npages))
 	}
 
 	// Make sure the newly allocated span will be observed
@@ -1468,7 +1468,7 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 			print("mheap.freeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("mheap.freeSpanLocked - invalid free")
 		}
-		atomic.Xadd64(&h.pagesInUse, -int64(s.npages))
+		h.pagesInUse.Add(-int64(s.npages))
 
 		// Clear in-use bit in arena page bitmap.
 		arena, pageIdx, pageMask := pageIndexOf(s.base())
