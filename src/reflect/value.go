@@ -1651,30 +1651,30 @@ func (iter *MapIter) Key() Value {
 	return copyVal(ktype, iter.m.flag.ro()|flag(ktype.Kind()), iterkey)
 }
 
-// SetKey assigns dst to the key of iter's current map entry.
-// It is equivalent to dst.Set(i.Key()), but it avoids allocating a new Value.
-// As in Go, the key must be assignable to dst's type.
-func (iter *MapIter) SetKey(dst Value) {
+// SetIterKey assigns to v the key of iter's current map entry.
+// It is equivalent to v.Set(iter.Key()), but it avoids allocating a new Value.
+// As in Go, the key must be assignable to v's type.
+func (v Value) SetIterKey(iter *MapIter) {
 	if !iter.hiter.initialized() {
-		panic("MapIter.SetKey called before Next")
+		panic("reflect: Value.SetIterKey called before Next")
 	}
 	iterkey := mapiterkey(&iter.hiter)
 	if iterkey == nil {
-		panic("MapIter.SetKey called on exhausted iterator")
+		panic("reflect: Value.SetIterKey called on exhausted iterator")
 	}
 
-	dst.mustBeAssignable()
+	v.mustBeAssignable()
 	var target unsafe.Pointer
-	if dst.kind() == Interface {
-		target = dst.ptr
+	if v.kind() == Interface {
+		target = v.ptr
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	ktype := t.key
 
-	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind())}
-	key = key.assignTo("reflect.MapIter.SetKey", dst.typ, target)
-	typedmemmove(dst.typ, dst.ptr, key.ptr)
+	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind()) | flagIndir}
+	key = key.assignTo("reflect.MapIter.SetKey", v.typ, target)
+	typedmemmove(v.typ, v.ptr, key.ptr)
 }
 
 // Value returns the value of iter's current map entry.
@@ -1692,30 +1692,30 @@ func (iter *MapIter) Value() Value {
 	return copyVal(vtype, iter.m.flag.ro()|flag(vtype.Kind()), iterelem)
 }
 
-// SetValue assigns dst to the value of iter's current map entry.
-// It is equivalent to dst.Set(i.Value()), but it avoids allocating a new Value.
-// As in Go, the value must be assignable to dst's type.
-func (iter *MapIter) SetValue(dst Value) {
+// SetIterValue assigns to v the value of iter's current map entry.
+// It is equivalent to v.Set(iter.Value()), but it avoids allocating a new Value.
+// As in Go, the value must be assignable to v's type.
+func (v Value) SetIterValue(iter *MapIter) {
 	if !iter.hiter.initialized() {
-		panic("MapIter.SetValue called before Next")
+		panic("reflect: Value.SetIterValue called before Next")
 	}
 	iterelem := mapiterelem(&iter.hiter)
 	if iterelem == nil {
-		panic("MapIter.SetValue called on exhausted iterator")
+		panic("reflect: Value.SetIterValue called on exhausted iterator")
 	}
 
-	dst.mustBeAssignable()
+	v.mustBeAssignable()
 	var target unsafe.Pointer
-	if dst.kind() == Interface {
-		target = dst.ptr
+	if v.kind() == Interface {
+		target = v.ptr
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	vtype := t.elem
 
-	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind())}
-	elem = elem.assignTo("reflect.MapIter.SetValue", dst.typ, target)
-	typedmemmove(dst.typ, dst.ptr, elem.ptr)
+	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind()) | flagIndir}
+	elem = elem.assignTo("reflect.MapIter.SetValue", v.typ, target)
+	typedmemmove(v.typ, v.ptr, elem.ptr)
 }
 
 // Next advances the map iterator and reports whether there is another
