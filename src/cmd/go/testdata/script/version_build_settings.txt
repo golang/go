@@ -8,17 +8,17 @@ stdout '^\tbuild\tcompiler\tgc$'
 
 # Toolchain flags are added if present.
 # The raw flags are included, with package patterns if specified.
-go build -asmflags=all=-spectre=all
+go build -asmflags=example.com/m=-D=FOO=bar
 go version -m m$GOEXE
-stdout '^\tbuild\tasmflags\tall=-spectre=all$'
+stdout '^\tbuild\tasmflags\texample\.com/m=-D=FOO=bar$'
 
-go build -gcflags=all=-spectre=all
+go build -gcflags=example.com/m=-N
 go version -m m$GOEXE
-stdout '^\tbuild\tgcflags\tall=-spectre=all$'
+stdout '^\tbuild\tgcflags\texample\.com/m=-N$'
 
-go build -ldflags=-w
+go build -ldflags=example.com/m=-w
 go version -m m$GOEXE
-stdout '^\tbuild\tldflags\t-w$'
+stdout '^\tbuild\tldflags\texample\.com/m=-w$'
 
 # gccgoflags are not added when gc is used, and vice versa.
 # TODO: test gccgo.
