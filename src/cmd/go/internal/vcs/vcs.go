@@ -603,7 +603,7 @@ type vcsPath struct {
 // version control system and code repository to use.
 // If no repository is found, FromDir returns an error
 // equivalent to os.ErrNotExist.
-func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
+func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cmd, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
 	dir = filepath.Clean(dir)
 	if srcRoot != "" {
@@ -617,11 +617,16 @@ func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if _, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil {
-				// Record first VCS we find, but keep looking,
-				// to detect mistakes like one kind of VCS inside another.
+				// Record first VCS we find.
+				// If allowNesting is false (as it is in GOPATH), keep looking for
+				// repositories in parent directories and report an error if one is
+				// found to mitigate VCS injection attacks.
 				if vcsCmd == nil {
 					vcsCmd = vcs
 					repoDir = dir
+					if allowNesting {
+						return repoDir, vcsCmd, nil
+					}
 					continue
 				}
 				// Allow .git inside .git, which can arise due to submodules.

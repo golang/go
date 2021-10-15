@@ -446,7 +446,8 @@ func downloadPackage(p *load.Package) error {
 
 	if p.Internal.Build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot)
+		const allowNesting = false
+		repoDir, vcsCmd, err = vcs.FromDir(p.Dir, p.Internal.Build.SrcRoot, allowNesting)
 		if err != nil {
 			return err
 		}

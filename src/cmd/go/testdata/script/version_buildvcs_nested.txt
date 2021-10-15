@@ -1,5 +1,6 @@
 [!exec:git] skip
 [!exec:hg] skip
+[short] skip
 env GOFLAGS=-n
 
 # Create a root module in a root Git repository.
@@ -8,25 +9,25 @@ cd root
 go mod init example.com/root
 exec git init
 
-# It's an error to build a package from a nested Mercurial repository
-# without -buildvcs=false, even if the package is in a separate module.
+# Nesting repositories in parent directories are ignored, as the current
+# directory main package, and containing main module are in the same repository.
+# This is an error in GOPATH mode (to prevent VCS injection), but for modules,
+# we assume users have control over repositories they've checked out.
 mkdir hgsub
 cd hgsub
 exec hg init
 cp ../../main.go main.go
 ! go build
-stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
-stderr '\tUse -buildvcs=false to disable VCS stamping.$'
-go mod init example.com/root/hgsub
-! go build
-stderr '^error obtaining VCS status: directory ".*hgsub" uses hg, but parent ".*root" uses git$'
+stderr '^error obtaining VCS status: main module is in repository ".*root" but current directory is in repository ".*hgsub"$'
+stderr '^\tUse -buildvcs=false to disable VCS stamping.$'
 go build -buildvcs=false
+go mod init example.com/root/hgsub
+go build
 cd ..
 
 # It's an error to build a package from a nested Git repository if the package
 # is in a separate repository from the current directory or from the module
-# root directory. However, unlike with other VCS, it's okay for a Git repository
-# to be nested within another Git repository. This happens with submodules.
+# root directory.
 mkdir gitsub
 cd gitsub
 exec git init
