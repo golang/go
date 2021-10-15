@@ -2318,8 +2318,9 @@ func (p *Package) setBuildInfo() {
 	var repoDir string
 	var vcsCmd *vcs.Cmd
 	var err error
+	const allowNesting = true
 	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
-		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "")
+		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
 			return
@@ -2338,7 +2339,7 @@ func (p *Package) setBuildInfo() {
 		// repository. vcs.FromDir allows nested Git repositories, but nesting
 		// is not allowed for other VCS tools. The current directory may be outside
 		// p.Module.Dir when a workspace is used.
-		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "")
+		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return
@@ -2347,7 +2348,7 @@ func (p *Package) setBuildInfo() {
 			setVCSError(fmt.Errorf("main package is in repository %q but current directory is in repository %q", pkgRepoDir, repoDir))
 			return
 		}
-		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "")
+		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return

@@ -233,7 +233,7 @@ func TestFromDir(t *testing.T) {
 		}
 
 		wantRepoDir := filepath.Dir(dir)
-		gotRepoDir, gotVCS, err := FromDir(dir, tempDir)
+		gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
 		if err != nil {
 			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
 			continue
