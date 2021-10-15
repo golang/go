@@ -1854,14 +1854,19 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 		}
 	}
 
+	// Map to remember when we have seen an instantiated function value or method
+	// expression/value as part of a call, so we can determine when we encounter
+	// an uncalled function value or method expression/value.
+	callMap := make(map[ir.Node]bool)
+
 	var visitFunc func(ir.Node)
 	visitFunc = func(n ir.Node) {
-		if n.Op() == ir.OFUNCINST && !n.(*ir.InstExpr).Implicit() {
+		if n.Op() == ir.OFUNCINST && !callMap[n] {
 			if hasShapeNodes(n.(*ir.InstExpr).Targs) {
 				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
-		} else if (n.Op() == ir.OMETHEXPR || n.Op() == ir.OMETHVALUE) && !n.(*ir.SelectorExpr).Implicit() &&
+		} else if (n.Op() == ir.OMETHEXPR || n.Op() == ir.OMETHVALUE) && !callMap[n] &&
 			!types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) &&
 			len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
 			if hasShapeTypes(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) {
@@ -1874,16 +1879,15 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 			}
 		}
 		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
-			n.(*ir.CallExpr).X.(*ir.InstExpr).SetImplicit(true)
+			callMap[n.(*ir.CallExpr).X] = true
 			if hasShapeNodes(n.(*ir.CallExpr).X.(*ir.InstExpr).Targs) {
 				infoPrint("  Subdictionary at generic function/method call: %v - %v\n", n.(*ir.CallExpr).X.(*ir.InstExpr).X, n)
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
 		}
 		if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH &&
-			//n.(*ir.CallExpr).X.(*ir.SelectorExpr).Selection != nil &&
 			len(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
-			n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
+			callMap[n.(*ir.CallExpr).X] = true
 			if hasShapeTypes(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) {
 				infoPrint("  Subdictionary at generic method call: %v\n", n)
 				info.subDictCalls = append(info.subDictCalls, n)
@@ -1891,7 +1895,7 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 		}
 		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
 			isShapeDeref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()) {
-			n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
+			callMap[n.(*ir.CallExpr).X] = true
 			infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
 			info.subDictCalls = append(info.subDictCalls, n)
 		}
