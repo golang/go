@@ -752,7 +752,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 			heapDistance = _PageSize
 		}
 		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
-		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
+		pagesInUse := mheap_.pagesInUse.Load()
 		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
 		if sweepDistancePages <= 0 {
 			mheap_.sweepPagesPerByte = 0
