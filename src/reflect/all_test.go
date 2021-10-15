@@ -7635,7 +7635,7 @@ func TestSetIter(t *testing.T) {
 		k.SetIterKey(i)
 	})
 	shouldPanic("Value.SetIterValue called before Next", func() {
-		k.SetIterValue(i)
+		v.SetIterValue(i)
 	})
 	data2 := map[string]int{}
 	for i.Next() {
@@ -7650,7 +7650,7 @@ func TestSetIter(t *testing.T) {
 		k.SetIterKey(i)
 	})
 	shouldPanic("Value.SetIterValue called on exhausted iterator", func() {
-		k.SetIterValue(i)
+		v.SetIterValue(i)
 	})
 
 	i.Reset(m)
