@@ -28,8 +28,8 @@ func assert(p bool) {
 	base.Assert(p)
 }
 
-// Temporary - for outputting information on derived types, dictionaries, sub-dictionaries.
-// Turn off when running tests.
+// For outputting debug information on dictionary format and instantiated dictionaries
+// (type arg, derived types, sub-dictionary, and itab entries).
 var infoPrintMode = false
 
 func infoPrint(format string, a ...interface{}) {
@@ -1861,15 +1861,16 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 
 	var visitFunc func(ir.Node)
 	visitFunc = func(n ir.Node) {
-		if n.Op() == ir.OFUNCINST && !callMap[n] {
-			if hasShapeNodes(n.(*ir.InstExpr).Targs) {
+		switch n.Op() {
+		case ir.OFUNCINST:
+			if !callMap[n] && hasShapeNodes(n.(*ir.InstExpr).Targs) {
 				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
-		} else if (n.Op() == ir.OMETHEXPR || n.Op() == ir.OMETHVALUE) && !callMap[n] &&
-			!types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) &&
-			len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
-			if hasShapeTypes(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) {
+		case ir.OMETHEXPR, ir.OMETHVALUE:
+			if !callMap[n] && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) &&
+				len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 &&
+				hasShapeTypes(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) {
 				if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
 					infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
 				} else {
@@ -1877,43 +1878,48 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 				}
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
-		}
-		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
-			callMap[n.(*ir.CallExpr).X] = true
-			if hasShapeNodes(n.(*ir.CallExpr).X.(*ir.InstExpr).Targs) {
-				infoPrint("  Subdictionary at generic function/method call: %v - %v\n", n.(*ir.CallExpr).X.(*ir.InstExpr).X, n)
+		case ir.OCALL:
+			ce := n.(*ir.CallExpr)
+			if ce.X.Op() == ir.OFUNCINST {
+				callMap[ce.X] = true
+				if hasShapeNodes(ce.X.(*ir.InstExpr).Targs) {
+					infoPrint("  Subdictionary at generic function/method call: %v - %v\n", ce.X.(*ir.InstExpr).X, n)
+					info.subDictCalls = append(info.subDictCalls, n)
+				}
+			}
+			if ce.X.Op() == ir.OXDOT &&
+				isShapeDeref(ce.X.(*ir.SelectorExpr).X.Type()) {
+				callMap[ce.X] = true
+				infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
 				info.subDictCalls = append(info.subDictCalls, n)
 			}
-		}
-		if n.Op() == ir.OCALLMETH && n.(*ir.CallExpr).X.Op() == ir.ODOTMETH &&
-			len(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
-			callMap[n.(*ir.CallExpr).X] = true
-			if hasShapeTypes(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) {
-				infoPrint("  Subdictionary at generic method call: %v\n", n)
-				info.subDictCalls = append(info.subDictCalls, n)
+		case ir.OCALLMETH:
+			ce := n.(*ir.CallExpr)
+			if ce.X.Op() == ir.ODOTMETH &&
+				len(deref(ce.X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
+				callMap[ce.X] = true
+				if hasShapeTypes(deref(ce.X.(*ir.SelectorExpr).X.Type()).RParams()) {
+					infoPrint("  Subdictionary at generic method call: %v\n", n)
+					info.subDictCalls = append(info.subDictCalls, n)
+				}
 			}
-		}
-		if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
-			isShapeDeref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()) {
-			callMap[n.(*ir.CallExpr).X] = true
-			infoPrint("  Optional subdictionary at generic bound call: %v\n", n)
-			info.subDictCalls = append(info.subDictCalls, n)
-		}
-		if n.Op() == ir.OCONVIFACE && n.Type().IsInterface() &&
-			!n.Type().IsEmptyInterface() &&
-			n.(*ir.ConvExpr).X.Type().HasShape() {
-			infoPrint("  Itab for interface conv: %v\n", n)
-			info.itabConvs = append(info.itabConvs, n)
-		}
-		if n.Op() == ir.OXDOT && n.(*ir.SelectorExpr).X.Type().IsShape() {
-			infoPrint("  Itab for bound call: %v\n", n)
-			info.itabConvs = append(info.itabConvs, n)
-		}
-		if (n.Op() == ir.ODOTTYPE || n.Op() == ir.ODOTTYPE2) && !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
-			infoPrint("  Itab for dot type: %v\n", n)
-			info.itabConvs = append(info.itabConvs, n)
-		}
-		if n.Op() == ir.OCLOSURE {
+		case ir.OCONVIFACE:
+			if n.Type().IsInterface() && !n.Type().IsEmptyInterface() &&
+				n.(*ir.ConvExpr).X.Type().HasShape() {
+				infoPrint("  Itab for interface conv: %v\n", n)
+				info.itabConvs = append(info.itabConvs, n)
+			}
+		case ir.OXDOT:
+			if n.(*ir.SelectorExpr).X.Type().IsShape() {
+				infoPrint("  Itab for bound call: %v\n", n)
+				info.itabConvs = append(info.itabConvs, n)
+			}
+		case ir.ODOTTYPE, ir.ODOTTYPE2:
+			if !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
+				infoPrint("  Itab for dot type: %v\n", n)
+				info.itabConvs = append(info.itabConvs, n)
+			}
+		case ir.OCLOSURE:
 			// Visit the closure body and add all relevant entries to the
 			// dictionary of the outer function (closure will just use
 			// the dictionary of the outer function).
@@ -1924,18 +1930,21 @@ func (g *genInst) getInstInfo(st *ir.Func, shapes []*types.Type, instInfo *instI
 			for _, n := range cfunc.Dcl {
 				n.DictIndex = uint16(findDictType(instInfo, n.Type()) + 1)
 			}
-		}
-		if n.Op() == ir.OSWITCH && n.(*ir.SwitchStmt).Tag != nil && n.(*ir.SwitchStmt).Tag.Op() == ir.OTYPESW && !n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
-			for _, cc := range n.(*ir.SwitchStmt).Cases {
-				for _, c := range cc.List {
-					if c.Op() == ir.OTYPE && c.Type().HasShape() {
-						// Type switch from a non-empty interface - might need an itab.
-						infoPrint("  Itab for type switch: %v\n", c)
-						info.itabConvs = append(info.itabConvs, c)
-						if info.type2switchType == nil {
-							info.type2switchType = map[ir.Node]*types.Type{}
+		case ir.OSWITCH:
+			ss := n.(*ir.SwitchStmt)
+			if ss.Tag != nil && ss.Tag.Op() == ir.OTYPESW &&
+				!ss.Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
+				for _, cc := range ss.Cases {
+					for _, c := range cc.List {
+						if c.Op() == ir.OTYPE && c.Type().HasShape() {
+							// Type switch from a non-empty interface - might need an itab.
+							infoPrint("  Itab for type switch: %v\n", c)
+							info.itabConvs = append(info.itabConvs, c)
+							if info.type2switchType == nil {
+								info.type2switchType = map[ir.Node]*types.Type{}
+							}
+							info.type2switchType[c] = ss.Tag.(*ir.TypeSwitchGuard).X.Type()
 						}
-						info.type2switchType[c] = n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type()
 					}
 				}
 			}
