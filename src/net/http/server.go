@@ -3420,7 +3420,7 @@ func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
 
 	switch {
-	case tw.timedOut:
+	case tw.timedOut, tw.clientHangup:
 		return
 	case tw.wroteHeader:
 		if tw.req != nil {
