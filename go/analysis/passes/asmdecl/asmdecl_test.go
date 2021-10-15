@@ -14,9 +14,11 @@ import (
 )
 
 var goosarches = []string{
-	"linux/amd64",  // asm1.s, asm4.s
-	"linux/386",    // asm2.s
-	"linux/arm",    // asm3.s
+	"linux/amd64", // asm1.s, asm4.s
+	"linux/386",   // asm2.s
+	"linux/arm",   // asm3.s
+	// TODO: skip test on loong64 until go toolchain supported loong64.
+	// "linux/loong64", // asm10.s
 	"linux/mips64", // asm5.s
 	"linux/s390x",  // asm6.s
 	"linux/ppc64",  // asm7.s
