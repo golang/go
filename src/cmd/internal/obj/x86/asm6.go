@@ -2035,6 +2035,11 @@ type nopPad struct {
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
+		ctxt.Diag("-spectre=ret not supported on 386")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	pjc := makePjcCtx(ctxt)
 
 	if s.P != nil {
