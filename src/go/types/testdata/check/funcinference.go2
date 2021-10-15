@@ -2,29 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package tinferenceB
+package funcInference
 
 import "strconv"
 
 type any interface{}
 
-// TODO(rFindley) the below partially applied function types should probably
-//                not be permitted (spec question).
+func f0[A any, B interface{~*C}, C interface{~*D}, D interface{~*A}](A, B, C, D) {}
+func _() {
+	f := f0[string]
+	f("a", nil, nil, nil)
+	f0("a", nil, nil, nil)
+}
 
-// Embedding stand-alone type parameters is not permitted for now. Disabled.
-// func f0[A any, B interface{~C}, C interface{~D}, D interface{~A}](A, B, C, D)
-// func _() {
-// 	f := f0[string]
-// 	f("a", "b", "c", "d")
-// 	f0("a", "b", "c", "d")
-// }
-//
-// func f1[A any, B interface{~A}](A, B)
-// func _() {
-// 	f := f1[int]
-// 	f(int(0), int(0))
-// 	f1(int(0), int(0))
-// }
+func f1[A any, B interface{~*A}](A, B) {}
+func _() {
+	f := f1[int]
+	f(int(0), new(int))
+	f1(int(0), new(int))
+}
 
 func f2[A any, B interface{~[]A}](A, B) {}
 func _() {
