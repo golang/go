@@ -127,12 +127,25 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- image/draw -->
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 356049, 320929 -->
+      The new
+      <a href="/pkg/reflect/#Value.SetIterKey"><code>Value.SetIterKey</code></a>
+      and <a href="/pkg/reflect/#Value.SetIterValue"><code>Value.SetIterValue</code></a>
+      methods set a Value using a map iterator as the source. They are equivalent to
+      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code> but
+      do fewer allocations.
+    </p>
+  </dd>
+</dl><!-- reflect -->
+
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 336550 -->
       The new function <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>
       has been introduced for Windows, allowing for calls with arbitrary number
-      of arguments. As results,
+      of arguments. As a result,
       <a href="/pkg/syscall/?GOOS=windows#Syscall"><code>Syscall</code></a>,
       <a href="/pkg/syscall/?GOOS=windows#Syscall6"><code>Syscall6</code></a>,
       <a href="/pkg/syscall/?GOOS=windows#Syscall9"><code>Syscall9</code></a>,
