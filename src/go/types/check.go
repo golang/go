@@ -113,6 +113,7 @@ type Checker struct {
 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
 	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+	defTypes []*Named              // defined types created during type checking, for final validation.
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -269,6 +270,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.processDelayed(0) // incl. all functions
 
+	check.expandDefTypes()
+
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
@@ -285,6 +288,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
 	check.recvTParamMap = nil
+	check.defTypes = nil
 
 	// TODO(rFindley) There's more memory we should release at this point.
 
@@ -304,6 +308,29 @@ func (check *Checker) processDelayed(top int) {
 	}
 	assert(top <= len(check.delayed)) // stack must not have shrunk
 	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) expandDefTypes() {
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	for i := 0; i < len(check.defTypes); i++ {
+		n := check.defTypes[i]
+		switch n.underlying.(type) {
+		case nil:
+			if n.resolver == nil {
+				panic("nil underlying")
+			}
+		case *Named:
+			n.under() // n.under may add entries to check.defTypes
+		}
+		n.check = nil
+	}
 }
 
 func (check *Checker) record(x *operand) {
