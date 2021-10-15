@@ -15,7 +15,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	cfg.SetGOROOT(testenv.GOROOT(nil))
+	cfg.SetGOROOT(testenv.GOROOT(nil), false)
 }
 
 func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {

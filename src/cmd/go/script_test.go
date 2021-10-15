@@ -167,11 +167,13 @@ func (ts *testScript) setup() {
 		homeEnvName() + "=/no-home",
 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
 		"GOARCH=" + runtime.GOARCH,
+		"TESTGO_GOHOSTARCH=" + goHostArch,
 		"GOCACHE=" + testGOCACHE,
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
 		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
 		"GOOS=" + runtime.GOOS,
+		"TESTGO_GOHOSTOS=" + goHostOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
@@ -199,6 +201,12 @@ func (ts *testScript) setup() {
 	}
 	if !testenv.HasExternalNetwork() {
 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+	}
+	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
+		// If the actual CGO_ENABLED might not match the cmd/go default, set it
+		// explicitly in the environment. Otherwise, leave it unset so that we also
+		// cover the default behaviors.
+		ts.env = append(ts.env, "CGO_ENABLED="+cgoEnabled)
 	}
 
 	for _, key := range extraEnvKeys {
@@ -360,6 +368,8 @@ Script:
 			switch cond.tag {
 			case runtime.GOOS, runtime.GOARCH, runtime.Compiler:
 				ok = true
+			case "cross":
+				ok = goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH
 			case "short":
 				ok = testing.Short()
 			case "cgo":
@@ -943,9 +953,9 @@ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
 	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{{else}}"
 	switch want {
 	case failure:
-		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale: {{.StaleReason}}{{end}}"
+		tmpl += `{{if .Stale}}{{.ImportPath}} ({{.Target}}) is unexpectedly stale:{{"\n\t"}}{{.StaleReason}}{{end}}`
 	case success:
-		tmpl += "{{if not .Stale}}{{.ImportPath}} is unexpectedly NOT stale{{end}}"
+		tmpl += "{{if not .Stale}}{{.ImportPath}} ({{.Target}}) is unexpectedly NOT stale{{end}}"
 	default:
 		ts.fatalf("unsupported: %v stale", want)
 	}
@@ -953,10 +963,15 @@ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
 	goArgs := append([]string{"list", "-e", "-f=" + tmpl}, args...)
 	stdout, stderr, err := ts.exec(testGo, goArgs...)
 	if err != nil {
+		// Print stdout before stderr, because stderr may explain the error
+		// independent of whatever we may have printed to stdout.
 		ts.fatalf("go list: %v\n%s%s", err, stdout, stderr)
 	}
 	if stdout != "" {
-		ts.fatalf("%s", stdout)
+		// Print stderr before stdout, because stderr may contain verbose
+		// debugging info (for example, if GODEBUG=gocachehash=1 is set)
+		// and we know that stdout contains a useful summary.
+		ts.fatalf("%s%s", stderr, stdout)
 	}
 }
 

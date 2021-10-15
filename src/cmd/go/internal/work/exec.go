@@ -1813,7 +1813,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error 
 	}
 
 	// On Windows, remove lingering ~ file from last attempt.
-	if base.ToolIsWindows {
+	if runtime.GOOS == "windows" {
 		if _, err := os.Stat(dst + "~"); err == nil {
 			os.Remove(dst + "~")
 		}
@@ -1821,7 +1821,7 @@ func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error 
 
 	mayberemovefile(dst)
 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil && base.ToolIsWindows {
+	if err != nil && runtime.GOOS == "windows" {
 		// Windows does not allow deletion of a binary file
 		// while it is executing. Try to move it out of the way.
 		// If the move fails, which is likely, we'll try again the

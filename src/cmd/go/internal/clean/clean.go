@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -395,7 +396,7 @@ func removeFile(f string) {
 		return
 	}
 	// Windows does not allow deletion of a binary file while it is executing.
-	if base.ToolIsWindows {
+	if runtime.GOOS == "windows" {
 		// Remove lingering ~ file from last attempt.
 		if _, err2 := os.Stat(f + "~"); err2 == nil {
 			os.Remove(f + "~")

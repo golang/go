@@ -17,7 +17,6 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
-	"path"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -1776,9 +1775,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 			setError(e)
 			return
 		}
-		elem := p.DefaultExecName()
-		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
-		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
+		elem := p.DefaultExecName() + cfg.ExeSuffix
+		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + string(filepath.Separator) + elem
+		if cfg.BuildContext.GOOS != runtime.GOOS || cfg.BuildContext.GOARCH != runtime.GOARCH {
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
@@ -1788,7 +1787,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		if p.Internal.Build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.Target = filepath.Join(p.Internal.Build.BinDir, elem)
-			if !p.Goroot && strings.Contains(elem, "/") && cfg.GOBIN != "" {
+			if !p.Goroot && strings.Contains(elem, string(filepath.Separator)) && cfg.GOBIN != "" {
 				// Do not create $GOBIN/goos_goarch/elem.
 				p.Target = ""
 				p.Internal.GobinSubdir = true
@@ -1798,13 +1797,10 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 			// This is for 'go tool'.
 			// Override all the usual logic and force it into the tool directory.
 			if cfg.BuildToolchainName == "gccgo" {
-				p.Target = filepath.Join(base.ToolDir, elem)
+				p.Target = filepath.Join(build.ToolDir, elem)
 			} else {
 				p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
 			}
-		}
-		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
-			p.Target += ".exe"
 		}
 	} else if p.Internal.Local {
 		// Local import turned into absolute path.
@@ -2071,7 +2067,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 			glob = pattern[len("all:"):]
 		}
 		// Check pattern is valid for //go:embed.
-		if _, err := path.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
+		if _, err := pathpkg.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
 			return nil, nil, fmt.Errorf("invalid pattern syntax")
 		}
 
@@ -3112,7 +3108,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 			return nil, fmt.Errorf("%s: argument must be a package path, not an absolute path", arg)
 		case search.IsMetaPackage(p):
 			return nil, fmt.Errorf("%s: argument must be a package path, not a meta-package", arg)
-		case path.Clean(p) != p:
+		case pathpkg.Clean(p) != p:
 			return nil, fmt.Errorf("%s: argument must be a clean package path", arg)
 		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
 			return nil, fmt.Errorf("%s: argument must not be a package in the standard library", arg)
