@@ -241,7 +241,8 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
 
 	check := n.check
 
-	if check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
+	// Mismatching arg and tparam length may be checked elsewhere.
+	if n.orig.tparams.Len() == n.targs.Len() {
 		// We must always have a context, to avoid infinite recursion.
 		ctxt = check.bestContext(ctxt)
 		h := ctxt.typeHash(n.orig, n.targs.list())
