@@ -28,12 +28,6 @@ type ref uint64
 // nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
 const nanHead = 0x7FF80000
 
-// Wrapper is implemented by types that are backed by a JavaScript value.
-type Wrapper interface {
-	// JSValue returns a JavaScript value associated with an object.
-	JSValue() Value
-}
-
 // Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
 // Values can be checked for equality with the Equal method.
 type Value struct {
@@ -50,11 +44,6 @@ const (
 	typeFlagSymbol
 	typeFlagFunction
 )
-
-// JSValue implements Wrapper interface.
-func (v Value) JSValue() Value {
-	return v
-}
 
 func makeValue(r ref) Value {
 	var gcPtr *ref
@@ -162,10 +151,10 @@ func Global() Value {
 // Panics if x is not one of the expected types.
 func ValueOf(x interface{}) Value {
 	switch x := x.(type) {
-	case Value: // should precede Wrapper to avoid a loop
+	case Value:
 		return x
-	case Wrapper:
-		return x.JSValue()
+	case Func:
+		return x.Value
 	case nil:
 		return valueNull
 	case bool:

@@ -15,8 +15,6 @@ var (
 	nextFuncID uint32 = 1
 )
 
-var _ Wrapper = Func{} // Func must implement Wrapper
-
 // Func is a wrapped Go function to be called by JavaScript.
 type Func struct {
 	Value // the JavaScript function that invokes the Go function
