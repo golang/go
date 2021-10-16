@@ -3304,7 +3304,10 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 // ErrHandlerTimeout is returned on ResponseWriter Write calls
 // in handlers which have timed out.
 var ErrHandlerTimeout = errors.New("http: Handler timeout")
-var ErrClientHangup = errors.New("http: Client hung up")
+
+// ErrRequestCanceled is returned on ResponseWriter Write calls
+// in handlers which have canceled contexts.
+var ErrRequestCanceled = errors.New("http: Request canceled")
 
 type timeoutHandler struct {
 	handler Handler
@@ -3369,9 +3372,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		case context.DeadlineExceeded:
 			w.WriteHeader(StatusServiceUnavailable)
 			io.WriteString(w, h.errorBody())
-			tw.timedOut = true
+			tw.err = ErrHandlerTimeout
 		case context.Canceled:
-			tw.clientHangup = true
+			tw.err = ErrRequestCanceled
 		}
 	}
 }
@@ -3382,11 +3385,10 @@ type timeoutWriter struct {
 	wbuf bytes.Buffer
 	req  *Request
 
-	mu           sync.Mutex
-	timedOut     bool
-	clientHangup bool
-	wroteHeader  bool
-	code         int
+	mu          sync.Mutex
+	err         error
+	wroteHeader bool
+	code        int
 }
 
 var _ Pusher = (*timeoutWriter)(nil)
@@ -3404,11 +3406,8 @@ func (tw *timeoutWriter) Header() Header { return tw.h }
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
 	defer tw.mu.Unlock()
-	if tw.timedOut {
-		return 0, ErrHandlerTimeout
-	}
-	if tw.clientHangup {
-		return 0, ErrClientHangup
+	if tw.err != nil {
+		return 0, tw.err
 	}
 	if !tw.wroteHeader {
 		tw.writeHeaderLocked(StatusOK)
@@ -3420,7 +3419,7 @@ func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
 
 	switch {
-	case tw.timedOut, tw.clientHangup:
+	case tw.err != nil:
 		return
 	case tw.wroteHeader:
 		if tw.req != nil {
