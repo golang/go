@@ -28,16 +28,25 @@ cd ..
 env PATH=$oldpath
 rm .git
 
-# If there is a repository in a parent directory, there should be VCS info.
+# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
 exec git init
 exec git config user.email gopher@golang.org
 exec git config user.name 'J.R. Gopher'
-exec git add -A
-exec git commit -m 'initial commit'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
+! stdout gitrevision
+! stdout gitcommittime
+stdout '^\tbuild\tgituncommitted\ttrue$'
+rm $GOBIN/a$GOEXE
+
+# Revision and commit time are tagged for repositories with commits.
+exec git add -A
+exec git commit -m 'initial commit'
+go install
+go version -m $GOBIN/a$GOEXE
 stdout '^\tbuild\tgitrevision\t'
+stdout '^\tbuild\tgitcommittime\t'
 stdout '^\tbuild\tgituncommitted\tfalse$'
 rm $GOBIN/a$GOEXE
 

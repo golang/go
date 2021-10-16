@@ -29,14 +29,24 @@ cd ..
 env PATH=$oldpath
 rm .hg
 
-# If there is a repository in a parent directory, there should be VCS info.
+# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
 exec hg init
+cd a
+go install
+go version -m $GOBIN/a$GOEXE
+! stdout hgrevision
+! stdout hgcommittime
+stdout '^\tbuild\thguncommitted\ttrue$'
+cd ..
+
+# Revision and commit time are tagged for repositories with commits.
 exec hg add a README
 exec hg commit -m 'initial commit'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
 stdout '^\tbuild\thgrevision\t'
+stdout '^\tbuild\thgcommittime\t'
 stdout '^\tbuild\thguncommitted\tfalse$'
 rm $GOBIN/a$GOEXE
 
