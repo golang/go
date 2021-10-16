@@ -3434,6 +3434,42 @@ func TestOptions(t *testing.T) {
 	}
 }
 
+func TestOptionsHandler(t *testing.T) {
+	rc := make(chan *Request, 1)
+
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		t.Fatalf("Got unexpected request %v", r)
+	}))
+	ts.Config.OptionsHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Length", "0")
+		rc <- r
+	})
+	ts.Start()
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	_, err = conn.Write([]byte("OPTIONS * HTTP/1.1\r\nHost: foo.com\r\n\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := ReadResponse(bufio.NewReader(conn), &Request{Method: "OPTIONS"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 200 {
+		t.Errorf("Got non-200 response to OPTIONS *: %#v", res)
+	}
+
+	if got := <-rc; got.Method != "OPTIONS" || got.RequestURI != "*" {
+		t.Errorf("Expected OPTIONS * request, got %v", got)
+	}
+}
+
 // Tests regarding the ordering of Write, WriteHeader, Header, and
 // Flush calls. In Go 1.0, rw.WriteHeader immediately flushed the
 // (*response).header to the wire. In Go 1.1, the actual wire flush is

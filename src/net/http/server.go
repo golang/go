@@ -2570,6 +2570,10 @@ type Server struct {
 
 	Handler Handler // handler to invoke, http.DefaultServeMux if nil
 
+	// OptionsHandler handles "OPTIONS *" requests.
+	// If nil, server responds with 200 OK and Content-Length: 0.
+	OptionsHandler Handler
+
 	// TLSConfig optionally provides a TLS configuration for use
 	// by ServeTLS and ListenAndServeTLS. Note that this value is
 	// cloned by ServeTLS and ListenAndServeTLS, so it's not
@@ -2897,7 +2901,10 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 		handler = DefaultServeMux
 	}
 	if req.RequestURI == "*" && req.Method == "OPTIONS" {
-		handler = globalOptionsHandler{}
+		handler = sh.srv.OptionsHandler
+		if handler == nil {
+			handler = globalOptionsHandler{}
+		}
 	}
 
 	if req.URL != nil && strings.Contains(req.URL.RawQuery, ";") {
