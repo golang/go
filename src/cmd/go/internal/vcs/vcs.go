@@ -18,8 +18,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -54,8 +56,9 @@ type Cmd struct {
 
 // Status is the current state of a local repository.
 type Status struct {
-	Revision    string
-	Uncommitted bool
+	Revision    string    // Optional.
+	CommitTime  time.Time // Optional.
+	Uncommitted bool      // Required.
 }
 
 var defaultSecureScheme = map[string]bool{
@@ -159,24 +162,52 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
 }
 
 func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
-	out, err := vcsHg.runOutputVerboseOnly(rootDir, "identify -i")
+	// Output changeset ID and seconds since epoch.
+	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date(date,"%s")}`)
 	if err != nil {
 		return Status{}, err
 	}
-	rev := strings.TrimSpace(string(out))
-	uncommitted := strings.HasSuffix(rev, "+")
-	if uncommitted {
-		// "+" means a tracked file is edited.
-		rev = rev[:len(rev)-len("+")]
-	} else {
-		// Also look for untracked files.
-		out, err = vcsHg.runOutputVerboseOnly(rootDir, "status -u")
+
+	// Successful execution without output indicates an empty repo (no commits).
+	var rev string
+	var commitTime time.Time
+	if len(out) > 0 {
+		rev, commitTime, err = parseRevTime(out)
 		if err != nil {
 			return Status{}, err
 		}
-		uncommitted = len(out) > 0
 	}
-	return Status{Revision: rev, Uncommitted: uncommitted}, nil
+
+	// Also look for untracked files.
+	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(out) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
+}
+
+// parseRevTime parses commit details in "revision:seconds" format.
+func parseRevTime(out []byte) (string, time.Time, error) {
+	buf := string(bytes.TrimSpace(out))
+
+	i := strings.IndexByte(buf, ':')
+	if i < 1 {
+		return "", time.Time{}, errors.New("unrecognized VCS tool output")
+	}
+	rev := buf[:i]
+
+	secs, err := strconv.ParseInt(string(buf[i+1:]), 10, 64)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %v", err)
+	}
+
+	return rev, time.Unix(secs, 0), nil
 }
 
 // vcsGit describes how to use Git.
@@ -263,18 +294,33 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
 	return "", errParse
 }
 
-func gitStatus(cmd *Cmd, repoDir string) (Status, error) {
-	out, err := cmd.runOutputVerboseOnly(repoDir, "rev-parse HEAD")
+func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
+	out, err := vcsGit.runOutputVerboseOnly(rootDir, "status --porcelain")
 	if err != nil {
 		return Status{}, err
 	}
-	rev := string(bytes.TrimSpace(out))
-	out, err = cmd.runOutputVerboseOnly(repoDir, "status --porcelain")
-	if err != nil {
+	uncommitted := len(out) > 0
+
+	// "git status" works for empty repositories, but "git show" does not.
+	// Assume there are no commits in the repo when "git show" fails with
+	// uncommitted files and skip tagging revision / committime.
+	var rev string
+	var commitTime time.Time
+	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --format=%H:%ct")
+	if err != nil && !uncommitted {
 		return Status{}, err
+	} else if err == nil {
+		rev, commitTime, err = parseRevTime(out)
+		if err != nil {
+			return Status{}, err
+		}
 	}
-	uncommitted := len(out) != 0
-	return Status{Revision: rev, Uncommitted: uncommitted}, nil
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
 
 // vcsBzr describes how to use Bazaar.
