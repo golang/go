@@ -2511,6 +2511,11 @@ func TestMethodValue(t *testing.T) {
 	p := Point{3, 4}
 	var i int64
 
+	// Check that method value have the same underlying code pointers.
+	if p1, p2 := ValueOf(Point{1, 1}).Method(1), ValueOf(Point{2, 2}).Method(1); p1.Pointer() != p2.Pointer() {
+		t.Errorf("methodValueCall mismatched: %v - %v", p1, p2)
+	}
+
 	// Curried method of value.
 	tfunc := TypeOf((func(int) int)(nil))
 	v := ValueOf(p).Method(1)
