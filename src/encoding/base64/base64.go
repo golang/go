@@ -119,9 +119,7 @@ var RawURLEncoding = URLEncoding.WithPadding(NoPadding)
 // Encode encodes src using the encoding enc, writing
 // EncodedLen(len(src)) bytes to dst.
 //
-// The encoding pads the output to a multiple of 4 bytes,
-// so Encode is not appropriate for use on individual blocks
-// of a large data stream. Use NewEncoder() instead.
+// To encode large data stream use NewEncoder().
 func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
