@@ -312,6 +312,13 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 			typ := new(Pointer)
 			def.setUnderlying(typ)
 			typ.base = check.varType(e.X)
+			// If typ.base is invalid, it's unlikely that *base is particularly
+			// useful - even a valid dereferenciation will lead to an invalid
+			// type again, and in some cases we get unexpected follow-on errors
+			// (e.g., see #49005). Return an invalid type instead.
+			if typ.base == Typ[Invalid] {
+				return Typ[Invalid]
+			}
 			return typ
 		}
 
