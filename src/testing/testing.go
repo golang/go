@@ -1785,6 +1785,12 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			if shouldFailFast() {
 				break
 			}
+			if i > 0 && !ran {
+				// There were no tests to run on the first
+				// iteration. This won't change, so no reason
+				// to keep trying.
+				break
+			}
 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
 			ctx.deadline = deadline
 			t := &T{
