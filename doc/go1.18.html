@@ -175,6 +175,16 @@ Do not send CLs removing the interior tags from such phrases.
       do fewer allocations.
     </p>
   </dd>
+  <dd>
+    <p><!-- CL 350691 -->
+      The new
+      <a href="/pkg/reflect/#Value.UnsafePointer"><code>Value.UnsafePointer</code></a>
+      method returns the Value's value as an <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a>.
+      This allows callers to migrate from <a href="/pkg/reflect/#Value.UnsafeAddr"><code>Value.UnsafeAddr</code></a>
+      and <a href="/pkg/reflect/#Value.Pointer"><code>Value.Pointer</code></a>
+      to eliminate the need to perform uintptr to unsafe.Pointer conversions at the callsite (as unsafe.Pointer rules require).
+    </p>
+  </dd>
 </dl><!-- reflect -->
 
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
