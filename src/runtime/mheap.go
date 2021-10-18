@@ -124,13 +124,12 @@ type mheap struct {
 	// If this is >= 1<<63, the page reclaimer is done scanning
 	// the page marks.
 	reclaimIndex atomic.Uint64
+
 	// reclaimCredit is spare credit for extra pages swept. Since
 	// the page reclaimer works in large chunks, it may reclaim
 	// more than requested. Any spare pages released go to this
 	// credit pool.
-	//
-	// This is accessed atomically.
-	reclaimCredit uintptr
+	reclaimCredit atomic.Uintptr
 
 	// arenas is the heap arena map. It points to the metadata for
 	// the heap for every arena frame of the entire usable virtual
@@ -754,13 +753,13 @@ func (h *mheap) reclaim(npage uintptr) {
 	locked := false
 	for npage > 0 {
 		// Pull from accumulated credit first.
-		if credit := atomic.Loaduintptr(&h.reclaimCredit); credit > 0 {
+		if credit := h.reclaimCredit.Load(); credit > 0 {
 			take := credit
 			if take > npage {
 				// Take only what we need.
 				take = npage
 			}
-			if atomic.Casuintptr(&h.reclaimCredit, credit, credit-take) {
+			if h.reclaimCredit.CompareAndSwap(credit, credit-take) {
 				npage -= take
 			}
 			continue
@@ -786,7 +785,7 @@ func (h *mheap) reclaim(npage uintptr) {
 			npage -= nfound
 		} else {
 			// Put spare pages toward global credit.
-			atomic.Xadduintptr(&h.reclaimCredit, nfound-npage)
+			h.reclaimCredit.Add(nfound - npage)
 			npage = 0
 		}
 	}
