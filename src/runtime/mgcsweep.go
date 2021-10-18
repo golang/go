@@ -291,7 +291,7 @@ func sweepone() uintptr {
 				// Whole span was freed. Count it toward the
 				// page reclaimer credit since these pages can
 				// now be used for span allocation.
-				atomic.Xadduintptr(&mheap_.reclaimCredit, npages)
+				mheap_.reclaimCredit.Add(npages)
 			} else {
 				// Span is still in-use, so this returned no
 				// pages to the heap and the span needs to
