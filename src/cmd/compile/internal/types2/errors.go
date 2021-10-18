@@ -61,7 +61,10 @@ func (err *error_) msg(qf Qualifier) string {
 	for i := range err.desc {
 		p := &err.desc[i]
 		if i > 0 {
-			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
+			fmt.Fprint(&buf, "\n\t")
+			if p.pos.IsKnown() {
+				fmt.Fprintf(&buf, "%s: ", p.pos)
+			}
 		}
 		buf.WriteString(sprintf(qf, p.format, p.args...))
 	}

@@ -306,7 +306,7 @@ L:
 		}
 		seen[T] = e
 		if T != nil {
-			check.typeAssertion(e.Pos(), x, xtyp, T)
+			check.typeAssertion(e, x, xtyp, T, true)
 		}
 	}
 	return
@@ -347,7 +347,7 @@ L:
 // 		}
 // 		seen[hash] = e
 // 		if T != nil {
-// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 			check.typeAssertion(e, x, xtyp, T, true)
 // 		}
 // 	}
 // 	return

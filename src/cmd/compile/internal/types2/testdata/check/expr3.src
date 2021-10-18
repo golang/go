@@ -459,9 +459,9 @@ func type_asserts() {
 
 	var t I
 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
-	_ = t /* ERROR "missing method m" */ .(T)
+	_ = t /* ERROR "m method has pointer receiver" */ .(T)
 	_ = t.(*T)
-	_ = t /* ERROR "missing method m" */ .(T1)
+	_ = t /* ERROR "missing m method" */ .(T1)
 	_ = t /* ERROR "wrong type for method m" */ .(T2)
 	_ = t /* STRICT "wrong type for method m" */ .(I2) // only an error in strict mode (issue 8561)
 
