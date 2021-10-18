@@ -18,22 +18,72 @@
 
 go test -c -fuzz=.  # Build using shared build cache for speed.
 env GOCACHE=$WORK/gocache
-exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=. -test.fuzztime=1000x
-go run check_cache.go $GOCACHE/fuzz/FuzzMin
+exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinCache -test.fuzztime=1000x
+go run check_cache.go $GOCACHE/fuzz/FuzzMinCache
+
+# Test that minimization occurs for a crash that appears while minimizing a
+# newly found interesting input. There must be only one worker for this test to
+# be flaky like we want.
+go test -c -fuzz=.  # Build using shared build cache for speed.
+env GOCACHE=$WORK/gocache
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.fuzztime=10000x -test.parallel=1
+! stdout '^ok'
+stdout 'got the minimum size!'
+stdout 'flaky failure'
+stdout FAIL
+
+# Make sure the crash that was written will fail when run with go test
+! go test -run=FuzzMinimizerCrashInMinimization .
 
 -- go.mod --
 module fuzz
 
 go 1.17
+-- y.go --
+package fuzz
+
+import (
+	"bytes"
+	"io"
+)
+
+func Y(w io.Writer, b []byte) {
+	if !bytes.Equal(b, []byte("y")) {
+		w.Write([]byte("not equal"))
+	}
+}
 -- fuzz_test.go --
 package fuzz
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
-func FuzzMin(f *testing.F) {
+func FuzzMinimizerCrashInMinimization(f *testing.F) {
+	seed := make([]byte, 1000)
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) < 50 || len(b) > 1100 {
+			// Make sure that b is large enough that it can be minimized
+			return
+		}
+		if !bytes.Equal(b, seed) {
+			// This should have hit a new edge, and the interesting input
+			// should be attempting minimization
+			Y(io.Discard, b)
+		}
+		if len(b) < 350 {
+			t.Error("flaky failure")
+		}
+		if len(b) == 50 {
+			t.Log("got the minimum size!")
+		}
+	})
+}
+
+func FuzzMinCache(f *testing.F) {
 	seed := bytes.Repeat([]byte("a"), 20)
 	f.Add(seed)
 	f.Fuzz(func(t *testing.T, buf []byte) {
