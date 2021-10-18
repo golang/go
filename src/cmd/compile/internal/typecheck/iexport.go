@@ -1888,6 +1888,14 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.expr(n.X)
 		w.typ(n.Type())
 
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := n.(*ir.DynamicTypeAssertExpr)
+		w.op(n.Op())
+		w.pos(n.Pos())
+		w.expr(n.X)
+		w.expr(n.T)
+		w.typ(n.Type())
+
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
 		if go117ExportTypes {
