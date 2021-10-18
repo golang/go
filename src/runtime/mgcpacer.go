@@ -762,7 +762,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 			// Write pagesSweptBasis last, since this
 			// signals concurrent sweeps to recompute
 			// their debt.
-			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
+			mheap_.pagesSweptBasis.Store(pagesSwept)
 		}
 	}
 
