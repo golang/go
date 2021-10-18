@@ -34,21 +34,6 @@ stdout FAIL
 stdout 'there was an Error'
 stdout FAIL
 
-# Test that minimization occurs for a crash that appears while minimizing a
-# newly found interesting input. There must be only one worker for this test to
-# be flaky like we want.
-! go test -fuzz=FuzzMinimizerCrashInMinimization -run=FuzzMinimizerCrashInMinimization -fuzztime=10000x -parallel=1 .
-! stdout '^ok'
-stdout 'got the minimum size!'
-stdout 'flaky failure'
-stdout FAIL
-
-# Make sure the crash that was written will fail when run with go test
-! go test -run=FuzzMinimizerCrashInMinimization .
-
-# Clear testdata.
-rm testdata
-
 # Test that minimization is working for recoverable errors.
 ! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x .
 ! stdout '^ok'
@@ -97,25 +82,10 @@ stdout FAIL
 module example.com/y
 
 go 1.16
--- y.go --
-package y
-
-import (
-	"bytes"
-	"io"
-)
-
-func Y(w io.Writer, b []byte) {
-	if !bytes.Equal(b, []byte("y")) {
-		w.Write([]byte("not equal"))
-	}
-}
 -- y_test.go --
 package y
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"testing"
 )
@@ -159,28 +129,6 @@ func FuzzMinimizerRecoverable(f *testing.F) {
 func FuzzMinimizerNonrecoverable(f *testing.F) {
 	f.Fuzz(func(t *testing.T, b []byte) {
 		os.Exit(99)
-	})
-}
-
-func FuzzMinimizerCrashInMinimization(f *testing.F) {
-	seed := make([]byte, 1000)
-	f.Add(seed)
-	f.Fuzz(func(t *testing.T, b []byte) {
-		if len(b) < 50 || len(b) > 1100 {
-			// Make sure that b is large enough that it can be minimized
-			return
-		}
-		if !bytes.Equal(b, seed) {
-			// This should have hit a new edge, and the interesting input
-			// should be attempting minimization
-			Y(io.Discard, b)
-		}
-		if len(b) < 350 {
-			t.Error("flaky failure")
-		}
-		if len(b) == 50 {
-			t.Log("got the minimum size!")
-		}
 	})
 }
 -- empty/empty.go --
