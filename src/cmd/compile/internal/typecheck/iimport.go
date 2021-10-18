@@ -1312,6 +1312,14 @@ func (r *importReader) node() ir.Node {
 	case ir.OTYPE:
 		return ir.TypeNode(r.typ())
 
+	case ir.ODYNAMICTYPE:
+		n := ir.NewDynamicType(r.pos(), r.expr())
+		if r.bool() {
+			n.ITab = r.expr()
+		}
+		n.SetType(r.typ())
+		return n
+
 	case ir.OTYPESW:
 		pos := r.pos()
 		var tag *ir.Ident

@@ -22,4 +22,12 @@ func main() {
 	if y != s {
 		panic(fmt.Sprintf("got %s wanted %s", y, s))
 	}
+	z := a.Conv3(s)
+	if z != s {
+		panic(fmt.Sprintf("got %s wanted %s", z, s))
+	}
+	w := a.Conv4(a.Mystring(s))
+	if w != a.Mystring(s) {
+		panic(fmt.Sprintf("got %s wanted %s", w, s))
+	}
 }

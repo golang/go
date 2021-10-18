@@ -1763,6 +1763,19 @@ func (w *exportWriter) expr(n ir.Node) {
 		w.op(ir.OTYPE)
 		w.typ(n.Type())
 
+	case ir.ODYNAMICTYPE:
+		n := n.(*ir.DynamicType)
+		w.op(ir.ODYNAMICTYPE)
+		w.pos(n.Pos())
+		w.expr(n.X)
+		if n.ITab != nil {
+			w.bool(true)
+			w.expr(n.ITab)
+		} else {
+			w.bool(false)
+		}
+		w.typ(n.Type())
+
 	case ir.OTYPESW:
 		n := n.(*ir.TypeSwitchGuard)
 		w.op(ir.OTYPESW)
