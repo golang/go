@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -17,7 +18,7 @@ func reflectValueSlice() {
 	rvsl := reflect.ValueOf(slice).Slice(0, 0)
 	print(rvsl.Interface())              // @types []*int
 	print(rvsl.Interface().([]*int))     // @pointsto makeslice@slice:15
-	print(rvsl.Interface().([]*int)[42]) // @pointsto main.a
+	print(rvsl.Interface().([]*int)[42]) // @pointsto command-line-arguments.a
 
 	// reflect.Value contains an array (non-addressable).
 	array := [10]*int{&a} // @line array
@@ -30,7 +31,7 @@ func reflectValueSlice() {
 	rvparray := reflect.ValueOf(&array).Slice(0, 0)
 	print(rvparray.Interface())              // @types []*int
 	print(rvparray.Interface().([]*int))     // @pointsto array@array:2
-	print(rvparray.Interface().([]*int)[42]) // @pointsto main.a
+	print(rvparray.Interface().([]*int)[42]) // @pointsto command-line-arguments.a
 
 	// reflect.Value contains a string.
 	rvstring := reflect.ValueOf("hi").Slice(0, 0)
@@ -75,12 +76,12 @@ func reflectValueIndex() {
 	slice := []*int{&a} // @line ar6slice
 	rv1 := reflect.ValueOf(slice)
 	print(rv1.Index(42).Interface())        // @types *int
-	print(rv1.Index(42).Interface().(*int)) // @pointsto main.a
+	print(rv1.Index(42).Interface().(*int)) // @pointsto command-line-arguments.a
 
 	array := [10]*int{&a}
 	rv2 := reflect.ValueOf(array)
 	print(rv2.Index(42).Interface())        // @types *int
-	print(rv2.Index(42).Interface().(*int)) // @pointsto main.a
+	print(rv2.Index(42).Interface().(*int)) // @pointsto command-line-arguments.a
 
 	rv3 := reflect.ValueOf("string")
 	print(rv3.Index(42).Interface()) // @types rune
@@ -97,9 +98,9 @@ func reflectValueElem() {
 	var iface interface{} = &a
 	rv1 := reflect.ValueOf(&iface).Elem()
 	print(rv1.Interface())               // @types *int
-	print(rv1.Interface().(*int))        // @pointsto main.a
+	print(rv1.Interface().(*int))        // @pointsto command-line-arguments.a
 	print(rv1.Elem().Interface())        // @types *int
-	print(rv1.Elem().Interface().(*int)) // @pointsto main.a
+	print(rv1.Elem().Interface().(*int)) // @pointsto command-line-arguments.a
 
 	print(reflect.ValueOf(new(interface{})).Elem().Elem()) // @types
 
@@ -107,7 +108,7 @@ func reflectValueElem() {
 	ptr := &a
 	rv2 := reflect.ValueOf(&ptr)
 	print(rv2.Elem().Interface())        // @types *int
-	print(rv2.Elem().Interface().(*int)) // @pointsto main.a
+	print(rv2.Elem().Interface().(*int)) // @pointsto command-line-arguments.a
 
 	// No other type works with (rV).Elem, not even those that
 	// work with (rT).Elem: slice, array, map, chan.

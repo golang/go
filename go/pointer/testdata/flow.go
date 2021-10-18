@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -18,10 +19,10 @@ func flow1() {
 	if somepred {
 		r = s
 	}
-	print(s) // @pointsto main.f1
-	print(p) // @pointsto main.f2
-	print(q) // @pointsto main.f2
-	print(r) // @pointsto main.f1 | main.f2
+	print(s) // @pointsto command-line-arguments.f1
+	print(p) // @pointsto command-line-arguments.f2
+	print(q) // @pointsto command-line-arguments.f2
+	print(r) // @pointsto command-line-arguments.f1 | command-line-arguments.f2
 }
 
 // Tracking concrete types in interfaces.
@@ -50,10 +51,10 @@ func flow3() {
 	if somepred {
 		r = s
 	}
-	print(s) // @pointsto main.g1
-	print(p) // @pointsto main.g2
-	print(q) // @pointsto main.g2
-	print(r) // @pointsto main.g2 | main.g1
+	print(s) // @pointsto command-line-arguments.g1
+	print(p) // @pointsto command-line-arguments.g2
+	print(q) // @pointsto command-line-arguments.g2
+	print(r) // @pointsto command-line-arguments.g2 | command-line-arguments.g1
 }
 
 func main() {

@@ -21,18 +21,18 @@ import (
 	"go/types"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/callgraph"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/testenv"
 )
 
 var inputs = []string{
@@ -124,7 +124,7 @@ var inputs = []string{
 //
 type expectation struct {
 	kind     string // "pointsto" | "pointstoquery" | "types" | "calls" | "warning"
-	filename string
+	filepath string
 	linenum  int // source line number, 1-based
 	args     []string
 	query    string           // extended query
@@ -137,7 +137,7 @@ func (e *expectation) String() string {
 }
 
 func (e *expectation) errorf(format string, args ...interface{}) {
-	fmt.Printf("%s:%d: ", e.filename, e.linenum)
+	fmt.Printf("%s:%d: ", e.filepath, e.linenum)
 	fmt.Printf(format, args...)
 	fmt.Println()
 }
@@ -150,47 +150,50 @@ func (e *expectation) needsProbe() bool {
 func findProbe(prog *ssa.Program, probes map[*ssa.CallCommon]bool, queries map[ssa.Value]pointer.Pointer, e *expectation) (site *ssa.CallCommon, pts pointer.PointsToSet) {
 	for call := range probes {
 		pos := prog.Fset.Position(call.Pos())
-		if pos.Line == e.linenum && pos.Filename == e.filename {
+		if pos.Line == e.linenum && pos.Filename == e.filepath {
 			// TODO(adonovan): send this to test log (display only on failure).
 			// fmt.Printf("%s:%d: info: found probe for %s: %s\n",
-			// 	e.filename, e.linenum, e, p.arg0) // debugging
+			// 	e.filepath, e.linenum, e, p.arg0) // debugging
 			return call, queries[call.Args[0]].PointsTo()
 		}
 	}
 	return // e.g. analysis didn't reach this call
 }
 
-func doOneInput(t *testing.T, input, filename string) bool {
-	// TODO(#48547): Fix ssa.CreateTestMainPackage and unskip.
-	testenv.SkipAfterGo1Point(t, 17)
-
-	var conf loader.Config
-
-	// Parsing.
-	f, err := conf.ParseFile(filename, input)
+func doOneInput(t *testing.T, input, fpath string) bool {
+	cfg := &packages.Config{
+		Mode:  packages.LoadAllSyntax,
+		Tests: true,
+	}
+	pkgs, err := packages.Load(cfg, fpath)
 	if err != nil {
 		fmt.Println(err)
 		return false
 	}
-
-	// Create single-file main package and import its dependencies.
-	conf.CreateFromFiles("main", f)
-	iprog, err := conf.Load()
-	if err != nil {
-		fmt.Println(err)
+	if packages.PrintErrors(pkgs) > 0 {
+		fmt.Println("loaded packages have errors")
 		return false
 	}
-	mainPkgInfo := iprog.Created[0].Pkg
 
 	// SSA creation + building.
-	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
+	prog, ssaPkgs := ssautil.AllPackages(pkgs, ssa.SanityCheckFunctions)
 	prog.Build()
 
-	mainpkg := prog.Package(mainPkgInfo)
+	// main underlying packages.Package.
+	mainPpkg := pkgs[0]
+	mainpkg := ssaPkgs[0]
 	ptrmain := mainpkg // main package for the pointer analysis
 	if mainpkg.Func("main") == nil {
-		// No main function; assume it's a test.
-		ptrmain = prog.CreateTestMainPackage(mainpkg)
+		// For test programs without main, such as testdata/a_test.go,
+		// the package with the original code is "main [main.test]" and
+		// the package with the main is "main.test".
+		for i, pkg := range pkgs {
+			if pkg.ID == mainPpkg.ID+".test" {
+				ptrmain = ssaPkgs[i]
+			} else if pkg.ID == fmt.Sprintf("%s [%s.test]", mainPpkg.ID, mainPpkg.ID) {
+				mainpkg = ssaPkgs[i]
+			}
+		}
 	}
 
 	// Find all calls to the built-in print(x).  Analytically,
@@ -225,14 +228,14 @@ func doOneInput(t *testing.T, input, filename string) bool {
 		if matches := re.FindAllStringSubmatch(line, -1); matches != nil {
 			match := matches[0]
 			kind, rest := match[1], match[2]
-			e := &expectation{kind: kind, filename: filename, linenum: linenum}
+			e := &expectation{kind: kind, filepath: fpath, linenum: linenum}
 
 			if kind == "line" {
 				if rest == "" {
 					ok = false
 					e.errorf("@%s expectation requires identifier", kind)
 				} else {
-					lineMapping[fmt.Sprintf("%s:%d", filename, linenum)] = rest
+					lineMapping[fmt.Sprintf("%s:%d", fpath, linenum)] = rest
 				}
 				continue
 			}
@@ -255,7 +258,7 @@ func doOneInput(t *testing.T, input, filename string) bool {
 				for _, typstr := range split(rest, "|") {
 					var t types.Type = types.Typ[types.Invalid] // means "..."
 					if typstr != "..." {
-						tv, err := types.Eval(prog.Fset, mainpkg.Pkg, f.Pos(), typstr)
+						tv, err := types.Eval(prog.Fset, mainpkg.Pkg, mainPpkg.Syntax[0].Pos(), typstr)
 						if err != nil {
 							ok = false
 							// Don't print err since its location is bad.
@@ -298,7 +301,7 @@ func doOneInput(t *testing.T, input, filename string) bool {
 	}
 
 	var log bytes.Buffer
-	fmt.Fprintf(&log, "Input: %s\n", filename)
+	fmt.Fprintf(&log, "Input: %s\n", fpath)
 
 	// Run the analysis.
 	config := &pointer.Config{
@@ -312,7 +315,7 @@ probeLoop:
 		v := probe.Args[0]
 		pos := prog.Fset.Position(probe.Pos())
 		for _, e := range exps {
-			if e.linenum == pos.Line && e.filename == pos.Filename && e.kind == "pointstoquery" {
+			if e.linenum == pos.Line && e.filepath == pos.Filename && e.kind == "pointstoquery" {
 				var err error
 				e.extended, err = config.AddExtendedQuery(v, e.query)
 				if err != nil {
@@ -571,7 +574,12 @@ func TestInput(t *testing.T) {
 			continue
 		}
 
-		if !doOneInput(t, string(content), filename) {
+		fpath, err := filepath.Abs(filename)
+		if err != nil {
+			t.Errorf("couldn't get absolute path for '%s': %s", filename, err)
+		}
+
+		if !doOneInput(t, string(content), fpath) {
 			ok = false
 		}
 	}

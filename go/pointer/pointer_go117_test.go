@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -34,8 +35,12 @@ func TestSliceToArrayPointer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't read file '%s': %s", filename, err)
 	}
+	fpath, err := filepath.Abs(filename)
+	if err != nil {
+		t.Errorf("couldn't get absolute path for '%s': %s", filename, err)
+	}
 
-	if !doOneInput(t, string(content), filename) {
+	if !doOneInput(t, string(content), fpath) {
 		t.Fail()
 	}
 }

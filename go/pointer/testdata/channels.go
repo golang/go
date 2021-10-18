@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -16,10 +17,10 @@ func chan1() {
 	chB <- func(int) int { return 1 }
 
 	print(chA)   // @pointsto makechan@c1makeA:13
-	print(<-chA) // @pointsto main.incr
+	print(<-chA) // @pointsto command-line-arguments.incr
 
 	print(chB)   // @pointsto makechan@c1makeB:13
-	print(<-chB) // @pointsto main.decr | main.chan1$1
+	print(<-chB) // @pointsto command-line-arguments.decr | command-line-arguments.chan1$1
 }
 
 func chan2() {
@@ -37,18 +38,18 @@ func chan2() {
 	}
 
 	print(chA)   // @pointsto makechan@c2makeA:13
-	print(<-chA) // @pointsto main.incr
+	print(<-chA) // @pointsto command-line-arguments.incr
 
 	print(chB)   // @pointsto makechan@c2makeB:13
-	print(<-chB) // @pointsto main.decr | main.chan2$1
+	print(<-chB) // @pointsto command-line-arguments.decr | command-line-arguments.chan2$1
 
 	print(chAB)   // @pointsto makechan@c2makeA:13 | makechan@c2makeB:13
-	print(<-chAB) // @pointsto main.incr | main.decr | main.chan2$1
+	print(<-chAB) // @pointsto command-line-arguments.incr | command-line-arguments.decr | command-line-arguments.chan2$1
 
 	(<-chA)(3)
 }
 
-// @calls main.chan2 -> main.incr
+// @calls command-line-arguments.chan2 -> command-line-arguments.incr
 
 func chan3() {
 	chA := make(chan func(int) int, 0) // @line c3makeA
@@ -57,14 +58,14 @@ func chan3() {
 	chB <- decr
 	chB <- func(int) int { return 1 }
 	print(chA)   // @pointsto makechan@c3makeA:13
-	print(<-chA) // @pointsto main.incr
+	print(<-chA) // @pointsto command-line-arguments.incr
 	print(chB)   // @pointsto makechan@c3makeB:13
-	print(<-chB) // @pointsto main.decr | main.chan3$1
+	print(<-chB) // @pointsto command-line-arguments.decr | command-line-arguments.chan3$1
 
 	(<-chA)(3)
 }
 
-// @calls main.chan3 -> main.incr
+// @calls command-line-arguments.chan3 -> command-line-arguments.incr
 
 func chan4() {
 	chA := make(chan func(int) int, 0) // @line c4makeA
@@ -74,16 +75,16 @@ func chan4() {
 	case chA <- incr:
 	case chB <- decr:
 	case a := <-chA:
-		print(a) // @pointsto main.incr
+		print(a) // @pointsto command-line-arguments.incr
 	case b := <-chB:
-		print(b) // @pointsto main.decr
+		print(b) // @pointsto command-line-arguments.decr
 	default:
 		print(chA) // @pointsto makechan@c4makeA:13
 		print(chB) // @pointsto makechan@c4makeB:13
 	}
 
 	for k := range chA {
-		print(k) // @pointsto main.incr
+		print(k) // @pointsto command-line-arguments.incr
 	}
 	// Exercise constraint generation (regtest for a crash).
 	for range chA {

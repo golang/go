@@ -17,8 +17,8 @@ func runtimeSetFinalizer1() {
 	runtime.SetFinalizer(x, final1b) // param type mismatch: no effect
 }
 
-// @calls main.runtimeSetFinalizer1 -> main.final1a
-// @calls main.runtimeSetFinalizer1 -> main.final1b
+// @calls command-line-arguments.runtimeSetFinalizer1 -> command-line-arguments.final1a
+// @calls command-line-arguments.runtimeSetFinalizer1 -> command-line-arguments.final1b
 
 func final2a(x *bool) {
 	print(x) // @pointsto new@newbool1:10 | new@newbool2:10
@@ -38,8 +38,8 @@ func runtimeSetFinalizer2() {
 	runtime.SetFinalizer(x, f)
 }
 
-// @calls main.runtimeSetFinalizer2 -> main.final2a
-// @calls main.runtimeSetFinalizer2 -> main.final2b
+// @calls command-line-arguments.runtimeSetFinalizer2 -> command-line-arguments.final2a
+// @calls command-line-arguments.runtimeSetFinalizer2 -> command-line-arguments.final2b
 
 type T int
 
@@ -52,7 +52,7 @@ func runtimeSetFinalizer3() {
 	runtime.SetFinalizer(x, (*T).finalize)
 }
 
-// @calls main.runtimeSetFinalizer3 -> (*main.T).finalize$thunk
+// @calls command-line-arguments.runtimeSetFinalizer3 -> (*command-line-arguments.T).finalize$thunk
 
 // I hope I never live to see this code in the wild.
 var setFinalizer = runtime.SetFinalizer
@@ -75,8 +75,8 @@ func runtimeSetFinalizerNonpointer() {
 	runtime.SetFinalizer((*T).finalize, nil) // f is a non-pointer
 }
 
-// @calls main.runtimeSetFinalizerIndirect -> runtime.SetFinalizer
-// @calls runtime.SetFinalizer -> main.final4
+// @calls command-line-arguments.runtimeSetFinalizerIndirect -> runtime.SetFinalizer
+// @calls runtime.SetFinalizer -> command-line-arguments.final4
 
 func main() {
 	runtimeSetFinalizer1()

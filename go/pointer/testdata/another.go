@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -29,8 +30,8 @@ func main() {
 
 	// NB, an interface may never directly alias any global
 	// labels, even though it may contain pointers that do.
-	print(i)                 // @pointsto makeinterface:func(x int) int | makeinterface:func(x int, y int) | makeinterface:func(int, int) | makeinterface:int | makeinterface:main.S
-	print(i.(func(int) int)) // @pointsto main.incr
+	print(i)                 // @pointsto makeinterface:func(x int) int | makeinterface:func(x int, y int) | makeinterface:func(int, int) | makeinterface:int | makeinterface:command-line-arguments.S
+	print(i.(func(int) int)) // @pointsto command-line-arguments.incr
 
 	print() // regression test for crash
 }

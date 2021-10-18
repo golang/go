@@ -1,9 +1,12 @@
+//go:build ignore
 // +build ignore
 
 package main
 
-import "reflect"
-import "unsafe"
+import (
+	"reflect"
+	"unsafe"
+)
 
 var a, b int
 var unknown bool
@@ -11,9 +14,9 @@ var unknown bool
 func reflectIndirect() {
 	ptr := &a
 	// Pointer:
-	print(reflect.Indirect(reflect.ValueOf(&ptr)).Interface().(*int)) // @pointsto main.a
+	print(reflect.Indirect(reflect.ValueOf(&ptr)).Interface().(*int)) // @pointsto command-line-arguments.a
 	// Non-pointer:
-	print(reflect.Indirect(reflect.ValueOf([]*int{ptr})).Interface().([]*int)[0]) // @pointsto main.a
+	print(reflect.Indirect(reflect.ValueOf([]*int{ptr})).Interface().([]*int)[0]) // @pointsto command-line-arguments.a
 }
 
 func reflectNewAt() {
@@ -21,7 +24,7 @@ func reflectNewAt() {
 	print(reflect.NewAt(reflect.TypeOf(3), unsafe.Pointer(&x)).Interface()) // @types *int
 }
 
-// @warning "unsound: main.reflectNewAt contains a reflect.NewAt.. call"
+// @warning "unsound: command-line-arguments.reflectNewAt contains a reflect.NewAt.. call"
 
 func reflectTypeOf() {
 	t := reflect.TypeOf(3)
@@ -61,7 +64,7 @@ func metareflection() {
 	print(v1a)                             // @types reflect.Value
 	v0a := v1a.Interface().(reflect.Value) // unbox
 	print(v0a)                             // @types *int
-	print(v0a.Interface().(*int))          // @pointsto main.a
+	print(v0a.Interface().(*int))          // @pointsto command-line-arguments.a
 
 	// "box" an interface{} lvalue twice, unbox it twice.
 	var iface interface{} = 3

@@ -25,5 +25,5 @@ type I interface {
 
 func main() {
 	type Y struct{ X }
-	print(reflect.Indirect(reflect.ValueOf(new(Y))).Interface().(I).F()) // @pointsto main.a
+	print(reflect.Indirect(reflect.ValueOf(new(Y))).Interface().(I).F()) // @pointsto command-line-arguments.a
 }

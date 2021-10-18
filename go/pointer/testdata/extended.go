@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -17,5 +18,5 @@ func fn() []t {
 
 func main() {
 	x := fn()
-	print(x) // @pointstoquery <-(*x[i].a)[key] main.a
+	print(x) // @pointstoquery <-(*x[i].a)[key] command-line-arguments.a
 }

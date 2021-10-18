@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -26,23 +27,23 @@ func conv3() {
 	// Conversion of same underlying types.
 	type PI *int
 	pi := PI(&a)
-	print(pi) // @pointsto main.a
+	print(pi) // @pointsto command-line-arguments.a
 
 	pint := (*int)(pi)
-	print(pint) // @pointsto main.a
+	print(pint) // @pointsto command-line-arguments.a
 
 	// Conversions between pointers to identical base types.
 	var y *PI = &pi
 	var x **int = (**int)(y)
-	print(*x) // @pointsto main.a
-	print(*y) // @pointsto main.a
+	print(*x) // @pointsto command-line-arguments.a
+	print(*y) // @pointsto command-line-arguments.a
 	y = (*PI)(x)
-	print(*y) // @pointsto main.a
+	print(*y) // @pointsto command-line-arguments.a
 }
 
 func conv4() {
 	// Handling of unsafe.Pointer conversion is unsound:
-	// we lose the alias to main.a and get something like new(int) instead.
+	// we lose the alias to command-line-arguments.a and get something like new(int) instead.
 	p := (*int)(unsafe.Pointer(&a)) // @line c2p
 	print(p)                        // @pointsto convert@c2p:13
 }
