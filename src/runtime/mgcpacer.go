@@ -751,7 +751,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 			// Avoid setting the sweep ratio extremely high
 			heapDistance = _PageSize
 		}
-		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
+		pagesSwept := mheap_.pagesSwept.Load()
 		pagesInUse := mheap_.pagesInUse.Load()
 		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
 		if sweepDistancePages <= 0 {

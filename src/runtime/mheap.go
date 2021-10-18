@@ -103,7 +103,7 @@ type mheap struct {
 	// the slope, it would create a discontinuity in debt if any
 	// progress has already been made.
 	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
-	pagesSwept         uint64        // pages swept this cycle; updated atomically
+	pagesSwept         atomic.Uint64 // pages swept this cycle
 	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
 	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
