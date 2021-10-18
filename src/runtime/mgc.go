@@ -1459,7 +1459,7 @@ func gcSweep(mode gcMode) {
 	mheap_.sweepDrained = 0
 	mheap_.pagesSwept.Store(0)
 	mheap_.sweepArenas = mheap_.allArenas
-	mheap_.reclaimIndex = 0
+	mheap_.reclaimIndex.Store(0)
 	mheap_.reclaimCredit = 0
 	unlock(&mheap_.lock)
 
