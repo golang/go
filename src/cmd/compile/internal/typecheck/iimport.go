@@ -1457,6 +1457,11 @@ func (r *importReader) node() ir.Node {
 		}
 		return n
 
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
+		n.SetType(r.typ())
+		return n
+
 	case ir.OINDEX, ir.OINDEXMAP:
 		n := ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
 		if go117ExportTypes {
