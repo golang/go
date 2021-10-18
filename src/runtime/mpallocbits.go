@@ -57,6 +57,12 @@ func (b *pageBits) setAll() {
 	}
 }
 
+// setBlock64 sets the 64-bit aligned block of bits containing the i'th bit that
+// are set in v.
+func (b *pageBits) setBlock64(i uint, v uint64) {
+	b[i/64] |= v
+}
+
 // clear clears bit i of pageBits.
 func (b *pageBits) clear(i uint) {
 	b[i/64] &^= 1 << (i % 64)
@@ -91,6 +97,12 @@ func (b *pageBits) clearAll() {
 	for i := range b {
 		b[i] = 0
 	}
+}
+
+// clearBlock64 clears the 64-bit aligned block of bits containing the i'th bit that
+// are set in v.
+func (b *pageBits) clearBlock64(i uint, v uint64) {
+	b[i/64] &^= v
 }
 
 // popcntRange counts the number of set bits in the
@@ -365,6 +377,12 @@ func (b *pallocBits) freeAll() {
 // page in this pallocBits. Each bit represents whether the page is in-use.
 func (b *pallocBits) pages64(i uint) uint64 {
 	return (*pageBits)(b).block64(i)
+}
+
+// allocPages64 allocates a 64-bit block of 64 pages aligned to 64 pages according
+// to the bits set in alloc. The block set is the one containing the i'th page.
+func (b *pallocBits) allocPages64(i uint, alloc uint64) {
+	(*pageBits)(b).setBlock64(i, alloc)
 }
 
 // findBitRange64 returns the bit index of the first set of
