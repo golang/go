@@ -123,9 +123,7 @@ type mheap struct {
 	//
 	// If this is >= 1<<63, the page reclaimer is done scanning
 	// the page marks.
-	//
-	// This is accessed atomically.
-	reclaimIndex uint64
+	reclaimIndex atomic.Uint64
 	// reclaimCredit is spare credit for extra pages swept. Since
 	// the page reclaimer works in large chunks, it may reclaim
 	// more than requested. Any spare pages released go to this
@@ -739,7 +737,7 @@ func (h *mheap) reclaim(npage uintptr) {
 	// batching heap frees.
 
 	// Bail early if there's no more reclaim work.
-	if atomic.Load64(&h.reclaimIndex) >= 1<<63 {
+	if h.reclaimIndex.Load() >= 1<<63 {
 		return
 	}
 
@@ -769,10 +767,10 @@ func (h *mheap) reclaim(npage uintptr) {
 		}
 
 		// Claim a chunk of work.
-		idx := uintptr(atomic.Xadd64(&h.reclaimIndex, pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
+		idx := uintptr(h.reclaimIndex.Add(pagesPerReclaimerChunk) - pagesPerReclaimerChunk)
 		if idx/pagesPerArena >= uintptr(len(arenas)) {
 			// Page reclaiming is done.
-			atomic.Store64(&h.reclaimIndex, 1<<63)
+			h.reclaimIndex.Store(1 << 63)
 			break
 		}
 
