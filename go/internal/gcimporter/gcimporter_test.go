@@ -162,6 +162,9 @@ func TestImportTestdata(t *testing.T) {
 }
 
 func TestVersionHandling(t *testing.T) {
+	if debug {
+		t.Skip("TestVersionHandling panics in debug mode")
+	}
 	skipSpecialPlatforms(t) // we really only need to exclude nacl platforms, but this is fine
 
 	// This package only handles gc export data.

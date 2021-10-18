@@ -34,9 +34,6 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
-// If trace is set, debugging output is printed to std out.
-const trace = false // default: false
-
 // Current export format version. Increase with each format change.
 // Note: The latest binary (non-indexed) export format is at version 6.
 //       This exporter is still at level 4, but it doesn't matter since

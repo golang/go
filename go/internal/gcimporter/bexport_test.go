@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -241,6 +242,32 @@ func equalType(x, y types.Type) error {
 		}
 		if err := equalTypeArgs(typeparams.NamedTypeArgs(x), typeparams.NamedTypeArgs(y)); err != nil {
 			return fmt.Errorf("type arguments: %s", err)
+		}
+		if x.NumMethods() != y.NumMethods() {
+			return fmt.Errorf("unequal methods: %d vs %d",
+				x.NumMethods(), y.NumMethods())
+		}
+		// Unfortunately method sorting is not canonical, so sort before comparing.
+		var xms, yms []*types.Func
+		for i := 0; i < x.NumMethods(); i++ {
+			xms = append(xms, x.Method(i))
+			yms = append(yms, y.Method(i))
+		}
+		for _, ms := range [][]*types.Func{xms, yms} {
+			sort.Slice(ms, func(i, j int) bool {
+				return ms[i].Name() < ms[j].Name()
+			})
+		}
+		for i, xm := range xms {
+			ym := yms[i]
+			if xm.Name() != ym.Name() {
+				return fmt.Errorf("mismatched %dth method: %s vs %s", i, xm, ym)
+			}
+			// Calling equalType here leads to infinite recursion, so just compare
+			// strings.
+			if sanitizeName(xm.String()) != sanitizeName(ym.String()) {
+				return fmt.Errorf("unequal methods: %s vs %s", x, y)
+			}
 		}
 	case *types.Pointer:
 		y := y.(*types.Pointer)

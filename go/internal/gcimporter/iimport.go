@@ -154,7 +154,7 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 		pkgIndex: make(map[*types.Package]map[string]uint64),
 		typCache: make(map[uint64]types.Type),
 		// Separate map for typeparams, keyed by their package and unique
-		// name (name with subscript).
+		// name.
 		tparamIndex: make(map[ident]types.Type),
 
 		fake: fakeFileSet{
@@ -262,9 +262,28 @@ type iimporter struct {
 
 	fake          fakeFileSet
 	interfaceList []*types.Interface
+
+	indent int // for tracing support
+}
+
+func (p *iimporter) trace(format string, args ...interface{}) {
+	if !trace {
+		// Call sites should also be guarded, but having this check here allows
+		// easily enabling/disabling debug trace statements.
+		return
+	}
+	fmt.Printf(strings.Repeat("..", p.indent)+format+"\n", args...)
 }
 
 func (p *iimporter) doDecl(pkg *types.Package, name string) {
+	if debug {
+		p.trace("import decl %s", name)
+		p.indent++
+		defer func() {
+			p.indent--
+			p.trace("=> %s", name)
+		}()
+	}
 	// See if we've already imported this declaration.
 	if obj := pkg.Scope().Lookup(name); obj != nil {
 		return
@@ -381,15 +400,13 @@ func (r *importReader) obj(name string) {
 				// If the receiver has any targs, set those as the
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
-				targs := typeparams.NamedTypeArgs(baseType(recv.Type()))
+				base := baseType(recv.Type())
+				assert(base != nil)
+				targs := typeparams.NamedTypeArgs(base)
 				var rparams []*typeparams.TypeParam
 				if targs.Len() > 0 {
-					rparams := make([]*typeparams.TypeParam, targs.Len())
+					rparams = make([]*typeparams.TypeParam, targs.Len())
 					for i := range rparams {
-						// TODO(rfindley): this is less tolerant than the standard library
-						// go/internal/gcimporter, which calls under(...) and is tolerant
-						// of nil rparams. Bring them in sync by making the standard
-						// library importer stricter.
 						rparams[i] = targs.At(i).(*typeparams.TypeParam)
 					}
 				}
@@ -406,24 +423,14 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		// Temporarily strip both type parameter subscripts and path prefixes,
-		// while we replace subscripts with prefixes in the compiler.
-		// TODO(rfindley): remove support for subscripts once the compiler changes
-		// have landed.
-		name0, _ := parseSubscript(name)
+		// Remove the "path" from the type param name that makes it unique
 		ix := strings.LastIndex(name, ".")
-		name0 = name0[ix+1:]
+		if ix < 0 {
+			errorf("missing path for type param")
+		}
+		name0 := name[ix+1:]
 		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
 		t := typeparams.NewTypeParam(tn, nil)
-
-		// The check below is disabled so that we can support both path-prefixed
-		// and subscripted type parameter names.
-		// if sub == 0 {
-		// 	errorf("name %q missing subscript", name)
-		// }
-
-		// TODO(rfindley): can we use a different, stable ID?
-		// t.SetId(sub)
 
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
@@ -638,8 +645,17 @@ func isInterface(t types.Type) bool {
 func (r *importReader) pkg() *types.Package { return r.p.pkgAt(r.uint64()) }
 func (r *importReader) string() string      { return r.p.stringAt(r.uint64()) }
 
-func (r *importReader) doType(base *types.Named) types.Type {
-	switch k := r.kind(); k {
+func (r *importReader) doType(base *types.Named) (res types.Type) {
+	k := r.kind()
+	if debug {
+		r.p.trace("importing type %d (base: %s)", k, base)
+		r.p.indent++
+		defer func() {
+			r.p.indent--
+			r.p.trace("=> %s", res)
+		}()
+	}
+	switch k {
 	default:
 		errorf("unexpected kind tag in %q: %v", r.p.ipath, k)
 		return nil
@@ -831,24 +847,4 @@ func baseType(typ types.Type) *types.Named {
 	// receiver base types are always (possibly generic) types.Named types
 	n, _ := typ.(*types.Named)
 	return n
-}
-
-func parseSubscript(name string) (string, uint64) {
-	// Extract the subscript value from the type param name. We export
-	// and import the subscript value, so that all type params have
-	// unique names.
-	sub := uint64(0)
-	startsub := -1
-	for i, r := range name {
-		if '₀' <= r && r < '₀'+10 {
-			if startsub == -1 {
-				startsub = i
-			}
-			sub = sub*10 + uint64(r-'₀')
-		}
-	}
-	if startsub >= 0 {
-		name = name[:startsub]
-	}
-	return name, sub
 }
