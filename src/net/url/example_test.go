@@ -12,6 +12,46 @@ import (
 	"strings"
 )
 
+func ExamplePathEscape() {
+	path := url.PathEscape("my/cool+blog&about,stuff")
+	fmt.Println(path)
+
+	// Output:
+	// my%2Fcool+blog&about%2Cstuff
+}
+
+func ExamplePathUnescape() {
+	escapedPath := "my%2Fcool+blog&about%2Cstuff"
+	path, err := url.PathUnescape(escapedPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(path)
+
+	// Output:
+	// my/cool+blog&about,stuff
+}
+
+func ExampleQueryEscape() {
+	query := url.QueryEscape("my/cool+blog&about,stuff")
+	fmt.Println(query)
+
+	// Output:
+	// my%2Fcool%2Bblog%26about%2Cstuff
+}
+
+func ExampleQueryUnescape() {
+	escapedQuery := "my%2Fcool%2Bblog%26about%2Cstuff"
+	query, err := url.QueryUnescape(escapedQuery)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(query)
+
+	// Output:
+	// my/cool+blog&about,stuff
+}
+
 func ExampleValues() {
 	v := url.Values{}
 	v.Set("name", "Ava")
