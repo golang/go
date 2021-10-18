@@ -104,7 +104,7 @@ type mheap struct {
 	// progress has already been made.
 	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
 	pagesSwept         atomic.Uint64 // pages swept this cycle
-	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
+	pagesSweptBasis    atomic.Uint64 // pagesSwept to use as the origin of the sweep ratio
 	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without
 	// TODO(austin): pagesInUse should be a uintptr, but the 386
