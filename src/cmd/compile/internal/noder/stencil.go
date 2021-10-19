@@ -881,7 +881,7 @@ func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code 
 		cond := ir.NewBinaryExpr(pos, ir.ONE, want, got)
 		typed(types.Types[types.TBOOL], cond)
 		panicArg := ir.NewNilExpr(pos)
-		typed(types.NewInterface(types.LocalPkg, nil), panicArg)
+		typed(types.NewInterface(types.LocalPkg, nil, false), panicArg)
 		then := ir.NewUnaryExpr(pos, ir.OPANIC, panicArg)
 		then.SetTypecheck(1)
 		x := ir.NewIfStmt(pos, cond, []ir.Node{then}, nil)

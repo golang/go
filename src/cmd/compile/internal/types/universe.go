@@ -58,7 +58,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	}
 
 	Types[TANY] = newType(TANY)
-	Types[TINTER] = NewInterface(LocalPkg, nil)
+	Types[TINTER] = NewInterface(LocalPkg, nil, false)
 
 	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
 		typ := newType(kind)
@@ -111,7 +111,7 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
 	if base.Flag.G > 0 {
 		DeferCheckSize()
 		AnyType = defBasic(TFORW, BuiltinPkg, "any")
-		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}))
+		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}, false))
 		ResumeCheckSize()
 	}
 
@@ -145,11 +145,11 @@ func makeErrorInterface() *Type {
 		NewField(src.NoXPos, nil, Types[TSTRING]),
 	})
 	method := NewField(src.NoXPos, LocalPkg.Lookup("Error"), sig)
-	return NewInterface(NoPkg, []*Field{method})
+	return NewInterface(NoPkg, []*Field{method}, false)
 }
 
 func makeComparableInterface() *Type {
 	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, nil)
 	method := NewField(src.NoXPos, LocalPkg.Lookup("=="), sig)
-	return NewInterface(NoPkg, []*Field{method})
+	return NewInterface(NoPkg, []*Field{method}, false)
 }
