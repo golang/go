@@ -85,7 +85,7 @@ TEXT ·IndexString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
 	MOVBZ internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R7
 	CMP   R7, $1
 	BNE   power8
-	BR    indexbody<>(SB)
+	BR    indexbodyp9<>(SB)
 
 #endif
 power8:
@@ -152,7 +152,7 @@ loadge16:
 	ANDCC $15, R5, R9 // Find byte offset of sep
 	ADD   R9, R6, R10 // Add sep len
 	CMP   R10, $16    // Check if sep len+offset > 16
-	BGE   sepcross16  // Sep crosses 16 byte boundary
+	BGT   sepcross16  // Sep crosses 16 byte boundary
 
 	RLDICR $0, R5, $59, R8 // Adjust addr to 16 byte container
 	VLOADSWAP(R8, R0, V0, V0_)// Load 16 bytes @R8 into V0
@@ -490,7 +490,7 @@ loadge16:
 	ANDCC $15, R5, R9 // Find byte offset of sep
 	ADD   R9, R6, R10 // Add sep len
 	CMP   R10, $16    // Check if sep len+offset > 16
-	BGE   sepcross16  // Sep crosses 16 byte boundary
+	BGT   sepcross16  // Sep crosses 16 byte boundary
 
 	RLDICR  $0, R5, $59, R8 // Adjust addr to 16 byte container
 	LXVB16X (R8)(R0), V0_   // Load 16 bytes @R8 into V0
