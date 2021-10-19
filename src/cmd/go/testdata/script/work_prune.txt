@@ -14,7 +14,7 @@
 # TODO(#48331): We currently load the wrong version of q. Fix this.
 
 go list -m -f '{{.Version}}' example.com/q
-stdout '^v1.0.0$' # TODO(#48331): This should be 1.1.0. Fix this.
+stdout '^v1.1.0$'
 
 -- go.work --
 go 1.18
