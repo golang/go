@@ -61,9 +61,10 @@ $ gotip download
 ```
 
 For building gopls with type parameter support, it is recommended that you
-build gopls at tip. External APIs are under active development on the
-Go `master` branch, so building gopls at tip minimizes the chances of
-a build failure.
+build gopls at tip. External APIs are under active development on the Go
+`master` branch, so building gopls at tip minimizes the chances of a build
+failure. You will also need to update the `go` directive in your `go.mod`
+file to refer to `go 1.18` to use generics.
 
 Build and install the latest **unstable** version of `gopls` following
 [the instruction](#installing-unreleased-versions).
