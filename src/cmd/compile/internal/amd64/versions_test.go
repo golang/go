@@ -53,7 +53,9 @@ func TestGoAMD64v1(t *testing.T) {
 	opcodes := map[string]bool{}
 	var features []string
 	for feature, opcodeList := range featureToOpcodes {
-		features = append(features, fmt.Sprintf("cpu.%s=off", feature))
+		if runtimeFeatures[feature] {
+			features = append(features, fmt.Sprintf("cpu.%s=off", feature))
+		}
 		for _, op := range opcodeList {
 			opcodes[op] = true
 		}
@@ -204,14 +206,28 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
 	f.Close()
 }
 
+func setOf(keys ...string) map[string]bool {
+	m := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		m[key] = true
+	}
+	return m
+}
+
+var runtimeFeatures = setOf(
+	"adx", "aes", "avx", "avx2", "bmi1", "bmi2", "erms", "fma",
+	"pclmulqdq", "popcnt", "rdtscp", "sse3", "sse41", "sse42", "ssse3",
+)
+
 var featureToOpcodes = map[string][]string{
 	// Note: we include *q, *l, and plain opcodes here.
 	// go tool objdump doesn't include a [QL] on popcnt instructions, until CL 351889
 	// native objdump doesn't include [QL] on linux.
-	"popcnt": []string{"popcntq", "popcntl", "popcnt"},
-	"bmi1":   []string{"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
-	"sse41":  []string{"roundsd"},
-	"fma":    []string{"vfmadd231sd"},
+	"popcnt": {"popcntq", "popcntl", "popcnt"},
+	"bmi1":   {"andnq", "andnl", "andn", "blsiq", "blsil", "blsi", "blsmskq", "blsmskl", "blsmsk", "blsrq", "blsrl", "blsr", "tzcntq", "tzcntl", "tzcnt"},
+	"sse41":  {"roundsd"},
+	"fma":    {"vfmadd231sd"},
+	"movbe":  {"movbeqq", "movbeq", "movbell", "movbel", "movbe"},
 }
 
 // Test to use POPCNT instruction, if available
@@ -364,5 +380,4 @@ func TestFMA(t *testing.T) {
 			t.Errorf("FMA(%f,%f,%f) = %f, want %f", tt.x, tt.y, tt.z, got, tt.want)
 		}
 	}
-
 }

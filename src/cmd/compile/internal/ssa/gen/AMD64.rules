@@ -2219,3 +2219,29 @@
 (AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
 
 (BSWAP(Q|L) (BSWAP(Q|L) p)) => p
+
+// CPUID feature: MOVBE.
+(MOV(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
+(BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
+(BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
+(MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+
+(ORQ                   x0:(MOVBELload [i0] {s} p mem)
+    sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
+  && i0 == i1+4
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && sh.Uses == 1
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0, x1, sh)
+  => @mergePoint(b,x0,x1) (MOVBEQload [i1] {s} p mem)
+
+(ORQ                   x0:(MOVBELload [i] {s} p0 mem)
+    sh:(SHLQconst [32] x1:(MOVBELload [i] {s} p1 mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && sh.Uses == 1
+  && sequentialAddresses(p1, p0, 4)
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0, x1, sh)
+  => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
