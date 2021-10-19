@@ -254,15 +254,16 @@ import (
 // Current indexed export format version. Increase with each format change.
 // 0: Go1.11 encoding
 // 1: added column details to Pos
-// 2: added information for generic function/types (currently unstable)
+// 2: added information for generic function/types.  The export of non-generic
+// functions/types remains largely backward-compatible.  Breaking changes include:
+//    - a 'kind' byte is added to constant values
 const (
-	iexportVersionGo1_11 = 0
-	iexportVersionPosCol = 1
-	// TODO: before release, change this back to 2.  Kept at previous version
-	// for now (for testing).
-	iexportVersionGenerics = iexportVersionPosCol
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGo1_18   = 2
 
-	iexportVersionCurrent = iexportVersionGenerics
+	iexportVersionCurrent = 2
 )
 
 // predeclReserved is the number of type offsets reserved for types
@@ -561,6 +562,10 @@ func (p *iexporter) doDecl(n *ir.Name) {
 			// A typeparam has a name, and has a type bound rather
 			// than an underlying type.
 			w.pos(n.Pos())
+			if iexportVersionCurrent >= iexportVersionGo1_18 {
+				implicit := n.Type().Bound().IsImplicit()
+				w.bool(implicit)
+			}
 			w.typ(n.Type().Bound())
 			break
 		}
@@ -1137,17 +1142,24 @@ func constTypeOf(typ *types.Type) constant.Kind {
 
 func (w *exportWriter) value(typ *types.Type, v constant.Value) {
 	w.typ(typ)
+
+	if iexportVersionCurrent >= iexportVersionGo1_18 {
+		w.int64(int64(v.Kind()))
+	}
+
 	var kind constant.Kind
 	var valType *types.Type
 
 	if typ.IsTypeParam() {
-		// A constant will have a TYPEPARAM type if it appears in a place
-		// where it must match that typeparam type (e.g. in a binary
-		// operation with a variable of that typeparam type). If so, then
-		// we must write out its actual constant kind as well, so its
-		// constant val can be read in properly during import.
 		kind = v.Kind()
-		w.int64(int64(kind))
+		if iexportVersionCurrent < iexportVersionGo1_18 {
+			// A constant will have a TYPEPARAM type if it appears in a place
+			// where it must match that typeparam type (e.g. in a binary
+			// operation with a variable of that typeparam type). If so, then
+			// we must write out its actual constant kind as well, so its
+			// constant val can be read in properly during import.
+			w.int64(int64(kind))
+		}
 
 		switch kind {
 		case constant.Int:
