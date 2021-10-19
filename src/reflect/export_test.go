@@ -161,3 +161,5 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
 	clearLayoutCache()
 	return
 }
+
+var MethodValueCallCodePtr = methodValueCallCodePtr
