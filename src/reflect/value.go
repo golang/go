@@ -2488,8 +2488,8 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 			// created via reflect have the same underlying code pointer,
 			// so their Pointers are equal. The function used here must
 			// match the one used in makeMethodValue.
-			f := methodValueCall
-			return **(**unsafe.Pointer)(unsafe.Pointer(&f))
+			code := methodValueCallCodePtr()
+			return *(*unsafe.Pointer)(unsafe.Pointer(&code))
 		}
 		p := v.pointer()
 		// Non-nil func value points at data block.
