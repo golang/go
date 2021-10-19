@@ -99,7 +99,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 
 	var mode syntax.Mode
-	if strings.HasSuffix(filenames[0], ".go2") {
+	if strings.HasSuffix(filenames[0], ".go2") || manual {
 		mode |= syntax.AllowGenerics
 	}
 	// parse files and collect parser errors
