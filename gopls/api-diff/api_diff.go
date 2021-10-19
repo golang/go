@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/internal/gocommand"
 	difflib "golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/source"
@@ -48,18 +50,19 @@ type JSON interface {
 }
 
 func diffAPI(version, prev string) (string, error) {
-	previousApi, err := loadAPI(prev)
+	ctx := context.Background()
+	previousApi, err := loadAPI(ctx, prev)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("load previous API: %v", err)
 	}
 	var currentApi *source.APIJSON
 	if version == "" {
 		currentApi = source.GeneratedAPIJSON
 	} else {
 		var err error
-		currentApi, err = loadAPI(version)
+		currentApi, err = loadAPI(ctx, version)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("load current API: %v", err)
 		}
 	}
 
@@ -67,17 +70,17 @@ func diffAPI(version, prev string) (string, error) {
 	if err := diff(b, previousApi.Commands, currentApi.Commands, "command", func(c *source.CommandJSON) string {
 		return c.Command
 	}, diffCommands); err != nil {
-		return "", err
+		return "", fmt.Errorf("diff commands: %v", err)
 	}
 	if diff(b, previousApi.Analyzers, currentApi.Analyzers, "analyzer", func(a *source.AnalyzerJSON) string {
 		return a.Name
 	}, diffAnalyzers); err != nil {
-		return "", err
+		return "", fmt.Errorf("diff analyzers: %v", err)
 	}
 	if err := diff(b, previousApi.Lenses, currentApi.Lenses, "code lens", func(l *source.LensJSON) string {
 		return l.Lens
 	}, diffLenses); err != nil {
-		return "", err
+		return "", fmt.Errorf("diff lenses: %v", err)
 	}
 	for key, prev := range previousApi.Options {
 		current, ok := currentApi.Options[key]
@@ -87,7 +90,7 @@ func diffAPI(version, prev string) (string, error) {
 		if err := diff(b, prev, current, "option", func(o *source.OptionJSON) string {
 			return o.Name
 		}, diffOptions); err != nil {
-			return "", err
+			return "", fmt.Errorf("diff options (%s): %v", key, err)
 		}
 	}
 
@@ -138,41 +141,48 @@ func collect[T JSON](args []T, uniqueKey func(T) string) map[string]T {
 	return m
 }
 
-func loadAPI(version string) (*source.APIJSON, error) {
-	dir, err := ioutil.TempDir("", "gopath*")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(dir)
+var goCmdRunner = gocommand.Runner{}
 
-	if err := os.Mkdir(fmt.Sprintf("%s/src", dir), 0776); err != nil {
-		return nil, err
-	}
-	goCmd, err := exec.LookPath("go")
+func loadAPI(ctx context.Context, version string) (*source.APIJSON, error) {
+	tmpGopath, err := ioutil.TempDir("", "gopath*")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpGopath)
+
+	exampleDir := fmt.Sprintf("%s/src/example.com", tmpGopath)
+	if err := os.MkdirAll(exampleDir, 0776); err != nil {
+		return nil, fmt.Errorf("mkdir: %v", err)
+	}
+
+	if stdout, err := goCmdRunner.Run(ctx, gocommand.Invocation{
+		Verb:       "mod",
+		Args:       []string{"init", "example.com"},
+		WorkingDir: exampleDir,
+		Env:        append(os.Environ(), fmt.Sprintf("GOPATH=%s", tmpGopath)),
+	}); err != nil {
+		return nil, fmt.Errorf("go mod init failed: %v (stdout: %v)", err, stdout)
+	}
+	if stdout, err := goCmdRunner.Run(ctx, gocommand.Invocation{
+		Verb:       "install",
+		Args:       []string{fmt.Sprintf("golang.org/x/tools/gopls@%s", version)},
+		WorkingDir: exampleDir,
+		Env:        append(os.Environ(), fmt.Sprintf("GOPATH=%s", tmpGopath)),
+	}); err != nil {
+		return nil, fmt.Errorf("go install failed: %v (stdout: %v)", err, stdout.String())
 	}
 	cmd := exec.Cmd{
-		Path: goCmd,
-		Args: []string{"go", "get", fmt.Sprintf("golang.org/x/tools/gopls@%s", version)},
-		Dir:  dir,
-		Env:  append(os.Environ(), fmt.Sprintf("GOPATH=%s", dir)),
-	}
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-	cmd = exec.Cmd{
-		Path: filepath.Join(dir, "bin", "gopls"),
+		Path: filepath.Join(tmpGopath, "bin", "gopls"),
 		Args: []string{"gopls", "api-json"},
-		Dir:  dir,
+		Dir:  tmpGopath,
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("output: %v", err)
 	}
 	apiJson := &source.APIJSON{}
 	if err := json.Unmarshal(out, apiJson); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal: %v", err)
 	}
 	return apiJson, nil
 }
