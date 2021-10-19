@@ -49,55 +49,6 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
 	return inst, err
 }
 
-// instantiate creates an instance and defers verification of constraints to
-// later in the type checking pass. For Named types the resulting instance will
-// be unexpanded.
-func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos) (res Type) {
-	assert(check != nil)
-	if check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, NewTypeList(targs))
-		check.indent++
-		defer func() {
-			check.indent--
-			var under Type
-			if res != nil {
-				// Calling under() here may lead to endless instantiations.
-				// Test case: type T[P any] T[P]
-				under = safeUnderlying(res)
-			}
-			check.trace(pos, "=> %s (under = %s)", res, under)
-		}()
-	}
-
-	inst := check.instance(pos, typ, targs, check.conf.Context)
-
-	assert(len(posList) <= len(targs))
-	check.later(func() {
-		// Collect tparams again because lazily loaded *Named types may not have
-		// had tparams set up above.
-		var tparams []*TypeParam
-		switch t := typ.(type) {
-		case *Named:
-			tparams = t.TypeParams().list()
-		case *Signature:
-			tparams = t.TypeParams().list()
-		}
-		// Avoid duplicate errors; instantiate will have complained if tparams
-		// and targs do not have the same length.
-		if len(tparams) == len(targs) {
-			if i, err := check.verify(pos, tparams, targs); err != nil {
-				// best position for error reporting
-				pos := pos
-				if i < len(posList) {
-					pos = posList[i]
-				}
-				check.softErrorf(pos, err.Error())
-			}
-		}
-	})
-	return inst
-}
-
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
