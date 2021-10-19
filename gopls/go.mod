@@ -7,10 +7,10 @@ require (
 	github.com/jba/templatecheck v0.6.0
 	github.com/sanity-io/litter v1.5.1
 	github.com/sergi/go-diff v1.1.0
-	golang.org/x/mod v0.4.2
-	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
-	golang.org/x/tools v0.1.5
-	honnef.co/go/tools v0.2.0
+	golang.org/x/mod v0.5.1
+	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654
+	golang.org/x/tools v0.1.7
+	honnef.co/go/tools v0.2.1
 	mvdan.cc/gofumpt v0.1.1
 	mvdan.cc/xurls/v2 v2.3.0
 )
