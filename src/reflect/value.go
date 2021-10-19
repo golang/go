@@ -1936,7 +1936,42 @@ func (v Value) OverflowUint(x uint64) bool {
 //
 // Deprecated: use uintptr(Value.UnsafePointer()) to get the equivalent result.
 func (v Value) Pointer() uintptr {
-	return uintptr(v.UnsafePointer())
+	k := v.kind()
+	switch k {
+	case Ptr:
+		if v.typ.ptrdata == 0 {
+			// Handle pointers to go:notinheap types directly,
+			// so we never materialize such pointers as an
+			// unsafe.Pointer. (Such pointers are always indirect.)
+			// See issue 42076.
+			return *(*uintptr)(v.ptr)
+		}
+		fallthrough
+	case Chan, Map, UnsafePointer:
+		return uintptr(v.pointer())
+	case Func:
+		if v.flag&flagMethod != 0 {
+			// As the doc comment says, the returned pointer is an
+			// underlying code pointer but not necessarily enough to
+			// identify a single function uniquely. All method expressions
+			// created via reflect have the same underlying code pointer,
+			// so their Pointers are equal. The function used here must
+			// match the one used in makeMethodValue.
+			f := methodValueCall
+			return **(**uintptr)(unsafe.Pointer(&f))
+		}
+		p := v.pointer()
+		// Non-nil func value points at data block.
+		// First word of data block is actual code.
+		if p != nil {
+			p = *(*unsafe.Pointer)(p)
+		}
+		return uintptr(p)
+
+	case Slice:
+		return (*SliceHeader)(v.ptr).Data
+	}
+	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
 }
 
 // Recv receives and returns a value from the channel v.
