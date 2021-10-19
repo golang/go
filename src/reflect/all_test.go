@@ -7724,9 +7724,12 @@ func TestNotInHeapDeref(t *testing.T) {
 }
 
 func TestMethodCallValueCodePtr(t *testing.T) {
-	p := ValueOf(Point{}).Method(1).UnsafePointer()
+	m := ValueOf(Point{}).Method(1)
 	want := MethodValueCallCodePtr()
-	if got := uintptr(p); got != want {
+	if got := uintptr(m.UnsafePointer()); got != want {
+		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
+	}
+	if got := m.Pointer(); got != want {
 		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
 	}
 }
