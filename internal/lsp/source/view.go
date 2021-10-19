@@ -373,6 +373,8 @@ type Session interface {
 	SetProgressTracker(tracker *progress.Tracker)
 }
 
+var ErrViewExists = errors.New("view already exists for session")
+
 // Overlay is the type for a file held in memory on a session.
 type Overlay interface {
 	VersionedFileHandle

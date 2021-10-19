@@ -159,6 +159,11 @@ func (s *Session) Cache() interface{} {
 func (s *Session) NewView(ctx context.Context, name string, folder, tempWorkspace span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
+	for _, view := range s.views {
+		if span.CompareURI(view.folder, folder) == 0 {
+			return nil, nil, nil, source.ErrViewExists
+		}
+	}
 	view, snapshot, release, err := s.createView(ctx, name, folder, tempWorkspace, options, 0)
 	if err != nil {
 		return nil, nil, func() {}, err

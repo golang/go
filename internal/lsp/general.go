@@ -232,6 +232,9 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		}
 		work := s.progress.Start(ctx, "Setting up workspace", "Loading packages...", nil, nil)
 		snapshot, release, err := s.addView(ctx, folder.Name, uri)
+		if err == source.ErrViewExists {
+			continue
+		}
 		if err != nil {
 			viewErrors[uri] = err
 			work.End(fmt.Sprintf("Error loading packages: %s", err))
