@@ -26,7 +26,7 @@ stdout '^example.com/nolatest v0.0.0$'
 # If proxy returns an invalid response, we should see an error.
 env GOPROXY=$testproxy/invalid
 ! go list -m -u example.com/nolatest
-stderr '^go list -m: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
+stderr '^go: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
 
 -- go.mod --
 module m

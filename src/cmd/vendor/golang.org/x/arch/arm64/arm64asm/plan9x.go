@@ -500,7 +500,7 @@ SHA256SU0
 SHA256SU1
 `)
 
-// floating point instrcutions without "F" prefix.
+// floating point instructions without "F" prefix.
 var fOpsWithoutFPrefix = map[Op]bool{
 	LDP: true,
 	STP: true,

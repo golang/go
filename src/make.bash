@@ -152,12 +152,17 @@ if [ "$1" = "-v" ]; then
 	shift
 fi
 
+goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
 export GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 export GOROOT="$(cd .. && pwd)"
 IFS=$'\n'; for go_exe in $(type -ap go); do
 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
 		if [ "$goroot" != "$GOROOT" ]; then
+			if [ "$goroot_bootstrap_set" = "true" ]; then
+				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
+				printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
+			fi
 			GOROOT_BOOTSTRAP=$goroot
 		fi
 	fi

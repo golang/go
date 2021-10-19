@@ -425,7 +425,6 @@ const (
 	internalToUnix int64 = -unixToInternal
 
 	wallToInternal int64 = (1884*365 + 1884/4 - 1884/100 + 1884/400) * secondsPerDay
-	internalToWall int64 = -wallToInternal
 )
 
 // IsZero reports whether t represents the zero time instant,
@@ -1163,19 +1162,26 @@ func (t Time) UnixNano() int64 {
 	return (t.unixSec())*1e9 + int64(t.nsec())
 }
 
-const timeBinaryVersion byte = 1
+const (
+	timeBinaryVersionV1 byte = iota + 1 // For general situation
+	timeBinaryVersionV2                 // For LMT only
+)
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (t Time) MarshalBinary() ([]byte, error) {
 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
+	var offsetSec int8
+	version := timeBinaryVersionV1
 
 	if t.Location() == UTC {
 		offsetMin = -1
 	} else {
 		_, offset := t.Zone()
 		if offset%60 != 0 {
-			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
+			version = timeBinaryVersionV2
+			offsetSec = int8(offset % 60)
 		}
+
 		offset /= 60
 		if offset < -32768 || offset == -1 || offset > 32767 {
 			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
@@ -1186,8 +1192,8 @@ func (t Time) MarshalBinary() ([]byte, error) {
 	sec := t.sec()
 	nsec := t.nsec()
 	enc := []byte{
-		timeBinaryVersion, // byte 0 : version
-		byte(sec >> 56),   // bytes 1-8: seconds
+		version,         // byte 0 : version
+		byte(sec >> 56), // bytes 1-8: seconds
 		byte(sec >> 48),
 		byte(sec >> 40),
 		byte(sec >> 32),
@@ -1202,6 +1208,9 @@ func (t Time) MarshalBinary() ([]byte, error) {
 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
 		byte(offsetMin),
 	}
+	if version == timeBinaryVersionV2 {
+		enc = append(enc, byte(offsetSec))
+	}
 
 	return enc, nil
 }
@@ -1213,11 +1222,16 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 		return errors.New("Time.UnmarshalBinary: no data")
 	}
 
-	if buf[0] != timeBinaryVersion {
+	version := buf[0]
+	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
 		return errors.New("Time.UnmarshalBinary: unsupported version")
 	}
 
-	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
+	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
+	if version == timeBinaryVersionV2 {
+		wantLen++
+	}
+	if len(buf) != wantLen {
 		return errors.New("Time.UnmarshalBinary: invalid length")
 	}
 
@@ -1230,6 +1244,9 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
+	if version == timeBinaryVersionV2 {
+		offset += int(buf[2])
+	}
 
 	*t = Time{}
 	t.wall = uint64(nsec)

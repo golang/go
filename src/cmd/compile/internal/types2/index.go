@@ -15,7 +15,8 @@ import (
 // In that case x represents the uninstantiated function value and
 // it is the caller's responsibility to instantiate the function.
 func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst bool) {
-	check.exprOrType(x, e.X)
+	check.exprOrType(x, e.X, true)
+	// x may be generic
 
 	switch x.mode {
 	case invalid:
@@ -25,6 +26,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	case typexpr:
 		// type instantiation
 		x.mode = invalid
+		// TODO(gri) here we re-evaluate e.X - try to avoid this
 		x.typ = check.varType(e)
 		if x.typ != Typ[Invalid] {
 			x.mode = typexpr
@@ -32,10 +34,16 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 
 	case value:
-		if sig := asSignature(x.typ); sig != nil && sig.TParams().Len() > 0 {
+		if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
+	}
+
+	// x should not be generic at this point, but be safe and check
+	check.nonGeneric(x)
+	if x.mode == invalid {
+		return false
 	}
 
 	// ordinary index expression
@@ -199,7 +207,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := under(x.typ).(type) {
+	switch typ := optype(x.typ).(type) {
 	case *Basic:
 		if isString(typ) {
 			if e.Full {
@@ -238,11 +246,6 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	case *Slice:
 		valid = true
 		// x.typ doesn't change
-
-	case *TypeParam:
-		check.error(x, "generic slice expressions not yet implemented")
-		x.mode = invalid
-		return
 	}
 
 	if !valid {

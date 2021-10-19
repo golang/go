@@ -40,9 +40,10 @@ package modload
 // 	- the main module specifies a go version ≤ 1.15, and the package is imported
 // 	  by a *test of* another package in "all".
 //
-// When we implement lazy loading, we will record the modules providing packages
-// in "all" even when we are only loading individual packages, so we set the
-// pkgInAll flag regardless of the whether the "all" pattern is a root.
+// When graph pruning is in effect, we want to spot-check the graph-pruning
+// invariants — which depend on which packages are known to be in "all" — even
+// when we are only loading individual packages, so we set the pkgInAll flag
+// regardless of the whether the "all" pattern is a root.
 // (This is necessary to maintain the “import invariant” described in
 // https://golang.org/design/36460-lazy-module-loading.)
 //
@@ -326,7 +327,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 
-	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
+	initialRS := LoadModFile(ctx)
 
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
@@ -367,7 +368,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 			for _, m := range initialRS.rootModules {
 				var unused bool
-				if ld.requirements.depth == eager {
+				if ld.requirements.pruning == unpruned {
 					// m is unused if it was dropped from the module graph entirely. If it
 					// was only demoted from direct to indirect, it may still be in use via
 					// a transitive import.
@@ -386,7 +387,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 
 		keep := keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly)
-		if compatDepth := modDepthFromGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.depth {
+		if compatDepth := pruningForGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.pruning {
 			compatRS := newRequirements(compatDepth, ld.requirements.rootModules, ld.requirements.direct)
 			ld.checkTidyCompatibility(ctx, compatRS)
 
@@ -395,7 +396,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			}
 		}
 
-		if allowWriteGoMod {
+		if !ExplicitWriteGoMod {
 			modfetch.TrimGoSum(keep)
 
 			// commitRequirements below will also call WriteGoSum, but the "keep" map
@@ -416,8 +417,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 	}
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
+	// We'll skip updating if ExplicitWriteGoMod is true (the caller has opted
+	// to call WriteGoMod itself) or if ResolveMissingImports is false (the
+	// command wants to examine the package graph as-is).
 	loaded = ld
-	commitRequirements(ctx, loaded.requirements)
+	requirements = loaded.requirements
 
 	for _, pkg := range ld.pkgs {
 		if !pkg.isTest() {
@@ -425,6 +429,13 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		}
 	}
 	sort.Strings(loadedPackages)
+
+	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
+		if err := commitRequirements(ctx); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}
+
 	return matches, loadedPackages
 }
 
@@ -622,7 +633,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		return path.Join(m.Path, filepath.ToSlash(sub)), true
 	}
 
-	if rs.depth == lazy {
+	if rs.pruning == pruned {
 		for _, m := range rs.rootModules {
 			if v, _ := rs.rootSelected(m.Path); v != m.Version {
 				continue // m is a root, but we have a higher root for the same path.
@@ -635,9 +646,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 		}
 	}
 
-	// None of the roots contained dir, or we're in eager mode and want to load
-	// the full module graph more aggressively. Either way, check the full graph
-	// to see if the directory is a non-root dependency.
+	// None of the roots contained dir, or the graph is unpruned (so we don't want
+	// to distinguish between roots and transitive dependencies). Either way,
+	// check the full graph to see if the directory is a non-root dependency.
 	//
 	// If the roots are not consistent with the full module graph, the selected
 	// versions of root modules may differ from what we already checked above.
@@ -684,7 +695,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			return roots
 		},
 	})
-	commitRequirements(ctx, loaded.requirements)
+	requirements = loaded.requirements
 }
 
 // DirImportPath returns the effective import path for dir,
@@ -861,6 +872,7 @@ type loadPkg struct {
 	imports     []*loadPkg     // packages imported by this one
 	testImports []string       // test-only imports, saved for use by pkg.test.
 	inStd       bool
+	altMods     []module.Version // modules that could have contained the package but did not
 
 	// Populated by (*loader).pkgTest:
 	testOnce sync.Once
@@ -969,7 +981,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		ld.GoVersion = MainModules.GoVersion()
 
 		if ld.Tidy && semver.Compare("v"+ld.GoVersion, "v"+LatestGoVersion()) > 0 {
-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", ld.GoVersion, LatestGoVersion())
+			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
 			base.ExitIfErrors()
 		}
 	}
@@ -986,18 +998,26 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	}
 
 	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
-		// The module's go version explicitly predates the change in "all" for lazy
-		// loading, so continue to use the older interpretation.
+		// The module's go version explicitly predates the change in "all" for graph
+		// pruning, so continue to use the older interpretation.
 		ld.allClosesOverTests = true
 	}
 
 	var err error
-	ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(ld.GoVersion))
+	ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(ld.GoVersion))
 	if err != nil {
 		ld.errorf("go: %v\n", err)
 	}
 
-	if ld.requirements.depth == eager {
+	if ld.requirements.pruning == unpruned {
+		// If the module graph does not support pruning, we assume that we will need
+		// the full module graph in order to load package dependencies.
+		//
+		// This might not be strictly necessary, but it matches the historical
+		// behavior of the 'go' command and keeps the go.mod file more consistent in
+		// case of erroneous hand-edits — which are less likely to be detected by
+		// spot-checks in modules that do not maintain the expanded go.mod
+		// requirements needed for graph pruning.
 		var err error
 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
 		if err != nil {
@@ -1014,7 +1034,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 		// build list we're using.
 		rootPkgs := ld.listRoots(ld.requirements)
 
-		if ld.requirements.depth == lazy && cfg.BuildMod == "mod" {
+		if ld.requirements.pruning == pruned && cfg.BuildMod == "mod" {
 			// Before we start loading transitive imports of packages, locate all of
 			// the root packages and promote their containing modules to root modules
 			// dependencies. If their go.mod files are tidy (the common case) and the
@@ -1125,15 +1145,15 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.errorf("go: %v\n", err)
 		}
 
-		if ld.requirements.depth == lazy {
+		if ld.requirements.pruning == pruned {
 			// We continuously add tidy roots to ld.requirements during loading, so at
 			// this point the tidy roots should be a subset of the roots of
 			// ld.requirements, ensuring that no new dependencies are brought inside
-			// the lazy-loading horizon.
+			// the graph-pruning horizon.
 			// If that is not the case, there is a bug in the loading loop above.
 			for _, m := range rs.rootModules {
 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
-					ld.errorf("go mod tidy: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
 					base.ExitIfErrors()
 				}
 			}
@@ -1175,8 +1195,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the
-// information gained from ld.pkgs and includes the modules in add as roots at
-// at least the given versions.
+// information gained from ld.pkgs.
 //
 // In particular:
 //
@@ -1257,14 +1276,14 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 
 	var addRoots []module.Version
 	if ld.Tidy {
-		// When we are tidying a lazy module, we may need to add roots to preserve
-		// the versions of indirect, test-only dependencies that are upgraded
-		// above or otherwise missing from the go.mod files of direct
-		// dependencies. (For example, the direct dependency might be a very
+		// When we are tidying a module with a pruned dependency graph, we may need
+		// to add roots to preserve the versions of indirect, test-only dependencies
+		// that are upgraded above or otherwise missing from the go.mod files of
+		// direct dependencies. (For example, the direct dependency might be a very
 		// stable codebase that predates modules and thus lacks a go.mod file, or
-		// the author of the direct dependency may have forgotten to commit a
-		// change to the go.mod file, or may have made an erroneous hand-edit that
-		// causes it to be untidy.)
+		// the author of the direct dependency may have forgotten to commit a change
+		// to the go.mod file, or may have made an erroneous hand-edit that causes
+		// it to be untidy.)
 		//
 		// Promoting an indirect dependency to a root adds the next layer of its
 		// dependencies to the module graph, which may increase the selected
@@ -1334,7 +1353,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
 					changed = true
 					break
 				}
@@ -1545,7 +1564,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1571,7 +1590,8 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 				// module to a root to ensure that any other packages this package
 				// imports are resolved from correct dependency versions.
 				//
-				// (This is the “argument invariant” from the lazy loading design.)
+				// (This is the “argument invariant” from
+				// https://golang.org/design/36460-lazy-module-loading.)
 				need := <-needc
 				need[m] = true
 				needc <- need
@@ -1633,7 +1653,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 	}
 
 	var mg *ModuleGraph
-	if ld.requirements.depth == eager {
+	if ld.requirements.pruning == unpruned {
 		var err error
 		mg, err = ld.requirements.Graph(ctx)
 		if err != nil {
@@ -1649,7 +1669,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 		}
 	}
 
-	pkg.mod, pkg.dir, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	pkg.mod, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
 	if pkg.dir == "" {
 		return
 	}
@@ -1874,7 +1894,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 	mg, err := rs.Graph(ctx)
 	if err != nil {
-		ld.errorf("go mod tidy: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
+		ld.errorf("go: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
 		suggestFixes()
 		return
 	}
@@ -1908,7 +1928,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}
@@ -1961,9 +1981,10 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		case mismatch.err != nil:
 			// pkg resolved successfully, but errors out using the requirements in rs.
 			//
-			// This could occur because the import is provided by a single lazy root
-			// (and is thus unambiguous in lazy mode) and also one or more
-			// transitive dependencies (and is ambiguous in eager mode).
+			// This could occur because the import is provided by a single root (and
+			// is thus unambiguous in a main module with a pruned module graph) and
+			// also one or more transitive dependencies (and is ambiguous with an
+			// unpruned graph).
 			//
 			// It could also occur because some transitive dependency upgrades the
 			// module that previously provided the package to a version that no
@@ -2001,18 +2022,18 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 			}
 
 		case pkg.err != nil:
-			// pkg had an error in lazy mode (presumably suppressed with the -e flag),
-			// but not in eager mode.
+			// pkg had an error in with a pruned module graph (presumably suppressed
+			// with the -e flag), but the error went away using an unpruned graph.
 			//
-			// This is possible, if, say, the import is unresolved in lazy mode
+			// This is possible, if, say, the import is unresolved in the pruned graph
 			// (because the "latest" version of each candidate module either is
-			// unavailable or does not contain the package), but is resolved in
-			// eager mode due to a newer-than-latest dependency that is normally
-			// runed out of the module graph.
+			// unavailable or does not contain the package), but is resolved in the
+			// unpruned graph due to a newer-than-latest dependency that is normally
+			// pruned out.
 			//
 			// This could also occur if the source code for the module providing the
-			// package in lazy mode has a checksum error, but eager mode upgrades
-			// that module to a version with a correct checksum.
+			// package in the pruned graph has a checksum error, but the unpruned
+			// graph upgrades that module to a version with a correct checksum.
 			//
 			// pkg.err should have already been logged elsewhere — along with a
 			// stack trace — so log only the import path and non-error info here.

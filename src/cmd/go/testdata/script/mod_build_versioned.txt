@@ -1,7 +1,7 @@
 env GO111MODULE=on
 [short] skip
 
-go get -d rsc.io/fortune/v2
+go get rsc.io/fortune/v2
 
 # The default executable name shouldn't be v2$GOEXE
 go build rsc.io/fortune/v2

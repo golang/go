@@ -11,4 +11,4 @@ while [ -h "$SOURCE" ]; do
 done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-exec node "$DIR/wasm_exec.js" "$@"
+exec node "$DIR/wasm_exec_node.js" "$@"

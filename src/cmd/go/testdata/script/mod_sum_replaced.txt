@@ -1,7 +1,7 @@
 env GO111MODULE=on
 
-# After 'go get -d', the go.sum file should contain the sum for the module.
-go get -d rsc.io/quote@v1.5.0
+# After 'go get', the go.sum file should contain the sum for the module.
+go get rsc.io/quote@v1.5.0
 grep 'rsc.io/quote v1.5.0' go.sum
 
 # If we replace the module and run 'go mod tidy', we should get a sum for the replacement.

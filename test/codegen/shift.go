@@ -7,90 +7,151 @@
 package codegen
 
 // ------------------ //
+//   constant shifts  //
+// ------------------ //
+
+func lshConst64x64(v int64) int64 {
+	// riscv64:"SLLI",-"AND",-"SLTIU"
+	return v << uint64(33)
+}
+
+func rshConst64Ux64(v uint64) uint64 {
+	// riscv64:"SRLI",-"AND",-"SLTIU"
+	return v >> uint64(33)
+}
+
+func rshConst64x64(v int64) int64 {
+	// riscv64:"SRAI",-"OR",-"SLTIU"
+	return v >> uint64(33)
+}
+
+func lshConst32x64(v int32) int32 {
+	// riscv64:"SLLI",-"AND",-"SLTIU"
+	return v << uint64(29)
+}
+
+func rshConst32Ux64(v uint32) uint32 {
+	// riscv64:"SRLI",-"AND",-"SLTIU"
+	return v >> uint64(29)
+}
+
+func rshConst32x64(v int32) int32 {
+	// riscv64:"SRAI",-"OR",-"SLTIU"
+	return v >> uint64(29)
+}
+
+func lshConst64x32(v int64) int64 {
+	// riscv64:"SLLI",-"AND",-"SLTIU"
+	return v << uint32(33)
+}
+
+func rshConst64Ux32(v uint64) uint64 {
+	// riscv64:"SRLI",-"AND",-"SLTIU"
+	return v >> uint32(33)
+}
+
+func rshConst64x32(v int64) int64 {
+	// riscv64:"SRAI",-"OR",-"SLTIU"
+	return v >> uint32(33)
+}
+
+// ------------------ //
 //   masked shifts    //
 // ------------------ //
 
 func lshMask64x64(v int64, s uint64) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SLL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v << (s & 63)
 }
 
 func rshMask64Ux64(v uint64, s uint64) uint64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SRL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func rshMask64x64(v int64, s uint64) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-ORN",-"ISEL"
+	// riscv64:"SRA","OR","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func lshMask32x64(v int32, s uint64) int32 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ISEL",-"ORN"
 	// ppc64:"ISEL",-"ORN"
+	// ppc64le:"ISEL",-"ORN"
+	// riscv64:"SLL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v << (s & 63)
 }
 
 func rshMask32Ux64(v uint32, s uint64) uint32 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ISEL",-"ORN"
 	// ppc64:"ISEL",-"ORN"
+	// ppc64le:"ISEL",-"ORN"
+	// riscv64:"SRL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func rshMask32x64(v int32, s uint64) int32 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ISEL",-"ORN"
 	// ppc64:"ISEL",-"ORN"
+	// ppc64le:"ISEL",-"ORN"
+	// riscv64:"SRA","OR","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func lshMask64x32(v int64, s uint32) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN"
 	// ppc64:"ANDCC",-"ORN"
+	// ppc64le:"ANDCC",-"ORN"
+	// riscv64:"SLL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v << (s & 63)
 }
 
 func rshMask64Ux32(v uint64, s uint32) uint64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN"
 	// ppc64:"ANDCC",-"ORN"
+	// ppc64le:"ANDCC",-"ORN"
+	// riscv64:"SRL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func rshMask64x32(v int64, s uint32) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SRA","OR","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
 }
 
 func lshMask64x32Ext(v int64, s int32) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SLL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v << uint(s&63)
 }
 
 func rshMask64Ux32Ext(v uint64, s int32) uint64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SRL","AND","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> uint(s&63)
 }
 
 func rshMask64x32Ext(v int64, s int32) int64 {
-	// s390x:-"RISBGZ",-"AND",-"LOCGR"
-	// ppc64le:"ANDCC",-"ORN",-"ISEL"
 	// ppc64:"ANDCC",-"ORN",-"ISEL"
+	// ppc64le:"ANDCC",-"ORN",-"ISEL"
+	// riscv64:"SRA","OR","SLTIU"
+	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> uint(s&63)
 }
 
@@ -126,17 +187,19 @@ func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
 //   bounded shifts   //
 // ------------------ //
 
-func rshGuarded64(v int64, s uint) int64 {
+func lshGuarded64(v int64, s uint) int64 {
 	if s < 64 {
+		// riscv64:"SLL","AND","SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
-		return v >> s
+		return v << s
 	}
 	panic("shift too large")
 }
 
 func rshGuarded64U(v uint64, s uint) uint64 {
 	if s < 64 {
+		// riscv64:"SRL","AND","SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
 		return v >> s
@@ -144,11 +207,12 @@ func rshGuarded64U(v uint64, s uint) uint64 {
 	panic("shift too large")
 }
 
-func lshGuarded64(v int64, s uint) int64 {
+func rshGuarded64(v int64, s uint) int64 {
 	if s < 64 {
+		// riscv64:"SRA","OR","SLTIU"
 		// s390x:-"RISBGZ",-"AND",-"LOCGR"
 		// wasm:-"Select",-".*LtU"
-		return v << s
+		return v >> s
 	}
 	panic("shift too large")
 }

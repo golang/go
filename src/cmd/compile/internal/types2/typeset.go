@@ -30,8 +30,8 @@ func (s *_TypeSet) IsAll() bool {
 	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
 }
 
-// IsConstraint reports whether type set s is not just a set of methods.
-func (s *_TypeSet) IsConstraint() bool { return s.comparable || !s.terms.isAll() }
+// IsMethodSet reports whether the interface t is fully described by its method set.
+func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
 func (s *_TypeSet) IsComparable() bool {
@@ -291,10 +291,10 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			terms = tset.terms
 		case *TypeParam:
 			// Embedding stand-alone type parameters is not permitted.
-			// This case is handled during union parsing.
-			unreachable()
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
 		default:
-			if typ == Typ[Invalid] {
+			if u == Typ[Invalid] {
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
@@ -372,8 +372,8 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet 
 			terms = computeInterfaceTypeSet(check, pos, u).terms
 		case *TypeParam:
 			// A stand-alone type parameters is not permitted as union term.
-			// This case is handled during union parsing.
-			unreachable()
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
 		default:
 			if t.typ == Typ[Invalid] {
 				continue

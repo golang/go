@@ -170,7 +170,7 @@ func (check *Checker) closeScope() {
 func (check *Checker) suspendedCall(keyword string, call *syntax.CallExpr) {
 	var x operand
 	var msg string
-	switch check.rawExpr(&x, call, nil) {
+	switch check.rawExpr(&x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 	case expression:
@@ -295,7 +295,7 @@ L:
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
-					Ts = T.String()
+					Ts = TypeString(T, check.qualifier)
 				}
 				var err error_
 				err.errorf(e, "duplicate case %s in type switch", Ts)
@@ -311,6 +311,47 @@ L:
 	}
 	return
 }
+
+// TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+//
+// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[string]syntax.Expr) (T Type) {
+// 	var dummy operand
+// L:
+// 	for _, e := range types {
+// 		// The spec allows the value nil instead of a type.
+// 		var hash string
+// 		if check.isNil(e) {
+// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			T = nil
+// 			hash = "<nil>" // avoid collision with a type named nil
+// 		} else {
+// 			T = check.varType(e)
+// 			if T == Typ[Invalid] {
+// 				continue L
+// 			}
+// 			hash = typeHash(T, nil)
+// 		}
+// 		// look for duplicate types
+// 		if other := seen[hash]; other != nil {
+// 			// talk about "case" rather than "type" because of nil case
+// 			Ts := "nil"
+// 			if T != nil {
+// 				Ts = TypeString(T, check.qualifier)
+// 			}
+// 			var err error_
+// 			err.errorf(e, "duplicate case %s in type switch", Ts)
+// 			err.errorf(other, "previous case")
+// 			check.report(&err)
+// 			continue L
+// 		}
+// 		seen[hash] = e
+// 		if T != nil {
+// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 		}
+// 	}
+// 	return
+// }
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
@@ -345,7 +386,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil)
+		kind := check.rawExpr(&x, s.X, nil, false)
 		var msg string
 		switch x.mode {
 		default:
@@ -613,9 +654,6 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// declaration, but the post statement must not."
 		if s, _ := s.Post.(*syntax.AssignStmt); s != nil && s.Op == syntax.Def {
 			// The parser already reported an error.
-			// Don't call useLHS here because we want to use the lhs in
-			// this erroneous statement so that we don't get errors about
-			// these lhs variables being declared but not used.
 			check.use(s.Lhs) // avoid follow-up errors
 		}
 		check.stmt(inner, s.Body)
@@ -710,7 +748,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 		check.errorf(&x, "%s is not an interface type", &x)
 		return
 	}
-	check.ordinaryType(x.Pos(), xtyp)
 
 	check.multipleSwitchDefaults(s.Body)
 

@@ -69,7 +69,7 @@ func TestQueryImport(t *testing.T) {
 	RootMode = NoRoot
 
 	ctx := context.Background()
-	rs := newRequirements(eager, nil, nil)
+	rs := newRequirements(unpruned, nil, nil)
 
 	for _, tt := range importTests {
 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {

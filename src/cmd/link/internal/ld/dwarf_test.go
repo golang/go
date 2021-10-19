@@ -11,6 +11,7 @@ import (
 	"debug/pe"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -614,9 +615,6 @@ func TestInlinedRoutineRecords(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
-	}
 
 	t.Parallel()
 
@@ -851,9 +849,6 @@ func TestAbstractOriginSanity(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
-	}
 
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "httptest")
@@ -868,9 +863,6 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
 	}
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
 		t.Skip("skipping on not-amd64 not-386; location lists not supported")
@@ -889,9 +881,6 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
 	}
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
@@ -1756,5 +1745,107 @@ func main() {
 	if fmt.Sprintf("%+v", found) != expected {
 		t.Errorf("param check failed, wanted %s got %s\n",
 			expected, found)
+	}
+}
+
+func TestDictIndex(t *testing.T) {
+	// Check that variables with a parametric type have a dictionary index
+	// attribute and that types that are only referenced through dictionaries
+	// have DIEs.
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	if buildcfg.Experiment.Unified {
+		t.Skip("GOEXPERIMENT=unified does not emit dictionaries yet")
+	}
+	t.Parallel()
+
+	const prog = `
+package main
+
+import "fmt"
+
+type CustomInt int
+
+func testfn[T any](arg T) {
+	var mapvar = make(map[int]T)
+	mapvar[0] = arg
+	fmt.Println(arg, mapvar)
+}
+
+func main() {
+	testfn(CustomInt(3))
+}
+`
+
+	dir := t.TempDir()
+	f := gobuild(t, dir, prog, NoOpt)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	found := false
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		name, _ := entry.Val(dwarf.AttrName).(string)
+		if strings.HasPrefix(name, "main.testfn") {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("could not find main.testfn")
+	}
+
+	offs := []dwarf.Offset{}
+	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if entry.Tag == 0 {
+			break
+		}
+		name, _ := entry.Val(dwarf.AttrName).(string)
+		switch name {
+		case "arg", "mapvar":
+			offs = append(offs, entry.Val(dwarf.AttrType).(dwarf.Offset))
+		}
+	}
+	if len(offs) != 2 {
+		t.Errorf("wrong number of variables found in main.testfn %d", len(offs))
+	}
+	for _, off := range offs {
+		rdr.Seek(off)
+		entry, err := rdr.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if _, ok := entry.Val(intdwarf.DW_AT_go_dict_index).(int64); !ok {
+			t.Errorf("could not find DW_AT_go_dict_index attribute offset %#x (%T)", off, entry.Val(intdwarf.DW_AT_go_dict_index))
+		}
+	}
+
+	rdr.Seek(0)
+	ex := examiner{}
+	if err := ex.populate(rdr); err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+	for _, typeName := range []string{"main.CustomInt", "map[int]main.CustomInt"} {
+		dies := ex.Named(typeName)
+		if len(dies) != 1 {
+			t.Errorf("wanted 1 DIE named %s, found %v", typeName, len(dies))
+		}
+		if dies[0].Val(intdwarf.DW_AT_go_runtime_type).(uint64) == 0 {
+			t.Errorf("type %s does not have DW_AT_go_runtime_type", typeName)
+		}
 	}
 }

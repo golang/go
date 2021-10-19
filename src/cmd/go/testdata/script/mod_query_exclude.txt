@@ -18,17 +18,17 @@ stdout '^rsc.io/quote v1.5.1$'
 
 # get excluded version
 cp go.exclude.mod go.exclude.mod.orig
-! go get -modfile=go.exclude.mod -d rsc.io/quote@v1.5.0
-stderr '^go get: rsc.io/quote@v1.5.0: excluded by go.mod$'
+! go get -modfile=go.exclude.mod rsc.io/quote@v1.5.0
+stderr '^go: rsc.io/quote@v1.5.0: excluded by go.mod$'
 
 # get non-excluded version
 cp go.exclude.mod.orig go.exclude.mod
-go get -modfile=go.exclude.mod -d rsc.io/quote@v1.5.1
+go get -modfile=go.exclude.mod rsc.io/quote@v1.5.1
 stderr 'rsc.io/quote v1.5.1'
 
 # get query with excluded version
 cp go.exclude.mod.orig go.exclude.mod
-go get -modfile=go.exclude.mod -d rsc.io/quote@>=v1.5
+go get -modfile=go.exclude.mod rsc.io/quote@>=v1.5
 go list -modfile=go.exclude.mod -m ...quote
 stdout 'rsc.io/quote v1.5.[1-9]'
 

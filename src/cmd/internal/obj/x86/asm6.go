@@ -1735,9 +1735,9 @@ var optab =
 	{ASTRL, yincq, Px, opBytes{0x0f, 0x00, 01}},
 	{ASTRQ, yincq, Pw, opBytes{0x0f, 0x00, 01}},
 	{AXSETBV, ynone, Pm, opBytes{0x01, 0xd1, 0}},
-	{AMOVBEWW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBELL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBEQQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
+	{AMOVBEW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
 	{ANOPW, ydivl, Pe, opBytes{0x0f, 0x1f, 00}},
 	{ANOPL, ydivl, Px, opBytes{0x0f, 0x1f, 00}},
 	{ASLDTW, yincq, Pe, opBytes{0x0f, 0x00, 00}},
@@ -2035,6 +2035,11 @@ type nopPad struct {
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
+		ctxt.Diag("-spectre=ret not supported on 386")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	pjc := makePjcCtx(ctxt)
 
 	if s.P != nil {

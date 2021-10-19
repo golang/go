@@ -460,6 +460,8 @@ func (r *Reader) ReadDotLines() ([]string, error) {
 	return v, err
 }
 
+var colon = []byte(":")
+
 // ReadMIMEHeader reads a MIME-style header from r.
 // The header is a sequence of possibly continued Key: Value lines
 // ending in a blank line.
@@ -508,11 +510,11 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		}
 
 		// Key ends at first colon.
-		i := bytes.IndexByte(kv, ':')
-		if i < 0 {
+		k, v, ok := bytes.Cut(kv, colon)
+		if !ok {
 			return m, ProtocolError("malformed MIME header line: " + string(kv))
 		}
-		key := canonicalMIMEHeaderKey(kv[:i])
+		key := canonicalMIMEHeaderKey(k)
 
 		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
 		// We could return a ProtocolError here, but better to be liberal in what we
@@ -522,11 +524,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 		}
 
 		// Skip initial spaces in value.
-		i++ // skip colon
-		for i < len(kv) && (kv[i] == ' ' || kv[i] == '\t') {
-			i++
-		}
-		value := string(kv[i:])
+		value := strings.TrimLeft(string(v), " \t")
 
 		vv := m[key]
 		if vv == nil && len(strs) > 0 {
@@ -561,6 +559,8 @@ func mustHaveFieldNameColon(line []byte) error {
 	return nil
 }
 
+var nl = []byte("\n")
+
 // upcomingHeaderNewlines returns an approximation of the number of newlines
 // that will be in this header. If it gets confused, it returns 0.
 func (r *Reader) upcomingHeaderNewlines() (n int) {
@@ -571,17 +571,7 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 		return
 	}
 	peek, _ := r.R.Peek(s)
-	for len(peek) > 0 {
-		i := bytes.IndexByte(peek, '\n')
-		if i < 3 {
-			// Not present (-1) or found within the next few bytes,
-			// implying we're at the end ("\r\n\r\n" or "\n\n")
-			return
-		}
-		n++
-		peek = peek[i+1:]
-	}
-	return
+	return bytes.Count(peek, nl)
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the

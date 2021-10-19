@@ -580,7 +580,7 @@
 (Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 && is32BitFloat(val.Type) => (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) => x -- type is wrong
 (Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type)) => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && is32BitInt(val.Type) => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -670,6 +670,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Miscellaneous
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
@@ -1018,6 +1019,8 @@
 (MOVWZreg x:(MOVWZloadidx _ _ _)) => x
 (MOVWreg x:(MOVWload _ _)) => x
 (MOVWreg x:(MOVWloadidx _ _ _)) => x
+(MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _))) => x
+(MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _))) => x
 
 // don't extend if argument is already extended
 (MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
@@ -1450,3 +1453,26 @@
         && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
         && clobber(x0, x1, x2, x3, x4, x5, x6)
           => (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
+        && sz >= 0
+        && isSameCall(sym, "runtime.memmove")
+        && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+        && isInlinableMemmove(dst, src, sz, config)
+        && clobber(s1, s2, s3, call)
+        => (Move [sz] dst src mem)
+
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+        && sz >= 0
+        && isSameCall(sym, "runtime.memmove")
+        && call.Uses == 1
+        && isInlinableMemmove(dst, src, sz, config)
+        && clobber(call)
+        => (Move [sz] dst src mem)
+
+// Prefetch instructions (aux is option: 0 - DCBT ; 8 - DCBT stream)
+(PrefetchCache ptr mem)          => (DCBT ptr mem [0])
+(PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [8])
+

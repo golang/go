@@ -87,7 +87,7 @@ func (f flag) ro() flag {
 }
 
 // pointer returns the underlying pointer represented by v.
-// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
+// v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -220,7 +220,7 @@ func (v Value) CanSet() bool {
 
 // Elem returns the value that the interface v contains
 // or that the pointer v points to.
-// It panics if v's Kind is not Interface or Ptr.
+// It panics if v's Kind is not Interface or Pointer.
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
 	k := v.kind()
@@ -239,7 +239,7 @@ func (v Value) Elem() Value {
 			x.flag |= v.flag.ro()
 		}
 		return x
-	case Ptr:
+	case Pointer:
 		ptr := v.ptr
 		if v.flag&flagIndir != 0 {
 			ptr = *(*unsafe.Pointer)(ptr)
@@ -288,7 +288,7 @@ func valueInterface(v Value) interface{} {
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr, UnsafePointer:
+	case Chan, Func, Map, Pointer, UnsafePointer:
 		// if v.flag&flagMethod != 0 {
 		// 	return false
 		// }

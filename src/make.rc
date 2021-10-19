@@ -51,13 +51,20 @@ GOENV=off
 GOFLAGS=()
 GO111MODULE=()
 GOROOT = `{cd .. && pwd}
-if(! ~ $#GOROOT_BOOTSTRAP 1)
+goroot_bootstrap_set = 'true'
+if(! ~ $#GOROOT_BOOTSTRAP 1){
+	goroot_bootstrap_set = 'false'
 	GOROOT_BOOTSTRAP = $home/go1.4
+}
 for(p in $path){
 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 		if(go_exe = `{path=$p whatis go}){
 			goroot = `{GOROOT='' $go_exe env GOROOT}
 			if(! ~ $goroot $GOROOT){
+				if(~ $goroot_bootstrap_set 'true'){
+					echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
+					echo 'WARNING: set '$goroot' as GOROOT_BOOTSTRAP' >[1=2]
+				}
 				GOROOT_BOOTSTRAP = $goroot
 			}
 		}

@@ -4,8 +4,8 @@
 
 package p
 
-type t[ /* ERROR type parameters must be named */ a, b] struct{}
-type t[a t, b t, /* ERROR type parameters must be named */ c] struct{}
+type t[a, b /* ERROR missing type constraint */ ] struct{}
+type t[a t, b t, c /* ERROR missing type constraint */ ] struct{}
 type t struct {
 	t [n]byte
 	t[a]
@@ -18,5 +18,7 @@ type t interface {
 }
 
 func f[ /* ERROR empty type parameter list */ ]()
-func f[ /* ERROR type parameters must be named */ a, b]()
-func f[a t, b t, /* ERROR type parameters must be named */ c]()
+func f[a, b /* ERROR missing type constraint */ ]()
+func f[a t, b t, c /* ERROR missing type constraint */ ]()
+
+func f[a b,  /* ERROR expecting ] */ 0] ()

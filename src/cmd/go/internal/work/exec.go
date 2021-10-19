@@ -36,6 +36,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/trace"
 	"cmd/internal/str"
+	"cmd/internal/sys"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -222,18 +223,32 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// same compiler settings and can reuse each other's results.
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
-	// Only include the package directory if it may affect the output.
-	// We trim workspace paths for all packages when -trimpath is set.
-	// The compiler hides the exact value of $GOROOT
-	// when building things in GOROOT.
-	// Assume b.WorkDir is being trimmed properly.
-	// When -trimpath is used with a package built from the module cache,
-	// use the module path and version instead of the directory.
-	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
+
+	// Include information about the origin of the package that
+	// may be embedded in the debug info for the object file.
+	if cfg.BuildTrimpath {
+		// When -trimpath is used with a package built from the module cache,
+		// its debug information refers to the module path and version
+		// instead of the directory.
+		if p.Module != nil {
+			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+		}
+	} else if p.Goroot {
+		// The Go compiler always hides the exact value of $GOROOT
+		// when building things in GOROOT, but the C compiler
+		// merely rewrites GOROOT to GOROOT_FINAL.
+		if len(p.CFiles) > 0 {
+			fmt.Fprintf(h, "goroot %s\n", cfg.GOROOT_FINAL)
+		}
+		// b.WorkDir is always either trimmed or rewritten to
+		// the literal string "/tmp/go-build".
+	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
+		// -trimpath is not set and no other rewrite rules apply,
+		// so the object file may refer to the absolute directory
+		// containing the package.
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
-	} else if cfg.BuildTrimpath && p.Module != nil {
-		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
 	}
+
 	if p.Module != nil {
 		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
 	}
@@ -280,6 +295,11 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 	if p.Internal.CoverMode != "" {
 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+	}
+	if p.Internal.FuzzInstrument {
+		if fuzzFlags := fuzzInstrumentFlags(); fuzzFlags != nil {
+			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
+		}
 	}
 	fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
 
@@ -2963,18 +2983,24 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
 	linkobj := str.StringList(ofile, outObj, mkAbsFiles(p.Dir, p.SysoFiles))
 	dynobj := objdir + "_cgo_.o"
 
-	// we need to use -pie for Linux/ARM to get accurate imported sym
 	ldflags := cgoLDFLAGS
 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
-		// -static -pie doesn't make sense, and causes link errors.
-		// Issue 26197.
-		n := make([]string, 0, len(ldflags))
-		for _, flag := range ldflags {
-			if flag != "-static" {
-				n = append(n, flag)
-			}
+		if !str.Contains(ldflags, "-no-pie") {
+			// we need to use -pie for Linux/ARM to get accurate imported sym (added in https://golang.org/cl/5989058)
+			// this seems to be outdated, but we don't want to break existing builds depending on this (Issue 45940)
+			ldflags = append(ldflags, "-pie")
 		}
-		ldflags = append(n, "-pie")
+		if str.Contains(ldflags, "-pie") && str.Contains(ldflags, "-static") {
+			// -static -pie doesn't make sense, and causes link errors.
+			// Issue 26197.
+			n := make([]string, 0, len(ldflags)-1)
+			for _, flag := range ldflags {
+				if flag != "-static" {
+					n = append(n, flag)
+				}
+			}
+			ldflags = n
+		}
 	}
 	if err := b.gccld(a, p, objdir, dynobj, ldflags, linkobj); err != nil {
 		return err
@@ -3296,12 +3322,6 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
 	return cleanup
 }
 
-// Windows has a limit of 32 KB arguments. To be conservative and not worry
-// about whether that includes spaces or not, just use 30 KB. Darwin's limit is
-// less clear. The OS claims 256KB, but we've seen failures with arglen as
-// small as 50KB.
-const ArgLengthForResponseFile = (30 << 10)
-
 func useResponseFile(path string, argLen int) bool {
 	// Unless the program uses objabi.Flagparse, which understands
 	// response files, don't use response files.
@@ -3313,7 +3333,7 @@ func useResponseFile(path string, argLen int) bool {
 		return false
 	}
 
-	if argLen > ArgLengthForResponseFile {
+	if argLen > sys.ExecArgLengthLimit {
 		return true
 	}
 

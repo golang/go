@@ -27,6 +27,9 @@ const (
 	_SA_ONSTACK = 0x8000000
 	_SA_SIGINFO = 0x4
 
+	_SI_KERNEL = 0x80
+	_SI_TIMER  = -0x2
+
 	_SIGHUP    = 0x1
 	_SIGINT    = 0x2
 	_SIGQUIT   = 0x3
@@ -77,6 +80,10 @@ const (
 	_ITIMER_REAL    = 0x0
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
+
+	_CLOCK_THREAD_CPUTIME_ID = 0x3
+
+	_SIGEV_THREAD_ID = 0x4
 
 	_EPOLLIN       = 0x1
 	_EPOLLOUT      = 0x4
@@ -130,9 +137,22 @@ type siginfo struct {
 	si_addr uint64
 }
 
+type itimerspec struct {
+	it_interval timespec
+	it_value    timespec
+}
+
 type itimerval struct {
 	it_interval timeval
 	it_value    timeval
+}
+
+type sigevent struct {
+	value  uintptr
+	signo  int32
+	notify int32
+	// below here is a union; sigev_notify_thread_id is the only field we use
+	sigev_notify_thread_id int32
 }
 
 type epollevent struct {

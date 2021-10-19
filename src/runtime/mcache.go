@@ -122,9 +122,9 @@ func freemcache(c *mcache) {
 //
 // Returns nil if we're not bootstrapping or we don't have a P. The caller's
 // P must not change, so we must be in a non-preemptible state.
-func getMCache() *mcache {
+func getMCache(mp *m) *mcache {
 	// Grab the mcache, since that's where stats live.
-	pp := getg().m.p.ptr()
+	pp := mp.p.ptr()
 	var c *mcache
 	if pp == nil {
 		// We will be called without a P while bootstrapping,

@@ -55,7 +55,7 @@ stdout '^example.com/d v0.1.0 '
 # upgrades of module d and addition of module e, which are not relevant to
 # b@v0.1.0 and should not be added to the main module's dependencies.
 
-go get -u -d example.com/a@latest example.com/c@v0.1.0
+go get -u example.com/a@latest example.com/c@v0.1.0
 
 go list -m all
 stdout '^example.com/a v0.1.0 '

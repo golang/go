@@ -8,7 +8,9 @@ package tests
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -42,10 +44,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				// Ignore non-functions or functions with receivers.
 				continue
 			}
-
 			switch {
 			case strings.HasPrefix(fn.Name.Name, "Example"):
-				checkExample(pass, fn)
+				checkExampleName(pass, fn)
+				checkExampleOutput(pass, fn, f.Comments)
 			case strings.HasPrefix(fn.Name.Name, "Test"):
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
@@ -108,7 +110,59 @@ func lookup(pkg *types.Package, name string) []types.Object {
 	return ret
 }
 
-func checkExample(pass *analysis.Pass, fn *ast.FuncDecl) {
+// This pattern is taken from /go/src/go/doc/example.go
+var outputRe = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
+
+type commentMetadata struct {
+	isOutput bool
+	pos      token.Pos
+}
+
+func checkExampleOutput(pass *analysis.Pass, fn *ast.FuncDecl, fileComments []*ast.CommentGroup) {
+	commentsInExample := []commentMetadata{}
+	numOutputs := 0
+
+	// Find the comment blocks that are in the example. These comments are
+	// guaranteed to be in order of appearance.
+	for _, cg := range fileComments {
+		if cg.Pos() < fn.Pos() {
+			continue
+		} else if cg.End() > fn.End() {
+			break
+		}
+
+		isOutput := outputRe.MatchString(cg.Text())
+		if isOutput {
+			numOutputs++
+		}
+
+		commentsInExample = append(commentsInExample, commentMetadata{
+			isOutput: isOutput,
+			pos:      cg.Pos(),
+		})
+	}
+
+	// Change message based on whether there are multiple output comment blocks.
+	msg := "output comment block must be the last comment block"
+	if numOutputs > 1 {
+		msg = "there can only be one output comment block per example"
+	}
+
+	for i, cg := range commentsInExample {
+		// Check for output comments that are not the last comment in the example.
+		isLast := (i == len(commentsInExample)-1)
+		if cg.isOutput && !isLast {
+			pass.Report(
+				analysis.Diagnostic{
+					Pos:     cg.pos,
+					Message: msg,
+				},
+			)
+		}
+	}
+}
+
+func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
 	fnName := fn.Name.Name
 	if params := fn.Type.Params; len(params.List) != 0 {
 		pass.Reportf(fn.Pos(), "%s should be niladic", fnName)

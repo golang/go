@@ -31,7 +31,7 @@ type Tree struct {
 	vars       []string // variables defined at the moment.
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
-	mode       Mode
+	rangeDepth int
 }
 
 // A mode value is a set of flags (or 0). Modes control parser behavior.
@@ -224,6 +224,8 @@ func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer, treeSet ma
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
+	lex.breakOK = !t.hasFunction("break")
+	lex.continueOK = !t.hasFunction("continue")
 }
 
 // stopParse terminates parsing.
@@ -386,6 +388,10 @@ func (t *Tree) action() (n Node) {
 	switch token := t.nextNonSpace(); token.typ {
 	case itemBlock:
 		return t.blockControl()
+	case itemBreak:
+		return t.breakControl(token.pos, token.line)
+	case itemContinue:
+		return t.continueControl(token.pos, token.line)
 	case itemElse:
 		return t.elseControl()
 	case itemEnd:
@@ -403,6 +409,32 @@ func (t *Tree) action() (n Node) {
 	token := t.peek()
 	// Do not pop variables; they persist until "end".
 	return t.newAction(token.pos, token.line, t.pipeline("command", itemRightDelim))
+}
+
+// Break:
+//	{{break}}
+// Break keyword is past.
+func (t *Tree) breakControl(pos Pos, line int) Node {
+	if token := t.next(); token.typ != itemRightDelim {
+		t.unexpected(token, "in {{break}}")
+	}
+	if t.rangeDepth == 0 {
+		t.errorf("{{break}} outside {{range}}")
+	}
+	return t.newBreak(pos, line)
+}
+
+// Continue:
+//	{{continue}}
+// Continue keyword is past.
+func (t *Tree) continueControl(pos Pos, line int) Node {
+	if token := t.next(); token.typ != itemRightDelim {
+		t.unexpected(token, "in {{continue}}")
+	}
+	if t.rangeDepth == 0 {
+		t.errorf("{{continue}} outside {{range}}")
+	}
+	return t.newContinue(pos, line)
 }
 
 // Pipeline:
@@ -480,8 +512,14 @@ func (t *Tree) checkPipeline(pipe *PipeNode, context string) {
 func (t *Tree) parseControl(allowElseIf bool, context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {
 	defer t.popVars(len(t.vars))
 	pipe = t.pipeline(context, itemRightDelim)
+	if context == "range" {
+		t.rangeDepth++
+	}
 	var next Node
 	list, next = t.itemList()
+	if context == "range" {
+		t.rangeDepth--
+	}
 	switch next.Type() {
 	case nodeEnd: //done
 	case nodeElse:
@@ -523,7 +561,8 @@ func (t *Tree) ifControl() Node {
 //	{{range pipeline}} itemList {{else}} itemList {{end}}
 // Range keyword is past.
 func (t *Tree) rangeControl() Node {
-	return t.newRange(t.parseControl(false, "range"))
+	r := t.newRange(t.parseControl(false, "range"))
+	return r
 }
 
 // With:

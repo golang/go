@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -299,6 +301,40 @@ func TestNoUnreadByteAfterPeek(t *testing.T) {
 	br.Peek(1)
 	if err := br.UnreadByte(); err == nil {
 		t.Error("UnreadByte didn't fail after Peek")
+	}
+}
+
+func TestNoUnreadRuneAfterDiscard(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadRune()
+	br.Discard(1)
+	if err := br.UnreadRune(); err == nil {
+		t.Error("UnreadRune didn't fail after Discard")
+	}
+}
+
+func TestNoUnreadByteAfterDiscard(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadByte()
+	br.Discard(1)
+	if err := br.UnreadByte(); err == nil {
+		t.Error("UnreadByte didn't fail after Discard")
+	}
+}
+
+func TestNoUnreadRuneAfterWriteTo(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.WriteTo(io.Discard)
+	if err := br.UnreadRune(); err == nil {
+		t.Error("UnreadRune didn't fail after WriteTo")
+	}
+}
+
+func TestNoUnreadByteAfterWriteTo(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.WriteTo(io.Discard)
+	if err := br.UnreadByte(); err == nil {
+		t.Error("UnreadByte didn't fail after WriteTo")
 	}
 }
 
@@ -605,6 +641,37 @@ func TestWriter(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestWriterAppend(t *testing.T) {
+	got := new(bytes.Buffer)
+	var want []byte
+	rn := rand.New(rand.NewSource(0))
+	w := NewWriterSize(got, 64)
+	for i := 0; i < 100; i++ {
+		// Obtain a buffer to append to.
+		b := w.AvailableBuffer()
+		if w.Available() != cap(b) {
+			t.Fatalf("Available() = %v, want %v", w.Available(), cap(b))
+		}
+
+		// While not recommended, it is valid to append to a shifted buffer.
+		// This forces Write to copy the the input.
+		if rn.Intn(8) == 0 && cap(b) > 0 {
+			b = b[1:1:cap(b)]
+		}
+
+		// Append a random integer of varying width.
+		n := int64(rn.Intn(1 << rn.Intn(30)))
+		want = append(strconv.AppendInt(want, n, 10), ' ')
+		b = append(strconv.AppendInt(b, n, 10), ' ')
+		w.Write(b)
+	}
+	w.Flush()
+
+	if !bytes.Equal(got.Bytes(), want) {
+		t.Errorf("output mismatch:\ngot  %s\nwant %s", got.Bytes(), want)
 	}
 }
 
@@ -1284,6 +1351,54 @@ func TestWriterReadFromErrNoProgress(t *testing.T) {
 	}
 }
 
+type readFromWriter struct {
+	buf           []byte
+	writeBytes    int
+	readFromBytes int
+}
+
+func (w *readFromWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	w.writeBytes += len(p)
+	return len(p), nil
+}
+
+func (w *readFromWriter) ReadFrom(r io.Reader) (int64, error) {
+	b, err := io.ReadAll(r)
+	w.buf = append(w.buf, b...)
+	w.readFromBytes += len(b)
+	return int64(len(b)), err
+}
+
+// Test that calling (*Writer).ReadFrom with a partially-filled buffer
+// fills the buffer before switching over to ReadFrom.
+func TestWriterReadFromWithBufferedData(t *testing.T) {
+	const bufsize = 16
+
+	input := createTestInput(64)
+	rfw := &readFromWriter{}
+	w := NewWriterSize(rfw, bufsize)
+
+	const writeSize = 8
+	if n, err := w.Write(input[:writeSize]); n != writeSize || err != nil {
+		t.Errorf("w.Write(%v bytes) = %v, %v; want %v, nil", writeSize, n, err, writeSize)
+	}
+	n, err := w.ReadFrom(bytes.NewReader(input[writeSize:]))
+	if wantn := len(input[writeSize:]); int(n) != wantn || err != nil {
+		t.Errorf("io.Copy(w, %v bytes) = %v, %v; want %v, nil", wantn, n, err, wantn)
+	}
+	if err := w.Flush(); err != nil {
+		t.Errorf("w.Flush() = %v, want nil", err)
+	}
+
+	if got, want := rfw.writeBytes, bufsize; got != want {
+		t.Errorf("wrote %v bytes with Write, want %v", got, want)
+	}
+	if got, want := rfw.readFromBytes, len(input)-bufsize; got != want {
+		t.Errorf("wrote %v bytes with ReadFrom, want %v", got, want)
+	}
+}
+
 func TestReadZero(t *testing.T) {
 	for _, size := range []int{100, 2} {
 		t.Run(fmt.Sprintf("bufsize=%d", size), func(t *testing.T) {
@@ -1312,8 +1427,19 @@ func TestReaderReset(t *testing.T) {
 	if string(buf) != "foo" {
 		t.Errorf("buf = %q; want foo", buf)
 	}
+
 	r.Reset(strings.NewReader("bar bar"))
 	all, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(all) != "bar bar" {
+		t.Errorf("ReadAll = %q; want bar bar", all)
+	}
+
+	*r = Reader{} // zero out the Reader
+	r.Reset(strings.NewReader("bar bar"))
+	all, err = io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1323,9 +1449,10 @@ func TestReaderReset(t *testing.T) {
 }
 
 func TestWriterReset(t *testing.T) {
-	var buf1, buf2 bytes.Buffer
+	var buf1, buf2, buf3 bytes.Buffer
 	w := NewWriter(&buf1)
 	w.WriteString("foo")
+
 	w.Reset(&buf2) // and not flushed
 	w.WriteString("bar")
 	w.Flush()
@@ -1334,6 +1461,17 @@ func TestWriterReset(t *testing.T) {
 	}
 	if buf2.String() != "bar" {
 		t.Errorf("buf2 = %q; want bar", buf2.String())
+	}
+
+	*w = Writer{}  // zero out the Writer
+	w.Reset(&buf3) // and not flushed
+	w.WriteString("bar")
+	w.Flush()
+	if buf1.String() != "" {
+		t.Errorf("buf1 = %q; want empty", buf1.String())
+	}
+	if buf3.String() != "bar" {
+		t.Errorf("buf3 = %q; want bar", buf3.String())
 	}
 }
 

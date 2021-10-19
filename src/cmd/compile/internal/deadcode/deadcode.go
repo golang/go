@@ -117,6 +117,7 @@ func stmts(nn *ir.Nodes) {
 		}
 
 		if cut {
+			ir.VisitList((*nn)[i+1:len(*nn)], markHiddenClosureDead)
 			*nn = (*nn)[:i+1]
 			break
 		}

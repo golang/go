@@ -1514,7 +1514,6 @@ func addPEBaseRelocSym(ldr *loader.Loader, s loader.Sym, rt *peBaseRelocTable) {
 			continue
 		}
 		rs := r.Sym()
-		rs = ldr.ResolveABIAlias(rs)
 		if rs == 0 {
 			continue
 		}

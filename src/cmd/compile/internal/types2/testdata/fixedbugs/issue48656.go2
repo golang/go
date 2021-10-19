@@ -1,0 +1,12 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This issue is still open.
+
+package p
+
+func f[P *Q, Q any](p P, q Q) {
+	// _ = f[P]
+        // _ = f[/* ERROR cannot infer P */ *P]
+}

@@ -9,7 +9,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"sort"
 )
 
 // The unifier maintains two separate sets of type parameters x and y
@@ -77,16 +76,17 @@ type tparamsList struct {
 // String returns a string representation for a tparamsList. For debugging.
 func (d *tparamsList) String() string {
 	var buf bytes.Buffer
-	buf.WriteByte('[')
+	w := newTypeWriter(&buf, nil)
+	w.byte('[')
 	for i, tpar := range d.tparams {
 		if i > 0 {
-			buf.WriteString(", ")
+			w.string(", ")
 		}
-		writeType(&buf, tpar, nil, nil)
-		buf.WriteString(": ")
-		writeType(&buf, d.at(i), nil, nil)
+		w.typ(tpar)
+		w.string(": ")
+		w.typ(d.at(i))
 	}
-	buf.WriteByte(']')
+	w.byte(']')
 	return buf.String()
 }
 
@@ -108,7 +108,7 @@ func (d *tparamsList) init(tparams []*TypeParam) {
 
 // join unifies the i'th type parameter of x with the j'th type parameter of y.
 // If both type parameters already have a type associated with them and they are
-// not joined, join fails and return false.
+// not joined, join fails and returns false.
 func (u *unifier) join(i, j int) bool {
 	ti := u.x.indices[i]
 	tj := u.y.indices[j]
@@ -132,13 +132,18 @@ func (u *unifier) join(i, j int) bool {
 		break
 	case ti > 0 && tj > 0:
 		// Both type parameters have (possibly different) inferred types. Cannot join.
+		// TODO(gri) Should we check if types are identical? Investigate.
 		return false
 	case ti > 0:
 		// Only the type parameter for x has an inferred type. Use x slot for y.
 		u.y.setIndex(j, ti)
+	// This case is handled like the default case.
+	// case tj > 0:
+	// 	// Only the type parameter for y has an inferred type. Use y slot for x.
+	// 	u.x.setIndex(i, tj)
 	default:
-		// Either the type parameter for y has an inferred type, or neither type
-		// parameter has an inferred type. In either case, use y slot for x.
+		// Neither type parameter has an inferred type. Use y slot for x
+		// (or x slot for y, it doesn't matter).
 		u.x.setIndex(i, tj)
 	}
 	return true
@@ -222,7 +227,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 }
 
 // nify implements the core unification algorithm which is an
-// adapted version of Checker.identical0. For changes to that
+// adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
@@ -397,8 +402,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 					p = p.prev
 				}
 				if debug {
-					assert(sort.IsSorted(byUniqueMethodName(a)))
-					assert(sort.IsSorted(byUniqueMethodName(b)))
+					assertSortedMethods(a)
+					assertSortedMethods(b)
 				}
 				for i, f := range a {
 					g := b[i]
@@ -423,10 +428,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
+		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
 		if y, ok := y.(*Named); ok {
-			x.expand(nil)
-			y.expand(nil)
-
 			xargs := x.targs.list()
 			yargs := y.targs.list()
 

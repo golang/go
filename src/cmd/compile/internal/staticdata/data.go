@@ -279,7 +279,7 @@ func NeedFuncSym(fn *ir.Func) {
 		// entry points, so it doesn't make sense to create a
 		// funcsym for other ABIs.
 		//
-		// (If we're using ABI aliases, it doesn't matter.)
+		// (If we're not using ABI wrappers, it doesn't matter.)
 		base.Fatalf("expected ABIInternal: %v has %v", fn.Nname, fn.ABI)
 	}
 	if ir.IsBlank(fn.Nname) {

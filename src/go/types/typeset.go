@@ -28,9 +28,7 @@ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
 // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
 func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
 
-// TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
-
-// IsMethodSet reports whether the type set s is described by a single set of methods.
+// IsMethodSet reports whether the interface t is fully described by its method set.
 func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
 
 // IsComparable reports whether each type in the set is comparable.
@@ -77,26 +75,24 @@ func (s *_TypeSet) String() string {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
 	if s.comparable {
-		buf.WriteString(" comparable")
+		buf.WriteString("comparable")
 		if hasMethods || hasTerms {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
 	}
 	for i, m := range s.methods {
 		if i > 0 {
-			buf.WriteByte(';')
+			buf.WriteString("; ")
 		}
-		buf.WriteByte(' ')
 		buf.WriteString(m.String())
 	}
 	if hasMethods && hasTerms {
-		buf.WriteByte(';')
+		buf.WriteString("; ")
 	}
 	if hasTerms {
 		buf.WriteString(s.terms.String())
 	}
-	buf.WriteString(" }") // there was at least one method or term
-
+	buf.WriteString("}")
 	return buf.String()
 }
 
@@ -269,6 +265,11 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 		switch u := under(typ).(type) {
 		case *Interface:
 			tset := computeInterfaceTypeSet(check, pos, u)
+			// If typ is local, an error was already reported where typ is specified/defined.
+			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(atPos(pos), _Todo, "embedding constraint interface %s requires go1.18 or later", typ)
+				continue
+			}
 			if tset.comparable {
 				ityp.tset.comparable = true
 			}
@@ -277,6 +278,10 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			}
 			terms = tset.terms
 		case *Union:
+			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+				check.errorf(atPos(pos), _Todo, "embedding interface element %s requires go1.18 or later", u)
+				continue
+			}
 			tset := computeUnionTypeSet(check, pos, u)
 			if tset == &invalidTypeSet {
 				continue // ignore invalid unions
@@ -284,14 +289,14 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			terms = tset.terms
 		case *TypeParam:
 			// Embedding stand-alone type parameters is not permitted.
-			// This case is handled during union parsing.
-			unreachable()
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
 		default:
-			if typ == Typ[Invalid] {
+			if u == Typ[Invalid] {
 				continue
 			}
 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
+				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding non-interface type %s requires go1.18 or later", typ)
 				continue
 			}
 			terms = termlist{{false, typ}}
@@ -365,8 +370,8 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
 			terms = computeInterfaceTypeSet(check, pos, u).terms
 		case *TypeParam:
 			// A stand-alone type parameters is not permitted as union term.
-			// This case is handled during union parsing.
-			unreachable()
+			// Union parsing reports a (delayed) error, so we can ignore this entry.
+			continue
 		default:
 			if t.typ == Typ[Invalid] {
 				continue

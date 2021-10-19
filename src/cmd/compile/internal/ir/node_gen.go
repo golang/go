@@ -1331,15 +1331,15 @@ func (n *TailCallStmt) doChildren(do func(Node) bool) bool {
 	if doNodes(n.init, do) {
 		return true
 	}
-	if n.Target != nil && do(n.Target) {
+	if n.Call != nil && do(n.Call) {
 		return true
 	}
 	return false
 }
 func (n *TailCallStmt) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
-	if n.Target != nil {
-		n.Target = edit(n.Target).(*Name)
+	if n.Call != nil {
+		n.Call = edit(n.Call).(*CallExpr)
 	}
 }
 

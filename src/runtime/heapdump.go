@@ -259,7 +259,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Figure out what we can about our stack map
 	pc := s.pc
 	pcdata := int32(-1) // Use the entry map at function entry
-	if pc != f.entry {
+	if pc != f.entry() {
 		pc--
 		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	}
@@ -284,7 +284,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	dumpint(uint64(child.depth))                       // # of frames deep on the stack
 	dumpint(uint64(uintptr(unsafe.Pointer(child.sp)))) // sp of child, or 0 if bottom of stack
 	dumpmemrange(unsafe.Pointer(s.sp), s.fp-s.sp)      // frame contents
-	dumpint(uint64(f.entry))
+	dumpint(uint64(f.entry()))
 	dumpint(uint64(s.pc))
 	dumpint(uint64(s.continpc))
 	name := funcname(f)
@@ -631,7 +631,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 			dumpint(0)
 		} else {
 			dumpstr(funcname(f))
-			if i > 0 && pc > f.entry {
+			if i > 0 && pc > f.entry() {
 				pc--
 			}
 			file, line := funcline(f, pc)

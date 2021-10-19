@@ -79,8 +79,10 @@ const (
 	REG_R30
 	REG_R31
 
-	/* F0=4128 ... F31=4159 */
-	REG_F0
+	/* Align FPR and VSR vectors such that when masked with 0x3F they produce
+	   an equivalent VSX register. */
+	/* F0=4160 ... F31=4191 */
+	REG_F0 = obj.RBasePPC64 + iota + 32
 	REG_F1
 	REG_F2
 	REG_F3
@@ -113,7 +115,7 @@ const (
 	REG_F30
 	REG_F31
 
-	/* V0=4160 ... V31=4191 */
+	/* V0=4192 ... V31=4223 */
 	REG_V0
 	REG_V1
 	REG_V2
@@ -147,7 +149,7 @@ const (
 	REG_V30
 	REG_V31
 
-	/* VS0=4192 ... VS63=4255 */
+	/* VS0=4224 ... VS63=4287 */
 	REG_VS0
 	REG_VS1
 	REG_VS2
@@ -229,7 +231,6 @@ const (
 	REG_SPECIAL = REG_CR0
 
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
 
 	REG_XER = REG_SPR0 + 1
 	REG_LR  = REG_SPR0 + 8
@@ -240,8 +241,8 @@ const (
 	REGSB   = REG_R2
 	REGRET  = REG_R3
 	REGARG  = -1      /* -1 disables passing the first argument in register */
-	REGRT1  = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2  = REG_R4  /* reserved for runtime, duffcopy */
+	REGRT1  = REG_R20 /* reserved for runtime, duffzero and duffcopy */
+	REGRT2  = REG_R21 /* reserved for runtime, duffcopy */
 	REGMIN  = REG_R7  /* register variables allocated from here to REGMAX */
 	REGCTXT = REG_R11 /* context for closures */
 	REGTLS  = REG_R13 /* C ABI TLS base pointer */
@@ -294,16 +295,17 @@ const (
 
 const (
 	/* mark flags */
-	LABEL   = 1 << 0
-	LEAF    = 1 << 1
-	FLOAT   = 1 << 2
-	BRANCH  = 1 << 3
-	LOAD    = 1 << 4
-	FCMP    = 1 << 5
-	SYNC    = 1 << 6
-	LIST    = 1 << 7
-	FOLL    = 1 << 8
-	NOSCHED = 1 << 9
+	LABEL    = 1 << 0
+	LEAF     = 1 << 1
+	FLOAT    = 1 << 2
+	BRANCH   = 1 << 3
+	LOAD     = 1 << 4
+	FCMP     = 1 << 5
+	SYNC     = 1 << 6
+	LIST     = 1 << 7
+	FOLL     = 1 << 8
+	NOSCHED  = 1 << 9
+	PFX_X64B = 1 << 10 // A prefixed instruction crossing a 64B boundary
 )
 
 // Values for use in branch instruction BC
@@ -329,18 +331,13 @@ const (
 	BI_OVF = 3
 )
 
-// Values for the BO field.  Add the branch type to
-// the likely bits, if a likely setting is known.
-// If branch likely or unlikely is not known, don't set it.
-// e.g. branch on cr+likely = 15
+// Common values for the BO field.
 
 const (
-	BO_BCTR     = 16 // branch on ctr value
-	BO_BCR      = 12 // branch on cr value
-	BO_BCRBCTR  = 8  // branch on ctr and cr value
-	BO_NOTBCR   = 4  // branch on not cr value
-	BO_UNLIKELY = 2  // value for unlikely
-	BO_LIKELY   = 3  // value for likely
+	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+	BO_BCR     = 12 // branch on cr value
+	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
+	BO_NOTBCR  = 4  // branch on not cr value
 )
 
 // Bit settings from the CR
@@ -1016,6 +1013,9 @@ const (
 	AXVCVSXWSP
 	AXVCVUXDSP
 	AXVCVUXWSP
+
+	/* ISA 3.1 opcodes */
+	APNOP
 
 	ALAST
 

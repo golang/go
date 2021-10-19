@@ -6,20 +6,20 @@ package types2
 
 import "bytes"
 
-// TParamList holds a list of type parameters.
-type TParamList struct{ tparams []*TypeParam }
+// TypeParamList holds a list of type parameters.
+type TypeParamList struct{ tparams []*TypeParam }
 
 // Len returns the number of type parameters in the list.
 // It is safe to call on a nil receiver.
-func (l *TParamList) Len() int { return len(l.list()) }
+func (l *TypeParamList) Len() int { return len(l.list()) }
 
 // At returns the i'th type parameter in the list.
-func (l *TParamList) At(i int) *TypeParam { return l.tparams[i] }
+func (l *TypeParamList) At(i int) *TypeParam { return l.tparams[i] }
 
 // list is for internal use where we expect a []*TypeParam.
 // TODO(rfindley): list should probably be eliminated: we can pass around a
-// TParamList instead.
-func (l *TParamList) list() []*TypeParam {
+// TypeParamList instead.
+func (l *TypeParamList) list() []*TypeParam {
 	if l == nil {
 		return nil
 	}
@@ -59,16 +59,14 @@ func (l *TypeList) String() string {
 		return "[]"
 	}
 	var buf bytes.Buffer
-	buf.WriteByte('[')
-	writeTypeList(&buf, l.types, nil, nil)
-	buf.WriteByte(']')
+	newTypeWriter(&buf, nil).typeList(l.types)
 	return buf.String()
 }
 
 // ----------------------------------------------------------------------------
 // Implementation
 
-func bindTParams(list []*TypeParam) *TParamList {
+func bindTParams(list []*TypeParam) *TypeParamList {
 	if len(list) == 0 {
 		return nil
 	}
@@ -78,5 +76,5 @@ func bindTParams(list []*TypeParam) *TParamList {
 		}
 		typ.index = i
 	}
-	return &TParamList{tparams: list}
+	return &TypeParamList{tparams: list}
 }

@@ -6,7 +6,6 @@ package types
 
 import (
 	"go/ast"
-	"go/internal/typeparams"
 	"go/token"
 )
 
@@ -15,17 +14,19 @@ import (
 
 // An Interface represents an interface type.
 type Interface struct {
+	check     *Checker     // for error reporting; nil once type set is computed
 	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
 	methods   []*Func      // ordered list of explicitly declared methods
 	embeddeds []Type       // ordered list of explicitly embedded elements
 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
+	implicit  bool         // interface is wrapper for type set literal (non-interface T, ~T, or A|B)
 	complete  bool         // indicates that obj, methods, and embeddeds are set and type set can be computed
 
 	tset *_TypeSet // type set described by this interface, computed lazily
 }
 
 // typeSet returns the type set for interface t.
-func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(nil, token.NoPos, t) }
+func (t *Interface) typeSet() *_TypeSet { return computeInterfaceTypeSet(t.check, token.NoPos, t) }
 
 // emptyInterface represents the empty (completed) interface
 var emptyInterface = Interface{complete: true, tset: &topTypeSet}
@@ -104,8 +105,12 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
 // IsComparable reports whether each type in interface t's type set is comparable.
 func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
 
-// IsConstraint reports whether interface t is not just a method set.
-func (t *Interface) IsConstraint() bool { return !t.typeSet().IsMethodSet() }
+// IsMethodSet reports whether the interface t is fully described by its method
+// set.
+func (t *Interface) IsMethodSet() bool { return t.typeSet().IsMethodSet() }
+
+// IsImplicit reports whether the interface t is a wrapper for a type set literal.
+func (t *Interface) IsImplicit() bool { return t.implicit }
 
 // Complete computes the interface's type set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
@@ -142,7 +147,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 
 	for _, f := range iface.Methods.List {
 		if len(f.Names) == 0 {
-			// We have an embedded type; possibly a union of types.
 			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
 			continue
 		}
@@ -195,8 +199,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		// a receiver specification.)
 		if sig.tparams != nil {
 			var at positioner = f.Type
-			if tparams := typeparams.Get(f.Type); tparams != nil {
-				at = tparams
+			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
+				at = ftyp.TypeParams
 			}
 			check.errorf(at, _Todo, "methods cannot have type parameters")
 		}
@@ -221,7 +225,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// All methods and embedded elements for this interface are collected;
-	// i.e., this interface is may be used in a type set computation.
+	// i.e., this interface may be used in a type set computation.
 	ityp.complete = true
 
 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
@@ -237,7 +241,15 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	// Compute type set with a non-nil *Checker as soon as possible
 	// to report any errors. Subsequent uses of type sets will use
 	// this computed type set and won't need to pass in a *Checker.
-	check.later(func() { computeInterfaceTypeSet(check, iface.Pos(), ityp) })
+	//
+	// Pin the checker to the interface type in the interim, in case the type set
+	// must be used before delayed funcs are processed (see issue #48234).
+	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
+	ityp.check = check
+	check.later(func() {
+		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+		ityp.check = nil
+	})
 }
 
 func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {

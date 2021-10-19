@@ -417,6 +417,15 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
 	return
 }
 
+// verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
+//go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
+func reflect_verifyNotInHeapPtr(p uintptr) bool {
+	// Conversion to a pointer is ok as long as findObject above does not call badPointer.
+	// Since we're already promised that p doesn't point into the heap, just disallow heap
+	// pointers and the special clobbered pointer.
+	return spanOf(p) == nil && p != clobberdeadPtr
+}
+
 // next returns the heapBits describing the next pointer-sized word in memory.
 // That is, if h describes address p, h.next() describes p+ptrSize.
 // Note that next does not modify h. The caller must record the result.
@@ -974,7 +983,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// machine instructions.
 
 	outOfPlace := false
-	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrand()%2 == 0) {
+	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrandn(2) == 0) {
 		// This object spans heap arenas, so the bitmap may be
 		// discontiguous. Unroll it into the object instead
 		// and then copy it out.

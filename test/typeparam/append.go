@@ -9,7 +9,7 @@ package main
 type Recv <-chan int
 
 type sliceOf[E any] interface {
-	type []E
+	~[]E
 }
 
 func _Append[S sliceOf[T], T any](s S, t ...T) S {

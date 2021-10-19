@@ -33,10 +33,13 @@ const (
 	// tests outside of the main module.
 	narrowAllVersionV = "v1.16"
 
-	// lazyLoadingVersionV is the Go version (plus leading "v") at which a
+	// explicitIndirectVersionV is the Go version (plus leading "v") at which a
 	// module's go.mod file is expected to list explicit requirements on every
 	// module that provides any package transitively imported by that module.
-	lazyLoadingVersionV = "v1.17"
+	//
+	// Other indirect dependencies of such a module can be safely pruned out of
+	// the module graph; see https://golang.org/ref/mod#graph-pruning.
+	explicitIndirectVersionV = "v1.17"
 
 	// separateIndirectVersionV is the Go version (plus leading "v") at which
 	// "// indirect" dependencies are added in a block separate from the direct
@@ -44,17 +47,33 @@ const (
 	separateIndirectVersionV = "v1.17"
 )
 
-const (
-	// go117EnableLazyLoading toggles whether lazy-loading code paths should be
-	// active. It will be removed once the lazy loading implementation is stable
-	// and well-tested.
-	go117EnableLazyLoading = true
+// ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+// overlay, locks the file while reading, and applies fix, if applicable.
+func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
+	if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+		// Don't lock go.mod if it's part of the overlay.
+		// On Plan 9, locking requires chmod, and we don't want to modify any file
+		// in the overlay. See #44700.
+		data, err = os.ReadFile(gomodActual)
+	} else {
+		data, err = lockedfile.Read(gomodActual)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
 
-	// go1117LazyTODO is a constant that exists only until lazy loading is
-	// implemented. Its use indicates a condition that will need to change if the
-	// main module is lazy.
-	go117LazyTODO = false
-)
+	f, err = modfile.Parse(gomod, data, fix)
+	if err != nil {
+		// Errors returned by modfile.Parse begin with file:line.
+		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
+	}
+	if f.Module == nil {
+		// No module declaration. Must add module path.
+		return nil, nil, errors.New("no module declaration in go.mod. To specify the module path:\n\tgo mod edit -module=example.com/mod")
+	}
+
+	return data, f, err
+}
 
 // modFileGoVersion returns the (non-empty) Go version at which the requirements
 // in modFile are interpreted, or the latest Go version if modFile is nil.
@@ -69,9 +88,9 @@ func modFileGoVersion(modFile *modfile.File) string {
 		// has been erroneously hand-edited.
 		//
 		// The semantics of the go.mod file are more-or-less the same from Go 1.11
-		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
-		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
-		// scripts may assume that it ends up as a Go 1.16 module.
+		// through Go 1.16, changing at 1.17 to support module graph pruning.
+		// So even though a go.mod file without a 'go' directive is theoretically a
+		// Go 1.11 file, scripts may assume that it ends up as a Go 1.16 module.
 		return "1.16"
 	}
 	return modFile.Go.Version
@@ -94,22 +113,23 @@ type requireMeta struct {
 	indirect bool
 }
 
-// A modDepth indicates which dependencies should be loaded for a go.mod file.
-type modDepth uint8
+// A modPruning indicates whether transitive dependencies of Go 1.17 dependencies
+// are pruned out of the module subgraph rooted at a given module.
+// (See https://golang.org/ref/mod#graph-pruning.)
+type modPruning uint8
 
 const (
-	lazy  modDepth = iota // load dependencies only as needed
-	eager                 // load all transitive dependencies eagerly
+	pruned   modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
+	unpruned                   // no transitive dependencies are pruned out
 )
 
-func modDepthFromGoVersion(goVersion string) modDepth {
-	if !go117EnableLazyLoading {
-		return eager
+func pruningForGoVersion(goVersion string) modPruning {
+	if semver.Compare("v"+goVersion, explicitIndirectVersionV) < 0 {
+		// The go.mod file does not duplicate relevant information about transitive
+		// dependencies, so they cannot be pruned out.
+		return unpruned
 	}
-	if semver.Compare("v"+goVersion, lazyLoadingVersionV) < 0 {
-		return eager
-	}
-	return lazy
+	return pruned
 }
 
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
@@ -483,7 +503,7 @@ var rawGoVersion sync.Map // map[module.Version]string
 type modFileSummary struct {
 	module     module.Version
 	goVersion  string
-	depth      modDepth
+	pruning    modPruning
 	require    []module.Version
 	retract    []retraction
 	deprecated string
@@ -635,9 +655,9 @@ func rawGoModSummary(m module.Version, replacedFrom string) (*modFileSummary, er
 		if f.Go != nil && f.Go.Version != "" {
 			rawGoVersion.LoadOrStore(m, f.Go.Version)
 			summary.goVersion = f.Go.Version
-			summary.depth = modDepthFromGoVersion(f.Go.Version)
+			summary.pruning = pruningForGoVersion(f.Go.Version)
 		} else {
-			summary.depth = eager
+			summary.pruning = unpruned
 		}
 		if len(f.Require) > 0 {
 			summary.require = make([]module.Version, 0, len(f.Require))
@@ -747,3 +767,15 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 }
 
 var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result
+
+// ToDirectoryPath adds a prefix if necessary so that path in unambiguously
+// an absolute path or a relative path starting with a '.' or '..'
+// path component.
+func ToDirectoryPath(path string) string {
+	if modfile.IsDirectoryPath(path) {
+		return path
+	}
+	// The path is not a relative path or an absolute path, so make it relative
+	// to the current directory.
+	return "./" + filepath.ToSlash(filepath.Clean(path))
+}

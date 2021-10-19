@@ -88,15 +88,18 @@ func (v shift) String() string {
 }
 
 // makeshift encodes a register shifted by a constant
-func makeshift(reg int16, typ int64, s int64) shift {
+func makeshift(v *ssa.Value, reg int16, typ int64, s int64) shift {
+	if s < 0 || s >= 32 {
+		v.Fatalf("shift out of range: %d", s)
+	}
 	return shift(int64(reg&0xf) | typ | (s&31)<<7)
 }
 
 // genshift generates a Prog for r = r0 op (r1 shifted by n)
-func genshift(s *ssagen.State, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
+func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
-	p.From.Offset = int64(makeshift(r1, typ, n))
+	p.From.Offset = int64(makeshift(v, r1, typ, n))
 	p.Reg = r0
 	if r != 0 {
 		p.To.Type = obj.TYPE_REG
@@ -335,7 +338,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 	case ssa.OpARMSRRconst:
-		genshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
+		genshift(s, v, arm.AMOVW, 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMADDshiftLL,
 		ssa.OpARMADCshiftLL,
 		ssa.OpARMSUBshiftLL,
@@ -346,11 +349,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARMORshiftLL,
 		ssa.OpARMXORshiftLL,
 		ssa.OpARMBICshiftLL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMADDSshiftLL,
 		ssa.OpARMSUBSshiftLL,
 		ssa.OpARMRSBSshiftLL:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LL, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LL, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRL,
 		ssa.OpARMADCshiftRL,
@@ -362,11 +365,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARMORshiftRL,
 		ssa.OpARMXORshiftRL,
 		ssa.OpARMBICshiftRL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMADDSshiftRL,
 		ssa.OpARMSUBSshiftRL,
 		ssa.OpARMRSBSshiftRL:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_LR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRA,
 		ssa.OpARMADCshiftRA,
@@ -378,20 +381,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARMORshiftRA,
 		ssa.OpARMXORshiftRA,
 		ssa.OpARMBICshiftRA:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMADDSshiftRA,
 		ssa.OpARMSUBSshiftRA,
 		ssa.OpARMRSBSshiftRA:
-		p := genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_AR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg0(), arm.SHIFT_AR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMXORshiftRR:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMMVNshiftLL:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMMVNshiftRL:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMMVNshiftRA:
-		genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMMVNshiftLLreg:
 		genregshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL)
 	case ssa.OpARMMVNshiftRLreg:
@@ -513,11 +516,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMCMPshiftLL, ssa.OpARMCMNshiftLL, ssa.OpARMTSTshiftLL, ssa.OpARMTEQshiftLL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LL, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMCMPshiftRL, ssa.OpARMCMNshiftRL, ssa.OpARMTSTshiftRL, ssa.OpARMTEQshiftRL:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_LR, v.AuxInt)
 	case ssa.OpARMCMPshiftRA, ssa.OpARMCMNshiftRA, ssa.OpARMTSTshiftRA, ssa.OpARMTEQshiftRA:
-		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_AR, v.AuxInt)
+		genshift(s, v, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), 0, arm.SHIFT_AR, v.AuxInt)
 	case ssa.OpARMCMPshiftLLreg, ssa.OpARMCMNshiftLLreg, ssa.OpARMTSTshiftLLreg, ssa.OpARMTEQshiftLLreg:
 		genregshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg(), 0, arm.SHIFT_LL)
 	case ssa.OpARMCMPshiftRLreg, ssa.OpARMCMNshiftRLreg, ssa.OpARMTSTshiftRLreg, ssa.OpARMTEQshiftRLreg:
@@ -583,13 +586,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// this is just shift 0 bits
 		fallthrough
 	case ssa.OpARMMOVWloadshiftLL:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LL, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWloadshiftRL:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_LR, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWloadshiftRA:
-		p := genshift(s, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
+		p := genshift(s, v, v.Op.Asm(), 0, v.Args[1].Reg(), v.Reg(), arm.SHIFT_AR, v.AuxInt)
 		p.From.Reg = v.Args[0].Reg()
 	case ssa.OpARMMOVWstoreidx, ssa.OpARMMOVBstoreidx, ssa.OpARMMOVHstoreidx:
 		// this is just shift 0 bits
@@ -600,21 +603,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_LL, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_LL, v.AuxInt))
 	case ssa.OpARMMOVWstoreshiftRL:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_LR, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_LR, v.AuxInt))
 	case ssa.OpARMMOVWstoreshiftRA:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
 		p.To.Type = obj.TYPE_SHIFT
 		p.To.Reg = v.Args[0].Reg()
-		p.To.Offset = int64(makeshift(v.Args[1].Reg(), arm.SHIFT_AR, v.AuxInt))
+		p.To.Offset = int64(makeshift(v, v.Args[1].Reg(), arm.SHIFT_AR, v.AuxInt))
 	case ssa.OpARMMOVBreg,
 		ssa.OpARMMOVBUreg,
 		ssa.OpARMMOVHreg,
@@ -645,7 +648,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		if buildcfg.GOARM >= 6 {
 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
-			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+			genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
 			return
 		}
 		fallthrough
@@ -696,6 +699,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
 		s.Call(v)
+	case ssa.OpARMCALLtail:
+		s.TailCall(v)
 	case ssa.OpARMCALLudiv:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -936,16 +941,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 
 	case ssa.BlockARMEQ, ssa.BlockARMNE,
 		ssa.BlockARMLT, ssa.BlockARMGE,

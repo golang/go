@@ -86,8 +86,9 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Check whether modules are enabled and whether we're in a module.
 	modload.ForceUseModules = true
+	modload.ExplicitWriteGoMod = true
 	if !modload.HasModRoot() && len(args) == 0 {
-		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
+		base.Fatalf("go: no modules specified (see 'go help mod download')")
 	}
 	haveExplicitArgs := len(args) > 0
 	if !haveExplicitArgs {
@@ -106,7 +107,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, arg := range args {
 			switch arg {
 			case mainModule.Path, targetAtUpgrade, targetAtPatch:
-				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
+				os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
 			}
 		}
 	}
@@ -149,13 +150,16 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	if !haveExplicitArgs {
 		// 'go mod download' is sometimes run without arguments to pre-populate the
 		// module cache. It may fetch modules that aren't needed to build packages
-		// in the main mdoule. This is usually not intended, so don't save sums for
-		// downloaded modules (golang.org/issue/45332).
-		// TODO(golang.org/issue/45551): For now, in ListModules, save sums needed
-		// to load the build list (same as 1.15 behavior). In the future, report an
-		// error if go.mod or go.sum need to be updated after loading the build
-		// list.
-		modload.DisallowWriteGoMod()
+		// in the main module. This is usually not intended, so don't save sums for
+		// downloaded modules (golang.org/issue/45332). We do still fix
+		// inconsistencies in go.mod though.
+		//
+		// TODO(#45551): In the future, report an error if go.mod or go.sum need to
+		// be updated after loading the build list. This may require setting
+		// the mode to "mod" or "readonly" depending on haveExplicitArgs.
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Fatalf("go: %v", err)
+		}
 	}
 
 	for _, info := range infos {
@@ -192,7 +196,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		for _, m := range mods {
 			b, err := json.MarshalIndent(m, "", "\t")
 			if err != nil {
-				base.Fatalf("go mod download: %v", err)
+				base.Fatalf("go: %v", err)
 			}
 			os.Stdout.Write(append(b, '\n'))
 			if m.Error != "" {
@@ -202,7 +206,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	} else {
 		for _, m := range mods {
 			if m.Error != "" {
-				base.Errorf("go mod download: %v", m.Error)
+				base.Errorf("go: %v", m.Error)
 			}
 		}
 		base.ExitIfErrors()
@@ -215,13 +219,15 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	//
 	// Don't save sums for 'go mod download' without arguments; see comment above.
 	if haveExplicitArgs {
-		modload.WriteGoMod(ctx)
+		if err := modload.WriteGoMod(ctx); err != nil {
+			base.Errorf("go: %v", err)
+		}
 	}
 
 	// If there was an error matching some of the requested packages, emit it now
 	// (after we've written the checksums for the modules that were downloaded
 	// successfully).
 	if infosErr != nil {
-		base.Errorf("go mod download: %v", infosErr)
+		base.Errorf("go: %v", infosErr)
 	}
 }

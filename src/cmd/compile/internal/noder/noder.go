@@ -154,7 +154,6 @@ func LoadPackage(filenames []string) {
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to Target.Decls.
 	base.Timer.Start("fe", "typecheck", "func")
-	var fcount int64
 	for i := 0; i < len(typecheck.Target.Decls); i++ {
 		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
 			if base.Flag.W > 1 {
@@ -166,7 +165,6 @@ func LoadPackage(filenames []string) {
 				s := fmt.Sprintf("\nafter typecheck %v", fn)
 				ir.Dump(s, fn)
 			}
-			fcount++
 		}
 	}
 
@@ -1539,7 +1537,7 @@ func (p *noder) mkname(name *syntax.Name) ir.Node {
 	return mkname(p.name(name))
 }
 
-func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+func wrapname(pos src.XPos, x ir.Node) ir.Node {
 	// These nodes do not carry line numbers.
 	// Introduce a wrapper node to give them the correct line.
 	switch x.Op() {
@@ -1549,11 +1547,15 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
 		}
 		fallthrough
 	case ir.ONAME, ir.ONONAME, ir.OPACK:
-		p := ir.NewParenExpr(p.pos(n), x)
+		p := ir.NewParenExpr(pos, x)
 		p.SetImplicit(true)
 		return p
 	}
 	return x
+}
+
+func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+	return wrapname(p.pos(n), x)
 }
 
 func (p *noder) setlineno(n syntax.Node) {

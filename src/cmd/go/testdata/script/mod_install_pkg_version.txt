@@ -16,7 +16,7 @@ env GO111MODULE=auto
 cd m
 cp go.mod go.mod.orig
 ! go list -m all
-stderr '^go list -m: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
 go install example.com/cmd/a@latest
 cmp go.mod go.mod.orig
 exists $GOPATH/bin/a$GOEXE
@@ -70,7 +70,7 @@ go mod edit -require=rsc.io/fortune@v1.0.0
 stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
 ! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
 stderr '^missing go\.sum entry for module providing package rsc\.io/fortune; to add:\n\tgo mod download rsc\.io/fortune$'
-go get -d rsc.io/fortune@v1.0.0
+go get rsc.io/fortune@v1.0.0
 go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
 exists $GOPATH/bin/fortune$GOEXE
 cd ..
@@ -81,15 +81,15 @@ env GO111MODULE=auto
 # 'go install pkg@version' reports errors for meta packages, std packages,
 # and directories.
 ! go install std@v1.0.0
-stderr '^go install: std@v1.0.0: argument must be a package path, not a meta-package$'
+stderr '^go: std@v1.0.0: argument must be a package path, not a meta-package$'
 ! go install fmt@v1.0.0
-stderr '^go install: fmt@v1.0.0: argument must not be a package in the standard library$'
+stderr '^go: fmt@v1.0.0: argument must not be a package in the standard library$'
 ! go install example.com//cmd/a@v1.0.0
-stderr '^go install: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
+stderr '^go: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
 ! go install example.com/cmd/a@v1.0.0 ./x@v1.0.0
-stderr '^go install: ./x@v1.0.0: argument must be a package path, not a relative path$'
+stderr '^go: ./x@v1.0.0: argument must be a package path, not a relative path$'
 ! go install example.com/cmd/a@v1.0.0 $GOPATH/src/x@v1.0.0
-stderr '^go install: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
+stderr '^go: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
 ! go install example.com/cmd/a@v1.0.0 cmd/...@v1.0.0
 stderr '^package cmd/go not provided by module example.com/cmd@v1.0.0$'
 
@@ -106,7 +106,7 @@ stdout '^example.com/cmd v1.0.0$'
 env GO111MODULE=auto
 
 ! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
-stderr '^go install: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
+stderr '^go: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
 
 
 # 'go install pkg@version' should report an error if the arguments are in
@@ -125,7 +125,7 @@ stderr '^package example.com/cmd/err is not a main package$'
 mkdir tmp
 cd tmp
 go mod init m
-go get -d example.com/cmd@v1.0.0
+go get example.com/cmd@v1.0.0
 ! go build example.com/cmd/...
 stderr 'err[/\\]err.go:3:9: undefined: DoesNotCompile$'
 cd ..
@@ -137,7 +137,7 @@ rm $GOPATH/bin
 
 # If a wildcard matches no packages, we should see a warning.
 ! go install example.com/cmd/nomatch...@v1.0.0
-stderr '^go install: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
+stderr '^go: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
 go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
 stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
 
@@ -159,7 +159,7 @@ cmp stderr exclude-err
 # 'go install pkg@version' should report an error if the module requires a
 # higher version of itself.
 ! go install example.com/cmd/a@v1.0.0-newerself
-stderr '^go install: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
 
 
 # 'go install pkg@version' will only match a retracted version if it's
@@ -192,12 +192,12 @@ package main
 
 func main() {}
 -- replace-err --
-go install: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
+go: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
 	The go.mod file for the module providing named packages contains one or
 	more replace directives. It must not contain directives that would cause
 	it to be interpreted differently than if it were the main module.
 -- exclude-err --
-go install: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
+go: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
 	The go.mod file for the module providing named packages contains one or
 	more exclude directives. It must not contain directives that would cause
 	it to be interpreted differently than if it were the main module.

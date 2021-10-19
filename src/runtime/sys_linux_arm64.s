@@ -49,6 +49,9 @@
 #define SYS_socket		198
 #define SYS_connect		203
 #define SYS_brk			214
+#define SYS_timer_create	107
+#define SYS_timer_settime	110
+#define SYS_timer_delete	111
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R0
@@ -197,6 +200,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	SVC
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), R0
+	MOVD	sevp+8(FP), R1
+	MOVD	timerid+16(FP), R2
+	MOVD	$SYS_timer_create, R8
+	SVC
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), R0
+	MOVW	flags+4(FP), R1
+	MOVD	new+8(FP), R2
+	MOVD	old+16(FP), R3
+	MOVD	$SYS_timer_settime, R8
+	SVC
+	MOVW	R0, ret+24(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), R0
+	MOVD	$SYS_timer_delete, R8
+	SVC
+	MOVW	R0, ret+8(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R0
 	MOVD	n+8(FP), R1
@@ -221,8 +250,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$24-12
 	MOVD	R2, 8(RSP)
 	MOVD	R3, 16(RSP)
 
+	MOVD	$ret-8(FP), R2 // caller's SP
 	MOVD	LR, m_vdsoPC(R21)
-	MOVD	R20, m_vdsoSP(R21)
+	MOVD	R2, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R0
 	CMP	g, R0
@@ -304,8 +334,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
 	MOVD	R2, 8(RSP)
 	MOVD	R3, 16(RSP)
 
+	MOVD	$ret-8(FP), R2 // caller's SP
 	MOVD	LR, m_vdsoPC(R21)
-	MOVD	R20, m_vdsoSP(R21)
+	MOVD	R2, m_vdsoSP(R21)
 
 	MOVD	m_curg(R21), R0
 	CMP	g, R0

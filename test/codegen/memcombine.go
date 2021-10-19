@@ -432,6 +432,18 @@ func store_be32(b []byte) {
 	binary.BigEndian.PutUint32(b, sink32)
 }
 
+func store_be64_load(b, x *[8]byte) {
+	// arm64:-`REV`
+	// amd64:-`BSWAPQ`
+	binary.BigEndian.PutUint64(b[:], binary.BigEndian.Uint64(x[:]))
+}
+
+func store_be32_load(b, x *[8]byte) {
+	// arm64:-`REVW`
+	// amd64:-`BSWAPL`
+	binary.BigEndian.PutUint32(b[:], binary.BigEndian.Uint32(x[:]))
+}
+
 func store_be32_idx(b []byte, idx int) {
 	// amd64:`BSWAPL`,-`SHR.`
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`

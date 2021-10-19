@@ -1,0 +1,10 @@
+env GO111MODULE=on
+env GOPROXYBASE=$GOPROXY
+env GOPROXY=$GOPROXYBASE/redirect/11
+env GOSUMDB=off
+
+! go mod download rsc.io/quote@v1.2.0
+stderr 'stopped after 10 redirects'
+
+env GOPROXY=$GOPROXYBASE/redirect/9
+go mod download rsc.io/quote@v1.2.0

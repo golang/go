@@ -43,6 +43,9 @@
 #define SYS_epoll_create	4248
 #define SYS_epoll_ctl		4249
 #define SYS_epoll_wait		4250
+#define SYS_timer_create	4257
+#define SYS_timer_settime	4258
+#define SYS_timer_delete	4261
 #define SYS_clock_gettime	4263
 #define SYS_tgkill		4266
 #define SYS_epoll_create1	4326
@@ -207,6 +210,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVW	old+8(FP), R6
 	MOVW	$SYS_setitimer, R2
 	SYSCALL
+	RET
+
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVW	clockid+0(FP), R4
+	MOVW	sevp+4(FP), R5
+	MOVW	timerid+8(FP), R6
+	MOVW	$SYS_timer_create, R2
+	SYSCALL
+	MOVW	R2, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R4
+	MOVW	flags+4(FP), R5
+	MOVW	new+8(FP), R6
+	MOVW	old+12(FP), R7
+	MOVW	$SYS_timer_settime, R2
+	SYSCALL
+	MOVW	R2, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVW	timerid+0(FP), R4
+	MOVW	$SYS_timer_delete, R2
+	SYSCALL
+	MOVW	R2, ret+4(FP)
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16

@@ -9,18 +9,14 @@
 package main
 
 func f1() {
-	a, b := f()	// ERROR "assignment mismatch|does not match|cannot initialize"
-	_ = a
-	_ = b
+	a, b := f() // ERROR "assignment mismatch|does not match|cannot initialize"
 }
 
 func f2() {
 	var a, b int
-	a, b = f()	// ERROR "assignment mismatch|does not match|cannot assign"
-	_ = a
-	_ = b
+	a, b = f() // ERROR "assignment mismatch|does not match|cannot assign"
 }
 
 func f() int {
-	return 1;
+	return 1
 }

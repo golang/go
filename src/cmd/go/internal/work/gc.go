@@ -75,7 +75,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 
 	pkgpath := pkgPath(a)
-	gcflags := []string{"-p", pkgpath}
+	defaultGcFlags := []string{"-p", pkgpath}
 	if p.Module != nil {
 		v := p.Module.GoVersion
 		if v == "" {
@@ -94,11 +94,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			v = "1.16"
 		}
 		if allowedVersion(v) {
-			gcflags = append(gcflags, "-lang=go"+v)
+			defaultGcFlags = append(defaultGcFlags, "-lang=go"+v)
 		}
 	}
 	if p.Standard {
-		gcflags = append(gcflags, "-std")
+		defaultGcFlags = append(defaultGcFlags, "-std")
 	}
 	_, compilingRuntime := runtimePackages[p.ImportPath]
 	compilingRuntime = compilingRuntime && p.Standard
@@ -106,7 +106,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		// runtime compiles with a special gc flag to check for
 		// memory allocations that are invalid in the runtime package,
 		// and to implement some special compiler pragmas.
-		gcflags = append(gcflags, "-+")
+		defaultGcFlags = append(defaultGcFlags, "-+")
 	}
 
 	// If we're giving the compiler the entire package (no C etc files), tell it that,
@@ -125,25 +125,28 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 	if extFiles == 0 {
-		gcflags = append(gcflags, "-complete")
+		defaultGcFlags = append(defaultGcFlags, "-complete")
 	}
 	if cfg.BuildContext.InstallSuffix != "" {
-		gcflags = append(gcflags, "-installsuffix", cfg.BuildContext.InstallSuffix)
+		defaultGcFlags = append(defaultGcFlags, "-installsuffix", cfg.BuildContext.InstallSuffix)
 	}
 	if a.buildID != "" {
-		gcflags = append(gcflags, "-buildid", a.buildID)
+		defaultGcFlags = append(defaultGcFlags, "-buildid", a.buildID)
 	}
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
-		gcflags = append(gcflags, "-dwarf=false")
+		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}
 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		gcflags = append(gcflags, "-goversion", runtimeVersion)
+		defaultGcFlags = append(defaultGcFlags, "-goversion", runtimeVersion)
 	}
 	if symabis != "" {
-		gcflags = append(gcflags, "-symabis", symabis)
+		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
 	}
 
-	gcflags = append(gcflags, str.StringList(forcedGcflags, p.Internal.Gcflags)...)
+	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+	if p.Internal.FuzzInstrument {
+		gcflags = append(gcflags, fuzzInstrumentFlags()...)
+	}
 	if compilingRuntime {
 		// Remove -N, if present.
 		// It is not possible to build the runtime with no optimizations,
@@ -156,10 +159,15 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			}
 		}
 	}
+	// Add -c=N to use concurrent backend compilation, if possible.
+	if c := gcBackendConcurrency(gcflags); c > 1 {
+		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
+	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags}
-	if p.Internal.LocalPrefix != "" {
-		// Workaround #43883.
+	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	if p.Internal.LocalPrefix == "" {
+		args = append(args, "-nolocalimports")
+	} else {
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
@@ -179,11 +187,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
-	}
-
-	// Add -c=N to use concurrent backend compilation, if possible.
-	if c := gcBackendConcurrency(gcflags); c > 1 {
-		args = append(args, fmt.Sprintf("-c=%d", c))
 	}
 
 	for _, f := range gofiles {
@@ -232,7 +235,7 @@ CheckFlags:
 		// except for known commonly used flags.
 		// If the user knows better, they can manually add their own -c to the gcflags.
 		switch flag {
-		case "-N", "-l", "-S", "-B", "-C", "-I":
+		case "-N", "-l", "-S", "-B", "-C", "-I", "-shared":
 			// OK
 		default:
 			canDashC = false
@@ -377,6 +380,11 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	if cfg.Goarch == "386" {
 		// Define GO386_value from cfg.GO386.
 		args = append(args, "-D", "GO386_"+cfg.GO386)
+	}
+
+	if cfg.Goarch == "amd64" {
+		// Define GOAMD64_value from cfg.GOAMD64.
+		args = append(args, "-D", "GOAMD64_"+cfg.GOAMD64)
 	}
 
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

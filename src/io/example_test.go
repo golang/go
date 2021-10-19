@@ -160,6 +160,21 @@ func ExampleSectionReader() {
 	// io.Reader stream
 }
 
+func ExampleSectionReader_Read() {
+	r := strings.NewReader("some io.Reader stream to be read\n")
+	s := io.NewSectionReader(r, 5, 17)
+
+	buf := make([]byte, 9)
+	if _, err := s.Read(buf); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s\n", buf)
+
+	// Output:
+	// io.Reader
+}
+
 func ExampleSectionReader_ReadAt() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 	s := io.NewSectionReader(r, 5, 17)
@@ -189,6 +204,16 @@ func ExampleSectionReader_Seek() {
 
 	// Output:
 	// stream
+}
+
+func ExampleSectionReader_Size() {
+	r := strings.NewReader("some io.Reader stream to be read\n")
+	s := io.NewSectionReader(r, 5, 17)
+
+	fmt.Println(s.Size())
+
+	// Output:
+	// 17
 }
 
 func ExampleSeeker_Seek() {

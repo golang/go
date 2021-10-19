@@ -16,6 +16,7 @@ const (
 	ARM
 	ARM64
 	I386
+	Loong64
 	MIPS
 	MIPS64
 	PPC64
@@ -46,6 +47,11 @@ type Arch struct {
 	// Loads or stores smaller than Alignment must be naturally aligned.
 	// Loads or stores larger than Alignment need only be Alignment-aligned.
 	Alignment int8
+
+	// CanMergeLoads reports whether the backend optimization passes
+	// can combine adjacent loads into a single larger, possibly unaligned, load.
+	// Note that currently the optimizations must be able to handle little endian byte order.
+	CanMergeLoads bool
 }
 
 // InFamily reports whether a is a member of any of the specified
@@ -60,133 +66,157 @@ func (a *Arch) InFamily(xs ...ArchFamily) bool {
 }
 
 var Arch386 = &Arch{
-	Name:      "386",
-	Family:    I386,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   4,
-	RegSize:   4,
-	MinLC:     1,
-	Alignment: 1,
+	Name:          "386",
+	Family:        I386,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       4,
+	RegSize:       4,
+	MinLC:         1,
+	Alignment:     1,
+	CanMergeLoads: true,
 }
 
 var ArchAMD64 = &Arch{
-	Name:      "amd64",
-	Family:    AMD64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     1,
-	Alignment: 1,
+	Name:          "amd64",
+	Family:        AMD64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         1,
+	Alignment:     1,
+	CanMergeLoads: true,
 }
 
 var ArchARM = &Arch{
-	Name:      "arm",
-	Family:    ARM,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   4,
-	RegSize:   4,
-	MinLC:     4,
-	Alignment: 4, // TODO: just for arm5?
+	Name:          "arm",
+	Family:        ARM,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       4,
+	RegSize:       4,
+	MinLC:         4,
+	Alignment:     4, // TODO: just for arm5?
+	CanMergeLoads: false,
 }
 
 var ArchARM64 = &Arch{
-	Name:      "arm64",
-	Family:    ARM64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 1,
+	Name:          "arm64",
+	Family:        ARM64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     1,
+	CanMergeLoads: true,
+}
+
+var ArchLoong64 = &Arch{
+	Name:          "loong64",
+	Family:        Loong64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     8, // Unaligned accesses are not guaranteed to be fast
+	CanMergeLoads: false,
 }
 
 var ArchMIPS = &Arch{
-	Name:      "mips",
-	Family:    MIPS,
-	ByteOrder: binary.BigEndian,
-	PtrSize:   4,
-	RegSize:   4,
-	MinLC:     4,
-	Alignment: 4,
+	Name:          "mips",
+	Family:        MIPS,
+	ByteOrder:     binary.BigEndian,
+	PtrSize:       4,
+	RegSize:       4,
+	MinLC:         4,
+	Alignment:     4,
+	CanMergeLoads: false,
 }
 
 var ArchMIPSLE = &Arch{
-	Name:      "mipsle",
-	Family:    MIPS,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   4,
-	RegSize:   4,
-	MinLC:     4,
-	Alignment: 4,
+	Name:          "mipsle",
+	Family:        MIPS,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       4,
+	RegSize:       4,
+	MinLC:         4,
+	Alignment:     4,
+	CanMergeLoads: false,
 }
 
 var ArchMIPS64 = &Arch{
-	Name:      "mips64",
-	Family:    MIPS64,
-	ByteOrder: binary.BigEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 8,
+	Name:          "mips64",
+	Family:        MIPS64,
+	ByteOrder:     binary.BigEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     8,
+	CanMergeLoads: false,
 }
 
 var ArchMIPS64LE = &Arch{
-	Name:      "mips64le",
-	Family:    MIPS64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 8,
+	Name:          "mips64le",
+	Family:        MIPS64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     8,
+	CanMergeLoads: false,
 }
 
 var ArchPPC64 = &Arch{
-	Name:      "ppc64",
-	Family:    PPC64,
-	ByteOrder: binary.BigEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 1,
+	Name:          "ppc64",
+	Family:        PPC64,
+	ByteOrder:     binary.BigEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     1,
+	CanMergeLoads: false,
 }
 
 var ArchPPC64LE = &Arch{
-	Name:      "ppc64le",
-	Family:    PPC64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 1,
+	Name:          "ppc64le",
+	Family:        PPC64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     1,
+	CanMergeLoads: true,
 }
 
 var ArchRISCV64 = &Arch{
-	Name:      "riscv64",
-	Family:    RISCV64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     4,
-	Alignment: 8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
+	Name:          "riscv64",
+	Family:        RISCV64,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         4,
+	Alignment:     8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
+	CanMergeLoads: false,
 }
 
 var ArchS390X = &Arch{
-	Name:      "s390x",
-	Family:    S390X,
-	ByteOrder: binary.BigEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     2,
-	Alignment: 1,
+	Name:          "s390x",
+	Family:        S390X,
+	ByteOrder:     binary.BigEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         2,
+	Alignment:     1,
+	CanMergeLoads: true,
 }
 
 var ArchWasm = &Arch{
-	Name:      "wasm",
-	Family:    Wasm,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     1,
-	Alignment: 1,
+	Name:          "wasm",
+	Family:        Wasm,
+	ByteOrder:     binary.LittleEndian,
+	PtrSize:       8,
+	RegSize:       8,
+	MinLC:         1,
+	Alignment:     1,
+	CanMergeLoads: false,
 }
 
 var Archs = [...]*Arch{
@@ -194,6 +224,7 @@ var Archs = [...]*Arch{
 	ArchAMD64,
 	ArchARM,
 	ArchARM64,
+	ArchLoong64,
 	ArchMIPS,
 	ArchMIPSLE,
 	ArchMIPS64,

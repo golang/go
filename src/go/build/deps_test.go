@@ -70,7 +70,7 @@ import (
 var depsRules = `
 	# No dependencies allowed for any of these packages.
 	NONE
-	< container/list, container/ring,
+	< constraints, container/list, container/ring,
 	  internal/cfg, internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace,
@@ -214,7 +214,6 @@ var depsRules = `
 	  mime/quotedprintable,
 	  net/internal/socktest,
 	  net/url,
-	  runtime/debug,
 	  runtime/trace,
 	  text/scanner,
 	  text/tabwriter;
@@ -271,8 +270,10 @@ var depsRules = `
 
 	# executable parsing
 	FMT, encoding/binary, compress/zlib
+	< runtime/debug
 	< debug/dwarf
 	< debug/elf, debug/gosym, debug/macho, debug/pe, debug/plan9obj, internal/xcoff
+	< debug/buildinfo
 	< DEBUG;
 
 	# go parser and friends.
@@ -395,7 +396,7 @@ var depsRules = `
 	< crypto/subtle
 	< crypto/internal/subtle
 	< crypto/elliptic/internal/fiat
-	< crypto/ed25519/internal/edwards25519/field
+	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
 	< crypto/ed25519/internal/edwards25519
 	< crypto/cipher
 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
@@ -510,10 +511,13 @@ var depsRules = `
 	FMT, flag, math/rand
 	< testing/quick;
 
-	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo, math/rand
+	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
-	internal/testlog, runtime/pprof, regexp
+	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token, math/rand, encoding/hex, crypto/sha256
+	< internal/fuzz;
+
+	internal/fuzz, internal/testlog, runtime/pprof, regexp
 	< testing/internal/testdeps;
 
 	OS, flag, testing, internal/cfg
@@ -653,6 +657,9 @@ func findImports(pkg string) ([]string, error) {
 		f.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %v: %v", name, err)
+		}
+		if info.parsed.Name.Name == "main" {
+			continue
 		}
 		if bytes.Contains(info.header, buildIgnore) {
 			continue

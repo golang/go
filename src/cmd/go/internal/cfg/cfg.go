@@ -25,7 +25,9 @@ import (
 // These are general "build flags" used by build and other commands.
 var (
 	BuildA                 bool   // -a flag
+	BuildBuildinfo         bool   // -buildinfo flag
 	BuildBuildmode         string // -buildmode flag
+	BuildBuildvcs          bool   // -buildvcs flag
 	BuildContext           = defaultContext()
 	BuildMod               string                  // -mod flag
 	BuildModExplicit       bool                    // whether -mod was set explicitly
@@ -56,10 +58,15 @@ var (
 
 	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
 	DebugTrace       string // -debug-trace flag
+
+	// GoPathError is set when GOPATH is not set. it contains an
+	// explanation why GOPATH is unset.
+	GoPathError string
 )
 
 func defaultContext() build.Context {
 	ctxt := build.Default
+
 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
 
 	ctxt.GOROOT = findGOROOT()
@@ -72,7 +79,7 @@ func defaultContext() build.Context {
 		build.ToolDir = filepath.Join(ctxt.GOROOT, "pkg/tool/"+runtime.GOOS+"_"+runtime.GOARCH)
 	}
 
-	ctxt.GOPATH = envOr("GOPATH", ctxt.GOPATH)
+	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
 
 	// Override defaults computed in go/build with defaults
 	// from go environment configuration file, if known.
@@ -263,6 +270,7 @@ var (
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
 	GO386    = envOr("GO386", buildcfg.GO386)
+	GOAMD64  = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
 	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
 	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
@@ -289,6 +297,8 @@ func GetArchEnv() (key, val string) {
 		return "GOARM", GOARM
 	case "386":
 		return "GO386", GO386
+	case "amd64":
+		return "GOAMD64", GOAMD64
 	case "mips", "mipsle":
 		return "GOMIPS", GOMIPS
 	case "mips64", "mips64le":
@@ -397,4 +407,25 @@ func gopathDir(rel string) string {
 		return ""
 	}
 	return filepath.Join(list[0], rel)
+}
+
+func gopath(ctxt build.Context) string {
+	if len(ctxt.GOPATH) > 0 {
+		return ctxt.GOPATH
+	}
+	env := "HOME"
+	if runtime.GOOS == "windows" {
+		env = "USERPROFILE"
+	} else if runtime.GOOS == "plan9" {
+		env = "home"
+	}
+	if home := os.Getenv(env); home != "" {
+		def := filepath.Join(home, "go")
+		if filepath.Clean(def) == filepath.Clean(runtime.GOROOT()) {
+			GoPathError = "cannot set GOROOT as GOPATH"
+		}
+		return ""
+	}
+	GoPathError = fmt.Sprintf("%s is not set", env)
+	return ""
 }

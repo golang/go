@@ -115,8 +115,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 
 	// Split the tag from the xml namespace if necessary.
 	tag := f.Tag.Get("xml")
-	if i := strings.Index(tag, " "); i >= 0 {
-		finfo.xmlns, tag = tag[:i], tag[i+1:]
+	if ns, t, ok := strings.Cut(tag, " "); ok {
+		finfo.xmlns, tag = ns, t
 	}
 
 	// Parse flags.

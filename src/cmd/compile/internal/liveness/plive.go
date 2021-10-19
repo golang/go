@@ -15,7 +15,6 @@
 package liveness
 
 import (
-	"crypto/md5"
 	"crypto/sha1"
 	"fmt"
 	"os"
@@ -1326,19 +1325,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 		loff = objw.BitVec(&liveSymTmp, loff, locals)
 	}
 
-	// Give these LSyms content-addressable names,
-	// so that they can be de-duplicated.
-	// This provides significant binary size savings.
-	//
 	// These symbols will be added to Ctxt.Data by addGCLocals
 	// after parallel compilation is done.
-	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
-		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
-			lsym.P = tmpSym.P
-			lsym.Set(obj.AttrContentAddressable, true)
-		})
-	}
-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp)
+	return base.Ctxt.GCLocalsSym(argsSymTmp.P), base.Ctxt.GCLocalsSym(liveSymTmp.P)
 }
 
 // Entry pointer for Compute analysis. Solves for the Compute of
@@ -1428,6 +1417,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.
 	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
+	x.Set(obj.AttrContentAddressable, true)
 	lv.fn.LSym.Func().StackObjects = x
 	off := 0
 	off = objw.Uintptr(x, off, uint64(len(vars)))
@@ -1454,7 +1444,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		}
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrdata))
-		off = objw.SymPtr(x, off, lsym, 0)
+		off = objw.SymPtrOff(x, off, lsym)
 	}
 
 	if base.Flag.Live != 0 {

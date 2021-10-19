@@ -1,0 +1,24 @@
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This issue has been re-opened.
+
+package p
+
+func f[P any](a, _ P) {
+	// var x int
+	// f(a, x /* ERROR type int of x does not match P */)
+	// f(x, a /* ERROR type P of a does not match inferred type int for P */)
+}
+
+func g[P any](a, b P) {
+	// g(a, b)
+	// g(&a, &b)
+	// g([]P{}, []P{})
+}
+
+func h[P any](a, b P) {
+	// h(&a, &b)
+	// h([]P{a}, []P{b})
+}

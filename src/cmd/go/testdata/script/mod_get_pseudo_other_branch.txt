@@ -17,7 +17,7 @@ env GOSUMDB=off
 # The pseudo-version hence sorts immediately after v0.2.2 rather
 # than v0.2.1, even though the v0.2.2 tag is not on master.
 
-go get -d vcs-test.golang.org/git/tagtests.git@master
+go get vcs-test.golang.org/git/tagtests.git@master
 go list -m all
 stdout '^vcs-test.golang.org/git/tagtests.git v0.2.3-0\.'
 

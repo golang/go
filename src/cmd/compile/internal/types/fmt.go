@@ -64,7 +64,7 @@ var NumImport = make(map[string]int)
 // The default is regular Go syntax (fmtGo).
 // fmtDebug is like fmtGo but for debugging dumps and prints the type kind too.
 // fmtTypeID and fmtTypeIDName are for generating various unique representations
-// of types used in hashes and the linker.
+// of types used in hashes, the linker, and function/method instantiations.
 type fmtMode int
 
 const (

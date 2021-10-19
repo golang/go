@@ -952,6 +952,9 @@ func (s *ioState) readSimpleExpecting(expectedRE string) tstring {
 // replaceEnv returns a new environment derived from env
 // by removing any existing definition of ev and adding ev=evv.
 func replaceEnv(env []string, ev string, evv string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
 	evplus := ev + "="
 	var found bool
 	for i, v := range env {

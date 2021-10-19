@@ -45,6 +45,43 @@ func _[T C5[X], X any](ch T) {
 	close(ch)
 }
 
+// copy
+
+func _[T any](x, y T) {
+	copy(x /* ERROR copy expects slice arguments */ , y)
+}
+
+func _[T interface{~[]byte}](x, y T) {
+	copy(x, y)
+	copy(x, "foo")
+	copy("foo" /* ERROR expects slice arguments */ , y)
+
+	var x2 []byte
+	copy(x2, y) // element types are identical
+	copy(y, x2) // element types are identical
+
+	type myByte byte
+	var x3 []myByte
+	copy(x3 /* ERROR different element types */ , y)
+	copy(y /* ERROR different element types */ , x3)
+}
+
+func _[T interface{~[]E}, E any](x T, y []E) {
+	copy(x, y)
+	copy(x /* ERROR different element types */ , "foo")
+}
+
+func _[T interface{~string}](x []byte, y T) {
+	copy(x, y)
+	copy(y /* ERROR expects slice arguments */ , x)
+}
+
+func _[T interface{~[]byte|~string}](x T, y []byte) {
+	copy(x /* ERROR expects slice arguments */ , y)
+	// TODO(gri) should this be valid?
+	copy(y /* ERROR expects slice arguments */ , x)
+}
+
 // delete
 
 type M0 interface{ int }

@@ -22,9 +22,10 @@ func (g *irgen) def(name *syntax.Name) (*ir.Name, types2.Object) {
 	return g.obj(obj), obj
 }
 
-// use returns the Name node associated with the use of name. The returned node
-// will have the correct type and be marked as typechecked.
-func (g *irgen) use(name *syntax.Name) *ir.Name {
+// use returns the Name or InstExpr node associated with the use of name,
+// possibly instantiated by type arguments. The returned node will have
+// the correct type and be marked as typechecked.
+func (g *irgen) use(name *syntax.Name) ir.Node {
 	obj2, ok := g.info.Uses[name]
 	if !ok {
 		base.FatalfAt(g.pos(name), "unknown name %v", name)
@@ -36,6 +37,20 @@ func (g *irgen) use(name *syntax.Name) *ir.Name {
 		obj.SetTypecheck(1)
 		obj.SetType(obj.Defn.Type())
 	}
+
+	if obj.Class == ir.PFUNC {
+		if inst, ok := g.info.Instances[name]; ok {
+			// This is the case where inferring types required the
+			// types of the function arguments.
+			targs := make([]ir.Node, inst.TypeArgs.Len())
+			for i := range targs {
+				targs[i] = ir.TypeNode(g.typ(inst.TypeArgs.At(i)))
+			}
+			typ := g.substType(obj.Type(), obj.Type().TParams(), targs)
+			return typed(typ, ir.NewInstExpr(g.pos(name), ir.OFUNCINST, obj, targs))
+		}
+	}
+
 	return obj
 }
 

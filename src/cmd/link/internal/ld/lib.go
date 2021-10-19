@@ -144,21 +144,14 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
-	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
+	ctxt.mkArchSym("runtime.unreachableMethod", abiInternalVer, &ctxt.unreachableMethod)
 
 	if ctxt.IsPPC64() {
 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
 
-		// NB: note the +2 below for DotTOC2 compared to the +1 for
-		// DocTOC. This is because loadlibfull() creates an additional
-		// syms version during conversion of loader.Sym symbols to
-		// *sym.Symbol symbols. Symbols that are assigned this final
-		// version are not going to have TOC references, so it should
-		// be ok for them to inherit an invalid .TOC. symbol.
-		// TODO: revisit the +2, now that loadlibfull is gone.
-		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+2)
+		ctxt.DotTOC = make([]loader.Sym, ctxt.MaxVersion()+1)
 		for i := 0; i <= ctxt.MaxVersion(); i++ {
-			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
+			if i >= sym.SymVerABICount && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
 			ctxt.mkArchSymVec(".TOC.", i, ctxt.DotTOC)
@@ -288,6 +281,10 @@ const (
 	MINFUNC = 16 // minimum size for a function
 )
 
+// Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
+// are used, 0 otherwise.
+var abiInternalVer = sym.SymVerABIInternal
+
 // DynlinkingGo reports whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
 func (ctxt *Link) DynlinkingGo() bool {
@@ -323,7 +320,7 @@ var (
 	HEADR   int32
 
 	nerrors  int
-	liveness int64
+	liveness int64 // size of liveness data (funcdata), printed if -v
 
 	// See -strictdups command line flag.
 	checkStrictDups   int // 0=off 1=warning 2=error
@@ -506,10 +503,6 @@ func (ctxt *Link) loadlib() {
 		flags |= loader.FlagStrictDups
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
-	}
-	if !buildcfg.Experiment.RegabiWrappers {
-		// Use ABI aliases if ABI wrappers are not used.
-		flags |= loader.FlagUseABIAlias
 	}
 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
@@ -776,7 +769,7 @@ func (ctxt *Link) linksetup() {
 		// Set runtime.disableMemoryProfiling bool if
 		// runtime.MemProfile is not retained in the binary after
 		// deadcode (and we're not dynamically linking).
-		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
+		memProfile := ctxt.loader.Lookup("runtime.MemProfile", abiInternalVer)
 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
@@ -1651,13 +1644,31 @@ func (ctxt *Link) hostlink() {
 	}
 
 	if combineDwarf {
+		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
+		var cc []string
+		cc = append(cc, ctxt.extld()...)
+		cc = append(cc, hostlinkArchArgs(ctxt.Arch)...)
+		cc = append(cc, "--print-prog-name", "dsymutil")
+		out, err := exec.Command(cc[0], cc[1:]...).CombinedOutput()
+		if err != nil {
+			Exitf("%s: finding dsymutil failed: %v\n%s", os.Args[0], err, out)
+		}
+		dsymutilCmd := strings.TrimSuffix(string(out), "\n")
+
+		cc[len(cc)-1] = "strip"
+		out, err = exec.Command(cc[0], cc[1:]...).CombinedOutput()
+		if err != nil {
+			Exitf("%s: finding strip failed: %v\n%s", os.Args[0], err, out)
+		}
+		stripCmd := strings.TrimSuffix(string(out), "\n")
+
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
-		if out, err := exec.Command("xcrun", "dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+		if out, err := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
-		if out, err := exec.Command("xcrun", "strip", "-S", *flagOutfile).CombinedOutput(); err != nil {
+		if out, err := exec.Command(stripCmd, "-S", *flagOutfile).CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
@@ -2122,7 +2133,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		ver := 0
 		symname := elfsym.Name // (unmangled) symbol name
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
-			ver = sym.SymVerABIInternal
+			ver = abiInternalVer
 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
@@ -2162,19 +2173,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 
 		if symname != elfsym.Name {
 			l.SetSymExtname(s, elfsym.Name)
-		}
-
-		// For function symbols, if ABI wrappers are not used, we don't
-		// know what ABI is available, so alias it under both ABIs.
-		if !buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.loader.LookupOrCreateSym(symname, sym.SymVerABIInternal)
-			if l.SymType(alias) != 0 {
-				continue
-			}
-			su := l.MakeSymbolUpdater(alias)
-			su.SetType(sym.SABIALIAS)
-			r, _ := su.AddRel(0) // type doesn't matter
-			r.SetSym(s)
 		}
 	}
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
@@ -2330,7 +2328,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 	var ch1 chain
 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
 	ri := 0
-	for pcsp.Init(ldr.Data(info.Pcsp())); !pcsp.Done; pcsp.Next() {
+	for pcsp.Init(ldr.Data(ldr.Pcsp(s))); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
@@ -2491,7 +2489,7 @@ func (ctxt *Link) callgraph() {
 			if rs == 0 {
 				continue
 			}
-			if r.Type().IsDirectCall() && (ldr.SymType(rs) == sym.STEXT || ldr.SymType(rs) == sym.SABIALIAS) {
+			if r.Type().IsDirectCall() && ldr.SymType(rs) == sym.STEXT {
 				ctxt.Logf("%s calls %s\n", ldr.SymName(s), ldr.SymName(rs))
 			}
 		}

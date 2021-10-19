@@ -145,6 +145,7 @@ func TestValuesInfo(t *testing.T) {
 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
 
 		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
+		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
 	}
 
 	for _, test := range tests {
@@ -327,8 +328,10 @@ func TestTypesInfo(t *testing.T) {
 		// parameterized functions
 		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
 		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
-		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
-		{genericPkg + `p3; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
+		{genericPkg + `p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
+		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[generic_p4.T₁ interface{}](generic_p4.T₁)`},
+		{genericPkg + `p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
 
 		// type parameters
 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
@@ -381,12 +384,12 @@ func TestTypesInfo(t *testing.T) {
 	}
 }
 
-func TestInferredInfo(t *testing.T) {
+func TestInstanceInfo(t *testing.T) {
 	var tests = []struct {
 		src   string
-		fun   string
+		name  string
 		targs []string
-		sig   string
+		typ   string
 	}{
 		{genericPkg + `p0; func f[T any](T) {}; func _() { f(42) }`,
 			`f`,
@@ -416,33 +419,33 @@ func TestInferredInfo(t *testing.T) {
 
 		// we don't know how to translate these but we can type-check them
 		{genericPkg + `q0; type T struct{}; func (T) m[P any](P) {}; func _(x T) { x.m(42) }`,
-			`x.m`,
+			`m`,
 			[]string{`int`},
 			`func(int)`,
 		},
 		{genericPkg + `q1; type T struct{}; func (T) m[P any](P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			`x.m`,
+			`m`,
 			[]string{`int`},
 			`func(int) int`,
 		},
 		{genericPkg + `q2; type T struct{}; func (T) m[P any](...P) P { panic(0) }; func _(x T) { x.m(42) }`,
-			`x.m`,
+			`m`,
 			[]string{`int`},
 			`func(...int) int`,
 		},
 		{genericPkg + `q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C) {}; func _(x T) { x.m(1.2, new(string), []byte{}) }`,
-			`x.m`,
+			`m`,
 			[]string{`float64`, `string`, `byte`},
 			`func(float64, *string, []byte)`,
 		},
 		{genericPkg + `q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B) {}; func _(x T) { x.m(1.2, new(byte)) }`,
-			`x.m`,
+			`m`,
 			[]string{`float64`, `byte`},
 			`func(float64, *byte, ...[]byte)`,
 		},
 
 		{genericPkg + `r0; type T[P any] struct{}; func (_ T[P]) m[Q any](Q) {}; func _[P any](x T[P]) { x.m(42) }`,
-			`x.m`,
+			`m`,
 			[]string{`int`},
 			`func(int)`,
 		},
@@ -479,66 +482,130 @@ func TestInferredInfo(t *testing.T) {
 			[]string{`string`, `*string`},
 			`func() string`,
 		},
-		{genericPkg + `t2; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T { return nil }; func _() { _ = f[int] }`,
+		{genericPkg + `t2; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = (f[string]) }`,
 			`f`,
-			[]string{`int`, `chan<- int`},
-			`func() []int`,
+			[]string{`string`, `*string`},
+			`func() string`,
 		},
 		{genericPkg + `t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
 			`f`,
 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
 			`func() []int`,
 		},
+		{genericPkg + `t4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
+			`f`,
+			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+			`func() []int`,
+		},
+		{genericPkg + `i0; import lib "generic_lib"; func _() { lib.F(42) }`,
+			`F`,
+			[]string{`int`},
+			`func(int)`,
+		},
+		{genericPkg + `type0; type T[P interface{~int}] struct{ x P }; var _ T[int]`,
+			`T`,
+			[]string{`int`},
+			`struct{x int}`,
+		},
+		{genericPkg + `type1; type T[P interface{~int}] struct{ x P }; var _ (T[int])`,
+			`T`,
+			[]string{`int`},
+			`struct{x int}`,
+		},
+		{genericPkg + `type2; type T[P interface{~int}] struct{ x P }; var _ T[(int)]`,
+			`T`,
+			[]string{`int`},
+			`struct{x int}`,
+		},
+		{genericPkg + `type3; type T[P1 interface{~[]P2}, P2 any] struct{ x P1; y P2 }; var _ T[[]int, int]`,
+			`T`,
+			[]string{`[]int`, `int`},
+			`struct{x []int; y int}`,
+		},
+		{genericPkg + `type4; import lib "generic_lib"; var _ lib.T[int]`,
+			`T`,
+			[]string{`int`},
+			`[]int`,
+		},
 	}
 
 	for _, test := range tests {
-		info := Info{Inferred: make(map[syntax.Expr]Inferred)}
-		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
-		if err != nil {
-			t.Errorf("package %s: %v", name, err)
-			continue
-		}
+		const lib = `package generic_lib
 
-		// look for inferred type arguments and signature
-		var targs *TypeList
-		var sig *Signature
-		for call, inf := range info.Inferred {
-			var fun syntax.Expr
-			switch x := call.(type) {
-			case *syntax.CallExpr:
-				fun = x.Fun
-			case *syntax.IndexExpr:
-				fun = x.X
-			default:
-				panic(fmt.Sprintf("unexpected call expression type %T", call))
+func F[P any](P) {}
+
+type T[P any] []P
+`
+
+		imports := make(testImporter)
+		conf := Config{Importer: imports}
+		instances := make(map[*syntax.Name]Instance)
+		uses := make(map[*syntax.Name]Object)
+		makePkg := func(src string) *Package {
+			f, err := parseSrc("p.go", src)
+			if err != nil {
+				t.Fatal(err)
 			}
-			if syntax.String(fun) == test.fun {
-				targs = inf.TArgs
-				sig = inf.Sig
+			pkg, err := conf.Check("", []*syntax.File{f}, &Info{Instances: instances, Uses: uses})
+			if err != nil {
+				t.Fatal(err)
+			}
+			imports[pkg.Name()] = pkg
+			return pkg
+		}
+		makePkg(lib)
+		pkg := makePkg(test.src)
+
+		// look for instance information
+		var targs []Type
+		var typ Type
+		for ident, inst := range instances {
+			if syntax.String(ident) == test.name {
+				for i := 0; i < inst.TypeArgs.Len(); i++ {
+					targs = append(targs, inst.TypeArgs.At(i))
+				}
+				typ = inst.Type
+
+				// Check that we can find the corresponding parameterized type.
+				ptype := uses[ident].Type()
+				lister, _ := ptype.(interface{ TypeParams() *TypeParamList })
+				if lister == nil || lister.TypeParams().Len() == 0 {
+					t.Errorf("package %s: info.Types[%v] = %v, want parameterized type", pkg.Name(), ident, ptype)
+					continue
+				}
+
+				// Verify the invariant that re-instantiating the generic type with
+				// TypeArgs results in an equivalent type.
+				inst2, err := Instantiate(nil, ptype, targs, true)
+				if err != nil {
+					t.Errorf("Instantiate(%v, %v) failed: %v", ptype, targs, err)
+				}
+				if !Identical(inst.Type, inst2) {
+					t.Errorf("%v and %v are not identical", inst.Type, inst2)
+				}
 				break
 			}
 		}
 		if targs == nil {
-			t.Errorf("package %s: no inferred information found for %s", name, test.fun)
+			t.Errorf("package %s: no instance information found for %s", pkg.Name(), test.name)
 			continue
 		}
 
 		// check that type arguments are correct
-		if targs.Len() != len(test.targs) {
-			t.Errorf("package %s: got %d type arguments; want %d", name, targs.Len(), len(test.targs))
+		if len(targs) != len(test.targs) {
+			t.Errorf("package %s: got %d type arguments; want %d", pkg.Name(), len(targs), len(test.targs))
 			continue
 		}
-		for i := 0; i < targs.Len(); i++ {
-			targ := targs.At(i)
+		for i, targ := range targs {
 			if got := targ.String(); got != test.targs[i] {
-				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
+				t.Errorf("package %s, %d. type argument: got %s; want %s", pkg.Name(), i, got, test.targs[i])
 				continue
 			}
 		}
 
-		// check that signature is correct
-		if got := sig.String(); got != test.sig {
-			t.Errorf("package %s: got %s; want %s", name, got, test.sig)
+		// check that the types match
+		if got := typ.Underlying().String(); got != test.typ {
+			t.Errorf("package %s: got %s; want %s", pkg.Name(), got, test.typ)
 		}
 	}
 }
@@ -1588,6 +1655,7 @@ func TestConvertibleTo(t *testing.T) {
 	}{
 		{Typ[Int], Typ[Int], true},
 		{Typ[Int], Typ[Float32], true},
+		{Typ[Int], Typ[String], true},
 		{newDefined(Typ[Int]), Typ[Int], true},
 		{newDefined(new(Struct)), new(Struct), true},
 		{newDefined(Typ[Int]), new(Struct), false},
@@ -1595,8 +1663,7 @@ func TestConvertibleTo(t *testing.T) {
 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
 		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
-		// Untyped string values are not permitted by the spec, so the below
-		// behavior is undefined.
+		// Untyped string values are not permitted by the spec, so the behavior below is undefined.
 		{Typ[UntypedString], Typ[String], true},
 	} {
 		if got := ConvertibleTo(test.v, test.t); got != test.want {
@@ -1640,6 +1707,48 @@ func TestIdentical_issue15173(t *testing.T) {
 		{nil, nil, true},
 	} {
 		if got := Identical(test.x, test.y); got != test.want {
+			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
+		}
+	}
+}
+
+func TestIdenticalUnions(t *testing.T) {
+	tname := NewTypeName(nopos, nil, "myInt", nil)
+	myInt := NewNamed(tname, Typ[Int], nil)
+	tmap := map[string]*Term{
+		"int":     NewTerm(false, Typ[Int]),
+		"~int":    NewTerm(true, Typ[Int]),
+		"string":  NewTerm(false, Typ[String]),
+		"~string": NewTerm(true, Typ[String]),
+		"myInt":   NewTerm(false, myInt),
+	}
+	makeUnion := func(s string) *Union {
+		parts := strings.Split(s, "|")
+		var terms []*Term
+		for _, p := range parts {
+			term := tmap[p]
+			if term == nil {
+				t.Fatalf("missing term %q", p)
+			}
+			terms = append(terms, term)
+		}
+		return NewUnion(terms)
+	}
+	for _, test := range []struct {
+		x, y string
+		want bool
+	}{
+		// These tests are just sanity checks. The tests for type sets and
+		// interfaces provide much more test coverage.
+		{"int|~int", "~int", true},
+		{"myInt|~int", "~int", true},
+		{"int|string", "string|int", true},
+		{"int|int|string", "string|int", true},
+		{"myInt|string", "int|string", false},
+	} {
+		x := makeUnion(test.x)
+		y := makeUnion(test.y)
+		if got := Identical(x, y); got != test.want {
 			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
 		}
 	}
@@ -1871,7 +1980,7 @@ func TestInstantiate(t *testing.T) {
 
 	// type T should have one type parameter
 	T := pkg.Scope().Lookup("T").Type().(*Named)
-	if n := T.TParams().Len(); n != 1 {
+	if n := T.TypeParams().Len(); n != 1 {
 		t.Fatalf("expected 1 type parameter; found %d", n)
 	}
 

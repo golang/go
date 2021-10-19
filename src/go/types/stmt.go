@@ -53,11 +53,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.error(atPos(body.Rbrace), _MissingReturn, "missing return")
 	}
 
-	// TODO(gri) Should we make it an error to declare generic functions
-	//           where the type parameters are not used?
-	// 12/19/2018: Probably not - it can make sense to have an API with
-	//           all functions uniformly sharing the same type parameters.
-
 	// spec: "Implementation restriction: A compiler may make it illegal to
 	// declare a variable inside a function body if the variable is never used."
 	check.usage(sig.scope)
@@ -179,7 +174,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	var code errorCode
-	switch check.rawExpr(&x, call, nil) {
+	switch check.rawExpr(&x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 		code = _InvalidDefer
@@ -307,7 +302,7 @@ L:
 				// talk about "case" rather than "type" because of nil case
 				Ts := "nil"
 				if T != nil {
-					Ts = T.String()
+					Ts = TypeString(T, check.qualifier)
 				}
 				check.errorf(e, _DuplicateCase, "duplicate case %s in type switch", Ts)
 				check.error(other, _DuplicateCase, "\tprevious case") // secondary error, \t indented
@@ -321,6 +316,47 @@ L:
 	}
 	return
 }
+
+// TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
+//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
+//
+// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[string]ast.Expr) (T Type) {
+// 	var dummy operand
+// L:
+// 	for _, e := range types {
+// 		// The spec allows the value nil instead of a type.
+// 		var hash string
+// 		if check.isNil(e) {
+// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			T = nil
+// 			hash = "<nil>" // avoid collision with a type named nil
+// 		} else {
+// 			T = check.varType(e)
+// 			if T == Typ[Invalid] {
+// 				continue L
+// 			}
+// 			hash = typeHash(T, nil)
+// 		}
+// 		// look for duplicate types
+// 		if other := seen[hash]; other != nil {
+// 			// talk about "case" rather than "type" because of nil case
+// 			Ts := "nil"
+// 			if T != nil {
+// 				Ts = TypeString(T, check.qualifier)
+// 			}
+// 			var err error_
+// 			err.errorf(e, "duplicate case %s in type switch", Ts)
+// 			err.errorf(other, "previous case")
+// 			check.report(&err)
+// 			continue L
+// 		}
+// 		seen[hash] = e
+// 		if T != nil {
+// 			check.typeAssertion(e.Pos(), x, xtyp, T)
+// 		}
+// 	}
+// 	return
+// }
 
 // stmt typechecks statement s.
 func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
@@ -355,7 +391,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil)
+		kind := check.rawExpr(&x, s.X, nil, false)
 		var msg string
 		var code errorCode
 		switch x.mode {
@@ -660,7 +696,6 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.errorf(&x, _InvalidTypeSwitch, "%s is not an interface", &x)
 			return
 		}
-		check.ordinaryType(&x, xtyp)
 
 		check.multipleDefaults(s.Body.List)
 

@@ -131,8 +131,19 @@
 //
 // 	-asmflags '[pattern=]arg list'
 // 		arguments to pass on each go tool asm invocation.
+// 	-buildinfo
+// 		Whether to stamp binaries with build flags. By default, the compiler name
+// 		(gc or gccgo), toolchain flags (like -gcflags), and environment variables
+// 		containing flags (like CGO_CFLAGS) are stamped into binaries. Use
+// 		-buildinfo=false to omit build information. See also -buildvcs.
 // 	-buildmode mode
 // 		build mode to use. See 'go help buildmode' for more.
+// 	-buildvcs
+// 		Whether to stamp binaries with version control information. By default,
+// 		version control information is stamped into a binary if the main package
+// 		and the main module containing it are in the repository containing the
+// 		current directory (if there is a repository). Use -buildvcs=false to
+// 		omit version control information. See also -buildinfo.
 // 	-compiler name
 // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 // 	-gccgoflags '[pattern=]arg list'
@@ -167,8 +178,8 @@
 // 		directory, but it is not accessed. When -modfile is specified, an
 // 		alternate go.sum file is also used: its path is derived from the
 // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
-//   -workfile file
-//     in module aware mode, use the given go.work file as a workspace file.
+// 	-workfile file
+// 		in module aware mode, use the given go.work file as a workspace file.
 // 		By default or when -workfile is "auto", the go command searches for a
 // 		file named go.work in the current directory and then containing directories
 // 		until one is found. If a valid go.work file is found, the modules
@@ -291,6 +302,13 @@
 // The -modcache flag causes clean to remove the entire module
 // download cache, including unpacked source code of versioned
 // dependencies.
+//
+// The -fuzzcache flag causes clean to remove files stored in the Go build
+// cache for fuzz testing. The fuzzing engine caches files that expand
+// code coverage, so removing them may make fuzzing less effective until
+// new inputs are found that provide the same coverage. These files are
+// distinct from those stored in testdata directory; clean does not remove
+// those files.
 //
 // For more about build flags, see 'go help build'.
 //
@@ -491,7 +509,7 @@
 // files. Those commands can run any process but the intent is to
 // create or update Go source files.
 //
-// Go generate is never run automatically by go build, go get, go test,
+// Go generate is never run automatically by go build, go test,
 // and so on. It must be run explicitly.
 //
 // Go generate scans the file for directives, which are lines of
@@ -606,11 +624,11 @@
 //
 // Usage:
 //
-// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
+// 	go get [-t] [-u] [-v] [build flags] [packages]
 //
 // Get resolves its command-line arguments to packages at specific module versions,
-// updates go.mod to require those versions, downloads source code into the
-// module cache, then builds and installs the named packages.
+// updates go.mod to require those versions, and downloads source code into the
+// module cache.
 //
 // To add a dependency for a package or upgrade it to its latest version:
 //
@@ -626,17 +644,18 @@
 //
 // See https://golang.org/ref/mod#go-get for details.
 //
-// The 'go install' command may be used to build and install packages. When a
-// version is specified, 'go install' runs in module-aware mode and ignores
-// the go.mod file in the current directory. For example:
+// In earlier versions of Go, 'go get' was used to build and install packages.
+// Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
+// may be used to build and install commands instead. When a version is specified,
+// 'go install' runs in module-aware mode and ignores the go.mod file in the
+// current directory. For example:
 //
 // 	go install example.com/pkg@v1.2.3
 // 	go install example.com/pkg@latest
 //
 // See 'go help install' or https://golang.org/ref/mod#go-install for details.
 //
-// In addition to build flags (listed in 'go help build') 'go get' accepts the
-// following flags.
+// 'go get' accepts the following flags.
 //
 // The -t flag instructs get to consider modules needed to build tests of
 // packages specified on the command line.
@@ -651,15 +670,9 @@
 // When the -t and -u flags are used together, get will update
 // test dependencies as well.
 //
-// The -d flag instructs get not to build or install packages. get will only
-// update go.mod and download source code needed to build packages.
-//
-// Building and installing packages with get is deprecated. In a future release,
-// the -d flag will be enabled by default, and 'go get' will be only be used to
-// adjust dependencies of the current module. To install a package using
-// dependencies from the current module, use 'go install'. To install a package
-// ignoring the current module, use 'go install' with an @version suffix like
-// "@latest" after each argument.
+// The -x flag prints commands as they are executed. This is useful for
+// debugging version control commands when a module is downloaded directly
+// from a repository.
 //
 // For more about modules, see https://golang.org/ref/mod.
 //
@@ -702,14 +715,17 @@
 //
 // - All arguments must refer to packages in the same module at the same version.
 //
+// - Package path arguments must refer to main packages. Pattern arguments
+// will only match main packages.
+//
 // - No module is considered the "main" module. If the module containing
 // packages named on the command line has a go.mod file, it must not contain
 // directives (replace and exclude) that would cause it to be interpreted
 // differently than if it were the main module. The module must not require
 // a higher version of itself.
 //
-// - Package path arguments must refer to main packages. Pattern arguments
-// will only match main packages.
+// - Vendor directories are not used in any module. (Vendor directories are not
+// included in the module zip files downloaded by 'go install'.)
 //
 // If the arguments don't have version suffixes, "go install" may run in
 // module-aware mode or GOPATH mode, depending on the GO111MODULE environment
@@ -1485,8 +1501,8 @@
 //
 // 'Go test' recompiles each package along with any files with names matching
 // the file pattern "*_test.go".
-// These additional files can contain test functions, benchmark functions, and
-// example functions. See 'go help testfunc' for more.
+// These additional files can contain test functions, benchmark functions, fuzz
+// targets and example functions. See 'go help testfunc' for more.
 // Each listed package causes the execution of a separate test binary.
 // Files whose names begin with "_" (including "_test.go") or "." are ignored.
 //
@@ -1845,6 +1861,13 @@
 // See 'go help test' for details. Running 'go clean -testcache' removes
 // all cached test results (but not cached build results).
 //
+// The go command also caches values used in fuzzing with 'go test -fuzz',
+// specifically, values that expanded code coverage when passed to a
+// fuzz function. These values are not used for regular building and
+// testing, but they're stored in a subdirectory of the build cache.
+// Running 'go clean -fuzzcache' removes all cached fuzzing values.
+// This may make fuzzing less effective, temporarily.
+//
 // The GODEBUG environment variable can enable printing of debugging
 // information about the state of the cache:
 //
@@ -1984,6 +2007,10 @@
 // 	GO386
 // 		For GOARCH=386, how to implement floating point instructions.
 // 		Valid values are sse2 (default), softfloat.
+// 	GOAMD64
+// 		For GOARCH=amd64, the microarchitecture level for which to compile.
+// 		Valid values are v1 (default), v2, v3, v4.
+// 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
 // 	GOMIPS
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
@@ -2721,9 +2748,10 @@
 // 	    (for example, -benchtime 100x).
 //
 // 	-count n
-// 	    Run each test and benchmark n times (default 1).
+// 	    Run each test, benchmark, and fuzz seed n times (default 1).
 // 	    If -cpu is set, run n times for each GOMAXPROCS value.
-// 	    Examples are always run once.
+// 	    Examples are always run once. -count does not apply to
+// 	    fuzz targets matched by -fuzz.
 //
 // 	-cover
 // 	    Enable coverage analysis.
@@ -2750,36 +2778,59 @@
 // 	    Sets -cover.
 //
 // 	-cpu 1,2,4
-// 	    Specify a list of GOMAXPROCS values for which the tests or
-// 	    benchmarks should be executed. The default is the current value
-// 	    of GOMAXPROCS.
+// 	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+// 	    fuzz targets should be executed. The default is the current value
+// 	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
 //
 // 	-failfast
 // 	    Do not start new tests after the first test failure.
+//
+// 	-fuzz regexp
+// 	    Run the fuzz target matching the regular expression. When specified,
+// 	    the command line argument must match exactly one package, and regexp
+// 	    must match exactly one fuzz target within that package. After tests,
+// 	    benchmarks, seed corpora of other fuzz targets, and examples have
+// 	    completed, the matching target will be fuzzed. See the Fuzzing section
+// 	    of the testing package documentation for details.
+//
+// 	-fuzztime t
+// 	    Run enough iterations of the fuzz test to take t, specified as a
+// 	    time.Duration (for example, -fuzztime 1h30s). The default is to run
+// 	    forever.
+// 	    The special syntax Nx means to run the fuzz test N times
+// 	    (for example, -fuzztime 100x).
 //
 // 	-json
 // 	    Log verbose output and test results in JSON. This presents the
 // 	    same information as the -v flag in a machine-readable format.
 //
 // 	-list regexp
-// 	    List tests, benchmarks, or examples matching the regular expression.
-// 	    No tests, benchmarks or examples will be run. This will only
-// 	    list top-level tests. No subtest or subbenchmarks will be shown.
+// 	    List tests, benchmarks, fuzz targets, or examples matching the regular
+// 	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+// 	    This will only list top-level tests. No subtest or subbenchmarks will be
+// 	    shown.
 //
 // 	-parallel n
-// 	    Allow parallel execution of test functions that call t.Parallel.
+// 	    Allow parallel execution of test functions that call t.Parallel, and
+// 	    f.Fuzz functions that call t.Parallel when running the seed corpus.
 // 	    The value of this flag is the maximum number of tests to run
-// 	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+// 	    simultaneously.
+// 	    While fuzzing, the value of this flag is the maximum number of
+// 	    subprocesses that may call the fuzz function simultaneously, regardless of
+// 	    whether T.Parallel is called.
+// 	    By default, -parallel is set to the value of GOMAXPROCS.
+// 	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
+// 	    performance due to CPU contention, especially when fuzzing.
 // 	    Note that -parallel only applies within a single test binary.
 // 	    The 'go test' command may run tests for different packages
 // 	    in parallel as well, according to the setting of the -p flag
 // 	    (see 'go help build').
 //
 // 	-run regexp
-// 	    Run only those tests and examples matching the regular expression.
-// 	    For tests, the regular expression is split by unbracketed slash (/)
-// 	    characters into a sequence of regular expressions, and each part
-// 	    of a test's identifier must match the corresponding element in
+// 	    Run only those tests, examples, and fuzz targets matching the regular
+// 	    expression. For tests, the regular expression is split by unbracketed
+// 	    slash (/) characters into a sequence of regular expressions, and each
+// 	    part of a test's identifier must match the corresponding element in
 // 	    the sequence, if any. Note that possible parents of matches are
 // 	    run too, so that -run=X/Y matches and runs and reports the result
 // 	    of all tests matching X, even those without sub-tests matching Y,
@@ -2946,6 +2997,10 @@
 //
 // 	func BenchmarkXxx(b *testing.B) { ... }
 //
+// A fuzz target is one named FuzzXxx and should have the signature,
+//
+// 	func FuzzXxx(f *testing.F) { ... }
+//
 // An example function is similar to a test function but, instead of using
 // *testing.T to report success or failure, prints output to os.Stdout.
 // If the last comment in the function starts with "Output:" then the output
@@ -2985,7 +3040,7 @@
 //
 // The entire test file is presented as the example when it contains a single
 // example function, at least one other function, type, variable, or constant
-// declaration, and no test or benchmark functions.
+// declaration, and no fuzz targets or test or benchmark functions.
 //
 // See the documentation of the testing package for more information.
 //

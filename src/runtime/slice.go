@@ -115,16 +115,15 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
 }
 
 func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
-	if len == 0 {
-		return
-	}
-
-	if ptr == nil {
-		panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+	if len < 0 {
+		panicunsafeslicelen()
 	}
 
 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
-	if overflow || mem > maxAlloc || len < 0 {
+	if overflow || mem > -uintptr(ptr) {
+		if ptr == nil {
+			panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
+		}
 		panicunsafeslicelen()
 	}
 }
@@ -185,13 +184,17 @@ func growslice(et *_type, old slice, cap int) slice {
 	if cap > doublecap {
 		newcap = cap
 	} else {
-		if old.cap < 1024 {
+		const threshold = 256
+		if old.cap < threshold {
 			newcap = doublecap
 		} else {
 			// Check 0 < newcap to detect overflow
 			// and prevent an infinite loop.
 			for 0 < newcap && newcap < cap {
-				newcap += newcap / 4
+				// Transition from growing 2x for small slices
+				// to growing 1.25x for large slices. This formula
+				// gives a smooth-ish transition between the two.
+				newcap += (newcap + 3*threshold) / 4
 			}
 			// Set newcap to the requested cap when
 			// the newcap calculation overflowed.

@@ -1,4 +1,4 @@
-// errorcheck
+// compile -G=3
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,4 +6,5 @@
 
 package p
 
-var x any // ERROR "undefined: any|undefined type .*any.*|cannot use any outside constraint position"
+// any is now permitted instead of interface{}
+var x any

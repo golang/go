@@ -398,9 +398,7 @@ func isJSType(mimeType string) bool {
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
 	// discard parameters
-	if i := strings.Index(mimeType, ";"); i >= 0 {
-		mimeType = mimeType[:i]
-	}
+	mimeType, _, _ = strings.Cut(mimeType, ";")
 	mimeType = strings.ToLower(mimeType)
 	mimeType = strings.TrimSpace(mimeType)
 	switch mimeType {

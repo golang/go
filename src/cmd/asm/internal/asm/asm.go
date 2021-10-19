@@ -793,6 +793,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				return
 			}
 		}
+		if p.arch.Family == sys.RISCV64 {
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetRestArgs([]obj.Addr{a[2]})
+			prog.To = a[3]
+			break
+		}
 		if p.arch.Family == sys.S390X {
 			if a[1].Type != obj.TYPE_REG {
 				p.errorf("second operand must be a register in %s instruction", op)

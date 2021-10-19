@@ -100,6 +100,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
 
+func (rsa *RawSockaddrNFCLLCP) SetServiceNameLen(length int) {
+	rsa.Service_name_len = uint64(length)
+}
+
 //sysnb	pipe(p *[2]_C_int) (err error)
 
 func Pipe(p []int) (err error) {

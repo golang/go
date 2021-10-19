@@ -16,23 +16,13 @@ type CUFileIndex uint32
 
 // FuncInfo is serialized as a symbol (aux symbol). The symbol data is
 // the binary encoding of the struct below.
-//
-// TODO: make each pcdata a separate symbol?
 type FuncInfo struct {
 	Args     uint32
 	Locals   uint32
 	FuncID   objabi.FuncID
 	FuncFlag objabi.FuncFlag
-
-	Pcsp        SymRef
-	Pcfile      SymRef
-	Pcline      SymRef
-	Pcinline    SymRef
-	Pcdata      []SymRef
-	Funcdataoff []uint32
-	File        []CUFileIndex
-
-	InlTree []InlTreeNode
+	File     []CUFileIndex
+	InlTree  []InlTreeNode
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
@@ -44,10 +34,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 		binary.LittleEndian.PutUint32(b[:], x)
 		w.Write(b[:])
 	}
-	writeSymRef := func(s SymRef) {
-		writeUint32(s.PkgIdx)
-		writeUint32(s.SymIdx)
-	}
 
 	writeUint32(a.Args)
 	writeUint32(a.Locals)
@@ -55,19 +41,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	writeUint8(uint8(a.FuncFlag))
 	writeUint8(0) // pad to uint32 boundary
 	writeUint8(0)
-	writeSymRef(a.Pcsp)
-	writeSymRef(a.Pcfile)
-	writeSymRef(a.Pcline)
-	writeSymRef(a.Pcinline)
-	writeUint32(uint32(len(a.Pcdata)))
-	for _, sym := range a.Pcdata {
-		writeSymRef(sym)
-	}
 
-	writeUint32(uint32(len(a.Funcdataoff)))
-	for _, x := range a.Funcdataoff {
-		writeUint32(x)
-	}
 	writeUint32(uint32(len(a.File)))
 	for _, f := range a.File {
 		writeUint32(uint32(f))
@@ -84,31 +58,19 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 // corresponding "off" field stores the byte offset of the start of
 // the items in question.
 type FuncInfoLengths struct {
-	NumPcdata      uint32
-	PcdataOff      uint32
-	NumFuncdataoff uint32
-	FuncdataoffOff uint32
-	NumFile        uint32
-	FileOff        uint32
-	NumInlTree     uint32
-	InlTreeOff     uint32
-	Initialized    bool
+	NumFile     uint32
+	FileOff     uint32
+	NumInlTree  uint32
+	InlTreeOff  uint32
+	Initialized bool
 }
 
 func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
 	var result FuncInfoLengths
 
-	// Offset to the number of pcdata values. This value is determined by counting
-	// the number of bytes until we write pcdata to the file.
-	const numpcdataOff = 44
-	result.NumPcdata = binary.LittleEndian.Uint32(b[numpcdataOff:])
-	result.PcdataOff = numpcdataOff + 4
-
-	numfuncdataoffOff := result.PcdataOff + 8*result.NumPcdata
-	result.NumFuncdataoff = binary.LittleEndian.Uint32(b[numfuncdataoffOff:])
-	result.FuncdataoffOff = numfuncdataoffOff + 4
-
-	numfileOff := result.FuncdataoffOff + 4*result.NumFuncdataoff
+	// Offset to the number of the file table. This value is determined by counting
+	// the number of bytes until we write funcdataoff to the file.
+	const numfileOff = 12
 	result.NumFile = binary.LittleEndian.Uint32(b[numfileOff:])
 	result.FileOff = numfileOff + 4
 
@@ -128,34 +90,6 @@ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32
 func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8]) }
 
 func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
-
-func (*FuncInfo) ReadPcsp(b []byte) SymRef {
-	return SymRef{binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])}
-}
-
-func (*FuncInfo) ReadPcfile(b []byte) SymRef {
-	return SymRef{binary.LittleEndian.Uint32(b[20:]), binary.LittleEndian.Uint32(b[24:])}
-}
-
-func (*FuncInfo) ReadPcline(b []byte) SymRef {
-	return SymRef{binary.LittleEndian.Uint32(b[28:]), binary.LittleEndian.Uint32(b[32:])}
-}
-
-func (*FuncInfo) ReadPcinline(b []byte) SymRef {
-	return SymRef{binary.LittleEndian.Uint32(b[36:]), binary.LittleEndian.Uint32(b[40:])}
-}
-
-func (*FuncInfo) ReadPcdata(b []byte) []SymRef {
-	syms := make([]SymRef, binary.LittleEndian.Uint32(b[44:]))
-	for i := range syms {
-		syms[i] = SymRef{binary.LittleEndian.Uint32(b[48+i*8:]), binary.LittleEndian.Uint32(b[52+i*8:])}
-	}
-	return syms
-}
-
-func (*FuncInfo) ReadFuncdataoff(b []byte, funcdataofffoff uint32, k uint32) int64 {
-	return int64(binary.LittleEndian.Uint32(b[funcdataofffoff+4*k:]))
-}
 
 func (*FuncInfo) ReadFile(b []byte, filesoff uint32, k uint32) CUFileIndex {
 	return CUFileIndex(binary.LittleEndian.Uint32(b[filesoff+4*k:]))

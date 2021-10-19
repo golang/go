@@ -315,9 +315,7 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 			recv = "(" + recv + ") "
 		}
 		fnc := pkg.oneLineNodeDepth(n.Type, depth)
-		if strings.Index(fnc, "func") == 0 {
-			fnc = fnc[4:]
-		}
+		fnc = strings.TrimPrefix(fnc, "func")
 		return fmt.Sprintf("func %s%s%s", recv, name, fnc)
 
 	case *ast.TypeSpec:

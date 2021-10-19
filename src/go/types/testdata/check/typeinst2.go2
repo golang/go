@@ -255,3 +255,7 @@ var _ = f0_[int]
 var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
 var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
+
+// Using a function instance as a type is an error.
+var _ f0 // ERROR not a type
+var _ f0 /* ERROR not a type */ [int]

@@ -13,19 +13,6 @@ import (
 	"go/token"
 )
 
-// An Environment is an opaque type checking environment. It may be used to
-// share identical type instances across type checked packages or calls to
-// Instantiate.
-//
-// Currently, Environment is just a placeholder and has no effect on
-// instantiation.
-type Environment struct {
-	// Environment is currently un-implemented, because our instantiatedHash
-	// logic doesn't correctly handle Named type identity across multiple
-	// packages.
-	// TODO(rfindley): implement this.
-}
-
 // Instantiate instantiates the type typ with the given type arguments targs.
 // typ must be a *Named or a *Signature type, and its number of type parameters
 // must match the number of provided type arguments. The result is a new,
@@ -33,142 +20,86 @@ type Environment struct {
 // *Signature). Any methods attached to a *Named are simply copied; they are
 // not instantiated.
 //
-// If env is non-nil, it may be used to de-dupe the instance against previous
-// instances with the same identity. This functionality is currently
-// unimplemented.
+// If ctxt is non-nil, it may be used to de-dupe the instance against previous
+// instances with the same identity.
 //
 // If verify is set and constraint satisfaction fails, the returned error may
-// be of dynamic type ArgumentError indicating which type argument did not
-// satisfy its corresponding type parameter constraint, and why.
+// wrap an *ArgumentError indicating which type argument did not satisfy its
+// corresponding type parameter constraint, and why.
 //
 // TODO(rfindley): change this function to also return an error if lengths of
 // tparams and targs do not match.
-func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
-	inst := (*Checker)(nil).instance(token.NoPos, typ, targs)
+func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, error) {
+	inst := (*Checker)(nil).instance(token.NoPos, typ, targs, ctxt)
 
 	var err error
 	if validate {
 		var tparams []*TypeParam
 		switch t := typ.(type) {
 		case *Named:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		case *Signature:
-			tparams = t.TParams().list()
+			tparams = t.TypeParams().list()
 		}
 		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs); err != nil {
-			return inst, ArgumentError{i, err}
+			return inst, &ArgumentError{i, err}
 		}
 	}
 
 	return inst, err
 }
 
-// instantiate creates an instance and defers verification of constraints to
-// later in the type checking pass. For Named types the resulting instance will
-// be unexpanded.
-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos) (res Type) {
-	assert(check != nil)
-	if trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
-		check.indent++
-		defer func() {
-			check.indent--
-			var under Type
-			if res != nil {
-				// Calling under() here may lead to endless instantiations.
-				// Test case: type T[P any] T[P]
-				// TODO(gri) investigate if that's a bug or to be expected.
-				under = safeUnderlying(res)
-			}
-			check.trace(pos, "=> %s (under = %s)", res, under)
-		}()
-	}
-
-	inst := check.instance(pos, typ, targs)
-
-	assert(len(posList) <= len(targs))
-	check.later(func() {
-		// Collect tparams again because lazily loaded *Named types may not have
-		// had tparams set up above.
-		var tparams []*TypeParam
-		switch t := typ.(type) {
-		case *Named:
-			tparams = t.TParams().list()
-		case *Signature:
-			tparams = t.TParams().list()
-		}
-		// Avoid duplicate errors; instantiate will have complained if tparams
-		// and targs do not have the same length.
-		if len(tparams) == len(targs) {
-			if i, err := check.verify(pos, tparams, targs); err != nil {
-				// best position for error reporting
-				pos := pos
-				if i < len(posList) {
-					pos = posList[i]
-				}
-				check.softErrorf(atPos(pos), _Todo, err.Error())
-			}
-		}
-	})
-	return inst
-}
-
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type) {
-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Context) Type {
 	switch t := typ.(type) {
 	case *Named:
-		h := instantiatedHash(t, targs)
-		if check != nil {
+		var h string
+		if ctxt != nil {
+			h = ctxt.typeHash(t, targs)
 			// typ may already have been instantiated with identical type arguments. In
 			// that case, re-use the existing instance.
-			if named := check.typMap[h]; named != nil {
+			if named := ctxt.typeForHash(h, nil); named != nil {
 				return named
 			}
 		}
-
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
 		named.targs = NewTypeList(targs)
-		named.instance = &instance{pos}
-		if check != nil {
-			check.typMap[h] = named
+		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+			return expandNamed(ctxt, n, pos)
 		}
-		res = named
+		if ctxt != nil {
+			// It's possible that we've lost a race to add named to the context.
+			// In this case, use whichever instance is recorded in the context.
+			named = ctxt.typeForHash(h, named)
+		}
+		return named
+
 	case *Signature:
-		tparams := t.TParams()
+		tparams := t.TypeParams()
 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
 			return typ // nothing to do (minor optimization)
 		}
-		defer func() {
-			// If we had an unexpected failure somewhere don't panic below when
-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
-			// is returned.
-			if _, ok := res.(*Signature); !ok {
-				return
-			}
-			// If the signature doesn't use its type parameters, subst
-			// will not make a copy. In that case, make a copy now (so
-			// we can set tparams to nil w/o causing side-effects).
-			if t == res {
-				copy := *t
-				res = &copy
-			}
-			// After instantiating a generic signature, it is not generic
-			// anymore; we need to set tparams to nil.
-			res.(*Signature).tparams = nil
-		}()
-		res = check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil)
-	default:
-		// only types and functions can be generic
-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+		// If the signature doesn't use its type parameters, subst
+		// will not make a copy. In that case, make a copy now (so
+		// we can set tparams to nil w/o causing side-effects).
+		if sig == t {
+			copy := *sig
+			sig = &copy
+		}
+		// After instantiating a generic signature, it is not generic
+		// anymore; we need to set tparams to nil.
+		sig.tparams = nil
+		return sig
 	}
-	return res
+	// only types and functions can be generic
+	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 }
 
 // validateTArgLen verifies that the length of targs and tparams matches,
@@ -209,7 +140,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 
 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
 	// rather than falling back to verbose qualification. Maybe this can be part
-	// of a the shared environment.
+	// of the shared context.
 	var qf Qualifier
 	if check != nil {
 		qf = check.qualifier

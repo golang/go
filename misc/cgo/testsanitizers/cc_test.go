@@ -344,7 +344,7 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 		if os.IsNotExist(err) {
 			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
 		}
-		snippet := bytes.SplitN(out, []byte{'\n'}, 2)[0]
+		snippet, _, _ := bytes.Cut(out, []byte("\n"))
 		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
 	}
 

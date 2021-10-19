@@ -275,14 +275,31 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		}
 		if n.X.Op() == ir.OMETHEXPR {
 			if meth := ir.MethodExprName(n.X); meth != nil {
-				fn := meth.Func
-				if fn != nil && types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
-					// Special case: explicitly allow
-					// mid-stack inlining of
-					// runtime.heapBits.next even though
-					// it calls slow-path
-					// runtime.heapBits.nextArena.
-					break
+				if fn := meth.Func; fn != nil {
+					s := fn.Sym()
+					var cheap bool
+					if types.IsRuntimePkg(s.Pkg) && s.Name == "heapBits.nextArena" {
+						// Special case: explicitly allow mid-stack inlining of
+						// runtime.heapBits.next even though it calls slow-path
+						// runtime.heapBits.nextArena.
+						cheap = true
+					}
+					// Special case: on architectures that can do unaligned loads,
+					// explicitly mark encoding/binary methods as cheap,
+					// because in practice they are, even though our inlining
+					// budgeting system does not see that. See issue 42958.
+					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "encoding/binary" {
+						switch s.Name {
+						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
+							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
+							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
+							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16":
+							cheap = true
+						}
+					}
+					if cheap {
+						break // treat like any other node, that is, cost of 1
+					}
 				}
 			}
 		}
@@ -373,35 +390,18 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// These nodes don't produce code; omit from inlining budget.
 		return false
 
-	case ir.OFOR, ir.OFORUNTIL:
-		n := n.(*ir.ForStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	case ir.OSWITCH:
-		n := n.(*ir.SwitchStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	// case ir.ORANGE, ir.OSELECT in "unhandled" above
-
-	case ir.OBREAK, ir.OCONTINUE:
-		n := n.(*ir.BranchStmt)
-		if n.Label != nil {
-			// Should have short-circuited due to labeled control error above.
-			base.Fatalf("unexpected labeled break/continue: %v", n)
-		}
-
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
 		if ir.IsConst(n.Cond, constant.Bool) {
 			// This if and the condition cost nothing.
-			// TODO(rsc): It seems strange that we visit the dead branch.
-			return doList(n.Init(), v.do) ||
-				doList(n.Body, v.do) ||
-				doList(n.Else, v.do)
+			if doList(n.Init(), v.do) {
+				return true
+			}
+			if ir.BoolVal(n.Cond) {
+				return doList(n.Body, v.do)
+			} else {
+				return doList(n.Else, v.do)
+			}
 		}
 
 	case ir.ONAME:
@@ -540,6 +540,9 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 			call := call.(*ir.CallExpr)
 			call.NoInline = true
 		}
+	case ir.OTAILCALL:
+		n := n.(*ir.TailCallStmt)
+		n.Call.NoInline = true // Not inline a tail call for now. Maybe we could inline it just like RETURN fn(arg)?
 
 	// TODO do them here (or earlier),
 	// so escape analysis can avoid more heapmoves.
@@ -1061,6 +1064,8 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 		m.Defn = &subst.defnMarker
 	case *ir.TypeSwitchGuard:
 		// TODO(mdempsky): Set m.Defn properly. See discussion on #45743.
+	case *ir.RangeStmt:
+		// TODO: Set m.Defn properly if we support inlining range statement in the future.
 	default:
 		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
 	}

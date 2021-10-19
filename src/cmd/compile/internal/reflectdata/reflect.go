@@ -7,7 +7,6 @@ package reflectdata
 import (
 	"encoding/binary"
 	"fmt"
-	"internal/buildcfg"
 	"os"
 	"sort"
 	"strings"
@@ -330,7 +329,11 @@ func methods(t *types.Type) []*typeSig {
 		if f.Type.Recv() == nil {
 			base.Fatalf("receiver with no type on %v method %v %v", mt, f.Sym, f)
 		}
-		if f.Nointerface() {
+		if f.Nointerface() && !t.IsFullyInstantiated() {
+			// Skip creating method wrappers if f is nointerface. But, if
+			// t is an instantiated type, we still have to call
+			// methodWrapper, because methodWrapper generates the actual
+			// generic method on the type as well.
 			continue
 		}
 
@@ -348,6 +351,11 @@ func methods(t *types.Type) []*typeSig {
 			tsym:  methodWrapper(t, f, false),
 			type_: typecheck.NewMethodType(f.Type, t),
 			mtype: typecheck.NewMethodType(f.Type, nil),
+		}
+		if f.Nointerface() {
+			// In the case of a nointerface method on an instantiated
+			// type, don't actually apppend the typeSig.
+			continue
 		}
 		ms = append(ms, sig)
 	}
@@ -1789,19 +1797,13 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// We don't need a dictionary if we are reaching a method (possibly via an
 	// embedded field) which is an interface method.
 	if !types.IsInterfaceMethod(method.Type) {
-		rcvr1 := rcvr
-		if rcvr1.IsPtr() {
-			rcvr1 = rcvr.Elem()
-		}
+		rcvr1 := deref(rcvr)
 		if len(rcvr1.RParams()) > 0 {
 			// If rcvr has rparams, remember method as generic, which
 			// means we need to add a dictionary to the wrapper.
 			generic = true
-			targs := rcvr1.RParams()
-			for _, t := range targs {
-				if t.HasShape() {
-					base.Fatalf("method on type instantiated with shapes targ:%+v rcvr:%+v", t, rcvr)
-				}
+			if rcvr.HasShape() {
+				base.Fatalf("method on type instantiated with shapes, rcvr:%+v", rcvr)
 			}
 		}
 	}
@@ -1818,9 +1820,10 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 		return lsym
 	}
 
+	methodrcvr := method.Type.Recv().Type
 	// For generic methods, we need to generate the wrapper even if the receiver
 	// types are identical, because we want to add the dictionary.
-	if !generic && types.Identical(rcvr, method.Type.Recv().Type) {
+	if !generic && types.Identical(rcvr, methodrcvr) {
 		return lsym
 	}
 
@@ -1844,7 +1847,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 
 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
 
-	methodrcvr := method.Type.Recv().Type
 	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
 
 	// generate nil pointer check for better error
@@ -1865,48 +1867,36 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	// the TOC to the appropriate value for that module. But if it returns
 	// directly to the wrapper's caller, nothing will reset it to the correct
 	// value for that function.
-	//
-	// Disable tailcall for RegabiArgs for now. The IR does not connect the
-	// arguments with the OTAILCALL node, and the arguments are not marshaled
-	// correctly.
-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs && !generic {
-		// generate tail call: adjust pointer receiver and jump to embedded method.
-		left := dot.X // skip final .M
-		if !left.Type().IsPtr() {
-			left = typecheck.NodAddr(left)
-		}
-		as := ir.NewAssignStmt(base.Pos, nthis, typecheck.ConvNop(left, rcvr))
-		fn.Body.Append(as)
-		fn.Body.Append(ir.NewTailCallStmt(base.Pos, method.Nname.(*ir.Name)))
+	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
+		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+		call.Args = ir.ParamNames(tfn.Type())
+		call.IsDDD = tfn.Type().IsVariadic()
+		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
 	} else {
 		fn.SetWrapper(true) // ignore frame for panic+recover matching
 		var call *ir.CallExpr
 
 		if generic && dot.X != nthis {
-			// TODO: for now, we don't try to generate dictionary wrappers for
-			// any methods involving embedded fields, because we're not
-			// generating the needed dictionaries in instantiateMethods.
+			// If there is embedding involved, then we should do the
+			// normal non-generic embedding wrapper below, which calls
+			// the wrapper for the real receiver type using dot as an
+			// argument. There is no need for generic processing (adding
+			// a dictionary) for this wrapper.
 			generic = false
 		}
 
 		if generic {
-			var args []ir.Node
-			var targs []*types.Type
-			if rcvr.IsPtr() {
-				targs = rcvr.Elem().RParams()
-			} else {
-				targs = rcvr.RParams()
-			}
+			targs := deref(rcvr).RParams()
 			// The wrapper for an auto-generated pointer/non-pointer
 			// receiver method should share the same dictionary as the
 			// corresponding original (user-written) method.
 			baseOrig := orig
-			if baseOrig.IsPtr() && !method.Type.Recv().Type.IsPtr() {
+			if baseOrig.IsPtr() && !methodrcvr.IsPtr() {
 				baseOrig = baseOrig.Elem()
-			} else if !baseOrig.IsPtr() && method.Type.Recv().Type.IsPtr() {
+			} else if !baseOrig.IsPtr() && methodrcvr.IsPtr() {
 				baseOrig = types.NewPtr(baseOrig)
 			}
-			args = append(args, getDictionary(ir.MethodSym(baseOrig, method.Sym), targs))
+			args := []ir.Node{getDictionary(ir.MethodSym(baseOrig, method.Sym), targs)}
 			if indirect {
 				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
 			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
@@ -1921,11 +1911,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 			// Target method uses shaped names.
 			targs2 := make([]*types.Type, len(targs))
 			for i, t := range targs {
-				targs2[i] = typecheck.Shapify(t)
+				targs2[i] = typecheck.Shapify(t, i)
 			}
 			targs = targs2
 
-			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, false, true)
 			if sym.Def == nil {
 				// Currently we make sure that we have all the instantiations
 				// we need by generating them all in ../noder/stencil.go:instantiateMethods
@@ -2004,6 +1994,9 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	}
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
+	if ityp.HasShape() {
+		base.Fatalf("marking method of shape type used %+v %s", ityp, dot.Sel.Name)
+	}
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
@@ -2038,7 +2031,7 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 
 	sym := typecheck.MakeDictSym(gf, targs, true)
 
-	// Initialize the dictionary, if we haven't yet already.
+	// Dictionary should already have been generated by instantiateMethods().
 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
 		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
 	}
@@ -2063,4 +2056,11 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
 	np.SetType(types.Types[types.TUINTPTR])
 	np.SetTypecheck(1)
 	return np
+}
+
+func deref(t *types.Type) *types.Type {
+	if t.IsPtr() {
+		return t.Elem()
+	}
+	return t
 }
