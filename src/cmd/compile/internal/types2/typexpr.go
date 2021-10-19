@@ -396,13 +396,24 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
 	return typ
 }
 
-func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
+func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) (res Type) {
+	if check.conf.Trace {
+		check.trace(x.Pos(), "-- instantiating %s with %s", x, targsx)
+		check.indent++
+		defer func() {
+			check.indent--
+			// Don't format the underlying here. It will always be nil.
+			check.trace(x.Pos(), "=> %s", res)
+		}()
+	}
+
 	gtyp := check.genericType(x, true)
 	if gtyp == Typ[Invalid] {
 		return gtyp // error already reported
 	}
-	base, _ := gtyp.(*Named)
-	if base == nil {
+
+	origin, _ := gtyp.(*Named)
+	if origin == nil {
 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
 	}
 
@@ -416,20 +427,67 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 	// determine argument positions
 	posList := make([]syntax.Pos, len(targs))
 	for i, arg := range targsx {
-		posList[i] = syntax.StartPos(arg)
+		posList[i] = arg.Pos()
 	}
 
-	typ := check.instantiate(x.Pos(), base, targs, posList)
-	def.setUnderlying(typ)
-	check.recordInstance(x, targs, typ)
+	// create the instance
+	h := check.conf.Context.TypeHash(origin, targs)
+	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+	inst := check.conf.Context.typeForHash(h, nil)
+	// If inst is non-nil, we can't just return here. Inst may have been
+	// constructed via recursive substitution, in which case we wouldn't do the
+	// validation below. Ensure that the validation (and resulting errors) runs
+	// for each instantiated type in the source.
+	if inst == nil {
+		tname := NewTypeName(x.Pos(), origin.obj.pkg, origin.obj.name, nil)
+		inst = check.newNamed(tname, origin, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+		inst.targs = NewTypeList(targs)
+		inst = check.conf.Context.typeForHash(h, inst)
+	}
+	def.setUnderlying(inst)
 
-	// make sure we check instantiation works at least once
-	// and that the resulting type is valid
+	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+		tparams := origin.TypeParams().list()
+
+		inferred := targs
+		if len(targs) < len(tparams) {
+			// If inference fails, len(inferred) will be 0, and inst.underlying will
+			// be set to Typ[Invalid] in expandNamed.
+			inferred = check.infer(x.Pos(), tparams, targs, nil, nil)
+			if len(inferred) > len(targs) {
+				inst.targs = NewTypeList(inferred)
+			}
+		}
+
+		check.recordInstance(x, inferred, inst)
+		return expandNamed(ctxt, n, x.Pos())
+	}
+
+	// origin.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {
-		check.validType(typ, nil)
+		// This is an instance from the source, not from recursive substitution,
+		// and so it must be resolved during type-checking so that we can report
+		// errors.
+		inst.resolve(check.conf.Context)
+		// Since check is non-nil, we can still mutate inst. Unpinning the resolver
+		// frees some memory.
+		inst.resolver = nil
+
+		if check.validateTArgLen(x.Pos(), inst.tparams.Len(), inst.targs.Len()) {
+			if i, err := check.verify(x.Pos(), inst.tparams.list(), inst.targs.list()); err != nil {
+				// best position for error reporting
+				pos := x.Pos()
+				if i < len(posList) {
+					pos = posList[i]
+				}
+				check.softErrorf(pos, err.Error())
+			}
+		}
+
+		check.validType(inst, nil)
 	})
 
-	return typ
+	return inst
 }
 
 // arrayLength type-checks the array length expression e
