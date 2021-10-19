@@ -118,13 +118,9 @@ func ReadImports(pkg *types.Pkg, data string) {
 
 	version := ird.uint64()
 	switch version {
-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		if version > iexportVersionGenerics {
-			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
-		} else {
-			base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
-		}
+		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
 		base.ErrorExit()
 	}
 
@@ -408,8 +404,15 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		sym.Def = nname
 		nname.SetType(t)
 		t.SetNod(nname)
-
-		t.SetBound(r.typ())
+		implicit := false
+		if r.p.exportVersion >= iexportVersionGo1_18 {
+			implicit = r.bool()
+		}
+		bound := r.typ()
+		if implicit {
+			bound.MarkImplicit()
+		}
+		t.SetBound(bound)
 		return nname
 
 	case 'V':
@@ -429,10 +432,17 @@ func (r *importReader) value(typ *types.Type) constant.Value {
 	var kind constant.Kind
 	var valType *types.Type
 
-	if typ.IsTypeParam() {
-		// If a constant had a typeparam type, then we wrote out its
-		// actual constant kind as well.
+	if r.p.exportVersion >= iexportVersionGo1_18 {
+		// TODO: add support for using the kind in the non-typeparam case.
 		kind = constant.Kind(r.int64())
+	}
+
+	if typ.IsTypeParam() {
+		if r.p.exportVersion < iexportVersionGo1_18 {
+			// If a constant had a typeparam type, then we wrote out its
+			// actual constant kind as well.
+			kind = constant.Kind(r.int64())
+		}
 		switch kind {
 		case constant.Int:
 			valType = types.Types[types.TINT64]

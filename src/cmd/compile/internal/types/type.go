@@ -1884,6 +1884,12 @@ func (t *Type) IsImplicit() bool {
 	return t.extra.(*Interface).implicit
 }
 
+// MarkImplicit marks the interface as implicit.
+func (t *Type) MarkImplicit() {
+	t.wantEtype(TINTER)
+	t.extra.(*Interface).implicit = true
+}
+
 // NewUnion returns a new union with the specified set of terms (types). If
 // tildes[i] is true, then terms[i] represents ~T, rather than just T.
 func NewUnion(terms []*Type, tildes []bool) *Type {

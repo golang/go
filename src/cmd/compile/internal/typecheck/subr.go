@@ -1390,7 +1390,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 		}
 	}
 	if newfields != nil {
-		return types.NewInterface(t.Pkg(), newfields, false)
+		return types.NewInterface(t.Pkg(), newfields, t.IsImplicit())
 	}
 	return t
 }
