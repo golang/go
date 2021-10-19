@@ -159,10 +159,15 @@ func (s *snapshot) ModFiles() []span.URI {
 }
 
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
-	if !s.view.options.ExperimentalTemplateSupport {
+	if !s.view.Options().ExperimentalTemplateSupport {
 		return nil
 	}
+
 	ans := map[span.URI]source.VersionedFileHandle{}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for k, x := range s.files {
 		if strings.HasSuffix(filepath.Ext(k.Filename()), "tmpl") {
 			ans[k] = x
