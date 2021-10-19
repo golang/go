@@ -358,8 +358,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			return true
 		}
 
-	case ir.ORANGE,
-		ir.OSELECT,
+	case ir.OSELECT,
 		ir.OGO,
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet

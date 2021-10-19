@@ -160,6 +160,19 @@ func switchType(x interface{}) int { // ERROR "can inline switchType" "x does no
 	}
 }
 
+func inlineRangeIntoMe(data []int) { // ERROR "can inline inlineRangeIntoMe" "data does not escape"
+	rangeFunc(data, 12) // ERROR "inlining call to rangeFunc"
+}
+
+func rangeFunc(xs []int, b int) int { // ERROR "can inline rangeFunc" "xs does not escape"
+	for i, x := range xs {
+		if x == b {
+			return i
+		}
+	}
+	return -1
+}
+
 type T struct{}
 
 func (T) meth(int, int) {} // ERROR "can inline T.meth"
