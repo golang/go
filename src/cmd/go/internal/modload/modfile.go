@@ -118,8 +118,9 @@ type requireMeta struct {
 type modPruning uint8
 
 const (
-	pruned   modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
-	unpruned                   // no transitive dependencies are pruned out
+	pruned    modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
+	unpruned                    // no transitive dependencies are pruned out
+	workspace                   // pruned to the union of modules in the workspace
 )
 
 func pruningForGoVersion(goVersion string) modPruning {
@@ -554,7 +555,7 @@ type retraction struct {
 //
 // The caller must not modify the returned summary.
 func goModSummary(m module.Version) (*modFileSummary, error) {
-	if m.Version == "" && MainModules.Contains(m.Path) {
+	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 
@@ -718,9 +719,14 @@ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
 func rawGoModData(m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
 		// m is a replacement module with only a file path.
+
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			dir = filepath.Join(replaceRelativeTo(), dir)
+			if inWorkspaceMode() && MainModules.Contains(m.Path) {
+				dir = MainModules.ModRoot(m)
+			} else {
+				dir = filepath.Join(replaceRelativeTo(), dir)
+			}
 		}
 		name = filepath.Join(dir, "go.mod")
 		if gomodActual, ok := fsys.OverlayPath(name); ok {
