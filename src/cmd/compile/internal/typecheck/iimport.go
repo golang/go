@@ -815,7 +815,7 @@ func (r *importReader) typ1() *types.Type {
 			return types.Types[types.TINTER]
 		}
 
-		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
+		t := types.NewInterface(r.currPkg, append(embeddeds, methods...), false)
 
 		// Ensure we expand the interface in the frontend (#25055).
 		types.CheckSize(t)

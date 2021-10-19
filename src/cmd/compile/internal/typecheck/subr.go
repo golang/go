@@ -1369,7 +1369,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 			// For an empty interface, we need to return a new type,
 			// since it may now be fully instantiated (HasTParam
 			// becomes false).
-			return types.NewInterface(t.Pkg(), nil)
+			return types.NewInterface(t.Pkg(), nil, false)
 		}
 		return t
 	}
@@ -1390,7 +1390,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 		}
 	}
 	if newfields != nil {
-		return types.NewInterface(t.Pkg(), newfields)
+		return types.NewInterface(t.Pkg(), newfields, false)
 	}
 	return t
 }
