@@ -5,6 +5,7 @@
 package typeparams
 
 import (
+	"errors"
 	"fmt"
 	"go/types"
 	"os"
@@ -63,6 +64,44 @@ func NormalizeInterface(iface *types.Interface) (*types.Interface, error) {
 	}
 
 	return types.NewInterfaceType(methods, embeddeds), nil
+}
+
+var ErrEmptyTypeSet = errors.New("empty type set")
+
+// StructuralTerms returns the normalized structural type restrictions of a
+// type, if any. For types that are not type parameters, it returns term slice
+// containing a single non-tilde term holding the given type. For type
+// parameters, it returns the normalized term list of the type parameter's
+// constraint. See NormalizeInterface for more information on the normal form
+// of a constraint interface.
+//
+// StructuralTerms returns an error if the structural term list cannot be
+// computed. If the type set of typ is empty, it returns ErrEmptyTypeSet.
+func StructuralTerms(typ types.Type) ([]*Term, error) {
+	switch typ := typ.(type) {
+	case *TypeParam:
+		iface, _ := typ.Constraint().(*types.Interface)
+		if iface == nil {
+			return nil, fmt.Errorf("constraint is %T, not *types.Interface", typ)
+		}
+		tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
+		if err != nil {
+			return nil, err
+		}
+		if tset.terms.isEmpty() {
+			return nil, ErrEmptyTypeSet
+		}
+		if tset.terms.isAll() {
+			return nil, nil
+		}
+		var terms []*Term
+		for _, term := range tset.terms {
+			terms = append(terms, NewTerm(term.tilde, term.typ))
+		}
+		return terms, nil
+	default:
+		return []*Term{NewTerm(false, typ)}, nil
+	}
 }
 
 // A termSet holds the normalized set of terms for a given type.

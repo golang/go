@@ -9,9 +9,14 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/composite"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, composite.Analyzer, "a")
+	pkgs := []string{"a"}
+	if typeparams.Enabled {
+		pkgs = append(pkgs, "typeparams")
+	}
+	analysistest.Run(t, testdata, composite.Analyzer, pkgs...)
 }

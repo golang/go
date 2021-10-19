@@ -164,19 +164,25 @@ func NamedTypeOrigin(named *types.Named) types.Type {
 	return named
 }
 
-// Term is a placeholder type, as type parameters are not supported at this Go
-// version. Its methods panic on use.
-type Term struct{}
+// Term holds information about a structural type restriction.
+type Term struct {
+	tilde bool
+	typ   types.Type
+}
 
-func (*Term) Tilde() bool            { unsupported(); return false }
-func (*Term) Type() types.Type       { unsupported(); return nil }
-func (*Term) String() string         { unsupported(); return "" }
-func (*Term) Underlying() types.Type { unsupported(); return nil }
+func (m *Term) Tilde() bool      { return m.tilde }
+func (m *Term) Type() types.Type { return m.typ }
+func (m *Term) String() string {
+	pre := ""
+	if m.tilde {
+		pre = "~"
+	}
+	return pre + m.typ.String()
+}
 
 // NewTerm is unsupported at this Go version, and panics.
 func NewTerm(tilde bool, typ types.Type) *Term {
-	unsupported()
-	return nil
+	return &Term{tilde, typ}
 }
 
 // Union is a placeholder type, as type parameters are not supported at this Go
