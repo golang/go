@@ -130,6 +130,18 @@ func (t *Named) String() string   { return TypeString(t, nil) }
 // chain before returning it. If no underlying type is found or a cycle
 // is detected, the result is Typ[Invalid]. If a cycle is detected and
 // n0.check != nil, the cycle is reported.
+//
+// This is necessary because the underlying type of named may be itself a
+// named type that is incomplete:
+//
+//	type (
+//		A B
+//		B *C
+//		C A
+//	)
+//
+// The type of C is the (named) type of A which is incomplete,
+// and which has as its underlying type the named type B.
 func (n0 *Named) under() Type {
 	u := n0.Underlying()
 
@@ -139,7 +151,9 @@ func (n0 *Named) under() Type {
 	var n1 *Named
 	switch u1 := u.(type) {
 	case nil:
-		return Typ[Invalid]
+		// After expansion via Underlying(), we should never encounter a nil
+		// underlying.
+		panic("nil underlying")
 	default:
 		// common case
 		return u
@@ -223,6 +237,7 @@ func (check *Checker) bestContext(ctxt *Context) *Context {
 // The underlying type will be Typ[Invalid] if there was an error.
 func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
 	n.orig.resolve(ctxt)
+	assert(n.orig.underlying != nil)
 
 	check := n.check
 
