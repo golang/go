@@ -74,22 +74,23 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		if required < len(ix.Indices) {
 			var start, end token.Pos
+			var edit analysis.TextEdit
 			if required == 0 {
 				start, end = ix.Lbrack, ix.Rbrack+1 // erase the entire index
+				edit = analysis.TextEdit{Pos: start, End: end}
 			} else {
-				start = ix.Indices[required-1].End()
+				start = ix.Indices[required].Pos()
 				end = ix.Rbrack
+				//  erase from end of last arg to include last comma & white-spaces
+				edit = analysis.TextEdit{Pos: ix.Indices[required-1].End(), End: end}
 			}
 			pass.Report(analysis.Diagnostic{
 				Pos:     start,
 				End:     end,
 				Message: "unnecessary type arguments",
 				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: "simplify type arguments",
-					TextEdits: []analysis.TextEdit{{
-						Pos: start,
-						End: end,
-					}},
+					Message:   "simplify type arguments",
+					TextEdits: []analysis.TextEdit{edit},
 				}},
 			})
 		}
