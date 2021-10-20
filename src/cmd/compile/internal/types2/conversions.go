@@ -98,21 +98,21 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	switch {
 	case Vp != nil && Tp != nil:
 		x := *x // don't modify outer x
-		return Vp.underIs(func(V Type) bool {
-			x.typ = V
-			return Tp.underIs(func(T Type) bool {
-				return x.convertibleToImpl(check, T)
+		return Vp.is(func(V *term) bool {
+			x.typ = V.typ
+			return Tp.is(func(T *term) bool {
+				return x.convertibleToImpl(check, T.typ)
 			})
 		})
 	case Vp != nil:
 		x := *x // don't modify outer x
-		return Vp.underIs(func(V Type) bool {
-			x.typ = V
+		return Vp.is(func(V *term) bool {
+			x.typ = V.typ
 			return x.convertibleToImpl(check, T)
 		})
 	case Tp != nil:
-		return Tp.underIs(func(T Type) bool {
-			return x.convertibleToImpl(check, T)
+		return Tp.is(func(T *term) bool {
+			return x.convertibleToImpl(check, T.typ)
 		})
 	}
 
