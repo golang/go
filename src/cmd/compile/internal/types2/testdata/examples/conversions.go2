@@ -31,6 +31,20 @@ func _[X ~*Foo|~*Bar, T ~*Bar](x X) T { return T(x) }
 func _[X ~*Foo, T ~*Foo|~*Bar](x X) T { return T(x) }
 func _[X ~*Foo, T ~*Far](x X) T { return T(x /* ERROR cannot convert */ ) }
 
+// Verify that the defined types in constraints are considered for the rule above.
+
+type (
+	B int
+	C int
+	X0 *B
+	T0 *C
+)
+
+func _(x X0) T0 { return T0(x /* ERROR cannot convert */ ) } // non-generic reference
+func _[X X0, T T0](x X) T { return T(x /* ERROR cannot convert */ ) }
+func _[T T0](x X0) T { return T(x /* ERROR cannot convert */ ) }
+func _[X X0](x X) T0 { return T0(x /* ERROR cannot convert */ ) }
+
 // "x's type and T are both integer or floating point types"
 
 func _[X Integer, T Integer](x X) T { return T(x) }
