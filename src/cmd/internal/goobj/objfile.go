@@ -19,14 +19,12 @@
 package goobj
 
 import (
-	"bytes"
 	"cmd/internal/bio"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/unsafeheader"
-	"io"
 	"unsafe"
 )
 
@@ -594,13 +592,12 @@ type Reader struct {
 	b        []byte // mmapped bytes, if not nil
 	readonly bool   // whether b is backed with read-only memory
 
-	rd    io.ReaderAt
 	start uint32
 	h     Header // keep block offsets
 }
 
 func NewReaderFromBytes(b []byte, readonly bool) *Reader {
-	r := &Reader{b: b, readonly: readonly, rd: bytes.NewReader(b), start: 0}
+	r := &Reader{b: b, readonly: readonly, start: 0}
 	err := r.h.Read(r)
 	if err != nil {
 		return nil
