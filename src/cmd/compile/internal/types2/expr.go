@@ -1025,7 +1025,11 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
-			check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+			if e != nil {
+				check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+			} else {
+				check.errorf(x, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+			}
 		}
 		x.mode = invalid
 		return
