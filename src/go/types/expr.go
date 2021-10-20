@@ -1000,7 +1000,11 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
 			if e != nil {
 				posn = e
 			}
-			check.invalidOp(posn, _MismatchedTypes, "%s (mismatched types %s and %s)", e, x.typ, y.typ)
+			if e != nil {
+				check.invalidOp(posn, _MismatchedTypes, "%s (mismatched types %s and %s)", e, x.typ, y.typ)
+			} else {
+				check.invalidOp(posn, _MismatchedTypes, "%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+			}
 		}
 		x.mode = invalid
 		return
