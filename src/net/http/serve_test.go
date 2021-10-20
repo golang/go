@@ -2285,7 +2285,6 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	// timeout := make(chan time.Time, 1) // write to this to force timeouts
 	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
 	cst := newClientServerTest(t, h2, h)
 
@@ -2310,7 +2309,6 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	cst.close()
 
 	// Times out:
-	// timeout <- time.Time{}
 	h, cancel = NewTestTimeoutHandler(sayHi, 0*time.Second)
 	defer cancel()
 	cst = newClientServerTest(t, h1Mode, h)
@@ -2524,7 +2522,6 @@ func TestTimeoutHandlerContextCanceled(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	// timeout := make(chan time.Time, 1) // write to this to force timeouts
 	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
 	cancel()
 	cst := newClientServerTest(t, h1Mode, h)
