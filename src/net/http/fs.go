@@ -818,6 +818,7 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
 
 // FS converts fsys to a FileSystem implementation,
 // for use with FileServer and NewFileTransport.
+// The files provided by fsys must implement io.Seeker.
 func FS(fsys fs.FS) FileSystem {
 	return ioFS{fsys}
 }
