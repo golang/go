@@ -296,6 +296,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	if Ti, ok := Tu.(*Interface); ok {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
+				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
 				if wrongType != nil {
 					if Identical(m.typ, wrongType.typ) {
 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
