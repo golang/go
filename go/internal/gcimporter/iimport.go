@@ -159,9 +159,10 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 
 		fake: fakeFileSet{
 			fset:  fset,
-			files: make(map[string]*token.File),
+			files: make(map[string]*fileInfo),
 		},
 	}
+	defer p.fake.setLines() // set lines for files in fset
 
 	for i, pt := range predeclared() {
 		p.typCache[uint64(i)] = pt

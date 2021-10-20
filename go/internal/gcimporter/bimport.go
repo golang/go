@@ -74,9 +74,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		pathList:   []string{""}, // empty string is mapped to 0
 		fake: fakeFileSet{
 			fset:  fset,
-			files: make(map[string]*token.File),
+			files: make(map[string]*fileInfo),
 		},
 	}
+	defer p.fake.setLines() // set lines for files in fset
 
 	// read version info
 	var versionstr string
@@ -338,37 +339,49 @@ func (p *importer) pos() token.Pos {
 // Synthesize a token.Pos
 type fakeFileSet struct {
 	fset  *token.FileSet
-	files map[string]*token.File
+	files map[string]*fileInfo
 }
+
+type fileInfo struct {
+	file     *token.File
+	lastline int
+}
+
+const maxlines = 64 * 1024
 
 func (s *fakeFileSet) pos(file string, line, column int) token.Pos {
 	// TODO(mdempsky): Make use of column.
 
-	// Since we don't know the set of needed file positions, we
-	// reserve maxlines positions per file.
-	const maxlines = 64 * 1024
+	// Since we don't know the set of needed file positions, we reserve maxlines
+	// positions per file. We delay calling token.File.SetLines until all
+	// positions have been calculated (by way of fakeFileSet.setLines), so that
+	// we can avoid setting unnecessary lines. See also golang/go#46586.
 	f := s.files[file]
 	if f == nil {
-		f = s.fset.AddFile(file, -1, maxlines)
+		f = &fileInfo{file: s.fset.AddFile(file, -1, maxlines)}
 		s.files[file] = f
-		// Allocate the fake linebreak indices on first use.
-		// TODO(adonovan): opt: save ~512KB using a more complex scheme?
-		fakeLinesOnce.Do(func() {
-			fakeLines = make([]int, maxlines)
-			for i := range fakeLines {
-				fakeLines[i] = i
-			}
-		})
-		f.SetLines(fakeLines)
 	}
-
 	if line > maxlines {
 		line = 1
 	}
+	if line > f.lastline {
+		f.lastline = line
+	}
 
-	// Treat the file as if it contained only newlines
-	// and column=1: use the line number as the offset.
-	return f.Pos(line - 1)
+	// Return a fake position assuming that f.file consists only of newlines.
+	return token.Pos(f.file.Base() + line - 1)
+}
+
+func (s *fakeFileSet) setLines() {
+	fakeLinesOnce.Do(func() {
+		fakeLines = make([]int, maxlines)
+		for i := range fakeLines {
+			fakeLines[i] = i
+		}
+	})
+	for _, f := range s.files {
+		f.file.SetLines(fakeLines[:f.lastline])
+	}
 }
 
 var (
