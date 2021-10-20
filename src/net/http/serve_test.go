@@ -2285,9 +2285,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	timeout := make(chan time.Time, 1) // write to this to force timeouts
-	cst := newClientServerTest(t, h2, NewTestTimeoutHandler(sayHi, timeout))
-	defer cst.close()
+	// timeout := make(chan time.Time, 1) // write to this to force timeouts
+	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	cst := newClientServerTest(t, h2, h)
 
 	// Succeed without timing out:
 	sendHi <- true
@@ -2306,8 +2306,15 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
 
+	cancel()
+	cst.close()
+
 	// Times out:
-	timeout <- time.Time{}
+	// timeout <- time.Time{}
+	h, cancel = NewTestTimeoutHandler(sayHi, 0*time.Second)
+	defer cancel()
+	cst = newClientServerTest(t, h1Mode, h)
+	defer cst.close()
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2428,9 +2435,9 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	timeout := make(chan time.Time, 1) // write to this to force timeouts
-	cst := newClientServerTest(t, h1Mode, NewTestTimeoutHandler(sayHi, timeout))
-	defer cst.close()
+	// timeout := make(chan time.Time, 1) // write to this to force timeouts
+	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	cst := newClientServerTest(t, h1Mode, h)
 
 	// Succeed without timing out:
 	sendHi <- true
@@ -2448,9 +2455,15 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	if g := <-writeErrors; g != nil {
 		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
+	cancel()
+	cst.close()
 
 	// Times out:
-	timeout <- time.Time{}
+	h, cancel = NewTestTimeoutHandler(sayHi, 0*time.Second)
+	defer cancel()
+	cst = newClientServerTest(t, h1Mode, h)
+	defer cst.close()
+
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2497,6 +2510,38 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != StatusNoContent {
 		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusNoContent)
+	}
+}
+
+func TestTimeoutHandlerContextCanceled(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	sendHi := make(chan bool, 1)
+	writeErrors := make(chan error, 1)
+	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		<-sendHi
+		_, werr := w.Write([]byte("hi"))
+		writeErrors <- werr
+	})
+	// timeout := make(chan time.Time, 1) // write to this to force timeouts
+	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	cancel()
+	cst := newClientServerTest(t, h1Mode, h)
+	defer cst.close()
+
+	// Succeed without timing out:
+	sendHi <- true
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if g, e := string(body), ""; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+	if g, e := <-writeErrors, context.Canceled; g != e {
+		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
 }
 

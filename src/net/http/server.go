@@ -3305,10 +3305,6 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 // in handlers which have timed out.
 var ErrHandlerTimeout = errors.New("http: Handler timeout")
 
-// ErrRequestCanceled is returned on ResponseWriter Write calls
-// in handlers which have canceled contexts.
-var ErrRequestCanceled = errors.New("http: Request canceled")
-
 type timeoutHandler struct {
 	handler Handler
 	body    string
@@ -3373,8 +3369,8 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 			w.WriteHeader(StatusServiceUnavailable)
 			io.WriteString(w, h.errorBody())
 			tw.err = ErrHandlerTimeout
-		case context.Canceled:
-			tw.err = ErrRequestCanceled
+		default:
+			tw.err = err
 		}
 	}
 }
