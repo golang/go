@@ -457,6 +457,8 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 					pos = posList[i]
 				}
 				check.softErrorf(atPos(pos), _Todo, err.Error())
+			} else {
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
 			}
 		}
 
