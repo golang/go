@@ -90,6 +90,19 @@ Do not send CLs removing the interior tags from such phrases.
   package.
 </p>
 
+<p><!-- https://golang.org/issue/44435 -->
+  If the main module's <code>go.mod</code> file
+  specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>
+  or higher, <code>go</code> <code>mod</code> <code>download</code> without
+  arguments now downloads source code for only the modules
+  explicitly <a href="/ref/mod#go-mod-file-require">required</a> in the main
+  module's <code>go.mod</code> file. (In a <code>go</code> <code>1.17</code> or
+  higher module, that set already includes all dependencies needed to build the
+  packages and tests in the main module.)
+  To also download source code for transitive dependencies, use
+  <code>go</code> <code>mod</code> <code>download</code> <code>all</code>.
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>

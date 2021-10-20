@@ -236,7 +236,7 @@ func (rs *Requirements) IsDirect(path string) bool {
 // A ModuleGraph represents the complete graph of module dependencies
 // of a main module.
 //
-// If the main module is lazily loaded, the graph does not include
+// If the main module supports module graph pruning, the graph does not include
 // transitive dependencies of non-root (implicit) dependencies.
 type ModuleGraph struct {
 	g         *mvs.Graph

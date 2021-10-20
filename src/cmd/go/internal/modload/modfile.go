@@ -33,13 +33,13 @@ const (
 	// tests outside of the main module.
 	narrowAllVersionV = "v1.16"
 
-	// explicitIndirectVersionV is the Go version (plus leading "v") at which a
+	// ExplicitIndirectVersionV is the Go version (plus leading "v") at which a
 	// module's go.mod file is expected to list explicit requirements on every
 	// module that provides any package transitively imported by that module.
 	//
 	// Other indirect dependencies of such a module can be safely pruned out of
 	// the module graph; see https://golang.org/ref/mod#graph-pruning.
-	explicitIndirectVersionV = "v1.17"
+	ExplicitIndirectVersionV = "v1.17"
 
 	// separateIndirectVersionV is the Go version (plus leading "v") at which
 	// "// indirect" dependencies are added in a block separate from the direct
@@ -123,7 +123,7 @@ const (
 )
 
 func pruningForGoVersion(goVersion string) modPruning {
-	if semver.Compare("v"+goVersion, explicitIndirectVersionV) < 0 {
+	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
 		// The go.mod file does not duplicate relevant information about transitive
 		// dependencies, so they cannot be pruned out.
 		return unpruned
