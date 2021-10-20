@@ -185,7 +185,7 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 
 	var hdr string
 	buf := bufio.NewReader(rc)
-	if hdr, err = FindExportData(buf); err != nil {
+	if hdr, _, err = FindExportData(buf); err != nil {
 		return
 	}
 

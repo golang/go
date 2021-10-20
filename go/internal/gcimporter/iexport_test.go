@@ -42,7 +42,7 @@ func readExportFile(filename string) ([]byte, error) {
 	defer f.Close()
 
 	buf := bufio.NewReader(f)
-	if _, err := gcimporter.FindExportData(buf); err != nil {
+	if _, _, err := gcimporter.FindExportData(buf); err != nil {
 		return nil, err
 	}
 

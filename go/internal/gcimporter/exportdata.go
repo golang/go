@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+func readGopackHeader(r *bufio.Reader) (name string, size int64, err error) {
 	// See $GOROOT/include/ar.h.
 	hdr := make([]byte, 16+12+6+6+8+10+2)
 	_, err = io.ReadFull(r, hdr)
@@ -28,7 +28,8 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 		fmt.Printf("header: %s", hdr)
 	}
 	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
-	size, err = strconv.Atoi(s)
+	length, err := strconv.Atoi(s)
+	size = int64(length)
 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
 		err = fmt.Errorf("invalid archive header")
 		return
@@ -42,8 +43,8 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 // file by reading from it. The reader must be positioned at the
 // start of the file before calling this function. The hdr result
 // is the string before the export data, either "$$" or "$$B".
-//
-func FindExportData(r *bufio.Reader) (hdr string, err error) {
+// The size result is the length of the export data in bytes, or -1 if not known.
+func FindExportData(r *bufio.Reader) (hdr string, size int64, err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
@@ -54,7 +55,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	if string(line) == "!<arch>\n" {
 		// Archive file. Scan to __.PKGDEF.
 		var name string
-		if name, _, err = readGopackHeader(r); err != nil {
+		if name, size, err = readGopackHeader(r); err != nil {
 			return
 		}
 
@@ -70,6 +71,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 			err = fmt.Errorf("can't find export data (%v)", err)
 			return
 		}
+		size -= int64(len(line))
 	}
 
 	// Now at __.PKGDEF in archive or still at beginning of file.
@@ -86,8 +88,12 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 			err = fmt.Errorf("can't find export data (%v)", err)
 			return
 		}
+		size -= int64(len(line))
 	}
 	hdr = string(line)
+	if size < 0 {
+		size = -1
+	}
 
 	return
 }

@@ -50,11 +50,24 @@ func Find(importPath, srcDir string) (filename, path string) {
 // additional trailing data beyond the end of the export data.
 func NewReader(r io.Reader) (io.Reader, error) {
 	buf := bufio.NewReader(r)
-	_, err := gcimporter.FindExportData(buf)
-	// If we ever switch to a zip-like archive format with the ToC
-	// at the end, we can return the correct portion of export data,
-	// but for now we must return the entire rest of the file.
-	return buf, err
+	_, size, err := gcimporter.FindExportData(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	if size >= 0 {
+		// We were given an archive and found the __.PKGDEF in it.
+		// This tells us the size of the export data, and we don't
+		// need to return the entire file.
+		return &io.LimitedReader{
+			R: buf,
+			N: size,
+		}, nil
+	} else {
+		// We were given an object file. As such, we don't know how large
+		// the export data is and must return the entire file.
+		return buf, nil
+	}
 }
 
 // Read reads export data from in, decodes it, and returns type
