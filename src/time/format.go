@@ -1342,7 +1342,7 @@ func parseTimeZone(value string) (length int, ok bool) {
 		length = parseGMT(value)
 		return length, true
 	}
-	// Special Case 3: Some time zones are not named, but have +/-00 format
+	// Special Case 3: Some time zones are not named, but have +/-00 or +/-0000 format
 	if value[0] == '+' || value[0] == '-' {
 		length = parseSignedOffset(value)
 		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
@@ -1388,8 +1388,9 @@ func parseGMT(value string) int {
 	return 3 + parseSignedOffset(value)
 }
 
-// parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
-// The function checks for a signed number in the range -23 through +23 excluding zero.
+// parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-0930").
+// The function checks for a signed number in the range [-23, +23] for one or two digit number and
+// in the range [-2359, +2359] for four digit number.
 // Returns length of the found offset string or 0 otherwise
 func parseSignedOffset(value string) int {
 	sign := value[0]
@@ -1402,10 +1403,12 @@ func parseSignedOffset(value string) int {
 	if err != nil || value[1:] == rem {
 		return 0
 	}
-	if x > 23 {
+
+	ndigits := len(value) - len(rem) - 1
+	if (ndigits == 2 && x > 23) || (ndigits == 3) || (ndigits == 4 && x > 2359) || (ndigits > 4) {
 		return 0
 	}
-	return len(value) - len(rem)
+	return 1 + ndigits
 }
 
 func commaOrPeriod(b byte) bool {

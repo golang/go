@@ -543,6 +543,16 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"+14", 3, true},
 	{"+23", 3, true},
 	{"+24", 0, false},
+	{"+0000", 5, true},
+	{"+0430", 5, true},
+	{"-0930", 5, true},
+	{"-2359", 5, true},
+	{"+000", 0, false},
+	{"+001", 0, false},
+	{"-2400", 0, false},
+	{"+2400", 0, false},
+	{"+2530", 0, false},
+	{"+00451", 0, false},
 }
 
 func TestParseTimeZone(t *testing.T) {
