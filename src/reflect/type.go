@@ -1863,7 +1863,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 			// typ is recv chan, need parentheses as "<-" associates with leftmost
 			// chan possible, see:
 			// * https://golang.org/ref/spec#Channel_types
-			// * https://golang.org/issues/39897
+			// * https://golang.org/issue/39897
 			s = "chan (" + typeStr + ")"
 		} else {
 			s = "chan " + typeStr
