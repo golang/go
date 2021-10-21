@@ -995,6 +995,16 @@ func CanExtractFunction(fset *token.FileSet, rng span.Range, src []byte, file *a
 	if start == nil || end == nil {
 		return nil, false, false, fmt.Errorf("range does not map to AST nodes")
 	}
+	// If the region is a blockStmt, use the first and last nodes in the block
+	// statement.
+	// <rng.start>{ ... }<rng.end> => { <rng.start>...<rng.end> }
+	if blockStmt, ok := start.(*ast.BlockStmt); ok {
+		if len(blockStmt.List) == 0 {
+			return nil, false, false, fmt.Errorf("range maps to empty block statement")
+		}
+		start, end = blockStmt.List[0], blockStmt.List[len(blockStmt.List)-1]
+		rng.Start, rng.End = start.Pos(), end.End()
+	}
 	return &fnExtractParams{
 		tok:   tok,
 		path:  path,
