@@ -6,7 +6,7 @@
 
 package os
 
-// itox converts val (an int) to a hexdecimal string.
+// itox converts val (an int) to a hexadecimal string.
 func itox(val int) string {
 	if val < 0 {
 		return "-" + uitox(uint(-val))
@@ -16,7 +16,7 @@ func itox(val int) string {
 
 const hex = "0123456789abcdef"
 
-// uitox converts val (a uint) to a hexdecimal string.
+// uitox converts val (a uint) to a hexadecimal string.
 func uitox(val uint) string {
 	if val == 0 { // avoid string allocation
 		return "0x0"

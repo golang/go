@@ -394,7 +394,7 @@ func TestParseMediaType(t *testing.T) {
 		// Empty string used to be mishandled.
 		{`foo; bar=""`, "foo", m("bar", "")},
 
-		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
+		// Microsoft browsers in intranet mode do not think they need to escape \ in file name.
 		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
 		{`form-data; name="file"; filename="C:\新建文件件\中文第二次测试.mp4"`, "form-data", m("name", "file", "filename", `C:\新建文件件\中文第二次测试.mp4`)},
 	}
