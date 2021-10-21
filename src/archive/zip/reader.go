@@ -125,7 +125,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		if err != nil {
 			return err
 		}
-		f.readDataDescriptor()
 		z.File = append(z.File, f)
 	}
 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
@@ -186,10 +185,15 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return nil, ErrAlgorithm
 	}
 	var rc io.ReadCloser = dcomp(r)
+	var desr io.Reader
+	if f.hasDataDescriptor() {
+		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
+	}
 	rc = &checksumReader{
 		rc:   rc,
 		hash: crc32.NewIEEE(),
 		f:    f,
+		desr: desr,
 	}
 	return rc, nil
 }
@@ -205,49 +209,13 @@ func (f *File) OpenRaw() (io.Reader, error) {
 	return r, nil
 }
 
-func (f *File) readDataDescriptor() {
-	if !f.hasDataDescriptor() {
-		return
-	}
-
-	bodyOffset, err := f.findBodyOffset()
-	if err != nil {
-		f.descErr = err
-		return
-	}
-
-	// In section 4.3.9.2 of the spec: "However ZIP64 format MAY be used
-	// regardless of the size of a file.  When extracting, if the zip64
-	// extended information extra field is present for the file the
-	// compressed and uncompressed sizes will be 8 byte values."
-	//
-	// Historically, this package has used the compressed and uncompressed
-	// sizes from the central directory to determine if the package is
-	// zip64.
-	//
-	// For this case we allow either the extra field or sizes to determine
-	// the data descriptor length.
-	zip64 := f.zip64 || f.isZip64()
-	n := int64(dataDescriptorLen)
-	if zip64 {
-		n = dataDescriptor64Len
-	}
-	size := int64(f.CompressedSize64)
-	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, n)
-	dd, err := readDataDescriptor(r, zip64)
-	if err != nil {
-		f.descErr = err
-		return
-	}
-	f.CRC32 = dd.crc32
-}
-
 type checksumReader struct {
 	rc    io.ReadCloser
 	hash  hash.Hash32
 	nread uint64 // number of bytes read so far
 	f     *File
-	err   error // sticky error
+	desr  io.Reader // if non-nil, where to read the data descriptor
+	err   error     // sticky error
 }
 
 func (r *checksumReader) Stat() (fs.FileInfo, error) {
@@ -268,12 +236,12 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
 		if r.nread != r.f.UncompressedSize64 {
 			return 0, io.ErrUnexpectedEOF
 		}
-		if r.f.hasDataDescriptor() {
-			if r.f.descErr != nil {
-				if r.f.descErr == io.EOF {
+		if r.desr != nil {
+			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
+				if err1 == io.EOF {
 					err = io.ErrUnexpectedEOF
 				} else {
-					err = r.f.descErr
+					err = err1
 				}
 			} else if r.hash.Sum32() != r.f.CRC32 {
 				err = ErrChecksum
@@ -485,10 +453,8 @@ parseExtras:
 	return nil
 }
 
-func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
-	// Create enough space for the largest possible size
-	var buf [dataDescriptor64Len]byte
-
+func readDataDescriptor(r io.Reader, f *File) error {
+	var buf [dataDescriptorLen]byte
 	// The spec says: "Although not originally assigned a
 	// signature, the value 0x08074b50 has commonly been adopted
 	// as a signature value for the data descriptor record.
@@ -497,9 +463,10 @@ func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
 	// descriptors and should account for either case when reading
 	// ZIP files to ensure compatibility."
 	//
-	// First read just those 4 bytes to see if the signature exists.
+	// dataDescriptorLen includes the size of the signature but
+	// first read just those 4 bytes to see if it exists.
 	if _, err := io.ReadFull(r, buf[:4]); err != nil {
-		return nil, err
+		return err
 	}
 	off := 0
 	maybeSig := readBuf(buf[:4])
@@ -508,28 +475,21 @@ func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
 		// bytes.
 		off += 4
 	}
-
-	end := dataDescriptorLen - 4
-	if zip64 {
-		end = dataDescriptor64Len - 4
+	if _, err := io.ReadFull(r, buf[off:12]); err != nil {
+		return err
 	}
-	if _, err := io.ReadFull(r, buf[off:end]); err != nil {
-		return nil, err
-	}
-	b := readBuf(buf[:end])
-
-	out := &dataDescriptor{
-		crc32: b.uint32(),
+	b := readBuf(buf[:12])
+	if b.uint32() != f.CRC32 {
+		return ErrChecksum
 	}
 
-	if zip64 {
-		out.compressedSize = b.uint64()
-		out.uncompressedSize = b.uint64()
-	} else {
-		out.compressedSize = uint64(b.uint32())
-		out.uncompressedSize = uint64(b.uint32())
-	}
-	return out, nil
+	// The two sizes that follow here can be either 32 bits or 64 bits
+	// but the spec is not very clear on this and different
+	// interpretations has been made causing incompatibilities. We
+	// already have the sizes from the central directory so we can
+	// just ignore these.
+
+	return nil
 }
 
 func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
