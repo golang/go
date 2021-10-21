@@ -63,10 +63,10 @@ func (check *Checker) markImports(pkg *Package) {
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.fset, check.qualifier, format, args...)
+	return sprintf(check.fset, check.qualifier, false, format, args...)
 }
 
-func sprintf(fset *token.FileSet, qf Qualifier, format string, args ...interface{}) string {
+func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -84,7 +84,7 @@ func sprintf(fset *token.FileSet, qf Qualifier, format string, args ...interface
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, qf)
+			arg = typeString(a, qf, debug)
 		}
 		args[i] = arg
 	}
@@ -95,13 +95,13 @@ func (check *Checker) trace(pos token.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
 		check.fset.Position(pos),
 		strings.Repeat(".  ", check.indent),
-		check.sprintf(format, args...),
+		sprintf(check.fset, check.qualifier, true, format, args...),
 	)
 }
 
 // dump is only needed for debugging
 func (check *Checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.sprintf(format, args...))
+	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))
 }
 
 func (check *Checker) err(err error) {

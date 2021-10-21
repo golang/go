@@ -44,8 +44,14 @@ func RelativeTo(pkg *Package) Qualifier {
 // The Qualifier controls the printing of
 // package-level objects, and may be nil.
 func TypeString(typ Type, qf Qualifier) string {
+	return typeString(typ, qf, false)
+}
+
+func typeString(typ Type, qf Qualifier, debug bool) string {
 	var buf bytes.Buffer
-	WriteType(&buf, typ, qf)
+	w := newTypeWriter(&buf, qf)
+	w.debug = debug
+	w.typ(typ)
 	return buf.String()
 }
 
@@ -65,19 +71,20 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 type typeWriter struct {
-	buf  *bytes.Buffer
-	seen map[Type]bool
-	qf   Qualifier
-	ctxt *Context // if non-nil, we are type hashing
+	buf   *bytes.Buffer
+	seen  map[Type]bool
+	qf    Qualifier
+	ctxt  *Context // if non-nil, we are type hashing
+	debug bool     // if true, write debug annotations
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, nil}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil, false}
 }
 
 func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
 	assert(ctxt != nil)
-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt}
+	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, false}
 }
 
 func (w *typeWriter) byte(b byte) {
@@ -274,7 +281,10 @@ func (w *typeWriter) typ(typ Type) {
 		if t.obj.pkg != nil {
 			writePackage(w.buf, t.obj.pkg, w.qf)
 		}
-		w.string(t.obj.name + subscript(t.id))
+		w.string(t.obj.name)
+		if w.debug || w.ctxt != nil {
+			w.string(subscript(t.id))
+		}
 
 	case *top:
 		w.error("⊤")
