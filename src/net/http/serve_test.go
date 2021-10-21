@@ -2433,7 +2433,6 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	// timeout := make(chan time.Time, 1) // write to this to force timeouts
 	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
 	cst := newClientServerTest(t, h1Mode, h)
 
