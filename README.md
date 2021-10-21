@@ -9,15 +9,14 @@ Some of the tools, `godoc` and `vet` for example, are included in binary Go
 distributions.
 
 Others, including the Go `guru` and the test coverage tool, can be fetched with
-`go get`.
+`go install`.
 
 Packages include a type-checker for Go and an implementation of the
 Static Single Assignment form (SSA) representation for Go programs.
 
 ## Download/Install
 
-The easiest way to install is to run `go get -u golang.org/x/tools/...`. You can
-also manually git clone the repository to `$GOPATH/src/golang.org/x/tools`.
+The easiest way to install is to run `go install golang.org/x/tools/...@latest`.
 
 ## JS/CSS Formatting
 

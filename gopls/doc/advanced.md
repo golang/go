@@ -9,7 +9,7 @@ To get a specific version of `gopls` (for example, to test a prerelease
 version), run:
 
 ```sh
-GO111MODULE=on go get golang.org/x/tools/gopls@vX.Y.Z
+GO111MODULE=on go install golang.org/x/tools/gopls@vX.Y.Z
 ```
 
 Where `vX.Y.Z` is the desired version.
@@ -56,7 +56,7 @@ out the `master` branch in the Go repository, or by using
 `golang.org/dl/gotip`:
 
 ```
-$ go get golang.org/dl/gotip
+$ go install golang.org/dl/gotip@latest
 $ gotip download
 ```
 
