@@ -217,7 +217,13 @@ func (p *crawler) markInlBody(n *ir.Name) {
 				//
 				// We generate the wrapper for "struct{ t }".M, and inline call
 				// to "struct{ t }".M, which makes "t.M" reachable.
-				p.markEmbed(t)
+				if t.IsStruct() {
+					for _, f := range t.FieldSlice() {
+						if f.Embedded != 0 {
+							p.markEmbed(f.Type)
+						}
+					}
+				}
 			}
 		}
 
