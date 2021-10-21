@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"debug/buildinfo"
 	"flag"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -53,7 +54,17 @@ func TestReadFile(t *testing.T) {
 		platforms = append(platforms, runtimePlatform)
 	}
 
-	buildWithModules := func(t *testing.T, goos, goarch string) string {
+	buildModes := []string{"pie", "exe"}
+	if testenv.HasCGO() {
+		buildModes = append(buildModes, "c-shared")
+	}
+
+	// Keep in sync with src/cmd/go/internal/work/init.go:buildModeInit.
+	badmode := func(goos, goarch, buildmode string) string {
+		return fmt.Sprintf("-buildmode=%s not supported on %s/%s", buildmode, goos, goarch)
+	}
+
+	buildWithModules := func(t *testing.T, goos, goarch, buildmode string) string {
 		dir := t.TempDir()
 		gomodPath := filepath.Join(dir, "go.mod")
 		gomodData := []byte("module example.com/m\ngo 1.18\n")
@@ -66,18 +77,21 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(dir, path.Base(t.Name()))
-		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
+			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
+				t.Skip(badmodeMsg)
+			}
 			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
 		}
 		return outPath
 	}
 
-	buildWithGOPATH := func(t *testing.T, goos, goarch string) string {
+	buildWithGOPATH := func(t *testing.T, goos, goarch, buildmode string) string {
 		gopathDir := t.TempDir()
 		pkgDir := filepath.Join(gopathDir, "src/example.com/m")
 		if err := os.MkdirAll(pkgDir, 0777); err != nil {
@@ -89,12 +103,15 @@ func TestReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		outPath := filepath.Join(gopathDir, path.Base(t.Name()))
-		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath)
+		cmd := exec.Command(testenv.GoToolPath(t), "build", "-o="+outPath, "-buildmode="+buildmode)
 		cmd.Dir = pkgDir
 		cmd.Env = append(os.Environ(), "GO111MODULE=off", "GOPATH="+gopathDir, "GOOS="+goos, "GOARCH="+goarch)
 		stderr := &bytes.Buffer{}
 		cmd.Stderr = stderr
 		if err := cmd.Run(); err != nil {
+			if badmodeMsg := badmode(goos, goarch, buildmode); strings.Contains(stderr.String(), badmodeMsg) {
+				t.Skip(badmodeMsg)
+			}
 			t.Fatalf("failed building test file: %v\n%s", err, stderr.Bytes())
 		}
 		return outPath
@@ -134,20 +151,20 @@ func TestReadFile(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		build   func(t *testing.T, goos, goarch string) string
+		build   func(t *testing.T, goos, goarch, buildmode string) string
 		want    string
 		wantErr string
 	}{
 		{
 			name: "doesnotexist",
-			build: func(t *testing.T, goos, goarch string) string {
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
 				return "doesnotexist.txt"
 			},
 			wantErr: "doesnotexist",
 		},
 		{
 			name: "empty",
-			build: func(t *testing.T, _, _ string) string {
+			build: func(t *testing.T, _, _, _ string) string {
 				dir := t.TempDir()
 				name := filepath.Join(dir, "empty")
 				if err := os.WriteFile(name, nil, 0666); err != nil {
@@ -167,8 +184,8 @@ func TestReadFile(t *testing.T) {
 		},
 		{
 			name: "invalid_modules",
-			build: func(t *testing.T, goos, goarch string) string {
-				name := buildWithModules(t, goos, goarch)
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
+				name := buildWithModules(t, goos, goarch, buildmode)
 				damageBuildInfo(t, name)
 				return name
 			},
@@ -183,8 +200,8 @@ func TestReadFile(t *testing.T) {
 		},
 		{
 			name: "invalid_gopath",
-			build: func(t *testing.T, goos, goarch string) string {
-				name := buildWithGOPATH(t, goos, goarch)
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
+				name := buildWithGOPATH(t, goos, goarch, buildmode)
 				damageBuildInfo(t, name)
 				return name
 			},
@@ -198,25 +215,30 @@ func TestReadFile(t *testing.T) {
 			if p != runtimePlatform && !*flagAll {
 				t.Skipf("skipping platforms other than %s_%s because -all was not set", runtimePlatform.goos, runtimePlatform.goarch)
 			}
-			for _, tc := range cases {
-				tc := tc
-				t.Run(tc.name, func(t *testing.T) {
-					t.Parallel()
-					name := tc.build(t, p.goos, p.goarch)
-					if info, err := buildinfo.ReadFile(name); err != nil {
-						if tc.wantErr == "" {
-							t.Fatalf("unexpected error: %v", err)
-						} else if errMsg := err.Error(); !strings.Contains(errMsg, tc.wantErr) {
-							t.Fatalf("got error %q; want error containing %q", errMsg, tc.wantErr)
-						}
-					} else {
-						if tc.wantErr != "" {
-							t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
-						}
-						got := info.String()
-						if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
-							t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
-						}
+			for _, mode := range buildModes {
+				mode := mode
+				t.Run(mode, func(t *testing.T) {
+					for _, tc := range cases {
+						tc := tc
+						t.Run(tc.name, func(t *testing.T) {
+							t.Parallel()
+							name := tc.build(t, p.goos, p.goarch, mode)
+							if info, err := buildinfo.ReadFile(name); err != nil {
+								if tc.wantErr == "" {
+									t.Fatalf("unexpected error: %v", err)
+								} else if errMsg := err.Error(); !strings.Contains(errMsg, tc.wantErr) {
+									t.Fatalf("got error %q; want error containing %q", errMsg, tc.wantErr)
+								}
+							} else {
+								if tc.wantErr != "" {
+									t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
+								}
+								got := info.String()
+								if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
+									t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
+								}
+							}
+						})
 					}
 				})
 			}
