@@ -21,6 +21,8 @@ import (
 	"os"
 	"strings"
 	"text/template"
+
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // FindTests returns the Test, Benchmark, and Example functions
@@ -180,6 +182,7 @@ func (prog *Program) CreateTestMainPackage(pkg *Package) *Package {
 		Scopes:     make(map[ast.Node]*types.Scope),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
+	typeparams.InitInstanceInfo(info)
 	testmainPkg, err := conf.Check(path, prog.Fset, files, info)
 	if err != nil {
 		log.Fatalf("internal error type-checking %s: %v", path, err)
