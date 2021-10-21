@@ -1,36 +1,36 @@
 # Test editing go.work files.
 
-go mod initwork m
+go work init m
 cmp go.work go.work.want_initial
 
-go mod editwork -directory n
+go work edit -directory n
 cmp go.work go.work.want_directory_n
 
-go mod editwork -go 1.18
+go work edit -go 1.18
 cmp go.work go.work.want_go_118
 
-go mod editwork -dropdirectory m
+go work edit -dropdirectory m
 cmp go.work go.work.want_dropdirectory_m
 
-go mod editwork -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+go work edit -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
 cmp go.work go.work.want_add_replaces
 
-go mod editwork -directory n -directory ../a -directory /b -directory c -directory c
+go work edit -directory n -directory ../a -directory /b -directory c -directory c
 cmp go.work go.work.want_multidirectory
 
-go mod editwork -dropdirectory /b -dropdirectory n
+go work edit -dropdirectory /b -dropdirectory n
 cmp go.work go.work.want_multidropdirectory
 
-go mod editwork -dropreplace='x.1@v1.4.0'
+go work edit -dropreplace='x.1@v1.4.0'
 cmp go.work go.work.want_dropreplace
 
-go mod editwork -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+go work edit -print -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_print
 
-go mod editwork -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+go work edit -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_json
 
-go mod editwork -print -fmt -workfile $GOPATH/src/unformatted
+go work edit -print -fmt -workfile $GOPATH/src/unformatted
 cmp stdout formatted
 
 -- m/go.mod --
