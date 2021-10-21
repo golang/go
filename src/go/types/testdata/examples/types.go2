@@ -310,3 +310,11 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
 	return P{E{"foo": x}}
 	return P{{"foo": x}, {}}
 }
+
+// This is a degenerate case with a singleton type set, but we can create
+// composite literals even if the structural type is a defined type.
+type MyInts []int
+
+func _[P MyInts]() P {
+	return P{}
+}
