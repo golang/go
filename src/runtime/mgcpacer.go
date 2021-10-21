@@ -966,8 +966,8 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	// has grown by GOGC/100 over where it started the last cycle,
 	// plus additional runway for non-heap sources of GC work.
 	goal := ^uint64(0)
-	if c.gcPercent.Load() >= 0 {
-		goal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(c.gcPercent.Load())/100
+	if gcPercent := c.gcPercent.Load(); gcPercent >= 0 {
+		goal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(gcPercent)/100
 	}
 
 	// Don't trigger below the minimum heap size.
@@ -1081,17 +1081,19 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 //
 // For !goexperiment.PacerRedesign.
 func (c *gcControllerState) oldCommit(triggerRatio float64) {
+	gcPercent := c.gcPercent.Load()
+
 	// Compute the next GC goal, which is when the allocated heap
 	// has grown by GOGC/100 over the heap marked by the last
 	// cycle.
 	goal := ^uint64(0)
-	if c.gcPercent.Load() >= 0 {
-		goal = c.heapMarked + c.heapMarked*uint64(c.gcPercent.Load())/100
+	if gcPercent >= 0 {
+		goal = c.heapMarked + c.heapMarked*uint64(gcPercent)/100
 	}
 
 	// Set the trigger ratio, capped to reasonable bounds.
-	if c.gcPercent.Load() >= 0 {
-		scalingFactor := float64(c.gcPercent.Load()) / 100
+	if gcPercent >= 0 {
+		scalingFactor := float64(gcPercent) / 100
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
 		maxTriggerRatio := 0.95 * scalingFactor
@@ -1131,7 +1133,7 @@ func (c *gcControllerState) oldCommit(triggerRatio float64) {
 	// We trigger the next GC cycle when the allocated heap has
 	// grown by the trigger ratio over the marked heap size.
 	trigger := ^uint64(0)
-	if c.gcPercent.Load() >= 0 {
+	if gcPercent >= 0 {
 		trigger = uint64(float64(c.heapMarked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
 		minTrigger := c.heapMinimum
@@ -1211,9 +1213,8 @@ func (c *gcControllerState) setGCPercent(in int32) int32 {
 	if in < 0 {
 		in = -1
 	}
-	// Write it atomically so readers like revise() can read it safely.
+	c.heapMinimum = defaultHeapMinimum * uint64(in) / 100
 	c.gcPercent.Store(in)
-	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent.Load()) / 100
 	// Update pacing in response to gcPercent change.
 	c.commit(c.triggerRatio)
 
