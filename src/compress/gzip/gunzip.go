@@ -28,9 +28,9 @@ const (
 )
 
 var (
-	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
+	// ErrChecksum is returned when reading gzip data that has an invalid checksum.
 	ErrChecksum = errors.New("gzip: invalid checksum")
-	// ErrHeader is returned when reading GZIP data that has an invalid header.
+	// ErrHeader is returned when reading gzip data that has an invalid header.
 	ErrHeader = errors.New("gzip: invalid header")
 )
 
@@ -48,7 +48,7 @@ func noEOF(err error) error {
 // That header is exposed as the fields of the Writer and Reader structs.
 //
 // Strings must be UTF-8 encoded and may only contain Unicode code points
-// U+0001 through U+00FF, due to limitations of the GZIP file format.
+// U+0001 through U+00FF, due to limitations of the gzip file format.
 type Header struct {
 	Comment string    // comment
 	Extra   []byte    // "extra data"
@@ -169,7 +169,7 @@ func (z *Reader) readString() (string, error) {
 	}
 }
 
-// readHeader reads the GZIP header according to section 2.3.1.
+// readHeader reads the gzip header according to section 2.3.1.
 // This method does not set z.err.
 func (z *Reader) readHeader() (hdr Header, err error) {
 	if _, err = io.ReadFull(z.r, z.buf[:10]); err != nil {
@@ -287,6 +287,6 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 }
 
 // Close closes the Reader. It does not close the underlying io.Reader.
-// In order for the GZIP checksum to be verified, the reader must be
+// In order for the gzip checksum to be verified, the reader must be
 // fully consumed until the io.EOF.
 func (z *Reader) Close() error { return z.decompressor.Close() }
