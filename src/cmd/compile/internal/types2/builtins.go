@@ -460,13 +460,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		var min int // minimum number of arguments
-		switch optype(T).(type) {
+		switch singleUnder(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
-		case *top:
-			check.errorf(arg0, invalidArg+"cannot make %s; type parameter has no structural type", arg0)
+		case nil:
+			check.errorf(arg0, invalidArg+"cannot make %s; type set has no single underlying type", arg0)
 			return
 		default:
 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
