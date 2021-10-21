@@ -54,6 +54,14 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	return typ
 }
 
+// MarkImplicit marks the interface t as implicit, meaning this interface
+// corresponds to a constraint literal such as ~T or A|B without explicit
+// interface embedding. MarkImplicit should be called before any concurrent use
+// of implicit interfaces.
+func (t *Interface) MarkImplicit() {
+	t.implicit = true
+}
+
 // NumExplicitMethods returns the number of explicitly declared methods of interface t.
 func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
 
