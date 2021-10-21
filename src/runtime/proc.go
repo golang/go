@@ -6123,7 +6123,7 @@ func (q *gQueue) pushBack(gp *g) {
 	q.tail.set(gp)
 }
 
-// pushBackAll adds all Gs in l2 to the tail of q. After this q2 must
+// pushBackAll adds all Gs in q2 to the tail of q. After this q2 must
 // not be used.
 func (q *gQueue) pushBackAll(q2 gQueue) {
 	if q2.tail == 0 {
