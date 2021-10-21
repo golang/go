@@ -104,3 +104,9 @@ func DRconv(a int) string {
 	fp += s
 	return fp
 }
+
+func ConstantToCRbit(c int64) (int16, bool) {
+	reg64 := REG_CRBIT0 + c
+	success := reg64 >= REG_CR0LT && reg64 <= REG_CR7SO
+	return int16(reg64), success
+}
