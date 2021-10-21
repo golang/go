@@ -10,13 +10,19 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/ctrlflow"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 
 	// load testdata/src/a/a.go
-	results := analysistest.Run(t, testdata, ctrlflow.Analyzer, "a")
+	tests := []string{"a"}
+	if typeparams.Enabled {
+		// and testdata/src/typeparams/typeparams.go when possible
+		tests = append(tests, "typeparams")
+	}
+	results := analysistest.Run(t, testdata, ctrlflow.Analyzer, tests...)
 
 	// Perform a minimal smoke test on
 	// the result (CFG) computed by ctrlflow.
