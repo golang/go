@@ -390,11 +390,3 @@ func unixModeToFileMode(m uint32) fs.FileMode {
 	}
 	return mode
 }
-
-// dataDescriptor holds the data descriptor that optionally follows the file
-// contents in the zip file.
-type dataDescriptor struct {
-	crc32            uint32
-	compressedSize   uint64
-	uncompressedSize uint64
-}
