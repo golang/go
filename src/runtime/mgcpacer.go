@@ -84,12 +84,9 @@ func init() {
 var gcController gcControllerState
 
 type gcControllerState struct {
-	// Initialized from $GOGC. GOGC=off means no GC.
-	//
-	// Updated atomically with mheap_.lock held or during a STW.
-	// Safe to read atomically at any time, or non-atomically with
-	// mheap_.lock or STW.
-	gcPercent int32
+
+	// Initialized from GOGC. GOGC=off means no GC.
+	gcPercent atomic.Int32
 
 	_ uint32 // padding so following 64-bit values are 8-byte aligned
 
@@ -479,7 +476,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int) {
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	gcPercent := atomic.Loadint32(&c.gcPercent)
+	gcPercent := c.gcPercent.Load()
 	if gcPercent < 0 {
 		// If GC is disabled but we're running a forced GC,
 		// act like GOGC is huge for the below calculations.
@@ -969,8 +966,8 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 	// has grown by GOGC/100 over where it started the last cycle,
 	// plus additional runway for non-heap sources of GC work.
 	goal := ^uint64(0)
-	if c.gcPercent >= 0 {
-		goal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(c.gcPercent)/100
+	if c.gcPercent.Load() >= 0 {
+		goal = c.heapMarked + (c.heapMarked+atomic.Load64(&c.stackScan)+atomic.Load64(&c.globalsScan))*uint64(c.gcPercent.Load())/100
 	}
 
 	// Don't trigger below the minimum heap size.
@@ -1088,13 +1085,13 @@ func (c *gcControllerState) oldCommit(triggerRatio float64) {
 	// has grown by GOGC/100 over the heap marked by the last
 	// cycle.
 	goal := ^uint64(0)
-	if c.gcPercent >= 0 {
-		goal = c.heapMarked + c.heapMarked*uint64(c.gcPercent)/100
+	if c.gcPercent.Load() >= 0 {
+		goal = c.heapMarked + c.heapMarked*uint64(c.gcPercent.Load())/100
 	}
 
 	// Set the trigger ratio, capped to reasonable bounds.
-	if c.gcPercent >= 0 {
-		scalingFactor := float64(c.gcPercent) / 100
+	if c.gcPercent.Load() >= 0 {
+		scalingFactor := float64(c.gcPercent.Load()) / 100
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
 		maxTriggerRatio := 0.95 * scalingFactor
@@ -1134,7 +1131,7 @@ func (c *gcControllerState) oldCommit(triggerRatio float64) {
 	// We trigger the next GC cycle when the allocated heap has
 	// grown by the trigger ratio over the marked heap size.
 	trigger := ^uint64(0)
-	if c.gcPercent >= 0 {
+	if c.gcPercent.Load() >= 0 {
 		trigger = uint64(float64(c.heapMarked) * (1 + triggerRatio))
 		// Don't trigger below the minimum heap size.
 		minTrigger := c.heapMinimum
@@ -1210,13 +1207,13 @@ func (c *gcControllerState) setGCPercent(in int32) int32 {
 		assertWorldStoppedOrLockHeld(&mheap_.lock)
 	}
 
-	out := c.gcPercent
+	out := c.gcPercent.Load()
 	if in < 0 {
 		in = -1
 	}
 	// Write it atomically so readers like revise() can read it safely.
-	atomic.Storeint32(&c.gcPercent, in)
-	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent) / 100
+	c.gcPercent.Store(in)
+	c.heapMinimum = defaultHeapMinimum * uint64(c.gcPercent.Load()) / 100
 	// Update pacing in response to gcPercent change.
 	c.commit(c.triggerRatio)
 
