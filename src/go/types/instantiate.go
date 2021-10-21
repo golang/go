@@ -146,7 +146,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 		qf = check.qualifier
 	}
 	errorf := func(format string, args ...interface{}) error {
-		return errors.New(sprintf(nil, qf, format, args...))
+		return errors.New(sprintf(nil, qf, false, format, args...))
 	}
 
 	// The type parameter bound is parameterized with the same type parameters
