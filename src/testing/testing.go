@@ -75,6 +75,14 @@
 //         })
 //     }
 //
+// A detailed specification of the benchmark results format is given
+// in https://golang.org/design/14313-benchmark-format.
+//
+// There are standard tools for working with benchmark results at
+// https://golang.org/x/perf/cmd.
+// In particular, https://golang.org/x/perf/cmd/benchstat performs
+// statistically robust A/B comparisons.
+//
 // Examples
 //
 // The package also runs and verifies example code. Example functions may
