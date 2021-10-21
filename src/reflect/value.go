@@ -1940,11 +1940,13 @@ func (v Value) Pointer() uintptr {
 	switch k {
 	case Ptr:
 		if v.typ.ptrdata == 0 {
-			// Handle pointers to go:notinheap types directly,
-			// so we never materialize such pointers as an
-			// unsafe.Pointer. (Such pointers are always indirect.)
-			// See issue 42076.
-			return *(*uintptr)(v.ptr)
+			val := *(*uintptr)(v.ptr)
+			// Since it is a not-in-heap pointer, all pointers to the heap are
+			// forbidden! See comment in Value.Elem and issue #48399.
+			if !verifyNotInHeapPtr(val) {
+				panic("reflect: reflect.Value.Pointer on an invalid notinheap pointer")
+			}
+			return val
 		}
 		fallthrough
 	case Chan, Map, UnsafePointer:

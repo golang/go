@@ -7721,6 +7721,8 @@ func TestNotInHeapDeref(t *testing.T) {
 
 	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
 	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
+	shouldPanic("reflect: reflect.Value.Pointer on an invalid notinheap pointer", func() { v.Pointer() })
+	shouldPanic("reflect: reflect.Value.UnsafePointer on an invalid notinheap pointer", func() { v.UnsafePointer() })
 }
 
 func TestMethodCallValueCodePtr(t *testing.T) {
