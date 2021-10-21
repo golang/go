@@ -4,7 +4,7 @@
 
 // go mod initwork
 
-package modcmd
+package workcmd
 
 import (
 	"cmd/go/internal/base"
@@ -17,8 +17,8 @@ var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
 	"enough for those trying workspaces out, there should be more through" +
 	"documentation if the proposal is accepted and released.")
 
-var cmdInitwork = &base.Command{
-	UsageLine: "go mod initwork [moddirs]",
+var cmdInit = &base.Command{
+	UsageLine: "go work init [moddirs]",
 	Short:     "initialize workspace file",
 	Long: `go mod initwork initializes and writes a new go.work file in the current
 directory, in effect creating a new workspace at the current directory.
@@ -30,15 +30,15 @@ See the workspaces design proposal at
 https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
 more information.
 `,
-	Run: runInitwork,
+	Run: runInit,
 }
 
 func init() {
-	base.AddModCommonFlags(&cmdInitwork.Flag)
-	base.AddWorkfileFlag(&cmdInitwork.Flag)
+	base.AddModCommonFlags(&cmdInit.Flag)
+	base.AddWorkfileFlag(&cmdInit.Flag)
 }
 
-func runInitwork(ctx context.Context, cmd *base.Command, args []string) {
+func runInit(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
 	modload.ForceUseModules = true

@@ -1,9 +1,9 @@
-! go mod initwork doesnotexist
+! go work init doesnotexist
 stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
 go env GOWORK
 ! stdout .
 
-go mod initwork ./a ./b
+go work init ./a ./b
 cmp go.work go.work.want
 go env GOWORK
 stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'

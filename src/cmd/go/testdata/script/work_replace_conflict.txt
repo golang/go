@@ -3,7 +3,7 @@
 
 ! go list -m example.com/dep
 stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go mod editwork -replace example.com/dep@v1.0.0=\[override\]" to resolve'
-go mod editwork -replace example.com/dep@v1.0.0=./dep1
+go work edit -replace example.com/dep@v1.0.0=./dep1
 go list -m example.com/dep
 stdout 'example.com/dep v1.0.0 => ./dep1'
 
