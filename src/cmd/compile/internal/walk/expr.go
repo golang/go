@@ -506,17 +506,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		usemethod(n)
 	}
 	if n.Op() == ir.OCALLINTER {
-		if n.X.(*ir.SelectorExpr).X.Type().HasShape() {
-			// There should be an entry in n.KeepAlive to keep the
-			// dictionary alive (added in ../noder/transformCall).
-			// The dictionary in turn marks the method as used.
-			if len(n.KeepAlive) == 0 {
-				// TODO(khr): this fails for issue44688.go.
-				//base.Fatalf("KeepAlive of dictionary arg missing")
-			}
-		} else {
-			reflectdata.MarkUsedIfaceMethod(n)
-		}
+		reflectdata.MarkUsedIfaceMethod(n)
 	}
 
 	if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
