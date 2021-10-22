@@ -582,7 +582,7 @@ func GroupFilesByModules(root string) ([]Module, error) {
 
 // MustCopyFileTree returns a file set for a module based on a real directory tree.
 // It scans the directory tree anchored at root and adds a Copy writer to the
-// map for every file found.
+// map for every file found. It skips copying files in nested modules.
 // This is to enable the common case in tests where you have a full copy of the
 // package in your testdata.
 // This will panic if there is any kind of error trying to walk the file tree.
@@ -593,6 +593,12 @@ func MustCopyFileTree(root string) map[string]interface{} {
 			return err
 		}
 		if info.IsDir() {
+			// skip nested modules.
+			if path != root {
+				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+					return filepath.SkipDir
+				}
+			}
 			return nil
 		}
 		fragment, err := filepath.Rel(root, path)

@@ -5,8 +5,11 @@
 package packagestest_test
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -179,4 +182,54 @@ func TestGroupFilesByModules(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMustCopyFiles(t *testing.T) {
+	// Create the following test directory structure in a temporary directory.
+	src := map[string]string{
+		// copies all files under the specified directory.
+		"go.mod": "module example.com",
+		"m.go":   "package m",
+		"a/a.go": "package a",
+		// contents from a nested module shouldn't be copied.
+		"nested/go.mod": "module example.com/nested",
+		"nested/m.go":   "package nested",
+		"nested/b/b.go": "package b",
+	}
+
+	tmpDir, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("failed to create a temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	for fragment, contents := range src {
+		fullpath := filepath.Join(tmpDir, filepath.FromSlash(fragment))
+		if err := os.MkdirAll(filepath.Dir(fullpath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := ioutil.WriteFile(fullpath, []byte(contents), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	copied := packagestest.MustCopyFileTree(tmpDir)
+	var got []string
+	for fragment := range copied {
+		got = append(got, filepath.ToSlash(fragment))
+	}
+	want := []string{"go.mod", "m.go", "a/a.go"}
+
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("packagestest.MustCopyFileTree = %v, want %v", got, want)
+	}
+
+	// packagestest.Export is happy.
+	exported := packagestest.Export(t, packagestest.Modules, []packagestest.Module{{
+		Name:  "example.com",
+		Files: packagestest.MustCopyFileTree(tmpDir),
+	}})
+	defer exported.Cleanup()
 }
