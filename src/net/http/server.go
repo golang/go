@@ -3315,6 +3315,8 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // call runs for longer than its time limit, the handler responds with
 // a 503 Service Unavailable error and the given message in its body.
 // (If msg is empty, a suitable default message will be sent.)
+// If h implements HandlerWithTimeout then its ServeTimeout is used to
+// write the error response.
 // After such a timeout, writes by h to its ResponseWriter will return
 // ErrHandlerTimeout.
 //
@@ -3326,6 +3328,13 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
 		body:    msg,
 		dt:      dt,
 	}
+}
+
+type HandlerWithTimeout interface {
+	Handler
+	// ServeTimeout writes timeout error response.
+	// Use r.Context().Err() to obtain the error value.
+	ServeTimeout(w ResponseWriter, r *Request)
 }
 
 // ErrHandlerTimeout is returned on ResponseWriter Write calls
@@ -3391,8 +3400,12 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	case <-ctx.Done():
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
-		w.WriteHeader(StatusServiceUnavailable)
-		io.WriteString(w, h.errorBody())
+		if teh, ok := h.handler.(HandlerWithTimeout); ok {
+			teh.ServeTimeout(w, r)
+		} else {
+			w.WriteHeader(StatusServiceUnavailable)
+			io.WriteString(w, h.errorBody())
+		}
 		tw.timedOut = true
 	}
 }

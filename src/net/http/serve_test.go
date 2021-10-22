@@ -2531,6 +2531,58 @@ func TestTimeoutHandlerPanicRecovery(t *testing.T) {
 	testHandlerPanic(t, false, false, wrapper, "intentional death for testing")
 }
 
+type testHandlerWithTimeout struct{}
+
+func (h *testHandlerWithTimeout) ServeHTTP(ResponseWriter, *Request) {}
+
+func (h *testHandlerWithTimeout) ServeTimeout(w ResponseWriter, r *Request) {
+	if r.Context().Err() == context.DeadlineExceeded {
+		// Handler timeout, customize response
+		// https://github.com/golang/go/issues/22821
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(503)
+		fmt.Fprintf(w, `{"type": "https://example.net/timeout-error", "trace-id": "%s"}`, r.Header.Get("Trace-Id"))
+	} else {
+		// Client closed connection, e.g. increment metric
+		// https://github.com/golang/go/issues/48948
+	}
+}
+
+func TestHandlerWithTimeout(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ts := httptest.NewServer(TimeoutHandler(&testHandlerWithTimeout{}, time.Nanosecond, ""))
+	defer ts.Close()
+
+	c := ts.Client()
+	req, err := NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Trace-Id", "test")
+
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := res.StatusCode, 503; got != want {
+		t.Errorf("expected status code %d, got: %d", want, got)
+	}
+	if got, want := res.Header.Get("Content-Type"), "application/problem+json"; got != want {
+		t.Errorf("expected content type %q, got: %q", want, got)
+	}
+	if got, want := string(body), `{"type": "https://example.net/timeout-error", "trace-id": "test"}`; got != want {
+		t.Errorf("expected body %q, got: %q", want, got)
+	}
+}
+
 func TestRedirectBadPath(t *testing.T) {
 	// This used to crash. It's not valid input (bad path), but it
 	// shouldn't crash.
