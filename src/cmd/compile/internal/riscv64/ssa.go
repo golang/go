@@ -648,7 +648,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 	case ssa.OpRISCV64LoweredGetClosurePtr:
-		// Closure pointer is S4 (riscv.REG_CTXT).
+		// Closure pointer is S10 (riscv.REG_CTXT).
 		ssagen.CheckLoweredGetClosurePtr(v)
 
 	case ssa.OpRISCV64LoweredGetCallerSP:
