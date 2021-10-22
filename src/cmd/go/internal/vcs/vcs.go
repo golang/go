@@ -346,6 +346,7 @@ var vcsBzr = &Cmd{
 	PingCmd:     "info -- {scheme}://{repo}",
 	RemoteRepo:  bzrRemoteRepo,
 	ResolveRepo: bzrResolveRepo,
+	Status:      bzrStatus,
 }
 
 func bzrRemoteRepo(vcsBzr *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -387,6 +388,63 @@ func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, e
 	}
 	out = out[:i]
 	return strings.TrimSpace(out), nil
+}
+
+func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
+	outb, err := vcsBzr.runOutputVerboseOnly(rootDir, "version-info")
+	if err != nil {
+		return Status{}, err
+	}
+	out := string(outb)
+
+	// Expect (non-empty repositories only):
+	//
+	// revision-id: gopher@gopher.net-20211021072330-qshok76wfypw9lpm
+	// date: 2021-09-21 12:00:00 +1000
+	// ...
+	var rev string
+	var commitTime time.Time
+
+	for _, line := range strings.Split(out, "\n") {
+		i := strings.IndexByte(line, ':')
+		if i < 0 {
+			continue
+		}
+		key := line[:i]
+		value := strings.TrimSpace(line[i+1:])
+
+		switch key {
+		case "revision-id":
+			rev = value
+		case "date":
+			var err error
+			commitTime, err = time.Parse("2006-01-02 15:04:05 -0700", value)
+			if err != nil {
+				return Status{}, errors.New("unable to parse output of bzr version-info")
+			}
+		}
+	}
+
+	outb, err = vcsBzr.runOutputVerboseOnly(rootDir, "status")
+	if err != nil {
+		return Status{}, err
+	}
+
+	// Skip warning when working directory is set to an older revision.
+	if bytes.HasPrefix(outb, []byte("working tree is out of date")) {
+		i := bytes.IndexByte(outb, '\n')
+		if i < 0 {
+			i = len(outb)
+		}
+		outb = outb[:i]
+	}
+	uncommitted := len(outb) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
 
 // vcsSvn describes how to use Subversion.
