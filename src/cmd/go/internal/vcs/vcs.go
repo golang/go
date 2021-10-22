@@ -455,6 +455,7 @@ var vcsFossil = &Cmd{
 
 	Scheme:     []string{"https", "http"},
 	RemoteRepo: fossilRemoteRepo,
+	Status:     fossilStatus,
 }
 
 func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -463,6 +464,60 @@ func fossilRemoteRepo(vcsFossil *Cmd, rootDir string) (remoteRepo string, err er
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+var errFossilInfo = errors.New("unable to parse output of fossil info")
+
+func fossilStatus(vcsFossil *Cmd, rootDir string) (Status, error) {
+	outb, err := vcsFossil.runOutputVerboseOnly(rootDir, "info")
+	if err != nil {
+		return Status{}, err
+	}
+	out := string(outb)
+
+	// Expect:
+	// ...
+	// checkout:     91ed71f22c77be0c3e250920f47bfd4e1f9024d2 2021-09-21 12:00:00 UTC
+	// ...
+
+	// Extract revision and commit time.
+	// Ensure line ends with UTC (known timezone offset).
+	const prefix = "\ncheckout:"
+	const suffix = " UTC"
+	i := strings.Index(out, prefix)
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	checkout := out[i+len(prefix):]
+	i = strings.Index(checkout, suffix)
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	checkout = strings.TrimSpace(checkout[:i])
+
+	i = strings.IndexByte(checkout, ' ')
+	if i < 0 {
+		return Status{}, errFossilInfo
+	}
+	rev := checkout[:i]
+
+	commitTime, err := time.ParseInLocation("2006-01-02 15:04:05", checkout[i+1:], time.UTC)
+	if err != nil {
+		return Status{}, fmt.Errorf("%v: %v", errFossilInfo, err)
+	}
+
+	// Also look for untracked changes.
+	outb, err = vcsFossil.runOutputVerboseOnly(rootDir, "changes --differ")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(outb) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
 
 func (v *Cmd) String() string {
