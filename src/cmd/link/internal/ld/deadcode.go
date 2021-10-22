@@ -22,10 +22,11 @@ type deadcodePass struct {
 	ldr  *loader.Loader
 	wq   heap // work queue, using min-heap for better locality
 
-	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
-	markableMethods []methodref        // methods of reached types
-	reflectSeen     bool               // whether we have seen a reflect method call
-	dynlink         bool
+	ifaceMethod        map[methodsig]bool // methods called from reached interface call sites
+	genericIfaceMethod map[string]bool    // names of methods called from reached generic interface call sites
+	markableMethods    []methodref        // methods of reached types
+	reflectSeen        bool               // whether we have seen a reflect method call
+	dynlink            bool
 
 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
 }
@@ -33,6 +34,7 @@ type deadcodePass struct {
 func (d *deadcodePass) init() {
 	d.ldr.InitReachable()
 	d.ifaceMethod = make(map[methodsig]bool)
+	d.genericIfaceMethod = make(map[string]bool)
 	if buildcfg.Experiment.FieldTrack {
 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
 	}
@@ -197,6 +199,13 @@ func (d *deadcodePass) flood() {
 				}
 				d.ifaceMethod[m] = true
 				continue
+			case objabi.R_USEGENERICIFACEMETHOD:
+				name := d.decodeGenericIfaceMethod(d.ldr, r.Sym())
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("reached generic iface method: %s\n", name)
+				}
+				d.genericIfaceMethod[name] = true
+				continue // don't mark referenced symbol - it is not needed in the final binary.
 			}
 			rs := r.Sym()
 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
@@ -352,7 +361,7 @@ func deadcode(ctxt *Link) {
 		// in the last pass.
 		rem := d.markableMethods[:0]
 		for _, m := range d.markableMethods {
-			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+			if (d.reflectSeen && m.isExported()) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
 				d.markMethod(m)
 			} else {
 				rem = append(rem, m)
@@ -423,6 +432,11 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 	m.name = decodetypeName(ldr, symIdx, &relocs, int(off))
 	m.typ = decodeRelocSym(ldr, symIdx, &relocs, int32(off+4))
 	return m
+}
+
+// Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
+func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
+	return string(ldr.Data(symIdx))
 }
 
 func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
