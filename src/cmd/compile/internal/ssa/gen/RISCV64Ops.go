@@ -247,7 +247,7 @@ func init() {
 		{name: "CALLinter", argLength: 2, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// duffzero
-		// arg0 = address of memory to zero (in X10, changed as side effect)
+		// arg0 = address of memory to zero (in X25, changed as side effect)
 		// arg1 = mem
 		// auxint = offset into duffzero code to start executing
 		// X1 (link register) changed because of function call
@@ -257,16 +257,16 @@ func init() {
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{regNamed["X10"]},
-				clobbers: regNamed["X1"] | regNamed["X10"],
+				inputs:   []regMask{regNamed["X25"]},
+				clobbers: regNamed["X1"] | regNamed["X25"],
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
 		},
 
 		// duffcopy
-		// arg0 = address of dst memory (in X11, changed as side effect)
-		// arg1 = address of src memory (in X10, changed as side effect)
+		// arg0 = address of dst memory (in X25, changed as side effect)
+		// arg1 = address of src memory (in X24, changed as side effect)
 		// arg2 = mem
 		// auxint = offset into duffcopy code to start executing
 		// X1 (link register) changed because of function call
@@ -276,8 +276,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{regNamed["X11"], regNamed["X10"]},
-				clobbers: regNamed["X1"] | regNamed["X10"] | regNamed["X11"],
+				inputs:   []regMask{regNamed["X25"], regNamed["X24"]},
+				clobbers: regNamed["X1"] | regNamed["X24"] | regNamed["X25"],
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
