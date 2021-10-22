@@ -700,6 +700,9 @@ func (w *exportWriter) param(obj types.Object) {
 
 func (w *exportWriter) value(typ types.Type, v constant.Value) {
 	w.typ(typ, nil)
+	if w.p.version >= iexportVersionGo1_18 {
+		w.int64(int64(v.Kind()))
+	}
 
 	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
 	case types.IsBoolean:

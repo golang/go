@@ -40,6 +40,11 @@ type G[C comparable] int
 func ImplicitFunc[T ~int]() {}
 
 type ImplicitType[T ~int] int
+
+// Exercise constant import/export
+const C1 = 42
+const C2 int = 42
+const C3 float64 = 42
 `
 	testExportSrc(t, []byte(src))
 }

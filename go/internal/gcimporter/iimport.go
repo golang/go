@@ -149,9 +149,8 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 	r.Seek(sLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
-		exportVersion: version,
-		ipath:         path,
-		version:       int(version),
+		version: int(version),
+		ipath:   path,
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
@@ -255,9 +254,8 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 }
 
 type iimporter struct {
-	exportVersion int64
-	ipath         string
-	version       int
+	version int
+	ipath   string
 
 	stringData  []byte
 	stringCache map[uint64]string
@@ -428,7 +426,7 @@ func (r *importReader) obj(name string) {
 		// We need to "declare" a typeparam in order to have a name that
 		// can be referenced recursively (if needed) in the type param's
 		// bound.
-		if r.p.exportVersion < iexportVersionGenerics {
+		if r.p.version < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
 		// Remove the "path" from the type param name that makes it unique
@@ -445,7 +443,7 @@ func (r *importReader) obj(name string) {
 		id := ident{r.currPkg.Name(), name}
 		r.p.tparamIndex[id] = t
 		var implicit bool
-		if r.p.exportVersion >= iexportVersionGo1_18 {
+		if r.p.version >= iexportVersionGo1_18 {
 			implicit = r.bool()
 		}
 		constraint := r.typ()
@@ -474,6 +472,10 @@ func (r *importReader) declare(obj types.Object) {
 
 func (r *importReader) value() (typ types.Type, val constant.Value) {
 	typ = r.typ()
+	if r.p.version >= iexportVersionGo1_18 {
+		// TODO: add support for using the kind.
+		_ = constant.Kind(r.int64())
+	}
 
 	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
 	case types.IsBoolean:
@@ -616,7 +618,7 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
 }
 
 func (r *importReader) pos() token.Pos {
-	if r.p.exportVersion >= iexportVersionPosCol {
+	if r.p.version >= iexportVersionPosCol {
 		r.posv1()
 	} else {
 		r.posv0()
@@ -746,7 +748,7 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		return typ
 
 	case typeParamType:
-		if r.p.exportVersion < iexportVersionGenerics {
+		if r.p.version < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
 		pkg, name := r.qualifiedIdent()
@@ -760,7 +762,7 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		return r.p.tparamIndex[id]
 
 	case instanceType:
-		if r.p.exportVersion < iexportVersionGenerics {
+		if r.p.version < iexportVersionGenerics {
 			errorf("unexpected instantiation type")
 		}
 		// pos does not matter for instances: they are positioned on the original
@@ -779,7 +781,7 @@ func (r *importReader) doType(base *types.Named) (res types.Type) {
 		return t
 
 	case unionType:
-		if r.p.exportVersion < iexportVersionGenerics {
+		if r.p.version < iexportVersionGenerics {
 			errorf("unexpected instantiation type")
 		}
 		terms := make([]*typeparams.Term, r.uint64())
