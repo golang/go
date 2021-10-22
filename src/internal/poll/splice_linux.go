@@ -158,6 +158,10 @@ type splicePipe struct {
 	rfd  int
 	wfd  int
 	data int
+
+	// We want to use a finalizer, so ensure that the size is
+	// large enough to not use the tiny allocator.
+	_ [24 - 3*unsafe.Sizeof(int(0))]byte
 }
 
 // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
