@@ -1,5 +1,3 @@
-skip  # Flaky: https://golang.org/issue/49046
-
 # TODO(jayconrod): support shared memory on more platforms.
 [!darwin] [!linux] [!windows] skip
 
@@ -9,11 +7,11 @@ skip  # Flaky: https://golang.org/issue/49046
 go test
 
 # Fuzzing should exit 0 after fuzztime, even if timeout is short.
-go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
+go test -timeout=3s -fuzz=FuzzFast -fuzztime=5s
 
 # We should see the same behavior when invoking the test binary directly.
 go test -c
-exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
+exec ./fuzz.test$GOEXE -test.timeout=3s -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
 
 # Timeout should not cause inputs to be written as crashers.
 ! exists testdata/fuzz
