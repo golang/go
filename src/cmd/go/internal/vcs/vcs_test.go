@@ -6,6 +6,7 @@ package vcs
 
 import (
 	"errors"
+	"fmt"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -214,32 +215,35 @@ func TestFromDir(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	for j, vcs := range vcsList {
-		dir := filepath.Join(tempDir, "example.com", vcs.Name, "."+vcs.Cmd)
-		if j&1 == 0 {
-			err := os.MkdirAll(dir, 0755)
-			if err != nil {
-				t.Fatal(err)
+		for r, rootName := range vcs.RootNames {
+			vcsName := fmt.Sprint(vcs.Name, r)
+			dir := filepath.Join(tempDir, "example.com", vcsName, rootName)
+			if j&1 == 0 {
+				err := os.MkdirAll(dir, 0755)
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				err := os.MkdirAll(filepath.Dir(dir), 0755)
+				if err != nil {
+					t.Fatal(err)
+				}
+				f, err := os.Create(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.Close()
 			}
-		} else {
-			err := os.MkdirAll(filepath.Dir(dir), 0755)
-			if err != nil {
-				t.Fatal(err)
-			}
-			f, err := os.Create(dir)
-			if err != nil {
-				t.Fatal(err)
-			}
-			f.Close()
-		}
 
-		wantRepoDir := filepath.Dir(dir)
-		gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
-		if err != nil {
-			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
-			continue
-		}
-		if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
-			t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
+			wantRepoDir := filepath.Dir(dir)
+			gotRepoDir, gotVCS, err := FromDir(dir, tempDir, false)
+			if err != nil {
+				t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+				continue
+			}
+			if gotRepoDir != wantRepoDir || gotVCS.Name != vcs.Name {
+				t.Errorf("FromDir(%q, %q) = RepoDir(%s), VCS(%s); want RepoDir(%s), VCS(%s)", dir, tempDir, gotRepoDir, gotVCS.Name, wantRepoDir, vcs.Name)
+			}
 		}
 	}
 }
