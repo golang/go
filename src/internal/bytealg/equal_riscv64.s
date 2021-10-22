@@ -5,7 +5,7 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-#define	CTXT	S4
+#define	CTXT	S10
 
 // func memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25

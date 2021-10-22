@@ -28898,7 +28898,7 @@ var opcodeTable = [...]opInfo{
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 524288},     // X20
+				{1, 33554432},   // X26
 				{0, 1006632946}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 			clobbers: 9223372035781033968, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -29189,7 +29189,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 0,
 		reg: regInfo{
 			outputs: []outputInfo{
-				{0, 524288}, // X20
+				{0, 33554432}, // X26
 			},
 		},
 	},

@@ -26,7 +26,7 @@ import (
 
 const (
 	riscv64REG_G    = 27
-	riscv64REG_CTXT = 20
+	riscv64REG_CTXT = 26
 	riscv64REG_LR   = 1
 	riscv64REG_SP   = 2
 	riscv64REG_GP   = 3
@@ -115,7 +115,7 @@ func init() {
 		panic("Too many RISCV64 registers")
 	}
 
-	regCtxt := regNamed["X20"]
+	regCtxt := regNamed["X26"]
 	callerSave := gpMask | fpMask | regNamed["g"]
 
 	var (
