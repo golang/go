@@ -580,6 +580,8 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		expectHover := string(r.data.Golden(tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover), nil
 		}))
+		hover = tests.StripSubscripts(hover)
+		expectHover = tests.StripSubscripts(expectHover)
 		if hover != expectHover {
 			t.Errorf("hoverdef for %s failed:\n%s", d.Src, tests.Diff(t, expectHover, hover))
 		}

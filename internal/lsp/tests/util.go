@@ -551,3 +551,22 @@ func Diff(t *testing.T, want, got string) string {
 	}
 	return fmt.Sprintf("%q", diff.ToUnified("want", "got", want, d))
 }
+
+// StripSubscripts removes type parameter id subscripts.
+//
+// TODO(rfindley): remove this function once subscripts are removed from the
+// type parameter type string.
+func StripSubscripts(s string) string {
+	var runes []rune
+	for _, r := range s {
+		// For debugging/uniqueness purposes, TypeString on a type parameter adds a
+		// subscript corresponding to the type parameter's unique id. This is going
+		// to be removed, but in the meantime we skip the subscript runes to get a
+		// deterministic output.
+		if '₀' <= r && r < '₀'+10 {
+			continue // trim type parameter subscripts
+		}
+		runes = append(runes, r)
+	}
+	return string(runes)
+}
