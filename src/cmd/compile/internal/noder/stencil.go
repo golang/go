@@ -185,7 +185,7 @@ func (g *genInst) scanForGenCalls(decl ir.Node) {
 			// it before installing the instantiation, so we are
 			// checking against non-shape param types in
 			// typecheckaste.
-			transformCall(call, nil)
+			transformCall(call)
 
 			// Replace the OFUNCINST with a direct reference to the
 			// new stenciled function
@@ -223,7 +223,7 @@ func (g *genInst) scanForGenCalls(decl ir.Node) {
 
 			// Transform the Call now, which changes OCALL
 			// to OCALLFUNC and does typecheckaste/assignconvfn.
-			transformCall(call, nil)
+			transformCall(call)
 
 			st := g.getInstantiation(gf, targs, true).fun
 			dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
@@ -1089,14 +1089,14 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// transform the call.
 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 				transformDot(call.X.(*ir.SelectorExpr), true)
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.ODOT, ir.ODOTPTR:
 				// An OXDOT for a generic receiver was resolved to
 				// an access to a field which has a function
 				// value. Transform the call to that function, now
 				// that the OXDOT was resolved.
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.ONAME:
 				name := call.X.Name()
@@ -1113,24 +1113,24 @@ func (subst *subster) node(n ir.Node) ir.Node {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
 					// structural constraint) which is now resolved.
-					transformCall(call, subst.info.dictParam)
+					transformCall(call)
 				}
 
 			case ir.OCLOSURE:
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.ODEREF, ir.OINDEX, ir.OINDEXMAP, ir.ORECV:
 				// Transform a call that was delayed because of the
 				// use of typeparam inside an expression that required
 				// a pointer dereference, array indexing, map indexing,
 				// or channel receive to compute function value.
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.OCONVNOP:
-				transformCall(call, subst.info.dictParam)
+				transformCall(call)
 
 			case ir.OFUNCINST:
 				// A call with an OFUNCINST will get transformed
@@ -1276,7 +1276,7 @@ func (g *genInst) dictPass(info *instInfo) {
 					m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
 					transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
 				}
-				transformCall(m.(*ir.CallExpr), info.dictParam)
+				transformCall(m.(*ir.CallExpr))
 			}
 
 		case ir.OCONVIFACE:
