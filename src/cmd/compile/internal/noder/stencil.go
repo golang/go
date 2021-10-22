@@ -1523,18 +1523,12 @@ func deref(t *types.Type) *types.Type {
 // needed methods.
 func markTypeUsed(t *types.Type, lsym *obj.LSym) {
 	if t.IsInterface() {
-		// Mark all the methods of the interface as used.
-		// TODO: we should really only mark the interface methods
-		// that are actually called in the application.
-		for i, _ := range t.AllMethods().Slice() {
-			reflectdata.MarkUsedIfaceMethodIndex(lsym, t, i)
-		}
-	} else {
-		// TODO: This is somewhat overkill, we really only need it
-		// for types that are put into interfaces.
-		// Note: this relocation is also used in cmd/link/internal/ld/dwarf.go
-		reflectdata.MarkTypeUsedInInterface(t, lsym)
+		return
 	}
+	// TODO: This is somewhat overkill, we really only need it
+	// for types that are put into interfaces.
+	// Note: this relocation is also used in cmd/link/internal/ld/dwarf.go
+	reflectdata.MarkTypeUsedInInterface(t, lsym)
 }
 
 // getDictionarySym returns the dictionary for the named generic function gf, which
@@ -1735,18 +1729,6 @@ func (g *genInst) finalizeSyms() {
 				se := n.(*ir.SelectorExpr)
 				srctype = subst.Typ(se.X.Type())
 				dsttype = subst.Typ(info.shapeToBound[se.X.Type()])
-				found := false
-				for i, m := range dsttype.AllMethods().Slice() {
-					if se.Sel == m.Sym {
-						// Mark that this method se.Sel is
-						// used for the dsttype interface, so
-						// it won't get deadcoded.
-						reflectdata.MarkUsedIfaceMethodIndex(lsym, dsttype, i)
-						found = true
-						break
-					}
-				}
-				assert(found)
 			case ir.ODOTTYPE, ir.ODOTTYPE2:
 				srctype = subst.Typ(n.(*ir.TypeAssertExpr).Type())
 				dsttype = subst.Typ(n.(*ir.TypeAssertExpr).X.Type())
