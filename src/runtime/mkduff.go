@@ -235,26 +235,26 @@ func copyMIPS64x(w io.Writer) {
 
 func zeroRISCV64(w io.Writer) {
 	// ZERO: always zero
-	// X10: ptr to memory to be zeroed
-	// X10 is updated as a side effect.
+	// X25: ptr to memory to be zeroed
+	// X25 is updated as a side effect.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOV\tZERO, (X10)")
-		fmt.Fprintln(w, "\tADD\t$8, X10")
+		fmt.Fprintln(w, "\tMOV\tZERO, (X25)")
+		fmt.Fprintln(w, "\tADD\t$8, X25")
 	}
 	fmt.Fprintln(w, "\tRET")
 }
 
 func copyRISCV64(w io.Writer) {
-	// X10: ptr to source memory
-	// X11: ptr to destination memory
-	// X10 and X11 are updated as a side effect
+	// X24: ptr to source memory
+	// X25: ptr to destination memory
+	// X24 and X25 are updated as a side effect
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOV\t(X10), X31")
-		fmt.Fprintln(w, "\tADD\t$8, X10")
-		fmt.Fprintln(w, "\tMOV\tX31, (X11)")
-		fmt.Fprintln(w, "\tADD\t$8, X11")
+		fmt.Fprintln(w, "\tMOV\t(X24), X31")
+		fmt.Fprintln(w, "\tADD\t$8, X24")
+		fmt.Fprintln(w, "\tMOV\tX31, (X25)")
+		fmt.Fprintln(w, "\tADD\t$8, X25")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")

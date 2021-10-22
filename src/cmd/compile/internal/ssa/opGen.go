@@ -28923,9 +28923,9 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 512}, // X10
+				{0, 16777216}, // X25
 			},
-			clobbers: 512, // X10
+			clobbers: 16777216, // X25
 		},
 	},
 	{
@@ -28936,10 +28936,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1024}, // X11
-				{1, 512},  // X10
+				{0, 16777216}, // X25
+				{1, 8388608},  // X24
 			},
-			clobbers: 1536, // X10 X11
+			clobbers: 25165824, // X24 X25
 		},
 	},
 	{
