@@ -702,7 +702,7 @@ func (c *coordinator) logStats() {
 			interestingTotalCount := int64(c.warmupInputCount-len(c.opts.Seed)) + c.interestingCount
 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
 		} else {
-			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)", c.elapsed(), c.count, rate)
+			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)\n", c.elapsed(), c.count, rate)
 		}
 	}
 	c.countLastLog = c.count
