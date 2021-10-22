@@ -738,20 +738,9 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
 				return resp
 			}
 			if cov != nil {
-				// Found new coverage. Before reporting to the coordinator,
-				// run the same values once more to deflake.
-				if !shouldStop() {
-					dur, cov, errMsg = fuzzOnce(entry)
-					if errMsg != "" {
-						resp.Err = errMsg
-						return resp
-					}
-				}
-				if cov != nil {
-					resp.CoverageData = cov
-					resp.InterestingDuration = dur
-					return resp
-				}
+				resp.CoverageData = cov
+				resp.InterestingDuration = dur
+				return resp
 			}
 			if shouldStop() {
 				return resp
