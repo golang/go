@@ -35,15 +35,15 @@ const bundleVersion = 0
 // The package path of the top-level package will not be recorded,
 // so that calls to IImportData can override with a provided package path.
 func IExportData(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
-	return iexportCommon(out, fset, false, []*types.Package{pkg})
+	return iexportCommon(out, fset, false, iexportVersion, []*types.Package{pkg})
 }
 
 // IExportBundle writes an indexed export bundle for pkgs to out.
 func IExportBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
-	return iexportCommon(out, fset, true, pkgs)
+	return iexportCommon(out, fset, true, iexportVersion, pkgs)
 }
 
-func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, pkgs []*types.Package) (err error) {
+func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, version int, pkgs []*types.Package) (err error) {
 	if !debug {
 		defer func() {
 			if e := recover(); e != nil {
@@ -59,6 +59,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, pkgs []*type
 
 	p := iexporter{
 		fset:        fset,
+		version:     version,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
 		declIndex:   map[types.Object]uint64{},
@@ -122,7 +123,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle bool, pkgs []*type
 	if bundle {
 		hdr.uint64(bundleVersion)
 	}
-	hdr.uint64(iexportVersion)
+	hdr.uint64(uint64(p.version))
 	hdr.uint64(uint64(p.strings.Len()))
 	hdr.uint64(dataLen)
 
@@ -200,8 +201,9 @@ func (p *iexporter) indexName(obj types.Object) (res string) {
 }
 
 type iexporter struct {
-	fset *token.FileSet
-	out  *bytes.Buffer
+	fset    *token.FileSet
+	out     *bytes.Buffer
+	version int
 
 	localpkg *types.Package
 
@@ -224,7 +226,7 @@ type iexporter struct {
 }
 
 func (p *iexporter) trace(format string, args ...interface{}) {
-	if !debug {
+	if !trace {
 		// Call sites should also be guarded, but having this check here allows
 		// easily enabling/disabling debug trace statements.
 		return
@@ -330,7 +332,15 @@ func (p *iexporter) doDecl(obj types.Object) {
 		if tparam, ok := t.(*typeparams.TypeParam); ok {
 			w.tag('P')
 			w.pos(obj.Pos())
-			w.typ(tparam.Constraint(), obj.Pkg())
+			constraint := tparam.Constraint()
+			if p.version >= iexportVersionGo1_18 {
+				implicit := false
+				if iface, _ := constraint.(*types.Interface); iface != nil {
+					implicit = typeparams.IsImplicit(iface)
+				}
+				w.bool(implicit)
+			}
+			w.typ(constraint, obj.Pkg())
 			break
 		}
 
@@ -397,7 +407,7 @@ func (w *exportWriter) tag(tag byte) {
 }
 
 func (w *exportWriter) pos(pos token.Pos) {
-	if iexportVersion >= iexportVersionPosCol {
+	if w.p.version >= iexportVersionPosCol {
 		w.posV1(pos)
 	} else {
 		w.posV0(pos)
@@ -484,7 +494,6 @@ func (w *exportWriter) qualifiedIdent(obj types.Object) {
 
 	// Ensure any referenced declarations are written out too.
 	w.p.pushDecl(obj)
-	w.p.trace("writing ident %s for %s", name, obj)
 	w.string(name)
 	w.pkg(obj.Pkg())
 }

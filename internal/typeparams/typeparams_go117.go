@@ -137,6 +137,10 @@ func IsImplicit(*types.Interface) bool {
 	return false
 }
 
+// MarkImplicit does nothing, because this Go version does not have implicit
+// interfaces.
+func MarkImplicit(*types.Interface) {}
+
 // ForNamed returns an empty type parameter list, as type parameters are not
 // supported at this Go version.
 func ForNamed(*types.Named) *TypeParamList {

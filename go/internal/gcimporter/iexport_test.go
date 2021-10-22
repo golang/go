@@ -55,9 +55,9 @@ func readExportFile(filename string) ([]byte, error) {
 	return ioutil.ReadAll(buf)
 }
 
-func iexport(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
+func iexport(fset *token.FileSet, version int, pkg *types.Package) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := gcimporter.IExportData(&buf, fset, pkg); err != nil {
+	if err := gcimporter.IExportCommon(&buf, fset, false, version, []*types.Package{pkg}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -132,11 +132,12 @@ type UnknownType undefined
 		return sorted[i].Path() < sorted[j].Path()
 	})
 
+	version := gcimporter.IExportVersion
 	for _, pkg := range sorted {
-		if exportdata, err := iexport(conf.Fset, pkg); err != nil {
+		if exportdata, err := iexport(conf.Fset, version, pkg); err != nil {
 			t.Error(err)
 		} else {
-			testPkgData(t, conf.Fset, pkg, exportdata)
+			testPkgData(t, conf.Fset, version, pkg, exportdata)
 		}
 
 		if pkg.Name() == "main" || pkg.Name() == "haserrors" {
@@ -146,7 +147,7 @@ type UnknownType undefined
 		} else if exportdata, err := readExportFile(bp.PkgObj); err != nil {
 			t.Log("warning:", err)
 		} else {
-			testPkgData(t, conf.Fset, pkg, exportdata)
+			testPkgData(t, conf.Fset, version, pkg, exportdata)
 		}
 	}
 
@@ -162,11 +163,11 @@ type UnknownType undefined
 	}
 
 	for i, pkg := range sorted {
-		testPkg(t, conf.Fset, pkg, fset2, pkgs2[i])
+		testPkg(t, conf.Fset, version, pkg, fset2, pkgs2[i])
 	}
 }
 
-func testPkgData(t *testing.T, fset *token.FileSet, pkg *types.Package, exportdata []byte) {
+func testPkgData(t *testing.T, fset *token.FileSet, version int, pkg *types.Package, exportdata []byte) {
 	imports := make(map[string]*types.Package)
 	fset2 := token.NewFileSet()
 	_, pkg2, err := gcimporter.IImportData(fset2, imports, exportdata, pkg.Path())
@@ -174,11 +175,11 @@ func testPkgData(t *testing.T, fset *token.FileSet, pkg *types.Package, exportda
 		t.Errorf("IImportData(%s): %v", pkg.Path(), err)
 	}
 
-	testPkg(t, fset, pkg, fset2, pkg2)
+	testPkg(t, fset, version, pkg, fset2, pkg2)
 }
 
-func testPkg(t *testing.T, fset *token.FileSet, pkg *types.Package, fset2 *token.FileSet, pkg2 *types.Package) {
-	if _, err := iexport(fset2, pkg2); err != nil {
+func testPkg(t *testing.T, fset *token.FileSet, version int, pkg *types.Package, fset2 *token.FileSet, pkg2 *types.Package) {
+	if _, err := iexport(fset2, version, pkg2); err != nil {
 		t.Errorf("reexport %q: %v", pkg.Path(), err)
 	}
 
@@ -226,7 +227,7 @@ func TestIExportData_long(t *testing.T) {
 	}
 
 	// export
-	exportdata, err := iexport(fset1, pkg)
+	exportdata, err := iexport(fset1, gcimporter.IExportVersion, pkg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +270,7 @@ func TestIExportData_typealiases(t *testing.T) {
 
 	// export
 	// use a nil fileset here to confirm that it doesn't panic
-	exportdata, err := iexport(nil, pkg1)
+	exportdata, err := iexport(nil, gcimporter.IExportVersion, pkg1)
 	if err != nil {
 		t.Fatal(err)
 	}

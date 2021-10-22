@@ -45,13 +45,20 @@ func (r *intReader) uint64() uint64 {
 }
 
 // Keep this in sync with constants in iexport.go.
+//
+// Temporarily, the x/tools importer accepts generic code at both version 1 and
+// 2. However, version 2 contains some breaking changes on top of version 1:
+//   - the 'implicit' bit is added to exported constraints
+//   - a 'kind' byte is added to constant values (not yet done)
+//
+// Once we've completed the bump to version 2 in the standard library, we'll
+// remove support for generics here at version 1.
 const (
 	iexportVersionGo1_11 = 0
 	iexportVersionPosCol = 1
+	iexportVersionGo1_18 = 2
 	// TODO: before release, change this back to 2.
 	iexportVersionGenerics = iexportVersionPosCol
-
-	iexportVersionCurrent = iexportVersionGenerics
 )
 
 type ident struct {
@@ -124,9 +131,9 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 
 	version = int64(r.uint64())
 	switch version {
-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		if version > iexportVersionGenerics {
+		if version > iexportVersionGo1_18 {
 			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
 		} else {
 			errorf("unknown iexport format version %d", version)
@@ -437,8 +444,19 @@ func (r *importReader) obj(name string) {
 		// bound, save the partial type in tparamIndex before reading the bounds.
 		id := ident{r.currPkg.Name(), name}
 		r.p.tparamIndex[id] = t
-
-		typeparams.SetTypeParamConstraint(t, r.typ())
+		var implicit bool
+		if r.p.exportVersion >= iexportVersionGo1_18 {
+			implicit = r.bool()
+		}
+		constraint := r.typ()
+		if implicit {
+			iface, _ := constraint.(*types.Interface)
+			if iface == nil {
+				errorf("non-interface constraint marked implicit")
+			}
+			typeparams.MarkImplicit(iface)
+		}
+		typeparams.SetTypeParamConstraint(t, constraint)
 
 	case 'V':
 		typ := r.typ()

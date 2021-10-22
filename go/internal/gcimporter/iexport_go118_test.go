@@ -50,26 +50,39 @@ func testExportSrc(t *testing.T, src []byte) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "g.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	conf := types.Config{
-		Importer: importer.Default(),
-	}
-	pkg, err := conf.Check("", fset, []*ast.File{f}, nil)
-	if err != nil {
-		t.Fatal(err)
+	// Test at both stages of the 1.18 export data format change.
+	tests := []struct {
+		name    string
+		version int
+	}{
+		{"legacy generics", gcimporter.IExportVersionGenerics},
+		{"go1.18", gcimporter.IExportVersionGo1_18},
 	}
 
-	// export
-	var b bytes.Buffer
-	if err := gcimporter.IExportData(&b, fset, pkg); err != nil {
-		t.Fatal(err)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, "g.go", src, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			conf := types.Config{
+				Importer: importer.Default(),
+			}
+			pkg, err := conf.Check("", fset, []*ast.File{f}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	testPkgData(t, fset, pkg, b.Bytes())
+			// export
+			data, err := iexport(fset, test.version, pkg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			testPkgData(t, fset, test.version, pkg, data)
+		})
+	}
 }
 
 func TestImportTypeparamTests(t *testing.T) {
