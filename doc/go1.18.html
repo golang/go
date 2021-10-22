@@ -67,12 +67,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- golang.org/issue/37475 -->
   The <code>go</code> command now embeds version control information in
-  binaries including the currently checked-out revision and a flag indicating
-  whether edited or untracked files are present. Version control information
-  is embedded if the <code>go</code> command is invoked in a directory within a
-  Git or Mercurial repository, and the <code>main</code> package and its
-  containing main module are in the same repository. This information may be
-  omitted using the flag <code>-buildvcs=false</code>.
+  binaries including the currently checked-out revision, commit time, and a
+  flag indicating whether edited or untracked files are present. Version
+  control information is embedded if the <code>go</code> command is invoked in
+  a directory within a Git, Mercurial, Fossil, or Bazaar repository, and the
+  <code>main</code> package and its containing main module are in the same
+  repository. This information may be omitted using the flag
+  <code>-buildvcs=false</code>.
 </p>
 
 <p><!-- golang.org/issue/37475 -->
