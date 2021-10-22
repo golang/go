@@ -23,6 +23,7 @@ type FuncInfo struct {
 	FuncFlag objabi.FuncFlag
 	File     []CUFileIndex
 	InlTree  []InlTreeNode
+	PoolOff  []uint32
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
@@ -50,6 +51,10 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 	for i := range a.InlTree {
 		a.InlTree[i].Write(w)
 	}
+	writeUint32(uint32(len(a.PoolOff)))
+	for _, x := range a.PoolOff {
+		writeUint32(x)
+	}
 }
 
 // FuncInfoLengths is a cache containing a roadmap of offsets and
@@ -62,6 +67,8 @@ type FuncInfoLengths struct {
 	FileOff     uint32
 	NumInlTree  uint32
 	InlTreeOff  uint32
+	NumPoolOff  uint32
+	PoolOffOff  uint32
 	Initialized bool
 }
 
@@ -77,6 +84,10 @@ func (*FuncInfo) ReadFuncInfoLengths(b []byte) FuncInfoLengths {
 	numinltreeOff := result.FileOff + 4*result.NumFile
 	result.NumInlTree = binary.LittleEndian.Uint32(b[numinltreeOff:])
 	result.InlTreeOff = numinltreeOff + 4
+
+	numpooloffOff := result.InlTreeOff + 24*result.NumInlTree
+	result.NumPoolOff = binary.LittleEndian.Uint32(b[numpooloffOff:])
+	result.PoolOffOff = numpooloffOff + 4
 
 	result.Initialized = true
 
@@ -100,6 +111,10 @@ func (*FuncInfo) ReadInlTree(b []byte, inltreeoff uint32, k uint32) InlTreeNode 
 	var result InlTreeNode
 	result.Read(b[inltreeoff+k*inlTreeNodeSize:])
 	return result
+}
+
+func (*FuncInfo) ReadPoolOff(b []byte, pooloffoff uint32, k uint32) uint32 {
+	return binary.LittleEndian.Uint32(b[pooloffoff+4*k:])
 }
 
 // InlTreeNode is the serialized form of FileInfo.InlTree.

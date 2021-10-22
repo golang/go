@@ -477,15 +477,6 @@ func buildSymbols(t *testing.T, mode string) []elf.Symbol {
 
 // Checks that mapping symbols are inserted correctly inside a symbol table.
 func checkMappingSymbols(t *testing.T, symbols []elf.Symbol) {
-	// textValues variable stores addresses of function symbols,
-	// it helps ensuring that "$x" symbol has a correct place (at the beginning of a function)
-	textValues := make(map[uint64]struct{})
-	for _, symbol := range symbols {
-		if elf.ST_TYPE(symbol.Info) == elf.STT_FUNC {
-			textValues[symbol.Value] = struct{}{}
-		}
-	}
-
 	// mappingSymbols variable keeps only "$x" and "$d" symbols sorted by their position.
 	var mappingSymbols []elf.Symbol
 	for _, symbol := range symbols {
@@ -500,32 +491,16 @@ func checkMappingSymbols(t *testing.T, symbols []elf.Symbol) {
 		return mappingSymbols[i].Value < mappingSymbols[j].Value
 	})
 
-	hasData := false
-	hasText := false
-
-	needCodeSymb := true
-	for _, symbol := range mappingSymbols {
-		if symbol.Name == "$x" {
-			hasText = true
-
-			_, has := textValues[symbol.Value]
-			if !has {
-				t.Fatalf("met \"$x\" symbol at %v position which is not a beginning of the function", symbol.Value)
-			}
-
-			needCodeSymb = false
-			continue
-		}
-
-		hasData = true
-
-		if needCodeSymb {
-			t.Fatalf("met unexpected \"$d\" symbol at %v position, (\"$x\" should always go after \"$d\", not another \"$d\")", symbol.Value)
-		}
-		needCodeSymb = true
+	if len(mappingSymbols) == 0 {
+		t.Fatal("binary does not have mapping symbols")
 	}
 
-	if !hasText || !hasData {
-		t.Fatal("binary does not have mapping symbols")
+	for i := 0; i < len(mappingSymbols)-1; i += 2 {
+		if mappingSymbols[i].Name == "$d" {
+			t.Fatalf("met unexpected \"$d\" symbol at %v position", mappingSymbols[i].Value)
+		}
+		if i+1 < len(mappingSymbols) && mappingSymbols[i+1].Name == "$x" {
+			t.Fatalf("met unexpected \"$x\" symbol at %v position", mappingSymbols[i+1].Value)
+		}
 	}
 }

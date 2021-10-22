@@ -2039,6 +2039,20 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 	}
 }
 
+func (fi *FuncInfo) NumPoolOff() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumPoolOff
+}
+
+func (fi *FuncInfo) PoolOff(k uint32) uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return (*goobj.FuncInfo)(nil).ReadPoolOff(fi.data, fi.lengths.PoolOffOff, k)
+}
+
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
 	r, auxs := l.auxs(i)
 	for j := range auxs {

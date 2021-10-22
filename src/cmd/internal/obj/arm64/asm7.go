@@ -915,6 +915,9 @@ var prfopfield = []struct {
 // Used for padinng NOOP instruction
 const OP_NOOP = 0xd503201f
 
+// Used for padinng BRK instruction with 0 argument
+const OP_BRK0 = 0xd4200000
+
 // align code to a certain length by padding bytes.
 func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
 	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
@@ -1059,15 +1062,11 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	 * lay out the code, emitting code and data relocations.
 	 */
 	// To reduce the amount of inline transitions between code and data for ARM64,
-	// we align functions by NOPs instead of regular zeroing (like it's done for other architectures).
-	// The less amount of inline transitions, the less mapping symbols are placed in a binary and the
-	// smaller this binary will be.
+	// we align functions by BRK instructions instead of regular zeroing. The less
+	// amount of inline transitions, the less mapping symbols are placed in a binary
+	// and the smaller a symbol table will be.
 	// See ld/symtab.go - genElfMappingSymbols
-	if c.cursym.Func().LiteralPoolOffset == 0 {
-		c.alignWithNops(c.cursym, c.cursym.Size)
-	} else {
-		c.cursym.Grow(c.cursym.Size)
-	}
+	c.alignWithBrk(c.cursym, c.cursym.Size)
 	bp := c.cursym.P
 	psz := int32(0)
 	var i int
@@ -1116,12 +1115,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func().Text, c.newprog, c.isUnsafePoint, c.isRestartable)
 }
 
-// alignWithNops aligns function content up to lsiz by using NOP instructions.
-func (c *ctxt7) alignWithNops(sym *obj.LSym, lsiz int64) {
-	noopPos := len(sym.P)
+// alignWithBrk aligns function content up to lsiz by using BRK instructions.
+func (c *ctxt7) alignWithBrk(sym *obj.LSym, lsiz int64) {
+	pos := len(sym.P)
 	sym.Grow(lsiz)
-	for ; noopPos < int(sym.Size); noopPos += 4 {
-		c.ctxt.Arch.ByteOrder.PutUint32(sym.P[noopPos:], OP_NOOP)
+	for ; pos < int(sym.Size); pos += 4 {
+		c.ctxt.Arch.ByteOrder.PutUint32(sym.P[pos:], OP_BRK0)
 	}
 }
 
@@ -1168,7 +1167,7 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
 			if c.ctxt.Debugvlog && skip == 1 {
 				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), c.pool.size, c.pool.start)
 			}
-			c.cursym.Func().LiteralPoolOffset = uint32(p.Pc + 8)
+			c.cursym.Func().PoolOff = append(c.cursym.Func().PoolOff, uint32(p.Pc+4))
 			q := c.newprog()
 			q.As = AB
 			q.To.Type = obj.TYPE_BRANCH
