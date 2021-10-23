@@ -101,7 +101,7 @@ func (s *_TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
-func (s *_TypeSet) hasTerms() bool              { return !s.terms.isAll() }
+func (s *_TypeSet) hasTerms() bool              { return !s.terms.isEmpty() && !s.terms.isAll() }
 func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
 func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
