@@ -86,7 +86,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // exported API call, i.e., when all methods have been type-checked.
 func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
 	// "x is assignable to T"
-	if ok, _ := x.assignableTo(check, T, nil); ok {
+	if ok, _ := x.assignableTo(check, T, reason); ok {
 		return true
 	}
 
