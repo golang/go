@@ -131,8 +131,24 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		contentLength := int64(0)
-		if cl, err := strconv.ParseInt(header.Get("Content-Length"), 10, 64); err == nil {
+		clHeader := header.Get("Content-Length")
+		switch {
+		case clHeader != "":
+			cl, err := strconv.ParseInt(clHeader, 10, 64)
+			if err != nil {
+				errCh <- fmt.Errorf("net/http: ill-formed Content-Length header: %v", err)
+				return nil
+			}
+			if cl < 0 {
+				// Content-Length values less than 0 are invalid.
+				// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+				errCh <- fmt.Errorf("net/http: invalid Content-Length header: %q", clHeader)
+				return nil
+			}
 			contentLength = cl
+		default:
+			// If the response length is not declared, set it to -1.
+			contentLength = -1
 		}
 
 		b := result.Get("body")
