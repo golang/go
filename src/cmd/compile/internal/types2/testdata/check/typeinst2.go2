@@ -226,10 +226,10 @@ type I012 interface {
 }
 
 func f012[T I012]() {}
-var _ = f012[int /* ERROR does not satisfy I012 */ ]
-var _ = f012[bool /* ERROR does not satisfy I012 */ ]
-var _ = f012[string /* ERROR does not satisfy I012 */ ]
-var _ = f012[float64 /* ERROR does not satisfy I012 */ ]
+var _ = f012[int /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[bool /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[string /* ERROR does not satisfy I012.*type set is empty */ ]
+var _ = f012[float64 /* ERROR does not satisfy I012.*type set is empty */ ]
 
 type I12 interface {
 	E1
@@ -256,3 +256,23 @@ var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
 // Using a function instance as a type is an error.
 var _ f0 // ERROR not a type
 var _ f0 /* ERROR not a type */ [int]
+
+// Empty type sets can only be satisfied by empty type sets.
+type none interface {
+	// force an empty type set
+        int
+        string
+}
+
+func ff[T none]() {}
+func gg[T any]() {}
+func hh[T ~int]() {}
+
+func _[T none]() {
+        _ = ff[int /* ERROR int does not satisfy none \(constraint type set is empty\) */ ]
+        _ = ff[T]  // pathological but ok because T's type set is empty, too
+        _ = gg[int]
+        _ = gg[T]
+	_ = hh[int]
+	_ = hh[T]
+}
