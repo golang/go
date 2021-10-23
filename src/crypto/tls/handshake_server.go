@@ -314,7 +314,9 @@ func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8
 		}
 	}
 
-	supportsPointFormat := false
+	// RFC 8422, Section 5.1.2
+	// If this extension is missing, it means that only the uncompressed point format is supported
+	supportsPointFormat := len(supportedPoints) == 0
 	for _, pointFormat := range supportedPoints {
 		if pointFormat == pointFormatUncompressed {
 			supportsPointFormat = true
