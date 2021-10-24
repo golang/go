@@ -635,9 +635,12 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
-			field := receiver.FieldByIndex(tField.Index)
+			field, err := receiver.FieldByIndexErr(tField.Index)
 			if !tField.IsExported() {
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+			}
+			if err != nil {
+				s.errorf("%v", err)
 			}
 			// If it's a function, we must call it.
 			if hasArgs {

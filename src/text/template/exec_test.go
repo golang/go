@@ -1787,3 +1787,26 @@ func TestIssue39807(t *testing.T) {
 
 	wg.Wait()
 }
+
+// Issue 48215: embedded nil pointer causes panic.
+// Fixed by adding FieldByIndexErr to the reflect package.
+func TestIssue48215(t *testing.T) {
+	type A struct {
+		S string
+	}
+	type B struct {
+		*A
+	}
+	tmpl, err := New("").Parse(`{{ .S }}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tmpl.Execute(io.Discard, B{})
+	// We expect an error, not a panic.
+	if err == nil {
+		t.Fatal("did not get error for nil embedded struct")
+	}
+	if !strings.Contains(err.Error(), "reflect: indirection through nil pointer to embedded struct field A") {
+		t.Fatal(err)
+	}
+}
