@@ -816,7 +816,11 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
 	auxcall := v.Aux.(*AuxCall)
 	auxcall.Fn = sym
-	v.RemoveArg(0)
+	// Remove first arg
+	v.Args[0].Uses--
+	copy(v.Args[0:], v.Args[1:])
+	v.Args[len(v.Args)-1] = nil // aid GC
+	v.Args = v.Args[:len(v.Args)-1]
 	return v
 }
 
