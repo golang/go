@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"errors"
 	"internal/abi"
 	"internal/goarch"
 	"internal/itoa"
@@ -1232,7 +1233,8 @@ func (v Value) Field(i int) Value {
 }
 
 // FieldByIndex returns the nested field corresponding to index.
-// It panics if v's Kind is not struct.
+// It panics if evaluation requires stepping through a nil
+// pointer or a field that is not a struct.
 func (v Value) FieldByIndex(index []int) Value {
 	if len(index) == 1 {
 		return v.Field(index[0])
@@ -1250,6 +1252,29 @@ func (v Value) FieldByIndex(index []int) Value {
 		v = v.Field(x)
 	}
 	return v
+}
+
+// FieldByIndexErr returns the nested field corresponding to index.
+// It returns an error if evaluation requires stepping through a nil
+// pointer, but panics if it must step through a field that
+// is not a struct.
+func (v Value) FieldByIndexErr(index []int) (Value, error) {
+	if len(index) == 1 {
+		return v.Field(index[0]), nil
+	}
+	v.mustBe(Struct)
+	for i, x := range index {
+		if i > 0 {
+			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
+				if v.IsNil() {
+					return Value{}, errors.New("reflect: indirection through nil pointer to embedded struct field " + v.typ.Elem().Name())
+				}
+				v = v.Elem()
+			}
+		}
+		v = v.Field(x)
+	}
+	return v, nil
 }
 
 // FieldByName returns the struct field with the given name.
