@@ -20,6 +20,7 @@ func crawlExports(exports []*ir.Name) {
 	p := crawler{
 		marked:   make(map[*types.Type]bool),
 		embedded: make(map[*types.Type]bool),
+		generic:  make(map[*types.Type]bool),
 	}
 	for _, n := range exports {
 		p.markObject(n)
@@ -29,6 +30,7 @@ func crawlExports(exports []*ir.Name) {
 type crawler struct {
 	marked   map[*types.Type]bool // types already seen by markType
 	embedded map[*types.Type]bool // types already seen by markEmbed
+	generic  map[*types.Type]bool // types already seen by markGeneric
 }
 
 // markObject visits a reachable object (function, method, global type, or global variable)
@@ -168,6 +170,30 @@ func (p *crawler) markEmbed(t *types.Type) {
 	}
 }
 
+// markGeneric takes an instantiated type or a base generic type t, and
+// marks all the methods of the base generic type of t. If a base generic
+// type is written to export file, even if not explicitly marked for export,
+// all of its methods need to be available for instantiation if needed.
+func (p *crawler) markGeneric(t *types.Type) {
+	if t.IsPtr() {
+		t = t.Elem()
+	}
+	if t.OrigSym() != nil {
+		// Convert to the base generic type.
+		t = t.OrigSym().Def.Type()
+	}
+	if p.generic[t] {
+		return
+	}
+	p.generic[t] = true
+
+	if t.Sym() != nil && t.Kind() != types.TINTER {
+		for _, m := range t.Methods().Slice() {
+			p.markObject(m.Nname.(*ir.Name))
+		}
+	}
+}
+
 // markInlBody marks n's inline body for export and recursively
 // ensures all called functions are marked too.
 func (p *crawler) markInlBody(n *ir.Name) {
@@ -197,12 +223,7 @@ func (p *crawler) markInlBody(n *ir.Name) {
 		t := n.Type()
 		if t != nil {
 			if t.HasTParam() || t.IsFullyInstantiated() {
-				// Ensure that we call markType() on any base generic type
-				// that is written to the export file (even if not explicitly
-				// marked for export), so we will call markInlBody on its
-				// methods, and the methods will be available for
-				// instantiation if needed.
-				p.markType(t)
+				p.markGeneric(t)
 			}
 			if base.Debug.Unified == 0 {
 				// If a method of un-exported type is promoted and accessible by
