@@ -5,13 +5,17 @@
 package lostcancel_test
 
 import (
-	"testing"
-
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+	"golang.org/x/tools/internal/typeparams"
+	"testing"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, lostcancel.Analyzer, "a", "b")
+	tests := []string{"a", "b"}
+	if typeparams.Enabled {
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, lostcancel.Analyzer, tests...)
 }
