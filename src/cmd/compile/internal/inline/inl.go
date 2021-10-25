@@ -1285,18 +1285,24 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	ir.EditChildren(m, subst.edit)
 
 	if subst.newclofn == nil {
-		// Translate any label on FOR or RANGE loops
-		if m.Op() == ir.OFOR {
+		// Translate any label on FOR, RANGE loops or SWITCH
+		switch m.Op() {
+		case ir.OFOR:
 			m := m.(*ir.ForStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+
+		case ir.ORANGE:
+			m := m.(*ir.RangeStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+
+		case ir.OSWITCH:
+			m := m.(*ir.SwitchStmt)
 			m.Label = translateLabel(m.Label)
 			return m
 		}
 
-		if m.Op() == ir.ORANGE {
-			m := m.(*ir.RangeStmt)
-			m.Label = translateLabel(m.Label)
-			return m
-		}
 	}
 
 	switch m := m.(type) {
