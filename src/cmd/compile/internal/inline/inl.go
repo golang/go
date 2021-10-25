@@ -1259,7 +1259,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		*m.PtrInit() = nil
+		m.SetInit(nil)
 		m.Label = translateLabel(n.Label)
 		return m
 
@@ -1271,7 +1271,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		*m.PtrInit() = nil
+		m.SetInit(nil)
 		m.Label = translateLabel(n.Label)
 		return m
 
