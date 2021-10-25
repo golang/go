@@ -38,7 +38,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	// and it's safe and valid to get Value's internal pointer.
 	hard := func(v1, v2 Value) bool {
 		switch v1.Kind() {
-		case Ptr:
+		case Pointer:
 			if v1.typ.ptrdata == 0 {
 				// go:notinheap pointers can't be cyclic.
 				// At least, all of our current uses of go:notinheap have
@@ -56,13 +56,13 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	}
 
 	if hard(v1, v2) {
-		// For a Ptr or Map value, we need to check flagIndir,
+		// For a Pointer or Map value, we need to check flagIndir,
 		// which we do by calling the pointer method.
 		// For Slice or Interface, flagIndir is always set,
 		// and using v.ptr suffices.
 		ptrval := func(v Value) unsafe.Pointer {
 			switch v.Kind() {
-			case Ptr, Map:
+			case Pointer, Map:
 				return v.pointer()
 			default:
 				return v.ptr
@@ -120,7 +120,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 			return v1.IsNil() == v2.IsNil()
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
-	case Ptr:
+	case Pointer:
 		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}

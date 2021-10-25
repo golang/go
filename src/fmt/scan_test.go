@@ -516,7 +516,7 @@ func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a .
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()
@@ -561,7 +561,7 @@ func TestScanf(t *testing.T) {
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()

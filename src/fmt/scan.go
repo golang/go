@@ -1017,7 +1017,7 @@ func (s *ss) scanOne(verb rune, arg interface{}) {
 	default:
 		val := reflect.ValueOf(v)
 		ptr := val
-		if ptr.Kind() != reflect.Ptr {
+		if ptr.Kind() != reflect.Pointer {
 			s.errorString("type not a pointer: " + val.Type().String())
 			return
 		}

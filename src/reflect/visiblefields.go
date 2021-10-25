@@ -92,7 +92,7 @@ func (w *visibleFieldsWalker) walk(t Type) {
 			w.fields = append(w.fields, f)
 		}
 		if f.Anonymous {
-			if f.Type.Kind() == Ptr {
+			if f.Type.Kind() == Pointer {
 				f.Type = f.Type.Elem()
 			}
 			if f.Type.Kind() == Struct {

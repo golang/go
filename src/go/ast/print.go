@@ -21,7 +21,7 @@ type FieldFilter func(name string, value reflect.Value) bool
 // it returns false otherwise.
 func NotNilFilter(_ string, v reflect.Value) bool {
 	switch v.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return !v.IsNil()
 	}
 	return true
@@ -165,7 +165,7 @@ func (p *printer) print(x reflect.Value) {
 		}
 		p.printf("}")
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		p.printf("*")
 		// type-checked ASTs may contain cycles - use ptrmap
 		// to keep track of objects that have been printed

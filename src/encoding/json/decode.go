@@ -161,7 +161,7 @@ func (e *InvalidUnmarshalError) Error() string {
 		return "json: Unmarshal(nil)"
 	}
 
-	if e.Type.Kind() != reflect.Ptr {
+	if e.Type.Kind() != reflect.Pointer {
 		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
 	}
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
@@ -169,7 +169,7 @@ func (e *InvalidUnmarshalError) Error() string {
 
 func (d *decodeState) unmarshal(v interface{}) error {
 	rv := reflect.ValueOf(v)
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(v)}
 	}
 
@@ -440,7 +440,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 	// If v is a named type and is addressable,
 	// start with its address, so that if the type has pointer methods,
 	// we find them.
-	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
+	if v.Kind() != reflect.Pointer && v.Type().Name() != "" && v.CanAddr() {
 		haveAddr = true
 		v = v.Addr()
 	}
@@ -449,14 +449,14 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 		// usefully addressable.
 		if v.Kind() == reflect.Interface && !v.IsNil() {
 			e := v.Elem()
-			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
+			if e.Kind() == reflect.Pointer && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Pointer) {
 				haveAddr = false
 				v = e
 				continue
 			}
 		}
 
-		if v.Kind() != reflect.Ptr {
+		if v.Kind() != reflect.Pointer {
 			break
 		}
 
@@ -641,7 +641,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		default:
-			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
+			if !reflect.PointerTo(t.Key()).Implements(textUnmarshalerType) {
 				d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
 				d.skip()
 				return nil
@@ -717,7 +717,7 @@ func (d *decodeState) object(v reflect.Value) error {
 				subv = v
 				destring = f.quoted
 				for _, i := range f.index {
-					if subv.Kind() == reflect.Ptr {
+					if subv.Kind() == reflect.Pointer {
 						if subv.IsNil() {
 							// If a struct embeds a pointer to an unexported type,
 							// it is not possible to set a newly allocated value
@@ -782,7 +782,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			kt := t.Key()
 			var kv reflect.Value
 			switch {
-			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
+			case reflect.PointerTo(kt).Implements(textUnmarshalerType):
 				kv = reflect.New(kt)
 				if err := d.literalStore(item, kv, true); err != nil {
 					return err
@@ -907,7 +907,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			break
 		}
 		switch v.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
 			v.Set(reflect.Zero(v.Type()))
 			// otherwise, ignore null for primitives/string
 		}
