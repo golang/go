@@ -275,9 +275,6 @@ func (w *typeWriter) typ(typ Type) {
 			break
 		}
 		// Optionally write out package for typeparams (like Named).
-		// TODO(danscales): this is required for import/export, so
-		// we maybe need a separate function that won't be changed
-		// for debugging purposes.
 		if t.obj.pkg != nil {
 			writePackage(w.buf, t.obj.pkg, w.qf)
 		}
