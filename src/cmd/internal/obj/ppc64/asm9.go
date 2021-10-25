@@ -305,6 +305,7 @@ var optab = []Optab{
 	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_LR, type_: 18, size: 4},
 	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_CTR, type_: 18, size: 4},
 	{as: ABC, a6: C_ZOREG, type_: 15, size: 8},
+	{as: ABDNZ, a6: C_SBRA, type_: 16, size: 4},
 	{as: ASYNC, type_: 46, size: 4},
 	{as: AWORD, a1: C_LCON, type_: 40, size: 4},
 	{as: ADWORD, a1: C_64CON, type_: 31, size: 8},
@@ -1777,6 +1778,9 @@ func buildop(ctxt *obj.Link) {
 
 		case ABC:
 			opset(ABCL, r0)
+
+		case ABDNZ:
+			opset(ABDZ, r0)
 
 		case AEXTSB: /* op Rs, Ra */
 			opset(AEXTSBCC, r0)
@@ -4875,21 +4879,25 @@ func (c *ctxt9) opirr(a obj.As) uint32 {
 		return OPVCC(16, 0, 0, 0) | 1
 
 	case ABEQ:
-		return AOP_RRR(16<<26, 12, 2, 0)
+		return AOP_RRR(16<<26, BO_BCR, BI_EQ, 0)
 	case ABGE:
-		return AOP_RRR(16<<26, 4, 0, 0)
+		return AOP_RRR(16<<26, BO_NOTBCR, BI_LT, 0)
 	case ABGT:
-		return AOP_RRR(16<<26, 12, 1, 0)
+		return AOP_RRR(16<<26, BO_BCR, BI_GT, 0)
 	case ABLE:
-		return AOP_RRR(16<<26, 4, 1, 0)
+		return AOP_RRR(16<<26, BO_NOTBCR, BI_GT, 0)
 	case ABLT:
-		return AOP_RRR(16<<26, 12, 0, 0)
+		return AOP_RRR(16<<26, BO_BCR, BI_LT, 0)
 	case ABNE:
-		return AOP_RRR(16<<26, 4, 2, 0)
+		return AOP_RRR(16<<26, BO_NOTBCR, BI_EQ, 0)
 	case ABVC:
-		return AOP_RRR(16<<26, 4, 3, 0) // apparently unordered-clear
+		return AOP_RRR(16<<26, BO_NOTBCR, BI_FU, 0)
 	case ABVS:
-		return AOP_RRR(16<<26, 12, 3, 0) // apparently unordered-set
+		return AOP_RRR(16<<26, BO_BCR, BI_FU, 0)
+	case ABDZ:
+		return AOP_RRR(16<<26, BO_NOTBCTR, 0, 0)
+	case ABDNZ:
+		return AOP_RRR(16<<26, BO_BCTR, 0, 0)
 
 	case ACMP:
 		return OPVCC(11, 0, 0, 0) | 1<<21 /* L=1 */
