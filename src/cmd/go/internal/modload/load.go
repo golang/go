@@ -231,6 +231,9 @@ type PackageOpts struct {
 	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
 	// patterns that did not match any packages.
 	SilenceUnmatchedWarnings bool
+
+	// Resolve the query against this module.
+	MainModule module.Version
 }
 
 // LoadPackages identifies the set of packages matching the given patterns and
@@ -256,7 +259,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
 				if m.Dirs == nil {
-					matchLocalDirs(ctx, m, rs)
+					matchModRoots := modRoots
+					if opts.MainModule != (module.Version{}) {
+						matchModRoots = []string{MainModules.ModRoot(opts.MainModule)}
+					}
+					matchLocalDirs(ctx, matchModRoots, m, rs)
 				}
 
 				// Make a copy of the directory list and translate to import paths.
@@ -309,7 +316,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					// The initial roots are the packages in the main module.
 					// loadFromRoots will expand that to "all".
 					m.Errs = m.Errs[:0]
-					matchPackages(ctx, m, opts.Tags, omitStd, MainModules.Versions())
+					matchModules := MainModules.Versions()
+					if opts.MainModule != (module.Version{}) {
+						matchModules = []module.Version{opts.MainModule}
+					}
+					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
@@ -441,7 +452,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 // matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
 // outside of the standard library and active modules.
-func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
+func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs *Requirements) {
 	if !m.IsLocal() {
 		panic(fmt.Sprintf("internal error: resolveLocalDirs on non-local pattern %s", m.Pattern()))
 	}
@@ -460,8 +471,8 @@ func matchLocalDirs(ctx context.Context, m *search.Match, rs *Requirements) {
 
 		modRoot := findModuleRoot(absDir)
 		found := false
-		for _, mod := range MainModules.Versions() {
-			if MainModules.ModRoot(mod) == modRoot {
+		for _, mainModuleRoot := range modRoots {
+			if mainModuleRoot == modRoot {
 				found = true
 				break
 			}

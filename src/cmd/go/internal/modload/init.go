@@ -73,6 +73,16 @@ var (
 	gopath   string
 )
 
+// EnterModule resets MainModules and requirements to refer to just this one module.
+func EnterModule(ctx context.Context, enterModroot string) {
+	MainModules = nil // reset MainModules
+	requirements = nil
+	workFilePath = "" // Force module mode
+
+	modRoots = []string{enterModroot}
+	LoadModFile(ctx)
+}
+
 // Variable set in InitWorkfile
 var (
 	// Set to the path to the go.work file, or "" if workspace mode is disabled.
@@ -1040,7 +1050,7 @@ func setDefaultBuildMod() {
 	// to modload functions instead of relying on an implicit setting
 	// based on command name.
 	switch cfg.CmdName {
-	case "get", "mod download", "mod init", "mod tidy":
+	case "get", "mod download", "mod init", "mod tidy", "work sync":
 		// These commands are intended to update go.mod and go.sum.
 		cfg.BuildMod = "mod"
 		return
