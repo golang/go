@@ -614,12 +614,13 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, 
 
 func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
 	if len(add) != 0 {
-		// add should be empty in workspace mode because a non-empty add slice means
-		// that there are missing roots in the current pruning mode or that the
-		// pruning mode is being changed. But the pruning mode should always be
-		// 'workspace' in workspace mode and the set of roots in workspace mode is
-		// always complete because it's the set of workspace modules, which can't
-		// be edited by loading.
+		// add should be empty in workspace mode because workspace mode implies
+		// -mod=readonly, which in turn implies no new requirements. The code path
+		// that would result in add being non-empty returns an error before it
+		// reaches this point: The set of modules to add comes from
+		// resolveMissingImports, which in turn resolves each package by calling
+		// queryImport. But queryImport explicitly checks for -mod=readonly, and
+		// return an error.
 		panic("add is not empty")
 	}
 	return rs, nil

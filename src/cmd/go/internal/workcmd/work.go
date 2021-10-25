@@ -24,5 +24,6 @@ which workspaces are a part.
 	Commands: []*base.Command{
 		cmdEdit,
 		cmdInit,
+		cmdSync,
 	},
 }
