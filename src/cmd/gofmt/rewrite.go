@@ -292,7 +292,7 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 		}
 		return v
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
 			v.Set(subst(m, elem, pos).Addr())

@@ -16,7 +16,7 @@ func (s S) M() {}
 
 func main() {
 	t := reflect.TypeOf(S(0))
-	fn, ok := reflect.PtrTo(t).MethodByName("M")
+	fn, ok := reflect.PointerTo(t).MethodByName("M")
 	if !ok {
 		panic("FAIL")
 	}

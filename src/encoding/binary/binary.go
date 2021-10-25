@@ -243,7 +243,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	v := reflect.ValueOf(data)
 	size := -1
 	switch v.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v = v.Elem()
 		size = dataSize(v)
 	case reflect.Slice:

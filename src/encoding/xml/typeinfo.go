@@ -67,7 +67,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 			// For embedded structs, embed its fields.
 			if f.Anonymous {
 				t := f.Type
-				if t.Kind() == reflect.Ptr {
+				if t.Kind() == reflect.Pointer {
 					t = t.Elem()
 				}
 				if t.Kind() == reflect.Struct {
@@ -229,7 +229,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 // in case it exists and has a valid xml field tag, otherwise
 // it returns nil.
 func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 	if typ.Kind() != reflect.Struct {
@@ -358,7 +358,7 @@ func (finfo *fieldInfo) value(v reflect.Value, shouldInitNilPointers bool) refle
 	for i, x := range finfo.idx {
 		if i > 0 {
 			t := v.Type()
-			if t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct {
+			if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
 				if v.IsNil() {
 					if !shouldInitNilPointers {
 						return reflect.Value{}

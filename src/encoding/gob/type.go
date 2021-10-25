@@ -61,7 +61,7 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 	slowpoke := ut.base // walks half as fast as ut.base
 	for {
 		pt := ut.base
-		if pt.Kind() != reflect.Ptr {
+		if pt.Kind() != reflect.Pointer {
 			break
 		}
 		ut.base = pt.Elem()
@@ -126,7 +126,7 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 		if rt.Implements(gobEncDecType) {
 			return true, indir
 		}
-		if p := rt; p.Kind() == reflect.Ptr {
+		if p := rt; p.Kind() == reflect.Pointer {
 			indir++
 			if indir > 100 { // insane number of indirections
 				return false, 0
@@ -137,9 +137,9 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 		break
 	}
 	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
-	if typ.Kind() != reflect.Ptr {
+	if typ.Kind() != reflect.Pointer {
 		// Not a pointer, but does the pointer work?
-		if reflect.PtrTo(typ).Implements(gobEncDecType) {
+		if reflect.PointerTo(typ).Implements(gobEncDecType) {
 			return true, -1
 		}
 	}
@@ -569,7 +569,7 @@ func isSent(field *reflect.StructField) bool {
 	// If the field is a chan or func or pointer thereto, don't send it.
 	// That is, treat it like an unexported field.
 	typ := field.Type
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
@@ -842,7 +842,7 @@ func Register(value interface{}) {
 	// Dereference one pointer looking for a named type.
 	star := ""
 	if rt.Name() == "" {
-		if pt := rt; pt.Kind() == reflect.Ptr {
+		if pt := rt; pt.Kind() == reflect.Pointer {
 			star = "*"
 			// NOTE: The following line should be rt = pt.Elem() to implement
 			// what the comment above claims, but fixing it would break compatibility

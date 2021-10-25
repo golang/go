@@ -458,7 +458,7 @@ func benchSetType(b *testing.B, x interface{}) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		b.SetBytes(int64(t.Elem().Size()))
 	case reflect.Slice:
 		b.SetBytes(int64(t.Elem().Size()) * int64(v.Len()))

@@ -90,8 +90,8 @@ func (f flag) ro() flag {
 }
 
 // pointer returns the underlying pointer represented by v.
-// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
-// if v.Kind() == Ptr, the base type must not be go:notinheap.
+// v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+// if v.Kind() == Pointer, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -274,7 +274,7 @@ func (v Value) Addr() Value {
 	// Preserve flagRO instead of using v.flag.ro() so that
 	// v.Addr().Elem() is equivalent to v (#32772)
 	fl := v.flag & flagRO
-	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Ptr)}
+	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Pointer)}
 }
 
 // Bool returns v's underlying value.
@@ -1147,7 +1147,7 @@ func (v Value) Complex() complex128 {
 
 // Elem returns the value that the interface v contains
 // or that the pointer v points to.
-// It panics if v's Kind is not Interface or Ptr.
+// It panics if v's Kind is not Interface or Pointer.
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
 	k := v.kind()
@@ -1166,7 +1166,7 @@ func (v Value) Elem() Value {
 			x.flag |= v.flag.ro()
 		}
 		return x
-	case Ptr:
+	case Pointer:
 		ptr := v.ptr
 		if v.flag&flagIndir != 0 {
 			if ifaceIndir(v.typ) {
@@ -1240,7 +1240,7 @@ func (v Value) FieldByIndex(index []int) Value {
 	v.mustBe(Struct)
 	for i, x := range index {
 		if i > 0 {
-			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
+			if v.Kind() == Pointer && v.typ.Elem().Kind() == Struct {
 				if v.IsNil() {
 					panic("reflect: indirection through nil pointer to embedded struct")
 				}
@@ -1321,7 +1321,7 @@ func (v Value) Index(i int) Value {
 		return Value{typ, val, fl}
 
 	case Slice:
-		// Element flag same as Elem of Ptr.
+		// Element flag same as Elem of Pointer.
 		// Addressable, indirect, possibly read-only.
 		s := (*unsafeheader.Slice)(v.ptr)
 		if uint(i) >= uint(s.Len) {
@@ -1451,7 +1451,7 @@ func (v Value) InterfaceData() [2]uintptr {
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr, UnsafePointer:
+	case Chan, Func, Map, Pointer, UnsafePointer:
 		if v.flag&flagMethod != 0 {
 			return false
 		}
@@ -1499,7 +1499,7 @@ func (v Value) IsZero() bool {
 			}
 		}
 		return true
-	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
+	case Chan, Func, Interface, Map, Pointer, Slice, UnsafePointer:
 		return v.IsNil()
 	case String:
 		return v.Len() == 0
@@ -1923,7 +1923,7 @@ func (v Value) OverflowUint(x uint64) bool {
 // It returns uintptr instead of unsafe.Pointer so that
 // code using reflect cannot obtain unsafe.Pointers
 // without importing the unsafe package explicitly.
-// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
+// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
@@ -1938,7 +1938,7 @@ func (v Value) OverflowUint(x uint64) bool {
 func (v Value) Pointer() uintptr {
 	k := v.kind()
 	switch k {
-	case Ptr:
+	case Pointer:
 		if v.typ.ptrdata == 0 {
 			val := *(*uintptr)(v.ptr)
 			// Since it is a not-in-heap pointer, all pointers to the heap are
@@ -2491,7 +2491,7 @@ func (v Value) UnsafeAddr() uintptr {
 }
 
 // UnsafePointer returns v's value as a unsafe.Pointer.
-// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
+// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
@@ -2504,7 +2504,7 @@ func (v Value) UnsafeAddr() uintptr {
 func (v Value) UnsafePointer() unsafe.Pointer {
 	k := v.kind()
 	switch k {
-	case Ptr:
+	case Pointer:
 		if v.typ.ptrdata == 0 {
 			// Since it is a not-in-heap pointer, all pointers to the heap are
 			// forbidden! See comment in Value.Elem and issue #48399.
@@ -2908,7 +2908,7 @@ func MakeMapWithSize(typ Type, n int) Value {
 // If v is a nil pointer, Indirect returns a zero Value.
 // If v is not a pointer, Indirect returns v.
 func Indirect(v Value) Value {
-	if v.Kind() != Ptr {
+	if v.Kind() != Pointer {
 		return v
 	}
 	return v.Elem()
@@ -2960,7 +2960,7 @@ const maxZero = 1024
 var zeroVal [maxZero]byte
 
 // New returns a Value representing a pointer to a new zero value
-// for the specified type. That is, the returned Value's Type is PtrTo(typ).
+// for the specified type. That is, the returned Value's Type is PointerTo(typ).
 func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")
@@ -2972,14 +2972,14 @@ func New(typ Type) Value {
 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
 	}
 	ptr := unsafe_New(t)
-	fl := flag(Ptr)
+	fl := flag(Pointer)
 	return Value{pt, ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
-	fl := flag(Ptr)
+	fl := flag(Pointer)
 	t := typ.(*rtype)
 	return Value{t.ptrTo(), p, fl}
 }
@@ -3048,7 +3048,7 @@ func (v Value) CanConvert(t Type) bool {
 	// Currently the only conversion that is OK in terms of type
 	// but that can panic depending on the value is converting
 	// from slice to pointer-to-array.
-	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+	if vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array {
 		n := t.Elem().Len()
 		if n > v.Len() {
 			return false
@@ -3118,7 +3118,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		}
 		// "x is a slice, T is a pointer-to-array type,
 		// and the slice and array types have identical element types."
-		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
 			return cvtSliceArrayPtr
 		}
 
@@ -3134,8 +3134,8 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 	}
 
 	// dst and src are non-defined pointer types with same underlying base type.
-	if dst.Kind() == Ptr && dst.Name() == "" &&
-		src.Kind() == Ptr && src.Name() == "" &&
+	if dst.Kind() == Pointer && dst.Name() == "" &&
+		src.Kind() == Pointer && src.Name() == "" &&
 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {
 		return cvtDirect
 	}
@@ -3321,7 +3321,7 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
 	}
 	h := (*unsafeheader.Slice)(v.ptr)
-	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
+	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
 }
 
 // convertOp: direct copy

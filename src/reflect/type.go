@@ -1425,7 +1425,7 @@ func TypeOf(i interface{}) Type {
 var ptrMap sync.Map // map[*rtype]*ptrType
 
 // PtrTo returns the pointer type with element t.
-// For example, if t represents type Foo, PtrTo(t) represents *Foo.
+// For example, if t represents type Foo, PointerTo(t) represents *Foo.
 //
 // Deprecated: use PointerTo. PtrTo is the old spelling.
 // The two functions behave identically.

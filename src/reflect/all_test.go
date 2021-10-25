@@ -546,7 +546,7 @@ func TestCanSetField(t *testing.T) {
 			for _, tc := range tt.cases {
 				f := tt.val
 				for _, i := range tc.index {
-					if f.Kind() == Ptr {
+					if f.Kind() == Pointer {
 						f = f.Elem()
 					}
 					if i == -1 {
@@ -1373,7 +1373,7 @@ func TestIsZero(t *testing.T) {
 		{(map[string]string)(nil), true},
 		{map[string]string{}, false},
 		{make(map[string]string), false},
-		// Ptr
+		// Pointer
 		{(*func())(nil), true},
 		{(*int)(nil), true},
 		{new(int), false},
@@ -3313,20 +3313,20 @@ func TestPtrTo(t *testing.T) {
 
 	typ := TypeOf(z)
 	for i = 0; i < 100; i++ {
-		typ = PtrTo(typ)
+		typ = PointerTo(typ)
 	}
 	for i = 0; i < 100; i++ {
 		typ = typ.Elem()
 	}
 	if typ != TypeOf(z) {
-		t.Errorf("after 100 PtrTo and Elem, have %s, want %s", typ, TypeOf(z))
+		t.Errorf("after 100 PointerTo and Elem, have %s, want %s", typ, TypeOf(z))
 	}
 }
 
 func TestPtrToGC(t *testing.T) {
 	type T *uintptr
 	tt := TypeOf(T(nil))
-	pt := PtrTo(tt)
+	pt := PointerTo(tt)
 	const n = 100
 	var x []interface{}
 	for i := 0; i < n; i++ {
@@ -3360,11 +3360,11 @@ func BenchmarkPtrTo(b *testing.B) {
 	}
 	b.ResetTimer()
 
-	// Now benchmark calling PtrTo on it: we'll have to hit the ptrMap cache on
+	// Now benchmark calling PointerTo on it: we'll have to hit the ptrMap cache on
 	// every call.
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			PtrTo(t)
+			PointerTo(t)
 		}
 	})
 }
@@ -4896,7 +4896,7 @@ func TestArrayOfDirectIface(t *testing.T) {
 		v1 := ValueOf(&i1).Elem()
 		p1 := v1.InterfaceData()[1]
 
-		i2 := Zero(ArrayOf(1, PtrTo(TypeOf(int8(0))))).Interface()
+		i2 := Zero(ArrayOf(1, PointerTo(TypeOf(int8(0))))).Interface()
 		v2 := ValueOf(&i2).Elem()
 		p2 := v2.InterfaceData()[1]
 
@@ -4914,7 +4914,7 @@ func TestArrayOfDirectIface(t *testing.T) {
 		v1 := ValueOf(&i1).Elem()
 		p1 := v1.InterfaceData()[1]
 
-		i2 := Zero(ArrayOf(0, PtrTo(TypeOf(int8(0))))).Interface()
+		i2 := Zero(ArrayOf(0, PointerTo(TypeOf(int8(0))))).Interface()
 		v2 := ValueOf(&i2).Elem()
 		p2 := v2.InterfaceData()[1]
 
@@ -5615,7 +5615,7 @@ func TestStructOfWithInterface(t *testing.T) {
 		},
 		{
 			name: "StructI",
-			typ:  PtrTo(TypeOf(StructI(want))),
+			typ:  PointerTo(TypeOf(StructI(want))),
 			val: ValueOf(func() interface{} {
 				v := StructI(want)
 				return &v
@@ -5624,7 +5624,7 @@ func TestStructOfWithInterface(t *testing.T) {
 		},
 		{
 			name: "StructIPtr",
-			typ:  PtrTo(TypeOf(StructIPtr(want))),
+			typ:  PointerTo(TypeOf(StructIPtr(want))),
 			val: ValueOf(func() interface{} {
 				v := StructIPtr(want)
 				return &v
@@ -5713,7 +5713,7 @@ func TestStructOfWithInterface(t *testing.T) {
 	fields := []StructField{{
 		Name:      "StructIPtr",
 		Anonymous: true,
-		Type:      PtrTo(TypeOf(StructIPtr(want))),
+		Type:      PointerTo(TypeOf(StructIPtr(want))),
 	}}
 	rt := StructOf(fields)
 	rv := New(rt).Elem()
@@ -5727,7 +5727,7 @@ func TestStructOfWithInterface(t *testing.T) {
 	fields = []StructField{{
 		Name:      "SettableStruct",
 		Anonymous: true,
-		Type:      PtrTo(TypeOf(SettableStruct{})),
+		Type:      PointerTo(TypeOf(SettableStruct{})),
 	}}
 	rt = StructOf(fields)
 	rv = New(rt).Elem()
@@ -5743,7 +5743,7 @@ func TestStructOfWithInterface(t *testing.T) {
 		{
 			Name:      "SettableStruct",
 			Anonymous: true,
-			Type:      PtrTo(TypeOf(SettableStruct{})),
+			Type:      PointerTo(TypeOf(SettableStruct{})),
 		},
 		{
 			Name:      "EmptyStruct",
@@ -6959,7 +6959,7 @@ func TestGCBits(t *testing.T) {
 	verifyGCBits(t, MapOf(ArrayOf(10000, Tscalarptr), Tscalar), lit(1))
 
 	verifyGCBits(t, TypeOf((*[10000]Xscalar)(nil)), lit(1))
-	verifyGCBits(t, PtrTo(ArrayOf(10000, Tscalar)), lit(1))
+	verifyGCBits(t, PointerTo(ArrayOf(10000, Tscalar)), lit(1))
 
 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
@@ -7028,7 +7028,7 @@ func TestTypeOfTypeOf(t *testing.T) {
 	check("ChanOf", ChanOf(BothDir, TypeOf(T{})))
 	check("FuncOf", FuncOf([]Type{TypeOf(T{})}, nil, false))
 	check("MapOf", MapOf(TypeOf(T{}), TypeOf(T{})))
-	check("PtrTo", PtrTo(TypeOf(T{})))
+	check("PtrTo", PointerTo(TypeOf(T{})))
 	check("SliceOf", SliceOf(TypeOf(T{})))
 }
 
