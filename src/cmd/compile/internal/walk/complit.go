@@ -482,7 +482,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
 		loop.Body = []ir.Node{body}
-		*loop.PtrInit() = []ir.Node{zero}
+		loop.SetInit([]ir.Node{zero})
 
 		appendWalkStmt(init, loop)
 		return

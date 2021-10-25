@@ -1238,7 +1238,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	init := p.stmt(stmt.Init)
 	n := ir.NewIfStmt(p.pos(stmt), p.expr(stmt.Cond), p.blockStmt(stmt.Then), nil)
 	if init != nil {
-		*n.PtrInit() = []ir.Node{init}
+		n.SetInit([]ir.Node{init})
 	}
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
@@ -1285,7 +1285,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	init := p.stmt(stmt.Init)
 	n := ir.NewSwitchStmt(p.pos(stmt), p.expr(stmt.Tag), nil)
 	if init != nil {
-		*n.PtrInit() = []ir.Node{init}
+		n.SetInit([]ir.Node{init})
 	}
 
 	var tswitch *ir.TypeSwitchGuard

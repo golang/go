@@ -105,7 +105,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
 		n := cas.Comm
 		ir.SetPos(n)
 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		*r.PtrInit() = cas.Init()
+		r.SetInit(cas.Init())
 		var cond ir.Node
 		switch n.Op() {
 		default:
