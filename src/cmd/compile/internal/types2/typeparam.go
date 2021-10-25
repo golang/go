@@ -119,10 +119,21 @@ func (t *TypeParam) structuralType() Type {
 	return t.iface().typeSet().structuralType()
 }
 
+// hasTerms reports whether the type parameter constraint has specific type terms.
+func (t *TypeParam) hasTerms() bool {
+	return t.iface().typeSet().hasTerms()
+}
+
+// is calls f with the specific type terms of t's constraint and reports whether
+// all calls to f returned true. If there are no specific terms, is
+// returns the result of f(nil).
 func (t *TypeParam) is(f func(*term) bool) bool {
 	return t.iface().typeSet().is(f)
 }
 
+// underIs calls f with the underlying types of the specific type terms
+// of t's constraint and reports whether all calls to f returned true.
+// If there are no specific terms, underIs returns the result of f(nil).
 func (t *TypeParam) underIs(f func(Type) bool) bool {
 	return t.iface().typeSet().underIs(f)
 }

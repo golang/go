@@ -834,7 +834,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var terms []*Term
-		if !tp.iface().typeSet().is(func(t *term) bool {
+		if !tp.is(func(t *term) bool {
+			if t == nil {
+				return false
+			}
 			if r := f(t.typ); r != nil {
 				terms = append(terms, NewTerm(t.tilde, r))
 				return true

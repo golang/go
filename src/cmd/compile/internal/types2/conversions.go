@@ -20,7 +20,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	var cause string
 	switch {
 	case constArg && isConstType(T):
-		// constant conversion
+		// constant conversion (T cannot be a type parameter)
 		switch t := asBasic(T); {
 		case representableConst(x.val, check, t, &x.val):
 			ok = true
@@ -94,8 +94,15 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
+	// determine type parameter operands with specific type terms
 	Vp, _ := under(x.typ).(*TypeParam)
 	Tp, _ := under(T).(*TypeParam)
+	if Vp != nil && !Vp.hasTerms() {
+		Vp = nil
+	}
+	if Tp != nil && !Tp.hasTerms() {
+		Tp = nil
+	}
 
 	errorf := func(format string, args ...interface{}) {
 		if check != nil && cause != nil {
@@ -107,7 +114,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		}
 	}
 
-	// generic cases
+	// generic cases with specific type terms
 	// (generic operands cannot be constants, so we can ignore x.val)
 	switch {
 	case Vp != nil && Tp != nil:
