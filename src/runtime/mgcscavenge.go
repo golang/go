@@ -272,13 +272,7 @@ func bgscavenge(c chan int) {
 
 	// idealFraction is the ideal % of overall application CPU time that we
 	// spend scavenging.
-	//
-	// TODO(mknyszek): Currently this is percent of one CPU (hence the division
-	// by gomaxprocs), but ideally this should be 1% of overall CPU time.
-	// Given a scalable memory allocator, it makes sense that the scavenger
-	// should scale with it; if you're allocating more frequently, then presumably
-	// you're also generating more work from the scavenger.
-	idealFraction := float64(scavengePercent) / 100.0 / float64(gomaxprocs)
+	idealFraction := float64(scavengePercent) / 100.0
 
 	// Input: fraction of CPU time used.
 	// Setpoint: idealFraction.
