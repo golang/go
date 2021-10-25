@@ -320,7 +320,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 			}
 		}
 		return tset.is(func(t *term) bool {
-			return w.isParameterized(t.typ)
+			return t != nil && w.isParameterized(t.typ)
 		})
 
 	case *Map:

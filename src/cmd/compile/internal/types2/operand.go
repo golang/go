@@ -273,6 +273,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		if t, ok := under(T).(*TypeParam); ok {
 			return t.is(func(t *term) bool {
 				// TODO(gri) this could probably be more efficient
+				if t == nil {
+					return false
+				}
 				if t.tilde {
 					// TODO(gri) We need to check assignability
 					//           for the underlying type of x.
