@@ -176,11 +176,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 func Stat(path string, st *Stat_t) (err error) {
 	var oldStat stat_freebsd11_t
 	if supportsABI(_ino64First) {
