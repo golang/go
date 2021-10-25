@@ -119,6 +119,17 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #endif
 
 #ifdef GOAMD64_v3
+#define NEED_V3_CHECK
+#endif
+
+// Excluding v4 checks on Darwin for now, see CL 285572.
+#ifdef GOAMD64_v4
+#ifdef GOOS_darwin
+#define NEED_V3_CHECK
+#endif
+#endif
+
+#ifdef NEED_V3_CHECK
 #define NEED_MAX_CPUID 0x80000001
 #define NEED_FEATURES_CX V3_FEATURES_CX
 #define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
@@ -127,11 +138,13 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #endif
 
 #ifdef GOAMD64_v4
+#ifndef GOOS_darwin
 #define NEED_MAX_CPUID 0x80000001
 #define NEED_FEATURES_CX V3_FEATURES_CX
 #define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
 #define NEED_EXT_FEATURES_BX V4_EXT_FEATURES_BX
 #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
+#endif
 #endif
 
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
