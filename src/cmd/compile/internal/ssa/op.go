@@ -34,6 +34,7 @@ type opInfo struct {
 	resultNotInArgs   bool      // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool      // this op clobbers flags register
 	call              bool      // is a function call
+	tailCall          bool      // is a tail call
 	nilCheck          bool      // this op is a nil check on arg0
 	faultOnNilArg0    bool      // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool      // this op will fault if arg1 is nil (and aux encodes a small offset)

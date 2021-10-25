@@ -63,6 +63,7 @@ type opData struct {
 	resultNotInArgs   bool   // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool   // this op clobbers flags register
 	call              bool   // is a function call
+	tailCall          bool   // is a tail call
 	nilCheck          bool   // this op is a nil check on arg0
 	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
@@ -307,6 +308,9 @@ func genOp() {
 			if v.call {
 				fmt.Fprintln(w, "call: true,")
 			}
+			if v.tailCall {
+				fmt.Fprintln(w, "tailCall: true,")
+			}
 			if v.nilCheck {
 				fmt.Fprintln(w, "nilCheck: true,")
 			}
@@ -405,6 +409,7 @@ func genOp() {
 
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+	fmt.Fprintln(w, "func (o Op) IsTailCall() bool { return opcodeTable[o].tailCall }")
 	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
 	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
 	fmt.Fprintln(w, "func (o Op) ResultInArg0() bool { return opcodeTable[o].resultInArg0 }")
