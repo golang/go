@@ -31,6 +31,8 @@ const (
 	F_DUPFD_CLOEXEC = 0
 	// AF_LOCAL doesn't exist on AIX
 	AF_LOCAL = AF_UNIX
+
+	_F_DUP2FD_CLOEXEC = 0
 )
 
 func (ts *StTimespec_t) Unix() (sec int64, nsec int64) {
