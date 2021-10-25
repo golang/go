@@ -1610,7 +1610,8 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	}
 
 	// Split into two additions, if possible.
-	if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
+	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
 		imm0 := ins.imm / 2
 		imm1 := ins.imm - imm0
 
