@@ -2285,32 +2285,56 @@ func (p *Package) setBuildInfo() {
 		Deps: deps,
 	}
 	appendSetting := func(key, value string) {
+		value = strings.ReplaceAll(value, "\n", " ") // make value safe
 		info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
 	}
 
 	// Add command-line flags relevant to the build.
 	// This is informational, not an exhaustive list.
+	// Please keep the list sorted.
 	if cfg.BuildBuildinfo && !p.Standard {
-		appendSetting("compiler", cfg.BuildContext.Compiler)
+		if cfg.BuildASan {
+			appendSetting("-asan", "true")
+		}
 		if BuildAsmflags.present {
-			appendSetting("asmflags", BuildAsmflags.String())
+			appendSetting("-asmflags", BuildAsmflags.String())
+		}
+		appendSetting("-compiler", cfg.BuildContext.Compiler)
+		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
+			appendSetting("-gccgoflags", BuildGccgoflags.String())
 		}
 		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
-			appendSetting("gcflags", BuildGcflags.String())
-		}
-		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
-			appendSetting("gccgoflags", BuildGccgoflags.String())
+			appendSetting("-gcflags", BuildGcflags.String())
 		}
 		if BuildLdflags.present {
-			appendSetting("ldflags", BuildLdflags.String())
+			appendSetting("-ldflags", BuildLdflags.String())
 		}
-		tags := append(cfg.BuildContext.BuildTags, cfg.BuildContext.ToolTags...)
-		appendSetting("tags", strings.Join(tags, ","))
-		appendSetting("CGO_ENABLED", strconv.FormatBool(cfg.BuildContext.CgoEnabled))
+		if cfg.BuildMSan {
+			appendSetting("-msan", "true")
+		}
+		if cfg.BuildRace {
+			appendSetting("-race", "true")
+		}
+		if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
+			appendSetting("-tags", strings.Join(tags, ","))
+		}
+		cgo := "0"
 		if cfg.BuildContext.CgoEnabled {
-			for _, name := range []string{"CGO_CPPFLAGS", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+			cgo = "1"
+		}
+		appendSetting("CGO_ENABLED", cgo)
+		if cfg.BuildContext.CgoEnabled {
+			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
 				appendSetting(name, cfg.Getenv(name))
 			}
+		}
+		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
+		if cfg.GOEXPERIMENT != "" {
+			appendSetting("GOEXPERIMENT", cfg.GOEXPERIMENT)
+		}
+		appendSetting("GOOS", cfg.BuildContext.GOOS)
+		if key, val := cfg.GetArchEnv(); key != "" && val != "" {
+			appendSetting(key, val)
 		}
 	}
 
@@ -2383,14 +2407,15 @@ func (p *Package) setBuildInfo() {
 		}
 		st := cached.Status
 
+		appendSetting("vcs", vcsCmd.Cmd)
 		if st.Revision != "" {
-			appendSetting(vcsCmd.Cmd+"revision", st.Revision)
+			appendSetting("vcs.revision", st.Revision)
 		}
 		if !st.CommitTime.IsZero() {
 			stamp := st.CommitTime.UTC().Format(time.RFC3339Nano)
-			appendSetting(vcsCmd.Cmd+"committime", stamp)
+			appendSetting("vcs.time", stamp)
 		}
-		appendSetting(vcsCmd.Cmd+"uncommitted", strconv.FormatBool(st.Uncommitted))
+		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
 	}
 
 	text, err := info.MarshalText()

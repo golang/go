@@ -11,7 +11,7 @@ cd repo/a
 # If there's no local repository, there's no VCS info.
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 # If there is a repository, but it can't be used for some reason,
@@ -40,9 +40,10 @@ exec git config user.name 'J.R. Gopher'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
-! stdout gitcommittime
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs=git$'
+stdout '^\tbuild\tvcs.modified=true$'
+! stdout vcs.revision
+! stdout vcs.time
 rm $GOBIN/a$GOEXE
 
 # Revision and commit time are tagged for repositories with commits.
@@ -50,22 +51,22 @@ exec git add -A
 exec git commit -m 'initial commit'
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgitrevision\t'
-stdout '^\tbuild\tgitcommittime\t'
-stdout '^\tbuild\tgituncommitted\tfalse$'
+stdout '^\tbuild\tvcs.revision='
+stdout '^\tbuild\tvcs.time='
+stdout '^\tbuild\tvcs.modified=false$'
 rm $GOBIN/a$GOEXE
 
 # Building with -buildvcs=false suppresses the info.
 go install -buildvcs=false
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 # An untracked file is shown as uncommitted, even if it isn't part of the build.
 cp ../../outside/empty.txt .
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs.modified=true$'
 rm empty.txt
 rm $GOBIN/a$GOEXE
 
@@ -73,7 +74,7 @@ rm $GOBIN/a$GOEXE
 cp ../../outside/empty.txt ../README
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tgituncommitted\ttrue$'
+stdout '^\tbuild\tvcs.modified=true$'
 exec git checkout ../README
 rm $GOBIN/a$GOEXE
 
@@ -81,14 +82,14 @@ rm $GOBIN/a$GOEXE
 # there should be no VCS info.
 go install example.com/cmd/a@v1.0.0
 go version -m $GOBIN/a$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/a$GOEXE
 
 go mod edit -require=example.com/c@v0.0.0
 go mod edit -replace=example.com/c@v0.0.0=../../outside/c
 go install example.com/c
 go version -m $GOBIN/c$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 rm $GOBIN/c$GOEXE
 exec git checkout go.mod
 
@@ -100,7 +101,7 @@ go mod edit -require=example.com/d@v0.0.0
 go mod edit -replace=example.com/d@v0.0.0=../../outside/d
 go install example.com/d
 go version -m $GOBIN/d$GOEXE
-! stdout gitrevision
+! stdout vcs.revision
 exec git checkout go.mod
 rm $GOBIN/d$GOEXE
 
