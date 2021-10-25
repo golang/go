@@ -5,6 +5,7 @@
 package errors
 
 import (
+	"fmt"
 	"internal/reflectlite"
 )
 
@@ -102,3 +103,8 @@ func As(err error, target interface{}) bool {
 }
 
 var errorType = reflectlite.TypeOf((*error)(nil)).Elem()
+
+// Wrap is laconic wrapper for fmt.Errorf with wrapped error
+func Wrap(err error, msg string) error {
+	return fmt.Errorf("%s: %w", msg, err)
+}
