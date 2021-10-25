@@ -146,11 +146,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return -1, ENOSYS
 }
 
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 /*
  * Exposed directly
  */
