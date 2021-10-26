@@ -51,7 +51,7 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/tools v0.1.8-0.20211011152358-18fa84021695
+# golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784
 ## explicit; go 1.17
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
