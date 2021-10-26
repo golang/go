@@ -75,28 +75,16 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 				continue
 			}
 
-			x := tlist[i]
-			pos := syntax.StartPos(x)
-			// We may not know the position of x if it was a typechecker-
-			// introduced ~T term for a type list entry T. Use the position
-			// of T instead.
-			// TODO(gri) remove this test once we don't support type lists anymore
-			if !pos.IsKnown() {
-				if op, _ := x.(*syntax.Operation); op != nil {
-					pos = syntax.StartPos(op.X)
-				}
-			}
-
 			u := under(t.typ)
 			f, _ := u.(*Interface)
 			if t.tilde {
 				if f != nil {
-					check.errorf(x, "invalid use of ~ (%s is an interface)", t.typ)
+					check.errorf(tlist[i], "invalid use of ~ (%s is an interface)", t.typ)
 					continue // don't report another error for t
 				}
 
 				if !Identical(u, t.typ) {
-					check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+					check.errorf(tlist[i], "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
 					continue // don't report another error for t
 				}
 			}
@@ -105,14 +93,14 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
 			// here, we must have at least two terms in the union.
 			if f != nil && !f.typeSet().IsTypeSet() {
-				check.errorf(pos, "cannot use %s in union (interface contains methods)", t)
+				check.errorf(tlist[i], "cannot use %s in union (interface contains methods)", t)
 				continue // don't report another error for t
 			}
 
 			// Report overlapping (non-disjoint) terms such as
 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
 			if j := overlappingTerm(terms[:i], t); j >= 0 {
-				check.softErrorf(pos, "overlapping terms %s and %s", t, terms[j])
+				check.softErrorf(tlist[i], "overlapping terms %s and %s", t, terms[j])
 			}
 		}
 	})
