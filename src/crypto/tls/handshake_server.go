@@ -792,8 +792,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 }
 
 // processCertsFromClient takes a chain of client certificates either from a
-// Certificates message or from a sessionState and verifies them. It returns
-// the public key of the leaf certificate.
+// Certificates message or from a sessionState and verifies them.
 func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	certificates := certificate.Certificate
 	certs := make([]*x509.Certificate, len(certificates))
