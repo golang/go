@@ -5,13 +5,17 @@
 package httpresponse_test
 
 import (
-	"testing"
-
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
+	"golang.org/x/tools/internal/typeparams"
+	"testing"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, httpresponse.Analyzer, "a")
+	tests := []string{"a"}
+	if true || typeparams.Enabled {
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, httpresponse.Analyzer, tests...)
 }
