@@ -828,8 +828,12 @@ func (e *encoded) Data() []uint32 {
 	// each semantic token needs five values
 	// (see Integer Encoding for Tokens in the LSP spec)
 	x := make([]uint32, 5*len(e.items))
+	var j int
 	for i := 0; i < len(e.items); i++ {
-		j := 5 * i
+		typ, ok := typeMap[e.items[i].typeStr]
+		if !ok {
+			continue // client doesn't want typeStr
+		}
 		if i == 0 {
 			x[0] = e.items[0].line
 		} else {
@@ -840,19 +844,16 @@ func (e *encoded) Data() []uint32 {
 			x[j+1] = e.items[i].start - e.items[i-1].start
 		}
 		x[j+2] = e.items[i].len
-		typ, ok := typeMap[e.items[i].typeStr]
-		if !ok {
-			continue // client doesn't want typeStr
-		}
 		x[j+3] = uint32(typ)
 		mask := 0
 		for _, s := range e.items[i].mods {
-			// modMpa[s] is 0 if the client doesn't want this modifier
+			// modMap[s] is 0 if the client doesn't want this modifier
 			mask |= modMap[s]
 		}
 		x[j+4] = uint32(mask)
+		j += 5
 	}
-	return x
+	return x[:j]
 }
 
 func (e *encoded) importSpec(d *ast.ImportSpec) {
