@@ -14,7 +14,7 @@ import (
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
 	tests := []string{"a"}
-	if true || typeparams.Enabled {
+	if typeparams.Enabled {
 		tests = append(tests, "typeparams")
 	}
 	analysistest.Run(t, testdata, httpresponse.Analyzer, tests...)
