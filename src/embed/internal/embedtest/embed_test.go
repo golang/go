@@ -89,11 +89,13 @@ func TestDir(t *testing.T) {
 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
 }
 
-//go:embed testdata
-var testHiddenDir embed.FS
+var (
+	//go:embed testdata
+	testHiddenDir embed.FS
 
-//go:embed testdata/*
-var testHiddenStar embed.FS
+	//go:embed testdata/*
+	testHiddenStar embed.FS
+)
 
 func TestHidden(t *testing.T) {
 	dir := testHiddenDir
