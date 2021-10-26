@@ -272,9 +272,6 @@ func (w *typeWriter) typ(typ Type) {
 		}
 		w.string(t.obj.name + subscript(t.id))
 
-	case *top:
-		w.error("⊤")
-
 	default:
 		// For externally defined implementations of Type.
 		// Note: In this case cycles won't be caught.
@@ -358,7 +355,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
 				} else {
 					// special case:
 					// append(s, "foo"...) leads to signature func([]byte, string...)
-					if t := asBasic(typ); t == nil || t.kind != String {
+					if t := toBasic(typ); t == nil || t.kind != String {
 						w.error("expected string type")
 						continue
 					}

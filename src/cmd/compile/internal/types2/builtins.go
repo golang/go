@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s := asSlice(S); s != nil {
+		if s, _ := singleUnder(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
 			check.errorf(x, invalidArg+"%s is not a slice", x)
@@ -291,8 +291,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		// the argument types must be of floating-point type
-		f := func(x Type) Type {
-			if t := asBasic(x); t != nil {
+		// (applyTypeFunc never calls f with a type parameter)
+		f := func(typ Type) Type {
+			assert(asTypeParam(typ) == nil)
+			if t := toBasic(typ); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -413,8 +415,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		// the argument must be of complex type
-		f := func(x Type) Type {
-			if t := asBasic(x); t != nil {
+		// (applyTypeFunc never calls f with a type parameter)
+		f := func(typ Type) Type {
+			assert(asTypeParam(typ) == nil)
+			if t := toBasic(typ); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -700,7 +704,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		typ := asPointer(x.typ)
+		typ := toPointer(x.typ)
 		if typ == nil {
 			check.errorf(x, invalidArg+"%s is not a pointer", x)
 			return
@@ -816,7 +820,7 @@ func hasVarSize(t Type) bool {
 		}
 	case *TypeParam:
 		return true
-	case *Named, *Union, *top:
+	case *Named, *Union:
 		unreachable()
 	}
 	return false
@@ -847,13 +851,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 			return nil
 		}
 
-		// TODO(gri) Would it be ok to return just the one type
-		//           if len(rtypes) == 1? What about top-level
-		//           uses of real() where the result is used to
-		//           define type and initialize a variable?
-
-		// Construct a suitable new type parameter for the sum type. The
-		// type param is placed in the current package so export/import
+		// Construct a suitable new type parameter for the result type.
+		// The type parameter is placed in the current package so export/import
 		// works as expected.
 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
@@ -885,7 +884,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := asArray(p.base); a != nil {
+		if a := toArray(p.base); a != nil {
 			return a
 		}
 	}
