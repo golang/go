@@ -33,8 +33,9 @@ func _[TP any](X TP) {
 	X = X
 }
 
-// "x's type V and T have identical underlying types and at least one
-// of V or T is not a defined type and neither is a type parameter"
+// "x's type V and T have identical underlying types
+// and at least one of V or T is not a named type."
+// (here a named type is a type with a name)
 func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
 	b = B // ERROR cannot use B .* as int value
 	a = A
@@ -69,7 +70,8 @@ func _[TP Interface](X TP) {
 	X = i // ERROR cannot use i .* as TP value
 }
 
-// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a defined type"
+// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a named type"
+// (here a named type is a type with a name)
 type (
 	_SendChan = chan<- int
 	_RecvChan = <-chan int

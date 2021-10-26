@@ -6,9 +6,10 @@
 
 package types2
 
-// isNamed reports whether typ has a name.
-// isNamed may be called with types that are not fully set up.
-func isNamed(typ Type) bool {
+// hasName reports whether typ has a name. This includes
+// predeclared types, defined types, and type parameters.
+// hasName may be called with types that are not fully set up.
+func hasName(typ Type) bool {
 	switch typ.(type) {
 	case *Basic, *Named, *TypeParam:
 		return true
