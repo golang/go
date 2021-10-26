@@ -56,7 +56,7 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 // are not fully set up.
 func isTyped(typ Type) bool {
 	// isTyped is called with types that are not fully
-	// set up. Must not call toBasic()!
+	// set up. Must not call asBasic()!
 	t, _ := typ.(*Basic)
 	return t == nil || t.info&IsUntyped == 0
 }
@@ -70,13 +70,13 @@ func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	// Type parameters are never const types.
-	t := toBasic(typ)
+	t := asBasic(typ)
 	return t != nil && t.info&IsConstType != 0
 }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	return toInterface(typ) != nil
+	return asInterface(typ) != nil
 }
 
 // Comparable reports whether values of type T are comparable.

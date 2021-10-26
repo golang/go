@@ -294,7 +294,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(asTypeParam(typ) == nil)
-			if t := toBasic(typ); t != nil {
+			if t := asBasic(typ); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -418,7 +418,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// (applyTypeFunc never calls f with a type parameter)
 		f := func(typ Type) Type {
 			assert(asTypeParam(typ) == nil)
-			if t := toBasic(typ); t != nil {
+			if t := asBasic(typ); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -704,7 +704,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		typ := toPointer(x.typ)
+		typ := asPointer(x.typ)
 		if typ == nil {
 			check.errorf(x, invalidArg+"%s is not a pointer", x)
 			return
@@ -884,7 +884,7 @@ func makeSig(res Type, args ...Type) *Signature {
 // otherwise it returns typ.
 func arrayPtrDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a := toArray(p.base); a != nil {
+		if a := asArray(p.base); a != nil {
 			return a
 		}
 	}

@@ -29,37 +29,37 @@ func under(t Type) Type {
 
 // Convenience converters
 
-func toBasic(t Type) *Basic {
+func asBasic(t Type) *Basic {
 	u, _ := under(t).(*Basic)
 	return u
 }
 
-func toArray(t Type) *Array {
+func asArray(t Type) *Array {
 	u, _ := under(t).(*Array)
 	return u
 }
 
-func toSlice(t Type) *Slice {
+func asSlice(t Type) *Slice {
 	u, _ := under(t).(*Slice)
 	return u
 }
 
-func toStruct(t Type) *Struct {
+func asStruct(t Type) *Struct {
 	u, _ := under(t).(*Struct)
 	return u
 }
 
-func toPointer(t Type) *Pointer {
+func asPointer(t Type) *Pointer {
 	u, _ := under(t).(*Pointer)
 	return u
 }
 
-func toSignature(t Type) *Signature {
+func asSignature(t Type) *Signature {
 	u, _ := under(t).(*Signature)
 	return u
 }
 
-func toInterface(t Type) *Interface {
+func asInterface(t Type) *Interface {
 	u, _ := under(t).(*Interface)
 	return u
 }
@@ -83,8 +83,8 @@ func asTypeParam(t Type) *TypeParam {
 
 // Exported for the compiler.
 
-func AsPointer(t Type) *Pointer     { return toPointer(t) }
+func AsPointer(t Type) *Pointer     { return asPointer(t) }
 func AsNamed(t Type) *Named         { return asNamed(t) }
-func AsSignature(t Type) *Signature { return toSignature(t) }
-func AsInterface(t Type) *Interface { return toInterface(t) }
+func AsSignature(t Type) *Signature { return asSignature(t) }
+func AsInterface(t Type) *Interface { return asInterface(t) }
 func AsTypeParam(t Type) *TypeParam { return asTypeParam(t) }
