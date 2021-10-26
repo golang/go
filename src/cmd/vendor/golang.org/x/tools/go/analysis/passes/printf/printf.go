@@ -834,8 +834,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 	}
 
 	// Could current arg implement fmt.Formatter?
+	// Skip check for the %w verb, which requires an error.
 	formatter := false
-	if state.argNum < len(call.Args) {
+	if v.typ != argError && state.argNum < len(call.Args) {
 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
 			formatter = isFormatter(tv.Type)
 		}
