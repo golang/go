@@ -14,6 +14,8 @@ package syscall
 
 import "unsafe"
 
+const _SYS_DUP3 = SYS_DUP3
+
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
