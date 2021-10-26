@@ -9,9 +9,15 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/cgocall"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, cgocall.Analyzer, "a", "b", "c")
+	tests := []string{"a", "b", "c"}
+	if typeparams.Enabled {
+		// and testdata/src/typeparams/typeparams.go when possible
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, cgocall.Analyzer, tests...)
 }
