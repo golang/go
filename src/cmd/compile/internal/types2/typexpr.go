@@ -144,11 +144,11 @@ func (check *Checker) typ(e syntax.Expr) Type {
 func (check *Checker) varType(e syntax.Expr) Type {
 	typ := check.definedType(e, nil)
 
-	// We don't want to call under() (via asInterface) or complete interfaces while we
+	// We don't want to call under() (via toInterface) or complete interfaces while we
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
-		if t := asInterface(typ); t != nil {
+		if t := toInterface(typ); t != nil {
 			pos := syntax.StartPos(e)
 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
 			if !tset.IsMethodSet() {
