@@ -99,8 +99,94 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		x.expr = e
 		return false
 
+	case *Interface:
+		// Note: The body of this 'if' statement is the same as the body
+		//       of the case for type parameters below. If we keep both
+		//       these branches we should factor out the code.
+		if tparamIsIface && isTypeParam(x.typ) {
+			// TODO(gri) report detailed failure cause for better error messages
+			var key, elem Type // key != nil: we must have all maps
+			mode := variable   // non-maps result mode
+			// TODO(gri) factor out closure and use it for non-typeparam cases as well
+			if typ.typeSet().underIs(func(u Type) bool {
+				l := int64(-1) // valid if >= 0
+				var k, e Type  // k is only set for maps
+				switch t := u.(type) {
+				case *Basic:
+					if isString(t) {
+						e = universeByte
+						mode = value
+					}
+				case *Array:
+					l = t.len
+					e = t.elem
+					if x.mode != variable {
+						mode = value
+					}
+				case *Pointer:
+					if t, _ := under(t.base).(*Array); t != nil {
+						l = t.len
+						e = t.elem
+					}
+				case *Slice:
+					e = t.elem
+				case *Map:
+					k = t.key
+					e = t.elem
+				}
+				if e == nil {
+					return false
+				}
+				if elem == nil {
+					// first type
+					length = l
+					key, elem = k, e
+					return true
+				}
+				// all map keys must be identical (incl. all nil)
+				// (that is, we cannot mix maps with other types)
+				if !Identical(key, k) {
+					return false
+				}
+				// all element types must be identical
+				if !Identical(elem, e) {
+					return false
+				}
+				// track the minimal length for arrays, if any
+				if l >= 0 && l < length {
+					length = l
+				}
+				return true
+			}) {
+				// For maps, the index expression must be assignable to the map key type.
+				if key != nil {
+					index := check.singleIndex(e)
+					if index == nil {
+						x.mode = invalid
+						return false
+					}
+					var k operand
+					check.expr(&k, index)
+					check.assignment(&k, key, "map index")
+					// ok to continue even if indexing failed - map element type is known
+					x.mode = mapindex
+					x.typ = elem
+					x.expr = e
+					return false
+				}
+
+				// no maps
+				valid = true
+				x.mode = mode
+				x.typ = elem
+			}
+		}
 	case *TypeParam:
+		// Note: The body of this case is the same as the body of the 'if'
+		//       statement in the interface case above. If we keep both
+		//       these branches we should factor out the code.
 		// TODO(gri) report detailed failure cause for better error messages
+		assert(!tparamIsIface)
 		var key, elem Type // key != nil: we must have all maps
 		mode := variable   // non-maps result mode
 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
