@@ -178,7 +178,28 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 				mode = value
 			}
 
+		case *Interface:
+			if tparamIsIface && isTypeParam(x.typ) {
+				if t.typeSet().underIs(func(t Type) bool {
+					switch t := arrayPtrDeref(t).(type) {
+					case *Basic:
+						if isString(t) && id == _Len {
+							return true
+						}
+					case *Array, *Slice, *Chan:
+						return true
+					case *Map:
+						if id == _Len {
+							return true
+						}
+					}
+					return false
+				}) {
+					mode = value
+				}
+			}
 		case *TypeParam:
+			assert(!tparamIsIface)
 			if t.underIs(func(t Type) bool {
 				switch t := arrayPtrDeref(t).(type) {
 				case *Basic:
@@ -788,16 +809,19 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 // hasVarSize reports if the size of type t is variable due to type parameters.
 func hasVarSize(t Type) bool {
-	switch t := under(t).(type) {
+	switch u := under(t).(type) {
 	case *Array:
-		return hasVarSize(t.elem)
+		return hasVarSize(u.elem)
 	case *Struct:
-		for _, f := range t.fields {
+		for _, f := range u.fields {
 			if hasVarSize(f.typ) {
 				return true
 			}
 		}
+	case *Interface:
+		return isTypeParam(t)
 	case *TypeParam:
+		assert(!tparamIsIface)
 		return true
 	case *Named, *Union:
 		unreachable()

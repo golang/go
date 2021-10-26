@@ -268,6 +268,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 		var terms termlist
 		switch u := under(typ).(type) {
 		case *Interface:
+			// For now we don't permit type parameters as constraints.
+			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
 			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
@@ -367,6 +369,8 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet 
 		var terms termlist
 		switch u := under(t.typ).(type) {
 		case *Interface:
+			// For now we don't permit type parameters as constraints.
+			assert(!isTypeParam(t.typ))
 			terms = computeInterfaceTypeSet(check, pos, u).terms
 		default:
 			if t.typ == Typ[Invalid] {

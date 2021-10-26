@@ -67,6 +67,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
 	case *Slice, *Interface:
 		// Multiword data structures are effectively structs
 		// in which each element has size WordSize.
+		assert(!tparamIsIface || !isTypeParam(T))
 		return s.WordSize
 	case *Basic:
 		// Strings are like slices and interfaces.
