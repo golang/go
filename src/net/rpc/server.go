@@ -555,18 +555,17 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 	}
 
 	// Decode the argument value.
-	argIsValue := false // if true, need to indirect before calling.
-	if mtype.ArgType.Kind() == reflect.Ptr {
+	argType := mtype.ArgType.Kind() // if true, need to indirect before calling.
+	if argType == reflect.Ptr {
 		argv = reflect.New(mtype.ArgType.Elem())
 	} else {
 		argv = reflect.New(mtype.ArgType)
-		argIsValue = true
 	}
 	// argv guaranteed to be a pointer now.
 	if err = codec.ReadRequestBody(argv.Interface()); err != nil {
 		return
 	}
-	if argIsValue {
+	if argType != reflect.Ptr {
 		argv = argv.Elem()
 	}
 
