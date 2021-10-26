@@ -4,6 +4,8 @@
 
 package syscall
 
+const _SYS_DUP3 = 0
+
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
 }
