@@ -97,9 +97,10 @@
 //
 //     // "Automatic" declaration of each typeparam
 //     type TypeParam struct {
-//         Tag  byte // 'P'
-//         Pos  Pos
-//         Bound typeOff
+//         Tag        byte // 'P'
+//         Pos        Pos
+//         Implicit   bool
+//         Constraint typeOff
 //     }
 //
 // typeOff means a uvarint that either indicates a predeclared type,
@@ -108,7 +109,7 @@
 // types list (see predeclared in bexport.go for order). Otherwise,
 // subtracting predeclReserved yields the offset of a type descriptor.
 //
-// Value means a type and type-specific value. See
+// Value means a type, kind, and type-specific value. See
 // (*exportWriter).value for details.
 //
 //
