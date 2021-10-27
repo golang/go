@@ -438,7 +438,7 @@ func AssignableTo(V, T Type) bool {
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x; if check == nil, cause can be nil
+	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.
