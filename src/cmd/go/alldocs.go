@@ -114,7 +114,7 @@
 // 		The default is GOMAXPROCS, normally the number of CPUs available.
 // 	-race
 // 		enable data race detection.
-// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
 // 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 // 	-msan
 // 		enable interoperation with memory sanitizer.
