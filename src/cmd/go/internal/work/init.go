@@ -246,16 +246,20 @@ func buildModeInit() {
 		}
 		ldBuildmode = "pie"
 	case "shared":
-		pkgsFilter = pkgsNotMain
-		if gccgo {
-			codegenArg = "-fPIC"
-		} else {
-			codegenArg = "-dynlink"
+		if cfg.Goos == "linux" {
+			switch cfg.Goarch {
+			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+				// -buildmode=shared was supported on these platforms at one point, but
+				// never really worked in module mode.
+				// Support was officially dropped as of Go 1.18.
+				// (See https://golang.org/issue/47788.)
+				base.Fatalf("-buildmode=shared no longer supported as of Go 1.18")
+
+				// TODO(#47788): Remove supporting code for -buildmode=shared.
+				// (For the Go 1.18 release, we will keep most of the code around but
+				// disabled to avoid merge conflicts in case we need to revert quickly.)
+			}
 		}
-		if cfg.BuildO != "" {
-			base.Fatalf("-buildmode=shared and -o not supported together")
-		}
-		ldBuildmode = "shared"
 	case "plugin":
 		pkgsFilter = oneMainPkg
 		if gccgo {
@@ -274,6 +278,15 @@ func buildModeInit() {
 	}
 
 	if cfg.BuildLinkshared {
+		if cfg.Goos == "linux" {
+			switch cfg.Goarch {
+			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+				base.Fatalf("-linkshared no longer supported as of Go 1.18")
+				// TODO(#47788): Remove supporting code for linkshared.
+				// (For the Go 1.18 release, we will keep most of the code around but
+				// disabled to avoid merge conflicts in case we need to revert quickly.)
+			}
+		}
 		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		}
