@@ -65,7 +65,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Cont
 			}
 		}
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
 		named.targs = NewTypeList(targs)
 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
 			return expandNamed(ctxt, n, pos)
