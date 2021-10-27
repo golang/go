@@ -25,7 +25,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	exec "golang.org/x/sys/execabs"
 	"io"
 	"log"
 	"net/http"
@@ -38,8 +37,9 @@ import (
 	"runtime"
 	"strings"
 
+	exec "golang.org/x/sys/execabs"
+
 	"golang.org/x/tools/godoc"
-	"golang.org/x/tools/godoc/analysis"
 	"golang.org/x/tools/godoc/static"
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/gatefs"
@@ -58,8 +58,6 @@ var (
 
 	// file-based index
 	writeIndex = flag.Bool("write_index", false, "write index to a file; the file name must be specified with -index_files")
-
-	analysisFlag = flag.String("analysis", "", `comma-separated list of analyses to perform when in GOPATH mode (supported: type, pointer). See https://golang.org/lib/godoc/analysis/help.html`)
 
 	// network
 	httpAddr = flag.String("http", defaultAddr, "HTTP service address")
@@ -208,12 +206,6 @@ func main() {
 	if goModFile != "" {
 		fmt.Printf("using module mode; GOMOD=%s\n", goModFile)
 
-		if *analysisFlag != "" {
-			fmt.Fprintln(os.Stderr, "The -analysis flag is supported only in GOPATH mode at this time.")
-			fmt.Fprintln(os.Stderr, "See https://golang.org/issue/34473.")
-			usage()
-		}
-
 		// Detect whether to use vendor mode or not.
 		mainMod, vendorEnabled, err := gocommand.VendorEnabled(context.Background(), gocommand.Invocation{}, &gocommand.Runner{})
 		if err != nil {
@@ -263,20 +255,6 @@ func main() {
 		// Bind $GOPATH trees into Go root.
 		for _, p := range filepath.SplitList(build.Default.GOPATH) {
 			fs.Bind("/src", gatefs.New(vfs.OS(p), fsGate), "/src", vfs.BindAfter)
-		}
-	}
-
-	var typeAnalysis, pointerAnalysis bool
-	if *analysisFlag != "" {
-		for _, a := range strings.Split(*analysisFlag, ",") {
-			switch a {
-			case "type":
-				typeAnalysis = true
-			case "pointer":
-				pointerAnalysis = true
-			default:
-				log.Fatalf("unknown analysis: %s", a)
-			}
 		}
 	}
 
@@ -374,11 +352,6 @@ func main() {
 	// Initialize search index.
 	if *indexEnabled {
 		go corpus.RunIndexer()
-	}
-
-	// Start type/pointer analysis.
-	if typeAnalysis || pointerAnalysis {
-		go analysis.Run(pointerAnalysis, &corpus.Analysis)
 	}
 
 	// Start http server.

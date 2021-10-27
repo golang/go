@@ -5,11 +5,9 @@
 package main_test
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"go/build"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -477,137 +475,5 @@ func TestNoMainModule(t *testing.T) {
 	}
 	if strings.Contains(stderr.String(), "go mod download") {
 		t.Errorf("stderr contains 'go mod download', is that intentional?\nstderr=%q", stderr.String())
-	}
-}
-
-// Basic integration test for godoc -analysis=type (via HTTP interface).
-func TestTypeAnalysis(t *testing.T) {
-	bin, cleanup := buildGodoc(t)
-	defer cleanup()
-	testTypeAnalysis(t, packagestest.GOPATH, bin)
-	// TODO(golang.org/issue/34473): Add support for type, pointer
-	// analysis in module mode, then enable its test coverage here.
-}
-func testTypeAnalysis(t *testing.T, x packagestest.Exporter, bin string) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9 (issue #11974)") // see comment re: Plan 9 below
-	}
-
-	// Write a fake GOROOT/GOPATH.
-	// TODO(golang.org/issue/34473): This test uses import paths without a dot in first
-	// path element. This is not viable in module mode; import paths will need to change.
-	e := packagestest.Export(t, x, []packagestest.Module{
-		{
-			Name: "app",
-			Files: map[string]interface{}{
-				"main.go": `
-package main
-import "lib"
-func main() { print(lib.V) }
-`,
-			},
-		},
-		{
-			Name: "lib",
-			Files: map[string]interface{}{
-				"lib.go": `
-package lib
-type T struct{}
-const C = 3
-var V T
-func (T) F() int { return C }
-`,
-			},
-		},
-	})
-	goroot := filepath.Join(e.Temp(), "goroot")
-	if err := os.Mkdir(goroot, 0755); err != nil {
-		t.Fatalf("os.Mkdir(%q) failed: %v", goroot, err)
-	}
-	defer e.Cleanup()
-
-	// Start the server.
-	addr := serverAddress(t)
-	cmd := exec.Command(bin, fmt.Sprintf("-http=%s", addr), "-analysis=type")
-	cmd.Dir = e.Config.Dir
-	// Point to an empty GOROOT directory to speed things up
-	// by not doing type analysis for the entire real GOROOT.
-	// TODO(golang.org/issue/34473): This test optimization may not be viable in module mode.
-	cmd.Env = append(e.Config.Env, fmt.Sprintf("GOROOT=%s", goroot))
-	cmd.Stdout = os.Stderr
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd.Args[0] = "godoc"
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start godoc: %s", err)
-	}
-	defer killAndWait(cmd)
-	waitForServerReady(t, cmd, addr)
-
-	// Wait for type analysis to complete.
-	reader := bufio.NewReader(stderr)
-	for {
-		s, err := reader.ReadString('\n') // on Plan 9 this fails
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Fprint(os.Stderr, s)
-		if strings.Contains(s, "Type analysis complete.") {
-			break
-		}
-	}
-	go io.Copy(os.Stderr, reader)
-
-	t0 := time.Now()
-
-	// Make an HTTP request and check for a regular expression match.
-	// The patterns are very crude checks that basic type information
-	// has been annotated onto the source view.
-tryagain:
-	for _, test := range []struct{ url, pattern string }{
-		{"/src/lib/lib.go", "L2.*package .*Package docs for lib.*/lib"},
-		{"/src/lib/lib.go", "L3.*type .*type info for T.*struct"},
-		{"/src/lib/lib.go", "L5.*var V .*type T struct"},
-		{"/src/lib/lib.go", "L6.*func .*type T struct.*T.*return .*const C untyped int.*C"},
-
-		{"/src/app/main.go", "L2.*package .*Package docs for app"},
-		{"/src/app/main.go", "L3.*import .*Package docs for lib.*lib"},
-		{"/src/app/main.go", "L4.*func main.*package lib.*lib.*var lib.V lib.T.*V"},
-	} {
-		url := fmt.Sprintf("http://%s%s", addr, test.url)
-		resp, err := http.Get(url)
-		if err != nil {
-			t.Errorf("GET %s failed: %s", url, err)
-			continue
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			t.Errorf("GET %s: failed to read body: %s (response: %v)", url, err, resp)
-			continue
-		}
-
-		if !bytes.Contains(body, []byte("Static analysis features")) {
-			// Type analysis results usually become available within
-			// ~4ms after godoc startup (for this input on my machine).
-			if elapsed := time.Since(t0); elapsed > 500*time.Millisecond {
-				t.Fatalf("type analysis results still unavailable after %s", elapsed)
-			}
-			time.Sleep(10 * time.Millisecond)
-			goto tryagain
-		}
-
-		match, err := regexp.Match(test.pattern, body)
-		if err != nil {
-			t.Errorf("regexp.Match(%q) failed: %s", test.pattern, err)
-			continue
-		}
-		if !match {
-			// This is a really ugly failure message.
-			t.Errorf("GET %s: body doesn't match %q, got:\n%s",
-				url, test.pattern, string(body))
-		}
 	}
 }
