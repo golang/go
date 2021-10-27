@@ -604,9 +604,12 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 		named.underlying = Typ[Invalid]
 	}
 
-	// If the RHS is a type parameter, it must be from this type declaration.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TypeParams().list(), tpar) < 0 {
-		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
+	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
+	// We can look directly at named.underlying because even if it is still a *Named
+	// type (underlying not fully resolved yet) it cannot become a type parameter due
+	// to this very restriction.
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
+		check.error(tdecl.Type, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
 }

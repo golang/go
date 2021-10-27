@@ -353,15 +353,16 @@ func _() {
 
 // the previous example was extracted from
 
-func f12[T interface{m() T}]() {}
-
-type A[T any] T
-
-func (a A[T]) m() A[T]
-
-func _[T any]() {
-	f12[A[T]]()
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// func f12[T interface{m() T}]() {}
+// 
+// type A[T any] T
+// 
+// func (a A[T]) m() A[T]
+// 
+// func _[T any]() {
+// 	f12[A[T]]()
+// }
 
 // method expressions
 

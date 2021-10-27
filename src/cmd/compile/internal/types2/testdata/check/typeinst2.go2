@@ -87,25 +87,27 @@ type NumericAbs[T any] interface {
 
 func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
 
-type OrderedAbs[T any] T
-
-func (a OrderedAbs[T]) Abs() OrderedAbs[T]
-
-func OrderedAbsDifference[T any](x T) {
-	AbsDifference(OrderedAbs[T](x))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type OrderedAbs[T any] T
+// 
+// func (a OrderedAbs[T]) Abs() OrderedAbs[T]
+// 
+// func OrderedAbsDifference[T any](x T) {
+// 	AbsDifference(OrderedAbs[T](x))
+// }
 
 // same code, reduced to essence
 
 func g[P interface{ m() P }](x P) { panic(0) }
 
-type T4[P any] P
-
-func (_ T4[P]) m() T4[P]
-
-func _[Q any](x Q) {
-	g(T4[Q](x))
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type T4[P any] P
+// 
+// func (_ T4[P]) m() T4[P]
+// 
+// func _[Q any](x Q) {
+// 	g(T4[Q](x))
+// }
 
 // Another test case that caused  problems in the past
 
