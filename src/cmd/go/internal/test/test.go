@@ -36,6 +36,8 @@ import (
 	"cmd/go/internal/work"
 	"cmd/internal/sys"
 	"cmd/internal/test2json"
+
+	"golang.org/x/mod/module"
 )
 
 // Break init loop.
@@ -248,11 +250,12 @@ control the execution of any test:
 
 	-fuzz regexp
 	    Run the fuzz target matching the regular expression. When specified,
-	    the command line argument must match exactly one package, and regexp
-	    must match exactly one fuzz target within that package. After tests,
-	    benchmarks, seed corpora of other fuzz targets, and examples have
-	    completed, the matching target will be fuzzed. See the Fuzzing section
-	    of the testing package documentation for details.
+	    the command line argument must match exactly one package within the
+	    main module, and regexp must match exactly one fuzz target within
+	    that package. After tests, benchmarks, seed corpora of other fuzz
+	    targets, and examples have completed, the matching target will be
+	    fuzzed. See the Fuzzing section of the testing package documentation
+	    for details.
 
 	-fuzztime t
 	    Run enough iterations of the fuzz test to take t, specified as a
@@ -658,6 +661,38 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(pkgs) != 1 {
 			base.Fatalf("cannot use -fuzz flag with multiple packages")
+		}
+
+		// Reject the '-fuzz' flag if the package is outside the main module.
+		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
+		// the module cache (or permanently alter the behavior of std tests for all
+		// users) by writing the failing input to the package's testdata directory.
+		// (See https://golang.org/issue/48495 and test_fuzz_modcache.txt.)
+		mainMods := modload.MainModules
+		if m := pkgs[0].Module; m != nil && m.Path != "" {
+			if !mainMods.Contains(m.Path) {
+				base.Fatalf("cannot use -fuzz flag on package outside the main module")
+			}
+		} else if pkgs[0].Standard && modload.Enabled() {
+			// Because packages in 'std' and 'cmd' are part of the standard library,
+			// they are only treated as part of a module in 'go mod' subcommands and
+			// 'go get'. However, we still don't want to accidentally corrupt their
+			// testdata during fuzzing, nor do we want to fail with surprising errors
+			// if GOROOT isn't writable (as is often the case for Go toolchains
+			// installed through package managers).
+			//
+			// If the user is requesting to fuzz a standard-library package, ensure
+			// that they are in the same module as that package (just like when
+			// fuzzing any other package).
+			if strings.HasPrefix(pkgs[0].ImportPath, "cmd/") {
+				if !mainMods.Contains("cmd") || !mainMods.InGorootSrc(module.Version{Path: "cmd"}) {
+					base.Fatalf("cannot use -fuzz flag on package outside the main module")
+				}
+			} else {
+				if !mainMods.Contains("std") || !mainMods.InGorootSrc(module.Version{Path: "std"}) {
+					base.Fatalf("cannot use -fuzz flag on package outside the main module")
+				}
+			}
 		}
 	}
 	if testProfile() != "" && len(pkgs) != 1 {
