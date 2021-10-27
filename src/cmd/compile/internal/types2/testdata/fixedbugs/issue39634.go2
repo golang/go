@@ -74,9 +74,10 @@ func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
 type Z21 /* ERROR illegal cycle */ interface{ Z21 }
 func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
 
-// crash 24
-type T24[P any] P
-func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// // crash 24
+// type T24[P any] P
+// func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
 
 // crash 25
 type T25[A any] int

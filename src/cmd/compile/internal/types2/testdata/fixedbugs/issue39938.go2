@@ -8,7 +8,7 @@
 
 package p
 
-type E0[P any] P
+type E0[P any] []P
 type E1[P any] *P
 type E2[P any] struct{ _ P }
 type E3[P any] struct{ _ *P }
