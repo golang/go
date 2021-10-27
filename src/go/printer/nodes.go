@@ -471,17 +471,9 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				p.expr(f.Type)
 			} else { // interface
 				if len(f.Names) > 0 {
-					// type list type or method
-					name := f.Names[0] // "type" or method name
+					name := f.Names[0] // method name
 					p.expr(name)
-					if name.Name == "type" {
-						// type list type
-						p.print(blank)
-						p.expr(f.Type)
-					} else {
-						// method
-						p.signature(f.Type.(*ast.FuncType)) // don't print "func"
-					}
+					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
 				} else {
 					// embedded interface
 					p.expr(f.Type)
@@ -568,24 +560,10 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			p.setComment(f.Doc)
 			p.recordLine(&line)
 			if name != nil {
-				// type list type or method
-				if name.Name == "type" {
-					// type list type
-					if name == prev {
-						// type is part of a list of types
-						p.print(token.COMMA, blank)
-					} else {
-						// type starts a new list of types
-						p.print(name, blank)
-					}
-					p.expr(f.Type)
-					prev = name
-				} else {
-					// method
-					p.expr(name)
-					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
-					prev = nil
-				}
+				// method
+				p.expr(name)
+				p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+				prev = nil
 			} else {
 				// embedded interface
 				p.expr(f.Type)

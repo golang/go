@@ -281,8 +281,8 @@ func _() {
 
 // Type parameters are never const types, i.e., it's
 // not possible to declare a constant of type parameter type.
-// (If a type list contains just a single const type, we could
-// allow it, but such type lists don't make much sense in the
+// (If a type set contains just a single const type, we could
+// allow it, but such type sets don't make much sense in the
 // first place.)
 func _[T interface {~int|~float64}]() {
 	// not valid

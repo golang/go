@@ -1128,18 +1128,6 @@ parseElements:
 			p.expectSemi()
 			comment := p.lineComment
 			list = append(list, &ast.Field{Type: typ, Comment: comment})
-		case p.tok == token.TYPE && p.allowGenerics():
-			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
-
-			// all types in a type list share the same field name "type"
-			// (since type is a keyword, a Go program cannot have that field name)
-			name := []*ast.Ident{{NamePos: p.pos, Name: "type"}}
-			p.next()
-			// add each type as a field named "type"
-			for _, typ := range p.parseTypeList() {
-				list = append(list, &ast.Field{Names: name, Type: typ})
-			}
-			p.expectSemi()
 		case p.allowGenerics():
 			if t := p.tryIdentOrType(); t != nil {
 				typ := p.embeddedElem(t)

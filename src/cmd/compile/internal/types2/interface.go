@@ -116,7 +116,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		}
 		// f.Name != nil
 
-		// We have a method with name f.Name, or a type of a type list (f.Name.Value == "type").
+		// We have a method with name f.Name.
 		name := f.Name.Value
 		if name == "_" {
 			if check.conf.CompilerErrorMessages {

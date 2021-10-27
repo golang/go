@@ -6,18 +6,6 @@
 
 package p
 
-type (
-	// Type lists are processed as unions but an error is reported.
-	// TODO(gri) remove this once the parser doesn't accept type lists anymore.
-	_ interface{
-		type /* ERROR use generalized embedding syntax instead of a type list */ int
-	}
-	_ interface{
-		type /* ERROR use generalized embedding syntax instead of a type list */ int
-		type float32
-	}
-)
-
 type MyInt int
 
 type (

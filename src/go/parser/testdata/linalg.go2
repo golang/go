@@ -9,10 +9,10 @@ import "math"
 // Numeric is type bound that matches any numeric type.
 // It would likely be in a constraints package in the standard library.
 type Numeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		complex64, complex128
+	~int|~int8|~int16|~int32|~int64|
+		~uint|~uint8|~uint16|~uint32|~uint64|~uintptr|
+		~float32|~float64|
+		~complex64|~complex128
 }
 
 func DotProduct[T Numeric](s1, s2 []T) T {
@@ -42,14 +42,14 @@ func AbsDifference[T NumericAbs](a, b T) T {
 
 // OrderedNumeric is a type bound that matches numeric types that support the < operator.
 type OrderedNumeric interface {
-	type int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64
+	~int|~int8|~int16|~int32|~int64|
+		~uint|~uint8|~uint16|~uint32|~uint64|~uintptr|
+		~float32|~float64
 }
 
 // Complex is a type bound that matches the two complex types, which do not have a < operator.
 type Complex interface {
-	type complex64, complex128
+	~complex64|~complex128
 }
 
 // OrderedAbs is a helper type that defines an Abs method for
