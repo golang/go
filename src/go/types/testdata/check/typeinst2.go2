@@ -159,10 +159,7 @@ type _ interface {
 	~rune
 }
 
-// Interface type lists may contain each type at most once.
-// (If there are multiple lists, we assume the author intended
-// for them to be all in a single list, and we report the error
-// as well.)
+// Type sets may contain each type at most once.
 type _ interface {
 	~int|~ /* ERROR overlapping terms ~int */ int
 	~int|int /* ERROR overlapping terms int */
@@ -173,7 +170,7 @@ type _ interface {
 	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct {f int}
 }
 
-// Interface type lists can contain any type, incl. *Named types.
+// Interface term lists can contain any type, incl. *Named types.
 // Verify that we use the underlying type to compute the operational type.
 type MyInt int
 func add1[T interface{MyInt}](x T) T {
@@ -185,9 +182,9 @@ func double[T interface{MyInt|MyString}](x T) T {
 	return x + x
 }
 
-// Embedding of interfaces with type lists leads to interfaces
-// with type lists that are the intersection of the embedded
-// type lists.
+// Embedding of interfaces with term lists leads to interfaces
+// with term lists that are the intersection of the embedded
+// term lists.
 
 type E0 interface {
 	~int | ~bool | ~string

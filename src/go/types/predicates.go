@@ -45,7 +45,7 @@ func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
 func isString(typ Type) bool   { return is(typ, IsString) }
 
 // Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
-// produce the expected result because a type list that contains both an integer
+// produce the expected result because a type set that contains both an integer
 // and a floating-point type is neither (all) integers, nor (all) floats.
 // Use isIntegerOrFloat instead.
 func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
