@@ -1582,3 +1582,37 @@ func TestH12_WebSocketUpgrade(t *testing.T) {
 		},
 	}.run(t)
 }
+
+func TestIdentityTransferEncoding_h1(t *testing.T) { testIdentityTransferEncoding(t, h1Mode) }
+func TestIdentityTransferEncoding_h2(t *testing.T) { testIdentityTransferEncoding(t, h2Mode) }
+
+func testIdentityTransferEncoding(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+
+	const body = "body"
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		gotBody, _ := io.ReadAll(r.Body)
+		if got, want := string(gotBody), body; got != want {
+			t.Errorf("got request body = %q; want %q", got, want)
+		}
+		w.Header().Set("Transfer-Encoding", "identity")
+		w.WriteHeader(StatusOK)
+		w.(Flusher).Flush()
+		io.WriteString(w, body)
+	}))
+	defer cst.close()
+	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader(body))
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	gotBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(gotBody), body; got != want {
+		t.Errorf("got response body = %q; want %q", got, want)
+	}
+}
