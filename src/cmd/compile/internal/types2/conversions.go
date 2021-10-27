@@ -178,12 +178,12 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 		return true
 	}
 
-	// "V an integer or a slice of bytes or runes and T is a string type"
+	// "V is an integer or a slice of bytes or runes and T is a string type"
 	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
 		return true
 	}
 
-	// "V a string and T is a slice of bytes or runes"
+	// "V is a string and T is a slice of bytes or runes"
 	if isString(V) && isBytesOrRunes(Tu) {
 		return true
 	}

@@ -159,17 +159,14 @@ func operandString(x *operand, qf Qualifier) string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			var intro string
-			var tpar *TypeParam
 			if isGeneric(x.typ) {
 				intro = " of parameterized type "
-			} else if tpar = asTypeParam(x.typ); tpar != nil {
-				intro = " of type parameter "
 			} else {
 				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
-			if tpar != nil {
+			if tpar := asTypeParam(x.typ); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
 			}
@@ -284,6 +281,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	if Ti, ok := Tu.(*Interface); ok {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
+				// TODO(gri) the error messages here should follow the style in Checker.typeAssertion (factor!)
 				if wrongType != nil {
 					if Identical(m.typ, wrongType.typ) {
 						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
