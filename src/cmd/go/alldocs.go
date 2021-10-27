@@ -2785,11 +2785,12 @@
 //
 // 	-fuzz regexp
 // 	    Run the fuzz target matching the regular expression. When specified,
-// 	    the command line argument must match exactly one package, and regexp
-// 	    must match exactly one fuzz target within that package. After tests,
-// 	    benchmarks, seed corpora of other fuzz targets, and examples have
-// 	    completed, the matching target will be fuzzed. See the Fuzzing section
-// 	    of the testing package documentation for details.
+// 	    the command line argument must match exactly one package within the
+// 	    main module, and regexp must match exactly one fuzz target within
+// 	    that package. After tests, benchmarks, seed corpora of other fuzz
+// 	    targets, and examples have completed, the matching target will be
+// 	    fuzzed. See the Fuzzing section of the testing package documentation
+// 	    for details.
 //
 // 	-fuzztime t
 // 	    Run enough iterations of the fuzz test to take t, specified as a
