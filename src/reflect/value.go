@@ -1934,7 +1934,7 @@ func (v Value) OverflowUint(x uint64) bool {
 // element of the slice. If the slice is nil the returned value
 // is 0.  If the slice is empty but non-nil the return value is non-zero.
 //
-// Deprecated: use uintptr(Value.UnsafePointer()) to get the equivalent result.
+// It's preferred to use uintptr(Value.UnsafePointer()) to get the equivalent result.
 func (v Value) Pointer() uintptr {
 	k := v.kind()
 	switch k {
@@ -2479,7 +2479,7 @@ func (v Value) Uint() uint64 {
 // It is for advanced clients that also import the "unsafe" package.
 // It panics if v is not addressable.
 //
-// Deprecated: use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.
+// It's preferred to use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.
 func (v Value) UnsafeAddr() uintptr {
 	if v.typ == nil {
 		panic(&ValueError{"reflect.Value.UnsafeAddr", Invalid})
