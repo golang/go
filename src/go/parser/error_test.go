@@ -23,6 +23,7 @@
 package parser
 
 import (
+	"flag"
 	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
@@ -32,6 +33,8 @@ import (
 	"strings"
 	"testing"
 )
+
+var traceErrs = flag.Bool("trace_errs", false, "whether to enable tracing for error tests")
 
 const testdata = "testdata"
 
@@ -191,6 +194,9 @@ func TestErrors(t *testing.T) {
 				mode := DeclarationErrors | AllErrors
 				if !strings.HasSuffix(name, ".go2") {
 					mode |= typeparams.DisallowParsing
+				}
+				if *traceErrs {
+					mode |= Trace
 				}
 				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
 			}
