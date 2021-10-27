@@ -534,7 +534,7 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	// No runtime errors like "runtime: unexpected return pc".
 	nowant := "runtime: "
 	if strings.Contains(got, nowant) {
-		t.Errorf("unexpectedly saw %q in output", want)
+		t.Errorf("unexpectedly saw %q in output", nowant)
 	}
 }
 
