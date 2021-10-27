@@ -380,7 +380,7 @@ var drawTests = []drawTest{
 	{"cmykAlphaSrc", vgradMagenta(), fillAlpha(192), Src, color.RGBA{145, 67, 145, 192}},
 	{"cmykNil", vgradMagenta(), nil, Over, color.RGBA{192, 89, 192, 255}},
 	{"cmykNilSrc", vgradMagenta(), nil, Src, color.RGBA{192, 89, 192, 255}},
-	// Variable mask and variable source.
+	// Variable mask and uniform source.
 	// At (x, y) == (8, 8):
 	// The destination pixel is {136, 0, 0, 255}.
 	// The source pixel is {0, 0, 255, 255}.
@@ -397,9 +397,14 @@ var drawTests = []drawTest{
 		Over, color.RGBA{81, 0, 102, 255}},
 	{"genericSrcSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
 		Src, color.RGBA{0, 0, 102, 102}},
-	// The source pixel is {0, 48, 0, 90}.
-	{"rgbaVariableMaskOver", vgradGreen(255), vgradAlpha(192), Over, color.RGBA{81, 54, 0, 255}},
-	// The source pixel is {136} in Gray-space, which is {136, 136, 136, 255} in RGBA-space.
+	// Variable mask and variable source.
+	// At (x, y) == (8, 8):
+	// The destination pixel is {136, 0, 0, 255}.
+	// The source pixel is:
+	//   - {0, 48, 0, 90}.
+	//   - {136} in Gray-space, which is {136, 136, 136, 255} in RGBA-space.
+	// The mask pixel's alpha is 102, or 40%.
+	{"rgbaVariableMaskOver", vgradGreen(90), vgradAlpha(192), Over, color.RGBA{117, 19, 0, 255}},
 	{"grayVariableMaskOver", vgradGray(), vgradAlpha(192), Over, color.RGBA{136, 54, 54, 255}},
 }
 

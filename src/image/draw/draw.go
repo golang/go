@@ -166,6 +166,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
 				case *image.Gray:
 					drawGrayMaskOver(dst0, r, src0, sp, mask0, mp)
 					return
+				// Case order matters. The next case (image.RGBA64Image) is an
+				// interface type that the concrete types above also implement.
 				case image.RGBA64Image:
 					drawRGBA64ImageMaskOver(dst0, r, src0, sp, mask0, mp)
 					return
