@@ -269,8 +269,6 @@ const (
 )
 
 // Ptr is the old name for the Pointer kind.
-//
-// Deprecated: use the new spelling, Pointer.
 const Ptr = Pointer
 
 // tflag is used by an rtype to signal what extra type information is
@@ -1425,9 +1423,9 @@ func TypeOf(i interface{}) Type {
 var ptrMap sync.Map // map[*rtype]*ptrType
 
 // PtrTo returns the pointer type with element t.
-// For example, if t represents type Foo, PointerTo(t) represents *Foo.
+// For example, if t represents type Foo, PtrTo(t) represents *Foo.
 //
-// Deprecated: use PointerTo. PtrTo is the old spelling.
+// PtrTo is the old spelling of PointerTo.
 // The two functions behave identically.
 func PtrTo(t Type) Type { return PointerTo(t) }
 
