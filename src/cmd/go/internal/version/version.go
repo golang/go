@@ -151,6 +151,7 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", file, err)
 			}
 		}
+		return
 	}
 
 	fmt.Printf("%s: %s\n", file, bi.GoVersion)
