@@ -1257,7 +1257,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			goto Error
 		}
 
-		switch utyp := singleUnder(base).(type) {
+		switch utyp := structure(base).(type) {
 		case *Struct:
 			if len(e.ElemList) == 0 {
 				break

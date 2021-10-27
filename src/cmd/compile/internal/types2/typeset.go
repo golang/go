@@ -104,8 +104,8 @@ func (s *_TypeSet) String() string {
 // hasTerms reports whether the type set has specific type terms.
 func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
 
-// structuralType returns the single type in s if there is exactly one; otherwise the result is nil.
-func (s *_TypeSet) structuralType() Type { return s.terms.structuralType() }
+// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
+func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
 
 // includes reports whether t ∈ s.
 func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }

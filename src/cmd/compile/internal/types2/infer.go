@@ -363,7 +363,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
 func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
 	assert(len(tparams) >= len(targs) && len(targs) > 0)
 
-	// Setup bidirectional unification between those structural bounds
+	// Setup bidirectional unification between constraints
 	// and the corresponding type arguments (which may be nil!).
 	u := newUnifier(false)
 	u.x.init(tparams)
@@ -376,11 +376,16 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 		}
 	}
 
-	// Unify type parameters with their structural constraints, if any.
+	// If a constraint has a structural type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
 		typ := tpar
-		sbound := typ.structuralType()
+		sbound := structure(tpar)
 		if sbound != nil {
+			// If the structural type is the underlying type of a single
+			// defined type in the constraint, use that defined type instead.
+			if named, _ := tpar.singleType().(*Named); named != nil {
+				sbound = named
+			}
 			if !u.unify(typ, sbound) {
 				check.errorf(tpar.obj, "%s does not match %s", tpar.obj, sbound)
 				return nil, 0
@@ -389,7 +394,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 	}
 
 	// u.x.types() now contains the incoming type arguments plus any additional type
-	// arguments for which there were structural constraints. The newly inferred non-
+	// arguments which were inferred from structural types. The newly inferred non-
 	// nil entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
