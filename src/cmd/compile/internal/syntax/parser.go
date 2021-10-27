@@ -588,19 +588,24 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Name = p.name()
 	if p.tok == _Lbrack {
 		// array/slice or generic type
+		// name "[" ...
 		pos := p.pos()
 		p.next()
 		switch p.tok {
 		case _Rbrack:
+			// name "[" "]" ...
 			p.next()
 			d.Type = p.sliceType(pos)
 		case _Name:
 			// array or generic type
+			// name "[" name ...
 			p.xnest++
+			// TODO(gri) p.expr may consume an opening "[" when it shouldn't (issue #49175)
 			x := p.expr()
 			p.xnest--
 			if name0, ok := x.(*Name); p.allowGenerics() && ok && p.tok != _Rbrack {
 				// generic type
+				// name "[" name ...
 				d.TParamList = p.paramList(name0, _Rbrack, true)
 				pos := p.pos()
 				if p.gotAssign() {
@@ -609,12 +614,14 @@ func (p *parser) typeDecl(group *Group) Decl {
 				d.Type = p.typeOrNil()
 			} else {
 				// x is the array length expression
+				// name "[" x ...
 				if debug && x == nil {
 					panic("length expression is nil")
 				}
 				d.Type = p.arrayType(pos, x)
 			}
 		default:
+			// name "[" ...
 			d.Type = p.arrayType(pos, nil)
 		}
 	} else {
@@ -1816,7 +1823,7 @@ func (p *parser) embeddedTerm() Expr {
 // ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 	if trace {
-		defer p.trace("paramDecl")()
+		defer p.trace("paramDeclOrNil")()
 	}
 
 	// type set notation is ok in type parameter lists
@@ -1848,6 +1855,11 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 			} else {
 				// name "[" n "]" E
 				f.Name = name
+			}
+			if typeSetsOk && p.tok == _Operator && p.op == Or {
+				// name "[" ... "]" "|" ...
+				// name "[" n "]" E "|" ...
+				f = p.embeddedElem(f)
 			}
 			return f
 		}
