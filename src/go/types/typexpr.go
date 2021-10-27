@@ -210,8 +210,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 			if T != nil {
 				// Calling under() here may lead to endless instantiations.
 				// Test case: type T[P any] *T[P]
-				// TODO(gri) investigate if that's a bug or to be expected
-				// (see also analogous comment in Checker.instantiate).
 				under = safeUnderlying(T)
 			}
 			if T == under {

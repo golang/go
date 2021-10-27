@@ -221,7 +221,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	check.later(func() {
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
 		ityp.check = nil
-	})
+	}).describef(iface, "compute type set for %s", ityp)
 }
 
 func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
