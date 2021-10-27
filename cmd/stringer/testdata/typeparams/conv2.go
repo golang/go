@@ -10,16 +10,20 @@ package main
 
 import "fmt"
 
-type Other[T interface{ ~int | ~uint }] T // Imagine this is in another package.
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type Other[T interface{ ~int | ~uint }] T // Imagine this is in another package.
+type Other int
 
 const (
-	alpha Other[int] = iota
+	// alpha Other[int] = iota
+	alpha Other = iota
 	beta
 	gamma
 	delta
 )
 
-type Conv2 Other[int]
+// type Conv2 Other[int]
+type Conv2 Other
 
 const (
 	Alpha = Conv2(alpha)

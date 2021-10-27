@@ -11,9 +11,12 @@ package main
 
 import "fmt"
 
-type Likeint[T interface{ ~int | ~uint8 }] T
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// type Likeint[T interface{ ~int | ~uint8 }] T
+type Likeint int
 
-type Prime2 Likeint[int]
+// type Prime2 Likeint[int]
+type Prime2 Likeint
 
 const (
 	p2  Prime2 = 2
