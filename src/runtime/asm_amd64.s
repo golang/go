@@ -95,16 +95,16 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 // Define a list of AMD64 microarchitecture level features
 // https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
 
-                          // SSE3     SSSE3    CMPXCHNG16 SSE4.1    SSE4.2    POPCNT
-#define V2_FEATURES_CX      (1 << 0 | 1 << 9 | 1 << 13  | 1 << 19 | 1 << 20 | 1 << 23)
-                          // LAHF/SAHF
-#define V2_EXT_FEATURES_CX  (1 << 0)
-                                           // FMA       MOVBE     OSXSAVE   AVX       F16C
-#define V3_FEATURES_CX      (V2_FEATURES_CX | 1 << 12 | 1 << 22 | 1 << 27 | 1 << 28 | 1 << 29)
-                                               // ABM (FOR LZNCT)
-#define V3_EXT_FEATURES_CX  (V2_EXT_FEATURES_CX | 1 << 5)
-                          // BMI1     AVX2     BMI2
-#define V3_EXT_FEATURES_BX  (1 << 3 | 1 << 5 | 1 << 8)
+                     // SSE3     SSSE3    CMPXCHNG16 SSE4.1    SSE4.2    POPCNT
+#define V2_FEATURES_CX (1 << 0 | 1 << 9 | 1 << 13  | 1 << 19 | 1 << 20 | 1 << 23)
+                         // LAHF/SAHF
+#define V2_EXT_FEATURES_CX (1 << 0)
+                                      // FMA       MOVBE     OSXSAVE   AVX       F16C
+#define V3_FEATURES_CX (V2_FEATURES_CX | 1 << 12 | 1 << 22 | 1 << 27 | 1 << 28 | 1 << 29)
+                                              // ABM (FOR LZNCT)
+#define V3_EXT_FEATURES_CX (V2_EXT_FEATURES_CX | 1 << 5)
+                         // BMI1     AVX2     BMI2
+#define V3_EXT_FEATURES_BX (1 << 3 | 1 << 5 | 1 << 8)
                        // XMM      YMM
 #define V3_OS_SUPPORT_AX (1 << 1 | 1 << 2)
                                               // AVX512F   AVX512DQ  AVX512CD  AVX512BW  AVX512VL
@@ -147,6 +147,20 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #endif
 #endif
 
+#ifdef GOAMD64_v1
+#define SKIP_GOAMD64_CHECK
+#endif
+
+#ifndef GOAMD64_v1
+#ifndef GOAMD64_v2
+#ifndef GOAMD64_v3
+#ifndef GOAMD64_v4
+#define SKIP_GOAMD64_CHECK
+#endif
+#endif
+#endif
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// copy arguments forward on an even stack
 	MOVQ	DI, AX		// argc
@@ -170,7 +184,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	CPUID
 	MOVL	AX, SI
 	CMPL	AX, $0
-#ifdef GOAMD64_v1
+#ifdef SKIP_GOAMD64_CHECK
 	JE nocpuinfo
 #else
 	JNE	has_cpuinfo
