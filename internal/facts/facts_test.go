@@ -7,10 +7,13 @@ package facts_test
 import (
 	"encoding/gob"
 	"fmt"
+	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
@@ -75,10 +78,63 @@ func TestEncodeDecode(t *testing.T) {
 				{"c", []lookup{
 					{"b.B", "myFact(b.B)"},
 					{"b.F", "myFact(b.F)"},
-					//{"b.F(nil)()", "myFact(a.T)"}, // no fact; TODO(adonovan): investigate
+					{"b.F(nil)()", "myFact(a.T)"},
 					{"C", "myFact(c.C)"},
 					{"C{}[0]", "myFact(b.B)"},
 					{"<-(C{}[0])", "no fact"}, // object but no fact (we never "analyze" a2)
+				}},
+			},
+		},
+		{
+			name: "underlying",
+			// c->b->a
+			// c does not import a directly or use any of its types, but it does use
+			// the types within a indirectly. c.q has the type a.a so package a should
+			// be included by importMap.
+			files: map[string]string{
+				"a/a.go": `package a; type a int; type T *a`,
+				"b/b.go": `package b; import "a"; type B a.T`,
+				"c/c.go": `package c; import "b"; type C b.B; var q = *C(nil)`,
+			},
+			plookups: []pkgLookups{
+				{"a", []lookup{
+					{"a", "myFact(a.a)"},
+					{"T", "myFact(a.T)"},
+				}},
+				{"b", []lookup{
+					{"B", "myFact(b.B)"},
+					{"B(nil)", "myFact(b.B)"},
+					{"*(B(nil))", "myFact(a.a)"},
+				}},
+				{"c", []lookup{
+					{"C", "myFact(c.C)"},
+					{"C(nil)", "myFact(c.C)"},
+					{"*C(nil)", "myFact(a.a)"},
+					{"q", "myFact(a.a)"},
+				}},
+			},
+		},
+		{
+			name: "methods",
+			// c->b->a
+			// c does not import a directly or use any of its types, but it does use
+			// the types within a indirectly via a method.
+			files: map[string]string{
+				"a/a.go": `package a; type T int`,
+				"b/b.go": `package b; import "a"; type B struct{}; func (_ B) M() a.T { return 0 }`,
+				"c/c.go": `package c; import "b"; var C b.B`,
+			},
+			plookups: []pkgLookups{
+				{"a", []lookup{
+					{"T", "myFact(a.T)"},
+				}},
+				{"b", []lookup{
+					{"B{}", "myFact(b.B)"},
+					{"B{}.M()", "myFact(a.T)"},
+				}},
+				{"c", []lookup{
+					{"C", "myFact(b.B)"},
+					{"C.M()", "myFact(a.T)"},
 				}},
 			},
 		},
@@ -155,7 +211,7 @@ func TestEncodeDecode(t *testing.T) {
 				  var G3 N3[a.T3]
 				  var G4 N4[a.T4]
 				  var G5 N5[t5]
-		
+
 				  func F6[T a.T6]() T { var x T; return x }
 				  `,
 				"c/c.go": `package c; import "b";
@@ -382,3 +438,127 @@ func TestFactFilter(t *testing.T) {
 		t.Errorf("AllObjectFacts: got %v, want %v", got, wantObjFacts)
 	}
 }
+
+// TestMalformed checks that facts can be encoded and decoded *despite*
+// types.Config.Check returning an error. Importing facts is expected to
+// happen when Analyzers have RunDespiteErrors set to true. So this
+// needs to robust, e.g. no infinite loops.
+func TestMalformed(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("type parameters are not enabled")
+	}
+	var findPkg func(*types.Package, string) *types.Package
+	findPkg = func(p *types.Package, name string) *types.Package {
+		if p.Name() == name {
+			return p
+		}
+		for _, o := range p.Imports() {
+			if f := findPkg(o, name); f != nil {
+				return f
+			}
+		}
+		return nil
+	}
+
+	type pkgTest struct {
+		content string
+		err     string            // if non-empty, expected substring of err.Error() from conf.Check().
+		wants   map[string]string // package path to expected name
+	}
+	tests := []struct {
+		name string
+		pkgs []pkgTest
+	}{
+		{
+			name: "initialization-cycle",
+			pkgs: []pkgTest{
+				{
+					content: `package a; type N[T any] struct { F *N[N[T]] }`,
+					err:     "instantiation cycle:",
+					wants:   map[string]string{"a": "myFact(a.[N])", "b": "no package", "c": "no package"},
+				},
+				{
+					content: `package b; import "a"; type B a.N[int]`,
+					wants:   map[string]string{"a": "myFact(a.[N])", "b": "myFact(b.[B])", "c": "no package"},
+				},
+				{
+					content: `package c; import "b"; var C b.B`,
+					wants:   map[string]string{"a": "myFact(a.[N])", "b": "myFact(b.[B])", "c": "myFact(c.[C])"},
+				},
+			},
+		},
+	}
+
+	for i := range tests {
+		test := tests[i]
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			// setup for test wide variables.
+			packages := make(map[string]*types.Package)
+			conf := types.Config{
+				Importer: closure(packages),
+				Error:    func(err error) {}, // do not stop on first type checking error
+			}
+			fset := token.NewFileSet()
+			factmap := make(map[string][]byte)
+			read := func(imp *types.Package) ([]byte, error) { return factmap[imp.Path()], nil }
+
+			// Processes the pkgs in order. For package, export a package fact,
+			// and use this fact to verify which package facts are reachable via Decode.
+			// We allow for packages to have type checking errors.
+			for i, pkgTest := range test.pkgs {
+				// parse
+				f, err := parser.ParseFile(fset, fmt.Sprintf("%d.go", i), pkgTest.content, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				// typecheck
+				pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
+				var got string
+				if err != nil {
+					got = err.Error()
+				}
+				if !strings.Contains(got, pkgTest.err) {
+					t.Fatalf("%s: type checking error %q did not match pattern %q", pkg.Path(), err.Error(), pkgTest.err)
+				}
+				packages[pkg.Path()] = pkg
+
+				// decode facts
+				facts, err := facts.NewDecoder(pkg).Decode(read)
+				if err != nil {
+					t.Fatalf("Decode failed: %v", err)
+				}
+
+				// export facts
+				fact := &myFact{fmt.Sprintf("%s.%s", pkg.Name(), pkg.Scope().Names())}
+				facts.ExportPackageFact(fact)
+
+				// import facts
+				for other, want := range pkgTest.wants {
+					fact := new(myFact)
+					var got string
+					if found := findPkg(pkg, other); found == nil {
+						got = "no package"
+					} else if facts.ImportPackageFact(found, fact) {
+						got = fact.String()
+					} else {
+						got = "no fact"
+					}
+					if got != want {
+						t.Errorf("in %s, ImportPackageFact(%s, %T) = %s, want %s",
+							pkg.Path(), other, fact, got, want)
+					}
+				}
+
+				// encode facts
+				factmap[pkg.Path()] = facts.Encode()
+			}
+		})
+	}
+}
+
+type closure map[string]*types.Package
+
+func (c closure) Import(path string) (*types.Package, error) { return c[path], nil }
