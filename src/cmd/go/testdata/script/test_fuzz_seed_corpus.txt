@@ -1,10 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
-# Instrumentation not supported on other archs.
-# See #14565.
-[!amd64] [!arm64] skip
-
+[!fuzz-instrumented] skip
 [short] skip
 env GOCACHE=$WORK/cache
 

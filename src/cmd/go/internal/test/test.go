@@ -31,9 +31,10 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
-	"cmd/go/internal/str"
+	"cmd/internal/sys"
 	"cmd/internal/test2json"
 )
 
@@ -651,8 +652,13 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
-	if testFuzz != "" && len(pkgs) != 1 {
-		base.Fatalf("cannot use -fuzz flag with multiple packages")
+	if testFuzz != "" {
+		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
+			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
+		}
+		if len(pkgs) != 1 {
+			base.Fatalf("cannot use -fuzz flag with multiple packages")
+		}
 	}
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())

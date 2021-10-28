@@ -45,6 +45,29 @@ func ASanSupported(goos, goarch string) bool {
 	}
 }
 
+// FuzzSupported reports whether goos/goarch supports fuzzing
+// ('go test -fuzz=.').
+func FuzzSupported(goos, goarch string) bool {
+	switch goos {
+	case "darwin", "linux", "windows":
+		return true
+	default:
+		return false
+	}
+}
+
+// FuzzInstrumented reports whether fuzzing on goos/goarch uses coverage
+// instrumentation. (FuzzInstrumented implies FuzzSupported.)
+func FuzzInstrumented(goos, goarch string) bool {
+	switch goarch {
+	case "amd64", "arm64":
+		// TODO(#14565): support more architectures.
+		return FuzzSupported(goos, goarch)
+	default:
+		return false
+	}
+}
+
 // MustLinkExternal reports whether goos/goarch requires external linking.
 // (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
 func MustLinkExternal(goos, goarch string) bool {

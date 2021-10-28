@@ -1,8 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
-# Instrumentation only supported on 64-bit architectures.
-[!amd64] [!arm64] skip
+[!fuzz-instrumented] skip
 
 # Test that when an interesting value is discovered (one that expands coverage),
 # the fuzzing engine minimizes it before writing it to the cache.

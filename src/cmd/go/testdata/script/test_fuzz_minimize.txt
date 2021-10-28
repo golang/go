@@ -1,6 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
+[!fuzz] skip
 [short] skip
 
 # We clean the fuzz cache during this test. Don't clean the user's cache.

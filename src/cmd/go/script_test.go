@@ -357,6 +357,10 @@ Script:
 				ok = canASan
 			case "race":
 				ok = canRace
+			case "fuzz":
+				ok = canFuzz
+			case "fuzz-instrumented":
+				ok = fuzzInstrumented
 			case "net":
 				ok = testenv.HasExternalNetwork()
 			case "link":
