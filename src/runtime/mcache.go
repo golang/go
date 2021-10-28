@@ -206,10 +206,7 @@ func (c *mcache) refill(spc spanClass) {
 }
 
 // allocLarge allocates a span for a large object.
-// The boolean result indicates whether the span is known-zeroed.
-// If it did not need to be zeroed, it may not have been zeroed;
-// but if it came directly from the OS, it is already zeroed.
-func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, bool) {
+func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
 	if size+_PageSize < size {
 		throw("out of memory")
 	}
@@ -224,7 +221,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, b
 	deductSweepCredit(npages*_PageSize, npages)
 
 	spc := makeSpanClass(0, noscan)
-	s, isZeroed := mheap_.alloc(npages, spc, needzero)
+	s := mheap_.alloc(npages, spc)
 	if s == nil {
 		throw("out of memory")
 	}
@@ -248,7 +245,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, b
 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
 	s.limit = s.base() + size
 	heapBitsForAddr(s.base()).initSpan(s)
-	return s, isZeroed
+	return s
 }
 
 func (c *mcache) releaseAll() {

@@ -980,8 +980,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
 	// In some cases block zeroing can profitably (for latency reduction purposes)
-	// be delayed till preemption is possible; isZeroed tracks that state.
-	isZeroed := true
+	// be delayed till preemption is possible; delayedZeroing tracks that state.
+	delayedZeroing := false
 	if size <= maxSmallSize {
 		if noscan && size < maxTinySize {
 			// Tiny allocator.
@@ -1079,11 +1079,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		shouldhelpgc = true
 		// For large allocations, keep track of zeroed state so that
 		// bulk zeroing can be happen later in a preemptible context.
-		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
+		span = c.allocLarge(size, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
-		x = unsafe.Pointer(span.base())
 		size = span.elemsize
+		x = unsafe.Pointer(span.base())
+		if needzero && span.needzero != 0 {
+			if noscan {
+				delayedZeroing = true
+			} else {
+				memclrNoHeapPointers(x, size)
+				// We've in theory cleared almost the whole span here,
+				// and could take the extra step of actually clearing
+				// the whole thing. However, don't. Any GC bits for the
+				// uncleared parts will be zero, and it's just going to
+				// be needzero = 1 once freed anyway.
+			}
+		}
 	}
 
 	var scanSize uintptr
@@ -1139,7 +1151,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	// Pointerfree data can be zeroed late in a context where preemption can occur.
 	// x will keep the memory alive.
-	if !isZeroed && needzero {
+	if delayedZeroing {
+		if !noscan {
+			throw("delayed zeroing on data that may contain pointers")
+		}
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
 	}
 
