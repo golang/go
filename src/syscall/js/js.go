@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build js && wasm
-// +build js,wasm
 
 // Package js gives access to the WebAssembly host environment when using the js/wasm architecture.
 // Its API is based on JavaScript semantics.

@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build asan && linux && (arm64 || amd64)
-// +build asan
-// +build linux
-// +build arm64 amd64
 
 package asan
 
