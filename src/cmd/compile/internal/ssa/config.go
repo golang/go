@@ -296,6 +296,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersRISCV64[:]
 		c.gpRegMask = gpRegMaskRISCV64
 		c.fpRegMask = fpRegMaskRISCV64
+		// c.intParamRegs = paramIntRegRISCV64
+		// c.floatParamRegs = paramFloatRegRISCV64
 		c.FPReg = framepointerRegRISCV64
 		c.hasGReg = true
 	case "wasm":
