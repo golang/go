@@ -358,6 +358,16 @@ func (e *Env) ExecuteCommand(params *protocol.ExecuteCommandParams, result inter
 	}
 }
 
+// WorkspaceSymbol calls workspace/symbol
+func (e *Env) WorkspaceSymbol(sym string) []protocol.SymbolInformation {
+	e.T.Helper()
+	ans, err := e.Editor.Symbols(e.Ctx, sym)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return ans
+}
+
 // References calls textDocument/references for the given path at the given
 // position.
 func (e *Env) References(path string, pos fake.Pos) []protocol.Location {

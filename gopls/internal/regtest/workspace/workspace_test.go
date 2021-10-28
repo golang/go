@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	. "golang.org/x/tools/internal/lsp/regtest"
+	"golang.org/x/tools/internal/lsp/source"
 
 	"golang.org/x/tools/internal/lsp/command"
 	"golang.org/x/tools/internal/lsp/fake"
@@ -131,6 +133,38 @@ func TestReferences(t *testing.T) {
 				want := 3
 				if got := len(locations); got != want {
 					t.Fatalf("expected %v locations, got %v", want, got)
+				}
+			})
+		})
+	}
+}
+
+// make sure that directory filters work
+func TestFilters(t *testing.T) {
+	for _, tt := range []struct {
+		name, rootPath string
+	}{
+		{
+			name:     "module root",
+			rootPath: "pkg",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := []RunOption{ProxyFiles(workspaceProxy)}
+			if tt.rootPath != "" {
+				opts = append(opts, WorkspaceFolders(tt.rootPath))
+			}
+			f := func(o *source.Options) {
+				o.DirectoryFilters = append(o.DirectoryFilters, "-inner")
+			}
+			opts = append(opts, Options(f))
+			WithOptions(opts...).Run(t, workspaceModule, func(t *testing.T, env *Env) {
+				syms := env.WorkspaceSymbol("Hi")
+				sort.Slice(syms, func(i, j int) bool { return syms[i].ContainerName < syms[j].ContainerName })
+				for i, s := range syms {
+					if strings.Contains(s.ContainerName, "/inner") {
+						t.Errorf("%s %v %s %s %d\n", s.Name, s.Kind, s.ContainerName, tt.name, i)
+					}
 				}
 			})
 		})

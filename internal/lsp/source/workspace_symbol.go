@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/types"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -316,7 +317,14 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 			return nil, err
 		}
 
+		filters := v.Options().DirectoryFilters
+		folder := filepath.ToSlash(v.Folder().Filename())
 		for uri, syms := range psyms {
+			norm := filepath.ToSlash(uri.Filename())
+			nm := strings.TrimPrefix(norm, folder)
+			if FiltersDisallow(nm, filters) {
+				continue
+			}
 			// Only scan each file once.
 			if _, ok := files[uri]; ok {
 				continue
@@ -362,6 +370,28 @@ func (sc *symbolCollector) walk(ctx context.Context, views []View) ([]protocol.S
 		}
 	}
 	return sc.results(), nil
+}
+
+// FilterDisallow is code from the body of cache.pathExcludedByFilter in cache/view.go
+// Exporting and using that function would cause an import cycle.
+// Moving it here and exporting it would leave behind view_test.go.
+// (This code is exported and used in the body of cache.pathExcludedByFilter)
+func FiltersDisallow(path string, filters []string) bool {
+	path = strings.TrimPrefix(path, "/")
+	var excluded bool
+	for _, filter := range filters {
+		op, prefix := filter[0], filter[1:]
+		// Non-empty prefixes have to be precise directory matches.
+		if prefix != "" {
+			prefix = prefix + "/"
+			path = path + "/"
+		}
+		if !strings.HasPrefix(path, prefix) {
+			continue
+		}
+		excluded = op == '-'
+	}
+	return excluded
 }
 
 // symbolFile holds symbol information for a single file.

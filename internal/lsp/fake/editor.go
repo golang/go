@@ -1068,6 +1068,16 @@ func (e *Editor) AcceptCompletion(ctx context.Context, path string, pos Pos, ite
 	}, item.AdditionalTextEdits...)))
 }
 
+// Symbols executes a workspace/symbols request on the server.
+func (e *Editor) Symbols(ctx context.Context, sym string) ([]protocol.SymbolInformation, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	params := &protocol.WorkspaceSymbolParams{Query: sym}
+	ans, err := e.Server.Symbol(ctx, params)
+	return ans, err
+}
+
 // References executes a reference request on the server.
 func (e *Editor) References(ctx context.Context, path string, pos Pos) ([]protocol.Location, error) {
 	if e.Server == nil {
