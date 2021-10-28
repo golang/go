@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // TODO(adonovan): make this analysis modular: export a mustUseResult
@@ -68,6 +69,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		if pass.TypesInfo.Types[fun].IsType() {
 			return // a conversion, not a call
+		}
+
+		index := typeparams.GetIndexExprData(fun)
+		if index != nil {
+			fun = index.X // If this is generic function or method call, skip the instantiation arguments
 		}
 
 		selector, ok := fun.(*ast.SelectorExpr)
