@@ -1,6 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
+[!fuzz] skip
 [short] skip
 
 # There are no seed values, so 'go test' should finish quickly.

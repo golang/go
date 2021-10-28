@@ -1,6 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
+[!fuzz] skip
 [short] skip
 
 # When running seed inputs, T.Parallel should let multiple inputs run in

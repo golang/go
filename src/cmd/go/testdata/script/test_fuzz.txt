@@ -1,5 +1,4 @@
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
+[!fuzz] skip
 
 # Test that running a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.
