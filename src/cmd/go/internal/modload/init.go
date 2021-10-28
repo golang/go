@@ -624,8 +624,10 @@ func LoadModFile(ctx context.Context) *Requirements {
 		if err != nil {
 			base.Fatalf("reading go.work: %v", err)
 		}
-		_ = TODOWorkspaces("Support falling back to individual module go.sum " +
-			"files for sums not in the workspace sum file.")
+		for _, modRoot := range modRoots {
+			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
+			modfetch.WorkspaceGoSumFiles = append(modfetch.WorkspaceGoSumFiles, sumFile)
+		}
 		modfetch.GoSumFile = workFilePath + ".sum"
 	} else if modRoots == nil {
 		// We're in module mode, but not inside a module.
