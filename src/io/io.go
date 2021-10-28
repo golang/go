@@ -279,7 +279,7 @@ type ByteWriter interface {
 
 // RuneReader is the interface that wraps the ReadRune method.
 //
-// ReadRune reads a single UTF-8 encoded Unicode character
+// ReadRune reads a single encoded Unicode character
 // and returns the rune and its size in bytes. If no character is
 // available, err will be set.
 type RuneReader interface {
