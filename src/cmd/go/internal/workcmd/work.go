@@ -25,5 +25,6 @@ which workspaces are a part.
 		cmdEdit,
 		cmdInit,
 		cmdSync,
+		cmdUse,
 	},
 }

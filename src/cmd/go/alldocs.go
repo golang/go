@@ -1388,6 +1388,7 @@
 // 	edit        edit go.work from tools or scripts
 // 	init        initialize workspace file
 // 	sync        sync workspace build list to modules
+// 	use         add modules to workspace file
 //
 // Use "go help work <command>" for more information about a command.
 //
@@ -1486,6 +1487,18 @@
 // 	go work sync [moddirs]
 //
 // go work sync
+//
+//
+// Add modules to workspace file
+//
+// Usage:
+//
+// 	go work use [-r] [moddirs]
+//
+// Use provides a command-line interface for adding directories,
+// optionally recursively, to a go.work file.
+//
+// The -r flag searches recursively for modules in the argument directories.
 //
 //
 // Compile and run Go program
