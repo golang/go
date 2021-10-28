@@ -767,6 +767,16 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	return true
 }
 
+// Structure is exported for the compiler.
+
+// If typ is a type parameter, Structure returns the single underlying
+// type of all types in the corresponding type constraint if it exists,
+// or nil otherwise. If typ is not a type parameter, Structure returns
+// the underlying type.
+func Structure(typ Type) Type {
+	return structure(typ)
+}
+
 // If typ is a type parameter, structure returns the single underlying
 // type of all types in the corresponding type constraint if it exists,
 // or nil otherwise. If typ is not a type parameter, structure returns
