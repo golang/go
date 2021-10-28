@@ -80,6 +80,11 @@
 //	var content embed.FS
 //
 // The difference is that ‘image/*’ embeds ‘image/.tempfile’ while ‘image’ does not.
+// Neither embeds ‘image/dir/.tempfile’.
+//
+// If a pattern begins with the prefix ‘all:’, then the rule for walking directories is changed
+// to include those files beginning with ‘.’ or ‘_’. For example, ‘all:image’ embeds
+// both ‘image/.tempfile’ and ‘image/dir/.tempfile’.
 //
 // The //go:embed directive can be used with both exported and unexported variables,
 // depending on whether the package wants to make the data available to other packages.

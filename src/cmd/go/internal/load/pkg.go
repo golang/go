@@ -2017,13 +2017,18 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 	for _, pattern = range patterns {
 		pid++
 
+		glob := pattern
+		all := strings.HasPrefix(pattern, "all:")
+		if all {
+			glob = pattern[len("all:"):]
+		}
 		// Check pattern is valid for //go:embed.
-		if _, err := path.Match(pattern, ""); err != nil || !validEmbedPattern(pattern) {
+		if _, err := path.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
 			return nil, nil, fmt.Errorf("invalid pattern syntax")
 		}
 
 		// Glob to find matches.
-		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(pattern))
+		match, err := fsys.Glob(pkgdir + string(filepath.Separator) + filepath.FromSlash(glob))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2086,7 +2091,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 					}
 					rel := filepath.ToSlash(path[len(pkgdir)+1:])
 					name := info.Name()
-					if path != file && (isBadEmbedName(name) || name[0] == '.' || name[0] == '_') {
+					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
 						// Ignore bad names, assuming they won't go into modules.
 						// Also avoid hidden files that user may not know about.
 						// See golang.org/issue/42328.
