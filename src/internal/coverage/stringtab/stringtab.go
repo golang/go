@@ -40,6 +40,9 @@ func (stw *Writer) Lookup(s string) uint32 {
 	if idx, ok := stw.stab[s]; ok {
 		return idx
 	}
+	if stw.frozen {
+		panic("internal error: string table previously frozen")
+	}
 	idx := uint32(len(stw.strs))
 	stw.stab[s] = idx
 	stw.strs = append(stw.strs, s)
@@ -91,11 +94,23 @@ func (stw *Writer) Write(w io.Writer) error {
 	return nil
 }
 
+// Freeze sends a signal to the writer that no more additions are
+// allowed, only lookups of existing strings (if a lookup triggers
+// addition, a panic will result). Useful as a mechanism for
+// "finalizing" a string table prior to writing it out.
+func (stw *Writer) Freeze() {
+	stw.frozen = true
+}
+
+// Reader is a helper for reading a string table previously
+// serialized by a Writer.Write call.
 type Reader struct {
 	r    *slicereader.Reader
 	strs []string
 }
 
+// NewReader creates a stringtab.Reader to read the contents
+// of a string table from 'r'.
 func NewReader(r *slicereader.Reader) *Reader {
 	str := &Reader{
 		r: r,
@@ -103,20 +118,22 @@ func NewReader(r *slicereader.Reader) *Reader {
 	return str
 }
 
-func (str *Reader) Entries() int {
-	return len(str.strs)
-}
-
-func (str *Reader) Get(idx uint32) string {
-	return str.strs[idx]
-}
-
+// Read reads/decodes a string table using the reader provided.
 func (str *Reader) Read() {
-	// Read the table itself.
 	numEntries := int(str.r.ReadULEB128())
 	str.strs = make([]string, 0, numEntries)
 	for idx := 0; idx < numEntries; idx++ {
 		slen := str.r.ReadULEB128()
 		str.strs = append(str.strs, str.r.ReadString(int64(slen)))
 	}
+}
+
+// Entries returns the number of decoded entries in a string table.
+func (str *Reader) Entries() int {
+	return len(str.strs)
+}
+
+// Get returns string 'idx' within the string table.
+func (str *Reader) Get(idx uint32) string {
+	return str.strs[idx]
 }

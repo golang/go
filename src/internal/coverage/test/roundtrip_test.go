@@ -178,7 +178,7 @@ func createMetaDataBlobs(t *testing.T, nb int) [][]byte {
 	return res
 }
 
-func TestMetaDataFileWriterReader(t *testing.T) {
+func TestMetaDataWriterReader(t *testing.T) {
 	d := t.TempDir()
 
 	// Emit a meta-file...
