@@ -7,6 +7,7 @@
 // search a particular binary to see if they are present.
 // On other platforms (those using this source file), they don't.
 
+//go:build !amd64
 // +build !amd64
 
 TEXT ·BoringCrypto(SB),$0
