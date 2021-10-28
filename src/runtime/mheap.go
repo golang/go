@@ -894,10 +894,9 @@ func (s spanAllocType) manual() bool {
 //
 // spanclass indicates the span's size class and scannability.
 //
-// If needzero is true, the memory for the returned span will be zeroed.
-// The boolean returned indicates whether the returned span contains zeroes,
-// either because this was requested, or because it was already zeroed.
-func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspan, bool) {
+// Returns a span that has been fully initialized. span.needzero indicates
+// whether the span has been zeroed. Note that it may not be.
+func (h *mheap) alloc(npages uintptr, spanclass spanClass) *mspan {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
 	// to be able to allocate heap.
@@ -910,17 +909,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspa
 		}
 		s = h.allocSpan(npages, spanAllocHeap, spanclass)
 	})
-
-	if s == nil {
-		return nil, false
-	}
-	isZeroed := s.needzero == 0
-	if needzero && !isZeroed {
-		memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
-		isZeroed = true
-	}
-	s.needzero = 0
-	return s, isZeroed
+	return s
 }
 
 // allocManual allocates a manually-managed span of npage pages.
@@ -1009,7 +998,7 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
 				break
 			}
 			zeroedBase = atomic.Loaduintptr(&ha.zeroedBase)
-			// Sanity check zeroedBase.
+			// Double check basic conditions of zeroedBase.
 			if zeroedBase <= arenaLimit && zeroedBase > arenaBase {
 				// The zeroedBase moved into the space we were trying to
 				// claim. That's very bad, and indicates someone allocated
