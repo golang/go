@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux,amd64
-// +build !android
-// +build !cmd_go_bootstrap
-// +build !msan
+//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
 
 package boring
 
