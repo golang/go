@@ -60,6 +60,13 @@ func spliceW(c *netFD, w io.Writer) (written int64, err error, handled bool) {
 		}
 	}
 
+	if conn, ok := w.(*TCPConn); ok {
+		// handle original path from TCPConn to TCPConn
+		if n, err, handled := splice(conn.fd, io.LimitReader(c, remain)); handled {
+			return n, err, true
+		}
+	}
+
 	f, ok := w.(*os.File)
 	if !ok {
 		return 0, nil, false
