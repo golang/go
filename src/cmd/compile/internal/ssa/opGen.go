@@ -37356,8 +37356,8 @@ var registersRISCV64 = [...]Register{
 	{62, riscv.REG_F31, -1, "F31"},
 	{63, 0, -1, "SB"},
 }
-var paramIntRegRISCV64 = []int8(nil)
-var paramFloatRegRISCV64 = []int8(nil)
+var paramIntRegRISCV64 = []int8{9, 10, 11, 12, 13, 14, 15, 16, 7, 8, 17, 18, 19, 20, 21, 22}
+var paramFloatRegRISCV64 = []int8{41, 42, 43, 44, 45, 46, 47, 48, 39, 40, 49, 50, 51, 52, 53, 54}
 var gpRegMaskRISCV64 = regMask(1006632944)
 var fpRegMaskRISCV64 = regMask(9223372034707292160)
 var specialRegMaskRISCV64 = regMask(0)

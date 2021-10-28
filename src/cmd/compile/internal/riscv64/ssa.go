@@ -230,6 +230,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddrAuto(&p.To, v)
+	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
+		ssagen.CheckArgReg(v)
 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
 	case ssa.OpRISCV64MOVBreg, ssa.OpRISCV64MOVHreg, ssa.OpRISCV64MOVWreg,
