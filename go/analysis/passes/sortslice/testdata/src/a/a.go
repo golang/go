@@ -7,6 +7,8 @@ func IncorrectSort() {
 	i := 5
 	sortFn := func(i, j int) bool { return false }
 	sort.Slice(i, sortFn) // want "sort.Slice's argument must be a slice; is called with int"
+	sort.SliceStable(i, sortFn) // want "sort.SliceStable's argument must be a slice; is called with int"
+	sort.SliceIsSorted(i, sortFn) // want "sort.SliceIsSorted's argument must be a slice; is called with int"
 }
 
 // CorrectSort sorts integers. It should not produce a diagnostic.
@@ -14,6 +16,8 @@ func CorrectSort() {
 	s := []int{2, 3, 5, 6}
 	sortFn := func(i, j int) bool { return s[i] < s[j] }
 	sort.Slice(s, sortFn)
+	sort.SliceStable(s, sortFn)
+	sort.SliceIsSorted(s, sortFn)
 }
 
 // CorrectInterface sorts an interface with a slice
@@ -23,6 +27,8 @@ func CorrectInterface() {
 	s = interface{}([]int{2, 1, 0})
 	sortFn := func(i, j int) bool { return s.([]int)[i] < s.([]int)[j] }
 	sort.Slice(s, sortFn)
+	sort.SliceStable(s, sortFn)
+	sort.SliceIsSorted(s, sortFn)
 }
 
 type slicecompare interface {
@@ -41,6 +47,8 @@ func UnderlyingInterface() {
 	var s slicecompare
 	s = intslice([]int{2, 1, 0})
 	sort.Slice(s, s.compare)
+	sort.SliceStable(s, s.compare)
+	sort.SliceIsSorted(s, s.compare)
 }
 
 type mySlice []int
@@ -51,4 +59,6 @@ func UnderlyingSlice() {
 	s := mySlice{2, 3, 5, 6}
 	sortFn := func(i, j int) bool { return s[i] < s[j] }
 	sort.Slice(s, sortFn)
+	sort.SliceStable(s, sortFn)
+	sort.SliceIsSorted(s, sortFn)
 }
