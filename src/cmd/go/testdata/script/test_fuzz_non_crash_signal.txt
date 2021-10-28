@@ -10,6 +10,15 @@
 ! exists testdata
 ! stdout unreachable
 ! stderr unreachable
+stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: terminated'
+
+# FuzzKill sends itself a signal that cannot be caught by the worker process
+# and does not appear to be a crash.
+# We should not save a crasher.
+! go test -fuzz=FuzzKill
+! exists testdata
+! stdout unreachable
+! stderr unreachable
 stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: killed'
 
 # FuzzCrash sends itself a signal that looks like a crash.
@@ -33,6 +42,17 @@ import (
 )
 
 func FuzzNonCrash(f *testing.F) {
+	f.Fuzz(func(*testing.T, bool) {
+		pid := syscall.Getpid()
+		if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+			panic(err)
+		}
+		// signal may not be received immediately. Wait for it.
+		select{}
+	})
+}
+
+func FuzzKill(f *testing.F) {
 	f.Fuzz(func(*testing.T, bool) {
 		pid := syscall.Getpid()
 		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
