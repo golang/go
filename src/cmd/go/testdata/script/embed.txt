@@ -60,6 +60,18 @@ rm t/x.txt
 ! go build m/use
 stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
 
+# all still ignores .git and symlinks
+cp x.go3 x.go
+! go build -x
+stderr '^x.go:5:12: pattern all:t: cannot embed directory t: contains no embeddable files$'
+
+# all finds dot files and underscore files
+cp x.txt t/.x.txt
+go build -x
+rm t/.x.txt
+cp x.txt t/_x.txt
+go build -x
+
 -- x.go --
 package p
 
@@ -90,6 +102,14 @@ package p
 import "embed"
 
 //go:embed *t
+var X embed.FS
+
+-- x.go3 --
+package p
+
+import "embed"
+
+//go:embed all:t
 var X embed.FS
 
 -- x.txt --
