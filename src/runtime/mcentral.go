@@ -154,10 +154,10 @@ func (c *mcentral) cacheSpan() *mspan {
 			// See comment for partial unswept spans.
 		}
 		sweep.active.end(sl)
-		if trace.enabled {
-			traceGCSweepDone()
-			traceDone = true
-		}
+	}
+	if trace.enabled {
+		traceGCSweepDone()
+		traceDone = true
 	}
 
 	// We failed to get a span from the mcentral so get one from mheap.
