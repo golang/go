@@ -323,7 +323,8 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 		if n.Assign.IsValid() {
 			sep = " = "
 		}
-		return fmt.Sprintf("type %s%s%s", n.Name.Name, sep, pkg.oneLineNodeDepth(n.Type, depth))
+		tparams := pkg.formatTypeParams(n.TypeParams, depth)
+		return fmt.Sprintf("type %s%s%s%s", n.Name.Name, tparams, sep, pkg.oneLineNodeDepth(n.Type, depth))
 
 	case *ast.FuncType:
 		var params []string
@@ -342,15 +343,16 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 			}
 		}
 
+		tparam := pkg.formatTypeParams(n.TypeParams, depth)
 		param := joinStrings(params)
 		if len(results) == 0 {
-			return fmt.Sprintf("func(%s)", param)
+			return fmt.Sprintf("func%s(%s)", tparam, param)
 		}
 		result := joinStrings(results)
 		if !needParens {
-			return fmt.Sprintf("func(%s) %s", param, result)
+			return fmt.Sprintf("func%s(%s) %s", tparam, param, result)
 		}
-		return fmt.Sprintf("func(%s) (%s)", param, result)
+		return fmt.Sprintf("func%s(%s) (%s)", tparam, param, result)
 
 	case *ast.StructType:
 		if n.Fields == nil || len(n.Fields.List) == 0 {
@@ -417,6 +419,17 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
 		}
 		return s
 	}
+}
+
+func (pkg *Package) formatTypeParams(list *ast.FieldList, depth int) string {
+	if list.NumFields() == 0 {
+		return ""
+	}
+	var tparams []string
+	for _, field := range list.List {
+		tparams = append(tparams, pkg.oneLineField(field, depth))
+	}
+	return "[" + joinStrings(tparams) + "]"
 }
 
 // oneLineField returns a one-line summary of the field.
