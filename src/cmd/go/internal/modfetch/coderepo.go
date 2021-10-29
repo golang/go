@@ -567,11 +567,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 	if rev != info.Short {
 		switch {
 		case strings.HasPrefix(rev, info.Short):
-			return fmt.Errorf("revision is longer than canonical (%s)", info.Short)
+			return fmt.Errorf("revision is longer than canonical (expected %s)", info.Short)
 		case strings.HasPrefix(info.Short, rev):
-			return fmt.Errorf("revision is shorter than canonical (%s)", info.Short)
+			return fmt.Errorf("revision is shorter than canonical (expected %s)", info.Short)
 		default:
-			return fmt.Errorf("does not match short name of revision (%s)", info.Short)
+			return fmt.Errorf("does not match short name of revision (expected %s)", info.Short)
 		}
 	}
 
