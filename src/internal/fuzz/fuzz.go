@@ -316,6 +316,23 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						// Update the coordinator's coverage mask and save the value.
 						inputSize := len(result.entry.Data)
 						if opts.CacheDir != "" {
+							// It is possible that the input that was discovered is already
+							// present in the corpus, but the worker produced a coverage map
+							// that still expanded our total coverage (this may happen due to
+							// flakiness in the coverage counters). In order to prevent adding
+							// duplicate entries to the corpus (and re-writing the file on
+							// disk), skip it if the on disk file already exists.
+							// TOOD(roland): this check is limited in that it will only be
+							// applied if we are using the CacheDir. Another option would be
+							// to iterate through the corpus and check if it is already present,
+							// which would catch cases where we are not caching entries.
+							// A slightly faster approach would be to keep some kind of map of
+							// entry hashes, which would allow us to avoid iterating through
+							// all entries.
+							_, err = os.Stat(result.entry.Path)
+							if err == nil {
+								continue
+							}
 							err := writeToCorpus(&result.entry, opts.CacheDir)
 							if err != nil {
 								stop(err)
