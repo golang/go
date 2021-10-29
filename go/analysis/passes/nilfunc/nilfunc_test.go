@@ -5,13 +5,17 @@
 package nilfunc_test
 
 import (
-	"testing"
-
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
+	"golang.org/x/tools/internal/typeparams"
+	"testing"
 )
 
 func Test(t *testing.T) {
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, nilfunc.Analyzer, "a")
+	tests := []string{"a"}
+	if typeparams.Enabled {
+		tests = append(tests, "typeparams")
+	}
+	analysistest.Run(t, testdata, nilfunc.Analyzer, tests...)
 }
