@@ -207,9 +207,14 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch typ := optype(x.typ).(type) {
+	switch u := singleUnder(x.typ).(type) {
+	case nil:
+		check.errorf(x, _NonSliceableOperand, "cannot slice %s: type set has no single underlying type", x)
+		x.mode = invalid
+		return
+
 	case *Basic:
-		if isString(typ) {
+		if isString(u) {
 			if e.Slice3 {
 				check.invalidOp(x, _InvalidSliceExpr, "3-index slice of string")
 				x.mode = invalid
@@ -221,26 +226,26 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."
-			if typ.kind == UntypedString {
+			if u.kind == UntypedString {
 				x.typ = Typ[String]
 			}
 		}
 
 	case *Array:
 		valid = true
-		length = typ.len
+		length = u.len
 		if x.mode != variable {
 			check.invalidOp(x, _NonSliceableOperand, "cannot slice %s (value not addressable)", x)
 			x.mode = invalid
 			return
 		}
-		x.typ = &Slice{elem: typ.elem}
+		x.typ = &Slice{elem: u.elem}
 
 	case *Pointer:
-		if typ := asArray(typ.base); typ != nil {
+		if u := asArray(u.base); u != nil {
 			valid = true
-			length = typ.len
-			x.typ = &Slice{elem: typ.elem}
+			length = u.len
+			x.typ = &Slice{elem: u.elem}
 		}
 
 	case *Slice:
