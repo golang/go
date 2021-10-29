@@ -832,20 +832,28 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			// Ranging over a type parameter is permitted if it has a structural type.
-			typ := optype(x.typ)
-			if _, ok := typ.(*Chan); ok && s.Value != nil {
-				check.softErrorf(atPos(s.Value.Pos()), _InvalidIterVar, "range over %s permits only one iteration variable", &x)
-				// ok to continue
-			}
-			var msg string
-			key, val, msg = rangeKeyVal(typ, isVarName(s.Key), isVarName(s.Value))
-			if key == nil || msg != "" {
-				if msg != "" {
-					// TODO(rFindley) should this be parenthesized, to be consistent with other qualifiers?
-					msg = ": " + msg
+			// Ranging over a type parameter is permitted if it has a single underlying type.
+			var cause string
+			u := singleUnder(x.typ)
+			switch t := u.(type) {
+			case nil:
+				cause = "type set has no single underlying type"
+			case *Chan:
+				if s.Value != nil {
+					check.softErrorf(s.Value, _InvalidIterVar, "range over %s permits only one iteration variable", &x)
+					// ok to continue
 				}
-				check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s%s", &x, msg)
+				if t.dir == SendOnly {
+					cause = "receive from send-only channel"
+				}
+			}
+			key, val = rangeKeyVal(u)
+			if key == nil || cause != "" {
+				if cause == "" {
+					check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s", &x)
+				} else {
+					check.softErrorf(&x, _InvalidRangeExpr, "cannot range over %s (%s)", &x, cause)
+				}
 				// ok to continue
 			}
 		}
@@ -930,44 +938,23 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	}
 }
 
-// isVarName reports whether x is a non-nil, non-blank (_) expression.
-func isVarName(x ast.Expr) bool {
-	if x == nil {
-		return false
-	}
-	ident, _ := unparen(x).(*ast.Ident)
-	return ident == nil || ident.Name != "_"
-}
-
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ, and possibly an error message. If the
-// range clause is not permitted the returned key is nil or msg is not
-// empty (in that case we still may have a non-nil key type which can be
-// used to reduce the chance for follow-on errors).
-// The wantKey, wantVal, and hasVal flags indicate which of the iteration
-// variables are used or present; this matters if we range over a generic
-// type where not all keys or values are of the same type.
-func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+// over an expression of type typ. If the range clause is not permitted
+// the results are nil.
+func rangeKeyVal(typ Type) (key, val Type) {
 	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
 		if isString(typ) {
-			return Typ[Int], universeRune, "" // use 'rune' name
+			return Typ[Int], universeRune // use 'rune' name
 		}
 	case *Array:
-		return Typ[Int], typ.elem, ""
+		return Typ[Int], typ.elem
 	case *Slice:
-		return Typ[Int], typ.elem, ""
+		return Typ[Int], typ.elem
 	case *Map:
-		return typ.key, typ.elem, ""
+		return typ.key, typ.elem
 	case *Chan:
-		var msg string
-		if typ.dir == SendOnly {
-			msg = "receive from send-only channel"
-		}
-		return typ.elem, Typ[Invalid], msg
-	case *top:
-		// we have a type parameter with no structural type
-		return nil, nil, "no structural type"
+		return typ.elem, Typ[Invalid]
 	}
-	return nil, nil, ""
+	return
 }
