@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	. "golang.org/x/tools/internal/lsp/regtest"
 	"golang.org/x/tools/internal/testenv"
 
@@ -275,5 +276,16 @@ package client
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("client/client_role_test.go")
 		env.GoToDefinition("client/client_role_test.go", env.RegexpSearch("client/client_role_test.go", "RoleSetup"))
+	})
+}
+
+// This test exercises a crashing pattern from golang/go#49223.
+func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
+	Run(t, "", func(t *testing.T, env *Env) {
+		params := &protocol.DefinitionParams{}
+		params.TextDocument.URI = protocol.DocumentURI("fugitive%3A///Users/user/src/mm/ems/.git//0/pkg/domain/treasury/provider.go")
+		params.Position.Character = 18
+		params.Position.Line = 0
+		env.Editor.Server.Definition(env.Ctx, params)
 	})
 }
