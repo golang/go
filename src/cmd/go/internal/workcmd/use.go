@@ -9,20 +9,16 @@ package workcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"context"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/mod/modfile"
 )
 
-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
-	"enough for those trying workspaces out, there should be more through" +
-	"documentation if the proposal is accepted and released.")
+// TODO(#49232) Add more documentation below. Though this is
+// enough for those trying workspaces out, there should be more thorough
+// documentation before Go 1.18 is released.
 
 var cmdUse = &base.Command{
 	UsageLine: "go work use [-r] [moddirs]",
@@ -51,14 +47,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 	gowork = modload.WorkFilePath()
 
-	data, err := lockedfile.Read(gowork)
+	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
-		base.Fatalf("goX: %v", err)
-	}
-
-	workFile, err := modfile.ParseWork(gowork, data, nil)
-	if err != nil {
-		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
+		base.Fatalf("go: %v", err)
 	}
 
 	haveDirs := make(map[string]bool)
@@ -119,11 +110,6 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	for dir := range addDirs {
 		workFile.AddDirectory(filepath.ToSlash(dir), "")
 	}
-	workFile.SortBlocks()
-	workFile.Cleanup() // clean file after edits
-	out := modfile.Format(workFile.Syntax)
-
-	if err := ioutil.WriteFile(gowork, out, 0666); err != nil {
-		base.Fatalf("go: %v", err)
-	}
+	modload.UpdateWorkFile(workFile)
+	modload.WriteWorkFile(gowork, workFile)
 }

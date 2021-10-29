@@ -93,24 +93,27 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	modload.ExplicitWriteGoMod = true
 	haveExplicitArgs := len(args) > 0
 
-	if modload.HasModRoot() {
+	if modload.HasModRoot() || modload.WorkFilePath() != "" {
 		modload.LoadModFile(ctx) // to fill MainModules
 
-		if len(modload.MainModules.Versions()) != 1 {
-			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
-		}
-		mainModule := modload.MainModules.Versions()[0]
-
 		if haveExplicitArgs {
-			targetAtUpgrade := mainModule.Path + "@upgrade"
-			targetAtPatch := mainModule.Path + "@patch"
-			for _, arg := range args {
-				switch arg {
-				case mainModule.Path, targetAtUpgrade, targetAtPatch:
-					os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
+			for _, mainModule := range modload.MainModules.Versions() {
+				targetAtUpgrade := mainModule.Path + "@upgrade"
+				targetAtPatch := mainModule.Path + "@patch"
+				for _, arg := range args {
+					switch arg {
+					case mainModule.Path, targetAtUpgrade, targetAtPatch:
+						os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
+					}
 				}
 			}
+		} else if modload.WorkFilePath() != "" {
+			// TODO(#44435): Think about what the correct query is to download the
+			// right set of modules. Also see code review comment at
+			// https://go-review.googlesource.com/c/go/+/359794/comments/ce946a80_6cf53992.
+			args = []string{"all"}
 		} else {
+			mainModule := modload.MainModules.Versions()[0]
 			modFile := modload.MainModules.ModFile(mainModule)
 			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
 				if len(modFile.Require) > 0 {

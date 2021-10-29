@@ -15,9 +15,9 @@ import (
 	"golang.org/x/mod/module"
 )
 
-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
-	"enough for those trying workspaces out, there should be more through" +
-	"documentation if the proposal is accepted and released.")
+// TODO(#49232) Add more documentation below. Though this is
+// enough for those trying workspaces out, there should be more thorough
+// documentation before Go 1.18 is released.
 
 var cmdSync = &base.Command{
 	UsageLine: "go work sync [moddirs]",
@@ -71,6 +71,8 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		mustSelectFor[m] = mustSelect
 	}
 
+	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
+
 	for _, m := range mms.Versions() {
 		// Use EnterModule to reset the global state in modload to be in
 		// single-module mode using the modroot of m.
@@ -97,5 +99,14 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 			SilenceUnmatchedWarnings: true,
 		}, "all")
 		modload.WriteGoMod(ctx)
+	}
+
+	wf, err := modload.ReadWorkFile(workFilePath)
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	modload.UpdateWorkFile(wf)
+	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
+		base.Fatalf("go: %v", err)
 	}
 }

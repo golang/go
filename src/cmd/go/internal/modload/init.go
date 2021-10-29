@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/build"
 	"internal/lazyregexp"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -55,10 +56,6 @@ var (
 	// WriteGoMod explicitly.
 	ExplicitWriteGoMod bool
 )
-
-func TODOWorkspaces(s string) error {
-	return fmt.Errorf("need to support this for workspaces: %s", s)
-}
 
 // Variables set in Init.
 var (
@@ -417,9 +414,6 @@ func Init() {
 	// We're in module mode. Set any global variables that need to be set.
 	cfg.ModulesEnabled = true
 	setDefaultBuildMod()
-	_ = TODOWorkspaces("In workspace mode, mod will not be readonly for go mod download," +
-		"verify, graph, and why. Implement support for go mod download and add test cases" +
-		"to ensure verify, graph, and why work properly.")
 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
 	if len(list) > 0 && list[0] != "" {
 		gopath = list[0]
@@ -562,13 +556,8 @@ func (goModDirtyError) Error() string {
 var errGoModDirty error = goModDirtyError{}
 
 func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []*modfile.Replace, err error) {
-	_ = TODOWorkspaces("Clean up and write back the go.work file: add module paths for workspace modules.")
 	workDir := filepath.Dir(path)
-	workData, err := lockedfile.Read(path)
-	if err != nil {
-		return "", nil, nil, err
-	}
-	wf, err := modfile.ParseWork(path, workData, nil)
+	wf, err := ReadWorkFile(path)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -581,13 +570,58 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
 		if !filepath.IsAbs(modRoot) {
 			modRoot = filepath.Join(workDir, modRoot)
 		}
+
 		if seen[modRoot] {
 			return "", nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
 		}
 		seen[modRoot] = true
 		modRoots = append(modRoots, modRoot)
 	}
+
 	return goVersion, modRoots, wf.Replace, nil
+}
+
+// ReadWorkFile reads and parses the go.work file at the given path.
+func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+	workData, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	wf, err := modfile.ParseWork(path, workData, nil)
+
+	return wf, nil
+}
+
+// WriteWorkFile cleans and writes out the go.work file to the given path.
+func WriteWorkFile(path string, wf *modfile.WorkFile) error {
+	wf.SortBlocks()
+	wf.Cleanup()
+	out := modfile.Format(wf.Syntax)
+
+	return ioutil.WriteFile(path, out, 0666)
+}
+
+// UpdateWorkFile updates comments on directory directives in the go.work
+// file to include the associated module path.
+func UpdateWorkFile(wf *modfile.WorkFile) {
+	missingModulePaths := map[string]string{} // module directory listed in file -> abspath modroot
+
+	for _, d := range wf.Directory {
+		modRoot := d.Path
+		if d.ModulePath == "" {
+			missingModulePaths[d.Path] = modRoot
+		}
+	}
+
+	// Clean up and annotate directories.
+	// TODO(matloob): update x/mod to actually add module paths.
+	for moddir, absmodroot := range missingModulePaths {
+		_, f, err := ReadModFile(filepath.Join(absmodroot, "go.mod"), nil)
+		if err != nil {
+			continue // Error will be reported if modules are loaded.
+		}
+		wf.AddDirectory(moddir, f.Module.Mod.Path)
+	}
 }
 
 // LoadModFile sets Target and, if there is a main module, parses the initial
@@ -651,7 +685,9 @@ func LoadModFile(ctx context.Context) *Requirements {
 		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
 	}
 	if len(modRoots) == 0 {
-		_ = TODOWorkspaces("Instead of creating a fake module with an empty modroot, make MainModules.Len() == 0 mean that we're in module mode but not inside any module.")
+		// TODO(#49228): Instead of creating a fake module with an empty modroot,
+		// make MainModules.Len() == 0 mean that we're in module mode but not inside
+		// any module.
 		mainModule := module.Version{Path: "command-line-arguments"}
 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "", nil)
 		goVersion := LatestGoVersion()
@@ -854,8 +890,8 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
 		workF.AddDirectory(ToDirectoryPath(dir), f.Module.Mod.Path)
 	}
 
-	data := modfile.Format(workF.Syntax)
-	lockedfile.Write(workFile, bytes.NewReader(data), 0666)
+	UpdateWorkFile(workF)
+	WriteWorkFile(workFile, workF)
 }
 
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
@@ -1233,9 +1269,10 @@ func findWorkspaceFile(dir string) (root string) {
 			break
 		}
 		if d == cfg.GOROOT {
-			_ = TODOWorkspaces("If we end up checking in a go.work file to GOROOT/src," +
-				"remove this case.")
-			return "" // As a special case, don't cross GOROOT to find a go.work file.
+			// As a special case, don't cross GOROOT to find a go.work file.
+			// The standard library and commands built in go always use the vendored
+			// dependencies, so avoid using a most likely irrelevant go.work file.
+			return ""
 		}
 		dir = d
 	}
