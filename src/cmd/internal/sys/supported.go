@@ -132,6 +132,13 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		}
 		return false
 
+	case "shared":
+		switch platform {
+		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+			return true
+		}
+		return false
+
 	case "plugin":
 		switch platform {
 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",

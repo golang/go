@@ -762,6 +762,9 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("c-shared") {
 			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
 		}
+		if t.supportedBuildmode("shared") {
+			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600), ".")
+		}
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
@@ -1041,6 +1044,12 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386", "windows-arm64":
+			return true
+		}
+		return false
+	case "shared":
+		switch pair {
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
 			return true
 		}
 		return false
