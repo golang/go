@@ -269,6 +269,9 @@ type gcControllerState struct {
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
+	// test indicates that this is a test-only copy of gcControllerState.
+	test bool
+
 	_ cpu.CacheLinePad
 }
 
@@ -737,7 +740,9 @@ func (c *gcControllerState) addGlobals(amount int64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func (c *gcControllerState) commit(triggerRatio float64) {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
 	// Compute the next GC goal, which is when the allocated heap
 	// has grown by GOGC/100 over the heap marked by the last
@@ -842,7 +847,9 @@ func (c *gcControllerState) commit(triggerRatio float64) {
 //
 // mheap_.lock must be held or the world must be stopped.
 func (c *gcControllerState) effectiveGrowthRatio() float64 {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
 	egogc := float64(atomic.Load64(&c.heapGoal)-c.heapMarked) / float64(c.heapMarked)
 	if egogc < 0 {
@@ -859,7 +866,9 @@ func (c *gcControllerState) effectiveGrowthRatio() float64 {
 //
 // The world must be stopped, or mheap_.lock must be held.
 func (c *gcControllerState) setGCPercent(in int32) int32 {
-	assertWorldStoppedOrLockHeld(&mheap_.lock)
+	if !c.test {
+		assertWorldStoppedOrLockHeld(&mheap_.lock)
+	}
 
 	out := c.gcPercent
 	if in < 0 {

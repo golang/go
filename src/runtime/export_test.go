@@ -1246,6 +1246,7 @@ func NewGCController(gcPercent int) *GCController {
 	// on a 32-bit architecture, it may get allocated unaligned
 	// space.
 	g := escape(new(GCController)).(*GCController)
+	g.gcControllerState.test = true // Mark it as a test copy.
 	g.init(int32(gcPercent))
 	return g
 }
