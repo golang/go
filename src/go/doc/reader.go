@@ -101,6 +101,10 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	switch t := x.(type) {
 	case *ast.Ident:
 		return t.Name, false
+	case *ast.IndexExpr:
+		return baseTypeName(t.X)
+	case *ast.IndexListExpr:
+		return baseTypeName(t.X)
 	case *ast.SelectorExpr:
 		if _, ok := t.X.(*ast.Ident); ok {
 			// only possible for qualified type names;
@@ -112,7 +116,7 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
 	case *ast.StarExpr:
 		return baseTypeName(t.X)
 	}
-	return
+	return "", false
 }
 
 // An embeddedSet describes a set of embedded types.
@@ -163,9 +167,9 @@ type reader struct {
 	types     map[string]*namedType
 	funcs     methodSet
 
-	// support for package-local error type declarations
-	errorDecl bool                 // if set, type "error" was declared locally
-	fixlist   []*ast.InterfaceType // list of interfaces containing anonymous field "error"
+	// support for package-local shadowing of predeclared types
+	shadowedPredecl map[string]bool
+	fixmap          map[string][]*ast.InterfaceType
 }
 
 func (r *reader) isVisible(name string) bool {
@@ -224,8 +228,11 @@ func (r *reader) readDoc(comment *ast.CommentGroup) {
 	r.doc += "\n" + text
 }
 
-func (r *reader) remember(typ *ast.InterfaceType) {
-	r.fixlist = append(r.fixlist, typ)
+func (r *reader) remember(predecl string, typ *ast.InterfaceType) {
+	if r.fixmap == nil {
+		r.fixmap = make(map[string][]*ast.InterfaceType)
+	}
+	r.fixmap[predecl] = append(r.fixmap[predecl], typ)
 }
 
 func specNames(specs []ast.Spec) []string {
@@ -679,10 +686,11 @@ func (r *reader) computeMethodSets() {
 		}
 	}
 
-	// if error was declared locally, don't treat it as exported field anymore
-	if r.errorDecl {
-		for _, ityp := range r.fixlist {
-			removeErrorField(ityp)
+	// For any predeclared names that are declared locally, don't treat them as
+	// exported fields anymore.
+	for predecl := range r.shadowedPredecl {
+		for _, ityp := range r.fixmap[predecl] {
+			removeAnonymousField(predecl, ityp)
 		}
 	}
 }
@@ -869,6 +877,7 @@ func IsPredeclared(s string) bool {
 }
 
 var predeclaredTypes = map[string]bool{
+	"any":        true,
 	"bool":       true,
 	"byte":       true,
 	"complex64":  true,
