@@ -7,13 +7,10 @@
 package workcmd
 
 import (
-	"bytes"
 	"cmd/go/internal/base"
-	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -150,12 +147,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	data, err := lockedfile.Read(gowork)
-	if err != nil {
-		base.Fatalf("go: %v", err)
-	}
-
-	workFile, err := modfile.ParseWork(gowork, data, nil)
+	workFile, err := modload.ReadWorkFile(gowork)
 	if err != nil {
 		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
 	}
@@ -171,6 +163,9 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 			edit(workFile)
 		}
 	}
+
+	modload.UpdateWorkFile(workFile)
+
 	workFile.SortBlocks()
 	workFile.Cleanup() // clean file after edits
 
@@ -179,22 +174,12 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 
-	out := modfile.Format(workFile.Syntax)
-
 	if *editPrint {
-		os.Stdout.Write(out)
+		os.Stdout.Write(modfile.Format(workFile.Syntax))
 		return
 	}
 
-	err = lockedfile.Transform(gowork, func(lockedData []byte) ([]byte, error) {
-		if !bytes.Equal(lockedData, data) {
-			return nil, errors.New("go.work changed during editing; not overwriting")
-		}
-		return out, nil
-	})
-	if err != nil {
-		base.Fatalf("go: %v", err)
-	}
+	modload.WriteWorkFile(gowork, workFile)
 }
 
 // flagEditworkDirectory implements the -directory flag.

@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 )
 
-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
-	"enough for those trying workspaces out, there should be more through" +
-	"documentation if the proposal is accepted and released.")
+// TODO(#49232) Add more documentation below. Though this is
+// enough for those trying workspaces out, there should be more through
+// documentation before Go 1.18 is released.
 
 var cmdInit = &base.Command{
 	UsageLine: "go work init [moddirs]",
