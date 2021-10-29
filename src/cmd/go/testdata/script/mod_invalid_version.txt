@@ -57,20 +57,20 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
+stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
 
 # A pseudo-version with more than 12 digits of SHA-1 prefix is invalid.
 cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
+stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
 
 # A pseudo-version that does not match the commit timestamp is invalid.
 cp go.mod.orig go.mod
