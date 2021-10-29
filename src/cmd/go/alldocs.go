@@ -162,6 +162,9 @@
 // 		flags has a similar effect.
 // 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
+// 	-linkshared
+// 		build code that will be linked against shared libraries previously
+// 		created with -buildmode=shared.
 // 	-mod mode
 // 		module download mode to use: readonly, vendor, or mod.
 // 		By default, if a vendor directory is present and the go version in go.mod
@@ -779,6 +782,7 @@
 //         Name          string   // package name
 //         Doc           string   // package documentation string
 //         Target        string   // install path
+//         Shlib         string   // the shared library that contains this package (only set when -linkshared)
 //         Goroot        bool     // is this package in the Go root?
 //         Standard      bool     // is this package part of the standard Go library?
 //         Stale         bool     // would 'go install' do anything for this package?
@@ -1798,6 +1802,11 @@
 // 		Listed main packages are built into executables and listed
 // 		non-main packages are built into .a files (the default
 // 		behavior).
+//
+// 	-buildmode=shared
+// 		Combine all the listed non-main packages into a single shared
+// 		library that will be used when building with the -linkshared
+// 		option. Packages named main are ignored.
 //
 // 	-buildmode=exe
 // 		Build the listed main packages and everything they import into

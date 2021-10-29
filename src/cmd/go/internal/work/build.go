@@ -116,6 +116,9 @@ and test commands:
 		flags has a similar effect.
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
+	-linkshared
+		build code that will be linked against shared libraries previously
+		created with -buildmode=shared.
 	-mod mode
 		module download mode to use: readonly, vendor, or mod.
 		By default, if a vendor directory is present and the go version in go.mod

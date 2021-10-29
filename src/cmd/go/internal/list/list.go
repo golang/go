@@ -23,8 +23,8 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+	"cmd/go/internal/str"
 )
 
 var CmdList = &base.Command{
@@ -56,6 +56,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         Name          string   // package name
         Doc           string   // package documentation string
         Target        string   // install path
+        Shlib         string   // the shared library that contains this package (only set when -linkshared)
         Goroot        bool     // is this package in the Go root?
         Standard      bool     // is this package part of the standard Go library?
         Stale         bool     // would 'go install' do anything for this package?
