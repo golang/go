@@ -266,7 +266,7 @@ func (l *Logger) Panic(v ...interface{}) {
 // Panicf is equivalent to l.Printf() followed by a call to panic().
 func (l *Logger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	l.OutputL(2, "Panic", s)
+	l.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
