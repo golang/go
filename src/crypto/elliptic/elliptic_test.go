@@ -14,9 +14,8 @@ import (
 
 // genericParamsForCurve returns the dereferenced CurveParams for
 // the specified curve. This is used to avoid the logic for
-// upgrading a curve to it's specific implementation, forcing
-// usage of the generic implementation. This is only relevant
-// for the P224, P256, and P521 curves.
+// upgrading a curve to its specific implementation, forcing
+// usage of the generic implementation.
 func genericParamsForCurve(c Curve) *CurveParams {
 	d := *(c.Params())
 	return &d
