@@ -337,7 +337,11 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 	if arg := *argp; arg.Op() == ir.OSLICELIT {
 		list := arg.(*ir.CompLitExpr).List
 		for i := range list {
-			visit(arg.Pos(), &list[i])
+			el := &list[i]
+			if list[i].Op() == ir.OKEY {
+				el = &list[i].(*ir.KeyExpr).Value
+			}
+			visit(arg.Pos(), el)
 		}
 	} else {
 		visit(call.Pos(), argp)
