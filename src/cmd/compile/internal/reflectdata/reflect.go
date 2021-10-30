@@ -959,11 +959,6 @@ func writeType(t *types.Type) *obj.LSym {
 		base.Fatalf("unresolved defined type: %v", tbase)
 	}
 
-	dupok := 0
-	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
-		dupok = obj.DUPOK
-	}
-
 	if !NeedEmit(tbase) {
 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
 			lsym.Pkg = tbase.Sym().Pkg.Prefix
@@ -1196,7 +1191,9 @@ func writeType(t *types.Type) *obj.LSym {
 	}
 
 	ot = dextratypeData(lsym, ot, t)
-	objw.Global(lsym, int32(ot), int16(dupok|obj.RODATA))
+	objw.Global(lsym, int32(ot), int16(obj.DUPOK|obj.RODATA))
+	// Note: DUPOK is required to ensure that we don't end up with more
+	// than one type descriptor for a given type.
 
 	// The linker will leave a table of all the typelinks for
 	// types in the binary, so the runtime can find them.
