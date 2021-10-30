@@ -9,39 +9,32 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
 var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
 
 // matchArgType reports an error if printf verb t is not appropriate
 // for operand arg.
-//
-// typ is used only for recursive calls; external callers must supply nil.
-//
-// (Recursion arises from the compound types {map,chan,slice} which
-// may be printed with %d etc. if that is appropriate for their element
-// types.)
-func matchArgType(pass *analysis.Pass, t printfArgType, typ types.Type, arg ast.Expr) bool {
-	return matchArgTypeInternal(pass, t, typ, arg, make(map[types.Type]bool))
+func matchArgType(pass *analysis.Pass, t printfArgType, arg ast.Expr) bool {
+	// %v, %T accept any argument type.
+	if t == anyType {
+		return true
+	}
+	typ := pass.TypesInfo.Types[arg].Type
+	if typ == nil {
+		return true // probably a type check problem
+	}
+	return matchArgTypeInternal(t, typ, make(map[types.Type]bool))
 }
 
 // matchArgTypeInternal is the internal version of matchArgType. It carries a map
 // remembering what types are in progress so we don't recur when faced with recursive
 // types or mutually recursive types.
-func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, arg ast.Expr, inProgress map[types.Type]bool) bool {
-	// %v, %T accept any argument type.
-	if t == anyType {
-		return true
-	}
-	if typ == nil {
-		// external call
-		typ = pass.TypesInfo.Types[arg].Type
-		if typ == nil {
-			return true // probably a type check problem
-		}
-	}
-
+//
+// (Recursion arises from the compound types {map,chan,slice} which
+// may be printed with %d etc. if that is appropriate for their element
+// types.)
+func matchArgTypeInternal(t printfArgType, typ types.Type, inProgress map[types.Type]bool) bool {
 	// %w accepts only errors.
 	if t == argError {
 		return types.ConvertibleTo(typ, errorType)
@@ -52,7 +45,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 		return true
 	}
 	// If we can use a string, might arg (dynamically) implement the Stringer or Error interface?
-	if t&argString != 0 && isConvertibleToString(pass, typ) {
+	if t&argString != 0 && isConvertibleToString(typ) {
 		return true
 	}
 
@@ -70,7 +63,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 	case *types.Map:
 		return t == argPointer ||
 			// Recur: map[int]int matches %d.
-			(matchArgTypeInternal(pass, t, typ.Key(), arg, inProgress) && matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress))
+			(matchArgTypeInternal(t, typ.Key(), inProgress) && matchArgTypeInternal(t, typ.Elem(), inProgress))
 
 	case *types.Chan:
 		return t&argPointer != 0
@@ -81,7 +74,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 			return true // %s matches []byte
 		}
 		// Recur: []int matches %d.
-		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
+		return matchArgTypeInternal(t, typ.Elem(), inProgress)
 
 	case *types.Slice:
 		// Same as array.
@@ -94,15 +87,12 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 		// Recur: []int matches %d. But watch out for
 		//	type T []T
 		// If the element is a pointer type (type T[]*T), it's handled fine by the Pointer case below.
-		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
+		return matchArgTypeInternal(t, typ.Elem(), inProgress)
 
 	case *types.Pointer:
 		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
 		// probably something from a failed import.
-		if typ.Elem().String() == "invalid type" {
-			if false {
-				pass.Reportf(arg.Pos(), "printf argument %v is pointer to invalid or unknown type", analysisutil.Format(pass.Fset, arg))
-			}
+		if typ.Elem() == types.Typ[types.Invalid] {
 			return true // special case
 		}
 		// If it's actually a pointer with %p, it prints as one.
@@ -127,10 +117,10 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 		if len(inProgress) > 1 {
 			return false
 		}
-		return matchArgTypeInternal(pass, t, under, arg, inProgress)
+		return matchArgTypeInternal(t, under, inProgress)
 
 	case *types.Struct:
-		return matchStructArgType(pass, t, typ, arg, inProgress)
+		return matchStructArgType(t, typ, inProgress)
 
 	case *types.Interface:
 		// There's little we can do.
@@ -182,9 +172,6 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 			return false
 
 		case types.Invalid:
-			if false {
-				pass.Reportf(arg.Pos(), "printf argument %v has invalid or unknown type", analysisutil.Format(pass.Fset, arg))
-			}
 			return true // Probably a type check problem.
 		}
 		panic("unreachable")
@@ -193,7 +180,7 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type, 
 	return false
 }
 
-func isConvertibleToString(pass *analysis.Pass, typ types.Type) bool {
+func isConvertibleToString(typ types.Type) bool {
 	if bt, ok := typ.(*types.Basic); ok && bt.Kind() == types.UntypedNil {
 		// We explicitly don't want untyped nil, which is
 		// convertible to both of the interfaces below, as it
@@ -231,13 +218,13 @@ func hasBasicType(pass *analysis.Pass, x ast.Expr, kind types.BasicKind) bool {
 
 // matchStructArgType reports whether all the elements of the struct match the expected
 // type. For instance, with "%d" all the elements must be printable with the "%d" format.
-func matchStructArgType(pass *analysis.Pass, t printfArgType, typ *types.Struct, arg ast.Expr, inProgress map[types.Type]bool) bool {
+func matchStructArgType(t printfArgType, typ *types.Struct, inProgress map[types.Type]bool) bool {
 	for i := 0; i < typ.NumFields(); i++ {
 		typf := typ.Field(i)
-		if !matchArgTypeInternal(pass, t, typf.Type(), arg, inProgress) {
+		if !matchArgTypeInternal(t, typf.Type(), inProgress) {
 			return false
 		}
-		if t&argString != 0 && !typf.Exported() && isConvertibleToString(pass, typf.Type()) {
+		if t&argString != 0 && !typf.Exported() && isConvertibleToString(typf.Type()) {
 			// Issue #17798: unexported Stringer or error cannot be properly formatted.
 			return false
 		}

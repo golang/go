@@ -872,7 +872,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 			return
 		}
 		arg := call.Args[argNum]
-		if !matchArgType(pass, argInt, nil, arg) {
+		if !matchArgType(pass, argInt, arg) {
 			pass.ReportRangef(call, "%s format %s uses non-int %s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg))
 			return false
 		}
@@ -890,7 +890,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
 		return false
 	}
-	if !matchArgType(pass, v.typ, nil, arg) {
+	if !matchArgType(pass, v.typ, arg) {
 		typeString := ""
 		if typ := pass.TypesInfo.Types[arg].Type; typ != nil {
 			typeString = typ.String()
