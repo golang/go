@@ -2,16 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package elliptic implements several standard elliptic curves over prime
-// fields.
+// Package elliptic implements the standard NIST P-224, P-256, P-384, and P-521
+// elliptic curves over prime fields.
 package elliptic
-
-// This package operates, internally, on Jacobian coordinates. For a given
-// (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
-// where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
-// calculation can be performed within the transform (as in ScalarMult and
-// ScalarBaseMult). But even for Add and Double, it's faster to apply and
-// reverse the transform than to operate in affine coordinates.
 
 import (
 	"io"
@@ -21,12 +14,12 @@ import (
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
 //
-// The output of Add, Double, and ScalarMult when the input is not a point on
+// The behavior of Add, Double, and ScalarMult when the input is not a point on
 // the curve is undefined.
 //
 // Note that the conventional point at infinity (0, 0) is not considered on the
 // curve, although it can be returned by Add, Double, ScalarMult, or
-// ScalarBaseMult (but not Unmarshal or UnmarshalCompressed).
+// ScalarBaseMult (but not the Unmarshal or UnmarshalCompressed functions).
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
@@ -66,6 +59,13 @@ type CurveParams struct {
 func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
+
+// CurveParams operates, internally, on Jacobian coordinates. For a given
+// (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
+// where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
+// calculation can be performed within the transform (as in ScalarMult and
+// ScalarBaseMult). But even for Add and Double, it's faster to apply and
+// reverse the transform than to operate in affine coordinates.
 
 // polynomial returns x³ - 3x + b.
 func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
@@ -353,7 +353,8 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 }
 
 // Marshal converts a point on the curve into the uncompressed form specified in
-// section 4.3.6 of ANSI X9.62.
+// SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
+// the conventional point at infinity), the behavior is undefined.
 func Marshal(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 
@@ -367,7 +368,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 }
 
 // MarshalCompressed converts a point on the curve into the compressed form
-// specified in section 4.3.6 of ANSI X9.62.
+// specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
+// curve (or is the conventional point at infinity), the behavior is undefined.
 func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
@@ -376,9 +378,9 @@ func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
 	return compressed
 }
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair.
-// It is an error if the point is not in uncompressed form or is not on the curve.
-// On error, x = nil.
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
+// an error if the point is not in uncompressed form, is not on the curve, or is
+// the point at infinity. On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
@@ -399,9 +401,9 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	return
 }
 
-// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
-// It is an error if the point is not in compressed form or is not on the curve.
-// On error, x = nil.
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
+// an x, y pair. It is an error if the point is not in compressed form, is not
+// on the curve, or is the point at infinity. On error, x = nil.
 func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+byteLen {
