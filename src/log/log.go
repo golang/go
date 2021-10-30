@@ -108,6 +108,7 @@ func itoa(buf *[]byte, i int, wid int) {
 }
 
 // formatHeader writes log header to buf in following order:
+//   * level (if it's not blank and Llevel is set)
 //   * l.prefix (if it's not blank and Lmsgprefix is unset),
 //   * date and/or time (if corresponding flags are provided),
 //   * file and line number (if corresponding flags are provided),
@@ -205,7 +206,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 }
 
 // OutputL writes the output for a logging event. The string level contains
-// the text to print before the prefix.
+// the text to print at the beginning of the line.
 func (l *Logger) OutputL(calldepth int, level, s string) error {
 	return l.outputl(calldepth+1, level, s)
 }
