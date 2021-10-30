@@ -43,7 +43,7 @@ const (
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
 	Lmsgprefix                    // move the "prefix" from the beginning of the line to before the message
-	Llevel                        // the output level: Debug
+	Llevel                        // the level text: Print
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
