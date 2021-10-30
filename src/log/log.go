@@ -43,6 +43,7 @@ const (
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
 	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
 	Lmsgprefix                    // move the "prefix" from the beginning of the line to before the message
+	Llevel                        // the output level: Debug
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
@@ -111,7 +112,10 @@ func itoa(buf *[]byte, i int, wid int) {
 //   * date and/or time (if corresponding flags are provided),
 //   * file and line number (if corresponding flags are provided),
 //   * l.prefix (if it's not blank and Lmsgprefix is set).
-func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+func (l *Logger) formatHeader(buf *[]byte, level string, t time.Time, file string, line int) {
+	if l.flag&Llevel != 0 {
+		*buf = append(*buf, level...)
+	}
 	if l.flag&Lmsgprefix == 0 {
 		*buf = append(*buf, l.prefix...)
 	}
@@ -163,13 +167,7 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	}
 }
 
-// Output writes the output for a logging event. The string s contains
-// the text to print after the prefix specified by the flags of the
-// Logger. A newline is appended if the last character of s is not
-// already a newline. Calldepth is used to recover the PC and is
-// provided for generality, although at the moment on all pre-defined
-// paths it will be 2.
-func (l *Logger) Output(calldepth int, s string) error {
+func (l *Logger) outputl(calldepth int, level, s string) error {
 	now := time.Now() // get this early.
 	var file string
 	var line int
@@ -187,7 +185,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 		l.mu.Lock()
 	}
 	l.buf = l.buf[:0]
-	l.formatHeader(&l.buf, now, file, line)
+	l.formatHeader(&l.buf, level, now, file, line)
 	l.buf = append(l.buf, s...)
 	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
@@ -196,13 +194,29 @@ func (l *Logger) Output(calldepth int, s string) error {
 	return err
 }
 
+// Output writes the output for a logging event. The string s contains
+// the text to print after the prefix specified by the flags of the
+// Logger. A newline is appended if the last character of s is not
+// already a newline. Calldepth is used to recover the PC and is
+// provided for generality, although at the moment on all pre-defined
+// paths it will be 2.
+func (l *Logger) Output(calldepth int, s string) error {
+	return l.outputl(calldepth+1, "Print ", s)
+}
+
+// OutputL writes the output for a logging event. The string level contains
+// the text to print before the prefix.
+func (l *Logger) OutputL(calldepth int, level, s string) error {
+	return l.outputl(calldepth+1, level, s)
+}
+
 // Printf calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
-	l.Output(2, fmt.Sprintf(format, v...))
+	l.OutputL(2, "Print ", fmt.Sprintf(format, v...))
 }
 
 // Print calls l.Output to print to the logger.
@@ -211,7 +225,7 @@ func (l *Logger) Print(v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
-	l.Output(2, fmt.Sprint(v...))
+	l.OutputL(2, "Print ", fmt.Sprint(v...))
 }
 
 // Println calls l.Output to print to the logger.
@@ -220,45 +234,45 @@ func (l *Logger) Println(v ...interface{}) {
 	if atomic.LoadInt32(&l.isDiscard) != 0 {
 		return
 	}
-	l.Output(2, fmt.Sprintln(v...))
+	l.OutputL(2, "Print ", fmt.Sprintln(v...))
 }
 
 // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
-	l.Output(2, fmt.Sprint(v...))
+	l.OutputL(2, "Fatal ", fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.Output(2, fmt.Sprintf(format, v...))
+	l.OutputL(2, "Fatal ", fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
 func (l *Logger) Fatalln(v ...interface{}) {
-	l.Output(2, fmt.Sprintln(v...))
+	l.OutputL(2, "Fatal ", fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to l.Print() followed by a call to panic().
 func (l *Logger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	l.Output(2, s)
+	l.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
 // Panicf is equivalent to l.Printf() followed by a call to panic().
 func (l *Logger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	l.Output(2, s)
+	l.OutputL(2, "Panic", s)
 	panic(s)
 }
 
 // Panicln is equivalent to l.Println() followed by a call to panic().
 func (l *Logger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	l.Output(2, s)
+	l.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
@@ -339,7 +353,7 @@ func Print(v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
-	std.Output(2, fmt.Sprint(v...))
+	std.OutputL(2, "Print ", fmt.Sprint(v...))
 }
 
 // Printf calls Output to print to the standard logger.
@@ -348,7 +362,7 @@ func Printf(format string, v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
-	std.Output(2, fmt.Sprintf(format, v...))
+	std.OutputL(2, "Print ", fmt.Sprintf(format, v...))
 }
 
 // Println calls Output to print to the standard logger.
@@ -357,45 +371,45 @@ func Println(v ...interface{}) {
 	if atomic.LoadInt32(&std.isDiscard) != 0 {
 		return
 	}
-	std.Output(2, fmt.Sprintln(v...))
+	std.OutputL(2, "Print ", fmt.Sprintln(v...))
 }
 
 // Fatal is equivalent to Print() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	std.Output(2, fmt.Sprint(v...))
+	std.OutputL(2, "Fatal ", fmt.Sprint(v...))
 	os.Exit(1)
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
-	std.Output(2, fmt.Sprintf(format, v...))
+	std.OutputL(2, "Fatal ", fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 // Fatalln is equivalent to Println() followed by a call to os.Exit(1).
 func Fatalln(v ...interface{}) {
-	std.Output(2, fmt.Sprintln(v...))
+	std.OutputL(2, "Fatal ", fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 // Panic is equivalent to Print() followed by a call to panic().
 func Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
-	std.Output(2, s)
+	std.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
 // Panicf is equivalent to Printf() followed by a call to panic().
 func Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
-	std.Output(2, s)
+	std.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
 // Panicln is equivalent to Println() followed by a call to panic().
 func Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
-	std.Output(2, s)
+	std.OutputL(2, "Panic ", s)
 	panic(s)
 }
 
@@ -407,5 +421,11 @@ func Panicln(v ...interface{}) {
 // if Llongfile or Lshortfile is set; a value of 1 will print the details
 // for the caller of Output.
 func Output(calldepth int, s string) error {
-	return std.Output(calldepth+1, s) // +1 for this frame.
+	return std.OutputL(calldepth+1, "Print ", s) // +1 for this frame.
+}
+
+// OutputL writes the output for a logging event. The string level contains
+// the text to print before the prefix.
+func OutputL(calldepth int, level, s string) error {
+	return std.OutputL(calldepth+1, level, s)
 }
