@@ -7568,6 +7568,16 @@ func TestMapIterNext(t *testing.T) {
 	}
 }
 
+func BenchmarkMapIterNext(b *testing.B) {
+	m := ValueOf(map[string]int{"a": 0, "b": 1, "c": 2, "d": 3})
+	it := m.MapRange()
+	for i := 0; i < b.N; i++ {
+		for it.Next() {
+		}
+		it.Reset(m)
+	}
+}
+
 func TestMapIterDelete0(t *testing.T) {
 	// Delete all elements before first iteration.
 	m := map[string]int{"one": 1, "two": 2, "three": 3}
