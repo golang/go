@@ -276,6 +276,16 @@ func (t Time) Equal(u Time) bool {
 	return t.sec() == u.sec() && t.nsec() == u.nsec()
 }
 
+// AfterOrEqual reports whether the time instant t is after or equal u.
+func (t Time) AfterOrEqual(u Time) bool {
+	return t.After(u) || t.Equal(u)
+}
+
+// BeforeOrEqual reports whether the time instant t is before or equal u.
+func (t Time) BeforeOrEqual(u Time) bool {
+	return t.Before(u) || t.Equal(u)
+}
+
 // A Month specifies a month of the year (January = 1, ...).
 type Month int
 
