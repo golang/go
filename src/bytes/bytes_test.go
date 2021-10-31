@@ -15,6 +15,7 @@ import (
 	"testing"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 func eq(a, b []string) bool {
@@ -2116,5 +2117,37 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 				Index(buf, key)
 			}
 		})
+	}
+}
+
+func TestClone(t *testing.T) {
+	var cloneTests = [][]byte{
+		[]byte(nil),
+		[]byte{},
+		Clone([]byte{}),
+		[]byte(strings.Repeat("a", 42))[:0],
+		[]byte(strings.Repeat("a", 42))[:0:0],
+		[]byte("short"),
+		[]byte(strings.Repeat("a", 42)),
+	}
+	for _, input := range cloneTests {
+		clone := Clone(input)
+		if !Equal(clone, input) {
+			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
+		}
+
+		if input == nil && clone != nil {
+			t.Errorf("Clone(%#v) return value should be equal to nil slice.", input)
+		}
+
+		if input != nil && clone == nil {
+			t.Errorf("Clone(%#v) return value should not be equal to nil slice.", input)
+		}
+
+		inputHeader := (*reflect.SliceHeader)(unsafe.Pointer(&input))
+		cloneHeader := (*reflect.SliceHeader)(unsafe.Pointer(&clone))
+		if cap(input) != 0 && cloneHeader.Data == inputHeader.Data {
+			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
+		}
 	}
 }
