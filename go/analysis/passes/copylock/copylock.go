@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 const Doc = `check for locks erroneously passed by value
@@ -204,7 +205,7 @@ func checkCopyLocksRangeVar(pass *analysis.Pass, rtok token.Token, e ast.Expr) {
 	}
 }
 
-type typePath []types.Type
+type typePath []string
 
 // String pretty-prints a typePath.
 func (path typePath) String() string {
@@ -215,7 +216,7 @@ func (path typePath) String() string {
 			fmt.Fprint(&buf, " contains ")
 		}
 		// The human-readable path is in reverse order, outermost to innermost.
-		fmt.Fprint(&buf, path[n-i-1].String())
+		fmt.Fprint(&buf, path[n-i-1])
 	}
 	return buf.String()
 }
@@ -244,6 +245,35 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 		return nil
 	}
 
+	if tpar, ok := typ.(*typeparams.TypeParam); ok {
+		terms, err := typeparams.StructuralTerms(tpar)
+		if err != nil {
+			return nil // invalid type
+		}
+		for _, term := range terms {
+			subpath := lockPath(tpkg, term.Type())
+			if len(subpath) > 0 {
+				if term.Tilde() {
+					// Prepend a tilde to our lock path entry to clarify the resulting
+					// diagnostic message. Consider the following example:
+					//
+					//  func _[Mutex interface{ ~sync.Mutex; M() }](m Mutex) {}
+					//
+					// Here the naive error message will be something like "passes lock
+					// by value: Mutex contains sync.Mutex". This is misleading because
+					// the local type parameter doesn't actually contain sync.Mutex,
+					// which lacks the M method.
+					//
+					// With tilde, it is clearer that the containment is via an
+					// approximation element.
+					subpath[len(subpath)-1] = "~" + subpath[len(subpath)-1]
+				}
+				return append(subpath, typ.String())
+			}
+		}
+		return nil
+	}
+
 	for {
 		atyp, ok := typ.Underlying().(*types.Array)
 		if !ok {
@@ -263,7 +293,7 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 	// is a sync.Locker, but a value is not. This differentiates
 	// embedded interfaces from embedded values.
 	if types.Implements(types.NewPointer(typ), lockerType) && !types.Implements(typ, lockerType) {
-		return []types.Type{typ}
+		return []string{typ.String()}
 	}
 
 	// In go1.10, sync.noCopy did not implement Locker.
@@ -272,7 +302,7 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 	if named, ok := typ.(*types.Named); ok &&
 		named.Obj().Name() == "noCopy" &&
 		named.Obj().Pkg().Path() == "sync" {
-		return []types.Type{typ}
+		return []string{typ.String()}
 	}
 
 	nfields := styp.NumFields()
@@ -280,7 +310,7 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 		ftyp := styp.Field(i).Type()
 		subpath := lockPath(tpkg, ftyp)
 		if subpath != nil {
-			return append(subpath, typ)
+			return append(subpath, typ.String())
 		}
 	}
 
