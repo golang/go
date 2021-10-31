@@ -699,7 +699,7 @@ func ToValidUTF8(s, replacement []byte) []byte {
 		if c < utf8.RuneSelf {
 			i++
 			invalid = false
-			b = append(b, byte(c))
+			b = append(b, c)
 			continue
 		}
 		_, wid := utf8.DecodeRune(s[i:])
