@@ -624,7 +624,7 @@ func (g *genInst) getDictOrSubdict(declInfo *instInfo, n ir.Node, nameNode *ir.N
 // yet. If so, it imports the body.
 func checkFetchBody(nameNode *ir.Name) {
 	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
-		// If there is no body yet but Func.Inl exists, then we can can
+		// If there is no body yet but Func.Inl exists, then we can
 		// import the whole generic body.
 		assert(nameNode.Func.Inl.Cost == 1 && nameNode.Sym().Pkg != types.LocalPkg)
 		typecheck.ImportBody(nameNode.Func)
@@ -638,7 +638,18 @@ func checkFetchBody(nameNode *ir.Name) {
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
-	checkFetchBody(nameNode)
+	if nameNode.Func == nil {
+		// If nameNode.Func is nil, this must be a reference to a method of
+		// an imported instantiated type. We will have already called
+		// g.instantiateMethods() on the fully-instantiated type, so
+		// g.instInfoMap[sym] will be non-nil below.
+		rcvr := nameNode.Type().Recv()
+		if rcvr == nil || !deref(rcvr.Type).IsFullyInstantiated() {
+			base.FatalfAt(nameNode.Pos(), "Unexpected function instantiation %v with no body", nameNode)
+		}
+	} else {
+		checkFetchBody(nameNode)
+	}
 
 	// Convert any non-shape type arguments to their shape, so we can reduce the
 	// number of instantiations we have to generate. You can actually have a mix
