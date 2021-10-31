@@ -22,8 +22,16 @@ func disableWER() {
 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 }
 
+// isWin7 returns true on Windows 7. Otherwise it returns false.
+//
+//go:nosplit
+func isWin7() bool {
+	var maj, min, build uint32
+	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
+	return maj < 6 || (maj == 6 && min <= 1)
+}
+
 // enableWERNoUI re-enables Windows error reporting without fault reporting UI.
-// It returns false on older Windows versions (XP and earlier) where WerSetFlags() is not supported.
 //
 // This is marked nosplit since it is used during crash.
 //
@@ -224,9 +232,14 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 
 	_, _, docrash := gotraceback()
 	if docrash {
-		// trigger crash dump creation
-		if enableWERNoUI() {
-			return _EXCEPTION_CONTINUE_SEARCH
+		// Windows 7 apears to ignore WER_FAULT_REPORTING_NO_UI
+		// WerSetFlags API flag. So do not call enableWERNoUI
+		// on Windows 7.
+		if !isWin7() {
+			// trigger crash dump creation
+			if enableWERNoUI() {
+				return _EXCEPTION_CONTINUE_SEARCH
+			}
 		}
 	}
 	exit(2)
