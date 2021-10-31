@@ -631,7 +631,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	if alias && tdecl.TypeParams.NumFields() != 0 {
 		// The parser will ensure this but we may still get an invalid AST.
 		// Complain and continue as regular type definition.
-		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
+		check.error(atPos(tdecl.Assign), _Todo, "generic type cannot be alias")
 		alias = false
 	}
 
