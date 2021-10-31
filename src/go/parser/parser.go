@@ -455,10 +455,10 @@ func (p *parser) parseExprList() (list []ast.Expr) {
 		defer un(trace(p, "ExpressionList"))
 	}
 
-	list = append(list, p.checkExpr(p.parseExpr(nil)))
+	list = append(list, p.checkExpr(p.parseExpr()))
 	for p.tok == token.COMMA {
 		p.next()
-		list = append(list, p.checkExpr(p.parseExpr(nil)))
+		list = append(list, p.checkExpr(p.parseExpr()))
 	}
 
 	return
@@ -525,23 +525,27 @@ func (p *parser) parseTypeName(ident *ast.Ident) ast.Expr {
 	return ident
 }
 
-func (p *parser) parseArrayLen() ast.Expr {
+// "[" has already been consumed, and lbrack is its position.
+// If len != nil it is the already consumed array length.
+func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
 	if p.trace {
-		defer un(trace(p, "ArrayLen"))
+		defer un(trace(p, "ArrayType"))
 	}
 
-	p.exprLev++
-	var len ast.Expr
-	// always permit ellipsis for more fault-tolerant parsing
-	if p.tok == token.ELLIPSIS {
-		len = &ast.Ellipsis{Ellipsis: p.pos}
-		p.next()
-	} else if p.tok != token.RBRACK {
-		len = p.parseRhs()
+	if len == nil {
+		p.exprLev++
+		// always permit ellipsis for more fault-tolerant parsing
+		if p.tok == token.ELLIPSIS {
+			len = &ast.Ellipsis{Ellipsis: p.pos}
+			p.next()
+		} else if p.tok != token.RBRACK {
+			len = p.parseRhs()
+		}
+		p.exprLev--
 	}
-	p.exprLev--
-
-	return len
+	p.expect(token.RBRACK)
+	elt := p.parseType()
+	return &ast.ArrayType{Lbrack: lbrack, Len: len, Elt: elt}
 }
 
 func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Expr) {
@@ -996,7 +1000,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 			lbrack := p.pos
 			p.next()
 			p.exprLev++
-			x := p.parseExpr(nil)
+			x := p.parseExpr()
 			p.exprLev--
 			if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.COMMA && p.tok != token.RBRACK {
 				// generic method m[T any]
@@ -1238,10 +1242,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return typ
 	case token.LBRACK:
 		lbrack := p.expect(token.LBRACK)
-		alen := p.parseArrayLen()
-		p.expect(token.RBRACK)
-		elt := p.parseType()
-		return &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+		return p.parseArrayType(lbrack, nil)
 	case token.STRUCT:
 		return p.parseStructType()
 	case token.MUL:
@@ -1526,7 +1527,7 @@ func (p *parser) parseValue() ast.Expr {
 		return p.parseLiteralValue(nil)
 	}
 
-	x := p.checkExpr(p.parseExpr(nil))
+	x := p.checkExpr(p.parseExpr())
 
 	return x
 }
@@ -1802,18 +1803,18 @@ func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int) ast.Expr {
 // The result may be a type or even a raw type ([...]int). Callers must
 // check the result (using checkExpr or checkExprOrType), depending on
 // context.
-func (p *parser) parseExpr(lhs ast.Expr) ast.Expr {
+func (p *parser) parseExpr() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"))
 	}
 
-	return p.parseBinaryExpr(lhs, token.LowestPrec+1)
+	return p.parseBinaryExpr(nil, token.LowestPrec+1)
 }
 
 func (p *parser) parseRhs() ast.Expr {
 	old := p.inRhs
 	p.inRhs = true
-	x := p.checkExpr(p.parseExpr(nil))
+	x := p.checkExpr(p.parseExpr())
 	p.inRhs = old
 	return x
 }
@@ -1821,7 +1822,7 @@ func (p *parser) parseRhs() ast.Expr {
 func (p *parser) parseRhsOrType() ast.Expr {
 	old := p.inRhs
 	p.inRhs = true
-	x := p.checkExprOrType(p.parseExpr(nil))
+	x := p.checkExprOrType(p.parseExpr())
 	p.inRhs = old
 	return x
 }
@@ -2554,49 +2555,42 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	ident := p.parseIdent()
 	spec := &ast.TypeSpec{Doc: doc, Name: ident}
 
-	switch p.tok {
-	case token.LBRACK:
+	if p.tok == token.LBRACK && p.allowGenerics() {
 		lbrack := p.pos
 		p.next()
 		if p.tok == token.IDENT {
 			// array type or generic type: [name0...
 			name0 := p.parseIdent()
 
-			if p.allowGenerics() && p.tok == token.LBRACK {
-				// Index or slice expressions are not valid array lengths, so we can
-				// parse as though we are in a generic type with array or slice
-				// constraint: [T [...
-				p.parseGenericType(spec, lbrack, name0)
-				break
-			} else {
-
+			// Index or slice expressions are never constant and thus invalid
+			// array length expressions. Thus, if we see a "[" following name
+			// we can safely assume that "[" name starts a type parameter list.
+			var x ast.Expr // x != nil means x is the array length expression
+			if p.tok != token.LBRACK {
 				// We may still have either an array type or generic type -- check if
 				// name0 is the entire expr.
 				p.exprLev++
 				lhs := p.parsePrimaryExpr(name0)
-				x := p.parseExpr(lhs)
+				x = p.parseBinaryExpr(lhs, token.LowestPrec+1)
 				p.exprLev--
-
-				if name1, _ := x.(*ast.Ident); p.allowGenerics() && name1 != nil && p.tok != token.RBRACK {
-					// generic type [T any];
-					p.parseGenericType(spec, lbrack, name1)
-				} else {
-					// array type
-					// TODO(rfindley) should resolve all identifiers in x.
-					p.expect(token.RBRACK)
-					elt := p.parseType()
-					spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: elt}
+				if x == name0 && p.tok != token.RBRACK {
+					x = nil
 				}
+			}
+
+			if x == nil {
+				// generic type [T any];
+				p.parseGenericType(spec, lbrack, name0)
+			} else {
+				// array type
+				// TODO(rfindley) should resolve all identifiers in x.
+				spec.Type = p.parseArrayType(lbrack, x)
 			}
 		} else {
 			// array type
-			alen := p.parseArrayLen()
-			p.expect(token.RBRACK)
-			elt := p.parseType()
-			spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+			spec.Type = p.parseArrayType(lbrack, nil)
 		}
-
-	default:
+	} else {
 		// no type parameters
 		if p.tok == token.ASSIGN {
 			// type alias
