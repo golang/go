@@ -79,18 +79,18 @@ DATA _rt0_amd64_lib_argv<>(SB)/8, $0
 GLOBL _rt0_amd64_lib_argv<>(SB),NOPTR, $8
 
 #ifdef GOAMD64_v2
-DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v2 microarchitecture support.\n"
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v2 microarchitecture support.\n"
 #endif
 
 #ifdef GOAMD64_v3
-DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v3 microarchitecture support.\n"
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v3 microarchitecture support.\n"
 #endif
 
 #ifdef GOAMD64_v4
-DATA bad_proc_msg<>+0x00(SB)/78, $"This program can only be run on processors with v4 microarchitecture support.\n"
+DATA bad_cpu_msg<>+0x00(SB)/84, $"This program can only be run on AMD64 processors with v4 microarchitecture support.\n"
 #endif
 
-GLOBL bad_proc_msg<>(SB), RODATA, $78
+GLOBL bad_cpu_msg<>(SB), RODATA, $84
 
 // Define a list of AMD64 microarchitecture level features
 // https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
@@ -107,6 +107,10 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #define V3_EXT_FEATURES_BX (1 << 3 | 1 << 5 | 1 << 8)
                        // XMM      YMM
 #define V3_OS_SUPPORT_AX (1 << 1 | 1 << 2)
+
+#define V4_FEATURES_CX V3_FEATURES_CX
+
+#define V4_EXT_FEATURES_CX V3_EXT_FEATURES_CX
                                               // AVX512F   AVX512DQ  AVX512CD  AVX512BW  AVX512VL
 #define V4_EXT_FEATURES_BX (V3_EXT_FEATURES_BX | 1 << 16 | 1 << 17 | 1 << 28 | 1 << 30 | 1 << 31)
                                           // OPMASK   ZMM
@@ -119,17 +123,6 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #endif
 
 #ifdef GOAMD64_v3
-#define NEED_V3_CHECK
-#endif
-
-// Excluding v4 checks on Darwin for now, see CL 285572.
-#ifdef GOAMD64_v4
-#ifdef GOOS_darwin
-#define NEED_V3_CHECK
-#endif
-#endif
-
-#ifdef NEED_V3_CHECK
 #define NEED_MAX_CPUID 0x80000001
 #define NEED_FEATURES_CX V3_FEATURES_CX
 #define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
@@ -138,13 +131,18 @@ GLOBL bad_proc_msg<>(SB), RODATA, $78
 #endif
 
 #ifdef GOAMD64_v4
-#ifndef GOOS_darwin
 #define NEED_MAX_CPUID 0x80000001
-#define NEED_FEATURES_CX V3_FEATURES_CX
-#define NEED_EXT_FEATURES_CX V3_EXT_FEATURES_CX
+#define NEED_FEATURES_CX V4_FEATURES_CX
+#define NEED_EXT_FEATURES_CX V4_EXT_FEATURES_CX
 #define NEED_EXT_FEATURES_BX V4_EXT_FEATURES_BX
+
+// Downgrading v4 OS checks on Darwin for now, see CL 285572.
+#ifdef GOOS_darwin
+#define NEED_OS_SUPPORT_AX V3_OS_SUPPORT_AX
+#else
 #define NEED_OS_SUPPORT_AX V4_OS_SUPPORT_AX
 #endif
+
 #endif
 
 #ifdef GOAMD64_v1
@@ -182,18 +180,17 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// find out information about the processor we're on
 	MOVL	$0, AX
 	CPUID
-	MOVL	AX, SI
 	CMPL	AX, $0
 #ifdef SKIP_GOAMD64_CHECK
-	JE nocpuinfo
+	JE	nocpuinfo
 #else
 	JNE	has_cpuinfo
 
-bad_proc: // show that the program requires a certain microarchitecture level.
+bad_cpu: // show that the program requires a certain microarchitecture level.
 	MOVQ	$2, 0(SP)
-	MOVQ	$bad_proc_msg<>(SB), AX
+	MOVQ	$bad_cpu_msg<>(SB), AX
 	MOVQ	AX, 8(SP)
-	MOVQ	$78, 16(SP)
+	MOVQ	$84, 16(SP)
 	CALL	runtime·write(SB)
 	MOVQ	$1, 0(SP)
 	CALL	runtime·exit(SB)
@@ -218,14 +215,14 @@ notintel:
 #ifdef NEED_FEATURES_CX
 	ANDL	$NEED_FEATURES_CX, CX
 	CMPL	CX, $NEED_FEATURES_CX
-	JNZ bad_proc
+	JNE	bad_cpu
 #endif
 
 #ifdef NEED_MAX_CPUID
 	MOVL	$0x80000000, AX
 	CPUID
 	CMPL	AX, $NEED_MAX_CPUID
-	JL  bad_proc
+	JL	bad_cpu
 #endif
 
 #ifdef NEED_EXT_FEATURES_BX
@@ -234,7 +231,7 @@ notintel:
 	CPUID
 	ANDL	$NEED_EXT_FEATURES_BX, BX
 	CMPL	BX, $NEED_EXT_FEATURES_BX
-	JNZ bad_proc
+	JNE	bad_cpu
 #endif
 
 #ifdef NEED_EXT_FEATURES_CX
@@ -242,15 +239,15 @@ notintel:
 	CPUID
 	ANDL	$NEED_EXT_FEATURES_CX, CX
 	CMPL	CX, $NEED_EXT_FEATURES_CX
-	JNZ bad_proc
+	JNE	bad_cpu
 #endif
 
 #ifdef NEED_OS_SUPPORT_AX
-	MOVL	$0, CX
+	XORL    CX, CX
 	XGETBV
 	ANDL	$NEED_OS_SUPPORT_AX, AX
 	CMPL	AX, $NEED_OS_SUPPORT_AX
-	JNZ bad_proc
+	JNE	bad_cpu
 #endif
 
 nocpuinfo:
