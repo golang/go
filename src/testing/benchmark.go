@@ -45,7 +45,7 @@ func (f *durationOrCountFlag) String() string {
 	if f.n > 0 {
 		return fmt.Sprintf("%dx", f.n)
 	}
-	return time.Duration(f.d).String()
+	return f.d.String()
 }
 
 func (f *durationOrCountFlag) Set(s string) error {
