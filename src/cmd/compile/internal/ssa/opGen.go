@@ -28875,7 +28875,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLstatic",
 		auxType: auxCallOff,
-		argLen:  1,
+		argLen:  -1,
 		call:    true,
 		reg: regInfo{
 			clobbers: 9223372035781033968, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -28884,7 +28884,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:     "CALLtail",
 		auxType:  auxCallOff,
-		argLen:   1,
+		argLen:   -1,
 		call:     true,
 		tailCall: true,
 		reg: regInfo{
@@ -28894,7 +28894,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLclosure",
 		auxType: auxCallOff,
-		argLen:  3,
+		argLen:  -1,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -28907,7 +28907,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLinter",
 		auxType: auxCallOff,
-		argLen:  2,
+		argLen:  -1,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
