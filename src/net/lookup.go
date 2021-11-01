@@ -558,9 +558,7 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 		if mx == nil {
 			continue
 		}
-		// Bypass the hostname validity check for targets which contain only a dot,
-		// as this is used to represent a 'Null' MX record.
-		if mx.Host != "." && !isDomainName(mx.Host) {
+		if !isDomainName(mx.Host) {
 			continue
 		}
 		filteredMX = append(filteredMX, mx)
