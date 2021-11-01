@@ -207,11 +207,14 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 
 // WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
 func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
-	// TODO(bradfitz): make this efficient, making the internal net package
-	// type throughout be netip.Addr and only converting to the net.IP slice
-	// version at the edge. But for now (2021-10-20), this is a wrapper around
-	// the old way.
-	return c.WriteToUDP(b, UDPAddrFromAddrPort(addr))
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeToAddrPort(b, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
+	}
+	return n, err
 }
 
 // WriteTo implements the PacketConn WriteTo method.
