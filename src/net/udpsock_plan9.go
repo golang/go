@@ -57,6 +57,10 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
 	return 0, 0, syscall.EPLAN9
 }
 
+func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+	return 0, 0, syscall.EPLAN9
+}
+
 func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
 	if err != nil {
