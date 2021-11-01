@@ -80,6 +80,12 @@ func IsInterface(typ Type) bool {
 	return asInterface(typ) != nil
 }
 
+// isTypeParam reports whether typ is a type parameter.
+func isTypeParam(typ Type) bool {
+	_, ok := under(typ).(*TypeParam)
+	return ok
+}
+
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
 	return comparable(T, nil)

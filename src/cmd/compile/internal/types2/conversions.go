@@ -16,26 +16,45 @@ import (
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
-	var ok bool
-	var cause string
-	switch {
-	case constArg && isConstType(T):
-		// constant conversion (T cannot be a type parameter)
+	constConvertibleTo := func(T Type, val *constant.Value) bool {
 		switch t := asBasic(T); {
-		case representableConst(x.val, check, t, &x.val):
-			ok = true
+		case representableConst(x.val, check, t, val):
+			return true
 		case isInteger(x.typ) && isString(t):
 			codepoint := unicode.ReplacementChar
 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
 				codepoint = rune(i)
 			}
-			x.val = constant.MakeString(string(codepoint))
-			ok = true
+			if val != nil {
+				*val = constant.MakeString(string(codepoint))
+			}
+			return true
 		}
+		return false
+	}
+
+	var ok bool
+	var cause string
+	switch {
+	case constArg && isConstType(T):
+		// constant conversion
+		ok = constConvertibleTo(T, &x.val)
+	case constArg && isTypeParam(T):
+		// x is convertible to T if it is convertible
+		// to each specific type in the type set of T.
+		// If T's type set is empty, or if it doesn't
+		// have specific types, constant x cannot be
+		// converted.
+		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
+			// t is nil if there are no specific type terms
+			// TODO(gri) add a cause in case of failure
+			return u != nil && constConvertibleTo(u, nil)
+		})
+		x.mode = value // type parameters are not constants
 	case x.convertibleTo(check, T, &cause):
 		// non-constant conversion
-		x.mode = value
 		ok = true
+		x.mode = value
 	}
 
 	if !ok {
