@@ -123,6 +123,34 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
 	return c.fd.writeMsg(b, oob, sa)
 }
 
+func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+	if c.fd.isConnected && addr.IsValid() {
+		return 0, 0, ErrWriteToConnected
+	}
+	if !c.fd.isConnected && !addr.IsValid() {
+		return 0, 0, errMissingAddress
+	}
+
+	switch c.fd.family {
+	case syscall.AF_INET:
+		sa, err := addrPortToSockaddrInet4(addr)
+		if err != nil {
+			return 0, 0, err
+		}
+		// TODO: Implement writeMsgInet4 to avoid allocation converting sa to an interface.
+		return c.fd.writeMsg(b, oob, &sa)
+	case syscall.AF_INET6:
+		sa, err := addrPortToSockaddrInet6(addr)
+		if err != nil {
+			return 0, 0, err
+		}
+		// TODO: Implement writeMsgInet6 to avoid allocation converting sa to an interface.
+		return c.fd.writeMsg(b, oob, &sa)
+	default:
+		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
+	}
+}
+
 func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial", sd.Dialer.Control)
 	if err != nil {

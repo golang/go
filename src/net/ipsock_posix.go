@@ -9,6 +9,7 @@ package net
 import (
 	"context"
 	"internal/poll"
+	"net/netip"
 	"runtime"
 	"syscall"
 )
@@ -195,4 +196,33 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		return &sa, nil
 	}
 	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}
+}
+
+func addrPortToSockaddrInet4(ap netip.AddrPort) (syscall.SockaddrInet4, error) {
+	// ipToSockaddrInet4 has special handling here for zero length slices.
+	// We do not, because netip has no concept of a generic zero IP address.
+	addr := ap.Addr()
+	if !addr.Is4() {
+		return syscall.SockaddrInet4{}, &AddrError{Err: "non-IPv4 address", Addr: addr.String()}
+	}
+	sa := syscall.SockaddrInet4{
+		Addr: addr.As4(),
+		Port: int(ap.Port()),
+	}
+	return sa, nil
+}
+
+func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
+	// ipToSockaddrInet6 has special handling here for zero length slices.
+	// We do not, because netip has no concept of a generic zero IP address.
+	addr := ap.Addr()
+	if !addr.Is6() {
+		return syscall.SockaddrInet6{}, &AddrError{Err: "non-IPv6 address", Addr: addr.String()}
+	}
+	sa := syscall.SockaddrInet6{
+		Addr:   addr.As16(),
+		Port:   int(ap.Port()),
+		ZoneId: uint32(zoneCache.index(addr.Zone())),
+	}
+	return sa, nil
 }

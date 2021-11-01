@@ -114,6 +114,13 @@ func UDPAddrFromAddrPort(addr netip.AddrPort) *UDPAddr {
 	}
 }
 
+// An addrPortUDPAddr is a netip.AddrPort-based UDP address that satisfies the Addr interface.
+type addrPortUDPAddr struct {
+	netip.AddrPort
+}
+
+func (addrPortUDPAddr) Network() string { return "udp" }
+
 // UDPConn is the implementation of the Conn and PacketConn interfaces
 // for UDP network connections.
 type UDPConn struct {
@@ -244,11 +251,14 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 
 // WriteMsgUDPAddrPort is like WriteMsgUDP but takes a netip.AddrPort instead of a UDPAddr.
 func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
-	// TODO(bradfitz): make this efficient, making the internal net package
-	// type throughout be netip.Addr and only converting to the net.IP slice
-	// version at the edge. But for now (2021-10-20), this is a wrapper around
-	// the old way.
-	return c.WriteMsgUDP(b, oob, UDPAddrFromAddrPort(addr))
+	if !c.ok() {
+		return 0, 0, syscall.EINVAL
+	}
+	n, oobn, err = c.writeMsgAddrPort(b, oob, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
+	}
+	return
 }
 
 func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
