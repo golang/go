@@ -102,9 +102,7 @@ func (p *Pool) Put(x any) {
 	l, _ := p.pin()
 	if l.private == nil {
 		l.private = x
-		x = nil
-	}
-	if x != nil {
+	} else {
 		l.shared.pushHead(x)
 	}
 	runtime_procUnpin()
