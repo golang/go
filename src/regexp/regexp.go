@@ -46,7 +46,7 @@
 // the match of the first parenthesized subexpression, and so on.
 //
 // If 'Index' is present, matches and submatches are identified by byte index
-// pairs within the input string: result[2*n:2*n+1] identifies the indexes of
+// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
 // expression. If 'Index' is not present, the match is identified by the text
 // of the match/submatch. If an index is negative or text is nil, it means that
