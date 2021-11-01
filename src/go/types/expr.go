@@ -142,6 +142,8 @@ var op2str2 = [...]string{
 	token.SHL: "shift",
 }
 
+// If typ is a type parameter, underIs returns the result of typ.underIs(f).
+// Otherwise, underIs returns the result of f(under(typ)).
 func underIs(typ Type, f func(Type) bool) bool {
 	u := under(typ)
 	if tpar, _ := u.(*TypeParam); tpar != nil {
