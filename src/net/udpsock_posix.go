@@ -8,6 +8,7 @@ package net
 
 import (
 	"context"
+	"net/netip"
 	"syscall"
 )
 
@@ -68,14 +69,16 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	return n, addr, err
 }
 
-func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
 	var sa syscall.Sockaddr
 	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+		ip := netip.AddrFrom4(sa.Addr)
+		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+		ip := netip.AddrFrom16(sa.Addr).WithZone(zoneCache.name(int(sa.ZoneId)))
+		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
 	}
 	return
 }

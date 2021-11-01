@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"os"
 	"syscall"
 )
@@ -28,8 +29,8 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	return n, addr, nil
 }
 
-func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
-	return 0, 0, 0, nil, syscall.EPLAN9
+func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+	return 0, 0, 0, netip.AddrPort{}, syscall.EPLAN9
 }
 
 func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
