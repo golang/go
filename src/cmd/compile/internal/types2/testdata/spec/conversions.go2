@@ -6,6 +6,27 @@ package conversions
 
 import "unsafe"
 
+// constant conversions
+
+func _[T ~byte]() T { return 255 }
+func _[T ~byte]() T { return 256 /* ERROR cannot use 256 .* as T value */ }
+
+func _[T ~byte]() {
+	const _ = T /* ERROR T\(0\) .* is not constant */ (0)
+	var _ T = 255
+	var _ T = 256 // ERROR cannot use 256 .* as T value
+}
+
+func _[T ~string]() T { return T('a') }
+func _[T ~int | ~string]() T { return T('a') }
+func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to T */ ) }
+
+// implicit conversions never convert to string
+func _[T ~string]() {
+	var _ string = 0 // ERROR cannot use .* as string value
+	var _ T = 0 // ERROR cannot use .* as T value
+}
+
 // "x is assignable to T"
 // - tested via assignability tests
 
