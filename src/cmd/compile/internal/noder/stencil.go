@@ -1055,8 +1055,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
 				// Transform the conversion, now that we know the
 				// type argument.
 				m = transformConvCall(call)
-				// CONVIFACE transformation was already done in noder2
-				assert(m.Op() != ir.OCONVIFACE)
 
 			case ir.OMETHVALUE, ir.OMETHEXPR:
 				// Redo the transformation of OXDOT, now that we
@@ -1076,14 +1074,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
 			case ir.ONAME:
 				name := call.X.Name()
 				if name.BuiltinOp != ir.OXXX {
-					switch name.BuiltinOp {
-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-						// Transform these builtins now that we
-						// know the type of the args.
-						m = transformBuiltin(call)
-					default:
-						base.FatalfAt(call.Pos(), "Unexpected builtin op")
-					}
+					m = transformBuiltin(call)
 				} else {
 					// This is the case of a function value that was a
 					// type parameter (implied to be a function via a
