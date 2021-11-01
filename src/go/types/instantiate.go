@@ -134,8 +134,16 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) 
 // TODO(gri) This should be a method of interfaces or type sets.
 func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap substMap) error {
 	iface := tpar.iface()
+
+	// Every type argument satisfies interface{}.
 	if iface.Empty() {
-		return nil // no type bound
+		return nil
+	}
+
+	// A type argument that is a type parameter with an empty type set satisfies any constraint.
+	// (The empty set is a subset of any set.)
+	if targ := asTypeParam(targ); targ != nil && targ.iface().typeSet().IsEmpty() {
+		return nil
 	}
 
 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
@@ -147,6 +155,11 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 	}
 	errorf := func(format string, args ...interface{}) error {
 		return errors.New(sprintf(nil, qf, false, format, args...))
+	}
+
+	// No type argument with non-empty type set satisfies the empty type set.
+	if iface.typeSet().IsEmpty() {
+		return errorf("%s does not satisfy %s (constraint type set is empty)", targ, tpar.bound)
 	}
 
 	// The type parameter bound is parameterized with the same type parameters
@@ -190,28 +203,27 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 		}
 	}
 
-	// targ's underlying type must also be one of the interface types listed, if any
+	// targ must also be in the set of types of iface, if any.
+	// Constraints with empty type sets were already excluded above.
 	if !iface.typeSet().hasTerms() {
 		return nil // nothing to do
 	}
 
-	// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
-	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+	// If targ is itself a type parameter, each of its possible types must be in the set
+	// of iface types (i.e., the targ type set must be a subset of the iface type set).
+	// Type arguments with empty type sets were already excluded above.
 	if targ := asTypeParam(targ); targ != nil {
 		targBound := targ.iface()
-		if !targBound.typeSet().hasTerms() {
-			return errorf("%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
-		}
 		if !targBound.typeSet().subsetOf(iface.typeSet()) {
-			// TODO(gri) need better error message
+			// TODO(gri) report which type is missing
 			return errorf("%s does not satisfy %s", targ, tpar.bound)
 		}
 		return nil
 	}
 
-	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+	// Otherwise, targ's type must be included in the iface type set.
 	if !iface.typeSet().includes(targ) {
-		// TODO(gri) better error message
+		// TODO(gri) report which type is missing
 		return errorf("%s does not satisfy %s", targ, tpar.bound)
 	}
 
