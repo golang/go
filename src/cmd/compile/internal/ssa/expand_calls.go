@@ -954,6 +954,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 		elt := t.Elem()
 		if source.Type != t && t.NumElem() == 1 && elt.Size() == t.Size() && t.Size() == x.regSize {
 			t = removeTrivialWrapperTypes(t)
+			source.Type = t
 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
 		}
@@ -987,6 +988,7 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
 			// v139 is later stored as an intVal == struct{val *big.Int} which naively requires the fields of
 			// of a *uint8, which does not succeed.
 			t = removeTrivialWrapperTypes(t)
+			source.Type = t
 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
 		}
