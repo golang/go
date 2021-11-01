@@ -21,7 +21,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	switch {
 	case constArg && isConstType(T):
 		// constant conversion (T cannot be a type parameter)
-		switch t := asBasic(T); {
+		switch t := toBasic(T); {
 		case representableConst(x.val, check, t, &x.val):
 			ok = true
 		case isInteger(x.typ) && isString(t):
@@ -198,9 +198,9 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 
 	// "V is a slice, T is a pointer-to-array type,
 	// and the slice and array types have identical element types."
-	if s := asSlice(V); s != nil {
-		if p := asPointer(T); p != nil {
-			if a := asArray(p.Elem()); a != nil {
+	if s := toSlice(V); s != nil {
+		if p := toPointer(T); p != nil {
+			if a := toArray(p.Elem()); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
 						return true
@@ -216,27 +216,31 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 	return false
 }
 
+// Helper predicates for convertibleToImpl. The types provided to convertibleToImpl
+// may be type parameters but they won't have specific type terms. Thus it is ok to
+// use the toT convenience converters in the predicates below.
+
 func isUintptr(typ Type) bool {
-	t := asBasic(typ)
+	t := toBasic(typ)
 	return t != nil && t.kind == Uintptr
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+	// TODO(gri): Is this toBasic(typ) instead of typ.(*Basic) correct?
 	//            (The former calls under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
-	t := asBasic(typ)
+	t := toBasic(typ)
 	return t != nil && t.kind == UnsafePointer
 }
 
 func isPointer(typ Type) bool {
-	return asPointer(typ) != nil
+	return toPointer(typ) != nil
 }
 
 func isBytesOrRunes(typ Type) bool {
-	if s := asSlice(typ); s != nil {
-		t := asBasic(s.elem)
+	if s := toSlice(typ); s != nil {
+		t := toBasic(s.elem)
 		return t != nil && (t.kind == Byte || t.kind == Rune)
 	}
 	return false

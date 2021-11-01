@@ -74,7 +74,7 @@ func (subst *subster) typ(typ Type) Type {
 		// Call typOrNil if it's possible that typ is nil.
 		panic("nil typ")
 
-	case *Basic, *top:
+	case *Basic:
 		// nothing to do
 
 	case *Array:
