@@ -666,6 +666,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		if len(pkgs) != 1 {
 			base.Fatalf("cannot use -fuzz flag with multiple packages")
 		}
+		if testCoverProfile != "" {
+			base.Fatalf("cannot use -coverprofile flag with -fuzz flag")
+		}
+		if profileFlag := testProfile(); profileFlag != "" {
+			base.Fatalf("cannot use %s flag with -fuzz flag", profileFlag)
+		}
 
 		// Reject the '-fuzz' flag if the package is outside the main module.
 		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
