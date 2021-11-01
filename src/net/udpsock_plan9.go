@@ -53,6 +53,10 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 	return len(b), nil
 }
 
+func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	return c.writeTo(b, UDPAddrFromAddrPort(addr)) // TODO: optimize instead of allocating
+}
+
 func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
 	return 0, 0, syscall.EPLAN9
 }

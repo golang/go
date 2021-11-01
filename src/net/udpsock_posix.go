@@ -109,6 +109,32 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 	}
 }
 
+func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	if c.fd.isConnected {
+		return 0, ErrWriteToConnected
+	}
+	if !addr.IsValid() {
+		return 0, errMissingAddress
+	}
+
+	switch c.fd.family {
+	case syscall.AF_INET:
+		sa, err := addrPortToSockaddrInet4(addr)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet4(b, sa)
+	case syscall.AF_INET6:
+		sa, err := addrPortToSockaddrInet6(addr)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet6(b, sa)
+	default:
+		return 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
+	}
+}
+
 func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
 	if c.fd.isConnected && addr != nil {
 		return 0, 0, ErrWriteToConnected
