@@ -167,6 +167,18 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
+// ReadFromUDPAddrPort acts like ReadFrom but returns a netip.AddrPort.
+func (c *UDPConn) ReadFromUDPAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
+	if !c.ok() {
+		return 0, netip.AddrPort{}, syscall.EINVAL
+	}
+	n, addr, err = c.readFromAddrPort(b)
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, addr, err
+}
+
 // ReadMsgUDP reads a message from c, copying the payload into b and
 // the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
