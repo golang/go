@@ -2120,3 +2120,44 @@ func TestNullMX(t *testing.T) {
 		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
 	}
 }
+
+func TestRootNS(t *testing.T) {
+	// See https://golang.org/issue/45715.
+	fake := fakeDNSServer{
+		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+			r := dnsmessage.Message{
+				Header: dnsmessage.Header{
+					ID:       q.Header.ID,
+					Response: true,
+					RCode:    dnsmessage.RCodeSuccess,
+				},
+				Questions: q.Questions,
+				Answers: []dnsmessage.Resource{
+					{
+						Header: dnsmessage.ResourceHeader{
+							Name:  q.Questions[0].Name,
+							Type:  dnsmessage.TypeNS,
+							Class: dnsmessage.ClassINET,
+						},
+						Body: &dnsmessage.NSResource{
+							NS: dnsmessage.MustNewName("i.root-servers.net."),
+						},
+					},
+				},
+			}
+			return r, nil
+		},
+	}
+	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+	rrset, err := r.LookupNS(context.Background(), ".")
+	if err != nil {
+		t.Fatalf("LookupNS: %v", err)
+	}
+	if want := []*NS{&NS{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
+		records := []string{}
+		for _, rr := range rrset {
+			records = append(records, fmt.Sprintf("%v", rr))
+		}
+		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
+	}
+}
