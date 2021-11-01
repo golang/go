@@ -316,32 +316,15 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					} else {
 						// Update the coordinator's coverage mask and save the value.
 						inputSize := len(result.entry.Data)
-						if opts.CacheDir != "" {
-							// It is possible that the input that was discovered is already
-							// present in the corpus, but the worker produced a coverage map
-							// that still expanded our total coverage (this may happen due to
-							// flakiness in the coverage counters). In order to prevent adding
-							// duplicate entries to the corpus (and re-writing the file on
-							// disk), skip it if the on disk file already exists.
-							// TODO(roland): this check is limited in that it will only be
-							// applied if we are using the CacheDir. Another option would be
-							// to iterate through the corpus and check if it is already present,
-							// which would catch cases where we are not caching entries.
-							// A slightly faster approach would be to keep some kind of map of
-							// entry hashes, which would allow us to avoid iterating through
-							// all entries.
-							_, err = os.Stat(result.entry.Path)
-							if err == nil {
-								continue
-							}
-							err := writeToCorpus(&result.entry, opts.CacheDir)
-							if err != nil {
-								stop(err)
-							}
-							result.entry.Data = nil
+						duplicate, err := c.addCorpusEntries(true, result.entry)
+						if err != nil {
+							stop(err)
+							break
+						}
+						if duplicate {
+							continue
 						}
 						c.updateCoverage(keepCoverage)
-						c.corpus.entries = append(c.corpus.entries, result.entry)
 						c.inputQueue.enqueue(result.entry)
 						c.interestingCount++
 						if shouldPrintDebugInfo() {
@@ -433,6 +416,28 @@ func (e *crashError) CrashPath() string {
 
 type corpus struct {
 	entries []CorpusEntry
+	hashes  map[[sha256.Size]byte]bool
+}
+
+func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry) (bool, error) {
+	for _, e := range entries {
+		h := sha256.Sum256(e.Data)
+		if c.corpus.hashes[h] {
+			return true, nil
+		}
+		if addToCache {
+			if err := writeToCorpus(&e, c.opts.CacheDir); err != nil {
+				return false, err
+			}
+			// For entries written to disk, we don't hold onto the bytes,
+			// since the corpus would consume a significant amount of
+			// memory.
+			e.Data = nil
+		}
+		c.corpus.hashes[h] = true
+		c.corpus.entries = append(c.corpus.entries, e)
+	}
+	return false, nil
 }
 
 // CorpusEntry represents an individual input for fuzzing.
@@ -640,18 +645,17 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 			opts.Seed[i].Data = marshalCorpusFile(opts.Seed[i].Values...)
 		}
 	}
-	corpus, err := readCache(opts.Seed, opts.Types, opts.CacheDir)
-	if err != nil {
-		return nil, err
-	}
 	c := &coordinator{
 		opts:        opts,
 		startTime:   time.Now(),
 		inputC:      make(chan fuzzInput),
 		minimizeC:   make(chan fuzzMinimizeInput),
 		resultC:     make(chan fuzzResult),
-		corpus:      corpus,
 		timeLastLog: time.Now(),
+		corpus:      corpus{hashes: make(map[[sha256.Size]byte]bool)},
+	}
+	if err := c.readCache(); err != nil {
+		return nil, err
 	}
 	if opts.MinimizeLimit > 0 || opts.MinimizeTimeout > 0 {
 		for _, t := range opts.Types {
@@ -691,7 +695,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
 		data := marshalCorpusFile(vals...)
 		h := sha256.Sum256(data)
 		name := fmt.Sprintf("%x", h[:4])
-		c.corpus.entries = append(c.corpus.entries, CorpusEntry{Path: name, Data: data})
+		c.addCorpusEntries(false, CorpusEntry{Path: name, Data: data})
 	}
 
 	return c, nil
@@ -908,22 +912,25 @@ func (c *coordinator) elapsed() time.Duration {
 //
 // TODO(fuzzing): need a mechanism that can remove values that
 // aren't useful anymore, for example, because they have the wrong type.
-func readCache(seed []CorpusEntry, types []reflect.Type, cacheDir string) (corpus, error) {
-	var c corpus
-	c.entries = append(c.entries, seed...)
-	entries, err := ReadCorpus(cacheDir, types)
+func (c *coordinator) readCache() error {
+	if _, err := c.addCorpusEntries(false, c.opts.Seed...); err != nil {
+		return err
+	}
+	entries, err := ReadCorpus(c.opts.CacheDir, c.opts.Types)
 	if err != nil {
 		if _, ok := err.(*MalformedCorpusError); !ok {
 			// It's okay if some files in the cache directory are malformed and
 			// are not included in the corpus, but fail if it's an I/O error.
-			return corpus{}, err
+			return err
 		}
 		// TODO(jayconrod,katiehockman): consider printing some kind of warning
 		// indicating the number of files which were skipped because they are
 		// malformed.
 	}
-	c.entries = append(c.entries, entries...)
-	return c, nil
+	if _, err := c.addCorpusEntries(false, entries...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // MalformedCorpusError is an error found while reading the corpus from the
