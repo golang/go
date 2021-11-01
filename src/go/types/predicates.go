@@ -58,7 +58,7 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
 // are not fully set up.
 func isTyped(typ Type) bool {
 	// isTyped is called with types that are not fully
-	// set up. Must not call asBasic()!
+	// set up. Must not call toBasic()!
 	t, _ := typ.(*Basic)
 	return t == nil || t.info&IsUntyped == 0
 }
@@ -72,13 +72,13 @@ func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	// Type parameters are never const types.
-	t, _ := under(typ).(*Basic)
+	t := toBasic(typ)
 	return t != nil && t.info&IsConstType != 0
 }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	return asInterface(typ) != nil
+	return toInterface(typ) != nil
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -340,10 +340,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 
 	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
-
-	case *top:
-		// Either both types are theTop in which case the initial x == y check
-		// will have caught them. Otherwise they are not identical.
 
 	case nil:
 		// avoid a crash in case of nil type

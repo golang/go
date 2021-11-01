@@ -270,7 +270,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	}()
 
 	switch t := typ.(type) {
-	case nil, *top, *Basic: // TODO(gri) should nil be handled here?
+	case nil, *Basic: // TODO(gri) should nil be handled here?
 		break
 
 	case *Array:
@@ -499,7 +499,7 @@ func (w *cycleFinder) typ(typ Type) {
 	defer delete(w.seen, typ)
 
 	switch t := typ.(type) {
-	case *Basic, *top:
+	case *Basic:
 		// nothing to do
 
 	case *Array:

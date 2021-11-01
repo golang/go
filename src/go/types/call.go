@@ -141,10 +141,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 					check.errorf(call.Args[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
 					break
 				}
-				if t := asInterface(T); t != nil {
+				if t := toInterface(T); t != nil {
 					if !t.IsMethodSet() {
-						// TODO(rfindley): remove the phrase "type list" from this error.
-						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
 					}
 				}
@@ -175,7 +174,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// signature may be generic
 	cgocall := x.mode == cgofunc
 
-	sig := asSignature(x.typ)
+	// a type parameter may be "called" if all types have the same signature
+	sig, _ := singleUnder(x.typ).(*Signature)
 	if sig == nil {
 		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 		x.mode = invalid
