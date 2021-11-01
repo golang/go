@@ -42,8 +42,8 @@ func F[FP0, FP1 any](FP0, FP1) {}
 		{"b", "T", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
 		{"b", "T.O", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
 		{"b", "T.M0", "func (b.T[b.RP0, b.RP1]).M()", ""},
-		{"b", "T.T0O", "type TP0 = b.TP0", ""},
-		{"b", "T.T1O", "type TP1 = b.TP1", ""},
+		//{"b", "T.T0O", "type TP0 = b.TP0", ""},
+		//{"b", "T.T1O", "type TP1 = b.TP1", ""},
 		{"b", "T.T1CM0", "func (interface).M0()", ""},
 		// Obj of an instance is the generic declaration.
 		{"b", "A.O", "type b.T[b.TP0 interface{}, b.TP1 interface{M0(); M1()}] struct{}", ""},
