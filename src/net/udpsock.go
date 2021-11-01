@@ -168,25 +168,21 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 // The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
 // used to manipulate IP-level socket options in oob.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
-	if !c.ok() {
-		return 0, 0, 0, nil, syscall.EINVAL
-	}
-	n, oobn, flags, addr, err = c.readMsg(b, oob)
-	if err != nil {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
-	}
+	var ap netip.AddrPort
+	n, oobn, flags, ap, err = c.ReadMsgUDPAddrPort(b, oob)
+	addr = UDPAddrFromAddrPort(ap)
 	return
 }
 
 // ReadMsgUDPAddrPort is like ReadMsgUDP but returns an netip.AddrPort instead of a UDPAddr.
 func (c *UDPConn) ReadMsgUDPAddrPort(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
-	// TODO(bradfitz): make this efficient, making the internal net package
-	// type throughout be netip.Addr and only converting to the net.IP slice
-	// version at the edge. But for now (2021-10-20), this is a wrapper around
-	// the old way.
-	var ua *UDPAddr
-	n, oobn, flags, ua, err = c.ReadMsgUDP(b, oob)
-	addr = ua.AddrPort()
+	if !c.ok() {
+		return 0, 0, 0, netip.AddrPort{}, syscall.EINVAL
+	}
+	n, oobn, flags, addr, err = c.readMsg(b, oob)
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
 	return
 }
 
