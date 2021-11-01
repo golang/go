@@ -270,6 +270,26 @@ func BenchmarkPoolOverflow(b *testing.B) {
 	})
 }
 
+// Simulate object starvation in order to force Ps to steal objects
+// from other Ps.
+func BenchmarkPoolStarvation(b *testing.B) {
+	var p Pool
+	count := 100
+	// Reduce number of putted objects by 33 %. It creates objects starvation
+	// that force P-local storage to steal objects from other Ps.
+	countStarved := count - int(float32(count)*0.33)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for b := 0; b < countStarved; b++ {
+				p.Put(1)
+			}
+			for b := 0; b < count; b++ {
+				p.Get()
+			}
+		}
+	})
+}
+
 var globalSink interface{}
 
 func BenchmarkPoolSTW(b *testing.B) {
