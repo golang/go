@@ -191,12 +191,13 @@ type _ struct {
 //	_ = y < 0
 //}
 
-// It is not permitted to declare a local type whose underlying
-// type is a type parameter not declared by that type declaration.
-func _[T any]() {
-	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
-	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
-}
+// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
+// // It is not permitted to declare a local type whose underlying
+// // type is a type parameter not declared by that type declaration.
+// func _[T any]() {
+// 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+// 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+// }
 
 // As a special case, an explicit type argument may be omitted
 // from a type parameter bound if the type bound expects exactly
