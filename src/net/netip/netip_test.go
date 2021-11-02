@@ -25,6 +25,7 @@ type uint128 = Uint128
 var (
 	mustPrefix = MustParsePrefix
 	mustIP     = MustParseAddr
+	mustIPPort = MustParseAddrPort
 )
 
 func TestParseAddr(t *testing.T) {
@@ -332,10 +333,91 @@ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
 	}
 
 	// Cannot unmarshal from unexpected IP length.
-	for _, l := range []int{3, 5} {
+	for _, n := range []int{3, 5} {
 		var ip2 Addr
-		if err := ip2.UnmarshalBinary(bytes.Repeat([]byte{1}, l)); err == nil {
-			t.Fatalf("unmarshaled from unexpected IP length %d", l)
+		if err := ip2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected IP length %d", n)
+		}
+	}
+}
+
+func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
+	tests := []struct {
+		ipport   string
+		wantSize int
+	}{
+		{"1.2.3.4:51820", 4 + 2},
+		{"[fd7a:115c:a1e0:ab12:4843:cd96:626b:430b]:80", 16 + 2},
+		{"[::ffff:c000:0280]:65535", 16 + 2},
+		{"[::ffff:c000:0280%eth0]:1", 20 + 2},
+	}
+	for _, tc := range tests {
+		var ipport AddrPort
+		if len(tc.ipport) > 0 {
+			ipport = mustIPPort(tc.ipport)
+		}
+		b, err := ipport.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.ipport, len(b), tc.wantSize)
+		}
+		var ipport2 AddrPort
+		if err := ipport2.UnmarshalBinary(b); err != nil {
+			t.Fatal(err)
+		}
+		if ipport != ipport2 {
+			t.Fatalf("got %v; want %v", ipport2, ipport)
+		}
+	}
+
+	// Cannot unmarshal from unexpected lengths.
+	for _, n := range []int{3, 7} {
+		var ipport2 AddrPort
+		if err := ipport2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected length %d", n)
+		}
+	}
+}
+
+func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
+	type testCase struct {
+		prefix   Prefix
+		wantSize int
+	}
+	tests := []testCase{
+		{mustPrefix("1.2.3.4/24"), 4 + 1},
+		{mustPrefix("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b/118"), 16 + 1},
+		{mustPrefix("::ffff:c000:0280/96"), 16 + 1},
+		{mustPrefix("::ffff:c000:0280%eth0/37"), 16 + 1}, // Zone should be stripped
+	}
+	tests = append(tests,
+		testCase{PrefixFrom(tests[0].prefix.Addr(), 33), tests[0].wantSize},
+		testCase{PrefixFrom(tests[1].prefix.Addr(), 129), tests[1].wantSize})
+	for _, tc := range tests {
+		prefix := tc.prefix
+		b, err := prefix.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b) != tc.wantSize {
+			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(b), tc.wantSize)
+		}
+		var prefix2 Prefix
+		if err := prefix2.UnmarshalBinary(b); err != nil {
+			t.Fatal(err)
+		}
+		if prefix != prefix2 {
+			t.Fatalf("got %v; want %v", prefix2, prefix)
+		}
+	}
+
+	// Cannot unmarshal from unexpected lengths.
+	for _, n := range []int{3, 6} {
+		var prefix2 Prefix
+		if err := prefix2.UnmarshalBinary(bytes.Repeat([]byte{1}, n)); err == nil {
+			t.Fatalf("unmarshaled from unexpected length %d", n)
 		}
 	}
 }
