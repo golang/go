@@ -123,8 +123,31 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="library">Core library</h2>
 
+<h3>TODO</h3>
 <p>
   TODO: complete this section
+</p>
+
+<h3 id="netip">New <code>net/netip</code> package</h3>
+<p>
+  The new <a href="/pkg/net/netip/"><code>net/netip</code></a>
+  package defines a new IP address type, <a href="/pkg/net/netip/#Addr"><code>Addr</code></a>
+  that's a small, comparable, value type. Compared to the existing
+  <a href="/pkg/net/#IP"><code>net.IP</code></a> type, the <code>netip.Addr</code> type takes less
+  memory, is immutable, and is comparable so it supports <code>==</code>
+  and can be used as a map key.
+</p>
+<p>
+  In addition to <code>Addr</code>, the package defines
+  <a href="/pkg/net/netip/#AddrPort"><code>AddrPort</code></a>, representing
+  an IP and port, and
+  <a href="/pkg/net/netip/#Prefix"><code>Prefix</code></a>, representing
+  a network CIDR prefix.
+</p>
+<p>
+  The <code>net</code> package now has methods to send and receive UDP packets
+  using <code>netip.Addr</code> values instead of the relatively heavy
+  <code>*net.UDPAddr</code> values.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
