@@ -801,9 +801,10 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	return z
 }
 
-// ModInverse sets z to a multiplicative inverse of g modulo n
-// and return z. If n is zero or g and n are not relatively prime 
-// then return nil and leave z untouched.
+// ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
+// and returns z. If g and n are not relatively prime, or n is zero, then g has
+// no multiplicative inverse in the ring ℤ/nℤ. In this case, z is unchanged and
+// the return value is nil.
 func (z *Int) ModInverse(g, n *Int) *Int {
 	if len(n.abs) == 0 {
 		return nil
