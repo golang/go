@@ -780,11 +780,11 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 }
 
 // ComputePadding returns a list of "post element" padding values in
-// the case where we have a structure being passed in registers. Give
-// a param assignment corresponding to a struct, it returns a list of
-// contaning padding values for each field, e.g. the Kth element in
+// the case where we have a structure being passed in registers. Given
+// a param assignment corresponding to a struct, it returns a list
+// containing padding values for each field, e.g. the Kth element in
 // the list is the amount of padding between field K and the following
-// field. For things that are not struct (or structs without padding)
+// field. For things that are not structs (or structs without padding)
 // it returns a list of zeros. Example:
 //
 // type small struct {
@@ -796,8 +796,8 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
 //
 // For this struct we would return a list [0, 1, 0, 0], meaning that
 // we have one byte of padding after the second field, and no bytes of
-// padding after any of the other fields. Input parameter "storage"
-// is with enough capacity to accommodate padding elements for
+// padding after any of the other fields. Input parameter "storage" is
+// a slice with enough capacity to accommodate padding elements for
 // the architected register set in question.
 func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 	nr := len(pa.Registers)
