@@ -1102,9 +1102,7 @@ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
 		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
 		p[0] = byte(sa.Port >> 8)
 		p[1] = byte(sa.Port)
-		for i := 0; i < len(sa.Addr); i++ {
-			raw.Addr[i] = sa.Addr[i]
-		}
+		raw.Addr = sa.Addr
 		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
 	case *syscall.SockaddrInet6:
 		var raw syscall.RawSockaddrInet6
@@ -1113,9 +1111,7 @@ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
 		p[0] = byte(sa.Port >> 8)
 		p[1] = byte(sa.Port)
 		raw.Scope_id = sa.ZoneId
-		for i := 0; i < len(sa.Addr); i++ {
-			raw.Addr[i] = sa.Addr[i]
-		}
+		raw.Addr = sa.Addr
 		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
 	default:
 		return nil, 0, syscall.EWINDOWS
