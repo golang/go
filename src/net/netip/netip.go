@@ -448,31 +448,6 @@ func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
 
 func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
 
-// ipZone returns the standard library net.IP from ip, as well
-// as the zone.
-// The optional reuse IP provides memory to reuse.
-func (ip Addr) ipZone(reuse []byte) (stdIP []byte, zone string) {
-	base := reuse[:0]
-	switch {
-	case ip.z == z0:
-		return nil, ""
-	case ip.Is4():
-		a4 := ip.As4()
-		return append(base, a4[:]...), ""
-	default:
-		a16 := ip.As16()
-		return append(base, a16[:]...), ip.Zone()
-	}
-}
-
-// IPAddrParts returns the net.IPAddr representation of an Addr.
-//
-// The slice will be nil if ip is the zero Addr.
-// The zone is the empty string if there is no zone.
-func (ip Addr) IPAddrParts() (slice []byte, zone string) {
-	return ip.ipZone(nil)
-}
-
 // Is4 reports whether ip is an IPv4 address.
 //
 // It returns false for IP4-mapped IPv6 addresses. See IP.Unmap.
@@ -716,6 +691,23 @@ func (ip Addr) As4() (a4 [4]byte) {
 		panic("As4 called on IP zero value")
 	}
 	panic("As4 called on IPv6 address")
+}
+
+// AsSlice returns an IPv4 or IPv6 address in its respective 4-byte or 16-byte representation.
+func (ip Addr) AsSlice() []byte {
+	switch ip.z {
+	case z0:
+		return nil
+	case z4:
+		var ret [4]byte
+		bePutUint32(ret[:], uint32(ip.addr.lo))
+		return ret[:]
+	default:
+		var ret [16]byte
+		bePutUint64(ret[:8], ip.addr.hi)
+		bePutUint64(ret[8:], ip.addr.lo)
+		return ret[:]
+	}
 }
 
 // Next returns the address following ip.
