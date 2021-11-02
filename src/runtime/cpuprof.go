@@ -89,7 +89,7 @@ func SetCPUProfileRate(hz int) {
 // held at the time of the signal, nor can it use substantial amounts
 // of stack.
 //go:nowritebarrierrec
-func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+func (p *cpuProfile) add(gp *g, stk []uintptr) {
 	// Simple cas-lock to coordinate with setcpuprofilerate.
 	for !atomic.Cas(&prof.signalLock, 0, 1) {
 		osyield()
@@ -104,6 +104,15 @@ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
 		// because otherwise its write barrier behavior may not
 		// be correct. See the long comment there before
 		// changing the argument here.
+		//
+		// Note: it can happen on Windows, where we are calling
+		// p.add with a gp that is not the current g, that gp is nil,
+		// meaning we interrupted a system thread with no g.
+		// Avoid faulting in that case.
+		var tagPtr *unsafe.Pointer
+		if gp != nil {
+			tagPtr = &gp.labels
+		}
 		cpuprof.log.write(tagPtr, nanotime(), hdr[:], stk)
 	}
 
