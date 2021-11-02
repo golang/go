@@ -301,6 +301,7 @@ const (
 	_PCDATA_UnsafePoint   = 0
 	_PCDATA_StackMapIndex = 1
 	_PCDATA_InlTreeIndex  = 2
+	_PCDATA_ArgLiveIndex  = 3
 
 	_FUNCDATA_ArgsPointerMaps    = 0
 	_FUNCDATA_LocalsPointerMaps  = 1
@@ -308,6 +309,7 @@ const (
 	_FUNCDATA_InlTree            = 3
 	_FUNCDATA_OpenCodedDeferInfo = 4
 	_FUNCDATA_ArgInfo            = 5
+	_FUNCDATA_ArgLiveInfo        = 6
 
 	_ArgsSizeUnknown = -0x80000000
 )
@@ -527,8 +529,11 @@ func modulesinit() {
 		}
 		*modules = append(*modules, md)
 		if md.gcdatamask == (bitvector{}) {
-			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
-			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+			scanDataSize := md.edata - md.data
+			md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), scanDataSize)
+			scanBSSSize := md.ebss - md.bss
+			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), scanBSSSize)
+			gcController.addGlobals(int64(scanDataSize + scanBSSSize))
 		}
 	}
 

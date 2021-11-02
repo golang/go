@@ -4,7 +4,6 @@
 
 // Delete the next line to include in the gob package.
 //go:build ignore
-// +build ignore
 
 package gob
 

@@ -144,7 +144,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	because it also disables the conservative stack scanning used
 	for asynchronously preempted goroutines.
 
-The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
+The net and net/http packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 
 The GOMAXPROCS variable limits the number of operating system threads that

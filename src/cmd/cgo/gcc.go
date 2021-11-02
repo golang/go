@@ -29,7 +29,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 )
 
 var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
@@ -1568,7 +1568,7 @@ func checkGCCBaseCmd() ([]string, error) {
 	if value == "" {
 		value = defaultCC(goos, goarch)
 	}
-	args, err := str.SplitQuotedFields(value)
+	args, err := quoted.Split(value)
 	if err != nil {
 		return nil, err
 	}

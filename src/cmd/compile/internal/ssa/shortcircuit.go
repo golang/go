@@ -196,11 +196,7 @@ func shortcircuitBlock(b *Block) bool {
 
 	// Remove b's incoming edge from p.
 	b.removePred(cidx)
-	n := len(b.Preds)
-	ctl.Args[cidx].Uses--
-	ctl.Args[cidx] = ctl.Args[n]
-	ctl.Args[n] = nil
-	ctl.Args = ctl.Args[:n]
+	b.removePhiArg(ctl, cidx)
 
 	// Redirect p's outgoing edge to t.
 	p.Succs[pi] = Edge{t, len(t.Preds)}

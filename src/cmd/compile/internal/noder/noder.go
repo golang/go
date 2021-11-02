@@ -323,8 +323,7 @@ func (p *noder) processPragmas() {
 		}
 		n := ir.AsNode(typecheck.Lookup(l.local).Def)
 		if n == nil || n.Op() != ir.ONAME {
-			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
-			// base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
+			p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
 			continue
 		}
 		if n.Sym().Linkname != "" {
@@ -1238,7 +1237,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
 	init := p.stmt(stmt.Init)
 	n := ir.NewIfStmt(p.pos(stmt), p.expr(stmt.Cond), p.blockStmt(stmt.Then), nil)
 	if init != nil {
-		*n.PtrInit() = []ir.Node{init}
+		n.SetInit([]ir.Node{init})
 	}
 	if stmt.Else != nil {
 		e := p.stmt(stmt.Else)
@@ -1285,7 +1284,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
 	init := p.stmt(stmt.Init)
 	n := ir.NewSwitchStmt(p.pos(stmt), p.expr(stmt.Tag), nil)
 	if init != nil {
-		*n.PtrInit() = []ir.Node{init}
+		n.SetInit([]ir.Node{init})
 	}
 
 	var tswitch *ir.TypeSwitchGuard

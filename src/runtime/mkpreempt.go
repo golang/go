@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // mkpreempt generates the asyncPreempt functions for each
 // architecture.
@@ -124,7 +123,6 @@ func header(arch string) {
 	if beLe[arch] {
 		base := arch[:len(arch)-1]
 		fmt.Fprintf(out, "//go:build %s || %sle\n", base, base)
-		fmt.Fprintf(out, "// +build %s %sle\n\n", base, base)
 	}
 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")

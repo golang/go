@@ -15,7 +15,7 @@ type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
 var _ = Pair /* @Pair */ [int, string]{}
 
 type Addable /* =@Addable */ interface {
-	type int64, float64
+	~int64|~float64
 }
 
 func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T /* @T */) T /* @T */ {
@@ -30,7 +30,7 @@ type Receiver /* =@Receiver */[P /* =@P */ any] struct {}
 // parameter below.
 func (r /* =@recv */ Receiver /* @Receiver */ [P]) m() P {}
 
-func f /* =@f */[T1 /* =@T1 */ interface{type []T2 /* @T2 */}, T2 /* =@T2 */ any](
+func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
   x /* =@x */ T1 /* @T1 */, T1 /* =@T1_duplicate */ y,  // Note that this is a bug:
                                                         // the duplicate T1 should
 							// not be allowed.

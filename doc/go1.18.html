@@ -65,6 +65,31 @@ Do not send CLs removing the interior tags from such phrases.
   and installs packages, as before.
 </p>
 
+<p><!-- golang.org/issue/37475 -->
+  The <code>go</code> command now embeds version control information in
+  binaries including the currently checked-out revision, commit time, and a
+  flag indicating whether edited or untracked files are present. Version
+  control information is embedded if the <code>go</code> command is invoked in
+  a directory within a Git, Mercurial, Fossil, or Bazaar repository, and the
+  <code>main</code> package and its containing main module are in the same
+  repository. This information may be omitted using the flag
+  <code>-buildvcs=false</code>.
+</p>
+
+<p><!-- golang.org/issue/37475 -->
+  Additionally, the <code>go</code> command embeds information about the build
+  including build and tool tags (set with <code>-tags</code>), compiler,
+  assembler, and linker flags (like <code>-gcflags</code>), whether cgo was
+  enabled, and if it was, the values of the cgo environment variables
+  (like <code>CGO_CFLAGS</code>). This information may be omitted using the
+  flag <code>-buildinfo=false</code>. Both VCS and build information may be
+  read together with module information using <code>go</code>
+  <code>version</code> <code>-m</code> <code>file</code> or
+  <code>runtime/debug.ReadBuildInfo</code> (for the currently running binary)
+  or the new <a href="#debug/buildinfo"><code>debug/buildinfo</code></a>
+  package.
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
@@ -74,7 +99,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- https://golang.org/issue/43566 -->
   <code>gofmt</code> now reads and formats input files concurrently, with a
   memory limit proportional to <code>GOMAXPROCS</code>. On a machine with
-  multiple CPUs, gofmt should now be significantly faster.
+  multiple CPUs, <code>gofmt</code> should now be significantly faster.
 </p>
 
 
@@ -98,8 +123,31 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="library">Core library</h2>
 
+<h3>TODO</h3>
 <p>
   TODO: complete this section
+</p>
+
+<h3 id="netip">New <code>net/netip</code> package</h3>
+<p>
+  The new <a href="/pkg/net/netip/"><code>net/netip</code></a>
+  package defines a new IP address type, <a href="/pkg/net/netip/#Addr"><code>Addr</code></a>
+  that's a small, comparable, value type. Compared to the existing
+  <a href="/pkg/net/#IP"><code>net.IP</code></a> type, the <code>netip.Addr</code> type takes less
+  memory, is immutable, and is comparable so it supports <code>==</code>
+  and can be used as a map key.
+</p>
+<p>
+  In addition to <code>Addr</code>, the package defines
+  <a href="/pkg/net/netip/#AddrPort"><code>AddrPort</code></a>, representing
+  an IP and port, and
+  <a href="/pkg/net/netip/#Prefix"><code>Prefix</code></a>, representing
+  a network CIDR prefix.
+</p>
+<p>
+  The <code>net</code> package now has methods to send and receive UDP packets
+  using <code>netip.Addr</code> values instead of the relatively heavy
+  <code>*net.UDPAddr</code> values.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -114,6 +162,19 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="debug/buildinfo"><dt><a href="/pkg/debug/buildinfo">debug/buildinfo</a></dt>
+  <dd>
+    <p><!-- golang.org/issue/39301 -->
+      This new package provides access to module versions, version control
+      information, and build flags embedded in executable files built by
+      the <code>go</code> command. The same information is also available via
+      <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
+      for the currently running binary and via <code>go</code>
+      <code>version</code> <code>-m</code> on the command line.
+    </p>
+  </dd>
+</dl>
+
 <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
   <dd>
     <p><!-- CL 340049 -->
@@ -127,12 +188,35 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- image/draw -->
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 356049, 320929 -->
+      The new
+      <a href="/pkg/reflect/#Value.SetIterKey"><code>Value.SetIterKey</code></a>
+      and <a href="/pkg/reflect/#Value.SetIterValue"><code>Value.SetIterValue</code></a>
+      methods set a Value using a map iterator as the source. They are equivalent to
+      <code>Value.Set(iter.Key())</code> and <code>Value.Set(iter.Value())</code> but
+      do fewer allocations.
+    </p>
+  </dd>
+  <dd>
+    <p><!-- CL 350691 -->
+      The new
+      <a href="/pkg/reflect/#Value.UnsafePointer"><code>Value.UnsafePointer</code></a>
+      method returns the Value's value as an <a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a>.
+      This allows callers to migrate from <a href="/pkg/reflect/#Value.UnsafeAddr"><code>Value.UnsafeAddr</code></a>
+      and <a href="/pkg/reflect/#Value.Pointer"><code>Value.Pointer</code></a>
+      to eliminate the need to perform uintptr to unsafe.Pointer conversions at the callsite (as unsafe.Pointer rules require).
+    </p>
+  </dd>
+</dl><!-- reflect -->
+
 <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
   <dd>
     <p><!-- CL 336550 -->
       The new function <a href="/pkg/syscall/?GOOS=windows#SyscallN"><code>SyscallN</code></a>
       has been introduced for Windows, allowing for calls with arbitrary number
-      of arguments. As results,
+      of arguments. As a result,
       <a href="/pkg/syscall/?GOOS=windows#Syscall"><code>Syscall</code></a>,
       <a href="/pkg/syscall/?GOOS=windows#Syscall6"><code>Syscall6</code></a>,
       <a href="/pkg/syscall/?GOOS=windows#Syscall9"><code>Syscall9</code></a>,

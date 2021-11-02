@@ -1067,35 +1067,31 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 		return glink
 	}
 
-	// This is essentially the resolver from the ppc64 ELF ABI.
+	// This is essentially the resolver from the ppc64 ELFv2 ABI.
 	// At entry, r12 holds the address of the symbol resolver stub
 	// for the target routine and the argument registers hold the
 	// arguments for the target routine.
 	//
+	// PC-rel offsets are computed once the final codesize of the
+	// resolver is known.
+	//
 	// This stub is PIC, so first get the PC of label 1 into r11.
-	// Other things will be relative to this.
 	glink.AddUint32(ctxt.Arch, 0x7c0802a6) // mflr r0
 	glink.AddUint32(ctxt.Arch, 0x429f0005) // bcl 20,31,1f
 	glink.AddUint32(ctxt.Arch, 0x7d6802a6) // 1: mflr r11
-	glink.AddUint32(ctxt.Arch, 0x7c0803a6) // mtlf r0
+	glink.AddUint32(ctxt.Arch, 0x7c0803a6) // mtlr r0
 
-	// Compute the .plt array index from the entry point address.
-	// Because this is PIC, everything is relative to label 1b (in
-	// r11):
-	//   r0 = ((r12 - r11) - (res_0 - r11)) / 4 = (r12 - res_0) / 4
-	glink.AddUint32(ctxt.Arch, 0x3800ffd0) // li r0,-(res_0-1b)=-48
+	// Compute the .plt array index from the entry point address
+	// into r0. This is computed relative to label 1 above.
+	glink.AddUint32(ctxt.Arch, 0x38000000) // li r0,-(res_0-1b)
 	glink.AddUint32(ctxt.Arch, 0x7c006214) // add r0,r0,r12
 	glink.AddUint32(ctxt.Arch, 0x7c0b0050) // sub r0,r0,r11
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
-	// r11 = address of the first byte of the PLT
-	r, _ := glink.AddRel(objabi.R_ADDRPOWER)
-	r.SetSym(ctxt.PLT)
-	r.SetSiz(8)
-	r.SetOff(int32(glink.Size()))
-	r.SetAdd(0)
-	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
-	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
+	// Load the PC-rel offset of ".plt - 1b", and add it to 1b.
+	// This is stored after this stub and before the resolvers.
+	glink.AddUint32(ctxt.Arch, 0xe98b0000) // ld r12,res_0-1b-8(r11)
+	glink.AddUint32(ctxt.Arch, 0x7d6b6214) // add r11,r11,r12
 
 	// Load r12 = dynamic resolver address and r11 = DSO
 	// identifier from the first two doublewords of the PLT.
@@ -1105,6 +1101,19 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
 	// Jump to the dynamic resolver
 	glink.AddUint32(ctxt.Arch, 0x7d8903a6) // mtctr r12
 	glink.AddUint32(ctxt.Arch, 0x4e800420) // bctr
+
+	// Store the PC-rel offset to the PLT
+	r, _ := glink.AddRel(objabi.R_PCREL)
+	r.SetSym(ctxt.PLT)
+	r.SetSiz(8)
+	r.SetOff(int32(glink.Size()))
+	r.SetAdd(glink.Size())        // Adjust the offset to be relative to label 1 above.
+	glink.AddUint64(ctxt.Arch, 0) // The offset to the PLT.
+
+	// Resolve PC-rel offsets above now the final size of the stub is known.
+	res0m1b := glink.Size() - 8 // res_0 - 1b
+	glink.SetUint32(ctxt.Arch, 16, 0x38000000|uint32(uint16(-res0m1b)))
+	glink.SetUint32(ctxt.Arch, 32, 0xe98b0000|uint32(uint16(res0m1b-8)))
 
 	// The symbol resolvers must immediately follow.
 	//   res_0:

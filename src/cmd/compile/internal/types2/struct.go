@@ -154,7 +154,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
 					}
 				}
-			})
+			}).describef(embeddedPos, "check embedded type %s", embeddedTyp)
 		}
 	}
 

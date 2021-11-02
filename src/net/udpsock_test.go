@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js
-// +build !js
 
 package net
 
@@ -472,6 +471,27 @@ func TestUDPReadTimeout(t *testing.T) {
 	}
 	if addr != nil {
 		t.Errorf("ReadFromUDP got addr %+#v want nil", addr)
+	}
+}
+
+func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

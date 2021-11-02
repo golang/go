@@ -315,6 +315,8 @@ func (obj *TypeName) IsAlias() bool {
 		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
 	case *Named:
 		return obj != t.obj
+	case *TypeParam:
+		return obj != t.obj
 	default:
 		return true
 	}

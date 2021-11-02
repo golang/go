@@ -57,12 +57,40 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	}
 
 	// instantiate function signature
-	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+	res := check.instantiateSignature(x.Pos(), sig, targs, poslist)
 	assert(res.TypeParams().Len() == 0) // signature is not generic anymore
 	check.recordInstance(inst.X, targs, res)
 	x.typ = res
 	x.mode = value
 	x.expr = inst
+}
+
+func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, posList []syntax.Pos) (res *Signature) {
+	assert(check != nil)
+	assert(len(targs) == typ.TypeParams().Len())
+
+	if check.conf.Trace {
+		check.trace(pos, "-- instantiating %s with %s", typ, targs)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(pos, "=> %s (under = %s)", res, res.Underlying())
+		}()
+	}
+
+	inst := check.instance(pos, typ, targs, check.conf.Context).(*Signature)
+	assert(len(posList) <= len(targs))
+	tparams := typ.TypeParams().list()
+	if i, err := check.verify(pos, tparams, targs); err != nil {
+		// best position for error reporting
+		pos := pos
+		if i < len(posList) {
+			pos = posList[i]
+		}
+		check.softErrorf(pos, err.Error())
+	}
+
+	return inst
 }
 
 func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
@@ -104,7 +132,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 			if x.mode != invalid {
 				if t := asInterface(T); t != nil {
 					if !t.IsMethodSet() {
-						check.errorf(call, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
 					}
 				}
@@ -139,7 +167,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	// signature may be generic
 	cgocall := x.mode == cgofunc
 
-	sig := asSignature(x.typ)
+	// a type parameter may be "called" if all types have the same signature
+	sig, _ := structure(x.typ).(*Signature)
 	if sig == nil {
 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
 		x.mode = invalid
@@ -345,7 +374,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		}
 
 		// compute result signature
-		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
+		rsig = check.instantiateSignature(call.Pos(), sig, targs, nil)
 		assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
 		check.recordInstance(call.Fun, targs, rsig)
 

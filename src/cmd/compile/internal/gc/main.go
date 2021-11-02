@@ -107,7 +107,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "asan", "shared", "dynlink", "dwarf", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
 
 	if !base.EnableTrace && base.Flag.LowerT {
 		log.Fatalf("compiler not built with support for -t")
@@ -149,11 +149,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Compiling(base.NoInstrumentPkgs) {
 		base.Flag.Race = false
 		base.Flag.MSan = false
+		base.Flag.ASan = false
 	}
 
 	ssagen.Arch.LinkArch.Init(base.Ctxt)
 	startProfile()
-	if base.Flag.Race || base.Flag.MSan {
+	if base.Flag.Race || base.Flag.MSan || base.Flag.ASan {
 		base.Flag.Cfg.Instrumenting = true
 	}
 	if base.Flag.Dwarf {
@@ -244,6 +245,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "inlining")
 	if base.Flag.LowerL != 0 {
 		inline.InlinePackage()
+		// If any new fully-instantiated types were referenced during
+		// inlining, we need to create needed instantiations.
+		if len(typecheck.GetInstTypeList()) > 0 {
+			noder.BuildInstantiations(false)
+		}
 	}
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 

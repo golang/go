@@ -214,7 +214,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// At least one type argument couldn't be inferred.
 	assert(index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(posn, _Todo, "cannot infer %s (%v) (%v)", tpar.obj.name, tpar.obj.pos, targs)
+	check.errorf(posn, _Todo, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 

@@ -99,3 +99,26 @@ func _() {
 	related2(1.0, []int{})
 	related2( /* ERROR does not satisfy */ float64(1.0), []int{}) // TODO(gri) fix error position
 }
+
+type List[P any] []P
+
+func related3[Elem any, Slice []Elem | List[Elem]]() Slice { return nil }
+
+func _() {
+	// related3 can be instantiated explicitly
+	related3[int, []int]()
+	related3[byte, List[byte]]()
+
+	// Alternatively, the 2nd type argument can be inferred
+	// from the first one through constraint type inference.
+	related3[int]()
+
+	// The inferred type is the structural type of the Slice
+	// type parameter.
+	var _ []int = related3[int]()
+
+	// It is not the defined parameterized type List.
+	type anotherList []float32
+	var _ anotherList = related3[float32]() // valid
+	var _ anotherList = related3 /* ERROR cannot use .* \(value of type List\[float32\]\) as anotherList */ [float32, List[float32]]()
+}

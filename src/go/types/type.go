@@ -57,7 +57,7 @@ func optype(typ Type) Type {
 		// See also issue #39680.
 		if u := t.structuralType(); u != nil {
 			assert(u != typ) // "naked" type parameters cannot be embedded
-			return u
+			return under(u)  // optype should always return an underlying type
 		}
 		return theTop
 	}

@@ -4,6 +4,8 @@
 
 package runtime
 
+import "unsafe"
+
 // Constants
 const (
 	_EINTR  = 0x4
@@ -169,7 +171,7 @@ type itimerval struct {
 	it_value    timeval
 }
 
-type sigevent struct {
+type sigeventFields struct {
 	value  uintptr
 	signo  int32
 	notify int32
@@ -177,12 +179,26 @@ type sigevent struct {
 	sigev_notify_thread_id int32
 }
 
-type siginfo struct {
+type sigevent struct {
+	sigeventFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_sigev_max_size - unsafe.Sizeof(sigeventFields{})]byte
+}
+
+type siginfoFields struct {
 	si_signo int32
 	si_errno int32
 	si_code  int32
 	// below here is a union; si_addr is the only field we use
 	si_addr uint32
+}
+
+type siginfo struct {
+	siginfoFields
+
+	// Pad struct to the max size in the kernel.
+	_ [_si_max_size - unsafe.Sizeof(siginfoFields{})]byte
 }
 
 type sigactiont struct {

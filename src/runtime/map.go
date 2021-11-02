@@ -402,6 +402,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
 	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
+	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
 			t.hasher(key, 0) // see issue 23734
@@ -459,6 +462,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	}
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
+	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -582,6 +588,9 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if msanenabled {
 		msanread(key, t.key.size)
 	}
+	if asanenabled {
+		asanread(key, t.key.size)
+	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map writes")
 	}
@@ -692,6 +701,9 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	}
 	if msanenabled && h != nil {
 		msanread(key, t.key.size)
+	}
+	if asanenabled && h != nil {
+		asanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {

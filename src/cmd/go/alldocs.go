@@ -114,13 +114,16 @@
 // 		The default is GOMAXPROCS, normally the number of CPUs available.
 // 	-race
 // 		enable data race detection.
-// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
 // 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 // 	-msan
 // 		enable interoperation with memory sanitizer.
 // 		Supported only on linux/amd64, linux/arm64
 // 		and only with Clang/LLVM as the host C compiler.
 // 		On linux/arm64, pie build mode will be used.
+// 	-asan
+// 		enable interoperation with address sanitizer.
+// 		Supported only on linux/arm64, linux/amd64.
 // 	-v
 // 		print the names of packages as they are compiled.
 // 	-work
@@ -131,8 +134,19 @@
 //
 // 	-asmflags '[pattern=]arg list'
 // 		arguments to pass on each go tool asm invocation.
+// 	-buildinfo
+// 		Whether to stamp binaries with build flags. By default, the compiler name
+// 		(gc or gccgo), toolchain flags (like -gcflags), and environment variables
+// 		containing flags (like CGO_CFLAGS) are stamped into binaries. Use
+// 		-buildinfo=false to omit build information. See also -buildvcs.
 // 	-buildmode mode
 // 		build mode to use. See 'go help buildmode' for more.
+// 	-buildvcs
+// 		Whether to stamp binaries with version control information. By default,
+// 		version control information is stamped into a binary if the main package
+// 		and the main module containing it are in the repository containing the
+// 		current directory (if there is a repository). Use -buildvcs=false to
+// 		omit version control information. See also -buildinfo.
 // 	-compiler name
 // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 // 	-gccgoflags '[pattern=]arg list'
@@ -144,8 +158,8 @@
 // 		in order to keep output separate from default builds.
 // 		If using the -race flag, the install suffix is automatically set to race
 // 		or, if set explicitly, has _race appended to it. Likewise for the -msan
-// 		flag. Using a -buildmode option that requires non-default compile flags
-// 		has a similar effect.
+// 		and -asan flags. Using a -buildmode option that requires non-default compile
+// 		flags has a similar effect.
 // 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
 // 	-linkshared
@@ -453,14 +467,18 @@
 //
 // Usage:
 //
-// 	go fix [packages]
+// 	go fix [-fix list] [packages]
 //
 // Fix runs the Go fix command on the packages named by the import paths.
+//
+// The -fix flag sets a comma-separated list of fixes to run.
+// The default is all known fixes.
+// (Its value is passed to 'go tool fix -r'.)
 //
 // For more about fix, see 'go doc cmd/fix'.
 // For more about specifying packages, see 'go help packages'.
 //
-// To run fix with specific options, run 'go tool fix'.
+// To run fix with other options, run 'go tool fix'.
 //
 // See also: go fmt, go vet.
 //
@@ -2776,11 +2794,12 @@
 //
 // 	-fuzz regexp
 // 	    Run the fuzz target matching the regular expression. When specified,
-// 	    the command line argument must match exactly one package, and regexp
-// 	    must match exactly one fuzz target within that package. After tests,
-// 	    benchmarks, seed corpora of other fuzz targets, and examples have
-// 	    completed, the matching target will be fuzzed. See the Fuzzing section
-// 	    of the testing package documentation for details.
+// 	    the command line argument must match exactly one package within the
+// 	    main module, and regexp must match exactly one fuzz target within
+// 	    that package. After tests, benchmarks, seed corpora of other fuzz
+// 	    targets, and examples have completed, the matching target will be
+// 	    fuzzed. See the Fuzzing section of the testing package documentation
+// 	    for details.
 //
 // 	-fuzztime t
 // 	    Run enough iterations of the fuzz test to take t, specified as a
@@ -2932,7 +2951,11 @@
 // When 'go test' runs a test binary, it does so from within the
 // corresponding package's source code directory. Depending on the test,
 // it may be necessary to do the same when invoking a generated test
-// binary directly.
+// binary directly. Because that directory may be located within the
+// module cache, which may be read-only and is verified by checksums, the
+// test must not write to it or any other directory within the module
+// unless explicitly requested by the user (such as with the -fuzz flag,
+// which writes failures to testdata/fuzz).
 //
 // The command-line package list, if present, must appear before any
 // flag not known to the go test command. Continuing the example above,

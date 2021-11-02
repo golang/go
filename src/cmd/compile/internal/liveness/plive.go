@@ -854,8 +854,9 @@ func (lv *liveness) epilogue() {
 	if lv.fn.OpenCodedDeferDisallowed() {
 		lv.livenessMap.DeferReturn = objw.LivenessDontCare
 	} else {
+		idx, _ := lv.stackMapSet.add(livedefer)
 		lv.livenessMap.DeferReturn = objw.LivenessIndex{
-			StackMapIndex: lv.stackMapSet.add(livedefer),
+			StackMapIndex: idx,
 			IsUnsafePoint: false,
 		}
 	}
@@ -902,7 +903,7 @@ func (lv *liveness) compact(b *ssa.Block) {
 		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
 		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
 		if hasStackMap {
-			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
+			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
 			pos++
 		}
 		if hasStackMap || isUnsafePoint {

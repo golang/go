@@ -6,9 +6,12 @@ package ppc64
 
 import (
 	"bytes"
+	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -432,8 +435,121 @@ func TestRegValueAlignment(t *testing.T) {
 		{REG_F0, REG_F31, 63, 0},
 		{REG_SPR0, REG_SPR0 + 1023, 1023, 0},
 		{REG_CR0, REG_CR7, 7, 0},
+		{REG_CR0LT, REG_CR7SO, 31, 0},
 	}
 	for _, t := range testType {
 		tstFunc(t.rstart, t.rend, t.msk, t.rout)
+	}
+}
+
+// Verify interesting obj.Addr arguments are classified correctly.
+func TestAddrClassifier(t *testing.T) {
+	type cmplx struct {
+		pic     int
+		pic_dyn int
+		dyn     int
+		nonpic  int
+	}
+	tsts := [...]struct {
+		arg    obj.Addr
+		output interface{}
+	}{
+		// Supported register type args
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_R1}, C_REG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_R2}, C_REGP},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_F1}, C_FREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_F2}, C_FREGP},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_V2}, C_VREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_VS1}, C_VSREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_VS2}, C_VSREGP},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR}, C_CREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1}, C_CREG},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1SO}, C_CRBIT},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0}, C_SPR},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 1}, C_XER},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 9}, C_CTR},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_FPSCR}, C_FPSCR},
+
+		// Memory type arguments.
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_GOTREF}, C_ADDR},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_TOCREF}, C_ADDR},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: &obj.LSym{Type: objabi.STLSBSS}}, cmplx{C_TLS_IE, C_TLS_IE, C_TLS_LE, C_TLS_LE}},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: &obj.LSym{Type: objabi.SDATA}}, C_ADDR},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_AUTO}, C_SOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_AUTO, Offset: BIG}, C_LOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_AUTO, Offset: -BIG - 1}, C_LOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM}, C_SOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: BIG}, C_LOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: -BIG - 33}, C_LOREG}, // 33 is FixedFrameSize-1
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE}, C_ZOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: 1}, C_SOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: BIG}, C_LOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: -BIG - 33}, C_LOREG},
+
+		// Misc (golang initializes -0.0 to 0.0, hence the obfuscation below)
+		{obj.Addr{Type: obj.TYPE_TEXTSIZE}, C_TEXTSIZE},
+		{obj.Addr{Type: obj.TYPE_FCONST, Val: 0.0}, C_ZCON},
+		{obj.Addr{Type: obj.TYPE_FCONST, Val: math.Float64frombits(0x8000000000000000)}, C_S16CON},
+
+		// Address type arguments
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_NONE, Offset: 1}, C_SACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_NONE, Offset: BIG}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_NONE, Offset: -BIG - 1}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_NONE, Offset: 1 << 32}, C_DACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Name: obj.NAME_EXTERN, Sym: &obj.LSym{Type: objabi.SDATA}}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Name: obj.NAME_STATIC, Sym: &obj.LSym{Type: objabi.SDATA}}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_AUTO, Offset: 1}, C_SACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_AUTO, Offset: BIG}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_AUTO, Offset: -BIG - 1}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_PARAM, Offset: 1}, C_SACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_PARAM, Offset: BIG}, C_LACON},
+		{obj.Addr{Type: obj.TYPE_ADDR, Reg: REG_R0, Name: obj.NAME_PARAM, Offset: -BIG - 33}, C_LACON}, // 33 is FixedFrameSize-1
+
+		// Constant type arguments
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 0}, C_ZCON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1}, C_U1CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 2}, C_U2CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 4}, C_U3CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 8}, C_U4CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 16}, C_U5CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 32}, C_U8CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 14}, C_U15CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 15}, C_U16CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 16}, C_U3216CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 + 1<<16}, C_U32CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 32}, C_S34CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: 1 << 33}, C_64CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -1}, C_S16CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -0x10000}, C_S3216CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -0x10001}, C_S32CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 33)}, C_S34CON},
+		{obj.Addr{Type: obj.TYPE_CONST, Name: obj.NAME_NONE, Offset: -(1 << 34)}, C_64CON},
+
+		// Branch like arguments
+		{obj.Addr{Type: obj.TYPE_BRANCH, Sym: &obj.LSym{Type: objabi.SDATA}}, cmplx{C_SBRA, C_LBRAPIC, C_LBRAPIC, C_SBRA}},
+		{obj.Addr{Type: obj.TYPE_BRANCH}, C_SBRA},
+	}
+
+	pic_ctxt9 := ctxt9{ctxt: &obj.Link{Flag_shared: true, Arch: &Linkppc64}, autosize: 0}
+	pic_dyn_ctxt9 := ctxt9{ctxt: &obj.Link{Flag_shared: true, Flag_dynlink: true, Arch: &Linkppc64}, autosize: 0}
+	dyn_ctxt9 := ctxt9{ctxt: &obj.Link{Flag_dynlink: true, Arch: &Linkppc64}, autosize: 0}
+	nonpic_ctxt9 := ctxt9{ctxt: &obj.Link{Arch: &Linkppc64}, autosize: 0}
+	ctxts := [...]*ctxt9{&pic_ctxt9, &pic_dyn_ctxt9, &dyn_ctxt9, &nonpic_ctxt9}
+	name := [...]string{"pic", "pic_dyn", "dyn", "nonpic"}
+	for _, tst := range tsts {
+		var expect []int
+		switch tst.output.(type) {
+		case cmplx:
+			v := tst.output.(cmplx)
+			expect = []int{v.pic, v.pic_dyn, v.dyn, v.nonpic}
+		case int:
+			expect = []int{tst.output.(int), tst.output.(int), tst.output.(int), tst.output.(int)}
+		}
+		for i, _ := range ctxts {
+			if output := ctxts[i].aclass(&tst.arg); output != expect[i] {
+				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
+			}
+		}
 	}
 }

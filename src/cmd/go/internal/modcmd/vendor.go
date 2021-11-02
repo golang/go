@@ -24,7 +24,7 @@ import (
 	"cmd/go/internal/imports"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -128,7 +128,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	for _, m := range vendorMods {
-		replacement, _ := modload.Replacement(m)
+		replacement := modload.Replacement(m)
 		line := moduleLine(m, replacement)
 		io.WriteString(w, line)
 

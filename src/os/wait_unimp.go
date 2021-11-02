@@ -7,7 +7,6 @@
 // failures, see issue #48789.
 
 //go:build aix || darwin || (js && wasm) || netbsd || openbsd || solaris
-// +build aix darwin js,wasm netbsd openbsd solaris
 
 package os
 

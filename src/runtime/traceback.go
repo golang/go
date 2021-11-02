@@ -427,7 +427,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				print(name, "(")
 				argp := unsafe.Pointer(frame.argp)
-				printArgs(f, argp)
+				printArgs(f, argp, tracepc)
 				print(")\n")
 				print("\t", file, ":", line)
 				if frame.pc > f.entry() {
@@ -540,7 +540,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 }
 
 // printArgs prints function arguments in traceback.
-func printArgs(f funcInfo, argp unsafe.Pointer) {
+func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
 	// The "instruction" of argument printing is encoded in _FUNCDATA_ArgInfo.
 	// See cmd/compile/internal/ssagen.emitArgInfo for the description of the
 	// encoding.
@@ -564,7 +564,25 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		return
 	}
 
-	print1 := func(off, sz uint8) {
+	liveInfo := funcdata(f, _FUNCDATA_ArgLiveInfo)
+	liveIdx := pcdatavalue(f, _PCDATA_ArgLiveIndex, pc, nil)
+	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
+	if liveInfo != nil {
+		startOffset = *(*uint8)(liveInfo)
+	}
+
+	isLive := func(off, slotIdx uint8) bool {
+		if liveInfo == nil || liveIdx <= 0 {
+			return true // no liveness info, always live
+		}
+		if off < startOffset {
+			return true
+		}
+		bits := *(*uint8)(add(liveInfo, uintptr(liveIdx)+uintptr(slotIdx/8)))
+		return bits&(1<<(slotIdx%8)) != 0
+	}
+
+	print1 := func(off, sz, slotIdx uint8) {
 		x := readUnaligned64(add(argp, uintptr(off)))
 		// mask out irrelevant bits
 		if sz < 8 {
@@ -576,6 +594,9 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 			}
 		}
 		print(hex(x))
+		if !isLive(off, slotIdx) {
+			print("?")
+		}
 	}
 
 	start := true
@@ -585,6 +606,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
 		}
 	}
 	pi := 0
+	slotIdx := uint8(0) // register arg spill slot index
 printloop:
 	for {
 		o := p[pi]
@@ -609,7 +631,10 @@ printloop:
 			printcomma()
 			sz := p[pi]
 			pi++
-			print1(o, sz)
+			print1(o, sz, slotIdx)
+			if o >= startOffset {
+				slotIdx++
+			}
 		}
 		start = false
 	}
@@ -777,16 +802,23 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
 		printCgoTraceback(&cgoCallers)
 	}
 
-	var n int
 	if readgstatus(gp)&^_Gscan == _Gsyscall {
 		// Override registers if blocked in system call.
 		pc = gp.syscallpc
 		sp = gp.syscallsp
 		flags &^= _TraceTrap
 	}
+	if gp.m != nil && gp.m.vdsoSP != 0 {
+		// Override registers if running in VDSO. This comes after the
+		// _Gsyscall check to cover VDSO calls after entersyscall.
+		pc = gp.m.vdsoPC
+		sp = gp.m.vdsoSP
+		flags &^= _TraceTrap
+	}
+
 	// Print traceback. By default, omits runtime frames.
 	// If that means we print nothing at all, repeat forcing all frames printed.
-	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
+	n := gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
 	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
 		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
 	}
@@ -1358,6 +1390,9 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	if msanenabled {
 		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
 	}
+	if asanenabled {
+		asanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
+	}
 	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
 }
 
@@ -1379,6 +1414,9 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 	}
 	if msanenabled {
 		msanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
+	}
+	if asanenabled {
+		asanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
 	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
 }

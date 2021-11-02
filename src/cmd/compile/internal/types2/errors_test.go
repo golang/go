@@ -19,7 +19,7 @@ func TestError(t *testing.T) {
 		t.Errorf("simple error: got %q, want %q", got, want)
 	}
 
-	want = "<unknown position>: foo 42\n\t<unknown position>: bar 43"
+	want = "<unknown position>: foo 42\n\tbar 43"
 	err.errorf(nopos, "bar %d", 43)
 	if got := err.String(); got != want {
 		t.Errorf("simple error: got %q, want %q", got, want)

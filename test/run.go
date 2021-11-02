@@ -2188,6 +2188,7 @@ var unifiedFailures = setOf(
 
 	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
 	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+	"typeparam/issue48538.go", // assertion failure, interprets struct key as closure variable
 )
 
 func setOf(keys ...string) map[string]bool {

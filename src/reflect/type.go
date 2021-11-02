@@ -269,8 +269,6 @@ const (
 )
 
 // Ptr is the old name for the Pointer kind.
-//
-// Deprecated: use the new spelling, Pointer.
 const Ptr = Pointer
 
 // tflag is used by an rtype to signal what extra type information is
@@ -1427,7 +1425,7 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 // PtrTo returns the pointer type with element t.
 // For example, if t represents type Foo, PtrTo(t) represents *Foo.
 //
-// Deprecated: use PointerTo. PtrTo is the old spelling.
+// PtrTo is the old spelling of PointerTo.
 // The two functions behave identically.
 func PtrTo(t Type) Type { return PointerTo(t) }
 
@@ -2606,7 +2604,7 @@ func StructOf(fields []StructField) Type {
 				}
 			}
 		}
-		if _, dup := fset[name]; dup {
+		if _, dup := fset[name]; dup && name != "_" {
 			panic("reflect.StructOf: duplicate field " + name)
 		}
 		fset[name] = struct{}{}
@@ -2666,8 +2664,8 @@ func StructOf(fields []StructField) Type {
 			{Name: "M", Type: ArrayOf(len(methods), TypeOf(methods[0]))},
 		}))
 
-		typ = (*structType)(unsafe.Pointer(tt.Elem().Field(0).UnsafeAddr()))
-		ut = (*uncommonType)(unsafe.Pointer(tt.Elem().Field(1).UnsafeAddr()))
+		typ = (*structType)(tt.Elem().Field(0).Addr().UnsafePointer())
+		ut = (*uncommonType)(tt.Elem().Field(1).Addr().UnsafePointer())
 
 		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
 	}

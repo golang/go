@@ -19,21 +19,19 @@
 package goobj
 
 import (
-	"bytes"
 	"cmd/internal/bio"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/unsafeheader"
-	"io"
 	"unsafe"
 )
 
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go117ld"
+//       Magic       [...]byte   // "\x00go118ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -217,7 +215,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go117ld"
+const Magic = "\x00go118ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -594,13 +592,12 @@ type Reader struct {
 	b        []byte // mmapped bytes, if not nil
 	readonly bool   // whether b is backed with read-only memory
 
-	rd    io.ReaderAt
 	start uint32
 	h     Header // keep block offsets
 }
 
 func NewReaderFromBytes(b []byte, readonly bool) *Reader {
-	r := &Reader{b: b, readonly: readonly, rd: bytes.NewReader(b), start: 0}
+	r := &Reader{b: b, readonly: readonly, start: 0}
 	err := r.h.Read(r)
 	if err != nil {
 		return nil

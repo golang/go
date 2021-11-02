@@ -84,6 +84,7 @@ type CmdFlags struct {
 
 	// Longer names
 	AsmHdr             string       "help:\"write assembly header to `file`\""
+	ASan               bool         "help:\"build code compatible with C/C++ address sanitizer\""
 	Bench              string       "help:\"append benchmark times to `file`\""
 	BlockProfile       string       "help:\"write block profile to `file`\""
 	BuildID            string       "help:\"record `id` as the build id in the export metadata\""
@@ -108,7 +109,7 @@ type CmdFlags struct {
 	Live               CountFlag    "help:\"debug liveness analysis\""
 	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
 	MemProfile         string       "help:\"write memory profile to `file`\""
-	MemProfileRate     int64        "help:\"set runtime.MemProfileRate to `rate`\""
+	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
 	MutexProfile       string       "help:\"write mutex profile to `file`\""
 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
@@ -177,6 +178,9 @@ func ParseFlags() {
 	if Flag.MSan && !sys.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
 	}
+	if Flag.ASan && !sys.ASanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+		log.Fatalf("%s/%s does not support -asan", buildcfg.GOOS, buildcfg.GOARCH)
+	}
 	if Flag.Race && !sys.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
 	}
@@ -217,12 +221,16 @@ func ParseFlags() {
 		}
 		Flag.LowerO = p + suffix
 	}
-
-	if Flag.Race && Flag.MSan {
+	switch {
+	case Flag.Race && Flag.MSan:
 		log.Fatal("cannot use both -race and -msan")
+	case Flag.Race && Flag.ASan:
+		log.Fatal("cannot use both -race and -asan")
+	case Flag.MSan && Flag.ASan:
+		log.Fatal("cannot use both -msan and -asan")
 	}
-	if Flag.Race || Flag.MSan {
-		// -race and -msan imply -d=checkptr for now.
+	if Flag.Race || Flag.MSan || Flag.ASan {
+		// -race, -msan and -asan imply -d=checkptr for now.
 		if Debug.Checkptr == -1 { // if not set explicitly
 			Debug.Checkptr = 1
 		}
@@ -322,6 +330,8 @@ func registerFlags() {
 		case funcType:
 			f := v.Field(i).Interface().(func(string))
 			objabi.Flagfn1(name, help, f)
+		default:
+			panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
 		}
 	}
 }

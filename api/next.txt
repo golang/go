@@ -1,3 +1,13 @@
+pkg debug/buildinfo, func Read(io.ReaderAt) (*debug.BuildInfo, error)
+pkg debug/buildinfo, func ReadFile(string) (*debug.BuildInfo, error)
+pkg debug/buildinfo, type BuildInfo = debug.BuildInfo
+pkg runtime/debug, method (*BuildInfo) MarshalText() ([]byte, error)
+pkg runtime/debug, method (*BuildInfo) UnmarshalText() ([]byte, error)
+pkg runtime/debug, type BuildInfo struct, GoVersion string
+pkg runtime/debug, type BuildInfo struct, Settings []BuildSetting
+pkg runtime/debug, type BuildSetting struct
+pkg runtime/debug, type BuildSetting struct, Key string
+pkg runtime/debug, type BuildSetting struct, Value string
 pkg syscall (darwin-amd64), func RecvfromInet4(int, []uint8, int, *SockaddrInet4) (int, error)
 pkg syscall (darwin-amd64), func RecvfromInet6(int, []uint8, int, *SockaddrInet6) (int, error)
 pkg syscall (darwin-amd64), func SendtoInet4(int, []uint8, int, SockaddrInet4) error

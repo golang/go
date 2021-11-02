@@ -330,33 +330,22 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Copy:
 		// copy(x, y []T) int
-		var dst Type
-		if t := asSlice(x.typ); t != nil {
-			dst = t.elem
-		}
+		dst, _ := singleUnder(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		var src Type
-		switch t := optype(y.typ).(type) {
-		case *Basic:
-			if isString(y.typ) {
-				src = universeByte
-			}
-		case *Slice:
-			src = t.elem
-		}
+		src, _ := singleUnderString(y.typ).(*Slice)
 
 		if dst == nil || src == nil {
 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
 			return
 		}
 
-		if !Identical(dst, src) {
-			check.invalidArg(x, _InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
+		if !Identical(dst.elem, src.elem) {
+			check.errorf(x, _InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
 			return
 		}
 
@@ -480,13 +469,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		var min int // minimum number of arguments
-		switch optype(T).(type) {
+		switch singleUnder(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
-		case *top:
-			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type parameter has no structural type", arg0)
+		case nil:
+			check.errorf(arg0, _InvalidMake, "cannot make %s; type set has no single underlying type", arg0)
 			return
 		default:
 			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
@@ -781,6 +770,46 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	}
 
 	return true
+}
+
+// If typ is a type parameter, single under returns the single underlying
+// type of all types in the corresponding type constraint if it exists, or
+// nil if it doesn't exist. If typ is not a type parameter, singleUnder
+// just returns the underlying type.
+func singleUnder(typ Type) Type {
+	var su Type
+	if underIs(typ, func(u Type) bool {
+		if su != nil && !Identical(su, u) {
+			return false
+		}
+		// su == nil || Identical(su, u)
+		su = u
+		return true
+	}) {
+		return su
+	}
+	return nil
+}
+
+// singleUnderString is like singleUnder but also considers []byte and
+// string as "identical". In this case, if successful, the result is always
+// []byte.
+func singleUnderString(typ Type) Type {
+	var su Type
+	if underIs(typ, func(u Type) bool {
+		if isString(u) {
+			u = NewSlice(universeByte)
+		}
+		if su != nil && !Identical(su, u) {
+			return false
+		}
+		// su == nil || Identical(su, u)
+		su = u
+		return true
+	}) {
+		return su
+	}
+	return nil
 }
 
 // hasVarSize reports if the size of type t is variable due to type parameters.

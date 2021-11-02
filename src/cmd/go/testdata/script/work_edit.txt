@@ -30,7 +30,7 @@ cmp stdout go.work.want_print
 go mod editwork -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
 cmp stdout go.work.want_json
 
-go mod editwork -print -fmt -workfile unformatted
+go mod editwork -print -fmt -workfile $GOPATH/src/unformatted
 cmp stdout formatted
 
 -- m/go.mod --

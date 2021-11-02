@@ -307,8 +307,7 @@ var optab = []Optab{
 	{as: ABC, a6: C_ZOREG, type_: 15, size: 8},
 	{as: ASYNC, type_: 46, size: 4},
 	{as: AWORD, a1: C_LCON, type_: 40, size: 4},
-	{as: ADWORD, a1: C_LCON, type_: 31, size: 8},
-	{as: ADWORD, a1: C_DCON, type_: 31, size: 8},
+	{as: ADWORD, a1: C_64CON, type_: 31, size: 8},
 	{as: ADWORD, a1: C_LACON, type_: 31, size: 8},
 	{as: AADDME, a1: C_REG, a6: C_REG, type_: 47, size: 4},
 	{as: AEXTSB, a1: C_REG, a6: C_REG, type_: 48, size: 4},
@@ -336,7 +335,7 @@ var optab = []Optab{
 	{as: ALDMX, a1: C_SOREG, a6: C_REG, type_: 45, size: 4},                       /* load doubleword monitored, x-form */
 	{as: AMADDHD, a1: C_REG, a2: C_REG, a3: C_REG, a6: C_REG, type_: 83, size: 4}, /* multiply-add high/low doubleword, va-form */
 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
-	{as: ACRAND, a1: C_CREG, a6: C_CREG, type_: 2, size: 4},                       /* logical ops for condition registers xl-form */
+	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
 
 	/* Vector instructions */
 
@@ -485,15 +484,15 @@ var optab = []Optab{
 	{as: AXVCVSXDDP, a1: C_VSREG, a6: C_VSREG, type_: 89, size: 4}, /* vsx vector integer-fp conversion, xx2-form */
 
 	{as: ACMP, a1: C_REG, a6: C_REG, type_: 70, size: 4},
-	{as: ACMP, a1: C_REG, a2: C_REG, a6: C_REG, type_: 70, size: 4},
+	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
 	{as: ACMP, a1: C_REG, a6: C_ADDCON, type_: 71, size: 4},
-	{as: ACMP, a1: C_REG, a2: C_REG, a6: C_ADDCON, type_: 71, size: 4},
+	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_ADDCON, type_: 71, size: 4},
 	{as: ACMPU, a1: C_REG, a6: C_REG, type_: 70, size: 4},
-	{as: ACMPU, a1: C_REG, a2: C_REG, a6: C_REG, type_: 70, size: 4},
+	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
 	{as: ACMPU, a1: C_REG, a6: C_ANDCON, type_: 71, size: 4},
-	{as: ACMPU, a1: C_REG, a2: C_REG, a6: C_ANDCON, type_: 71, size: 4},
+	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_ANDCON, type_: 71, size: 4},
 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
-	{as: AFCMPO, a1: C_FREG, a2: C_REG, a6: C_FREG, type_: 70, size: 4},
+	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
 	{as: ATW, a1: C_LCON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
 	{as: ATW, a1: C_LCON, a2: C_REG, a6: C_ADDCON, type_: 61, size: 4},
 	{as: ADCBF, a1: C_ZOREG, type_: 43, size: 4},
@@ -584,9 +583,11 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 // or "MOVD R5, foo+10(SP) or pseudo-register is used.  The other common case is when
 // generating constants in register like "MOVD $constant, Rx".
 func (c *ctxt9) getimpliedreg(a *obj.Addr, p *obj.Prog) int {
-	switch oclass(a) {
-	case C_ADDCON, C_ANDCON, C_UCON, C_LCON, C_SCON, C_ZCON:
+	class := oclass(a)
+	if class >= C_ZCON && class <= C_64CON {
 		return REGZERO
+	}
+	switch class {
 	case C_SACON, C_LACON:
 		return REGSP
 	case C_LOREG, C_SOREG, C_ZOREG:
@@ -839,45 +840,52 @@ func isuint32(v uint64) bool {
 	return uint64(uint32(v)) == v
 }
 
+func (c *ctxt9) aclassreg(reg int16) int {
+	if REG_R0 <= reg && reg <= REG_R31 {
+		return C_REGP + int(reg&1)
+	}
+	if REG_F0 <= reg && reg <= REG_F31 {
+		return C_FREGP + int(reg&1)
+	}
+	if REG_V0 <= reg && reg <= REG_V31 {
+		return C_VREG
+	}
+	if REG_VS0 <= reg && reg <= REG_VS63 {
+		return C_VSREGP + int(reg&1)
+	}
+	if REG_CR0 <= reg && reg <= REG_CR7 || reg == REG_CR {
+		return C_CREG
+	}
+	if REG_CR0LT <= reg && reg <= REG_CR7SO {
+		return C_CRBIT
+	}
+	if REG_SPR0 <= reg && reg <= REG_SPR0+1023 {
+		switch reg {
+		case REG_LR:
+			return C_LR
+
+		case REG_XER:
+			return C_XER
+
+		case REG_CTR:
+			return C_CTR
+		}
+
+		return C_SPR
+	}
+	if reg == REG_FPSCR {
+		return C_FPSCR
+	}
+	return C_GOK
+}
+
 func (c *ctxt9) aclass(a *obj.Addr) int {
 	switch a.Type {
 	case obj.TYPE_NONE:
 		return C_NONE
 
 	case obj.TYPE_REG:
-		if REG_R0 <= a.Reg && a.Reg <= REG_R31 {
-			return C_REG
-		}
-		if REG_F0 <= a.Reg && a.Reg <= REG_F31 {
-			return C_FREG
-		}
-		if REG_V0 <= a.Reg && a.Reg <= REG_V31 {
-			return C_VREG
-		}
-		if REG_VS0 <= a.Reg && a.Reg <= REG_VS63 {
-			return C_VSREG
-		}
-		if REG_CR0 <= a.Reg && a.Reg <= REG_CR7 || a.Reg == REG_CR {
-			return C_CREG
-		}
-		if REG_SPR0 <= a.Reg && a.Reg <= REG_SPR0+1023 {
-			switch a.Reg {
-			case REG_LR:
-				return C_LR
-
-			case REG_XER:
-				return C_XER
-
-			case REG_CTR:
-				return C_CTR
-			}
-
-			return C_SPR
-		}
-		if a.Reg == REG_FPSCR {
-			return C_FPSCR
-		}
-		return C_GOK
+		return c.aclassreg(a.Reg)
 
 	case obj.TYPE_MEM:
 		switch a.Name {
@@ -948,7 +956,7 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		case obj.NAME_NONE:
 			c.instoffset = a.Offset
 			if a.Reg != 0 {
-				if -BIG <= c.instoffset && c.instoffset <= BIG {
+				if -BIG <= c.instoffset && c.instoffset < BIG {
 					return C_SACON
 				}
 				if isint32(c.instoffset) {
@@ -985,34 +993,46 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
 		}
 
 		if c.instoffset >= 0 {
-			if c.instoffset == 0 {
-				return C_ZCON
+			sbits := bits.Len64(uint64(c.instoffset))
+			switch {
+			case sbits <= 5:
+				return C_ZCON + sbits
+			case sbits <= 8:
+				return C_U8CON
+			case sbits <= 15:
+				return C_U15CON
+			case sbits <= 16:
+				return C_U16CON
+			case sbits <= 31:
+				// Special case, a positive int32 value which is a multiple of 2^16
+				if c.instoffset&0xFFFF == 0 {
+					return C_U3216CON
+				}
+				return C_U32CON
+			case sbits <= 32:
+				return C_U32CON
+			case sbits <= 33:
+				return C_S34CON
+			default:
+				return C_64CON
 			}
-			if c.instoffset <= 0x7fff {
-				return C_SCON
+		} else {
+			sbits := bits.Len64(uint64(^c.instoffset))
+			switch {
+			case sbits <= 15:
+				return C_S16CON
+			case sbits <= 31:
+				// Special case, a negative int32 value which is a multiple of 2^16
+				if c.instoffset&0xFFFF == 0 {
+					return C_S3216CON
+				}
+				return C_S32CON
+			case sbits <= 33:
+				return C_S34CON
+			default:
+				return C_64CON
 			}
-			if c.instoffset <= 0xffff {
-				return C_ANDCON
-			}
-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
-				return C_UCON
-			}
-			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
-				return C_LCON
-			}
-			return C_DCON
 		}
-
-		if c.instoffset >= -0x8000 {
-			return C_ADDCON
-		}
-		if c.instoffset&0xffff == 0 && isint32(c.instoffset) {
-			return C_UCON
-		}
-		if isint32(c.instoffset) {
-			return C_LCON
-		}
-		return C_DCON
 
 	case obj.TYPE_BRANCH:
 		if a.Sym != nil && c.ctxt.Flag_dynlink {
@@ -1062,15 +1082,7 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
 
 	a2 := C_NONE
 	if p.Reg != 0 {
-		if REG_R0 <= p.Reg && p.Reg <= REG_R31 {
-			a2 = C_REG
-		} else if REG_V0 <= p.Reg && p.Reg <= REG_V31 {
-			a2 = C_VREG
-		} else if REG_VS0 <= p.Reg && p.Reg <= REG_VS63 {
-			a2 = C_VSREG
-		} else if REG_F0 <= p.Reg && p.Reg <= REG_F31 {
-			a2 = C_FREG
-		}
+		a2 = c.aclassreg(p.Reg)
 	}
 
 	// c.ctxt.Logf("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4, a5, a6)
@@ -1097,71 +1109,72 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
 	return &ops[0]
 }
 
+// Compare two operand types (ex C_REG, or C_SCON)
+// and return true if b is compatible with a.
+//
+// Argument comparison isn't reflexitive, so care must be taken.
+// a is the argument type as found in optab, b is the argument as
+// fitted by aclass.
 func cmp(a int, b int) bool {
 	if a == b {
 		return true
 	}
 	switch a {
-	case C_LCON:
-		if b == C_ZCON || b == C_SCON || b == C_UCON || b == C_ADDCON || b == C_ANDCON {
-			return true
-		}
-
-	case C_ADDCON:
-		if b == C_ZCON || b == C_SCON {
-			return true
-		}
-
-	case C_ANDCON:
-		if b == C_ZCON || b == C_SCON {
-			return true
-		}
 
 	case C_SPR:
 		if b == C_LR || b == C_XER || b == C_CTR {
 			return true
 		}
 
-	case C_UCON:
-		if b == C_ZCON {
-			return true
-		}
+	case C_U1CON:
+		return cmp(C_ZCON, b)
+	case C_U2CON:
+		return cmp(C_U1CON, b)
+	case C_U3CON:
+		return cmp(C_U2CON, b)
+	case C_U4CON:
+		return cmp(C_U3CON, b)
+	case C_U5CON:
+		return cmp(C_U4CON, b)
+	case C_U8CON:
+		return cmp(C_U5CON, b)
+	case C_U15CON:
+		return cmp(C_U8CON, b)
+	case C_U16CON:
+		return cmp(C_U15CON, b)
 
-	case C_SCON:
-		if b == C_ZCON {
-			return true
-		}
+	case C_S16CON:
+		return cmp(C_U15CON, b)
+	case C_32CON:
+		return cmp(C_S16CON, b) || cmp(C_U16CON, b) || cmp(C_32S16CON, b)
+	case C_S34CON:
+		return cmp(C_32CON, b)
+	case C_64CON:
+		return cmp(C_S34CON, b)
+
+	case C_32S16CON:
+		return cmp(C_ZCON, b)
 
 	case C_LACON:
-		if b == C_SACON {
-			return true
-		}
+		return cmp(C_SACON, b)
 
 	case C_LBRA:
-		if b == C_SBRA {
-			return true
-		}
+		return cmp(C_SBRA, b)
 
 	case C_SOREG:
-		if b == C_ZOREG {
-			return true
-		}
+		return cmp(C_ZOREG, b)
 
 	case C_LOREG:
-		if b == C_SOREG || b == C_ZOREG {
-			return true
-		}
+		return cmp(C_SOREG, b)
 
+	// An even/odd register input always matches the regular register types.
 	case C_REG:
-		if b == C_ZCON {
-			return r0iszero != 0 /*TypeKind(100016)*/
-		}
-
+		return cmp(C_REGP, b) || (b == C_ZCON && r0iszero != 0)
+	case C_FREG:
+		return cmp(C_FREGP, b)
 	case C_VSREG:
 		/* Allow any VR argument as a VSR operand. */
-		if b == C_VREG {
-			return true
-		}
+		return cmp(C_VSREGP, b) || cmp(C_VREG, b)
 
 	case C_ANY:
 		return true

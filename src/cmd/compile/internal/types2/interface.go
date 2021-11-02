@@ -54,6 +54,14 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	return typ
 }
 
+// MarkImplicit marks the interface t as implicit, meaning this interface
+// corresponds to a constraint literal such as ~T or A|B without explicit
+// interface embedding. MarkImplicit should be called before any concurrent use
+// of implicit interfaces.
+func (t *Interface) MarkImplicit() {
+	t.implicit = true
+}
+
 // NumExplicitMethods returns the number of explicitly declared methods of interface t.
 func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
 
@@ -108,7 +116,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 		}
 		// f.Name != nil
 
-		// We have a method with name f.Name, or a type of a type list (f.Name.Value == "type").
+		// We have a method with name f.Name.
 		name := f.Name.Value
 		if name == "_" {
 			if check.conf.CompilerErrorMessages {
@@ -172,7 +180,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
 	check.later(func() {
 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
 		ityp.check = nil
-	})
+	}).describef(iface, "compute type set for %s", ityp)
 }
 
 func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {

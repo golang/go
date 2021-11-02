@@ -281,8 +281,8 @@ func _() {
 
 // Type parameters are never const types, i.e., it's
 // not possible to declare a constant of type parameter type.
-// (If a type list contains just a single const type, we could
-// allow it, but such type lists don't make much sense in the
+// (If a type set contains just a single const type, we could
+// allow it, but such type sets don't make much sense in the
 // first place.)
 func _[T interface {~int|~float64}]() {
 	// not valid
@@ -309,4 +309,12 @@ func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
 	return P{E{}}
 	return P{E{"foo": x}}
 	return P{{"foo": x}, {}}
+}
+
+// This is a degenerate case with a singleton type set, but we can create
+// composite literals even if the structural type is a defined type.
+type MyInts []int
+
+func _[P MyInts]() P {
+	return P{}
 }

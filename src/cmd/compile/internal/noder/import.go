@@ -127,6 +127,8 @@ func openPackage(path string) (*os.File, error) {
 			suffix = "_race"
 		} else if base.Flag.MSan {
 			suffix = "_msan"
+		} else if base.Flag.ASan {
+			suffix = "_asan"
 		}
 
 		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {

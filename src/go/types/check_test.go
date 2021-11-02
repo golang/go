@@ -210,7 +210,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	mode := parser.AllErrors
-	if !strings.HasSuffix(filenames[0], ".go2") {
+	if !strings.HasSuffix(filenames[0], ".go2") && !manual {
 		mode |= typeparams.DisallowParsing
 	}
 

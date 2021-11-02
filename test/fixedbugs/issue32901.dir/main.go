@@ -4,13 +4,16 @@
 
 package main
 
-import "./c"
-import "reflect"
+import (
+	"reflect"
+
+	"./c"
+)
 
 func main() {
 	x := c.F()
 	p := c.P()
-	t := reflect.PtrTo(reflect.TypeOf(x))
+	t := reflect.PointerTo(reflect.TypeOf(x))
 	tp := reflect.TypeOf(p)
 	if t != tp {
 		panic("FAIL")

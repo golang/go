@@ -49,56 +49,6 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
 	return inst, err
 }
 
-// instantiate creates an instance and defers verification of constraints to
-// later in the type checking pass. For Named types the resulting instance will
-// be unexpanded.
-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos) (res Type) {
-	assert(check != nil)
-	if trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, NewTypeList(targs))
-		check.indent++
-		defer func() {
-			check.indent--
-			var under Type
-			if res != nil {
-				// Calling under() here may lead to endless instantiations.
-				// Test case: type T[P any] T[P]
-				// TODO(gri) investigate if that's a bug or to be expected.
-				under = safeUnderlying(res)
-			}
-			check.trace(pos, "=> %s (under = %s)", res, under)
-		}()
-	}
-
-	inst := check.instance(pos, typ, targs, check.conf.Context)
-
-	assert(len(posList) <= len(targs))
-	check.later(func() {
-		// Collect tparams again because lazily loaded *Named types may not have
-		// had tparams set up above.
-		var tparams []*TypeParam
-		switch t := typ.(type) {
-		case *Named:
-			tparams = t.TypeParams().list()
-		case *Signature:
-			tparams = t.TypeParams().list()
-		}
-		// Avoid duplicate errors; instantiate will have complained if tparams
-		// and targs do not have the same length.
-		if len(tparams) == len(targs) {
-			if i, err := check.verify(pos, tparams, targs); err != nil {
-				// best position for error reporting
-				pos := pos
-				if i < len(posList) {
-					pos = posList[i]
-				}
-				check.softErrorf(atPos(pos), _Todo, err.Error())
-			}
-		}
-	})
-	return inst
-}
-
 // instance creates a type or function instance using the given original type
 // typ and arguments targs. For Named types the resulting instance will be
 // unexpanded.
@@ -115,7 +65,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, ctxt *Cont
 			}
 		}
 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
-		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
 		named.targs = NewTypeList(targs)
 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
 			return expandNamed(ctxt, n, pos)
@@ -196,7 +146,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap 
 		qf = check.qualifier
 	}
 	errorf := func(format string, args ...interface{}) error {
-		return errors.New(sprintf(nil, qf, format, args...))
+		return errors.New(sprintf(nil, qf, false, format, args...))
 	}
 
 	// The type parameter bound is parameterized with the same type parameters

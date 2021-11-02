@@ -566,6 +566,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			strings.HasSuffix(name, ".opendefer"),
 			strings.HasSuffix(name, ".arginfo0"),
 			strings.HasSuffix(name, ".arginfo1"),
+			strings.HasSuffix(name, ".argliveinfo"),
 			strings.HasSuffix(name, ".args_stackmap"),
 			strings.HasSuffix(name, ".stkobj"):
 			ldr.SetAttrNotInSymbolTable(s, true)

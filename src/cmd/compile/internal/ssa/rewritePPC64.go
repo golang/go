@@ -1168,23 +1168,8 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (CondSelect x y bool)
-	// cond: flagArg(bool) != nil
-	// result: (ISEL [2] x y bool)
-	for {
-		x := v_0
-		y := v_1
-		bool := v_2
-		if !(flagArg(bool) != nil) {
-			break
-		}
-		v.reset(OpPPC64ISEL)
-		v.AuxInt = int32ToAuxInt(2)
-		v.AddArg3(x, y, bool)
-		return true
-	}
-	// match: (CondSelect x y bool)
 	// cond: flagArg(bool) == nil
-	// result: (ISEL [2] x y (CMPWconst [0] bool))
+	// result: (ISEL [6] x y (CMPWconst [0] bool))
 	for {
 		x := v_0
 		y := v_1
@@ -1193,7 +1178,7 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64ISEL)
-		v.AuxInt = int32ToAuxInt(2)
+		v.AuxInt = int32ToAuxInt(6)
 		v0 := b.NewValue0(v.Pos, OpPPC64CMPWconst, types.TypeFlags)
 		v0.AuxInt = int32ToAuxInt(0)
 		v0.AddArg(bool)
@@ -5908,6 +5893,28 @@ func rewriteValuePPC64_OpPPC64ISEL(v *Value) bool {
 		v.reset(OpPPC64ANDconst)
 		v.AuxInt = int64ToAuxInt(d)
 		v.AddArg(y)
+		return true
+	}
+	// match: (ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp)))
+	// result: (ISEL [c] x y cmp)
+	for {
+		if auxIntToInt32(v.AuxInt) != 6 {
+			break
+		}
+		x := v_0
+		y := v_1
+		if v_2.Op != OpPPC64CMPWconst || auxIntToInt32(v_2.AuxInt) != 0 {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpPPC64ISELB {
+			break
+		}
+		c := auxIntToInt32(v_2_0.AuxInt)
+		cmp := v_2_0.Args[1]
+		v.reset(OpPPC64ISEL)
+		v.AuxInt = int32ToAuxInt(c)
+		v.AddArg3(x, y, cmp)
 		return true
 	}
 	// match: (ISEL [2] x _ (FlagEQ))
@@ -11372,6 +11379,28 @@ func rewriteValuePPC64_OpPPC64NEG(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (NEG (SUB x y))
+	// result: (SUB y x)
+	for {
+		if v_0.Op != OpPPC64SUB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpPPC64SUB)
+		v.AddArg2(y, x)
+		return true
+	}
+	// match: (NEG (NEG x))
+	// result: x
+	for {
+		if v_0.Op != OpPPC64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64NOR(v *Value) bool {
@@ -13912,6 +13941,8 @@ func rewriteValuePPC64_OpPPC64XOR(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (XORconst [c] (XORconst [d] x))
 	// result: (XORconst [c^d] x)
 	for {
@@ -13934,6 +13965,60 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
 		}
 		x := v_0
 		v.copyOf(x)
+		return true
+	}
+	// match: (XORconst [1] (ISELB [6] (MOVDconst [1]) cmp))
+	// result: (ISELB [2] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 6 {
+			break
+		}
+		cmp := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpPPC64ISELB)
+		v.AuxInt = int32ToAuxInt(2)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (XORconst [1] (ISELB [5] (MOVDconst [1]) cmp))
+	// result: (ISELB [1] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 5 {
+			break
+		}
+		cmp := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpPPC64ISELB)
+		v.AuxInt = int32ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
+		return true
+	}
+	// match: (XORconst [1] (ISELB [4] (MOVDconst [1]) cmp))
+	// result: (ISELB [0] (MOVDconst [1]) cmp)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpPPC64ISELB || auxIntToInt32(v_0.AuxInt) != 4 {
+			break
+		}
+		cmp := v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpPPC64MOVDconst || auxIntToInt64(v_0_0.AuxInt) != 1 {
+			break
+		}
+		v.reset(OpPPC64ISELB)
+		v.AuxInt = int32ToAuxInt(0)
+		v0 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
+		v0.AuxInt = int64ToAuxInt(1)
+		v.AddArg2(v0, cmp)
 		return true
 	}
 	return false

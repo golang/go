@@ -3,9 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
-// +build dragonfly darwin freebsd !android,linux netbsd openbsd solaris,!illumos
-// +build cgo
-// +build !osusergo
 
 package user
 

@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/ioutil"
 	"math/bits"
@@ -316,6 +317,23 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						// Update the coordinator's coverage mask and save the value.
 						inputSize := len(result.entry.Data)
 						if opts.CacheDir != "" {
+							// It is possible that the input that was discovered is already
+							// present in the corpus, but the worker produced a coverage map
+							// that still expanded our total coverage (this may happen due to
+							// flakiness in the coverage counters). In order to prevent adding
+							// duplicate entries to the corpus (and re-writing the file on
+							// disk), skip it if the on disk file already exists.
+							// TOOD(roland): this check is limited in that it will only be
+							// applied if we are using the CacheDir. Another option would be
+							// to iterate through the corpus and check if it is already present,
+							// which would catch cases where we are not caching entries.
+							// A slightly faster approach would be to keep some kind of map of
+							// entry hashes, which would allow us to avoid iterating through
+							// all entries.
+							_, err = os.Stat(result.entry.Path)
+							if err == nil {
+								continue
+							}
 							err := writeToCorpus(&result.entry, opts.CacheDir)
 							if err != nil {
 								stop(err)
@@ -702,7 +720,7 @@ func (c *coordinator) logStats() {
 			interestingTotalCount := int64(c.warmupInputCount-len(c.opts.Seed)) + c.interestingCount
 			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec), new interesting: %d (total: %d)\n", c.elapsed(), c.count, rate, c.interestingCount, interestingTotalCount)
 		} else {
-			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)", c.elapsed(), c.count, rate)
+			fmt.Fprintf(c.opts.Log, "fuzz: elapsed: %s, execs: %d (%.0f/sec)\n", c.elapsed(), c.count, rate)
 		}
 	}
 	c.countLastLog = c.count
@@ -875,12 +893,10 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
 }
 
 // canMinimize returns whether the coordinator should attempt to find smaller
-// inputs that reproduce a crash or new coverage. It shouldn't do this if it
-// is in the warmup phase.
+// inputs that reproduce a crash or new coverage.
 func (c *coordinator) canMinimize() bool {
 	return c.minimizationAllowed &&
-		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit) &&
-		!c.warmupRun()
+		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
 }
 
 func (c *coordinator) elapsed() time.Duration {
@@ -1048,13 +1064,7 @@ var (
 
 func shouldPrintDebugInfo() bool {
 	debugInfoOnce.Do(func() {
-		debug := strings.Split(os.Getenv("GODEBUG"), ",")
-		for _, f := range debug {
-			if f == "fuzzdebug=1" {
-				debugInfo = true
-				break
-			}
-		}
+		debugInfo = godebug.Get("fuzzdebug") == "1"
 	})
 	return debugInfo
 }

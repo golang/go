@@ -344,7 +344,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
 		return typed(g.typ(typ), n)
 	}
 
-	_, isStruct := typ.Underlying().(*types2.Struct)
+	_, isStruct := types2.Structure(typ).(*types2.Struct)
 
 	exprs := make([]ir.Node, len(lit.ElemList))
 	for i, elem := range lit.ElemList {

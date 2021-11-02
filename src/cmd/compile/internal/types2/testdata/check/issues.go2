@@ -223,6 +223,13 @@ func _[T interface{ ~func() }](f T) {
 	go f()
 }
 
+type F1 func()
+type F2 func()
+func _[T interface{ func()|F1|F2 }](f T) {
+	f()
+	go f()
+}
+
 // We must compare against the underlying type of type list entries
 // when checking if a constraint is satisfied by a type. The under-
 // lying type of each type list entry must be computed after the

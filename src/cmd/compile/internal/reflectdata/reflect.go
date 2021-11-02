@@ -18,6 +18,7 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -1412,6 +1413,9 @@ func WriteBasicTypes() {
 		if base.Flag.MSan {
 			dimportpath(types.NewPkg("runtime/msan", ""))
 		}
+		if base.Flag.ASan {
+			dimportpath(types.NewPkg("runtime/asan", ""))
+		}
 
 		dimportpath(types.NewPkg("main", ""))
 	}
@@ -1995,8 +1999,33 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	dot := n.X.(*ir.SelectorExpr)
 	ityp := dot.X.Type()
 	if ityp.HasShape() {
-		base.Fatalf("marking method of shape type used %+v %s", ityp, dot.Sel.Name)
+		// Here we're calling a method on a generic interface. Something like:
+		//
+		// type I[T any] interface { foo() T }
+		// func f[T any](x I[T]) {
+		//     ... = x.foo()
+		// }
+		// f[int](...)
+		// f[string](...)
+		//
+		// In this case, in f we're calling foo on a generic interface.
+		// Which method could that be? Normally we could match the method
+		// both by name and by type. But in this case we don't really know
+		// the type of the method we're calling. It could be func()int
+		// or func()string. So we match on just the function name, instead
+		// of both the name and the type used for the non-generic case below.
+		// TODO: instantiations at least know the shape of the instantiated
+		// type, and the linker could do more complicated matching using
+		// some sort of fuzzy shape matching. For now, only use the name
+		// of the method for matching.
+		r := obj.Addrel(ir.CurFunc.LSym)
+		// We use a separate symbol just to tell the linker the method name.
+		// (The symbol itself is not needed in the final binary.)
+		r.Sym = staticdata.StringSym(src.NoXPos, dot.Sel.Name)
+		r.Type = objabi.R_USEGENERICIFACEMETHOD
+		return
 	}
+
 	tsym := TypeLinksym(ityp)
 	r := obj.Addrel(ir.CurFunc.LSym)
 	r.Sym = tsym
@@ -2004,16 +2033,6 @@ func MarkUsedIfaceMethod(n *ir.CallExpr) {
 	// in itab).
 	midx := dot.Offset() / int64(types.PtrSize)
 	r.Add = InterfaceMethodOffset(ityp, midx)
-	r.Type = objabi.R_USEIFACEMETHOD
-}
-
-// MarkUsedIfaceMethodIndex marks that that method number ix (in the AllMethods list)
-// of interface type ityp is used, and should be attached to lsym.
-func MarkUsedIfaceMethodIndex(lsym *obj.LSym, ityp *types.Type, ix int) {
-	tsym := TypeLinksym(ityp)
-	r := obj.Addrel(lsym)
-	r.Sym = tsym
-	r.Add = InterfaceMethodOffset(ityp, int64(ix))
 	r.Type = objabi.R_USEIFACEMETHOD
 }
 

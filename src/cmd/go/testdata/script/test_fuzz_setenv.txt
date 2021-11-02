@@ -1,5 +1,5 @@
+[!fuzz] skip
 [short] skip
-[!darwin] [!linux] [!windows] skip
 
 go test -fuzz=FuzzA -fuzztime=100x fuzz_setenv_test.go
 

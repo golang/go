@@ -417,7 +417,8 @@ func (t *Type) StructType() *Struct {
 
 // Interface contains Type fields specific to interface types.
 type Interface struct {
-	pkg *Pkg
+	pkg      *Pkg
+	implicit bool
 }
 
 // Typeparam contains Type fields specific to typeparam types.
@@ -1820,7 +1821,7 @@ func newBasic(kind Kind, obj Object) *Type {
 
 // NewInterface returns a new interface for the given methods and
 // embedded types. Embedded types are specified as fields with no Sym.
-func NewInterface(pkg *Pkg, methods []*Field) *Type {
+func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 	t := newType(TINTER)
 	t.SetInterface(methods)
 	for _, f := range methods {
@@ -1838,6 +1839,7 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
 		t.SetBroke(true)
 	}
 	t.extra.(*Interface).pkg = pkg
+	t.extra.(*Interface).implicit = implicit
 	return t
 }
 
@@ -1873,6 +1875,19 @@ func (t *Type) SetBound(bound *Type) {
 func (t *Type) Bound() *Type {
 	t.wantEtype(TTYPEPARAM)
 	return t.extra.(*Typeparam).bound
+}
+
+// IsImplicit reports whether an interface is implicit (i.e. elided from a type
+// parameter constraint).
+func (t *Type) IsImplicit() bool {
+	t.wantEtype(TINTER)
+	return t.extra.(*Interface).implicit
+}
+
+// MarkImplicit marks the interface as implicit.
+func (t *Type) MarkImplicit() {
+	t.wantEtype(TINTER)
+	t.extra.(*Interface).implicit = true
 }
 
 // NewUnion returns a new union with the specified set of terms (types). If

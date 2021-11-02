@@ -2,7 +2,7 @@ package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -58,7 +58,7 @@ func TestStmtLines(t *testing.T) {
 		if extld == "" {
 			extld = "gcc"
 		}
-		extldArgs, err := str.SplitQuotedFields(extld)
+		extldArgs, err := quoted.Split(extld)
 		if err != nil {
 			t.Fatal(err)
 		}

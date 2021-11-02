@@ -32,7 +32,6 @@ type Tree struct {
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
 	rangeDepth int
-	mode       Mode
 }
 
 // A mode value is a set of flags (or 0). Modes control parser behavior.

@@ -416,3 +416,10 @@ func TestTypeString(t *testing.T) {
 		t.Errorf("got %v, want %v", TypeExec.GoString(), "macho.Exec")
 	}
 }
+
+func TestOpenBadDysymCmd(t *testing.T) {
+	_, err := openObscured("testdata/gcc-amd64-darwin-exec-with-bad-dysym.base64")
+	if err == nil {
+		t.Fatal("openObscured did not fail when opening a file with an invalid dynamic symbol table command")
+	}
+}

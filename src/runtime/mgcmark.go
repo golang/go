@@ -400,8 +400,8 @@ retry:
 	// balance positive. When the required amount of work is low,
 	// we over-assist to build up credit for future allocations
 	// and amortize the cost of assisting.
-	assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
+	assistWorkPerByte := gcController.assistWorkPerByte.Load()
+	assistBytesPerWork := gcController.assistBytesPerWork.Load()
 	debtBytes := -gp.gcAssistBytes
 	scanWork := int64(assistWorkPerByte * float64(debtBytes))
 	if scanWork < gcOverAssistWork {
@@ -545,7 +545,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
 	// this scan work counts for. The "1+" is a poor man's
 	// round-up, to ensure this adds credit even if
 	// assistBytesPerWork is very low.
-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
+	assistBytesPerWork := gcController.assistBytesPerWork.Load()
 	gp.gcAssistBytes += 1 + int64(assistBytesPerWork*float64(workDone))
 
 	// If this is the last worker and we ran out of work,
@@ -638,7 +638,7 @@ func gcFlushBgCredit(scanWork int64) {
 		return
 	}
 
-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
+	assistBytesPerWork := gcController.assistBytesPerWork.Load()
 	scanBytes := int64(float64(scanWork) * assistBytesPerWork)
 
 	lock(&work.assistQueue.lock)
@@ -672,7 +672,7 @@ func gcFlushBgCredit(scanWork int64) {
 
 	if scanBytes > 0 {
 		// Convert from scan bytes back to work.
-		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+		assistWorkPerByte := gcController.assistWorkPerByte.Load()
 		scanWork = int64(float64(scanBytes) * assistWorkPerByte)
 		atomic.Xaddint64(&gcController.bgScanCredit, scanWork)
 	}

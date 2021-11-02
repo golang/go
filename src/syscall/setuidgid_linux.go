@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && !386 && !arm
-// +build linux,!386,!arm
 
 package syscall
 

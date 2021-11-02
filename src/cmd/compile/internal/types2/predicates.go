@@ -6,9 +6,10 @@
 
 package types2
 
-// isNamed reports whether typ has a name.
-// isNamed may be called with types that are not fully set up.
-func isNamed(typ Type) bool {
+// hasName reports whether typ has a name. This includes
+// predeclared types, defined types, and type parameters.
+// hasName may be called with types that are not fully set up.
+func hasName(typ Type) bool {
 	switch typ.(type) {
 	case *Basic, *Named, *TypeParam:
 		return true
@@ -43,7 +44,7 @@ func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
 func isString(typ Type) bool   { return is(typ, IsString) }
 
 // Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
-// produce the expected result because a type list that contains both an integer
+// produce the expected result because a type set that contains both an integer
 // and a floating-point type is neither (all) integers, nor (all) floats.
 // Use isIntegerOrFloat instead.
 func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
@@ -70,7 +71,7 @@ func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
 	// Type parameters are never const types.
-	t, _ := under(typ).(*Basic)
+	t := asBasic(typ)
 	return t != nil && t.info&IsConstType != 0
 }
 
@@ -338,10 +339,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 
 	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
-
-	case *top:
-		// Either both types are theTop in which case the initial x == y check
-		// will have caught them. Otherwise they are not identical.
 
 	case nil:
 		// avoid a crash in case of nil type

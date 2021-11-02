@@ -17,8 +17,13 @@ type matcher struct {
 	filter    filterMatch
 	matchFunc func(pat, str string) (bool, error)
 
-	mu       sync.Mutex
-	subNames map[string]int64
+	mu sync.Mutex
+
+	// subNames is used to deduplicate subtest names.
+	// Each key is the subtest name joined to the deduplicated name of the parent test.
+	// Each value is the count of the number of occurrences of the given subtest name
+	// already seen.
+	subNames map[string]int32
 }
 
 type filterMatch interface {
@@ -54,7 +59,7 @@ func newMatcher(matchString func(pat, str string) (bool, error), patterns, name 
 	return &matcher{
 		filter:    impl,
 		matchFunc: matchString,
-		subNames:  map[string]int64{},
+		subNames:  map[string]int32{},
 	}
 }
 
@@ -189,22 +194,65 @@ func splitRegexp(s string) filterMatch {
 // unique creates a unique name for the given parent and subname by affixing it
 // with one or more counts, if necessary.
 func (m *matcher) unique(parent, subname string) string {
-	name := fmt.Sprintf("%s/%s", parent, subname)
-	empty := subname == ""
-	for {
-		next, exists := m.subNames[name]
-		if !empty && !exists {
-			m.subNames[name] = 1 // next count is 1
-			return name
-		}
-		// Name was already used. We increment with the count and append a
-		// string with the count.
-		m.subNames[name] = next + 1
+	base := parent + "/" + subname
 
-		// Add a count to guarantee uniqueness.
-		name = fmt.Sprintf("%s#%02d", name, next)
-		empty = false
+	for {
+		n := m.subNames[base]
+		if n < 0 {
+			panic("subtest count overflow")
+		}
+		m.subNames[base] = n + 1
+
+		if n == 0 && subname != "" {
+			prefix, nn := parseSubtestNumber(base)
+			if len(prefix) < len(base) && nn < m.subNames[prefix] {
+				// This test is explicitly named like "parent/subname#NN",
+				// and #NN was already used for the NNth occurrence of "parent/subname".
+				// Loop to add a disambiguating suffix.
+				continue
+			}
+			return base
+		}
+
+		name := fmt.Sprintf("%s#%02d", base, n)
+		if m.subNames[name] != 0 {
+			// This is the nth occurrence of base, but the name "parent/subname#NN"
+			// collides with the first occurrence of a subtest *explicitly* named
+			// "parent/subname#NN". Try the next number.
+			continue
+		}
+
+		return name
 	}
+}
+
+// parseSubtestNumber splits a subtest name into a "#%02d"-formatted int32
+// suffix (if present), and a prefix preceding that suffix (always).
+func parseSubtestNumber(s string) (prefix string, nn int32) {
+	i := strings.LastIndex(s, "#")
+	if i < 0 {
+		return s, 0
+	}
+
+	prefix, suffix := s[:i], s[i+1:]
+	if len(suffix) < 2 || (len(suffix) > 2 && suffix[0] == '0') {
+		// Even if suffix is numeric, it is not a possible output of a "%02" format
+		// string: it has either too few digits or too many leading zeroes.
+		return s, 0
+	}
+	if suffix == "00" {
+		if !strings.HasSuffix(prefix, "/") {
+			// We only use "#00" as a suffix for subtests named with the empty
+			// string — it isn't a valid suffix if the subtest name is non-empty.
+			return s, 0
+		}
+	}
+
+	n, err := strconv.ParseInt(suffix, 10, 32)
+	if err != nil || n < 0 {
+		return s, 0
+	}
+	return prefix, int32(n)
 }
 
 // rewrite rewrites a subname to having only printable characters and no white

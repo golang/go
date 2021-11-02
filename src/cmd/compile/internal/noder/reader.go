@@ -466,7 +466,7 @@ func (r *reader) interfaceType() *types.Type {
 	if len(fields) == 0 {
 		return types.Types[types.TINTER] // empty interface
 	}
-	return types.NewInterface(tpkg, fields)
+	return types.NewInterface(tpkg, fields, false)
 }
 
 func (r *reader) structType() *types.Type {

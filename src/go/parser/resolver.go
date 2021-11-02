@@ -117,12 +117,6 @@ func (r *resolver) closeLabelScope() {
 
 func (r *resolver) declare(decl, data interface{}, scope *ast.Scope, kind ast.ObjKind, idents ...*ast.Ident) {
 	for _, ident := range idents {
-		// "type" is used for type lists in interfaces, and is otherwise an invalid
-		// identifier. The 'type' identifier is also artificially duplicated in the
-		// type list, so could cause panics below if we were to proceed.
-		if ident.Name == "type" {
-			continue
-		}
 		assert(ident.Obj == nil, "identifier already declared or resolved")
 		obj := ast.NewObj(kind, ident.Name)
 		// remember the corresponding declaration for redeclaration
@@ -188,10 +182,9 @@ func (r *resolver) resolve(ident *ast.Ident, collectUnresolved bool) {
 	if ident.Obj != nil {
 		panic(fmt.Sprintf("%s: identifier %s already declared or resolved", r.handle.Position(ident.Pos()), ident.Name))
 	}
-	// '_' and 'type' should never refer to existing declarations: '_' because it
-	// has special handling in the spec, and 'type' because it is a keyword, and
-	// only valid in an interface type list.
-	if ident.Name == "_" || ident.Name == "type" {
+	// '_' should never refer to existing declarations, because it has special
+	// handling in the spec.
+	if ident.Name == "_" {
 		return
 	}
 	for s := r.topScope; s != nil; s = s.Outer {

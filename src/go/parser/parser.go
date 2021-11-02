@@ -525,23 +525,27 @@ func (p *parser) parseTypeName(ident *ast.Ident) ast.Expr {
 	return ident
 }
 
-func (p *parser) parseArrayLen() ast.Expr {
+// "[" has already been consumed, and lbrack is its position.
+// If len != nil it is the already consumed array length.
+func (p *parser) parseArrayType(lbrack token.Pos, len ast.Expr) *ast.ArrayType {
 	if p.trace {
-		defer un(trace(p, "ArrayLen"))
+		defer un(trace(p, "ArrayType"))
 	}
 
-	p.exprLev++
-	var len ast.Expr
-	// always permit ellipsis for more fault-tolerant parsing
-	if p.tok == token.ELLIPSIS {
-		len = &ast.Ellipsis{Ellipsis: p.pos}
-		p.next()
-	} else if p.tok != token.RBRACK {
-		len = p.parseRhs()
+	if len == nil {
+		p.exprLev++
+		// always permit ellipsis for more fault-tolerant parsing
+		if p.tok == token.ELLIPSIS {
+			len = &ast.Ellipsis{Ellipsis: p.pos}
+			p.next()
+		} else if p.tok != token.RBRACK {
+			len = p.parseRhs()
+		}
+		p.exprLev--
 	}
-	p.exprLev--
-
-	return len
+	p.expect(token.RBRACK)
+	elt := p.parseType()
+	return &ast.ArrayType{Lbrack: lbrack, Len: len, Elt: elt}
 }
 
 func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Expr) {
@@ -1128,18 +1132,6 @@ parseElements:
 			p.expectSemi()
 			comment := p.lineComment
 			list = append(list, &ast.Field{Type: typ, Comment: comment})
-		case p.tok == token.TYPE && p.allowGenerics():
-			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
-
-			// all types in a type list share the same field name "type"
-			// (since type is a keyword, a Go program cannot have that field name)
-			name := []*ast.Ident{{NamePos: p.pos, Name: "type"}}
-			p.next()
-			// add each type as a field named "type"
-			for _, typ := range p.parseTypeList() {
-				list = append(list, &ast.Field{Names: name, Type: typ})
-			}
-			p.expectSemi()
 		case p.allowGenerics():
 			if t := p.tryIdentOrType(); t != nil {
 				typ := p.embeddedElem(t)
@@ -1250,10 +1242,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return typ
 	case token.LBRACK:
 		lbrack := p.expect(token.LBRACK)
-		alen := p.parseArrayLen()
-		p.expect(token.RBRACK)
-		elt := p.parseType()
-		return &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+		return p.parseArrayType(lbrack, nil)
 	case token.STRUCT:
 		return p.parseStructType()
 	case token.MUL:
@@ -1648,12 +1637,14 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	return x
 }
 
-func (p *parser) parsePrimaryExpr() (x ast.Expr) {
+func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "PrimaryExpr"))
 	}
 
-	x = p.parseOperand()
+	if x == nil {
+		x = p.parseOperand()
+	}
 	for {
 		switch p.tok {
 		case token.PERIOD:
@@ -1689,18 +1680,18 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
 			switch t.(type) {
 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
 				if p.exprLev < 0 {
-					return
+					return x
 				}
 				// x is possibly a composite literal type
 			case *ast.IndexExpr, *ast.IndexListExpr:
 				if p.exprLev < 0 {
-					return
+					return x
 				}
 				// x is possibly a composite literal type
 			case *ast.ArrayType, *ast.StructType, *ast.MapType:
 				// x is a composite literal type
 			default:
-				return
+				return x
 			}
 			if t != x {
 				p.error(t.Pos(), "cannot parenthesize type in composite literal")
@@ -1708,7 +1699,7 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
 			}
 			x = p.parseLiteralValue(x)
 		default:
-			return
+			return x
 		}
 	}
 }
@@ -1779,7 +1770,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 		return &ast.StarExpr{Star: pos, X: p.checkExprOrType(x)}
 	}
 
-	return p.parsePrimaryExpr()
+	return p.parsePrimaryExpr(nil)
 }
 
 func (p *parser) tokPrec() (token.Token, int) {
@@ -1790,19 +1781,21 @@ func (p *parser) tokPrec() (token.Token, int) {
 	return tok, tok.Precedence()
 }
 
-func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
+func (p *parser) parseBinaryExpr(x ast.Expr, prec1 int) ast.Expr {
 	if p.trace {
 		defer un(trace(p, "BinaryExpr"))
 	}
 
-	x := p.parseUnaryExpr()
+	if x == nil {
+		x = p.parseUnaryExpr()
+	}
 	for {
 		op, oprec := p.tokPrec()
 		if oprec < prec1 {
 			return x
 		}
 		pos := p.expect(op)
-		y := p.parseBinaryExpr(oprec + 1)
+		y := p.parseBinaryExpr(nil, oprec+1)
 		x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
 	}
 }
@@ -1815,7 +1808,7 @@ func (p *parser) parseExpr() ast.Expr {
 		defer un(trace(p, "Expression"))
 	}
 
-	return p.parseBinaryExpr(token.LowestPrec + 1)
+	return p.parseBinaryExpr(nil, token.LowestPrec+1)
 }
 
 func (p *parser) parseRhs() ast.Expr {
@@ -2539,6 +2532,10 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
 }
 
 func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident) {
+	if p.trace {
+		defer un(trace(p, "parseGenericType"))
+	}
+
 	list := p.parseParameterList(name0, token.RBRACK)
 	closePos := p.expect(token.RBRACK)
 	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
@@ -2558,34 +2555,42 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	ident := p.parseIdent()
 	spec := &ast.TypeSpec{Doc: doc, Name: ident}
 
-	switch p.tok {
-	case token.LBRACK:
+	if p.tok == token.LBRACK && p.allowGenerics() {
 		lbrack := p.pos
 		p.next()
 		if p.tok == token.IDENT {
-			// array type or generic type [T any]
-			p.exprLev++
-			x := p.parseExpr()
-			p.exprLev--
-			if name0, _ := x.(*ast.Ident); p.allowGenerics() && name0 != nil && p.tok != token.RBRACK {
+			// array type or generic type: [name0...
+			name0 := p.parseIdent()
+
+			// Index or slice expressions are never constant and thus invalid
+			// array length expressions. Thus, if we see a "[" following name
+			// we can safely assume that "[" name starts a type parameter list.
+			var x ast.Expr // x != nil means x is the array length expression
+			if p.tok != token.LBRACK {
+				// We may still have either an array type or generic type -- check if
+				// name0 is the entire expr.
+				p.exprLev++
+				lhs := p.parsePrimaryExpr(name0)
+				x = p.parseBinaryExpr(lhs, token.LowestPrec+1)
+				p.exprLev--
+				if x == name0 && p.tok != token.RBRACK {
+					x = nil
+				}
+			}
+
+			if x == nil {
 				// generic type [T any];
 				p.parseGenericType(spec, lbrack, name0)
 			} else {
 				// array type
 				// TODO(rfindley) should resolve all identifiers in x.
-				p.expect(token.RBRACK)
-				elt := p.parseType()
-				spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: x, Elt: elt}
+				spec.Type = p.parseArrayType(lbrack, x)
 			}
 		} else {
 			// array type
-			alen := p.parseArrayLen()
-			p.expect(token.RBRACK)
-			elt := p.parseType()
-			spec.Type = &ast.ArrayType{Lbrack: lbrack, Len: alen, Elt: elt}
+			spec.Type = p.parseArrayType(lbrack, nil)
 		}
-
-	default:
+	} else {
 		// no type parameters
 		if p.tok == token.ASSIGN {
 			// type alias
