@@ -993,13 +993,31 @@ package main
 
 var x = [1<<25]byte{1<<23: 23, 1<<24: 24}
 
+var addr = [...]*byte{
+	&x[1<<23-1],
+	&x[1<<23],
+	&x[1<<23+1],
+	&x[1<<24-1],
+	&x[1<<24],
+	&x[1<<24+1],
+}
+
 func main() {
+	// check relocations in instructions
 	check(x[1<<23-1], 0)
 	check(x[1<<23], 23)
 	check(x[1<<23+1], 0)
 	check(x[1<<24-1], 0)
 	check(x[1<<24], 24)
 	check(x[1<<24+1], 0)
+
+	// check absolute address relocations in data
+	check(*addr[0], 0)
+	check(*addr[1], 23)
+	check(*addr[2], 0)
+	check(*addr[3], 0)
+	check(*addr[4], 24)
+	check(*addr[5], 0)
 }
 
 func check(x, y byte) {
