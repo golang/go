@@ -83,7 +83,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := singleUnder(S).(*Slice); s != nil {
+		if s, _ := structure(S).(*Slice); s != nil {
 			T = s.elem
 		} else {
 			check.invalidArg(x, _InvalidAppend, "%s is not a slice", x)
@@ -332,14 +332,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := singleUnder(x.typ).(*Slice)
+		dst, _ := structure(x.typ).(*Slice)
 
 		var y operand
 		arg(&y, 1)
 		if y.mode == invalid {
 			return
 		}
-		src, _ := singleUnderString(y.typ).(*Slice)
+		src, _ := structureString(y.typ).(*Slice)
 
 		if dst == nil || src == nil {
 			check.invalidArg(x, _InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
@@ -473,7 +473,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		var min int // minimum number of arguments
-		switch singleUnder(T).(type) {
+		switch structure(T).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -776,11 +776,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	return true
 }
 
-// If typ is a type parameter, single under returns the single underlying
-// type of all types in the corresponding type constraint if it exists, or
-// nil if it doesn't exist. If typ is not a type parameter, singleUnder
-// just returns the underlying type.
-func singleUnder(typ Type) Type {
+// If typ is a type parameter, structure returns the single underlying
+// type of all types in the corresponding type constraint if it exists,
+// or nil otherwise. If typ is not a type parameter, structure returns
+// the underlying type.
+func structure(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
 		if su != nil && !Identical(su, u) {
@@ -795,10 +795,10 @@ func singleUnder(typ Type) Type {
 	return nil
 }
 
-// singleUnderString is like singleUnder but also considers []byte and
-// string as "identical". In this case, if successful, the result is always
-// []byte.
-func singleUnderString(typ Type) Type {
+// structureString is like structure but also considers []byte and
+// string as "identical". In this case, if successful, the result
+// is always []byte.
+func structureString(typ Type) Type {
 	var su Type
 	if underIs(typ, func(u Type) bool {
 		if isString(u) {
