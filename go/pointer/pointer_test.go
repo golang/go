@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/packages"
@@ -552,6 +553,9 @@ func checkWarningExpectation(prog *ssa.Program, e *expectation, warnings []point
 func TestInput(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode; this test requires tons of memory; https://golang.org/issue/14113")
+	}
+	if unsafe.Sizeof(unsafe.Pointer(nil)) <= 4 {
+		t.Skip("skipping memory-intensive test on platform with small address space; https://golang.org/issue/14113")
 	}
 	ok := true
 
