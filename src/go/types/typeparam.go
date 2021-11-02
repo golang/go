@@ -118,9 +118,9 @@ func (t *TypeParam) iface() *Interface {
 	return ityp
 }
 
-// structuralType returns the structural type of the type parameter's constraint; or nil.
-func (t *TypeParam) structuralType() Type {
-	return t.iface().typeSet().structuralType()
+// singleType returns the single type of the type parameter constraint; or nil.
+func (t *TypeParam) singleType() Type {
+	return t.iface().typeSet().singleType()
 }
 
 // hasTerms reports whether the type parameter constraint has specific type terms.
