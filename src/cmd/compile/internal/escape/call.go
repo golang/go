@@ -333,7 +333,24 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
 		}
 	}
 
-	// Peel away any slice lits.
+	// Peel away any slice literals for better escape analyze
+	// them. For example:
+	//
+	//     go F([]int{a, b})
+	//
+	// If F doesn't escape its arguments, then the slice can
+	// be allocated on the new goroutine's stack.
+	//
+	// For variadic functions, the compiler has already rewritten:
+	//
+	//     f(a, b, c)
+	//
+	// to:
+	//
+	//     f([]T{a, b, c}...)
+	//
+	// So we need to look into slice elements to handle uintptr(ptr)
+	// arguments to syscall-like functions correctly.
 	if arg := *argp; arg.Op() == ir.OSLICELIT {
 		list := arg.(*ir.CompLitExpr).List
 		for i := range list {
