@@ -49,6 +49,9 @@ func TestBExportData_stdlib(t *testing.T) {
 	conf := loader.Config{
 		Build:       &ctxt,
 		AllowErrors: true,
+		TypeChecker: types.Config{
+			Error: func(err error) { t.Log(err) },
+		},
 	}
 	for _, path := range buildutil.AllPackages(conf.Build) {
 		conf.Import(path)

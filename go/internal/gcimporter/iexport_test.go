@@ -94,6 +94,7 @@ func TestIExportData_stdlib(t *testing.T) {
 		AllowErrors: true,
 		TypeChecker: types.Config{
 			Sizes: types.SizesFor(ctxt.Compiler, ctxt.GOARCH),
+			Error: func(err error) { t.Log(err) },
 		},
 	}
 	for _, path := range buildutil.AllPackages(conf.Build) {
