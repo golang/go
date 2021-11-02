@@ -789,7 +789,7 @@ Found:
 		}
 
 		// package was not found
-		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
+		return p, fmt.Errorf("cannot find package %q in:\n\t%s", p.ImportPath, p.Dir)
 	}
 
 	if mode&FindOnly != 0 {
