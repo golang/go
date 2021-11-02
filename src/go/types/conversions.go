@@ -49,8 +49,15 @@ func (check *Checker) conversion(x *operand, T Type) {
 		// converted.
 		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
 			// t is nil if there are no specific type terms
-			// TODO(gri) add a cause in case of failure
-			return u != nil && constConvertibleTo(u, nil)
+			if u == nil {
+				cause = check.sprintf("%s does not contain specific types", T)
+				return false
+			}
+			if !constConvertibleTo(u, nil) {
+				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
+				return false
+			}
+			return true
 		})
 		x.mode = value // type parameters are not constants
 	case x.convertibleTo(check, T, &cause):
