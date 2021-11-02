@@ -452,8 +452,15 @@ func stringConstantArg(pass *analysis.Pass, call *ast.CallExpr, idx int) (string
 	if idx >= len(call.Args) {
 		return "", false
 	}
-	arg := call.Args[idx]
-	lit := pass.TypesInfo.Types[arg].Value
+	return stringConstantExpr(pass, call.Args[idx])
+}
+
+// stringConstantExpr returns expression's string constant value.
+//
+// ("", false) is returned if expression isn't a string
+// constant.
+func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
+	lit := pass.TypesInfo.Types[expr].Value
 	if lit != nil && lit.Kind() == constant.String {
 		return constant.StringVal(lit), true
 	}
@@ -1053,10 +1060,10 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 	}
 
 	arg := args[0]
-	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		// Ignore trailing % character in lit.Value.
+	if s, ok := stringConstantExpr(pass, arg); ok {
+		// Ignore trailing % character
 		// The % in "abc 0.0%" couldn't be a formatting directive.
-		s := strings.TrimSuffix(lit.Value, `%"`)
+		s = strings.TrimSuffix(s, "%")
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
@@ -1067,9 +1074,8 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 	if strings.HasSuffix(fn.Name(), "ln") {
 		// The last item, if a string, should not have a newline.
 		arg = args[len(args)-1]
-		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-			str, _ := strconv.Unquote(lit.Value)
-			if strings.HasSuffix(str, "\n") {
+		if s, ok := stringConstantExpr(pass, arg); ok {
+			if strings.HasSuffix(s, "\n") {
 				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
 			}
 		}

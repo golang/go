@@ -153,6 +153,7 @@ func PrintfTests() {
 	fmt.Println("%s", "hi")                     // want "fmt.Println call has possible formatting directive %s"
 	fmt.Println("%v", "hi")                     // want "fmt.Println call has possible formatting directive %v"
 	fmt.Println("%T", "hi")                     // want "fmt.Println call has possible formatting directive %T"
+	fmt.Println("%s"+" there", "hi")            // want "fmt.Println call has possible formatting directive %s"
 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                   // want "fmt.Printf call needs 1 arg but has 2 args"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // want "fmt.Sprintf call needs 1 arg but has 2 args"
@@ -768,9 +769,10 @@ func UnexportedStringerOrError() {
 	fmt.Printf("%s", uei)       // want "Printf format %s has arg uei of wrong type a.unexportedErrorInterface"
 	fmt.Println("foo\n", "bar") // not an error
 
-	fmt.Println("foo\n")  // want "Println arg list ends with redundant newline"
-	fmt.Println("foo\\n") // not an error
-	fmt.Println(`foo\n`)  // not an error
+	fmt.Println("foo\n")      // want "Println arg list ends with redundant newline"
+	fmt.Println("foo" + "\n") // want "Println arg list ends with redundant newline"
+	fmt.Println("foo\\n")     // not an error
+	fmt.Println(`foo\n`)      // not an error
 
 	intSlice := []int{3, 4}
 	fmt.Printf("%s", intSlice) // want `fmt.Printf format %s has arg intSlice of wrong type \[\]int`
