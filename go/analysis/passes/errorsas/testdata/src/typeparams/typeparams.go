@@ -8,7 +8,7 @@ package a
 
 import "errors"
 
-type myError[T any] T
+type myError[T any] struct{ t T }
 
 func (myError[T]) Error() string { return "" }
 
