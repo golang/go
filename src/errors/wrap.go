@@ -59,7 +59,7 @@ func Is(err, target error) bool {
 	}
 }
 
-// As finds the first error in err's chain that matches target, and if so, sets
+// As finds the first error in err's chain that matches target, and if one is found, sets
 // target to that error value and returns true. Otherwise, it returns false.
 //
 // The chain consists of err itself followed by the sequence of errors obtained by
