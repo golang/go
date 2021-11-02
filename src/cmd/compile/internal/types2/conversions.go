@@ -18,6 +18,8 @@ func (check *Checker) conversion(x *operand, T Type) {
 
 	constConvertibleTo := func(T Type, val *constant.Value) bool {
 		switch t := asBasic(T); {
+		case t == nil:
+			// nothing to do
 		case representableConst(x.val, check, t, val):
 			return true
 		case isInteger(x.typ) && isString(t):
