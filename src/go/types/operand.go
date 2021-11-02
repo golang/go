@@ -302,17 +302,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		}
 	}
 
-	// common case: if we don't have type parameters, we're done
+	// optimization: if we don't have type parameters, we're done
 	if Vp == nil && Tp == nil {
 		return false, _IncompatibleAssign
-	}
-
-	// determine type parameter operands with specific type terms
-	if Vp != nil && !Vp.hasTerms() {
-		Vp = nil
-	}
-	if Tp != nil && !Tp.hasTerms() {
-		Tp = nil
 	}
 
 	errorf := func(format string, args ...interface{}) {
@@ -325,25 +317,36 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 		}
 	}
 
-	ok := false
-	code := _IncompatibleAssign
-	switch {
-	case Vp != nil && Tp != nil:
-		x := *x // don't clobber outer x
-		ok = Vp.is(func(V *term) bool {
-			x.typ = V.typ
-			return Tp.is(func(T *term) bool {
-				ok, code = x.assignableTo(check, T.typ, reason)
-				if !ok {
-					errorf("cannot assign %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
-					return false
-				}
-				return true
-			})
+	// x's type V is not a named type and T is a type parameter, and
+	// x is assignable to each specific type in T's type set.
+	if !hasName(V) && Tp != nil {
+		ok := false
+		code := _IncompatibleAssign
+		Tp.is(func(T *term) bool {
+			if T == nil {
+				return false // no specific types
+			}
+			ok, code = x.assignableTo(check, T.typ, reason)
+			if !ok {
+				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
+				return false
+			}
+			return true
 		})
-	case Vp != nil:
+		return ok, code
+	}
+
+	// x's type V is a type parameter and T is not a named type,
+	// and values x' of each specific type in V's type set are
+	// assignable to T.
+	if Vp != nil && !hasName(T) {
 		x := *x // don't clobber outer x
-		ok = Vp.is(func(V *term) bool {
+		ok := false
+		code := _IncompatibleAssign
+		Vp.is(func(V *term) bool {
+			if V == nil {
+				return false // no specific types
+			}
 			x.typ = V.typ
 			ok, code = x.assignableTo(check, T, reason)
 			if !ok {
@@ -352,17 +355,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 			}
 			return true
 		})
-	case Tp != nil:
-		x := *x // don't clobber outer x
-		ok = Tp.is(func(T *term) bool {
-			ok, code = x.assignableTo(check, T.typ, reason)
-			if !ok {
-				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
-				return false
-			}
-			return true
-		})
+		return ok, code
 	}
 
-	return ok, code
+	return false, _IncompatibleAssign
 }
