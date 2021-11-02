@@ -71,14 +71,11 @@ type monoVertex struct {
 }
 
 type monoEdge struct {
-	dst    int
-	src    int
-	weight int
+	dst, src int
+	weight   int
 
-	// report emits an error describing why this edge exists.
-	//
-	// TODO(mdempsky): Avoid requiring a function closure for each edge.
-	report func(check *Checker)
+	pos token.Pos
+	typ Type
 }
 
 func (check *Checker) monomorph() {
@@ -139,12 +136,22 @@ func (check *Checker) reportInstanceLoop(v int) {
 
 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
 
-	obj := check.mono.vertices[v].obj
-	check.errorf(obj, _InvalidInstanceCycle, "instantiation cycle:")
+	obj0 := check.mono.vertices[v].obj
+	check.errorf(obj0, _InvalidInstanceCycle, "instantiation cycle:")
 
+	qf := RelativeTo(check.pkg)
 	for _, v := range stack {
 		edge := check.mono.edges[check.mono.vertices[v].pre]
-		edge.report(check)
+		obj := check.mono.vertices[edge.dst].obj
+
+		switch obj.Type().(type) {
+		default:
+			panic("unexpected type")
+		case *Named:
+			check.errorf(atPos(edge.pos), _InvalidInstanceCycle, "\t%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+		case *TypeParam:
+			check.errorf(atPos(edge.pos), _InvalidInstanceCycle, "\t%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+		}
 	}
 }
 
@@ -190,10 +197,7 @@ func (w *monoGraph) assign(pkg *Package, pos token.Pos, tpar *TypeParam, targ Ty
 			weight = 0
 		}
 
-		w.addEdge(w.typeParamVertex(tpar), src, weight, func(check *Checker) {
-			qf := RelativeTo(check.pkg)
-			check.errorf(atPos(pos), _InvalidInstanceCycle, "\t%s instantiated as %s", tpar.Obj().Name(), TypeString(targ, qf)) // secondary error, \t indented
-		})
+		w.addEdge(w.typeParamVertex(tpar), src, weight, pos, targ)
 	}
 
 	// Recursively walk the type argument to find any defined types or
@@ -283,9 +287,7 @@ func (w *monoGraph) localNamedVertex(pkg *Package, named *Named) int {
 						w.vertices = append(w.vertices, monoVertex{obj: obj})
 					}
 
-					w.addEdge(idx, w.typeParamVertex(tpar), 1, func(check *Checker) {
-						check.errorf(obj, _InvalidInstanceCycle, "\t%s implicitly parameterized by %s", obj.Name(), elem.Name())
-					})
+					w.addEdge(idx, w.typeParamVertex(tpar), 1, obj.Pos(), tpar)
 				}
 			}
 		}
@@ -320,12 +322,14 @@ func (w *monoGraph) typeParamVertex(tpar *TypeParam) int {
 	return idx
 }
 
-func (w *monoGraph) addEdge(dst, src, weight int, report func(check *Checker)) {
+func (w *monoGraph) addEdge(dst, src, weight int, pos token.Pos, typ Type) {
 	// TODO(mdempsky): Deduplicate redundant edges?
 	w.edges = append(w.edges, monoEdge{
 		dst:    dst,
 		src:    src,
 		weight: weight,
-		report: report,
+
+		pos: pos,
+		typ: typ,
 	})
 }

@@ -84,7 +84,7 @@ var bads = []string{
 	"func F[T any]() { type U int; F[*U]() }",
 	"type U[T any] int; func (U[T]) m() { var _ U[*T] }",
 	"type U[T any] int; func (*U[T]) m() { var _ U[*T] }",
-	"type U[T any] [unsafe.Sizeof(F[*T])]byte; func F[T any]() { var _ U[T] }",
+	"type U[T1 any] [unsafe.Sizeof(F[*T1])]byte; func F[T2 any]() { var _ U[T2] }",
 	"func F[A, B, C, D, E any]() { F[B, C, D, E, *A]() }",
 	"type U[_ any] int; const X = unsafe.Sizeof(func() { type A[T any] U[A[*T]] })",
 	"func F[T any]() { type A = *T; F[A]() }",
