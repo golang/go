@@ -7,7 +7,7 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: f17727af04704c0e2ede73dfdbeb463156e94561
-// last fetched Mon Jan 17 2022 11:52:52 GMT-0500 (Eastern Standard Time)
+// last fetched Thu Feb 10 2022 14:34:11 GMT-0700 (Mountain Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -87,7 +87,7 @@ type Server interface {
 	RangeFormatting(context.Context, *DocumentRangeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
 	OnTypeFormatting(context.Context, *DocumentOnTypeFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error)
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
-	PrepareRename(context.Context, *PrepareRenameParams) (*Range /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error)
+	PrepareRename(context.Context, *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /* LSPAny | void | float64*/, error)
 	Diagnostic(context.Context, *string) (*string, error)
 	DiagnosticWorkspace(context.Context, *WorkspaceDiagnosticParams) (*WorkspaceDiagnosticReport, error)
@@ -1043,8 +1043,8 @@ func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*W
 	return result, nil
 }
 
-func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*Range /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error) {
-	var result *Range /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/
+func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/, error) {
+	var result *PrepareRename2Gn /*Range | { range: Range, placeholder: string } | { defaultBehavior: boolean } | null*/
 	if err := s.sender.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
 		return nil, err
 	}

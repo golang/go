@@ -192,7 +192,7 @@ func (s *Server) PrepareCallHierarchy(ctx context.Context, params *protocol.Call
 	return s.prepareCallHierarchy(ctx, params)
 }
 
-func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
+func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.PrepareRename2Gn, error) {
 	return s.prepareRename(ctx, params)
 }
 

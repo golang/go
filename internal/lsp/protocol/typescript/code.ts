@@ -945,7 +945,13 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
     }
     case 4:
       if (nm == 'documentChanges') return `TextDocumentEdit ${help} `;
-      if (nm == 'textDocument/prepareRename') return `Range ${help} `;
+      if (nm == 'textDocument/prepareRename') {
+        // these names have to be made unique
+        const genName = `${goName("prepareRename")}${extraTypes.size}Gn`;
+        extraTypes.set(genName, [`Range       Range  \`json:"range"\`
+          Placeholder string \`json:"placeholder"\``]);
+        return `${genName} ${help} `;
+      }
       break;
     case 8: // LSPany
       break;

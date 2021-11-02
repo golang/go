@@ -35,7 +35,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	}, nil
 }
 
-func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.Range, error) {
+func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (*protocol.PrepareRename2Gn, error) {
 	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.Go)
 	defer release()
 	if !ok {
@@ -49,6 +49,8 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 		// internal error details.
 		return nil, usererr
 	}
-	// TODO(suzmue): return ident.Name as the placeholder text.
-	return &item.Range, nil
+	return &protocol.PrepareRename2Gn{
+		Range:       item.Range,
+		Placeholder: item.Text,
+	}, nil
 }

@@ -149,8 +149,8 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 					IncludeText: false,
 				},
 			},
-			Workspace: protocol.Workspace5Gn{
-				WorkspaceFolders: protocol.WorkspaceFolders4Gn{
+			Workspace: protocol.Workspace6Gn{
+				WorkspaceFolders: protocol.WorkspaceFolders5Gn{
 					Supported:           true,
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},

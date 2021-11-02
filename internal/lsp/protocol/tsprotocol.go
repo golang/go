@@ -5,7 +5,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: f17727af04704c0e2ede73dfdbeb463156e94561
-// last fetched Mon Jan 17 2022 11:52:52 GMT-0500 (Eastern Standard Time)
+// last fetched Thu Feb 10 2022 14:34:11 GMT-0700 (Mountain Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -246,7 +246,7 @@ type ClientCapabilities struct {
 	/**
 	 * The workspace client capabilities
 	 */
-	Workspace Workspace2Gn `json:"workspace,omitempty"`
+	Workspace Workspace3Gn `json:"workspace,omitempty"`
 	/**
 	 * Text document specific client capabilities.
 	 */
@@ -1160,7 +1160,7 @@ type ConfigurationClientCapabilities struct {
 	/**
 	 * The workspace client capabilities
 	 */
-	Workspace Workspace3Gn `json:"workspace,omitempty"`
+	Workspace Workspace4Gn `json:"workspace,omitempty"`
 }
 
 type ConfigurationItem struct {
@@ -4120,7 +4120,7 @@ type ServerCapabilities struct {
 	/**
 	 * The workspace server capabilities
 	 */
-	Workspace Workspace5Gn `json:"workspace,omitempty"`
+	Workspace Workspace6Gn `json:"workspace,omitempty"`
 	/**
 	 * The server provides moniker support.
 	 *
@@ -5430,7 +5430,7 @@ type WorkspaceFoldersClientCapabilities struct {
 	/**
 	 * The workspace client capabilities
 	 */
-	Workspace Workspace6Gn `json:"workspace,omitempty"`
+	Workspace Workspace7Gn `json:"workspace,omitempty"`
 }
 
 type WorkspaceFoldersInitializeParams struct {
@@ -5444,7 +5444,7 @@ type WorkspaceFoldersServerCapabilities struct {
 	/**
 	 * The workspace server capabilities
 	 */
-	Workspace Workspace8Gn `json:"workspace,omitempty"`
+	Workspace Workspace9Gn `json:"workspace,omitempty"`
 }
 
 /**
@@ -6068,83 +6068,9 @@ type ParamInitialize struct {
 	InitializeParams
 	WorkDoneProgressParams
 }
-type Workspace2Gn struct {
-	/**
-	 * The client supports applying batch edits
-	 * to the workspace by supporting the request
-	 * 'workspace/applyEdit'
-	 */
-	ApplyEdit bool `json:"applyEdit,omitempty"`
-
-	/**
-	 * Capabilities specific to `WorkspaceEdit`s
-	 */
-	WorkspaceEdit *WorkspaceEditClientCapabilities `json:"workspaceEdit,omitempty"`
-
-	/**
-	 * Capabilities specific to the `workspace/didChangeConfiguration` notification.
-	 */
-	DidChangeConfiguration DidChangeConfigurationClientCapabilities `json:"didChangeConfiguration,omitempty"`
-
-	/**
-	 * Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
-	 */
-	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
-
-	/**
-	 * Capabilities specific to the `workspace/symbol` request.
-	 */
-	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
-
-	/**
-	 * Capabilities specific to the `workspace/executeCommand` request.
-	 */
-	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
-
-	/**
-	 * Capabilities specific to the semantic token requests scoped to the
-	 * workspace.
-	 *
-	 * @since 3.16.0.
-	 */
-	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
-
-	/**
-	 * Capabilities specific to the code lens requests scoped to the
-	 * workspace.
-	 *
-	 * @since 3.16.0.
-	 */
-	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
-
-	/**
-	 * The client has support for file notifications/requests for user operations on files.
-	 *
-	 * Since 3.16.0
-	 */
-	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
-
-	/**
-	 * Capabilities specific to the inline values requests scoped to the
-	 * workspace.
-	 *
-	 * @since 3.17.0.
-	 */
-	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
-
-	/**
-	 * The client has support for workspace folders
-	 *
-	 * @since 3.6.0
-	 */
-	WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
-
-	/**
-	 * The client supports `workspace/configuration` requests.
-	 *
-	 * @since 3.6.0
-	 */
-	Configuration bool `json:"configuration,omitempty"`
+type PrepareRename2Gn struct {
+	Range       Range  `json:"range"`
+	Placeholder string `json:"placeholder"`
 }
 type Workspace3Gn struct {
 	/**
@@ -6224,34 +6150,7 @@ type Workspace3Gn struct {
 	 */
 	Configuration bool `json:"configuration,omitempty"`
 }
-type WorkspaceFolders4Gn struct {
-	/**
-	 * The Server has support for workspace folders
-	 */
-	Supported bool `json:"supported,omitempty"`
-
-	/**
-	 * Whether the server wants to receive workspace folder
-	 * change notifications.
-	 *
-	 * If a strings is provided the string is treated as a ID
-	 * under which the notification is registered on the client
-	 * side. The ID can be used to unregister for these events
-	 * using the `client/unregisterCapability` request.
-	 */
-	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
-}
-type Workspace5Gn struct {
-	/**
-	* The server is interested in notifications/requests for operations on files.
-	*
-	* @since 3.16.0
-	 */
-	FileOperations *FileOperationOptions `json:"fileOperations,omitempty"`
-
-	WorkspaceFolders WorkspaceFolders4Gn `json:"workspaceFolders,omitempty"`
-}
-type Workspace6Gn struct {
+type Workspace4Gn struct {
 	/**
 	 * The client supports applying batch edits
 	 * to the workspace by supporting the request
@@ -6329,7 +6228,7 @@ type Workspace6Gn struct {
 	 */
 	Configuration bool `json:"configuration,omitempty"`
 }
-type WorkspaceFolders7Gn struct {
+type WorkspaceFolders5Gn struct {
 	/**
 	 * The Server has support for workspace folders
 	 */
@@ -6346,7 +6245,7 @@ type WorkspaceFolders7Gn struct {
 	 */
 	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
 }
-type Workspace8Gn struct {
+type Workspace6Gn struct {
 	/**
 	* The server is interested in notifications/requests for operations on files.
 	*
@@ -6354,5 +6253,110 @@ type Workspace8Gn struct {
 	 */
 	FileOperations *FileOperationOptions `json:"fileOperations,omitempty"`
 
-	WorkspaceFolders WorkspaceFolders7Gn `json:"workspaceFolders,omitempty"`
+	WorkspaceFolders WorkspaceFolders5Gn `json:"workspaceFolders,omitempty"`
+}
+type Workspace7Gn struct {
+	/**
+	 * The client supports applying batch edits
+	 * to the workspace by supporting the request
+	 * 'workspace/applyEdit'
+	 */
+	ApplyEdit bool `json:"applyEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to `WorkspaceEdit`s
+	 */
+	WorkspaceEdit *WorkspaceEditClientCapabilities `json:"workspaceEdit,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeConfiguration` notification.
+	 */
+	DidChangeConfiguration DidChangeConfigurationClientCapabilities `json:"didChangeConfiguration,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/didChangeWatchedFiles` notification.
+	 */
+	DidChangeWatchedFiles DidChangeWatchedFilesClientCapabilities `json:"didChangeWatchedFiles,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/symbol` request.
+	 */
+	Symbol *WorkspaceSymbolClientCapabilities `json:"symbol,omitempty"`
+
+	/**
+	 * Capabilities specific to the `workspace/executeCommand` request.
+	 */
+	ExecuteCommand ExecuteCommandClientCapabilities `json:"executeCommand,omitempty"`
+
+	/**
+	 * Capabilities specific to the semantic token requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	SemanticTokens SemanticTokensWorkspaceClientCapabilities `json:"semanticTokens,omitempty"`
+
+	/**
+	 * Capabilities specific to the code lens requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.16.0.
+	 */
+	CodeLens CodeLensWorkspaceClientCapabilities `json:"codeLens,omitempty"`
+
+	/**
+	 * The client has support for file notifications/requests for user operations on files.
+	 *
+	 * Since 3.16.0
+	 */
+	FileOperations *FileOperationClientCapabilities `json:"fileOperations,omitempty"`
+
+	/**
+	 * Capabilities specific to the inline values requests scoped to the
+	 * workspace.
+	 *
+	 * @since 3.17.0.
+	 */
+	InlineValues InlineValuesWorkspaceClientCapabilities `json:"inlineValues,omitempty"`
+
+	/**
+	 * The client has support for workspace folders
+	 *
+	 * @since 3.6.0
+	 */
+	WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
+
+	/**
+	 * The client supports `workspace/configuration` requests.
+	 *
+	 * @since 3.6.0
+	 */
+	Configuration bool `json:"configuration,omitempty"`
+}
+type WorkspaceFolders8Gn struct {
+	/**
+	 * The Server has support for workspace folders
+	 */
+	Supported bool `json:"supported,omitempty"`
+
+	/**
+	 * Whether the server wants to receive workspace folder
+	 * change notifications.
+	 *
+	 * If a strings is provided the string is treated as a ID
+	 * under which the notification is registered on the client
+	 * side. The ID can be used to unregister for these events
+	 * using the `client/unregisterCapability` request.
+	 */
+	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
+}
+type Workspace9Gn struct {
+	/**
+	* The server is interested in notifications/requests for operations on files.
+	*
+	* @since 3.16.0
+	 */
+	FileOperations *FileOperationOptions `json:"fileOperations,omitempty"`
+
+	WorkspaceFolders WorkspaceFolders8Gn `json:"workspaceFolders,omitempty"`
 }
