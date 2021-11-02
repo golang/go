@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"internal/godebug"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -2281,7 +2282,7 @@ func TestUpxCompression(t *testing.T) {
 
 func TestCacheListStale(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2304,7 +2305,7 @@ func TestCacheListStale(t *testing.T) {
 func TestCacheCoverage(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 
@@ -2336,7 +2337,7 @@ func TestIssue22588(t *testing.T) {
 
 func TestIssue22531(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2365,7 +2366,7 @@ func TestIssue22531(t *testing.T) {
 
 func TestIssue22596(t *testing.T) {
 	tooSlow(t)
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
@@ -2395,7 +2396,7 @@ func TestIssue22596(t *testing.T) {
 func TestTestCache(t *testing.T) {
 	tooSlow(t)
 
-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+	if godebug.Get("gocacheverify") == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
 	tg := testgo(t)
