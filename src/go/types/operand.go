@@ -267,9 +267,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type
-	// and neither is a type parameter.
-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) && Vp == nil && Tp == nil {
+	// and at least one of V or T is not a named type.
+	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
 		return true, 0
 	}
 
@@ -296,10 +295,10 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x is a bidirectional channel value, T is a channel
 	// type, x's type V and T have identical element types,
-	// and at least one of V or T is not a named type
+	// and at least one of V or T is not a named type.
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+			return !hasName(V) || !hasName(T), _InvalidChanAssign
 		}
 	}
 
