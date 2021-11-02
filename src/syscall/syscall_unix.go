@@ -324,6 +324,23 @@ func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err
 	return
 }
 
+func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+	_, err = SendmsgN(fd, p, oob, to, flags)
+	return
+}
+
+func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, p, oob, ptr, salen, flags)
+}
+
 func sendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) (err error) {
 	ptr, n, err := to.sockaddr()
 	if err != nil {
