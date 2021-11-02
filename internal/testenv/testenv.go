@@ -258,6 +258,10 @@ func ExitIfSmallMachine() {
 		// and there is only one of each. We shouldn't waste those scarce resources
 		// running very slow tests.
 		fmt.Fprintf(os.Stderr, "skipping test: %s builder is very slow\n", b)
+	case "dragonfly-amd64":
+		// As of 2021-11-02, this builder is running with GO_TEST_TIMEOUT_SCALE=2,
+		// and seems to have unusually slow disk performance.
+		fmt.Fprintln(os.Stderr, "skipping test: dragonfly-amd64 has slow disk (https://golang.org/issue/45216)")
 	default:
 		return
 	}
