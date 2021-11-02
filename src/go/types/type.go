@@ -29,37 +29,37 @@ func under(t Type) Type {
 
 // Convenience converters
 
-func toBasic(t Type) *Basic {
+func asBasic(t Type) *Basic {
 	op, _ := under(t).(*Basic)
 	return op
 }
 
-func toArray(t Type) *Array {
+func asArray(t Type) *Array {
 	op, _ := under(t).(*Array)
 	return op
 }
 
-func toSlice(t Type) *Slice {
+func asSlice(t Type) *Slice {
 	op, _ := under(t).(*Slice)
 	return op
 }
 
-func toStruct(t Type) *Struct {
+func asStruct(t Type) *Struct {
 	op, _ := under(t).(*Struct)
 	return op
 }
 
-func toPointer(t Type) *Pointer {
+func asPointer(t Type) *Pointer {
 	op, _ := under(t).(*Pointer)
 	return op
 }
 
-func toSignature(t Type) *Signature {
+func asSignature(t Type) *Signature {
 	op, _ := under(t).(*Signature)
 	return op
 }
 
-func toInterface(t Type) *Interface {
+func asInterface(t Type) *Interface {
 	op, _ := under(t).(*Interface)
 	return op
 }

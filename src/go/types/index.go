@@ -35,7 +35,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		return false
 
 	case value:
-		if sig := toSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
+		if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
 			// function instantiation
 			return true
 		}
@@ -72,7 +72,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
 		x.typ = typ.elem
 
 	case *Pointer:
-		if typ := toArray(typ.base); typ != nil {
+		if typ := asArray(typ.base); typ != nil {
 			valid = true
 			length = typ.len
 			x.mode = variable
@@ -242,7 +242,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		x.typ = &Slice{elem: u.elem}
 
 	case *Pointer:
-		if u := toArray(u.base); u != nil {
+		if u := asArray(u.base); u != nil {
 			valid = true
 			length = u.len
 			x.typ = &Slice{elem: u.elem}
