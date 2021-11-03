@@ -10,8 +10,20 @@ package asan
 #cgo CFLAGS: -fsanitize=address
 #cgo LDFLAGS: -fsanitize=address
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sanitizer/asan_interface.h>
+
+extern void __asan_report_load1(void*);
+extern void __asan_report_load2(void*);
+extern void __asan_report_load4(void*);
+extern void __asan_report_load8(void*);
+extern void __asan_report_load_n(void*, uintptr_t);
+extern void __asan_report_store1(void*);
+extern void __asan_report_store2(void*);
+extern void __asan_report_store4(void*);
+extern void __asan_report_store8(void*);
+extern void __asan_report_store_n(void*, uintptr_t);
 
 void __asan_read_go(void *addr, uintptr_t sz) {
 	if (__asan_region_is_poisoned(addr, sz)) {

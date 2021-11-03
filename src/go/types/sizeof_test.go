@@ -33,7 +33,6 @@ func TestSizeof(t *testing.T) {
 		{Named{}, 68, 128},
 		{TypeParam{}, 28, 48},
 		{term{}, 12, 24},
-		{top{}, 0, 0},
 
 		// Objects
 		{PkgName{}, 48, 88},

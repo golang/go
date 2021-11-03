@@ -27,6 +27,19 @@ func _[T ~string]() {
 	var _ T = 0 // ERROR cannot use .* as T value
 }
 
+// failing const conversions of constants to type parameters report a cause
+func _[
+	T1 any,
+	T2 interface{ m() },
+	T3 ~int | ~float64 | ~bool,
+	T4 ~int | ~string,
+]() {
+	_ = T1(0 /* ERROR cannot convert 0 .* to T1\n\tT1 does not contain specific types */ )
+	_ = T2(1 /* ERROR cannot convert 1 .* to T2\n\tT2 does not contain specific types */ )
+	_ = T3(2 /* ERROR cannot convert 2 .* to T3\n\tcannot convert 2 .* to bool \(in T3\) */ )
+	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to T4\n\tcannot convert 3.14 .* to int \(in T4\) */ )
+}
+
 // "x is assignable to T"
 // - tested via assignability tests
 

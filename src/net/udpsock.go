@@ -167,6 +167,18 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
+// ReadFromUDPAddrPort acts like ReadFrom but returns a netip.AddrPort.
+func (c *UDPConn) ReadFromUDPAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
+	if !c.ok() {
+		return 0, netip.AddrPort{}, syscall.EINVAL
+	}
+	n, addr, err = c.readFromAddrPort(b)
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, addr, err
+}
+
 // ReadMsgUDP reads a message from c, copying the payload into b and
 // the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
@@ -207,11 +219,14 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 
 // WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
 func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
-	// TODO(bradfitz): make this efficient, making the internal net package
-	// type throughout be netip.Addr and only converting to the net.IP slice
-	// version at the edge. But for now (2021-10-20), this is a wrapper around
-	// the old way.
-	return c.WriteToUDP(b, UDPAddrFromAddrPort(addr))
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeToAddrPort(b, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
+	}
+	return n, err
 }
 
 // WriteTo implements the PacketConn WriteTo method.

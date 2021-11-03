@@ -234,50 +234,45 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	V := x.typ
 
-	const debugAssignableTo = false
-	if debugAssignableTo && check != nil {
-		check.dump("V = %s", V)
-		check.dump("T = %s", T)
-	}
-
 	// x's type is identical to T
 	if Identical(V, T) {
 		return true, 0
 	}
 
-	Vu := optype(V)
-	Tu := optype(T)
-
-	if debugAssignableTo && check != nil {
-		check.dump("Vu = %s", Vu)
-		check.dump("Tu = %s", Tu)
-	}
+	Vu := under(V)
+	Tu := under(T)
+	Vp, _ := Vu.(*TypeParam)
+	Tp, _ := Tu.(*TypeParam)
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, _ := under(T).(*TypeParam); t != nil {
-			return t.is(func(t *term) bool {
-				// TODO(gri) this could probably be more efficient
-				if t.tilde {
-					// TODO(gri) We need to check assignability
-					//           for the underlying type of x.
+		assert(Vp == nil)
+		if Tp != nil {
+			// T is a type parameter: x is assignable to T if it is
+			// representable by each specific type in the type set of T.
+			return Tp.is(func(t *term) bool {
+				if t == nil {
+					return false
 				}
-				ok, _ := x.assignableTo(check, t.typ, reason)
-				return ok
+				// A term may be a tilde term but the underlying
+				// type of an untyped value doesn't change so we
+				// don't need to do anything special.
+				newType, _, _ := check.implicitTypeAndValue(x, t.typ)
+				return newType != nil
 			}), _IncompatibleAssign
 		}
-		newType, _, _ := check.implicitTypeAndValue(x, Tu)
+		newType, _, _ := check.implicitTypeAndValue(x, T)
 		return newType != nil, _IncompatibleAssign
 	}
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type
-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	// and at least one of V or T is not a named type.
+	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
 		return true, 0
 	}
 
-	// T is an interface type and x implements T
+	// T is an interface type and x implements T and T is not a type parameter
 	if Ti, ok := Tu.(*Interface); ok {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
@@ -300,11 +295,67 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 
 	// x is a bidirectional channel value, T is a channel
 	// type, x's type V and T have identical element types,
-	// and at least one of V or T is not a named type
+	// and at least one of V or T is not a named type.
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
 		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+			return !hasName(V) || !hasName(T), _InvalidChanAssign
 		}
+	}
+
+	// optimization: if we don't have type parameters, we're done
+	if Vp == nil && Tp == nil {
+		return false, _IncompatibleAssign
+	}
+
+	errorf := func(format string, args ...interface{}) {
+		if check != nil && reason != nil {
+			msg := check.sprintf(format, args...)
+			if *reason != "" {
+				msg += "\n\t" + *reason
+			}
+			*reason = msg
+		}
+	}
+
+	// x's type V is not a named type and T is a type parameter, and
+	// x is assignable to each specific type in T's type set.
+	if !hasName(V) && Tp != nil {
+		ok := false
+		code := _IncompatibleAssign
+		Tp.is(func(T *term) bool {
+			if T == nil {
+				return false // no specific types
+			}
+			ok, code = x.assignableTo(check, T.typ, reason)
+			if !ok {
+				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
+				return false
+			}
+			return true
+		})
+		return ok, code
+	}
+
+	// x's type V is a type parameter and T is not a named type,
+	// and values x' of each specific type in V's type set are
+	// assignable to T.
+	if Vp != nil && !hasName(T) {
+		x := *x // don't clobber outer x
+		ok := false
+		code := _IncompatibleAssign
+		Vp.is(func(V *term) bool {
+			if V == nil {
+				return false // no specific types
+			}
+			x.typ = V.typ
+			ok, code = x.assignableTo(check, T, reason)
+			if !ok {
+				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+				return false
+			}
+			return true
+		})
+		return ok, code
 	}
 
 	return false, _IncompatibleAssign

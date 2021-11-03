@@ -91,6 +91,8 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 			pos = posList[i]
 		}
 		check.softErrorf(atPos(pos), _Todo, err.Error())
+	} else {
+		check.mono.recordInstance(check.pkg, pos, tparams, targs, posList)
 	}
 
 	return inst
@@ -141,8 +143,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 				}
 				if t := asInterface(T); t != nil {
 					if !t.IsMethodSet() {
-						// TODO(rfindley): remove the phrase "type list" from this error.
-						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
 						break
 					}
 				}
@@ -173,7 +174,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	// signature may be generic
 	cgocall := x.mode == cgofunc
 
-	sig := asSignature(x.typ)
+	// a type parameter may be "called" if all types have the same signature
+	sig, _ := structure(x.typ).(*Signature)
 	if sig == nil {
 		check.invalidOp(x, _InvalidCall, "cannot call non-function %s", x)
 		x.mode = invalid

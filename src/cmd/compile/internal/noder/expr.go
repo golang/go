@@ -235,12 +235,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
 		return DotField(pos, x, last)
 	}
 
-	// TODO(danscales,mdempsky): Interface method sets are not sorted the
-	// same between types and types2. In particular, using "last" here
-	// without conversion will likely fail if an interface contains
-	// unexported methods from two different packages (due to cross-package
-	// interface embedding).
-
 	var n ir.Node
 	method2 := selinfo.Obj().(*types2.Func)
 

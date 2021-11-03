@@ -69,6 +69,31 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	return n, addr, err
 }
 
+func (c *UDPConn) readFromAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
+	var ip netip.Addr
+	var port int
+	switch c.fd.family {
+	case syscall.AF_INET:
+		var from syscall.SockaddrInet4
+		n, err = c.fd.readFromInet4(b, &from)
+		if err == nil {
+			ip = netip.AddrFrom4(from.Addr)
+			port = from.Port
+		}
+	case syscall.AF_INET6:
+		var from syscall.SockaddrInet6
+		n, err = c.fd.readFromInet6(b, &from)
+		if err == nil {
+			ip = netip.AddrFrom16(from.Addr).WithZone(zoneCache.name(int(from.ZoneId)))
+			port = from.Port
+		}
+	}
+	if err == nil {
+		addr = netip.AddrPortFrom(ip, uint16(port))
+	}
+	return n, addr, err
+}
+
 func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
 	var sa syscall.Sockaddr
 	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
@@ -106,6 +131,32 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 		return c.fd.writeToInet6(b, sa)
 	default:
 		return 0, &AddrError{Err: "invalid address family", Addr: addr.IP.String()}
+	}
+}
+
+func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	if c.fd.isConnected {
+		return 0, ErrWriteToConnected
+	}
+	if !addr.IsValid() {
+		return 0, errMissingAddress
+	}
+
+	switch c.fd.family {
+	case syscall.AF_INET:
+		sa, err := addrPortToSockaddrInet4(addr)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet4(b, sa)
+	case syscall.AF_INET6:
+		sa, err := addrPortToSockaddrInet6(addr)
+		if err != nil {
+			return 0, err
+		}
+		return c.fd.writeToInet6(b, sa)
+	default:
+		return 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
 	}
 }
 

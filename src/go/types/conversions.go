@@ -16,26 +16,54 @@ import (
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_
 
-	var ok bool
-	var cause string
-	switch {
-	case constArg && isConstType(T):
-		// constant conversion
+	constConvertibleTo := func(T Type, val *constant.Value) bool {
 		switch t := asBasic(T); {
-		case representableConst(x.val, check, t, &x.val):
-			ok = true
+		case t == nil:
+			// nothing to do
+		case representableConst(x.val, check, t, val):
+			return true
 		case isInteger(x.typ) && isString(t):
 			codepoint := unicode.ReplacementChar
 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
 				codepoint = rune(i)
 			}
-			x.val = constant.MakeString(string(codepoint))
-			ok = true
+			if val != nil {
+				*val = constant.MakeString(string(codepoint))
+			}
+			return true
 		}
+		return false
+	}
+
+	var ok bool
+	var cause string
+	switch {
+	case constArg && isConstType(T):
+		// constant conversion
+		ok = constConvertibleTo(T, &x.val)
+	case constArg && isTypeParam(T):
+		// x is convertible to T if it is convertible
+		// to each specific type in the type set of T.
+		// If T's type set is empty, or if it doesn't
+		// have specific types, constant x cannot be
+		// converted.
+		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
+			// t is nil if there are no specific type terms
+			if u == nil {
+				cause = check.sprintf("%s does not contain specific types", T)
+				return false
+			}
+			if !constConvertibleTo(u, nil) {
+				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
+				return false
+			}
+			return true
+		})
+		x.mode = value // type parameters are not constants
 	case x.convertibleTo(check, T, &cause):
 		// non-constant conversion
-		x.mode = value
 		ok = true
+		x.mode = value
 	}
 
 	if !ok {
@@ -92,6 +120,16 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
+	// determine type parameter operands with specific type terms
+	Vp, _ := under(x.typ).(*TypeParam)
+	Tp, _ := under(T).(*TypeParam)
+	if Vp != nil && !Vp.hasTerms() {
+		Vp = nil
+	}
+	if Tp != nil && !Tp.hasTerms() {
+		Tp = nil
+	}
+
 	errorf := func(format string, args ...interface{}) {
 		if check != nil && cause != nil {
 			msg := check.sprintf(format, args...)
@@ -102,11 +140,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		}
 	}
 
-	// TODO(gri) consider passing under(x.typ), under(T) into convertibleToImpl (optimization)
-	Vp, _ := under(x.typ).(*TypeParam)
-	Tp, _ := under(T).(*TypeParam)
-
-	// generic cases
+	// generic cases with specific type terms
 	// (generic operands cannot be constants, so we can ignore x.val)
 	switch {
 	case Vp != nil && Tp != nil:
@@ -209,6 +243,10 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 
 	return false
 }
+
+// Helper predicates for convertibleToImpl. The types provided to convertibleToImpl
+// may be type parameters but they won't have specific type terms. Thus it is ok to
+// use the toT convenience converters in the predicates below.
 
 func isUintptr(typ Type) bool {
 	t := asBasic(typ)
