@@ -66,7 +66,7 @@ var (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, usageMessage)
+		fmt.Fprint(os.Stderr, usageMessage)
 		os.Exit(2)
 	}
 	flag.Parse()
