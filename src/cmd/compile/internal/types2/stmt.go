@@ -942,7 +942,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 func rangeKeyVal(typ Type) (key, val Type) {
 	switch typ := arrayPtrDeref(typ).(type) {
 	case *Basic:
-		if is_String(typ) {
+		if isString(typ) {
 			return Typ[Int], universeRune // use 'rune' name
 		}
 	case *Array:
