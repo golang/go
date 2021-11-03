@@ -127,7 +127,7 @@ func (c *constructor) callees(call ssa.CallInstruction) []*ssa.Function {
 func resolve(c ssa.CallInstruction, types propTypeMap, cache methodCache) []*ssa.Function {
 	n := local{val: c.Common().Value}
 	var funcs []*ssa.Function
-	for p := range types.propTypes(n) {
+	for _, p := range types.propTypes(n) {
 		funcs = append(funcs, propFunc(p, c, cache)...)
 	}
 	return funcs

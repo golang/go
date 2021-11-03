@@ -101,7 +101,7 @@ func nodeToTypeString(pMap propTypeMap) map[string]string {
 	nodeToTypeStr := make(map[string]string)
 	for node := range pMap.nodeToScc {
 		var propStrings []string
-		for prop := range pMap.propTypes(node) {
+		for _, prop := range pMap.propTypes(node) {
 			propStrings = append(propStrings, propTypeString(prop))
 		}
 		sort.Strings(propStrings)

@@ -7,6 +7,7 @@ package vta
 import (
 	"go/types"
 
+	"golang.org/x/tools/go/callgraph/vta/internal/trie"
 	"golang.org/x/tools/go/ssa"
 
 	"golang.org/x/tools/go/types/typeutil"
@@ -94,21 +95,21 @@ type propType struct {
 // the role of a map from nodes to a set of propTypes.
 type propTypeMap struct {
 	nodeToScc  map[node]int
-	sccToTypes map[int]map[propType]bool
+	sccToTypes map[int]*trie.MutMap
 }
 
-// propTypes returns a set of propTypes associated with
+// propTypes returns a list of propTypes associated with
 // node `n`. If `n` is not in the map `ptm`, nil is returned.
-//
-// Note: for performance reasons, the returned set is a
-// reference to existing set in the map `ptm`, so any updates
-// to it will affect `ptm` as well.
-func (ptm propTypeMap) propTypes(n node) map[propType]bool {
+func (ptm propTypeMap) propTypes(n node) []propType {
 	id, ok := ptm.nodeToScc[n]
 	if !ok {
 		return nil
 	}
-	return ptm.sccToTypes[id]
+	var pts []propType
+	for _, elem := range trie.Elems(ptm.sccToTypes[id].M) {
+		pts = append(pts, elem.(propType))
+	}
+	return pts
 }
 
 // propagate reduces the `graph` based on its SCCs and
@@ -125,11 +126,25 @@ func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 		sccs[id] = append(sccs[id], n)
 	}
 
+	// propTypeIds are used to create unique ids for
+	// propType, to be used for trie-based type sets.
+	propTypeIds := make(map[propType]uint64)
+	// Id creation is based on == equality, which works
+	// as types are canonicalized (see getPropType).
+	propTypeId := func(p propType) uint64 {
+		if id, ok := propTypeIds[p]; ok {
+			return id
+		}
+		id := uint64(len(propTypeIds))
+		propTypeIds[p] = id
+		return id
+	}
+	builder := trie.NewBuilder()
 	// Initialize sccToTypes to avoid repeated check
 	// for initialization later.
-	sccToTypes := make(map[int]map[propType]bool, sccID)
+	sccToTypes := make(map[int]*trie.MutMap, sccID)
 	for i := 0; i <= sccID; i++ {
-		sccToTypes[i] = nodeTypes(sccs[i], canon)
+		sccToTypes[i] = nodeTypes(sccs[i], builder, propTypeId, canon)
 	}
 
 	for i := len(sccs) - 1; i >= 0; i-- {
@@ -141,7 +156,7 @@ func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 		}
 		// Propagate types to all successor SCCs.
 		for nextScc := range nextSccs {
-			mergeTypes(sccToTypes[nextScc], sccToTypes[i])
+			sccToTypes[nextScc].Merge(sccToTypes[i].M)
 		}
 	}
 	return propTypeMap{nodeToScc: nodeToScc, sccToTypes: sccToTypes}
@@ -149,14 +164,15 @@ func propagate(graph vtaGraph, canon *typeutil.Map) propTypeMap {
 
 // nodeTypes returns a set of propTypes for `nodes`. These are the
 // propTypes stemming from the type of each node in `nodes` plus.
-func nodeTypes(nodes []node, canon *typeutil.Map) map[propType]bool {
-	types := make(map[propType]bool)
+func nodeTypes(nodes []node, builder *trie.Builder, propTypeId func(p propType) uint64, canon *typeutil.Map) *trie.MutMap {
+	typeSet := builder.MutEmpty()
 	for _, n := range nodes {
 		if hasInitialTypes(n) {
-			types[getPropType(n, canon)] = true
+			pt := getPropType(n, canon)
+			typeSet.Update(propTypeId(pt), pt)
 		}
 	}
-	return types
+	return &typeSet
 }
 
 // getPropType creates a propType for `node` based on its type.
@@ -168,11 +184,4 @@ func getPropType(node node, canon *typeutil.Map) propType {
 		return propType{f: fn.f, typ: t}
 	}
 	return propType{f: nil, typ: t}
-}
-
-// mergeTypes merges propTypes in `rhs` to `lhs`.
-func mergeTypes(lhs, rhs map[propType]bool) {
-	for typ := range rhs {
-		lhs[typ] = true
-	}
 }
