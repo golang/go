@@ -89,6 +89,14 @@ func BadFunc() {
 	fmuB := fmuA        // OK
 	fmuA = fmuB         // OK
 	fmuSlice := fmuA[:] // OK
+
+	// map access by single and tuple copies prohibited
+	type mut struct{ mu sync.Mutex }
+	muM := map[string]mut{
+		"a": mut{},
+	}
+	mumA := muM["a"]    // want "assignment copies lock value to mumA: a.mut contains sync.Mutex"
+	mumB, _ := muM["a"] // want "assignment copies lock value to mumB: \\(a.mut, bool\\) contains a.mut contains sync.Mutex"
 }
 
 func LenAndCapOnLockArrays() {

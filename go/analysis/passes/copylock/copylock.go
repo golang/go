@@ -282,6 +282,17 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
 		typ = atyp.Elem()
 	}
 
+	ttyp, ok := typ.Underlying().(*types.Tuple)
+	if ok {
+		for i := 0; i < ttyp.Len(); i++ {
+			subpath := lockPath(tpkg, ttyp.At(i).Type())
+			if subpath != nil {
+				return append(subpath, typ.String())
+			}
+		}
+		return nil
+	}
+
 	// We're only interested in the case in which the underlying
 	// type is a struct. (Interfaces and pointers are safe to copy.)
 	styp, ok := typ.Underlying().(*types.Struct)
