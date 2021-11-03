@@ -237,7 +237,7 @@ func zeroRISCV64(w io.Writer) {
 	// ZERO: always zero
 	// X25: ptr to memory to be zeroed
 	// X25 is updated as a side effect.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
 		fmt.Fprintln(w, "\tMOV\tZERO, (X25)")
 		fmt.Fprintln(w, "\tADD\t$8, X25")
@@ -249,7 +249,7 @@ func copyRISCV64(w io.Writer) {
 	// X24: ptr to source memory
 	// X25: ptr to destination memory
 	// X24 and X25 are updated as a side effect
-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
 		fmt.Fprintln(w, "\tMOV\t(X24), X31")
 		fmt.Fprintln(w, "\tADD\t$8, X24")
