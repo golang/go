@@ -188,15 +188,13 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn 
 		if err != nil {
 			return 0, 0, err
 		}
-		// TODO: Implement writeMsgInet4 to avoid allocation converting sa to an interface.
-		return c.fd.writeMsg(b, oob, &sa)
+		return c.fd.writeMsgInet4(b, oob, sa)
 	case syscall.AF_INET6:
 		sa, err := addrPortToSockaddrInet6(addr)
 		if err != nil {
 			return 0, 0, err
 		}
-		// TODO: Implement writeMsgInet6 to avoid allocation converting sa to an interface.
-		return c.fd.writeMsg(b, oob, &sa)
+		return c.fd.writeMsgInet6(b, oob, sa)
 	default:
 		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
 	}

@@ -279,6 +279,14 @@ func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int
 	return 0, 0, 0, nil, syscall.ENOSYS
 }
 
+func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
+	return 0, 0, syscall.ENOSYS
+}
+
+func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (n int, oobn int, err error) {
+	return 0, 0, syscall.ENOSYS
+}
+
 func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	return 0, syscall.ENOSYS
 }

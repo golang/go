@@ -110,6 +110,18 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
 	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
 }
 
+func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
+	n, oobn, err = fd.pfd.WriteMsgInet4(p, oob, sa)
+	runtime.KeepAlive(fd)
+	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
+}
+
+func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (n int, oobn int, err error) {
+	n, oobn, err = fd.pfd.WriteMsgInet6(p, oob, sa)
+	runtime.KeepAlive(fd)
+	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
+}
+
 func (fd *netFD) SetDeadline(t time.Time) error {
 	return fd.pfd.SetDeadline(t)
 }

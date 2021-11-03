@@ -1128,25 +1128,35 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 	return syscall.EWINDOWS
 }
 
+func sockaddrInet4ToRaw(sa syscall.SockaddrInet4) (unsafe.Pointer, int32) {
+	var raw syscall.RawSockaddrInet4
+	raw.Family = syscall.AF_INET
+	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	raw.Addr = sa.Addr
+	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+}
+
+func sockaddrInet6ToRaw(sa syscall.SockaddrInet6) (unsafe.Pointer, int32) {
+	var raw syscall.RawSockaddrInet6
+	raw.Family = syscall.AF_INET6
+	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	raw.Scope_id = sa.ZoneId
+	raw.Addr = sa.Addr
+	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+}
+
 func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		var raw syscall.RawSockaddrInet4
-		raw.Family = syscall.AF_INET
-		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
-		p[0] = byte(sa.Port >> 8)
-		p[1] = byte(sa.Port)
-		raw.Addr = sa.Addr
-		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+		ptr, sz := sockaddrInet4ToRaw(*sa)
+		return ptr, sz, nil
 	case *syscall.SockaddrInet6:
-		var raw syscall.RawSockaddrInet6
-		raw.Family = syscall.AF_INET6
-		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
-		p[0] = byte(sa.Port >> 8)
-		p[1] = byte(sa.Port)
-		raw.Scope_id = sa.ZoneId
-		raw.Addr = sa.Addr
-		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+		ptr, sz := sockaddrInet6ToRaw(*sa)
+		return ptr, sz, nil
 	default:
 		return nil, 0, syscall.EWINDOWS
 	}
@@ -1201,6 +1211,50 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 		o.msg.Name = (syscall.Pointer)(rsa)
 		o.msg.Namelen = len
 	}
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
+	})
+	return n, int(o.msg.Control.Len), err
+}
+
+// WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
+	if len(p) > maxRW {
+		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+	}
+
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+
+	o := &fd.wop
+	o.InitMsg(p, oob)
+	rsa, len := sockaddrInet4ToRaw(sa)
+	o.msg.Name = (syscall.Pointer)(rsa)
+	o.msg.Namelen = len
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
+	})
+	return n, int(o.msg.Control.Len), err
+}
+
+// WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
+	if len(p) > maxRW {
+		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+	}
+
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+
+	o := &fd.wop
+	o.InitMsg(p, oob)
+	rsa, len := sockaddrInet6ToRaw(sa)
+	o.msg.Name = (syscall.Pointer)(rsa)
+	o.msg.Namelen = len
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
 	})

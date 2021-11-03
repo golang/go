@@ -485,6 +485,58 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 }
 
+// WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet4(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
+// WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet6(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
 // Accept wraps the accept network call.
 func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
 	if err := fd.readLock(); err != nil {
