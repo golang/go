@@ -262,6 +262,12 @@ func ExitIfSmallMachine() {
 		// As of 2021-11-02, this builder is running with GO_TEST_TIMEOUT_SCALE=2,
 		// and seems to have unusually slow disk performance.
 		fmt.Fprintln(os.Stderr, "skipping test: dragonfly-amd64 has slow disk (https://golang.org/issue/45216)")
+	case "linux-riscv64-unmatched":
+		// As of 2021-11-03, this builder is empirically not fast enough to run
+		// gopls tests. Ideally we should make the tests faster in short mode
+		// and/or fix them to not assume arbitrary deadlines.
+		// For now, we'll skip them instead.
+		fmt.Fprintf(os.Stderr, "skipping test: %s builder is too slow (https://golang.org/issue/49321)\n", b)
 	default:
 		return
 	}
