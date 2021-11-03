@@ -324,6 +324,33 @@ func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err
 	return
 }
 
+func recvmsgInet4(fd int, p, oob []byte, flags int, from *SockaddrInet4) (n, oobn int, recvflags int, err error) {
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet4)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.Addr = pp.Addr
+	return
+}
+
+func recvmsgInet6(fd int, p, oob []byte, flags int, from *SockaddrInet6) (n, oobn int, recvflags int, err error) {
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	if err != nil {
+		return
+	}
+	pp := (*RawSockaddrInet6)(unsafe.Pointer(&rsa))
+	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	from.Port = int(port[0])<<8 + int(port[1])
+	from.ZoneId = pp.Scope_id
+	from.Addr = pp.Addr
+	return
+}
+
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)

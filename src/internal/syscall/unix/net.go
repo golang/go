@@ -34,3 +34,11 @@ func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (
 //go:linkname SendmsgNInet6 syscall.sendmsgNInet6
 //go:noescape
 func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error)
+
+//go:linkname RecvmsgInet4 syscall.recvmsgInet4
+//go:noescape
+func RecvmsgInet4(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet4) (n, oobn int, recvflags int, err error)
+
+//go:linkname RecvmsgInet6 syscall.recvmsgInet6
+//go:noescape
+func RecvmsgInet6(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet6) (n, oobn int, recvflags int, err error)
