@@ -79,8 +79,6 @@ type operation struct {
 	buf    syscall.WSABuf
 	msg    windows.WSAMsg
 	sa     syscall.Sockaddr
-	sa4    syscall.SockaddrInet4
-	sa6    syscall.SockaddrInet6
 	rsa    *syscall.RawSockaddrAny
 	rsan   int32
 	handle syscall.Handle
@@ -852,7 +850,7 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 }
 
 // WriteToInet4 is WriteTo, specialized for syscall.SockaddrInet4.
-func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
+func (fd *FD) WriteToInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -862,9 +860,8 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 		// handle zero-byte payload
 		o := &fd.wop
 		o.InitBuf(buf)
-		o.sa4 = sa4
 		n, err := execIO(o, func(o *operation) error {
-			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
 		})
 		return n, err
 	}
@@ -877,9 +874,8 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 		}
 		o := &fd.wop
 		o.InitBuf(b)
-		o.sa4 = sa4
 		n, err := execIO(o, func(o *operation) error {
-			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
 		})
 		ntotal += int(n)
 		if err != nil {
@@ -891,7 +887,7 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 }
 
 // WriteToInet6 is WriteTo, specialized for syscall.SockaddrInet6.
-func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
+func (fd *FD) WriteToInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -901,9 +897,8 @@ func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
 		// handle zero-byte payload
 		o := &fd.wop
 		o.InitBuf(buf)
-		o.sa6 = sa6
 		n, err := execIO(o, func(o *operation) error {
-			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
 		})
 		return n, err
 	}
@@ -916,9 +911,8 @@ func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
 		}
 		o := &fd.wop
 		o.InitBuf(b)
-		o.sa6 = sa6
 		n, err := execIO(o, func(o *operation) error {
-			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
 		})
 		ntotal += int(n)
 		if err != nil {
@@ -1122,7 +1116,7 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 	return syscall.EWINDOWS
 }
 
-func sockaddrInet4ToRaw(sa syscall.SockaddrInet4) (unsafe.Pointer, int32) {
+func sockaddrInet4ToRaw(sa *syscall.SockaddrInet4) (unsafe.Pointer, int32) {
 	var raw syscall.RawSockaddrInet4
 	raw.Family = syscall.AF_INET
 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
@@ -1132,7 +1126,7 @@ func sockaddrInet4ToRaw(sa syscall.SockaddrInet4) (unsafe.Pointer, int32) {
 	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
 }
 
-func sockaddrInet6ToRaw(sa syscall.SockaddrInet6) (unsafe.Pointer, int32) {
+func sockaddrInet6ToRaw(sa *syscall.SockaddrInet6) (unsafe.Pointer, int32) {
 	var raw syscall.RawSockaddrInet6
 	raw.Family = syscall.AF_INET6
 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
@@ -1161,10 +1155,10 @@ func rawToSockaddrInet6(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) 
 func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		ptr, sz := sockaddrInet4ToRaw(*sa)
+		ptr, sz := sockaddrInet4ToRaw(sa)
 		return ptr, sz, nil
 	case *syscall.SockaddrInet6:
-		ptr, sz := sockaddrInet6ToRaw(*sa)
+		ptr, sz := sockaddrInet6ToRaw(sa)
 		return ptr, sz, nil
 	default:
 		return nil, 0, syscall.EWINDOWS
@@ -1281,7 +1275,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 }
 
 // WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
-func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
 	if len(p) > maxRW {
 		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
 	}
@@ -1303,7 +1297,7 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int
 }
 
 // WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
-func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
 	if len(p) > maxRW {
 		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
 	}
