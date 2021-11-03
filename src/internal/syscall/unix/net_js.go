@@ -34,3 +34,11 @@ func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (
 func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
+
+func RecvmsgInet4(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet4) (n, oobn int, recvflags int, err error) {
+	return 0, 0, 0, syscall.ENOSYS
+}
+
+func RecvmsgInet6(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet6) (n, oobn int, recvflags int, err error) {
+	return 0, 0, 0, syscall.ENOSYS
+}

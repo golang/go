@@ -95,13 +95,15 @@ func (c *UDPConn) readFromAddrPort(b []byte) (n int, addr netip.AddrPort, err er
 }
 
 func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
-	var sa syscall.Sockaddr
-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
-	switch sa := sa.(type) {
-	case *syscall.SockaddrInet4:
+	switch c.fd.family {
+	case syscall.AF_INET:
+		var sa syscall.SockaddrInet4
+		n, oobn, flags, err = c.fd.readMsgInet4(b, oob, 0, &sa)
 		ip := netip.AddrFrom4(sa.Addr)
 		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
-	case *syscall.SockaddrInet6:
+	case syscall.AF_INET6:
+		var sa syscall.SockaddrInet6
+		n, oobn, flags, err = c.fd.readMsgInet6(b, oob, 0, &sa)
 		ip := netip.AddrFrom16(sa.Addr).WithZone(zoneCache.name(int(sa.ZoneId)))
 		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
 	}
