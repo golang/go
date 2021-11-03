@@ -22,7 +22,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// nothing to do
 		case representableConst(x.val, check, t, val):
 			return true
-		case isInteger(x.typ) && isString(t):
+		case is_Integer(x.typ) && is_String(t):
 			codepoint := unicode.ReplacementChar
 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
 				codepoint = rune(i)
@@ -93,7 +93,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// ok
 		} else if IsInterface(T) || constArg && !isConstType(T) {
 			final = Default(x.typ)
-		} else if isInteger(x.typ) && isString(T) {
+		} else if is_Integer(x.typ) && allString(T) {
 			final = x.typ
 		}
 		check.updateExprType(x.expr, final, true)
@@ -197,22 +197,22 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 	}
 
 	// "V and T are both integer or floating point types"
-	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
+	if is_IntegerOrFloat(V) && is_IntegerOrFloat(T) {
 		return true
 	}
 
 	// "V and T are both complex types"
-	if isComplex(V) && isComplex(T) {
+	if is_Complex(V) && is_Complex(T) {
 		return true
 	}
 
 	// "V is an integer or a slice of bytes or runes and T is a string type"
-	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
+	if (is_Integer(V) || isBytesOrRunes(Vu)) && is_String(T) {
 		return true
 	}
 
 	// "V is a string and T is a slice of bytes or runes"
-	if isString(V) && isBytesOrRunes(Tu) {
+	if is_String(V) && isBytesOrRunes(Tu) {
 		return true
 	}
 

@@ -430,9 +430,9 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 	}
 	if mode == constant_ {
 		assert(val != nil)
-		// We check is(typ, IsConstType) here as constant expressions may be
+		// We check allBasic(typ, IsConstType) here as constant expressions may be
 		// recorded as type parameters.
-		assert(typ == Typ[Invalid] || is(typ, IsConstType))
+		assert(typ == Typ[Invalid] || allBasic(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}
@@ -462,7 +462,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a [2]Type) {
 	if a[0] == nil || a[1] == nil {
 		return
 	}
-	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
+	assert(isTyped(a[0]) && isTyped(a[1]) && (is_Boolean(a[1]) || a[1] == universeError))
 	if m := check.Types; m != nil {
 		for {
 			tv := m[x]
