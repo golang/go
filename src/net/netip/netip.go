@@ -75,6 +75,9 @@ func IPv6LinkLocalAllNodes() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02,
 // IPv6Unspecified returns the IPv6 unspecified address "::".
 func IPv6Unspecified() Addr { return Addr{z: z6noz} }
 
+// IPv4Unspecified returns the IPv4 unspecified address "0.0.0.0".
+func IPv4Unspecified() Addr { return AddrFrom4([4]byte{}) }
+
 // AddrFrom4 returns the address of the IPv4 address given by the bytes in addr.
 func AddrFrom4(addr [4]byte) Addr {
 	return Addr{
@@ -595,7 +598,7 @@ func (ip Addr) IsGlobalUnicast() bool {
 
 	// Match package net's IsGlobalUnicast logic. Notably private IPv4 addresses
 	// and ULA IPv6 addresses are still considered "global unicast".
-	if ip.Is4() && (ip == AddrFrom4([4]byte{}) || ip == AddrFrom4([4]byte{255, 255, 255, 255})) {
+	if ip.Is4() && (ip == IPv4Unspecified() || ip == AddrFrom4([4]byte{255, 255, 255, 255})) {
 		return false
 	}
 
@@ -633,7 +636,7 @@ func (ip Addr) IsPrivate() bool {
 //
 // Note that the zero Addr is not an unspecified address.
 func (ip Addr) IsUnspecified() bool {
-	return ip == AddrFrom4([4]byte{}) || ip == IPv6Unspecified()
+	return ip == IPv4Unspecified() || ip == IPv6Unspecified()
 }
 
 // Prefix keeps only the top b bits of IP, producing a Prefix
