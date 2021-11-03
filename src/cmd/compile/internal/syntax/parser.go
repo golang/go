@@ -708,15 +708,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	}
 
 	f.Name = p.name()
-	if p.allowGenerics() && p.got(_Lbrack) {
-		if p.tok == _Rbrack {
-			p.syntaxError("empty type parameter list")
-			p.next()
-		} else {
-			f.TParamList = p.paramList(nil, _Rbrack, true)
-		}
-	}
-	f.Type = p.funcType()
+	f.TParamList, f.Type = p.funcType("")
 	if p.tok == _Lbrace {
 		f.Body = p.funcBody()
 	}
@@ -944,7 +936,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Func:
 		pos := p.pos()
 		p.next()
-		ftyp := p.funcType()
+		_, ftyp := p.funcType("function literal")
 		if p.tok == _Lbrace {
 			p.xnest++
 
@@ -1284,7 +1276,8 @@ func (p *parser) typeOrNil() Expr {
 	case _Func:
 		// fntype
 		p.next()
-		return p.funcType()
+		_, t := p.funcType("function type")
+		return t
 
 	case _Lbrack:
 		// '[' oexpr ']' ntype
@@ -1357,18 +1350,34 @@ func (p *parser) typeInstance(typ Expr) Expr {
 	return x
 }
 
-func (p *parser) funcType() *FuncType {
+// If context != "", type parameters are not permitted.
+func (p *parser) funcType(context string) ([]*Field, *FuncType) {
 	if trace {
 		defer p.trace("funcType")()
 	}
 
 	typ := new(FuncType)
 	typ.pos = p.pos()
+
+	var tparamList []*Field
+	if p.allowGenerics() && p.got(_Lbrack) {
+		if context != "" {
+			// accept but complain
+			p.syntaxErrorAt(typ.pos, context+" cannot have type parameters")
+		}
+		if p.tok == _Rbrack {
+			p.syntaxError("empty type parameter list")
+			p.next()
+		} else {
+			tparamList = p.paramList(nil, _Rbrack, true)
+		}
+	}
+
 	p.want(_Lparen)
 	typ.ParamList = p.paramList(nil, _Rparen, false)
 	typ.ResultList = p.funcResult()
 
-	return typ
+	return tparamList, typ
 }
 
 // "[" has already been consumed, and pos is its position.
@@ -1697,11 +1706,13 @@ func (p *parser) methodDecl() *Field {
 		// already progressed, no need to advance
 	}
 
+	const context = "interface method"
+
 	switch p.tok {
 	case _Lparen:
 		// method
 		f.Name = name
-		f.Type = p.funcType()
+		_, f.Type = p.funcType(context)
 
 	case _Lbrack:
 		if p.allowGenerics() {
@@ -1721,7 +1732,7 @@ func (p *parser) methodDecl() *Field {
 					// name[](
 					p.errorAt(pos, "empty type parameter list")
 					f.Name = name
-					f.Type = p.funcType()
+					_, f.Type = p.funcType(context)
 				} else {
 					p.errorAt(pos, "empty type argument list")
 					f.Type = name
@@ -1738,7 +1749,7 @@ func (p *parser) methodDecl() *Field {
 				// as if [] were absent.
 				if p.tok == _Lparen {
 					f.Name = name
-					f.Type = p.funcType()
+					_, f.Type = p.funcType(context)
 				} else {
 					f.Type = name
 				}
@@ -1749,7 +1760,7 @@ func (p *parser) methodDecl() *Field {
 			if list[0].Name != nil {
 				// generic method
 				f.Name = name
-				f.Type = p.funcType()
+				_, f.Type = p.funcType(context)
 				// TODO(gri) Record list as type parameter list with f.Type
 				//           if we want to type-check the generic method.
 				//           For now, report an error so this is not a silent event.
