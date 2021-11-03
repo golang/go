@@ -997,11 +997,15 @@ func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
 // provided.
 func CheckCorpus(vals []interface{}, types []reflect.Type) error {
 	if len(vals) != len(types) {
-		return fmt.Errorf("wrong number of values in corpus entry %v: want %v", vals, types)
+		return fmt.Errorf("wrong number of values in corpus entry: %d, want %d", len(vals), len(types))
+	}
+	valsT := make([]reflect.Type, len(vals))
+	for valsI, v := range vals {
+		valsT[valsI] = reflect.TypeOf(v)
 	}
 	for i := range types {
-		if reflect.TypeOf(vals[i]) != types[i] {
-			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", vals, types)
+		if valsT[i] != types[i] {
+			return fmt.Errorf("mismatched types in corpus entry: %v, want %v", valsT, types)
 		}
 	}
 	return nil
