@@ -350,7 +350,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
 	MOVW	$_INTERRUPT_TIME, R3
 loop:
 	MOVW	time_hi1(R3), R1
+	DMB	MB_ISH
 	MOVW	time_lo(R3), R0
+	DMB	MB_ISH
 	MOVW	time_hi2(R3), R2
 	CMP	R1, R2
 	BNE	loop
