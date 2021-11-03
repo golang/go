@@ -870,7 +870,7 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 		o.InitBuf(buf)
 		o.sa4 = sa4
 		n, err := execIO(o, func(o *operation) error {
-			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
 		})
 		return n, err
 	}
@@ -885,7 +885,7 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 		o.InitBuf(b)
 		o.sa4 = sa4
 		n, err := execIO(o, func(o *operation) error {
-			return syscall.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
 		})
 		ntotal += int(n)
 		if err != nil {
