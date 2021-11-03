@@ -857,7 +857,7 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	return ntotal, nil
 }
 
-// WriteTo wraps the sendto network call for IPv4.
+// WriteToInet4 is WriteTo, specialized for syscall.SockaddrInet4.
 func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
@@ -896,9 +896,43 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
 	return ntotal, nil
 }
 
-// WriteTo wraps the sendto network call for IPv6.
-func (fd *FD) WriteToInet6(buf []byte, sa syscall.SockaddrInet6) (int, error) {
-	return fd.WriteTo(buf, &sa)
+// WriteToInet6 is WriteTo, specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		o.sa6 = sa6
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
+		})
+		return n, err
+	}
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		o := &fd.wop
+		o.InitBuf(b)
+		o.sa6 = sa6
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
+		})
+		ntotal += int(n)
+		if err != nil {
+			return ntotal, err
+		}
+		buf = buf[n:]
+	}
+	return ntotal, nil
 }
 
 // Call ConnectEx. This doesn't need any locking, since it is only
