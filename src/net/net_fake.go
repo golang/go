@@ -287,11 +287,11 @@ func (fd *netFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.Socka
 	return 0, 0, 0, syscall.ENOSYS
 }
 
-func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
+func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
 	return 0, 0, syscall.ENOSYS
 }
 
-func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (n int, oobn int, err error) {
+func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
 	return 0, 0, syscall.ENOSYS
 }
 
@@ -299,11 +299,11 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 
-func (fd *netFD) writeToInet4(p []byte, sa syscall.SockaddrInet4) (n int, err error) {
+func (fd *netFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 
-func (fd *netFD) writeToInet6(p []byte, sa syscall.SockaddrInet6) (n int, err error) {
+func (fd *netFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 

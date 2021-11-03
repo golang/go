@@ -922,7 +922,7 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 	return err
 }
 
-func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
+func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
 	rsa, len, err := to.sockaddr()
 	if err != nil {
 		return err
@@ -938,7 +938,7 @@ func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
 	return err
 }
 
-func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
+func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
 	rsa, len, err := to.sockaddr()
 	if err != nil {
 		return err

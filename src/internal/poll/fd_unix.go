@@ -436,7 +436,7 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 }
 
 // WriteToInet4 wraps the sendto network call for IPv4 addresses.
-func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
+func (fd *FD) WriteToInet4(p []byte, sa *syscall.SockaddrInet4) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -462,7 +462,7 @@ func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
 }
 
 // WriteToInet6 wraps the sendto network call for IPv6 addresses.
-func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
+func (fd *FD) WriteToInet6(p []byte, sa *syscall.SockaddrInet6) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -540,7 +540,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 }
 
 // WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
-func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, 0, err
 	}
@@ -566,7 +566,7 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int
 }
 
 // WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
-func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, 0, err
 	}

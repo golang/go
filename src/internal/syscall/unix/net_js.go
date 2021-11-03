@@ -19,19 +19,19 @@ func RecvfromInet6(fd int, p []byte, flags int, from *syscall.SockaddrInet6) (n 
 	return 0, syscall.ENOSYS
 }
 
-func SendtoInet4(fd int, p []byte, flags int, to syscall.SockaddrInet4) (err error) {
+func SendtoInet4(fd int, p []byte, flags int, to *syscall.SockaddrInet4) (err error) {
 	return syscall.ENOSYS
 }
 
-func SendtoInet6(fd int, p []byte, flags int, to syscall.SockaddrInet6) (err error) {
+func SendtoInet6(fd int, p []byte, flags int, to *syscall.SockaddrInet6) (err error) {
 	return syscall.ENOSYS
 }
 
-func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (n int, err error) {
+func SendmsgNInet4(fd int, p, oob []byte, to *syscall.SockaddrInet4, flags int) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 
-func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error) {
+func SendmsgNInet6(fd int, p, oob []byte, to *syscall.SockaddrInet6, flags int) (n int, err error) {
 	return 0, syscall.ENOSYS
 }
 

@@ -124,13 +124,13 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		return c.fd.writeToInet4(b, sa)
+		return c.fd.writeToInet4(b, &sa)
 	case syscall.AF_INET6:
 		sa, err := ipToSockaddrInet6(addr.IP, addr.Port, addr.Zone)
 		if err != nil {
 			return 0, err
 		}
-		return c.fd.writeToInet6(b, sa)
+		return c.fd.writeToInet6(b, &sa)
 	default:
 		return 0, &AddrError{Err: "invalid address family", Addr: addr.IP.String()}
 	}
@@ -150,13 +150,13 @@ func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		return c.fd.writeToInet4(b, sa)
+		return c.fd.writeToInet4(b, &sa)
 	case syscall.AF_INET6:
 		sa, err := addrPortToSockaddrInet6(addr)
 		if err != nil {
 			return 0, err
 		}
-		return c.fd.writeToInet6(b, sa)
+		return c.fd.writeToInet6(b, &sa)
 	default:
 		return 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
 	}
@@ -190,13 +190,13 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn 
 		if err != nil {
 			return 0, 0, err
 		}
-		return c.fd.writeMsgInet4(b, oob, sa)
+		return c.fd.writeMsgInet4(b, oob, &sa)
 	case syscall.AF_INET6:
 		sa, err := addrPortToSockaddrInet6(addr)
 		if err != nil {
 			return 0, 0, err
 		}
-		return c.fd.writeMsgInet6(b, oob, sa)
+		return c.fd.writeMsgInet6(b, oob, &sa)
 	default:
 		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
 	}
