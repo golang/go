@@ -4,7 +4,7 @@
 
 // Package netip defines a IP address type that's a small value type.
 // Building on that Addr type, the package also defines AddrPort (an
-// IP address and a port), and Prefix (a IP address and a bit length
+// IP address and a port), and Prefix (an IP address and a bit length
 // prefix).
 //
 // Compared to the net.IP type, this package's Addr type takes less
@@ -1184,7 +1184,7 @@ type Prefix struct {
 	// bits is logically a uint8 (storing [0,128]) but also
 	// encodes an "invalid" bit, currently represented by the
 	// invalidPrefixBits sentinel value. It could be packed into
-	// the uint8 more with more comlicated expressions in the
+	// the uint8 more with more complicated expressions in the
 	// accessors, but the extra byte (in padding anyway) doesn't
 	// hurt and simplifies code below.
 	bits int16
@@ -1195,7 +1195,7 @@ type Prefix struct {
 // public API.
 const invalidPrefixBits = -1
 
-// PrefixFrom returns an Prefix with the provided IP address and bit
+// PrefixFrom returns a Prefix with the provided IP address and bit
 // prefix length.
 //
 // It does not allocate. Unlike Addr.Prefix, PrefixFrom does not mask
@@ -1222,7 +1222,7 @@ func (p Prefix) Addr() Addr { return p.ip }
 // It reports -1 if invalid.
 func (p Prefix) Bits() int { return int(p.bits) }
 
-// IsValid reports whether whether p.Bits() has a valid range for p.IP().
+// IsValid reports whether p.Bits() has a valid range for p.IP().
 // If p.Addr() is the zero Addr, IsValid returns false.
 // Note that if p is the zero Prefix, then p.IsValid() == false.
 func (p Prefix) IsValid() bool { return !p.ip.isZero() && p.bits >= 0 && int(p.bits) <= p.ip.BitLen() }
