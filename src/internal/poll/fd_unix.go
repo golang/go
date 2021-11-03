@@ -7,6 +7,7 @@
 package poll
 
 import (
+	"internal/syscall/unix"
 	"io"
 	"sync/atomic"
 	"syscall"
@@ -239,7 +240,7 @@ func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) 
 		return 0, err
 	}
 	for {
-		n, err := syscall.RecvfromInet4(fd.Sysfd, p, 0, from)
+		n, err := unix.RecvfromInet4(fd.Sysfd, p, 0, from)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue
@@ -266,7 +267,7 @@ func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) 
 		return 0, err
 	}
 	for {
-		n, err := syscall.RecvfromInet6(fd.Sysfd, p, 0, from)
+		n, err := unix.RecvfromInet6(fd.Sysfd, p, 0, from)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue
@@ -390,7 +391,7 @@ func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
 		return 0, err
 	}
 	for {
-		err := syscall.SendtoInet4(fd.Sysfd, p, 0, sa)
+		err := unix.SendtoInet4(fd.Sysfd, p, 0, sa)
 		if err == syscall.EINTR {
 			continue
 		}
@@ -416,7 +417,7 @@ func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
 		return 0, err
 	}
 	for {
-		err := syscall.SendtoInet6(fd.Sysfd, p, 0, sa)
+		err := unix.SendtoInet6(fd.Sysfd, p, 0, sa)
 		if err == syscall.EINTR {
 			continue
 		}
