@@ -26,3 +26,11 @@ func SendtoInet4(fd int, p []byte, flags int, to syscall.SockaddrInet4) (err err
 //go:linkname SendtoInet6 syscall.sendtoInet6
 //go:noescape
 func SendtoInet6(fd int, p []byte, flags int, to syscall.SockaddrInet6) (err error)
+
+//go:linkname SendmsgNInet4 syscall.sendmsgNInet4
+//go:noescape
+func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (n int, err error)
+
+//go:linkname SendmsgNInet6 syscall.sendmsgNInet6
+//go:noescape
+func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error)
