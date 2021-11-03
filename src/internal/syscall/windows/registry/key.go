@@ -25,7 +25,10 @@
 //
 package registry
 
-import "syscall"
+import (
+	"runtime"
+	"syscall"
+)
 
 const (
 	// Registry key security and access rights.
@@ -88,6 +91,12 @@ func OpenKey(k Key, path string, access uint32) (Key, error) {
 
 // ReadSubKeyNames returns the names of subkeys of key k.
 func (k Key) ReadSubKeyNames() ([]string, error) {
+	// RegEnumKeyEx must be called repeatedly and to completion.
+	// During this time, this goroutine cannot migrate away from
+	// its current thread. See #49320.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	names := make([]string, 0)
 	// Registry key size limit is 255 bytes and described there:
 	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
