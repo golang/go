@@ -962,25 +962,30 @@ func (ip *Addr) UnmarshalText(text []byte) error {
 	return err
 }
 
+func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
+	var b []byte
+	switch ip.z {
+	case z0:
+		b = make([]byte, trailingBytes)
+	case z4:
+		b = make([]byte, 4+trailingBytes)
+		bePutUint32(b, uint32(ip.addr.lo))
+	default:
+		z := ip.Zone()
+		b = make([]byte, 16+len(z)+trailingBytes)
+		bePutUint64(b[:8], ip.addr.hi)
+		bePutUint64(b[8:], ip.addr.lo)
+		copy(b[16:], z)
+	}
+	return b
+}
+
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 // It returns a zero-length slice for the zero Addr,
 // the 4-byte form for an IPv4 address,
 // and the 16-byte form with zone appended for an IPv6 address.
 func (ip Addr) MarshalBinary() ([]byte, error) {
-	switch ip.z {
-	case z0:
-		return nil, nil
-	case z4:
-		b := ip.As4()
-		return b[:], nil
-	default:
-		b16 := ip.As16()
-		b := b16[:]
-		if z := ip.Zone(); z != "" {
-			b = append(b, []byte(z)...)
-		}
-		return b, nil
-	}
+	return ip.marshalBinaryWithTrailingBytes(0), nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
@@ -1174,11 +1179,7 @@ func (p *AddrPort) UnmarshalText(text []byte) error {
 // It returns Addr.MarshalBinary with an additional two bytes appended
 // containing the port in little-endian.
 func (p AddrPort) MarshalBinary() ([]byte, error) {
-	b, err := p.Addr().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	b = append(b, 0, 0)
+	b := p.Addr().marshalBinaryWithTrailingBytes(2)
 	lePutUint16(b[len(b)-2:], p.Port())
 	return b, nil
 }
@@ -1433,11 +1434,9 @@ func (p *Prefix) UnmarshalText(text []byte) error {
 // It returns Addr.MarshalBinary with an additional byte appended
 // containing the prefix bits.
 func (p Prefix) MarshalBinary() ([]byte, error) {
-	b, err := p.Addr().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return append(b, uint8(p.Bits())), nil
+	b := p.Addr().withoutZone().marshalBinaryWithTrailingBytes(1)
+	b[len(b)-1] = uint8(p.Bits())
+	return b, nil
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
