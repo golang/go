@@ -13,34 +13,18 @@ TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
 	MOVB    runtime·useQPCTime(SB), R0
 	CMP	$0, R0
 	BNE	useQPC
-	MOVD	$_INTERRUPT_TIME, R3
-loop:
-	MOVWU	time_hi1(R3), R1
-	MOVWU	time_lo(R3), R0
-	MOVWU	time_hi2(R3), R2
-	CMP	R1, R2
-	BNE	loop
 
-	// wintime = R1:R0, multiply by 100
-	ORR	R1<<32, R0
+	MOVD	$_INTERRUPT_TIME, R3
+	MOVD	time_lo(R3), R0
 	MOVD	$100, R1
 	MUL	R1, R0
 	MOVD	R0, mono+16(FP)
 
 	MOVD	$_SYSTEM_TIME, R3
-wall:
-	MOVWU	time_hi1(R3), R1
-	MOVWU	time_lo(R3), R0
-	MOVWU	time_hi2(R3), R2
-	CMP	R1, R2
-	BNE	wall
-
-	// w = R1:R0 in 100ns units
+	MOVD	time_lo(R3), R0
 	// convert to Unix epoch (but still 100ns units)
 	#define delta 116444736000000000
-	ORR	R1<<32, R0
 	SUB	$delta, R0
-
 	// Convert to nSec
 	MOVD	$100, R1
 	MUL	R1, R0
