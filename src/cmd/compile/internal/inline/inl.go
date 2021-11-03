@@ -685,6 +685,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 		return n
 	}
 
+	// Don't inline a function fn that has no shape parameters, but is passed at
+	// least one shape arg. This means we must be inlining a non-generic function
+	// fn that was passed into a generic function, and can be called with a shape
+	// arg because it matches an appropriate type parameters. But fn may include
+	// an interface conversion (that may be applied to a shape arg) that was not
+	// apparent when we first created the instantiation of the generic function.
+	// We can't handle this if we actually do the inlining, since we want to know
+	// all interface conversions immediately after stenciling. So, we avoid
+	// inlining in this case. See #49309.
+	if !fn.Type().HasShape() {
+		for _, arg := range n.Args {
+			if arg.Type().HasShape() {
+				if logopt.Enabled() {
+					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+						fmt.Sprintf("inlining non-shape function %v with shape args", ir.FuncName(fn)))
+				}
+				return n
+			}
+		}
+	}
+
 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
 		// Runtime package must not be instrumented.
 		// Instrument skips runtime package. However, some runtime code can be
