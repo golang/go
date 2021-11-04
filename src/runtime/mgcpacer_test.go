@@ -302,6 +302,12 @@ func TestGcPacer(t *testing.T) {
 				}
 			},
 		},
+		// TODO(mknyszek): Write a test that exercises the pacer's hard goal.
+		// This is difficult in the idealized model this testing framework places
+		// the pacer in, because the calculated overshoot is directly proportional
+		// to the runway for the case of the expected work.
+		// However, it is still possible to trigger this case if something exceptional
+		// happens between calls to revise; the framework just doesn't support this yet.
 	} {
 		e := e
 		t.Run(e.name, func(t *testing.T) {
