@@ -2854,11 +2854,11 @@
 // 	    exhaustive tests.
 //
 // 	-shuffle off,on,N
-// 		Randomize the execution order of tests and benchmarks.
-// 		It is off by default. If -shuffle is set to on, then it will seed
-// 		the randomizer using the system clock. If -shuffle is set to an
-// 		integer N, then N will be used as the seed value. In both cases,
-// 		the seed will be reported for reproducibility.
+// 	    Randomize the execution order of tests and benchmarks.
+// 	    It is off by default. If -shuffle is set to on, then it will seed
+// 	    the randomizer using the system clock. If -shuffle is set to an
+// 	    integer N, then N will be used as the seed value. In both cases,
+// 	    the seed will be reported for reproducibility.
 //
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.
