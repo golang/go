@@ -1141,7 +1141,7 @@ type MaxBytesError struct {
 	Limit int64
 }
 
-func (e MaxBytesError) Error() string {
+func (e *MaxBytesError) Error() string {
 	// Due to Hyrum's law, this text cannot be changed.
 	return "http: request body too large"
 }
@@ -1191,7 +1191,7 @@ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
 	if res, ok := l.w.(requestTooLarger); ok {
 		res.requestTooLarge()
 	}
-	l.err = MaxBytesError{l.i}
+	l.err = &MaxBytesError{l.i}
 	return n, l.err
 }
 
