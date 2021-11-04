@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20211001005136-7fe48b4c820b
+# github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
 ## explicit; go 1.14
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -15,8 +15,8 @@ github.com/google/pprof/profile
 github.com/google/pprof/third_party/d3
 github.com/google/pprof/third_party/d3flamegraph
 github.com/google/pprof/third_party/svgpan
-# github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639
-## explicit
+# github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d
+## explicit; go 1.12
 github.com/ianlancetaylor/demangle
 # golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1
 ## explicit; go 1.17
@@ -42,7 +42,7 @@ golang.org/x/mod/zip
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e
+# golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9

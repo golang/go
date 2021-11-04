@@ -13,7 +13,6 @@ package unix
 
 import (
 	"encoding/binary"
-	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -36,6 +35,13 @@ func Chown(path string, uid int, gid int) (err error) {
 
 func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
+}
+
+func EpollCreate(size int) (fd int, err error) {
+	if size <= 0 {
+		return -1, EINVAL
+	}
+	return EpollCreate1(0)
 }
 
 //sys	FanotifyInit(flags uint, event_f_flags uint) (fd int, err error)
@@ -64,6 +70,10 @@ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
 		return EOPNOTSUPP
 	}
 	return fchmodat(dirfd, path, mode)
+}
+
+func InotifyInit() (fd int, err error) {
+	return InotifyInit1(0)
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error) = SYS_IOCTL
@@ -109,6 +119,23 @@ func Openat2(dirfd int, path string, how *OpenHow) (fd int, err error) {
 	return openat2(dirfd, path, how, SizeofOpenHow)
 }
 
+func Pipe(p []int) error {
+	return Pipe2(p, 0)
+}
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return err
+}
+
 //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 
 func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
@@ -116,6 +143,15 @@ func Ppoll(fds []PollFd, timeout *Timespec, sigmask *Sigset_t) (n int, err error
 		return ppoll(nil, 0, timeout, sigmask)
 	}
 	return ppoll(&fds[0], len(fds), timeout, sigmask)
+}
+
+func Poll(fds []PollFd, timeout int) (n int, err error) {
+	var ts *Timespec
+	if timeout >= 0 {
+		ts = new(Timespec)
+		*ts = NsecToTimespec(int64(timeout) * 1e6)
+	}
+	return Ppoll(fds, ts, nil)
 }
 
 //sys	Readlinkat(dirfd int, path string, buf []byte) (n int, err error)
@@ -168,27 +204,7 @@ func Utimes(path string, tv []Timeval) error {
 //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 func UtimesNano(path string, ts []Timespec) error {
-	if ts == nil {
-		err := utimensat(AT_FDCWD, path, nil, 0)
-		if err != ENOSYS {
-			return err
-		}
-		return utimes(path, nil)
-	}
-	if len(ts) != 2 {
-		return EINVAL
-	}
-	err := utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
-	if err != ENOSYS {
-		return err
-	}
-	// If the utimensat syscall isn't available (utimensat was added to Linux
-	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
-	var tv [2]Timeval
-	for i := 0; i < 2; i++ {
-		tv[i] = NsecToTimeval(TimespecToNsec(ts[i]))
-	}
-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return UtimesNanoAt(AT_FDCWD, path, ts, 0)
 }
 
 func UtimesNanoAt(dirfd int, path string, ts []Timespec, flags int) error {
@@ -1229,11 +1245,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
 	nfd, err = accept4(fd, &rsa, &len, 0)
-	if err == ENOSYS {
-		nfd, err = accept(fd, &rsa, &len)
-	}
 	if err != nil {
 		return
 	}
@@ -1816,11 +1828,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sys	Dup(oldfd int) (fd int, err error)
 
 func Dup2(oldfd, newfd int) error {
-	// Android O and newer blocks dup2; riscv and arm64 don't implement dup2.
-	if runtime.GOOS == "android" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "arm64" {
-		return Dup3(oldfd, newfd, 0)
-	}
-	return dup2(oldfd, newfd)
+	return Dup3(oldfd, newfd, 0)
 }
 
 //sys	Dup3(oldfd int, newfd int, flags int) (err error)
@@ -2308,6 +2316,14 @@ type RemoteIovec struct {
 //sys	ProcessVMReadv(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_READV
 //sys	ProcessVMWritev(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_WRITEV
 
+//sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
+//sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
+
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
+
 /*
  * Unimplemented
  */
@@ -2389,10 +2405,6 @@ type RemoteIovec struct {
 // SetRobustList
 // SetThreadArea
 // SetTidAddress
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Sigaltstack
 // Swapoff
 // Swapon
