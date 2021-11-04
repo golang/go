@@ -129,7 +129,12 @@ func TestTypeString(t *testing.T) {
 			t.Errorf("%s: %s", src, err)
 			continue
 		}
-		typ := pkg.Scope().Lookup("T").Type().Underlying()
+		obj := pkg.Scope().Lookup("T")
+		if obj == nil {
+			t.Errorf("%s: T not found", test.src)
+			continue
+		}
+		typ := obj.Type().Underlying()
 		if got := typ.String(); got != test.str {
 			t.Errorf("%s: got %s, want %s", test.src, got, test.str)
 		}

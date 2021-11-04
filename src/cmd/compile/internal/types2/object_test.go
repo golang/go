@@ -6,6 +6,8 @@ package types2_test
 
 import (
 	"cmd/compile/internal/syntax"
+	"internal/testenv"
+	"strings"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -85,4 +87,80 @@ func TestEmbeddedMethod(t *testing.T) {
 	if orig != embed {
 		t.Fatalf("%s (%p) != %s (%p)", orig, orig, embed, embed)
 	}
+}
+
+var testObjects = []struct {
+	src  string
+	obj  string
+	want string
+}{
+	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader"},
+
+	{"const c = 1.2", "c", "const p.c untyped float"},
+	{"const c float64 = 3.14", "c", "const p.c float64"},
+
+	{"type t struct{f int}", "t", "type p.t struct{f int}"},
+	{"type t func(int)", "t", "type p.t func(int)"},
+	{"type t[P any] struct{f P}", "t", "type p.t[P interface{}] struct{f P}"},
+	{"type t[P any] struct{f P}", "t.P", "type parameter P interface{}"},
+	{"type C interface{m()}; type t[P C] struct{}", "t.P", "type parameter P p.C"},
+
+	{"type t = struct{f int}", "t", "type p.t = struct{f int}"},
+	{"type t = func(int)", "t", "type p.t = func(int)"},
+
+	{"var v int", "v", "var p.v int"},
+
+	{"func f(int) string", "f", "func p.f(int) string"},
+	{"func g[P any](x P){}", "g", "func p.g[P interface{}](x P)"},
+	{"func g[P interface{~int}](x P){}", "g.P", "type parameter P interface{~int}"},
+}
+
+func TestObjectString(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	for _, test := range testObjects {
+		src := "package p; " + test.src
+		pkg, err := makePkg(src)
+		if err != nil {
+			t.Errorf("%s: %s", src, err)
+			continue
+		}
+
+		names := strings.Split(test.obj, ".")
+		if len(names) != 1 && len(names) != 2 {
+			t.Errorf("%s: invalid object path %s", test.src, test.obj)
+			continue
+		}
+		obj := pkg.Scope().Lookup(names[0])
+		if obj == nil {
+			t.Errorf("%s: %s not found", test.src, names[0])
+			continue
+		}
+		if len(names) == 2 {
+			if typ, ok := obj.Type().(interface{ TypeParams() *TypeParamList }); ok {
+				obj = lookupTypeParamObj(typ.TypeParams(), names[1])
+				if obj == nil {
+					t.Errorf("%s: %s not found", test.src, test.obj)
+					continue
+				}
+			} else {
+				t.Errorf("%s: %s has no type parameters", test.src, names[0])
+				continue
+			}
+		}
+
+		if got := obj.String(); got != test.want {
+			t.Errorf("%s: got %s, want %s", test.src, got, test.want)
+		}
+	}
+}
+
+func lookupTypeParamObj(list *TypeParamList, name string) Object {
+	for i := 0; i < list.Len(); i++ {
+		tpar := list.At(i)
+		if tpar.Obj().Name() == name {
+			return tpar.Obj()
+		}
+	}
+	return nil
 }
