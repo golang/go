@@ -517,7 +517,7 @@ func (c *gcControllerState) revise() {
 			// growths. It's OK to use more memory this cycle to scan all the live heap,
 			// because the next GC cycle is inevitably going to use *at least* that much
 			// memory anyway.
-			heapGoal = int64(float64(heapGoal-int64(c.trigger))/float64(scanWorkExpected)*float64(maxScanWork)) + int64(c.trigger)
+			extHeapGoal := int64(float64(heapGoal-int64(c.trigger))/float64(scanWorkExpected)*float64(maxScanWork)) + int64(c.trigger)
 			scanWorkExpected = maxScanWork
 
 			// hardGoal is a hard limit on the amount that we're willing to push back the
@@ -528,9 +528,10 @@ func (c *gcControllerState) revise() {
 			// This maintains the invariant that we use no more memory than the next GC cycle
 			// will anyway.
 			hardGoal := int64((1.0 + float64(gcPercent)/100.0) * float64(heapGoal))
-			if heapGoal > hardGoal {
-				heapGoal = hardGoal
+			if extHeapGoal > hardGoal {
+				extHeapGoal = hardGoal
 			}
+			heapGoal = extHeapGoal
 		}
 		if int64(live) > heapGoal {
 			// We're already past our heap goal, even the extrapolated one.
