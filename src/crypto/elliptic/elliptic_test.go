@@ -241,6 +241,16 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 	}
 }
 
+func TestLargeIsOnCurve(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve Curve) {
+		large := big.NewInt(1)
+		large.Lsh(large, 1000)
+		if curve.IsOnCurve(large, large) {
+			t.Errorf("(2^1000, 2^1000) is reported on the curve")
+		}
+	})
+}
+
 func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
 	tests := []struct {
 		name  string

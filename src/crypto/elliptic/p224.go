@@ -50,6 +50,10 @@ func (curve p224Curve) Params() *CurveParams {
 }
 
 func (curve p224Curve) IsOnCurve(bigX, bigY *big.Int) bool {
+	if bigX.BitLen() > 224 || bigY.BitLen() > 224 {
+		return false
+	}
+
 	var x, y p224FieldElement
 	p224FromBig(&x, bigX)
 	p224FromBig(&y, bigY)
