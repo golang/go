@@ -353,6 +353,9 @@ func testTracebackArgs8d(a testArgsType8d) int {
 	return n
 }
 
+// nosplit to avoid preemption or morestack spilling registers.
+//
+//go:nosplit
 //go:noinline
 func testTracebackArgs9(a int64, b int32, c int16, d int8, x [2]int, y int) int {
 	if a < 0 {
@@ -366,6 +369,9 @@ func testTracebackArgs9(a int64, b int32, c int16, d int8, x [2]int, y int) int 
 	return n
 }
 
+// nosplit to avoid preemption or morestack spilling registers.
+//
+//go:nosplit
 //go:noinline
 func testTracebackArgs10(a, b, c, d, e int32) int {
 	// no use of any args
@@ -373,8 +379,10 @@ func testTracebackArgs10(a, b, c, d, e int32) int {
 }
 
 // norace to avoid race instrumentation changing spill locations.
+// nosplit to avoid preemption or morestack spilling registers.
 //
 //go:norace
+//go:nosplit
 //go:noinline
 func testTracebackArgs11a(a, b, c int32) int {
 	if a < 0 {
@@ -387,8 +395,10 @@ func testTracebackArgs11a(a, b, c int32) int {
 }
 
 // norace to avoid race instrumentation changing spill locations.
+// nosplit to avoid preemption or morestack spilling registers.
 //
 //go:norace
+//go:nosplit
 //go:noinline
 func testTracebackArgs11b(a, b, c, d int32) int {
 	var x int32
