@@ -11,6 +11,8 @@ const (
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
 )
 
+func vdsoCall()
+
 func checkgoarm() {
 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
 	// reflect the CPU capabilities. Assume that every Android arm device
