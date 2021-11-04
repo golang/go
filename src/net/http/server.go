@@ -3370,6 +3370,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 			io.WriteString(w, h.errorBody())
 			tw.err = ErrHandlerTimeout
 		default:
+			w.WriteHeader(StatusServiceUnavailable)
 			tw.err = err
 		}
 	}
