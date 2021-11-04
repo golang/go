@@ -474,6 +474,59 @@ func TestUDPReadTimeout(t *testing.T) {
 	}
 }
 
+func TestAllocs(t *testing.T) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr()
+	addrPort := addr.(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteMsgUDPAddrPort/ReadMsgUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteToUDPAddrPort(buf, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDPAddrPort(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteToUDPAddrPort/ReadFromUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteTo(buf, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 1 {
+		t.Errorf("WriteTo/ReadFromUDP allocated %d objects", got)
+	}
+}
+
 func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
