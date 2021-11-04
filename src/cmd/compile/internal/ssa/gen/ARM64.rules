@@ -1698,27 +1698,27 @@
 (TSTshiftRA x (MOVDconst [c]) [d]) => (TSTconst x [c>>uint64(d)])
 
 // simplification with *shift ops
-(SUBshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(SUBshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(SUBshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(ANDshiftLL x y:(SLLconst x [c]) [d]) && c==d => y
-(ANDshiftRL x y:(SRLconst x [c]) [d]) && c==d => y
-(ANDshiftRA x y:(SRAconst x [c]) [d]) && c==d => y
-(ORshiftLL  x y:(SLLconst x [c]) [d]) && c==d => y
-(ORshiftRL  x y:(SRLconst x [c]) [d]) && c==d => y
-(ORshiftRA  x y:(SRAconst x [c]) [d]) && c==d => y
-(XORshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(XORshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(XORshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [0])
-(BICshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [0])
-(EONshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(EONshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(EONshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftLL x (SLLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftRL x (SRLconst x [c]) [d]) && c==d => (MOVDconst [-1])
-(ORNshiftRA x (SRAconst x [c]) [d]) && c==d => (MOVDconst [-1])
+(SUBshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(SUBshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(SUBshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(ANDshiftLL y:(SLLconst x [c]) x [c]) => y
+(ANDshiftRL y:(SRLconst x [c]) x [c]) => y
+(ANDshiftRA y:(SRAconst x [c]) x [c]) => y
+(ORshiftLL  y:(SLLconst x [c]) x [c]) => y
+(ORshiftRL  y:(SRLconst x [c]) x [c]) => y
+(ORshiftRA  y:(SRAconst x [c]) x [c]) => y
+(XORshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(XORshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(XORshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [0])
+(BICshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [0])
+(EONshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [-1])
+(EONshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [-1])
+(EONshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftLL (SLLconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftRL (SRLconst x [c]) x [c]) => (MOVDconst [-1])
+(ORNshiftRA (SRAconst x [c]) x [c]) => (MOVDconst [-1])
 
 // Generate rotates with const shift
 (ADDshiftLL [c] (SRLconst x [64-c]) x) => (RORconst [64-c] x)

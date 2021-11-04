@@ -132,7 +132,9 @@ func (d *deadcodePass) flood() {
 		methods = methods[:0]
 		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At(i)
-			if r.Weak() {
+			// When build with "-linkshared", we can't tell if the interface
+			// method in itab will be used or not. Ignore the weak attribute.
+			if r.Weak() && !(d.ctxt.linkShared && d.ldr.IsItab(symIdx)) {
 				continue
 			}
 			t := r.Type()
