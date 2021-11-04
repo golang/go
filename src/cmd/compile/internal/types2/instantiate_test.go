@@ -10,7 +10,7 @@ import (
 )
 
 func TestInstantiateEquality(t *testing.T) {
-	const src = genericPkg + "p; type T[P any] int"
+	const src = "package p; type T[P any] int"
 	pkg, err := pkgFor(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestInstantiateEquality(t *testing.T) {
 	}
 }
 func TestInstantiateNonEquality(t *testing.T) {
-	const src = genericPkg + "p; type T[P any] int"
+	const src = "package p; type T[P any] int"
 	pkg1, err := pkgFor(".", src, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestInstantiateNonEquality(t *testing.T) {
 }
 
 func TestMethodInstantiation(t *testing.T) {
-	const prefix = genericPkg + `p
+	const prefix = `package p
 
 type T[P any] struct{}
 
@@ -102,7 +102,7 @@ var X T[int]
 }
 
 func TestImmutableSignatures(t *testing.T) {
-	const src = genericPkg + `p
+	const src = `package p
 
 type T[P any] struct{}
 
