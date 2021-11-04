@@ -16,11 +16,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/typeparams"
 )
 
 var Analyzer = &analysis.Analyzer{
@@ -194,7 +192,7 @@ func (c *CFGs) callMayReturn(call *ast.CallExpr) (r bool) {
 	// return depending on the parameter type, but in some
 	// cases the answer is definite. We let ctrlflow figure
 	// that out.
-	fn := staticCallee(c.pass.TypesInfo, call)
+	fn := typeutil.StaticCallee(c.pass.TypesInfo, call)
 	if fn == nil {
 		return true // callee not statically known; be conservative
 	}
@@ -208,50 +206,6 @@ func (c *CFGs) callMayReturn(call *ast.CallExpr) (r bool) {
 	// Not declared in this package.
 	// Is there a fact from another package?
 	return !c.pass.ImportObjectFact(fn, new(noReturn))
-}
-
-// staticCallee returns static function, if any, called by call.
-// Effectivelly reduces to typeutil.StaticCallee. In addition,
-// returns static function parameterized by a type, if any.
-//
-// TODO(zpavlinovic): can this be replaced by typeutil.StaticCallee
-// in the future?
-func staticCallee(info *types.Info, call *ast.CallExpr) *types.Func {
-	if fn := typeutil.StaticCallee(info, call); fn != nil {
-		return fn
-	}
-	return staticTypeParamCallee(info, call)
-}
-
-// staticTypeParamCallee returns the static function in call, if any,
-// expected to be parameterized by a type.
-func staticTypeParamCallee(info *types.Info, call *ast.CallExpr) *types.Func {
-	ix := typeparams.GetIndexExprData(astutil.Unparen(call.Fun))
-	if ix == nil {
-		return nil
-	}
-
-	var obj types.Object
-	switch fun := ix.X.(type) {
-	case *ast.Ident:
-		obj = info.Uses[fun] // type, var, builtin, or declared func
-	case *ast.SelectorExpr:
-		if sel, ok := info.Selections[fun]; ok {
-			obj = sel.Obj() // method or field
-		} else {
-			obj = info.Uses[fun.Sel] // qualified identifier?
-		}
-	}
-
-	if f, ok := obj.(*types.Func); ok && !interfaceMethod(f) {
-		return f
-	}
-	return nil
-}
-
-func interfaceMethod(f *types.Func) bool {
-	recv := f.Type().(*types.Signature).Recv()
-	return recv != nil && types.IsInterface(recv.Type())
 }
 
 var panicBuiltin = types.Universe.Lookup("panic").(*types.Builtin)
