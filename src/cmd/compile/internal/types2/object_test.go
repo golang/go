@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package types2
+package types2_test
 
 import (
 	"cmd/compile/internal/syntax"
-	"strings"
 	"testing"
-)
 
-func parseSrc(path, src string) (*syntax.File, error) {
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), nil, nil, 0)
-}
+	. "cmd/compile/internal/types2"
+)
 
 func TestIsAlias(t *testing.T) {
 	check := func(obj *TypeName, want bool) {
@@ -42,12 +39,12 @@ func TestIsAlias(t *testing.T) {
 		{NewTypeName(nopos, nil, "t0", nil), false}, // no type yet
 		{NewTypeName(nopos, pkg, "t0", nil), false}, // no type yet
 		{t1, false}, // type name refers to named type and vice versa
-		{NewTypeName(nopos, nil, "t2", &emptyInterface), true}, // type name refers to unnamed type
-		{NewTypeName(nopos, pkg, "t3", n1), true},              // type name refers to named type with different type name
-		{NewTypeName(nopos, nil, "t4", Typ[Int32]), true},      // type name refers to basic type with different name
-		{NewTypeName(nopos, nil, "int32", Typ[Int32]), false},  // type name refers to basic type with same name
-		{NewTypeName(nopos, pkg, "int32", Typ[Int32]), true},   // type name is declared in user-defined package (outside Universe)
-		{NewTypeName(nopos, nil, "rune", Typ[Rune]), true},     // type name refers to basic type rune which is an alias already
+		{NewTypeName(nopos, nil, "t2", NewInterfaceType(nil, nil)), true}, // type name refers to unnamed type
+		{NewTypeName(nopos, pkg, "t3", n1), true},                         // type name refers to named type with different type name
+		{NewTypeName(nopos, nil, "t4", Typ[Int32]), true},                 // type name refers to basic type with different name
+		{NewTypeName(nopos, nil, "int32", Typ[Int32]), false},             // type name refers to basic type with same name
+		{NewTypeName(nopos, pkg, "int32", Typ[Int32]), true},              // type name is declared in user-defined package (outside Universe)
+		{NewTypeName(nopos, nil, "rune", Typ[Rune]), true},                // type name refers to basic type rune which is an alias already
 		{t5, false}, // type name refers to type parameter and vice versa
 	} {
 		check(test.name, test.alias)
