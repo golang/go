@@ -32,17 +32,14 @@ TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
 	// Code stolen from compiler output for:
 	//
 	//	var x uint64
-	//	func f() (sec uint64, nsec uint32) { return x / 1000000000, uint32(x % 100000000) }
+	//	func f() (sec uint64, nsec uint32) { return x / 1000000000, uint32(x % 1000000000) }
 	//
 	LSR	$1, R0, R1
 	MOVD	$-8543223759426509416, R2
-	UMULH	R2, R1, R1
+	UMULH	R1, R2, R1
 	LSR	$28, R1, R1
 	MOVD	R1, sec+0(FP)
-	MOVD	$-6067343680855748867, R1
-	UMULH	R0, R1, R1
-	LSR	$26, R1, R1
-	MOVD	$100000000, R2
+	MOVD	$1000000000, R2
 	MSUB	R1, R0, R2, R0
 	MOVW	R0, nsec+8(FP)
 	RET
