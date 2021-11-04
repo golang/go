@@ -11,6 +11,7 @@ import (
 
 // AST is an abstract syntax tree representing a C++ declaration.
 // This is sufficient for the demangler but is by no means a general C++ AST.
+// This abstract syntax tree is only used for C++ symbols, not Rust symbols.
 type AST interface {
 	// Internal method to convert to demangled string.
 	print(*printState)
@@ -37,21 +38,25 @@ type AST interface {
 // ASTToString returns the demangled name of the AST.
 func ASTToString(a AST, options ...Option) string {
 	tparams := true
+	llvmStyle := false
 	for _, o := range options {
 		switch o {
 		case NoTemplateParams:
 			tparams = false
+		case LLVMStyle:
+			llvmStyle = true
 		}
 	}
 
-	ps := printState{tparams: tparams}
+	ps := printState{tparams: tparams, llvmStyle: llvmStyle}
 	a.print(&ps)
 	return ps.buf.String()
 }
 
 // The printState type holds information needed to print an AST.
 type printState struct {
-	tparams bool // whether to print template parameters
+	tparams   bool // whether to print template parameters
+	llvmStyle bool
 
 	buf  strings.Builder
 	last byte // Last byte written to buffer.
@@ -408,7 +413,11 @@ type LambdaAuto struct {
 func (la *LambdaAuto) print(ps *printState) {
 	// We print the index plus 1 because that is what the standard
 	// demangler does.
-	fmt.Fprintf(&ps.buf, "auto:%d", la.Index+1)
+	if ps.llvmStyle {
+		ps.writeString("auto")
+	} else {
+		fmt.Fprintf(&ps.buf, "auto:%d", la.Index+1)
+	}
 }
 
 func (la *LambdaAuto) Traverse(fn func(AST) bool) {
@@ -504,6 +513,9 @@ func (q *Qualifier) print(ps *printState) {
 		ps.writeByte('(')
 		first := true
 		for _, e := range q.Exprs {
+			if el, ok := e.(*ExprList); ok && len(el.Exprs) == 0 {
+				continue
+			}
 			if !first {
 				ps.writeString(", ")
 			}
@@ -715,7 +727,11 @@ type BuiltinType struct {
 }
 
 func (bt *BuiltinType) print(ps *printState) {
-	ps.writeString(bt.Name)
+	name := bt.Name
+	if ps.llvmStyle && name == "decltype(nullptr)" {
+		name = "std::nullptr_t"
+	}
+	ps.writeString(name)
 }
 
 func (bt *BuiltinType) Traverse(fn func(AST) bool) {
@@ -970,10 +986,15 @@ type VendorQualifier struct {
 }
 
 func (vq *VendorQualifier) print(ps *printState) {
-	ps.inner = append(ps.inner, vq)
-	ps.print(vq.Type)
-	if len(ps.inner) > 0 {
-		ps.printOneInner(nil)
+	if ps.llvmStyle {
+		ps.print(vq.Type)
+		vq.printInner(ps)
+	} else {
+		ps.inner = append(ps.inner, vq)
+		ps.print(vq.Type)
+		if len(ps.inner) > 0 {
+			ps.printOneInner(nil)
+		}
 	}
 }
 
@@ -1110,19 +1131,27 @@ func (at *ArrayType) goString(indent int, field string) string {
 		at.Element.goString(indent+2, "Element: "))
 }
 
-// FunctionType is a function type.  The Return field may be nil for
-// cases where the return type is not part of the mangled name.
+// FunctionType is a function type.
 type FunctionType struct {
 	Return AST
 	Args   []AST
+
+	// The forLocalName field reports whether this FunctionType
+	// was created for a local name. With the default GNU demangling
+	// output we don't print the return type in that case.
+	ForLocalName bool
 }
 
 func (ft *FunctionType) print(ps *printState) {
-	if ft.Return != nil {
+	retType := ft.Return
+	if ft.ForLocalName && !ps.llvmStyle {
+		retType = nil
+	}
+	if retType != nil {
 		// Pass the return type as an inner type in order to
 		// print the arguments in the right location.
 		ps.inner = append(ps.inner, ft)
-		ps.print(ft.Return)
+		ps.print(retType)
 		if len(ps.inner) == 0 {
 			// Everything was printed.
 			return
@@ -1227,7 +1256,11 @@ func (ft *FunctionType) Copy(fn func(AST) AST, skip func(AST) bool) AST {
 	if !changed {
 		return fn(ft)
 	}
-	ft = &FunctionType{Return: ret, Args: args}
+	ft = &FunctionType{
+		Return:       ret,
+		Args:         args,
+		ForLocalName: ft.ForLocalName,
+	}
 	if r := fn(ft); r != nil {
 		return r
 	}
@@ -1239,6 +1272,10 @@ func (ft *FunctionType) GoString() string {
 }
 
 func (ft *FunctionType) goString(indent int, field string) string {
+	var forLocalName string
+	if ft.ForLocalName {
+		forLocalName = " ForLocalName: true"
+	}
 	var r string
 	if ft.Return == nil {
 		r = fmt.Sprintf("%*sReturn: nil", indent+2, "")
@@ -1255,7 +1292,8 @@ func (ft *FunctionType) goString(indent int, field string) string {
 			args += a.goString(indent+4, fmt.Sprintf("%d: ", i))
 		}
 	}
-	return fmt.Sprintf("%*s%sFunctionType:\n%s\n%s", indent, "", field, r, args)
+	return fmt.Sprintf("%*s%sFunctionType:%s\n%s\n%s", indent, "", field,
+		forLocalName, r, args)
 }
 
 // FunctionParam is a parameter of a function, used for last-specified
@@ -1267,6 +1305,12 @@ type FunctionParam struct {
 func (fp *FunctionParam) print(ps *printState) {
 	if fp.Index == 0 {
 		ps.writeString("this")
+	} else if ps.llvmStyle {
+		if fp.Index == 1 {
+			ps.writeString("fp")
+		} else {
+			fmt.Fprintf(&ps.buf, "fp%d", fp.Index-2)
+		}
 	} else {
 		fmt.Fprintf(&ps.buf, "{parm#%d}", fp.Index)
 	}
@@ -1422,9 +1466,15 @@ func (vt *VectorType) print(ps *printState) {
 }
 
 func (vt *VectorType) printInner(ps *printState) {
-	ps.writeString(" __vector(")
+	end := byte(')')
+	if ps.llvmStyle {
+		ps.writeString(" vector[")
+		end = ']'
+	} else {
+		ps.writeString(" __vector(")
+	}
 	ps.print(vt.Dimension)
-	ps.writeByte(')')
+	ps.writeByte(end)
 }
 
 func (vt *VectorType) Traverse(fn func(AST) bool) {
@@ -1466,13 +1516,59 @@ func (vt *VectorType) goString(indent int, field string) string {
 		vt.Base.goString(indent+2, "Base: "))
 }
 
+// ElaboratedType is an elaborated struct/union/enum type.
+type ElaboratedType struct {
+	Kind string
+	Type AST
+}
+
+func (et *ElaboratedType) print(ps *printState) {
+	ps.writeString(et.Kind)
+	ps.writeString(" ")
+	et.Type.print(ps)
+}
+
+func (et *ElaboratedType) Traverse(fn func(AST) bool) {
+	if fn(et) {
+		et.Type.Traverse(fn)
+	}
+}
+
+func (et *ElaboratedType) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(et) {
+		return nil
+	}
+	typ := et.Type.Copy(fn, skip)
+	if typ == nil {
+		return fn(et)
+	}
+	et = &ElaboratedType{Kind: et.Kind, Type: typ}
+	if r := fn(et); r != nil {
+		return r
+	}
+	return et
+}
+
+func (et *ElaboratedType) GoString() string {
+	return et.goString(0, "")
+}
+
+func (et *ElaboratedType) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sElaboratedtype: Kind: %s\n%s", indent, "", field,
+		et.Kind, et.Type.goString(indent+2, "Expr: "))
+}
+
 // Decltype is the decltype operator.
 type Decltype struct {
 	Expr AST
 }
 
 func (dt *Decltype) print(ps *printState) {
-	ps.writeString("decltype (")
+	ps.writeString("decltype")
+	if !ps.llvmStyle {
+		ps.writeString(" ")
+	}
+	ps.writeString("(")
 	ps.print(dt.Expr)
 	ps.writeByte(')')
 }
@@ -1544,15 +1640,20 @@ func (op *Operator) goString(indent int, field string) string {
 // Constructor is a constructor.
 type Constructor struct {
 	Name AST
+	Base AST // base class of inheriting constructor
 }
 
 func (c *Constructor) print(ps *printState) {
 	ps.print(c.Name)
+	// We don't include the base class in the demangled string.
 }
 
 func (c *Constructor) Traverse(fn func(AST) bool) {
 	if fn(c) {
 		c.Name.Traverse(fn)
+		if c.Base != nil {
+			c.Base.Traverse(fn)
+		}
 	}
 }
 
@@ -1561,10 +1662,20 @@ func (c *Constructor) Copy(fn func(AST) AST, skip func(AST) bool) AST {
 		return nil
 	}
 	name := c.Name.Copy(fn, skip)
-	if name == nil {
+	var base AST
+	if c.Base != nil {
+		base = c.Base.Copy(fn, skip)
+	}
+	if name == nil && base == nil {
 		return fn(c)
 	}
-	c = &Constructor{Name: name}
+	if name == nil {
+		name = c.Name
+	}
+	if base == nil {
+		base = c.Base
+	}
+	c = &Constructor{Name: name, Base: base}
 	if r := fn(c); r != nil {
 		return r
 	}
@@ -1576,7 +1687,13 @@ func (c *Constructor) GoString() string {
 }
 
 func (c *Constructor) goString(indent int, field string) string {
-	return fmt.Sprintf("%*s%sConstructor:\n%s", indent, "", field, c.Name.goString(indent+2, "Name: "))
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "%*s%sConstructor:\n", indent, "", field)
+	if c.Base != nil {
+		fmt.Fprintf(&sb, "%s\n", c.Base.goString(indent+2, "Base: "))
+	}
+	fmt.Fprintf(&sb, "%s", c.Name.goString(indent+2, "Name: "))
+	return sb.String()
 }
 
 // Destructor is a destructor.
@@ -1727,8 +1844,12 @@ func (pe *PackExpansion) print(ps *printState) {
 	// We normally only get here if the simplify function was
 	// unable to locate and expand the pack.
 	if pe.Pack == nil {
-		parenthesize(ps, pe.Base)
-		ps.writeString("...")
+		if ps.llvmStyle {
+			ps.print(pe.Base)
+		} else {
+			parenthesize(ps, pe.Base)
+			ps.writeString("...")
+		}
 	} else {
 		ps.print(pe.Base)
 	}
@@ -1834,7 +1955,13 @@ type SizeofPack struct {
 }
 
 func (sp *SizeofPack) print(ps *printState) {
-	ps.writeString(fmt.Sprintf("%d", len(sp.Pack.Args)))
+	if ps.llvmStyle {
+		ps.writeString("sizeof...(")
+		ps.print(sp.Pack)
+		ps.writeByte(')')
+	} else {
+		ps.writeString(fmt.Sprintf("%d", len(sp.Pack.Args)))
+	}
 }
 
 func (sp *SizeofPack) Traverse(fn func(AST) bool) {
@@ -1932,6 +2059,287 @@ func (sa *SizeofArgs) goString(indent int, field string) string {
 	return fmt.Sprintf("%*s%sSizeofArgs:\n%s", indent, "", field, args)
 }
 
+// TemplateParamName is the name of a template parameter that the
+// demangler introduced for a lambda that has explicit template
+// parameters.  This is a prefix with an index.
+type TemplateParamName struct {
+	Prefix string
+	Index  int
+}
+
+func (tpn *TemplateParamName) print(ps *printState) {
+	ps.writeString(tpn.Prefix)
+	if tpn.Index > 0 {
+		ps.writeString(fmt.Sprintf("%d", tpn.Index-1))
+	}
+}
+
+func (tpn *TemplateParamName) Traverse(fn func(AST) bool) {
+	fn(tpn)
+}
+
+func (tpn *TemplateParamName) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(tpn) {
+		return nil
+	}
+	return fn(tpn)
+}
+
+func (tpn *TemplateParamName) GoString() string {
+	return tpn.goString(0, "")
+}
+
+func (tpn *TemplateParamName) goString(indent int, field string) string {
+	name := tpn.Prefix
+	if tpn.Index > 0 {
+		name += fmt.Sprintf("%d", tpn.Index-1)
+	}
+	return fmt.Sprintf("%*s%sTemplateParamName: %s", indent, "", field, name)
+}
+
+// TypeTemplateParam is a type template parameter that appears in a
+// lambda with explicit template parameters.
+type TypeTemplateParam struct {
+	Name AST
+}
+
+func (ttp *TypeTemplateParam) print(ps *printState) {
+	ps.writeString("typename ")
+	ps.printInner(false)
+	ps.print(ttp.Name)
+}
+
+func (ttp *TypeTemplateParam) Traverse(fn func(AST) bool) {
+	if fn(ttp) {
+		ttp.Name.Traverse(fn)
+	}
+}
+
+func (ttp *TypeTemplateParam) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(ttp) {
+		return nil
+	}
+	name := ttp.Name.Copy(fn, skip)
+	if name == nil {
+		return fn(ttp)
+	}
+	ttp = &TypeTemplateParam{Name: name}
+	if r := fn(ttp); r != nil {
+		return r
+	}
+	return ttp
+}
+
+func (ttp *TypeTemplateParam) GoString() string {
+	return ttp.goString(0, "")
+}
+
+func (ttp *TypeTemplateParam) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sTypeTemplateParam:\n%s", indent, "", field,
+		ttp.Name.goString(indent+2, "Name"))
+}
+
+// NonTypeTemplateParam is a non-type template parameter that appears
+// in a lambda with explicit template parameters.
+type NonTypeTemplateParam struct {
+	Name AST
+	Type AST
+}
+
+func (nttp *NonTypeTemplateParam) print(ps *printState) {
+	ps.inner = append(ps.inner, nttp)
+	ps.print(nttp.Type)
+	if len(ps.inner) > 0 {
+		ps.writeByte(' ')
+		ps.print(nttp.Name)
+		ps.inner = ps.inner[:len(ps.inner)-1]
+	}
+}
+
+func (nttp *NonTypeTemplateParam) printInner(ps *printState) {
+	ps.print(nttp.Name)
+}
+
+func (nttp *NonTypeTemplateParam) Traverse(fn func(AST) bool) {
+	if fn(nttp) {
+		nttp.Name.Traverse(fn)
+		nttp.Type.Traverse(fn)
+	}
+}
+
+func (nttp *NonTypeTemplateParam) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(nttp) {
+		return nil
+	}
+	name := nttp.Name.Copy(fn, skip)
+	typ := nttp.Type.Copy(fn, skip)
+	if name == nil && typ == nil {
+		return fn(nttp)
+	}
+	if name == nil {
+		name = nttp.Name
+	}
+	if typ == nil {
+		typ = nttp.Type
+	}
+	nttp = &NonTypeTemplateParam{Name: name, Type: typ}
+	if r := fn(nttp); r != nil {
+		return r
+	}
+	return nttp
+}
+
+func (nttp *NonTypeTemplateParam) GoString() string {
+	return nttp.goString(0, "")
+}
+
+func (nttp *NonTypeTemplateParam) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sNonTypeTemplateParam:\n%s\n%s", indent, "", field,
+		nttp.Name.goString(indent+2, "Name: "),
+		nttp.Type.goString(indent+2, "Type: "))
+}
+
+// TemplateTemplateParam is a template template parameter that appears
+// in a lambda with explicit template parameters.
+type TemplateTemplateParam struct {
+	Name   AST
+	Params []AST
+}
+
+func (ttp *TemplateTemplateParam) print(ps *printState) {
+	ps.writeString("template<")
+	for i, param := range ttp.Params {
+		if i > 0 {
+			ps.writeString(", ")
+		}
+		ps.print(param)
+	}
+	ps.writeString("> typename ")
+	ps.print(ttp.Name)
+}
+
+func (ttp *TemplateTemplateParam) Traverse(fn func(AST) bool) {
+	if fn(ttp) {
+		ttp.Name.Traverse(fn)
+		for _, param := range ttp.Params {
+			param.Traverse(fn)
+		}
+	}
+}
+
+func (ttp *TemplateTemplateParam) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(ttp) {
+		return nil
+	}
+
+	changed := false
+
+	name := ttp.Name.Copy(fn, skip)
+	if name == nil {
+		name = ttp.Name
+	} else {
+		changed = true
+	}
+
+	params := make([]AST, len(ttp.Params))
+	for i, p := range ttp.Params {
+		pc := p.Copy(fn, skip)
+		if pc == nil {
+			params[i] = p
+		} else {
+			params[i] = pc
+			changed = true
+		}
+	}
+
+	if !changed {
+		return fn(ttp)
+	}
+
+	ttp = &TemplateTemplateParam{
+		Name:   name,
+		Params: params,
+	}
+	if r := fn(ttp); r != nil {
+		return r
+	}
+	return ttp
+}
+
+func (ttp *TemplateTemplateParam) GoString() string {
+	return ttp.goString(0, "")
+}
+
+func (ttp *TemplateTemplateParam) goString(indent int, field string) string {
+	var params strings.Builder
+	fmt.Fprintf(&params, "%*sParams:", indent+2, "")
+	for i, p := range ttp.Params {
+		params.WriteByte('\n')
+		params.WriteString(p.goString(indent+4, fmt.Sprintf("%d: ", i)))
+	}
+	return fmt.Sprintf("%*s%sTemplateTemplateParam:\n%s\n%s", indent, "", field,
+		ttp.Name.goString(indent+2, "Name: "),
+		params.String())
+}
+
+// TemplateParamPack is a template parameter pack that appears in a
+// lambda with explicit template parameters.
+type TemplateParamPack struct {
+	Param AST
+}
+
+func (tpp *TemplateParamPack) print(ps *printState) {
+	holdInner := ps.inner
+	defer func() { ps.inner = holdInner }()
+
+	ps.inner = []AST{tpp}
+	if nttp, ok := tpp.Param.(*NonTypeTemplateParam); ok {
+		ps.print(nttp.Type)
+	} else {
+		ps.print(tpp.Param)
+	}
+	if len(ps.inner) > 0 {
+		ps.writeString("...")
+	}
+}
+
+func (tpp *TemplateParamPack) printInner(ps *printState) {
+	ps.writeString("...")
+	if nttp, ok := tpp.Param.(*NonTypeTemplateParam); ok {
+		ps.print(nttp.Name)
+	}
+}
+
+func (tpp *TemplateParamPack) Traverse(fn func(AST) bool) {
+	if fn(tpp) {
+		tpp.Param.Traverse(fn)
+	}
+}
+
+func (tpp *TemplateParamPack) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(tpp) {
+		return nil
+	}
+	param := tpp.Param.Copy(fn, skip)
+	if param == nil {
+		return fn(tpp)
+	}
+	tpp = &TemplateParamPack{Param: param}
+	if r := fn(tpp); r != nil {
+		return r
+	}
+	return tpp
+}
+
+func (tpp *TemplateParamPack) GoString() string {
+	return tpp.goString(0, "")
+}
+
+func (tpp *TemplateParamPack) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sTemplateParamPack:\n%s", indent, "", field,
+		tpp.Param.goString(indent+2, "Param: "))
+}
+
 // Cast is a type cast.
 type Cast struct {
 	To AST
@@ -1977,7 +2385,11 @@ func (c *Cast) goString(indent int, field string) string {
 func parenthesize(ps *printState, val AST) {
 	paren := false
 	switch v := val.(type) {
-	case *Name, *InitializerList, *FunctionParam:
+	case *Name, *InitializerList:
+	case *FunctionParam:
+		if ps.llvmStyle {
+			paren = true
+		}
 	case *Qualified:
 		if v.LocalName {
 			paren = true
@@ -2047,14 +2459,17 @@ type Unary struct {
 }
 
 func (u *Unary) print(ps *printState) {
+	op, _ := u.Op.(*Operator)
 	expr := u.Expr
 
 	// Don't print the argument list when taking the address of a
 	// function.
-	if op, ok := u.Op.(*Operator); ok && op.Name == "&" {
-		if t, ok := expr.(*Typed); ok {
-			if _, ok := t.Type.(*FunctionType); ok {
-				expr = t.Name
+	if !ps.llvmStyle {
+		if op != nil && op.Name == "&" {
+			if t, ok := expr.(*Typed); ok {
+				if _, ok := t.Type.(*FunctionType); ok {
+					expr = t.Name
+				}
 			}
 		}
 	}
@@ -2063,8 +2478,11 @@ func (u *Unary) print(ps *printState) {
 		parenthesize(ps, expr)
 	}
 
-	if op, ok := u.Op.(*Operator); ok {
+	if op != nil {
 		ps.writeString(op.Name)
+		if ps.llvmStyle && op.Name == "noexcept" {
+			ps.writeByte(' ')
+		}
 	} else if c, ok := u.Op.(*Cast); ok {
 		ps.writeByte('(')
 		ps.print(c.To)
@@ -2074,7 +2492,7 @@ func (u *Unary) print(ps *printState) {
 	}
 
 	if !u.Suffix {
-		if op, ok := u.Op.(*Operator); ok && op.Name == "::" {
+		if op != nil && op.Name == "::" {
 			// Don't use parentheses after ::.
 			ps.print(expr)
 		} else if u.SizeofType {
@@ -2082,6 +2500,19 @@ func (u *Unary) print(ps *printState) {
 			ps.writeByte('(')
 			ps.print(expr)
 			ps.writeByte(')')
+		} else if op != nil && op.Name == "__alignof__" {
+			// Always use parentheses for __alignof__ argument.
+			ps.writeByte('(')
+			ps.print(expr)
+			ps.writeByte(')')
+		} else if ps.llvmStyle {
+			if op == nil || op.Name != `operator"" ` {
+				ps.writeByte('(')
+			}
+			ps.print(expr)
+			if op == nil || op.Name != `operator"" ` {
+				ps.writeByte(')')
+			}
 		} else {
 			parenthesize(ps, expr)
 		}
@@ -2140,7 +2571,16 @@ func isDesignatedInitializer(x AST) bool {
 	switch x := x.(type) {
 	case *Binary:
 		if op, ok := x.Op.(*Operator); ok {
-			return op.Name == "=" || op.Name == "]="
+			if op.Name == "]=" {
+				return true
+			}
+			if op.Name != "=" {
+				return false
+			}
+			if _, ok := x.Left.(*Literal); ok {
+				return false
+			}
+			return true
 		}
 	case *Trinary:
 		if op, ok := x.Op.(*Operator); ok {
@@ -2185,8 +2625,13 @@ func (b *Binary) print(ps *printState) {
 			// initializer chains.
 			ps.print(b.Right)
 		} else {
-			ps.writeByte('=')
-			parenthesize(ps, b.Right)
+			if ps.llvmStyle {
+				ps.writeString(" = ")
+				ps.print(b.Right)
+			} else {
+				ps.writeByte('=')
+				parenthesize(ps, b.Right)
+			}
 		}
 		return
 	}
@@ -2200,9 +2645,19 @@ func (b *Binary) print(ps *printState) {
 
 	left := b.Left
 
+	skipParens := false
+	skipBothParens := false
+	addSpaces := ps.llvmStyle
+	if ps.llvmStyle && op != nil {
+		switch op.Name {
+		case ".", "->":
+			skipBothParens = true
+			addSpaces = false
+		}
+	}
+
 	// For a function call in an expression, don't print the types
 	// of the arguments unless there is a return type.
-	skipParens := false
 	if op != nil && op.Name == "()" {
 		if ty, ok := b.Left.(*Typed); ok {
 			if ft, ok := ty.Type.(*FunctionType); ok {
@@ -2215,10 +2670,17 @@ func (b *Binary) print(ps *printState) {
 				left = ty.Name
 			}
 		}
+		if ps.llvmStyle {
+			skipParens = true
+		}
 	}
 
-	if skipParens {
+	if skipParens || skipBothParens {
 		ps.print(left)
+	} else if ps.llvmStyle {
+		ps.writeByte('(')
+		ps.print(left)
+		ps.writeByte(')')
 	} else {
 		parenthesize(ps, left)
 	}
@@ -2232,13 +2694,27 @@ func (b *Binary) print(ps *printState) {
 
 	if op != nil {
 		if op.Name != "()" {
+			if addSpaces {
+				ps.writeByte(' ')
+			}
 			ps.writeString(op.Name)
+			if addSpaces {
+				ps.writeByte(' ')
+			}
 		}
 	} else {
 		ps.print(b.Op)
 	}
 
-	parenthesize(ps, b.Right)
+	if skipBothParens {
+		ps.print(b.Right)
+	} else if ps.llvmStyle {
+		ps.writeByte('(')
+		ps.print(b.Right)
+		ps.writeByte(')')
+	} else {
+		parenthesize(ps, b.Right)
+	}
 
 	if op != nil && op.Name == ">" {
 		ps.writeByte(')')
@@ -2310,14 +2786,23 @@ func (t *Trinary) print(ps *printState) {
 			// initializer chains.
 			ps.print(t.Third)
 		} else {
-			ps.writeByte('=')
-			parenthesize(ps, t.Third)
+			if ps.llvmStyle {
+				ps.writeString(" = ")
+				ps.print(t.Third)
+			} else {
+				ps.writeByte('=')
+				parenthesize(ps, t.Third)
+			}
 		}
 		return
 	}
 
 	parenthesize(ps, t.First)
-	ps.writeByte('?')
+	if ps.llvmStyle {
+		ps.writeString(" ? ")
+	} else {
+		ps.writeByte('?')
+	}
 	parenthesize(ps, t.Second)
 	ps.writeString(" : ")
 	parenthesize(ps, t.Third)
@@ -2386,9 +2871,22 @@ func (f *Fold) print(ps *printState) {
 	op, _ := f.Op.(*Operator)
 	printOp := func() {
 		if op != nil {
+			if ps.llvmStyle {
+				ps.writeByte(' ')
+			}
 			ps.writeString(op.Name)
+			if ps.llvmStyle {
+				ps.writeByte(' ')
+			}
 		} else {
 			ps.print(f.Op)
+		}
+	}
+	foldParenthesize := func(a AST) {
+		if _, ok := a.(*ArgumentPack); ok || !ps.llvmStyle {
+			parenthesize(ps, a)
+		} else {
+			ps.print(a)
 		}
 	}
 
@@ -2396,21 +2894,21 @@ func (f *Fold) print(ps *printState) {
 		if f.Left {
 			ps.writeString("(...")
 			printOp()
-			parenthesize(ps, f.Arg1)
+			foldParenthesize(f.Arg1)
 			ps.writeString(")")
 		} else {
 			ps.writeString("(")
-			parenthesize(ps, f.Arg1)
+			foldParenthesize(f.Arg1)
 			printOp()
 			ps.writeString("...)")
 		}
 	} else {
 		ps.writeString("(")
-		parenthesize(ps, f.Arg1)
+		foldParenthesize(f.Arg1)
 		printOp()
 		ps.writeString("...")
 		printOp()
-		parenthesize(ps, f.Arg2)
+		foldParenthesize(f.Arg2)
 		ps.writeString(")")
 	}
 }
@@ -2469,6 +2967,143 @@ func (f *Fold) goString(indent int, field string) string {
 			f.Arg1.goString(indent+2, "Arg1: "),
 			f.Arg2.goString(indent+2, "Arg2: "))
 	}
+}
+
+// Subobject is a a reference to an offset in an expression.  This is
+// used for C++20 manglings of class types used as the type of
+// non-type template arguments.
+//
+// See https://github.com/itanium-cxx-abi/cxx-abi/issues/47.
+type Subobject struct {
+	Type      AST
+	SubExpr   AST
+	Offset    int
+	Selectors []int
+	PastEnd   bool
+}
+
+func (so *Subobject) print(ps *printState) {
+	ps.print(so.SubExpr)
+	ps.writeString(".<")
+	ps.print(so.Type)
+	ps.writeString(fmt.Sprintf(" at offset %d>", so.Offset))
+}
+
+func (so *Subobject) Traverse(fn func(AST) bool) {
+	if fn(so) {
+		so.Type.Traverse(fn)
+		so.SubExpr.Traverse(fn)
+	}
+}
+
+func (so *Subobject) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(so) {
+		return nil
+	}
+	typ := so.Type.Copy(fn, skip)
+	subExpr := so.SubExpr.Copy(fn, skip)
+	if typ == nil && subExpr == nil {
+		return nil
+	}
+	if typ == nil {
+		typ = so.Type
+	}
+	if subExpr == nil {
+		subExpr = so.SubExpr
+	}
+	so = &Subobject{
+		Type:      typ,
+		SubExpr:   subExpr,
+		Offset:    so.Offset,
+		Selectors: so.Selectors,
+		PastEnd:   so.PastEnd,
+	}
+	if r := fn(so); r != nil {
+		return r
+	}
+	return so
+}
+
+func (so *Subobject) GoString() string {
+	return so.goString(0, "")
+}
+
+func (so *Subobject) goString(indent int, field string) string {
+	var selectors string
+	for _, s := range so.Selectors {
+		selectors += fmt.Sprintf(" %d", s)
+	}
+	return fmt.Sprintf("%*s%sSubobject:\n%s\n%s\n%*sOffset: %d\n%*sSelectors:%s\n%*sPastEnd: %t",
+		indent, "", field,
+		so.Type.goString(indent+2, "Type: "),
+		so.SubExpr.goString(indent+2, "SubExpr: "),
+		indent+2, "", so.Offset,
+		indent+2, "", selectors,
+		indent+2, "", so.PastEnd)
+}
+
+// PtrMemCast is a conversion of an expression to a pointer-to-member
+// type.  This is used for C++20 manglings of class types used as the
+// type of non-type template arguments.
+//
+// See https://github.com/itanium-cxx-abi/cxx-abi/issues/47.
+type PtrMemCast struct {
+	Type   AST
+	Expr   AST
+	Offset int
+}
+
+func (pmc *PtrMemCast) print(ps *printState) {
+	ps.writeString("(")
+	ps.print(pmc.Type)
+	ps.writeString(")(")
+	ps.print(pmc.Expr)
+	ps.writeString(")")
+}
+
+func (pmc *PtrMemCast) Traverse(fn func(AST) bool) {
+	if fn(pmc) {
+		pmc.Type.Traverse(fn)
+		pmc.Expr.Traverse(fn)
+	}
+}
+
+func (pmc *PtrMemCast) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(pmc) {
+		return nil
+	}
+	typ := pmc.Type.Copy(fn, skip)
+	expr := pmc.Expr.Copy(fn, skip)
+	if typ == nil && expr == nil {
+		return nil
+	}
+	if typ == nil {
+		typ = pmc.Type
+	}
+	if expr == nil {
+		expr = pmc.Expr
+	}
+	pmc = &PtrMemCast{
+		Type:   typ,
+		Expr:   expr,
+		Offset: pmc.Offset,
+	}
+	if r := fn(pmc); r != nil {
+		return r
+	}
+	return pmc
+}
+
+func (pmc *PtrMemCast) GoString() string {
+	return pmc.goString(0, "")
+}
+
+func (pmc *PtrMemCast) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sPtrMemCast:\n%s\n%s\n%*sOffset: %d",
+		indent, "", field,
+		pmc.Type.goString(indent+2, "Type: "),
+		pmc.Expr.goString(indent+2, "Expr: "),
+		indent+2, "", pmc.Offset)
 }
 
 // New is a use of operator new in an expression.
@@ -2609,7 +3244,11 @@ func (l *Literal) print(ps *printState) {
 				return
 			}
 		} else if b.Name == "decltype(nullptr)" && l.Val == "" {
-			ps.print(l.Type)
+			if ps.llvmStyle {
+				ps.writeString("nullptr")
+			} else {
+				ps.print(l.Type)
+			}
 			return
 		} else {
 			isFloat = builtinTypeFloat[b.Name]
@@ -2665,6 +3304,90 @@ func (l *Literal) goString(indent int, field string) string {
 	return fmt.Sprintf("%*s%sLiteral:%s\n%s\n%*sVal: %s", indent, "", field,
 		neg, l.Type.goString(indent+2, "Type: "),
 		indent+2, "", l.Val)
+}
+
+// StringLiteral is a string literal.
+type StringLiteral struct {
+	Type AST
+}
+
+func (sl *StringLiteral) print(ps *printState) {
+	ps.writeString(`"<`)
+	sl.Type.print(ps)
+	ps.writeString(`>"`)
+}
+
+func (sl *StringLiteral) Traverse(fn func(AST) bool) {
+	if fn(sl) {
+		sl.Type.Traverse(fn)
+	}
+}
+
+func (sl *StringLiteral) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(sl) {
+		return nil
+	}
+	typ := sl.Type.Copy(fn, skip)
+	if typ == nil {
+		return fn(sl)
+	}
+	sl = &StringLiteral{Type: typ}
+	if r := fn(sl); r != nil {
+		return r
+	}
+	return sl
+}
+
+func (sl *StringLiteral) GoString() string {
+	return sl.goString(0, "")
+}
+
+func (sl *StringLiteral) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sStringLiteral:\n%s", indent, "", field,
+		sl.Type.goString(indent+2, ""))
+}
+
+// LambdaExpr is a literal that is a lambda expression.
+type LambdaExpr struct {
+	Type AST
+}
+
+func (le *LambdaExpr) print(ps *printState) {
+	ps.writeString("[]")
+	if cl, ok := le.Type.(*Closure); ok {
+		cl.printTypes(ps)
+	}
+	ps.writeString("{...}")
+}
+
+func (le *LambdaExpr) Traverse(fn func(AST) bool) {
+	if fn(le) {
+		le.Type.Traverse(fn)
+	}
+}
+
+func (le *LambdaExpr) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(le) {
+		return nil
+	}
+	typ := le.Type.Copy(fn, skip)
+	if typ == nil {
+		return fn(le)
+	}
+	le = &LambdaExpr{Type: typ}
+	if r := fn(le); r != nil {
+		return r
+	}
+	return le
+}
+
+func (le *LambdaExpr) GoString() string {
+	return le.goString(0, "")
+}
+
+func (le *LambdaExpr) goString(indent int, field string) string {
+	return fmt.Sprintf("%*s%sLambdaExpr:\n%s", indent, "", field,
+		le.Type.goString(indent+2, ""))
 }
 
 // ExprList is a list of expressions, typically arguments to a
@@ -2803,7 +3526,9 @@ type DefaultArg struct {
 }
 
 func (da *DefaultArg) print(ps *printState) {
-	fmt.Fprintf(&ps.buf, "{default arg#%d}::", da.Num+1)
+	if !ps.llvmStyle {
+		fmt.Fprintf(&ps.buf, "{default arg#%d}::", da.Num+1)
+	}
 	ps.print(da.Arg)
 }
 
@@ -2839,23 +3564,53 @@ func (da *DefaultArg) goString(indent int, field string) string {
 
 // Closure is a closure, or lambda expression.
 type Closure struct {
-	Types []AST
-	Num   int
+	TemplateArgs []AST
+	Types        []AST
+	Num          int
 }
 
 func (cl *Closure) print(ps *printState) {
-	ps.writeString("{lambda(")
+	if ps.llvmStyle {
+		if cl.Num == 0 {
+			ps.writeString("'lambda'")
+		} else {
+			ps.writeString(fmt.Sprintf("'lambda%d'", cl.Num-1))
+		}
+	} else {
+		ps.writeString("{lambda")
+	}
+	cl.printTypes(ps)
+	if !ps.llvmStyle {
+		ps.writeString(fmt.Sprintf("#%d}", cl.Num+1))
+	}
+}
+
+func (cl *Closure) printTypes(ps *printState) {
+	if len(cl.TemplateArgs) > 0 {
+		ps.writeString("<")
+		for i, a := range cl.TemplateArgs {
+			if i > 0 {
+				ps.writeString(", ")
+			}
+			ps.print(a)
+		}
+		ps.writeString(">")
+	}
+	ps.writeString("(")
 	for i, t := range cl.Types {
 		if i > 0 {
 			ps.writeString(", ")
 		}
 		ps.print(t)
 	}
-	ps.writeString(fmt.Sprintf(")#%d}", cl.Num+1))
+	ps.writeString(")")
 }
 
 func (cl *Closure) Traverse(fn func(AST) bool) {
 	if fn(cl) {
+		for _, a := range cl.TemplateArgs {
+			a.Traverse(fn)
+		}
 		for _, t := range cl.Types {
 			t.Traverse(fn)
 		}
@@ -2866,8 +3621,20 @@ func (cl *Closure) Copy(fn func(AST) AST, skip func(AST) bool) AST {
 	if skip(cl) {
 		return nil
 	}
-	types := make([]AST, len(cl.Types))
 	changed := false
+
+	args := make([]AST, len(cl.TemplateArgs))
+	for i, a := range cl.TemplateArgs {
+		ac := a.Copy(fn, skip)
+		if ac == nil {
+			args[i] = a
+		} else {
+			args[i] = ac
+			changed = true
+		}
+	}
+
+	types := make([]AST, len(cl.Types))
 	for i, t := range cl.Types {
 		tc := t.Copy(fn, skip)
 		if tc == nil {
@@ -2877,10 +3644,11 @@ func (cl *Closure) Copy(fn func(AST) AST, skip func(AST) bool) AST {
 			changed = true
 		}
 	}
+
 	if !changed {
 		return fn(cl)
 	}
-	cl = &Closure{Types: types, Num: cl.Num}
+	cl = &Closure{TemplateArgs: args, Types: types, Num: cl.Num}
 	if r := fn(cl); r != nil {
 		return r
 	}
@@ -2892,6 +3660,16 @@ func (cl *Closure) GoString() string {
 }
 
 func (cl *Closure) goString(indent int, field string) string {
+	var args string
+	if len(cl.TemplateArgs) == 0 {
+		args = fmt.Sprintf("%*sTemplateArgs: nil", indent+2, "")
+	} else {
+		args = fmt.Sprintf("%*sTemplateArgs:", indent+2, "")
+		for i, a := range cl.TemplateArgs {
+			args += "\n"
+			args += a.goString(indent+4, fmt.Sprintf("%d: ", i))
+		}
+	}
 	var types string
 	if len(cl.Types) == 0 {
 		types = fmt.Sprintf("%*sTypes: nil", indent+2, "")
@@ -2902,7 +3680,71 @@ func (cl *Closure) goString(indent int, field string) string {
 			types += t.goString(indent+4, fmt.Sprintf("%d: ", i))
 		}
 	}
-	return fmt.Sprintf("%*s%sClosure: Num: %d\n%s", indent, "", field, cl.Num, types)
+	return fmt.Sprintf("%*s%sClosure: Num: %d\n%s\n%s", indent, "", field,
+		cl.Num, args, types)
+}
+
+// StructuredBindings is a structured binding declaration.
+type StructuredBindings struct {
+	Bindings []AST
+}
+
+func (sb *StructuredBindings) print(ps *printState) {
+	ps.writeString("[")
+	for i, b := range sb.Bindings {
+		if i > 0 {
+			ps.writeString(", ")
+		}
+		b.print(ps)
+	}
+	ps.writeString("]")
+}
+
+func (sb *StructuredBindings) Traverse(fn func(AST) bool) {
+	if fn(sb) {
+		for _, b := range sb.Bindings {
+			b.Traverse(fn)
+		}
+	}
+}
+
+func (sb *StructuredBindings) Copy(fn func(AST) AST, skip func(AST) bool) AST {
+	if skip(sb) {
+		return nil
+	}
+	changed := false
+	bindings := make([]AST, len(sb.Bindings))
+	for i, b := range sb.Bindings {
+		bc := b.Copy(fn, skip)
+		if bc == nil {
+			bindings[i] = b
+		} else {
+			bindings[i] = bc
+			changed = true
+		}
+	}
+	if !changed {
+		return fn(sb)
+	}
+	sb = &StructuredBindings{Bindings: bindings}
+	if r := fn(sb); r != nil {
+		return r
+	}
+	return sb
+}
+
+func (sb *StructuredBindings) GoString() string {
+	return sb.goString(0, "")
+}
+
+func (sb *StructuredBindings) goString(indent int, field string) string {
+	var strb strings.Builder
+	fmt.Fprintf(&strb, "%*s%sStructuredBinding:", indent, "", field)
+	for _, b := range sb.Bindings {
+		strb.WriteByte('\n')
+		strb.WriteString(b.goString(indent+2, ""))
+	}
+	return strb.String()
 }
 
 // UnnamedType is an unnamed type, that just has an index.
@@ -2911,7 +3753,15 @@ type UnnamedType struct {
 }
 
 func (ut *UnnamedType) print(ps *printState) {
-	ps.writeString(fmt.Sprintf("{unnamed type#%d}", ut.Num+1))
+	if ps.llvmStyle {
+		if ut.Num == 0 {
+			ps.writeString("'unnamed'")
+		} else {
+			ps.writeString(fmt.Sprintf("'unnamed%d'", ut.Num-1))
+		}
+	} else {
+		ps.writeString(fmt.Sprintf("{unnamed type#%d}", ut.Num+1))
+	}
 }
 
 func (ut *UnnamedType) Traverse(fn func(AST) bool) {
@@ -2941,7 +3791,13 @@ type Clone struct {
 
 func (c *Clone) print(ps *printState) {
 	ps.print(c.Base)
-	ps.writeString(fmt.Sprintf(" [clone %s]", c.Suffix))
+	if ps.llvmStyle {
+		ps.writeString(" (")
+		ps.writeString(c.Suffix)
+		ps.writeByte(')')
+	} else {
+		ps.writeString(fmt.Sprintf(" [clone %s]", c.Suffix))
+	}
 }
 
 func (c *Clone) Traverse(fn func(AST) bool) {
@@ -2982,7 +3838,16 @@ type Special struct {
 }
 
 func (s *Special) print(ps *printState) {
-	ps.writeString(s.Prefix)
+	prefix := s.Prefix
+	if ps.llvmStyle {
+		switch prefix {
+		case "TLS wrapper function for ":
+			prefix = "thread-local wrapper routine for "
+		case "TLS init function for ":
+			prefix = "thread-local initialization routine for "
+		}
+	}
+	ps.writeString(prefix)
 	ps.print(s.Val)
 }
 
@@ -3194,7 +4059,12 @@ func (ps *printState) printOneInner(save *[]AST) {
 func (ps *printState) isEmpty(a AST) bool {
 	switch a := a.(type) {
 	case *ArgumentPack:
-		return len(a.Args) == 0
+		for _, a := range a.Args {
+			if !ps.isEmpty(a) {
+				return false
+			}
+		}
+		return true
 	case *ExprList:
 		return len(a.Exprs) == 0
 	case *PackExpansion:
