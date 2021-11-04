@@ -70,7 +70,7 @@ import (
 // The "omitempty" option specifies that the field should be omitted
 // from the encoding if the field has an empty value, defined as
 // false, 0, a nil pointer, a nil interface value, and any empty array,
-// slice, map, or string.
+// slice, map, string or struct.
 //
 // As a special case, if the field tag is "-", the field is always omitted.
 // Note that a field with name "-" can still be generated using the tag "-,".
@@ -352,6 +352,8 @@ func isEmptyValue(v reflect.Value) bool {
 		return v.Float() == 0
 	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
+	case reflect.Struct:
+		return v.Interface() == reflect.New(reflect.TypeOf(v.Interface())).Elem().Interface()
 	}
 	return false
 }
