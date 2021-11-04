@@ -122,64 +122,8 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		return true
 	}
 
-	// determine type parameter operands with specific type terms
-	Vp, _ := under(x.typ).(*TypeParam)
-	Tp, _ := under(T).(*TypeParam)
-	if Vp != nil && !Vp.hasTerms() {
-		Vp = nil
-	}
-	if Tp != nil && !Tp.hasTerms() {
-		Tp = nil
-	}
-
-	errorf := func(format string, args ...interface{}) {
-		if check != nil && cause != nil {
-			msg := check.sprintf(format, args...)
-			if *cause != "" {
-				msg += "\n\t" + *cause
-			}
-			*cause = msg
-		}
-	}
-
-	// generic cases with specific type terms
-	// (generic operands cannot be constants, so we can ignore x.val)
-	switch {
-	case Vp != nil && Tp != nil:
-		return Vp.is(func(V *term) bool {
-			return Tp.is(func(T *term) bool {
-				if !convertibleToImpl(check, V.typ, T.typ, cause) {
-					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
-					return false
-				}
-				return true
-			})
-		})
-	case Vp != nil:
-		return Vp.is(func(V *term) bool {
-			if !convertibleToImpl(check, V.typ, T, cause) {
-				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
-				return false
-			}
-			return true
-		})
-	case Tp != nil:
-		return Tp.is(func(T *term) bool {
-			if !convertibleToImpl(check, x.typ, T.typ, cause) {
-				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
-				return false
-			}
-			return true
-		})
-	}
-
-	// non-generic case
-	return convertibleToImpl(check, x.typ, T, cause)
-}
-
-// convertibleToImpl should only be called by convertibleTo
-func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 	// "V and T have identical underlying types if tags are ignored"
+	V := x.typ
 	Vu := under(V)
 	Tu := under(T)
 	if IdenticalIgnoreTags(Vu, Tu) {
@@ -248,6 +192,67 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
 				}
 			}
 		}
+	}
+
+	// optimization: if we don't have type parameters, we're done
+	Vp, _ := Vu.(*TypeParam)
+	Tp, _ := Tu.(*TypeParam)
+	if Vp == nil && Tp == nil {
+		return false
+	}
+
+	errorf := func(format string, args ...interface{}) {
+		if check != nil && cause != nil {
+			msg := check.sprintf(format, args...)
+			if *cause != "" {
+				msg += "\n\t" + *cause
+			}
+			*cause = msg
+		}
+	}
+
+	// generic cases with specific type terms
+	// (generic operands cannot be constants, so we can ignore x.val)
+	switch {
+	case Vp != nil && Tp != nil:
+		x := *x // don't clobber outer x
+		return Vp.is(func(V *term) bool {
+			if V == nil {
+				return false // no specific types
+			}
+			x.typ = V.typ
+			return Tp.is(func(T *term) bool {
+				if !x.convertibleTo(check, T.typ, cause) {
+					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
+					return false
+				}
+				return true
+			})
+		})
+	case Vp != nil:
+		x := *x // don't clobber outer x
+		return Vp.is(func(V *term) bool {
+			if V == nil {
+				return false // no specific types
+			}
+			x.typ = V.typ
+			if !x.convertibleTo(check, T, cause) {
+				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
+				return false
+			}
+			return true
+		})
+	case Tp != nil:
+		return Tp.is(func(T *term) bool {
+			if T == nil {
+				return false // no specific types
+			}
+			if !x.convertibleTo(check, T.typ, cause) {
+				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
+				return false
+			}
+			return true
+		})
 	}
 
 	return false
