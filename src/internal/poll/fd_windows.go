@@ -1116,25 +1116,27 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 	return syscall.EWINDOWS
 }
 
-func sockaddrInet4ToRaw(sa *syscall.SockaddrInet4) (unsafe.Pointer, int32) {
-	var raw syscall.RawSockaddrInet4
+func sockaddrInet4ToRaw(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet4) int32 {
+	*rsa = syscall.RawSockaddrAny{}
+	raw := (*syscall.RawSockaddrInet4)(unsafe.Pointer(rsa))
 	raw.Family = syscall.AF_INET
 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	raw.Addr = sa.Addr
-	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+	return int32(unsafe.Sizeof(*raw))
 }
 
-func sockaddrInet6ToRaw(sa *syscall.SockaddrInet6) (unsafe.Pointer, int32) {
-	var raw syscall.RawSockaddrInet6
+func sockaddrInet6ToRaw(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) int32 {
+	*rsa = syscall.RawSockaddrAny{}
+	raw := (*syscall.RawSockaddrInet6)(unsafe.Pointer(rsa))
 	raw.Family = syscall.AF_INET6
 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	raw.Scope_id = sa.ZoneId
 	raw.Addr = sa.Addr
-	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+	return int32(unsafe.Sizeof(*raw))
 }
 
 func rawToSockaddrInet4(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet4) {
@@ -1152,16 +1154,16 @@ func rawToSockaddrInet6(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) 
 	sa.Addr = pp.Addr
 }
 
-func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+func sockaddrToRaw(rsa *syscall.RawSockaddrAny, sa syscall.Sockaddr) (int32, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		ptr, sz := sockaddrInet4ToRaw(sa)
-		return ptr, sz, nil
+		sz := sockaddrInet4ToRaw(rsa, sa)
+		return sz, nil
 	case *syscall.SockaddrInet6:
-		ptr, sz := sockaddrInet6ToRaw(sa)
-		return ptr, sz, nil
+		sz := sockaddrInet6ToRaw(rsa, sa)
+		return sz, nil
 	default:
-		return nil, 0, syscall.EWINDOWS
+		return 0, syscall.EWINDOWS
 	}
 }
 
@@ -1178,7 +1180,9 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 
 	o := &fd.rop
 	o.InitMsg(p, oob)
-	o.rsa = new(syscall.RawSockaddrAny)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
 	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
 	o.msg.Flags = uint32(flags)
@@ -1206,7 +1210,9 @@ func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.Sockadd
 
 	o := &fd.rop
 	o.InitMsg(p, oob)
-	o.rsa = new(syscall.RawSockaddrAny)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
 	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
 	o.msg.Flags = uint32(flags)
@@ -1233,7 +1239,9 @@ func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.Sockadd
 
 	o := &fd.rop
 	o.InitMsg(p, oob)
-	o.rsa = new(syscall.RawSockaddrAny)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
 	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
 	o.msg.Flags = uint32(flags)
@@ -1261,11 +1269,14 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	o := &fd.wop
 	o.InitMsg(p, oob)
 	if sa != nil {
-		rsa, len, err := sockaddrToRaw(sa)
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		len, err := sockaddrToRaw(o.rsa, sa)
 		if err != nil {
 			return 0, 0, err
 		}
-		o.msg.Name = (syscall.Pointer)(rsa)
+		o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 		o.msg.Namelen = len
 	}
 	n, err := execIO(o, func(o *operation) error {
@@ -1287,8 +1298,11 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (in
 
 	o := &fd.wop
 	o.InitMsg(p, oob)
-	rsa, len := sockaddrInet4ToRaw(sa)
-	o.msg.Name = (syscall.Pointer)(rsa)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	len := sockaddrInet4ToRaw(o.rsa, sa)
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = len
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
@@ -1309,8 +1323,11 @@ func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (in
 
 	o := &fd.wop
 	o.InitMsg(p, oob)
-	rsa, len := sockaddrInet6ToRaw(sa)
-	o.msg.Name = (syscall.Pointer)(rsa)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	len := sockaddrInet6ToRaw(o.rsa, sa)
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = len
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
