@@ -307,7 +307,6 @@ type extSymPayload struct {
 const (
 	// Loader.flags
 	FlagStrictDups = 1 << iota
-	FlagUseABIAlias
 )
 
 func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
@@ -753,22 +752,6 @@ func (l *Loader) NReachableSym() int {
 	return l.attrReachable.Count()
 }
 
-// SymNameLen returns the length of the symbol name, trying hard not to load
-// the name.
-func (l *Loader) SymNameLen(i Sym) int {
-	// Not much we can do about external symbols.
-	if l.IsExternal(i) {
-		return len(l.SymName(i))
-	}
-	r, li := l.toLocal(i)
-	le := r.Sym(li).NameLen(r.Reader)
-	if !r.NeedNameExpansion() {
-		return le
-	}
-	// Just load the symbol name. We don't know how expanded it'll be.
-	return len(l.SymName(i))
-}
-
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
 	if l.IsExternal(i) {
@@ -1209,6 +1192,15 @@ func (l *Loader) IsItab(i Sym) bool {
 	return r.Sym(li).IsItab()
 }
 
+// Returns whether this symbol is a dictionary symbol.
+func (l *Loader) IsDict(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsDict()
+}
+
 // Return whether this is a trampoline of a deferreturn call.
 func (l *Loader) IsDeferReturnTramp(i Sym) bool {
 	return l.deferReturnTramp[i]
@@ -1540,27 +1532,7 @@ func (l *Loader) DynidSyms() []Sym {
 // approach would be to check for gotype during preload and copy the
 // results in to a map (might want to try this at some point and see
 // if it helps speed things up).
-func (l *Loader) SymGoType(i Sym) Sym {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
-	for j := range auxs {
-		a := &auxs[j]
-		switch a.Type() {
-		case goobj.AuxGotype:
-			return l.resolve(r, a.Sym())
-		}
-	}
-	return 0
-}
+func (l *Loader) SymGoType(i Sym) Sym { return l.aux1(i, goobj.AuxGotype) }
 
 // SymUnit returns the compilation unit for a given symbol (which will
 // typically be nil for external or linker-manufactured symbols).
@@ -1898,12 +1870,98 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	}
 }
 
+func (l *Loader) auxs(i Sym) (*oReader, []goobj.Aux) {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return l.objs[pp.objidx].r, pp.auxs
+	} else {
+		r, li := l.toLocal(i)
+		return r, r.Auxs(li)
+	}
+}
+
+// Returns a specific aux symbol of type t for symbol i.
+func (l *Loader) aux1(i Sym, t uint8) Sym {
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == t {
+			return l.resolve(r, a.Sym())
+		}
+	}
+	return 0
+}
+
+func (l *Loader) Pcsp(i Sym) Sym { return l.aux1(i, goobj.AuxPcsp) }
+
+// Returns all aux symbols of per-PC data for symbol i.
+// tmp is a scratch space for the pcdata slice.
+func (l *Loader) PcdataAuxs(i Sym, tmp []Sym) (pcsp, pcfile, pcline, pcinline Sym, pcdata []Sym) {
+	pcdata = tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		switch a.Type() {
+		case goobj.AuxPcsp:
+			pcsp = l.resolve(r, a.Sym())
+		case goobj.AuxPcline:
+			pcline = l.resolve(r, a.Sym())
+		case goobj.AuxPcfile:
+			pcfile = l.resolve(r, a.Sym())
+		case goobj.AuxPcinline:
+			pcinline = l.resolve(r, a.Sym())
+		case goobj.AuxPcdata:
+			pcdata = append(pcdata, l.resolve(r, a.Sym()))
+		}
+	}
+	return
+}
+
+// Returns the number of pcdata for symbol i.
+func (l *Loader) NumPcdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxPcdata {
+			n++
+		}
+	}
+	return n
+}
+
+// Returns all funcdata symbols of symbol i.
+// tmp is a scratch space.
+func (l *Loader) Funcdata(i Sym, tmp []Sym) []Sym {
+	fd := tmp[:0]
+	r, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			fd = append(fd, l.resolve(r, a.Sym()))
+		}
+	}
+	return fd
+}
+
+// Returns the number of funcdata for symbol i.
+func (l *Loader) NumFuncdata(i Sym) int {
+	n := 0
+	_, auxs := l.auxs(i)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj.AuxFuncdata {
+			n++
+		}
+	}
+	return n
+}
+
 // FuncInfo provides hooks to access goobj.FuncInfo in the objects.
 type FuncInfo struct {
 	l       *Loader
 	r       *oReader
 	data    []byte
-	auxs    []goobj.Aux
 	lengths goobj.FuncInfoLengths
 }
 
@@ -1925,74 +1983,10 @@ func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
 	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
-func (fi *FuncInfo) Pcsp() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcsp(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcfile() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcfile(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcline(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
-func (fi *FuncInfo) Pcinline() Sym {
-	sym := (*goobj.FuncInfo)(nil).ReadPcinline(fi.data)
-	return fi.l.resolve(fi.r, sym)
-}
-
 // Preload has to be called prior to invoking the various methods
 // below related to pcdata, funcdataoff, files, and inltree nodes.
 func (fi *FuncInfo) Preload() {
 	fi.lengths = (*goobj.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
-}
-
-func (fi *FuncInfo) Pcdata() []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	syms := (*goobj.FuncInfo)(nil).ReadPcdata(fi.data)
-	ret := make([]Sym, len(syms))
-	for i := range ret {
-		ret[i] = fi.l.resolve(fi.r, syms[i])
-	}
-	return ret
-}
-
-func (fi *FuncInfo) NumFuncdataoff() uint32 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return fi.lengths.NumFuncdataoff
-}
-
-func (fi *FuncInfo) Funcdataoff(k int) int64 {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	return (*goobj.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
-}
-
-func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
-	if !fi.lengths.Initialized {
-		panic("need to call Preload first")
-	}
-	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
-		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
-	} else {
-		syms = syms[:0]
-	}
-	for j := range fi.auxs {
-		a := &fi.auxs[j]
-		if a.Type() == goobj.AuxFuncdata {
-			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
-		}
-	}
-	return syms
 }
 
 func (fi *FuncInfo) NumFile() uint32 {
@@ -2046,25 +2040,12 @@ func (fi *FuncInfo) InlTree(k int) InlTreeNode {
 }
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
-	var r *oReader
-	var auxs []goobj.Aux
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		if pp.objidx == 0 {
-			return FuncInfo{}
-		}
-		r = l.objs[pp.objidx].r
-		auxs = pp.auxs
-	} else {
-		var li uint32
-		r, li = l.toLocal(i)
-		auxs = r.Auxs(li)
-	}
+	r, auxs := l.auxs(i)
 	for j := range auxs {
 		a := &auxs[j]
 		if a.Type() == goobj.AuxFuncInfo {
 			b := r.Data(a.Sym().SymIdx)
-			return FuncInfo{l, r, b, auxs, goobj.FuncInfoLengths{}}
+			return FuncInfo{l, r, b, goobj.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
@@ -2183,7 +2164,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
 		}
 		if strings.HasPrefix(name, "runtime.") ||
 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
-			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
+			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = gi
 			}
@@ -2209,7 +2190,6 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	// Index 0 is invalid for symbols.
 	l.objSyms = make([]objSym, 1, symSize)
 
-	l.npkgsyms = l.NSym()
 	st := loadState{
 		l:            l,
 		hashed64Syms: make(map[uint64]symAndSize, hashed64Size),
@@ -2219,6 +2199,7 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, pkgDef)
 	}
+	l.npkgsyms = l.NSym()
 	for _, o := range l.objs[goObjStart:] {
 		st.preloadSyms(o.r, hashed64Def)
 		st.preloadSyms(o.r, hashedDef)
@@ -2286,27 +2267,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 		log.Fatalf("invalid symbol ABI: %d", abi)
 	}
 	return v
-}
-
-// ResolveABIAlias given a symbol returns the ABI alias target of that
-// symbol. If the sym in question is not an alias, the sym itself is
-// returned.
-func (l *Loader) ResolveABIAlias(s Sym) Sym {
-	if l.flags&FlagUseABIAlias == 0 {
-		return s
-	}
-	if s == 0 {
-		return 0
-	}
-	if l.SymType(s) != sym.SABIALIAS {
-		return s
-	}
-	relocs := l.Relocs(s)
-	target := relocs.At(0).Sym()
-	if l.SymType(target) == sym.SABIALIAS {
-		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
-	}
-	return target
 }
 
 // TopLevelSym tests a symbol (by name and kind) to determine whether
@@ -2632,7 +2592,9 @@ type ErrorReporter struct {
 //
 func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
 	if s != 0 && reporter.ldr.SymName(s) != "" {
-		format = reporter.ldr.SymName(s) + ": " + format
+		// Note: Replace is needed here because symbol names might have % in them,
+		// due to the use of LinkString for names of instantiating types.
+		format = strings.Replace(reporter.ldr.SymName(s), "%", "%%", -1) + ": " + format
 	} else {
 		format = fmt.Sprintf("sym %d: %s", s, format)
 	}

@@ -15,7 +15,6 @@
 package liveness
 
 import (
-	"crypto/md5"
 	"crypto/sha1"
 	"fmt"
 	"os"
@@ -274,7 +273,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 		}
 	}
 
-	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
+	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Size() > int64(types.PtrSize) {
 		// Only aggregate-typed arguments that are not address-taken can be
 		// partially live.
 		lv.partLiveArgs[n] = true
@@ -855,8 +854,9 @@ func (lv *liveness) epilogue() {
 	if lv.fn.OpenCodedDeferDisallowed() {
 		lv.livenessMap.DeferReturn = objw.LivenessDontCare
 	} else {
+		idx, _ := lv.stackMapSet.add(livedefer)
 		lv.livenessMap.DeferReturn = objw.LivenessIndex{
-			StackMapIndex: lv.stackMapSet.add(livedefer),
+			StackMapIndex: idx,
 			IsUnsafePoint: false,
 		}
 	}
@@ -903,7 +903,7 @@ func (lv *liveness) compact(b *ssa.Block) {
 		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
 		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
 		if hasStackMap {
-			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
+			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
 			pos++
 		}
 		if hasStackMap || isUnsafePoint {
@@ -1326,19 +1326,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 		loff = objw.BitVec(&liveSymTmp, loff, locals)
 	}
 
-	// Give these LSyms content-addressable names,
-	// so that they can be de-duplicated.
-	// This provides significant binary size savings.
-	//
 	// These symbols will be added to Ctxt.Data by addGCLocals
 	// after parallel compilation is done.
-	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
-		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
-			lsym.P = tmpSym.P
-			lsym.Set(obj.AttrContentAddressable, true)
-		})
-	}
-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp)
+	return base.Ctxt.GCLocalsSym(argsSymTmp.P), base.Ctxt.GCLocalsSym(liveSymTmp.P)
 }
 
 // Entry pointer for Compute analysis. Solves for the Compute of
@@ -1428,6 +1418,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.
 	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
+	x.Set(obj.AttrContentAddressable, true)
 	lv.fn.LSym.Func().StackObjects = x
 	off := 0
 	off = objw.Uintptr(x, off, uint64(len(vars)))
@@ -1444,7 +1435,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		off = objw.Uint32(x, off, uint32(frameOffset))
 
 		t := v.Type()
-		sz := t.Width
+		sz := t.Size()
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}
@@ -1454,7 +1445,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		}
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrdata))
-		off = objw.SymPtr(x, off, lsym, 0)
+		off = objw.SymPtrOff(x, off, lsym)
 	}
 
 	if base.Flag.Live != 0 {

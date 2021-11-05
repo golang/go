@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build 386 || amd64
-// +build 386 amd64
 
 package cpu
 
@@ -37,6 +36,9 @@ const (
 	cpuid_BMI2 = 1 << 8
 	cpuid_ERMS = 1 << 9
 	cpuid_ADX  = 1 << 19
+
+	// edx bits for CPUID 0x80000001
+	cpuid_RDTSCP = 1 << 27
 )
 
 var maxExtendedFunctionInformation uint32
@@ -53,13 +55,11 @@ func doinit() {
 		{Name: "fma", Feature: &X86.HasFMA},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "popcnt", Feature: &X86.HasPOPCNT},
+		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sse3", Feature: &X86.HasSSE3},
 		{Name: "sse41", Feature: &X86.HasSSE41},
 		{Name: "sse42", Feature: &X86.HasSSE42},
 		{Name: "ssse3", Feature: &X86.HasSSSE3},
-
-		// These capabilities should always be enabled on amd64:
-		{Name: "sse2", Feature: &X86.HasSSE2, Required: GOARCH == "amd64"},
 	}
 
 	maxID, _, _, _ := cpuid(0, 0)
@@ -70,8 +70,7 @@ func doinit() {
 
 	maxExtendedFunctionInformation, _, _, _ = cpuid(0x80000000, 0)
 
-	_, _, ecx1, edx1 := cpuid(1, 0)
-	X86.HasSSE2 = isSet(edx1, cpuid_SSE2)
+	_, _, ecx1, _ := cpuid(1, 0)
 
 	X86.HasSSE3 = isSet(ecx1, cpuid_SSE3)
 	X86.HasPCLMULQDQ = isSet(ecx1, cpuid_PCLMULQDQ)
@@ -112,6 +111,16 @@ func doinit() {
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+
+	var maxExtendedInformation uint32
+	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
+
+	if maxExtendedInformation < 0x80000001 {
+		return
+	}
+
+	_, _, _, edxExt1 := cpuid(0x80000001, 0)
+	X86.HasRDTSCP = isSet(edxExt1, cpuid_RDTSCP)
 }
 
 func isSet(hwc uint32, value uint32) bool {

@@ -6,7 +6,7 @@ package load
 
 import (
 	"cmd/go/internal/base"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"fmt"
 	"strings"
 )
@@ -22,6 +22,7 @@ var (
 // that allows specifying different effective flags for different packages.
 // See 'go help build' for more details about per-package flags.
 type PerPackageFlag struct {
+	raw     string
 	present bool
 	values  []ppfValue
 }
@@ -39,6 +40,7 @@ func (f *PerPackageFlag) Set(v string) error {
 
 // set is the implementation of Set, taking a cwd (current working directory) for easier testing.
 func (f *PerPackageFlag) set(v, cwd string) error {
+	f.raw = v
 	f.present = true
 	match := func(p *Package) bool { return p.Internal.CmdlinePkg || p.Internal.CmdlineFiles } // default predicate with no pattern
 	// For backwards compatibility with earlier flag splitting, ignore spaces around flags.
@@ -61,7 +63,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 		match = MatchPackage(pattern, cwd)
 		v = v[i+1:]
 	}
-	flags, err := str.SplitQuotedFields(v)
+	flags, err := quoted.Split(v)
 	if err != nil {
 		return err
 	}
@@ -72,9 +74,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
 	return nil
 }
 
-// String is required to implement flag.Value.
-// It is not used, because cmd/go never calls flag.PrintDefaults.
-func (f *PerPackageFlag) String() string { return "<PerPackageFlag>" }
+func (f *PerPackageFlag) String() string { return f.raw }
 
 // Present reports whether the flag appeared on the command line.
 func (f *PerPackageFlag) Present() bool {

@@ -7,8 +7,6 @@
 // the test.
 
 //go:build (dragonfly || freebsd || linux) && !race
-// +build dragonfly freebsd linux
-// +build !race
 
 package runtime_test
 

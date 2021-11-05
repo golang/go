@@ -95,7 +95,7 @@ func (f *goVersionFlag) Set(s string) error {
 
 func runTidy(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) > 0 {
-		base.Fatalf("go mod tidy: no arguments allowed")
+		base.Fatalf("go: 'go mod tidy' accepts no arguments")
 	}
 
 	// Tidy aims to make 'go test' reproducible for any package in 'all', so we

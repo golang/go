@@ -108,7 +108,7 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
 	methods := tcFields(n.Methods, nil)
 	base.Pos = lno
 
-	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods))
+	n.SetOTYPE(types.NewInterface(types.LocalPkg, methods, false))
 	return n
 }
 

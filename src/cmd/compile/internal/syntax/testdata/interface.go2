@@ -4,16 +4,11 @@
 
 // This file contains test cases for interfaces containing
 // constraint elements.
-//
-// For now, we accept both ordinary type lists and the
-// more complex constraint elements.
 
 package p
 
 type _ interface {
 	m()
-	type int
-	type int, string
 	E
 }
 
@@ -31,7 +26,6 @@ type _ interface {
 	T[int, string] | string
 	int | ~T[string, struct{}]
 	~int | ~string
-	type bool, int, float64
 }
 
 type _ interface {

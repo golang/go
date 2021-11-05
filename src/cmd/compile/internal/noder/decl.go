@@ -18,26 +18,24 @@ import (
 // TODO(mdempsky): Skip blank declarations? Probably only safe
 // for declarations without pragmas.
 
-func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
-	var res ir.Nodes
+func (g *irgen) decls(res *ir.Nodes, decls []syntax.Decl) {
 	for _, decl := range decls {
 		switch decl := decl.(type) {
 		case *syntax.ConstDecl:
-			g.constDecl(&res, decl)
+			g.constDecl(res, decl)
 		case *syntax.FuncDecl:
-			g.funcDecl(&res, decl)
+			g.funcDecl(res, decl)
 		case *syntax.TypeDecl:
 			if ir.CurFunc == nil {
 				continue // already handled in irgen.generate
 			}
-			g.typeDecl(&res, decl)
+			g.typeDecl(res, decl)
 		case *syntax.VarDecl:
-			g.varDecl(&res, decl)
+			g.varDecl(res, decl)
 		default:
 			g.unhandled("declaration", decl)
 		}
 	}
-	return res
 }
 
 func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
@@ -88,6 +86,17 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
 }
 
 func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+	// Set g.curDecl to the function name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic function.
+	g.curDecl = decl.Name.Value
+	obj2 := g.info.Defs[decl.Name]
+	recv := types2.AsSignature(obj2.Type()).Recv()
+	if recv != nil {
+		t2 := deref2(recv.Type())
+		// This is a method, so set g.curDecl to recvTypeName.methName instead.
+		g.curDecl = types2.AsNamed(t2).Obj().Name() + "." + g.curDecl
+	}
+
 	fn := ir.NewFunc(g.pos(decl))
 	fn.Nname, _ = g.def(decl.Name)
 	fn.Nname.Func = fn
@@ -97,31 +106,61 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
 	if fn.Pragma&ir.Systemstack != 0 && fn.Pragma&ir.Nosplit != 0 {
 		base.ErrorfAt(fn.Pos(), "go:nosplit and go:systemstack cannot be combined")
 	}
+	if fn.Pragma&ir.Nointerface != 0 {
+		// Propagate //go:nointerface from Func.Pragma to Field.Nointerface.
+		// This is a bit roundabout, but this is the earliest point where we've
+		// processed the function's pragma flags, and we've also already created
+		// the Fields to represent the receiver's method set.
+		if recv := fn.Type().Recv(); recv != nil {
+			typ := types.ReceiverBaseType(recv.Type)
+			if typ.OrigSym() != nil {
+				// For a generic method, we mark the methods on the
+				// base generic type, since those are the methods
+				// that will be stenciled.
+				typ = typ.OrigSym().Def.Type()
+			}
+			meth := typecheck.Lookdot1(fn, typecheck.Lookup(decl.Name.Value), typ, typ.Methods(), 0)
+			meth.SetNointerface(true)
+		}
+	}
+
+	if decl.Body != nil && fn.Pragma&ir.Noescape != 0 {
+		base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
+	}
 
 	if decl.Name.Value == "init" && decl.Recv == nil {
 		g.target.Inits = append(g.target.Inits, fn)
 	}
 
-	if fn.Type().HasTParam() {
-		g.topFuncIsGeneric = true
-	}
-	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
-	g.topFuncIsGeneric = false
-	if fn.Type().HasTParam() && fn.Body != nil {
-		// Set pointers to the dcls/body of a generic function/method in
-		// the Inl struct, so it is marked for export, is available for
-		// stenciling, and works with Inline_Flood().
-		fn.Inl = &ir.Inline{
-			Cost: 1,
-			Dcl:  fn.Dcl,
-			Body: fn.Body,
-		}
-	}
+	haveEmbed := g.haveEmbed
+	g.later(func() {
+		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
 
-	out.Append(fn)
+		g.haveEmbed = haveEmbed
+		if fn.Type().HasTParam() {
+			g.topFuncIsGeneric = true
+		}
+		g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+		g.topFuncIsGeneric = false
+		if fn.Type().HasTParam() && fn.Body != nil {
+			// Set pointers to the dcls/body of a generic function/method in
+			// the Inl struct, so it is marked for export, is available for
+			// stenciling, and works with Inline_Flood().
+			fn.Inl = &ir.Inline{
+				Cost: 1,
+				Dcl:  fn.Dcl,
+				Body: fn.Body,
+			}
+		}
+
+		out.Append(fn)
+	})
 }
 
 func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+	// Set g.curDecl to the type name, as context for the type params declared
+	// during types2-to-types1 translation if this is a generic type.
+	g.curDecl = decl.Name.Value
 	if decl.Alias {
 		name, _ := g.def(decl.Name)
 		g.pragmaFlags(decl.Pragma, 0)
@@ -137,8 +176,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	name, obj := g.def(decl.Name)
 	ntyp, otyp := name.Type(), obj.Type()
 	if ir.CurFunc != nil {
-		typecheck.TypeGen++
-		ntyp.Vargen = typecheck.TypeGen
+		ntyp.SetVargen()
 	}
 
 	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)
@@ -170,11 +208,11 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
 
-	tparams := otyp.(*types2.Named).TParams()
+	tparams := otyp.(*types2.Named).TypeParams()
 	if n := tparams.Len(); n > 0 {
 		rparams := make([]*types.Type, n)
 		for i := range rparams {
-			rparams[i] = g.typ(tparams.At(i).Type())
+			rparams[i] = g.typ(tparams.At(i))
 		}
 		// This will set hasTParam flag if any rparams are not concrete types.
 		ntyp.SetRParams(rparams)
@@ -185,6 +223,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 		methods := make([]*types.Field, otyp.NumMethods())
 		for i := range methods {
 			m := otyp.Method(i)
+			// Set g.curDecl to recvTypeName.methName, as context for the
+			// method-specific type params in the receiver.
+			g.curDecl = decl.Name.Value + "." + m.Name()
 			meth := g.obj(m)
 			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
 			methods[i].Nname = meth
@@ -201,53 +242,68 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
 	for i, name := range decl.NameList {
 		names[i], _ = g.def(name)
 	}
-	values := g.exprList(decl.Values)
 
 	if decl.Pragma != nil {
 		pragma := decl.Pragma.(*pragmas)
-		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
-		varEmbed(g.makeXPos, names[0], decl, pragma, true)
+		varEmbed(g.makeXPos, names[0], decl, pragma, g.haveEmbed)
 		g.reportUnused(pragma)
 	}
 
-	var as2 *ir.AssignListStmt
-	if len(values) != 0 && len(names) != len(values) {
-		as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
-	}
+	haveEmbed := g.haveEmbed
+	do := func() {
+		defer func(b bool) { g.haveEmbed = b }(g.haveEmbed)
 
-	for i, name := range names {
-		if ir.CurFunc != nil {
-			out.Append(ir.NewDecl(pos, ir.ODCL, name))
+		g.haveEmbed = haveEmbed
+		values := g.exprList(decl.Values)
+
+		var as2 *ir.AssignListStmt
+		if len(values) != 0 && len(names) != len(values) {
+			as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
+		}
+
+		for i, name := range names {
+			if ir.CurFunc != nil {
+				out.Append(ir.NewDecl(pos, ir.ODCL, name))
+			}
+			if as2 != nil {
+				as2.Lhs[i] = name
+				name.Defn = as2
+			} else {
+				as := ir.NewAssignStmt(pos, name, nil)
+				if len(values) != 0 {
+					as.Y = values[i]
+					name.Defn = as
+				} else if ir.CurFunc == nil {
+					name.Defn = as
+				}
+				lhs := []ir.Node{as.X}
+				rhs := []ir.Node{}
+				if as.Y != nil {
+					rhs = []ir.Node{as.Y}
+				}
+				transformAssign(as, lhs, rhs)
+				as.X = lhs[0]
+				if as.Y != nil {
+					as.Y = rhs[0]
+				}
+				as.SetTypecheck(1)
+				out.Append(as)
+			}
 		}
 		if as2 != nil {
-			as2.Lhs[i] = name
-			name.Defn = as2
-		} else {
-			as := ir.NewAssignStmt(pos, name, nil)
-			if len(values) != 0 {
-				as.Y = values[i]
-				name.Defn = as
-			} else if ir.CurFunc == nil {
-				name.Defn = as
-			}
-			lhs := []ir.Node{as.X}
-			rhs := []ir.Node{}
-			if as.Y != nil {
-				rhs = []ir.Node{as.Y}
-			}
-			transformAssign(as, lhs, rhs)
-			as.X = lhs[0]
-			if as.Y != nil {
-				as.Y = rhs[0]
-			}
-			as.SetTypecheck(1)
-			out.Append(as)
+			transformAssign(as2, as2.Lhs, as2.Rhs)
+			as2.SetTypecheck(1)
+			out.Append(as2)
 		}
 	}
-	if as2 != nil {
-		transformAssign(as2, as2.Lhs, as2.Rhs)
-		as2.SetTypecheck(1)
-		out.Append(as2)
+
+	// If we're within a function, we need to process the assignment
+	// part of the variable declaration right away. Otherwise, we leave
+	// it to be handled after all top-level declarations are processed.
+	if ir.CurFunc != nil {
+		do()
+	} else {
+		g.later(do)
 	}
 }
 

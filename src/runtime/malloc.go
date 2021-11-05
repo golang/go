@@ -908,6 +908,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
+	userSize := size
+	if asanenabled {
+		// Refer to ASAN runtime library, the malloc() function allocates extra memory,
+		// the redzone, around the user requested memory region. And the redzones are marked
+		// as unaddressable. We perform the same operations in Go to detect the overflows or
+		// underflows.
+		size += computeRZlog(size)
+	}
 
 	if debug.malloc {
 		if debug.sbrk != 0 {
@@ -971,8 +979,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	mp.mallocing = 1
 
 	shouldhelpgc := false
-	dataSize := size
-	c := getMCache()
+	dataSize := userSize
+	c := getMCache(mp)
 	if c == nil {
 		throw("mallocgc called without a P or outside bootstrapping")
 	}
@@ -980,8 +988,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
 	// In some cases block zeroing can profitably (for latency reduction purposes)
-	// be delayed till preemption is possible; isZeroed tracks that state.
-	isZeroed := true
+	// be delayed till preemption is possible; delayedZeroing tracks that state.
+	delayedZeroing := false
 	if size <= maxSmallSize {
 		if noscan && size < maxTinySize {
 			// Tiny allocator.
@@ -1079,11 +1087,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		shouldhelpgc = true
 		// For large allocations, keep track of zeroed state so that
 		// bulk zeroing can be happen later in a preemptible context.
-		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
+		span = c.allocLarge(size, noscan)
 		span.freeindex = 1
 		span.allocCount = 1
-		x = unsafe.Pointer(span.base())
 		size = span.elemsize
+		x = unsafe.Pointer(span.base())
+		if needzero && span.needzero != 0 {
+			if noscan {
+				delayedZeroing = true
+			} else {
+				memclrNoHeapPointers(x, size)
+				// We've in theory cleared almost the whole span here,
+				// and could take the extra step of actually clearing
+				// the whole thing. However, don't. Any GC bits for the
+				// uncleared parts will be zero, and it's just going to
+				// be needzero = 1 once freed anyway.
+			}
+		}
 	}
 
 	var scanSize uintptr
@@ -1126,6 +1146,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		msanmalloc(x, size)
 	}
 
+	if asanenabled {
+		// We should only read/write the memory with the size asked by the user.
+		// The rest of the allocated memory should be poisoned, so that we can report
+		// errors when accessing poisoned memory.
+		// The allocated memory is larger than required userSize, it will also include
+		// redzone and some other padding bytes.
+		rzBeg := unsafe.Add(x, userSize)
+		asanpoison(rzBeg, size-userSize)
+		asanunpoison(x, userSize)
+	}
+
 	if rate := MemProfileRate; rate > 0 {
 		// Note cache c only valid while m acquired; see #47302
 		if rate != 1 && size < c.nextSample {
@@ -1139,7 +1170,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	// Pointerfree data can be zeroed late in a context where preemption can occur.
 	// x will keep the memory alive.
-	if !isZeroed && needzero {
+	if delayedZeroing {
+		if !noscan {
+			throw("delayed zeroing on data that may contain pointers")
+		}
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
 	}
 
@@ -1247,7 +1281,7 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	c := getMCache()
+	c := getMCache(mp)
 	if c == nil {
 		throw("profilealloc called without a P or outside bootstrapping")
 	}
@@ -1301,7 +1335,7 @@ func fastexprand(mean int) int32 {
 	// x = -log_e(q) * mean
 	// x = log_2(q) * (-log_e(2)) * mean    ; Using log_2 for efficiency
 	const randomBitCount = 26
-	q := fastrand()%(1<<randomBitCount) + 1
+	q := fastrandn(1<<randomBitCount) + 1
 	qlog := fastlog2(float64(q)) - randomBitCount
 	if qlog > 0 {
 		qlog = 0
@@ -1319,7 +1353,7 @@ func nextSampleNoFP() uintptr {
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return uintptr(fastrand() % uint32(2*rate))
+		return uintptr(fastrandn(uint32(2 * rate)))
 	}
 	return 0
 }
@@ -1498,4 +1532,27 @@ type notInHeap struct{}
 
 func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
+}
+
+// computeRZlog computes the size of the redzone.
+// Refer to the implementation of the compiler-rt.
+func computeRZlog(userSize uintptr) uintptr {
+	switch {
+	case userSize <= (64 - 16):
+		return 16 << 0
+	case userSize <= (128 - 32):
+		return 16 << 1
+	case userSize <= (512 - 64):
+		return 16 << 2
+	case userSize <= (4096 - 128):
+		return 16 << 3
+	case userSize <= (1<<14)-256:
+		return 16 << 4
+	case userSize <= (1<<15)-512:
+		return 16 << 5
+	case userSize <= (1<<16)-1024:
+		return 16 << 6
+	default:
+		return 16 << 7
+	}
 }

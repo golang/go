@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !js
-// +build !js
 
 package net
 
@@ -475,11 +474,87 @@ func TestUDPReadTimeout(t *testing.T) {
 	}
 }
 
+func TestAllocs(t *testing.T) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr()
+	addrPort := addr.(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteMsgUDPAddrPort/ReadMsgUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteToUDPAddrPort(buf, addrPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDPAddrPort(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 0 {
+		t.Errorf("WriteToUDPAddrPort/ReadFromUDPAddrPort allocated %d objects", got)
+	}
+
+	allocs = testing.AllocsPerRun(1000, func() {
+		_, err := conn.WriteTo(buf, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := int(allocs); got != 1 {
+		t.Errorf("WriteTo/ReadFromUDP allocated %d objects", got)
+	}
+}
+
+func BenchmarkReadWriteMsgUDPAddrPort(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _, err := conn.WriteMsgUDPAddrPort(buf, nil, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkWriteToReadFromUDP(b *testing.B) {
 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
 	if err != nil {
 		b.Fatal(err)
 	}
+	defer conn.Close()
 	addr := conn.LocalAddr()
 	buf := make([]byte, 8)
 	b.ResetTimer()
@@ -490,6 +565,28 @@ func BenchmarkWriteToReadFromUDP(b *testing.B) {
 			b.Fatal(err)
 		}
 		_, _, err = conn.ReadFromUDP(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer conn.Close()
+	addr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := conn.WriteToUDPAddrPort(buf, addr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, _, err = conn.ReadFromUDPAddrPort(buf)
 		if err != nil {
 			b.Fatal(err)
 		}

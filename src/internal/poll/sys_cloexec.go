@@ -6,7 +6,6 @@
 // setting SetNonblock and CloseOnExec.
 
 //go:build aix || darwin || (js && wasm) || (solaris && !illumos)
-// +build aix darwin js,wasm solaris,!illumos
 
 package poll
 

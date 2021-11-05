@@ -45,6 +45,49 @@ func _[T C5[X], X any](ch T) {
 	close(ch)
 }
 
+// copy
+
+func _[T any](x, y T) {
+	copy(x /* ERROR copy expects slice arguments */ , y)
+}
+
+func _[T ~[]byte](x, y T) {
+	copy(x, y)
+	copy(x, "foo")
+	copy("foo" /* ERROR expects slice arguments */ , y)
+
+	var x2 []byte
+	copy(x2, y) // element types are identical
+	copy(y, x2) // element types are identical
+
+	type myByte byte
+	var x3 []myByte
+	copy(x3 /* ERROR different element types */ , y)
+	copy(y, x3 /* ERROR different element types */ )
+}
+
+func _[T ~[]E, E any](x T, y []E) {
+	copy(x, y)
+	copy(x /* ERROR different element types */ , "foo")
+}
+
+func _[T ~string](x []byte, y T) {
+	copy(x, y)
+	copy(y /* ERROR expects slice arguments */ , x)
+}
+
+func _[T ~[]byte|~string](x T, y []byte) {
+	copy(x /* ERROR expects slice arguments */ , y)
+	copy(y, x)
+}
+
+type L0 []int
+type L1 []int
+
+func _[T L0 | L1](x, y T) {
+	copy(x, y)
+}
+
 // delete
 
 type M0 interface{ int }
@@ -84,15 +127,18 @@ func _[T M4[K, V], K comparable, V any](m T) {
 
 // make
 
+type myChan chan int
+
 func _[
-	S1 interface{ []int },
-	S2 interface{ []int | chan int },
+	S1 ~[]int,
+	S2 ~[]int | ~chan int,
 
-	M1 interface{ map[string]int },
-	M2 interface{ map[string]int | chan int },
+	M1 ~map[string]int,
+	M2 ~map[string]int | ~chan int,
 
-	C1 interface{ chan int },
-	C2 interface{ chan int | chan string },
+	C1 ~chan int,
+	C2 ~chan int | ~chan string,
+	C3 chan int | myChan, // single underlying type
 ]() {
 	type S0 []int
 	_ = make([]int, 10)
@@ -102,7 +148,7 @@ func _[
 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
 	_ = make(S1, 10, 20)
 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
-	_ = make(S2 /* ERROR cannot make .* no structural type */ , 10)
+	_ = make(S2 /* ERROR cannot make .* no single underlying type */ , 10)
 
 	type M0 map[string]int
 	_ = make(map[string]int)
@@ -110,7 +156,7 @@ func _[
 	_ = make(M1)
 	_ = make(M1, 10)
 	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
-	_ = make(M2 /* ERROR cannot make .* no structural type */ )
+	_ = make(M2 /* ERROR cannot make .* no single underlying type */ )
 
 	type C0 chan int
 	_ = make(chan int)
@@ -118,7 +164,8 @@ func _[
 	_ = make(C1)
 	_ = make(C1, 10)
 	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
-	_ = make(C2 /* ERROR cannot make .* no structural type */ )
+	_ = make(C2 /* ERROR cannot make .* no single underlying type */ )
+	_ = make(C3)
 }
 
 // unsafe.Alignof

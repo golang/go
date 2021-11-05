@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
 
 import (
 	"internal/abi"
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -167,8 +167,8 @@ func sigInstallGoHandler(sig uint32) bool {
 	}
 
 	// When built using c-archive or c-shared, only install signal
-	// handlers for synchronous signals and SIGPIPE.
-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
+	// handlers for synchronous signals and SIGPIPE and sigPreempt.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE && sig != sigPreempt {
 		return false
 	}
 
@@ -263,11 +263,11 @@ func clearSignalHandlers() {
 	}
 }
 
-// setProcessCPUProfiler is called when the profiling timer changes.
-// It is called with prof.lock held. hz is the new timer, and is 0 if
+// setProcessCPUProfilerTimer is called when the profiling timer changes.
+// It is called with prof.signalLock held. hz is the new timer, and is 0 if
 // profiling is being disabled. Enable or disable the signal as
 // required for -buildmode=c-archive.
-func setProcessCPUProfiler(hz int32) {
+func setProcessCPUProfilerTimer(hz int32) {
 	if hz != 0 {
 		// Enable the Go signal handler if not enabled.
 		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
@@ -309,10 +309,10 @@ func setProcessCPUProfiler(hz int32) {
 	}
 }
 
-// setThreadCPUProfiler makes any thread-specific changes required to
+// setThreadCPUProfilerHz makes any thread-specific changes required to
 // implement profiling at a rate of hz.
-// No changes required on Unix systems.
-func setThreadCPUProfiler(hz int32) {
+// No changes required on Unix systems when using setitimer.
+func setThreadCPUProfilerHz(hz int32) {
 	getg().m.profilehz = hz
 }
 
@@ -383,7 +383,7 @@ func preemptM(mp *m) {
 //go:nosplit
 func sigFetchG(c *sigctxt) *g {
 	switch GOARCH {
-	case "arm", "arm64", "ppc64", "ppc64le":
+	case "arm", "arm64", "ppc64", "ppc64le", "riscv64":
 		if !iscgo && inVDSOPage(c.sigpc()) {
 			// When using cgo, we save the g on TLS and load it from there
 			// in sigtramp. Just use that.
@@ -423,7 +423,11 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	setg(g)
 	if g == nil {
 		if sig == _SIGPROF {
-			sigprofNonGoPC(c.sigpc())
+			// Some platforms (Linux) have per-thread timers, which we use in
+			// combination with the process-wide timer. Avoid double-counting.
+			if validSIGPROF(nil, c) {
+				sigprofNonGoPC(c.sigpc())
+			}
 			return
 		}
 		if sig == sigPreempt && preemptMSupported && debug.asyncpreemptoff == 0 {
@@ -462,6 +466,56 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	setg(g)
 	if setStack {
 		restoreGsignalStack(&gsignalStack)
+	}
+}
+
+// If the signal handler receives a SIGPROF signal on a non-Go thread,
+// it tries to collect a traceback into sigprofCallers.
+// sigprofCallersUse is set to non-zero while sigprofCallers holds a traceback.
+var sigprofCallers cgoCallers
+var sigprofCallersUse uint32
+
+// sigprofNonGo is called if we receive a SIGPROF signal on a non-Go thread,
+// and the signal handler collected a stack trace in sigprofCallers.
+// When this is called, sigprofCallersUse will be non-zero.
+// g is nil, and what we can do is very limited.
+//
+// It is called from the signal handling functions written in assembly code that
+// are active for cgo programs, cgoSigtramp and sigprofNonGoWrapper, which have
+// not verified that the SIGPROF delivery corresponds to the best available
+// profiling source for this thread.
+//
+//go:nosplit
+//go:nowritebarrierrec
+func sigprofNonGo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+	if prof.hz != 0 {
+		c := &sigctxt{info, ctx}
+		// Some platforms (Linux) have per-thread timers, which we use in
+		// combination with the process-wide timer. Avoid double-counting.
+		if validSIGPROF(nil, c) {
+			n := 0
+			for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
+				n++
+			}
+			cpuprof.addNonGo(sigprofCallers[:n])
+		}
+	}
+
+	atomic.Store(&sigprofCallersUse, 0)
+}
+
+// sigprofNonGoPC is called when a profiling signal arrived on a
+// non-Go thread and we have a single PC value, not a stack trace.
+// g is nil, and what we can do is very limited.
+//go:nosplit
+//go:nowritebarrierrec
+func sigprofNonGoPC(pc uintptr) {
+	if prof.hz != 0 {
+		stk := []uintptr{
+			pc,
+			abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum,
+		}
+		cpuprof.addNonGo(stk)
 	}
 }
 
@@ -540,7 +594,12 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	c := &sigctxt{info, ctxt}
 
 	if sig == _SIGPROF {
-		sigprof(c.sigpc(), c.sigsp(), c.siglr(), gp, _g_.m)
+		mp := _g_.m
+		// Some platforms (Linux) have per-thread timers, which we use in
+		// combination with the process-wide timer. Avoid double-counting.
+		if validSIGPROF(mp, c) {
+			sigprof(c.sigpc(), c.sigsp(), c.siglr(), gp, mp)
+		}
 		return
 	}
 
@@ -628,9 +687,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
-	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
 		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg.ptr()
+		// Switch to curg so that we get a traceback of the Go code
+		// leading up to the cgocall, which switched from curg to g0.
+		gp = _g_.m.curg
 	}
 	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || (js && wasm) || (solaris && !illumos)
-// +build aix darwin js,wasm solaris,!illumos
 
 package os
 

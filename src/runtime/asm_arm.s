@@ -556,7 +556,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVW	g_m(g), R8
 	MOVW	m_gsignal(R8), R3
 	CMP	R3, g

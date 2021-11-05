@@ -196,11 +196,12 @@ const (
 	// true if closure inside a function; false if a simple function or a
 	// closure in a global variable initialization
 	funcIsHiddenClosure
+	funcIsDeadcodeClosure        // true if closure is deadcode
 	funcHasDefer                 // contains a defer statement
 	funcNilCheckDisabled         // disable nil checks when compiling this function
 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
 	funcExportInline             // include inline body in export data
-	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureCalled            // closure is only immediately called; used by escape analysis
 )
@@ -216,6 +217,7 @@ func (f *Func) ABIWrapper() bool               { return f.flags&funcABIWrapper !
 func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
 func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
 func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
+func (f *Func) IsDeadcodeClosure() bool        { return f.flags&funcIsDeadcodeClosure != 0 }
 func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
 func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
 func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
@@ -230,6 +232,7 @@ func (f *Func) SetABIWrapper(b bool)               { f.flags.set(funcABIWrapper,
 func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
 func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
 func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
+func (f *Func) SetIsDeadcodeClosure(b bool)        { f.flags.set(funcIsDeadcodeClosure, b) }
 func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
 func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
 func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }

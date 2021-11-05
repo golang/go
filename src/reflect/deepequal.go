@@ -6,7 +6,10 @@
 
 package reflect
 
-import "unsafe"
+import (
+	"internal/bytealg"
+	"unsafe"
+)
 
 // During deepValueEqual, must keep track of checks that are
 // in progress. The comparison algorithm assumes that all
@@ -35,7 +38,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	// and it's safe and valid to get Value's internal pointer.
 	hard := func(v1, v2 Value) bool {
 		switch v1.Kind() {
-		case Ptr:
+		case Pointer:
 			if v1.typ.ptrdata == 0 {
 				// go:notinheap pointers can't be cyclic.
 				// At least, all of our current uses of go:notinheap have
@@ -53,13 +56,13 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 	}
 
 	if hard(v1, v2) {
-		// For a Ptr or Map value, we need to check flagIndir,
+		// For a Pointer or Map value, we need to check flagIndir,
 		// which we do by calling the pointer method.
 		// For Slice or Interface, flagIndir is always set,
 		// and using v.ptr suffices.
 		ptrval := func(v Value) unsafe.Pointer {
 			switch v.Kind() {
-			case Ptr, Map:
+			case Pointer, Map:
 				return v.pointer()
 			default:
 				return v.ptr
@@ -99,8 +102,12 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
-		if v1.Pointer() == v2.Pointer() {
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
+		}
+		// Special case for []byte, which is common.
+		if v1.Type().Elem().Kind() == Uint8 {
+			return bytealg.Equal(v1.Bytes(), v2.Bytes())
 		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited) {
@@ -113,8 +120,8 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 			return v1.IsNil() == v2.IsNil()
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
-	case Ptr:
-		if v1.Pointer() == v2.Pointer() {
+	case Pointer:
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited)
@@ -132,7 +139,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.Len() != v2.Len() {
 			return false
 		}
-		if v1.Pointer() == v2.Pointer() {
+		if v1.UnsafePointer() == v2.UnsafePointer() {
 			return true
 		}
 		for _, k := range v1.MapKeys() {
@@ -149,6 +156,18 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		}
 		// Can't do better than this:
 		return false
+	case Int, Int8, Int16, Int32, Int64:
+		return v1.Int() == v2.Int()
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v1.Uint() == v2.Uint()
+	case String:
+		return v1.String() == v2.String()
+	case Bool:
+		return v1.Bool() == v2.Bool()
+	case Float32, Float64:
+		return v1.Float() == v2.Float()
+	case Complex64, Complex128:
+		return v1.Complex() == v2.Complex()
 	default:
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)

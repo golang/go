@@ -225,7 +225,7 @@ var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
 //
 // This function is mirrored in the database/sql package.
 func callValuerValue(vr Valuer) (v Value, err error) {
-	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Ptr &&
+	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
 		rv.IsNil() &&
 		rv.Type().Elem().Implements(valuerReflectType) {
 		return nil, nil
@@ -256,7 +256,7 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
 
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// indirect pointers
 		if rv.IsNil() {
 			return nil, nil

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !ios
-// +build !ios
 
 package x509
 
@@ -11,11 +10,11 @@ import (
 	"bytes"
 	macOS "crypto/x509/internal/macos"
 	"fmt"
+	"internal/godebug"
 	"os"
-	"strings"
 )
 
-var debugDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
+var debugDarwinRoots = godebug.Get("x509roots") == "1"
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	return nil, nil

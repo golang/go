@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"errors"
 	"internal/abi"
 	"internal/goarch"
 	"internal/itoa"
@@ -90,8 +91,8 @@ func (f flag) ro() flag {
 }
 
 // pointer returns the underlying pointer represented by v.
-// v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
-// if v.Kind() == Ptr, the base type must not be go:notinheap.
+// v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+// if v.Kind() == Pointer, the base type must not be go:notinheap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -274,7 +275,7 @@ func (v Value) Addr() Value {
 	// Preserve flagRO instead of using v.flag.ro() so that
 	// v.Addr().Elem() is equivalent to v (#32772)
 	fl := v.flag & flagRO
-	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Ptr)}
+	return Value{v.typ.ptrTo(), v.ptr, fl | flag(Pointer)}
 }
 
 // Bool returns v's underlying value.
@@ -508,7 +509,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to "integer registers."
 				if v.flag&flagIndir != 0 {
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regArgs.Ints[st.ireg]), offset, st.size)
+					intToReg(&regArgs, st.ireg, st.size, offset)
 				} else {
 					if st.kind == abiStepPointer {
 						// Duplicate this pointer in the pointer area of the
@@ -524,7 +525,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("attempted to copy pointer to FP register")
 				}
 				offset := add(v.ptr, st.offset, "precomputed value offset")
-				memmove(unsafe.Pointer(&regArgs.Floats[st.freg]), offset, st.size)
+				floatToReg(&regArgs, st.freg, st.size, offset)
 			default:
 				panic("unknown ABI part kind")
 			}
@@ -610,13 +611,13 @@ func (v Value) call(op string, in []Value) []Value {
 				switch st.kind {
 				case abiStepIntReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Ints[st.ireg]), st.size)
+					intFromReg(&regArgs, st.ireg, st.size, offset)
 				case abiStepPointer:
 					s := add(s, st.offset, "precomputed value offset")
 					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
 				case abiStepFloatReg:
 					offset := add(s, st.offset, "precomputed value offset")
-					memmove(offset, unsafe.Pointer(&regArgs.Floats[st.freg]), st.size)
+					floatFromReg(&regArgs, st.freg, st.size, offset)
 				case abiStepStack:
 					panic("register-based return value has stack component")
 				default:
@@ -698,13 +699,13 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					switch st.kind {
 					case abiStepIntReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Ints[st.ireg]), st.size)
+						intFromReg(regs, st.ireg, st.size, offset)
 					case abiStepPointer:
 						s := add(v.ptr, st.offset, "precomputed value offset")
 						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
 					case abiStepFloatReg:
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(offset, unsafe.Pointer(&regs.Floats[st.freg]), st.size)
+						floatFromReg(regs, st.freg, st.size, offset)
 					case abiStepStack:
 						panic("register-based return value has stack component")
 					default:
@@ -784,7 +785,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 					// Copy values to "integer registers."
 					if v.flag&flagIndir != 0 {
 						offset := add(v.ptr, st.offset, "precomputed value offset")
-						memmove(unsafe.Pointer(&regs.Ints[st.ireg]), offset, st.size)
+						intToReg(regs, st.ireg, st.size, offset)
 					} else {
 						// Only populate the Ints space on the return path.
 						// This is safe because out is kept alive until the
@@ -799,7 +800,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 						panic("attempted to copy pointer to FP register")
 					}
 					offset := add(v.ptr, st.offset, "precomputed value offset")
-					memmove(unsafe.Pointer(&regs.Floats[st.freg]), offset, st.size)
+					floatToReg(regs, st.freg, st.size, offset)
 				default:
 					panic("unknown ABI part kind")
 				}
@@ -930,7 +931,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 
 	// Deal with the receiver. It's guaranteed to only be one word in size.
 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
-		// Only copy the reciever to the stack if the ABI says so.
+		// Only copy the receiver to the stack if the ABI says so.
 		// Otherwise, it'll be in a register already.
 		storeRcvr(rcvr, methodFrame)
 	} else {
@@ -982,9 +983,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					methodRegs.Ptrs[mStep.ireg] = *(*unsafe.Pointer)(from)
 					fallthrough // We need to make sure this ends up in Ints, too.
 				case abiStepIntReg:
-					memmove(methodRegs.IntRegArgAddr(mStep.ireg, mStep.size), from, mStep.size)
+					intToReg(&methodRegs, mStep.ireg, mStep.size, from)
 				case abiStepFloatReg:
-					memmove(methodRegs.FloatRegArgAddr(mStep.freg, mStep.size), from, mStep.size)
+					floatToReg(&methodRegs, mStep.freg, mStep.size, from)
 				default:
 					panic("unexpected method step")
 				}
@@ -1000,9 +1001,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 					// Do the pointer copy directly so we get a write barrier.
 					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
 				case abiStepIntReg:
-					memmove(to, valueRegs.IntRegArgAddr(vStep.ireg, vStep.size), vStep.size)
+					intFromReg(valueRegs, vStep.ireg, vStep.size, to)
 				case abiStepFloatReg:
-					memmove(to, valueRegs.FloatRegArgAddr(vStep.freg, vStep.size), vStep.size)
+					floatFromReg(valueRegs, vStep.freg, vStep.size, to)
 				default:
 					panic("unexpected value step")
 				}
@@ -1122,6 +1123,16 @@ func (v Value) Close() {
 	chanclose(v.pointer())
 }
 
+// CanComplex reports whether Complex can be used without panicking.
+func (v Value) CanComplex() bool {
+	switch v.kind() {
+	case Complex64, Complex128:
+		return true
+	default:
+		return false
+	}
+}
+
 // Complex returns v's underlying value, as a complex128.
 // It panics if v's Kind is not Complex64 or Complex128
 func (v Value) Complex() complex128 {
@@ -1137,7 +1148,7 @@ func (v Value) Complex() complex128 {
 
 // Elem returns the value that the interface v contains
 // or that the pointer v points to.
-// It panics if v's Kind is not Interface or Ptr.
+// It panics if v's Kind is not Interface or Pointer.
 // It returns the zero Value if v is nil.
 func (v Value) Elem() Value {
 	k := v.kind()
@@ -1156,9 +1167,24 @@ func (v Value) Elem() Value {
 			x.flag |= v.flag.ro()
 		}
 		return x
-	case Ptr:
+	case Pointer:
 		ptr := v.ptr
 		if v.flag&flagIndir != 0 {
+			if ifaceIndir(v.typ) {
+				// This is a pointer to a not-in-heap object. ptr points to a uintptr
+				// in the heap. That uintptr is the address of a not-in-heap object.
+				// In general, pointers to not-in-heap objects can be total junk.
+				// But Elem() is asking to dereference it, so the user has asserted
+				// that at least it is a valid pointer (not just an integer stored in
+				// a pointer slot). So let's check, to make sure that it isn't a pointer
+				// that the runtime will crash on if it sees it during GC or write barriers.
+				// Since it is a not-in-heap pointer, all pointers to the heap are
+				// forbidden! That makes the test pretty easy.
+				// See issue 48399.
+				if !verifyNotInHeapPtr(*(*uintptr)(ptr)) {
+					panic("reflect: reflect.Value.Elem on an invalid notinheap pointer")
+				}
+			}
 			ptr = *(*unsafe.Pointer)(ptr)
 		}
 		// The returned value's address is v's value.
@@ -1207,7 +1233,8 @@ func (v Value) Field(i int) Value {
 }
 
 // FieldByIndex returns the nested field corresponding to index.
-// It panics if v's Kind is not struct.
+// It panics if evaluation requires stepping through a nil
+// pointer or a field that is not a struct.
 func (v Value) FieldByIndex(index []int) Value {
 	if len(index) == 1 {
 		return v.Field(index[0])
@@ -1215,7 +1242,7 @@ func (v Value) FieldByIndex(index []int) Value {
 	v.mustBe(Struct)
 	for i, x := range index {
 		if i > 0 {
-			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
+			if v.Kind() == Pointer && v.typ.Elem().Kind() == Struct {
 				if v.IsNil() {
 					panic("reflect: indirection through nil pointer to embedded struct")
 				}
@@ -1225,6 +1252,29 @@ func (v Value) FieldByIndex(index []int) Value {
 		v = v.Field(x)
 	}
 	return v
+}
+
+// FieldByIndexErr returns the nested field corresponding to index.
+// It returns an error if evaluation requires stepping through a nil
+// pointer, but panics if it must step through a field that
+// is not a struct.
+func (v Value) FieldByIndexErr(index []int) (Value, error) {
+	if len(index) == 1 {
+		return v.Field(index[0]), nil
+	}
+	v.mustBe(Struct)
+	for i, x := range index {
+		if i > 0 {
+			if v.Kind() == Ptr && v.typ.Elem().Kind() == Struct {
+				if v.IsNil() {
+					return Value{}, errors.New("reflect: indirection through nil pointer to embedded struct field " + v.typ.Elem().Name())
+				}
+				v = v.Elem()
+			}
+		}
+		v = v.Field(x)
+	}
+	return v, nil
 }
 
 // FieldByName returns the struct field with the given name.
@@ -1247,6 +1297,16 @@ func (v Value) FieldByNameFunc(match func(string) bool) Value {
 		return v.FieldByIndex(f.Index)
 	}
 	return Value{}
+}
+
+// CanFloat reports whether Float can be used without panicking.
+func (v Value) CanFloat() bool {
+	switch v.kind() {
+	case Float32, Float64:
+		return true
+	default:
+		return false
+	}
 }
 
 // Float returns v's underlying value, as a float64.
@@ -1286,7 +1346,7 @@ func (v Value) Index(i int) Value {
 		return Value{typ, val, fl}
 
 	case Slice:
-		// Element flag same as Elem of Ptr.
+		// Element flag same as Elem of Pointer.
 		// Addressable, indirect, possibly read-only.
 		s := (*unsafeheader.Slice)(v.ptr)
 		if uint(i) >= uint(s.Len) {
@@ -1308,6 +1368,16 @@ func (v Value) Index(i int) Value {
 		return Value{uint8Type, p, fl}
 	}
 	panic(&ValueError{"reflect.Value.Index", v.kind()})
+}
+
+// CanInt reports whether Int can be used without panicking.
+func (v Value) CanInt() bool {
+	switch v.kind() {
+	case Int, Int8, Int16, Int32, Int64:
+		return true
+	default:
+		return false
+	}
 }
 
 // Int returns v's underlying value, as an int64.
@@ -1406,7 +1476,7 @@ func (v Value) InterfaceData() [2]uintptr {
 func (v Value) IsNil() bool {
 	k := v.kind()
 	switch k {
-	case Chan, Func, Map, Ptr, UnsafePointer:
+	case Chan, Func, Map, Pointer, UnsafePointer:
 		if v.flag&flagMethod != 0 {
 			return false
 		}
@@ -1454,7 +1524,7 @@ func (v Value) IsZero() bool {
 			}
 		}
 		return true
-	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
+	case Chan, Func, Interface, Map, Pointer, Slice, UnsafePointer:
 		return v.IsNil()
 	case String:
 		return v.Len() == 0
@@ -1515,15 +1585,21 @@ func (v Value) MapIndex(key Value) Value {
 	// considered unexported. This is consistent with the
 	// behavior for structs, which allow read but not write
 	// of unexported fields.
-	key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
 
-	var k unsafe.Pointer
-	if key.flag&flagIndir != 0 {
-		k = key.ptr
+	var e unsafe.Pointer
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
-		k = unsafe.Pointer(&key.ptr)
+		key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
+		var k unsafe.Pointer
+		if key.flag&flagIndir != 0 {
+			k = key.ptr
+		} else {
+			k = unsafe.Pointer(&key.ptr)
+		}
+		e = mapaccess(v.typ, v.pointer(), k)
 	}
-	e := mapaccess(v.typ, v.pointer(), k)
 	if e == nil {
 		return Value{}
 	}
@@ -1549,11 +1625,12 @@ func (v Value) MapKeys() []Value {
 	if m != nil {
 		mlen = maplen(m)
 	}
-	it := mapiterinit(v.typ, m)
+	var it hiter
+	mapiterinit(v.typ, m, &it)
 	a := make([]Value, mlen)
 	var i int
 	for i = 0; i < len(a); i++ {
-		key := mapiterkey(it)
+		key := mapiterkey(&it)
 		if key == nil {
 			// Someone deleted an entry from the map since we
 			// called maplen above. It's a data race, but nothing
@@ -1561,59 +1638,154 @@ func (v Value) MapKeys() []Value {
 			break
 		}
 		a[i] = copyVal(keyType, fl, key)
-		mapiternext(it)
+		mapiternext(&it)
 	}
 	return a[:i]
+}
+
+// hiter's structure matches runtime.hiter's structure.
+// Having a clone here allows us to embed a map iterator
+// inside type MapIter so that MapIters can be re-used
+// without doing any allocations.
+type hiter struct {
+	key         unsafe.Pointer
+	elem        unsafe.Pointer
+	t           unsafe.Pointer
+	h           unsafe.Pointer
+	buckets     unsafe.Pointer
+	bptr        unsafe.Pointer
+	overflow    *[]unsafe.Pointer
+	oldoverflow *[]unsafe.Pointer
+	startBucket uintptr
+	offset      uint8
+	wrapped     bool
+	B           uint8
+	i           uint8
+	bucket      uintptr
+	checkBucket uintptr
+}
+
+func (h *hiter) initialized() bool {
+	return h.t != nil
 }
 
 // A MapIter is an iterator for ranging over a map.
 // See Value.MapRange.
 type MapIter struct {
-	m  Value
-	it unsafe.Pointer
+	m     Value
+	hiter hiter
 }
 
-// Key returns the key of the iterator's current map entry.
-func (it *MapIter) Key() Value {
-	if it.it == nil {
+// Key returns the key of iter's current map entry.
+func (iter *MapIter) Key() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Key called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
 		panic("MapIter.Key called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	ktype := t.key
-	return copyVal(ktype, it.m.flag.ro()|flag(ktype.Kind()), mapiterkey(it.it))
+	return copyVal(ktype, iter.m.flag.ro()|flag(ktype.Kind()), iterkey)
 }
 
-// Value returns the value of the iterator's current map entry.
-func (it *MapIter) Value() Value {
-	if it.it == nil {
+// SetIterKey assigns to v the key of iter's current map entry.
+// It is equivalent to v.Set(iter.Key()), but it avoids allocating a new Value.
+// As in Go, the key must be assignable to v's type.
+func (v Value) SetIterKey(iter *MapIter) {
+	if !iter.hiter.initialized() {
+		panic("reflect: Value.SetIterKey called before Next")
+	}
+	iterkey := mapiterkey(&iter.hiter)
+	if iterkey == nil {
+		panic("reflect: Value.SetIterKey called on exhausted iterator")
+	}
+
+	v.mustBeAssignable()
+	var target unsafe.Pointer
+	if v.kind() == Interface {
+		target = v.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	ktype := t.key
+
+	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind()) | flagIndir}
+	key = key.assignTo("reflect.MapIter.SetKey", v.typ, target)
+	typedmemmove(v.typ, v.ptr, key.ptr)
+}
+
+// Value returns the value of iter's current map entry.
+func (iter *MapIter) Value() Value {
+	if !iter.hiter.initialized() {
 		panic("MapIter.Value called before Next")
 	}
-	if mapiterkey(it.it) == nil {
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
 		panic("MapIter.Value called on exhausted iterator")
 	}
 
-	t := (*mapType)(unsafe.Pointer(it.m.typ))
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
+	return copyVal(vtype, iter.m.flag.ro()|flag(vtype.Kind()), iterelem)
+}
+
+// SetIterValue assigns to v the value of iter's current map entry.
+// It is equivalent to v.Set(iter.Value()), but it avoids allocating a new Value.
+// As in Go, the value must be assignable to v's type.
+func (v Value) SetIterValue(iter *MapIter) {
+	if !iter.hiter.initialized() {
+		panic("reflect: Value.SetIterValue called before Next")
+	}
+	iterelem := mapiterelem(&iter.hiter)
+	if iterelem == nil {
+		panic("reflect: Value.SetIterValue called on exhausted iterator")
+	}
+
+	v.mustBeAssignable()
+	var target unsafe.Pointer
+	if v.kind() == Interface {
+		target = v.ptr
+	}
+
+	t := (*mapType)(unsafe.Pointer(iter.m.typ))
+	vtype := t.elem
+
+	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind()) | flagIndir}
+	elem = elem.assignTo("reflect.MapIter.SetValue", v.typ, target)
+	typedmemmove(v.typ, v.ptr, elem.ptr)
 }
 
 // Next advances the map iterator and reports whether there is another
-// entry. It returns false when the iterator is exhausted; subsequent
+// entry. It returns false when iter is exhausted; subsequent
 // calls to Key, Value, or Next will panic.
-func (it *MapIter) Next() bool {
-	if it.it == nil {
-		it.it = mapiterinit(it.m.typ, it.m.pointer())
+func (iter *MapIter) Next() bool {
+	if !iter.m.IsValid() {
+		panic("MapIter.Next called on an iterator that does not have an associated map Value")
+	}
+	if !iter.hiter.initialized() {
+		mapiterinit(iter.m.typ, iter.m.pointer(), &iter.hiter)
 	} else {
-		if mapiterkey(it.it) == nil {
+		if mapiterkey(&iter.hiter) == nil {
 			panic("MapIter.Next called on exhausted iterator")
 		}
-		mapiternext(it.it)
+		mapiternext(&iter.hiter)
 	}
-	return mapiterkey(it.it) != nil
+	return mapiterkey(&iter.hiter) != nil
+}
+
+// Reset modifies iter to iterate over v.
+// It panics if v's Kind is not Map and v is not the zero Value.
+// Reset(Value{}) causes iter to not to refer to any map,
+// which may allow the previously iterated-over map to be garbage collected.
+func (iter *MapIter) Reset(v Value) {
+	if v.IsValid() {
+		v.mustBe(Map)
+	}
+	iter.m = v
+	iter.hiter = hiter{}
 }
 
 // MapRange returns a range iterator for a map.
@@ -1776,7 +1948,7 @@ func (v Value) OverflowUint(x uint64) bool {
 // It returns uintptr instead of unsafe.Pointer so that
 // code using reflect cannot obtain unsafe.Pointers
 // without importing the unsafe package explicitly.
-// It panics if v's Kind is not Chan, Func, Map, Ptr, Slice, or UnsafePointer.
+// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
@@ -1786,17 +1958,20 @@ func (v Value) OverflowUint(x uint64) bool {
 // If v's Kind is Slice, the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
 // is 0.  If the slice is empty but non-nil the return value is non-zero.
+//
+// It's preferred to use uintptr(Value.UnsafePointer()) to get the equivalent result.
 func (v Value) Pointer() uintptr {
-	// TODO: deprecate
 	k := v.kind()
 	switch k {
-	case Ptr:
+	case Pointer:
 		if v.typ.ptrdata == 0 {
-			// Handle pointers to go:notinheap types directly,
-			// so we never materialize such pointers as an
-			// unsafe.Pointer. (Such pointers are always indirect.)
-			// See issue 42076.
-			return *(*uintptr)(v.ptr)
+			val := *(*uintptr)(v.ptr)
+			// Since it is a not-in-heap pointer, all pointers to the heap are
+			// forbidden! See comment in Value.Elem and issue #48399.
+			if !verifyNotInHeapPtr(val) {
+				panic("reflect: reflect.Value.Pointer on an invalid notinheap pointer")
+			}
+			return val
 		}
 		fallthrough
 	case Chan, Map, UnsafePointer:
@@ -1809,8 +1984,7 @@ func (v Value) Pointer() uintptr {
 			// created via reflect have the same underlying code pointer,
 			// so their Pointers are equal. The function used here must
 			// match the one used in makeMethodValue.
-			f := methodValueCall
-			return **(**uintptr)(unsafe.Pointer(&f))
+			return methodValueCallCodePtr()
 		}
 		p := v.pointer()
 		// Non-nil func value points at data block.
@@ -2025,6 +2199,25 @@ func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBeExported()
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
+
+	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
+		k := *(*string)(key.ptr)
+		if elem.typ == nil {
+			mapdelete_faststr(v.typ, v.pointer(), k)
+			return
+		}
+		elem.mustBeExported()
+		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+		var e unsafe.Pointer
+		if elem.flag&flagIndir != 0 {
+			e = elem.ptr
+		} else {
+			e = unsafe.Pointer(&elem.ptr)
+		}
+		mapassign_faststr(v.typ, v.pointer(), k, e)
+		return
+	}
+
 	key = key.assignTo("reflect.Value.SetMapIndex", tt.key, nil)
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
@@ -2270,6 +2463,16 @@ func (v Value) Type() Type {
 	return v.typ.typeOff(m.mtyp)
 }
 
+// CanUint reports whether Uint can be used without panicking.
+func (v Value) CanUint() bool {
+	switch v.kind() {
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return true
+	default:
+		return false
+	}
+}
+
 // Uint returns v's underlying value, as a uint64.
 // It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
 func (v Value) Uint() uint64 {
@@ -2297,11 +2500,12 @@ func (v Value) Uint() uint64 {
 // which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
 // and make an exception.
 
-// UnsafeAddr returns a pointer to v's data.
+// UnsafeAddr returns a pointer to v's data, as a uintptr.
 // It is for advanced clients that also import the "unsafe" package.
 // It panics if v is not addressable.
+//
+// It's preferred to use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.
 func (v Value) UnsafeAddr() uintptr {
-	// TODO: deprecate
 	if v.typ == nil {
 		panic(&ValueError{"reflect.Value.UnsafeAddr", Invalid})
 	}
@@ -2309,6 +2513,57 @@ func (v Value) UnsafeAddr() uintptr {
 		panic("reflect.Value.UnsafeAddr of unaddressable value")
 	}
 	return uintptr(v.ptr)
+}
+
+// UnsafePointer returns v's value as a unsafe.Pointer.
+// It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+//
+// If v's Kind is Func, the returned pointer is an underlying
+// code pointer, but not necessarily enough to identify a
+// single function uniquely. The only guarantee is that the
+// result is zero if and only if v is a nil func Value.
+//
+// If v's Kind is Slice, the returned pointer is to the first
+// element of the slice. If the slice is nil the returned value
+// is nil.  If the slice is empty but non-nil the return value is non-nil.
+func (v Value) UnsafePointer() unsafe.Pointer {
+	k := v.kind()
+	switch k {
+	case Pointer:
+		if v.typ.ptrdata == 0 {
+			// Since it is a not-in-heap pointer, all pointers to the heap are
+			// forbidden! See comment in Value.Elem and issue #48399.
+			if !verifyNotInHeapPtr(*(*uintptr)(v.ptr)) {
+				panic("reflect: reflect.Value.UnsafePointer on an invalid notinheap pointer")
+			}
+			return *(*unsafe.Pointer)(v.ptr)
+		}
+		fallthrough
+	case Chan, Map, UnsafePointer:
+		return v.pointer()
+	case Func:
+		if v.flag&flagMethod != 0 {
+			// As the doc comment says, the returned pointer is an
+			// underlying code pointer but not necessarily enough to
+			// identify a single function uniquely. All method expressions
+			// created via reflect have the same underlying code pointer,
+			// so their Pointers are equal. The function used here must
+			// match the one used in makeMethodValue.
+			code := methodValueCallCodePtr()
+			return *(*unsafe.Pointer)(unsafe.Pointer(&code))
+		}
+		p := v.pointer()
+		// Non-nil func value points at data block.
+		// First word of data block is actual code.
+		if p != nil {
+			p = *(*unsafe.Pointer)(p)
+		}
+		return p
+
+	case Slice:
+		return (*unsafeheader.Slice)(v.ptr).Data
+	}
+	panic(&ValueError{"reflect.Value.UnsafePointer", v.kind()})
 }
 
 // StringHeader is the runtime representation of a string.
@@ -2366,11 +2621,12 @@ func grow(s Value, extra int) (Value, int, int) {
 	if m == 0 {
 		m = extra
 	} else {
+		const threshold = 256
 		for m < i1 {
-			if i0 < 1024 {
+			if i0 < threshold {
 				m += m
 			} else {
-				m += m / 4
+				m += (m + 3*threshold) / 4
 			}
 		}
 	}
@@ -2677,7 +2933,7 @@ func MakeMapWithSize(typ Type, n int) Value {
 // If v is a nil pointer, Indirect returns a zero Value.
 // If v is not a pointer, Indirect returns v.
 func Indirect(v Value) Value {
-	if v.Kind() != Ptr {
+	if v.Kind() != Pointer {
 		return v
 	}
 	return v.Elem()
@@ -2729,7 +2985,7 @@ const maxZero = 1024
 var zeroVal [maxZero]byte
 
 // New returns a Value representing a pointer to a new zero value
-// for the specified type. That is, the returned Value's Type is PtrTo(typ).
+// for the specified type. That is, the returned Value's Type is PointerTo(typ).
 func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")
@@ -2741,14 +2997,14 @@ func New(typ Type) Value {
 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
 	}
 	ptr := unsafe_New(t)
-	fl := flag(Ptr)
+	fl := flag(Pointer)
 	return Value{pt, ptr, fl}
 }
 
 // NewAt returns a Value representing a pointer to a value of the
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
-	fl := flag(Ptr)
+	fl := flag(Pointer)
 	t := typ.(*rtype)
 	return Value{t.ptrTo(), p, fl}
 }
@@ -2817,10 +3073,9 @@ func (v Value) CanConvert(t Type) bool {
 	// Currently the only conversion that is OK in terms of type
 	// but that can panic depending on the value is converting
 	// from slice to pointer-to-array.
-	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+	if vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array {
 		n := t.Elem().Len()
-		h := (*unsafeheader.Slice)(v.ptr)
-		if n > h.Len {
+		if n > v.Len() {
 			return false
 		}
 	}
@@ -2888,7 +3143,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		}
 		// "x is a slice, T is a pointer-to-array type,
 		// and the slice and array types have identical element types."
-		if dst.Kind() == Ptr && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
+		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
 			return cvtSliceArrayPtr
 		}
 
@@ -2904,8 +3159,8 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 	}
 
 	// dst and src are non-defined pointer types with same underlying base type.
-	if dst.Kind() == Ptr && dst.Name() == "" &&
-		src.Kind() == Ptr && src.Name() == "" &&
+	if dst.Kind() == Pointer && dst.Name() == "" &&
+		src.Kind() == Pointer && src.Name() == "" &&
 		haveIdenticalUnderlyingType(dst.Elem().common(), src.Elem().common(), false) {
 		return cvtDirect
 	}
@@ -3087,11 +3342,11 @@ func cvtStringRunes(v Value, t Type) Value {
 // convertOp: []T -> *[N]T
 func cvtSliceArrayPtr(v Value, t Type) Value {
 	n := t.Elem().Len()
-	h := (*unsafeheader.Slice)(v.ptr)
-	if n > h.Len {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(h.Len) + " to pointer to array with length " + itoa.Itoa(n))
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to pointer to array with length " + itoa.Itoa(n))
 	}
-	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
+	h := (*unsafeheader.Slice)(v.ptr)
+	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
 }
 
 // convertOp: direct copy
@@ -3157,24 +3412,31 @@ func makemap(t *rtype, cap int) (m unsafe.Pointer)
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
 
 //go:noescape
+func mapaccess_faststr(t *rtype, m unsafe.Pointer, key string) (val unsafe.Pointer)
+
+//go:noescape
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
+
+//go:noescape
+func mapassign_faststr(t *rtype, m unsafe.Pointer, key string, val unsafe.Pointer)
 
 //go:noescape
 func mapdelete(t *rtype, m unsafe.Pointer, key unsafe.Pointer)
 
-// m escapes into the return value, but the caller of mapiterinit
-// doesn't let the return value escape.
 //go:noescape
-func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
+func mapdelete_faststr(t *rtype, m unsafe.Pointer, key string)
 
 //go:noescape
-func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter)
 
 //go:noescape
-func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
+func mapiterkey(it *hiter) (key unsafe.Pointer)
 
 //go:noescape
-func mapiternext(it unsafe.Pointer)
+func mapiterelem(it *hiter) (elem unsafe.Pointer)
+
+//go:noescape
+func mapiternext(it *hiter)
 
 //go:noescape
 func maplen(m unsafe.Pointer) int
@@ -3237,6 +3499,8 @@ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 
 //go:noescape
 func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+
+func verifyNotInHeapPtr(p uintptr) bool
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

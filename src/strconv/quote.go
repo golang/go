@@ -103,7 +103,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
 			buf = append(buf, `\x`...)
 			buf = append(buf, lowerhex[byte(r)>>4])
 			buf = append(buf, lowerhex[byte(r)&0xF])
-		case r > utf8.MaxRune:
+		case !utf8.ValidRune(r):
 			r = 0xFFFD
 			fallthrough
 		case r < 0x10000:
@@ -322,7 +322,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 			value = v
 			break
 		}
-		if v > utf8.MaxRune {
+		if !utf8.ValidRune(v) {
 			err = ErrSyntax
 			return
 		}

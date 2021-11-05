@@ -294,6 +294,23 @@ func TestLargeHashes(t *testing.T) {
 	}
 }
 
+func TestAllocations(t *testing.T) {
+	if boring.Enabled {
+		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+	}
+	in := []byte("hello, world!")
+	out := make([]byte, 0, Size)
+	h := New()
+	n := int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		h.Write(in)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("allocs = %d, want 0", n)
+	}
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 

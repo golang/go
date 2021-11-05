@@ -3,13 +3,13 @@
 // license that can be found in the LICENSE file.
 
 //go:build windows
-// +build windows
 
 package exec_test
 
 import (
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"syscall"
 	"testing"
@@ -39,5 +39,18 @@ func TestPipePassing(t *testing.T) {
 	err = childProc.Wait()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestNoInheritHandles(t *testing.T) {
+	cmd := exec.Command("cmd", "/c exit 88")
+	cmd.SysProcAttr = &syscall.SysProcAttr{NoInheritHandles: true}
+	err := cmd.Run()
+	exitError, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("got error %v; want ExitError", err)
+	}
+	if exitError.ExitCode() != 88 {
+		t.Fatalf("got exit code %d; want 88", exitError.ExitCode())
 	}
 }

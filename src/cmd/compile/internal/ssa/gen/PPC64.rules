@@ -561,8 +561,10 @@
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(OR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (ORCC x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (XORCC x y) yes no)
 
-(CondSelect x y bool) && flagArg(bool) != nil => (ISEL [2] x y bool)
-(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [2] x y (CMPWconst [0] bool))
+// Only lower after bool is lowered. It should always lower. This helps ensure the folding below happens reliably.
+(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (CMPWconst [0] bool))
+// Fold any CR -> GPR -> CR transfers when applying the above rule.
+(ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp))) => (ISEL [c] x y cmp)
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
@@ -580,7 +582,7 @@
 (Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 && is32BitFloat(val.Type) => (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) => x -- type is wrong
 (Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && (is64BitInt(val.Type) || isPtr(val.Type)) => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && is32BitInt(val.Type) => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -670,6 +672,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Miscellaneous
 (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
@@ -847,6 +850,8 @@
 (ADDconst [c] (SUBFCconst [d] x)) && is32Bit(c+d) => (SUBFCconst [c+d] x)
 (NEG (ADDconst [c] x)) && is32Bit(-c) => (SUBFCconst [-c] x)
 (NEG (SUBFCconst [c] x)) && is32Bit(-c) => (ADDconst [-c] x)
+(NEG (SUB x y)) => (SUB y x)
+(NEG (NEG x)) => x
 
 // Use register moves instead of stores and loads to move int<=>float values
 // Common with math Float64bits, Float64frombits
@@ -1018,6 +1023,8 @@
 (MOVWZreg x:(MOVWZloadidx _ _ _)) => x
 (MOVWreg x:(MOVWload _ _)) => x
 (MOVWreg x:(MOVWloadidx _ _ _)) => x
+(MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _))) => x
+(MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _))) => x
 
 // don't extend if argument is already extended
 (MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
@@ -1084,7 +1091,7 @@
 ((CMP|CMPW|CMPU|CMPWU) x y) && canonLessThan(x,y) => (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
 
 // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
 // ISELB special case where arg0, arg1 values are 0, 1
 
 (Equal cmp) => (ISELB [2] (MOVDconst [1]) cmp)
@@ -1135,6 +1142,9 @@
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 0 => (ISEL [n+1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 1 => (ISEL [n-1] x y bool)
 (ISEL [n] x y (InvertFlags bool)) && n%4 == 2 => (ISEL [n] x y bool)
+(XORconst [1] (ISELB [6] (MOVDconst [1]) cmp)) => (ISELB [2] (MOVDconst [1]) cmp)
+(XORconst [1] (ISELB [5] (MOVDconst [1]) cmp)) => (ISELB [1] (MOVDconst [1]) cmp)
+(XORconst [1] (ISELB [4] (MOVDconst [1]) cmp)) => (ISELB [0] (MOVDconst [1]) cmp)
 
 // A particular pattern seen in cgo code:
 (AND (MOVDconst [c]) x:(MOVBZload _ _)) => (ANDconst [c&0xFF] x)
@@ -1450,3 +1460,26 @@
         && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
         && clobber(x0, x1, x2, x3, x4, x5, x6)
           => (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
+
+// Arch-specific inlining for small or disjoint runtime.memmove
+(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
+        && sz >= 0
+        && isSameCall(sym, "runtime.memmove")
+        && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+        && isInlinableMemmove(dst, src, sz, config)
+        && clobber(s1, s2, s3, call)
+        => (Move [sz] dst src mem)
+
+// Match post-lowering calls, register version.
+(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
+        && sz >= 0
+        && isSameCall(sym, "runtime.memmove")
+        && call.Uses == 1
+        && isInlinableMemmove(dst, src, sz, config)
+        && clobber(call)
+        => (Move [sz] dst src mem)
+
+// Prefetch instructions (aux is option: 0 - DCBT ; 8 - DCBT stream)
+(PrefetchCache ptr mem)          => (DCBT ptr mem [0])
+(PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [8])
+

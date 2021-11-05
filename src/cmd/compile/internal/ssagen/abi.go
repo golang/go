@@ -218,8 +218,6 @@ func (s *SymABIs) GenABIWrappers() {
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
-			// We'll generate ABI aliases instead of
-			// wrappers once we have LSyms in InitLSym.
 			continue
 		}
 
@@ -251,15 +249,10 @@ func InitLSym(f *ir.Func, hasBody bool) {
 			// the funcsym for either the defining
 			// function or its wrapper as appropriate.
 			//
-			// If we're using ABI aliases instead of
-			// wrappers, we only InitLSym for the defining
-			// ABI of a function, so we make the funcsym
-			// when we see that.
+			// If we're not using ABI wrappers, we only
+			// InitLSym for the defining ABI of a function,
+			// so we make the funcsym when we see that.
 			staticdata.NeedFuncSym(f)
-		}
-		if !buildcfg.Experiment.RegabiWrappers {
-			// Create ABI aliases instead of wrappers.
-			forEachWrapperABI(f, makeABIAlias)
 		}
 	}
 	if hasBody {
@@ -279,22 +272,6 @@ func forEachWrapperABI(fn *ir.Func, cb func(fn *ir.Func, wrapperABI obj.ABI)) {
 		}
 		cb(fn, wrapperABI)
 	}
-}
-
-// makeABIAlias creates a new ABI alias so calls to f via wrapperABI
-// will be resolved directly to f's ABI by the linker.
-func makeABIAlias(f *ir.Func, wrapperABI obj.ABI) {
-	// These LSyms have the same name as the native function, so
-	// we create them directly rather than looking them up.
-	// The uniqueness of f.lsym ensures uniqueness of asym.
-	asym := &obj.LSym{
-		Name: f.LSym.Name,
-		Type: objabi.SABIALIAS,
-		R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
-	}
-	asym.SetABI(wrapperABI)
-	asym.Set(obj.AttrDuplicateOK, true)
-	base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
 }
 
 // makeABIWrapper creates a new function that will be called with
@@ -382,18 +359,16 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	}
 
 	var tail ir.Node
+	call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+	call.Args = ir.ParamNames(tfn.Type())
+	call.IsDDD = tfn.Type().IsVariadic()
+	tail = call
 	if tailcall {
-		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
-	} else {
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
-		call.Args = ir.ParamNames(tfn.Type())
-		call.IsDDD = tfn.Type().IsVariadic()
-		tail = call
-		if tfn.Type().NumResults() > 0 {
-			n := ir.NewReturnStmt(base.Pos, nil)
-			n.Results = []ir.Node{call}
-			tail = n
-		}
+		tail = ir.NewTailCallStmt(base.Pos, call)
+	} else if tfn.Type().NumResults() > 0 {
+		n := ir.NewReturnStmt(base.Pos, nil)
+		n.Results = []ir.Node{call}
+		tail = n
 	}
 	fn.Body.Append(tail)
 

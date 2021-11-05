@@ -475,6 +475,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6.To.SetTarget(p2)
 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
 		s.Call(v)
+	case ssa.OpMIPSCALLtail:
+		s.TailCall(v)
 	case ssa.OpMIPSLoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -841,14 +843,9 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit:
+	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := s.Prog(obj.ARET)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = b.Aux.(*obj.LSym)
 	case ssa.BlockMIPSEQ, ssa.BlockMIPSNE,
 		ssa.BlockMIPSLTZ, ssa.BlockMIPSGEZ,
 		ssa.BlockMIPSLEZ, ssa.BlockMIPSGTZ,

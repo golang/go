@@ -143,9 +143,9 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
 		if a[1] == "?" {
 			y = MakeUnknown()
 		} else {
-			if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
-				n := MakeFromLiteral(a[1][:i], token.INT, 0)
-				d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
+			if ns, ds, ok := strings.Cut(a[1], "/"); ok && kind == token.FLOAT {
+				n := MakeFromLiteral(ns, token.INT, 0)
+				d := MakeFromLiteral(ds, token.INT, 0)
 				y = BinaryOp(n, token.QUO, d)
 			} else {
 				y = MakeFromLiteral(a[1], kind, 0)
@@ -454,10 +454,10 @@ func val(lit string) Value {
 		return MakeBool(false)
 	}
 
-	if i := strings.IndexByte(lit, '/'); i >= 0 {
+	if as, bs, ok := strings.Cut(lit, "/"); ok {
 		// assume fraction
-		a := MakeFromLiteral(lit[:i], token.INT, 0)
-		b := MakeFromLiteral(lit[i+1:], token.INT, 0)
+		a := MakeFromLiteral(as, token.INT, 0)
+		b := MakeFromLiteral(bs, token.INT, 0)
 		return BinaryOp(a, token.QUO, b)
 	}
 

@@ -6,8 +6,6 @@
 
 package types
 
-import "go/token"
-
 // Internal use of LookupFieldOrMethod: If the obj result is a method
 // associated with a concrete (non-interface) type, the method's signature
 // may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
@@ -48,7 +46,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
 	if t := asNamed(T); t != nil {
-		if p, _ := t.Underlying().(*Pointer); p != nil {
+		if p, _ := safeUnderlying(t).(*Pointer); p != nil {
 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
@@ -76,9 +74,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface or type parameter has no methods.
-	switch under(typ).(type) {
-	case *Interface, *TypeParam:
-		if isPtr {
+	if isPtr {
+		// don't look at under(typ) here - was bug (issue #47747)
+		if _, ok := typ.(*TypeParam); ok {
+			return
+		}
+		if _, ok := under(typ).(*Interface); ok {
 			return
 		}
 	}
@@ -121,7 +122,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 				seen[named] = true
 
 				// look for a matching attached method
-				named.load()
+				named.resolve(nil)
 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
@@ -211,7 +212,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			//        is shorthand for (&x).m()".
 			if f, _ := obj.(*Func); f != nil {
 				// determine if method has a pointer receiver
-				hasPtrRecv := tpar == nil && ptrRecv(f)
+				hasPtrRecv := tpar == nil && f.hasPtrRecv()
 				if hasPtrRecv && !indirect && !addressable {
 					return nil, nil, true // pointer/addressable receiver required
 				}
@@ -316,11 +317,11 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// both methods must have the same number of type parameters
 			ftyp := f.typ.(*Signature)
 			mtyp := m.typ.(*Signature)
-			if ftyp.TParams().Len() != mtyp.TParams().Len() {
+			if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 				return m, f
 			}
-			if ftyp.TParams().Len() > 0 {
-				panic("internal error: method with type parameters")
+			if ftyp.TypeParams().Len() > 0 {
+				panic("method with type parameters")
 			}
 
 			// If the methods have type parameters we don't care whether they
@@ -329,7 +330,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := newUnifier(true)
-			u.x.init(ftyp.TParams().list())
+			u.x.init(ftyp.TypeParams().list())
 			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
@@ -339,8 +340,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	Vd, _ := deref(V)
-	Vn := asNamed(Vd)
 	for _, m := range T.typeSet().methods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
@@ -368,31 +367,11 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
 		mtyp := m.typ.(*Signature)
-		if ftyp.TParams().Len() != mtyp.TParams().Len() {
+		if ftyp.TypeParams().Len() != mtyp.TypeParams().Len() {
 			return m, f
 		}
-		if ftyp.TParams().Len() > 0 {
-			panic("internal error: method with type parameters")
-		}
-
-		// If V is a (instantiated) generic type, its methods are still
-		// parameterized using the original (declaration) receiver type
-		// parameters (subst simply copies the existing method list, it
-		// does not instantiate the methods).
-		// In order to compare the signatures, substitute the receiver
-		// type parameters of ftyp with V's instantiation type arguments.
-		// This lazily instantiates the signature of method f.
-		if Vn != nil && Vn.TParams().Len() > 0 {
-			// Be careful: The number of type arguments may not match
-			// the number of receiver parameters. If so, an error was
-			// reported earlier but the length discrepancy is still
-			// here. Exit early in this case to prevent an assertion
-			// failure in makeSubstMap.
-			// TODO(gri) Can we avoid this check by fixing the lengths?
-			if len(ftyp.RParams().list()) != len(Vn.targs) {
-				return
-			}
-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs)).(*Signature)
+		if ftyp.TypeParams().Len() > 0 {
+			panic("method with type parameters")
 		}
 
 		// If the methods have type parameters we don't care whether they
@@ -401,7 +380,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := newUnifier(true)
-		u.x.init(ftyp.RParams().list())
+		u.x.init(ftyp.RecvTypeParams().list())
 		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}

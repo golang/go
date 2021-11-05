@@ -168,6 +168,34 @@ func TestSmallLitWidth(t *testing.T) {
 	}
 }
 
+func TestStartsWithClearCode(t *testing.T) {
+	// A literal width of 7 bits means that the code width starts at 8 bits,
+	// which makes it easier to visually inspect the output (provided that the
+	// output is short so codes don't get longer). Each byte is a code:
+	//  - ASCII bytes are literal codes,
+	//  - 0x80 is the clear code,
+	//  - 0x81 is the end code.
+	//  - 0x82 and above are copy codes (unused in this test case).
+	for _, empty := range []bool{false, true} {
+		var buf bytes.Buffer
+		w := NewWriter(&buf, LSB, 7)
+		if !empty {
+			w.Write([]byte("Hi"))
+		}
+		w.Close()
+		got := buf.String()
+
+		want := "\x80\x81"
+		if !empty {
+			want = "\x80Hi\x81"
+		}
+
+		if got != want {
+			t.Errorf("empty=%t: got %q, want %q", empty, got, want)
+		}
+	}
+}
+
 func BenchmarkEncoder(b *testing.B) {
 	buf, err := os.ReadFile("../testdata/e.txt")
 	if err != nil {

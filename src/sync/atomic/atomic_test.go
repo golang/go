@@ -7,6 +7,7 @@ package atomic_test
 import (
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	. "sync/atomic"
 	"testing"
@@ -1196,6 +1197,11 @@ func TestHammerStoreLoad(t *testing.T) {
 	}
 	const procs = 8
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
+	// Disable the GC because hammerStoreLoadPointer invokes
+	// write barriers on values that aren't real pointers.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	// Ensure any in-progress GC is finished.
+	runtime.GC()
 	for _, tt := range tests {
 		c := make(chan int)
 		var val uint64

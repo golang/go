@@ -23,7 +23,7 @@ import (
 
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/trace"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 var TestMainDeps = []string{
@@ -555,6 +555,7 @@ func formatTestmain(t *testFuncs) ([]byte, error) {
 type testFuncs struct {
 	Tests       []testFunc
 	Benchmarks  []testFunc
+	FuzzTargets []testFunc
 	Examples    []testFunc
 	TestMain    *testFunc
 	Package     *Package
@@ -653,6 +654,13 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
+		case isTest(name, "Fuzz"):
+			err := checkTestFunc(n, "F")
+			if err != nil {
+				return err
+			}
+			t.FuzzTargets = append(t.FuzzTargets, testFunc{pkg, name, "", false})
+			*doImport, *seen = true, true
 		}
 	}
 	ex := doc.Examples(f)
@@ -670,10 +678,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 }
 
 func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+	var why string
 	if !isTestFunc(fn, arg) {
-		name := fn.Name.String()
+		why = fmt.Sprintf("must be: func %s(%s *testing.%s)", fn.Name.String(), strings.ToLower(arg), arg)
+	}
+	if fn.Type.TypeParams.NumFields() > 0 {
+		why = "test functions cannot have type parameters"
+	}
+	if why != "" {
 		pos := testFileSet.Position(fn.Pos())
-		return fmt.Errorf("%s: wrong signature for %s, must be: func %s(%s *testing.%s)", pos, name, name, strings.ToLower(arg), arg)
+		return fmt.Errorf("%s: wrong signature for %s, %s", pos, fn.Name.String(), why)
 	}
 	return nil
 }
@@ -712,6 +726,12 @@ var tests = []testing.InternalTest{
 
 var benchmarks = []testing.InternalBenchmark{
 {{range .Benchmarks}}
+	{"{{.Name}}", {{.Package}}.{{.Name}}},
+{{end}}
+}
+
+var fuzzTargets = []testing.InternalFuzzTarget{
+{{range .FuzzTargets}}
 	{"{{.Name}}", {{.Package}}.{{.Name}}},
 {{end}}
 }
@@ -774,7 +794,7 @@ func main() {
 		CoveredPackages: {{printf "%q" .Covered}},
 	})
 {{end}}
-	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
+	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)
 	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))

@@ -63,22 +63,28 @@ func (check *Checker) markImports(pkg *Package) {
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
+	return sprintf(check.fset, check.qualifier, false, format, args...)
+}
+
+func sprintf(fset *token.FileSet, qf Qualifier, debug bool, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
 			arg = "<nil>"
 		case operand:
-			panic("internal error: should always pass *operand")
+			panic("got operand instead of *operand")
 		case *operand:
-			arg = operandString(a, check.qualifier)
+			arg = operandString(a, qf)
 		case token.Pos:
-			arg = check.fset.Position(a).String()
+			if fset != nil {
+				arg = fset.Position(a).String()
+			}
 		case ast.Expr:
 			arg = ExprString(a)
 		case Object:
-			arg = ObjectString(a, check.qualifier)
+			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, check.qualifier)
+			arg = typeString(a, qf, debug)
 		}
 		args[i] = arg
 	}
@@ -89,13 +95,13 @@ func (check *Checker) trace(pos token.Pos, format string, args ...interface{}) {
 	fmt.Printf("%s:\t%s%s\n",
 		check.fset.Position(pos),
 		strings.Repeat(".  ", check.indent),
-		check.sprintf(format, args...),
+		sprintf(check.fset, check.qualifier, true, format, args...),
 	)
 }
 
 // dump is only needed for debugging
 func (check *Checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.sprintf(format, args...))
+	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))
 }
 
 func (check *Checker) err(err error) {
@@ -236,7 +242,7 @@ func (s atPos) Pos() token.Pos {
 func spanOf(at positioner) posSpan {
 	switch x := at.(type) {
 	case nil:
-		panic("internal error: nil")
+		panic("nil positioner")
 	case posSpan:
 		return x
 	case ast.Node:
@@ -259,7 +265,7 @@ func stripAnnotations(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		// strip #'s and subscript digits
-		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
 			b.WriteRune(r)
 		}
 	}

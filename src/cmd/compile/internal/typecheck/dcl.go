@@ -314,13 +314,6 @@ func checkembeddedtype(t *types.Type) {
 	}
 }
 
-// TODO(mdempsky): Move to package types.
-func FakeRecv() *types.Field {
-	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
-}
-
-var fakeRecvField = FakeRecv
-
 var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
 
 type funcStackEnt struct {
@@ -367,8 +360,7 @@ func funcargs(nt *ir.FuncType) {
 		if n.Sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
 			n.Sym = LookupNum("~r", i)
-		}
-		if n.Sym.IsBlank() {
+		} else if n.Sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
@@ -479,6 +471,12 @@ func autotmpname(n int) string {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+	if sig.HasTParam() {
+		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
+	}
+	if recv != nil && recv.HasTParam() {
+		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
+	}
 	nrecvs := 0
 	if recv != nil {
 		nrecvs++

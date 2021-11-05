@@ -819,6 +819,9 @@ func rewriteValueS390X(v *Value) bool {
 	case OpSubPtr:
 		v.Op = OpS390XSUB
 		return true
+	case OpTailCall:
+		v.Op = OpS390XCALLtail
+		return true
 	case OpTrunc:
 		return rewriteValueS390X_OpTrunc(v)
 	case OpTrunc16to8:

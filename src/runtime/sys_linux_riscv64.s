@@ -10,6 +10,8 @@
 #include "go_asm.h"
 
 #define AT_FDCWD -100
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
 
 #define SYS_brk			214
 #define SYS_clock_gettime	113
@@ -25,7 +27,6 @@
 #define SYS_fcntl		25
 #define SYS_futex		98
 #define SYS_getpid		172
-#define SYS_getrlimit		163
 #define SYS_gettid		178
 #define SYS_gettimeofday	169
 #define SYS_kill		129
@@ -47,6 +48,9 @@
 #define SYS_sigaltstack		132
 #define SYS_socket		198
 #define SYS_tgkill		131
+#define SYS_timer_create	107
+#define SYS_timer_delete	111
+#define SYS_timer_settime	110
 #define SYS_tkill		130
 #define SYS_write		64
 
@@ -132,15 +136,6 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	A0, errno+16(FP)
 	RET
 
-// func getrlimit(kind int32, limit unsafe.Pointer) int32
-TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
-	MOVW	kind+0(FP), A0
-	MOV	limit+8(FP), A1
-	MOV	$SYS_getrlimit, A7
-	ECALL
-	MOVW	A0, ret+16(FP)
-	RET
-
 // func usleep(usec uint32)
 TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	MOVWU	usec+0(FP), A0
@@ -209,6 +204,35 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	ECALL
 	RET
 
+// func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
+TEXT runtime·timer_create(SB),NOSPLIT,$0-28
+	MOVW	clockid+0(FP), A0
+	MOV	sevp+8(FP), A1
+	MOV	timerid+16(FP), A2
+	MOV	$SYS_timer_create, A7
+	ECALL
+	MOVW	A0, ret+24(FP)
+	RET
+
+// func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
+	MOVW	timerid+0(FP), A0
+	MOVW	flags+4(FP), A1
+	MOV	new+8(FP), A2
+	MOV	old+16(FP), A3
+	MOV	$SYS_timer_settime, A7
+	ECALL
+	MOVW	A0, ret+24(FP)
+	RET
+
+// func timer_delete(timerid int32) int32
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
+	MOVW	timerid+0(FP), A0
+	MOV	$SYS_timer_delete, A7
+	ECALL
+	MOVW	A0, ret+8(FP)
+	RET
+
 // func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOV	addr+0(FP), A0
@@ -220,8 +244,68 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	RET
 
 // func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$24-12
-	MOV	$0, A0 // CLOCK_REALTIME
+TEXT runtime·walltime(SB),NOSPLIT,$40-12
+	MOV	$CLOCK_REALTIME, A0
+
+	MOV	runtime·vdsoClockgettimeSym(SB), A7
+	BEQZ	A7, fallback
+	MOV	X2, S2 // S2,S3,S4 is unchanged by C code
+	MOV	g_m(g), S3 // S3 = m
+
+	// Save the old values on stack for reentrant
+	MOV	m_vdsoPC(S3), T0
+	MOV	T0, 24(X2)
+	MOV	m_vdsoSP(S3), T0
+	MOV	T0, 32(X2)
+
+	MOV	RA, m_vdsoPC(S3)
+	MOV	$ret-8(FP), T1 // caller's SP
+	MOV	T1, m_vdsoSP(S3)
+
+	MOV	m_curg(S3), T1
+	BNE	g, T1, noswitch
+
+	MOV	m_g0(S3), T1
+	MOV	(g_sched+gobuf_sp)(T1), X2
+
+noswitch:
+	ADDI	$-24, X2 // Space for result
+	ANDI	$~7, X2 // Align for C code
+	MOV	$8(X2), A1
+
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), S4
+	BNEZ	S4, nosaveg
+	MOV	m_gsignal(S3), S4 // g.m.gsignal
+	BEQZ	S4, nosaveg
+	BEQ	g, S4, nosaveg
+	MOV	(g_stack+stack_lo)(S4), S4 // g.m.gsignal.stack.lo
+	MOV	g, (S4)
+
+	JALR	RA, A7
+
+	MOV	ZERO, (S4)
+	JMP	finish
+
+nosaveg:
+	JALR	RA, A7
+
+finish:
+	MOV	8(X2), T0	// sec
+	MOV	16(X2), T1	// nsec
+
+	MOV	S2, X2	// restore stack
+	MOV	24(X2), A2
+	MOV	A2, m_vdsoPC(S3)
+
+	MOV	32(X2), A3
+	MOV	A3, m_vdsoSP(S3)
+
+	MOV	T0, sec+0(FP)
+	MOVW	T1, nsec+8(FP)
+	RET
+
+fallback:
 	MOV	$8(X2), A1
 	MOV	$SYS_clock_gettime, A7
 	ECALL
@@ -232,15 +316,76 @@ TEXT runtime·walltime(SB),NOSPLIT,$24-12
 	RET
 
 // func nanotime1() int64
-TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
-	MOV	$1, A0 // CLOCK_MONOTONIC
+TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
+	MOV	$CLOCK_MONOTONIC, A0
+
+	MOV	runtime·vdsoClockgettimeSym(SB), A7
+	BEQZ	A7, fallback
+
+	MOV	X2, S2 // S2 = RSP, S2 is unchanged by C code
+	MOV	g_m(g), S3 // S3 = m
+	// Save the old values on stack for reentrant
+	MOV	m_vdsoPC(S3), T0
+	MOV	T0, 24(X2)
+	MOV	m_vdsoSP(S3), T0
+	MOV	T0, 32(X2)
+
+	MOV	RA, m_vdsoPC(S3)
+	MOV	$ret-8(FP), T0 // caller's SP
+	MOV	T0, m_vdsoSP(S3)
+
+	MOV	m_curg(S3), T1
+	BNE	g, T1, noswitch
+
+	MOV	m_g0(S3), T1
+	MOV	(g_sched+gobuf_sp)(T1), X2
+
+noswitch:
+	ADDI	$-24, X2 // Space for result
+	ANDI	$~7, X2 // Align for C code
+	MOV	$8(X2), A1
+
+	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
+	MOVBU	runtime·iscgo(SB), S4
+	BNEZ	S4, nosaveg
+	MOV	m_gsignal(S3), S4 // g.m.gsignal
+	BEQZ	S4, nosaveg
+	BEQ	g, S4, nosaveg
+	MOV	(g_stack+stack_lo)(S4), S4 // g.m.gsignal.stack.lo
+	MOV	g, (S4)
+
+	JALR	RA, A7
+
+	MOV	ZERO, (S4)
+	JMP	finish
+
+nosaveg:
+	JALR	RA, A7
+
+finish:
+	MOV	8(X2), T0	// sec
+	MOV	16(X2), T1	// nsec
+	// restore stack
+	MOV	S2, X2
+	MOV	24(X2), T2
+	MOV	T2, m_vdsoPC(S3)
+
+	MOV	32(X2), T2
+	MOV	T2, m_vdsoSP(S3)
+	// sec is in T0, nsec in T1
+	// return nsec in T0
+	MOV	$1000000000, T2
+	MUL	T2, T0
+	ADD	T1, T0
+	MOV	T0, ret+0(FP)
+	RET
+
+fallback:
 	MOV	$8(X2), A1
 	MOV	$SYS_clock_gettime, A7
 	ECALL
 	MOV	8(X2), T0	// sec
 	MOV	16(X2), T1	// nsec
-	// sec is in T0, nsec in T1
-	// return nsec in T0
 	MOV	$1000000000, T2
 	MUL	T2, T0
 	ADD	T1, T0

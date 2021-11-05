@@ -659,7 +659,7 @@ type Config struct {
 	// cipher suite based on logic that takes into account inferred client
 	// hardware, server hardware, and security.
 	//
-	// Deprected: PreferServerCipherSuites is ignored.
+	// Deprecated: PreferServerCipherSuites is ignored.
 	PreferServerCipherSuites bool
 
 	// SessionTicketsDisabled may be set to true to disable session ticket and

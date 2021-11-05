@@ -294,6 +294,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var pLast *obj.Prog
 	var pPre *obj.Prog
 	var pPreempt *obj.Prog
+	var pCheck *obj.Prog
 	wasSplit := false
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		pLast = p
@@ -323,7 +324,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q := p
 
 			if !p.From.Sym.NoSplit() {
-				p, pPreempt = c.stacksplitPre(p, autosize) // emit pre part of split check
+				p, pPreempt, pCheck = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
 				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 				wasSplit = true //need post part of split
@@ -563,14 +564,69 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 	if wasSplit {
-		c.stacksplitPost(pLast, pPre, pPreempt, autosize) // emit post part of split check
+		c.stacksplitPost(pLast, pPre, pPreempt, pCheck, autosize) // emit post part of split check
 	}
 }
 
-func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Prog) {
+// stacksplitPre generates the function stack check prologue following
+// Prog p (which should be the TEXT Prog). It returns one or two
+// branch Progs that must be patched to jump to the morestack epilogue,
+// and the Prog that starts the morestack check.
+func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCheck *obj.Prog) {
+	if c.ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT
+		const frameSize = 16
+		p = c.ctxt.StartUnsafePoint(p, c.newprog)
+		// MOVD LR, -16(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: -frameSize}
+		// MOVD $-16(SP), SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_ADDR, Offset: -frameSize, Reg: REGSP}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGSP}
+		p.Spadj = frameSize
+		// MOVD REGCTXT, 8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REGCTXT}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 8}
+
+		// BL maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = ABL
+		// See ../x86/obj6.go
+		sym := c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+		p.To = obj.Addr{Type: obj.TYPE_BRANCH, Sym: sym}
+
+		// Restore LR and REGCTXT
+
+		// MOVD REGCTXT, 8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 8}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGCTXT}
+		// MOVD (SP), LR
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 0}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		// MOVD $16(SP), SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = AMOVD
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Reg: REGSP, Offset: frameSize}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGSP}
+		p.Spadj = -frameSize
+
+		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	}
 
 	// MOVD	g_stackguard(g), R3
 	p = obj.Appendp(p, c.newprog)
+	// Jump back to here after morestack returns.
+	pCheck = p
 
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_MEM
@@ -599,12 +655,11 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
 
-		return p, nil
+		return p, nil, pCheck
 	}
 
 	// large stack: SP-framesize < stackguard-StackSmall
 
-	var q *obj.Prog
 	offset := int64(framesize) - objabi.StackSmall
 	if framesize > objabi.StackBig {
 		// Such a large stack we need to protect against underflow.
@@ -625,7 +680,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p.To.Reg = REG_R4
 
 		p = obj.Appendp(p, c.newprog)
-		q = p
+		pPreempt = p
 		p.As = ACMPUBLT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGSP
@@ -651,10 +706,16 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 	p.As = ACMPUBGE
 	p.To.Type = obj.TYPE_BRANCH
 
-	return p, q
+	return p, pPreempt, pCheck
 }
 
-func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, framesize int32) *obj.Prog {
+// stacksplitPost generates the function epilogue that calls morestack
+// and returns the new last instruction in the function.
+//
+// p is the last Prog in the function. pPre and pPreempt, if non-nil,
+// are the instructions that branch to the epilogue. This will fill in
+// their branch targets. pCheck is the Prog that begins the stack check.
+func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, framesize int32) *obj.Prog {
 	// Now we are at the end of the function, but logically
 	// we are still in function prologue. We need to fix the
 	// SP data and PCDATA.
@@ -692,12 +753,12 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 
 	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
-	// BR	start
+	// BR	pCheck
 	p = obj.Appendp(p, c.newprog)
 
 	p.As = ABR
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(c.cursym.Func().Text.Link)
+	p.To.SetTarget(pCheck)
 	return p
 }
 

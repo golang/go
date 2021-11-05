@@ -11,8 +11,8 @@ import "cmd/compile/internal/syntax"
 
 // A Union represents a union of terms embedded in an interface.
 type Union struct {
-	terms []*Term  // list of syntactical terms (not a canonicalized termlist)
-	tset  *TypeSet // type set described by this union, computed lazily
+	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
+	tset  *_TypeSet // type set described by this union, computed lazily
 }
 
 // NewUnion returns a new Union type with the given terms.
@@ -54,7 +54,10 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 	for _, x := range tlist {
 		tilde, typ := parseTilde(check, x)
 		if len(tlist) == 1 && !tilde {
-			return typ // single type (optimization)
+			// Single type. Ok to return early because all relevant
+			// checks have been performed in parseTilde (no need to
+			// run through term validity check below).
+			return typ
 		}
 		if len(terms) >= maxTermCount {
 			check.errorf(x, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
@@ -72,28 +75,16 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 				continue
 			}
 
-			x := tlist[i]
-			pos := syntax.StartPos(x)
-			// We may not know the position of x if it was a typechecker-
-			// introduced ~T term for a type list entry T. Use the position
-			// of T instead.
-			// TODO(gri) remove this test once we don't support type lists anymore
-			if !pos.IsKnown() {
-				if op, _ := x.(*syntax.Operation); op != nil {
-					pos = syntax.StartPos(op.X)
-				}
-			}
-
 			u := under(t.typ)
 			f, _ := u.(*Interface)
 			if t.tilde {
 				if f != nil {
-					check.errorf(x, "invalid use of ~ (%s is an interface)", t.typ)
+					check.errorf(tlist[i], "invalid use of ~ (%s is an interface)", t.typ)
 					continue // don't report another error for t
 				}
 
 				if !Identical(u, t.typ) {
-					check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+					check.errorf(tlist[i], "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
 					continue // don't report another error for t
 				}
 			}
@@ -102,14 +93,14 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
 			// here, we must have at least two terms in the union.
 			if f != nil && !f.typeSet().IsTypeSet() {
-				check.errorf(pos, "cannot use %s in union (interface contains methods)", t)
+				check.errorf(tlist[i], "cannot use %s in union (interface contains methods)", t)
 				continue // don't report another error for t
 			}
 
 			// Report overlapping (non-disjoint) terms such as
 			// a|a, a|~a, ~a|~a, and ~a|A (where under(A) == a).
 			if j := overlappingTerm(terms[:i], t); j >= 0 {
-				check.softErrorf(pos, "overlapping terms %s and %s", t, terms[j])
+				check.softErrorf(tlist[i], "overlapping terms %s and %s", t, terms[j])
 			}
 		}
 	})
@@ -122,12 +113,17 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
 		x = op.X
 		tilde = true
 	}
-	typ = check.anyType(x)
-	// embedding stand-alone type parameters is not permitted (issue #47127).
-	if _, ok := under(typ).(*TypeParam); ok {
-		check.error(x, "cannot embed a type parameter")
-		typ = Typ[Invalid]
-	}
+	typ = check.typ(x)
+	// Embedding stand-alone type parameters is not permitted (issue #47127).
+	// Do this check later because it requires computation of the underlying type (see also issue #46461).
+	// Note: If an underlying type cannot be a type parameter, the call to
+	//       under() will not be needed and then we don't need to delay this
+	//       check to later and could return Typ[Invalid] instead.
+	check.later(func() {
+		if _, ok := under(typ).(*TypeParam); ok {
+			check.error(x, "cannot embed a type parameter")
+		}
+	})
 	return
 }
 

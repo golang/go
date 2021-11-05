@@ -81,7 +81,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	RDTIME	A0
+	RDCYCLE	A0
 	MOV	A0, ret+0(FP)
 	RET
 
@@ -310,8 +310,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOV	g_m(g), X6
+	MOV	m_gsignal(X6), X7
+	BEQ	X7, g, g0
 	MOV	m_g0(X6), X7
 	BEQ	X7, g, g0
 
@@ -628,10 +631,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 // The act of CALLing gcWriteBarrier will clobber RA (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$208
 	// Save the registers clobbered by the fast path.
-	MOV	A0, 25*8(X2)
-	MOV	A1, 26*8(X2)
+	MOV	A0, 24*8(X2)
+	MOV	A1, 25*8(X2)
 	MOV	g_m(g), A0
 	MOV	m_p(A0), A0
 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
@@ -647,8 +650,8 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
 	// Is the buffer full?
 	BEQ	A1, T6, flush
 ret:
-	MOV	25*8(X2), A0
-	MOV	26*8(X2), A1
+	MOV	24*8(X2), A0
+	MOV	25*8(X2), A1
 	// Do the write.
 	MOV	T1, (T0)
 	RET
@@ -661,34 +664,34 @@ flush:
 	// X0 is zero register
 	// X1 is LR, saved by prologue
 	// X2 is SP
-	MOV	X3, 3*8(X2)
+	// X3 is GP
 	// X4 is TP
 	// X5 is first arg to wbBufFlush (T0)
 	// X6 is second arg to wbBufFlush (T1)
-	MOV	X7, 4*8(X2)
-	MOV	X8, 5*8(X2)
-	MOV	X9, 6*8(X2)
+	MOV	X7, 3*8(X2)
+	MOV	X8, 4*8(X2)
+	MOV	X9, 5*8(X2)
 	// X10 already saved (A0)
 	// X11 already saved (A1)
-	MOV	X12, 7*8(X2)
-	MOV	X13, 8*8(X2)
-	MOV	X14, 9*8(X2)
-	MOV	X15, 10*8(X2)
-	MOV	X16, 11*8(X2)
-	MOV	X17, 12*8(X2)
-	MOV	X18, 13*8(X2)
-	MOV	X19, 14*8(X2)
-	MOV	X20, 15*8(X2)
-	MOV	X21, 16*8(X2)
-	MOV	X22, 17*8(X2)
-	MOV	X23, 18*8(X2)
-	MOV	X24, 19*8(X2)
-	MOV	X25, 20*8(X2)
-	MOV	X26, 21*8(X2)
+	MOV	X12, 6*8(X2)
+	MOV	X13, 7*8(X2)
+	MOV	X14, 8*8(X2)
+	MOV	X15, 9*8(X2)
+	MOV	X16, 10*8(X2)
+	MOV	X17, 11*8(X2)
+	MOV	X18, 12*8(X2)
+	MOV	X19, 13*8(X2)
+	MOV	X20, 14*8(X2)
+	MOV	X21, 15*8(X2)
+	MOV	X22, 16*8(X2)
+	MOV	X23, 17*8(X2)
+	MOV	X24, 18*8(X2)
+	MOV	X25, 19*8(X2)
+	MOV	X26, 20*8(X2)
 	// X27 is g.
-	MOV	X28, 22*8(X2)
-	MOV	X29, 23*8(X2)
-	MOV	X30, 24*8(X2)
+	MOV	X28, 21*8(X2)
+	MOV	X29, 22*8(X2)
+	MOV	X30, 23*8(X2)
 	// X31 is tmp register.
 
 	// This takes arguments T0 and T1.
@@ -696,28 +699,27 @@ flush:
 
 	MOV	1*8(X2), T0
 	MOV	2*8(X2), T1
-	MOV	3*8(X2), X3
-	MOV	4*8(X2), X7
-	MOV	5*8(X2), X8
-	MOV	6*8(X2), X9
-	MOV	7*8(X2), X12
-	MOV	8*8(X2), X13
-	MOV	9*8(X2), X14
-	MOV	10*8(X2), X15
-	MOV	11*8(X2), X16
-	MOV	12*8(X2), X17
-	MOV	13*8(X2), X18
-	MOV	14*8(X2), X19
-	MOV	15*8(X2), X20
-	MOV	16*8(X2), X21
-	MOV	17*8(X2), X22
-	MOV	18*8(X2), X23
-	MOV	19*8(X2), X24
-	MOV	20*8(X2), X25
-	MOV	21*8(X2), X26
-	MOV	22*8(X2), X28
-	MOV	23*8(X2), X29
-	MOV	24*8(X2), X30
+	MOV	3*8(X2), X7
+	MOV	4*8(X2), X8
+	MOV	5*8(X2), X9
+	MOV	6*8(X2), X12
+	MOV	7*8(X2), X13
+	MOV	8*8(X2), X14
+	MOV	9*8(X2), X15
+	MOV	10*8(X2), X16
+	MOV	11*8(X2), X17
+	MOV	12*8(X2), X18
+	MOV	13*8(X2), X19
+	MOV	14*8(X2), X20
+	MOV	15*8(X2), X21
+	MOV	16*8(X2), X22
+	MOV	17*8(X2), X23
+	MOV	18*8(X2), X24
+	MOV	19*8(X2), X25
+	MOV	20*8(X2), X26
+	MOV	21*8(X2), X28
+	MOV	22*8(X2), X29
+	MOV	23*8(X2), X30
 
 	JMP	ret
 

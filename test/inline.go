@@ -135,8 +135,7 @@ func s1(x int) int { // ERROR "can inline s1"
 	return foo() // ERROR "inlining call to s1.func1"
 }
 
-// can't currently inline functions with a break statement
-func switchBreak(x, y int) int {
+func switchBreak(x, y int) int { // ERROR "can inline switchBreak"
 	var n int
 	switch x {
 	case 0:
@@ -159,6 +158,19 @@ func switchType(x interface{}) int { // ERROR "can inline switchType" "x does no
 	default:
 		return 0
 	}
+}
+
+func inlineRangeIntoMe(data []int) { // ERROR "can inline inlineRangeIntoMe" "data does not escape"
+	rangeFunc(data, 12) // ERROR "inlining call to rangeFunc"
+}
+
+func rangeFunc(xs []int, b int) int { // ERROR "can inline rangeFunc" "xs does not escape"
+	for i, x := range xs {
+		if x == b {
+			return i
+		}
+	}
+	return -1
 }
 
 type T struct{}
@@ -218,8 +230,7 @@ func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
 	}
 }
 
-// BAD: for2 should be inlineable too.
-func for2(fn func() bool) { // ERROR "fn does not escape"
+func for2(fn func() bool) { // ERROR "can inline for2" "fn does not escape"
 Loop:
 	for {
 		if fn() {

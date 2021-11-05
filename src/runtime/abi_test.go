@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build goexperiment.regabireflect
-// +build goexperiment.regabireflect
 
 // This file contains tests specific to making sure the register ABI
 // works in a bunch of contexts in the runtime.

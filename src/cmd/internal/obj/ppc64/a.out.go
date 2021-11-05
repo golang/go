@@ -79,7 +79,43 @@ const (
 	REG_R30
 	REG_R31
 
-	/* F0=4128 ... F31=4159 */
+	// CR bits. Use Book 1, chapter 2 naming for bits. Keep aligned to 32
+	REG_CR0LT
+	REG_CR0GT
+	REG_CR0EQ
+	REG_CR0SO
+	REG_CR1LT
+	REG_CR1GT
+	REG_CR1EQ
+	REG_CR1SO
+	REG_CR2LT
+	REG_CR2GT
+	REG_CR2EQ
+	REG_CR2SO
+	REG_CR3LT
+	REG_CR3GT
+	REG_CR3EQ
+	REG_CR3SO
+	REG_CR4LT
+	REG_CR4GT
+	REG_CR4EQ
+	REG_CR4SO
+	REG_CR5LT
+	REG_CR5GT
+	REG_CR5EQ
+	REG_CR5SO
+	REG_CR6LT
+	REG_CR6GT
+	REG_CR6EQ
+	REG_CR6SO
+	REG_CR7LT
+	REG_CR7GT
+	REG_CR7EQ
+	REG_CR7SO
+
+	/* Align FPR and VSR vectors such that when masked with 0x3F they produce
+	   an equivalent VSX register. */
+	/* F0=4160 ... F31=4191 */
 	REG_F0
 	REG_F1
 	REG_F2
@@ -113,7 +149,7 @@ const (
 	REG_F30
 	REG_F31
 
-	/* V0=4160 ... V31=4191 */
+	/* V0=4192 ... V31=4223 */
 	REG_V0
 	REG_V1
 	REG_V2
@@ -147,7 +183,7 @@ const (
 	REG_V30
 	REG_V31
 
-	/* VS0=4192 ... VS63=4255 */
+	/* VS0=4224 ... VS63=4287 */
 	REG_VS0
 	REG_VS1
 	REG_VS2
@@ -229,7 +265,6 @@ const (
 	REG_SPECIAL = REG_CR0
 
 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
 
 	REG_XER = REG_SPR0 + 1
 	REG_LR  = REG_SPR0 + 8
@@ -240,8 +275,8 @@ const (
 	REGSB   = REG_R2
 	REGRET  = REG_R3
 	REGARG  = -1      /* -1 disables passing the first argument in register */
-	REGRT1  = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2  = REG_R4  /* reserved for runtime, duffcopy */
+	REGRT1  = REG_R20 /* reserved for runtime, duffzero and duffcopy */
+	REGRT2  = REG_R21 /* reserved for runtime, duffcopy */
 	REGMIN  = REG_R7  /* register variables allocated from here to REGMAX */
 	REGCTXT = REG_R11 /* context for closures */
 	REGTLS  = REG_R13 /* C ABI TLS base pointer */
@@ -294,16 +329,17 @@ const (
 
 const (
 	/* mark flags */
-	LABEL   = 1 << 0
-	LEAF    = 1 << 1
-	FLOAT   = 1 << 2
-	BRANCH  = 1 << 3
-	LOAD    = 1 << 4
-	FCMP    = 1 << 5
-	SYNC    = 1 << 6
-	LIST    = 1 << 7
-	FOLL    = 1 << 8
-	NOSCHED = 1 << 9
+	LABEL    = 1 << 0
+	LEAF     = 1 << 1
+	FLOAT    = 1 << 2
+	BRANCH   = 1 << 3
+	LOAD     = 1 << 4
+	FCMP     = 1 << 5
+	SYNC     = 1 << 6
+	LIST     = 1 << 7
+	FOLL     = 1 << 8
+	NOSCHED  = 1 << 9
+	PFX_X64B = 1 << 10 // A prefixed instruction crossing a 64B boundary
 )
 
 // Values for use in branch instruction BC
@@ -329,18 +365,13 @@ const (
 	BI_OVF = 3
 )
 
-// Values for the BO field.  Add the branch type to
-// the likely bits, if a likely setting is known.
-// If branch likely or unlikely is not known, don't set it.
-// e.g. branch on cr+likely = 15
+// Common values for the BO field.
 
 const (
-	BO_BCTR     = 16 // branch on ctr value
-	BO_BCR      = 12 // branch on cr value
-	BO_BCRBCTR  = 8  // branch on ctr and cr value
-	BO_NOTBCR   = 4  // branch on not cr value
-	BO_UNLIKELY = 2  // value for unlikely
-	BO_LIKELY   = 3  // value for likely
+	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+	BO_BCR     = 12 // branch on cr value
+	BO_BCRBCTR = 8  // decrement ctr, branch on ctr != 0 and cr value
+	BO_NOTBCR  = 4  // branch on not cr value
 )
 
 // Bit settings from the CR
@@ -353,41 +384,65 @@ const (
 )
 
 const (
-	C_NONE = iota
-	C_REG
-	C_FREG
-	C_VREG
-	C_VSREG
-	C_CREG
-	C_SPR /* special processor register */
-	C_ZCON
-	C_SCON   /* 16 bit signed */
-	C_UCON   /* 32 bit signed, low 16 bits 0 */
-	C_ADDCON /* -0x8000 <= v < 0 */
-	C_ANDCON /* 0 < v <= 0xFFFF */
-	C_LCON   /* other 32 */
-	C_DCON   /* other 64 (could subdivide further) */
-	C_SACON  /* $n(REG) where n <= int16 */
-	C_LACON  /* $n(REG) where int16 < n <= int32 */
-	C_DACON  /* $n(REG) where int32 < n */
-	C_SBRA
-	C_LBRA
-	C_LBRAPIC
-	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
-	C_SOREG // D/DS form memory operation
-	C_LOREG // 32 bit addis + D/DS-form memory operation
-	C_FPSCR
-	C_XER
-	C_LR
-	C_CTR
-	C_ANY
-	C_GOK
-	C_ADDR
-	C_TLS_LE
-	C_TLS_IE
-	C_TEXTSIZE
+	C_NONE     = iota
+	C_REGP     /* An even numbered gpr which can be used a gpr pair argument */
+	C_REG      /* Any gpr register */
+	C_FREGP    /* An even numbered fpr which can be used a fpr pair argument */
+	C_FREG     /* Any fpr register */
+	C_VREG     /* Any vector register */
+	C_VSREGP   /* An even numbered vsx register which can be used as a vsx register pair argument */
+	C_VSREG    /* Any vector-scalar register */
+	C_CREG     /* The condition registor (CR) */
+	C_CRBIT    /* A single bit of the CR register (0-31) */
+	C_SPR      /* special processor register */
+	C_ZCON     /* The constant zero */
+	C_U1CON    /* 1 bit unsigned constant */
+	C_U2CON    /* 2 bit unsigned constant */
+	C_U3CON    /* 3 bit unsigned constant */
+	C_U4CON    /* 4 bit unsigned constant */
+	C_U5CON    /* 5 bit unsigned constant */
+	C_U8CON    /* 8 bit unsigned constant */
+	C_U15CON   /* 15 bit unsigned constant */
+	C_S16CON   /* 16 bit signed constant */
+	C_U16CON   /* 16 bit unsigned constant */
+	C_32S16CON /* Any 32 bit constant of the form 0x....0000, signed or unsigned */
+	C_32CON    /* Any constant which fits into 32 bits. Can be signed or unsigned */
+	C_S34CON   /* 34 bit signed constant */
+	C_64CON    /* Any constant which fits into 64 bits. Can be signed or unsigned */
+	C_SACON    /* $n(REG) where n <= int16 */
+	C_LACON    /* $n(REG) where n <= int32 */
+	C_DACON    /* $n(REG) where n <= int64 */
+	C_SBRA     /* A short offset argument to a branching instruction */
+	C_LBRA     /* A long offset argument to a branching instruction */
+	C_LBRAPIC  /* Like C_LBRA, but requires an extra NOP for potential TOC restore by the linker. */
+	C_ZOREG    /* An reg+reg memory arg, or a $0+reg memory op */
+	C_SOREG    /* An $n+reg memory arg where n is a 16 bit signed offset */
+	C_LOREG    /* An $n+reg memory arg where n is a 32 bit signed offset */
+	C_FPSCR    /* The fpscr register */
+	C_XER      /* The xer, holds the carry bit */
+	C_LR       /* The link register */
+	C_CTR      /* The count register */
+	C_ANY      /* Any argument */
+	C_GOK      /* A non-matched argument */
+	C_ADDR     /* A symbolic memory location */
+	C_TLS_LE   /* A thread local, local-exec, type memory arg */
+	C_TLS_IE   /* A thread local, initial-exec, type memory arg */
+	C_TEXTSIZE /* An argument with Type obj.TYPE_TEXTSIZE */
 
 	C_NCLASS /* must be the last */
+
+	/* Aliased names which should be cleaned up, or integrated. */
+	C_SCON   = C_U15CON
+	C_UCON   = C_32S16CON
+	C_ADDCON = C_S16CON
+	C_ANDCON = C_U16CON
+	C_LCON   = C_32CON
+
+	/* Aliased names which may be generated by ppc64map for the optab. */
+	C_S3216CON = C_32S16CON // TODO: these should be treated differently (e.g xoris vs addis)
+	C_U3216CON = C_32S16CON
+	C_S32CON   = C_32CON
+	C_U32CON   = C_32CON
 )
 
 const (
@@ -1016,6 +1071,9 @@ const (
 	AXVCVSXWSP
 	AXVCVUXDSP
 	AXVCVUXWSP
+
+	/* ISA 3.1 opcodes */
+	APNOP
 
 	ALAST
 

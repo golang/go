@@ -203,7 +203,7 @@ var DefaultServer = NewServer()
 
 // Is this type exported or a builtin?
 func isExportedOrBuiltinType(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	// PkgPath will be non-empty even for an exported type,
@@ -231,6 +231,10 @@ func (server *Server) RegisterName(name string, rcvr interface{}) error {
 	return server.register(rcvr, name, true)
 }
 
+// logRegisterError specifies whether to log problems during method registration.
+// To debug registration, recompile the package with this set to true.
+const logRegisterError = false
+
 func (server *Server) register(rcvr interface{}, name string, useName bool) error {
 	s := new(service)
 	s.typ = reflect.TypeOf(rcvr)
@@ -252,13 +256,13 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 	s.name = sname
 
 	// Install the methods
-	s.method = suitableMethods(s.typ, true)
+	s.method = suitableMethods(s.typ, logRegisterError)
 
 	if len(s.method) == 0 {
 		str := ""
 
 		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(s.typ), false)
+		method := suitableMethods(reflect.PointerTo(s.typ), false)
 		if len(method) != 0 {
 			str = "rpc.Register: type " + sname + " has no exported methods of suitable type (hint: pass a pointer to value of that type)"
 		} else {
@@ -274,9 +278,9 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
 	return nil
 }
 
-// suitableMethods returns suitable Rpc methods of typ, it will report
-// error using log if reportErr is true.
-func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
+// suitableMethods returns suitable Rpc methods of typ. It will log
+// errors if logErr is true.
+func suitableMethods(typ reflect.Type, logErr bool) map[string]*methodType {
 	methods := make(map[string]*methodType)
 	for m := 0; m < typ.NumMethod(); m++ {
 		method := typ.Method(m)
@@ -288,7 +292,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		if mtype.NumIn() != 3 {
-			if reportErr {
+			if logErr {
 				log.Printf("rpc.Register: method %q has %d input parameters; needs exactly three\n", mname, mtype.NumIn())
 			}
 			continue
@@ -296,36 +300,36 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
 		// First arg need not be a pointer.
 		argType := mtype.In(1)
 		if !isExportedOrBuiltinType(argType) {
-			if reportErr {
+			if logErr {
 				log.Printf("rpc.Register: argument type of method %q is not exported: %q\n", mname, argType)
 			}
 			continue
 		}
 		// Second arg must be a pointer.
 		replyType := mtype.In(2)
-		if replyType.Kind() != reflect.Ptr {
-			if reportErr {
+		if replyType.Kind() != reflect.Pointer {
+			if logErr {
 				log.Printf("rpc.Register: reply type of method %q is not a pointer: %q\n", mname, replyType)
 			}
 			continue
 		}
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			if reportErr {
+			if logErr {
 				log.Printf("rpc.Register: reply type of method %q is not exported: %q\n", mname, replyType)
 			}
 			continue
 		}
 		// Method needs one out.
 		if mtype.NumOut() != 1 {
-			if reportErr {
+			if logErr {
 				log.Printf("rpc.Register: method %q has %d output parameters; needs exactly one\n", mname, mtype.NumOut())
 			}
 			continue
 		}
 		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
-			if reportErr {
+			if logErr {
 				log.Printf("rpc.Register: return type of method %q is %q, must be error\n", mname, returnType)
 			}
 			continue
@@ -552,7 +556,7 @@ func (server *Server) readRequest(codec ServerCodec) (service *service, mtype *m
 
 	// Decode the argument value.
 	argIsValue := false // if true, need to indirect before calling.
-	if mtype.ArgType.Kind() == reflect.Ptr {
+	if mtype.ArgType.Kind() == reflect.Pointer {
 		argv = reflect.New(mtype.ArgType.Elem())
 	} else {
 		argv = reflect.New(mtype.ArgType)

@@ -2,12 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin && go1.12
+// +build darwin,go1.12
+
 package ld
 
 import (
 	"syscall"
 	"unsafe"
 )
+
+// Implemented in the syscall package.
+//go:linkname fcntl syscall.fcntl
+func fcntl(fd int, cmd int, arg int) (int, error)
 
 func (out *OutBuf) fallocate(size uint64) error {
 	stat, err := out.f.Stat()
@@ -29,12 +36,8 @@ func (out *OutBuf) fallocate(size uint64) error {
 		Length:  int64(size - cursize),
 	}
 
-	_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))
-	if errno != 0 {
-		return errno
-	}
-
-	return nil
+	_, err = fcntl(int(out.f.Fd()), syscall.F_PREALLOCATE, int(uintptr(unsafe.Pointer(store))))
+	return err
 }
 
 func (out *OutBuf) purgeSignatureCache() {

@@ -277,7 +277,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 		return false
 	}
 
-	return n.Type().Elem().Width == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Width
+	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
 }
 
 func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
@@ -440,8 +440,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
 		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
 
-		tk.SetNoalg(true)
-		te.SetNoalg(true)
+		// TODO(#47904): mark tk and te NoAlg here once the
+		// compiler/linker can handle NoAlg types correctly.
 
 		types.CalcSize(tk)
 		types.CalcSize(te)
@@ -482,7 +482,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
 		loop.Body = []ir.Node{body}
-		*loop.PtrInit() = []ir.Node{zero}
+		loop.SetInit([]ir.Node{zero})
 
 		appendWalkStmt(init, loop)
 		return
@@ -650,7 +650,7 @@ func genAsStatic(as *ir.AssignStmt) {
 
 	switch r := as.Y; r.Op() {
 	case ir.OLITERAL:
-		staticdata.InitConst(name, offset, r, int(r.Type().Width))
+		staticdata.InitConst(name, offset, r, int(r.Type().Size()))
 		return
 	case ir.OMETHEXPR:
 		r := r.(*ir.SelectorExpr)

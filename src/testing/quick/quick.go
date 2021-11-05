@@ -113,7 +113,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 			}
 			v.SetMapIndex(key, value)
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rand.Intn(size) == 0 {
 			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
 		} else {

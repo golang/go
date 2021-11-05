@@ -79,11 +79,11 @@ func issue9473(a []int, b ...int) {
 // Check that embedding a non-interface type in an interface results in a good error message.
 func issue10979() {
 	type _ interface {
-		int /* ERROR int is not an interface */
+		int /* ERROR non-interface type int */
 	}
 	type T struct{}
 	type _ interface {
-		T /* ERROR T is not an interface */
+		T /* ERROR non-interface type T */
 	}
 	type _ interface {
 		nosuchtype /* ERROR undeclared name: nosuchtype */
@@ -132,12 +132,12 @@ func issue10260() {
 
 	var x I1
 	x = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
-	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
+	_ = x. /* ERROR impossible type assertion: x.\(T1\)\n\tT1 does not implement I1 \(foo method has pointer receiver\) */ (T1)
 
 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
 	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
 
-	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
+	_ = i2. /* ERROR impossible type assertion: i2.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo: have func\(\), want func\(x int\)\) */ (*T1)
 
 	i1 = i0 /* ERROR cannot use .* missing method foo */
 	i1 = t0 /* ERROR cannot use .* missing method foo */
@@ -280,7 +280,7 @@ type issue25301b /* ERROR cycle */ = interface {
 }
 
 type issue25301c interface {
-	notE // ERROR struct\{\} is not an interface
+	notE // ERROR non-interface type struct\{\}
 }
 
 type notE = struct{}

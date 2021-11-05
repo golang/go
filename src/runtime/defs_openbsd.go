@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo.
@@ -26,6 +25,7 @@ package runtime
 #include <sys/signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 */
 import "C"

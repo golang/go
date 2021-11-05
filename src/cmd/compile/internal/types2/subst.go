@@ -6,20 +6,17 @@
 
 package types2
 
-import (
-	"bytes"
-	"cmd/compile/internal/syntax"
-)
+import "cmd/compile/internal/syntax"
 
 type substMap map[*TypeParam]Type
 
 // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
 // If targs[i] is nil, tpars[i] is not substituted.
-func makeSubstMap(tpars []*TypeName, targs []Type) substMap {
+func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(substMap, len(tpars))
 	for i, tpar := range tpars {
-		proj[tpar.typ.(*TypeParam)] = targs[i]
+		proj[tpar] = targs[i]
 	}
 	return proj
 }
@@ -35,14 +32,13 @@ func (m substMap) lookup(tpar *TypeParam) Type {
 	return tpar
 }
 
-// subst returns the type typ with its type parameters tpars replaced by
-// the corresponding type arguments targs, recursively.
-// subst is functional in the sense that it doesn't modify the incoming
-// type. If a substitution took place, the result type is different from
+// subst returns the type typ with its type parameters tpars replaced by the
+// corresponding type arguments targs, recursively. subst doesn't modify the
+// incoming type. If a substitution took place, the result type is different
 // from the incoming type.
 //
-// If the given typMap is nil and check is non-nil, check.typMap is used.
-func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
+// If the given context is non-nil, it is used in lieu of check.Config.Context.
+func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, ctxt *Context) Type {
 	if smap.empty() {
 		return typ
 	}
@@ -56,33 +52,20 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, typMap map[
 	}
 
 	// general case
-	var subst subster
-	subst.pos = pos
-	subst.smap = smap
-
-	if check != nil {
-		subst.check = check
-		if typMap == nil {
-			typMap = check.typMap
-		}
+	subst := subster{
+		pos:   pos,
+		smap:  smap,
+		check: check,
+		ctxt:  check.bestContext(ctxt),
 	}
-	if typMap == nil {
-		// If we don't have a *Checker and its global type map,
-		// use a local version. Besides avoiding duplicate work,
-		// the type map prevents infinite recursive substitution
-		// for recursive types (example: type T[P any] *T[P]).
-		typMap = make(map[string]*Named)
-	}
-	subst.typMap = typMap
-
 	return subst.typ(typ)
 }
 
 type subster struct {
-	pos    syntax.Pos
-	smap   substMap
-	check  *Checker // nil if called via Instantiate
-	typMap map[string]*Named
+	pos   syntax.Pos
+	smap  substMap
+	check *Checker // nil if called via Instantiate
+	ctxt  *Context
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -91,7 +74,7 @@ func (subst *subster) typ(typ Type) Type {
 		// Call typOrNil if it's possible that typ is nil.
 		panic("nil typ")
 
-	case *Basic, *top:
+	case *Basic:
 		// nothing to do
 
 	case *Array:
@@ -129,8 +112,7 @@ func (subst *subster) typ(typ Type) Type {
 		if recv != t.recv || params != t.params || results != t.results {
 			return &Signature{
 				rparams: t.rparams,
-				// TODO(gri) Why can't we nil out tparams here, rather than in
-				//           instantiate above?
+				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
 				tparams:  t.tparams,
 				scope:    t.scope,
 				recv:     recv,
@@ -183,27 +165,35 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if t.TParams().Len() == 0 {
+		// subst is called by expandNamed, so in this function we need to be
+		// careful not to call any methods that would cause t to be expanded: doing
+		// so would result in deadlock.
+		//
+		// So we call t.orig.TypeParams() rather than t.TypeParams() here and
+		// below.
+		if t.orig.TypeParams().Len() == 0 {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
 
 		var newTArgs []Type
-		assert(len(t.targs) == t.TParams().Len())
+		if t.targs.Len() != t.orig.TypeParams().Len() {
+			return Typ[Invalid] // error reported elsewhere
+		}
 
 		// already instantiated
 		dump(">>> %s already instantiated", t)
 		// For each (existing) type argument targ, determine if it needs
 		// to be substituted; i.e., if it is or contains a type parameter
 		// that has a type argument for it.
-		for i, targ := range t.targs {
+		for i, targ := range t.targs.list() {
 			dump(">>> %d targ = %s", i, targ)
 			new_targ := subst.typ(targ)
 			if new_targ != targ {
 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 				if newTArgs == nil {
-					newTArgs = make([]Type, t.TParams().Len())
-					copy(newTArgs, t.targs)
+					newTArgs = make([]Type, t.orig.TypeParams().Len())
+					copy(newTArgs, t.targs.list())
 				}
 				newTArgs[i] = new_targ
 			}
@@ -215,29 +205,25 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// before creating a new named type, check if we have this one already
-		h := instantiatedHash(t, newTArgs)
+		h := subst.ctxt.TypeHash(t.orig, newTArgs)
 		dump(">>> new type hash: %s", h)
-		if named, found := subst.typMap[h]; found {
+		if named := subst.ctxt.typeForHash(h, nil); named != nil {
 			dump(">>> found %s", named)
 			return named
 		}
 
-		// create a new named type and populate typMap to avoid endless recursion
-		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		t.load()
-		named := subst.check.newNamed(tname, t.orig, t.underlying, t.TParams(), t.methods) // method signatures are updated lazily
-		named.targs = newTArgs
-		subst.typMap[h] = named
-		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
+		// Create a new instance and populate the context to avoid endless
+		// recursion. The position used here is irrelevant because validation only
+		// occurs on t (we don't call validType on named), but we use subst.pos to
+		// help with debugging.
+		t.orig.resolve(subst.ctxt)
+		return subst.check.instance(subst.pos, t.orig, newTArgs, subst.ctxt)
 
-		// do the substitution
-		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTArgs)
-		named.underlying = subst.typOrNil(t.underlying)
-		dump(">>> underlying: %v", named.underlying)
-		assert(named.underlying != nil)
-		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
-
-		return named
+		// Note that if we were to expose substitution more generally (not just in
+		// the context of a declaration), we'd have to substitute in
+		// named.underlying as well.
+		//
+		// But this is unnecessary for now.
 
 	case *TypeParam:
 		return subst.smap.lookup(t)
@@ -247,40 +233,6 @@ func (subst *subster) typ(typ Type) Type {
 	}
 
 	return typ
-}
-
-var instanceHashing = 0
-
-func instantiatedHash(typ *Named, targs []Type) string {
-	assert(instanceHashing == 0)
-	instanceHashing++
-	var buf bytes.Buffer
-	writeTypeName(&buf, typ.obj, nil)
-	buf.WriteByte('[')
-	writeTypeList(&buf, targs, nil, nil)
-	buf.WriteByte(']')
-	instanceHashing--
-
-	// With respect to the represented type, whether a
-	// type is fully expanded or stored as instance
-	// does not matter - they are the same types.
-	// Remove the instanceMarkers printed for instances.
-	res := buf.Bytes()
-	i := 0
-	for _, b := range res {
-		if b != instanceMarker {
-			res[i] = b
-			i++
-		}
-	}
-
-	return string(res[:i])
-}
-
-func typeListString(list []Type) string {
-	var buf bytes.Buffer
-	writeTypeList(&buf, list, nil, nil)
-	return buf.String()
 }
 
 // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].

@@ -102,56 +102,59 @@ func (c *mcentral) cacheSpan() *mspan {
 	spanBudget := 100
 
 	var s *mspan
-	sl := newSweepLocker()
-	sg := sl.sweepGen
+	var sl sweepLocker
 
 	// Try partial swept spans first.
+	sg := mheap_.sweepgen
 	if s = c.partialSwept(sg).pop(); s != nil {
 		goto havespan
 	}
 
-	// Now try partial unswept spans.
-	for ; spanBudget >= 0; spanBudget-- {
-		s = c.partialUnswept(sg).pop()
-		if s == nil {
-			break
-		}
-		if s, ok := sl.tryAcquire(s); ok {
-			// We got ownership of the span, so let's sweep it and use it.
-			s.sweep(true)
-			sl.dispose()
-			goto havespan
-		}
-		// We failed to get ownership of the span, which means it's being or
-		// has been swept by an asynchronous sweeper that just couldn't remove it
-		// from the unswept list. That sweeper took ownership of the span and
-		// responsibility for either freeing it to the heap or putting it on the
-		// right swept list. Either way, we should just ignore it (and it's unsafe
-		// for us to do anything else).
-	}
-	// Now try full unswept spans, sweeping them and putting them into the
-	// right list if we fail to get a span.
-	for ; spanBudget >= 0; spanBudget-- {
-		s = c.fullUnswept(sg).pop()
-		if s == nil {
-			break
-		}
-		if s, ok := sl.tryAcquire(s); ok {
-			// We got ownership of the span, so let's sweep it.
-			s.sweep(true)
-			// Check if there's any free space.
-			freeIndex := s.nextFreeIndex()
-			if freeIndex != s.nelems {
-				s.freeindex = freeIndex
-				sl.dispose()
+	sl = sweep.active.begin()
+	if sl.valid {
+		// Now try partial unswept spans.
+		for ; spanBudget >= 0; spanBudget-- {
+			s = c.partialUnswept(sg).pop()
+			if s == nil {
+				break
+			}
+			if s, ok := sl.tryAcquire(s); ok {
+				// We got ownership of the span, so let's sweep it and use it.
+				s.sweep(true)
+				sweep.active.end(sl)
 				goto havespan
 			}
-			// Add it to the swept list, because sweeping didn't give us any free space.
-			c.fullSwept(sg).push(s.mspan)
+			// We failed to get ownership of the span, which means it's being or
+			// has been swept by an asynchronous sweeper that just couldn't remove it
+			// from the unswept list. That sweeper took ownership of the span and
+			// responsibility for either freeing it to the heap or putting it on the
+			// right swept list. Either way, we should just ignore it (and it's unsafe
+			// for us to do anything else).
 		}
-		// See comment for partial unswept spans.
+		// Now try full unswept spans, sweeping them and putting them into the
+		// right list if we fail to get a span.
+		for ; spanBudget >= 0; spanBudget-- {
+			s = c.fullUnswept(sg).pop()
+			if s == nil {
+				break
+			}
+			if s, ok := sl.tryAcquire(s); ok {
+				// We got ownership of the span, so let's sweep it.
+				s.sweep(true)
+				// Check if there's any free space.
+				freeIndex := s.nextFreeIndex()
+				if freeIndex != s.nelems {
+					s.freeindex = freeIndex
+					sweep.active.end(sl)
+					goto havespan
+				}
+				// Add it to the swept list, because sweeping didn't give us any free space.
+				c.fullSwept(sg).push(s.mspan)
+			}
+			// See comment for partial unswept spans.
+		}
+		sweep.active.end(sl)
 	}
-	sl.dispose()
 	if trace.enabled {
 		traceGCSweepDone()
 		traceDone = true
@@ -238,7 +241,7 @@ func (c *mcentral) grow() *mspan {
 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
 
-	s, _ := mheap_.alloc(npages, c.spanclass, true)
+	s := mheap_.alloc(npages, c.spanclass)
 	if s == nil {
 		return nil
 	}

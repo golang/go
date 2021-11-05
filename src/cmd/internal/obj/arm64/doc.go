@@ -96,6 +96,19 @@ And for a 128-bit interger, it take two 64-bit operands, for the high and low pa
     VMOVD $0x1122334455667788, V1
     VMOVQ $0x1122334455667788, $8877665544332211, V2   // V2=0x11223344556677888877665544332211
 
+8. Move an optionally-shifted 16-bit immediate value to a register.
+
+The instructions are MOVK(W), MOVZ(W) and MOVN(W), the assembly syntax is "op $(uimm16<<shift), <Rd>". The <uimm16>
+is the 16-bit unsigned immediate, in the range 0 to 65535; For the 32-bit variant, the <shift> is 0 or 16, for the
+64-bit variant, the <shift> is 0, 16, 32 or 48.
+
+The current Go assembler does not accept zero shifts, such as "op $0, Rd" and "op $(0<<(16|32|48)), Rd" instructions.
+
+  Examples:
+    MOVK $(10<<32), R20     <=>      movk x20, #10, lsl #32
+    MOVZW $(20<<16), R8     <=>      movz w8, #20, lsl #16
+    MOVK $(0<<16), R10 will be reported as an error by the assembler.
+
 Special Cases.
 
 (1) umov is written as VMOV.

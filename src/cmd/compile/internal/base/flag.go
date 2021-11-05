@@ -64,19 +64,19 @@ type CmdFlags struct {
 	// V is added by objabi.AddVersionFlag
 	W CountFlag "help:\"debug parse tree after type checking\""
 
-	LowerC int          "help:\"concurrency during compilation (1 means no concurrency)\""
-	LowerD func(string) "help:\"enable debugging settings; try -d help\""
-	LowerE CountFlag    "help:\"no limit on number of errors reported\""
-	LowerH CountFlag    "help:\"halt on error\""
-	LowerJ CountFlag    "help:\"debug runtime-initialized variables\""
-	LowerL CountFlag    "help:\"disable inlining\""
-	LowerM CountFlag    "help:\"print optimization decisions\""
-	LowerO string       "help:\"write output to `file`\""
-	LowerP *string      "help:\"set expected package import `path`\"" // &Ctxt.Pkgpath, set below
-	LowerR CountFlag    "help:\"debug generated wrappers\""
-	LowerT bool         "help:\"enable tracing for debugging the compiler\""
-	LowerW CountFlag    "help:\"debug type checking\""
-	LowerV *bool        "help:\"increase debug verbosity\""
+	LowerC int        "help:\"concurrency during compilation (1 means no concurrency)\""
+	LowerD flag.Value "help:\"enable debugging settings; try -d help\""
+	LowerE CountFlag  "help:\"no limit on number of errors reported\""
+	LowerH CountFlag  "help:\"halt on error\""
+	LowerJ CountFlag  "help:\"debug runtime-initialized variables\""
+	LowerL CountFlag  "help:\"disable inlining\""
+	LowerM CountFlag  "help:\"print optimization decisions\""
+	LowerO string     "help:\"write output to `file`\""
+	LowerP *string    "help:\"set expected package import `path`\"" // &Ctxt.Pkgpath, set below
+	LowerR CountFlag  "help:\"debug generated wrappers\""
+	LowerT bool       "help:\"enable tracing for debugging the compiler\""
+	LowerW CountFlag  "help:\"debug type checking\""
+	LowerV *bool      "help:\"increase debug verbosity\""
 
 	// Special characters
 	Percent          int  "flag:\"%\" help:\"debug non-static initializers\""
@@ -84,6 +84,7 @@ type CmdFlags struct {
 
 	// Longer names
 	AsmHdr             string       "help:\"write assembly header to `file`\""
+	ASan               bool         "help:\"build code compatible with C/C++ address sanitizer\""
 	Bench              string       "help:\"append benchmark times to `file`\""
 	BlockProfile       string       "help:\"write block profile to `file`\""
 	BuildID            string       "help:\"record `id` as the build id in the export metadata\""
@@ -108,7 +109,7 @@ type CmdFlags struct {
 	Live               CountFlag    "help:\"debug liveness analysis\""
 	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
 	MemProfile         string       "help:\"write memory profile to `file`\""
-	MemProfileRate     int64        "help:\"set runtime.MemProfileRate to `rate`\""
+	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
 	MutexProfile       string       "help:\"write mutex profile to `file`\""
 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
@@ -140,10 +141,11 @@ type CmdFlags struct {
 
 // ParseFlags parses the command-line flags into Flag.
 func ParseFlags() {
+	Flag.G = 3
 	Flag.I = addImportDir
 
 	Flag.LowerC = 1
-	Flag.LowerD = parseDebug
+	Flag.LowerD = objabi.NewDebugFlag(&Debug, DebugSSA)
 	Flag.LowerP = &Ctxt.Pkgpath
 	Flag.LowerV = &Ctxt.Debugvlog
 
@@ -176,6 +178,9 @@ func ParseFlags() {
 	if Flag.MSan && !sys.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
 	}
+	if Flag.ASan && !sys.ASanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+		log.Fatalf("%s/%s does not support -asan", buildcfg.GOOS, buildcfg.GOARCH)
+	}
 	if Flag.Race && !sys.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
 		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
 	}
@@ -187,6 +192,7 @@ func ParseFlags() {
 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
 	Ctxt.Flag_optimize = Flag.N == 0
 	Ctxt.Debugasm = int(Flag.S)
+	Ctxt.Flag_maymorestack = Debug.MayMoreStack
 
 	if flag.NArg() < 1 {
 		usage()
@@ -216,12 +222,16 @@ func ParseFlags() {
 		}
 		Flag.LowerO = p + suffix
 	}
-
-	if Flag.Race && Flag.MSan {
+	switch {
+	case Flag.Race && Flag.MSan:
 		log.Fatal("cannot use both -race and -msan")
+	case Flag.Race && Flag.ASan:
+		log.Fatal("cannot use both -race and -asan")
+	case Flag.MSan && Flag.ASan:
+		log.Fatal("cannot use both -msan and -asan")
 	}
-	if Flag.Race || Flag.MSan {
-		// -race and -msan imply -d=checkptr for now.
+	if Flag.Race || Flag.MSan || Flag.ASan {
+		// -race, -msan and -asan imply -d=checkptr for now.
 		if Debug.Checkptr == -1 { // if not set explicitly
 			Debug.Checkptr = 1
 		}
@@ -321,6 +331,12 @@ func registerFlags() {
 		case funcType:
 			f := v.Field(i).Interface().(func(string))
 			objabi.Flagfn1(name, help, f)
+		default:
+			if val, ok := v.Field(i).Interface().(flag.Value); ok {
+				flag.Var(val, name, help)
+			} else {
+				panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
+			}
 		}
 	}
 }
@@ -348,7 +364,7 @@ func concurrentBackendAllowed() bool {
 	// while writing the object file, and that is non-concurrent.
 	// Adding Debug_vlog, however, causes Debug.S to also print
 	// while flushing the plist, which happens concurrently.
-	if Ctxt.Debugvlog || Debug.Any() || Flag.Live > 0 {
+	if Ctxt.Debugvlog || Debug.Any || Flag.Live > 0 {
 		return false
 	}
 	// TODO: Test and delete this condition.
@@ -356,7 +372,7 @@ func concurrentBackendAllowed() bool {
 		return false
 	}
 	// TODO: fix races and enable the following flags
-	if Ctxt.Flag_shared || Ctxt.Flag_dynlink || Flag.Race {
+	if Ctxt.Flag_dynlink || Flag.Race {
 		return false
 	}
 	return true

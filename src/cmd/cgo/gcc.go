@@ -23,10 +23,13 @@ import (
 	"internal/xcoff"
 	"math"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"cmd/internal/quoted"
 )
 
 var debugDefine = flag.Bool("debug-define", false, "print relevant #defines")
@@ -382,7 +385,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		stderr = p.gccErrors(b.Bytes())
 	}
 	if stderr == "" {
-		fatalf("%s produced no output\non input:\n%s", p.gccBaseCmd()[0], b.Bytes())
+		fatalf("%s produced no output\non input:\n%s", gccBaseCmd[0], b.Bytes())
 	}
 
 	completed := false
@@ -457,7 +460,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 	}
 
 	if !completed {
-		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", p.gccBaseCmd()[0], b.Bytes(), stderr)
+		fatalf("%s did not produce error at completed:1\non input:\n%s\nfull error output:\n%s", gccBaseCmd[0], b.Bytes(), stderr)
 	}
 
 	for i, n := range names {
@@ -488,7 +491,7 @@ func (p *Package) guessKinds(f *File) []*Name {
 		// to users debugging preamble mistakes. See issue 8442.
 		preambleErrors := p.gccErrors([]byte(f.Preamble))
 		if len(preambleErrors) > 0 {
-			error_(token.NoPos, "\n%s errors for preamble:\n%s", p.gccBaseCmd()[0], preambleErrors)
+			error_(token.NoPos, "\n%s errors for preamble:\n%s", gccBaseCmd[0], preambleErrors)
 		}
 
 		fatalf("unresolved names")
@@ -1503,7 +1506,7 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
 				Args: []ast.Expr{getNewIdent(name.Mangle)},
 			}
 		case "type":
-			// Okay - might be new(T)
+			// Okay - might be new(T), T(x), Generic[T], etc.
 			if r.Name.Type == nil {
 				error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
 			}
@@ -1545,20 +1548,37 @@ func gofmtPos(n ast.Expr, pos token.Pos) string {
 	return fmt.Sprintf("/*line :%d:%d*/%s", p.Line, p.Column, s)
 }
 
-// gccBaseCmd returns the start of the compiler command line.
+// checkGCCBaseCmd returns the start of the compiler command line.
 // It uses $CC if set, or else $GCC, or else the compiler recorded
 // during the initial build as defaultCC.
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
-func (p *Package) gccBaseCmd() []string {
+//
+// The compiler command line is split into arguments on whitespace. Quotes
+// are understood, so arguments may contain whitespace.
+//
+// checkGCCBaseCmd confirms that the compiler exists in PATH, returning
+// an error if it does not.
+func checkGCCBaseCmd() ([]string, error) {
 	// Use $CC if set, since that's what the build uses.
-	if ret := strings.Fields(os.Getenv("CC")); len(ret) > 0 {
-		return ret
+	value := os.Getenv("CC")
+	if value == "" {
+		// Try $GCC if set, since that's what we used to use.
+		value = os.Getenv("GCC")
 	}
-	// Try $GCC if set, since that's what we used to use.
-	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
-		return ret
+	if value == "" {
+		value = defaultCC(goos, goarch)
 	}
-	return strings.Fields(defaultCC(goos, goarch))
+	args, err := quoted.Split(value)
+	if err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		return nil, errors.New("CC not set and no default found")
+	}
+	if _, err := exec.LookPath(args[0]); err != nil {
+		return nil, fmt.Errorf("C compiler %q not found: %v", args[0], err)
+	}
+	return args[:len(args):len(args)], nil
 }
 
 // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
@@ -1604,7 +1624,7 @@ func gccTmp() string {
 // gccCmd returns the gcc command line to use for compiling
 // the input.
 func (p *Package) gccCmd() []string {
-	c := append(p.gccBaseCmd(),
+	c := append(gccBaseCmd,
 		"-w",          // no warnings
 		"-Wno-error",  // warnings are not errors
 		"-o"+gccTmp(), // write object to tmp
@@ -2005,7 +2025,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
 // #defines that gcc encountered while processing the input
 // and its included files.
 func (p *Package) gccDefines(stdin []byte) string {
-	base := append(p.gccBaseCmd(), "-E", "-dM", "-xc")
+	base := append(gccBaseCmd, "-E", "-dM", "-xc")
 	base = append(base, p.gccMachine()...)
 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
 	return stdout
@@ -2086,6 +2106,9 @@ type typeConv struct {
 	// Type names X for which there exists an XGetTypeID function with type func() CFTypeID.
 	getTypeIDs map[string]bool
 
+	// badStructs contains C structs that should be marked NotInHeap.
+	notInHeapStructs map[string]bool
+
 	// Predeclared types.
 	bool                                   ast.Expr
 	byte                                   ast.Expr // denotes padding
@@ -2097,6 +2120,7 @@ type typeConv struct {
 	string                                 ast.Expr
 	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
 	goVoidPtr                              ast.Expr // unsafe.Pointer or *byte
+	goVoidPtrNoHeap                        ast.Expr // *_Ctype_void_notinheap, like goVoidPtr but marked NotInHeap
 
 	ptrSize int64
 	intSize int64
@@ -2120,6 +2144,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.m = make(map[string]*Type)
 	c.ptrs = make(map[string][]*Type)
 	c.getTypeIDs = make(map[string]bool)
+	c.notInHeapStructs = make(map[string]bool)
 	c.bool = c.Ident("bool")
 	c.byte = c.Ident("byte")
 	c.int8 = c.Ident("int8")
@@ -2138,6 +2163,7 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 	c.void = c.Ident("void")
 	c.string = c.Ident("string")
 	c.goVoid = c.Ident("_Ctype_void")
+	c.goVoidPtrNoHeap = c.Ident("*_Ctype_void_notinheap")
 
 	// Normally cgo translates void* to unsafe.Pointer,
 	// but for historical reasons -godefs uses *byte instead.
@@ -2518,6 +2544,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
 			}
 			tt.Go = g
+			tt.NotInHeap = c.notInHeapStructs[tag]
 			typedef[name.Name] = &tt
 		}
 
@@ -2559,6 +2586,30 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			if oldType := typedef[name.Name]; oldType != nil {
 				oldType.Go = sub.Go
 				oldType.BadPointer = true
+			}
+		}
+		if c.badVoidPointerTypedef(dt) {
+			// Treat this typedef as a pointer to a NotInHeap void.
+			s := *sub
+			s.Go = c.goVoidPtrNoHeap
+			sub = &s
+			// Make sure we update any previously computed type.
+			if oldType := typedef[name.Name]; oldType != nil {
+				oldType.Go = sub.Go
+			}
+		}
+		// Check for non-pointer "struct <tag>{...}; typedef struct <tag> *<name>"
+		// typedefs that should be marked NotInHeap.
+		if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+			if strct, ok := ptr.Type.(*dwarf.StructType); ok {
+				if c.badStructPointerTypedef(dt.Name, strct) {
+					c.notInHeapStructs[strct.StructName] = true
+					// Make sure we update any previously computed type.
+					name := "_Ctype_struct_" + strct.StructName
+					if oldType := typedef[name]; oldType != nil {
+						oldType.NotInHeap = true
+					}
+				}
 			}
 		}
 		t.Go = name
@@ -3010,6 +3061,31 @@ func upper(s string) string {
 // so that all fields are exported.
 func godefsFields(fld []*ast.Field) {
 	prefix := fieldPrefix(fld)
+
+	// Issue 48396: check for duplicate field names.
+	if prefix != "" {
+		names := make(map[string]bool)
+	fldLoop:
+		for _, f := range fld {
+			for _, n := range f.Names {
+				name := n.Name
+				if name == "_" {
+					continue
+				}
+				if name != prefix {
+					name = strings.TrimPrefix(n.Name, prefix)
+				}
+				name = upper(name)
+				if names[name] {
+					// Field name conflict: don't remove prefix.
+					prefix = ""
+					break fldLoop
+				}
+				names[name] = true
+			}
+		}
+	}
+
 	npad := 0
 	for _, f := range fld {
 		for _, n := range f.Names {
@@ -3085,6 +3161,48 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
 		return true
 	}
 	return false
+}
+
+// badVoidPointerTypedef is like badPointerTypeDef, but for "void *" typedefs that should be NotInHeap.
+func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
+	// Match the Windows HANDLE type (#42018).
+	if goos != "windows" || dt.Name != "HANDLE" {
+		return false
+	}
+	// Check that the typedef is "typedef void *<name>".
+	if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
+		if _, ok := ptr.Type.(*dwarf.VoidType); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
+func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
+	// Windows handle types can all potentially contain non-pointers.
+	// badVoidPointerTypedef handles the "void *" HANDLE type, but other
+	// handles are defined as
+	//
+	// struct <name>__{int unused;}; typedef struct <name>__ *name;
+	//
+	// by the DECLARE_HANDLE macro in STRICT mode. The macro is declared in
+	// the Windows ntdef.h header,
+	//
+	// https://github.com/tpn/winsdk-10/blob/master/Include/10.0.16299.0/shared/ntdef.h#L779
+	if goos != "windows" {
+		return false
+	}
+	if len(dt.Field) != 1 {
+		return false
+	}
+	if dt.StructName != name+"__" {
+		return false
+	}
+	if f := dt.Field[0]; f.Name != "unused" || f.Type.Common().Name != "int" {
+		return false
+	}
+	return true
 }
 
 // baseBadPointerTypedef reports whether the base of a chain of typedefs is a bad typedef

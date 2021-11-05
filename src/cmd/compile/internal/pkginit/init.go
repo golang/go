@@ -6,13 +6,61 @@ package pkginit
 
 import (
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/deadcode"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 )
+
+// MakeInit creates a synthetic init function to handle any
+// package-scope initialization statements.
+//
+// TODO(mdempsky): Move into noder, so that the types2-based frontends
+// can use Info.InitOrder instead.
+func MakeInit() {
+	nf := initOrder(typecheck.Target.Decls)
+	if len(nf) == 0 {
+		return
+	}
+
+	// Make a function that contains all the initialization statements.
+	base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
+	initializers := typecheck.Lookup("init")
+	fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+	for _, dcl := range typecheck.InitTodoFunc.Dcl {
+		dcl.Curfn = fn
+	}
+	fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
+	typecheck.InitTodoFunc.Dcl = nil
+
+	// Suppress useless "can inline" diagnostics.
+	// Init functions are only called dynamically.
+	fn.SetInlinabilityChecked(true)
+
+	fn.Body = nf
+	typecheck.FinishFuncBody()
+
+	typecheck.Func(fn)
+	ir.WithFunc(fn, func() {
+		typecheck.Stmts(nf)
+	})
+	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+
+	// Prepend to Inits, so it runs first, before any user-declared init
+	// functions.
+	typecheck.Target.Inits = append([]*ir.Func{fn}, typecheck.Target.Inits...)
+
+	if typecheck.InitTodoFunc.Dcl != nil {
+		// We only generate temps using InitTodoFunc if there
+		// are package-scope initialization statements, so
+		// something's weird if we get here.
+		base.Fatalf("InitTodoFunc still has declarations")
+	}
+	typecheck.InitTodoFunc = nil
+}
 
 // Task makes and returns an initialization record for the package.
 // See runtime/proc.go:initTask for its layout.
@@ -21,8 +69,6 @@ import (
 //   2) Initialize all the variables that have initializers.
 //   3) Run any init functions.
 func Task() *ir.Name {
-	nf := initOrder(typecheck.Target.Decls)
-
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization
 
@@ -38,39 +84,28 @@ func Task() *ir.Name {
 		deps = append(deps, n.(*ir.Name).Linksym())
 	}
 
-	// Make a function that contains all the initialization statements.
-	if len(nf) > 0 {
-		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
-		initializers := typecheck.Lookup("init")
-		fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
-		for _, dcl := range typecheck.InitTodoFunc.Dcl {
-			dcl.Curfn = fn
-		}
-		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
-		typecheck.InitTodoFunc.Dcl = nil
-
-		fn.Body = nf
-		typecheck.FinishFuncBody()
-
-		typecheck.Func(fn)
-		ir.CurFunc = fn
-		typecheck.Stmts(nf)
-		ir.CurFunc = nil
-		typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
-		fns = append(fns, fn.Linksym())
-	}
-	if typecheck.InitTodoFunc.Dcl != nil {
-		// We only generate temps using InitTodoFunc if there
-		// are package-scope initialization statements, so
-		// something's weird if we get here.
-		base.Fatalf("InitTodoFunc still has declarations")
-	}
-	typecheck.InitTodoFunc = nil
-
 	// Record user init functions.
 	for _, fn := range typecheck.Target.Inits {
-		// Must happen after initOrder; see #43444.
-		deadcode.Func(fn)
+		if fn.Sym().Name == "init" {
+			// Synthetic init function for initialization of package-scope
+			// variables. We can use staticinit to optimize away static
+			// assignments.
+			s := staticinit.Schedule{
+				Plans: make(map[ir.Node]*staticinit.Plan),
+				Temps: make(map[ir.Node]*ir.Name),
+			}
+			for _, n := range fn.Body {
+				s.StaticInit(n)
+			}
+			fn.Body = s.Out
+			ir.WithFunc(fn, func() {
+				typecheck.Stmts(fn.Body)
+			})
+
+			if len(fn.Body) == 0 {
+				fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
+			}
+		}
 
 		// Skip init functions with empty bodies.
 		if len(fn.Body) == 1 {

@@ -9,153 +9,158 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"errors"
 	"fmt"
 )
 
-// Instantiate instantiates the type typ with the given type arguments
-// targs. To check type constraint satisfaction, verify must be set.
-// pos and posList correspond to the instantiation and type argument
-// positions respectively; posList may be nil or shorter than the number
-// of type arguments provided.
-// typ must be a *Named or a *Signature type, and its number of type
-// parameters must match the number of provided type arguments.
-// The receiver (check) may be nil if and only if verify is not set.
-// The result is a new, instantiated (not generic) type of the same kind
-// (either a *Named or a *Signature).
-// Any methods attached to a *Named are simply copied; they are not
-// instantiated.
-func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) (res Type) {
-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
-	var tparams []*TypeName
+// Instantiate instantiates the type typ with the given type arguments targs.
+// typ must be a *Named or a *Signature type, and its number of type parameters
+// must match the number of provided type arguments. The result is a new,
+// instantiated (not parameterized) type of the same kind (either a *Named or a
+// *Signature). Any methods attached to a *Named are simply copied; they are
+// not instantiated.
+//
+// If ctxt is non-nil, it may be used to de-dupe the instance against previous
+// instances with the same identity.
+//
+// If verify is set and constraint satisfaction fails, the returned error may
+// be of dynamic type ArgumentError indicating which type argument did not
+// satisfy its corresponding type parameter constraint, and why.
+//
+// TODO(rfindley): change this function to also return an error if lengths of
+// tparams and targs do not match.
+func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, error) {
+	inst := (*Checker)(nil).instance(nopos, typ, targs, ctxt)
+
+	var err error
+	if validate {
+		var tparams []*TypeParam
+		switch t := typ.(type) {
+		case *Named:
+			tparams = t.TypeParams().list()
+		case *Signature:
+			tparams = t.TypeParams().list()
+		}
+		if i, err := (*Checker)(nil).verify(nopos, tparams, targs); err != nil {
+			return inst, ArgumentError{i, err}
+		}
+	}
+
+	return inst, err
+}
+
+// instance creates a type or function instance using the given original type
+// typ and arguments targs. For Named types the resulting instance will be
+// unexpanded.
+func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Context) Type {
 	switch t := typ.(type) {
 	case *Named:
-		return check.instantiateLazy(pos, t, targs, posList, verify)
+		var h string
+		if ctxt != nil {
+			h = ctxt.TypeHash(t, targs)
+			// typ may already have been instantiated with identical type arguments. In
+			// that case, re-use the existing instance.
+			if named := ctxt.typeForHash(h, nil); named != nil {
+				return named
+			}
+		}
+		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
+		named.targs = NewTypeList(targs)
+		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+			return expandNamed(ctxt, n, pos)
+		}
+		if ctxt != nil {
+			// It's possible that we've lost a race to add named to the context.
+			// In this case, use whichever instance is recorded in the context.
+			named = ctxt.typeForHash(h, named)
+		}
+		return named
+
 	case *Signature:
-		tparams = t.TParams().list()
-		defer func() {
-			// If we had an unexpected failure somewhere don't panic below when
-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
-			// is returned.
-			if _, ok := res.(*Signature); !ok {
-				return
-			}
-			// If the signature doesn't use its type parameters, subst
-			// will not make a copy. In that case, make a copy now (so
-			// we can set tparams to nil w/o causing side-effects).
-			if t == res {
-				copy := *t
-				res = &copy
-			}
-			// After instantiating a generic signature, it is not generic
-			// anymore; we need to set tparams to nil.
-			res.(*Signature).tparams = nil
-		}()
-	default:
-		// only types and functions can be generic
-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
-	}
-
-	inst := check.instantiate(pos, typ, tparams, targs, posList, nil)
-	if verify && len(tparams) == len(targs) {
-		check.verify(pos, tparams, targs, posList)
-	}
-	return inst
-}
-
-func (check *Checker) instantiate(pos syntax.Pos, typ Type, tparams []*TypeName, targs []Type, posList []syntax.Pos, typMap map[string]*Named) (res Type) {
-	// the number of supplied types must match the number of type parameters
-	if len(targs) != len(tparams) {
-		// TODO(gri) provide better error message
-		if check != nil {
-			check.errorf(pos, "got %d arguments but %d type parameters", len(targs), len(tparams))
+		tparams := t.TypeParams()
+		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
-	}
-
-	if check != nil && check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
-		check.indent++
-		defer func() {
-			check.indent--
-			var under Type
-			if res != nil {
-				// Calling under() here may lead to endless instantiations.
-				// Test case: type T[P any] T[P]
-				// TODO(gri) investigate if that's a bug or to be expected.
-				under = safeUnderlying(res)
-			}
-			check.trace(pos, "=> %s (under = %s)", res, under)
-		}()
-	}
-
-	assert(len(posList) <= len(targs))
-
-	if len(tparams) == 0 {
-		return typ // nothing to do (minor optimization)
-	}
-
-	return check.subst(pos, typ, makeSubstMap(tparams, targs), typMap)
-}
-
-// instantiateLazy avoids actually instantiating the type until needed. typ
-// must be a *Named type.
-func (check *Checker) instantiateLazy(pos syntax.Pos, base *Named, targs []Type, posList []syntax.Pos, verify bool) Type {
-	if verify && base.TParams().Len() == len(targs) {
-		// TODO: lift the nil check in verify to here.
-		check.later(func() {
-			check.verify(pos, base.tparams.list(), targs, posList)
-		})
-	}
-
-	h := instantiatedHash(base, targs)
-	if check != nil {
-		// typ may already have been instantiated with identical type arguments. In
-		// that case, re-use the existing instance.
-		if named := check.typMap[h]; named != nil {
-			return named
+		if tparams.Len() == 0 {
+			return typ // nothing to do (minor optimization)
 		}
+		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+		// If the signature doesn't use its type parameters, subst
+		// will not make a copy. In that case, make a copy now (so
+		// we can set tparams to nil w/o causing side-effects).
+		if sig == t {
+			copy := *sig
+			sig = &copy
+		}
+		// After instantiating a generic signature, it is not generic
+		// anymore; we need to set tparams to nil.
+		sig.tparams = nil
+		return sig
 	}
 
-	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
-	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded
-	named.targs = targs
-	named.instance = &instance{pos, posList}
-	if check != nil {
-		check.typMap[h] = named
-	}
-
-	return named
+	// only types and functions can be generic
+	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
 }
 
-func (check *Checker) verify(pos syntax.Pos, tparams []*TypeName, targs []Type, posList []syntax.Pos) {
-	if check == nil {
-		panic("cannot have nil Checker if verifying constraints")
+// validateTArgLen verifies that the length of targs and tparams matches,
+// reporting an error if not. If validation fails and check is nil,
+// validateTArgLen panics.
+func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool {
+	if ntargs != ntparams {
+		// TODO(gri) provide better error message
+		if check != nil {
+			check.errorf(pos, "got %d arguments but %d type parameters", ntargs, ntparams)
+			return false
+		}
+		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
 	}
+	return true
+}
 
+func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type) (int, error) {
 	smap := makeSubstMap(tparams, targs)
-	for i, tname := range tparams {
-		// best position for error reporting
-		pos := pos
-		if i < len(posList) {
-			pos = posList[i]
-		}
-
+	for i, tpar := range tparams {
 		// stop checking bounds after the first failure
-		if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
-			break
+		if err := check.satisfies(pos, targs[i], tpar, smap); err != nil {
+			return i, err
 		}
 	}
+	return -1, nil
 }
 
 // satisfies reports whether the type argument targ satisfies the constraint of type parameter
 // parameter tpar (after any of its type parameters have been substituted through smap).
 // A suitable error is reported if the result is false.
 // TODO(gri) This should be a method of interfaces or type sets.
-func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap substMap) bool {
+func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap substMap) error {
 	iface := tpar.iface()
+
+	// Every type argument satisfies interface{}.
 	if iface.Empty() {
-		return true // no type bound
+		return nil
+	}
+
+	// A type argument that is a type parameter with an empty type set satisfies any constraint.
+	// (The empty set is a subset of any set.)
+	if targ := asTypeParam(targ); targ != nil && targ.iface().typeSet().IsEmpty() {
+		return nil
+	}
+
+	// TODO(rfindley): it would be great if users could pass in a qualifier here,
+	// rather than falling back to verbose qualification. Maybe this can be part
+	// of the shared context.
+	var qf Qualifier
+	if check != nil {
+		qf = check.qualifier
+	}
+	errorf := func(format string, args ...interface{}) error {
+		return errors.New(sprintf(qf, false, format, args...))
+	}
+
+	// No type argument with non-empty type set satisfies the empty type set.
+	if iface.typeSet().IsEmpty() {
+		return errorf("%s does not satisfy %s (constraint type set is empty)", targ, tpar.bound)
 	}
 
 	// The type parameter bound is parameterized with the same type parameters
@@ -168,11 +173,9 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 	// TODO(gri) the error messages needs to be better, here
 	if iface.IsComparable() && !Comparable(targ) {
 		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsAll() {
-			check.softErrorf(pos, "%s has no constraints", targ)
-			return false
+			return errorf("%s has no constraints", targ)
 		}
-		check.softErrorf(pos, "%s does not satisfy comparable", targ)
-		return false
+		return errorf("%s does not satisfy comparable", targ)
 	}
 
 	// targ must implement iface (methods)
@@ -182,8 +185,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 		// method set is empty.
 		// TODO(gri) is this what we want? (spec question)
 		if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
-			check.errorf(pos, "%s has no methods", targ)
-			return false
+			return errorf("%s has no methods", targ)
 		}
 		if m, wrong := check.missingMethod(targ, iface, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
@@ -193,44 +195,37 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 			if wrong != nil {
 				// TODO(gri) This can still report uninstantiated types which makes the error message
 				//           more difficult to read then necessary.
-				check.softErrorf(pos,
-					"%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
+				return errorf("%s does not satisfy %s: wrong method signature\n\tgot  %s\n\twant %s",
 					targ, tpar.bound, wrong, m,
 				)
-			} else {
-				check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 			}
-			return false
+			return errorf("%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 		}
 	}
 
-	// targ's underlying type must also be one of the interface types listed, if any
+	// targ must also be in the set of types of iface, if any.
+	// Constraints with empty type sets were already excluded above.
 	if !iface.typeSet().hasTerms() {
-		return true // nothing to do
+		return nil // nothing to do
 	}
 
-	// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
-	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+	// If targ is itself a type parameter, each of its possible types must be in the set
+	// of iface types (i.e., the targ type set must be a subset of the iface type set).
+	// Type arguments with empty type sets were already excluded above.
 	if targ := asTypeParam(targ); targ != nil {
 		targBound := targ.iface()
-		if !targBound.typeSet().hasTerms() {
-			check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
-			return false
-		}
 		if !targBound.typeSet().subsetOf(iface.typeSet()) {
-			// TODO(gri) need better error message
-			check.softErrorf(pos, "%s does not satisfy %s", targ, tpar.bound)
-			return false
+			// TODO(gri) report which type is missing
+			return errorf("%s does not satisfy %s", targ, tpar.bound)
 		}
-		return true
+		return nil
 	}
 
-	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+	// Otherwise, targ's type must be included in the iface type set.
 	if !iface.typeSet().includes(targ) {
-		// TODO(gri) better error message
-		check.softErrorf(pos, "%s does not satisfy %s", targ, tpar.bound)
-		return false
+		// TODO(gri) report which type is missing
+		return errorf("%s does not satisfy %s", targ, tpar.bound)
 	}
 
-	return true
+	return nil
 }

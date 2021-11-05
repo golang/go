@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"internal/itoa"
+	"net/netip"
 	"syscall"
 )
 
@@ -24,6 +25,20 @@ type UDPAddr struct {
 	IP   IP
 	Port int
 	Zone string // IPv6 scoped addressing zone
+}
+
+// AddrPort returns the UDPAddr a as a netip.AddrPort.
+//
+// If a.Port does not fit in a uint16, it's silently truncated.
+//
+// If a is nil, a zero value is returned.
+func (a *UDPAddr) AddrPort() netip.AddrPort {
+	if a == nil {
+		return netip.AddrPort{}
+	}
+	na, _ := netip.AddrFromSlice(a.IP)
+	na = na.WithZone(a.Zone)
+	return netip.AddrPortFrom(na, uint16(a.Port))
 }
 
 // Network returns the address's network name, "udp".
@@ -84,6 +99,28 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	return addrs.forResolve(network, address).(*UDPAddr), nil
 }
 
+// UDPAddrFromAddrPort returns addr as a UDPAddr.
+//
+// If addr is not valid, it returns nil.
+func UDPAddrFromAddrPort(addr netip.AddrPort) *UDPAddr {
+	if !addr.IsValid() {
+		return nil
+	}
+	ip16 := addr.Addr().As16()
+	return &UDPAddr{
+		IP:   IP(ip16[:]),
+		Zone: addr.Addr().Zone(),
+		Port: int(addr.Port()),
+	}
+}
+
+// An addrPortUDPAddr is a netip.AddrPort-based UDP address that satisfies the Addr interface.
+type addrPortUDPAddr struct {
+	netip.AddrPort
+}
+
+func (addrPortUDPAddr) Network() string { return "udp" }
+
 // UDPConn is the implementation of the Conn and PacketConn interfaces
 // for UDP network connections.
 type UDPConn struct {
@@ -130,6 +167,18 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 	return n, addr, err
 }
 
+// ReadFromUDPAddrPort acts like ReadFrom but returns a netip.AddrPort.
+func (c *UDPConn) ReadFromUDPAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
+	if !c.ok() {
+		return 0, netip.AddrPort{}, syscall.EINVAL
+	}
+	n, addr, err = c.readFromAddrPort(b)
+	if err != nil {
+		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+	}
+	return n, addr, err
+}
+
 // ReadMsgUDP reads a message from c, copying the payload into b and
 // the associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
@@ -138,8 +187,16 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 // The packages golang.org/x/net/ipv4 and golang.org/x/net/ipv6 can be
 // used to manipulate IP-level socket options in oob.
 func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+	var ap netip.AddrPort
+	n, oobn, flags, ap, err = c.ReadMsgUDPAddrPort(b, oob)
+	addr = UDPAddrFromAddrPort(ap)
+	return
+}
+
+// ReadMsgUDPAddrPort is like ReadMsgUDP but returns an netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) ReadMsgUDPAddrPort(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
 	if !c.ok() {
-		return 0, 0, 0, nil, syscall.EINVAL
+		return 0, 0, 0, netip.AddrPort{}, syscall.EINVAL
 	}
 	n, oobn, flags, addr, err = c.readMsg(b, oob)
 	if err != nil {
@@ -156,6 +213,18 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	n, err := c.writeTo(b, addr)
 	if err != nil {
 		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
+	}
+	return n, err
+}
+
+// WriteToUDPAddrPort acts like WriteTo but takes a netip.AddrPort.
+func (c *UDPConn) WriteToUDPAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	if !c.ok() {
+		return 0, syscall.EINVAL
+	}
+	n, err := c.writeToAddrPort(b, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
 	}
 	return n, err
 }
@@ -191,6 +260,18 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 	n, oobn, err = c.writeMsg(b, oob, addr)
 	if err != nil {
 		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addr.opAddr(), Err: err}
+	}
+	return
+}
+
+// WriteMsgUDPAddrPort is like WriteMsgUDP but takes a netip.AddrPort instead of a UDPAddr.
+func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+	if !c.ok() {
+		return 0, 0, syscall.EINVAL
+	}
+	n, oobn, err = c.writeMsgAddrPort(b, oob, addr)
+	if err != nil {
+		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
 	}
 	return
 }

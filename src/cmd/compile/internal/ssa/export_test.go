@@ -5,14 +5,16 @@
 package ssa
 
 import (
+	"testing"
+
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
-	"testing"
 )
 
 var CheckFunc = checkFunc
@@ -104,33 +106,12 @@ func (d TestFrontend) MyImportPath() string {
 var testTypes Types
 
 func init() {
-	// Initialize just enough of the universe and the types package to make our tests function.
-	// TODO(josharian): move universe initialization to the types package,
-	// so this test setup can share it.
+	// TODO(mdempsky): Push into types.InitUniverse or typecheck.InitUniverse.
+	types.PtrSize = 8
+	types.RegSize = 8
+	types.MaxWidth = 1 << 50
 
-	for _, typ := range [...]struct {
-		width int64
-		et    types.Kind
-	}{
-		{1, types.TINT8},
-		{1, types.TUINT8},
-		{1, types.TBOOL},
-		{2, types.TINT16},
-		{2, types.TUINT16},
-		{4, types.TINT32},
-		{4, types.TUINT32},
-		{4, types.TFLOAT32},
-		{4, types.TFLOAT64},
-		{8, types.TUINT64},
-		{8, types.TINT64},
-		{8, types.TINT},
-		{8, types.TUINTPTR},
-	} {
-		t := types.New(typ.et)
-		t.Width = typ.width
-		t.Align = uint8(typ.width)
-		types.Types[typ.et] = t
-	}
+	typecheck.InitUniverse()
 	testTypes.SetTypPtrs()
 }
 

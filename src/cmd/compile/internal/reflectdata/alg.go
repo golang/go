@@ -48,12 +48,12 @@ func eqCanPanic(t *types.Type) bool {
 func AlgType(t *types.Type) types.AlgKind {
 	a, _ := types.AlgType(t)
 	if a == types.AMEM {
-		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Width {
+		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
 			// For example, we can't treat [2]int16 as an int32 if int32s require
 			// 4-byte alignment. See issue 46283.
 			return a
 		}
-		switch t.Width {
+		switch t.Size() {
 		case 0:
 			return types.AMEM0
 		case 1:
@@ -110,7 +110,7 @@ func genhash(t *types.Type) *obj.LSym {
 		// For other sizes of plain memory, we build a closure
 		// that calls memhash_varlen. The size of the memory is
 		// encoded in the first slot of the closure.
-		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Width))
+		closure := TypeLinksymLookup(fmt.Sprintf(".hashfunc%d", t.Size()))
 		if len(closure.P) > 0 { // already generated
 			return closure
 		}
@@ -119,7 +119,7 @@ func genhash(t *types.Type) *obj.LSym {
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memhashvarlen, 0)
-		ot = objw.Uintptr(closure, ot, uint64(t.Width)) // size encoded in closure
+		ot = objw.Uintptr(closure, ot, uint64(t.Size())) // size encoded in closure
 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:
@@ -354,7 +354,7 @@ func geneq(t *types.Type) *obj.LSym {
 	case types.AMEM:
 		// make equality closure. The size of the type
 		// is encoded in the closure.
-		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Width))
+		closure := TypeLinksymLookup(fmt.Sprintf(".eqfunc%d", t.Size()))
 		if len(closure.P) != 0 {
 			return closure
 		}
@@ -363,7 +363,7 @@ func geneq(t *types.Type) *obj.LSym {
 		}
 		ot := 0
 		ot = objw.SymPtr(closure, ot, memequalvarlen, 0)
-		ot = objw.Uintptr(closure, ot, uint64(t.Width))
+		ot = objw.Uintptr(closure, ot, uint64(t.Size()))
 		objw.Global(closure, int32(ot), obj.DUPOK|obj.RODATA)
 		return closure
 	case types.ASPECIAL:

@@ -42,11 +42,14 @@ var (
 func init() {
 	cmdGraph.Flag.Var(&graphGo, "go", "")
 	base.AddModCommonFlags(&cmdGraph.Flag)
+	base.AddWorkfileFlag(&cmdGraph.Flag)
 }
 
 func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if len(args) > 0 {
-		base.Fatalf("go mod graph: graph takes no arguments")
+		base.Fatalf("go: 'go mod graph' accepts no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot

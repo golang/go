@@ -5,7 +5,7 @@
 package issue45985
 
 // TODO(gri): this error should be on app[int] below.
-func app[S /* ERROR "type S = S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
+func app[S /* ERROR "S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
     return append(s, e)
 }
 

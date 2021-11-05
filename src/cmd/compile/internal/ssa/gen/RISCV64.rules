@@ -6,9 +6,7 @@
 // * Use SLTI and SLTIU for comparisons to constants, instead of SLT/SLTU with constants in registers
 // * Use the zero register instead of moving 0 into a register.
 // * Add rules to avoid generating a temp bool value for (If (SLT[U] ...) ...).
-// * Optimize left and right shift by simplifying SLTIU, Neg, and ADD for constants.
 // * Arrange for non-trivial Zero and Move lowerings to use aligned loads and stores.
-// * Eliminate zero immediate shifts, adds, etc.
 // * Avoid using Neq32 for writeBarrier.enabled checks.
 
 // Lowering arithmetic
@@ -29,6 +27,8 @@
 (Sub64F ...) => (FSUBD ...)
 
 (Mul64 ...) => (MUL  ...)
+(Mul64uhilo ...) => (LoweredMuluhilo ...)
+(Mul64uover ...) => (LoweredMuluover ...)
 (Mul32 ...) => (MULW ...)
 (Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
 (Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
@@ -93,6 +93,12 @@
 
 (Sqrt ...) => (FSQRTD ...)
 (Sqrt32 ...) => (FSQRTS ...)
+
+(Copysign ...) => (FSGNJD ...)
+
+(Abs ...) => (FABSD ...)
+
+(FMA ...) => (FMADDD ...)
 
 // Sign and zero extension.
 
@@ -221,7 +227,7 @@
 (Rsh64x32 <t> x y) => (SRA <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] (ZeroExt32to64 y)))))
 (Rsh64x64 <t> x y) => (SRA <t> x                 (OR <y.Type> y (ADDI <y.Type> [-1] (SLTIU <y.Type> [64] y))))
 
-// rotates
+// Rotates.
 (RotateLeft8  <t> x (MOVDconst [c])) => (Or8  (Lsh8x64  <t> x (MOVDconst [c&7]))  (Rsh8Ux64  <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 <t> x (MOVDconst [c])) => (Or32 (Lsh32x64 <t> x (MOVDconst [c&31])) (Rsh32Ux64 <t> x (MOVDconst [-c&31])))
@@ -538,6 +544,7 @@
 (StaticCall  ...) => (CALLstatic  ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
+(TailCall ...) => (CALLtail ...)
 
 // Atomic Intrinsics
 (AtomicLoad8   ...) => (LoweredAtomicLoad8  ...)
@@ -586,6 +593,10 @@
 (BNEZ (SEQZ x) yes no) => (BEQZ x yes no)
 (BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
 
+// Absorb NEG into branch when possible.
+(BEQZ x:(NEG y) yes no) && x.Uses == 1 => (BEQZ y yes no)
+(BNEZ x:(NEG y) yes no) && x.Uses == 1 => (BNEZ y yes no)
+
 // Convert BEQZ/BNEZ into more optimal branch conditions.
 (BEQZ (SUB x y) yes no) => (BEQ x y yes no)
 (BNEZ (SUB x y) yes no) => (BNE x y yes no)
@@ -594,11 +605,15 @@
 (BEQZ (SLTU x y) yes no) => (BGEU x y yes no)
 (BNEZ (SLTU x y) yes no) => (BLTU x y yes no)
 
-// Convert branch with zero to BEQZ/BNEZ.
+// Convert branch with zero to more optimal branch zero.
 (BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
 (BEQ cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
 (BNE (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
 (BNE cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
+(BLT (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
+(BLT cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
+(BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
+(BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
 
 // Store zero
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
@@ -690,16 +705,49 @@
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
 
 // Subtraction of zero.
-(SUB x (MOVDconst [0])) => x
-
-// Subtraction of zero with sign extension.
+(SUB  x (MOVDconst [0])) => x
 (SUBW x (MOVDconst [0])) => (ADDIW [0] x)
 
 // Subtraction from zero.
-(SUB (MOVDconst [0]) x) => (NEG x)
-
-// Subtraction from zero with sign extension.
+(SUB  (MOVDconst [0]) x) => (NEG x)
 (SUBW (MOVDconst [0]) x) => (NEGW x)
 
-// Addition of zero.
+// Addition of zero or two constants.
 (ADDI [0] x) => x
+(ADDI [x] (MOVDconst [y])) && is32Bit(x + y) => (MOVDconst [x + y])
+
+// ANDI with all zeros, all ones or two constants.
+(ANDI [0]  x) => (MOVDconst [0])
+(ANDI [-1] x) => x
+(ANDI [x] (MOVDconst [y])) => (MOVDconst [x & y])
+
+// ORI with all zeroes, all ones or two constants.
+(ORI [0]  x) => x
+(ORI [-1] x) => (MOVDconst [-1])
+(ORI [x] (MOVDconst [y])) => (MOVDconst [x | y])
+
+// Negation of a constant.
+(NEG  (MOVDconst [x])) => (MOVDconst [-x])
+(NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
+
+// Shift of a constant.
+(SLLI [x] (MOVDconst [y])) && is32Bit(y << x) => (MOVDconst [y << x])
+(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> x)])
+(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> x])
+
+// SLTI/SLTIU with constants.
+(SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
+(SLTIU [x] (MOVDconst [y])) => (MOVDconst [b2i(uint64(y) < uint64(x))])
+
+// Merge negation into fused multiply-add and multiply-subtract.
+//
+// Key:
+//
+//   [+ -](x * y) [+ -] z.
+//    _ N          A S
+//                 D U
+//                 D B
+//
+// Note: multiplication commutativity handled by rule generator.
+(F(MADD|NMADD|MSUB|NMSUB)D neg:(FNEGD x) y z) && neg.Uses == 1 => (F(NMADD|MADD|NMSUB|MSUB)D x y z)
+(F(MADD|NMADD|MSUB|NMSUB)D x y neg:(FNEGD z)) && neg.Uses == 1 => (F(MSUB|NMSUB|MADD|NMADD)D x y z)

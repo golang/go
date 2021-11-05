@@ -874,14 +874,16 @@ func evalunsafe(n ir.Node) int64 {
 		}
 		types.CalcSize(tr)
 		if n.Op() == ir.OALIGNOF {
-			return int64(tr.Align)
+			return tr.Alignment()
 		}
-		return tr.Width
+		return tr.Size()
 
 	case ir.OOFFSETOF:
 		// must be a selector.
 		n := n.(*ir.UnaryExpr)
-		if n.X.Op() != ir.OXDOT {
+		// ODOT and ODOTPTR are allowed in case the OXDOT transformation has
+		// already happened (e.g. during -G=3 stenciling).
+		if n.X.Op() != ir.OXDOT && n.X.Op() != ir.ODOT && n.X.Op() != ir.ODOTPTR {
 			base.Errorf("invalid expression %v", n)
 			return 0
 		}

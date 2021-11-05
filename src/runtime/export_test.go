@@ -198,7 +198,7 @@ func MemclrBytes(b []byte) {
 	memclrNoHeapPointers(s.array, uintptr(s.len))
 }
 
-var HashLoad = &hashLoad
+const HashLoad = hashLoad
 
 // entry point for testing
 func GostringW(w []uint16) (s string) {
@@ -263,7 +263,7 @@ var ReadUnaligned64 = readUnaligned64
 func CountPagesInUse() (pagesInUse, counted uintptr) {
 	stopTheWorld("CountPagesInUse")
 
-	pagesInUse = uintptr(mheap_.pagesInUse)
+	pagesInUse = uintptr(mheap_.pagesInUse.Load())
 
 	for _, s := range mheap_.allspans {
 		if s.state.get() == mSpanInUse {
@@ -1230,3 +1230,84 @@ func GCTestPointerClass(p unsafe.Pointer) string {
 }
 
 const Raceenabled = raceenabled
+
+const (
+	GCBackgroundUtilization = gcBackgroundUtilization
+	GCGoalUtilization       = gcGoalUtilization
+)
+
+type GCController struct {
+	gcControllerState
+}
+
+func NewGCController(gcPercent int) *GCController {
+	// Force the controller to escape. We're going to
+	// do 64-bit atomics on it, and if it gets stack-allocated
+	// on a 32-bit architecture, it may get allocated unaligned
+	// space.
+	g := escape(new(GCController)).(*GCController)
+	g.gcControllerState.test = true // Mark it as a test copy.
+	g.init(int32(gcPercent))
+	return g
+}
+
+func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac float64, gomaxprocs int) {
+	c.scannableStackSize = stackSize
+	c.globalsScan = globalsSize
+	c.heapLive = c.trigger
+	c.heapScan += uint64(float64(c.trigger-c.heapMarked) * scannableFrac)
+	c.startCycle(0, gomaxprocs)
+}
+
+func (c *GCController) AssistWorkPerByte() float64 {
+	return c.assistWorkPerByte.Load()
+}
+
+func (c *GCController) HeapGoal() uint64 {
+	return c.heapGoal
+}
+
+func (c *GCController) HeapLive() uint64 {
+	return c.heapLive
+}
+
+func (c *GCController) HeapMarked() uint64 {
+	return c.heapMarked
+}
+
+func (c *GCController) Trigger() uint64 {
+	return c.trigger
+}
+
+type GCControllerReviseDelta struct {
+	HeapLive        int64
+	HeapScan        int64
+	HeapScanWork    int64
+	StackScanWork   int64
+	GlobalsScanWork int64
+}
+
+func (c *GCController) Revise(d GCControllerReviseDelta) {
+	c.heapLive += uint64(d.HeapLive)
+	c.heapScan += uint64(d.HeapScan)
+	c.heapScanWork.Add(d.HeapScanWork)
+	c.stackScanWork.Add(d.StackScanWork)
+	c.globalsScanWork.Add(d.GlobalsScanWork)
+	c.revise()
+}
+
+func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, gomaxprocs int) {
+	c.assistTime = assistTime
+	triggerRatio := c.endCycle(elapsed, gomaxprocs, false)
+	c.resetLive(bytesMarked)
+	c.commit(triggerRatio)
+}
+
+var escapeSink interface{}
+
+//go:noinline
+func escape(x interface{}) interface{} {
+	escapeSink = x
+	escapeSink = nil
+	return x
+}

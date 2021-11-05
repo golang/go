@@ -45,6 +45,9 @@
 #define SYS_epoll_create (SYS_BASE + 250)
 #define SYS_epoll_ctl (SYS_BASE + 251)
 #define SYS_epoll_wait (SYS_BASE + 252)
+#define SYS_timer_create (SYS_BASE + 257)
+#define SYS_timer_settime (SYS_BASE + 258)
+#define SYS_timer_delete (SYS_BASE + 261)
 #define SYS_epoll_create1 (SYS_BASE + 357)
 #define SYS_pipe2 (SYS_BASE + 359)
 #define SYS_fcntl (SYS_BASE + 55)
@@ -233,6 +236,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
+TEXT runtime·timer_create(SB),NOSPLIT,$0-16
+	MOVW	clockid+0(FP), R0
+	MOVW	sevp+4(FP), R1
+	MOVW	timerid+8(FP), R2
+	MOVW	$SYS_timer_create, R7
+	SWI	$0
+	MOVW	R0, ret+12(FP)
+	RET
+
+TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
+	MOVW	timerid+0(FP), R0
+	MOVW	flags+4(FP), R1
+	MOVW	new+8(FP), R2
+	MOVW	old+12(FP), R3
+	MOVW	$SYS_timer_settime, R7
+	SWI	$0
+	MOVW	R0, ret+16(FP)
+	RET
+
+TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
+	MOVW	timerid+0(FP), R0
+	MOVW	$SYS_timer_delete, R7
+	SWI	$0
+	MOVW	R0, ret+4(FP)
+	RET
+
 TEXT runtime·mincore(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0
 	MOVW	n+4(FP), R1
@@ -259,8 +288,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 
@@ -330,6 +360,7 @@ finish:
 	MOVW	R1, m_vdsoPC(R5)
 
 	MOVW	R0, sec_lo+0(FP)
+	MOVW	$0, R1
 	MOVW	R1, sec_hi+4(FP)
 	MOVW	R2, nsec+8(FP)
 	RET
@@ -351,8 +382,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
 	MOVW	R1, 4(R13)
 	MOVW	R2, 8(R13)
 
+	MOVW	$ret-4(FP), R2 // caller's SP
 	MOVW	LR, m_vdsoPC(R5)
-	MOVW	R13, m_vdsoSP(R5)
+	MOVW	R2, m_vdsoSP(R5)
 
 	MOVW	m_curg(R5), R0
 

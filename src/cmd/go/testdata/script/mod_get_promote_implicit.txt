@@ -12,7 +12,7 @@ stderr '^package m/use-indirect imports indirect-with-pkg from implicitly requir
 # NOTE: the hint recommends getting the imported package (tested below) since
 # it's more obvious and doesn't require -d. However, that adds an '// indirect'
 # comment on the requirement.
-go get -d m/use-indirect
+go get m/use-indirect
 cmp go.mod go.mod.use
 cp go.mod.orig go.mod
 
@@ -21,7 +21,7 @@ cp go.mod.orig go.mod
 # know they're needed by the main module. See #43131 for the rationale.
 # The hint above recommends this because it's more obvious usage and doesn't
 # require the -d flag.
-go get -d indirect-with-pkg indirect-without-pkg
+go get indirect-with-pkg indirect-without-pkg
 cmp go.mod go.mod.indirect
 
 -- go.mod.orig --

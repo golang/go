@@ -464,8 +464,8 @@ type DB struct {
 	// connections in Stmt.css.
 	numClosed uint64
 
-	mu           sync.Mutex // protects following fields
-	freeConn     []*driverConn
+	mu           sync.Mutex    // protects following fields
+	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
 	connRequests map[uint64]chan connRequest
 	nextRequest  uint64 // Next key to use in connRequests.
 	numOpen      int    // number of opened and pending open connections
@@ -848,14 +848,15 @@ func (db *DB) pingDC(ctx context.Context, dc *driverConn, release func(error)) e
 func (db *DB) PingContext(ctx context.Context) error {
 	var dc *driverConn
 	var err error
-
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		dc, err = db.conn(ctx, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
@@ -1079,7 +1080,7 @@ func (db *DB) connectionCleaner(d time.Duration) {
 			return
 		}
 
-		closing := db.connectionCleanerRunLocked()
+		d, closing := db.connectionCleanerRunLocked(d)
 		db.mu.Unlock()
 		for _, c := range closing {
 			c.Close()
@@ -1088,45 +1089,74 @@ func (db *DB) connectionCleaner(d time.Duration) {
 		if d < minInterval {
 			d = minInterval
 		}
+
+		if !t.Stop() {
+			select {
+			case <-t.C:
+			default:
+			}
+		}
 		t.Reset(d)
 	}
 }
 
-func (db *DB) connectionCleanerRunLocked() (closing []*driverConn) {
+// connectionCleanerRunLocked removes connections that should be closed from
+// freeConn and returns them along side an updated duration to the next check
+// if a quicker check is required to ensure connections are checked appropriately.
+func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*driverConn) {
+	var idleClosing int64
+	var closing []*driverConn
+	if db.maxIdleTime > 0 {
+		// As freeConn is ordered by returnedAt process
+		// in reverse order to minimise the work needed.
+		idleSince := nowFunc().Add(-db.maxIdleTime)
+		last := len(db.freeConn) - 1
+		for i := last; i >= 0; i-- {
+			c := db.freeConn[i]
+			if c.returnedAt.Before(idleSince) {
+				i++
+				closing = db.freeConn[:i]
+				db.freeConn = db.freeConn[i:]
+				idleClosing = int64(len(closing))
+				db.maxIdleTimeClosed += idleClosing
+				break
+			}
+		}
+
+		if len(db.freeConn) > 0 {
+			c := db.freeConn[0]
+			if d2 := c.returnedAt.Sub(idleSince); d2 < d {
+				// Ensure idle connections are cleaned up as soon as
+				// possible.
+				d = d2
+			}
+		}
+	}
+
 	if db.maxLifetime > 0 {
 		expiredSince := nowFunc().Add(-db.maxLifetime)
 		for i := 0; i < len(db.freeConn); i++ {
 			c := db.freeConn[i]
 			if c.createdAt.Before(expiredSince) {
 				closing = append(closing, c)
+
 				last := len(db.freeConn) - 1
-				db.freeConn[i] = db.freeConn[last]
+				// Use slow delete as order is required to ensure
+				// connections are reused least idle time first.
+				copy(db.freeConn[i:], db.freeConn[i+1:])
 				db.freeConn[last] = nil
 				db.freeConn = db.freeConn[:last]
 				i--
+			} else if d2 := c.createdAt.Sub(expiredSince); d2 < d {
+				// Prevent connections sitting the freeConn when they
+				// have expired by updating our next deadline d.
+				d = d2
 			}
 		}
-		db.maxLifetimeClosed += int64(len(closing))
+		db.maxLifetimeClosed += int64(len(closing)) - idleClosing
 	}
 
-	if db.maxIdleTime > 0 {
-		expiredSince := nowFunc().Add(-db.maxIdleTime)
-		var expiredCount int64
-		for i := 0; i < len(db.freeConn); i++ {
-			c := db.freeConn[i]
-			if db.maxIdleTime > 0 && c.returnedAt.Before(expiredSince) {
-				closing = append(closing, c)
-				expiredCount++
-				last := len(db.freeConn) - 1
-				db.freeConn[i] = db.freeConn[last]
-				db.freeConn[last] = nil
-				db.freeConn = db.freeConn[:last]
-				i--
-			}
-		}
-		db.maxIdleTimeClosed += expiredCount
-	}
-	return
+	return d, closing
 }
 
 // DBStats contains database statistics.
@@ -1272,11 +1302,12 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	lifetime := db.maxLifetime
 
 	// Prefer a free connection, if possible.
-	numFree := len(db.freeConn)
-	if strategy == cachedOrNewConn && numFree > 0 {
-		conn := db.freeConn[0]
-		copy(db.freeConn, db.freeConn[1:])
-		db.freeConn = db.freeConn[:numFree-1]
+	last := len(db.freeConn) - 1
+	if strategy == cachedOrNewConn && last >= 0 {
+		// Reuse the lowest idle time connection so we can close
+		// connections which remain idle as soon as possible.
+		conn := db.freeConn[last]
+		db.freeConn = db.freeConn[:last]
 		conn.inUse = true
 		if conn.expired(lifetime) {
 			db.maxLifetimeClosed++
@@ -1287,9 +1318,9 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		db.mu.Unlock()
 
 		// Reset the session if required.
-		if err := conn.resetSession(ctx); err == driver.ErrBadConn {
+		if err := conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 			conn.Close()
-			return nil, driver.ErrBadConn
+			return nil, err
 		}
 
 		return conn, nil
@@ -1351,9 +1382,9 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			}
 
 			// Reset the session if required.
-			if err := ret.conn.resetSession(ctx); err == driver.ErrBadConn {
+			if err := ret.conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 				ret.conn.Close()
-				return nil, driver.ErrBadConn
+				return nil, err
 			}
 			return ret.conn, ret.err
 		}
@@ -1412,7 +1443,7 @@ const debugGetPut = false
 // putConn adds a connection to the db's free pool.
 // err is optionally the last error that occurred on this connection.
 func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
-	if err != driver.ErrBadConn {
+	if !errors.Is(err, driver.ErrBadConn) {
 		if !dc.validateConnection(resetSession) {
 			err = driver.ErrBadConn
 		}
@@ -1426,7 +1457,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 		panic("sql: connection returned that was never out")
 	}
 
-	if err != driver.ErrBadConn && dc.expired(db.maxLifetime) {
+	if !errors.Is(err, driver.ErrBadConn) && dc.expired(db.maxLifetime) {
 		db.maxLifetimeClosed++
 		err = driver.ErrBadConn
 	}
@@ -1441,7 +1472,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 	dc.onPut = nil
 
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		// Don't reuse bad connections.
 		// Since the conn is considered bad and is being discarded, treat it
 		// as closed. Don't decrement the open count here, finalClose will
@@ -1521,13 +1552,15 @@ const maxBadConnRetries = 2
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		stmt, err = db.prepare(ctx, query, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.prepare(ctx, query, alwaysNewConn)
 	}
 	return stmt, err
@@ -1597,13 +1630,15 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (Result, error) {
 	var res Result
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		res, err = db.exec(ctx, query, args, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.exec(ctx, query, args, alwaysNewConn)
 	}
 	return res, err
@@ -1670,13 +1705,15 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*Rows, error) {
 	var rows *Rows
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		rows, err = db.query(ctx, query, args, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.query(ctx, query, args, alwaysNewConn)
 	}
 	return rows, err
@@ -1805,13 +1842,15 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		tx, err = db.begin(ctx, opts, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		return db.begin(ctx, opts, alwaysNewConn)
 	}
 	return tx, err
@@ -1884,13 +1923,15 @@ var ErrConnDone = errors.New("sql: connection is already closed")
 func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var dc *driverConn
 	var err error
+	var isBadConn bool
 	for i := 0; i < maxBadConnRetries; i++ {
 		dc, err = db.conn(ctx, cachedOrNewConn)
-		if err != driver.ErrBadConn {
+		isBadConn = errors.Is(err, driver.ErrBadConn)
+		if !isBadConn {
 			break
 		}
 	}
-	if err == driver.ErrBadConn {
+	if isBadConn {
 		dc, err = db.conn(ctx, alwaysNewConn)
 	}
 	if err != nil {
@@ -2002,7 +2043,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 // Raw executes f exposing the underlying driver connection for the
 // duration of f. The driverConn must not be used outside of f.
 //
-// Once f returns and err is nil, the Conn will continue to be usable
+// Once f returns and err is not driver.ErrBadConn, the Conn will continue to be usable
 // until Conn.Close is called.
 func (c *Conn) Raw(f func(driverConn interface{}) error) (err error) {
 	var dc *driverConn
@@ -2054,7 +2095,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 // as the sql operation is done with the dc.
 func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
 	c.closemu.RUnlock()
-	if err == driver.ErrBadConn {
+	if errors.Is(err, driver.ErrBadConn) {
 		c.close(err)
 	}
 }
@@ -2248,7 +2289,7 @@ func (tx *Tx) Commit() error {
 	withLock(tx.dc, func() {
 		err = tx.txi.Commit()
 	})
-	if err != driver.ErrBadConn {
+	if !errors.Is(err, driver.ErrBadConn) {
 		tx.closePrepared()
 	}
 	tx.close(err)
@@ -2280,7 +2321,7 @@ func (tx *Tx) rollback(discardConn bool) error {
 	withLock(tx.dc, func() {
 		err = tx.txi.Rollback()
 	})
-	if err != driver.ErrBadConn {
+	if !errors.Is(err, driver.ErrBadConn) {
 		tx.closePrepared()
 	}
 	if discardConn {
@@ -2323,8 +2364,8 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 
 // Prepare creates a prepared statement for use within a transaction.
 //
-// The returned statement operates within the transaction and can no longer
-// be used once the transaction has been committed or rolled back.
+// The returned statement operates within the transaction and will be closed
+// when the transaction has been committed or rolled back.
 //
 // To use an existing prepared statement on this transaction, see Tx.Stmt.
 //
@@ -2586,7 +2627,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err
@@ -2594,7 +2635,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (Result, er
 
 		res, err = resultFromStatement(ctx, dc.ci, ds, args...)
 		releaseConn(err)
-		if err != driver.ErrBadConn {
+		if !errors.Is(err, driver.ErrBadConn) {
 			return res, err
 		}
 	}
@@ -2734,7 +2775,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 		}
 		dc, releaseConn, ds, err := s.connStmt(ctx, strategy)
 		if err != nil {
-			if err == driver.ErrBadConn {
+			if errors.Is(err, driver.ErrBadConn) {
 				continue
 			}
 			return nil, err
@@ -2768,7 +2809,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*Rows, er
 		}
 
 		releaseConn(err)
-		if err != driver.ErrBadConn {
+		if !errors.Is(err, driver.ErrBadConn) {
 			return nil, err
 		}
 	}

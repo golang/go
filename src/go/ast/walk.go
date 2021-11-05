@@ -116,7 +116,7 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.X)
 		Walk(v, n.Index)
 
-	case *MultiIndexExpr:
+	case *IndexListExpr:
 		Walk(v, n.X)
 		for _, index := range n.Indices {
 			Walk(v, index)
@@ -169,8 +169,8 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Fields)
 
 	case *FuncType:
-		if n.TParams != nil {
-			Walk(v, n.TParams)
+		if n.TypeParams != nil {
+			Walk(v, n.TypeParams)
 		}
 		if n.Params != nil {
 			Walk(v, n.Params)
@@ -326,8 +326,8 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.Doc)
 		}
 		Walk(v, n.Name)
-		if n.TParams != nil {
-			Walk(v, n.TParams)
+		if n.TypeParams != nil {
+			Walk(v, n.TypeParams)
 		}
 		Walk(v, n.Type)
 		if n.Comment != nil {

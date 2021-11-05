@@ -61,9 +61,12 @@ func (err *error_) msg(qf Qualifier) string {
 	for i := range err.desc {
 		p := &err.desc[i]
 		if i > 0 {
-			fmt.Fprintf(&buf, "\n\t%s: ", p.pos)
+			fmt.Fprint(&buf, "\n\t")
+			if p.pos.IsKnown() {
+				fmt.Fprintf(&buf, "%s: ", p.pos)
+			}
 		}
-		buf.WriteString(sprintf(qf, p.format, p.args...))
+		buf.WriteString(sprintf(qf, false, p.format, p.args...))
 	}
 	return buf.String()
 }
@@ -82,7 +85,7 @@ func (err *error_) errorf(at poser, format string, args ...interface{}) {
 	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
 }
 
-func sprintf(qf Qualifier, format string, args ...interface{}) string {
+func sprintf(qf Qualifier, debug bool, format string, args ...interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case nil:
@@ -98,7 +101,7 @@ func sprintf(qf Qualifier, format string, args ...interface{}) string {
 		case Object:
 			arg = ObjectString(a, qf)
 		case Type:
-			arg = TypeString(a, qf)
+			arg = typeString(a, qf, debug)
 		}
 		args[i] = arg
 	}
@@ -143,7 +146,7 @@ func (check *Checker) markImports(pkg *Package) {
 }
 
 func (check *Checker) sprintf(format string, args ...interface{}) string {
-	return sprintf(check.qualifier, format, args...)
+	return sprintf(check.qualifier, false, format, args...)
 }
 
 func (check *Checker) report(err *error_) {
@@ -157,13 +160,13 @@ func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) 
 	fmt.Printf("%s:\t%s%s\n",
 		pos,
 		strings.Repeat(".  ", check.indent),
-		check.sprintf(format, args...),
+		sprintf(check.qualifier, true, format, args...),
 	)
 }
 
 // dump is only needed for debugging
 func (check *Checker) dump(format string, args ...interface{}) {
-	fmt.Println(check.sprintf(format, args...))
+	fmt.Println(sprintf(check.qualifier, true, format, args...))
 }
 
 func (check *Checker) err(at poser, msg string, soft bool) {
@@ -246,7 +249,7 @@ func stripAnnotations(s string) string {
 	var b bytes.Buffer
 	for _, r := range s {
 		// strip #'s and subscript digits
-		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
 			b.WriteRune(r)
 		}
 	}

@@ -39,12 +39,15 @@ See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 
 func init() {
 	base.AddModCommonFlags(&cmdVerify.Flag)
+	base.AddWorkfileFlag(&cmdVerify.Flag)
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
+
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
-		base.Fatalf("go mod verify: verify takes no arguments")
+		base.Fatalf("go: verify takes no arguments")
 	}
 	modload.ForceUseModules = true
 	modload.RootMode = modload.NeedRoot

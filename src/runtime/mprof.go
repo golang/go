@@ -142,7 +142,7 @@ var (
 	mbuckets  *bucket // memory profile buckets
 	bbuckets  *bucket // blocking profile buckets
 	xbuckets  *bucket // mutex profile buckets
-	buckhash  *[179999]*bucket
+	buckhash  *[buckHashSize]*bucket
 	bucketmem uintptr
 
 	mProf struct {
@@ -627,6 +627,9 @@ func record(r *MemProfileRecord, b *bucket) {
 	if msanenabled {
 		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 	}
+	if asanenabled {
+		asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+	}
 	copy(r.Stack0[:], b.stk())
 	for i := int(b.nstk); i < len(r.Stack0); i++ {
 		r.Stack0[i] = 0
@@ -679,6 +682,9 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 			}
 			if msanenabled {
 				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
+			}
+			if asanenabled {
+				asanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
 			}
 			i := copy(r.Stack0[:], b.stk())
 			for ; i < len(r.Stack0); i++ {

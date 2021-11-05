@@ -53,26 +53,38 @@ func (e *P521Element) Set(t *P521Element) *P521Element {
 	return e
 }
 
-// Bytes returns the 66-byte little-endian encoding of e.
+// Bytes returns the 66-byte big-endian encoding of e.
 func (e *P521Element) Bytes() []byte {
-	// This function must be inlined to move the allocation to the parent and
-	// save it from escaping to the heap.
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
 	var out [66]byte
-	p521ToBytes(&out, &e.x)
+	return e.bytes(&out)
+}
+
+func (e *P521Element) bytes(out *[66]byte) []byte {
+	p521ToBytes(out, &e.x)
+	invertEndianness(out[:])
 	return out[:]
 }
 
-// SetBytes sets e = v, where v is a little-endian 66-byte encoding, and returns
+// SetBytes sets e = v, where v is a big-endian 66-byte encoding, and returns
 // e. If v is not 66 bytes or it encodes a value higher than 2^521 - 1, SetBytes
 // returns nil and an error, and e is unchanged.
 func (e *P521Element) SetBytes(v []byte) (*P521Element, error) {
-	if len(v) != 66 || v[65] > 1 {
+	if len(v) != 66 || v[0] > 1 {
 		return nil, errors.New("invalid P-521 field encoding")
 	}
 	var in [66]byte
 	copy(in[:], v)
+	invertEndianness(in[:])
 	p521FromBytes(&e.x, &in)
 	return e, nil
+}
+
+func invertEndianness(v []byte) {
+	for i := 0; i < len(v)/2; i++ {
+		v[i], v[len(v)-1-i] = v[len(v)-1-i], v[i]
+	}
 }
 
 // Add sets e = t1 + t2, and returns e.

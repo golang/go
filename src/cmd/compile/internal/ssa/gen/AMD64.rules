@@ -78,15 +78,21 @@
 (OffPtr [off] ptr) => (ADDQ (MOVQconst [off]) ptr)
 
 // Lowering other arithmetic
-(Ctz64 <t> x) => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x) => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz64 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
+(Ctz32 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz64 <t> x) && buildcfg.GOAMD64 <  3 => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+(Ctz32 x)     && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
 (Ctz16 x) => (BSFL (BTSLconst <typ.UInt32> [16] x))
 (Ctz8  x) => (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
-(Ctz64NonZero x) => (Select0 (BSFQ x))
-(Ctz32NonZero ...) => (BSFL ...)
-(Ctz16NonZero ...) => (BSFL ...)
-(Ctz8NonZero  ...) => (BSFL ...)
+(Ctz64NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
+(Ctz32NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz16NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz8NonZero  x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
+(Ctz64NonZero x) && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ x))
+(Ctz32NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
+(Ctz16NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
+(Ctz8NonZero  x) && buildcfg.GOAMD64 <  3 => (BSFL x)
 
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
@@ -362,26 +368,26 @@
 // Adjust zeros to be a multiple of 16 bytes.
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVOstorezero destptr mem))
+		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
 
 (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
+		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
 
 (Zero [16] destptr mem) && config.useSSE =>
-	(MOVOstorezero destptr mem)
+	(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
 (Zero [32] destptr mem) && config.useSSE =>
-	(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
-		(MOVOstorezero destptr mem))
+	(MOVOstoreconst [makeValAndOff(0,16)] destptr
+		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
 (Zero [48] destptr mem) && config.useSSE =>
-	(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
-		(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
-			(MOVOstorezero destptr mem)))
+	(MOVOstoreconst [makeValAndOff(0,32)] destptr
+		(MOVOstoreconst [makeValAndOff(0,16)] destptr
+			(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
 (Zero [64] destptr mem) && config.useSSE =>
-	(MOVOstorezero (OffPtr <destptr.Type> destptr [48])
-		(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
-			(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
-				(MOVOstorezero destptr mem))))
+	(MOVOstoreconst [makeValAndOff(0,48)] destptr
+		(MOVOstoreconst [makeValAndOff(0,32)] destptr
+			(MOVOstoreconst [makeValAndOff(0,16)] destptr
+				(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
@@ -408,6 +414,7 @@
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
 
 // Lowering conditional moves
 // If the condition is a SETxx, we can just run a CMOV from the comparison that was
@@ -465,7 +472,7 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 
-(HasCPUFeature {s}) => (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
+(HasCPUFeature {s}) => (SETNE (CMPLconst [0] (LoweredHasCPUFeature {s})))
 (Addr {sym} base) => (LEAQ {sym} base)
 (LocalAddr {sym} base _) => (LEAQ {sym} base)
 
@@ -638,6 +645,7 @@
 
 // Recognize bit clearing: a &^= 1<<b
 (AND(Q|L) (NOT(Q|L) (SHL(Q|L) (MOV(Q|L)const [1]) y)) x) => (BTR(Q|L) x y)
+(ANDN(Q|L) x (SHL(Q|L) (MOV(Q|L)const [1]) y)) => (BTR(Q|L) x y)
 (ANDQconst [c] x) && isUint64PowerOfTwo(int64(^c)) && uint64(^c) >= 128
     => (BTRQconst [int8(log32(^c))] x)
 (ANDLconst [c] x) && isUint32PowerOfTwo(int64(^c)) && uint64(^c) >= 128
@@ -1134,8 +1142,8 @@
 	(MOVBstoreconst [makeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
-(MOV(Q|L|W|B)storeconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd32(off) =>
-	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).addOffset32(off)] {s} ptr mem)
+(MOV(Q|L|W|B|O)storeconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd32(off) =>
+	(MOV(Q|L|W|B|O)storeconst [ValAndOff(sc).addOffset32(off)] {s} ptr mem)
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
@@ -1145,8 +1153,8 @@
 (MOV(Q|L|W|B|SS|SD|O)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
 	(MOV(Q|L|W|B|SS|SD|O)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOV(Q|L|W|B)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off) =>
-	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOV(Q|L|W|B|O)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off) =>
+	(MOV(Q|L|W|B|O)storeconst [ValAndOff(sc).addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
 (SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
 	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
@@ -1897,14 +1905,22 @@
   && a.Off() + 4 == c.Off()
   && clobber(x)
   => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
-(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
+(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [a] {s} p mem))
   && config.useSSE
   && x.Uses == 1
-  && c2.Off() + 8 == c.Off()
+  && a.Off() + 8 == c.Off()
+  && a.Val() == 0
   && c.Val() == 0
-  && c2.Val() == 0
   && clobber(x)
-  => (MOVOstorezero [c2.Off()] {s} p mem)
+  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+(MOVQstoreconst [a] {s} p x:(MOVQstoreconst [c] {s} p mem))
+  && config.useSSE
+  && x.Uses == 1
+  && a.Off() + 8 == c.Off()
+  && a.Val() == 0
+  && c.Val() == 0
+  && clobber(x)
+  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
 
 // Combine stores into larger (unaligned) stores. Little endian.
 (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
@@ -2012,50 +2028,6 @@
   && mem2.Uses == 1
   && clobber(x1, x2, mem2)
   => (MOVQstore [i-4] {s} p (MOVQload [j-4] {s2} p2 mem) mem)
-
-(MOVQload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVQload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVLload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVWload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVBload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
-
-(MOVQstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVQstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
-	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-
-(MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVQstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVLstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVWstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
-	(MOVBstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
-
-(MOVQload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVQload  [off1+off2] {sym} ptr mem)
-(MOVLload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVLload  [off1+off2] {sym} ptr mem)
-(MOVWload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVWload  [off1+off2] {sym} ptr mem)
-(MOVBload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) => (MOVBload  [off1+off2] {sym} ptr mem)
-(MOVQstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVQstore  [off1+off2] {sym} ptr val mem)
-(MOVLstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVLstore  [off1+off2] {sym} ptr val mem)
-(MOVWstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVWstore  [off1+off2] {sym} ptr val mem)
-(MOVBstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) => (MOVBstore  [off1+off2] {sym} ptr val mem)
-(MOVQstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVQstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVLstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVLstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVWstoreconst [sc.addOffset32(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
-	(MOVBstoreconst [sc.addOffset32(off)] {s} ptr mem)
 
 // Merge load and op
 // TODO: add indexed variants?
@@ -2235,3 +2207,41 @@
 	&& isInlinableMemmove(dst, src, sz, config)
 	&& clobber(call)
 	=> (Move [sz] dst src mem)
+
+// Prefetch instructions
+(PrefetchCache ...)   => (PrefetchT0 ...)
+(PrefetchCacheStreamed ...) => (PrefetchNTA ...)
+
+// CPUID feature: BMI1.
+(AND(Q|L) x (NOT(Q|L) y))           && buildcfg.GOAMD64 >= 3 => (ANDN(Q|L) x y)
+(AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
+(XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
+(AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
+
+(BSWAP(Q|L) (BSWAP(Q|L) p)) => p
+
+// CPUID feature: MOVBE.
+(MOV(Q|L)store [i] {s} p x:(BSWAP(Q|L) w) mem) && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)store [i] {s} p w mem)
+(BSWAP(Q|L) x:(MOV(Q|L)load [i] {s} p mem))    && x.Uses == 1 && buildcfg.GOAMD64 >= 3 => (MOVBE(Q|L)load [i] {s} p mem)
+(BSWAP(Q|L) (MOVBE(Q|L)load [i] {s} p m))    => (MOV(Q|L)load [i] {s} p m)
+(MOVBE(Q|L)store [i] {s} p (BSWAP(Q|L) x) m) => (MOV(Q|L)store [i] {s} p x m)
+
+(ORQ                   x0:(MOVBELload [i0] {s} p mem)
+    sh:(SHLQconst [32] x1:(MOVBELload [i1] {s} p mem)))
+  && i0 == i1+4
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && sh.Uses == 1
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0, x1, sh)
+  => @mergePoint(b,x0,x1) (MOVBEQload [i1] {s} p mem)
+
+(ORQ                   x0:(MOVBELload [i] {s} p0 mem)
+    sh:(SHLQconst [32] x1:(MOVBELload [i] {s} p1 mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && sh.Uses == 1
+  && sequentialAddresses(p1, p0, 4)
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0, x1, sh)
+  => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)

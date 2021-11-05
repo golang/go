@@ -5,7 +5,7 @@ env GO111MODULE=on
 env GOMODCACHE=$WORK/modcache
 go env GOMODCACHE
 stdout $WORK[/\\]modcache
-go get -d rsc.io/quote@v1.0.0
+go get rsc.io/quote@v1.0.0
 exists $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
 grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $WORK/modcache/cache/download/rsc.io/quote/@v/v1.0.0.info
 
@@ -18,7 +18,7 @@ exists $WORK/modcache/cache/download/sumdb
 env GOMODCACHE=
 go env GOMODCACHE
 stdout $GOPATH[/\\]pkg[/\\]mod
-go get -d rsc.io/quote@v1.0.0
+go get rsc.io/quote@v1.0.0
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 grep '{"Version":"v1.0.0","Time":"2018-02-14T00:45:20Z"}' $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.0.0.info
 
@@ -31,11 +31,18 @@ env GOPATH=
 go env GOMODCACHE
 stdout $HOME[/\\]go[/\\]pkg[/\\]mod
 
-# If GOMODCACHE isn't set and GOPATH starts with the path list separator, it's an error.
+# If GOMODCACHE isn't set and GOPATH starts with the path list separator,
+# GOMODCACHE is empty and any command that needs it errors out.
 env GOMODCACHE=
 env GOPATH=${:}$WORK/this/is/ignored
-! go env GOMODCACHE
-stderr 'missing \$GOPATH'
+
+go env GOMODCACHE
+stdout '^$'
+! stdout .
+! stderr .
+
+! go mod download rsc.io/quote@v1.0.0
+stderr '^go: module cache not found: neither GOMODCACHE nor GOPATH is set$'
 
 # If GOMODCACHE isn't set and GOPATH has multiple elements only the first is used.
 env GOMODCACHE=

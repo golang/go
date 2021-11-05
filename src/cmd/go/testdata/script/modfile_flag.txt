@@ -46,7 +46,7 @@ go list -mod=mod .
 grep rsc.io/quote go.alt.mod
 go build -n -mod=mod .
 go test -n -mod=mod .
-go get -d rsc.io/quote
+go get rsc.io/quote
 
 
 # 'go mod vendor' should work.
@@ -78,7 +78,7 @@ cmp go.mod go.mod.orig
 cmp go.sum go.sum.orig
 
 
-# If the altnernate mod file does not have a ".mod" suffix, an error
+# If the alternate mod file does not have a ".mod" suffix, an error
 # should be reported.
 cp go.alt.mod goaltmod
 ! go mod tidy -modfile=goaltmod

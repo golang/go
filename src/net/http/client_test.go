@@ -431,11 +431,10 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
 		if v := urlQuery.Get("code"); v != "" {
 			location := ts.URL
 			if final := urlQuery.Get("next"); final != "" {
-				splits := strings.Split(final, ",")
-				first, rest := splits[0], splits[1:]
+				first, rest, _ := strings.Cut(final, ",")
 				location = fmt.Sprintf("%s?code=%s", location, first)
-				if len(rest) > 0 {
-					location = fmt.Sprintf("%s&next=%s", location, strings.Join(rest, ","))
+				if rest != "" {
+					location = fmt.Sprintf("%s&next=%s", location, rest)
 				}
 			}
 			code, _ := strconv.Atoi(v)
@@ -1206,64 +1205,80 @@ func TestClientTimeout_h2(t *testing.T) { testClientTimeout(t, h2Mode) }
 func testClientTimeout(t *testing.T, h2 bool) {
 	setParallel(t)
 	defer afterTest(t)
-	testDone := make(chan struct{}) // closed in defer below
 
-	sawRoot := make(chan bool, 1)
-	sawSlow := make(chan bool, 1)
+	var (
+		mu           sync.Mutex
+		nonce        string // a unique per-request string
+		sawSlowNonce bool   // true if the handler saw /slow?nonce=<nonce>
+	)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		_ = r.ParseForm()
 		if r.URL.Path == "/" {
-			sawRoot <- true
-			Redirect(w, r, "/slow", StatusFound)
+			Redirect(w, r, "/slow?nonce="+r.Form.Get("nonce"), StatusFound)
 			return
 		}
 		if r.URL.Path == "/slow" {
-			sawSlow <- true
+			mu.Lock()
+			if r.Form.Get("nonce") == nonce {
+				sawSlowNonce = true
+			} else {
+				t.Logf("mismatched nonce: received %s, want %s", r.Form.Get("nonce"), nonce)
+			}
+			mu.Unlock()
+
 			w.Write([]byte("Hello"))
 			w.(Flusher).Flush()
-			<-testDone
+			<-r.Context().Done()
 			return
 		}
 	}))
 	defer cst.close()
-	defer close(testDone) // before cst.close, to unblock /slow handler
 
-	// 200ms should be long enough to get a normal request (the /
-	// handler), but not so long that it makes the test slow.
-	const timeout = 200 * time.Millisecond
-	cst.c.Timeout = timeout
-
-	res, err := cst.c.Get(cst.ts.URL)
-	if err != nil {
-		if strings.Contains(err.Error(), "Client.Timeout") {
-			t.Skipf("host too slow to get fast resource in %v", timeout)
+	// Try to trigger a timeout after reading part of the response body.
+	// The initial timeout is emprically usually long enough on a decently fast
+	// machine, but if we undershoot we'll retry with exponentially longer
+	// timeouts until the test either passes or times out completely.
+	// This keeps the test reasonably fast in the typical case but allows it to
+	// also eventually succeed on arbitrarily slow machines.
+	timeout := 10 * time.Millisecond
+	nextNonce := 0
+	for ; ; timeout *= 2 {
+		if timeout <= 0 {
+			// The only way we can feasibly hit this while the test is running is if
+			// the request fails without actually waiting for the timeout to occur.
+			t.Fatalf("timeout overflow")
 		}
-		t.Fatal(err)
-	}
+		if deadline, ok := t.Deadline(); ok && !time.Now().Add(timeout).Before(deadline) {
+			t.Fatalf("failed to produce expected timeout before test deadline")
+		}
+		t.Logf("attempting test with timeout %v", timeout)
+		cst.c.Timeout = timeout
 
-	select {
-	case <-sawRoot:
-		// good.
-	default:
-		t.Fatal("handler never got / request")
-	}
+		mu.Lock()
+		nonce = fmt.Sprint(nextNonce)
+		nextNonce++
+		sawSlowNonce = false
+		mu.Unlock()
+		res, err := cst.c.Get(cst.ts.URL + "/?nonce=" + nonce)
+		if err != nil {
+			if strings.Contains(err.Error(), "Client.Timeout") {
+				// Timed out before handler could respond.
+				t.Logf("timeout before response received")
+				continue
+			}
+			t.Fatal(err)
+		}
 
-	select {
-	case <-sawSlow:
-		// good.
-	default:
-		t.Fatal("handler never got /slow request")
-	}
+		mu.Lock()
+		ok := sawSlowNonce
+		mu.Unlock()
+		if !ok {
+			t.Fatal("handler never got /slow request, but client returned response")
+		}
 
-	errc := make(chan error, 1)
-	go func() {
-		_, err := io.ReadAll(res.Body)
-		errc <- err
+		_, err = io.ReadAll(res.Body)
 		res.Body.Close()
-	}()
 
-	const failTime = 5 * time.Second
-	select {
-	case err := <-errc:
 		if err == nil {
 			t.Fatal("expected error from ReadAll")
 		}
@@ -1276,8 +1291,8 @@ func testClientTimeout(t *testing.T, h2 bool) {
 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
-	case <-time.After(failTime):
-		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
+
+		break
 	}
 }
 
@@ -2081,4 +2096,48 @@ func (b *issue40382Body) Close() error {
 		b.t.Error("Body closed more than once")
 	}
 	return nil
+}
+
+func TestProbeZeroLengthBody(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	reqc := make(chan struct{})
+	cst := newClientServerTest(t, false, HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(reqc)
+		if _, err := io.Copy(w, r.Body); err != nil {
+			t.Errorf("error copying request body: %v", err)
+		}
+	}))
+	defer cst.close()
+
+	bodyr, bodyw := io.Pipe()
+	var gotBody string
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		req, _ := NewRequest("GET", cst.ts.URL, bodyr)
+		res, err := cst.c.Do(req)
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		gotBody = string(b)
+	}()
+
+	select {
+	case <-reqc:
+		// Request should be sent after trying to probe the request body for 200ms.
+	case <-time.After(60 * time.Second):
+		t.Errorf("request not sent after 60s")
+	}
+
+	// Write the request body and wait for the request to complete.
+	const content = "body"
+	bodyw.Write([]byte(content))
+	bodyw.Close()
+	wg.Wait()
+	if gotBody != content {
+		t.Fatalf("server got body %q, want %q", gotBody, content)
+	}
 }

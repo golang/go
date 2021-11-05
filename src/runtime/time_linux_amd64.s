@@ -12,13 +12,10 @@
 #define SYS_clock_gettime	228
 
 // func time.now() (sec int64, nsec int32, mono int64)
-TEXT time·now(SB),NOSPLIT,$16-24
+TEXT time·now<ABIInternal>(SB),NOSPLIT,$16-24
 	MOVQ	SP, R12 // Save old SP; R12 unchanged by C code.
 
 	MOVQ	g_m(R14), BX // BX unchanged by C code.
-
-	// Store CLOCK_REALTIME results directly to return space.
-	LEAQ	sec+0(FP), SI
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
 	// Save the old values on stack and restore them on exit,
@@ -28,9 +25,10 @@ TEXT time·now(SB),NOSPLIT,$16-24
 	MOVQ	CX, 0(SP)
 	MOVQ	DX, 8(SP)
 
-	MOVQ	-8(SI), CX	// Sets CX to function return address.
+	LEAQ	sec+0(FP), DX
+	MOVQ	-8(DX), CX	// Sets CX to function return address.
 	MOVQ	CX, m_vdsoPC(BX)
-	MOVQ	SI, m_vdsoSP(BX)
+	MOVQ	DX, m_vdsoSP(BX)
 
 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
 	JNE	noswitch
@@ -39,10 +37,11 @@ TEXT time·now(SB),NOSPLIT,$16-24
 	MOVQ	(g_sched+gobuf_sp)(DX), SP	// Set SP to g0 stack
 
 noswitch:
-	SUBQ	$16, SP		// Space for monotonic time results
+	SUBQ	$32, SP		// Space for two time results
 	ANDQ	$~15, SP	// Align for C code
 
 	MOVL	$0, DI // CLOCK_REALTIME
+	LEAQ	16(SP), SI
 	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
 	CMPQ	AX, $0
 	JEQ	fallback
@@ -54,25 +53,27 @@ noswitch:
 	CALL	AX
 
 ret:
-	MOVQ	0(SP), AX	// sec
-	MOVQ	8(SP), DX	// nsec
+	MOVQ	16(SP), AX	// realtime sec
+	MOVQ	24(SP), DI	// realtime nsec (moved to BX below)
+	MOVQ	0(SP), CX	// monotonic sec
+	IMULQ	$1000000000, CX
+	MOVQ	8(SP), DX	// monotonic nsec
 
 	MOVQ	R12, SP		// Restore real SP
+
 	// Restore vdsoPC, vdsoSP
 	// We don't worry about being signaled between the two stores.
 	// If we are not in a signal handler, we'll restore vdsoSP to 0,
 	// and no one will care about vdsoPC. If we are in a signal handler,
 	// we cannot receive another signal.
-	MOVQ	8(SP), CX
-	MOVQ	CX, m_vdsoSP(BX)
-	MOVQ	0(SP), CX
-	MOVQ	CX, m_vdsoPC(BX)
+	MOVQ	8(SP), SI
+	MOVQ	SI, m_vdsoSP(BX)
+	MOVQ	0(SP), SI
+	MOVQ	SI, m_vdsoPC(BX)
 
-	// sec is in AX, nsec in DX
-	// return nsec in AX
-	IMULQ	$1000000000, AX
-	ADDQ	DX, AX
-	MOVQ	AX, mono+16(FP)
+	// set result registers; AX is already correct
+	MOVQ	DI, BX
+	ADDQ	DX, CX
 	RET
 
 fallback:

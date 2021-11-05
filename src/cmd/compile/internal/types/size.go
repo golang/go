@@ -189,19 +189,19 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 
 		CalcSize(f.Type)
-		if int32(f.Type.Align) > maxalign {
-			maxalign = int32(f.Type.Align)
+		if int32(f.Type.align) > maxalign {
+			maxalign = int32(f.Type.align)
 		}
-		if f.Type.Align > 0 {
-			o = Rnd(o, int64(f.Type.Align))
+		if f.Type.align > 0 {
+			o = Rnd(o, int64(f.Type.align))
 		}
 		if isStruct { // For receiver/args/results, do not set, it depends on ABI
 			f.Offset = o
 		}
 
-		w := f.Type.Width
+		w := f.Type.width
 		if w < 0 {
-			base.Fatalf("invalid width %d", f.Type.Width)
+			base.Fatalf("invalid width %d", f.Type.width)
 		}
 		if w == 0 {
 			lastzero = o
@@ -231,10 +231,10 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
 	if flag != 0 {
 		o = Rnd(o, int64(maxalign))
 	}
-	t.Align = uint8(maxalign)
+	t.align = uint8(maxalign)
 
 	// type width only includes back to first field's offset
-	t.Width = o - starto
+	t.width = o - starto
 
 	return o
 }
@@ -350,14 +350,14 @@ func CalcSize(t *Type) {
 		return
 	}
 
-	if t.Width == -2 {
+	if t.width == -2 {
 		reportTypeLoop(t)
-		t.Width = 0
-		t.Align = 1
+		t.width = 0
+		t.align = 1
 		return
 	}
 
-	if t.WidthCalculated() {
+	if t.widthCalculated() {
 		return
 	}
 
@@ -372,7 +372,7 @@ func CalcSize(t *Type) {
 
 	// break infinite recursion if the broken recursive type
 	// is referenced again
-	if t.Broke() && t.Width == 0 {
+	if t.Broke() && t.width == 0 {
 		return
 	}
 
@@ -384,8 +384,8 @@ func CalcSize(t *Type) {
 		base.Pos = pos
 	}
 
-	t.Width = -2
-	t.Align = 0 // 0 means use t.Width, below
+	t.width = -2
+	t.align = 0 // 0 means use t.Width, below
 
 	et := t.Kind()
 	switch et {
@@ -417,15 +417,15 @@ func CalcSize(t *Type) {
 
 	case TINT64, TUINT64, TFLOAT64:
 		w = 8
-		t.Align = uint8(RegSize)
+		t.align = uint8(RegSize)
 
 	case TCOMPLEX64:
 		w = 8
-		t.Align = 4
+		t.align = 4
 
 	case TCOMPLEX128:
 		w = 16
-		t.Align = uint8(RegSize)
+		t.align = uint8(RegSize)
 
 	case TPTR:
 		w = int64(PtrSize)
@@ -436,14 +436,14 @@ func CalcSize(t *Type) {
 
 	case TINTER: // implemented as 2 pointers
 		w = 2 * int64(PtrSize)
-		t.Align = uint8(PtrSize)
+		t.align = uint8(PtrSize)
 		expandiface(t)
 
 	case TUNION:
 		// Always part of an interface for now, so size/align don't matter.
 		// Pretend a union is represented like an interface.
 		w = 2 * int64(PtrSize)
-		t.Align = uint8(PtrSize)
+		t.align = uint8(PtrSize)
 
 	case TCHAN: // implemented as pointer
 		w = int64(PtrSize)
@@ -458,7 +458,7 @@ func CalcSize(t *Type) {
 	case TCHANARGS:
 		t1 := t.ChanArgs()
 		CalcSize(t1) // just in case
-		if t1.Elem().Width >= 1<<16 {
+		if t1.Elem().width >= 1<<16 {
 			base.ErrorfAt(typePos(t1), "channel element type too large (>64kB)")
 		}
 		w = 1 // anything will do
@@ -481,7 +481,7 @@ func CalcSize(t *Type) {
 			base.Fatalf("early CalcSize string")
 		}
 		w = StringSize
-		t.Align = uint8(PtrSize)
+		t.align = uint8(PtrSize)
 
 	case TARRAY:
 		if t.Elem() == nil {
@@ -489,14 +489,14 @@ func CalcSize(t *Type) {
 		}
 
 		CalcSize(t.Elem())
-		if t.Elem().Width != 0 {
-			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
+		if t.Elem().width != 0 {
+			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
 			if uint64(t.NumElem()) > cap {
 				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
 			}
 		}
-		w = t.NumElem() * t.Elem().Width
-		t.Align = t.Elem().Align
+		w = t.NumElem() * t.Elem().width
+		t.align = t.Elem().align
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -504,7 +504,7 @@ func CalcSize(t *Type) {
 		}
 		w = SliceSize
 		CheckSize(t.Elem())
-		t.Align = uint8(PtrSize)
+		t.align = uint8(PtrSize)
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {
@@ -526,11 +526,11 @@ func CalcSize(t *Type) {
 		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
 		w = calcStructOffset(t1, t1.Params(), w, RegSize)
 		w = calcStructOffset(t1, t1.Results(), w, RegSize)
-		t1.Extra.(*Func).Argwid = w
+		t1.extra.(*Func).Argwid = w
 		if w%int64(RegSize) != 0 {
 			base.Warn("bad type %v %d\n", t1, w)
 		}
-		t.Align = 1
+		t.align = 1
 
 	case TTYPEPARAM:
 		// TODO(danscales) - remove when we eliminate the need
@@ -542,12 +542,12 @@ func CalcSize(t *Type) {
 		base.ErrorfAt(typePos(t), "type %v too large", t)
 	}
 
-	t.Width = w
-	if t.Align == 0 {
+	t.width = w
+	if t.align == 0 {
 		if w == 0 || w > 8 || w&(w-1) != 0 {
 			base.Fatalf("invalid alignment for %v", t)
 		}
-		t.Align = uint8(w)
+		t.align = uint8(w)
 	}
 
 	base.Pos = lno
@@ -559,7 +559,19 @@ func CalcSize(t *Type) {
 // filling in s.Width and s.Align,
 // even if size calculation is otherwise disabled.
 func CalcStructSize(s *Type) {
-	s.Width = calcStructOffset(s, s, 0, 1) // sets align
+	s.width = calcStructOffset(s, s, 0, 1) // sets align
+}
+
+// RecalcSize is like CalcSize, but recalculates t's size even if it
+// has already been calculated before. It does not recalculate other
+// types.
+func RecalcSize(t *Type) {
+	t.align = 0
+	CalcSize(t)
+}
+
+func (t *Type) widthCalculated() bool {
+	return t.align > 0
 }
 
 // when a type's width should be known, we call CheckSize
@@ -622,17 +634,23 @@ func ResumeCheckSize() {
 
 // PtrDataSize returns the length in bytes of the prefix of t
 // containing pointer data. Anything after this offset is scalar data.
+//
+// PtrDataSize is only defined for actual Go types. It's an error to
+// use it on compiler-internal types (e.g., TSSA, TRESULTS).
 func PtrDataSize(t *Type) int64 {
-	if !t.HasPointers() {
-		return 0
-	}
-
 	switch t.Kind() {
-	case TPTR,
-		TUNSAFEPTR,
-		TFUNC,
-		TCHAN,
-		TMAP:
+	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
+		TUINT32, TINT64, TUINT64, TINT, TUINT,
+		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
+		return 0
+
+	case TPTR:
+		if t.Elem().NotInHeap() {
+			return 0
+		}
+		return int64(PtrSize)
+
+	case TUNSAFEPTR, TFUNC, TCHAN, TMAP:
 		return int64(PtrSize)
 
 	case TSTRING:
@@ -646,24 +664,32 @@ func PtrDataSize(t *Type) int64 {
 		return 2 * int64(PtrSize)
 
 	case TSLICE:
+		if t.Elem().NotInHeap() {
+			return 0
+		}
 		// struct { byte *array; uintgo len; uintgo cap; }
 		return int64(PtrSize)
 
 	case TARRAY:
-		// haspointers already eliminated t.NumElem() == 0.
-		return (t.NumElem()-1)*t.Elem().Width + PtrDataSize(t.Elem())
+		if t.NumElem() == 0 {
+			return 0
+		}
+		// t.NumElem() > 0
+		size := PtrDataSize(t.Elem())
+		if size == 0 {
+			return 0
+		}
+		return (t.NumElem()-1)*t.Elem().Size() + size
 
 	case TSTRUCT:
-		// Find the last field that has pointers.
-		var lastPtrField *Field
+		// Find the last field that has pointers, if any.
 		fs := t.Fields().Slice()
 		for i := len(fs) - 1; i >= 0; i-- {
-			if fs[i].Type.HasPointers() {
-				lastPtrField = fs[i]
-				break
+			if size := PtrDataSize(fs[i].Type); size > 0 {
+				return fs[i].Offset + size
 			}
 		}
-		return lastPtrField.Offset + PtrDataSize(lastPtrField.Type)
+		return 0
 
 	default:
 		base.Fatalf("PtrDataSize: unexpected type, %v", t)

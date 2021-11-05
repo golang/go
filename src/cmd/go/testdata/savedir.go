@@ -24,7 +24,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"../internal/txtar"
+	"golang.org/x/tools/txtar"
 )
 
 func usage() {

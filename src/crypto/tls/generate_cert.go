@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // Generate a self-signed X.509 certificate for a TLS server. Outputs to
 // 'cert.pem' and 'key.pem' and will overwrite existing files.

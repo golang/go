@@ -123,9 +123,10 @@ func (p *pageAlloc) allocToCache() pageCache {
 	}
 	c := pageCache{}
 	ci := chunkIndex(p.searchAddr.addr()) // chunk index
+	var chunk *pallocData
 	if p.summary[len(p.summary)-1][ci] != 0 {
 		// Fast path: there's free pages at or near the searchAddr address.
-		chunk := p.chunkOf(ci)
+		chunk = p.chunkOf(ci)
 		j, _ := chunk.find(1, chunkPageIndex(p.searchAddr.addr()))
 		if j == ^uint(0) {
 			throw("bad summary data")
@@ -146,7 +147,7 @@ func (p *pageAlloc) allocToCache() pageCache {
 			return pageCache{}
 		}
 		ci := chunkIndex(addr)
-		chunk := p.chunkOf(ci)
+		chunk = p.chunkOf(ci)
 		c = pageCache{
 			base:  alignDown(addr, 64*pageSize),
 			cache: ^chunk.pages64(chunkPageIndex(addr)),
@@ -154,8 +155,11 @@ func (p *pageAlloc) allocToCache() pageCache {
 		}
 	}
 
-	// Set the bits as allocated and clear the scavenged bits.
-	p.allocRange(c.base, pageCachePages)
+	// Set the page bits as allocated and clear the scavenged bits, but
+	// be careful to only set and clear the relevant bits.
+	cpi := chunkPageIndex(c.base)
+	chunk.allocPages64(cpi, c.cache)
+	chunk.scavenged.clearBlock64(cpi, c.cache&c.scav /* free and scavenged */)
 
 	// Update as an allocation, but note that it's not contiguous.
 	p.update(c.base, pageCachePages, false, true)

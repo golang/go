@@ -9,7 +9,7 @@ stdout '[\\/]runtime$'
 
 env GOFLAGS=-race OLDGOARCH=$GOARCH OLDGOOS=$GOOS GOARCH=386 GOOS=linux
 ! go list runtime
-stderr 'race is only supported on'
+stderr 'race is not supported on linux/386'
 
 env GOARCH=$OLDGOARCH GOOS=$OLDGOOS
 

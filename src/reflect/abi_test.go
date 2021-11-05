@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build goexperiment.regabireflect && goexperiment.regabiargs
-// +build goexperiment.regabireflect,goexperiment.regabiargs
 
 package reflect_test
 
 import (
 	"internal/abi"
+	"math"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -961,4 +961,28 @@ func genValue(t *testing.T, typ reflect.Type, r *rand.Rand) reflect.Value {
 		t.Fatal("failed to generate value")
 	}
 	return v
+}
+
+func TestSignalingNaNArgument(t *testing.T) {
+	v := reflect.ValueOf(func(x float32) {
+		// make sure x is a signaling NaN.
+		u := math.Float32bits(x)
+		if u != snan {
+			t.Fatalf("signaling NaN not correct: %x\n", u)
+		}
+	})
+	v.Call([]reflect.Value{reflect.ValueOf(math.Float32frombits(snan))})
+}
+
+func TestSignalingNaNReturn(t *testing.T) {
+	v := reflect.ValueOf(func() float32 {
+		return math.Float32frombits(snan)
+	})
+	var x float32
+	reflect.ValueOf(&x).Elem().Set(v.Call(nil)[0])
+	// make sure x is a signaling NaN.
+	u := math.Float32bits(x)
+	if u != snan {
+		t.Fatalf("signaling NaN not correct: %x\n", u)
+	}
 }

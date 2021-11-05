@@ -1033,7 +1033,7 @@ func TestGlobal(t *testing.T) {
 // Run a test using -linkshared of an installed shared package.
 // Issue 26400.
 func TestTestInstalledShared(t *testing.T) {
-	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
+	goCmd(t, "test", "-linkshared", "-test.short", "sync/atomic")
 }
 
 // Test generated pointer method with -linkshared.
@@ -1045,8 +1045,8 @@ func TestGeneratedMethod(t *testing.T) {
 // Test use of shared library struct with generated hash function.
 // Issue 30768.
 func TestGeneratedHash(t *testing.T) {
-	goCmd(nil, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
-	goCmd(nil, "test", "-linkshared", "./issue30768")
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue30768/issue30768lib")
+	goCmd(t, "test", "-linkshared", "./issue30768")
 }
 
 // Test that packages can be added not in dependency order (here a depends on b, and a adds
@@ -1069,4 +1069,12 @@ func TestIssue44031(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
 	goCmd(t, "run", "-linkshared", "./issue44031/main")
+}
+
+// Test that we use a variable from shared libraries (which implement an
+// interface in shared libraries.). A weak reference is used in the itab
+// in main process. It can cause unreacheble panic. See issue 47873.
+func TestIssue47873(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+	goCmd(t, "run", "-linkshared", "./issue47837/main")
 }

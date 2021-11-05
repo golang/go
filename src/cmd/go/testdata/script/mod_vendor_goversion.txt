@@ -3,7 +3,6 @@
 
 [short] skip
 
-
 # Control case: without a vendor directory, need117 builds and bad114 doesn't.
 
 go build example.net/need117
@@ -26,7 +25,8 @@ go mod vendor
 
 ! grep 1.17 vendor/modules.txt
 ! go build example.net/need117
-stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:18: .*\n\tconversion of slices to array pointers only supported as of -lang=go1\.17'
+stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
+stderr 'conversion of slices to array pointers only supported as of -lang=go1\.17'
 
 ! grep 1.13 vendor/modules.txt
 go build example.net/bad114

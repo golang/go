@@ -71,7 +71,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	}
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
-	if sig := asSignature(x.typ); sig != nil && sig.TParams().Len() > 0 {
+	if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
 		check.errorf(x, _Todo, "cannot use generic function %s without instantiation in %s", x, context)
 	}
 
@@ -237,6 +237,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnPos token.P
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
 		for _, obj := range lhs {
+			obj.used = true // avoid declared but not used errors
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}

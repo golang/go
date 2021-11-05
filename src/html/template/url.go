@@ -46,9 +46,7 @@ func urlFilter(args ...interface{}) string {
 // isSafeURL is true if s is a relative URL or if URL has a protocol in
 // (http, https, mailto).
 func isSafeURL(s string) bool {
-	if i := strings.IndexRune(s, ':'); i >= 0 && !strings.ContainsRune(s[:i], '/') {
-
-		protocol := s[:i]
+	if protocol, _, ok := strings.Cut(s, ":"); ok && !strings.Contains(protocol, "/") {
 		if !strings.EqualFold(protocol, "http") && !strings.EqualFold(protocol, "https") && !strings.EqualFold(protocol, "mailto") {
 			return false
 		}

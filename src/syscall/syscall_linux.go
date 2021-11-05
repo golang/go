@@ -161,6 +161,23 @@ func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error) 
 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
 }
 
+func Pipe(p []int) error {
+	return Pipe2(p, 0)
+}
+
+//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error {
+	if len(p) != 2 {
+		return EINVAL
+	}
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return err
+}
+
 //sys	readlinkat(dirfd int, path string, buf []byte) (n int, err error)
 
 func Readlink(path string, buf []byte) (n int, err error) {
@@ -204,18 +221,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
 	}
-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
-	if err != ENOSYS {
-		return err
-	}
-	// If the utimensat syscall isn't available (utimensat was added to Linux
-	// in 2.6.22, Released, 8 July 2007) then fall back to utimes
-	var tv [2]Timeval
-	for i := 0; i < 2; i++ {
-		tv[i].Sec = ts[i].Sec
-		tv[i].Usec = ts[i].Nsec / 1000
-	}
-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 }
 
 func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
@@ -387,9 +393,7 @@ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
 }
 
@@ -402,9 +406,7 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	p[0] = byte(sa.Port >> 8)
 	p[1] = byte(sa.Port)
 	sa.raw.Scope_id = sa.ZoneId
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
 }
 
@@ -455,9 +457,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Hatype = sa.Hatype
 	sa.raw.Pkttype = sa.Pkttype
 	sa.raw.Halen = sa.Halen
-	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i]
-	}
+	sa.raw.Addr = sa.Addr
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 }
 
@@ -496,9 +496,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa.Hatype = pp.Hatype
 		sa.Pkttype = pp.Pkttype
 		sa.Halen = pp.Halen
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_UNIX:
@@ -531,9 +529,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case AF_INET6:
@@ -542,9 +538,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 	}
 	return nil, EAFNOSUPPORT
@@ -553,11 +547,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 func Accept(fd int) (nfd int, sa Sockaddr, err error) {
 	var rsa RawSockaddrAny
 	var len _Socklen = SizeofSockaddrAny
-	// Try accept4 first for Android, then try accept for kernel older than 2.6.28
 	nfd, err = accept4(fd, &rsa, &len, 0)
-	if err == ENOSYS {
-		nfd, err = accept(fd, &rsa, &len)
-	}
 	if err != nil {
 		return
 	}
@@ -648,10 +638,9 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
 
-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
-	var rsa RawSockaddrAny
-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
 	var iov Iovec
 	if len(p) > 0 {
@@ -682,28 +671,10 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	oobn = int(msg.Controllen)
 	recvflags = int(msg.Flags)
-	// source address is only specified if the socket is unconnected
-	if rsa.Addr.Family != AF_UNSPEC {
-		from, err = anyToSockaddr(&rsa)
-	}
 	return
 }
 
-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
-	_, err = SendmsgN(fd, p, oob, to, flags)
-	return
-}
-
-func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
-	var ptr unsafe.Pointer
-	var salen _Socklen
-	if to != nil {
-		var err error
-		ptr, salen, err = to.sockaddr()
-		if err != nil {
-			return 0, err
-		}
-	}
+func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)

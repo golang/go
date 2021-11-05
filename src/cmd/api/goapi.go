@@ -653,10 +653,15 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 	}
 
 	// Type-check package files.
+	var sizes types.Sizes
+	if w.context != nil {
+		sizes = types.SizesFor(w.context.Compiler, w.context.GOARCH)
+	}
 	conf := types.Config{
 		IgnoreFuncBodies: true,
 		FakeImportC:      true,
 		Importer:         w,
+		Sizes:            sizes,
 	}
 	pkg, err = conf.Check(name, fset, files, nil)
 	if err != nil {
@@ -696,6 +701,36 @@ func sortedMethodNames(typ *types.Interface) []string {
 	list := make([]string, n)
 	for i := range list {
 		list[i] = typ.Method(i).Name()
+	}
+	sort.Strings(list)
+	return list
+}
+
+// sortedEmbeddeds returns constraint types embedded in an
+// interface. It does not include embedded interface types or methods.
+func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
+	n := typ.NumEmbeddeds()
+	list := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		emb := typ.EmbeddedType(i)
+		switch emb := emb.(type) {
+		case *types.Interface:
+			list = append(list, w.sortedEmbeddeds(emb)...)
+		case *types.Union:
+			var buf bytes.Buffer
+			nu := emb.Len()
+			for i := 0; i < nu; i++ {
+				if i > 0 {
+					buf.WriteString(" | ")
+				}
+				term := emb.Term(i)
+				if term.Tilde() {
+					buf.WriteByte('~')
+				}
+				w.writeType(&buf, term.Type())
+			}
+			list = append(list, buf.String())
+		}
 	}
 	sort.Strings(list)
 	return list
@@ -758,9 +793,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 
 	case *types.Interface:
 		buf.WriteString("interface{")
-		if typ.NumMethods() > 0 {
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
+		}
+		if typ.NumMethods() > 0 {
 			buf.WriteString(strings.Join(sortedMethodNames(typ), ", "))
+		}
+		if typ.NumEmbeddeds() > 0 {
+			buf.WriteString(strings.Join(w.sortedEmbeddeds(typ), ", "))
+		}
+		if typ.NumMethods() > 0 || typ.NumEmbeddeds() > 0 {
 			buf.WriteByte(' ')
 		}
 		buf.WriteString("}")
@@ -795,12 +837,19 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
 		}
 		buf.WriteString(typ.Obj().Name())
 
+	case *types.TypeParam:
+		// Type parameter names may change, so use a placeholder instead.
+		fmt.Fprintf(buf, "$%d", typ.Index())
+
 	default:
 		panic(fmt.Sprintf("unknown type %T", typ))
 	}
 }
 
 func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
+	if tparams := sig.TypeParams(); tparams != nil {
+		w.writeTypeParams(buf, tparams, true)
+	}
 	w.writeParams(buf, sig.Params(), sig.Variadic())
 	switch res := sig.Results(); res.Len() {
 	case 0:
@@ -812,6 +861,23 @@ func (w *Walker) writeSignature(buf *bytes.Buffer, sig *types.Signature) {
 		buf.WriteByte(' ')
 		w.writeParams(buf, res, false)
 	}
+}
+
+func (w *Walker) writeTypeParams(buf *bytes.Buffer, tparams *types.TypeParamList, withConstraints bool) {
+	buf.WriteByte('[')
+	c := tparams.Len()
+	for i := 0; i < c; i++ {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		tp := tparams.At(i)
+		w.writeType(buf, tp)
+		if withConstraints {
+			buf.WriteByte(' ')
+			w.writeType(buf, tp.Constraint())
+		}
+	}
+	buf.WriteByte(']')
 }
 
 func (w *Walker) writeParams(buf *bytes.Buffer, t *types.Tuple, variadic bool) {
@@ -867,6 +933,12 @@ func (w *Walker) emitObj(obj types.Object) {
 
 func (w *Walker) emitType(obj *types.TypeName) {
 	name := obj.Name()
+	if tparams := obj.Type().(*types.Named).TypeParams(); tparams != nil {
+		var buf bytes.Buffer
+		buf.WriteString(name)
+		w.writeTypeParams(&buf, tparams, true)
+		name = buf.String()
+	}
 	typ := obj.Type()
 	if obj.IsAlias() {
 		w.emitf("type %s = %s", name, w.typeString(typ))
@@ -990,7 +1062,13 @@ func (w *Walker) emitMethod(m *types.Selection) {
 			log.Fatalf("exported method with unexported receiver base type: %s", m)
 		}
 	}
-	w.emitf("method (%s) %s%s", w.typeString(recv), m.Obj().Name(), w.signatureString(sig))
+	tps := ""
+	if rtp := sig.RecvTypeParams(); rtp != nil {
+		var buf bytes.Buffer
+		w.writeTypeParams(&buf, rtp, false)
+		tps = buf.String()
+	}
+	w.emitf("method (%s%s) %s%s", w.typeString(recv), tps, m.Obj().Name(), w.signatureString(sig))
 }
 
 func (w *Walker) emitf(format string, args ...interface{}) {

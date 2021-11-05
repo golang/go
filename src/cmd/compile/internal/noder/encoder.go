@@ -237,7 +237,8 @@ func (w *encoder) strings(ss []string) {
 	}
 }
 
-func (w *encoder) rawValue(val constant.Value) {
+func (w *encoder) value(val constant.Value) {
+	w.sync(syncValue)
 	if w.bool(val.Kind() == constant.Complex) {
 		w.scalar(constant.Real(val))
 		w.scalar(constant.Imag(val))

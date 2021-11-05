@@ -156,6 +156,9 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // if there's a possibility that the database server might have
 // performed the operation. Even if the server sends back an error,
 // you shouldn't return ErrBadConn.
+//
+// Errors will be checked using errors.Is. An error may
+// wrap ErrBadConn or implement the Is(error) bool method.
 var ErrBadConn = errors.New("driver: bad connection")
 
 // Pinger is an optional interface that may be implemented by a Conn.

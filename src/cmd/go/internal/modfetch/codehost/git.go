@@ -170,59 +170,63 @@ func (r *gitRepo) loadLocalTags() {
 }
 
 // loadRefs loads heads and tags references from the remote into the map r.refs.
-// Should only be called as r.refsOnce.Do(r.loadRefs).
-func (r *gitRepo) loadRefs() {
-	// The git protocol sends all known refs and ls-remote filters them on the client side,
-	// so we might as well record both heads and tags in one shot.
-	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, gitErr := Run(r.dir, "git", "ls-remote", "-q", r.remote)
-	if gitErr != nil {
-		if rerr, ok := gitErr.(*RunError); ok {
-			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
-				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+// The result is cached in memory.
+func (r *gitRepo) loadRefs() (map[string]string, error) {
+	r.refsOnce.Do(func() {
+		// The git protocol sends all known refs and ls-remote filters them on the client side,
+		// so we might as well record both heads and tags in one shot.
+		// Most of the time we only care about tags but sometimes we care about heads too.
+		out, gitErr := Run(r.dir, "git", "ls-remote", "-q", r.remote)
+		if gitErr != nil {
+			if rerr, ok := gitErr.(*RunError); ok {
+				if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
+					rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+				}
+			}
+
+			// If the remote URL doesn't exist at all, ideally we should treat the whole
+			// repository as nonexistent by wrapping the error in a notExistError.
+			// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
+			// ourselves and see what code it serves.
+			if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+				if _, err := web.GetBytes(u); errors.Is(err, fs.ErrNotExist) {
+					gitErr = notExistError{gitErr}
+				}
+			}
+
+			r.refsErr = gitErr
+			return
+		}
+
+		refs := make(map[string]string)
+		for _, line := range strings.Split(string(out), "\n") {
+			f := strings.Fields(line)
+			if len(f) != 2 {
+				continue
+			}
+			if f[1] == "HEAD" || strings.HasPrefix(f[1], "refs/heads/") || strings.HasPrefix(f[1], "refs/tags/") {
+				refs[f[1]] = f[0]
 			}
 		}
-
-		// If the remote URL doesn't exist at all, ideally we should treat the whole
-		// repository as nonexistent by wrapping the error in a notExistError.
-		// For HTTP and HTTPS, that's easy to detect: we'll try to fetch the URL
-		// ourselves and see what code it serves.
-		if u, err := url.Parse(r.remoteURL); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-			if _, err := web.GetBytes(u); errors.Is(err, fs.ErrNotExist) {
-				gitErr = notExistError{gitErr}
+		for ref, hash := range refs {
+			if strings.HasSuffix(ref, "^{}") { // record unwrapped annotated tag as value of tag
+				refs[strings.TrimSuffix(ref, "^{}")] = hash
+				delete(refs, ref)
 			}
 		}
-
-		r.refsErr = gitErr
-		return
-	}
-
-	r.refs = make(map[string]string)
-	for _, line := range strings.Split(string(out), "\n") {
-		f := strings.Fields(line)
-		if len(f) != 2 {
-			continue
-		}
-		if f[1] == "HEAD" || strings.HasPrefix(f[1], "refs/heads/") || strings.HasPrefix(f[1], "refs/tags/") {
-			r.refs[f[1]] = f[0]
-		}
-	}
-	for ref, hash := range r.refs {
-		if strings.HasSuffix(ref, "^{}") { // record unwrapped annotated tag as value of tag
-			r.refs[strings.TrimSuffix(ref, "^{}")] = hash
-			delete(r.refs, ref)
-		}
-	}
+		r.refs = refs
+	})
+	return r.refs, r.refsErr
 }
 
 func (r *gitRepo) Tags(prefix string) ([]string, error) {
-	r.refsOnce.Do(r.loadRefs)
-	if r.refsErr != nil {
-		return nil, r.refsErr
+	refs, err := r.loadRefs()
+	if err != nil {
+		return nil, err
 	}
 
 	tags := []string{}
-	for ref := range r.refs {
+	for ref := range refs {
 		if !strings.HasPrefix(ref, "refs/tags/") {
 			continue
 		}
@@ -237,14 +241,14 @@ func (r *gitRepo) Tags(prefix string) ([]string, error) {
 }
 
 func (r *gitRepo) Latest() (*RevInfo, error) {
-	r.refsOnce.Do(r.loadRefs)
-	if r.refsErr != nil {
-		return nil, r.refsErr
+	refs, err := r.loadRefs()
+	if err != nil {
+		return nil, err
 	}
-	if r.refs["HEAD"] == "" {
+	if refs["HEAD"] == "" {
 		return nil, ErrNoCommits
 	}
-	return r.Stat(r.refs["HEAD"])
+	return r.Stat(refs["HEAD"])
 }
 
 // findRef finds some ref name for the given hash,
@@ -252,8 +256,11 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 // There may be multiple ref names for a given hash,
 // in which case this returns some name - it doesn't matter which.
 func (r *gitRepo) findRef(hash string) (ref string, ok bool) {
-	r.refsOnce.Do(r.loadRefs)
-	for ref, h := range r.refs {
+	refs, err := r.loadRefs()
+	if err != nil {
+		return "", false
+	}
+	for ref, h := range refs {
 		if h == hash {
 			return ref, true
 		}
@@ -295,29 +302,32 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	// Maybe rev is the name of a tag or branch on the remote server.
 	// Or maybe it's the prefix of a hash of a named ref.
 	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
-	r.refsOnce.Do(r.loadRefs)
+	refs, err := r.loadRefs()
+	if err != nil {
+		return nil, err
+	}
 	// loadRefs may return an error if git fails, for example segfaults, or
 	// could not load a private repo, but defer checking to the else block
 	// below, in case we already have the rev in question in the local cache.
 	var ref, hash string
-	if r.refs["refs/tags/"+rev] != "" {
+	if refs["refs/tags/"+rev] != "" {
 		ref = "refs/tags/" + rev
-		hash = r.refs[ref]
+		hash = refs[ref]
 		// Keep rev as is: tags are assumed not to change meaning.
-	} else if r.refs["refs/heads/"+rev] != "" {
+	} else if refs["refs/heads/"+rev] != "" {
 		ref = "refs/heads/" + rev
-		hash = r.refs[ref]
+		hash = refs[ref]
 		rev = hash // Replace rev, because meaning of refs/heads/foo can change.
-	} else if rev == "HEAD" && r.refs["HEAD"] != "" {
+	} else if rev == "HEAD" && refs["HEAD"] != "" {
 		ref = "HEAD"
-		hash = r.refs[ref]
+		hash = refs[ref]
 		rev = hash // Replace rev, because meaning of HEAD can change.
 	} else if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
 		// At the least, we have a hash prefix we can look up after the fetch below.
 		// Maybe we can map it to a full hash using the known refs.
 		prefix := rev
 		// Check whether rev is prefix of known ref hash.
-		for k, h := range r.refs {
+		for k, h := range refs {
 			if strings.HasPrefix(h, prefix) {
 				if hash != "" && hash != h {
 					// Hash is an ambiguous hash prefix.
@@ -335,9 +345,6 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 			hash = rev
 		}
 	} else {
-		if r.refsErr != nil {
-			return nil, r.refsErr
-		}
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
 
@@ -535,12 +542,12 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
 
 	// Build list of known remote refs that might help.
 	var redo []string
-	r.refsOnce.Do(r.loadRefs)
-	if r.refsErr != nil {
-		return nil, r.refsErr
+	refs, err := r.loadRefs()
+	if err != nil {
+		return nil, err
 	}
 	for _, tag := range need {
-		if r.refs["refs/tags/"+tag] != "" {
+		if refs["refs/tags/"+tag] != "" {
 			redo = append(redo, tag)
 		}
 	}

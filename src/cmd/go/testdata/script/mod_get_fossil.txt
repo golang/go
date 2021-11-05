@@ -18,11 +18,10 @@ env GOSUMDB=off
 env USER=fossiluser
 env FOSSIL_HOME=$WORK/home
 
-# Attempting to get the latest version of a fossil repo.
+# Attempt to get the latest version of a fossil repo.
 go get vcs-test.golang.org/fossil/hello.fossil
 ! stderr 'unexpected response from fossil info'
 grep 'vcs-test.golang.org/fossil/hello.fossil' go.mod
-exists $GOPATH/bin/hello.fossil$GOEXE
 
 -- go.mod --
 module x

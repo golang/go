@@ -20,6 +20,8 @@
 // or any book about automata theory.
 //
 // All characters are UTF-8-encoded code points.
+// Following utf8.DecodeRune, each byte of an invalid UTF-8 sequence
+// is treated as if it encoded utf8.RuneError (U+FFFD).
 //
 // There are 16 methods of Regexp that match a regular expression and identify
 // the matched text. Their names are matched by this regular expression:
@@ -276,7 +278,11 @@ func minInputLen(re *syntax.Regexp) int {
 	case syntax.OpLiteral:
 		l := 0
 		for _, r := range re.Rune {
-			l += utf8.RuneLen(r)
+			if r == utf8.RuneError {
+				l++
+			} else {
+				l += utf8.RuneLen(r)
+			}
 		}
 		return l
 	case syntax.OpCapture, syntax.OpPlus:
@@ -922,23 +928,22 @@ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []
 
 func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, match []int) []byte {
 	for len(template) > 0 {
-		i := strings.Index(template, "$")
-		if i < 0 {
+		before, after, ok := strings.Cut(template, "$")
+		if !ok {
 			break
 		}
-		dst = append(dst, template[:i]...)
-		template = template[i:]
-		if len(template) > 1 && template[1] == '$' {
+		dst = append(dst, before...)
+		template = after
+		if template != "" && template[0] == '$' {
 			// Treat $$ as $.
 			dst = append(dst, '$')
-			template = template[2:]
+			template = template[1:]
 			continue
 		}
 		name, num, rest, ok := extract(template)
 		if !ok {
 			// Malformed; treat $ as raw text.
 			dst = append(dst, '$')
-			template = template[1:]
 			continue
 		}
 		template = rest
@@ -967,17 +972,16 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
 	return dst
 }
 
-// extract returns the name from a leading "$name" or "${name}" in str.
+// extract returns the name from a leading "name" or "{name}" in str.
+// (The $ has already been removed by the caller.)
 // If it is a number, extract returns num set to that number; otherwise num = -1.
 func extract(str string) (name string, num int, rest string, ok bool) {
-	if len(str) < 2 || str[0] != '$' {
+	if str == "" {
 		return
 	}
 	brace := false
-	if str[1] == '{' {
+	if str[0] == '{' {
 		brace = true
-		str = str[2:]
-	} else {
 		str = str[1:]
 	}
 	i := 0

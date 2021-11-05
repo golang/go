@@ -198,7 +198,7 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
 // complete register-assignment algorithm for the Go ABI.
 func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 	switch t.Kind() {
-	case UnsafePointer, Ptr, Chan, Map, Func:
+	case UnsafePointer, Pointer, Chan, Map, Func:
 		return a.assignIntN(offset, t.size, 1, 0b1)
 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
 		return a.assignIntN(offset, t.size, 1, 0b0)
@@ -466,4 +466,46 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 	// is accurate.
 	out.stackBytes -= retOffset
 	return abiDesc{in, out, stackCallArgsSize, retOffset, spill, stackPtrs, inRegPtrs, outRegPtrs}
+}
+
+// intFromReg loads an argSize sized integer from reg and places it at to.
+//
+// argSize must be non-zero, fit in a register, and a power-of-two.
+func intFromReg(r *abi.RegArgs, reg int, argSize uintptr, to unsafe.Pointer) {
+	memmove(to, r.IntRegArgAddr(reg, argSize), argSize)
+}
+
+// intToReg loads an argSize sized integer and stores it into reg.
+//
+// argSize must be non-zero, fit in a register, and a power-of-two.
+func intToReg(r *abi.RegArgs, reg int, argSize uintptr, from unsafe.Pointer) {
+	memmove(r.IntRegArgAddr(reg, argSize), from, argSize)
+}
+
+// floatFromReg loads a float value from its register representation in r.
+//
+// argSize must be 4 or 8.
+func floatFromReg(r *abi.RegArgs, reg int, argSize uintptr, to unsafe.Pointer) {
+	switch argSize {
+	case 4:
+		*(*float32)(to) = archFloat32FromReg(r.Floats[reg])
+	case 8:
+		*(*float64)(to) = *(*float64)(unsafe.Pointer(&r.Floats[reg]))
+	default:
+		panic("bad argSize")
+	}
+}
+
+// floatToReg stores a float value in its register representation in r.
+//
+// argSize must be either 4 or 8.
+func floatToReg(r *abi.RegArgs, reg int, argSize uintptr, from unsafe.Pointer) {
+	switch argSize {
+	case 4:
+		r.Floats[reg] = archFloat32ToReg(*(*float32)(from))
+	case 8:
+		r.Floats[reg] = *(*uint64)(from)
+	default:
+		panic("bad argSize")
+	}
 }

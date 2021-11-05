@@ -43,12 +43,12 @@ func (r *intReader) uint64() uint64 {
 
 // Keep this in sync with constants in iexport.go.
 const (
-	iexportVersionGo1_11 = 0
-	iexportVersionPosCol = 1
-	// TODO: before release, change this back to 2.
-	iexportVersionGenerics = iexportVersionPosCol
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGo1_18   = 2
 
-	iexportVersionCurrent = iexportVersionGenerics
+	iexportVersionCurrent = 2
 )
 
 type ident struct {
@@ -72,7 +72,7 @@ const (
 	structType
 	interfaceType
 	typeParamType
-	instType
+	instanceType
 	unionType
 )
 
@@ -99,13 +99,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
 
 	version = int64(r.uint64())
 	switch version {
-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		if version > iexportVersionGenerics {
-			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
-		} else {
-			errorf("unknown iexport format version %d", version)
-		}
+		errorf("unknown iexport format version %d", version)
 	}
 
 	sLen := int64(r.uint64())
@@ -257,7 +253,7 @@ func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
 		return posBase
 	}
 	filename := p.stringAt(off)
-	posBase := syntax.NewFileBase(filename)
+	posBase := syntax.NewTrimmedFileBase(filename, true)
 	p.posBaseCache[off] = posBase
 	return posBase
 }
@@ -309,28 +305,25 @@ func (r *importReader) obj(name string) {
 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
 
 	case 'F', 'G':
-		var tparams []*types2.TypeName
+		var tparams []*types2.TypeParam
 		if tag == 'G' {
 			tparams = r.tparamList()
 		}
-		sig := r.signature(nil)
-		sig.SetTParams(tparams)
+		sig := r.signature(nil, nil, tparams)
 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
 
 	case 'T', 'U':
-		var tparams []*types2.TypeName
-		if tag == 'U' {
-			tparams = r.tparamList()
-		}
-
 		// Types can be recursive. We need to setup a stub
 		// declaration before recursing.
 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
 		named := types2.NewNamed(obj, nil, nil)
-		if tag == 'U' {
-			named.SetTParams(tparams)
-		}
+		// Declare obj before calling r.tparamList, so the new type name is recognized
+		// if used in the constraint of one of its own typeparams (see #48280).
 		r.declare(obj)
+		if tag == 'U' {
+			tparams := r.tparamList()
+			named.SetTypeParams(tparams)
+		}
 
 		underlying := r.p.typAt(r.uint64(), named).Underlying()
 		named.SetUnderlying(underlying)
@@ -340,19 +333,19 @@ func (r *importReader) obj(name string) {
 				mpos := r.pos()
 				mname := r.ident()
 				recv := r.param()
-				msig := r.signature(recv)
 
 				// If the receiver has any targs, set those as the
 				// rparams of the method (since those are the
 				// typeparams being used in the method sig/body).
-				targs := baseType(msig.Recv().Type()).TArgs()
-				if len(targs) > 0 {
-					rparams := make([]*types2.TypeName, len(targs))
-					for i, targ := range targs {
-						rparams[i] = types2.AsTypeParam(targ).Obj()
+				targs := baseType(recv.Type()).TypeArgs()
+				var rparams []*types2.TypeParam
+				if targs.Len() > 0 {
+					rparams = make([]*types2.TypeParam, targs.Len())
+					for i := range rparams {
+						rparams[i], _ = targs.At(i).(*types2.TypeParam)
 					}
-					msig.SetRParams(rparams)
 				}
+				msig := r.signature(recv, rparams, nil)
 
 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
 			}
@@ -365,19 +358,31 @@ func (r *importReader) obj(name string) {
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected type param type")
 		}
-		name0, sub := parseSubscript(name)
-		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
-		t := (*types2.Checker)(nil).NewTypeParam(tn, nil)
-		if sub == 0 {
-			errorf("missing subscript")
+		// Remove the "path" from the type param name that makes it unique
+		ix := strings.LastIndex(name, ".")
+		if ix < 0 {
+			errorf("missing path for type param")
 		}
-		t.SetId(sub)
+		tn := types2.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
+		t := types2.NewTypeParam(tn, nil)
 		// To handle recursive references to the typeparam within its
 		// bound, save the partial type in tparamIndex before reading the bounds.
 		id := ident{r.currPkg.Name(), name}
 		r.p.tparamIndex[id] = t
 
-		t.SetConstraint(r.typ())
+		var implicit bool
+		if r.p.exportVersion >= iexportVersionGo1_18 {
+			implicit = r.bool()
+		}
+		constraint := r.typ()
+		if implicit {
+			iface, _ := constraint.(*types2.Interface)
+			if iface == nil {
+				errorf("non-interface constraint marked implicit")
+			}
+			iface.MarkImplicit()
+		}
+		t.SetConstraint(constraint)
 
 	case 'V':
 		typ := r.typ()
@@ -395,6 +400,10 @@ func (r *importReader) declare(obj types2.Object) {
 
 func (r *importReader) value() (typ types2.Type, val constant.Value) {
 	typ = r.typ()
+	if r.p.exportVersion >= iexportVersionGo1_18 {
+		// TODO: add support for using the kind
+		_ = constant.Kind(r.int64())
+	}
 
 	switch b := typ.Underlying().(*types2.Basic); b.Info() & types2.IsConstType {
 	case types2.IsBoolean:
@@ -586,7 +595,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		return types2.NewMap(r.typ(), r.typ())
 	case signatureType:
 		r.currPkg = r.pkg()
-		return r.signature(nil)
+		return r.signature(nil, nil, nil)
 
 	case structType:
 		r.currPkg = r.pkg()
@@ -626,7 +635,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 				recv = types2.NewVar(syntax.Pos{}, r.currPkg, "", base)
 			}
 
-			msig := r.signature(recv)
+			msig := r.signature(recv, nil, nil)
 			methods[i] = types2.NewFunc(mpos, r.currPkg, mname, msig)
 		}
 
@@ -648,11 +657,13 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		r.p.doDecl(pkg, name)
 		return r.p.tparamIndex[id]
 
-	case instType:
+	case instanceType:
 		if r.p.exportVersion < iexportVersionGenerics {
 			errorf("unexpected instantiation type")
 		}
-		pos := r.pos()
+		// pos does not matter for instances: they are positioned on the original
+		// type.
+		_ = r.pos()
 		len := r.uint64()
 		targs := make([]types2.Type, len)
 		for i := range targs {
@@ -661,8 +672,8 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
 		baseType := r.typ()
 		// The imported instantiated type doesn't include any methods, so
 		// we must always use the methods of the base (orig) type.
-		var check *types2.Checker // TODO provide a non-nil *Checker
-		t := check.Instantiate(pos, baseType, targs, nil, false)
+		// TODO provide a non-nil *Context
+		t, _ := types2.Instantiate(nil, baseType, targs, false)
 		return t
 
 	case unionType:
@@ -681,22 +692,22 @@ func (r *importReader) kind() itag {
 	return itag(r.uint64())
 }
 
-func (r *importReader) signature(recv *types2.Var) *types2.Signature {
+func (r *importReader) signature(recv *types2.Var, rparams, tparams []*types2.TypeParam) *types2.Signature {
 	params := r.paramList()
 	results := r.paramList()
 	variadic := params.Len() > 0 && r.bool()
-	return types2.NewSignature(recv, params, results, variadic)
+	return types2.NewSignatureType(recv, rparams, tparams, params, results, variadic)
 }
 
-func (r *importReader) tparamList() []*types2.TypeName {
+func (r *importReader) tparamList() []*types2.TypeParam {
 	n := r.uint64()
 	if n == 0 {
 		return nil
 	}
-	xs := make([]*types2.TypeName, n)
+	xs := make([]*types2.TypeParam, n)
 	for i := range xs {
 		typ := r.typ()
-		xs[i] = types2.AsTypeParam(typ).Obj()
+		xs[i] = types2.AsTypeParam(typ)
 	}
 	return xs
 }
@@ -752,24 +763,4 @@ func baseType(typ types2.Type) *types2.Named {
 	// receiver base types are always (possibly generic) types2.Named types
 	n, _ := typ.(*types2.Named)
 	return n
-}
-
-func parseSubscript(name string) (string, uint64) {
-	// Extract the subscript value from the type param name. We export
-	// and import the subscript value, so that all type params have
-	// unique names.
-	sub := uint64(0)
-	startsub := -1
-	for i, r := range name {
-		if '₀' <= r && r < '₀'+10 {
-			if startsub == -1 {
-				startsub = i
-			}
-			sub = sub*10 + uint64(r-'₀')
-		}
-	}
-	if startsub >= 0 {
-		name = name[:startsub]
-	}
-	return name, sub
 }

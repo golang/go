@@ -11,7 +11,7 @@ import (
 
 // maketl makes a term list from a string of the term list.
 func maketl(s string) termlist {
-	s = strings.Replace(s, " ", "", -1)
+	s = strings.ReplaceAll(s, " ", "")
 	names := strings.Split(s, "∪")
 	r := make(termlist, len(names))
 	for i, n := range names {
@@ -20,7 +20,7 @@ func maketl(s string) termlist {
 	return r
 }
 
-func TestTermlistTop(t *testing.T) {
+func TestTermlistAll(t *testing.T) {
 	if !allTermlist.isAll() {
 		t.Errorf("allTermlist is not the set of all types")
 	}
@@ -106,7 +106,7 @@ func TestTermlistNorm(t *testing.T) {
 	}
 }
 
-func TestTermlistStructuralType(t *testing.T) {
+func TestTermlistSingleType(t *testing.T) {
 	// helper to deal with nil types
 	tstring := func(typ Type) string {
 		if typ == nil {
@@ -128,9 +128,9 @@ func TestTermlistStructuralType(t *testing.T) {
 		"∅ ∪ ~int ∪ string": "nil",
 	} {
 		xl := maketl(test)
-		got := tstring(xl.structuralType())
+		got := tstring(xl.singleType())
 		if got != want {
-			t.Errorf("(%v).structuralType() == %v; want %v", test, got, want)
+			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
 		}
 	}
 }

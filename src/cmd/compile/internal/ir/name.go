@@ -40,6 +40,7 @@ type Name struct {
 	Class     Class      // uint8
 	pragma    PragmaFlag // int16
 	flags     bitset16
+	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
 	sym       *types.Sym
 	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
 	Offset_   int64
@@ -51,6 +52,8 @@ type Name struct {
 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
 	// For a closure var, the ONAME node of the outer captured variable.
 	// For the case-local variables of a type switch, the type switch guard (OTYPESW).
+	// For a range variable, the range statement (ORANGE)
+	// For a recv variable in a case of a select statement, the receive assignment (OSELRECV2)
 	// For the name of a function, points to corresponding Func node.
 	Defn Node
 
@@ -143,7 +146,10 @@ func (n *Name) editChildren(edit func(Node) Node)  {}
 // That is, given "type T Defn", it returns Defn.
 // It is used by package types.
 func (n *Name) TypeDefn() *types.Type {
-	return n.Ntype.Type()
+	if n.Ntype != nil {
+		return n.Ntype.Type()
+	}
+	return n.Type()
 }
 
 // RecordFrameOffset records the frame offset for the name.

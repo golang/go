@@ -200,7 +200,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
-		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
+		if strings.Contains(e, "LD_LIBRARY_PATH=") {
 			adbargs = append([]string{e}, adbargs...)
 			break
 		}
@@ -326,7 +326,7 @@ func createHeaders() error {
 			base, name := filepath.Split(args[0])
 			args[0] = filepath.Join(base, "llvm-dlltool")
 			var machine string
-			switch strings.SplitN(name, "-", 2)[0] {
+			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
 			case "i686":
 				machine = "i386"
 			case "x86_64":

@@ -8,6 +8,7 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"encoding/binary"
+	"fmt"
 	"log"
 )
 
@@ -26,7 +27,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 	dst := []byte{}
 	sym := &LSym{
 		Type:      objabi.SRODATA,
-		Attribute: AttrContentAddressable,
+		Attribute: AttrContentAddressable | AttrPcdata,
 	}
 
 	if dbg {
@@ -280,8 +281,6 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	pcln.Pcdata = make([]*LSym, npcdata)
 	pcln.Funcdata = make([]*LSym, nfuncdata)
-	pcln.Funcdataoff = make([]int64, nfuncdata)
-	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
 
 	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
 	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
@@ -337,7 +336,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			// use an empty symbol.
 			pcln.Pcdata[i] = &LSym{
 				Type:      objabi.SRODATA,
-				Attribute: AttrContentAddressable,
+				Attribute: AttrContentAddressable | AttrPcdata,
 			}
 		} else {
 			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
@@ -351,12 +350,10 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 				continue
 			}
 			i := int(p.From.Offset)
-			pcln.Funcdataoff[i] = p.To.Offset
-			if p.To.Type != TYPE_CONST {
-				// TODO: Dedup.
-				//funcdata_bytes += p->to.sym->size;
-				pcln.Funcdata[i] = p.To.Sym
+			if p.To.Type != TYPE_MEM || p.To.Offset != 0 {
+				panic(fmt.Sprintf("bad funcdata: %v", p))
 			}
+			pcln.Funcdata[i] = p.To.Sym
 		}
 	}
 }

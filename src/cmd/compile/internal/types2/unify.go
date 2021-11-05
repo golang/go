@@ -62,7 +62,7 @@ func (u *unifier) unify(x, y Type) bool {
 // A tparamsList describes a list of type parameters and the types inferred for them.
 type tparamsList struct {
 	unifier *unifier
-	tparams []*TypeName
+	tparams []*TypeParam
 	// For each tparams element, there is a corresponding type slot index in indices.
 	// index  < 0: unifier.types[-index-1] == nil
 	// index == 0: no type slot allocated yet
@@ -76,29 +76,30 @@ type tparamsList struct {
 // String returns a string representation for a tparamsList. For debugging.
 func (d *tparamsList) String() string {
 	var buf bytes.Buffer
-	buf.WriteByte('[')
-	for i, tname := range d.tparams {
+	w := newTypeWriter(&buf, nil)
+	w.byte('[')
+	for i, tpar := range d.tparams {
 		if i > 0 {
-			buf.WriteString(", ")
+			w.string(", ")
 		}
-		writeType(&buf, tname.typ, nil, nil)
-		buf.WriteString(": ")
-		writeType(&buf, d.at(i), nil, nil)
+		w.typ(tpar)
+		w.string(": ")
+		w.typ(d.at(i))
 	}
-	buf.WriteByte(']')
+	w.byte(']')
 	return buf.String()
 }
 
 // init initializes d with the given type parameters.
 // The type parameters must be in the order in which they appear in their declaration
 // (this ensures that the tparams indices match the respective type parameter index).
-func (d *tparamsList) init(tparams []*TypeName) {
+func (d *tparamsList) init(tparams []*TypeParam) {
 	if len(tparams) == 0 {
 		return
 	}
 	if debug {
 		for i, tpar := range tparams {
-			assert(i == tpar.typ.(*TypeParam).index)
+			assert(i == tpar.index)
 		}
 	}
 	d.tparams = tparams
@@ -107,7 +108,7 @@ func (d *tparamsList) init(tparams []*TypeName) {
 
 // join unifies the i'th type parameter of x with the j'th type parameter of y.
 // If both type parameters already have a type associated with them and they are
-// not joined, join fails and return false.
+// not joined, join fails and returns false.
 func (u *unifier) join(i, j int) bool {
 	ti := u.x.indices[i]
 	tj := u.y.indices[j]
@@ -131,6 +132,7 @@ func (u *unifier) join(i, j int) bool {
 		break
 	case ti > 0 && tj > 0:
 		// Both type parameters have (possibly different) inferred types. Cannot join.
+		// TODO(gri) Should we check if types are identical? Investigate.
 		return false
 	case ti > 0:
 		// Only the type parameter for x has an inferred type. Use x slot for y.
@@ -158,8 +160,8 @@ func (d *tparamsList) index(typ Type) int {
 
 // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
 // Otherwise, the result is < 0. tpar must not be nil.
-func tparamIndex(list []*TypeName, tpar *TypeParam) int {
-	if i := tpar.index; i < len(list) && list[i].typ == tpar {
+func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+	if i := tpar.index; i < len(list) && list[i] == tpar {
 		return i
 	}
 	return -1
@@ -225,7 +227,7 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
 }
 
 // nify implements the core unification algorithm which is an
-// adapted version of Checker.identical0. For changes to that
+// adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
 // Must not be called directly from outside the unifier.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
@@ -233,13 +235,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// If exact unification is known to fail because we attempt to
 		// match a type name against an unnamed type literal, consider
 		// the underlying type of the named type.
-		// (Subtle: We use isNamed to include any type with a name (incl.
+		// (Subtle: We use hasName to include any type with a name (incl.
 		// basic types and type parameters. We use asNamed because we only
 		// want *Named types.)
 		switch {
-		case !isNamed(x) && y != nil && asNamed(y) != nil:
+		case !hasName(x) && y != nil && asNamed(y) != nil:
 			return u.nify(x, under(y), p)
-		case x != nil && asNamed(x) != nil && !isNamed(y):
+		case x != nil && asNamed(x) != nil && !hasName(y):
 			return u.nify(under(x), y, p)
 		}
 	}
@@ -426,16 +428,18 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		}
 
 	case *Named:
+		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
 		if y, ok := y.(*Named); ok {
-			x.expand(nil)
-			y.expand(nil)
+			xargs := x.targs.list()
+			yargs := y.targs.list()
+
 			// TODO(gri) This is not always correct: two types may have the same names
 			//           in the same package if one of them is nested in a function.
 			//           Extremely unlikely but we need an always correct solution.
 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
-				assert(len(x.targs) == len(y.targs))
-				for i, x := range x.targs {
-					if !u.nify(x, y.targs[i], p) {
+				assert(len(xargs) == len(yargs))
+				for i, x := range xargs {
+					if !u.nify(x, yargs[i], p) {
 						return false
 					}
 				}

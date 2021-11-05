@@ -6,6 +6,8 @@
 
 package codegen
 
+import "math/bits"
+
 /************************************
  * 64-bit instructions
  ************************************/
@@ -330,7 +332,7 @@ func bitSetPowerOf2Test(x int) bool {
 }
 
 func bitSetTest(x int) bool {
-	// amd64:"ANDQ\t[$]9, AX"
+	// amd64:"ANDL\t[$]9, AX"
 	// amd64:"CMPQ\tAX, [$]9"
 	return x&9 == 9
 }
@@ -354,4 +356,10 @@ func issue44228a(a []int64, i int) bool {
 func issue44228b(a []int32, i int) bool {
 	// amd64: "BTL", -"SHL"
 	return a[i>>5]&(1<<(i&31)) != 0
+}
+
+func issue48467(x, y uint64) uint64 {
+	// arm64: -"NEG"
+	d, borrow := bits.Sub64(x, y, 0)
+	return x - d&(-borrow)
 }

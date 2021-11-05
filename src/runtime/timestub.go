@@ -6,9 +6,6 @@
 // indirectly, in terms of walltime and nanotime assembly.
 
 //go:build !faketime && !windows && !(linux && amd64)
-// +build !faketime
-// +build !windows
-// +build !linux !amd64
 
 package runtime
 

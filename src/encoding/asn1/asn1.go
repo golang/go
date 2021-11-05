@@ -1101,7 +1101,7 @@ func (e *invalidUnmarshalError) Error() string {
 		return "asn1: Unmarshal recipient value is nil"
 	}
 
-	if e.Type.Kind() != reflect.Ptr {
+	if e.Type.Kind() != reflect.Pointer {
 		return "asn1: Unmarshal recipient value is non-pointer " + e.Type.String()
 	}
 	return "asn1: Unmarshal recipient value is nil " + e.Type.String()
@@ -1111,7 +1111,7 @@ func (e *invalidUnmarshalError) Error() string {
 // top-level element. The form of the params is the same as the field tags.
 func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return nil, &invalidUnmarshalError{reflect.TypeOf(val)}
 	}
 	offset, err := parseField(v.Elem(), b, 0, parseFieldParameters(params))

@@ -138,9 +138,17 @@ func (dec *Decoder) nextUint() uint64 {
 // decoded. If this is an interface value, it can be ignored by
 // resetting that buffer.
 func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+	firstMessage := true
 	for dec.err == nil {
 		if dec.buf.Len() == 0 {
 			if !dec.recvMessage() {
+				// We can only return io.EOF if the input was empty.
+				// If we read one or more type spec messages,
+				// require a data item message to follow.
+				// If we hit an EOF before that, then give ErrUnexpectedEOF.
+				if !firstMessage && dec.err == io.EOF {
+					dec.err = io.ErrUnexpectedEOF
+				}
 				break
 			}
 		}
@@ -166,6 +174,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 			}
 			dec.nextUint()
 		}
+		firstMessage = false
 	}
 	return -1
 }
@@ -184,7 +193,7 @@ func (dec *Decoder) Decode(e interface{}) error {
 	value := reflect.ValueOf(e)
 	// If e represents a value as opposed to a pointer, the answer won't
 	// get back to the caller. Make sure it's a pointer.
-	if value.Type().Kind() != reflect.Ptr {
+	if value.Type().Kind() != reflect.Pointer {
 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
 		return dec.err
 	}
@@ -199,7 +208,7 @@ func (dec *Decoder) Decode(e interface{}) error {
 // does not modify v.
 func (dec *Decoder) DecodeValue(v reflect.Value) error {
 	if v.IsValid() {
-		if v.Kind() == reflect.Ptr && !v.IsNil() {
+		if v.Kind() == reflect.Pointer && !v.IsNil() {
 			// That's okay, we'll store through the pointer.
 		} else if !v.CanSet() {
 			return errors.New("gob: DecodeValue of unassignable value")

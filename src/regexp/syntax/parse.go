@@ -824,13 +824,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 				case 'Q':
 					// \Q ... \E: the ... is always literals
 					var lit string
-					if i := strings.Index(t, `\E`); i < 0 {
-						lit = t[2:]
-						t = ""
-					} else {
-						lit = t[2:i]
-						t = t[i+2:]
-					}
+					lit, t, _ = strings.Cut(t[2:], `\E`)
 					for lit != "" {
 						c, rest, err := nextRune(lit)
 						if err != nil {

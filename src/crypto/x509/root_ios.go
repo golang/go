@@ -2,7 +2,6 @@
 // Update the version in root.go and regenerate with "go generate".
 
 //go:build ios && !x509omitbundledroots
-// +build ios,!x509omitbundledroots
 
 package x509
 

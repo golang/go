@@ -383,7 +383,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 		if n == nil {
 			return
 		}
-		if false && reflect.TypeOf(n).Kind() == reflect.Ptr { // debugging trace
+		if false && reflect.TypeOf(n).Kind() == reflect.Pointer { // debugging trace
 			defer func() {
 				if t := typeof[n]; t != "" {
 					pos := fset.Position(n.(ast.Node).Pos())
@@ -544,8 +544,8 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			if strings.HasPrefix(t, "[") || strings.HasPrefix(t, "map[") {
 				// Lazy: assume there are no nested [] in the array
 				// length or map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
-					typeof[n] = t[i+1:]
+				if _, elem, ok := strings.Cut(t, "]"); ok {
+					typeof[n] = elem
 				}
 			}
 
@@ -575,8 +575,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			t := expand(typeof[n])
 			if strings.HasPrefix(t, "[") { // array or slice
 				// Lazy: assume there are no nested [] in the array length.
-				if i := strings.Index(t, "]"); i >= 0 {
-					et := t[i+1:]
+				if _, et, ok := strings.Cut(t, "]"); ok {
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
 							e = kv.Value
@@ -589,8 +588,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			}
 			if strings.HasPrefix(t, "map[") { // map
 				// Lazy: assume there are no nested [] in the map key type.
-				if i := strings.Index(t, "]"); i >= 0 {
-					kt, vt := t[4:i], t[i+1:]
+				if kt, vt, ok := strings.Cut(t[len("map["):], "]"); ok {
 					for _, e := range n.Elts {
 						if kv, ok := e.(*ast.KeyValueExpr); ok {
 							if typeof[kv.Key] == "" {
@@ -629,12 +627,10 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 				key, value = "int", "rune"
 			} else if strings.HasPrefix(t, "[") {
 				key = "int"
-				if i := strings.Index(t, "]"); i >= 0 {
-					value = t[i+1:]
-				}
+				_, value, _ = strings.Cut(t, "]")
 			} else if strings.HasPrefix(t, "map[") {
-				if i := strings.Index(t, "]"); i >= 0 {
-					key, value = t[4:i], t[i+1:]
+				if k, v, ok := strings.Cut(t[len("map["):], "]"); ok {
+					key, value = k, v
 				}
 			}
 			changed := false

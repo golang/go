@@ -132,7 +132,7 @@ func indirectToJSONMarshaler(a interface{}) interface{} {
 	}
 
 	v := reflect.ValueOf(a)
-	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()
@@ -398,9 +398,7 @@ func isJSType(mimeType string) bool {
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
 	// discard parameters
-	if i := strings.Index(mimeType, ";"); i >= 0 {
-		mimeType = mimeType[:i]
-	}
+	mimeType, _, _ = strings.Cut(mimeType, ";")
 	mimeType = strings.ToLower(mimeType)
 	mimeType = strings.TrimSpace(mimeType)
 	switch mimeType {

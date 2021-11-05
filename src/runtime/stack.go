@@ -144,6 +144,9 @@ const (
 	// Force a stack movement. Used for debugging.
 	// 0xfffffeed in hex.
 	stackForceMove = uintptrMask & -275
+
+	// stackPoisonMin is the lowest allowed stack poison value.
+	stackPoisonMin = uintptrMask & -4096
 )
 
 // Global pool of spans that have free stacks.
@@ -424,6 +427,9 @@ func stackalloc(n uint32) stack {
 	if msanenabled {
 		msanmalloc(v, uintptr(n))
 	}
+	if asanenabled {
+		asanunpoison(v, uintptr(n))
+	}
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
 	}
@@ -460,6 +466,9 @@ func stackfree(stk stack) {
 	}
 	if msanenabled {
 		msanfree(v, n)
+	}
+	if asanenabled {
+		asanpoison(v, n)
 	}
 	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
@@ -691,7 +700,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	// Adjust pointers in all stack objects (whether they are live or not).
 	// See comments in mgcmark.go:scanframeworker.
 	if frame.varp != 0 {
-		for _, obj := range objs {
+		for i := range objs {
+			obj := &objs[i]
 			off := obj.off
 			base := frame.varp // locals base pointer
 			if off >= 0 {
@@ -705,7 +715,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 				continue
 			}
 			ptrdata := obj.ptrdata()
-			gcdata := obj.gcdata
+			gcdata := obj.gcdata()
 			var s *mspan
 			if obj.useGCProg() {
 				// See comments in mgcmark.go:scanstack
@@ -851,6 +861,11 @@ func copystack(gp *g, newsize uintptr) {
 		throw("nil stackbase")
 	}
 	used := old.hi - gp.sched.sp
+	// Add just the difference to gcController.addScannableStack.
+	// g0 stacks never move, so this will never account for them.
+	// It's also fine if we have no P, addScannableStack can deal with
+	// that case.
+	gcController.addScannableStack(getg().m.p.ptr(), int64(newsize)-int64(old.hi-old.lo))
 
 	// allocate new stack
 	new := stackalloc(uint32(newsize))
@@ -966,7 +981,7 @@ func newstack() {
 		f := findfunc(gp.sched.pc)
 		if f.valid() {
 			pcname = funcname(f)
-			pcoff = gp.sched.pc - f.entry
+			pcoff = gp.sched.pc - f.entry()
 		}
 		print("runtime: newstack at ", pcname, "+", hex(pcoff),
 			" sp=", hex(gp.sched.sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
@@ -1198,7 +1213,6 @@ func shrinkstack(gp *g) {
 
 // freeStackSpans frees unused stack spans at the end of GC.
 func freeStackSpans() {
-
 	// Scan stack pools for empty stack spans.
 	for order := range stackpool {
 		lock(&stackpool[order].item.mu)
@@ -1241,7 +1255,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 
 	f := frame.fn
 	pcdata := int32(-1)
-	if targetpc != f.entry {
+	if targetpc != f.entry() {
 		// Back up to the CALL. If we're at the function entry
 		// point, we want to use the entry map (-1), even if
 		// the first instruction of the function changes the
@@ -1317,12 +1331,12 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	}
 
 	// stack objects.
-	if (GOARCH == "amd64" || GOARCH == "arm64") && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
+	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le") && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
 		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
 		// We don't actually use argmap in this case, but we need to fake the stack object
 		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
 		// This offset matches the assembly code on amd64 and arm64.
-		objs = methodValueCallFrameObjs
+		objs = methodValueCallFrameObjs[:]
 	} else {
 		p := funcdata(f, _FUNCDATA_StackObjects)
 		if p != nil {
@@ -1340,22 +1354,32 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 	return
 }
 
-var (
-	abiRegArgsEface          interface{} = abi.RegArgs{}
-	abiRegArgsType           *_type      = efaceOf(&abiRegArgsEface)._type
-	methodValueCallFrameObjs             = []stackObjectRecord{
-		{
-			off:      -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
-			size:     int32(abiRegArgsType.size),
-			_ptrdata: int32(abiRegArgsType.ptrdata),
-			gcdata:   abiRegArgsType.gcdata,
-		},
-	}
-)
+var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
 
-func init() {
+func stkobjinit() {
+	var abiRegArgsEface interface{} = abi.RegArgs{}
+	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
 	if abiRegArgsType.kind&kindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
+	}
+	// Set methodValueCallFrameObjs[0].gcdataoff so that
+	// stackObjectRecord.gcdata() will work correctly with it.
+	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
+	var mod *moduledata
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.gofunc <= ptr && ptr < datap.end {
+			mod = datap
+			break
+		}
+	}
+	if mod == nil {
+		throw("methodValueCallFrameObjs is not in a module")
+	}
+	methodValueCallFrameObjs[0] = stackObjectRecord{
+		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
+		size:      int32(abiRegArgsType.size),
+		_ptrdata:  int32(abiRegArgsType.ptrdata),
+		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
 	}
 }
 
@@ -1365,10 +1389,10 @@ type stackObjectRecord struct {
 	// offset in frame
 	// if negative, offset from varp
 	// if non-negative, offset from argp
-	off      int32
-	size     int32
-	_ptrdata int32 // ptrdata, or -ptrdata is GC prog is used
-	gcdata   *byte // pointer map or GC prog of the type
+	off       int32
+	size      int32
+	_ptrdata  int32  // ptrdata, or -ptrdata is GC prog is used
+	gcdataoff uint32 // offset to gcdata from moduledata.rodata
 }
 
 func (r *stackObjectRecord) useGCProg() bool {
@@ -1381,6 +1405,23 @@ func (r *stackObjectRecord) ptrdata() uintptr {
 		return uintptr(-x)
 	}
 	return uintptr(x)
+}
+
+// gcdata returns pointer map or GC prog of the type.
+func (r *stackObjectRecord) gcdata() *byte {
+	ptr := uintptr(unsafe.Pointer(r))
+	var mod *moduledata
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.gofunc <= ptr && ptr < datap.end {
+			mod = datap
+			break
+		}
+	}
+	// If you get a panic here due to a nil mod,
+	// you may have made a copy of a stackObjectRecord.
+	// You must use the original pointer.
+	res := mod.rodata + uintptr(r.gcdataoff)
+	return (*byte)(unsafe.Pointer(res))
 }
 
 // This is exported as ABI0 via linkname so obj can call it.

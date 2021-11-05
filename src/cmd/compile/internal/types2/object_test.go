@@ -33,6 +33,8 @@ func TestIsAlias(t *testing.T) {
 	pkg := NewPackage("p", "p")
 	t1 := NewTypeName(nopos, pkg, "t1", nil)
 	n1 := NewNamed(t1, new(Struct), nil)
+	t5 := NewTypeName(nopos, pkg, "t5", nil)
+	NewTypeParam(t5, nil)
 	for _, test := range []struct {
 		name  *TypeName
 		alias bool
@@ -46,6 +48,7 @@ func TestIsAlias(t *testing.T) {
 		{NewTypeName(nopos, nil, "int32", Typ[Int32]), false},  // type name refers to basic type with same name
 		{NewTypeName(nopos, pkg, "int32", Typ[Int32]), true},   // type name is declared in user-defined package (outside Universe)
 		{NewTypeName(nopos, nil, "rune", Typ[Rune]), true},     // type name refers to basic type rune which is an alias already
+		{t5, false}, // type name refers to type parameter and vice versa
 	} {
 		check(test.name, test.alias)
 	}

@@ -20,9 +20,6 @@
 //		_ = x /* ERROR "not declared" */ + 1
 //	}
 
-// TODO(gri) Also collect strict mode errors of the form /* STRICT ... */
-//           and test against strict mode.
-
 package types2_test
 
 import (
@@ -102,7 +99,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 
 	var mode syntax.Mode
-	if strings.HasSuffix(filenames[0], ".go2") {
+	if strings.HasSuffix(filenames[0], ".go2") || manual {
 		mode |= syntax.AllowGenerics
 	}
 	// parse files and collect parser errors
@@ -281,6 +278,7 @@ func TestManual(t *testing.T) {
 // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
 
 func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 75, false) } // TODO(gri) narrow column tolerance
+func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", 0, false) }
 func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 0, false) }
 func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
 

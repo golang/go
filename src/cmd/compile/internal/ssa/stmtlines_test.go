@@ -2,6 +2,7 @@ package ssa_test
 
 import (
 	cmddwarf "cmd/internal/dwarf"
+	"cmd/internal/quoted"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
@@ -57,7 +58,11 @@ func TestStmtLines(t *testing.T) {
 		if extld == "" {
 			extld = "gcc"
 		}
-		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extld)
+		extldArgs, err := quoted.Split(extld)
+		if err != nil {
+			t.Fatal(err)
+		}
+		enabled, err := cmddwarf.IsDWARFEnabledOnAIXLd(extldArgs)
 		if err != nil {
 			t.Fatal(err)
 		}

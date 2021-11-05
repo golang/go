@@ -2,13 +2,13 @@
 # TODO(golang.org/issue/41696): remove the -i flag after Go 1.16, and this test.
 
 go build -n -i
-stderr '^go build: -i flag is deprecated$'
+stderr '^go: -i flag is deprecated$'
 
 go install -n -i
-stderr '^go install: -i flag is deprecated$'
+stderr '^go: -i flag is deprecated$'
 
 go test -n -i
-stderr '^go test: -i flag is deprecated$'
+stderr '^go: -i flag is deprecated$'
 
 
 # 'go clean -i' should not print a deprecation warning.

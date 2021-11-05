@@ -139,18 +139,18 @@ func goodName(name string) bool {
 }
 
 // findFunction looks for a function in the template, and global map.
-func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
+func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok bool) {
 	if tmpl != nil && tmpl.common != nil {
 		tmpl.muFuncs.RLock()
 		defer tmpl.muFuncs.RUnlock()
 		if fn := tmpl.execFuncs[name]; fn.IsValid() {
-			return fn, true
+			return fn, false, true
 		}
 	}
 	if fn := builtinFuncs()[name]; fn.IsValid() {
-		return fn, true
+		return fn, true, true
 	}
-	return reflect.Value{}, false
+	return reflect.Value{}, false, false
 }
 
 // prepareArg checks if value can be used as an argument of type argType, and
@@ -382,31 +382,13 @@ func truth(arg reflect.Value) bool {
 // and computes the Boolean AND of its arguments, returning
 // the first false argument it encounters, or the last argument.
 func and(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if !truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if !truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // or computes the Boolean OR of its arguments, returning
 // the first true argument it encounters, or the last argument.
 func or(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	if truth(arg0) {
-		return arg0
-	}
-	for i := range args {
-		arg0 = args[i]
-		if truth(arg0) {
-			break
-		}
-	}
-	return arg0
+	panic("unreachable") // implemented as a special case in evalCall
 }
 
 // not returns the Boolean negation of its argument.

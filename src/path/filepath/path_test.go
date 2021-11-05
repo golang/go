@@ -791,6 +791,8 @@ var winisabstests = []IsAbsTest{
 	{`c:a\b`, false},
 	{`c:\a\b`, true},
 	{`c:/a/b`, true},
+	{`\\host\share`, true},
+	{`\\host\share\`, true},
 	{`\\host\share\foo`, true},
 	{`//host/share/foo/bar`, true},
 }

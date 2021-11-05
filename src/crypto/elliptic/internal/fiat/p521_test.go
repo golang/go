@@ -15,7 +15,7 @@ func p521Random(t *testing.T) *fiat.P521Element {
 	if _, err := rand.Read(buf); err != nil {
 		t.Fatal(err)
 	}
-	buf[65] &= 1
+	buf[0] &= 1
 	e, err := new(fiat.P521Element).SetBytes(buf)
 	if err != nil {
 		t.Fatal(err)
