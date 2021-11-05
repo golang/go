@@ -51,7 +51,12 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	} else {
 		wanted = make(map[protocol.CodeActionKind]bool)
 		for _, only := range params.Context.Only {
-			wanted[only] = supportedCodeActions[only] || explicit[only]
+			for k, v := range supportedCodeActions {
+				if only == k || strings.HasPrefix(string(k), string(only)+".") {
+					wanted[k] = wanted[k] || v
+				}
+			}
+			wanted[only] = wanted[only] || explicit[only]
 		}
 	}
 	if len(supportedCodeActions) == 0 {
