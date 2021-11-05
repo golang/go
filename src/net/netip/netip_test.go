@@ -1806,3 +1806,12 @@ func TestInvalidAddrPortString(t *testing.T) {
 		}
 	}
 }
+
+var sink16 [16]byte
+
+func BenchmarkAs16(b *testing.B) {
+	addr := MustParseAddr("1::10")
+	for i := 0; i < b.N; i++ {
+		sink16 = addr.As16()
+	}
+}
