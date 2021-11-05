@@ -1520,7 +1520,7 @@ func TestReaderDiscard(t *testing.T) {
 			wantBuffered: 0,
 		},
 		// Any error from filling shouldn't show up until we
-		// get past the valid bytes. Here we return we return 5 valid bytes at the same time
+		// get past the valid bytes. Here we return 5 valid bytes at the same time
 		// as an error, but test that we don't see the error from Discard.
 		{
 			name: "fill error, discard less",
