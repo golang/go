@@ -309,7 +309,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			break
 		}
 
-		if fn := inlCallee(n.X); fn != nil && fn.Inl != nil {
+		if fn := inlCallee(n.X); fn != nil && typecheck.HaveInlineBody(fn) {
 			v.budget -= fn.Inl.Cost
 			break
 		}
@@ -585,7 +585,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if ir.IsIntrinsicCall(call) {
 			break
 		}
-		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
+		if fn := inlCallee(call.X); fn != nil && typecheck.HaveInlineBody(fn) {
 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
 	}
@@ -683,6 +683,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(ir.CurFunc)))
 		}
 		return n
+	}
+
+	// Don't inline a function fn that has no shape parameters, but is passed at
+	// least one shape arg. This means we must be inlining a non-generic function
+	// fn that was passed into a generic function, and can be called with a shape
+	// arg because it matches an appropriate type parameters. But fn may include
+	// an interface conversion (that may be applied to a shape arg) that was not
+	// apparent when we first created the instantiation of the generic function.
+	// We can't handle this if we actually do the inlining, since we want to know
+	// all interface conversions immediately after stenciling. So, we avoid
+	// inlining in this case. See #49309.
+	if !fn.Type().HasShape() {
+		for _, arg := range n.Args {
+			if arg.Type().HasShape() {
+				if logopt.Enabled() {
+					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+						fmt.Sprintf("inlining non-shape function %v with shape args", ir.FuncName(fn)))
+				}
+				return n
+			}
+		}
 	}
 
 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {

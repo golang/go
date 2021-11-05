@@ -21,7 +21,7 @@ func Equal(a, b []byte) bool {
 }
 
 // Compare returns an integer comparing two byte slices lexicographically.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
 // A nil argument is equivalent to an empty slice.
 func Compare(a, b []byte) int {
 	return bytealg.Compare(a, b)
@@ -746,7 +746,8 @@ func isSeparator(r rune) bool {
 // Title treats s as UTF-8-encoded bytes and returns a copy with all Unicode letters that begin
 // words mapped to their title case.
 //
-// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+// Deprecated: The rule Title uses for word boundaries does not handle Unicode
+// punctuation properly. Use golang.org/x/text/cases instead.
 func Title(s []byte) []byte {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling

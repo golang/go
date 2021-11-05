@@ -1074,8 +1074,11 @@
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
-// With no arguments, download applies to all dependencies of the main module
-// (equivalent to 'go mod download all').
+//
+// With no arguments, download applies to the modules needed to build and test
+// the packages in the main module: the modules explicitly required by the main
+// module if it is at 'go 1.17' or higher, or all transitively-required modules
+// if at 'go 1.16' or lower.
 //
 // The go command will automatically download modules as needed during ordinary
 // execution. The "go mod download" command is useful mainly for pre-filling
@@ -2851,11 +2854,11 @@
 // 	    exhaustive tests.
 //
 // 	-shuffle off,on,N
-// 		Randomize the execution order of tests and benchmarks.
-// 		It is off by default. If -shuffle is set to on, then it will seed
-// 		the randomizer using the system clock. If -shuffle is set to an
-// 		integer N, then N will be used as the seed value. In both cases,
-// 		the seed will be reported for reproducibility.
+// 	    Randomize the execution order of tests and benchmarks.
+// 	    It is off by default. If -shuffle is set to on, then it will seed
+// 	    the randomizer using the system clock. If -shuffle is set to an
+// 	    integer N, then N will be used as the seed value. In both cases,
+// 	    the seed will be reported for reproducibility.
 //
 // 	-timeout d
 // 	    If a test binary runs longer than duration d, panic.

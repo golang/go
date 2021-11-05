@@ -6,78 +6,100 @@
 
 package types2
 
-// hasName reports whether typ has a name. This includes
+// The isX predicates below report whether t is an X.
+// If t is a type parameter the result is false; i.e.,
+// these predicates don't look inside a type parameter.
+
+func isBoolean(t Type) bool        { return isBasic(t, IsBoolean) }
+func isInteger(t Type) bool        { return isBasic(t, IsInteger) }
+func isUnsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
+func isFloat(t Type) bool          { return isBasic(t, IsFloat) }
+func isComplex(t Type) bool        { return isBasic(t, IsComplex) }
+func isNumeric(t Type) bool        { return isBasic(t, IsNumeric) }
+func isString(t Type) bool         { return isBasic(t, IsString) }
+func isIntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
+func isConstType(t Type) bool      { return isBasic(t, IsConstType) }
+
+// isBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter the result is false; i.e.,
+// isBasic does not look inside a type parameter.
+func isBasic(t Type, info BasicInfo) bool {
+	u, _ := under(t).(*Basic)
+	return u != nil && u.info&info != 0
+}
+
+// The allX predicates below report whether t is an X.
+// If t is a type parameter the result is true if isX is true
+// for all specified types of the type parameter's type set.
+// allX is an optimized version of isX(structure(t)) (which
+// is the same as underIs(t, isX)).
+
+func allBoolean(t Type) bool         { return allBasic(t, IsBoolean) }
+func allInteger(t Type) bool         { return allBasic(t, IsInteger) }
+func allUnsigned(t Type) bool        { return allBasic(t, IsUnsigned) }
+func allNumeric(t Type) bool         { return allBasic(t, IsNumeric) }
+func allString(t Type) bool          { return allBasic(t, IsString) }
+func allOrdered(t Type) bool         { return allBasic(t, IsOrdered) }
+func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
+
+// allBasic reports whether under(t) is a basic type with the specified info.
+// If t is a type parameter, the result is true if isBasic(t, info) is true
+// for all specific types of the type parameter's type set.
+// allBasic(t, info) is an optimized version of isBasic(structure(t), info).
+func allBasic(t Type, info BasicInfo) bool {
+	switch u := under(t).(type) {
+	case *Basic:
+		return u.info&info != 0
+	case *TypeParam:
+		return u.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
+	}
+	return false
+}
+
+// hasName reports whether t has a name. This includes
 // predeclared types, defined types, and type parameters.
 // hasName may be called with types that are not fully set up.
-func hasName(typ Type) bool {
-	switch typ.(type) {
+func hasName(t Type) bool {
+	switch t.(type) {
 	case *Basic, *Named, *TypeParam:
 		return true
 	}
 	return false
 }
 
-// isGeneric reports whether a type is a generic, uninstantiated type (generic
-// signatures are not included).
-func isGeneric(typ Type) bool {
-	// A parameterized type is only instantiated if it doesn't have an instantiation already.
-	named, _ := typ.(*Named)
-	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
-}
-
-func is(typ Type, what BasicInfo) bool {
-	switch t := under(typ).(type) {
-	case *Basic:
-		return t.info&what != 0
-	case *TypeParam:
-		return t.underIs(func(t Type) bool { return is(t, what) })
-	}
-	return false
-}
-
-func isBoolean(typ Type) bool  { return is(typ, IsBoolean) }
-func isInteger(typ Type) bool  { return is(typ, IsInteger) }
-func isUnsigned(typ Type) bool { return is(typ, IsUnsigned) }
-func isFloat(typ Type) bool    { return is(typ, IsFloat) }
-func isComplex(typ Type) bool  { return is(typ, IsComplex) }
-func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
-func isString(typ Type) bool   { return is(typ, IsString) }
-
-// Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
-// produce the expected result because a type set that contains both an integer
-// and a floating-point type is neither (all) integers, nor (all) floats.
-// Use isIntegerOrFloat instead.
-func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
-
-// isNumericOrString is the equivalent of isIntegerOrFloat for isNumeric(typ) || isString(typ).
-func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
-
-// isTyped reports whether typ is typed; i.e., not an untyped
+// isTyped reports whether t is typed; i.e., not an untyped
 // constant or boolean. isTyped may be called with types that
 // are not fully set up.
-func isTyped(typ Type) bool {
+func isTyped(t Type) bool {
 	// isTyped is called with types that are not fully
 	// set up. Must not call asBasic()!
-	t, _ := typ.(*Basic)
-	return t == nil || t.info&IsUntyped == 0
+	b, _ := t.(*Basic)
+	return b == nil || b.info&IsUntyped == 0
 }
 
-// isUntyped(typ) is the same as !isTyped(typ).
-func isUntyped(typ Type) bool {
-	return !isTyped(typ)
+// isUntyped(t) is the same as !isTyped(t).
+func isUntyped(t Type) bool {
+	return !isTyped(t)
 }
 
-func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
-
-func isConstType(typ Type) bool {
-	// Type parameters are never const types.
-	t := asBasic(typ)
-	return t != nil && t.info&IsConstType != 0
+// IsInterface reports whether t is an interface type.
+func IsInterface(t Type) bool {
+	return asInterface(t) != nil
 }
 
-// IsInterface reports whether typ is an interface type.
-func IsInterface(typ Type) bool {
-	return asInterface(typ) != nil
+// isTypeParam reports whether t is a type parameter.
+func isTypeParam(t Type) bool {
+	_, ok := under(t).(*TypeParam)
+	return ok
+}
+
+// isGeneric reports whether a type is a generic, uninstantiated type
+// (generic signatures are not included).
+// TODO(gri) should we include signatures or assert that they are not present?
+func isGeneric(t Type) bool {
+	// A parameterized type is only generic if it doesn't have an instantiation already.
+	named, _ := t.(*Named)
+	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -116,15 +138,15 @@ func comparable(T Type, seen map[Type]bool) bool {
 	return false
 }
 
-// hasNil reports whether a type includes the nil value.
-func hasNil(typ Type) bool {
-	switch t := under(typ).(type) {
+// hasNil reports whether type t includes the nil value.
+func hasNil(t Type) bool {
+	switch u := under(t).(type) {
 	case *Basic:
-		return t.kind == UnsafePointer
+		return u.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
 	case *TypeParam:
-		return t.underIs(hasNil)
+		return u.underIs(hasNil)
 	}
 	return false
 }
@@ -366,9 +388,8 @@ func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
 // Default returns the default "typed" type for an "untyped" type;
 // it returns the incoming type for all other types. The default type
 // for untyped nil is untyped nil.
-//
-func Default(typ Type) Type {
-	if t, ok := typ.(*Basic); ok {
+func Default(t Type) Type {
+	if t, ok := t.(*Basic); ok {
 		switch t.kind {
 		case UntypedBool:
 			return Typ[Bool]
@@ -384,5 +405,5 @@ func Default(typ Type) Type {
 			return Typ[String]
 		}
 	}
-	return typ
+	return t
 }

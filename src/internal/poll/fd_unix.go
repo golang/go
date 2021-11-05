@@ -7,6 +7,7 @@
 package poll
 
 import (
+	"internal/syscall/unix"
 	"io"
 	"sync/atomic"
 	"syscall"
@@ -239,7 +240,7 @@ func (fd *FD) ReadFromInet4(p []byte, from *syscall.SockaddrInet4) (int, error) 
 		return 0, err
 	}
 	for {
-		n, err := syscall.RecvfromInet4(fd.Sysfd, p, 0, from)
+		n, err := unix.RecvfromInet4(fd.Sysfd, p, 0, from)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue
@@ -266,7 +267,7 @@ func (fd *FD) ReadFromInet6(p []byte, from *syscall.SockaddrInet6) (int, error) 
 		return 0, err
 	}
 	for {
-		n, err := syscall.RecvfromInet6(fd.Sysfd, p, 0, from)
+		n, err := unix.RecvfromInet6(fd.Sysfd, p, 0, from)
 		if err != nil {
 			if err == syscall.EINTR {
 				continue
@@ -307,6 +308,60 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 		}
 		err = fd.eofError(n, err)
 		return n, oobn, sysflags, sa, err
+	}
+}
+
+// ReadMsgInet4 is ReadMsg, but specialized for syscall.SockaddrInet4.
+func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.SockaddrInet4) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, 0, 0, err
+	}
+	for {
+		n, oobn, sysflags, err := unix.RecvmsgInet4(fd.Sysfd, p, oob, flags, sa4)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			// TODO(dfc) should n and oobn be set to 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, oobn, sysflags, err
+	}
+}
+
+// ReadMsgInet6 is ReadMsg, but specialized for syscall.SockaddrInet6.
+func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.SockaddrInet6) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+		return 0, 0, 0, err
+	}
+	for {
+		n, oobn, sysflags, err := unix.RecvmsgInet6(fd.Sysfd, p, oob, flags, sa6)
+		if err != nil {
+			if err == syscall.EINTR {
+				continue
+			}
+			// TODO(dfc) should n and oobn be set to 0
+			if err == syscall.EAGAIN && fd.pd.pollable() {
+				if err = fd.pd.waitRead(fd.isFile); err == nil {
+					continue
+				}
+			}
+		}
+		err = fd.eofError(n, err)
+		return n, oobn, sysflags, err
 	}
 }
 
@@ -381,7 +436,7 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
 }
 
 // WriteToInet4 wraps the sendto network call for IPv4 addresses.
-func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
+func (fd *FD) WriteToInet4(p []byte, sa *syscall.SockaddrInet4) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -390,7 +445,7 @@ func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
 		return 0, err
 	}
 	for {
-		err := syscall.SendtoInet4(fd.Sysfd, p, 0, sa)
+		err := unix.SendtoInet4(fd.Sysfd, p, 0, sa)
 		if err == syscall.EINTR {
 			continue
 		}
@@ -407,7 +462,7 @@ func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
 }
 
 // WriteToInet6 wraps the sendto network call for IPv6 addresses.
-func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
+func (fd *FD) WriteToInet6(p []byte, sa *syscall.SockaddrInet6) (int, error) {
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -416,7 +471,7 @@ func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
 		return 0, err
 	}
 	for {
-		err := syscall.SendtoInet6(fd.Sysfd, p, 0, sa)
+		err := unix.SendtoInet6(fd.Sysfd, p, 0, sa)
 		if err == syscall.EINTR {
 			continue
 		}
@@ -469,6 +524,58 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	}
 	for {
 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
+// WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet4(fd.Sysfd, p, oob, sa, 0)
+		if err == syscall.EINTR {
+			continue
+		}
+		if err == syscall.EAGAIN && fd.pd.pollable() {
+			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+				continue
+			}
+		}
+		if err != nil {
+			return n, 0, err
+		}
+		return n, len(oob), err
+	}
+}
+
+// WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+		return 0, 0, err
+	}
+	for {
+		n, err := unix.SendmsgNInet6(fd.Sysfd, p, oob, sa, 0)
 		if err == syscall.EINTR {
 			continue
 		}

@@ -89,6 +89,9 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
+		if pkgname == "crypto/elliptic/internal/fiat" {
+			continue // golang.org/issue/49372
+		}
 		if e.Val(dwarf.AttrStmtList) == nil {
 			continue
 		}

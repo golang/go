@@ -109,18 +109,46 @@ func _[
 	)
 
 	var (
-		_ _CC = C
-		_ _SC = C
-		_ _RC = C
+		_ _CC = C // ERROR cannot use C .* as _CC value
+		_ _SC = C // ERROR cannot use C .* as _SC value
+		_ _RC = C // ERROR cannot use C .* as _RC value
 
-		_ CC = _CC(nil)
-		_ SC = _CC(nil)
-		_ RC = _CC(nil)
+		_ CC = _CC /* ERROR cannot use _CC\(nil\) .* as CC value */ (nil)
+		_ SC = _CC /* ERROR cannot use _CC\(nil\) .* as SC value */ (nil)
+		_ RC = _CC /* ERROR cannot use _CC\(nil\) .* as RC value */ (nil)
 
-		_ CC = C
-		_ SC = C // ERROR cannot use C .* as SC value .* cannot assign Chan to SendChan
-		_ RC = C // ERROR cannot use C .* as RC value .* cannot assign Chan to RecvChan
+		_ CC = C // ERROR cannot use C .* as CC value
+		_ SC = C // ERROR cannot use C .* as SC value
+		_ RC = C // ERROR cannot use C .* as RC value
 	)
+}
+
+// "x's type V is not a named type and T is a type parameter, and x is assignable to each specific type in T's type set."
+func _[
+	TP0 any,
+	TP1 ~_Chan,
+	TP2 ~chan int | ~chan byte,
+]() {
+	var (
+		_ TP0 = c // ERROR cannot use c .* as TP0 value
+		_ TP0 = C // ERROR cannot use C .* as TP0 value
+		_ TP1 = c
+		_ TP1 = C // ERROR cannot use C .* as TP1 value
+		_ TP2 = c // ERROR .* cannot assign chan int to chan byte
+	)
+}
+
+// "x's type V is a type parameter and T is not a named type, and values x' of each specific type in V's type set are assignable to T."
+func _[
+	TP0 Interface,
+	TP1 ~_Chan,
+	TP2 ~chan int | ~chan byte,
+](X0 TP0, X1 TP1, X2 TP2) {
+	i = X0
+	I = X0
+	c = X1
+	C = X1 // ERROR cannot use X1 .* as Chan value
+	c = X2 // ERROR .* cannot assign chan byte \(in TP2\) to chan int
 }
 
 // "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"

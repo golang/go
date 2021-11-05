@@ -91,23 +91,7 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 	return 0, nil, ENOSYS
 }
 
-func RecvfromInet4(fd int, p []byte, flags int, from *SockaddrInet4) (n int, err error) {
-	return 0, ENOSYS
-}
-
-func RecvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err error) {
-	return 0, ENOSYS
-}
-
 func Sendto(fd int, p []byte, flags int, to Sockaddr) error {
-	return ENOSYS
-}
-
-func SendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) error {
-	return ENOSYS
-}
-
-func SendtoInet6(fd int, p []byte, flags int, to SockaddrInet6) error {
 	return ENOSYS
 }
 

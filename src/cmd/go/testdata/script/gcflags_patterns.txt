@@ -58,8 +58,7 @@ go build -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
 
 # -ldflags applies to current directory even if GOPATH is funny
-[windows] cd $WORK/GoPath/src/my/cmd/prog
-[darwin] cd $WORK/GoPath/src/my/cmd/prog
+[!case-sensitive] cd $WORK/GoPath/src/my/cmd/prog
 go build -n -ldflags=-X=math.pi=3
 stderr 'link.* -X=math.pi=3'
 

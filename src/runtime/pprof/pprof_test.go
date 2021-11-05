@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -132,6 +133,14 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
 	}
 
 	parallelism := runtime.GOMAXPROCS(0)
+
+	// This test compares the process's total CPU time against the CPU
+	// profiler's view of time spent in direct execution of user code.
+	// Background work, especially from the garbage collector, adds noise to
+	// that measurement. Disable automatic triggering of the GC, and then
+	// request a complete GC cycle (up through sweep termination).
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	runtime.GC()
 
 	var cpuTime1, cpuTimeN time.Duration
 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {

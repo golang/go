@@ -55,18 +55,24 @@ func (curve p521Curve) Params() *CurveParams {
 }
 
 func (curve p521Curve) IsOnCurve(x, y *big.Int) bool {
-	// IsOnCurve is documented to reject (0, 0), so we don't use
-	// p521PointFromAffine, but let SetBytes reject the invalid Marshal output.
-	_, err := nistec.NewP521Point().SetBytes(Marshal(curve, x, y))
-	return err == nil
+	// IsOnCurve is documented to reject (0, 0), the conventional point at
+	// infinity, which however is accepted by p521PointFromAffine.
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return false
+	}
+	_, ok := p521PointFromAffine(x, y)
+	return ok
 }
 
 func p521PointFromAffine(x, y *big.Int) (p *nistec.P521Point, ok bool) {
 	// (0, 0) is by convention the point at infinity, which can't be represented
 	// in affine coordinates. Marshal incorrectly encodes it as an uncompressed
-	// point, which SetBytes correctly rejects. See Issue 37294.
+	// point, which SetBytes would correctly reject. See Issue 37294.
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return nistec.NewP521Point(), true
+	}
+	if x.BitLen() > 521 || y.BitLen() > 521 {
+		return nil, false
 	}
 	p, err := nistec.NewP521Point().SetBytes(Marshal(P521(), x, y))
 	if err != nil {
@@ -106,7 +112,7 @@ func p521RandomPoint() (x, y *big.Int) {
 	return x, y
 }
 
-func (curve p521Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+func (p521Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	p1, ok := p521PointFromAffine(x1, y1)
 	if !ok {
 		return p521RandomPoint()
@@ -118,7 +124,7 @@ func (curve p521Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	return p521PointToAffine(p1.Add(p1, p2))
 }
 
-func (curve p521Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+func (p521Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	p, ok := p521PointFromAffine(x1, y1)
 	if !ok {
 		return p521RandomPoint()
@@ -126,7 +132,7 @@ func (curve p521Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	return p521PointToAffine(p.Double(p))
 }
 
-func (curve p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
+func (p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
 	p, ok := p521PointFromAffine(Bx, By)
 	if !ok {
 		return p521RandomPoint()
@@ -134,7 +140,7 @@ func (curve p521Curve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *bi
 	return p521PointToAffine(p.ScalarMult(p, scalar))
 }
 
-func (curve p521Curve) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
+func (p521Curve) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
 	p := nistec.NewP521Generator()
 	return p521PointToAffine(p.ScalarMult(p, scalar))
 }

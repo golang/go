@@ -274,17 +274,10 @@ func (w *typeWriter) typ(typ Type) {
 			w.error("unnamed type parameter")
 			break
 		}
-		// Optionally write out package for typeparams (like Named).
-		if t.obj.pkg != nil {
-			writePackage(w.buf, t.obj.pkg, w.qf)
-		}
 		w.string(t.obj.name)
 		if w.debug || w.ctxt != nil {
 			w.string(subscript(t.id))
 		}
-
-	case *top:
-		w.error("⊤")
 
 	default:
 		// For externally defined implementations of Type.

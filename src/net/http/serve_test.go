@@ -23,6 +23,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
 	"net/http/internal/testcert"
@@ -2273,6 +2274,18 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
 	}
 }
 
+// cancelableTimeoutContext overwrites the error message to DeadlineExceeded
+type cancelableTimeoutContext struct {
+	context.Context
+}
+
+func (c cancelableTimeoutContext) Err() error {
+	if c.Context.Err() != nil {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
 func TestTimeoutHandler_h1(t *testing.T) { testTimeoutHandler(t, h1Mode) }
 func TestTimeoutHandler_h2(t *testing.T) { testTimeoutHandler(t, h2Mode) }
 func testTimeoutHandler(t *testing.T, h2 bool) {
@@ -2285,8 +2298,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	timeout := make(chan time.Time, 1) // write to this to force timeouts
-	cst := newClientServerTest(t, h2, NewTestTimeoutHandler(sayHi, timeout))
+	ctx, cancel := context.WithCancel(context.Background())
+	h := NewTestTimeoutHandler(sayHi, cancelableTimeoutContext{ctx})
+	cst := newClientServerTest(t, h2, h)
 	defer cst.close()
 
 	// Succeed without timing out:
@@ -2307,7 +2321,8 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 	}
 
 	// Times out:
-	timeout <- time.Time{}
+	cancel()
+
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2428,8 +2443,9 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	timeout := make(chan time.Time, 1) // write to this to force timeouts
-	cst := newClientServerTest(t, h1Mode, NewTestTimeoutHandler(sayHi, timeout))
+	ctx, cancel := context.WithCancel(context.Background())
+	h := NewTestTimeoutHandler(sayHi, cancelableTimeoutContext{ctx})
+	cst := newClientServerTest(t, h1Mode, h)
 	defer cst.close()
 
 	// Succeed without timing out:
@@ -2450,7 +2466,8 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	}
 
 	// Times out:
-	timeout <- time.Time{}
+	cancel()
+
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2497,6 +2514,41 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != StatusNoContent {
 		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusNoContent)
+	}
+}
+
+func TestTimeoutHandlerContextCanceled(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	sendHi := make(chan bool, 1)
+	writeErrors := make(chan error, 1)
+	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		<-sendHi
+		_, werr := w.Write([]byte("hi"))
+		writeErrors <- werr
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	h := NewTestTimeoutHandler(sayHi, ctx)
+	cancel()
+	cst := newClientServerTest(t, h1Mode, h)
+	defer cst.close()
+
+	// Succeed without timing out:
+	sendHi <- true
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	body, _ := io.ReadAll(res.Body)
+	if g, e := string(body), ""; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+	if g, e := <-writeErrors, context.Canceled; g != e {
+		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
 }
 
@@ -5689,22 +5741,37 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
 	}
 	// Not parallel: messes with global variable. (http2goAwayTimeout)
 	defer afterTest(t)
-	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "%v", r.RemoteAddr)
-	}))
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	defer cst.close()
 	srv := cst.ts.Config
 	srv.SetKeepAlivesEnabled(false)
-	a := cst.getURL(cst.ts.URL)
-	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
-		t.Fatalf("test server has active conns")
-	}
-	b := cst.getURL(cst.ts.URL)
-	if a == b {
-		t.Errorf("got same connection between first and second requests")
-	}
-	if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
-		t.Fatalf("test server has active conns")
+	for try := 0; try < 2; try++ {
+		if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
+			t.Fatalf("request %v: test server has active conns", try)
+		}
+		conns := 0
+		var info httptrace.GotConnInfo
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(v httptrace.GotConnInfo) {
+				conns++
+				info = v
+			},
+		})
+		req, err := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if conns != 1 {
+			t.Fatalf("request %v: got %v conns, want 1", try, conns)
+		}
+		if info.Reused || info.WasIdle {
+			t.Fatalf("request %v: Reused=%v (want false), WasIdle=%v (want false)", try, info.Reused, info.WasIdle)
+		}
 	}
 }
 

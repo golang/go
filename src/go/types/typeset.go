@@ -37,7 +37,7 @@ func (s *_TypeSet) IsComparable() bool {
 		return s.comparable
 	}
 	return s.is(func(t *term) bool {
-		return Comparable(t.typ)
+		return t != nil && Comparable(t.typ)
 	})
 }
 
@@ -99,27 +99,29 @@ func (s *_TypeSet) String() string {
 // ----------------------------------------------------------------------------
 // Implementation
 
-func (s *_TypeSet) hasTerms() bool              { return !s.terms.isAll() }
-func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
-func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
+// hasTerms reports whether the type set has specific type terms.
+func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+
+// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
+func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+
+// includes reports whether t ∈ s.
+func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }
+
+// subsetOf reports whether s1 ⊆ s2.
 func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
 
 // TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
 
-var topTerm = term{false, theTop}
-
+// is calls f with the specific type terms of s and reports whether
+// all calls to f returned true. If there are no specific terms, is
+// returns the result of f(nil).
 func (s *_TypeSet) is(f func(*term) bool) bool {
-	if len(s.terms) == 0 {
-		return false
+	if !s.hasTerms() {
+		return f(nil)
 	}
 	for _, t := range s.terms {
-		// Terms represent the top term with a nil type.
-		// The rest of the type checker uses the top type
-		// instead. Convert.
-		// TODO(gri) investigate if we can do without this
-		if t.typ == nil {
-			t = &topTerm
-		}
+		assert(t.typ != nil)
 		if !f(t) {
 			return false
 		}
@@ -127,17 +129,17 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
 	return true
 }
 
+// underIs calls f with the underlying types of the specific type terms
+// of s and reports whether all calls to f returned true. If there are
+// no specific terms, is returns the result of f(nil).
 func (s *_TypeSet) underIs(f func(Type) bool) bool {
-	if len(s.terms) == 0 {
-		return false
+	if !s.hasTerms() {
+		return f(nil)
 	}
 	for _, t := range s.terms {
-		// see corresponding comment in TypeSet.is
+		assert(t.typ != nil)
+		// x == under(x) for ~x terms
 		u := t.typ
-		if u == nil {
-			u = theTop
-		}
-		// t == under(t) for ~t terms
 		if !t.tilde {
 			u = under(u)
 		}

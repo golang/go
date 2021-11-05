@@ -88,6 +88,8 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 			pos = posList[i]
 		}
 		check.softErrorf(pos, err.Error())
+	} else {
+		check.mono.recordInstance(check.pkg, pos, tparams, targs, posList)
 	}
 
 	return inst

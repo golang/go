@@ -440,6 +440,11 @@ func pipe() (r, w int32, errno int32)
 func pipe2(flags int32) (r, w int32, errno int32)
 func setNonblock(fd int32)
 
+const (
+	_si_max_size    = 128
+	_sigev_max_size = 64
+)
+
 //go:nosplit
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {
@@ -636,12 +641,11 @@ func setThreadCPUProfiler(hz int32) {
 	spec.it_interval.setNsec(1e9 / int64(hz))
 
 	var timerid int32
-	sevp := &sigevent{
-		notify:                 _SIGEV_THREAD_ID,
-		signo:                  _SIGPROF,
-		sigev_notify_thread_id: int32(mp.procid),
-	}
-	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, sevp, &timerid)
+	var sevp sigevent
+	sevp.notify = _SIGEV_THREAD_ID
+	sevp.signo = _SIGPROF
+	sevp.sigev_notify_thread_id = int32(mp.procid)
+	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, &sevp, &timerid)
 	if ret != 0 {
 		// If we cannot create a timer for this M, leave profileTimerValid false
 		// to fall back to the process-wide setitimer profiler.

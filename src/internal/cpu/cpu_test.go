@@ -6,6 +6,7 @@ package cpu_test
 
 import (
 	. "internal/cpu"
+	"internal/godebug"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -52,7 +53,7 @@ func TestDisableAllCapabilities(t *testing.T) {
 func TestAllCapabilitiesDisabled(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUG") != "cpu.all=off" {
+	if godebug.Get("cpu.all") != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
 	}
 

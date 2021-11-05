@@ -96,7 +96,7 @@ func BenchmarkWorkerFuzz(b *testing.B) {
 			Limit:   int64(b.N) - i,
 			Timeout: workerFuzzDuration,
 		}
-		_, resp, err := w.client.fuzz(context.Background(), entry, args)
+		_, resp, _, err := w.client.fuzz(context.Background(), entry, args)
 		if err != nil {
 			b.Fatal(err)
 		}

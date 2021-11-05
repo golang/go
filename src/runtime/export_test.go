@@ -796,21 +796,17 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 		// None of the tests need any higher-level locking, so we just
 		// take the lock internally.
 		lock(pp.mheapLock)
-		pp.free(base, npages)
+		pp.free(base, npages, true)
 		unlock(pp.mheapLock)
 	})
 }
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
+func (p *PageAlloc) Scavenge(nbytes uintptr) (r uintptr) {
 	pp := (*pageAlloc)(p)
 	systemstack(func() {
-		// None of the tests need any higher-level locking, so we just
-		// take the lock internally.
-		lock(pp.mheapLock)
-		r = pp.scavenge(nbytes, mayUnlock)
-		unlock(pp.mheapLock)
+		r = pp.scavenge(nbytes)
 	})
 	return
 }
@@ -1246,6 +1242,7 @@ func NewGCController(gcPercent int) *GCController {
 	// on a 32-bit architecture, it may get allocated unaligned
 	// space.
 	g := escape(new(GCController)).(*GCController)
+	g.gcControllerState.test = true // Mark it as a test copy.
 	g.init(int32(gcPercent))
 	return g
 }
@@ -1289,7 +1286,9 @@ type GCControllerReviseDelta struct {
 func (c *GCController) Revise(d GCControllerReviseDelta) {
 	c.heapLive += uint64(d.HeapLive)
 	c.heapScan += uint64(d.HeapScan)
-	c.scanWork += d.HeapScanWork + d.StackScanWork + d.GlobalsScanWork
+	c.heapScanWork.Add(d.HeapScanWork)
+	c.stackScanWork.Add(d.StackScanWork)
+	c.globalsScanWork.Add(d.GlobalsScanWork)
 	c.revise()
 }
 

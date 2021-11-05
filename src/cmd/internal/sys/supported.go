@@ -36,6 +36,7 @@ func MSanSupported(goos, goarch string) bool {
 
 // ASanSupported reports whether goos/goarch supports the address
 // sanitizer option.
+// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func ASanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -104,7 +105,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "c-shared":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",
@@ -157,7 +158,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 func InternalLinkPIESupported(goos, goarch string) bool {
 	switch goos + "/" + goarch {
 	case "darwin/amd64", "darwin/arm64",
-		"linux/amd64", "linux/arm64",
+		"linux/amd64", "linux/arm64", "linux/ppc64le",
 		"android/arm64",
 		"windows-amd64", "windows-386", "windows-arm":
 		return true

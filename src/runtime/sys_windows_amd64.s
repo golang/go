@@ -344,16 +344,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	CMPB	runtime·useQPCTime(SB), $0
 	JNE	useQPC
 	MOVQ	$_INTERRUPT_TIME, DI
-loop:
-	MOVL	time_hi1(DI), AX
-	MOVL	time_lo(DI), BX
-	MOVL	time_hi2(DI), CX
-	CMPL	AX, CX
-	JNE	loop
-	SHLQ	$32, CX
-	ORQ	BX, CX
-	IMULQ	$100, CX
-	MOVQ	CX, ret+0(FP)
+	MOVQ	time_lo(DI), AX
+	IMULQ	$100, AX
+	MOVQ	AX, ret+0(FP)
 	RET
 useQPC:
 	JMP	runtime·nanotimeQPC(SB)

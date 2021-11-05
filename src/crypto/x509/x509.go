@@ -18,6 +18,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"math/big"
 	"net"
@@ -181,15 +182,15 @@ type SignatureAlgorithm int
 const (
 	UnknownSignatureAlgorithm SignatureAlgorithm = iota
 
-	MD2WithRSA // Unsupported.
-	MD5WithRSA // Only supported for signing, not verification.
-	SHA1WithRSA
+	MD2WithRSA  // Unsupported.
+	MD5WithRSA  // Only supported for signing, not verification.
+	SHA1WithRSA // Only supported for signing, not verification.
 	SHA256WithRSA
 	SHA384WithRSA
 	SHA512WithRSA
 	DSAWithSHA1   // Unsupported.
 	DSAWithSHA256 // Unsupported.
-	ECDSAWithSHA1
+	ECDSAWithSHA1 // Only supported for signing, not verification.
 	ECDSAWithSHA256
 	ECDSAWithSHA384
 	ECDSAWithSHA512
@@ -729,11 +730,23 @@ type Certificate struct {
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
-// An InsecureAlgorithmError
+// debugAllowSHA1 allows SHA-1 signatures. See issue 41682.
+var debugAllowSHA1 = godebug.Get("x509sha1") == "1"
+
+// An InsecureAlgorithmError indicates that the SignatureAlgorithm used to
+// generate the signature is not secure, and the signature has been rejected.
+//
+// To temporarily restore support for SHA-1 signatures, include the value
+// "x509sha1=1" in the GODEBUG environment variable. Note that this option will
+// be removed in Go 1.19.
 type InsecureAlgorithmError SignatureAlgorithm
 
 func (e InsecureAlgorithmError) Error() string {
-	return fmt.Sprintf("x509: cannot verify signature: insecure algorithm %v", SignatureAlgorithm(e))
+	var override string
+	if SignatureAlgorithm(e) == SHA1WithRSA || SignatureAlgorithm(e) == ECDSAWithSHA1 {
+		override = " (temporarily override with GODEBUG=x509sha1=1)"
+	}
+	return fmt.Sprintf("x509: cannot verify signature: insecure algorithm %v", SignatureAlgorithm(e)) + override
 }
 
 // ConstraintViolationError results when a requested usage is not permitted by
@@ -825,6 +838,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		}
 	case crypto.MD5:
 		return InsecureAlgorithmError(algo)
+	case crypto.SHA1:
+		if !debugAllowSHA1 {
+			return InsecureAlgorithmError(algo)
+		}
+		fallthrough
 	default:
 		if !hashType.Available() {
 			return ErrUnsupportedAlgorithm
@@ -1579,9 +1597,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	}
 
 	// Check the signature to ensure the crypto.Signer behaved correctly.
-	// We skip this check if the signature algorithm is MD5WithRSA as we
-	// only support this algorithm for signing, and not verification.
-	if sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm); sigAlg != MD5WithRSA {
+	sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm)
+	switch sigAlg {
+	case MD5WithRSA, SHA1WithRSA, ECDSAWithSHA1:
+		// We skip the check if the signature algorithm is only supported for
+		// signing, not verification.
+	default:
 		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
 			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
 		}

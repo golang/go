@@ -96,6 +96,19 @@ type fakeDB struct {
 	allowAny bool
 }
 
+type fakeError struct {
+	Message string
+	Wrapped error
+}
+
+func (err fakeError) Error() string {
+	return err.Message
+}
+
+func (err fakeError) Unwrap() error {
+	return err.Wrapped
+}
+
 type table struct {
 	mu      sync.Mutex
 	colname []string
@@ -368,7 +381,7 @@ func (c *fakeConn) isDirtyAndMark() bool {
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
 	if c.isBad() {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Wrapped: driver.ErrBadConn}
 	}
 	if c.currTx != nil {
 		return nil, errors.New("fakedb: already in a transaction")
@@ -401,7 +414,7 @@ func (c *fakeConn) ResetSession(ctx context.Context) error {
 	c.dirtySession = false
 	c.currTx = nil
 	if c.isBad() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Reset Session: bad conn", Wrapped: driver.ErrBadConn}
 	}
 	return nil
 }
@@ -629,7 +642,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 
 	c.touchMem()
@@ -756,7 +769,7 @@ func (s *fakeStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (d
 	}
 
 	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Exec: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
 		return nil, errFakeConnSessionDirty
@@ -870,7 +883,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
 	}
 
 	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
-		return nil, driver.ErrBadConn
+		return nil, fakeError{Message: "Query: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 	if s.c.isDirtyAndMark() {
 		return nil, errFakeConnSessionDirty
@@ -1031,7 +1044,7 @@ var hookCommitBadConn func() bool
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
 	if hookCommitBadConn != nil && hookCommitBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Commit: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil
@@ -1043,7 +1056,7 @@ var hookRollbackBadConn func() bool
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
 	if hookRollbackBadConn != nil && hookRollbackBadConn() {
-		return driver.ErrBadConn
+		return fakeError{Message: "Rollback: Hook Bad Conn", Wrapped: driver.ErrBadConn}
 	}
 	tx.c.touchMem()
 	return nil

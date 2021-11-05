@@ -635,6 +635,8 @@ func (s *regAllocState) init(f *Func) {
 			// nothing to do
 		case "ppc64le": // R2 already reserved.
 			// nothing to do
+		case "riscv64": // X3 (aka GP) and X4 (aka TP) already reserved.
+			// nothing to do
 		case "s390x":
 			s.allocatable &^= 1 << 11 // R11
 		default:

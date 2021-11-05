@@ -307,11 +307,11 @@ control the execution of any test:
 	    exhaustive tests.
 
 	-shuffle off,on,N
-		Randomize the execution order of tests and benchmarks.
-		It is off by default. If -shuffle is set to on, then it will seed
-		the randomizer using the system clock. If -shuffle is set to an
-		integer N, then N will be used as the seed value. In both cases,
-		the seed will be reported for reproducibility.
+	    Randomize the execution order of tests and benchmarks.
+	    It is off by default. If -shuffle is set to on, then it will seed
+	    the randomizer using the system clock. If -shuffle is set to an
+	    integer N, then N will be used as the seed value. In both cases,
+	    the seed will be reported for reproducibility.
 
 	-timeout d
 	    If a test binary runs longer than duration d, panic.
@@ -665,6 +665,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		if len(pkgs) != 1 {
 			base.Fatalf("cannot use -fuzz flag with multiple packages")
+		}
+		if testCoverProfile != "" {
+			base.Fatalf("cannot use -coverprofile flag with -fuzz flag")
+		}
+		if profileFlag := testProfile(); profileFlag != "" {
+			base.Fatalf("cannot use %s flag with -fuzz flag", profileFlag)
 		}
 
 		// Reject the '-fuzz' flag if the package is outside the main module.
@@ -1399,15 +1405,25 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
 		if bytes.HasPrefix(out, tooManyTargetsToFuzz[1:]) || bytes.Contains(out, tooManyTargetsToFuzz) {
 			norun = " [will not fuzz, -fuzz matches more than one target]"
 		}
+		if len(out) > 0 && !bytes.HasSuffix(out, []byte("\n")) {
+			// Ensure that the output ends with a newline before the "ok"
+			// line we're about to print (https://golang.org/issue/49317).
+			cmd.Stdout.Write([]byte("\n"))
+		}
 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
 		c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
-		// If there was test output, assume we don't need to print the exit status.
-		// Buf there's no test output, do print the exit status.
 		if len(out) == 0 {
+			// If there was no test output, print the exit status so that the reason
+			// for failure is clear.
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
+		} else if !bytes.HasSuffix(out, []byte("\n")) {
+			// Otherwise, ensure that the output ends with a newline before the FAIL
+			// line we're about to print (https://golang.org/issue/49317).
+			cmd.Stdout.Write([]byte("\n"))
 		}
+
 		// NOTE(golang.org/issue/37555): test2json reports that a test passes
 		// unless "FAIL" is printed at the beginning of a line. The test may not
 		// actually print that if it panics, exits, or terminates abnormally,

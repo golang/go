@@ -81,10 +81,32 @@ func asTypeParam(t Type) *TypeParam {
 	return u
 }
 
-// Exported for the compiler.
+// Helper functions exported for the compiler.
+// These functions assume type checking has completed
+// and Type.Underlying() is returning the fully set up
+// underlying type. Do not use internally.
 
-func AsPointer(t Type) *Pointer     { return asPointer(t) }
-func AsNamed(t Type) *Named         { return asNamed(t) }
-func AsSignature(t Type) *Signature { return asSignature(t) }
-func AsInterface(t Type) *Interface { return asInterface(t) }
-func AsTypeParam(t Type) *TypeParam { return asTypeParam(t) }
+func AsPointer(t Type) *Pointer {
+	u, _ := t.Underlying().(*Pointer)
+	return u
+}
+
+func AsNamed(t Type) *Named {
+	u, _ := t.(*Named)
+	return u
+}
+
+func AsSignature(t Type) *Signature {
+	u, _ := t.Underlying().(*Signature)
+	return u
+}
+
+func AsInterface(t Type) *Interface {
+	u, _ := t.Underlying().(*Interface)
+	return u
+}
+
+func AsTypeParam(t Type) *TypeParam {
+	u, _ := t.Underlying().(*TypeParam)
+	return u
+}

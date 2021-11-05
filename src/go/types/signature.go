@@ -148,6 +148,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				list := make([]Type, sig.RecvTypeParams().Len())
 				for i, t := range sig.RecvTypeParams().list() {
 					list[i] = t
+					check.mono.recordCanon(t, recvTParams[i])
 				}
 				smap := makeSubstMap(recvTParams, list)
 				for i, tpar := range sig.RecvTypeParams().list() {

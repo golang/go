@@ -14,9 +14,8 @@ import (
 
 // genericParamsForCurve returns the dereferenced CurveParams for
 // the specified curve. This is used to avoid the logic for
-// upgrading a curve to it's specific implementation, forcing
-// usage of the generic implementation. This is only relevant
-// for the P224, P256, and P521 curves.
+// upgrading a curve to its specific implementation, forcing
+// usage of the generic implementation.
 func genericParamsForCurve(c Curve) *CurveParams {
 	d := *(c.Params())
 	return &d
@@ -239,6 +238,16 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 	if X.Cmp(x) != 0 || Y.Cmp(y) != 0 {
 		t.Errorf("point did not round-trip correctly: got (%v, %v), want (%v, %v)", X, Y, x, y)
 	}
+}
+
+func TestLargeIsOnCurve(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve Curve) {
+		large := big.NewInt(1)
+		large.Lsh(large, 1000)
+		if curve.IsOnCurve(large, large) {
+			t.Errorf("(2^1000, 2^1000) is reported on the curve")
+		}
+	})
 }
 
 func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {

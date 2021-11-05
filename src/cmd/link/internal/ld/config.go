@@ -74,7 +74,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModeCArchive
 	case "c-shared":
 		switch buildcfg.GOARCH {
-		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+		case "386", "amd64", "arm", "arm64", "ppc64le", "riscv64", "s390x":
 		default:
 			return badmode()
 		}
@@ -225,7 +225,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
-		case "linux/amd64", "linux/arm64", "android/arm64":
+		case "android/arm64":
+		case "linux/amd64", "linux/arm64", "linux/ppc64le":
 		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 		case "darwin/amd64", "darwin/arm64":
 		default:

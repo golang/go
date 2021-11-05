@@ -146,7 +146,10 @@ func (n *Name) editChildren(edit func(Node) Node)  {}
 // That is, given "type T Defn", it returns Defn.
 // It is used by package types.
 func (n *Name) TypeDefn() *types.Type {
-	return n.Ntype.Type()
+	if n.Ntype != nil {
+		return n.Ntype.Type()
+	}
+	return n.Type()
 }
 
 // RecordFrameOffset records the frame offset for the name.

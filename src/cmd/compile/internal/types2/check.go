@@ -126,6 +126,7 @@ type Checker struct {
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
+	mono          monoGraph                   // graph for detecting non-monomorphizable instantiation loops
 
 	firstErr error                    // first error encountered
 	methods  map[*TypeName][]*Func    // maps package scope type names to associated non-blank (non-interface) methods
@@ -317,6 +318,11 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
 	print("== recordUntyped ==")
 	check.recordUntyped()
 
+	if check.firstErr == nil {
+		// TODO(mdempsky): Ensure monomorph is safe when errors exist.
+		check.monomorph()
+	}
+
 	check.pkg.complete = true
 
 	// no longer needed - release memory
@@ -424,9 +430,9 @@ func (check *Checker) recordTypeAndValue(x syntax.Expr, mode operandMode, typ Ty
 	}
 	if mode == constant_ {
 		assert(val != nil)
-		// We check is(typ, IsConstType) here as constant expressions may be
+		// We check allBasic(typ, IsConstType) here as constant expressions may be
 		// recorded as type parameters.
-		assert(typ == Typ[Invalid] || is(typ, IsConstType))
+		assert(typ == Typ[Invalid] || allBasic(typ, IsConstType))
 	}
 	if m := check.Types; m != nil {
 		m[x] = TypeAndValue{mode, typ, val}

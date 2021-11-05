@@ -207,7 +207,7 @@ func (p *crawler) markInlBody(n *ir.Name) {
 	if fn == nil {
 		base.Fatalf("markInlBody: missing Func on %v", n)
 	}
-	if fn.Inl == nil {
+	if !HaveInlineBody(fn) {
 		return
 	}
 

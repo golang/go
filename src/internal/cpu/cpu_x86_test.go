@@ -8,7 +8,7 @@ package cpu_test
 
 import (
 	. "internal/cpu"
-	"os"
+	"internal/godebug"
 	"testing"
 )
 
@@ -25,7 +25,7 @@ func TestDisableSSE3(t *testing.T) {
 func TestSSE3DebugOption(t *testing.T) {
 	MustHaveDebugOptionsSupport(t)
 
-	if os.Getenv("GODEBUG") != "cpu.sse3=off" {
+	if godebug.Get("cpu.sse3") != "off" {
 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
 	}
 

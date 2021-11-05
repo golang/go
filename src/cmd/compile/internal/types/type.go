@@ -2202,4 +2202,4 @@ var (
 
 var SimType [NTYPE]Kind
 
-var ShapePkg = NewPkg(".shape", ".shape")
+var ShapePkg = NewPkg("go.shape", "go.shape")

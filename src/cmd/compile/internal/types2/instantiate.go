@@ -155,7 +155,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
 		qf = check.qualifier
 	}
 	errorf := func(format string, args ...interface{}) error {
-		return errors.New(sprintf(qf, format, args...))
+		return errors.New(sprintf(qf, false, format, args...))
 	}
 
 	// No type argument with non-empty type set satisfies the empty type set.

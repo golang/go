@@ -209,6 +209,8 @@ var p256Precomputed = [p256Limbs * 2 * 15 * 2]uint32{
 
 // Field element operations:
 
+const bottom28Bits = 0xfffffff
+
 // nonZeroToAllOnes returns:
 //   0xffffffff for 0 < x <= 2**31
 //   0 for x == 0 or x > 2**31.
@@ -269,6 +271,7 @@ const (
 	two30m2    = 1<<30 - 1<<2
 	two30p13m2 = 1<<30 + 1<<13 - 1<<2
 	two31m2    = 1<<31 - 1<<2
+	two31m3    = 1<<31 - 1<<3
 	two31p24m2 = 1<<31 + 1<<24 - 1<<2
 	two30m27m2 = 1<<30 - 1<<27 - 1<<2
 )

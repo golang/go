@@ -481,6 +481,8 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def 
 					pos = posList[i]
 				}
 				check.softErrorf(pos, err.Error())
+			} else {
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
 			}
 		}
 

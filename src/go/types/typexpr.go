@@ -141,7 +141,7 @@ func (check *Checker) typ(e ast.Expr) Type {
 // constraint interface.
 func (check *Checker) varType(e ast.Expr) Type {
 	typ := check.definedType(e, nil)
-	// We don't want to call under() (via asInterface) or complete interfaces while we
+	// We don't want to call under() (via toInterface) or complete interfaces while we
 	// are in the middle of type-checking parameter declarations that might belong to
 	// interface methods. Delay this check to the end of type-checking.
 	check.later(func() {
@@ -457,6 +457,8 @@ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named
 					pos = posList[i]
 				}
 				check.softErrorf(atPos(pos), _Todo, err.Error())
+			} else {
+				check.mono.recordInstance(check.pkg, x.Pos(), inst.tparams.list(), inst.targs.list(), posList)
 			}
 		}
 

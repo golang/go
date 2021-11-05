@@ -218,7 +218,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// At least one type argument couldn't be inferred.
 	assert(targs != nil && index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(pos, "cannot infer %s (%s) (%s)", tpar.obj.name, tpar.obj.pos, targs)
+	check.errorf(pos, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -378,7 +378,6 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 
 	// If a constraint has a structural type, unify the corresponding type parameter with it.
 	for _, tpar := range tparams {
-		typ := tpar
 		sbound := structure(tpar)
 		if sbound != nil {
 			// If the structural type is the underlying type of a single
@@ -386,8 +385,10 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 			if named, _ := tpar.singleType().(*Named); named != nil {
 				sbound = named
 			}
-			if !u.unify(typ, sbound) {
-				check.errorf(tpar.obj, "%s does not match %s", tpar.obj, sbound)
+			if !u.unify(tpar, sbound) {
+				// TODO(gri) improve error message by providing the type arguments
+				//           which we know already
+				check.errorf(tpar.obj, "%s does not match %s", tpar, sbound)
 				return nil, 0
 			}
 		}

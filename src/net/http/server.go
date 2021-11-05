@@ -13,6 +13,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"math/rand"
@@ -20,7 +21,6 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
-	"os"
 	"path"
 	"runtime"
 	"sort"
@@ -3296,7 +3296,7 @@ func (srv *Server) onceSetNextProtoDefaults_Serve() {
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 || strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
+	if omitBundledHTTP2 || godebug.Get("http2server") == "0" {
 		return
 	}
 	// Enable HTTP/2 by default if the user hasn't otherwise
@@ -3391,9 +3391,15 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 	case <-ctx.Done():
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
-		w.WriteHeader(StatusServiceUnavailable)
-		io.WriteString(w, h.errorBody())
-		tw.timedOut = true
+		switch err := ctx.Err(); err {
+		case context.DeadlineExceeded:
+			w.WriteHeader(StatusServiceUnavailable)
+			io.WriteString(w, h.errorBody())
+			tw.err = ErrHandlerTimeout
+		default:
+			w.WriteHeader(StatusServiceUnavailable)
+			tw.err = err
+		}
 	}
 }
 
@@ -3404,7 +3410,7 @@ type timeoutWriter struct {
 	req  *Request
 
 	mu          sync.Mutex
-	timedOut    bool
+	err         error
 	wroteHeader bool
 	code        int
 }
@@ -3424,8 +3430,8 @@ func (tw *timeoutWriter) Header() Header { return tw.h }
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
 	defer tw.mu.Unlock()
-	if tw.timedOut {
-		return 0, ErrHandlerTimeout
+	if tw.err != nil {
+		return 0, tw.err
 	}
 	if !tw.wroteHeader {
 		tw.writeHeaderLocked(StatusOK)
@@ -3437,7 +3443,7 @@ func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
 
 	switch {
-	case tw.timedOut:
+	case tw.err != nil:
 		return
 	case tw.wroteHeader:
 		if tw.req != nil {

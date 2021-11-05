@@ -345,18 +345,18 @@ func TestTypesInfo(t *testing.T) {
 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 
 		// parameterized functions
-		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T interface{}](generic_p0.T)`},
+		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[T interface{}](T)`},
 		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
 		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func(int)`},
 		{genericPkg + `p3; func f[T any](T) {}; func _() { f[int](42) }`, `f[int]`, `func(int)`},
-		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[generic_p4.T interface{}](generic_p4.T)`},
+		{genericPkg + `p4; func f[T any](T) {}; func _() { f[int](42) }`, `f`, `func[T interface{}](T)`},
 		{genericPkg + `p5; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
 
 		// type parameters
 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
-		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[generic_t1.P interface{}]`},
-		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[generic_t2.P interface{}]`},
-		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[generic_t3.P, generic_t3.Q interface{}]`},
+		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P interface{}]`},
+		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P interface{}]`},
+		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P, Q interface{}]`},
 
 		// TODO (rFindley): compare with types2, which resolves the type broken_t4.t[P₁, Q₂ interface{m()}] here
 		{broken + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t`},
@@ -365,7 +365,7 @@ func TestTypesInfo(t *testing.T) {
 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
 
 		// issue 45096
-		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T`},
+		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `T`},
 
 		// issue 47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
@@ -604,13 +604,6 @@ func TestDefsInfo(t *testing.T) {
 		{`package p3; type x int`, `x`, `type p3.x int`},
 		{`package p4; func f()`, `f`, `func p4.f()`},
 		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
-
-		// generic types must be sanitized
-		// (need to use sufficiently nested types to provoke unexpanded types)
-		{genericPkg + `g0; type t[P any] P; const x = t[int](42)`, `x`, `const generic_g0.x generic_g0.t[int]`},
-		{genericPkg + `g1; type t[P any] P; var x = t[int](42)`, `x`, `var generic_g1.x generic_g1.t[int]`},
-		{genericPkg + `g2; type t[P any] P; type x struct{ f t[int] }`, `x`, `type generic_g2.x struct{f generic_g2.t[int]}`},
-		{genericPkg + `g3; type t[P any] P; func f(x struct{ f t[string] }); var g = f`, `g`, `var generic_g3.g func(x struct{f generic_g3.t[string]})`},
 	}
 
 	for _, test := range tests {
@@ -649,13 +642,6 @@ func TestUsesInfo(t *testing.T) {
 		{`package p2; func _() { _ = x }; var x int`, `x`, `var p2.x int`},
 		{`package p3; func _() { type _ x }; type x int`, `x`, `type p3.x int`},
 		{`package p4; func _() { _ = f }; func f()`, `f`, `func p4.f()`},
-
-		// generic types must be sanitized
-		// (need to use sufficiently nested types to provoke unexpanded types)
-		{genericPkg + `g0; func _() { _ = x }; type t[P any] P; const x = t[int](42)`, `x`, `const generic_g0.x generic_g0.t[int]`},
-		{genericPkg + `g1; func _() { _ = x }; type t[P any] P; var x = t[int](42)`, `x`, `var generic_g1.x generic_g1.t[int]`},
-		{genericPkg + `g2; func _() { type _ x }; type t[P any] P; type x struct{ f t[int] }`, `x`, `type generic_g2.x struct{f generic_g2.t[int]}`},
-		{genericPkg + `g3; func _() { _ = f }; type t[P any] P; func f(x struct{ f t[string] })`, `f`, `func generic_g3.f(x struct{f generic_g3.t[string]})`},
 	}
 
 	for _, test := range tests {
