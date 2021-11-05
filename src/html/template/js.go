@@ -132,7 +132,7 @@ func indirectToJSONMarshaler(a interface{}) interface{} {
 	}
 
 	v := reflect.ValueOf(a)
-	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+	for !v.Type().Implements(jsonMarshalType) && v.Kind() == reflect.Pointer && !v.IsNil() {
 		v = v.Elem()
 	}
 	return v.Interface()

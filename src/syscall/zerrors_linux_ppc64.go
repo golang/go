@@ -5,7 +5,6 @@
 // cgo -godefs -- -m64 _const.go
 
 //go:build ppc64 && linux
-// +build ppc64,linux
 
 package syscall
 

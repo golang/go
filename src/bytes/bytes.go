@@ -21,7 +21,7 @@ func Equal(a, b []byte) bool {
 }
 
 // Compare returns an integer comparing two byte slices lexicographically.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
 // A nil argument is equivalent to an empty slice.
 func Compare(a, b []byte) int {
 	return bytealg.Compare(a, b)
@@ -699,7 +699,7 @@ func ToValidUTF8(s, replacement []byte) []byte {
 		if c < utf8.RuneSelf {
 			i++
 			invalid = false
-			b = append(b, byte(c))
+			b = append(b, c)
 			continue
 		}
 		_, wid := utf8.DecodeRune(s[i:])

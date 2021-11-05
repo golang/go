@@ -1,8 +1,12 @@
 ! go mod initwork doesnotexist
 stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
+go env GOWORK
+! stdout .
 
 go mod initwork ./a ./b
 cmp go.work go.work.want
+go env GOWORK
+stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
 
 ! go run  example.com/b
 stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'

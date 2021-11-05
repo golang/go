@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !goexperiment.regabireflect && !amd64
-// +build !goexperiment.regabireflect,!amd64
 
 package abi
 

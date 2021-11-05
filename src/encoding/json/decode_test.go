@@ -1103,7 +1103,7 @@ func TestUnmarshal(t *testing.T) {
 		}
 
 		typ := reflect.TypeOf(tt.ptr)
-		if typ.Kind() != reflect.Ptr {
+		if typ.Kind() != reflect.Pointer {
 			t.Errorf("#%d: unmarshalTest.ptr %T is not a pointer type", i, tt.ptr)
 			continue
 		}

@@ -745,25 +745,26 @@ func (b *Writer) WriteString(s string) (int, error) {
 }
 
 // ReadFrom implements io.ReaderFrom. If the underlying writer
-// supports the ReadFrom method, and b has no buffered data yet,
-// this calls the underlying ReadFrom without buffering.
+// supports the ReadFrom method, this calls the underlying ReadFrom.
+// If there is buffered data and an underlying ReadFrom, this fills
+// the buffer and writes it before calling ReadFrom.
 func (b *Writer) ReadFrom(r io.Reader) (n int64, err error) {
 	if b.err != nil {
 		return 0, b.err
 	}
-	if b.Buffered() == 0 {
-		if w, ok := b.wr.(io.ReaderFrom); ok {
-			n, err = w.ReadFrom(r)
-			b.err = err
-			return n, err
-		}
-	}
+	readerFrom, readerFromOK := b.wr.(io.ReaderFrom)
 	var m int
 	for {
 		if b.Available() == 0 {
 			if err1 := b.Flush(); err1 != nil {
 				return n, err1
 			}
+		}
+		if readerFromOK && b.Buffered() == 0 {
+			nn, err := readerFrom.ReadFrom(r)
+			b.err = err
+			n += nn
+			return n, err
 		}
 		nr := 0
 		for nr < maxConsecutiveEmptyReads {

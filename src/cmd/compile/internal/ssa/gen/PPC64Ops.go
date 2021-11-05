@@ -396,7 +396,7 @@ func init() {
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
 		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
-		// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+		// ISEL auxInt values 4=GE 5=LE 6=NE   !arg2 ? arg1 : arg0
 		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
 		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
 		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
@@ -434,7 +434,7 @@ func init() {
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 

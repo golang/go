@@ -209,6 +209,92 @@ type RawSockaddrCtl struct {
 	Sc_reserved [5]uint32
 }
 
+type RawSockaddrVM struct {
+	Len       uint8
+	Family    uint8
+	Reserved1 uint16
+	Port      uint32
+	Cid       uint32
+}
+
+type XVSockPCB struct {
+	Xv_len           uint32
+	Xv_vsockpp       uint64
+	Xvp_local_cid    uint32
+	Xvp_local_port   uint32
+	Xvp_remote_cid   uint32
+	Xvp_remote_port  uint32
+	Xvp_rxcnt        uint32
+	Xvp_txcnt        uint32
+	Xvp_peer_rxhiwat uint32
+	Xvp_peer_rxcnt   uint32
+	Xvp_last_pid     int32
+	Xvp_gencnt       uint64
+	Xv_socket        XSocket
+	_                [4]byte
+}
+
+type XSocket struct {
+	Xso_len      uint32
+	Xso_so       uint32
+	So_type      int16
+	So_options   int16
+	So_linger    int16
+	So_state     int16
+	So_pcb       uint32
+	Xso_protocol int32
+	Xso_family   int32
+	So_qlen      int16
+	So_incqlen   int16
+	So_qlimit    int16
+	So_timeo     int16
+	So_error     uint16
+	So_pgid      int32
+	So_oobmark   uint32
+	So_rcv       XSockbuf
+	So_snd       XSockbuf
+	So_uid       uint32
+}
+
+type XSocket64 struct {
+	Xso_len      uint32
+	_            [8]byte
+	So_type      int16
+	So_options   int16
+	So_linger    int16
+	So_state     int16
+	_            [8]byte
+	Xso_protocol int32
+	Xso_family   int32
+	So_qlen      int16
+	So_incqlen   int16
+	So_qlimit    int16
+	So_timeo     int16
+	So_error     uint16
+	So_pgid      int32
+	So_oobmark   uint32
+	So_rcv       XSockbuf
+	So_snd       XSockbuf
+	So_uid       uint32
+}
+
+type XSockbuf struct {
+	Cc    uint32
+	Hiwat uint32
+	Mbcnt uint32
+	Mbmax uint32
+	Lowat int32
+	Flags int16
+	Timeo int16
+}
+
+type XVSockPgen struct {
+	Len   uint32
+	Count uint64
+	Gen   uint64
+	Sogen uint64
+}
+
 type _Socklen uint32
 
 type Xucred struct {
@@ -287,6 +373,11 @@ const (
 	SizeofSockaddrUnix     = 0x6a
 	SizeofSockaddrDatalink = 0x14
 	SizeofSockaddrCtl      = 0x20
+	SizeofSockaddrVM       = 0xc
+	SizeofXvsockpcb        = 0xa8
+	SizeofXSocket          = 0x64
+	SizeofXSockbuf         = 0x18
+	SizeofXVSockPgen       = 0x20
 	SizeofXucred           = 0x4c
 	SizeofLinger           = 0x8
 	SizeofIovec            = 0x10
@@ -639,3 +730,39 @@ type Ucred struct {
 	Ngroups int16
 	Groups  [16]uint32
 }
+
+type SysvIpcPerm struct {
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode uint16
+	_    uint16
+	_    int32
+}
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	Segsz  uint64
+	Lpid   int32
+	Cpid   int32
+	Nattch uint16
+	_      [34]byte
+}
+
+const (
+	IPC_CREAT   = 0x200
+	IPC_EXCL    = 0x400
+	IPC_NOWAIT  = 0x800
+	IPC_PRIVATE = 0x0
+)
+
+const (
+	IPC_RMID = 0x0
+	IPC_SET  = 0x1
+	IPC_STAT = 0x2
+)
+
+const (
+	SHM_RDONLY = 0x1000
+	SHM_RND    = 0x2000
+)

@@ -48,18 +48,3 @@ type Complex interface {
 type Ordered interface {
 	Integer | Float | ~string
 }
-
-// Slice is a constraint that matches slices of any element type.
-type Slice[Elem any] interface {
-	~[]Elem
-}
-
-// Map is a constraint that matches maps of any element and value type.
-type Map[Key comparable, Val any] interface {
-	~map[Key]Val
-}
-
-// Chan is a constraint that matches channels of any element type.
-type Chan[Elem any] interface {
-	~chan Elem
-}

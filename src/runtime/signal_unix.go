@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
 
@@ -168,8 +167,8 @@ func sigInstallGoHandler(sig uint32) bool {
 	}
 
 	// When built using c-archive or c-shared, only install signal
-	// handlers for synchronous signals and SIGPIPE.
-	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE {
+	// handlers for synchronous signals and SIGPIPE and sigPreempt.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 && sig != _SIGPIPE && sig != sigPreempt {
 		return false
 	}
 
@@ -688,9 +687,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
-	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
 		print("signal arrived during cgo execution\n")
-		gp = _g_.m.lockedg.ptr()
+		// Switch to curg so that we get a traceback of the Go code
+		// leading up to the cgocall, which switched from curg to g0.
+		gp = _g_.m.curg
 	}
 	if sig == _SIGILL || sig == _SIGFPE {
 		// It would be nice to know how long the instruction is.

@@ -10,7 +10,9 @@ package elliptic
 // See https://www.imperialviolet.org/2010/12/04/ecc.html ([1]) for background.
 
 import (
+	"encoding/binary"
 	"math/big"
+	"math/bits"
 )
 
 var p224 p224Curve
@@ -48,6 +50,10 @@ func (curve p224Curve) Params() *CurveParams {
 }
 
 func (curve p224Curve) IsOnCurve(bigX, bigY *big.Int) bool {
+	if bigX.BitLen() > 224 || bigY.BitLen() > 224 {
+		return false
+	}
+
 	var x, y p224FieldElement
 	p224FromBig(&x, bigX)
 	p224FromBig(&y, bigY)
@@ -139,41 +145,22 @@ func (curve p224Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
 type p224FieldElement [8]uint32
 
 // p224P is the order of the field, represented as a p224FieldElement.
-var p224P = [8]uint32{1, 0, 0, 0xffff000, 0xfffffff, 0xfffffff, 0xfffffff, 0xfffffff}
+var p224P = p224FieldElement{1, 0, 0, 0xffff000, 0xfffffff, 0xfffffff, 0xfffffff, 0xfffffff}
 
 // p224IsZero returns 1 if a == 0 mod p and 0 otherwise.
 //
 // a[i] < 2**29
 func p224IsZero(a *p224FieldElement) uint32 {
-	// Since a p224FieldElement contains 224 bits there are two possible
-	// representations of 0: 0 and p.
 	var minimal p224FieldElement
 	p224Contract(&minimal, a)
 
-	var isZero, isP uint32
-	for i, v := range minimal {
-		isZero |= v
-		isP |= v - p224P[i]
+	var acc uint32
+	for _, v := range minimal {
+		acc |= v
 	}
+	mask := ^maskIsNotZero(acc)
 
-	// If either isZero or isP is 0, then we should return 1.
-	isZero |= isZero >> 16
-	isZero |= isZero >> 8
-	isZero |= isZero >> 4
-	isZero |= isZero >> 2
-	isZero |= isZero >> 1
-
-	isP |= isP >> 16
-	isP |= isP >> 8
-	isP |= isP >> 4
-	isP |= isP >> 2
-	isP |= isP >> 1
-
-	// For isZero and isP, the LSB is 0 iff all the bits are zero.
-	result := isZero & isP
-	result = (^result) & 1
-
-	return result
+	return 1 & mask
 }
 
 // p224Add computes *out = a+b
@@ -192,6 +179,12 @@ const two31m15m3 = 1<<31 - 1<<15 - 1<<3
 // p224ZeroModP31 is 0 mod p where bit 31 is set in all limbs so that we can
 // subtract smaller amounts without underflow. See the section "Subtraction" in
 // [1] for reasoning.
+//
+// To calculate this value, start by adding 2³¹ to the lowest limb and
+// subtracting 2³ from the next one to compensate. Repeat for each next limb,
+// ending up with 2³¹ - 2³ in each of them, and a carry of -2³. Apply the
+// reduction identity, and we need to subtract 2³ * 2⁹⁶ - 2³ = 2¹⁵ * 2⁸⁴ - 2³ so
+// we subtract 2¹⁵ from the 4th limb and add 2³ to the first limb.
 var p224ZeroModP31 = []uint32{two31p3, two31m3, two31m3, two31m15m3, two31m3, two31m3, two31m3, two31m3}
 
 // p224Sub computes *out = a-b
@@ -225,7 +218,7 @@ const bottom28Bits = 0xfffffff
 // a[i] < 2**29, b[i] < 2**30 (or vice versa)
 // out[i] < 2**29
 func p224Mul(out, a, b *p224FieldElement, tmp *p224LargeFieldElement) {
-	for i := 0; i < 15; i++ {
+	for i := range tmp {
 		tmp[i] = 0
 	}
 
@@ -243,7 +236,7 @@ func p224Mul(out, a, b *p224FieldElement, tmp *p224LargeFieldElement) {
 // a[i] < 2**29
 // out[i] < 2**29
 func p224Square(out, a *p224FieldElement, tmp *p224LargeFieldElement) {
-	for i := 0; i < 15; i++ {
+	for i := range tmp {
 		tmp[i] = 0
 	}
 
@@ -253,7 +246,7 @@ func p224Square(out, a *p224FieldElement, tmp *p224LargeFieldElement) {
 			if i == j {
 				tmp[i+j] += r
 			} else {
-				tmp[i+j] += r << 1
+				tmp[i+j] += r * 2
 			}
 		}
 	}
@@ -264,22 +257,33 @@ func p224Square(out, a *p224FieldElement, tmp *p224LargeFieldElement) {
 // ReduceLarge converts a p224LargeFieldElement to a p224FieldElement.
 //
 // in[i] < 2**62
+// out[i] < 2**29
 func p224ReduceLarge(out *p224FieldElement, in *p224LargeFieldElement) {
 	for i := 0; i < 8; i++ {
 		in[i] += p224ZeroModP63[i]
 	}
 
-	// Eliminate the coefficients at 2**224 and greater.
+	// Eliminate the coefficients at 2**224 and greater by applying the
+	// reduction identity.
+	//
+	//   a + top * 2²²⁴ = a + top * 2⁹⁶ - top
+	//
+	// Since top here is in[8..14], both the subtraction at offset 0 and the
+	// addition at offset 96 (3 * 28 + 16) span multiple limbs. The subtraction
+	// can't underflow because of the p224ZeroModP63 addition above, while the
+	// addition can't overflow because of the 62 bit input bounds.
 	for i := 14; i >= 8; i-- {
 		in[i-8] -= in[i]
 		in[i-5] += (in[i] & 0xffff) << 12
 		in[i-4] += in[i] >> 16
 	}
 	in[8] = 0
-	// in[0..8] < 2**64
+	// in[0..7] < 2**64
+	// in[9..14] discarded
 
-	// As the values become small enough, we start to store them in |out|
-	// and use 32-bit operations.
+	// Run a carry chain and light reduction. Keep [0] large so we can do the
+	// subtraction safely. As the values become small enough, we start to store
+	// them in out and use 32-bit operations.
 	for i := 1; i < 8; i++ {
 		in[i+1] += in[i] >> 28
 		out[i] = uint32(in[i] & bottom28Bits)
@@ -292,6 +296,7 @@ func p224ReduceLarge(out *p224FieldElement, in *p224LargeFieldElement) {
 	// out[4] < 2**29
 	// out[1,2,5..7] < 2**28
 
+	// Carry the overflow of [0] into the short 28 bit limbs.
 	out[0] = uint32(in[0] & bottom28Bits)
 	out[1] += uint32((in[0] >> 28) & bottom28Bits)
 	out[2] += uint32(in[0] >> 56)
@@ -312,28 +317,23 @@ func p224Reduce(a *p224FieldElement) {
 	top := a[7] >> 28
 	a[7] &= bottom28Bits
 
-	// top < 2**4
-	mask := top
-	mask |= mask >> 2
-	mask |= mask >> 1
-	mask <<= 31
-	mask = uint32(int32(mask) >> 31)
-	// Mask is all ones if top != 0, all zero otherwise
-
 	a[0] -= top
 	a[3] += top << 12
 
-	// We may have just made a[0] negative but, if we did, then we must
-	// have added something to a[3], this it's > 2**12. Therefore we can
-	// carry down to a[0].
+	// We may have just made a[0] negative but if we did top must have been not
+	// zero, so a[3] is not zero, so we can carry down to a[0]. (Note that we
+	// don't actually check if a[0] went negative, like in p224Contract, nor we
+	// try to stop the carry at a[1] or a[2], because here we can afford to go
+	// above 28 bits, so instead we carry all the way down from a[3].)
+	mask := maskIsNotZero(top)
 	a[3] -= 1 & mask
 	a[2] += mask & (1<<28 - 1)
 	a[1] += mask & (1<<28 - 1)
 	a[0] += mask & (1 << 28)
 }
 
-// p224Invert calculates *out = in**-1 by computing in**(2**224 - 2**96 - 1),
-// i.e. Fermat's little theorem.
+// p224Invert calculates *out = in**-1 by using Fermat's little theorem and
+// computing in**(p-2) = in**(2**224 - 2**96 - 1).
 func p224Invert(out, in *p224FieldElement) {
 	var f1, f2, f3, f4 p224FieldElement
 	var c p224LargeFieldElement
@@ -408,13 +408,14 @@ func p224Contract(out, in *p224FieldElement) {
 	// out[0] negative then we know that out[3] is sufficiently positive
 	// because we just added to it.
 	for i := 0; i < 3; i++ {
-		mask := uint32(int32(out[i]) >> 31)
+		mask := maskIsNegative(out[i])
 		out[i] += (1 << 28) & mask
 		out[i+1] -= 1 & mask
 	}
 
 	// We might have pushed out[3] over 2**28 so we perform another, partial,
-	// carry chain.
+	// carry chain; carry the overflow according to the reduction identity; and
+	// carry down in case we made out[0] negative.
 	for i := 3; i < 7; i++ {
 		out[i+1] += out[i] >> 28
 		out[i] &= bottom28Bits
@@ -422,9 +423,14 @@ func p224Contract(out, in *p224FieldElement) {
 	top = out[7] >> 28
 	out[7] &= bottom28Bits
 
-	// Eliminate top while maintaining the same value mod p.
 	out[0] -= top
 	out[3] += top << 12
+
+	for i := 0; i < 3; i++ {
+		mask := maskIsNegative(out[i])
+		out[i] += (1 << 28) & mask
+		out[i+1] -= 1 & mask
+	}
 
 	// There are two cases to consider for out[3]:
 	//   1) The first time that we eliminated top, we didn't push out[3] over
@@ -436,60 +442,14 @@ func p224Contract(out, in *p224FieldElement) {
 	// In both cases, out[3] cannot have overflowed when we eliminated top for
 	// the second time.
 
-	// Again, we may just have made out[0] negative, so do the same carry down.
-	// As before, if we made out[0] negative then we know that out[3] is
-	// sufficiently positive.
-	for i := 0; i < 3; i++ {
-		mask := uint32(int32(out[i]) >> 31)
-		out[i] += (1 << 28) & mask
-		out[i+1] -= 1 & mask
+	// Now we need to subtract p if the value is >= p. To check, we subtract p
+	// with a borrow chain and look at the final borrow bit.
+	var b uint32
+	for i := 0; i < len(out); i++ {
+		_, b = bits.Sub32(out[i], p224P[i], b)
 	}
+	mask := ^maskIsNotZero(b)
 
-	// Now we see if the value is >= p and, if so, subtract p.
-
-	// First we build a mask from the top four limbs, which must all be
-	// equal to bottom28Bits if the whole value is >= p. If top4AllOnes
-	// ends up with any zero bits in the bottom 28 bits, then this wasn't
-	// true.
-	top4AllOnes := uint32(0xffffffff)
-	for i := 4; i < 8; i++ {
-		top4AllOnes &= out[i]
-	}
-	top4AllOnes |= 0xf0000000
-	// Now we replicate any zero bits to all the bits in top4AllOnes.
-	top4AllOnes &= top4AllOnes >> 16
-	top4AllOnes &= top4AllOnes >> 8
-	top4AllOnes &= top4AllOnes >> 4
-	top4AllOnes &= top4AllOnes >> 2
-	top4AllOnes &= top4AllOnes >> 1
-	top4AllOnes = uint32(int32(top4AllOnes<<31) >> 31)
-
-	// Now we test whether the bottom three limbs are non-zero.
-	bottom3NonZero := out[0] | out[1] | out[2]
-	bottom3NonZero |= bottom3NonZero >> 16
-	bottom3NonZero |= bottom3NonZero >> 8
-	bottom3NonZero |= bottom3NonZero >> 4
-	bottom3NonZero |= bottom3NonZero >> 2
-	bottom3NonZero |= bottom3NonZero >> 1
-	bottom3NonZero = uint32(int32(bottom3NonZero<<31) >> 31)
-
-	// Assuming top4AllOnes != 0, everything depends on the value of out[3].
-	//    If it's > 0xffff000 then the whole value is > p
-	//    If it's = 0xffff000 and bottom3NonZero != 0, then the whole value is >= p
-	//    If it's < 0xffff000, then the whole value is < p
-	n := 0xffff000 - out[3]
-	out3Equal := n
-	out3Equal |= out3Equal >> 16
-	out3Equal |= out3Equal >> 8
-	out3Equal |= out3Equal >> 4
-	out3Equal |= out3Equal >> 2
-	out3Equal |= out3Equal >> 1
-	out3Equal = ^uint32(int32(out3Equal<<31) >> 31)
-
-	// If out[3] > 0xffff000 then n's MSB will be one.
-	out3GT := uint32(int32(n) >> 31)
-
-	mask := top4AllOnes & ((out3Equal & bottom3NonZero) | out3GT)
 	out[0] -= 1 & mask
 	out[3] -= 0xffff000 & mask
 	out[4] -= 0xfffffff & mask
@@ -501,10 +461,24 @@ func p224Contract(out, in *p224FieldElement) {
 	// out[0..3] needs to be positive and able to absorb the -1 or the value
 	// would have been < p, and the subtraction wouldn't have happened.
 	for i := 0; i < 3; i++ {
-		mask := uint32(int32(out[i]) >> 31)
+		mask := maskIsNegative(out[i])
 		out[i] += (1 << 28) & mask
 		out[i+1] -= 1 & mask
 	}
+}
+
+// maskIsNegative returns 0xffffffff if the most significant bit of v is set,
+// and 0 otherwise.
+func maskIsNegative(v uint32) uint32 { return uint32(int32(v) >> 31) }
+
+// maskIfNegative returns 0xffffffff if v is not zero, and 0 otherwise.
+func maskIsNotZero(v uint32) uint32 {
+	v |= v >> 16
+	v |= v >> 8
+	v |= v >> 4
+	v |= v >> 2
+	v |= v >> 1
+	return uint32(int32(v<<31) >> 31)
 }
 
 // Group element functions.
@@ -650,14 +624,11 @@ func p224DoubleJacobian(x3, y3, z3, x1, y1, z1 *p224FieldElement) {
 	p224Reduce(y3)
 }
 
-// p224CopyConditional sets *out = *in iff the least-significant-bit of control
-// is true, and it runs in constant time.
+// p224CopyConditional sets *out = *in in constant time if control is not zero.
 func p224CopyConditional(out, in *p224FieldElement, control uint32) {
-	control <<= 31
-	control = uint32(int32(control) >> 31)
-
+	mask := maskIsNotZero(control)
 	for i := 0; i < 8; i++ {
-		out[i] ^= (out[i] ^ in[i]) & control
+		out[i] ^= (out[i] ^ in[i]) & mask
 	}
 }
 
@@ -702,37 +673,27 @@ func p224ToAffine(x, y, z *p224FieldElement) (*big.Int, *big.Int) {
 }
 
 // get28BitsFromEnd returns the least-significant 28 bits from buf>>shift,
-// where buf is interpreted as a big-endian number.
-func get28BitsFromEnd(buf []byte, shift uint) (uint32, []byte) {
-	var ret uint32
-
-	for i := uint(0); i < 4; i++ {
-		var b byte
-		if l := len(buf); l > 0 {
-			b = buf[l-1]
-			// We don't remove the byte if we're about to return and we're not
-			// reading all of it.
-			if i != 3 || shift == 4 {
-				buf = buf[:l-1]
-			}
-		}
-		ret |= uint32(b) << (8 * i) >> shift
+// where buf is interpreted as a big-endian number. shift must be at most
+// 4 bits higher than a multiple of 8.
+func get28BitsFromEnd(buf []byte, shift int) uint32 {
+	buf = buf[:len(buf)-shift/8]
+	shift = shift % 8
+	if shift > 4 {
+		panic("misuse of get28BitsFromEnd")
 	}
+
+	ret := binary.BigEndian.Uint32(buf[len(buf)-4:])
+	ret >>= shift
 	ret &= bottom28Bits
-	return ret, buf
+	return ret
 }
 
 // p224FromBig sets *out = *in.
 func p224FromBig(out *p224FieldElement, in *big.Int) {
-	bytes := in.Bytes()
-	out[0], bytes = get28BitsFromEnd(bytes, 0)
-	out[1], bytes = get28BitsFromEnd(bytes, 4)
-	out[2], bytes = get28BitsFromEnd(bytes, 0)
-	out[3], bytes = get28BitsFromEnd(bytes, 4)
-	out[4], bytes = get28BitsFromEnd(bytes, 0)
-	out[5], bytes = get28BitsFromEnd(bytes, 4)
-	out[6], bytes = get28BitsFromEnd(bytes, 0)
-	out[7], bytes = get28BitsFromEnd(bytes, 4)
+	bytes := in.FillBytes(make([]byte, 224/8))
+	for i := range out {
+		out[i] = get28BitsFromEnd(bytes, 28*i)
+	}
 }
 
 // p224ToBig returns in as a big.Int.

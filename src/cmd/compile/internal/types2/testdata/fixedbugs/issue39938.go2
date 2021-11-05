@@ -3,19 +3,21 @@
 // license that can be found in the LICENSE file.
 
 // Check "infinite expansion" cycle errors across instantiated types.
+// We can't detect these errors anymore at the moment. See #48962 for
+// details.
 
 package p
 
-type E0[P any] P
+type E0[P any] []P
 type E1[P any] *P
 type E2[P any] struct{ _ P }
 type E3[P any] struct{ _ *P }
 
-type T0 /* ERROR illegal cycle */ struct {
+type T0 /* illegal cycle */ struct {
         _ E0[T0]
 }
 
-type T0_ /* ERROR illegal cycle */ struct {
+type T0_ /* illegal cycle */ struct {
         E0[T0_]
 }
 
@@ -23,7 +25,7 @@ type T1 struct {
         _ E1[T1]
 }
 
-type T2 /* ERROR illegal cycle */ struct {
+type T2 /* illegal cycle */ struct {
         _ E2[T2]
 }
 
@@ -33,7 +35,7 @@ type T3 struct {
 
 // some more complex cases
 
-type T4 /* ERROR illegal cycle */ struct {
+type T4 /* illegal cycle */ struct {
 	_ E0[E2[T4]]
 }
 
@@ -41,7 +43,7 @@ type T5 struct {
 	_ E0[E2[E0[E1[E2[[10]T5]]]]]
 }
 
-type T6 /* ERROR illegal cycle */ struct {
+type T6 /* illegal cycle */ struct {
 	_ E0[[10]E2[E0[E2[E2[T6]]]]]
 }
 

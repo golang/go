@@ -2,9 +2,7 @@
 # enabled, and multiple package or multiple fuzz targets match.
 # TODO(#46312): support fuzzing multiple targets in multiple packages.
 
-# TODO(jayconrod): support shared memory on more platforms.
-[!darwin] [!linux] [!windows] skip
-
+[!fuzz] skip
 [short] skip
 
 # With fuzzing disabled, multiple targets can be tested.

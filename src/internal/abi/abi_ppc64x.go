@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build goexperiment.regabireflect && (ppc64 || ppc64le)
-// +build goexperiment.regabireflect
-// +build ppc64 ppc64le
 
 package abi
 

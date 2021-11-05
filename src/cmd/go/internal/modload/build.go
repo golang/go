@@ -5,7 +5,6 @@
 package modload
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -240,7 +239,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 	}
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
-	completeFromModCache := func(m *modinfo.ModulePublic, replacedFrom string) {
+	completeFromModCache := func(m *modinfo.ModulePublic) {
 		checksumOk := func(suffix string) bool {
 			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
@@ -259,7 +258,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		if m.GoVersion == "" && checksumOk("/go.mod") {
 			// Load the go.mod file to determine the Go version, since it hasn't
 			// already been populated from rawGoVersion.
-			if summary, err := rawGoModSummary(mod, replacedFrom); err == nil && summary.goVersion != "" {
+			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersion != "" {
 				m.GoVersion = summary.goVersion
 			}
 		}
@@ -289,11 +288,11 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 	if rs == nil {
 		// If this was an explicitly-versioned argument to 'go mod download' or
 		// 'go list -m', report the actual requested version, not its replacement.
-		completeFromModCache(info, "") // Will set m.Error in vendor mode.
+		completeFromModCache(info) // Will set m.Error in vendor mode.
 		return info
 	}
 
-	r, replacedFrom := Replacement(m)
+	r := Replacement(m)
 	if r.Path == "" {
 		if cfg.BuildMod == "vendor" {
 			// It's tempting to fill in the "Dir" field to point within the vendor
@@ -302,7 +301,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 			// interleave packages from different modules if one module path is a
 			// prefix of the other.
 		} else {
-			completeFromModCache(info, "")
+			completeFromModCache(info)
 		}
 		return info
 	}
@@ -322,65 +321,18 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		if filepath.IsAbs(r.Path) {
 			info.Replace.Dir = r.Path
 		} else {
-			info.Replace.Dir = filepath.Join(replacedFrom, r.Path)
+			info.Replace.Dir = filepath.Join(replaceRelativeTo(), r.Path)
 		}
 		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
 	}
 	if cfg.BuildMod != "vendor" {
-		completeFromModCache(info.Replace, replacedFrom)
+		completeFromModCache(info.Replace)
 		info.Dir = info.Replace.Dir
 		info.GoMod = info.Replace.GoMod
 		info.Retracted = info.Replace.Retracted
 	}
 	info.GoVersion = info.Replace.GoVersion
 	return info
-}
-
-// PackageBuildInfo returns a string containing module version information
-// for modules providing packages named by path and deps. path and deps must
-// name packages that were resolved successfully with LoadPackages.
-func PackageBuildInfo(path string, deps []string) string {
-	if !Enabled() {
-		return ""
-	}
-	target, _ := findModule(loaded, path)
-	mdeps := make(map[module.Version]bool)
-	for _, dep := range deps {
-		if m, ok := findModule(loaded, dep); ok {
-			mdeps[m] = true
-		}
-	}
-	var mods []module.Version
-	delete(mdeps, target)
-	for mod := range mdeps {
-		mods = append(mods, mod)
-	}
-	module.Sort(mods)
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "path\t%s\n", path)
-
-	writeEntry := func(token string, m module.Version) {
-		mv := m.Version
-		if mv == "" {
-			mv = "(devel)"
-		}
-		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
-		if r, _ := Replacement(m); r.Path == "" {
-			fmt.Fprintf(&buf, "\t%s\n", modfetch.Sum(m))
-		} else {
-			fmt.Fprintf(&buf, "\n=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
-		}
-	}
-
-	if target.Path != "" {
-		writeEntry("mod", target)
-	}
-	for _, mod := range mods {
-		writeEntry("dep", mod)
-	}
-
-	return buf.String()
 }
 
 // findModule searches for the module that contains the package at path.

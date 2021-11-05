@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build freebsd
-// +build freebsd
 
 package syscall_test
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -52,4 +52,14 @@ func TestConvertFromDirent11(t *testing.T) {
 			t.Errorf("expected names[%d] to be %q; got %q", i, expected, name)
 		}
 	}
+}
+
+func TestMain(m *testing.M) {
+	if os.Getenv("GO_DEATHSIG_PARENT") == "1" {
+		deathSignalParent()
+	} else if os.Getenv("GO_DEATHSIG_CHILD") == "1" {
+		deathSignalChild()
+	}
+
+	os.Exit(m.Run())
 }

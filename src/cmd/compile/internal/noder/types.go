@@ -213,7 +213,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
 			methods[i] = types.NewField(g.pos(m), g.selector(m), mtyp)
 		}
 
-		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
+		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...), typ.IsImplicit())
 
 	case *types2.TypeParam:
 		// Save the name of the type parameter in the sym of the type.

@@ -76,6 +76,28 @@ type dotImportKey struct {
 	name  string
 }
 
+// An action describes a (delayed) action.
+type action struct {
+	f    func()      // action to be executed
+	desc *actionDesc // action description; may be nil, requires debug to be set
+}
+
+// If debug is set, describef sets a printf-formatted description for action a.
+// Otherwise, it is a no-op.
+func (a *action) describef(pos positioner, format string, args ...interface{}) {
+	if debug {
+		a.desc = &actionDesc{pos, format, args}
+	}
+}
+
+// An actionDesc provides information on an action.
+// For debugging only.
+type actionDesc struct {
+	pos    positioner
+	format string
+	args   []interface{}
+}
+
 // A Checker maintains the state of the type checker.
 // It must be created with NewChecker.
 type Checker struct {
@@ -107,12 +129,14 @@ type Checker struct {
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
 
 	firstErr error                 // first error encountered
 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
-	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
+	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+	defTypes []*Named              // defined types created during type checking, for final validation.
 
 	// context within which the current object is type-checked
 	// (valid only for the duration of type-checking a specific object)
@@ -147,8 +171,12 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
 // either at the end of the current statement, or in case of a local constant
 // or variable declaration, before the constant or variable is in scope
 // (so that f still sees the scope before any new declarations).
-func (check *Checker) later(f func()) {
-	check.delayed = append(check.delayed, f)
+// later returns the pushed action so one can provide a description
+// via action.describef for debugging, if desired.
+func (check *Checker) later(f func()) *action {
+	i := len(check.delayed)
+	check.delayed = append(check.delayed, action{f: f})
+	return &check.delayed[i]
 }
 
 // push pushes obj onto the object path and returns its index in the path.
@@ -269,6 +297,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 
 	check.processDelayed(0) // incl. all functions
 
+	check.expandDefTypes()
+
 	check.initOrder()
 
 	if !check.conf.DisableUnusedImportCheck {
@@ -276,6 +306,11 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	}
 
 	check.recordUntyped()
+
+	if check.firstErr == nil {
+		// TODO(mdempsky): Ensure monomorph is safe when errors exist.
+		check.monomorph()
+	}
 
 	check.pkg.complete = true
 
@@ -285,6 +320,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	check.pkgPathMap = nil
 	check.seenPkgMap = nil
 	check.recvTParamMap = nil
+	check.defTypes = nil
 
 	// TODO(rFindley) There's more memory we should release at this point.
 
@@ -300,10 +336,38 @@ func (check *Checker) processDelayed(top int) {
 	// add more actions (such as nested functions), so
 	// this is a sufficiently bounded process.
 	for i := top; i < len(check.delayed); i++ {
-		check.delayed[i]() // may append to check.delayed
+		a := &check.delayed[i]
+		if trace && a.desc != nil {
+			fmt.Println()
+			check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+		}
+		a.f() // may append to check.delayed
 	}
 	assert(top <= len(check.delayed)) // stack must not have shrunk
 	check.delayed = check.delayed[:top]
+}
+
+func (check *Checker) expandDefTypes() {
+	// Ensure that every defined type created in the course of type-checking has
+	// either non-*Named underlying, or is unresolved.
+	//
+	// This guarantees that we don't leak any types whose underlying is *Named,
+	// because any unresolved instances will lazily compute their underlying by
+	// substituting in the underlying of their origin. The origin must have
+	// either been imported or type-checked and expanded here, and in either case
+	// its underlying will be fully expanded.
+	for i := 0; i < len(check.defTypes); i++ {
+		n := check.defTypes[i]
+		switch n.underlying.(type) {
+		case nil:
+			if n.resolver == nil {
+				panic("nil underlying")
+			}
+		case *Named:
+			n.under() // n.under may add entries to check.defTypes
+		}
+		n.check = nil
+	}
 }
 
 func (check *Checker) record(x *operand) {

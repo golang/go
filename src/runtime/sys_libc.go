@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build darwin || (openbsd && !mips64)
-// +build darwin openbsd,!mips64
 
 package runtime
 

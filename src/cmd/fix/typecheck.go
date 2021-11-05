@@ -383,7 +383,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 		if n == nil {
 			return
 		}
-		if false && reflect.TypeOf(n).Kind() == reflect.Ptr { // debugging trace
+		if false && reflect.TypeOf(n).Kind() == reflect.Pointer { // debugging trace
 			defer func() {
 				if t := typeof[n]; t != "" {
 					pos := fset.Position(n.(ast.Node).Pos())

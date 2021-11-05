@@ -93,8 +93,8 @@ func (xl termlist) norm() termlist {
 }
 
 // If the type set represented by xl is specified by a single (non-𝓤) term,
-// structuralType returns that type. Otherwise it returns nil.
-func (xl termlist) structuralType() Type {
+// singleType returns that type. Otherwise it returns nil.
+func (xl termlist) singleType() Type {
 	if nl := xl.norm(); len(nl) == 1 {
 		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
 	}

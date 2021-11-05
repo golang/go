@@ -283,7 +283,6 @@ func TestMove(t *testing.T) {
 
 	l.MoveAfter(e2, e3)
 	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
-	e2, e3 = e3, e2
 }
 
 // Test PushFront, PushBack, PushFrontList, PushBackList with uninitialized List

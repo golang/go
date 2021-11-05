@@ -144,6 +144,9 @@ const (
 	// Force a stack movement. Used for debugging.
 	// 0xfffffeed in hex.
 	stackForceMove = uintptrMask & -275
+
+	// stackPoisonMin is the lowest allowed stack poison value.
+	stackPoisonMin = uintptrMask & -4096
 )
 
 // Global pool of spans that have free stacks.
@@ -424,6 +427,9 @@ func stackalloc(n uint32) stack {
 	if msanenabled {
 		msanmalloc(v, uintptr(n))
 	}
+	if asanenabled {
+		asanunpoison(v, uintptr(n))
+	}
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
 	}
@@ -460,6 +466,9 @@ func stackfree(stk stack) {
 	}
 	if msanenabled {
 		msanfree(v, n)
+	}
+	if asanenabled {
+		asanpoison(v, n)
 	}
 	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
@@ -852,6 +861,11 @@ func copystack(gp *g, newsize uintptr) {
 		throw("nil stackbase")
 	}
 	used := old.hi - gp.sched.sp
+	// Add just the difference to gcController.addScannableStack.
+	// g0 stacks never move, so this will never account for them.
+	// It's also fine if we have no P, addScannableStack can deal with
+	// that case.
+	gcController.addScannableStack(getg().m.p.ptr(), int64(newsize)-int64(old.hi-old.lo))
 
 	// allocate new stack
 	new := stackalloc(uint32(newsize))

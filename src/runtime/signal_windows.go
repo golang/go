@@ -22,6 +22,38 @@ func disableWER() {
 	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
 }
 
+// isWin7 returns true on Windows 7. Otherwise it returns false.
+//
+//go:nosplit
+func isWin7() bool {
+	var maj, min, build uint32
+	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
+	return maj < 6 || (maj == 6 && min <= 1)
+}
+
+// enableWERNoUI re-enables Windows error reporting without fault reporting UI.
+//
+// This is marked nosplit since it is used during crash.
+//
+//go:nosplit
+func enableWERNoUI() bool {
+	if _WerSetFlags == nil {
+		return false
+	}
+
+	// Disable Fault reporting UI
+	const (
+		WER_FAULT_REPORTING_NO_UI = 0x0020
+	)
+	if stdcall1(_WerSetFlags, WER_FAULT_REPORTING_NO_UI) != 0 {
+		return false
+	}
+
+	// re-enable Windows Error Reporting
+	stdcall1(_SetErrorMode, 0)
+	return true
+}
+
 // in sys_windows_386.s and sys_windows_amd64.s
 func exceptiontramp()
 func firstcontinuetramp()
@@ -108,6 +140,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 		// Don't go through any more of the Windows handler chain.
 		// Crash now.
 		winthrow(info, r, gp)
+		exit(2)
 	}
 
 	// After this point, it is safe to grow the stack.
@@ -196,17 +229,26 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 
 	winthrow(info, r, gp)
+
+	_, _, docrash := gotraceback()
+	if docrash {
+		// Windows 7 apears to ignore WER_FAULT_REPORTING_NO_UI
+		// WerSetFlags API flag. So do not call enableWERNoUI
+		// on Windows 7.
+		if !isWin7() {
+			// trigger crash dump creation
+			if enableWERNoUI() {
+				return _EXCEPTION_CONTINUE_SEARCH
+			}
+		}
+	}
+	exit(2)
 	return 0 // not reached
 }
 
 //go:nosplit
 func winthrow(info *exceptionrecord, r *context, gp *g) {
 	_g_ := getg()
-
-	if panicking != 0 { // traceback already printed
-		exit(2)
-	}
-	panicking = 1
 
 	// In case we're handling a g0 stack overflow, blow away the
 	// g0 stack bounds so we have room to print the traceback. If
@@ -218,29 +260,27 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
 
 	print("PC=", hex(r.ip()), "\n")
-	if _g_.m.lockedg != 0 && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+	if _g_.m.incgo && gp == _g_.m.g0 && _g_.m.curg != nil {
 		if iscgo {
 			print("signal arrived during external code execution\n")
 		}
-		gp = _g_.m.lockedg.ptr()
+		gp = _g_.m.curg
 	}
 	print("\n")
 
 	_g_.m.throwing = 1
 	_g_.m.caughtsig.set(gp)
 
-	level, _, docrash := gotraceback()
+	level, _, _ := gotraceback()
 	if level > 0 {
-		tracebacktrap(r.ip(), r.sp(), r.lr(), gp)
-		tracebackothers(gp)
+		// only print traceback when it hasn't been printed
+		if tracebackprinted == 0 {
+			tracebacktrap(r.ip(), r.sp(), r.lr(), gp)
+			tracebackothers(gp)
+			tracebackprinted = 1
+		}
 		dumpregs(r)
 	}
-
-	if docrash {
-		crash()
-	}
-
-	exit(2)
 }
 
 func sigpanic() {
@@ -312,14 +352,17 @@ func signame(sig uint32) string {
 
 //go:nosplit
 func crash() {
-	// TODO: This routine should do whatever is needed
-	// to make the Windows program abort/crash as it
-	// would if Go was not intercepting signals.
-	// On Unix the routine would remove the custom signal
-	// handler and then raise a signal (like SIGABRT).
-	// Something like that should happen here.
-	// It's okay to leave this empty for now: if crash returns
-	// the ordinary exit-after-panic happens.
+	// When GOTRACEBACK==crash, raise the same exception
+	// from kernel32.dll, so that Windows gets a chance
+	// to handle the exception by creating a crash dump.
+
+	// Get the Exception code that caused the crash
+	gp := getg()
+	exceptionCode := gp.sig
+
+	// RaiseException() here will not be handled in exceptionhandler()
+	// because it comes from kernel32.dll
+	stdcall4(_RaiseException, uintptr(unsafe.Pointer(&exceptionCode)), 0, 0, 0)
 }
 
 // gsignalStack is unused on Windows.

@@ -109,6 +109,15 @@ func testInfinity(t *testing.T, curve Curve) {
 	if curve.IsOnCurve(x, y) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
+
+	if xx, yy := Unmarshal(curve, Marshal(curve, x, y)); xx != nil || yy != nil {
+		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
+	}
+	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
+	// two valid points with x = 0.
+	if xx, yy := Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
+		t.Errorf("Unmarshal(∞) did not return an error")
+	}
 }
 
 func TestMarshal(t *testing.T) {
@@ -232,6 +241,16 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
 	}
 }
 
+func TestLargeIsOnCurve(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve Curve) {
+		large := big.NewInt(1)
+		large.Lsh(large, 1000)
+		if curve.IsOnCurve(large, large) {
+			t.Errorf("(2^1000, 2^1000) is reported on the curve")
+		}
+	})
+}
+
 func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
 	tests := []struct {
 		name  string
@@ -272,5 +291,31 @@ func BenchmarkScalarMult(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x, y = curve.ScalarMult(x, y, priv)
 		}
+	})
+}
+
+func BenchmarkMarshalUnmarshal(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve Curve) {
+		_, x, y, _ := GenerateKey(curve, rand.Reader)
+		b.Run("Uncompressed", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				buf := Marshal(curve, x, y)
+				xx, yy := Unmarshal(curve, buf)
+				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+					b.Error("Unmarshal output different from Marshal input")
+				}
+			}
+		})
+		b.Run("Compressed", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				buf := Marshal(curve, x, y)
+				xx, yy := Unmarshal(curve, buf)
+				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
+					b.Error("Unmarshal output different from Marshal input")
+				}
+			}
+		})
 	})
 }

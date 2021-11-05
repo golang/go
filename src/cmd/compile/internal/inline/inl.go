@@ -309,7 +309,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			break
 		}
 
-		if fn := inlCallee(n.X); fn != nil && fn.Inl != nil {
+		if fn := inlCallee(n.X); fn != nil && typecheck.HaveInlineBody(fn) {
 			v.budget -= fn.Inl.Cost
 			break
 		}
@@ -358,8 +358,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 			return true
 		}
 
-	case ir.ORANGE,
-		ir.OSELECT,
+	case ir.OSELECT,
 		ir.OGO,
 		ir.ODEFER,
 		ir.ODCLTYPE, // can't print yet
@@ -389,27 +388,6 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 	case ir.ODCLCONST, ir.OFALL:
 		// These nodes don't produce code; omit from inlining budget.
 		return false
-
-	case ir.OFOR, ir.OFORUNTIL:
-		n := n.(*ir.ForStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	case ir.OSWITCH:
-		n := n.(*ir.SwitchStmt)
-		if n.Label != nil {
-			v.reason = "labeled control"
-			return true
-		}
-	// case ir.ORANGE, ir.OSELECT in "unhandled" above
-
-	case ir.OBREAK, ir.OCONTINUE:
-		n := n.(*ir.BranchStmt)
-		if n.Label != nil {
-			// Should have short-circuited due to labeled control error above.
-			base.Fatalf("unexpected labeled break/continue: %v", n)
-		}
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
@@ -607,7 +585,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
 		if ir.IsIntrinsicCall(call) {
 			break
 		}
-		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
+		if fn := inlCallee(call.X); fn != nil && typecheck.HaveInlineBody(fn) {
 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
 		}
 	}
@@ -705,6 +683,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(ir.CurFunc)))
 		}
 		return n
+	}
+
+	// Don't inline a function fn that has no shape parameters, but is passed at
+	// least one shape arg. This means we must be inlining a non-generic function
+	// fn that was passed into a generic function, and can be called with a shape
+	// arg because it matches an appropriate type parameters. But fn may include
+	// an interface conversion (that may be applied to a shape arg) that was not
+	// apparent when we first created the instantiation of the generic function.
+	// We can't handle this if we actually do the inlining, since we want to know
+	// all interface conversions immediately after stenciling. So, we avoid
+	// inlining in this case. See #49309.
+	if !fn.Type().HasShape() {
+		for _, arg := range n.Args {
+			if arg.Type().HasShape() {
+				if logopt.Enabled() {
+					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+						fmt.Sprintf("inlining non-shape function %v with shape args", ir.FuncName(fn)))
+				}
+				return n
+			}
+		}
 	}
 
 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
@@ -1244,7 +1243,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 			// Don't do special substitutions if inside a closure
 			break
 		}
-		// Since we don't handle bodies with closures,
+		// Because of the above test for subst.newclofn,
 		// this return is guaranteed to belong to the current inlined function.
 		n := n.(*ir.ReturnStmt)
 		init := subst.list(n.Init())
@@ -1272,7 +1271,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		typecheck.Stmts(init)
 		return ir.NewBlockStmt(base.Pos, init)
 
-	case ir.OGOTO:
+	case ir.OGOTO, ir.OBREAK, ir.OCONTINUE:
 		if subst.newclofn != nil {
 			// Don't do special substitutions if inside a closure
 			break
@@ -1280,9 +1279,8 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.BranchStmt)
 		m := ir.Copy(n).(*ir.BranchStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		*m.PtrInit() = nil
-		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
-		m.Label = typecheck.Lookup(p)
+		m.SetInit(nil)
+		m.Label = translateLabel(n.Label)
 		return m
 
 	case ir.OLABEL:
@@ -1293,9 +1291,8 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 		n := n.(*ir.LabelStmt)
 		m := ir.Copy(n).(*ir.LabelStmt)
 		m.SetPos(subst.updatedPos(m.Pos()))
-		*m.PtrInit() = nil
-		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
-		m.Label = typecheck.Lookup(p)
+		m.SetInit(nil)
+		m.Label = translateLabel(n.Label)
 		return m
 
 	case ir.OCLOSURE:
@@ -1306,6 +1303,27 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	m := ir.Copy(n)
 	m.SetPos(subst.updatedPos(m.Pos()))
 	ir.EditChildren(m, subst.edit)
+
+	if subst.newclofn == nil {
+		// Translate any label on FOR, RANGE loops or SWITCH
+		switch m.Op() {
+		case ir.OFOR:
+			m := m.(*ir.ForStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+
+		case ir.ORANGE:
+			m := m.(*ir.RangeStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+
+		case ir.OSWITCH:
+			m := m.(*ir.SwitchStmt)
+			m.Label = translateLabel(m.Label)
+			return m
+		}
+
+	}
 
 	switch m := m.(type) {
 	case *ir.AssignStmt:
@@ -1321,6 +1339,16 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
 	}
 
 	return m
+}
+
+// translateLabel makes a label from an inlined function (if non-nil) be unique by
+// adding "·inlgen".
+func translateLabel(l *types.Sym) *types.Sym {
+	if l == nil {
+		return nil
+	}
+	p := fmt.Sprintf("%s·%d", l.Name, inlgen)
+	return typecheck.Lookup(p)
 }
 
 func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {

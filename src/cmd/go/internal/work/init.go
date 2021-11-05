@@ -11,7 +11,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 	"fmt"
 	"os"
@@ -46,7 +46,7 @@ func BuildInit() {
 	// Make sure CC, CXX, and FC are absolute paths.
 	for _, key := range []string{"CC", "CXX", "FC"} {
 		value := cfg.Getenv(key)
-		args, err := str.SplitQuotedFields(value)
+		args, err := quoted.Split(value)
 		if err != nil {
 			base.Fatalf("go: %s environment variable could not be parsed: %v", key, err)
 		}
@@ -67,31 +67,28 @@ func BuildInit() {
 // instrumentation is added. 'go test -fuzz' still works without coverage,
 // but it generates random inputs without guidance, so it's much less effective.
 func fuzzInstrumentFlags() []string {
-	// TODO: expand the set of supported platforms, with testing. Nothing about
-	// the instrumentation is OS specific, but only amd64 and arm64 are
-	// supported in the runtime. See src/runtime/libfuzzer*.
-	//
-	// Keep in sync with build constraints in
-	// internal/fuzz/counters_{un,}supported.go
-	switch cfg.Goos {
-	case "darwin", "freebsd", "linux", "windows":
-	default:
-		return nil
-	}
-	switch cfg.Goarch {
-	case "amd64", "arm64":
-	default:
+	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
 		return nil
 	}
 	return []string{"-d=libfuzzer"}
 }
 
 func instrumentInit() {
-	if !cfg.BuildRace && !cfg.BuildMSan {
+	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
 		return
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
 		fmt.Fprintf(os.Stderr, "go: may not use -race and -msan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildRace && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -asan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildMSan && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -msan and -asan simultaneously\n")
 		base.SetExitStatus(2)
 		base.Exit()
 	}
@@ -100,12 +97,15 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildRace {
-		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
-			fmt.Fprintf(os.Stderr, "go: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n")
-			base.SetExitStatus(2)
-			base.Exit()
-		}
+	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
+		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	mode := "race"
 	if cfg.BuildMSan {
@@ -115,6 +115,9 @@ func instrumentInit() {
 		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
 			cfg.BuildBuildmode = "pie"
 		}
+	}
+	if cfg.BuildASan {
+		mode = "asan"
 	}
 	modeFlag := "-" + mode
 

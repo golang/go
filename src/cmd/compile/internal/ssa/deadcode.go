@@ -348,15 +348,11 @@ func (b *Block) removeEdge(i int) {
 	c.removePred(j)
 
 	// Remove phi args from c's phis.
-	n := len(c.Preds)
 	for _, v := range c.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.Args[j].Uses--
-		v.Args[j] = v.Args[n]
-		v.Args[n] = nil
-		v.Args = v.Args[:n]
+		c.removePhiArg(v, j)
 		phielimValue(v)
 		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because

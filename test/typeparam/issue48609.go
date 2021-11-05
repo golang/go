@@ -6,9 +6,7 @@
 
 package p
 
-import "constraints"
-
-func f[T constraints.Chan[E], E any](e E) T {
+func f[T ~chan E, E any](e E) T {
 	ch := make(T)
 	go func() {
 		defer close(ch)

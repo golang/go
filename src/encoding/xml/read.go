@@ -145,7 +145,7 @@ func (d *Decoder) Decode(v interface{}) error {
 // but also wants to defer to Unmarshal for some elements.
 func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
 	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return errors.New("non-pointer passed to Unmarshal")
 	}
 	return d.unmarshal(val.Elem(), start)
@@ -244,7 +244,7 @@ func (d *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
 
 // unmarshalAttr unmarshals a single XML attribute into val.
 func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
@@ -324,12 +324,12 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 	// usefully addressable.
 	if val.Kind() == reflect.Interface && !val.IsNil() {
 		e := val.Elem()
-		if e.Kind() == reflect.Ptr && !e.IsNil() {
+		if e.Kind() == reflect.Pointer && !e.IsNil() {
 			val = e
 		}
 	}
 
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			val.Set(reflect.New(val.Type().Elem()))
 		}
@@ -602,7 +602,7 @@ Loop:
 func copyValue(dst reflect.Value, src []byte) (err error) {
 	dst0 := dst
 
-	if dst.Kind() == reflect.Ptr {
+	if dst.Kind() == reflect.Pointer {
 		if dst.IsNil() {
 			dst.Set(reflect.New(dst.Type().Elem()))
 		}

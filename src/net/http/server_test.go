@@ -9,7 +9,60 @@ package http
 import (
 	"fmt"
 	"testing"
+	"time"
 )
+
+func TestServerTLSHandshakeTimeout(t *testing.T) {
+	tests := []struct {
+		s    *Server
+		want time.Duration
+	}{
+		{
+			s:    &Server{},
+			want: 0,
+		},
+		{
+			s: &Server{
+				ReadTimeout: -1,
+			},
+			want: 0,
+		},
+		{
+			s: &Server{
+				ReadTimeout: 5 * time.Second,
+			},
+			want: 5 * time.Second,
+		},
+		{
+			s: &Server{
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: -1,
+			},
+			want: 5 * time.Second,
+		},
+		{
+			s: &Server{
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: 4 * time.Second,
+			},
+			want: 4 * time.Second,
+		},
+		{
+			s: &Server{
+				ReadTimeout:       5 * time.Second,
+				ReadHeaderTimeout: 2 * time.Second,
+				WriteTimeout:      4 * time.Second,
+			},
+			want: 2 * time.Second,
+		},
+	}
+	for i, tt := range tests {
+		got := tt.s.tlsHandshakeTimeout()
+		if got != tt.want {
+			t.Errorf("%d. got %v; want %v", i, got, tt.want)
+		}
+	}
+}
 
 func BenchmarkServerMatch(b *testing.B) {
 	fn := func(w ResponseWriter, r *Request) {

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build js && wasm
-// +build js,wasm
 
 package http
 
@@ -41,11 +40,19 @@ const jsFetchCreds = "js.fetch:credentials"
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
 const jsFetchRedirect = "js.fetch:redirect"
 
-var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
+// jsFetchMissing will be true if the Fetch API is not present in
+// the browser globals.
+var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
-	if useFakeNetwork {
+	// The Transport has a documented contract that states that if the DialContext or
+	// DialTLSContext functions are set, they will be used to set up the connections.
+	// If they aren't set then the documented contract is to use Dial or DialTLS, even
+	// though they are deprecated. Therefore, if any of these are set, we should obey
+	// the contract and dial using the regular round-trip instead. Otherwise, we'll try
+	// to fall back on the Fetch API, unless it's not available.
+	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing {
 		return t.roundTrip(req)
 	}
 
@@ -131,8 +138,24 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		contentLength := int64(0)
-		if cl, err := strconv.ParseInt(header.Get("Content-Length"), 10, 64); err == nil {
+		clHeader := header.Get("Content-Length")
+		switch {
+		case clHeader != "":
+			cl, err := strconv.ParseInt(clHeader, 10, 64)
+			if err != nil {
+				errCh <- fmt.Errorf("net/http: ill-formed Content-Length header: %v", err)
+				return nil
+			}
+			if cl < 0 {
+				// Content-Length values less than 0 are invalid.
+				// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
+				errCh <- fmt.Errorf("net/http: invalid Content-Length header: %q", clHeader)
+				return nil
+			}
 			contentLength = cl
+		default:
+			// If the response length is not declared, set it to -1.
+			contentLength = -1
 		}
 
 		b := result.Get("body")

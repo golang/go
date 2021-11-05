@@ -72,22 +72,6 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
 
-const (
-	attrBitMapCount = 5
-	attrCmnModtime  = 0x00000400
-	attrCmnAcctime  = 0x00001000
-)
-
-type attrList struct {
-	bitmapCount uint16
-	_           uint16
-	CommonAttr  uint32
-	VolAttr     uint32
-	DirAttr     uint32
-	FileAttr    uint32
-	Forkattr    uint32
-}
-
 //sysnb pipe(p *[2]int32) (err error)
 
 func Pipe(p []int) (err error) {
@@ -120,42 +104,7 @@ func libc_getfsstat_trampoline()
 
 //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
 
-func setattrlistTimes(path string, times []Timespec) error {
-	_p0, err := BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
-
-	var attrList attrList
-	attrList.bitmapCount = attrBitMapCount
-	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
-
-	// order is mtime, atime: the opposite of Chtimes
-	attributes := [2]Timespec{times[1], times[0]}
-	const options = 0
-	_, _, e1 := syscall6(
-		abi.FuncPCABI0(libc_setattrlist_trampoline),
-		uintptr(unsafe.Pointer(_p0)),
-		uintptr(unsafe.Pointer(&attrList)),
-		uintptr(unsafe.Pointer(&attributes)),
-		uintptr(unsafe.Sizeof(attributes)),
-		uintptr(options),
-		0,
-	)
-	if e1 != 0 {
-		return e1
-	}
-	return nil
-}
-
-func libc_setattrlist_trampoline()
-
-//go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
-
-func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
-	// Darwin doesn't support SYS_UTIMENSAT
-	return ENOSYS
-}
+//sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
 
 /*
  * Wrapped

@@ -44,12 +44,12 @@ func (r *intReader) uint64() uint64 {
 
 // Keep this in sync with constants in iexport.go.
 const (
-	iexportVersionGo1_11 = 0
-	iexportVersionPosCol = 1
-	// TODO: before release, change this back to 2.
-	iexportVersionGenerics = iexportVersionPosCol
+	iexportVersionGo1_11   = 0
+	iexportVersionPosCol   = 1
+	iexportVersionGenerics = 1 // probably change to 2 before release
+	iexportVersionGo1_18   = 2
 
-	iexportVersionCurrent = iexportVersionGenerics
+	iexportVersionCurrent = 2
 )
 
 type ident struct {
@@ -98,13 +98,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 
 	version = int64(r.uint64())
 	switch version {
-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		if version > iexportVersionGenerics {
-			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
-		} else {
-			errorf("unknown iexport format version %d", version)
-		}
+		errorf("unknown iexport format version %d", version)
 	}
 
 	sLen := int64(r.uint64())
@@ -135,9 +131,10 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 
 		fake: fakeFileSet{
 			fset:  fset,
-			files: make(map[string]*token.File),
+			files: make(map[string]*fileInfo),
 		},
 	}
+	defer p.fake.setLines() // set lines for files in fset
 
 	for i, pt := range predeclared {
 		p.typCache[uint64(i)] = pt
@@ -366,7 +363,19 @@ func (r *importReader) obj(name string) {
 		id := ident{r.currPkg.Name(), name}
 		r.p.tparamIndex[id] = t
 
-		t.SetConstraint(r.typ())
+		var implicit bool
+		if r.p.exportVersion >= iexportVersionGo1_18 {
+			implicit = r.bool()
+		}
+		constraint := r.typ()
+		if implicit {
+			iface, _ := constraint.(*types.Interface)
+			if iface == nil {
+				errorf("non-interface constraint marked implicit")
+			}
+			iface.MarkImplicit()
+		}
+		t.SetConstraint(constraint)
 
 	case 'V':
 		typ := r.typ()
@@ -384,6 +393,10 @@ func (r *importReader) declare(obj types.Object) {
 
 func (r *importReader) value() (typ types.Type, val constant.Value) {
 	typ = r.typ()
+	if r.p.exportVersion >= iexportVersionGo1_18 {
+		// TODO: add support for using the kind
+		_ = constant.Kind(r.int64())
+	}
 
 	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
 	case types.IsBoolean:

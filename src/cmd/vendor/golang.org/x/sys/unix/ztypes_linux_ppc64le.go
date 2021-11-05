@@ -642,3 +642,32 @@ const (
 	PPS_GETCAP    = 0x400870a3
 	PPS_FETCH     = 0xc00870a4
 )
+
+const (
+	PIDFD_NONBLOCK = 0x800
+)
+
+type SysvIpcPerm struct {
+	Key  int32
+	Uid  uint32
+	Gid  uint32
+	Cuid uint32
+	Cgid uint32
+	Mode uint32
+	Seq  uint32
+	_    uint32
+	_    uint64
+	_    uint64
+}
+type SysvShmDesc struct {
+	Perm   SysvIpcPerm
+	Atime  int64
+	Dtime  int64
+	Ctime  int64
+	Segsz  uint64
+	Cpid   int32
+	Lpid   int32
+	Nattch uint64
+	_      uint64
+	_      uint64
+}

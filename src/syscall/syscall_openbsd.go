@@ -121,11 +121,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 	return
 }
 
-func setattrlistTimes(path string, times []Timespec) error {
-	// used on Darwin for UtimesNano
-	return ENOSYS
-}
-
 /*
  * Exposed directly
  */

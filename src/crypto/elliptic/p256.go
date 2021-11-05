@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !amd64 && !arm64
-// +build !amd64,!arm64
 
 package elliptic
 

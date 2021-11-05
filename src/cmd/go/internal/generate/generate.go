@@ -26,7 +26,7 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
-	"cmd/internal/str"
+	"cmd/go/internal/str"
 )
 
 var CmdGenerate = &base.Command{

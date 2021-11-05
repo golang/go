@@ -329,7 +329,17 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 		}
 
 	case *Named:
-		t.resolve(check.conf.Context)
+		// If t is parameterized, we should be considering the instantiated (expanded)
+		// form of t, but in general we can't with this algorithm: if t is an invalid
+		// type it may be so because it infinitely expands through a type parameter.
+		// Instantiating such a type would lead to an infinite sequence of instantiations.
+		// In general, we need "type flow analysis" to recognize those cases.
+		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+		// In this algorithm we always only consider the orginal, uninstantiated type.
+		// This won't recognize some invalid cases with parameterized types, but it
+		// will terminate.
+		t = t.orig
+
 		// don't touch the type if it is from a different package or the Universe scope
 		// (doing so would lead to a race condition - was issue #35049)
 		if t.obj.pkg != check.pkg {
@@ -357,7 +367,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
 					check.cycleError(path[i:])
 					t.info = invalid
 					t.underlying = Typ[Invalid]
-					return t.info
+					return invalid
 				}
 			}
 			panic("cycle start not found")
@@ -600,7 +610,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
 			check.errorf(tdecl.Type, _Todo, "using type constraint %s requires go1.18 or later", rhs)
 		}
-	})
+	}).describef(obj, "validType(%s)", obj.Name())
 
 	alias := tdecl.Assign.IsValid()
 	if alias && tdecl.TypeParams.NumFields() != 0 {
@@ -637,26 +647,18 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	assert(rhs != nil)
 	named.fromRHS = rhs
 
-	// The underlying type of named may be itself a named type that is
-	// incomplete:
-	//
-	//	type (
-	//		A B
-	//		B *C
-	//		C A
-	//	)
-	//
-	// The type of C is the (named) type of A which is incomplete,
-	// and which has as its underlying type the named type B.
-	// Determine the (final, unnamed) underlying type by resolving
-	// any forward chain.
-	// TODO(gri) Investigate if we can just use named.fromRHS here
-	//           and rely on lazy computation of the underlying type.
-	named.underlying = under(named)
+	// If the underlying was not set while type-checking the right-hand side, it
+	// is invalid and an error should have been reported elsewhere.
+	if named.underlying == nil {
+		named.underlying = Typ[Invalid]
+	}
 
-	// If the RHS is a type parameter, it must be from this type declaration.
-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TypeParams().list(), tpar) < 0 {
-		check.errorf(tdecl.Type, _Todo, "cannot use function type parameter %s as RHS in type declaration", tpar)
+	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
+	// We can look directly at named.underlying because even if it is still a *Named
+	// type (underlying not fully resolved yet) it cannot become a type parameter due
+	// to this very restriction.
+	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
+		check.error(tdecl.Type, _Todo, "cannot use a type parameter as RHS in type declaration")
 		named.underlying = Typ[Invalid]
 	}
 }
@@ -766,7 +768,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 	// and field names must be distinct."
 	base := asNamed(obj.typ) // shouldn't fail but be conservative
 	if base != nil {
-		u := safeUnderlying(base) // base should be expanded, but use safeUnderlying to be conservative
+		u := base.under()
 		if t, _ := u.(*Struct); t != nil {
 			for _, fld := range t.fields {
 				if fld.name != "_" {

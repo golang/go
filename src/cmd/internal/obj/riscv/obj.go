@@ -280,14 +280,15 @@ func containsCall(sym *obj.LSym) bool {
 }
 
 // setPCs sets the Pc field in all instructions reachable from p.
-// It uses pc as the initial value.
-func setPCs(p *obj.Prog, pc int64) {
+// It uses pc as the initial value and returns the next available pc.
+func setPCs(p *obj.Prog, pc int64) int64 {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
 		for _, ins := range instructionsForProg(p) {
 			pc += int64(ins.length())
 		}
 	}
+	return pc
 }
 
 // stackOffset updates Addr offsets based on the current stack size.
@@ -582,17 +583,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
+	var callCount int
 	for p := cursym.Func().Text; p != nil; p = p.Link {
 		markRelocs(p)
+		if p.Mark&NEED_CALL_RELOC == NEED_CALL_RELOC {
+			callCount++
+		}
 	}
+	const callTrampSize = 8 // 2 machine instructions.
+	maxTrampSize := int64(callCount * callTrampSize)
 
 	// Compute instruction addresses.  Once we do that, we need to check for
 	// overextended jumps and branches.  Within each iteration, Pc differences
 	// are always lower bounds (since the program gets monotonically longer,
 	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
 	for {
-		rescan := false
-		setPCs(cursym.Func().Text, 0)
+		big, rescan := false, false
+		maxPC := setPCs(cursym.Func().Text, 0)
+		if maxPC+maxTrampSize > (1 << 20) {
+			big = true
+		}
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
 			switch p.As {
@@ -619,6 +629,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case AJAL:
 				// Linker will handle the intersymbol case and trampolines.
 				if p.To.Target() == nil {
+					if !big {
+						break
+					}
+					// This function is going to be too large for JALs
+					// to reach trampolines. Replace with AUIPC+JALR.
+					jmp := obj.Appendp(p, newprog)
+					jmp.As = AJALR
+					jmp.From = p.From
+					jmp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					p.As = AAUIPC
+					p.Mark = (p.Mark &^ NEED_CALL_RELOC) | NEED_PCREL_ITYPE_RELOC
+					p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
+					p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+					p.Reg = obj.REG_NONE
+					p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+
+					rescan = true
 					break
 				}
 				offset := p.To.Target().Pc - p.Pc
@@ -693,6 +721,62 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	if framesize == 0 {
 		return p
 	}
+
+	if ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT
+		const frameSize = 16
+		p = ctxt.StartUnsafePoint(p, newprog)
+		// MOV LR, -16(SP)
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -frameSize}
+		// ADDI $-16, SP
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -frameSize}
+		p.Reg = REG_SP
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+		p.Spadj = frameSize
+		// MOV REGCTXT, 8(SP)
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
+
+		// CALL maymorestack
+		p = obj.Appendp(p, newprog)
+		p.As = obj.ACALL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
+		jalToSym(ctxt, p, REG_X5)
+
+		// Restore LR and REGCTXT
+
+		// MOV 8(SP), REGCTXT
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
+		// MOV (SP), LR
+		p = obj.Appendp(p, newprog)
+		p.As = AMOV
+		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
+		// ADDI $16, SP
+		p = obj.Appendp(p, newprog)
+		p.As = AADDI
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: frameSize}
+		p.Reg = REG_SP
+		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
+		p.Spadj = -frameSize
+
+		p = ctxt.EndUnsafePoint(p, newprog, -1)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
 
 	// MOV	g_stackguard(g), X10
 	p = obj.Appendp(p, newprog)
@@ -793,7 +877,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
 	p.As = AJAL
 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
-	p.To.SetTarget(cursym.Func().Text.Link)
+	p.To.SetTarget(startPred.Link)
 
 	// placeholder for to_done's jump target
 	p = obj.Appendp(p, newprog)
@@ -1582,7 +1666,8 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
 	}
 
 	// Split into two additions, if possible.
-	if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
+	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
 		imm0 := ins.imm / 2
 		imm1 := ins.imm - imm0
 

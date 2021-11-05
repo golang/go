@@ -13,6 +13,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"math/rand"
@@ -20,7 +21,6 @@ import (
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
-	"os"
 	"path"
 	"runtime"
 	"sort"
@@ -863,6 +863,28 @@ func (srv *Server) maxHeaderBytes() int {
 
 func (srv *Server) initialReadLimitSize() int64 {
 	return int64(srv.maxHeaderBytes()) + 4096 // bufio slop
+}
+
+// tlsHandshakeTimeout returns the time limit permitted for the TLS
+// handshake, or zero for unlimited.
+//
+// It returns the minimum of any positive ReadHeaderTimeout,
+// ReadTimeout, or WriteTimeout.
+func (srv *Server) tlsHandshakeTimeout() time.Duration {
+	var ret time.Duration
+	for _, v := range [...]time.Duration{
+		srv.ReadHeaderTimeout,
+		srv.ReadTimeout,
+		srv.WriteTimeout,
+	} {
+		if v <= 0 {
+			continue
+		}
+		if ret == 0 || v < ret {
+			ret = v
+		}
+	}
+	return ret
 }
 
 // wrapper around io.ReadCloser which on first read, sends an
@@ -1816,11 +1838,11 @@ func (c *conn) serve(ctx context.Context) {
 	}()
 
 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
-		if d := c.server.ReadTimeout; d > 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(d))
-		}
-		if d := c.server.WriteTimeout; d > 0 {
-			c.rwc.SetWriteDeadline(time.Now().Add(d))
+		tlsTO := c.server.tlsHandshakeTimeout()
+		if tlsTO > 0 {
+			dl := time.Now().Add(tlsTO)
+			c.rwc.SetReadDeadline(dl)
+			c.rwc.SetWriteDeadline(dl)
 		}
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			// If the handshake failed due to the client not speaking
@@ -1833,6 +1855,11 @@ func (c *conn) serve(ctx context.Context) {
 			}
 			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
 			return
+		}
+		// Restore Conn-level deadlines.
+		if tlsTO > 0 {
+			c.rwc.SetReadDeadline(time.Time{})
+			c.rwc.SetWriteDeadline(time.Time{})
 		}
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
@@ -3269,7 +3296,7 @@ func (srv *Server) onceSetNextProtoDefaults_Serve() {
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 || strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
+	if omitBundledHTTP2 || godebug.Get("http2server") == "0" {
 		return
 	}
 	// Enable HTTP/2 by default if the user hasn't otherwise

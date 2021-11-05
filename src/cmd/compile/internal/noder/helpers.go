@@ -183,7 +183,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
 	// If no type params, do the normal call transformations. This
 	// will convert OCALL to OCALLFUNC.
 	typed(typ, n)
-	transformCall(n, nil)
+	transformCall(n)
 	return n
 }
 

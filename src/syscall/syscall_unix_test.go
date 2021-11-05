@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package syscall_test
 
@@ -85,16 +84,24 @@ func TestFcntlFlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Open failed: %v", err)
 		}
-		defer syscall.Close(fd)
-		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
+		// f takes ownership of fd, and will close it.
+		//
+		// N.B. This defer is also necessary to keep f alive
+		// while we use its fd, preventing its finalizer from
+		// executing.
+		f := os.NewFile(uintptr(fd), name)
+		defer f.Close()
+
+		if err := syscall.Ftruncate(int(f.Fd()), 1<<20); err != nil {
 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
 		}
-		if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &flock); err != nil {
+		if err := syscall.FcntlFlock(f.Fd(), syscall.F_SETLK, &flock); err != nil {
 			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
 		}
+
 		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
-		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fd), name)}
+		cmd.ExtraFiles = []*os.File{f}
 		out, err := cmd.CombinedOutput()
 		if len(out) > 0 || err != nil {
 			t.Fatalf("child process: %q, %v", out, err)
@@ -252,6 +259,10 @@ func passFDChild() {
 		fmt.Printf("TempFile: %v", err)
 		return
 	}
+	// N.B. This defer is also necessary to keep f alive
+	// while we use its fd, preventing its finalizer from
+	// executing.
+	defer f.Close()
 
 	f.Write([]byte("Hello from child process!\n"))
 	f.Seek(0, io.SeekStart)

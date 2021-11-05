@@ -81,6 +81,27 @@ func ImportBody(fn *ir.Func) {
 	inimport = false
 }
 
+// HaveInlineBody reports whether we have fn's inline body available
+// for inlining.
+func HaveInlineBody(fn *ir.Func) bool {
+	if fn.Inl == nil {
+		return false
+	}
+
+	// Unified IR is much more conservative about pruning unreachable
+	// methods (at the cost of increased build artifact size).
+	if base.Debug.Unified != 0 {
+		return true
+	}
+
+	if fn.Inl.Body != nil {
+		return true
+	}
+
+	_, ok := inlineImporter[fn.Nname.Sym()]
+	return ok
+}
+
 func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
 	x, ok := importers[sym]
 	if !ok {
@@ -118,13 +139,9 @@ func ReadImports(pkg *types.Pkg, data string) {
 
 	version := ird.uint64()
 	switch version {
-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
 	default:
-		if version > iexportVersionGenerics {
-			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
-		} else {
-			base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
-		}
+		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
 		base.ErrorExit()
 	}
 
@@ -176,7 +193,7 @@ func ReadImports(pkg *types.Pkg, data string) {
 		}
 
 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
-			s := pkg.Lookup(p.stringAt(ird.uint64()))
+			s := pkg.Lookup(p.nameAt(ird.uint64()))
 			off := ird.uint64()
 
 			if _, ok := DeclImporter[s]; !ok {
@@ -188,18 +205,9 @@ func ReadImports(pkg *types.Pkg, data string) {
 	// Inline body index.
 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
 		pkg := p.pkgAt(ird.uint64())
-		pkgPrefix := pkg.Prefix + "."
 
 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
-			s2 := p.stringAt(ird.uint64())
-			// Function/method instantiation names may include "" to
-			// represent the path name of the imported package (in type
-			// names), so replace "" with pkg.Prefix. The "" in the names
-			// will get replaced by the linker as well, so will not
-			// appear in the executable. Include the dot to avoid
-			// matching with struct tags ending in '"'.
-			s2 = strings.Replace(s2, "\"\".", pkgPrefix, -1)
-			s := pkg.Lookup(s2)
+			s := pkg.Lookup(p.nameAt(ird.uint64()))
 			off := ird.uint64()
 
 			if _, ok := inlineImporter[s]; !ok {
@@ -231,6 +239,22 @@ func (p *iimporter) stringAt(off uint64) string {
 	}
 	spos := off + uint64(n)
 	return p.stringData[spos : spos+slen]
+}
+
+// nameAt is the same as stringAt, except it replaces instances
+// of "" with the path of the package being imported.
+func (p *iimporter) nameAt(off uint64) string {
+	s := p.stringAt(off)
+	// Names of objects (functions, methods, globals) may include ""
+	// to represent the path name of the imported package.
+	// Replace "" with the imported package prefix. This occurs
+	// specifically for generics where the names of instantiations
+	// and dictionaries contain package-qualified type names.
+	// Include the dot to avoid matching with struct tags ending in '"'.
+	if strings.Contains(s, "\"\".") {
+		s = strings.Replace(s, "\"\".", p.ipkg.Prefix+".", -1)
+	}
+	return s
 }
 
 func (p *iimporter) posBaseAt(off uint64) *src.PosBase {
@@ -288,6 +312,7 @@ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
 }
 
 func (r *importReader) string() string        { return r.p.stringAt(r.uint64()) }
+func (r *importReader) name() string          { return r.p.nameAt(r.uint64()) }
 func (r *importReader) posBase() *src.PosBase { return r.p.posBaseAt(r.uint64()) }
 func (r *importReader) pkg() *types.Pkg       { return r.p.pkgAt(r.uint64()) }
 
@@ -400,8 +425,15 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
 		sym.Def = nname
 		nname.SetType(t)
 		t.SetNod(nname)
-
-		t.SetBound(r.typ())
+		implicit := false
+		if r.p.exportVersion >= iexportVersionGo1_18 {
+			implicit = r.bool()
+		}
+		bound := r.typ()
+		if implicit {
+			bound.MarkImplicit()
+		}
+		t.SetBound(bound)
 		return nname
 
 	case 'V':
@@ -421,10 +453,17 @@ func (r *importReader) value(typ *types.Type) constant.Value {
 	var kind constant.Kind
 	var valType *types.Type
 
-	if typ.IsTypeParam() {
-		// If a constant had a typeparam type, then we wrote out its
-		// actual constant kind as well.
+	if r.p.exportVersion >= iexportVersionGo1_18 {
+		// TODO: add support for using the kind in the non-typeparam case.
 		kind = constant.Kind(r.int64())
+	}
+
+	if typ.IsTypeParam() {
+		if r.p.exportVersion < iexportVersionGo1_18 {
+			// If a constant had a typeparam type, then we wrote out its
+			// actual constant kind as well.
+			kind = constant.Kind(r.int64())
+		}
 		switch kind {
 		case constant.Int:
 			valType = types.Types[types.TINT64]
@@ -539,7 +578,7 @@ func (r *importReader) localIdent() *types.Sym { return r.ident(false) }
 func (r *importReader) selector() *types.Sym   { return r.ident(true) }
 
 func (r *importReader) qualifiedIdent() *ir.Ident {
-	name := r.string()
+	name := r.name()
 	pkg := r.pkg()
 	sym := pkg.Lookup(name)
 	return ir.NewIdent(src.NoXPos, sym)
@@ -807,7 +846,7 @@ func (r *importReader) typ1() *types.Type {
 			return types.Types[types.TINTER]
 		}
 
-		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
+		t := types.NewInterface(r.currPkg, append(embeddeds, methods...), false)
 
 		// Ensure we expand the interface in the frontend (#25055).
 		types.CheckSize(t)
@@ -1304,6 +1343,14 @@ func (r *importReader) node() ir.Node {
 	case ir.OTYPE:
 		return ir.TypeNode(r.typ())
 
+	case ir.ODYNAMICTYPE:
+		n := ir.NewDynamicType(r.pos(), r.expr())
+		if r.bool() {
+			n.ITab = r.expr()
+		}
+		n.SetType(r.typ())
+		return n
+
 	case ir.OTYPESW:
 		pos := r.pos()
 		var tag *ir.Ident
@@ -1455,6 +1502,11 @@ func (r *importReader) node() ir.Node {
 		if go117ExportTypes {
 			n.SetOp(op)
 		}
+		return n
+
+	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
+		n.SetType(r.typ())
 		return n
 
 	case ir.OINDEX, ir.OINDEXMAP:

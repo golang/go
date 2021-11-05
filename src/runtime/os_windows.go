@@ -40,6 +40,7 @@ const (
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+//go:cgo_import_dynamic runtime._RaiseException RaiseException%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -93,6 +94,7 @@ var (
 	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
+	_RaiseException,
 	_ResumeThread,
 	_SetConsoleCtrlHandler,
 	_SetErrorMode,
@@ -120,6 +122,7 @@ var (
 	_AddVectoredContinueHandler,
 	_LoadLibraryExA,
 	_LoadLibraryExW,
+	_WerSetFlags,
 	_ stdFunction
 
 	// Use RtlGenRandom to generate cryptographically random data.
@@ -254,6 +257,7 @@ func loadOptionalSyscalls() {
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+	_WerSetFlags = windowsFindfunc(k32, []byte("WerSetFlags\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
 
 	var advapi32dll = []byte("advapi32.dll\000")

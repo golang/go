@@ -5,7 +5,6 @@
 // cgo -godefs -- -m32 _const.go
 
 //go:build 386 && openbsd
-// +build 386,openbsd
 
 package syscall
 

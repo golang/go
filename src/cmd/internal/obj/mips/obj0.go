@@ -658,6 +658,82 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		mov = AMOVW
 	}
 
+	if c.ctxt.Flag_maymorestack != "" {
+		// Save LR and REGCTXT.
+		frameSize := 2 * c.ctxt.Arch.PtrSize
+
+		p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
+		// MOV	REGLINK, -8/-16(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGLINK
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = int64(-frameSize)
+		p.To.Reg = REGSP
+
+		// MOV	REGCTXT, -4/-8(SP)
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REGCTXT
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = -int64(c.ctxt.Arch.PtrSize)
+		p.To.Reg = REGSP
+
+		// ADD	$-8/$-16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(-frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(frameSize)
+
+		// JAL	maymorestack
+		p = obj.Appendp(p, c.newprog)
+		p.As = AJAL
+		p.To.Type = obj.TYPE_BRANCH
+		// See ../x86/obj6.go
+		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
+		p.Mark |= BRANCH
+
+		// Restore LR and REGCTXT.
+
+		// MOV	0(SP), REGLINK
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = 0
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGLINK
+
+		// MOV	4/8(SP), REGCTXT
+		p = obj.Appendp(p, c.newprog)
+		p.As = mov
+		p.From.Type = obj.TYPE_MEM
+		p.From.Offset = int64(c.ctxt.Arch.PtrSize)
+		p.From.Reg = REGSP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGCTXT
+
+		// ADD	$8/$16, SP
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(frameSize)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REGSP
+		p.Spadj = int32(-frameSize)
+
+		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+	}
+
+	// Jump back to here after morestack returns.
+	startPred := p
+
 	// MOV	g_stackguard(g), R1
 	p = obj.Appendp(p, c.newprog)
 
@@ -787,7 +863,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = AJMP
 	p.To.Type = obj.TYPE_BRANCH
-	p.To.SetTarget(c.cursym.Func().Text.Link)
+	p.To.SetTarget(startPred.Link)
+	startPred.Link.Mark |= LABEL
 	p.Mark |= BRANCH
 
 	// placeholder for q1's jump target

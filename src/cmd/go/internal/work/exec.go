@@ -34,8 +34,9 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
-	"cmd/internal/str"
+	"cmd/internal/quoted"
 	"cmd/internal/sys"
 )
 
@@ -2666,7 +2667,7 @@ func envList(key, def string) []string {
 	if v == "" {
 		v = def
 	}
-	args, err := str.SplitQuotedFields(v)
+	args, err := quoted.Split(v)
 	if err != nil {
 		panic(fmt.Sprintf("could not parse environment variable %s with value %q: %v", key, v, err))
 	}
@@ -2736,6 +2737,10 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)
 		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
 	}
+	if cfg.BuildASan {
+		cgoCFLAGS = append([]string{"-fsanitize=address"}, cgoCFLAGS...)
+		cgoLDFLAGS = append([]string{"-fsanitize=address"}, cgoLDFLAGS...)
+	}
 
 	// Allows including _cgo_export.h, as well as the user's .h files,
 	// from .[ch] files in the package.
@@ -2757,7 +2762,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
-	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo") {
+	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo" || p.ImportPath == "runtime/asan") {
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 

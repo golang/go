@@ -108,6 +108,8 @@ func InitConfig() {
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
 	ir.Syms.Msanmove = typecheck.LookupRuntimeFunc("msanmove")
+	ir.Syms.Asanread = typecheck.LookupRuntimeFunc("asanread")
+	ir.Syms.Asanwrite = typecheck.LookupRuntimeFunc("asanwrite")
 	ir.Syms.Newobject = typecheck.LookupRuntimeFunc("newobject")
 	ir.Syms.Newproc = typecheck.LookupRuntimeFunc("newproc")
 	ir.Syms.Panicdivide = typecheck.LookupRuntimeFunc("panicdivide")
@@ -1245,10 +1247,10 @@ func (s *state) instrument(t *types.Type, addr *ssa.Value, kind instrumentKind) 
 }
 
 // instrumentFields instruments a read/write operation on addr.
-// If it is instrumenting for MSAN and t is a struct type, it instruments
+// If it is instrumenting for MSAN or ASAN and t is a struct type, it instruments
 // operation for each field, instead of for the whole struct.
 func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrumentKind) {
-	if !base.Flag.MSan || !t.IsStruct() {
+	if !(base.Flag.MSan || base.Flag.ASan) || !t.IsStruct() {
 		s.instrument(t, addr, kind)
 		return
 	}
@@ -1327,6 +1329,16 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
 		default:
 			panic("unreachable")
 		}
+	} else if base.Flag.ASan {
+		switch kind {
+		case instrumentRead:
+			fn = ir.Syms.Asanread
+		case instrumentWrite:
+			fn = ir.Syms.Asanwrite
+		default:
+			panic("unreachable")
+		}
+		needWidth = true
 	} else {
 		panic("unreachable")
 	}
@@ -3002,7 +3014,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 		// If n is addressable and can't be represented in
 		// SSA, then load just the selected field. This
-		// prevents false memory dependencies in race/msan
+		// prevents false memory dependencies in race/msan/asan
 		// instrumentation.
 		if ir.IsAddressable(n) && !s.canSSA(n) {
 			p := s.addr(n)
@@ -4421,7 +4433,7 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
 		},
-		sys.AMD64, sys.ARM64)
+		sys.AMD64, sys.ARM64, sys.PPC64)
 	addF("math/bits", "Len32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -4430,7 +4442,7 @@ func InitTables() {
 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[types.TUINT64], args[0])
 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], x)
 		},
-		sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+		sys.ARM, sys.S390X, sys.MIPS, sys.Wasm)
 	addF("math/bits", "Len16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
@@ -6717,6 +6729,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
 	emitArgInfo(e, f, pp)
+	argLiveBlockMap, argLiveValueMap := liveness.ArgLiveness(e.curfn, f, pp)
 
 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
 	if openDeferInfo != nil {
@@ -6774,6 +6787,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	// Progs that are in the set above and have that source position.
 	var inlMarksByPos map[src.XPos][]*obj.Prog
 
+	var argLiveIdx int = -1 // argument liveness info index
+
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.Next
@@ -6786,6 +6801,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// control instruction. Just mark it something that is
 		// preemptible, unless this function is "all unsafe".
 		s.pp.NextLive = objw.LivenessIndex{StackMapIndex: -1, IsUnsafePoint: liveness.IsUnsafe(f)}
+
+		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
+			argLiveIdx = idx
+			p := s.pp.Prog(obj.APCDATA)
+			p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+			p.To.SetConst(int64(idx))
+		}
 
 		// Emit values in block
 		Arch.SSAMarkMoves(&s, b)
@@ -6841,6 +6863,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 				// let the backend handle it
 				Arch.SSAGenValue(&s, v)
+			}
+
+			if idx, ok := argLiveValueMap[v.ID]; ok && idx != argLiveIdx {
+				argLiveIdx = idx
+				p := s.pp.Prog(obj.APCDATA)
+				p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+				p.To.SetConst(int64(idx))
 			}
 
 			if base.Ctxt.Flag_locationlists {

@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"log"
 	"net"
@@ -24,7 +25,6 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -42,10 +42,10 @@ import (
 // $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
-	DialContext: (&net.Dialer{
+	DialContext: defaultTransportDialContext(&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-	}).DialContext,
+	}),
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
@@ -360,7 +360,7 @@ func (t *Transport) hasCustomTLSDialer() bool {
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
+	if godebug.Get("http2client") == "0" {
 		return
 	}
 

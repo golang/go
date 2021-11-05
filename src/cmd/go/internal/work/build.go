@@ -68,13 +68,16 @@ and test commands:
 		The default is GOMAXPROCS, normally the number of CPUs available.
 	-race
 		enable data race detection.
-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, darwin/arm64, windows/amd64,
 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64
 		and only with Clang/LLVM as the host C compiler.
 		On linux/arm64, pie build mode will be used.
+	-asan
+		enable interoperation with address sanitizer.
+		Supported only on linux/arm64, linux/amd64.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -85,8 +88,19 @@ and test commands:
 
 	-asmflags '[pattern=]arg list'
 		arguments to pass on each go tool asm invocation.
+	-buildinfo
+		Whether to stamp binaries with build flags. By default, the compiler name
+		(gc or gccgo), toolchain flags (like -gcflags), and environment variables
+		containing flags (like CGO_CFLAGS) are stamped into binaries. Use
+		-buildinfo=false to omit build information. See also -buildvcs.
 	-buildmode mode
 		build mode to use. See 'go help buildmode' for more.
+	-buildvcs
+		Whether to stamp binaries with version control information. By default,
+		version control information is stamped into a binary if the main package
+		and the main module containing it are in the repository containing the
+		current directory (if there is a repository). Use -buildvcs=false to
+		omit version control information. See also -buildinfo.
 	-compiler name
 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
 	-gccgoflags '[pattern=]arg list'
@@ -98,8 +112,8 @@ and test commands:
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
 		or, if set explicitly, has _race appended to it. Likewise for the -msan
-		flag. Using a -buildmode option that requires non-default compile flags
-		has a similar effect.
+		and -asan flags. Using a -buildmode option that requires non-default compile
+		flags has a similar effect.
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
@@ -298,10 +312,13 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildBuildinfo, "buildinfo", true, "")
+	cmd.Flag.BoolVar(&cfg.BuildBuildvcs, "buildvcs", true, "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")

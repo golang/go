@@ -78,7 +78,7 @@ func fuseBranchRedirect(f *Func) bool {
 					if v.Op != OpPhi {
 						continue
 					}
-					v.RemoveArg(k)
+					b.removePhiArg(v, k)
 					phielimValue(v)
 				}
 				// Fix up child to have one more predecessor.

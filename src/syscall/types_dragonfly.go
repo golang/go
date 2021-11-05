@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 /*
 Input to cgo -godefs.  See also mkerrors.sh and mkall.sh

@@ -25,7 +25,9 @@ import (
 // These are general "build flags" used by build and other commands.
 var (
 	BuildA                 bool   // -a flag
+	BuildBuildinfo         bool   // -buildinfo flag
 	BuildBuildmode         string // -buildmode flag
+	BuildBuildvcs          bool   // -buildvcs flag
 	BuildContext           = defaultContext()
 	BuildMod               string                  // -mod flag
 	BuildModExplicit       bool                    // whether -mod was set explicitly
@@ -33,6 +35,7 @@ var (
 	BuildI                 bool                    // -i flag
 	BuildLinkshared        bool                    // -linkshared flag
 	BuildMSan              bool                    // -msan flag
+	BuildASan              bool                    // -asan flag
 	BuildN                 bool                    // -n flag
 	BuildO                 string                  // -o flag
 	BuildP                 = runtime.GOMAXPROCS(0) // -p flag

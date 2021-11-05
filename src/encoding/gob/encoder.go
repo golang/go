@@ -219,7 +219,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) error {
 	if value.Kind() == reflect.Invalid {
 		return errors.New("gob: cannot encode nil value")
 	}
-	if value.Kind() == reflect.Ptr && value.IsNil() {
+	if value.Kind() == reflect.Pointer && value.IsNil() {
 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
 	}
 

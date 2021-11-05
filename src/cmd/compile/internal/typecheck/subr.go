@@ -1007,17 +1007,20 @@ func assert(p bool) {
 // List of newly fully-instantiated types who should have their methods generated.
 var instTypeList []*types.Type
 
-// NeedInstType adds a new fully-instantied type to instTypeList.
+// NeedInstType adds a new fully-instantiated type to instTypeList.
 func NeedInstType(t *types.Type) {
 	instTypeList = append(instTypeList, t)
 }
 
-// GetInstTypeList returns the current contents of instTypeList, and sets
-// instTypeList to nil.
+// GetInstTypeList returns the current contents of instTypeList.
 func GetInstTypeList() []*types.Type {
 	r := instTypeList
-	instTypeList = nil
 	return r
+}
+
+// ClearInstTypeList clears the contents of instTypeList.
+func ClearInstTypeList() {
+	instTypeList = nil
 }
 
 // General type substituter, for replacing typeparams with type args.
@@ -1321,9 +1324,6 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 			}
 		}
 		if newfields != nil {
-			// TODO(danscales): make sure this works for the field
-			// names of embedded types (which should keep the name of
-			// the type param, not the instantiated type).
 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
 			newfields[i].Embedded = f.Embedded
 			newfields[i].Note = f.Note
@@ -1369,7 +1369,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 			// For an empty interface, we need to return a new type,
 			// since it may now be fully instantiated (HasTParam
 			// becomes false).
-			return types.NewInterface(t.Pkg(), nil)
+			return types.NewInterface(t.Pkg(), nil, false)
 		}
 		return t
 	}
@@ -1390,7 +1390,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 		}
 	}
 	if newfields != nil {
-		return types.NewInterface(t.Pkg(), newfields)
+		return types.NewInterface(t.Pkg(), newfields, t.IsImplicit())
 	}
 	return t
 }
@@ -1421,7 +1421,9 @@ func Shapify(t *types.Type, index int) *types.Type {
 
 	// All pointers have the same shape.
 	// TODO: Make unsafe.Pointer the same shape as normal pointers.
-	if u.Kind() == types.TPTR {
+	// Note: pointers to arrays are special because of slice-to-array-pointer
+	// conversions. See issue 49295.
+	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY {
 		u = types.Types[types.TUINT8].PtrTo()
 	}
 

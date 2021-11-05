@@ -559,7 +559,8 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 func isLeaf(f *Func) bool {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if opcodeTable[v.Op].call {
+			if v.Op.IsCall() && !v.Op.IsTailCall() {
+				// tail call is not counted as it does not save the return PC or need a frame
 				return false
 			}
 		}
@@ -633,6 +634,8 @@ func (s *regAllocState) init(f *Func) {
 		case "arm64":
 			// nothing to do
 		case "ppc64le": // R2 already reserved.
+			// nothing to do
+		case "riscv64": // X3 (aka GP) and X4 (aka TP) already reserved.
 			// nothing to do
 		case "s390x":
 			s.allocatable &^= 1 << 11 // R11
@@ -1840,7 +1843,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if s.f.pass.debug > regDebug {
 					fmt.Printf("delete copied value %s\n", c.LongString())
 				}
-				c.RemoveArg(0)
+				c.resetArgs()
 				f.freeValue(c)
 				delete(s.copies, c)
 				progress = true
