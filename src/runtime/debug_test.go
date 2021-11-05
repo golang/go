@@ -114,6 +114,13 @@ func skipUnderDebugger(t *testing.T) {
 }
 
 func TestDebugCall(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
@@ -143,6 +150,7 @@ func TestDebugCall(t *testing.T) {
 			x1: 42.0,
 		}
 	}
+
 	if _, err := runtime.InjectDebugCall(g, fn, &regs, args, debugCallTKill, false); err != nil {
 		t.Fatal(err)
 	}
@@ -164,6 +172,13 @@ func TestDebugCall(t *testing.T) {
 }
 
 func TestDebugCallLarge(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
@@ -193,6 +208,13 @@ func TestDebugCallLarge(t *testing.T) {
 }
 
 func TestDebugCallGC(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
@@ -203,6 +225,13 @@ func TestDebugCallGC(t *testing.T) {
 }
 
 func TestDebugCallGrowStack(t *testing.T) {
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	g, after := startDebugCallWorker(t)
 	defer after()
 
@@ -233,6 +262,12 @@ func TestDebugCallUnsafePoint(t *testing.T) {
 	// This can deadlock if there aren't enough threads or if a GC
 	// tries to interrupt an atomic loop (see issue #10958).
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	// Test that the runtime refuses call injection at unsafe points.
@@ -255,6 +290,13 @@ func TestDebugCallPanic(t *testing.T) {
 
 	// This can deadlock if there aren't enough threads.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+
+	// InjectDebugCall cannot be executed while a GC is actively in
+	// progress. Wait until the current GC is done, and turn it off.
+	//
+	// See #49370.
+	runtime.GC()
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 
 	ready := make(chan *runtime.G)
 	var stop uint32
