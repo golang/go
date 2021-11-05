@@ -2273,6 +2273,18 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
 	}
 }
 
+// cancelableTimeoutContext overwrites the error message to DeadlineExceeded
+type cancelableTimeoutContext struct {
+	context.Context
+}
+
+func (c cancelableTimeoutContext) Err() error {
+	if c.Context.Err() != nil {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
 func TestTimeoutHandler_h1(t *testing.T) { testTimeoutHandler(t, h1Mode) }
 func TestTimeoutHandler_h2(t *testing.T) { testTimeoutHandler(t, h2Mode) }
 func testTimeoutHandler(t *testing.T, h2 bool) {
@@ -2285,8 +2297,10 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	h := NewTestTimeoutHandler(sayHi, cancelableTimeoutContext{ctx})
 	cst := newClientServerTest(t, h2, h)
+	defer cst.close()
 
 	// Succeed without timing out:
 	sendHi <- true
@@ -2305,14 +2319,9 @@ func testTimeoutHandler(t *testing.T, h2 bool) {
 		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
 
-	cancel()
-	cst.close()
-
 	// Times out:
-	h, cancel = NewTestTimeoutHandler(sayHi, 0*time.Second)
-	defer cancel()
-	cst = newClientServerTest(t, h1Mode, h)
-	defer cst.close()
+	cancel()
+
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
@@ -2433,8 +2442,10 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	h := NewTestTimeoutHandler(sayHi, cancelableTimeoutContext{ctx})
 	cst := newClientServerTest(t, h1Mode, h)
+	defer cst.close()
 
 	// Succeed without timing out:
 	sendHi <- true
@@ -2452,14 +2463,9 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	if g := <-writeErrors; g != nil {
 		t.Errorf("got unexpected Write error on first request: %v", g)
 	}
-	cancel()
-	cst.close()
 
 	// Times out:
-	h, cancel = NewTestTimeoutHandler(sayHi, 0*time.Second)
-	defer cancel()
-	cst = newClientServerTest(t, h1Mode, h)
-	defer cst.close()
+	cancel()
 
 	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
@@ -2521,7 +2527,8 @@ func TestTimeoutHandlerContextCanceled(t *testing.T) {
 		_, werr := w.Write([]byte("hi"))
 		writeErrors <- werr
 	})
-	h, cancel := NewTestTimeoutHandler(sayHi, 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	h := NewTestTimeoutHandler(sayHi, ctx)
 	cancel()
 	cst := newClientServerTest(t, h1Mode, h)
 	defer cst.close()
@@ -2531,6 +2538,9 @@ func TestTimeoutHandlerContextCanceled(t *testing.T) {
 	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
 	}
 	body, _ := io.ReadAll(res.Body)
 	if g, e := string(body), ""; g != e {
