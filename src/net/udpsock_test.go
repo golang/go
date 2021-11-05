@@ -603,3 +603,35 @@ func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
 		}
 	}
 }
+
+func TestUDPIPVersionReadMsg(t *testing.T) {
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	daddr := conn.LocalAddr().(*UDPAddr).AddrPort()
+	buf := make([]byte, 8)
+	_, err = conn.WriteToUDPAddrPort(buf, daddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, saddr, err := conn.ReadMsgUDPAddrPort(buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saddr.Addr().Is4() {
+		t.Error("returned AddrPort is not IPv4")
+	}
+	_, err = conn.WriteToUDPAddrPort(buf, daddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, soldaddr, err := conn.ReadMsgUDP(buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(soldaddr.IP) != 4 {
+		t.Error("returned UDPAddr is not IPv4")
+	}
+}
