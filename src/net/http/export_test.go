@@ -88,12 +88,7 @@ func SetPendingDialHooks(before, after func()) {
 
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
-func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-ch
-		cancel()
-	}()
+func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 	return &timeoutHandler{
 		handler:     handler,
 		testContext: ctx,
