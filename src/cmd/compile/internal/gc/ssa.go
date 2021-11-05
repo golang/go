@@ -4709,6 +4709,17 @@ func (s *state) call(n *Node, k callKind, returnResultAddr bool) *ssa.Value {
 			}
 		}
 
+		// Split the entry block if there are open defers, because later calls to
+		// openDeferSave may cause a mismatch between the mem for an OpDereference
+		// and the call site which uses it. See #49282.
+		if s.curBlock.ID == s.f.Entry.ID && s.hasOpenDefers {
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
+			curb := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(curb)
+			s.startBlock(curb)
+		}
+
 		// Write args.
 		t := n.Left.Type
 		args := n.Rlist.Slice()
